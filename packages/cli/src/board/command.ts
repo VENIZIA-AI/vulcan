@@ -6,6 +6,7 @@ import type { ICommandContext } from '../common/index.ts';
 import { FlowId } from '../events/flow-id.ts';
 import { EventLog } from '../events/log.ts';
 import { EventSettings } from '../events/settings.ts';
+import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { ThemeTokens } from '../theme/index.ts';
 import type { IThemeTokens } from '../theme/index.ts';
 import { BoardConstants, BoardFlags, BoardServe, BoardStates } from './common/index.ts';
@@ -210,6 +211,7 @@ export class BoardCommand {
         hostname,
         collect,
         tokens: BoardCommand.tokensOf({ root: opts.root }),
+        openFolder: ProjectTmp.projectOf({ root: opts.root }),
       });
 
       if (note !== undefined) {
@@ -221,12 +223,14 @@ export class BoardCommand {
       );
       process.stdout.write(`${url}\n`);
 
-      // The program that opens the browser gets an address with a one-time code, never the token: its
-      // arguments are visible to other users of the machine. The server turns the code into the page.
-      const target = args.open ? BoardServer.openUrl() : undefined;
+      // The program that opens the browser gets a page that only the owner can read and that holds the
+      // token, never the token itself: its arguments are visible to other users of the machine.
+      const target = args.open ? BoardServer.openFile() : undefined;
 
       if (target !== undefined) {
         opts.opener({ target, fallback: url });
+      } else if (args.open) {
+        process.stderr.write(`board: could not open it; open ${url} yourself\n`);
       }
     } catch (error) {
       process.stderr.write(

@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, test } from 'bun:test';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { BoardCommand } from '../../board/command.ts';
 import { BoardServe } from '../../board/common/index.ts';
 import { BoardServer } from '../../board/server.ts';
@@ -123,29 +123,6 @@ describe('BoardServer.check: who may read the board', () => {
     expect(check({ method: 'POST', token: null })).toEqual({ status: 403 });
   });
 
-  test('the open route needs no token, but the Host, the Origin and GET', () => {
-    expect(check({ path: '/open/abc123', token: null })).toEqual({
-      status: 200,
-      route: 'open',
-      code: 'abc123',
-    });
-    expect(check({ path: '/open/abc123', token: null, host: null })).toEqual({ status: 403 });
-    expect(check({ path: '/open/abc123', token: null, host: `evil.example:${PORT}` })).toEqual({
-      status: 403,
-    });
-    expect(check({ path: '/open/abc123', token: null, origin: 'http://evil.example' })).toEqual({
-      status: 403,
-    });
-    expect(check({ path: '/open/abc123', token: null, method: 'POST' })).toEqual({ status: 405 });
-  });
-
-  test.each([['/open/'], ['/open'], ['/open/a/b'], ['/opened/abc']])(
-    'the path %s is not an open route: it needs the token like any other',
-    (path) => {
-      expect(check({ path, token: null })).toEqual({ status: 403 });
-    },
-  );
-
   test('an unknown route is 404, and only for a caller that passed the checks', () => {
     expect(check({ path: '/admin' })).toEqual({ status: 404 });
     expect(check({ path: '/admin', token: null })).toEqual({ status: 403 });
@@ -236,132 +213,117 @@ const openStream = async (opts: {
   return { next, status: response.status, close: () => controller.abort() };
 };
 
-describe('BoardServer.openUrl: the one-time address for the program that opens the browser', () => {
+describe('BoardServer.openFile: the page the program that opens the browser is given', () => {
   const tokenOf = (server: { url: string }): string =>
     new URL(server.url).searchParams.get(BoardServe.TOKEN_PARAM) ?? '';
-  const start = async (opts: { now?: () => number } = {}) => {
+  const start = async (opts: { openFileTtlMs?: number; openFolder?: string } = {}) => {
     const { root, dir } = projectWithLog();
+    const openFolder = opts.openFolder ?? join(root, '.agents/local/tmp');
     const server = await BoardServer.start({
       port: 0,
       dir,
       collect: () =>
         BoardCommand.collect({ root, dir, since: SINCE, args: { repos: [], noGithub: true } }),
-      ...(opts.now === undefined ? {} : { now: opts.now }),
+      openFolder,
+      ...(opts.openFileTtlMs === undefined ? {} : { openFileTtlMs: opts.openFileTtlMs }),
     });
 
-    return server;
+    return { server, openFolder };
+  };
+  const gone = async (path: string): Promise<boolean> => {
+    for (let waited = 0; waited < 3000; waited += 20) {
+      if (!existsSync(path)) {
+        return true;
+      }
+
+      await Bun.sleep(20);
+    }
+
+    return false;
   };
 
   test('there is none before the server runs or after it stops', async () => {
-    expect(BoardServer.openUrl()).toBeUndefined();
+    expect(BoardServer.openFile()).toBeUndefined();
 
     await start();
-    expect(BoardServer.openUrl()).toBeDefined();
+    expect(BoardServer.openFile()).toBeDefined();
 
     await BoardServer.stop();
-    expect(BoardServer.openUrl()).toBeUndefined();
+    expect(BoardServer.openFile()).toBeUndefined();
   });
 
-  test('the address names the configured host and port, and holds a code but not the token', async () => {
-    const server = await start();
-    const token = tokenOf(server);
-    const target = BoardServer.openUrl() ?? '';
-    const url = new URL(target);
+  test('it is a file only its owner can read, in the folder given, with no token in its path', async () => {
+    const { server, openFolder } = await start();
+    const path = BoardServer.openFile() ?? '';
 
-    expect(url.host).toBe(new URL(server.url).host);
-    expect(url.pathname).toMatch(/^\/open\/[0-9a-f]{32}$/);
-    expect(url.search).toBe('');
-    expect(url.hash).toBe('');
-    expect(token).toMatch(/^[0-9a-f]{32}$/);
-    expect(target).not.toContain(token);
+    expect(dirname(path)).toBe(openFolder);
+    expect(basename(path)).toMatch(/^board-open-[0-9a-f]{32}\.html$/);
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+    expect(path).not.toContain(tokenOf(server));
   });
 
-  test('the code moves the page to the address with the token, once', async () => {
-    const server = await start();
-    const token = tokenOf(server);
-    const target = BoardServer.openUrl() ?? '';
-    const first = await fetch(target, { redirect: 'manual' });
-    const second = await fetch(target, { redirect: 'manual' });
-    const landed = await fetch(new URL(first.headers.get('location') ?? '', target));
+  test('it sends the browser to the printed address and links to it', async () => {
+    const { server } = await start();
+    const body = readFileSync(BoardServer.openFile() ?? '', 'utf8');
 
-    expect(first.status).toBe(302);
-    expect(first.headers.get('location')).toBe(
-      `${BoardServe.PAGE_PATH}?${BoardServe.TOKEN_PARAM}=${token}`,
-    );
-    expect(first.headers.get('cache-control')).toBe('no-store');
-    expect(first.headers.get('referrer-policy')).toBe('no-referrer');
-    expect(second.status).toBe(403);
-    const result = await second.text();
-    expect(result).toBe('');
-    expect(landed.status).toBe(200);
+    expect(body).toContain(`<meta http-equiv="refresh" content="0;url=${server.url}">`);
+    expect(body).toContain(`<a href="${server.url}">`);
   });
 
-  test('the code expires', async () => {
-    let clock = 1_000;
-    await start({ now: () => clock });
-
-    const target = BoardServer.openUrl() ?? '';
-
-    clock += BoardServe.OPEN_CODE_TTL_MS + 1;
-    const result = await fetch(target, { redirect: 'manual' });
-    expect(result.status).toBe(403);
-  });
-
-  test('a code is good for a little while before it expires', async () => {
-    let clock = 1_000;
-    await start({ now: () => clock });
-
-    const target = BoardServer.openUrl() ?? '';
-
-    clock += BoardServe.OPEN_CODE_TTL_MS - 1;
-    const result = await fetch(target, { redirect: 'manual' });
-    expect(result.status).toBe(302);
-  });
-
-  test('a wrong code is 403 with no body and does not use up the real one', async () => {
-    await start();
-
-    const target = BoardServer.openUrl() ?? '';
-    const wrong = new URL(target);
-
-    wrong.pathname = `/open/${'0'.repeat(32)}`;
-
-    const refused = await fetch(wrong, { redirect: 'manual' });
+  test('it is removed by the first request that carries the token, and not by one that does not', async () => {
+    const { server } = await start();
+    const path = BoardServer.openFile() ?? '';
+    const refused = await fetch(server.url.split('?')[0]);
 
     expect(refused.status).toBe(403);
-    const result = await refused.text();
-    expect(result).toBe('');
-    const result2 = await fetch(target, { redirect: 'manual' });
-    expect(result2.status).toBe(302);
+    expect(existsSync(path)).toBe(true);
+
+    const page = await fetch(server.url);
+
+    expect(page.status).toBe(200);
+    const result = await gone(path);
+    expect(result).toBe(true);
   });
 
-  test('a new code replaces the old one', async () => {
+  test('it is removed after the time allowed', async () => {
+    await start({ openFileTtlMs: 50 });
+
+    const path = BoardServer.openFile() ?? '';
+
+    expect(existsSync(path)).toBe(true);
+    const result = await gone(path);
+    expect(result).toBe(true);
+  });
+
+  test('it is removed when the server stops', async () => {
     await start();
 
-    const older = BoardServer.openUrl() ?? '';
-    const newer = BoardServer.openUrl() ?? '';
+    const path = BoardServer.openFile() ?? '';
 
-    const result = await fetch(older, { redirect: 'manual' });
-    expect(result.status).toBe(403);
-    const result2 = await fetch(newer, { redirect: 'manual' });
-    expect(result2.status).toBe(302);
+    expect(existsSync(path)).toBe(true);
+
+    await BoardServer.stop();
+
+    expect(existsSync(path)).toBe(false);
   });
 
-  test('a foreign Host or Origin does not get the token from a good code, and the code stays good', async () => {
-    const server = await start();
-    const target = BoardServer.openUrl() ?? '';
-    const foreignHost = await fetch(target, {
-      redirect: 'manual',
-      headers: { host: `evil.localhost:${new URL(server.url).port}` },
-    });
-    const foreignOrigin = await fetch(target, {
-      redirect: 'manual',
-      headers: { origin: 'http://evil.example' },
-    });
+  test('a new file replaces the one before it', async () => {
+    await start();
 
-    expect([foreignHost.status, foreignOrigin.status]).toEqual([403, 403]);
-    const result = await fetch(target, { redirect: 'manual' });
-    expect(result.status).toBe(302);
+    const older = BoardServer.openFile() ?? '';
+    const newer = BoardServer.openFile() ?? '';
+
+    expect(older).not.toBe(newer);
+    expect(existsSync(older)).toBe(false);
+    expect(existsSync(newer)).toBe(true);
+  });
+
+  test('a folder that cannot be made gives no file and no throw', async () => {
+    const { root } = projectWithLog();
+
+    await start({ openFolder: join(root, '.agents/vulcan.manifest.json/inner') });
+
+    expect(BoardServer.openFile()).toBeUndefined();
   });
 });
 
@@ -720,7 +682,7 @@ describe('vulcan board serve', () => {
     expect(reached).toBe(false);
   });
 
-  test('the token is never written to the project: no file holds it, and the event log is untouched', async () => {
+  test('without --open the token is never written to the project: no file holds it, and the event log is untouched', async () => {
     const { root, dir } = projectWithLog();
     const before = readdirSync(dir).map((name) => statSync(join(dir, name)).size);
     const server = await startOn({ root, dir, port: 0 });

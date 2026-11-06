@@ -3,6 +3,7 @@ import type { Server } from 'bun';
 import { BoardRoutes, BoardServe } from './common/index.ts';
 import type { IThemeTokens } from '../theme/index.ts';
 import type { IBoardData, TBoardRoute } from './common/index.ts';
+import { BoardOpenFile } from './open-file.ts';
 import { BoardPage } from './page.ts';
 import { BoardWatch } from './watch.ts';
 
@@ -17,8 +18,10 @@ interface IBoardServerOptions {
   /** The design tokens of the page; default the default preset. */
   tokens?: IThemeTokens;
   maxSnapshotBytes?: number;
-  /** The clock for the life of an open code, in milliseconds; default `Date.now`. */
-  now?: () => number;
+  /** The folder for the page `openFile` writes: the project's tmp folder. */
+  openFolder?: string;
+  /** How long that page stays when nothing reads the board; default `BoardServe.OPEN_FILE_TTL_MS`. */
+  openFileTtlMs?: number;
 }
 
 interface IBoardServerRun {
@@ -29,11 +32,12 @@ interface IBoardServerRun {
   max: number;
   stopWatch: () => void;
   timers: ReturnType<typeof setInterval>[];
-  /** The address the page is served under, without a path. */
-  origin: string;
-  now: () => number;
-  /** The one open code that works, if any: a new one replaces it. */
-  open?: { code: string; expiresAt: number };
+  /** The address with the token, as printed. */
+  url: string;
+  openFolder?: string;
+  openFileTtlMs: number;
+  /** The page `openFile` wrote, if it is still there. */
+  openFile?: { path: string; timer: ReturnType<typeof setTimeout> };
 }
 
 const PAGE_HEADERS = {
@@ -54,7 +58,7 @@ const encoder = new TextEncoder();
 
 /**
  * `vulcan board serve`: the board on 127.0.0.1, and a stream that sends the next snapshot when the event log changes.
- * It writes nothing of the project; every request must carry this run's token (or the one-time open code) and a local Host and Origin.
+ * It writes nothing of the project; every request must carry this run's token and a local Host and Origin.
  */
 export class BoardServer {
   private static run: IBoardServerRun | undefined;
@@ -68,7 +72,7 @@ export class BoardServer {
     port: number;
     token: string;
     hostname: string;
-  }): { status: number; route?: TBoardRoute; code?: string } {
+  }): { status: number; route?: TBoardRoute } {
     const names = [
       `127.0.0.1:${opts.port}`,
       `localhost:${opts.port}`,
@@ -86,16 +90,6 @@ export class BoardServer {
     }
 
     const url = new URL(opts.url);
-
-    const code = url.pathname.startsWith(BoardServe.OPEN_PATH)
-      ? url.pathname.slice(BoardServe.OPEN_PATH.length)
-      : '';
-
-    if (code !== '' && !code.includes('/')) {
-      return opts.method === 'GET'
-        ? { status: 200, route: BoardRoutes.OPEN, code }
-        : { status: 405 };
-    }
 
     const given = url.searchParams.get(BoardServe.TOKEN_PARAM);
 
@@ -172,8 +166,9 @@ export class BoardServer {
       max,
       stopWatch: () => undefined,
       timers: [],
-      origin: `http://${hostname}:${server.port}`,
-      now: opts.now ?? Date.now,
+      url: '',
+      ...(opts.openFolder === undefined ? {} : { openFolder: opts.openFolder }),
+      openFileTtlMs: opts.openFileTtlMs ?? BoardServe.OPEN_FILE_TTL_MS,
     };
     const publish = (): void => {
       const data = BoardServer.snapshotOf({ collect: opts.collect });
@@ -202,48 +197,64 @@ export class BoardServer {
 
     const path = BoardServer.pathWithToken({ path: BoardServe.PAGE_PATH, token });
 
+    run.url = `http://${hostname}:${server.port}${path}`;
+
     return {
-      url: `http://${hostname}:${server.port}${path}`,
+      url: run.url,
       fallback: `http://${BoardServe.HOST}:${server.port}${path}`,
       ...(note === undefined ? {} : { note }),
     };
   }
 
   /**
-   * A fresh address for the program that opens the browser, `/open/<code>`: it holds no token. The code works once and
-   * for `OPEN_CODE_TTL_MS`, and a call replaces the code before it; the server answers it with a redirect to the page
-   * with the token. `undefined` when no server runs.
+   * The page for the program that opens the browser: a file only its owner can read, in `openFolder`, that sends the
+   * browser to the address with the token. The path is not a secret, so it may be in an argument list. The file is
+   * removed by the first request that carries the token, after `openFileTtlMs` and when the server stops; a new call
+   * removes the one before it. `undefined` when no server runs or the file cannot be written.
    */
-  static openUrl(): string | undefined {
+  static openFile(): string | undefined {
     const { run } = BoardServer;
 
-    if (run === undefined) {
+    if (run === undefined || run.openFolder === undefined) {
       return undefined;
     }
 
-    const code = randomBytes(BoardServe.OPEN_CODE_BYTES).toString('hex');
+    BoardServer.dropOpenFile();
 
-    run.open = { code, expiresAt: run.now() + BoardServe.OPEN_CODE_TTL_MS };
+    try {
+      const path = BoardOpenFile.write({ folder: run.openFolder, url: run.url });
+      const timer = setTimeout(() => BoardServer.dropOpenFile(), run.openFileTtlMs);
 
-    return `${run.origin}${BoardServe.OPEN_PATH}${code}`;
+      timer.unref();
+      run.openFile = { path, timer };
+
+      return path;
+    } catch (error) {
+      process.stderr.write(
+        `board: cannot write the page that opens the browser: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+
+      return undefined;
+    }
   }
 
-  /** Whether `code` is the live open code; it is used up when it is. A wrong code leaves the live one alone. */
-  private static redeem(opts: { code: string }): boolean {
-    const { run } = BoardServer;
-    const open = run?.open;
+  private static dropOpenFile(): void {
+    const file = BoardServer.run?.openFile;
 
-    if (
-      run === undefined ||
-      open === undefined ||
-      !BoardServer.isToken({ given: opts.code, token: open.code })
-    ) {
-      return false;
+    if (BoardServer.run === undefined || file === undefined) {
+      return;
     }
 
-    run.open = undefined;
+    BoardServer.run.openFile = undefined;
+    clearTimeout(file.timer);
 
-    return run.now() <= open.expiresAt;
+    try {
+      BoardOpenFile.remove({ path: file.path });
+    } catch (error) {
+      process.stderr.write(
+        `board: cannot remove ${file.path}: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+    }
   }
 
   /** Stops the server, the watch and the timers, and ends every open stream. */
@@ -254,6 +265,7 @@ export class BoardServer {
       return;
     }
 
+    BoardServer.dropOpenFile();
     BoardServer.run = undefined;
     run.stopWatch();
 
@@ -337,6 +349,10 @@ export class BoardServer {
       hostname: opts.hostname,
     });
 
+    if (verdict.route !== undefined) {
+      BoardServer.dropOpenFile();
+    }
+
     if (verdict.route === BoardRoutes.PAGE) {
       const data = BoardServer.snapshotOf({ collect: opts.collect });
 
@@ -349,19 +365,6 @@ export class BoardServer {
       return new Response(BoardPage.render({ data: { ...data, live }, tokens: opts.tokens }), {
         headers: PAGE_HEADERS,
       });
-    }
-
-    if (verdict.route === BoardRoutes.OPEN) {
-      return verdict.code !== undefined && BoardServer.redeem({ code: verdict.code })
-        ? new Response(null, {
-            status: 302,
-            headers: {
-              location: BoardServer.pathWithToken({ path: BoardServe.PAGE_PATH, token }),
-              'cache-control': 'no-store',
-              'referrer-policy': 'no-referrer',
-            },
-          })
-        : new Response(null, { status: 403 });
     }
 
     if (verdict.route === BoardRoutes.STREAM) {
