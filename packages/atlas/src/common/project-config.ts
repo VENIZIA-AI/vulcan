@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { GitArgument } from './git-argument';
 import { WireValue } from './wire';
 import { LibraryKinds, PackageKinds, SourcePins } from './constants';
 import type { TAppSide, TLibraryKind, TPackageKind, TSourcePin } from './types';
@@ -260,13 +261,19 @@ export class ProjectConfig {
             ? source.pin
             : undefined;
 
-        return name === undefined || repo === undefined
+        const ref = WireValue.stringOf({ value: source.ref }) ?? 'develop';
+
+        // A repository or a ref that starts with '-' is not one git can be given: the source is left out.
+        return name === undefined ||
+          repo === undefined ||
+          GitArgument.isOptionLike({ value: repo }) ||
+          GitArgument.isOptionLike({ value: ref })
           ? []
           : [
               {
                 name,
                 repo,
-                ref: WireValue.stringOf({ value: source.ref }) ?? 'develop',
+                ref,
                 ...(pin === undefined ? {} : { pin }),
               },
             ];

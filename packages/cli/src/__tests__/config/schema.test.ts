@@ -90,6 +90,17 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     );
   });
 
+  test("a source's repo and ref are values for git, not options: one that starts with '-' is refused", () => {
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: 'a', repo: '--version' }] } }),
+    ).toThrow("it must not start with '-'");
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({
+        atlas: { sources: [{ name: 'a', repo: 'acme/a', ref: '-x' }] },
+      }),
+    ).toThrow("it must not start with '-'");
+  });
+
   test('a source defaults its ref to develop', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }] },

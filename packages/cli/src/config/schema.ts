@@ -375,9 +375,16 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
             /** Identifier of the source in atlas results. */
             name: z.string(),
             /** GitHub repository of the source, as `owner/repo`. */
-            repo: z.string(),
+            repo: z.string().refine((value) => !value.trimStart().startsWith('-'), {
+              message: "a repository, not an option: it must not start with '-'",
+            }),
             /** Branch, tag or commit the source is indexed at; default `develop`. */
-            ref: z.string().default('develop'),
+            ref: z
+              .string()
+              .refine((value) => !value.trimStart().startsWith('-'), {
+                message: "a ref, not an option: it must not start with '-'",
+              })
+              .default('develop'),
             /** `installed` (default): the docs are read at the tag of the newest installed package; `ref`: at `ref`. */
             pin: z.enum(['installed', 'ref']).optional(),
           }),

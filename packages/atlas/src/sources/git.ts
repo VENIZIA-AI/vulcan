@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, rmSync } from 'node:fs';
 import { AtlasTimeouts } from '@/common/constants';
+import { GitArgument } from '@/common/git-argument';
 import { StderrLogger } from '@/common/logger';
 import type { IRemoteRef } from './common';
 
@@ -12,6 +13,13 @@ const FULL_SHA_LENGTH = 40;
 const TAGS_FINGERPRINT_LENGTH = 16;
 
 export class GitRepository {
+  /** A repository or a ref that git would read as an option is refused before any git call: it never reaches the command line. */
+  static assertNotOption(opts: { name: string; value: string }): void {
+    if (GitArgument.isOptionLike({ value: opts.value })) {
+      throw new Error(`the ${opts.name} must not start with '-'`);
+    }
+  }
+
   /** A call that hangs must not hang the server's start: past `timeout` it is killed, and fails. */
   static run(opts: { cwd?: string; args: string[]; timeout?: number }): string {
     const result = spawnSync('git', opts.args, {
@@ -75,8 +83,11 @@ export class GitRepository {
     let listed: string;
 
     try {
+      GitRepository.assertNotOption({ name: 'repository', value: opts.url });
+      GitRepository.assertNotOption({ name: 'ref', value: opts.ref });
       listed = GitRepository.run({
-        args: ['ls-remote', opts.url, opts.ref, `${opts.ref}^{}`, 'refs/tags/*'],
+        // `--`: the repository is never read as an option.
+        args: ['ls-remote', '--', opts.url, opts.ref, `${opts.ref}^{}`, 'refs/tags/*'],
         timeout: AtlasTimeouts.REF_LOOKUP_MS,
       });
     } catch (error) {
@@ -138,6 +149,8 @@ export class GitRepository {
    * Symlinks check out as plain files: a fetched tree's link can point anywhere on the machine.
    */
   static updateClone(opts: { url: string; gitDir: string; sha?: string }): void {
+    GitRepository.assertNotOption({ name: 'repository', value: opts.url });
+
     const exists = GitRepository.hasClone(opts);
 
     if (!exists && existsSync(opts.gitDir)) {
@@ -156,13 +169,14 @@ export class GitRepository {
           '--filter=blob:none',
           '--tags',
           '--force',
+          '--',
           opts.url,
           '+refs/heads/*:refs/heads/*',
         ],
       });
     } else {
       GitRepository.run({
-        args: ['clone', '-q', '--bare', '--filter=blob:none', opts.url, opts.gitDir],
+        args: ['clone', '-q', '--bare', '--filter=blob:none', '--', opts.url, opts.gitDir],
       });
     }
 
