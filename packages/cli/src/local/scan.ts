@@ -524,7 +524,8 @@ export class LocalScan {
         const inUse = LocalProtected.noteOf({ scope: layout.name, name });
 
         if (inUse !== undefined) {
-          ({ removable, note } = { removable: false, note: inUse });
+          // Not stale either: it is in use, and doctor must not tell anyone to clean what clean never takes.
+          ({ state, removable, note } = { state: LocalStates.OK, removable: false, note: inUse });
         }
 
         entries.push({

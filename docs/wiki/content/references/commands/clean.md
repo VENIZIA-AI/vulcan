@@ -34,7 +34,7 @@ vulcan clean: dry run, nothing is removed (add --yes)
 would remove 1 item(s), 2.9 MB
 ```
 
-With `--yes` it removes them, and a second run finds nothing:
+With `--yes` it removes the stale ones and keeps the rest:
 
 ```text
 $ bun x --no-install vulcan clean --yes

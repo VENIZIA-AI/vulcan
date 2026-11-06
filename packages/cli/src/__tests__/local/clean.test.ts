@@ -1150,3 +1150,22 @@ describe('vulcan clean --events and the configured log', () => {
     expect(existsSync(join(root, 'package.json'))).toBe(true);
   });
 });
+
+describe('what a live session uses is not stale to doctor either', () => {
+  test('a stale task folder of Claude Code is kept by clean and not reported by doctor; a look-alike name is a normal item', async () => {
+    const root = repository();
+
+    file({ root, path: 'tmp/claude-1000/tasks/out.txt', ageDays: 9 });
+    file({ root, path: 'tmp/claude-notes/a.txt', ageDays: 9 });
+
+    const plan = LocalClean.plan({ root, scopes: ['tmp'] });
+
+    expect(names({ entries: plan.keep })).toEqual(['tmp/claude-1000']);
+    expect(names({ entries: plan.remove })).toEqual(['tmp/claude-notes']);
+
+    const result = await DoctorRunner.runChecks({ root });
+    const warnings = result.map((violation) => violation.file);
+
+    expect(warnings.some((path) => path?.includes('claude-1000'))).toBe(false);
+  });
+});

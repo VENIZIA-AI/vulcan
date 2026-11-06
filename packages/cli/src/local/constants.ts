@@ -1,3 +1,5 @@
+import { SignalConstants } from '../signals/constants.ts';
+
 /** The state of one thing under `.agents/local/`, as `clean` and `doctor` read it. */
 export class LocalStates {
   static readonly OK = 'ok';
@@ -88,20 +90,16 @@ export class LocalConstants {
 /** What `clean` and the automatic clean never take, because a live session is using it. */
 export class LocalProtected {
   /** Claude Code's folder for the output of its background tasks: `tmp/claude-<uid>`. */
-  static readonly CLAUDE_TASKS_PREFIX = 'claude-';
-  /** The signals the hooks append to: `cache/signals.jsonl`. */
-  static readonly SIGNALS_FILE = 'signals.jsonl';
+  static readonly CLAUDE_TASKS = /^claude-\d+$/;
 
   /** Why the item is never removed, or undefined when it may be. */
   static noteOf(opts: { scope: string; name: string }): string | undefined {
-    if (
-      opts.scope === CleanScopes.TMP &&
-      opts.name.startsWith(LocalProtected.CLAUDE_TASKS_PREFIX)
-    ) {
+    if (opts.scope === CleanScopes.TMP && LocalProtected.CLAUDE_TASKS.test(opts.name)) {
       return "in use: Claude Code's background task output; never removed";
     }
 
-    if (opts.scope === CleanScopes.CACHE && opts.name === LocalProtected.SIGNALS_FILE) {
+    // The signals log: the one file the hooks append to, named once in the signals module.
+    if (`${opts.scope}/${opts.name}` === SignalConstants.LOG_FILE) {
       return 'in use: the hooks append to it; never removed';
     }
 
