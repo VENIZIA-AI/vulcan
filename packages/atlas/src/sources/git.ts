@@ -189,7 +189,7 @@ export class GitRepository {
     ) {
       GitRepository.run({
         cwd: opts.gitDir,
-        args: ['fetch', '-q', '--filter=blob:none', opts.url, opts.sha],
+        args: ['fetch', '-q', '--filter=blob:none', '--', opts.url, opts.sha],
       });
     }
   }
@@ -197,7 +197,7 @@ export class GitRepository {
   static setSparsePaths(opts: { directory: string; paths: string[] }): void {
     GitRepository.run({
       cwd: opts.directory,
-      args: ['sparse-checkout', 'set', '--cone', ...opts.paths],
+      args: ['sparse-checkout', 'set', '--cone', '--', ...opts.paths],
     });
     GitRepository.run({ cwd: opts.directory, args: ['read-tree', '-mu', 'HEAD'] });
   }

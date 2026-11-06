@@ -263,9 +263,11 @@ export class ProjectConfig {
 
         const ref = WireValue.stringOf({ value: source.ref }) ?? 'develop';
 
-        // A repository or a ref that starts with '-' is not one git can be given: the source is left out.
+        // A name that could be read as a flag, and a repository or a ref that starts with '-', are not values a
+        // command line can be given: the source is left out.
         return name === undefined ||
           repo === undefined ||
+          !GitArgument.isSourceName({ value: name }) ||
           GitArgument.isOptionLike({ value: repo }) ||
           GitArgument.isOptionLike({ value: ref })
           ? []

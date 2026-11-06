@@ -47,10 +47,24 @@ describe('sources of the manifest', () => {
           { name: 'good', repo: 'acme/good', ref: 'develop' },
           { name: 'bad-repo', repo: '--version', ref: 'develop' },
           { name: 'bad-ref', repo: 'acme/other', ref: '-x' },
+          { name: '--only', repo: 'acme/flag', ref: 'develop' },
+          { name: 'bad name', repo: 'acme/space', ref: 'develop' },
         ],
       },
     });
 
     expect(project.sources.map((source) => source.name)).toEqual(['good']);
+  });
+});
+
+describe('GitArgument.isSourceName', () => {
+  test('a source name is a plain name that no program reads as a flag', () => {
+    for (const value of ['ignis', 'ignis-2.core_x', 'a1']) {
+      expect(GitArgument.isSourceName({ value }), value).toBe(true);
+    }
+
+    for (const value of ['--only', '-x', '.hidden', 'a b', '', 'a/b', 'a\nb']) {
+      expect(GitArgument.isSourceName({ value }), value).toBe(false);
+    }
   });
 });

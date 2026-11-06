@@ -372,8 +372,13 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       sources: z
         .array(
           z.strictObject({
-            /** Identifier of the source in atlas results. */
-            name: z.string(),
+            /** Identifier of the source in atlas results: letters, digits, `_`, `.` and `-`, starting with a letter or a digit. */
+            name: z
+              .string()
+              .regex(
+                /^[A-Za-z0-9][\w.-]*$/,
+                'a name of letters, digits, _ . and -, starting with a letter or a digit',
+              ),
             /** GitHub repository of the source, as `owner/repo`. */
             repo: z.string().refine((value) => !value.trimStart().startsWith('-'), {
               message: "a repository, not an option: it must not start with '-'",
