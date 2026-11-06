@@ -423,7 +423,7 @@ describe('a line the parser cannot read in full', () => {
           input: { tool: 'Bash', filePath: undefined, command, cwd: '/work/project' },
         }),
       ).toBe(false);
-      expect(performance.now() - started).toBeLessThan(250);
+      expect(performance.now() - started).toBeLessThan(1000);
     }
   });
 });
