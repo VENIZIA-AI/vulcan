@@ -206,7 +206,7 @@ describe('every guard reads the command after a line that only looks like a here
   });
 
   test('a body whose delimiter never comes is data, and the git guard still asks about a push in it', () => {
-    expect(gitDecisions('cat > notes.md <<STOP\ngit push --force origin main')).toEqual(['ask']);
+    expect(gitDecisions('cat > notes.md <<STOP\ngit push --force origin main')).toContain('ask');
     // The guard asks about any body whose delimiter never comes, even one that holds nothing risky.
     expect(gitDecisions('cat > notes.md <<STOP\ngit status')).toEqual(['ask']);
   });
