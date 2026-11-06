@@ -4,7 +4,7 @@ import { alignmentSpec } from './alignment.fixture.ts';
 import { BrowserPage } from './browser.helper.ts';
 
 /**
- * The top bar stays inside the screen. Measured in a real browser at 390 px with a long title: the page does not
+ * The top bar stays inside the screen. Measured in a real browser at 390, 600 and 860 px with a long title: the page does not
  * scroll sideways and the controls (present, the theme switch) end inside the viewport; the title is what gives way.
  *
  * It needs Chrome or Chromium; without one the measuring tests are skipped and the last test says so.
@@ -27,8 +27,9 @@ const htmlOf = (opts: { title: string }): string => {
   return result.page.html;
 };
 
-// The width asked of the browser, not `window.innerWidth`: a phone widens its layout viewport to fit what overflows.
-const VIEWPORT = 390;
+// The widths asked of the browser, not `window.innerWidth`: a phone widens its layout viewport to fit what overflows.
+// 390 is a phone; 600 and 860 are the band where the present button is shown next to the switch.
+const WIDTHS = [390, 600, 860];
 
 const MEASURE_BAR = `(() => {
   const edge = (selector) => { const box = document.querySelector(selector)?.getBoundingClientRect(); return box ? Math.round(box.right) : null; };
@@ -36,7 +37,7 @@ const MEASURE_BAR = `(() => {
     scroll: document.documentElement.scrollWidth,
     theme: edge('.top #theme'),
     nav: edge('.top nav'),
-    title: edge('.top .ttl'),
+    present: edge('.top #present'),
   };
 })()`;
 
@@ -44,21 +45,24 @@ const hasBrowser = await BrowserPage.available();
 
 afterAll(() => BrowserPage.close());
 
-describe.skipIf(!hasBrowser)('the top bar stays inside 390 px (measured in a browser)', () => {
+describe.skipIf(!hasBrowser)('the top bar stays inside the screen (measured in a browser)', () => {
   for (const [name, title] of Object.entries(TITLES)) {
-    for (const dark of [false, true]) {
-      test(`${name}, ${dark ? 'dark' : 'light'}: no sideways scroll, the theme switch is on screen`, async () => {
-        const found = await BrowserPage.measure<{ scroll: number; theme: number; nav: number }>({
-          html: htmlOf({ title }),
-          width: VIEWPORT,
-          dark,
-          expression: MEASURE_BAR,
-        });
+    for (const width of WIDTHS) {
+      for (const dark of [false, true]) {
+        test(`${width} px, ${name}, ${dark ? 'dark' : 'light'}: no sideways scroll, the switch and present are on screen`, async () => {
+          const found = await BrowserPage.measure<{
+            scroll: number;
+            theme: number;
+            nav: number;
+            present: number | null;
+          }>({ html: htmlOf({ title }), width, dark, expression: MEASURE_BAR });
 
-        expect(found.scroll).toBeLessThanOrEqual(VIEWPORT);
-        expect(found.theme).toBeLessThanOrEqual(VIEWPORT);
-        expect(found.nav).toBeLessThanOrEqual(VIEWPORT);
-      });
+          expect(found.scroll).toBeLessThanOrEqual(width);
+          expect(found.theme).toBeLessThanOrEqual(width);
+          expect(found.nav).toBeLessThanOrEqual(width);
+          expect(found.present ?? 0).toBeLessThanOrEqual(width);
+        });
+      }
     }
   }
 });
