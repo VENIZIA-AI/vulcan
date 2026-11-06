@@ -142,7 +142,7 @@ The blanket stage ask exists because a formatter run followed by `git add -A` on
 
 `git push -fu`, `git branch -m develop x`, `git update-ref -d refs/heads/develop` and `git push --mirror` are read too. A heredoc body (a commit message passed with `<<'EOF'`) is data and is not read as commands; a body fed to a shell (`bash <<EOF`) is a script and is read as commands.
 
-The branch checks run read-only `git` and `gh` queries with a five-second limit, at most four for one command line (past them the guard asks); a query that fails or times out lets the command pass. Input the hook cannot read passes too. A hook that crashes or times out asks, for a command that names `git` or `gh` (see [How the hooks fail](#how-the-hooks-fail)). `VULCAN_GUARDS=off` in the environment switches the guard off for a session; it is read before any module is loaded, so it still works when an install is broken and the guard cannot start.
+The branch checks run read-only `git` and `gh` queries with a five-second limit. A `git` query runs inert: the repository's `core.fsmonitor`, `core.hooksPath`, `core.sshCommand` and `core.pager` are set to values that name no program, no optional lock is taken, and `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` are dropped from its environment. At most four run for one command line; a query that fails or times out lets the command pass. Input the hook cannot read passes too. A hook that crashes or times out asks, for a command that names `git` or `gh` (see [How the hooks fail](#how-the-hooks-fail)). `VULCAN_GUARDS=off` in the environment switches the guard off for a session; it is read before any module is loaded, so it still works when an install is broken and the guard cannot start.
 
 ### What the guards are, and are not
 

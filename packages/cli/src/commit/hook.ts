@@ -11,6 +11,11 @@ const MARKER = '# vulcan:commit-msg';
 /** The marker line, then the folder of the project that wrote it in brackets; a hook of an earlier release has no brackets. */
 const OWNER = new RegExp(`^${MARKER}(?: \\[([^\\]]*)\\])?`);
 const CALL = /vulcan\s+commit-check/;
+/** A line break, or any other control character: a folder name that holds one cannot be written into the hook text. */
+const CONTROL_CHARACTER = /\p{Cc}/u;
+const CONTROL_CHARACTERS = /\p{Cc}/gu;
+/** The escapes the marker line holds: `%` and `]`, and a control character as two hex digits. */
+const ESCAPE = /%(25|5D|[01][0-9A-F]|7F|[89][0-9A-F])/g;
 const COMMAND = 'bun x --no-install vulcan commit-check "$1"';
 
 const git = (opts: { root: string; args: string[] }): string | undefined => {
@@ -41,6 +46,10 @@ export class CommitHook {
    * no `commit-check` command (an older branch).
    */
   static template(opts: { prefix: string }): string {
+    if (!CommitHook.isWritable({ prefix: opts.prefix })) {
+      throw new Error(CommitHook.REFUSAL);
+    }
+
     const folder = CommitHook.folderOf({ prefix: opts.prefix });
     const enter = folder === '' ? '' : `cd ${CommitHook.quote({ text: folder })} || exit 0\n`;
 
@@ -73,16 +82,39 @@ exit "$status"
 `;
   }
 
-  /** A folder as the marker line spells it: `%` and `]` are escaped, so a name that holds a bracket cannot end the field. */
+  /** Why a project folder is refused: its name could end a line of the hook text and start another. */
+  static readonly REFUSAL =
+    'the project folder name holds a line break or another control character, so the commit-msg hook is not written';
+
+  /** Whether the hook text can name the folder: its name holds no line break and no other control character. */
+  static isWritable(opts: { prefix: string }): boolean {
+    return !CONTROL_CHARACTER.test(opts.prefix);
+  }
+
+  /**
+   * A folder as the marker line spells it: `%` and `]` are escaped, so a name that holds a bracket cannot end the
+   * field, and so is a control character, so the field stays on its line.
+   */
   private static encode(opts: { folder: string }): string {
-    return opts.folder.replaceAll('%', '%25').replaceAll(']', '%5D');
+    return opts.folder
+      .replaceAll('%', '%25')
+      .replaceAll(']', '%5D')
+      .replace(
+        CONTROL_CHARACTERS,
+        (char) => `%${(char.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(2, '0')}`,
+      );
   }
 
   private static decode(opts: { field: string }): string {
-    return opts.field.replaceAll('%5D', ']').replaceAll('%25', '%');
+    return opts.field.replace(ESCAPE, (_, code: string) =>
+      String.fromCodePoint(Number.parseInt(code, 16)),
+    );
   }
 
-  /** The project folder inside the repository, without the trailing slash; empty for the top level. */
+  /**
+   * The project folder inside the repository, without the trailing slash; empty for the top level. A folder that
+   * `isWritable` refuses is still named here, so a hook of another project is told apart from this one's.
+   */
   private static folderOf(opts: { prefix: string }): string {
     return opts.prefix.replace(/\/$/, '');
   }
@@ -141,6 +173,11 @@ exit "$status"
           };
     }
 
+    // Nothing is written for such a folder, whatever is there: the plan skips it and says why.
+    if (!CommitHook.isWritable({ prefix })) {
+      return { state: CommitHookStates.UNWIRED, path, note: CommitHook.REFUSAL };
+    }
+
     if (entry === undefined) {
       return { state: CommitHookStates.MISSING, path };
     }
@@ -177,8 +214,10 @@ exit "$status"
   }
 
   static write(opts: { path: string; prefix: string }): void {
+    const text = CommitHook.template({ prefix: opts.prefix });
+
     mkdirSync(dirname(opts.path), { recursive: true });
-    writeFileSync(opts.path, CommitHook.template({ prefix: opts.prefix }));
+    writeFileSync(opts.path, text);
     chmodSync(opts.path, 0o755);
   }
 }
