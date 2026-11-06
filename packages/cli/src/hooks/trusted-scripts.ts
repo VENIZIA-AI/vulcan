@@ -99,7 +99,10 @@ export class ScriptTrust {
       });
     }
 
-    const workBlob = GitQueries.run({ cwd: root, args: ['hash-object', '--', real] });
+    const workBlob = GitQueries.run({
+      cwd: root,
+      args: ['hash-object', '--no-filters', '--', real],
+    });
 
     if (workBlob === undefined) {
       return untrusted({
