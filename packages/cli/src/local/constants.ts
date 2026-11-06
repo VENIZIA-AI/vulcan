@@ -84,3 +84,27 @@ export class LocalConstants {
   /** A stray folder may belong to a browser that is running; one this old does not. */
   static readonly STRAY_MIN_AGE_MS = 60 * 60 * 1000;
 }
+
+/** What `clean` and the automatic clean never take, because a live session is using it. */
+export class LocalProtected {
+  /** Claude Code's folder for the output of its background tasks: `tmp/claude-<uid>`. */
+  static readonly CLAUDE_TASKS_PREFIX = 'claude-';
+  /** The signals the hooks append to: `cache/signals.jsonl`. */
+  static readonly SIGNALS_FILE = 'signals.jsonl';
+
+  /** Why the item is never removed, or undefined when it may be. */
+  static noteOf(opts: { scope: string; name: string }): string | undefined {
+    if (
+      opts.scope === CleanScopes.TMP &&
+      opts.name.startsWith(LocalProtected.CLAUDE_TASKS_PREFIX)
+    ) {
+      return "in use: Claude Code's background task output; never removed";
+    }
+
+    if (opts.scope === CleanScopes.CACHE && opts.name === LocalProtected.SIGNALS_FILE) {
+      return 'in use: the hooks append to it; never removed';
+    }
+
+    return undefined;
+  }
+}

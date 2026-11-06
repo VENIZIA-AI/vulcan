@@ -9,7 +9,7 @@ import {
   utimesSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { EventLog } from '../../events/log.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
@@ -66,8 +66,14 @@ const file = (opts: { root: string; path: string; text?: string; ageDays?: numbe
 
   if (opts.ageDays !== undefined) {
     const then = new Date(Date.now() - opts.ageDays * DAY);
+    const local = join(opts.root, '.agents/local');
 
     utimesSync(target, then, then);
+
+    // The age of an item is its newest change anywhere inside it: its folders get the date too.
+    for (let folder = join(target, '..'); dirname(folder) !== local; folder = dirname(folder)) {
+      utimesSync(folder, then, then);
+    }
   }
 };
 
@@ -311,7 +317,11 @@ describe('LocalClean.plan and runClean', () => {
       file({ root, path });
     }
 
-    const all = LocalClean.plan({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] });
+    const all = LocalClean.plan({
+      root,
+      scopes: ['tmp', 'worktrees', 'clones', 'cache'],
+      includeFresh: true,
+    });
 
     expect(names({ entries: all.remove })).toEqual(['cache/k', 'clones/c', 'tmp/a']);
 
@@ -361,7 +371,7 @@ describe('LocalClean.plan and runClean', () => {
 
     symlinkSync(outside, join(root, '.agents/local/tmp/link'));
 
-    const plan = LocalClean.plan({ root, scopes: ['tmp'] });
+    const plan = LocalClean.plan({ root, scopes: ['tmp'], includeFresh: true });
     const result = LocalClean.run({ root, plan });
 
     expect(result.removed).toHaveLength(1);
@@ -402,7 +412,7 @@ describe('vulcan clean', () => {
   test('is a dry run by default: it lists, and removes nothing', () => {
     const root = repository();
 
-    file({ root, path: 'tmp/job/a.txt', text: 'hello' });
+    file({ root, path: 'tmp/job/a.txt', text: 'hello', ageDays: 3 });
 
     const result = runCli({ args: ['clean'], cwd: root });
 
@@ -416,7 +426,7 @@ describe('vulcan clean', () => {
   test('--yes removes the default scope (tmp) and leaves the other scopes', () => {
     const root = repository();
 
-    file({ root, path: 'tmp/job/a.txt' });
+    file({ root, path: 'tmp/job/a.txt', ageDays: 3 });
     file({ root, path: 'cache/k/a.txt' });
     file({ root, path: 'reports/r.md' });
 
@@ -429,10 +439,89 @@ describe('vulcan clean', () => {
     expect(existsSync(join(root, '.agents/local/reports/r.md'))).toBe(true);
   });
 
+  test('by default only stale items go: a fresh one is kept with the reason, and --include-fresh takes it', () => {
+    const root = repository();
+
+    file({ root, path: 'tmp/old/a.txt', ageDays: 3 });
+    file({ root, path: 'tmp/live/a.txt' });
+    file({ root, path: 'clones/recent/a.txt', ageDays: 3 });
+    file({ root, path: 'clones/old/a.txt', ageDays: 20 });
+
+    const plan = LocalClean.plan({ root, scopes: ['tmp', 'clones'] });
+
+    expect(names({ entries: plan.remove })).toEqual(['clones/old', 'tmp/old']);
+    expect(names({ entries: plan.keep })).toEqual(['clones/recent', 'tmp/live']);
+    expect(plan.keep.map((entry) => entry.note)).toEqual([
+      'fresh (0m): may be in use; --include-fresh removes it',
+      'fresh (3d): may be in use; --include-fresh removes it',
+    ]);
+
+    const everything = LocalClean.plan({ root, scopes: ['tmp', 'clones'], includeFresh: true });
+
+    expect(names({ entries: everything.remove })).toEqual([
+      'clones/old',
+      'clones/recent',
+      'tmp/live',
+      'tmp/old',
+    ]);
+  });
+
+  test("Claude Code's task folder and the hooks' signals file are never removed, stale or not, with or without the flag", () => {
+    const root = repository();
+
+    file({ root, path: 'tmp/claude-1000/tasks/out.txt', ageDays: 9 });
+    file({ root, path: 'tmp/b945/x' });
+    file({ root, path: 'cache/signals.jsonl', ageDays: 9 });
+    file({ root, path: 'cache/atlas/x' });
+
+    for (const includeFresh of [false, true]) {
+      const plan = LocalClean.plan({ root, scopes: ['tmp', 'cache'], includeFresh });
+
+      expect(
+        names({ entries: plan.keep }).filter(
+          (name) => name.includes('claude-') || name.includes('signals'),
+        ),
+      ).toEqual(['cache/signals.jsonl', 'tmp/claude-1000']);
+      expect(
+        names({ entries: plan.remove }).filter(
+          (name) => name.includes('claude-') || name.includes('signals'),
+        ),
+      ).toEqual([]);
+    }
+
+    const result = runCli({ args: ['clean', '--all', '--include-fresh', '--yes'], cwd: root });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain('in use');
+    expect(existsSync(join(root, '.agents/local/tmp/claude-1000/tasks/out.txt'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/cache/signals.jsonl'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/tmp/b945'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/cache/atlas'))).toBe(false);
+  });
+
+  test('vulcan clean --yes leaves a fresh item and says why; --include-fresh --yes takes it', () => {
+    const root = repository();
+
+    file({ root, path: 'tmp/live/a.txt' });
+
+    const kept = runCli({ args: ['clean', '--yes'], cwd: root });
+
+    expect(kept.code).toBe(0);
+    expect(kept.stderr).toContain('kept tmp/live');
+    expect(kept.stderr).toContain('--include-fresh');
+    expect(existsSync(join(root, '.agents/local/tmp/live'))).toBe(true);
+
+    const taken = runCli({ args: ['clean', '--include-fresh', '--yes'], cwd: root });
+
+    expect(taken.code).toBe(0);
+    expect(taken.stderr).toContain('removed 1 item(s)');
+    expect(existsSync(join(root, '.agents/local/tmp/live'))).toBe(false);
+  });
+
   test('--all --yes sweeps what can be recreated and keeps reports; --reports names them', () => {
     const root = repository();
 
-    file({ root, path: 'tmp/a/x' });
+    file({ root, path: 'tmp/a/x', ageDays: 3 });
     file({ root, path: 'cache/k/x' });
     file({ root, path: 'reports/r.md' });
 

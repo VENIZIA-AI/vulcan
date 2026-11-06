@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, rmSync, unlinkSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
+import { ProjectLayout } from '../common/index.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
-import { CleanScopes, LocalConstants } from './constants.ts';
+import { CleanScopes, LocalConstants, LocalStates } from './constants.ts';
+import { LocalFormat } from './format.ts';
 import { LocalScan } from './scan.ts';
 import type { ILocalEntry } from './scan.ts';
 
@@ -83,16 +85,44 @@ const removeEntry = (opts: { root: string; entry: ILocalEntry }): string | undef
 
 /** Plans and runs the removal of old scratch files under `.agents/local`; used by `vulcan clean` and the automatic clean. */
 export class LocalClean {
-  /** What the chosen scopes hold: what `clean` would remove and what it keeps, with the reason. */
-  static plan(opts: { root: string; scopes: string[]; now?: number }): ICleanPlan {
-    const inScope = LocalScan.scan({ root: opts.root, now: opts.now }).filter((entry) =>
-      opts.scopes.includes(entry.scope),
-    );
+  /**
+   * What the chosen scopes hold: what `clean` would remove and what it keeps, with the reason. An item of a scope that
+   * goes stale (`tmp`, `clones`) that is not stale yet may belong to a live session: it is kept unless `includeFresh`
+   * is set. An item a live session always uses (`tmp/claude-*`, `cache/signals.jsonl`) is kept whatever the flags.
+   */
+  static plan(opts: {
+    root: string;
+    scopes: string[];
+    now?: number;
+    includeFresh?: boolean;
+  }): ICleanPlan {
+    const inScope = LocalScan.scan({ root: opts.root, now: opts.now })
+      .filter((entry) => opts.scopes.includes(entry.scope))
+      .map((entry) =>
+        entry.removable && opts.includeFresh !== true && LocalClean.isFresh({ entry })
+          ? {
+              ...entry,
+              removable: false,
+              note: `fresh (${LocalFormat.formatAge({ ageMs: entry.ageMs })}): may be in use; --include-fresh removes it`,
+            }
+          : entry,
+      );
 
     return {
       remove: inScope.filter((entry) => entry.removable),
       keep: inScope.filter((entry) => !entry.removable),
     };
+  }
+
+  /** An item of a scope that has a stale age, not past it yet. */
+  private static isFresh(opts: { entry: ILocalEntry }): boolean {
+    const { entry } = opts;
+
+    return (
+      ProjectLayout.LOCAL_LAYOUT.some(
+        (layout) => layout.name === entry.scope && 'staleAfterDays' in layout,
+      ) && entry.state !== LocalStates.STALE
+    );
   }
 
   /** Removes the plan's entries, then prunes git's worktree list. Returns what went and what failed. */
