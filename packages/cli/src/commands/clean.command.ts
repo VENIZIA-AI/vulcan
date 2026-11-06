@@ -5,6 +5,7 @@ import type { ILocalEntry } from '../local/index.ts';
 
 const YES_FLAG = '--yes';
 const ALL_FLAG = '--all';
+const INCLUDE_FRESH_FLAG = '--include-fresh';
 
 const lineOf = (opts: { entry: ILocalEntry }): string => {
   const { entry } = opts;
@@ -27,7 +28,11 @@ export const runCleanCommand = async (opts: ICommandContext): Promise<number> =>
       ? named
       : [CleanScopes.TMP];
   const yes = opts.args.includes(YES_FLAG);
-  const plan = LocalClean.plan({ root: opts.cwd, scopes });
+  const plan = LocalClean.plan({
+    root: opts.cwd,
+    scopes,
+    includeFresh: opts.args.includes(INCLUDE_FRESH_FLAG),
+  });
   const total = plan.remove.reduce((sum, entry) => sum + entry.bytes, 0);
 
   if (plan.remove.length === 0 && plan.keep.length === 0) {

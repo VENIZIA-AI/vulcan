@@ -75,6 +75,34 @@ describe('EventText', () => {
     );
   });
 
+  test('prose that names the Bearer scheme is not a secret, a Bearer credential still is', () => {
+    const prose = [
+      'Bearer authentication',
+      'uses bearer authentication scheme',
+      'Bearer authentication. Next sentence',
+      'the Bearer scheme sends credentials',
+      'a Bearer-based flow',
+    ];
+    const credentials: [string, string][] = [
+      ['Authorization: Bearer abcdef1234567890', 'Authorization: [redacted]'],
+      ['header Bearer abc.def-ghi_jklmnop', 'header [redacted]'],
+      ['bearer AbcdefGhijklmnopqrstUvwxyz', '[redacted]'],
+      ['BEARER dXNlcjpwYXNzd29yZA==', '[redacted]'],
+      [
+        'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p',
+        'Bearer [redacted]',
+      ],
+    ];
+
+    for (const text of prose) {
+      expect(EventText.oneLine({ text, max: 200 }), text).toBe(text);
+    }
+
+    for (const [text, expected] of credentials) {
+      expect(EventText.oneLine({ text, max: 200 }), text).toBe(expected);
+    }
+  });
+
   test('the shapes of a credential a person pastes: quoted names, Google, GitLab, Stripe, Basic, JWT, spoken', () => {
     const cases: [string, string][] = [
       ['config {"token": "abc123"} saved', 'config {token=[redacted]} saved'],

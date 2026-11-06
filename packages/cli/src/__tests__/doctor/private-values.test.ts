@@ -48,6 +48,16 @@ describe('PrivateValues.scan: what counts', () => {
     expect(countsOf({ root, file: 'path.md' })).toEqual({ 'machine-path': 3 });
   });
 
+  test('prose about Bearer authentication is not a token, a Bearer credential is', () => {
+    const root = repository({
+      'prose.md': 'Bearer authentication is used.\nuses bearer authentication scheme\n',
+      'real.md': 'Authorization: Bearer abcdef1234567890\n',
+    });
+
+    expect(countsOf({ root, file: 'prose.md' })).toBeUndefined();
+    expect(countsOf({ root, file: 'real.md' })).toEqual({ token: 1 });
+  });
+
   test('loopback, any, broadcast, the documentation ranges and a longer dotted number are not an address', () => {
     const root = repository({
       'ok.txt': [

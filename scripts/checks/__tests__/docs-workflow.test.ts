@@ -117,11 +117,15 @@ describe('deploy-docs.yml: the atlas index job, a manual run with a ref', () => 
     expect(input['default']).toBe('');
   });
 
-  test('it still runs on a push to main, develop and a tag', () => {
+  test('it runs on a push to main and develop, not on a tag: a release tag is published by the release workflow', () => {
     const push = recordAt({ value: triggers, key: 'push' });
 
     expect(push['branches']).toEqual(['main', 'develop']);
-    expect(push['tags']).toEqual(['*']);
+    expect(push['tags']).toBeUndefined();
+  });
+
+  test('the job asks for the one permission it uses: contents write', () => {
+    expect(atlasJob['permissions']).toEqual({ contents: 'write' });
   });
 
   test('the input reaches the action through its input, never through a script', () => {
