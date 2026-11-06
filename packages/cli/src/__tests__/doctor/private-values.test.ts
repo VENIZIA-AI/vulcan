@@ -48,6 +48,107 @@ describe('PrivateValues.scan: what counts', () => {
     expect(countsOf({ root, file: 'path.md' })).toEqual({ 'machine-path': 3 });
   });
 
+  test('prose about Bearer authentication is not a token, a Bearer credential is', () => {
+    const root = repository({
+      'prose.md': 'Bearer authentication is used.\nuses bearer authentication scheme\n',
+      'real.md': 'Authorization: Bearer abcdef1234567890\n',
+    });
+
+    expect(countsOf({ root, file: 'prose.md' })).toBeUndefined();
+    expect(countsOf({ root, file: 'real.md' })).toEqual({ token: 1 });
+  });
+
+  test('a credential on a command line, in a header, a webhook or a query string is a token', () => {
+    const root = repository({
+      'curl.md': 'curl -u admin:S3cretPass https://x.example\n',
+      'mysql.md': 'mysql -u root -pS3cret app\n',
+      'sshpass.md': 'sshpass -p S3cret ssh host\n',
+      'flag.md': 'login --password S3cret now\n',
+      'header.md': `Authorization: token ${'0a1b2c3d'.repeat(5)}\n`,
+      'slack.md': `https://hooks.${'slack'}.com/services/${['T0123ABCD', 'B0123ABCD', 'abcdefghijklmnopqrstuvwx'].join('/')}\n`,
+      'aws.md': 'aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n',
+      'sas.md': 'https://a.blob.example.net/c?sv=2022-11-02&sig=AbCdEf0123456789%2Bxyz%3D\n',
+    });
+
+    for (const file of [
+      'curl.md',
+      'mysql.md',
+      'sshpass.md',
+      'flag.md',
+      'header.md',
+      'slack.md',
+      'aws.md',
+      'sas.md',
+    ]) {
+      expect(countsOf({ root, file }), file).toEqual({ token: 1 });
+    }
+  });
+
+  test('userinfo with a slash, an at sign or a colon in it, and a DSN key, are URL credentials', () => {
+    const root = repository({
+      'slash.md': 'https://user:pa/ss@github.com/x\n',
+      'at.md': 'https://user:p@ss@github.com/x\n',
+      'dsn.md': `https://${'0123456789abcdef'.repeat(2)}@o1.ingest.example.io/42\n`,
+    });
+
+    for (const file of ['slash.md', 'at.md', 'dsn.md']) {
+      expect(countsOf({ root, file }), file).toEqual({ 'url-credentials': 1 });
+    }
+  });
+
+  test('flags of other commands, placeholders, prose and a port before an at sign are not counted', () => {
+    const root = repository({
+      'quiet.md': [
+        'mkdir -p dir; ls -p; cp -p a b; ssh -p 22 host; git push -u origin main',
+        'sshpass -f pwfile ssh -p 22 host',
+        'publish --token $NPM_TOKEN or --token <value>; docker login --password-stdin',
+        'Authorization: Bearer authentication; Authorization: Bearer <token>',
+        'the password and the token are rotated; init --key ACME; --key is the project key',
+        'ssh://git@github.com/x http://localhost:4873/@venizia/vulcan',
+      ].join('\n'),
+    });
+
+    expect(countsOf({ root, file: 'quiet.md' })).toBeUndefined();
+  });
+
+  test('more programs, headers and provider prefixes that carry a credential are a token', () => {
+    const files: Record<string, string> = {
+      'mysql.md': "mysql -u root -p'S3cret' app\n",
+      'redis.md': 'redis-cli -h cache -a S3cretPass ping\n',
+      'docker.md': 'docker login -u bot -p S3cretPass registry.example\n',
+      'az.md': 'az login -u bot -p S3cretPass\n',
+      'sqlcmd.md': 'sqlcmd -S db -U sa -P S3cretPass\n',
+      'aws.md': 'aws configure set aws_secret_access_key S3cretValue\n',
+      'wget.md': 'wget --http-password S3cret x\n',
+      'cookie.md': 'Cookie: session=S3cretValue\n',
+      'hf.md': `hf_${'aB3'.repeat(11)}\n`,
+      'dop.md': `dop_v1_${'0a1b2c3d'.repeat(8)}\n`,
+      'shpat.md': `shpat_${'0a1b2c3d'.repeat(4)}\n`,
+      'sendgrid.md': `SG.${'aB3d'.repeat(6)}.${'xY9z'.repeat(11)}\n`,
+    };
+    const root = repository({ ...files, 'redis-url.md': 'redis://:S3cretPass@cache:6379/0\n' });
+
+    for (const file of Object.keys(files)) {
+      expect(countsOf({ root, file }), file).toEqual({ token: 1 });
+    }
+
+    expect(countsOf({ root, file: 'redis-url.md' })).toEqual({ 'url-credentials': 1 });
+  });
+
+  test('a prompt flag, a variable, a path after --key and a bare token in a URL are not counted', () => {
+    const root = repository({
+      'quiet.md': [
+        'mysql -u root -p mydb; mysqladmin -u root -p status',
+        'sshpass -p "$PASS" ssh host; curl -u $USER:$PASS https://x.example; --token ${TOKEN}',
+        'docker run -p 8080:80 image; redis-cli -h cache ping',
+        'sign --key ~/.ssh/id_rsa; sign --key keys/server.key',
+        'Cookie: none; https://abc123@github.com/x',
+      ].join('\n'),
+    });
+
+    expect(countsOf({ root, file: 'quiet.md' })).toBeUndefined();
+  });
+
   test('loopback, any, broadcast, the documentation ranges and a longer dotted number are not an address', () => {
     const root = repository({
       'ok.txt': [

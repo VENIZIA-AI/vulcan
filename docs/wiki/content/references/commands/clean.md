@@ -11,10 +11,11 @@ Run it at the project root: it works on the `.agents/local/` of the current fold
 
 | Flag | Scope | What it takes |
 |---|---|---|
-| `--tmp` (the default) | `tmp/` | every item, whatever its age: scratch, temporary files, logs, subagent output. Run it when no task is using them. Also the `com.google.Chrome.*` and `org.chromium.Chromium.*` folders (a leading dot too) a browser left directly under `.agents/local/`, once they are an hour old (a younger one may belong to a running browser and is kept) |
+| `--tmp` (the default) | `tmp/` | every item that is stale (older than a day): scratch, temporary files, logs, subagent output. An item that is not stale yet may belong to a session that is running now: it is kept and the output says so, until you add `--include-fresh`. `tmp/claude-<uid>` (Claude Code's background task output) is never removed. Also the `com.google.Chrome.*` and `org.chromium.Chromium.*` folders (a leading dot too) a browser left directly under `.agents/local/`, once they are an hour old (a younger one may belong to a running browser and is kept) |
 | `--worktrees` | `worktrees/` | a worktree whose branch is merged into the branch checked out at the project root, into `origin/develop` or into the default branch of origin, or no longer exists, that holds no uncommitted or untracked file and no ignored file a build cannot make again (`.env`, a database, a key: the output names it; `node_modules`, `dist`, `.turbo`, `coverage`, `.cache` and `*.tsbuildinfo` do not count), and whose branch has a commit of its own (a new branch is kept as "no commits of its own yet"); plus a folder git does not list. An unmerged worktree, one on a detached HEAD and one with uncommitted work are kept, and the reason is printed |
-| `--clones` | `clones/` | clones of other repositories |
-| `--cache` | `cache/` | what atlas fetched; it rebuilds |
+| `--clones` | `clones/` | clones of other repositories that are stale (older than two weeks); a younger one is kept like a fresh `tmp/` item |
+| `--cache` | `cache/` | what atlas fetched; it rebuilds. `cache/signals.jsonl`, which the hooks append to, is never removed |
+| `--include-fresh` | `tmp/`, `clones/` | also takes the items of these two that are not stale yet; use it when no session is working in the project. It never takes `tmp/claude-<uid>` or `cache/signals.jsonl` |
 | `--all` | the four above | never `reports/`, `prototypes/`, `events/`, `release-candidates/` or the profile |
 | `--events` | the event log | only when named, and only the day files the limits of `events` (`maxAgeDays`, `maxFiles`, `maxSize`) say to remove, in the folder the project's `events.dir` names (else `events/`); today's file, later ones and the files within the limits are kept, and the output says so. A log outside the project is listed by its whole path, and only a `yyyy-mm-dd.jsonl` file directly in that folder is ever removed |
 | `--reports`, `--prototypes`, `--profile` | `reports/`, `prototypes/`, `profile.json` | only when named; they are kept until you delete them |
@@ -29,21 +30,18 @@ The dry run lists each item with its size and age, then what it would remove:
 $ bun x --no-install vulcan clean
 vulcan clean: dry run, nothing is removed (add --yes)
   tmp/job-2  2.9 MB  3d  stale
-  tmp/job-1  12 B  0m
-would remove 2 item(s), 2.9 MB
+  kept tmp/job-1  fresh (0m): may be in use; --include-fresh removes it
+would remove 1 item(s), 2.9 MB
 ```
 
-With `--yes` it removes them, and a second run finds nothing:
+With `--yes` it removes the stale ones and keeps the rest:
 
 ```text
 $ bun x --no-install vulcan clean --yes
 vulcan clean: removing
   tmp/job-2  2.9 MB  3d  stale
-  tmp/job-1  12 B  0m
-removed 2 item(s), 2.9 MB
-
-$ bun x --no-install vulcan clean
-vulcan clean: nothing to remove in tmp
+  kept tmp/job-1  fresh (0m): may be in use; --include-fresh removes it
+removed 1 item(s), 2.9 MB
 ```
 
 `vulcan doctor` warns about an item that has outlived its use (a `tmp/` item older than a day, a clone older than two weeks, a worktree on a merged or gone branch) with the command that clears it, and prints the size of `.agents/local/` once it passes 50 MB.

@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, test } from 'bun:test';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { BoardCommand } from '../../board/command.ts';
 import { BoardServe } from '../../board/common/index.ts';
 import { BoardServer } from '../../board/server.ts';
@@ -212,6 +212,124 @@ const openStream = async (opts: {
 
   return { next, status: response.status, close: () => controller.abort() };
 };
+
+describe('BoardServer.openFile: the page the program that opens the browser is given', () => {
+  const tokenOf = (server: { url: string }): string =>
+    new URL(server.url).searchParams.get(BoardServe.TOKEN_PARAM) ?? '';
+  const start = async (opts: { openFileTtlMs?: number; openFolder?: string } = {}) => {
+    const { root, dir } = projectWithLog();
+    const openFolder = opts.openFolder ?? join(root, '.agents/local/tmp');
+    const server = await BoardServer.start({
+      port: 0,
+      dir,
+      collect: () =>
+        BoardCommand.collect({ root, dir, since: SINCE, args: { repos: [], noGithub: true } }),
+      openFolder,
+      ...(opts.openFileTtlMs === undefined ? {} : { openFileTtlMs: opts.openFileTtlMs }),
+    });
+
+    return { server, openFolder };
+  };
+  const gone = async (path: string): Promise<boolean> => {
+    for (let waited = 0; waited < 3000; waited += 20) {
+      if (!existsSync(path)) {
+        return true;
+      }
+
+      await Bun.sleep(20);
+    }
+
+    return false;
+  };
+
+  test('there is none before the server runs or after it stops', async () => {
+    expect(BoardServer.openFile()).toBeUndefined();
+
+    await start();
+    expect(BoardServer.openFile()).toBeDefined();
+
+    await BoardServer.stop();
+    expect(BoardServer.openFile()).toBeUndefined();
+  });
+
+  test('it is a file only its owner can read, in a private folder made inside the folder given, with no token in its path', async () => {
+    const { server, openFolder } = await start();
+    const path = BoardServer.openFile() ?? '';
+
+    expect(dirname(dirname(path))).toBe(openFolder);
+    expect(basename(dirname(path))).toMatch(/^board-open-/);
+    expect(basename(path)).toBe('index.html');
+    expect(statSync(dirname(path)).mode & 0o777).toBe(0o700);
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+    expect(path).not.toContain(tokenOf(server));
+  });
+
+  test('it sends the browser to the printed address and links to it', async () => {
+    const { server } = await start();
+    const body = readFileSync(BoardServer.openFile() ?? '', 'utf8');
+
+    expect(body).toContain(`<meta http-equiv="refresh" content="0;url=${server.url}">`);
+    expect(body).toContain(`<a href="${server.url}">`);
+  });
+
+  test('it is removed by the first request that carries the token, and not by one that does not', async () => {
+    const { server } = await start();
+    const path = BoardServer.openFile() ?? '';
+    const refused = await fetch(server.url.split('?')[0]);
+
+    expect(refused.status).toBe(403);
+    expect(existsSync(path)).toBe(true);
+
+    const page = await fetch(server.url);
+
+    expect(page.status).toBe(200);
+    const result = await gone(dirname(path));
+    expect(result).toBe(true);
+  });
+
+  test('it is removed after the time allowed', async () => {
+    await start({ openFileTtlMs: 50 });
+
+    const path = BoardServer.openFile() ?? '';
+
+    expect(existsSync(path)).toBe(true);
+    const result = await gone(dirname(path));
+    expect(result).toBe(true);
+  });
+
+  test('it is removed when the server stops', async () => {
+    await start();
+
+    const path = BoardServer.openFile() ?? '';
+
+    expect(existsSync(path)).toBe(true);
+
+    await BoardServer.stop();
+
+    expect(existsSync(path)).toBe(false);
+    expect(existsSync(dirname(path))).toBe(false);
+  });
+
+  test('a new file replaces the one before it', async () => {
+    await start();
+
+    const older = BoardServer.openFile() ?? '';
+    const newer = BoardServer.openFile() ?? '';
+
+    expect(older).not.toBe(newer);
+    expect(existsSync(older)).toBe(false);
+    expect(existsSync(dirname(older))).toBe(false);
+    expect(existsSync(newer)).toBe(true);
+  });
+
+  test('a folder that cannot be made gives no file and no throw', async () => {
+    const { root } = projectWithLog();
+
+    await start({ openFolder: join(root, '.agents/vulcan.manifest.json/inner') });
+
+    expect(BoardServer.openFile()).toBeUndefined();
+  });
+});
 
 describe('vulcan board serve', () => {
   test('the address is the configured name; the plain 127.0.0.1 address is the fallback; both reach the page, no other name does', async () => {
@@ -568,7 +686,7 @@ describe('vulcan board serve', () => {
     expect(reached).toBe(false);
   });
 
-  test('the token is never written to the project: no file holds it, and the event log is untouched', async () => {
+  test('without --open the token is never written to the project: no file holds it, and the event log is untouched', async () => {
     const { root, dir } = projectWithLog();
     const before = readdirSync(dir).map((name) => statSync(join(dir, name)).size);
     const server = await startOn({ root, dir, port: 0 });

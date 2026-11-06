@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { EventText } from '../events/text.ts';
 import { ShellParser } from '../hooks/shell.ts';
 import { SignalConstants, WatchedKinds } from './constants.ts';
 
@@ -111,12 +112,15 @@ export class SignalClassifier {
     return programsOf({ command: opts.command }).some((program) => isProbeProgram(program));
   }
 
-  /** The gates a command line runs (tests, lint, build, the project's own gates), each as a short name. */
+  /** The gates a command line runs (tests, lint, build, the project's own gates), each as a short name with its secrets redacted. */
   static gatesOf(opts: { command: string }): string[] {
     return programsOf({ command: opts.command })
       .filter((program) => isGateProgram(program))
       .map((program) =>
-        [program.name, ...program.args].join(' ').slice(0, SignalConstants.GATE_KEY_LENGTH),
+        EventText.redactHead({
+          text: [program.name, ...program.args].join(' '),
+          max: SignalConstants.GATE_KEY_LENGTH,
+        }),
       );
   }
 

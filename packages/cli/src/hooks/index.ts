@@ -1,5 +1,6 @@
 export * from './common/index.ts';
 export * from './decision.ts';
+export * from './git-queries.ts';
 export * from './guard-git.ts';
 export * from './guard-manifest.ts';
 export * from './guard-outside.ts';
