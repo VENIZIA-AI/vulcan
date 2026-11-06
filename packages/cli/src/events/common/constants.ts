@@ -1,3 +1,5 @@
+import { EventActorNames } from './actor-names.ts';
+
 /** What happened. A board reads these; add one only when a reader needs to tell it apart. */
 export class EventKinds {
   static readonly SESSION_START = 'session-start';
@@ -171,6 +173,8 @@ export class EventConstants {
   static readonly MODEL_MAX = 80;
   static readonly ACTOR_MAX = 80;
   static readonly REDACTED = '[redacted]';
+  /** How much of a long text the redaction reads for a result of `max` characters: `max * factor`, at least `min`. */
+  static readonly REDACT_SCAN = { factor: 4, min: 1024 };
   /** A flow is named `VULZ-<key>-<number>`; the older `F-<number>` is still read and shows as the new form. */
   static readonly FLOW_PREFIX = 'VULZ';
   static readonly FLOW_ID = 'VULZ-[A-Z0-9]{2,8}-\\d+|F-\\d+';
@@ -184,10 +188,8 @@ export class EventConstants {
   static readonly FLOW_CLAIM_DIR = '.flow-ids';
   /** How many recent flows a refusal lists. */
   static readonly FLOW_RECENT_COUNT = 5;
-  /** Where the log goes for a hook that has no better answer: the name of an actor with no session name. */
-  static readonly UNKNOWN_ACTOR = 'unknown';
-  /** What the actor of a session with no name starts with; a name that starts with it is read as no name. */
-  static readonly UNNAMED_PREFIX = 'claude:';
+  static readonly UNKNOWN_ACTOR = EventActorNames.UNKNOWN;
+  static readonly UNNAMED_PREFIX = EventActorNames.UNNAMED_PREFIX;
   /** The `nameSource` values of a name Claude Code made up (from the folder, a counter or a clash), not a person's. */
   static readonly MADE_UP_NAME_SOURCES = new Set(['derived', 'auto', 'collision']);
   static readonly ACTOR_ENV = 'VULCAN_ACTOR';
@@ -196,21 +198,15 @@ export class EventConstants {
   static readonly DAY_MS = 24 * 60 * 60 * 1000;
 }
 
-/** What the name of an actor says about its session. Light on purpose: the board page is built from it. */
-export class EventActorNames {
-  /** Whether the actor is a name somebody gave, and not the fallback of a session with none (`claude:<id>`, `unknown`). */
-  static isNamed(opts: { actor: string }): boolean {
-    return (
-      opts.actor !== EventConstants.UNKNOWN_ACTOR &&
-      !opts.actor.startsWith(EventConstants.UNNAMED_PREFIX)
-    );
-  }
-}
-
-/** Shapes of a secret that must never reach a log line. Best effort: a summary is a label, not a document. */
+/**
+ * Shapes of a secret that must never reach a log line. Best effort: a summary is a label, not a document. Each pattern
+ * reads a long line in time in proportion to its length (doctor runs them over whole files); a test times each one.
+ * Group 1, in a pattern that has one, is the name, flag or command before the secret: it is kept and the rest replaced.
+ * A value that starts with `$`, `<`, `%` or `{`, quoted or not, is a variable or a placeholder, not a secret.
+ */
 export class EventSecrets {
-  static readonly PRIVATE_KEY = /-----BEGIN [A-Z ]*PRIVATE KEY-----.*/g;
-  /** The known token prefixes and shapes. */
+  static readonly PRIVATE_KEY = /-----BEGIN [A-Z ]{0,64}PRIVATE KEY-----.*/g;
+  /** The known token prefixes and shapes, and the credentials a command line, a header or a query carries. */
   static readonly TOKENS: RegExp[] = [
     /\b(?:ghp|gho|ghs|ghu|ghr)_[A-Za-z0-9]{16,}/g,
     /\bgithub_pat_[A-Za-z0-9_]{16,}/g,
@@ -220,30 +216,70 @@ export class EventSecrets {
     /\bAIza[0-9A-Za-z_-]{35}/g,
     /\bglpat-[A-Za-z0-9_-]{16,}/g,
     /\b[sr]k_(?:live|test)_[A-Za-z0-9]{8,}/g,
-    /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g,
+    /\bhf_[A-Za-z0-9]{30,}/g,
+    /\bdop_v1_[0-9a-f]{64}\b/g,
+    /\bshpat_[0-9a-fA-F]{32}\b/g,
+    /\bSG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}/g,
+    /(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g,
     // A Basic credential is base64 of user:password: it has a digit, a + or a /, a capital inside it, or ends in =; a plain word after "Basic" has none of these.
     /\bBasic\s+(?:(?=[A-Za-z0-9+/]*(?:[0-9+/]|[a-z][A-Z]))[A-Za-z0-9+/]{8,}={0,2}|[A-Za-z0-9+/]{8,}={1,2})/g,
     /\bxox[abprs]-[A-Za-z0-9-]{10,}/g,
     // A Bearer credential has a digit, a + / or =, a dot between two characters, or a capital inside it; a plain word of letters ("Bearer authentication", "Bearer authentication.") has none of these. No `i` flag: it would make every pair of letters an inner capital.
     /\b(?:Bearer|bearer|BEARER)\s+(?=[A-Za-z0-9._~+/=-]*(?:[0-9+/=]|[a-z][A-Z]|[A-Za-z0-9]\.[A-Za-z0-9]))[A-Za-z0-9._~+/=-]{8,}/g,
+    // Any other scheme of an Authorization header, with its value: the value has a digit, a + / or =, or a capital inside it, so a placeholder or a word does not count. Bearer and Basic are the two patterns above.
+    /(\b(?:[Aa]uthorization|AUTHORIZATION)["']?\s{0,8}:\s{0,8})(?![Bb]earer\s|BEARER\s|[Bb]asic\s|BASIC\s)(?:[A-Za-z][A-Za-z0-9_-]{0,31}\s{1,8})?(?!["']?[$<%{])(?=[^\s]{0,511}(?:[0-9+/=]|[a-z][A-Z]))[^\s]{8,512}/g,
+    // The cookies of a Cookie or Set-Cookie header, each `name=value` and the attributes after them.
+    /(\b(?:[Ss]et-)?(?:[Cc]ookie|COOKIE):\s{0,8})(?!["']?[$<%{])[^\s;=]{1,64}=[^\s;]{1,512}(?:;\s{0,8}[^\s;=]{1,64}(?:=[^\s;]{0,512})?){0,16}/g,
+    // The password in the user and password pair given to curl's user flag, in the same command.
+    /(\bcurl\s(?:[^|;&]{0,256}?\s)?(?:-u|--user)(?:\s{1,8}|=)?(?!-)["']?[^\s:]{1,128}:)(?![\s-])(?!["']?[$<%{])[^\s]{1,256}/g,
+    // The value of `-p` joined to it (`-p` with a space asks for the password) for the MySQL and MariaDB clients.
+    /(\b(?:mysql|mysqldump|mysqladmin|mariadb|mariadb-dump)\s(?:[^|;&]{0,256}?\s)?-p)(?![\s-])(?!["']?[$<%{])[^\s]{1,256}/g,
+    // The value of `-p`, joined or after a space, for sshpass before the command it wraps, and for a docker, podman or az login.
+    /(\bsshpass\s{1,8}(?:-[A-Za-z]\S{0,64}\s{1,8}){0,4}-p(?:\s{1,8})?)(?![\s-])(?!["']?[$<%{])[^\s]{1,256}/g,
+    /(\b(?:docker|podman|az)\s{1,8}login\s(?:[^|;&]{0,256}?\s)?-p(?:\s{1,8}|=)?)(?![\s-])(?!["']?[$<%{])[^\s]{1,256}/g,
+    // The password flag of redis-cli (`-a`) and sqlcmd (`-P`), after a space.
+    /(\bredis-cli\s(?:[^|;&]{0,256}?\s)?-a\s{1,8})(?!-)(?!["']?[$<%{])[^\s]{1,256}/g,
+    /(\bsqlcmd\s(?:[^|;&]{0,256}?\s)?-P\s{1,8})(?!-)(?!["']?[$<%{])[^\s]{1,256}/g,
+    // The secret key or session token that `aws configure set` writes.
+    /(\baws\s{1,8}configure\s{1,8}set\s{1,8}(?:[A-Za-z0-9_-]{1,64}\.)?(?:aws_secret_access_key|aws_session_token)\s{1,8})(?!-)(?!["']?[$<%{])[^\s]{1,256}/g,
+    // The value after a flag that names a secret, given with a space; `--name=value` is the assignment.
+    /((?:^|\s)--(?:password|passwd|http-password|ftp-password|proxy-password|token|secret|api-key|apikey|auth-token|access-token)\s{1,8})(?!-)(?!["']?[$<%{])[^\s]{1,256}/g,
+    // `--key` names many things that are not secret: its value counts when it has a digit, a + or =, or a capital inside it, and is not a path or a file name.
+    /((?:^|\s)--key\s{1,8})(?!["']?[$<%{]|[~./-])(?![^\s]{0,251}\.[A-Za-z]{1,4}(?:\s|$))(?=[^\s]{0,255}(?:[0-9+=]|[a-z][A-Z]))[^\s]{8,256}/g,
+    // The path of a Slack incoming webhook: the workspace, the channel and the secret.
+    /(\bhooks\.slack\.com\/services\/)T[A-Z0-9]{6,32}\/B[A-Z0-9]{6,32}\/[A-Za-z0-9]{16,64}/g,
+    // A 40-character AWS secret access key assigned to a name that holds `aws` or `secret`.
+    /((?<![A-Za-z0-9_.-])[A-Za-z0-9_.-]{0,64}(?:aws|secret)[A-Za-z0-9_.-]{0,64}["']?\s{0,8}[:=]\s{0,8}["']?)[A-Za-z0-9/+]{40}(?![A-Za-z0-9/+=])/gi,
+    // The signature of a shared access URL, `sig=` in its query.
+    /([?&]sig=)[A-Za-z0-9%+/=_-]{16,256}/g,
   ];
   /** Long runs that are secrets in a log line but hashes in a lockfile. */
   static readonly HIGH_ENTROPY: RegExp[] = [
     /\b[0-9a-fA-F]{64,}\b/g,
-    /\b(?=[A-Za-z0-9+]*\d)(?=[A-Za-z0-9+]*[a-z])(?=[A-Za-z0-9+]*[A-Z])[A-Za-z0-9+]{40,}={0,2}/g,
+    /(?<![A-Za-z0-9+_])(?=[A-Za-z0-9+]*\d)(?=[A-Za-z0-9+]*[a-z])(?=[A-Za-z0-9+]*[A-Z])[A-Za-z0-9+]{40,}={0,2}/g,
+  ];
+  /**
+   * Credentials inside a URL, up to the `@` before the host: `user:password` (the user may be empty, the password runs to
+   * the last `@` before the host; a port and a path are not a password), and a DSN key `<32 hex>`.
+   */
+  static readonly URL_CREDENTIALS: RegExp[] = [
+    /(\/\/)[^\s/@:]{0,128}:(?!\d{1,5}(?:[/?#\s]|$))[^\s]{1,256}?(?=@[^\s/@?#]{1,253}(?:[/:?#\s]|$))/g,
+    /(\/\/)[0-9a-fA-F]{32}(?::[0-9a-fA-F]{32})?(?=@)/g,
   ];
   /** Everything `EventText.redact` replaces, in the order it replaces it. */
   static readonly PATTERNS: RegExp[] = [
     EventSecrets.PRIVATE_KEY,
     ...EventSecrets.TOKENS,
     ...EventSecrets.HIGH_ENTROPY,
+    ...EventSecrets.URL_CREDENTIALS,
   ];
-  /** `user:password@host` inside a URL. */
-  static readonly URL_USERINFO = /(\/\/)[^\s/@:]+:[^\s/@]+@/g;
-  /** `name=value`, `name: value` and `"name": "value"` where the name says it is a secret. */
+  /**
+   * `name=value`, `name: value` and `"name": "value"` where the name says it is a secret, or has `pw`, `pass` or
+   * `passphrase` as a whole part (`DB_PASS`, `pw_x`). A switch value (`true`, `off`, `1`) is not a secret.
+   */
   static readonly ASSIGNMENT =
-    /["']?\b([A-Za-z0-9_.-]*(?:key|token|secret|password|passwd|pwd|credential)[A-Za-z0-9_.-]*)["']?\s*[:=]\s*("[^"]*"|'[^']*'|\S+)/gi;
+    /["']?(?<![A-Za-z0-9_.-])([A-Za-z0-9_.-]{0,64}(?:key|token|secret|password|passwd|pwd|credential)[A-Za-z0-9_.-]{0,64}|(?:[A-Za-z0-9_.-]{0,64}[_.-])?(?:pw|pass|passphrase)(?:[_.-][A-Za-z0-9_.-]{0,64})?)["']?\s{0,8}[:=]\s{0,8}(?!["']?(?:0|1|true|false|yes|no|on|off)(?![A-Za-z0-9_]))("[^"]{0,256}"|'[^']{0,256}'|\S{1,256})/gi;
   /** "the password is hunter2". */
   static readonly SPOKEN =
-    /\b((?:password|passwd|passphrase|secret|token|api[ _-]?key)s?)\s+(?:is|are|was|were)\s+("[^"]*"|'[^']*'|\S+)/gi;
+    /\b((?:password|passwd|passphrase|secret|token|api[ _-]?key)s?)\s{1,8}(?:is|are|was|were)\s{1,8}("[^"]{0,256}"|'[^']{0,256}'|\S{1,256})/gi;
 }

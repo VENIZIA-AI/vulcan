@@ -5,9 +5,11 @@ import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import {
   EventActor,
   EventActorNames,
+  EventConstants,
   EventFlow,
   EventKinds,
   EventLog,
+  EventSecrets,
   EventSettings,
   EventText,
 } from '../../events/index.ts';
@@ -17,6 +19,50 @@ import { createProject, removeProjects } from '../project.helper.ts';
 afterAll(removeProjects);
 
 const NOW = Date.parse('2026-11-03T09:30:00.000Z');
+/** Pieces that, repeated, make a long line of names, separators, runs and prefixes for the redaction to read. */
+const PIECES = [
+  'key.',
+  'key-',
+  'a ',
+  ' ',
+  ':',
+  '=',
+  'a+',
+  'aB+',
+  'aB1',
+  'ab',
+  'a/',
+  'eyJ-',
+  'eyJa.',
+  'eyJaaaaa.b',
+  'Bearer ',
+  'Basic ',
+  'Basic a',
+  '-----BEGIN A',
+  '//',
+  '//a:',
+  '//a:@',
+  '@b',
+  'curl ',
+  'curl -u a:',
+  'mysql ',
+  'mysql -p',
+  '-p ',
+  'sshpass -p ',
+  'sshpass -v ',
+  '--token ',
+  '--key ',
+  'Authorization: ',
+  'Authorization: x ',
+  'aws=',
+  'aws_',
+  'secret_',
+  'sig=',
+  'token is ',
+  '"token": "',
+  'pw',
+  'hooks.slack.com/services/T',
+];
 
 describe('EventKinds', () => {
   test('the twelve kinds a board reads, and isValid', () => {
@@ -155,6 +201,222 @@ describe('EventText', () => {
       'reviewing packages/cli/src/events/log.ts',
     ]) {
       expect(EventText.oneLine({ text, max: 200 })).toBe(text);
+    }
+  });
+
+  test('a credential on a command line, in a header or in a URL is redacted', () => {
+    const awsKey = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
+    const cases: [string, string][] = [
+      [
+        'ran curl -u admin:S3cretPass https://x.example',
+        'ran curl -u admin:[redacted] https://x.example',
+      ],
+      ['curl -s --user admin:S3cretPass x', 'curl -s --user admin:[redacted] x'],
+      ['mysql -u root -pS3cret app', 'mysql -u root -p[redacted] app'],
+      ['mariadb -h db -pS3cret', 'mariadb -h db -p[redacted]'],
+      ['sshpass -p S3cret ssh host', 'sshpass -p [redacted] ssh host'],
+      ['sshpass -v -pS3cret ssh host', 'sshpass -v -p[redacted] ssh host'],
+      ['login --password S3cret now', 'login --password [redacted] now'],
+      ['publish --token abc123 now', 'publish --token [redacted] now'],
+      ['run --secret abc123 now', 'run --secret [redacted] now'],
+      ['call --api-key abc123 now', 'call --api-key [redacted] now'],
+      ['sign --key k3yV4lue9 now', 'sign --key [redacted] now'],
+      ['login --password=S3cret now', 'login --password=[redacted] now'],
+      [
+        `header Authorization: token ${'0a1b2c3d'.repeat(5)} sent`,
+        'header Authorization: [redacted] sent',
+      ],
+      ['Authorization: Token abc123def456', 'Authorization: [redacted]'],
+      ['Proxy-Authorization: Negotiate YIIabc123', 'Proxy-Authorization: [redacted]'],
+      ['Authorization: Digest response=6629fae4 ok', 'Authorization: [redacted] ok'],
+      ['clone https://user:pa/ss@github.com/x/y', 'clone https://[redacted]@github.com/x/y'],
+      ['clone https://user:p@ss@github.com/x/y', 'clone https://[redacted]@github.com/x/y'],
+      ['clone https://user:p:ss@github.com/x/y', 'clone https://[redacted]@github.com/x/y'],
+      [
+        `post https://hooks.${'slack'}.com/services/${['T0123ABCD', 'B0123ABCD', 'abcdefghijklmnopqrstuvwx'].join('/')}`,
+        'post https://hooks.slack.com/services/[redacted]',
+      ],
+      [
+        `dsn https://${'0123456789abcdef'.repeat(2)}@o1.ingest.example.io/42`,
+        'dsn https://[redacted]@o1.ingest.example.io/42',
+      ],
+      [`export AWS_SECRET_ACCESS_KEY=${awsKey}`, 'export AWS_SECRET_ACCESS_KEY=[redacted]'],
+      [`aws_secret = ${awsKey}`, 'aws_secret=[redacted]'],
+      [
+        'blob https://a.blob.example.net/c/f?sv=2022-11-02&sig=AbCdEf0123456789%2Bxyz%3D ok',
+        'blob https://a.blob.example.net/c/f?sv=2022-11-02&sig=[redacted] ok',
+      ],
+      ['db pw=hunter2 ok', 'db pw=[redacted] ok'],
+      ['DB_PW: hunter2 ok', 'DB_PW=[redacted] ok'],
+      ['pwd=hunter2 passwd=hunter2', 'pwd=[redacted] passwd=[redacted]'],
+    ];
+
+    for (const [text, expected] of cases) {
+      expect(EventText.oneLine({ text, max: 300 }), text).toBe(expected);
+    }
+  });
+
+  test('more programs, names, headers and prefixes that carry a credential are redacted', () => {
+    const cases: [string, string][] = [
+      ["mysql -u root -p'S3cret' app", 'mysql -u root -p[redacted] app'],
+      ['redis-cli -h cache -a S3cretPass ping', 'redis-cli -h cache -a [redacted] ping'],
+      ['get redis://:S3cretPass@cache:6379/0', 'get redis://[redacted]@cache:6379/0'],
+      ['get rediss://:S3cretPass@cache.example:6380', 'get rediss://[redacted]@cache.example:6380'],
+      [
+        'docker login -u bot -p S3cretPass registry.example',
+        'docker login -u bot -p [redacted] registry.example',
+      ],
+      ['docker login -p=S3cretPass', 'docker login -p=[redacted]'],
+      ['az login -u bot -p S3cretPass', 'az login -u bot -p [redacted]'],
+      ['sqlcmd -S db -U sa -P S3cretPass', 'sqlcmd -S db -U sa -P [redacted]'],
+      [
+        'aws configure set aws_secret_access_key S3cretValue',
+        'aws configure set aws_secret_access_key [redacted]',
+      ],
+      ['wget --http-password S3cret x', 'wget --http-password [redacted] x'],
+      ['wget --ftp-password S3cret x', 'wget --ftp-password [redacted] x'],
+      ['sent Cookie: session=S3cretValue; theme=dark', 'sent Cookie: [redacted]'],
+      ['got Set-Cookie: sid=S3cretValue; Path=/; HttpOnly', 'got Set-Cookie: [redacted]'],
+      ['pass=S3cret ok', 'pass=[redacted] ok'],
+      ['DB_PASS: S3cret ok', 'DB_PASS=[redacted] ok'],
+      ['ansible_become_pass=S3cret ok', 'ansible_become_pass=[redacted] ok'],
+      ['passphrase=S3cret ok', 'passphrase=[redacted] ok'],
+      ['pw_x=S3cret ok', 'pw_x=[redacted] ok'],
+      [`hub hf_${'aB3'.repeat(11)} ok`, 'hub [redacted] ok'],
+      [`ocean dop_v1_${'0a1b2c3d'.repeat(8)} ok`, 'ocean [redacted] ok'],
+      [`shop shpat_${'0a1b2c3d'.repeat(4)} ok`, 'shop [redacted] ok'],
+      [`mail SG.${'aB3d'.repeat(6)}.${'xY9z'.repeat(11)} ok`, 'mail [redacted] ok'],
+      [
+        'clone https://ghp_abcdefghijklmnopqrstuvwxyz0123456789@github.com/x',
+        'clone https://[redacted]@github.com/x',
+      ],
+    ];
+
+    for (const [text, expected] of cases) {
+      expect(EventText.oneLine({ text, max: 300 }), text).toBe(expected);
+    }
+  });
+
+  test('a prompt flag, a variable, a path after --key, a switch value and a bare token in a URL are left alone', () => {
+    for (const text of [
+      'mysql -u root -p mydb',
+      'mysql -uroot -p db < dump.sql',
+      'mysqladmin -u root -p status',
+      'sshpass -p "$PASS" ssh host',
+      'mysql -p"$PW" app',
+      'login --password "$PASSWORD"',
+      'curl -u "$U:$P" https://x.example',
+      'curl -u $USER:$PASS https://x.example',
+      'publish --token ${TOKEN}',
+      'docker login -p "$REGISTRY_PASSWORD" registry.example',
+      'docker run -p 8080:80 image',
+      'redis-cli -h cache ping',
+      'sqlcmd -S db -E',
+      'sign --key ~/.ssh/id_rsa',
+      'sign --key keys/server.key',
+      'sign --key src/main.ts',
+      'sign --key ./K3ys/Abc',
+      'gh_pw=1 show-pw=false pass=true',
+      'bypass=always',
+      'the Cookie header is set',
+      'Cookie: none',
+      'clone https://abc123@github.com/x',
+    ]) {
+      expect(EventText.oneLine({ text, max: 200 }), text).toBe(text);
+    }
+  });
+
+  test('the words, flags and URLs near those shapes are left alone', () => {
+    for (const text of [
+      'the password field is required',
+      'a token goes with each request',
+      'reset the password and rotate the token',
+      'mkdir -p dir/sub',
+      'ls -p src',
+      'cp -p a b',
+      'ssh -p 22 host',
+      'sshpass -f pwfile ssh -p 22 host',
+      'git push -p origin',
+      'git push -u origin main',
+      'sort -u names.txt',
+      'curl -u admin https://x.example',
+      'docker login --password-stdin',
+      'use --key-file key.pem',
+      'init --key ACME',
+      'pass --key to name the project',
+      'set --token-path /run/t',
+      'pass --secret-name app',
+      'publish --token $NPM_TOKEN',
+      'publish --token <value>',
+      'Authorization: Bearer authentication',
+      'the Authorization header is required',
+      'ssh://git@github.com/x/y',
+      'https://user@host.example/x',
+      'http://localhost:4873/@venizia/vulcan',
+      'https://host.example:8443/@scope/pkg',
+      'upward=3 pwsh=x',
+    ]) {
+      expect(EventText.oneLine({ text, max: 200 }), text).toBe(text);
+    }
+  });
+
+  test('a long text is cut before it is read whole, and a secret near the cut is still redacted', () => {
+    const token = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789';
+
+    for (const piece of PIECES) {
+      const text = `${piece.repeat(Math.ceil(1_000_000 / piece.length))} ${token}`;
+      const start = performance.now();
+      const cut = EventText.oneLine({ text, max: 200 });
+
+      expect(performance.now() - start, JSON.stringify(piece)).toBeLessThan(1000);
+      expect(Array.from(cut).length).toBeLessThanOrEqual(200);
+    }
+
+    expect(
+      EventText.oneLine({ text: `${'w '.repeat(95)}${token} ${'z'.repeat(5000)}`, max: 200 }),
+    ).toBe(`${'w '.repeat(95)}[redacted]`);
+    expect(EventText.redactHead({ text: `x ${token} tail`, max: 12 })).toBe('x [redacted]');
+  });
+
+  test('a word cut by the read is not shown in part, when the read holds no space', () => {
+    const long = `ghp_${'a1B2'.repeat(249)}`;
+    const password = 'pAssw0rd'.repeat(5);
+    const across = EventText.oneLine({
+      text: `${long}https://user:${password}@host.example/x`,
+      max: 200,
+    });
+
+    expect(across).toBe('[redacted]');
+    expect(
+      EventText.oneLine({
+        text: `ghp_${'a1B2'.repeat(245)}https://user:pw@host.example/x`,
+        max: 200,
+      }),
+    ).toBe('[redacted]://[redacted]@host.example/x');
+  });
+});
+
+describe('EventSecrets: each pattern takes time in proportion to its input', () => {
+  const patterns = [...EventSecrets.PATTERNS, EventSecrets.ASSIGNMENT, EventSecrets.SPOKEN];
+  const timeOf = (opts: { pattern: RegExp; piece: string; size: number }): number => {
+    const text = opts.piece.repeat(Math.ceil(opts.size / opts.piece.length)).slice(0, opts.size);
+    const start = performance.now();
+
+    text.replace(opts.pattern, EventConstants.REDACTED);
+
+    return performance.now() - start;
+  };
+
+  test('8 times the input takes about 8 times as long, never about 64 times', () => {
+    for (const pattern of patterns) {
+      for (const piece of PIECES) {
+        const small = timeOf({ pattern, piece, size: 8 * 1024 });
+        const large = timeOf({ pattern, piece, size: 64 * 1024 });
+
+        expect(large, `${pattern.source} on ${JSON.stringify(piece)}`).toBeLessThan(
+          Math.max(40, 24 * small),
+        );
+      }
     }
   });
 });
@@ -314,6 +576,26 @@ describe('EventLog', () => {
     expect(event?.why).not.toContain('\n');
     expect(event?.summary).toStartWith('[redacted]');
     expect(event?.context).toStartWith('[redacted]');
+  });
+
+  test('parse reads a long stored line in bounded time and cuts it', () => {
+    for (const piece of PIECES) {
+      const line = JSON.stringify({
+        id: 'i1',
+        ts: '2026-11-03T09:30:00.000Z',
+        actor: 'a',
+        kind: 'flow',
+        summary: piece.repeat(Math.ceil(100_000 / piece.length)),
+        context: piece.repeat(Math.ceil(100_000 / piece.length)),
+        source: 'cli',
+      });
+      const start = performance.now();
+      const event = EventLog.parse({ line });
+
+      expect(performance.now() - start, JSON.stringify(piece)).toBeLessThan(1000);
+      expect(Array.from(event?.summary ?? '').length).toBeLessThanOrEqual(200);
+      expect(Array.from(event?.context ?? '').length).toBeLessThanOrEqual(600);
+    }
   });
 
   test('parse and build clean a ref too: a token is redacted and a long value is cut', () => {

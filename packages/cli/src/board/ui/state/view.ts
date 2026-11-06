@@ -1,4 +1,4 @@
-import { EventActorNames } from '../../../events/common/index.ts';
+import { EventActorNames } from '../../../events/common/actor-names.ts';
 import type { IBoardAgent, IBoardData, IBoardEvent, IBoardFlow } from '../../common/index.ts';
 import { BoardConstants } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
