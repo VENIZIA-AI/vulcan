@@ -73,6 +73,8 @@ export interface ICommandView {
   commands: ISimpleCommand[];
   /** Part of the line was not read: the guard asks. */
   isOverBudget: boolean;
+  /** Part of the line could not be followed to its end: the guard asks. */
+  isUncertain: boolean;
 }
 
 /** Whether a `gh` command is a request: its subcommand (the first word that is not an option or an option's value) is one of `GH_REQUESTS`. */
@@ -148,6 +150,12 @@ export class CommandView {
         );
     const sources = isWholeLine ? [undefined] : parsed.commands;
 
-    return { texts, sources, commands, isOverBudget: parsed.isOverBudget };
+    return {
+      texts,
+      sources,
+      commands,
+      isOverBudget: parsed.isOverBudget,
+      isUncertain: parsed.isUncertain,
+    };
   }
 }

@@ -7,7 +7,7 @@ import type { IHookCommand, IReadOnlyScript, IWriteCheck, IWriteHit } from './co
 import { CommandView } from './command-view.ts';
 import { HookDecision } from './decision.ts';
 import type { IProjectCommandCheck } from './project-guards.ts';
-import { ShellModes, ShellParser, ShellPrograms } from './shell.ts';
+import { ShellModes, ShellParser, ShellPrograms, ShellUnread } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { ReadOnlyScripts, ScriptPaths, ScriptTrust } from './trusted-scripts.ts';
 
@@ -426,12 +426,10 @@ export class WriteGuard {
     }));
 
     // Part of the line was not read: never an allow.
-    if (view.isOverBudget) {
-      hits.push({
-        rule: 'V-W-02',
-        message:
-          'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
-      });
+    const unread = ShellUnread.reasonOf(view);
+
+    if (unread !== undefined) {
+      hits.push({ rule: 'V-W-02', message: unread });
     }
 
     for (const command of view.commands) {
