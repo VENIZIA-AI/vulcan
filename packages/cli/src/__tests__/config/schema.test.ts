@@ -90,6 +90,31 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     );
   });
 
+  test("a source's repo and ref are values for git, not options: one that starts with '-' is refused", () => {
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: 'a', repo: '--version' }] } }),
+    ).toThrow("it must not start with '-'");
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({
+        atlas: { sources: [{ name: 'a', repo: 'acme/a', ref: '-x' }] },
+      }),
+    ).toThrow("it must not start with '-'");
+  });
+
+  test('a source name is a plain name: one that could be read as a flag is refused', () => {
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: '--only', repo: 'acme/a' }] } }),
+    ).toThrow('starting with a letter or a digit');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: 'a b', repo: 'acme/a' }] } }),
+    ).toThrow('starting with a letter or a digit');
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({
+        atlas: { sources: [{ name: 'ignis-2.core_x', repo: 'acme/a' }] },
+      }).atlas.sources[0]?.name,
+    ).toBe('ignis-2.core_x');
+  });
+
   test('a source defaults its ref to develop', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }] },

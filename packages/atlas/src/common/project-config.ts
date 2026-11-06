@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { GitArgument } from './git-argument';
 import { WireValue } from './wire';
 import { LibraryKinds, PackageKinds, SourcePins } from './constants';
 import type { TAppSide, TLibraryKind, TPackageKind, TSourcePin } from './types';
@@ -260,13 +261,21 @@ export class ProjectConfig {
             ? source.pin
             : undefined;
 
-        return name === undefined || repo === undefined
+        const ref = WireValue.stringOf({ value: source.ref }) ?? 'develop';
+
+        // A name that could be read as a flag, and a repository or a ref that starts with '-', are not values a
+        // command line can be given: the source is left out.
+        return name === undefined ||
+          repo === undefined ||
+          !GitArgument.isSourceName({ value: name }) ||
+          GitArgument.isOptionLike({ value: repo }) ||
+          GitArgument.isOptionLike({ value: ref })
           ? []
           : [
               {
                 name,
                 repo,
-                ref: WireValue.stringOf({ value: source.ref }) ?? 'develop',
+                ref,
                 ...(pin === undefined ? {} : { pin }),
               },
             ];
