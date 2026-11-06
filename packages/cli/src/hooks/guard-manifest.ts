@@ -1,7 +1,9 @@
-import { isAbsolute, join, normalize } from 'node:path';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IManifestHookInput } from './common/index.ts';
 import { HookDecision } from './decision.ts';
+import { GitQuery } from './manifest-git.ts';
+import { ManifestPath, PathRef } from './manifest-path.ts';
+import { ManifestShell } from './manifest-shell.ts';
 
 /** The shell tool under the names the hosts give it: Cursor's `Shell`, and a lower-case `bash`. */
 const SHELL_NAMES = new Set(['Shell', 'shell', 'bash']);
@@ -9,24 +11,7 @@ const SHELL_NAMES = new Set(['Shell', 'shell', 'bash']);
 const MANIFEST_BLOCK_MESSAGE =
   'vulcan.manifest.json is generated - edit .configs/vulcan.config.* and run `vulcan sync`';
 
-const MANIFEST_SUFFIX = '/.agents/vulcan.manifest.json';
 const BASH_TOOL = 'Bash';
-/** A path word that ends in the manifest's name. */
-const TARGET = String.raw`[^\s;|&<>"']*vulcan\.manifest\.json`;
-
-/** The shell forms that write, replace or delete a file; reading it (cat, jq, git diff) is not among them. */
-const WRITE_PATTERNS: RegExp[] = [
-  // `> file`, `>> file`, `2> file`, `&> file`, `>| file`
-  new RegExp(String.raw`(?:^|[^<>])\d?>>?\|?\s*["']?${TARGET}`),
-  new RegExp(String.raw`\btee\b[^;|&]*${TARGET}`),
-  new RegExp(
-    String.raw`\b(?:sed|perl|ruby)\b[^;|&]*\s(?:-[A-Za-z]*i\b|--in-place)[^;|&]*${TARGET}`,
-  ),
-  // the manifest as the destination: the last argument
-  new RegExp(String.raw`\b(?:cp|mv|install|ln)\b[^;|&]*\s["']?${TARGET}["']?\s*(?:$|[;|&])`),
-  new RegExp(String.raw`\bof=["']?${TARGET}`),
-  new RegExp(String.raw`\b(?:rm|truncate|shred|unlink)\b[^;|&]*${TARGET}`),
-];
 
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
@@ -82,17 +67,18 @@ export class ManifestGuard {
   static inspectWrite(opts: { input: IManifestHookInput }): boolean {
     const { tool, filePath, command, cwd } = opts.input;
 
+    // What was read of the file system and asked of git belongs to one call.
+    GitQuery.begin();
+    PathRef.reset();
+
     if (tool === BASH_TOOL) {
-      return command !== undefined && WRITE_PATTERNS.some((pattern) => pattern.test(command));
+      return (
+        command !== undefined &&
+        ManifestShell.inspectLine({ line: command, dir: cwd ?? process.cwd(), cwd, depth: 0 })
+      );
     }
 
-    if (filePath === undefined) {
-      return false;
-    }
-
-    const absolute = isAbsolute(filePath) ? filePath : join(cwd ?? process.cwd(), filePath);
-
-    return normalize(absolute).endsWith(MANIFEST_SUFFIX);
+    return filePath !== undefined && ManifestPath.isWriteTarget({ path: filePath, cwd });
   }
 
   static buildDecision() {
