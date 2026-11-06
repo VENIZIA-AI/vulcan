@@ -224,7 +224,8 @@ export class EventSecrets {
     // A Basic credential is base64 of user:password: it has a digit, a + or a /, a capital inside it, or ends in =; a plain word after "Basic" has none of these.
     /\bBasic\s+(?:(?=[A-Za-z0-9+/]*(?:[0-9+/]|[a-z][A-Z]))[A-Za-z0-9+/]{8,}={0,2}|[A-Za-z0-9+/]{8,}={1,2})/g,
     /\bxox[abprs]-[A-Za-z0-9-]{10,}/g,
-    /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi,
+    // A Bearer credential has a digit, a + / or =, a dot between two characters, or a capital inside it; a plain word of letters ("Bearer authentication", "Bearer authentication.") has none of these. No `i` flag: it would make every pair of letters an inner capital.
+    /\b(?:Bearer|bearer|BEARER)\s+(?=[A-Za-z0-9._~+/=-]*(?:[0-9+/=]|[a-z][A-Z]|[A-Za-z0-9]\.[A-Za-z0-9]))[A-Za-z0-9._~+/=-]{8,}/g,
   ];
   /** Long runs that are secrets in a log line but hashes in a lockfile. */
   static readonly HIGH_ENTROPY: RegExp[] = [
