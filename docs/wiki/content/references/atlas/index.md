@@ -206,7 +206,6 @@ The composite action `VENIZIA-AI/vulcan/.github/actions/atlas-index` runs it as 
 on:
   push:
     branches: [main, develop]
-    tags: ['*']
 
 permissions:
   contents: write
