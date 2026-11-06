@@ -373,7 +373,7 @@ The `atlas` object configures release tags and external repository sources. `vul
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` |
+| `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>`; `<issue>` and `<date>` are the only other placeholders, and any other `<word>` is refused |
 | `legacyTagPatterns` | `string[]` | `undefined` | Tag templates of an earlier layout that still name releases, read after `tagPattern` (see [legacyTagPatterns](#legacytagpatterns)) |
 | `sources` | `Array<object>` | `[]` | External repositories to query through atlas |
 | `ignoreTags` | `string[]` | `undefined` | Glob patterns of git tags ignored by checks |
@@ -405,7 +405,7 @@ See [the prebuilt index](/references/atlas/prebuilt-index).
 
 ### tagPattern and the tags check
 
-The `tagPattern` template must contain `<version>`. The `<dir>` placeholder is optional. A release train that tags once leaves it out (`v<version>`). `vulcan doctor` skips the `[tags]` check when there is no `<dir>`.
+The `tagPattern` template must contain `<version>`. The `<dir>` placeholder is optional. A template may hold only `<dir>`, `<version>`, `<issue>` and `<date>`: any other `<word>` is refused when the config loads, and `<package>` is told to be `<dir>`. A release train that tags once leaves it out (`v<version>`). `vulcan doctor` skips the `[tags]` check when there is no `<dir>`.
 
 The `[tags]` doctor check does not require every tag to match `tagPattern`. It parses tags using the template. It reports any tag that names a package no `packages` entry declares by `dir` or alias. Glob patterns in `ignoreTags` skip tags:
 

@@ -1,12 +1,12 @@
 ---
-title: A release template with an unknown placeholder such as <package> is refused
-description: atlas.tagPattern and atlas.legacyTagPatterns now fail when they hold a placeholder other than <dir>, <version>, <issue> or <date>, and the error says <dir> replaces <package>.
+title: A release template with an unknown placeholder, such as package, is refused
+description: atlas.tagPattern and atlas.legacyTagPatterns now fail when they hold a placeholder other than dir, version, issue or date, and the error says dir replaces package.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-11-06
 
-## A release template with an unknown placeholder such as <package> is refused
+## A release template with an unknown placeholder, such as package, is refused
 
 <Badge type="info" text="Bug Fix" /> <Badge type="warning" text="Behavior Change" />
 

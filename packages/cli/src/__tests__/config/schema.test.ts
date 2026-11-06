@@ -102,6 +102,9 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
         atlas: { tagPattern: '<dir>-v<version>', legacyTagPatterns: ['<name>-<version>'] },
       }),
     ).toThrow('<name> is not a placeholder');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<dir >-<a>-v<version>' } }),
+    ).toThrow('<dir >, <a> are not placeholders');
 
     for (const template of [
       '<dir>-v<version>',

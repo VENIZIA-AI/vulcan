@@ -84,7 +84,7 @@ export class ConfigConstants {
 /** The placeholders a release template (`atlas.tagPattern`, `atlas.legacyTagPatterns`) knows; any other `<word>` would be read as literal text and match no tag. */
 export class TemplatePlaceholders {
   static readonly ALLOWED = ['dir', 'version', 'issue', 'date'];
-  private static readonly PATTERN = /<([^<>\s]*)>/g;
+  private static readonly PATTERN = /<([^<>]*)>/g;
 
   /** The `<word>` placeholders of the template that are not allowed, each once, in the order they appear. */
   static unknownIn(opts: { template: string }): string[] {
@@ -103,6 +103,8 @@ export class TemplatePlaceholders {
       : '';
     const allowed = TemplatePlaceholders.ALLOWED.map((word) => `<${word}>`).join(', ');
 
-    return `${named} is not a placeholder of a release template (${allowed}).${hint}`;
+    const verb = opts.unknown.length === 1 ? 'is not a placeholder' : 'are not placeholders';
+
+    return `${named} ${verb} of a release template (${allowed}).${hint}`;
   }
 }

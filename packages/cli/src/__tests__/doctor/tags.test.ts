@@ -57,17 +57,6 @@ test('a tag naming no declared package is a violation (positive control)', async
   ]);
 });
 
-test('<package> is no placeholder: a template written with it names no directory, so no tag is checked', async () => {
-  const root = projectWithTags({
-    tags: ['ghost-v1.0.0'],
-    config: CONFIG.replace('<dir>-v<version>', '<package>-v<version>'),
-  });
-
-  const result = await tagViolations({ root });
-
-  expect(result).toEqual([]);
-});
-
 test('a template with <package> is a config violation that names the placeholder and <dir>', async () => {
   const root = projectWithTags({
     tags: [],
