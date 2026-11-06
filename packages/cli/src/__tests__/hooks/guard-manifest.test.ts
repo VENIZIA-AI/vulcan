@@ -235,9 +235,9 @@ const SCRIPT_CASES: { name: string; command: string; blocked: boolean }[] = [
     blocked: true,
   },
   {
-    name: 'upper-case spelling of the name',
+    name: 'upper-case spelling of the name (the same file only where the file system folds case)',
     command: `bun -e "await Bun.write('.agents/VULCAN.Manifest.JSON','{}')"`,
-    blocked: true,
+    blocked: process.platform === 'darwin' || process.platform === 'win32',
   },
   {
     name: 'a removal',

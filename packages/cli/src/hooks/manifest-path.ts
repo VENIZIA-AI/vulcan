@@ -1,5 +1,6 @@
 import { existsSync, lstatSync, readdirSync, readlinkSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, normalize } from 'node:path';
+import { InlineScript } from './manifest-script.ts';
 
 /** What a word names: the manifest itself, or the `.agents` folder that holds it. */
 export type TPathRef = 'manifest' | 'folder';
@@ -12,6 +13,8 @@ export class ManifestPath {
   static readonly MAX_STEPS = 256;
   static readonly MAX_ANCESTORS = 64;
   static readonly MAX_WORD = 1024;
+  /** Whether the file system of this platform reads `A` and `a` as one name. */
+  static readonly FOLDS_CASE = process.platform === 'darwin' || process.platform === 'win32';
 
   /** The code of a failed file-system call, or an empty text when the error carries none. */
   static codeOf(opts: { error: unknown }): string {
@@ -37,7 +40,9 @@ export class ManifestPath {
 
   /** Whether the path, as written, ends in the manifest's name (case does not count: some file systems fold it). */
   static isNamed(opts: { path: string }): boolean {
-    return normalize(opts.path).toLowerCase().endsWith(ManifestPath.SUFFIX);
+    const path = normalize(opts.path);
+
+    return (ManifestPath.FOLDS_CASE ? path.toLowerCase() : path).endsWith(ManifestPath.SUFFIX);
   }
 
   /** Whether the word is the `.agents` folder itself: `.agents`, `x/.agents/`, `.agents/.`. */
@@ -225,7 +230,7 @@ export class ManifestPath {
 
 /** A word that holds shell patterns or expansions, read as the set of paths it could name. */
 export class PathPattern {
-  static readonly MAX_ALTERNATIVES = 64;
+  static readonly MAX_ALTERNATIVES = 256;
 
   static isWild(opts: { word: string }): boolean {
     return /[*?[$`{]/.test(opts.word);
@@ -252,58 +257,79 @@ export class PathPattern {
     return -1;
   }
 
-  /** The words a brace expression makes (`a.{b,c}` is `a.b` and `a.c`), at most `MAX_ALTERNATIVES`. */
-  static expandBraces(opts: { word: string }): string[] {
-    const open = opts.word.indexOf('{');
+  /**
+   * The words a brace expression makes (`a.{b,c}` is `a.b` and `a.c`), at most `MAX_ALTERNATIVES`. A
+   * larger expression is cut and says so: what was cut is not known.
+   */
+  static expandBraces(opts: { word: string }): { words: string[]; isTruncated: boolean } {
+    const words: string[] = [];
+    const state = { isTruncated: false };
 
-    if (open === -1 || opts.word[open - 1] === '$') {
-      return [opts.word];
+    PathPattern.expandInto({ word: opts.word, words, state });
+
+    return { words, isTruncated: state.isTruncated };
+  }
+
+  private static expandInto(opts: {
+    word: string;
+    words: string[];
+    state: { isTruncated: boolean };
+  }): void {
+    const { word, words, state } = opts;
+
+    if (words.length >= PathPattern.MAX_ALTERNATIVES) {
+      state.isTruncated = true;
+
+      return;
     }
 
-    const close = PathPattern.closeOf({ word: opts.word, open });
+    const open = word.indexOf('{');
+    const close = open === -1 || word[open - 1] === '$' ? -1 : PathPattern.closeOf({ word, open });
 
     if (close === -1) {
-      return [opts.word];
+      words.push(word);
+
+      return;
     }
 
     const parts: string[] = [];
     let depth = 0;
-    let start = open + 1;
+    let begin = open + 1;
 
     for (let index = open + 1; index < close; index += 1) {
-      depth += opts.word[index] === '{' ? 1 : 0;
-      depth -= opts.word[index] === '}' ? 1 : 0;
+      depth += word[index] === '{' ? 1 : 0;
+      depth -= word[index] === '}' ? 1 : 0;
 
-      if (opts.word[index] === ',' && depth === 0) {
-        parts.push(opts.word.slice(start, index));
-        start = index + 1;
+      if (word[index] === ',' && depth === 0) {
+        parts.push(word.slice(begin, index));
+        begin = index + 1;
       }
     }
 
-    parts.push(opts.word.slice(start, close));
+    parts.push(word.slice(begin, close));
 
     // `{a..b}` and `{x}` have no comma: they stand for any text.
     if (parts.length === 1) {
-      return PathPattern.expandBraces({
-        word: `${opts.word.slice(0, open)}*${opts.word.slice(close + 1)}`,
+      PathPattern.expandInto({
+        word: `${word.slice(0, open)}*${word.slice(close + 1)}`,
+        words,
+        state,
+      });
+
+      return;
+    }
+
+    if (parts.length > PathPattern.MAX_ALTERNATIVES) {
+      state.isTruncated = true;
+    }
+
+    for (const part of parts.slice(0, PathPattern.MAX_ALTERNATIVES)) {
+      PathPattern.expandInto({
+        word: word.slice(0, open) + part + word.slice(close + 1),
+        words,
+        state,
       });
     }
-
-    const words: string[] = [];
-
-    for (const part of parts) {
-      for (const word of PathPattern.expandBraces({
-        word: opts.word.slice(0, open) + part + opts.word.slice(close + 1),
-      })) {
-        words.push(word);
-
-        if (words.length >= PathPattern.MAX_ALTERNATIVES) {
-          return words;
-        }
-      }
-    }
-
-    return words;
   }
 
   /** The index after the group that opens at `from` (`$(..)`, `${..}`, a backtick pair, `$NAME`). */
@@ -332,7 +358,11 @@ export class PathPattern {
   }
 
   /** The pattern as tokens: a letter, `one` (`?`, `[..]`), `star` (stops at a slash) or `any`. */
-  private static tokensOf(opts: { word: string; crossesSlash: boolean }): string[] {
+  private static tokensOf(opts: {
+    word: string;
+    crossesSlash: boolean;
+    globstar?: boolean;
+  }): string[] {
     const word = opts.word.toLowerCase();
     const tokens: string[] = [];
     let index = 0;
@@ -340,7 +370,10 @@ export class PathPattern {
     while (index < word.length) {
       const char = word[index] ?? '';
 
-      if (char === '*') {
+      if (char === '*' && opts.globstar === true && word[index + 1] === '*') {
+        tokens.push('\0any');
+        index += 2;
+      } else if (char === '*') {
         tokens.push(opts.crossesSlash ? '\0any' : '\0star');
         index += 1;
       } else if (char === '?') {
@@ -376,12 +409,14 @@ export class PathPattern {
    * pathspec `*` (`crossesSlash`) does neither; an expansion stands for any text. Linear in the product of
    * the two lengths, with no backtracking over groups.
    */
-  static matches(opts: { pattern: string; text: string; crossesSlash: boolean }): boolean {
-    return PathPattern.matchesAny({
-      pattern: opts.pattern,
-      texts: [opts.text],
-      crossesSlash: opts.crossesSlash,
-    });
+  static matches(opts: {
+    pattern: string;
+    text: string;
+    crossesSlash: boolean;
+    dotglob?: boolean;
+    globstar?: boolean;
+  }): boolean {
+    return PathPattern.matchesAny({ ...opts, texts: [opts.text] });
   }
 
   /** Which of two lists of texts the pattern can name (the first wins); the pattern is read once. */
@@ -390,6 +425,8 @@ export class PathPattern {
     first: string[];
     second: string[];
     crossesSlash: boolean;
+    dotglob?: boolean;
+    globstar?: boolean;
   }): 'first' | 'second' | undefined {
     const first = PathPattern.sharing({ pattern: opts.pattern, texts: opts.first });
     const second = PathPattern.sharing({ pattern: opts.pattern, texts: opts.second });
@@ -398,9 +435,14 @@ export class PathPattern {
       return undefined;
     }
 
-    const tokens = PathPattern.tokensOf({ word: opts.pattern, crossesSlash: opts.crossesSlash });
+    const tokens = PathPattern.tokensOf({
+      word: opts.pattern,
+      crossesSlash: opts.crossesSlash,
+      globstar: opts.globstar,
+    });
     const hasAny = tokens.includes('\0any');
-    const test = (text: string): boolean => PathPattern.run({ tokens, hasAny, text });
+    const allowsDot = opts.crossesSlash || opts.dotglob === true;
+    const test = (text: string): boolean => PathPattern.run({ tokens, hasAny, allowsDot, text });
 
     if (first.some(test)) {
       return 'first';
@@ -418,20 +460,36 @@ export class PathPattern {
   }
 
   /** Whether the pattern can name any of the texts; the pattern is read once. */
-  static matchesAny(opts: { pattern: string; texts: string[]; crossesSlash: boolean }): boolean {
+  static matchesAny(opts: {
+    pattern: string;
+    texts: string[];
+    crossesSlash: boolean;
+    dotglob?: boolean;
+    globstar?: boolean;
+  }): boolean {
     const texts = PathPattern.sharing({ pattern: opts.pattern, texts: opts.texts });
 
     if (texts.length === 0) {
       return false;
     }
 
-    const tokens = PathPattern.tokensOf({ word: opts.pattern, crossesSlash: opts.crossesSlash });
+    const tokens = PathPattern.tokensOf({
+      word: opts.pattern,
+      crossesSlash: opts.crossesSlash,
+      globstar: opts.globstar,
+    });
     const hasAny = tokens.includes('\0any');
+    const allowsDot = opts.crossesSlash || opts.dotglob === true;
 
-    return texts.some((text) => PathPattern.run({ tokens, hasAny, text }));
+    return texts.some((text) => PathPattern.run({ tokens, hasAny, allowsDot, text }));
   }
 
-  private static run(opts: { tokens: string[]; hasAny: boolean; text: string }): boolean {
+  private static run(opts: {
+    tokens: string[];
+    hasAny: boolean;
+    allowsDot: boolean;
+    text: string;
+  }): boolean {
     const { tokens, hasAny, text } = opts;
     const isStar = (token: string | undefined): boolean => token === '\0any' || token === '\0star';
     const canTake = (at: number, token: string): boolean => {
@@ -441,7 +499,9 @@ export class PathPattern {
         return true;
       }
 
-      return char !== '/' && !(char === '.' && (at === 0 || text[at - 1] === '/'));
+      return (
+        char !== '/' && (opts.allowsDot || !(char === '.' && (at === 0 || text[at - 1] === '/')))
+      );
     };
     let pattern = 0;
     let at = 0;
@@ -476,6 +536,16 @@ export class PathPattern {
 
     return pattern === tokens.length;
   }
+}
+
+/** What to read about a word: the folder the command runs in, the one before, and the shell's glob options. */
+export interface IClassifyOptions {
+  word: string;
+  dir: string;
+  isAbout: boolean;
+  previous?: string;
+  dotglob?: boolean;
+  globstar?: boolean;
 }
 
 /** What a word of a command names, read in the folder the command runs in. */
@@ -560,25 +630,29 @@ export class PathRef {
     return kind;
   }
 
-  private static classifyPattern(opts: {
-    word: string;
-    dir: string;
-    isAbout: boolean;
-  }): TPathRef | undefined {
-    if (PathPattern.hasExpansion({ word: opts.word }) && !opts.isAbout) {
+  private static classifyPattern(opts: IClassifyOptions): TPathRef | undefined {
+    const hasExpansion = PathPattern.hasExpansion({ word: opts.word });
+    const isNamed = InlineScript.hasNamePart({
+      letters: InlineScript.toLetters({ text: opts.word }),
+    });
+
+    // An expansion whose text is not known counts when the command is about `.agents` or the word spells a piece of the name.
+    if (hasExpansion && !opts.isAbout && !isNamed) {
       return undefined;
     }
 
-    const pattern = isAbsolute(opts.word) ? opts.word : join(opts.dir, opts.word);
+    // A word that starts with an expansion can be any path, the working folder's or not.
+    const isRooted =
+      isAbsolute(opts.word) || opts.word.startsWith('$') || opts.word.startsWith('`');
+    const pattern = isRooted ? opts.word : join(opts.dir, opts.word);
     const manifests = ManifestPath.candidatesOf({ dir: opts.dir });
-
     const which = PathPattern.matchesWhich({
       pattern,
       first: manifests,
-      second: PathPattern.hasExpansion({ word: opts.word })
-        ? []
-        : manifests.map((manifest) => dirname(manifest)),
+      second: hasExpansion ? [] : manifests.map((manifest) => dirname(manifest)),
       crossesSlash: false,
+      dotglob: opts.dotglob,
+      globstar: opts.globstar,
     });
 
     if (which === undefined) {
@@ -588,17 +662,39 @@ export class PathRef {
     return which === 'first' ? 'manifest' : 'folder';
   }
 
+  /** The word with the working folder spelt out: `$PWD`, `${PWD}`, `$(pwd)`, `~+` and the folder before (`$OLDPWD`, `~-`). */
+  private static substitute(opts: IClassifyOptions): string {
+    const folders: [string, string][] = [
+      ['${PWD}', opts.dir],
+      ['$PWD', opts.dir],
+      ['$(pwd)', opts.dir],
+      ['`pwd`', opts.dir],
+      ['~+', opts.dir],
+      ['${OLDPWD}', opts.previous ?? opts.dir],
+      ['$OLDPWD', opts.previous ?? opts.dir],
+      ['~-', opts.previous ?? opts.dir],
+    ];
+
+    for (const [prefix, folder] of folders) {
+      if (opts.word === prefix || opts.word.startsWith(`${prefix}/`)) {
+        return folder + opts.word.slice(prefix.length);
+      }
+    }
+
+    return opts.word;
+  }
+
   /**
    * What the word names when the command runs in `dir`: the manifest or its folder, by name, through a
    * link, or as a pattern (`isAbout` says the command is about `.agents`, which makes a pattern with an
-   * expansion count). A brace expression is read as the words it makes.
+   * expansion count). A brace expression is read as the words it makes; one too large to read names it.
    */
-  static classify(opts: { word: string; dir: string; isAbout: boolean }): TPathRef | undefined {
-    if (opts.word === '' || opts.word.length > ManifestPath.MAX_WORD * 8) {
+  static classify(opts: IClassifyOptions): TPathRef | undefined {
+    if (opts.word === '') {
       return undefined;
     }
 
-    const key = `${opts.isAbout ? 1 : 0}${opts.dir}\0${opts.word}`;
+    const key = `${opts.isAbout ? 1 : 0}${opts.dotglob === true ? 1 : 0}${opts.globstar === true ? 1 : 0}${opts.previous ?? ''}\0${opts.dir}\0${opts.word}`;
 
     if (PathRef.cache.has(key)) {
       return PathRef.cache.get(key);
@@ -611,17 +707,15 @@ export class PathRef {
     return kind;
   }
 
-  private static classifyAll(opts: {
-    word: string;
-    dir: string;
-    isAbout: boolean;
-  }): TPathRef | undefined {
-    let found: TPathRef | undefined;
+  private static classifyAll(opts: IClassifyOptions): TPathRef | undefined {
+    const { words, isTruncated } = PathPattern.expandBraces({ word: opts.word });
+    let found: TPathRef | undefined = isTruncated ? 'manifest' : undefined;
 
-    for (const word of PathPattern.expandBraces({ word: opts.word })) {
-      const kind = PathPattern.isWild({ word })
-        ? PathRef.classifyPattern({ word, dir: opts.dir, isAbout: opts.isAbout })
-        : PathRef.classifyLiteral({ word, dir: opts.dir });
+    for (const word of words) {
+      const spelt = PathRef.substitute({ ...opts, word });
+      const kind = PathPattern.isWild({ word: spelt })
+        ? PathRef.classifyPattern({ ...opts, word: spelt })
+        : PathRef.classifyLiteral({ word: spelt, dir: opts.dir });
 
       if (kind === 'manifest') {
         return kind;

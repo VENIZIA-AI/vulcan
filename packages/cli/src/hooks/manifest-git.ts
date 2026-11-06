@@ -21,6 +21,7 @@ interface IQueryResult {
   isRefused: boolean;
   status: number | null;
   stdout: string;
+  stderr: string;
 }
 
 /** The `git` runs the guard makes for one tool call: few, cached, and bounded in time. */
@@ -48,7 +49,7 @@ export class GitQuery {
     }
 
     if (GitQuery.spawns >= GitQuery.MAX_SPAWNS || GitQuery.spentMs >= GitQuery.TOTAL_MS) {
-      return { isRefused: true, status: null, stdout: '' };
+      return { isRefused: true, status: null, stdout: '', stderr: '' };
     }
 
     const started = performance.now();
@@ -70,6 +71,7 @@ export class GitQuery {
       isRefused: false,
       status: result.error === undefined ? result.status : null,
       stdout: result.stdout ?? '',
+      stderr: result.stderr ?? '',
     };
 
     GitQuery.spentMs += performance.now() - started;
@@ -230,6 +232,8 @@ export class GitRewrite {
     'describe',
     'reflog',
     'annotate',
+    'hash-object',
+    'update-index',
   ]);
   static readonly OPTIONS_WITH_VALUE = new Set([
     '-C',
@@ -239,7 +243,11 @@ export class GitRewrite {
     '--namespace',
     '--exec-path',
   ]);
+  /** The stash commands that put a stash back in the tree. */
   static readonly STASH_ACTIONS = new Set(['pop', 'apply', 'branch']);
+  /** The stash commands that move the stack or put a stash back. */
+  static readonly STASH_MOVES = new Set(['pop', 'apply', 'branch', 'drop', 'clear']);
+  static readonly MAX_STASHES = 3;
   static readonly STASH_READS = new Set(['show', 'list']);
   /** Options of `git apply` that only look at a patch. */
   static readonly DRY_RUN = new Set(['--check', '--stat', '--numstat', '--summary']);
@@ -427,9 +435,13 @@ export class GitRewrite {
       return false;
     }
 
-    // Too many pathspecs to read one by one stand for the whole tree.
-    const listed = [...new Set(specs)];
-    const all = listed.length > GitRewrite.MAX_SPECS ? ['.'] : listed;
+    // Too many pathspecs to read one by one are not let through.
+    const all = [...new Set(specs)];
+
+    if (all.length > GitRewrite.MAX_SPECS) {
+      return true;
+    }
+
     const isExclude = (word: string): boolean => GitRewrite.parseSpec({ word }).isExclude;
     const excludes = all.filter(isExclude);
     // Only exclusions name everything but what they exclude.
@@ -466,6 +478,35 @@ export class GitRewrite {
     return manifests.some((manifest) => GitQuery.differs({ rev, file: manifest, dir: opts.dir }));
   }
 
+  /** The stash command a `git` line runs (`pop`, `apply`, `drop` ...), or `undefined`. */
+  static stashActionOf(opts: { args: string[] }): string | undefined {
+    const { sub, at } = GitRewrite.subOf({ args: opts.args });
+
+    if (sub !== 'stash') {
+      return undefined;
+    }
+
+    const action = opts.args.slice(at + 1).find((word) => !word.startsWith('-'));
+
+    return action !== undefined && GitRewrite.STASH_MOVES.has(action) ? action : undefined;
+  }
+
+  /** Whether any of the stashes lists the manifest (or there are too many to ask about). */
+  private static anyStashHolds(opts: { dir: string }): boolean {
+    const list = GitQuery.run({ args: ['stash', 'list', '--format=%gd'], dir: opts.dir });
+
+    if (list.isRefused || list.status !== 0) {
+      return true;
+    }
+
+    const names = list.stdout.split('\n').filter((line) => line.trim() !== '');
+
+    return (
+      names.length > GitRewrite.MAX_STASHES ||
+      names.some((name) => GitRewrite.stashHolds({ dir: opts.dir, stash: name.trim() }))
+    );
+  }
+
   /** Whether the stash lists the manifest. `git` is asked, within the budget; an answer that never came is not let through. */
   private static stashHolds(opts: { dir: string; stash: string | undefined }): boolean {
     const ref = opts.stash === undefined ? [] : [opts.stash];
@@ -483,12 +524,14 @@ export class GitRewrite {
       return true;
     }
 
-    return (
-      result.status === 0 &&
-      result.stdout
-        .split('\n')
-        .some((line) => `/${line.trim()}`.toLowerCase().endsWith(ManifestPath.SUFFIX))
-    );
+    // Nothing to put back is not a stash that holds the file; any other failure is not known.
+    if (result.status !== 0) {
+      return !/No stash entries|not a git repository/i.test(result.stderr);
+    }
+
+    return result.stdout
+      .split('\n')
+      .some((line) => `/${line.trim()}`.toLowerCase().endsWith(ManifestPath.SUFFIX));
   }
 
   /** The folder git runs in: `-C <dir>` and `--work-tree <dir>` before the subcommand move it. */
@@ -527,6 +570,18 @@ export class GitRewrite {
     });
   }
 
+  /** The value of `--prefix` (`--prefix=x` or `--prefix x`). */
+  private static prefixOf(opts: { words: string[] }): string | undefined {
+    const at = opts.words.findIndex((word) => word === '--prefix' || word.startsWith('--prefix='));
+    const word = opts.words[at];
+
+    if (at === -1 || word === undefined) {
+      return undefined;
+    }
+
+    return word === '--prefix' ? opts.words[at + 1] : word.slice('--prefix='.length);
+  }
+
   /** Whether this simple command is a `git` form that rewrites the manifest from a revision, a patch or a stash. */
   static rewrites(opts: {
     command: ISimpleCommand;
@@ -534,6 +589,8 @@ export class GitRewrite {
     line: string;
     dir: string;
     isAbout: boolean;
+    /** An earlier command of the line moved the stash stack. */
+    isLaterStash?: boolean;
   }): boolean {
     const { args } = opts;
 
@@ -575,18 +632,37 @@ export class GitRewrite {
         return words.some((word) => /^-[A-Za-z]*u/.test(word));
       }
       case 'checkout-index': {
+        const prefix = GitRewrite.prefixOf({ words });
+
+        // Files written under another folder do not reach this one.
+        if (prefix !== undefined) {
+          const target = resolve(dir, prefix);
+
+          return ManifestPath.ancestorsOf({ dir }).includes(target);
+        }
+
         return words.some((word) => word === '--all' || /^-[A-Za-z]*a/.test(word));
       }
       default: {
-        const action = words.find((word) => !word.startsWith('-'));
-        const stash = words.find((word) => /^(?:stash@\{\d+\}|\d+)$/.test(word));
+        const rest = words.filter((word) => !word.startsWith('-'));
+        const [action] = rest;
+
+        if (action === undefined || !GitRewrite.STASH_MOVES.has(action)) {
+          return false;
+        }
+
+        // A stack that an earlier command moved is not the one that was asked about.
+        if (opts.isLaterStash === true) {
+          return GitRewrite.anyStashHolds({ dir });
+        }
+
+        const named = action === 'branch' ? rest[2] : rest[1];
 
         return (
-          action !== undefined &&
           GitRewrite.STASH_ACTIONS.has(action) &&
           GitRewrite.stashHolds({
             dir,
-            stash: stash !== undefined && /^\d+$/.test(stash) ? `stash@{${stash}}` : stash,
+            stash: named !== undefined && /^\d+$/.test(named) ? `stash@{${named}}` : named,
           })
         );
       }

@@ -13,6 +13,8 @@ interface ICall {
   nested: string[];
   /** The command is fed by `xargs`. */
   isFed: boolean;
+  /** The folder `env -C` / `env --chdir` moves the command to. */
+  chdir?: string;
 }
 
 interface IRef {
@@ -24,6 +26,15 @@ interface ILine {
   cwd: string | undefined;
   depth: number;
   isAbout: boolean;
+  /** How many commands of the line moved the stash stack so far. */
+  stashMoves: number;
+}
+
+/** What the line sets for the glob and the folder before: read by every word. */
+interface IView {
+  previous: string | undefined;
+  dotglob: boolean;
+  globstar: boolean;
 }
 
 /**
@@ -99,12 +110,8 @@ export class ManifestShell {
     'popd',
     'base64',
     'mkdir',
-  ]);
-  /** Readers that write a file when given one of these options. */
-  static readonly OUTPUT_FLAGS = new Map<string, string[]>([
-    ['sort', ['-o', '--output']],
-    ['tree', ['-o']],
-    ['yq', ['-i', '--inplace']],
+    'uniq',
+    'xxd',
   ]);
   /** Formatters that only report, unless they are told to write. */
   static readonly CHECKERS = new Map<string, string[]>([
@@ -137,9 +144,49 @@ export class ManifestShell {
     'fish',
   ]);
   static readonly SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'fish']);
-  /** Sed: a script that writes to a file named in it (`w file`, `s/a/b/w file`). */
-  static readonly SED_WRITE = /(?:^|[^a-z0-9])w\s+\S/i;
   static readonly COPIERS = new Set(['cp', 'install', 'rsync', 'ln']);
+  /** Programs that run a package's program. */
+  static readonly LAUNCHERS = new Set(['bunx', 'npx', 'pnpx']);
+  /** Package managers and the subcommands that run a package's program. */
+  static readonly PACKAGE_RUNNERS = new Map<string, string[]>([
+    ['bun', ['x']],
+    ['pnpm', ['dlx', 'exec']],
+    ['yarn', ['dlx', 'exec']],
+    ['npm', ['exec']],
+  ]);
+  /** Programs that write the file without the extension of the compressed one they are given. */
+  static readonly DECOMPRESSORS = new Set([
+    'gunzip',
+    'unxz',
+    'unzstd',
+    'bunzip2',
+    'unlz4',
+    'uncompress',
+    'unlzma',
+  ]);
+  static readonly COMPRESSORS = new Set(['gzip', 'xz', 'zstd', 'bzip2', 'lz4', 'lzma']);
+  static readonly COMPRESSED_SUFFIX = /\.(?:gz|xz|zst|bz2|lz4|z|lzma|tgz|taz)$/i;
+  static readonly EXTRACT_PROGRAMS = new Set([
+    'cpio',
+    'ar',
+    '7z',
+    '7za',
+    '7zr',
+    '7zz',
+    'jar',
+    'pax',
+  ]);
+  /** A number given to an option, not a file. */
+  static readonly NUMBER = /^(?:\d+|0x[0-9a-f]+)$/i;
+  static readonly AWK_REDIRECT = /(?<![=!<>-])>(?!=)/;
+  static readonly AWK_PIPE = /(?<!\|)\|(?!\|)/;
+  static readonly PERL_WRITES =
+    /\b(?:open|sysopen|unlink|rename|truncate|system|exec|syswrite|mkdir|rmdir|link|symlink|chmod|chown|utime|copy|move|qx|File|IO)\b|`|\$\^I/;
+  static readonly RUBY_WRITES =
+    /\b(?:File|IO|FileUtils|Dir|Kernel|open|system|exec|spawn|write|delete|unlink|rename|truncate|popen)\b|`|%x/;
+  static readonly SED_COMMAND = /(?:^|[\s;{}!0-9$/])[weW](?:\s|$)/;
+  static readonly SED_FLAG = /\/[gpiImMx0-9]*[we][gpiImMx0-9]*(?:\s|;|$)/;
+  static readonly SHELL_FEEDERS = new Set(['echo', 'printf']);
   static readonly FIND_ACTIONS = new Set([
     '-delete',
     '-exec',
@@ -155,6 +202,17 @@ export class ManifestShell {
   static readonly UNZIP_LISTS = new Set(['-l', '-t', '-p', '-Z', '-v']);
   static readonly TAR_LISTS = new Set(['t', 'c', 'd']);
   static readonly TAR_WRITES = new Set(['r', 'u']);
+
+  private static view: IView = { previous: undefined, dotglob: false, globstar: false };
+
+  /** What a word names, read with the folder before and the glob options of the line. */
+  private static classify(opts: {
+    word: string;
+    dir: string;
+    isAbout: boolean;
+  }): TPathRef | undefined {
+    return PathRef.classify({ ...opts, ...ManifestShell.view });
+  }
 
   /** The value of an option: `-C dir`, `--directory dir` or `--directory=dir`. */
   private static optionValue(opts: { args: string[]; names: string[] }): string | undefined {
@@ -173,17 +231,27 @@ export class ManifestShell {
     return undefined;
   }
 
+  /** The folder an `env -C dir` / `env --chdir=dir` in front of the command moves it to. */
+  private static chdirOf(opts: { words: string[] }): string | undefined {
+    const at = opts.words.findIndex((word) => ShellParser.basenameOf({ word }) === 'env');
+
+    if (at === -1) {
+      return undefined;
+    }
+
+    const rest = opts.words.slice(at + 1);
+
+    return ManifestShell.optionValue({ args: rest, names: ['-C', '--chdir'] });
+  }
+
   /** The program of a simple command past the wrappers, with the text it carries for a shell. */
   private static callOf(opts: { command: ISimpleCommand }): ICall {
     const parsed = ShellParser.programOf({ command: opts.command });
     let program = ShellParser.basenameOf({ word: parsed.name });
     let { args } = parsed;
     const nested: string[] = [];
-    const isFed =
-      parsed.index > 0 &&
-      opts.command.words
-        .slice(0, parsed.index)
-        .some((word) => ShellParser.basenameOf({ word }) === 'xargs');
+    const before = opts.command.words.slice(0, Math.max(parsed.index, 0));
+    const isFed = before.some((word) => ShellParser.basenameOf({ word }) === 'xargs');
 
     for (let step = 0; step < 4; step += 1) {
       const unwrapped = ManifestShell.unwrap({ program, args });
@@ -205,7 +273,14 @@ export class ManifestShell {
       }
     }
 
-    return { program, args, nested, isFed };
+    // `trap 'cmd' SIGNAL` keeps a command line to run later.
+    const code = program === 'trap' ? args.find((word) => !word.startsWith('-')) : undefined;
+
+    if (code !== undefined) {
+      nested.push(code);
+    }
+
+    return { program, args, nested, isFed, chdir: ManifestShell.chdirOf({ words: before }) };
   }
 
   /** What a wrapper that `programOf` does not know runs: `busybox cp`, `flock lock cmd`, `chroot dir cmd`, `script -c 'cmd'` ... */
@@ -268,6 +343,33 @@ export class ManifestShell {
           nested,
         };
       }
+      case 'bunx':
+      case 'npx':
+      case 'pnpx':
+      case 'bun':
+      case 'pnpm':
+      case 'yarn':
+      case 'npm': {
+        const runner = ManifestShell.PACKAGE_RUNNERS.get(opts.program);
+
+        if (runner !== undefined && !runner.includes(args[0] ?? '')) {
+          return undefined;
+        }
+
+        const rest = runner === undefined ? args : args.slice(1);
+        const index = Math.max(
+          rest.findIndex((word) => !word.startsWith('-')),
+          0,
+        );
+
+        return rest.length === 0
+          ? undefined
+          : {
+              program: ShellParser.basenameOf({ word: rest[index] ?? '' }),
+              args: rest.slice(index + 1),
+              nested: [],
+            };
+      }
       case 'script': {
         const flag = args.findIndex((word) => /^-[A-Za-z]*c$/.test(word));
 
@@ -302,7 +404,7 @@ export class ManifestShell {
       const kind =
         target === undefined
           ? undefined
-          : PathRef.classify({ word: target, dir: opts.dir, isAbout: opts.isAbout });
+          : ManifestShell.classify({ word: target, dir: opts.dir, isAbout: opts.isAbout });
 
       if (kind !== undefined) {
         refs.push({ index, kind });
@@ -322,37 +424,140 @@ export class ManifestShell {
     return opts.args.some((word) => /^-[A-Za-z0-9]*i/.test(word) || word.startsWith('--in-place'));
   }
 
+  /** Whether the script words of a stream editor write: a redirect or pipe in awk, a command that opens a file in perl, sed's `w` and `e`. When it cannot be told it does. */
+  private static scriptWrites(opts: { program: string; args: string[] }): boolean {
+    const { program, args } = opts;
+    const text = args.filter((word) => !word.startsWith('-')).join('\n');
+    const hasPayload = args.some((word) => /^-[A-Za-z]*[eE]$/.test(word));
+
+    if (args.some((word) => word === '-f' || word === '--file')) {
+      return true;
+    }
+
+    switch (program) {
+      case 'awk':
+      case 'gawk':
+      case 'mawk': {
+        const at = text.search(/\bprintf?\b/);
+
+        return (
+          /\bsystem\s*\(/.test(text) ||
+          ManifestShell.AWK_PIPE.test(text) ||
+          (at !== -1 && ManifestShell.AWK_REDIRECT.test(text.slice(at)))
+        );
+      }
+      case 'perl': {
+        return !hasPayload || ManifestShell.PERL_WRITES.test(text);
+      }
+      case 'ruby': {
+        return !hasPayload || ManifestShell.RUBY_WRITES.test(text);
+      }
+      default: {
+        return ManifestShell.SED_COMMAND.test(text) || ManifestShell.SED_FLAG.test(text);
+      }
+    }
+  }
+
+  /** The words of a command that are files, not options or the numbers given to them. */
+  private static positionalsOf(opts: { args: string[] }): string[] {
+    return opts.args.filter((word) => !word.startsWith('-') && !ManifestShell.NUMBER.test(word));
+  }
+
+  /** Whether a reader writes: it is given an output file or an option that runs a command. */
+  private static writesFile(opts: { program: string; args: string[] }): boolean {
+    const { program, args } = opts;
+
+    switch (program) {
+      case 'sort': {
+        return args.some((word) => /^-[A-Za-z]*o/.test(word) || word.startsWith('--o'));
+      }
+      case 'tree': {
+        return args.includes('-o');
+      }
+      case 'yq': {
+        return args.includes('-i') || args.includes('--inplace');
+      }
+      case 'less': {
+        return args.some((word) => /^-[A-Za-z]*[oO]/.test(word) || /^--log-file/i.test(word));
+      }
+      case 'rg': {
+        return args.some((word) => word.startsWith('--pre'));
+      }
+      case 'uniq': {
+        return ManifestShell.positionalsOf({ args }).length >= 2;
+      }
+      case 'xxd': {
+        return (
+          ManifestShell.positionalsOf({ args }).length >= 2 ||
+          args.some((word) => /^-[A-Za-z]*r/.test(word) || word === '-revert')
+        );
+      }
+      default: {
+        return false;
+      }
+    }
+  }
+
   /** Whether the program, with these arguments, only reads the files it is given. */
   private static isReader(opts: { program: string; args: string[] }): boolean {
     const { program, args } = opts;
-    const output = ManifestShell.OUTPUT_FLAGS.get(program);
     const checker = ManifestShell.CHECKERS.get(program);
 
     if (ManifestShell.FILTERS.has(program)) {
-      return !ManifestShell.isInPlace({ program, args });
+      return (
+        !ManifestShell.isInPlace({ program, args }) &&
+        !ManifestShell.scriptWrites({ program, args })
+      );
     }
 
     if (checker !== undefined) {
       return !args.some((word) => checker.includes(word));
     }
 
-    if (!ManifestShell.READERS.has(program)) {
-      return false;
+    return ManifestShell.READERS.has(program) && !ManifestShell.writesFile({ program, args });
+  }
+
+  /** The commands a `find` runs (`-exec cmd {} +`), each as its words. */
+  private static execsOf(opts: { args: string[] }): string[][] {
+    const commands: string[][] = [];
+    let current: string[] | undefined;
+
+    for (const word of opts.args) {
+      if (['-exec', '-execdir', '-ok', '-okdir'].includes(word)) {
+        current = [];
+        commands.push(current);
+      } else if (current !== undefined && (word === ';' || word === '+')) {
+        current = undefined;
+      } else if (current !== undefined) {
+        current.push(word);
+      }
     }
 
+    return commands;
+  }
+
+  /** Whether a `find` writes: it deletes, writes a list to a file, or runs a command that is not a reader. */
+  private static findWrites(opts: { args: string[] }): boolean {
     return (
-      output === undefined ||
-      !args.some((word) =>
-        output.some((flag) => word === flag || (flag === '-o' && word.startsWith('-o'))),
-      )
+      opts.args.some(
+        (word) => word === '-delete' || word.startsWith('-fprint') || word === '-fls',
+      ) ||
+      ManifestShell.execsOf({ args: opts.args }).some(([program, ...args]) => {
+        const name = ShellParser.basenameOf({ word: program ?? '' });
+
+        return !ManifestShell.isReader({
+          program: name,
+          args: args.filter((word) => word !== '{}'),
+        });
+      })
     );
   }
 
-  /** Whether the pathspec-less `find` runs an action on a path that could be the manifest. */
+  /** Whether the `find` runs a writing action on a path that could be the manifest. */
   private static findDenies(opts: { args: string[]; dir: string; isAbout: boolean }): boolean {
     const { args } = opts;
 
-    if (!args.some((word) => ManifestShell.FIND_ACTIONS.has(word))) {
+    if (!ManifestShell.findWrites({ args })) {
       return false;
     }
 
@@ -363,8 +568,10 @@ export class ManifestShell {
         args.filter((_word, index) => ManifestShell.FIND_NAME_FILTERS.has(args[index - 1] ?? '')),
       ),
     ];
+    // A regular expression is not read: it could match anything.
+    const expressions = args.some((word) => word === '-regex' || word === '-iregex') ? ['*'] : [];
     // Too many filters to read one by one could be any.
-    const filters = named.length > ManifestShell.MAX_FILTERS ? ['*'] : named;
+    const filters = named.length > ManifestShell.MAX_FILTERS ? ['*'] : [...named, ...expressions];
     const canHit =
       filters.length === 0 ||
       filters.some(
@@ -381,7 +588,8 @@ export class ManifestShell {
       const absolute = resolve(opts.dir, start);
 
       return (
-        PathRef.classify({ word: start, dir: opts.dir, isAbout: opts.isAbout }) !== undefined ||
+        ManifestShell.classify({ word: start, dir: opts.dir, isAbout: opts.isAbout }) !==
+          undefined ||
         ManifestPath.candidatesOf({ dir: opts.dir }).some((manifest) =>
           manifest.startsWith(`${absolute.replace(/\/$/, '')}/`),
         )
@@ -406,7 +614,8 @@ export class ManifestShell {
       opts.members.some(
         (member) =>
           ManifestPath.isFolder({ word: member }) ||
-          PathRef.classify({ word: member, dir: opts.dir, isAbout: opts.isAbout }) !== undefined,
+          ManifestShell.classify({ word: member, dir: opts.dir, isAbout: opts.isAbout }) !==
+            undefined,
       )
     );
   }
@@ -447,7 +656,7 @@ export class ManifestShell {
     return (
       isWriter &&
       archive !== undefined &&
-      PathRef.classify({ word: archive, dir: opts.dir, isAbout: opts.isAbout }) !== undefined
+      ManifestShell.classify({ word: archive, dir: opts.dir, isAbout: opts.isAbout }) !== undefined
     );
   }
 
@@ -488,7 +697,7 @@ export class ManifestShell {
       program === 'rsync' ||
       args.some((word) => /^-[A-Za-z]*[rRa]/.test(word) || /^--(?:recursive|archive)/.test(word));
     const classify = (word: string): TPathRef | undefined =>
-      PathRef.classify({ word, dir, isAbout });
+      ManifestShell.classify({ word, dir, isAbout });
 
     if (destination === undefined || sources.length === 0) {
       return false;
@@ -531,23 +740,139 @@ export class ManifestShell {
     );
   }
 
-  /** Where the shell stands after a simple command: `cd` and `pushd` move it. */
-  private static folderAfter(opts: { call: ICall; dir: string; isAbout: boolean }): string {
+  /** Where the shell stands after a simple command (`cd`, `pushd`, `popd`), and the folder it was in before. */
+  private static folderAfter(opts: {
+    call: ICall;
+    dir: string;
+    previous: string;
+    isAbout: boolean;
+  }): { dir: string; previous: string } {
     const { program, args } = opts.call;
-    const target = args.find((word) => !word.startsWith('-'));
+    const target = args.find((word) => !word.startsWith('-') || word === '-');
+    const stays = { dir: opts.dir, previous: opts.previous };
 
-    if ((program !== 'cd' && program !== 'pushd') || target === undefined || target === '-') {
-      return opts.dir;
+    if (program === 'popd') {
+      return { dir: opts.previous, previous: opts.dir };
+    }
+
+    if ((program !== 'cd' && program !== 'pushd') || target === undefined) {
+      return stays;
+    }
+
+    if (target === '-') {
+      return { dir: opts.previous, previous: opts.dir };
     }
 
     // A folder that is not known, on a line about `.agents`, is taken to be `.agents`.
     if (PathPattern.hasExpansion({ word: target })) {
-      return opts.isAbout ? join(opts.dir, ManifestPath.FOLDER) : opts.dir;
+      return opts.isAbout
+        ? { dir: join(opts.dir, ManifestPath.FOLDER), previous: opts.dir }
+        : stays;
     }
 
     const next = resolve(opts.dir, target);
 
-    return ManifestPath.resolveReal({ path: next }) ?? next;
+    return { dir: ManifestPath.resolveReal({ path: next }) ?? next, previous: opts.dir };
+  }
+
+  /** The folder a program that unpacks an archive unpacks into, or `undefined` when it does not unpack. */
+  private static unpackFolderOf(opts: {
+    program: string;
+    args: string[];
+    dir: string;
+  }): string | undefined {
+    const { program, args, dir } = opts;
+    const first = args[0] ?? '';
+    const cluster = (letter: string): boolean =>
+      (!first.startsWith('-') && first.includes(letter)) ||
+      args.some((word) => new RegExp(`^-[A-Za-z]*${letter}`).test(word));
+
+    switch (program) {
+      case 'cpio': {
+        return cluster('i') || args.includes('--extract')
+          ? resolve(dir, ManifestShell.optionValue({ args, names: ['-D', '--directory'] }) ?? '.')
+          : undefined;
+      }
+      case 'ar': {
+        return cluster('x') ? dir : undefined;
+      }
+      case '7z':
+      case '7za':
+      case '7zr':
+      case '7zz': {
+        const out = args.find((word) => word.startsWith('-o'));
+
+        return first === 'x' || first === 'e'
+          ? resolve(dir, out === undefined ? '.' : out.slice(2))
+          : undefined;
+      }
+      case 'jar': {
+        return cluster('x')
+          ? resolve(dir, ManifestShell.optionValue({ args, names: ['-C'] }) ?? '.')
+          : undefined;
+      }
+      case 'pax': {
+        return args.includes('-r') && !args.includes('-w') ? dir : undefined;
+      }
+      default: {
+        return undefined;
+      }
+    }
+  }
+
+  /** Whether a program that decompresses writes a file named like the one it is given, without its extension. */
+  private static decompressDenies(opts: {
+    program: string;
+    args: string[];
+    dir: string;
+    isAbout: boolean;
+  }): boolean {
+    const { program, args } = opts;
+    const isFlagged = ManifestShell.COMPRESSORS.has(program);
+    const decompresses =
+      ManifestShell.DECOMPRESSORS.has(program) ||
+      (isFlagged &&
+        args.some(
+          (word) => /^-[A-Za-z]*d/.test(word) || word === '--decompress' || word === '--uncompress',
+        ));
+    const toOutput = args.some(
+      (word) =>
+        word === '--stdout' ||
+        word === '--to-stdout' ||
+        (/^-[A-Za-z]+$/.test(word) && word.includes('c')),
+    );
+
+    if (!decompresses || toOutput) {
+      return false;
+    }
+
+    return args
+      .filter((word) => !word.startsWith('-'))
+      .some(
+        (word) =>
+          ManifestShell.classify({
+            word: word.replace(ManifestShell.COMPRESSED_SUFFIX, ''),
+            dir: opts.dir,
+            isAbout: opts.isAbout,
+          }) !== undefined,
+      );
+  }
+
+  /** Whether `zip` writes an archive that is the manifest or its folder, or moves the file into one. */
+  private static zipDenies(opts: { args: string[]; dir: string; isAbout: boolean }): boolean {
+    const { args } = opts;
+    const archive = args.find((word) => !word.startsWith('-'));
+    const output = ManifestShell.optionValue({ args, names: ['-O', '--output-file'] });
+    const isRef = (word: string | undefined): boolean =>
+      word !== undefined &&
+      ManifestShell.classify({ word, dir: opts.dir, isAbout: opts.isAbout }) !== undefined;
+    const moves = args.some((word) => /^-[A-Za-z]*m/.test(word) || word === '--move');
+
+    return (
+      isRef(archive) ||
+      isRef(output) ||
+      (moves && args.some((word) => !word.startsWith('-') && isRef(word)))
+    );
   }
 
   private static gitDenies(opts: {
@@ -556,6 +881,7 @@ export class ManifestShell {
     line: string;
     dir: string;
     isAbout: boolean;
+    isLaterStash: boolean;
   }): boolean {
     const { args } = opts.call;
 
@@ -566,6 +892,7 @@ export class ManifestShell {
         line: opts.line,
         dir: opts.dir,
         isAbout: opts.isAbout,
+        isLaterStash: opts.isLaterStash,
       })
     ) {
       return true;
@@ -576,6 +903,24 @@ export class ManifestShell {
     // The forms above read their own paths.
     if (['checkout', 'restore', 'apply', 'am', 'read-tree'].includes(sub)) {
       return false;
+    }
+
+    // A file the command writes its output to.
+    const outputs = args.flatMap((word, index) => {
+      if (word === '--output') {
+        return [args[index + 1] ?? ''];
+      }
+
+      return word.startsWith('--output=') ? [word.slice('--output='.length)] : [];
+    });
+
+    if (
+      outputs.some(
+        (word) =>
+          ManifestShell.classify({ word, dir: opts.dir, isAbout: opts.isAbout }) !== undefined,
+      )
+    ) {
+      return true;
     }
 
     const refs = ManifestShell.refsOf({
@@ -593,9 +938,10 @@ export class ManifestShell {
     const isStashRead =
       sub === 'stash' &&
       GitRewrite.STASH_READS.has(words.find((word) => !word.startsWith('-')) ?? '');
-    const hasOutput = args.some((word) => /^--output(?:=|$)/.test(word));
+    // `git rm --cached` takes the file out of the index and leaves it where it is.
+    const isIndexOnly = sub === 'rm' && words.includes('--cached');
 
-    return hasOutput || !(GitRewrite.READS_PATHS.has(sub) || isStashRead);
+    return !(GitRewrite.READS_PATHS.has(sub) || isStashRead || isIndexOnly);
   }
 
   /** Whether the script an interpreter runs, or a word it is given, changes the manifest. */
@@ -634,10 +980,48 @@ export class ManifestShell {
       return true;
     }
 
-    // A word the program is given besides its script: whether it only reads it is not known.
-    return (
-      opts.refs.some((ref) => ref.index !== payload) && !ManifestShell.FILTERS.has(call.program)
-    );
+    // `python -m json.tool in [out]` writes its second file.
+    if (
+      call.program.startsWith('python') &&
+      call.args[0] === '-m' &&
+      call.args[1] === 'json.tool'
+    ) {
+      return ManifestShell.positionalsOf({ args: call.args.slice(2) }).length >= 2;
+    }
+
+    // `python -m zipfile -e archive folder` unpacks into the folder.
+    if (call.program.startsWith('python') && call.args[0] === '-m' && call.args[1] === 'zipfile') {
+      const [folder] = call.args.filter((word) => !word.startsWith('-')).slice(-1);
+
+      return (
+        call.args.some((word) => word === '-e' || word === '-x' || word === '--extract') &&
+        ManifestShell.extractsInto({
+          folder: resolve(opts.dir, folder ?? '.'),
+          members: [],
+          dir: opts.dir,
+          isAbout: context.isAbout,
+        })
+      );
+    }
+
+    // A script given inline was read above; one run from a file is not read, and is not let through only
+    // when it is given the manifest itself.
+    if (ManifestShell.FILTERS.has(call.program) && opts.refs.length > 0) {
+      return !ManifestShell.isReader({ program: call.program, args: call.args });
+    }
+
+    if (payload !== -1 || opts.command.heredoc !== undefined) {
+      return false;
+    }
+
+    // A filter that is not given a script is read by what it is given.
+    if (ManifestShell.FILTERS.has(call.program)) {
+      return (
+        opts.refs.length > 0 && !ManifestShell.isReader({ program: call.program, args: call.args })
+      );
+    }
+
+    return opts.refs.some((ref) => ref.kind === 'manifest');
   }
 
   private static inspectSimple(opts: {
@@ -647,10 +1031,11 @@ export class ManifestShell {
     context: ILine;
     hasRef: () => boolean;
   }): boolean {
-    const { command, line, dir, context } = opts;
-    const isAbout = context.isAbout || basename(dir) === ManifestPath.FOLDER;
+    const { command, line, context } = opts;
     const call = ManifestShell.callOf({ command });
     const { program, args } = call;
+    const dir = call.chdir === undefined ? opts.dir : resolve(opts.dir, call.chdir);
+    const isAbout = context.isAbout || basename(dir) === ManifestPath.FOLDER;
 
     if (
       call.nested.some((nested) =>
@@ -669,14 +1054,26 @@ export class ManifestShell {
     if (
       [...new Set(command.redirects)].some(
         (target) =>
-          !target.startsWith('&') && PathRef.classify({ word: target, dir, isAbout }) !== undefined,
+          !target.startsWith('&') &&
+          ManifestShell.classify({ word: target, dir, isAbout }) !== undefined,
       )
     ) {
       return true;
     }
 
     if (program === 'git') {
-      return ManifestShell.gitDenies({ command, call, line, dir, isAbout });
+      const isDenied = ManifestShell.gitDenies({
+        command,
+        call,
+        line,
+        dir,
+        isAbout,
+        isLaterStash: context.stashMoves > 0,
+      });
+
+      context.stashMoves += GitRewrite.stashActionOf({ args }) === undefined ? 0 : 1;
+
+      return isDenied;
     }
 
     if (call.isFed && !ManifestShell.isReader({ program, args }) && opts.hasRef()) {
@@ -699,12 +1096,20 @@ export class ManifestShell {
       return ManifestShell.copierDenies({ program, args, dir, isAbout });
     }
 
+    if (ManifestShell.decompressDenies({ program, args, dir, isAbout })) {
+      return true;
+    }
+
     switch (program) {
-      case 'tar': {
+      case 'tar':
+      case 'bsdtar': {
         return ManifestShell.tarDenies({ args, dir, isAbout });
       }
       case 'unzip': {
         return ManifestShell.unzipDenies({ args, dir, isAbout });
+      }
+      case 'zip': {
+        return ManifestShell.zipDenies({ args, dir, isAbout });
       }
       case 'find': {
         return ManifestShell.findDenies({ args, dir, isAbout });
@@ -712,6 +1117,12 @@ export class ManifestShell {
       default: {
         break;
       }
+    }
+
+    const unpack = ManifestShell.unpackFolderOf({ program, args, dir });
+
+    if (unpack !== undefined) {
+      return ManifestShell.extractsInto({ folder: unpack, members: [], dir, isAbout });
     }
 
     const refs = ManifestShell.refsOf({ program, args, dir, isAbout });
@@ -728,13 +1139,13 @@ export class ManifestShell {
       return true;
     }
 
+    // A script that names the file and writes (`w file`, `e cmd`, a redirect) is not just reading.
     if (
-      program === 'sed' &&
-      args.some(
-        (word) =>
-          ManifestShell.SED_WRITE.test(word) &&
-          InlineScript.hasNamePart({ letters: InlineScript.toLetters({ text: word }) }),
-      )
+      ManifestShell.FILTERS.has(program) &&
+      args.some((word) =>
+        InlineScript.hasNamePart({ letters: InlineScript.toLetters({ text: word }) }),
+      ) &&
+      ManifestShell.scriptWrites({ program, args })
     ) {
       return true;
     }
@@ -765,7 +1176,7 @@ export class ManifestShell {
     return !ManifestShell.isReader({ program, args });
   }
 
-  /** Whether any command of the line names the manifest or its folder, as a word or a redirect. */
+  /** Whether any command of the line names the manifest or its folder, as a word or a redirect, or holds the bare name of the file. */
   private static lineHasRef(opts: {
     commands: ISimpleCommand[];
     dir: string;
@@ -775,15 +1186,150 @@ export class ManifestShell {
       const call = ManifestShell.callOf({ command });
       const words = [...call.args, ...command.redirects];
 
-      return words.some(
-        (word) =>
-          PathRef.classify({
-            word: word.slice(word.indexOf('=') + 1),
-            dir: opts.dir,
-            isAbout: opts.isAbout,
-          }) !== undefined,
-      );
+      return words.some((word) => {
+        const value = word.slice(word.indexOf('=') + 1);
+
+        return (
+          basename(value).toLowerCase() === ManifestPath.NAME ||
+          ManifestShell.classify({ word: value, dir: opts.dir, isAbout: opts.isAbout }) !==
+            undefined
+        );
+      });
     });
+  }
+
+  /** Strips the comments of a command line: a `#` that starts a word, outside quotes and heredocs. */
+  private static stripComments(opts: { line: string }): string {
+    if (!opts.line.includes('#')) {
+      return opts.line;
+    }
+
+    const kept: string[] = [];
+    let quote: string | undefined;
+    let heredoc: { end: string; isIndented: boolean } | undefined;
+
+    for (const text of opts.line.split('\n')) {
+      if (heredoc !== undefined) {
+        kept.push(text);
+        heredoc = (heredoc.isIndented ? text.trim() : text) === heredoc.end ? undefined : heredoc;
+
+        continue;
+      }
+
+      let cut = -1;
+
+      for (let index = 0; index < text.length && cut === -1; index += 1) {
+        const char = text[index] ?? '';
+
+        if (quote !== undefined) {
+          if (char === '\\' && quote === '"') {
+            index += 1;
+          } else if (char === quote) {
+            quote = undefined;
+          }
+        } else if (char === '\\') {
+          index += 1;
+        } else if (char === "'" || char === '"') {
+          quote = char;
+        } else if (char === '#' && (index === 0 || /[\s;|&(]/.test(text[index - 1] ?? ''))) {
+          cut = index;
+        }
+      }
+
+      const code = cut === -1 ? text : text.slice(0, cut);
+      const start = quote === undefined ? /<<(-?)\s*["']?([A-Za-z_]\w*)["']?/.exec(code) : null;
+
+      kept.push(code);
+
+      if (start !== null) {
+        heredoc = { end: start[2] ?? '', isIndented: start[1] === '-' };
+      }
+    }
+
+    return kept.join('\n');
+  }
+
+  /** What `printf` or `echo` prints, as far as it can be told from its words. */
+  private static printedBy(opts: { call: ICall }): string {
+    const { program, args } = opts.call;
+    const words = args.filter(
+      (word, index) => program !== 'echo' || index > 0 || !/^-[neE]+$/.test(word),
+    );
+
+    if (program === 'echo') {
+      return words.join(' ');
+    }
+
+    const [format = '', ...values] = words;
+    let used = 0;
+    const text = format.replace(/%(?:%|[-0-9.]*[a-zA-Z])/g, (match) => {
+      if (match === '%%') {
+        return '%';
+      }
+
+      used += 1;
+
+      return values[used - 1] ?? '';
+    });
+
+    return [text, ...values.slice(used)].join(' ').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+  }
+
+  /** Whether a shell that reads its commands from what another command prints runs something that changes the manifest. */
+  private static feedsShell(opts: {
+    commands: ISimpleCommand[];
+    index: number;
+    dir: string;
+    context: ILine;
+  }): boolean {
+    const { commands, index, context } = opts;
+    const call = ManifestShell.callOf({
+      command: commands[index] ?? { words: [], redirects: [], assignments: [] },
+    });
+    const hasFile = call.args.some((word) => !word.startsWith('-'));
+    const hasString = call.args.some((word) => /^-[A-Za-z]*c$/.test(word));
+    const isReading =
+      ((ManifestShell.SHELLS.has(call.program) && !hasFile && !hasString) ||
+        call.program === '.' ||
+        call.program === 'source') &&
+      !hasFile;
+
+    if (!isReading) {
+      return false;
+    }
+
+    const feeders = [commands[index - 1], commands[index + 1]]
+      .filter((command): command is ISimpleCommand => command !== undefined)
+      .map((command) => ManifestShell.callOf({ command }))
+      .filter((feeder) => ManifestShell.SHELL_FEEDERS.has(feeder.program));
+
+    // What is fed is not written out: it is not let through when the line is about `.agents`.
+    if (feeders.length === 0) {
+      return context.isAbout;
+    }
+
+    return feeders.some((feeder) => {
+      const text = ManifestShell.printedBy({ call: feeder });
+
+      return PathPattern.hasExpansion({ word: text })
+        ? context.isAbout
+        : ManifestShell.inspectLine({
+            line: text,
+            dir: opts.dir,
+            cwd: context.cwd,
+            depth: context.depth + 1,
+          });
+    });
+  }
+
+  /** The glob options a line sets with `shopt -s`. */
+  private static globsOf(opts: { line: string }): { dotglob: boolean; globstar: boolean } {
+    const set = Array.from(
+      opts.line.matchAll(/\bshopt\s+-s\s+([A-Za-z_ ]+)/g),
+      (match) => match[1] ?? '',
+    ).join(' ');
+
+    return { dotglob: /\bdotglob\b/.test(set), globstar: /\bglobstar\b/.test(set) };
   }
 
   /** Whether a command line changes the manifest. `dir` is the folder it runs in; `cwd` is the tool's own. */
@@ -797,46 +1343,61 @@ export class ManifestShell {
       return InlineScript.writesInUnreadLine({ line: opts.line });
     }
 
-    const parsed = ShellParser.parseChecked({ command: opts.line });
+    const line = ManifestShell.stripComments({ line: opts.line });
+    const parsed = ShellParser.parseChecked({ command: line });
 
     // A line the parser did not read in full is not let through when it can write where the manifest is.
     if (parsed.isOverBudget) {
-      return InlineScript.writesInUnreadLine({ line: opts.line });
+      return InlineScript.writesInUnreadLine({ line });
     }
 
     const context: ILine = {
       cwd: opts.cwd,
       depth: opts.depth,
-      isAbout: InlineScript.mentionsFolder({ text: opts.line }),
+      isAbout: InlineScript.mentionsFolder({ text: line }),
+      stashMoves: 0,
     };
+    const globs = ManifestShell.globsOf({ line });
+    const saved = ManifestShell.view;
     let dir = opts.dir;
+    let previous = opts.dir;
     let known: boolean | undefined;
 
-    for (const command of parsed.commands) {
-      const here = dir;
-      const hasRef = (): boolean => {
-        known =
-          known ??
-          ManifestShell.lineHasRef({
-            commands: parsed.commands,
-            dir: here,
-            isAbout: context.isAbout,
-          });
+    try {
+      for (const [index, command] of parsed.commands.entries()) {
+        const here = dir;
+        const hasRef = (): boolean => {
+          known =
+            known ??
+            ManifestShell.lineHasRef({
+              commands: parsed.commands,
+              dir: here,
+              isAbout: context.isAbout,
+            });
 
-        return known;
-      };
+          return known;
+        };
 
-      if (ManifestShell.inspectSimple({ command, line: opts.line, dir, context, hasRef })) {
-        return true;
+        ManifestShell.view = { previous, ...globs };
+
+        if (
+          ManifestShell.inspectSimple({ command, line, dir, context, hasRef }) ||
+          ManifestShell.feedsShell({ commands: parsed.commands, index, dir, context })
+        ) {
+          return true;
+        }
+
+        ({ dir, previous } = ManifestShell.folderAfter({
+          call: ManifestShell.callOf({ command }),
+          dir,
+          previous,
+          isAbout: context.isAbout,
+        }));
       }
 
-      dir = ManifestShell.folderAfter({
-        call: ManifestShell.callOf({ command }),
-        dir,
-        isAbout: context.isAbout,
-      });
+      return false;
+    } finally {
+      ManifestShell.view = saved;
     }
-
-    return false;
   }
 }
