@@ -94,7 +94,10 @@ export class PrivateValues {
         (sum, pattern) => sum + countOf({ text, pattern }),
         0,
       ),
-      [PrivateValueKinds.URL_CREDENTIALS]: countOf({ text, pattern: EventSecrets.URL_USERINFO }),
+      [PrivateValueKinds.URL_CREDENTIALS]: EventSecrets.URL_CREDENTIALS.reduce(
+        (sum, pattern) => sum + countOf({ text, pattern }),
+        0,
+      ),
       [PrivateValueKinds.IPV4]: countOf({
         text,
         pattern: PrivateValueScan.IPV4,
