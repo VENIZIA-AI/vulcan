@@ -210,11 +210,12 @@ On `SubagentStart` the hook prints a small fixed card as `additionalContext`, ab
 The `guard-writes` hook intercepts Bash commands before execution.
 It asks about commands in categories defined by base write rules `V-W-02` and `V-W-03`:
 
-- Cluster deployment under `V-W-03`: commands matching `kubectl apply|patch|delete|scale|rollout`, `docker compose up|down|restart`, or `./kc apply|patch|delete`.
-- Database migrations under `V-W-02`: commands matching `db:migrate`, `migrate:(dev|local|alpha|develop)`, `drizzle-kit push|migrate`, or `make db-migrate`.
-- Database writes under `V-W-02`: clients like `psql`, `mysql`, `mongosh`, or `sqlite3` running mutating SQL statements, or `psql` or `mysql` with `-f`.
-- Data-mutating requests under `V-W-02`: `curl` calls using mutating verbs (`POST`, `PUT`, `PATCH`, `DELETE`), `--data`, `-d`, or `--upload-file`.
-- Local TypeScript scripts run with `bun`: files containing mutating HTTP methods or database write statements.
+- Cluster deployment under `V-W-03`: `kubectl apply|patch|delete|scale|rollout|create|replace|set`, `docker compose up|down|restart` and `docker-compose up|down|restart`, `helm upgrade|install|rollback|uninstall|delete`, or `./kc apply|patch|delete`. Global options before the verb (`kubectl -n prod apply`, `docker compose -f prod.yml up`) count.
+- Database migrations under `V-W-02`: commands matching `db:migrate`, `migrate:(dev|local|alpha|develop)`, `drizzle-kit push|migrate`, `prisma migrate deploy|dev|reset`, `prisma db push|execute`, or `make db-migrate`.
+- Database writes under `V-W-02`: clients like `psql`, `mysql`, `mongosh`, or `sqlite3` running mutating SQL statements or a `mongosh` write method, `psql` or `mysql` with `-f` (`psql` also `-fFILE` and `--file`), and `psql`, `mysql` or `mariadb` with no SQL on the line (no `-c` or `-e`, no heredoc): its SQL comes from a pipe, a file or the terminal.
+- Data-mutating requests under `V-W-02`: `curl` with a mutating method (`-X`, `--request`; `POST`, `PUT`, `PATCH`, `DELETE`), a body (`-d` in any form, `--data*`, `--json`, `-F`, `--form`) or an upload (`-T`, `--upload-file`).
+- Local scripts: a `.ts`, `.js`, `.mjs` or `.cjs` file run with `bun`, `node` or `deno`, and the code given to `-e`, `--eval`, `-p` or `--print`, through the script checks (mutating HTTP methods, database write statements). A shell script run with `bash`, `sh`, `zsh`, `dash` or as a path (`./deploy.sh`), and the `bun run <name>` script of the nearest `package.json` (with its `pre` and `post` scripts), are checked like a command line, up to `HookConstants.MAX_SCRIPT_DEPTH` (3) levels deep. `bun test` and the other `bun` subcommands, and `bash -n`, read no script; an absolute path run as a program, a tool under `node_modules` and a compiled program are not read.
+- What it cannot read asks: a command line over the parser's budget (`ShellBudget`), a script over `HookConstants.MAX_SCRIPT_BYTES` (1 MB), a script chain deeper than the limit, or a `package.json` it cannot parse.
 
 **What it reads.** The patterns run on what each simple command runs, through the shared parser of `guard-git`, not on the text of the line. The body of a heredoc that is only data (`cat > f <<EOF`, `tee f <<EOF`) is not a command, and the arguments of the read-only tools (`rg`, `grep`, `egrep`, `fgrep`, `ag`, `ack`, `cat`, `less`, `more`, `head`, `tail`, `wc`, `ls`, `diff`, `sort`, `uniq`, `echo`, `printf`, `man`, `file`, `stat`, `which`, `find` without `-exec`, `-execdir`, `-ok`, `-okdir` or `-delete`) and of `git` and `gh` (a commit message, an issue body) are data, so `rg -n "kubectl apply" docs/` and a commit message that quotes a deploy pass. A heredoc that a program runs still counts: `bash <<EOF` is read as commands, and the body of `ssh`, `psql`, `mysql`, `mongosh`, `sqlite3`, `python`, `node`, `bun`, `deno`, `ruby`, `perl` and `php` is part of that command. A print or search piped into `sh`, `bash`, `psql` and the like stands as one text, because what it prints is code. `guard-remote-hosts` reads the same way, except that a `git` remote is still a host.
 
@@ -274,7 +275,7 @@ export default {
 
 ### Trusted scripts
 
-`guard-writes` reads the body of a `bun <script>.ts` command and asks `V-W-02` when it finds a mutating fetch or a database write. A project's own CLI that calls its API would ask on every run, and neither `permissions.allow` (a hook ask wins over it) nor `remoteHosts` (ssh only) silences that. List the script instead, in `.configs/vulcan.config.*`:
+`guard-writes` reads the body of a local script a command runs (`bun <script>.ts`, `node x.js`, `bash x.sh`) and asks `V-W-02` when it finds a mutating fetch or a database write. A project's own CLI that calls its API would ask on every run, and neither `permissions.allow` (a hook ask wins over it) nor `remoteHosts` (ssh only) silences that. List the script instead, in `.configs/vulcan.config.*`:
 
 ```ts
 export default {

@@ -18,7 +18,7 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 
 | Guard | Acts on | Answer |
 |---|---|---|
-| `guard-writes` | A Bash command that writes to a database, runs a migration or deploys; the body of a `bun script.ts` it runs | Asks (`V-W-02`, `V-W-03`) |
+| `guard-writes` | A Bash command that writes to a database, runs a migration or deploys; the body of a local script it runs (`bun script.ts`, `bash deploy.sh`, `bun run <name>`) | Asks (`V-W-02`, `V-W-03`) |
 | `guard-git` | `git` and `gh`: deleting or force-pushing `develop` or `main`, `gh pr merge --delete-branch` on a pull request headed by one of them, `reset --hard`, `branch -D` of an unmerged branch | Refuses the first group, asks about the rest (`V-W-06`) |
 | `guard-outside` | A file, worktree, clone or temp file created outside the project | Asks (`V-B-08`), or denies when `guard.outside` is `deny`; always denies a write into the scratchpad folder the agent tool offers |
 | `guard-remote-hosts` | A command that reaches a host you have not listed in `remoteHosts` (only registered when that key is set) | Asks |
@@ -66,7 +66,7 @@ NOT VERIFIED means built from the agent's documentation and unit tests, and neve
 
 ## Let your own CLI through
 
-`guard-writes` reads the body of a `bun script.ts` command, so a project's own CLI that calls its API asks on every run. List it, and it is skipped while git tracks it and its file matches the last commit:
+`guard-writes` reads the body of a local script a command runs (`bun script.ts`, `node x.js`, `bash x.sh`), so a project's own CLI that calls its API asks on every run. List it, and it is skipped while git tracks it and its file matches the last commit:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
