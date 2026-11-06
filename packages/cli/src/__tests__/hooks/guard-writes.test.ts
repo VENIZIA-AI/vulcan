@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { chmodSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { HookConstants, ShellBudget, WriteGuard } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -1099,6 +1099,49 @@ describe('the guard-writes hook, on the deploy, cloud, migration and request too
     'https PUT example.dev/v1/x name=x',
     'xh DELETE example.dev/v1/x',
     'http --form POST example.dev/v1/x name=x',
+    'aws ec2 terminate-instances --instance-ids i-1',
+    'aws ec2 stop-instances --instance-ids i-1',
+    'aws rds reboot-db-instance --db-instance-identifier app',
+    'aws ec2 modify-instance-attribute --instance-id i-1 --no-disable-api-termination',
+    'aws iam attach-role-policy --role-name app --policy-arn arn:x',
+    'aws iam detach-role-policy --role-name app --policy-arn arn:x',
+    'aws ecs register-task-definition --cli-input-json file://task.json',
+    'aws elbv2 deregister-targets --target-group-arn arn:x --targets Id=i-1',
+    'aws ec2 run-instances --image-id ami-1',
+    'aws ec2 start-instances --instance-ids i-1',
+    'aws s3 mb s3://bucket',
+    'aws s3 rb s3://bucket',
+    'aws s3 mv s3://bucket/a s3://bucket/b',
+    "redis-cli EVAL \"return redis.call('del','k')\" 0",
+    'redis-cli UNLINK key',
+    'redis-cli LPUSH q x',
+    'redis-cli INCR counter',
+    'redis-cli SETEX k 10 v',
+    'redis-cli -h cache -p 6379 -n 2 FLUSHDB',
+    'redis-cli CONFIG SET maxmemory 1gb',
+    'redis-cli',
+    'redis-cli -h cache',
+    'redis-cli --eval script.lua key',
+    'redis-cli <<EOF\nGET a\nDEL b\nEOF',
+    'docker exec cache redis-cli FLUSHALL',
+    'typeorm schema:drop',
+    'typeorm schema:sync',
+    'rails db:schema:load',
+    'rails db:setup',
+    'rails db:structure:load',
+    'rails db:rollback',
+    'python manage.py shell',
+    'python manage.py dbshell',
+    'python manage.py migrate',
+    'npx prisma migrate deploy',
+    'prisma db push --create-only',
+    'prisma migrate deploy --create-only',
+    'http :3000/users name=x',
+    "http :3000/users 'age:=1'",
+    'http :3000/users @data.json',
+    'http :3000/users avatar=@photo.png',
+    'xh example.dev/v1/x name=x',
+    'http PURGE example.dev/v1/x',
   ])('asks for %p', async (command) => {
     const result = await runHook({ command });
     expect(result).toEqual({ code: 0, decision: 'ask' });
@@ -1195,6 +1238,55 @@ describe('the guard-writes hook, on the deploy, cloud, migration and request too
     'http example.dev/v1/x',
     'xh example.dev/v1/x',
     'curl https://example.dev/v1/x',
+    'aws ec2 terminate-instances --instance-ids i-1 --dry-run',
+    'aws ec2 describe-instances --filters Name=instance-state-name,Values=stopped',
+    'aws lambda invoke --function-name app out.json',
+    'redis-cli GET x',
+    'redis-cli -h cache -p 6379 MGET a b',
+    'redis-cli -n 2 HGETALL user:1',
+    'redis-cli CLIENT LIST',
+    'redis-cli CONFIG GET maxmemory',
+    'redis-cli MEMORY USAGE key',
+    'redis-cli SLOWLOG GET 10',
+    'redis-cli -a secret INFO',
+    "redis-cli --scan --pattern 'user:*'",
+    'redis-cli --bigkeys',
+    'redis-cli --stat',
+    'redis-cli --latency',
+    'redis-cli zrange board 0 -1',
+    'alembic upgrade head --sql',
+    'alembic heads',
+    'alembic branches',
+    'alembic show head',
+    'prisma migrate dev --create-only',
+    'npx prisma migrate dev --create-only',
+    'prisma migrate diff --from-empty --to-schema-datamodel schema.prisma',
+    'prisma db pull',
+    'prisma format',
+    'prisma validate',
+    'sequelize db:migrate:status',
+    'rails db:migrate:status',
+    'rails db:version',
+    'python manage.py migrate --plan',
+    'python manage.py runserver',
+    'python manage.py check',
+    'knex migrate:list',
+    'knex migrate:currentVersion',
+    'goose version',
+    'drizzle-kit check',
+    'drizzle-kit studio',
+    'drizzle-kit introspect',
+    'typeorm migration:generate src/migrations/AddUsers',
+    'typeorm migration:create src/migrations/AddUsers',
+    'http :3000/users q==x',
+    'http :3000/users Authorization:token',
+    "http 'example.dev/v1/x?a=b'",
+    'http -a user:pass example.dev/v1/x',
+    'http GET :3000/users name=x',
+    'http HEAD example.dev/v1/x',
+    'http OPTIONS example.dev/v1/x',
+    'http example.dev/v1/x --session=dev',
+    'http --offline :3000/users name=x',
   ])('stays silent for %p', async (command) => {
     const result = await runHook({ command });
     expect(result).toEqual({ code: 0, decision: '' });
@@ -1205,6 +1297,8 @@ describe('the guard-writes hook, on the deploy, cloud, migration and request too
 
     WriteGuard.inspectCommand({ command: `ansible all ${'-x '.repeat(30_000)}`, cwd: root });
     WriteGuard.inspectCommand({ command: `psql -c "merge ${'/* '.repeat(30_000)}"`, cwd: root });
+    WriteGuard.inspectCommand({ command: `http ${'x'.repeat(64_000)}`, cwd: root });
+    WriteGuard.inspectCommand({ command: `redis-cli${' -h x'.repeat(12_000)}`, cwd: root });
 
     expect(performance.now() - start).toBeLessThan(2500);
   });
@@ -1260,6 +1354,27 @@ describe('the guard-writes hook, on the SQL a database client is given', () => {
     'cat drop.js | mongosh',
     'mariadb app <<EOF\nDELETE FROM t;\nEOF',
     'mariadb app < q.sql',
+    'psql -c "VACUUM FULL t"',
+    'psql -c "vacuum"',
+    'psql -c "REINDEX TABLE t"',
+    'psql -c "CLUSTER t USING t_pkey"',
+    'psql -c "CLUSTER;"',
+    'psql -c "REFRESH MATERIALIZED VIEW report"',
+    'psql -c "LOCK TABLE t IN ACCESS EXCLUSIVE MODE"',
+    'psql -c "SELECT pg_terminate_backend(123)"',
+    'psql -c "SELECT pg_cancel_backend(123)"',
+    'psql -c "SELECT setval(\'s\', 1)"',
+    'psql -c "SELECT nextval(\'s\')"',
+    'psql -c "SELECT lo_unlink(42)"',
+    'psql -c "SELECT pg_drop_replication_slot(\'slot\')"',
+    'psql -c "SELECT pg_reload_conf()"',
+    'mongo app --eval "db.c.remove({})"',
+    "mongo --eval 'db.users.drop()'",
+    'mongo drop.js',
+    'mongo --file drop.js',
+    'mongo app',
+    'cat drop.js | mongo',
+    '/usr/bin/mongo --eval "db.c.remove({})"',
   ])('asks for %p', async (command) => {
     const result = await runHook({ command });
     expect(result).toEqual({ code: 0, decision: 'ask' });
@@ -1279,6 +1394,13 @@ describe('the guard-writes hook, on the SQL a database client is given', () => {
     'sqlite3 -version',
     "mongosh --eval 'db.users.find()'",
     'mongosh --version',
+    'psql -c "ANALYZE t"',
+    'psql -c "SET search_path TO app"',
+    'psql -h cluster -c "SELECT 1"',
+    'psql -h lock.internal app -c "SELECT 1"',
+    'psql -c "SELECT * FROM pg_stat_activity"',
+    "mongo app --eval 'db.users.find()'",
+    'mongo --version',
   ])('stays silent for %p', async (command) => {
     const result = await runHook({ command });
     expect(result).toEqual({ code: 0, decision: '' });
@@ -1324,6 +1446,12 @@ describe('the guard-writes hook, on the commands and requests a code script make
       'prose.ts': "console.log('run kubectl apply when the review is done');\n",
       'spawn-read.ts': "Bun.spawnSync(['kubectl', 'get', 'pods']);\n",
       'regex-exec.ts': "const match = /kubectl apply/.exec('text');\nconsole.log(match);\n",
+      'shell-exec.php': "<?php\nshell_exec('kubectl apply -f k8s');\n",
+      'passthru.php': "<?php\npassthru('helm upgrade web ./chart');\n",
+      'popen.py': "import os\nos.popen('terraform apply -auto-approve')\n",
+      'echo.php': "<?php\necho 'kubectl apply when ready';\n",
+      'spawn-redis.ts': "Bun.spawnSync(['redis-cli', 'FLUSHALL']);\n",
+      'spawn-redis-read.ts': "Bun.spawnSync(['redis-cli', 'GET', 'k']);\n",
     },
   });
 
@@ -1350,6 +1478,10 @@ describe('the guard-writes hook, on the commands and requests a code script make
     'bun sql-template.ts',
     'python3 sql-string.py',
     `bun -e "Bun.spawnSync(['kubectl', 'apply', '-f', 'x'])"`,
+    'php shell-exec.php',
+    'php passthru.php',
+    'python3 popen.py',
+    'bun spawn-redis.ts',
   ])('asks for %p', async (command) => {
     const result = await runHook({ command });
     expect(result).toEqual({ code: 0, decision: 'ask' });
@@ -1363,6 +1495,8 @@ describe('the guard-writes hook, on the commands and requests a code script make
     'bun prose.ts',
     'bun spawn-read.ts',
     'bun regex-exec.ts',
+    'php echo.php',
+    'bun spawn-redis-read.ts',
   ])('stays silent for %p', async (command) => {
     const result = await runHook({ command });
     expect(result).toEqual({ code: 0, decision: '' });
@@ -1372,6 +1506,96 @@ describe('the guard-writes hook, on the commands and requests a code script make
     const [hit] = WriteGuard.inspectCommand({ command: 'bun spawn.ts', cwd: root });
 
     expect(hit?.message).toBe('spawn.ts looks like it is deploying or hot-applying to a cluster');
+  });
+});
+
+describe('the guard-writes hook, on the TypeScript, Python and launcher runners', () => {
+  const root = createProject({
+    files: {
+      'scripts/seed.ts': "await fetch('http://localhost:3000/api/users', { method: 'POST' });\n",
+      'scripts/read.ts': 'console.log(1);\n',
+      'scripts/seed.py': "import subprocess\nsubprocess.run(['psql', '-c', 'DELETE FROM users'])\n",
+      'scripts/read.py': 'print(1)\n',
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'tsx scripts/seed.ts',
+    'tsx watch scripts/seed.ts',
+    'tsx --tsconfig tsconfig.json scripts/seed.ts',
+    'ts-node scripts/seed.ts',
+    'ts-node -P tsconfig.json scripts/seed.ts',
+    'npx tsx scripts/seed.ts',
+    'npx -y tsx scripts/seed.ts',
+    'bunx tsx scripts/seed.ts',
+    'npx ts-node scripts/seed.ts',
+    'uv run scripts/seed.py',
+    'uv run --with rich scripts/seed.py',
+    'uv run python scripts/seed.py',
+    'deno run scripts/seed.ts',
+    `tsx -e "Bun.spawnSync(['kubectl', 'apply', '-f', 'x'])"`,
+    `ts-node -e "Bun.spawnSync(['kubectl', 'apply', '-f', 'x'])"`,
+    'tsx scripts/missing.ts',
+    'uv run scripts/missing.py',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    'tsx scripts/read.ts',
+    'tsx watch scripts/read.ts',
+    'ts-node scripts/read.ts',
+    'npx tsx scripts/read.ts',
+    'bunx tsx scripts/read.ts',
+    'uv run scripts/read.py',
+    'uv run pytest',
+    'uv run python -m http.server',
+    'npx eslint .',
+    'npx @biomejs/biome check .',
+    'bunx @scope/tool',
+    'npx user/repo',
+    'deno run scripts/read.ts',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+});
+
+describe('the guard-writes hook, on a script word that is not a regular file', () => {
+  const root = createProject({ files: { 'scripts/read.sh': 'ls\n' } });
+
+  Bun.spawnSync(['mkfifo', join(root, 'scripts', 'fifo.sh'), join(root, 'scripts', 'fifo.ts')]);
+  symlinkSync(join(root, 'scripts', 'fifo.sh'), join(root, 'scripts', 'link.sh'));
+  symlinkSync('/dev/zero', join(root, 'scripts', 'zero.sh'));
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'bash scripts/fifo.sh',
+    'bun scripts/fifo.ts',
+    'node scripts/fifo.ts',
+    'source scripts/fifo.sh',
+    'bash scripts/link.sh',
+    'bash scripts/zero.sh',
+  ])('asks, without opening it, for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test('names the file it cannot read in the reason', () => {
+    const [hit] = WriteGuard.inspectCommand({ command: 'bash scripts/fifo.sh', cwd: root });
+
+    expect(hit?.message).toBe(
+      'scripts/fifo.sh is not a regular file (a pipe, a device or a socket), so the guard cannot read it',
+    );
+  });
+
+  test.each(['bash scripts/read.sh', 'bash scripts'])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
   });
 });
 

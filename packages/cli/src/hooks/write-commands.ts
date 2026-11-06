@@ -34,6 +34,12 @@ const SQL_WRITE = [
   String.raw`(?:merge|replace)${SQL_GAP}into\b`,
   String.raw`call${SQL_GAP}[\w."]+\s*\(`,
   String.raw`\\?copy${SQL_GAP}[\w."]+(?:\s*\([^)]*\))?${SQL_GAP}from\b`,
+  String.raw`(?:vacuum|reindex)(?=[\s;(]|\/\*|$)`,
+  String.raw`refresh${SQL_GAP}materialized${SQL_GAP}view\b`,
+  // `cluster` and `lock` are host names too (`psql -h cluster`): they count as a statement's shape only.
+  String.raw`cluster(?:\s*(?:;|$)|${SQL_GAP}verbose\b|${SQL_GAP}[\w."]+\s*(?:;|$|using\b))`,
+  String.raw`lock${SQL_GAP}(?:table\b|[\w."]+(?:${SQL_GAP}in\b|\s*(?:;|$)))`,
+  String.raw`(?:pg_terminate_backend|pg_cancel_backend|setval|nextval|lo_unlink|pg_drop_replication_slot|pg_reload_conf)\s*\(`,
 ].join('|');
 
 /** The words that make a call change nothing: help, and a dry run (`--dry-run=none` and `=false` run for real). */
@@ -41,6 +47,98 @@ const INERT = String.raw`^(?:--help|-h|-help|--dry-run(?:=(?!(?:none|false)$).*)
 
 /** For a database tool, where `-h` names the host: only help and the version. */
 const HELP_ONLY = String.raw`^(?:--help|--version|-V|-\?)$`;
+
+/** How redis-cli is read: its options, and what it is called with that only reads. */
+class RedisCli {
+  /** The options that take the next word, so a value (`-h cache`) is never read as the command. */
+  static readonly VALUES: readonly string[] = [
+    '-h',
+    '-p',
+    '-s',
+    '-a',
+    '-u',
+    '-r',
+    '-i',
+    '-n',
+    '-d',
+    '-D',
+    '-t',
+    '--user',
+    '--pass',
+    '--sni',
+    '--cacert',
+    '--cacertdir',
+    '--cert',
+    '--key',
+    '--tls-ciphers',
+    '--tls-ciphersuites',
+    '--pattern',
+    '--quoted-pattern',
+    '--count',
+    '--rdb',
+    '--functions-rdb',
+    '--pipe-timeout',
+    '--memkeys-samples',
+  ];
+  /** The commands that only read; any other command, and the prompt (no command), asks. */
+  static readonly READS = [
+    'GET|MGET|STRLEN|EXISTS|TYPE|TTL|PTTL|KEYS|SCAN|SSCAN|HSCAN|ZSCAN|INFO|PING|DBSIZE|TIME|ECHO',
+    'HGET|HGETALL|HKEYS|HVALS|HLEN|HMGET|HEXISTS',
+    'LRANGE|LLEN|LINDEX|SMEMBERS|SCARD|SISMEMBER|SRANDMEMBER',
+    'ZRANGE|ZRANGEBYSCORE|ZREVRANGE|ZCARD|ZSCORE|ZRANK',
+    'OBJECT|LATENCY|COMMAND',
+    'CLIENT[ \t]+LIST|CONFIG[ \t]+GET|MEMORY[ \t]+USAGE|SLOWLOG[ \t]+GET',
+  ].join('|');
+  /** The modes that only read: they scan or sample the server and send no command. */
+  static readonly READ_MODES = '^(?:--scan|--bigkeys|--stat|--latency)$';
+}
+
+/** How httpie and xh are read: their options, the methods that only read, and the items that send data. */
+class Httpie {
+  /** The options that take the next word, so a value (`-a user:pass`) is never read as the URL. */
+  static readonly VALUES: readonly string[] = [
+    '-a',
+    '--auth',
+    '-A',
+    '--auth-type',
+    '-o',
+    '--output',
+    '--session',
+    '--session-read-only',
+    '--verify',
+    '--cert',
+    '--cert-key',
+    '--cert-key-pass',
+    '--proxy',
+    '--timeout',
+    '--pretty',
+    '-s',
+    '--style',
+    '-p',
+    '--print',
+    '-P',
+    '--history-print',
+    '--max-redirects',
+    '--default-scheme',
+    '--ssl',
+    '--ciphers',
+    '--format-options',
+    '--response-charset',
+    '--response-mime',
+    '--boundary',
+    '--unix-socket',
+    '--resolve',
+    '--interface',
+    '--http-version',
+    '--raw',
+  ];
+  static readonly READS = '(?:GET|HEAD|OPTIONS)';
+  /**
+   * A request item that sends data, so a POST: its first separator is `=` (not `==`, a query parameter),
+   * `:=` or `@`. A `Name:value` header has `:` first.
+   */
+  static readonly DATA = '[ \\t](?!-)[^\\s:=@|;&]*(?:=(?!=)|:=|@)';
+}
 
 /** One row of the table: a program, with its aliases, and what it is called with that writes. */
 interface IWriteCommandRow {
@@ -220,8 +318,8 @@ export class WriteCommands {
       what: CLOUD,
       programs: ['aws'],
       verbs: [
-        String.raw`update-[\w-]+|put-[\w-]+|delete-[\w-]+|create-[\w-]+`,
-        's3 rm|sync|mv|rb',
+        String.raw`(?:update|put|delete|create|terminate|stop|reboot|modify|attach|detach|register|deregister|start)-[\w-]+|run-instances`,
+        's3 rm|sync|mv|rb|mb',
         'cloudformation deploy',
       ],
       isAnywhere: true,
@@ -258,7 +356,7 @@ export class WriteCommands {
       rule: 'V-W-02',
       what: MIGRATION,
       programs: [],
-      pattern: String.raw`\bdb:migrate\b|\bmigrate:(dev|local|alpha|develop)\b|make\s+db-migrate\b`,
+      pattern: String.raw`\bdb:migrate(?!:status\b)\b|\bmigrate:(dev|local|alpha|develop)\b|make\s+db-migrate\b`,
     },
     {
       rule: 'V-W-02',
@@ -271,8 +369,16 @@ export class WriteCommands {
       rule: 'V-W-02',
       what: MIGRATION,
       programs: ['prisma'],
-      verbs: ['migrate deploy|dev|reset|resolve', 'db push|execute'],
+      verbs: ['migrate deploy|reset|resolve', 'db push|execute'],
       inert: INERT,
+    },
+    {
+      rule: 'V-W-02',
+      what: MIGRATION,
+      programs: ['prisma'],
+      verbs: ['migrate dev'],
+      // `--create-only` writes the migration file and runs nothing.
+      inert: `${INERT}|^--create-only$`,
     },
     {
       rule: 'V-W-02',
@@ -285,7 +391,7 @@ export class WriteCommands {
       rule: 'V-W-02',
       what: MIGRATION,
       programs: ['typeorm', 'typeorm-ts-node-commonjs', 'typeorm-ts-node-esm'],
-      verbs: ['migration:run|migration:revert'],
+      verbs: ['migration:run|migration:revert|schema:drop|schema:sync'],
       inert: INERT,
     },
     {
@@ -293,13 +399,21 @@ export class WriteCommands {
       what: MIGRATION,
       programs: ['alembic'],
       verbs: ['upgrade|downgrade|stamp'],
-      inert: INERT,
+      // `--sql` prints the SQL of the migration (offline mode) and connects to nothing.
+      inert: `${INERT}|^--sql$`,
     },
     {
       rule: 'V-W-02',
       what: MIGRATION,
       programs: ['manage.py', 'django-admin'],
       verbs: ['migrate|flush|loaddata'],
+      inert: `${INERT}|^--plan$`,
+    },
+    {
+      rule: 'V-W-02',
+      what: 'opening a shell on the project or its database, whose commands this check cannot see',
+      programs: ['manage.py', 'django-admin'],
+      verbs: ['shell|dbshell'],
       inert: INERT,
     },
     {
@@ -343,7 +457,9 @@ export class WriteCommands {
       rule: 'V-W-02',
       what: MIGRATION,
       programs: ['rails', 'rake'],
-      verbs: ['db:migrate|db:drop|db:reset|db:seed'],
+      verbs: [
+        'db:migrate|db:drop|db:reset|db:seed|db:rollback|db:setup|db:schema:load|db:structure:load',
+      ],
       inert: INERT,
     },
     {
@@ -357,7 +473,7 @@ export class WriteCommands {
       rule: 'V-W-02',
       what: DATABASE,
       programs: [],
-      pattern: String.raw`\b(?:psql|mysql|mariadb|mongosh|sqlite3)\b[^|]*?${SQL_START}(?:${SQL_WRITE})|\bmongosh\b[^|]*?\.(?:insert|update|delete|remove|replace|drop|bulkWrite|findOneAnd|findAndModify|createCollection|createIndex|renameCollection|runCommand|adminCommand)\w*\s*\(`,
+      pattern: String.raw`\b(?:psql|mysql|mariadb|mongosh|mongo|sqlite3)\b[^|]*?${SQL_START}(?:${SQL_WRITE})|\bmongo(?:sh)?\b[^|]*?\.(?:insert|update|delete|remove|replace|drop|bulkWrite|findOneAnd|findAndModify|createCollection|createIndex|renameCollection|runCommand|adminCommand)\w*\s*\(`,
       ignoreCase: true,
     },
     {
@@ -368,10 +484,10 @@ export class WriteCommands {
     },
     {
       rule: 'V-W-02',
-      what: DATABASE,
+      what: 'running a redis-cli command that is not a known read, or its prompt',
       programs: ['redis-cli'],
-      verbs: ['FLUSHALL|FLUSHDB|DEL|SET|HSET|EXPIRE|SHUTDOWN', 'CONFIG SET'],
-      inert: HELP_ONLY,
+      pattern: String.raw`${WriteCommands.optionsOf({ values: RedisCli.VALUES })}(?![ \t]+(?:${RedisCli.READS})${VERB_END})`,
+      inert: `${HELP_ONLY}|${RedisCli.READ_MODES}`,
       ignoreCase: true,
     },
     {
@@ -441,7 +557,15 @@ export class WriteCommands {
       what: REQUEST,
       // httpie's `-h` prints headers, so only `--help` and `--offline` send nothing.
       programs: ['http', 'https', 'xh', 'xhs'],
-      verbs: ['POST|PUT|PATCH|DELETE'],
+      // A raw body; past the options, a method that is not a read, or no method and a data item after the URL.
+      pattern: [
+        String.raw`(?=${REST}[ \t]--raw\b)`,
+        `${WriteCommands.optionsOf({ values: Httpie.VALUES })}(?:${[
+          String.raw`[ \t]+(?!${Httpie.READS}[ \t])[A-Za-z]+[ \t]+\S`,
+          // The URL is read whole, so a long one is not tried again at every shorter length.
+          String.raw`[ \t]+(?![A-Za-z]+[ \t]+\S)(?=(?<url>[^\s|;&]+))\k<url>[^|;&\n]*?${Httpie.DATA}`,
+        ].join('|')})`,
+      ].join('|'),
       inert: '^(?:--help|--offline)$',
       ignoreCase: true,
     },
@@ -467,6 +591,7 @@ export class WriteCommands {
     },
     sqlite3: { mode: SqlClientModes.SQLITE, inline: /^--?cmd(?:=|$)([\s\S]*)$/ },
     mongosh: { mode: SqlClientModes.MONGO, inline: /^--eval(?:=|$)([\s\S]*)$/ },
+    mongo: { mode: SqlClientModes.MONGO, inline: /^--eval(?:=|$)([\s\S]*)$/ },
   };
 
   /** The options that make a database client only print something and read nothing. */
@@ -504,6 +629,16 @@ export class WriteCommands {
   static readonly CHECKS: readonly ICommandCheck[] = WriteCommands.ROWS.map((row) =>
     WriteCommands.compile({ row }),
   );
+
+  /**
+   * The options before a program's command, read whole, as a pattern: a value (`-h cache`) is never the command,
+   * and no shorter run is tried, so a look at the command that follows cannot be passed by backing off.
+   */
+  private static optionsOf(opts: { values: readonly string[] }): string {
+    const option = String.raw`[ \t]+(?:(?:${opts.values.join('|')})[ \t]+[^\s|;&]+|-[^\s|;&]*)`;
+
+    return String.raw`(?=(?<options>(?:${option})*))\k<options>`;
+  }
 
   /** A run of words, each a set of alternatives, with the program's options allowed between them. */
   private static wordsOf(opts: { verb: string }): string {

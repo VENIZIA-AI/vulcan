@@ -1,6 +1,8 @@
 import {
   closeSync,
+  constants,
   existsSync,
+  fstatSync,
   openSync,
   readdirSync,
   readFileSync,
@@ -71,11 +73,12 @@ const SQL_STRING_CHECKS: IWriteCheck[] = [
 
 /**
  * A call that runs a command, its arguments up to the first `)` (strings masked, see `CodeText`): `Bun.spawn`,
- * `child_process`, `execa`, `Deno.Command`, Python's `subprocess` and `os.system`, and `system`.
+ * `child_process`, `execa`, `Deno.Command`, Python's `subprocess`, `os.system` and `os.popen`, and `system`,
+ * `popen`, `shell_exec`, `passthru` and `proc_open`.
  * A method of another object (`regex.exec(`) is not one.
  */
 const SPAWN_CALL = new RegExp(
-  String.raw`(?:\bBun\s*\.\s*spawn(?:Sync)?|\bnew\s+Deno\s*\.\s*Command|\bsubprocess\s*\.\s*(?:run|call|Popen|check_call|check_output)|(?:\bos\s*\.\s*|(?<![\w$.]))system|(?:\b(?:child_process|childProcess|cp)\s*\.\s*|(?<![\w$.]))(?:spawn|spawnSync|exec|execSync|execFile|execFileSync|execa|execaSync|execaCommand|execaCommandSync))\s*\(([^)]{0,2000})`,
+  String.raw`(?:\bBun\s*\.\s*spawn(?:Sync)?|\bnew\s+Deno\s*\.\s*Command|\bsubprocess\s*\.\s*(?:run|call|Popen|check_call|check_output)|(?:\bos\s*\.\s*|(?<![\w$.]))(?:system|popen)|(?<![\w$.])(?:shell_exec|passthru|proc_open)|(?:\b(?:child_process|childProcess|cp)\s*\.\s*|(?<![\w$.]))(?:spawn|spawnSync|exec|execSync|execFile|execFileSync|execa|execaSync|execaCommand|execaCommandSync))\s*\(([^)]{0,2000})`,
   'g',
 );
 
@@ -113,8 +116,10 @@ class ReadStates {
   static readonly TEXT = 'text';
   /** Nothing is at the path. */
   static readonly MISSING = 'missing';
-  /** A folder, a pipe, or a compiled program: there is no script to read. */
+  /** A folder, or a compiled program: there is no script to read. */
   static readonly NONE = 'none';
+  /** A pipe, a device or a socket: opening it can block, and what it gives cannot be read ahead. */
+  static readonly SPECIAL = 'special';
   static readonly TOO_LARGE = 'too-large';
   /** The file could not be opened, or is not text. */
   static readonly UNREADABLE = 'unreadable';
@@ -512,10 +517,16 @@ export class WriteGuard {
           return check.pattern.test(text);
         }
 
-        const { name, args } = ShellParser.programOf({ command });
-        const program = ShellParser.basenameOf({ word: name });
+        const { program, args } = WriteGuard.callOf({ command });
+        const { script } = ScriptRunners.callOf({ program, args });
+        // `python manage.py migrate --plan`: the script is the program the row names.
+        const named = script === undefined ? program : ShellParser.basenameOf({ word: script });
 
-        return WriteCommands.isLive({ check, program, args }) && check.pattern.test(text);
+        return (
+          WriteCommands.isLive({ check, program, args }) &&
+          WriteCommands.isLive({ check, program: named, args }) &&
+          check.pattern.test(text)
+        );
       }),
     );
     const project = (opts.extra ?? [])
@@ -634,8 +645,7 @@ export class WriteGuard {
     extra: IProjectCommandCheck[] | undefined;
     work: IInspectWork;
   }): IWriteHit[] {
-    const { name, args } = ShellParser.programOf({ command: opts.command });
-    const program = ShellParser.basenameOf({ word: name });
+    const { program, args } = WriteGuard.callOf({ command: opts.command });
 
     if (!Object.hasOwn(ScriptRunners.TABLES, program)) {
       return [];
@@ -657,6 +667,18 @@ export class WriteGuard {
       }));
   }
 
+  /** The program a simple command runs, past wrappers (`sudo`, `env`) and launchers (`npx tsx`, `uv run`). */
+  private static callOf(opts: { command: ISimpleCommand }): {
+    name: string;
+    program: string;
+    args: string[];
+    isPackage: boolean;
+  } {
+    const launched = ScriptRunners.launchedOf(ShellParser.programOf({ command: opts.command }));
+
+    return { ...launched, program: ShellParser.basenameOf({ word: launched.name }) };
+  }
+
   /**
    * The code a simple command runs, when it is local: `bun x.js`, `bash x.sh`, `source x`, `./x`, a package
    * script (`bun run`, `npm run`, `pnpm`, `yarn`), the file `cat` feeds a shell, or the text `echo` feeds it.
@@ -668,8 +690,7 @@ export class WriteGuard {
     at: IShellFolder;
     root: string;
   }): ICodeSource {
-    const { name, args } = ShellParser.programOf({ command: opts.command });
-    const program = ShellParser.basenameOf({ word: name });
+    const { name, program, args, isPackage } = WriteGuard.callOf({ command: opts.command });
     const { at } = opts;
     const none = sourceOf({ label: program });
     const printed = WriteGuard.substitutionOf({ word: name });
@@ -721,6 +742,11 @@ export class WriteGuard {
 
     if (SOURCE_COMMANDS.has(name)) {
       return WriteGuard.fileCodeOf({ word: args[0], label: name, kind: ScriptKinds.SHELL, at });
+    }
+
+    // A package `npx` or `bunx` runs (`npx @scope/tool`, `npx user/repo`) is no file of the project.
+    if (isPackage) {
+      return none;
     }
 
     // `./deploy.sh`, `scripts/deploy`: a path run as a program. An absolute path outside the project is an
@@ -1045,27 +1071,46 @@ export class WriteGuard {
   }
 
   /**
-   * The text of a regular file; a missing path, a folder and a pipe read as nothing, so nothing is opened that
-   * can block. A compiled program (known by its first bytes) is not a script and reads as nothing too. A file
-   * that cannot be opened or is not UTF-8 text is unreadable; a NUL byte in a text file reads as a blank.
+   * The text of a regular file. A missing path, a folder and a compiled program (known by its first bytes)
+   * read as nothing. A pipe, a device or a socket is never opened, since that can block: it is special. The
+   * file is opened without blocking and looked at again, so one swapped in after the first look is caught. A
+   * file that cannot be opened or is not UTF-8 text is unreadable; a NUL byte in a text file reads as a blank.
    */
   private static readScript(opts: { path: string }): IScriptRead {
     if (!existsSync(opts.path)) {
       return { state: ReadStates.MISSING };
     }
 
+    let descriptor: number | undefined;
+
     try {
       const stat = statSync(opts.path);
 
-      if (!stat.isFile() || WriteGuard.isCompiled({ path: opts.path })) {
+      if (stat.isDirectory()) {
         return { state: ReadStates.NONE };
       }
 
-      if (stat.size > HookConstants.MAX_SCRIPT_BYTES) {
+      if (!stat.isFile()) {
+        return { state: ReadStates.SPECIAL };
+      }
+
+      descriptor = openSync(opts.path, constants.O_RDONLY | constants.O_NONBLOCK);
+
+      const opened = fstatSync(descriptor);
+
+      if (!opened.isFile()) {
+        return { state: ReadStates.SPECIAL };
+      }
+
+      if (WriteGuard.isCompiled({ descriptor })) {
+        return { state: ReadStates.NONE };
+      }
+
+      if (opened.size > HookConstants.MAX_SCRIPT_BYTES) {
         return { state: ReadStates.TOO_LARGE };
       }
 
-      const bytes = readFileSync(opts.path);
+      const bytes = readFileSync(descriptor);
 
       for (let index = bytes.indexOf(0); index !== -1; index = bytes.indexOf(0, index + 1)) {
         bytes[index] = 0x20;
@@ -1081,48 +1126,48 @@ export class WriteGuard {
       );
 
       return { state: ReadStates.UNREADABLE };
+    } finally {
+      if (descriptor !== undefined) {
+        closeSync(descriptor);
+      }
     }
   }
 
-  private static isCompiled(opts: { path: string }): boolean {
+  /** Whether the open file is a compiled program, from its first bytes; reads at offsets, so its position stays. */
+  private static isCompiled(opts: { descriptor: number }): boolean {
+    const { descriptor } = opts;
     const head = Buffer.alloc(CompiledFormats.MAGIC_BYTES);
-    const descriptor = openSync(opts.path, 'r');
+    const read = readSync(descriptor, head, 0, CompiledFormats.MAGIC_BYTES, 0);
 
-    try {
-      const read = readSync(descriptor, head, 0, CompiledFormats.MAGIC_BYTES, 0);
-
-      if (
-        CompiledFormats.MAGIC_NUMBERS.some(
-          (magic) => read >= magic.length && head.subarray(0, magic.length).equals(magic),
-        )
-      ) {
-        return true;
-      }
-
-      if (read < 2 || !head.subarray(0, 2).equals(CompiledFormats.PE_STUB)) {
-        return false;
-      }
-
-      // `MZ` alone also starts a text line (`MZ=prod`): a PE file holds, at the offset stored at 0x3c, `PE\0\0`.
-      const offset = Buffer.alloc(4);
-
-      if (readSync(descriptor, offset, 0, 4, CompiledFormats.PE_OFFSET_AT) < 4) {
-        return false;
-      }
-
-      const signature = Buffer.alloc(CompiledFormats.PE_SIGNATURE.length);
-      const signatureRead = readSync(
-        descriptor,
-        signature,
-        0,
-        signature.length,
-        offset.readUInt32LE(0),
-      );
-
-      return signatureRead === signature.length && signature.equals(CompiledFormats.PE_SIGNATURE);
-    } finally {
-      closeSync(descriptor);
+    if (
+      CompiledFormats.MAGIC_NUMBERS.some(
+        (magic) => read >= magic.length && head.subarray(0, magic.length).equals(magic),
+      )
+    ) {
+      return true;
     }
+
+    if (read < 2 || !head.subarray(0, 2).equals(CompiledFormats.PE_STUB)) {
+      return false;
+    }
+
+    // `MZ` alone also starts a text line (`MZ=prod`): a PE file holds, at the offset stored at 0x3c, `PE\0\0`.
+    const offset = Buffer.alloc(4);
+
+    if (readSync(descriptor, offset, 0, 4, CompiledFormats.PE_OFFSET_AT) < 4) {
+      return false;
+    }
+
+    const signature = Buffer.alloc(CompiledFormats.PE_SIGNATURE.length);
+    const signatureRead = readSync(
+      descriptor,
+      signature,
+      0,
+      signature.length,
+      offset.readUInt32LE(0),
+    );
+
+    return signatureRead === signature.length && signature.equals(CompiledFormats.PE_SIGNATURE);
   }
 
   /** Whether `path` is a compiled program, from its first bytes; each look counts as a file. */
@@ -1130,7 +1175,17 @@ export class WriteGuard {
     opts.work.spent.files += 1;
 
     try {
-      return WriteGuard.isFile({ path: opts.path }) && WriteGuard.isCompiled({ path: opts.path });
+      if (!WriteGuard.isFile({ path: opts.path })) {
+        return false;
+      }
+
+      const descriptor = openSync(opts.path, constants.O_RDONLY | constants.O_NONBLOCK);
+
+      try {
+        return fstatSync(descriptor).isFile() && WriteGuard.isCompiled({ descriptor });
+      } finally {
+        closeSync(descriptor);
+      }
     } catch (error) {
       console.error(
         `[WriteGuard.isCompiledFile] unreadable program | ${opts.path} | ${error instanceof Error ? error.message : String(error)}`,
@@ -1235,6 +1290,15 @@ export class WriteGuard {
         {
           rule: 'V-W-02',
           message: `${target} is larger than the guard reads, so it could not be checked`,
+        },
+      ];
+    }
+
+    if (reads.some((entry) => entry.read.state === ReadStates.SPECIAL)) {
+      return [
+        {
+          rule: 'V-W-02',
+          message: `${target} is not a regular file (a pipe, a device or a socket), so the guard cannot read it`,
         },
       ];
     }

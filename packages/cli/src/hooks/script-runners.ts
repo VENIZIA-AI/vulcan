@@ -14,6 +14,25 @@ interface IRunnerTable {
   extensions: readonly string[];
 }
 
+/**
+ * A program that runs another program named by its first plain word: `npx tsx x.ts`, `uv run x.py`. `values`
+ * take the next word; `ends` run no program the guard can name (`npx -c`, `uv run -m`); `subcommand` is the
+ * word that must come first (`uv run`). `isPackage`: the word names a package (`npx @scope/tool`), not a file.
+ */
+interface ILauncherTable {
+  values: ReadonlySet<string>;
+  ends: ReadonlySet<string>;
+  subcommand?: string;
+  isPackage: boolean;
+}
+
+/** What a launcher runs: the program and its words, and whether the program is a package, not a project file. */
+interface ILaunched {
+  name: string;
+  args: string[];
+  isPackage: boolean;
+}
+
 const runnerOf = (opts: {
   values?: string[];
   evals?: string[];
@@ -47,7 +66,34 @@ export class ScriptRunners {
     ends: ['-m'],
   });
 
+  static readonly TYPESCRIPT = runnerOf({
+    values: [
+      '-r',
+      '--require',
+      '--import',
+      '-C',
+      '--conditions',
+      '--input-type',
+      '--tsconfig',
+      '-P',
+      '--project',
+      '-O',
+      '--compiler-options',
+      '--compiler',
+      '-I',
+      '--ignore',
+      '-D',
+      '--ignore-diagnostics',
+      '--cwd',
+      '--scope-dir',
+    ],
+    evals: ['-e', '--eval', '-p', '--print'],
+    extensions: [...ScriptRunners.CODE_EXTENSIONS],
+  });
+
   static readonly TABLES: Readonly<Record<string, IRunnerTable>> = {
+    tsx: ScriptRunners.TYPESCRIPT,
+    'ts-node': ScriptRunners.TYPESCRIPT,
     node: runnerOf({
       values: [
         '-r',
@@ -95,6 +141,116 @@ export class ScriptRunners {
 
   /** The `deno` subcommands that run the file named next; every other one runs no script file. */
   static readonly DENO_RUNS = new Set(['run', 'serve']);
+
+  /** The `tsx` subcommand that runs the file named next, again on each change. */
+  static readonly TSX_RUNS = new Set(['watch']);
+
+  static readonly LAUNCHERS: Readonly<Record<string, ILauncherTable>> = {
+    npx: {
+      values: new Set([
+        '-p',
+        '--package',
+        '-w',
+        '--workspace',
+        '--cache',
+        '--registry',
+        '--userconfig',
+      ]),
+      ends: new Set(['-c', '--call']),
+      isPackage: true,
+    },
+    bunx: { values: new Set(['-p', '--package']), ends: new Set(), isPackage: true },
+    uv: {
+      values: new Set([
+        '--with',
+        '--with-editable',
+        '--with-requirements',
+        '-p',
+        '--python',
+        '--package',
+        '--extra',
+        '--group',
+        '--only-group',
+        '--no-group',
+        '--env-file',
+        '--index',
+        '--index-url',
+        '--extra-index-url',
+        '-f',
+        '--find-links',
+        '--directory',
+        '--project',
+        '--config-file',
+        '--cache-dir',
+        '--color',
+      ]),
+      ends: new Set(['-m', '--module']),
+      subcommand: 'run',
+      isPackage: false,
+    },
+  };
+
+  /** The Python files `uv run` hands to Python; any other word is a program it runs. */
+  static readonly PYTHON_FILE = /\.pyw?$/;
+
+  /**
+   * The program a launcher runs, and its words: `npx tsx x.ts` runs `tsx x.ts`, `uv run x.py` runs
+   * `python x.py`. The call as given when `name` is no launcher or names no program the guard can follow.
+   */
+  static launchedOf(opts: { name: string; args: string[] }): ILaunched {
+    const launcher = ScriptRunners.LAUNCHERS[opts.name.split('/').pop() ?? opts.name];
+    const given: ILaunched = { ...opts, isPackage: false };
+
+    if (launcher === undefined) {
+      return given;
+    }
+
+    let isStarted = launcher.subcommand === undefined;
+
+    for (let index = 0; index < opts.args.length; index += 1) {
+      const word = opts.args[index] ?? '';
+
+      if (!word.startsWith('-')) {
+        if (isStarted) {
+          return ScriptRunners.launchedWordOf({
+            word,
+            args: opts.args.slice(index + 1),
+            isPackage: launcher.isPackage && !/^\.{0,2}\//.test(word),
+          });
+        }
+
+        if (word !== launcher.subcommand) {
+          return given;
+        }
+
+        isStarted = true;
+        continue;
+      }
+
+      const option = word.startsWith('--') ? (word.split('=')[0] ?? word) : word;
+
+      if (launcher.ends.has(option)) {
+        return given;
+      }
+
+      index += launcher.values.has(option) && !word.includes('=') ? 1 : 0;
+    }
+
+    return given;
+  }
+
+  private static launchedWordOf(opts: {
+    word: string;
+    args: string[];
+    isPackage: boolean;
+  }): ILaunched {
+    const launched = ScriptRunners.PYTHON_FILE.test(opts.word)
+      ? { name: 'python', args: [opts.word, ...opts.args] }
+      : { name: opts.word, args: opts.args };
+    const inner = ScriptRunners.launchedOf(launched);
+
+    return inner.name === launched.name ? { ...inner, isPackage: opts.isPackage } : inner;
+  }
 
   /** The `deno` subcommands that run no script file, so a word after them is not one. */
   static readonly DENO_BUILT_INS = new Set([
@@ -220,12 +376,19 @@ export class ScriptRunners {
     return { evals };
   }
 
-  /** The script word among the positional words: `deno run x` and `deno x`, any other runner's first word. */
+  /**
+   * The script word among the positional words: `deno run x` and `deno x`, `tsx watch x` and `tsx x`, any
+   * other runner's first word.
+   */
   private static positionalOf(opts: { program: string; args: string[]; evals: string[] }): {
     script?: string;
     evals: string[];
   } {
     const [first, ...rest] = opts.args;
+
+    if (opts.program === 'tsx' && first !== undefined && ScriptRunners.TSX_RUNS.has(first)) {
+      return ScriptRunners.callOf({ program: 'tsx', args: rest });
+    }
 
     if (opts.program !== 'deno' || first === undefined) {
       return { script: first, evals: opts.evals };
