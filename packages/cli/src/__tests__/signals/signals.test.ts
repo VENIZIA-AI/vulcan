@@ -97,6 +97,22 @@ describe('the gates a command runs', () => {
   ])('%s is not', (command) => {
     expect(SignalClassifier.gatesOf({ command })).toEqual([]);
   });
+
+  test('a gate is kept with its secrets redacted, then cut', () => {
+    const token = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789';
+
+    expect(SignalClassifier.gatesOf({ command: `make test TOKEN=${token}` })).toEqual([
+      'make test TOKEN=[redacted]',
+    ]);
+    expect(SignalClassifier.gatesOf({ command: `bun test --token abc123 a.test.ts` })).toEqual([
+      'bun test --token [redacted] a.test.ts',
+    ]);
+
+    const [long] = SignalClassifier.gatesOf({ command: `bun test ${'x'.repeat(60)} ${token}` });
+
+    expect(long).not.toContain('ghp_');
+    expect(Array.from(long ?? '').length).toBeLessThanOrEqual(80);
+  });
 });
 
 describe('the files that are watched', () => {

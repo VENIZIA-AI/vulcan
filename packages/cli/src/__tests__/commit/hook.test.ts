@@ -548,6 +548,61 @@ describe('a folder name that holds a bracket or a percent sign', () => {
   );
 });
 
+describe('a folder name the hook text cannot hold', () => {
+  test.each(['line\nbreak', 'carriage\rreturn', 'tab\tname', 'bell\u0007name', 'del\u007fname'])(
+    '%j: the hook is not written, and the plan says why',
+    (folder) => {
+      const top = repo();
+      const root = join(top, folder);
+
+      mkdirSync(root, { recursive: true });
+
+      const [action] = planOf({ root, config: DENY });
+
+      expect(action.status).toBe(SyncStatuses.SKIPPED);
+      expect(action.note).toContain('control character');
+
+      action.apply();
+
+      expect(existsSync(hookFile({ root: top }))).toBe(false);
+      expect(CommitHook.stateOf({ root, config: DENY }).state).toBe(CommitHookStates.UNWIRED);
+    },
+  );
+
+  test('the template and the writer refuse such a prefix', () => {
+    const path = join(createProject({ files: {} }), 'hooks/commit-msg');
+
+    expect(() => CommitHook.template({ prefix: 'line\nbreak/' })).toThrow('control character');
+    expect(() => CommitHook.write({ path, prefix: 'line\nbreak/' })).toThrow('control character');
+    expect(existsSync(path)).toBe(false);
+  });
+
+  test('a folder name with spaces and quotes is still written, and entered by the hook', () => {
+    const top = repo();
+    const root = join(top, "my app's folder");
+
+    mkdirSync(root, { recursive: true });
+
+    const [action] = planOf({ root, config: DENY });
+
+    expect(action.status).toBe(SyncStatuses.CREATED);
+
+    action.apply();
+
+    const text = readFileSync(hookFile({ root: top }), 'utf8');
+
+    expect(text).toContain("cd 'my app'\\''s folder' || exit 0\n");
+    expect(CommitHook.ownerOf({ text })).toBe("my app's folder");
+    expect(planOf({ root, config: DENY })[0].status).toBe(SyncStatuses.UNCHANGED);
+  });
+
+  test('a marker line with an escaped control character is read back as written', () => {
+    expect(
+      CommitHook.ownerOf({ text: '#!/bin/sh\n# vulcan:commit-msg [a%0Ab%09c%25] - x\n' }),
+    ).toBe('a\nb\tc%');
+  });
+});
+
 describe('CommitHook.ownerOf', () => {
   test.each([
     ['#!/bin/sh\n# vulcan:commit-msg [] - x\n', ''],

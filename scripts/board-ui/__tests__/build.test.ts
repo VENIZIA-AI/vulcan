@@ -43,6 +43,15 @@ describe('BoardUiBuild.build', () => {
     expect(shipped).toContain(`built from ${BoardUiBuild.hashOf({ root: ROOT, inputs })};`);
   });
 
+  test('the page holds no lookbehind and none of the redaction patterns, so an older browser can parse it', async () => {
+    const shipped = readFileSync(join(ROOT, 'packages/cli/base/templates/board.html'), 'utf8');
+    const { inputs } = await BoardUiBuild.bundle({ root: ROOT });
+
+    expect(shipped).not.toContain('(?<=');
+    expect(shipped).not.toContain('(?<!');
+    expect(inputs).not.toContain('packages/cli/src/events/common/constants.ts');
+  });
+
   test('the fingerprint covers what the bundle takes from outside the components: the board constants and preact', async () => {
     const { inputs } = await BoardUiBuild.bundle({ root: ROOT });
 

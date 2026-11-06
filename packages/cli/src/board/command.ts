@@ -6,6 +6,7 @@ import type { ICommandContext } from '../common/index.ts';
 import { FlowId } from '../events/flow-id.ts';
 import { EventLog } from '../events/log.ts';
 import { EventSettings } from '../events/settings.ts';
+import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { ThemeTokens } from '../theme/index.ts';
 import type { IThemeTokens } from '../theme/index.ts';
 import { BoardConstants, BoardFlags, BoardServe, BoardStates } from './common/index.ts';
@@ -20,6 +21,9 @@ const SHARED_FLAGS = `[${BoardFlags.OPEN}] [${BoardFlags.SINCE} <date>] [${Board
 const USAGE = `usage: vulcan board [${BoardFlags.OUT} <file>] ${SHARED_FLAGS}\n       vulcan board ${BoardServe.COMMAND} [${BoardFlags.PORT} <n>] ${SHARED_FLAGS}`;
 const REPO_NAME = /^[\w.-]+\/[\w.-]+$/;
 
+/** Starts the program that opens the browser; `target` is what it is given, `fallback` what a person is told to open if it fails. */
+type TBoardOpener = (opts: { target: string; fallback: string }) => void;
+
 interface IBoardArgs {
   serve: boolean;
   port: string | undefined;
@@ -33,7 +37,7 @@ interface IBoardArgs {
 
 /** `vulcan board`: the flows of a project, from its event log and, when `gh` can read them, its pull requests, as one HTML file. */
 export class BoardCommand {
-  static async run(opts: ICommandContext): Promise<number> {
+  static async run(opts: ICommandContext & { opener?: TBoardOpener }): Promise<number> {
     const args = BoardCommand.parse({ args: opts.args });
 
     if (typeof args === 'string') {
@@ -62,7 +66,13 @@ export class BoardCommand {
       ...(args.dir === undefined ? {} : { dir: resolve(opts.cwd, args.dir) }),
     });
     if (args.serve) {
-      return BoardCommand.serve({ args, root, dir, sinceOf });
+      return BoardCommand.serve({
+        args,
+        root,
+        dir,
+        sinceOf,
+        opener: opts.opener ?? BoardCommand.open,
+      });
     }
 
     const data = BoardCommand.collect({ root, dir, since, args });
@@ -87,7 +97,7 @@ export class BoardCommand {
     process.stdout.write(`${file}\n`);
 
     if (args.open) {
-      BoardCommand.open({ target: file });
+      (opts.opener ?? BoardCommand.open)({ target: file, fallback: file });
     }
 
     return ExitCodes.OK;
@@ -168,6 +178,7 @@ export class BoardCommand {
     root: string;
     dir: string;
     sinceOf: () => number;
+    opener: TBoardOpener;
   }): Promise<number> {
     const { args } = opts;
     const gitUser = BoardSettings.gitUserOf({ root: opts.root });
@@ -200,6 +211,7 @@ export class BoardCommand {
         hostname,
         collect,
         tokens: BoardCommand.tokensOf({ root: opts.root }),
+        openFolder: ProjectTmp.projectOf({ root: opts.root }),
       });
 
       if (note !== undefined) {
@@ -211,8 +223,14 @@ export class BoardCommand {
       );
       process.stdout.write(`${url}\n`);
 
-      if (args.open) {
-        BoardCommand.open({ target: url });
+      // The program that opens the browser gets a page that only the owner can read and that holds the
+      // token, never the token itself: its arguments are visible to other users of the machine.
+      const target = args.open ? BoardServer.openFile() : undefined;
+
+      if (target !== undefined) {
+        opts.opener({ target, fallback: url });
+      } else if (args.open) {
+        process.stderr.write(`board: could not open it; open ${url} yourself\n`);
       }
     } catch (error) {
       process.stderr.write(
@@ -314,18 +332,22 @@ export class BoardCommand {
     return parsed;
   }
 
-  private static open(opts: { target: string }): void {
-    const program =
-      process.platform === 'darwin'
-        ? 'open'
-        : process.platform === 'win32'
-          ? 'explorer.exe'
-          : 'xdg-open';
-    const args = [opts.target];
-    const hint = `board: could not open it; open ${opts.target} yourself\n`;
+  private static programOf(): string {
+    if (process.platform === 'darwin') {
+      return 'open';
+    }
+
+    return process.platform === 'win32' ? 'explorer.exe' : 'xdg-open';
+  }
+
+  private static open(opts: { target: string; fallback: string }): void {
+    const hint = `board: could not open it; open ${opts.fallback} yourself\n`;
 
     try {
-      const child = spawn(program, args, { detached: true, stdio: 'ignore' });
+      const child = spawn(BoardCommand.programOf(), [opts.target], {
+        detached: true,
+        stdio: 'ignore',
+      });
 
       child.on('error', () => process.stderr.write(hint));
       child.unref();

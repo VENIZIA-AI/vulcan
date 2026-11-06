@@ -1,37 +1,13 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { HookConstants, TrustStates } from './common/index.ts';
+import { TrustStates } from './common/index.ts';
 import type { IReadOnlyScript, IScriptInvocation, IScriptTrust } from './common/index.ts';
+import { GitQueries } from './git-queries.ts';
 import { ShellParser } from './shell.ts';
 import { ShellFolders } from './shell-folders.ts';
 
-/** Variables that point git at another repository or index than the one in `cwd`. */
-const REDIRECTING_VARIABLES = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
-
 /** Git mode of a symlink entry in the index. */
 const SYMLINK_MODE = '120000';
-
-/**
- * A read-only `git` query in `cwd`; `undefined` when git is missing, slow or answers with an error.
- * The variables that point git somewhere else are dropped, so the answer is about this checkout.
- */
-const gitQuery = (opts: { cwd: string; args: string[] }): string | undefined => {
-  const env: Record<string, string | undefined> = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
-
-  for (const name of REDIRECTING_VARIABLES) {
-    delete env[name];
-  }
-
-  const result = spawnSync('git', opts.args, {
-    cwd: opts.cwd,
-    encoding: 'utf8',
-    timeout: HookConstants.QUERY_TIMEOUT_MS,
-    env,
-  });
-
-  return result.status === 0 ? result.stdout.trim() : undefined;
-};
 
 const untrusted = (opts: { state: IScriptTrust['state']; reason: string }): IScriptTrust => opts;
 
@@ -80,7 +56,7 @@ export class ScriptTrust {
     }
 
     const repoPath = relative(root, real).split(sep).join('/');
-    const entry = gitQuery({
+    const entry = GitQueries.run({
       cwd: root,
       args: ['ls-files', '--stage', '--', `:(literal)${repoPath}`],
     });
@@ -112,7 +88,7 @@ export class ScriptTrust {
       });
     }
 
-    const headBlob = gitQuery({
+    const headBlob = GitQueries.run({
       cwd: root,
       args: ['rev-parse', '--verify', '--quiet', `HEAD:./${repoPath}`],
     });
@@ -124,7 +100,10 @@ export class ScriptTrust {
       });
     }
 
-    const workBlob = gitQuery({ cwd: root, args: ['hash-object', '--', real] });
+    const workBlob = GitQueries.run({
+      cwd: root,
+      args: ['hash-object', '--no-filters', '--', real],
+    });
 
     if (workBlob === undefined) {
       return untrusted({
