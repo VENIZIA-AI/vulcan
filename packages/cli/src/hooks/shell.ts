@@ -123,6 +123,7 @@ const WRAPPER_OPTIONS: Record<string, IWrapperOptions> = {
     longValues: ['--unset', '--chdir', '--split-string', '--argv0', '--file'],
   }),
   command: wrapperOptions({}),
+  builtin: wrapperOptions({}),
   time: wrapperOptions({ shortValues: 'fo', longValues: ['--format', '--output'] }),
   nohup: wrapperOptions({}),
   exec: wrapperOptions({ shortValues: 'a' }),
@@ -260,6 +261,10 @@ const readAnsiC = (opts: { text: string; from: number }): { value: string; next:
   return { value, next: Math.min(end + 1, text.length) };
 };
 
+/** The text of a backtick substitution as the shell reads it again: a backslash before `\`, a backtick or `$` goes. */
+const unescapeBackticks = (opts: { text: string }): string =>
+  opts.text.replace(/\\([\\`$])/g, '$1');
+
 /** Appends every item; a spread into `push` overflows the stack at a few hundred thousand items. */
 const pushAll = <T>(opts: { target: T[]; items: T[] }): void => {
   for (const item of opts.items) {
@@ -286,7 +291,11 @@ const substitutionsIn = (opts: {
       continue;
     }
 
-    found.push(text.slice(index + (text[index] === '`' ? 1 : 2), close));
+    found.push(
+      text[index] === '`'
+        ? unescapeBackticks({ text: text.slice(index + 1, close) })
+        : text.slice(index + 2, close),
+    );
     index = close + 1;
   }
 
@@ -384,7 +393,7 @@ const readWord = (opts: { text: string; from: number; layout: IShellLayout }): I
     if (quote !== "'" && char === '`') {
       const end = layout.closes.get(index) ?? text.length;
 
-      nested.push(text.slice(index + 1, end));
+      nested.push(unescapeBackticks({ text: text.slice(index + 1, end) }));
       value += text.slice(index, end + 1);
       index = end + 1;
       continue;
@@ -510,6 +519,8 @@ interface IScanContext {
   isOuter: boolean;
   /** Inside double quotes, where a single quote is a character. */
   isQuoted: boolean;
+  /** The `case` commands opened in it and not yet closed by `esac`: a `)` there ends a pattern. */
+  cases: number;
 }
 
 /** A heredoc of the outermost text, keyed by where its operator starts in the kept text. */
@@ -613,6 +624,54 @@ class ShellScanner {
       : { delimiter, isQuoted, stripTabs, end: index };
   }
 
+  /** Whether `line` ends with a backslash that is not itself escaped. */
+  private static endsEscaped(opts: { line: string }): boolean {
+    let count = 0;
+
+    while (opts.line[opts.line.length - 1 - count] === '\\') {
+      count += 1;
+    }
+
+    return count % 2 === 1;
+  }
+
+  /** The index of the second `<` of a `<<` at `index`, a backslash-newline between them allowed; -1 when there is none. */
+  private static secondAngleAt(opts: { text: string; index: number }): number {
+    const { text, index } = opts;
+
+    if (text[index + 1] === '<') {
+      return index + 1;
+    }
+
+    return text.startsWith('\\\n<', index + 1) ? index + 3 : -1;
+  }
+
+  /**
+   * `case` or `esac` when the word at `index` is that reserved word where a command starts: after an
+   * operator, an opening parenthesis or backtick, `then`, `else`, `do` or `{`. Anything else is an empty string.
+   */
+  private static reservedAt(opts: { text: string; index: number }): string {
+    const { text, index } = opts;
+    const word = text.slice(index, index + 4);
+
+    if (
+      (word !== 'case' && word !== 'esac') ||
+      !/^(?:[\s;&|()<>]|$)/.test(text.slice(index + 4, index + 5))
+    ) {
+      return '';
+    }
+
+    let before = index - 1;
+
+    while (text[before] === ' ' || text[before] === '\t') {
+      before -= 1;
+    }
+
+    const lead = text.slice(Math.max(0, before - 4), before + 1);
+
+    return before < 0 || /(?:[;&|(\n`]|(?:^|[\s;&|(])(?:then|else|do|\{))$/.test(lead) ? word : '';
+  }
+
   /** Moves every position of `from` by `shift` into `into`: a text scanned apart and spliced in. */
   private static merge(opts: { into: IShellLayout; from: IShellLayout; shift: number }): void {
     const { into, from, shift } = opts;
@@ -680,12 +739,15 @@ class ShellScanner {
       program: { start: -1, name: '' },
       isOuter: true,
       isQuoted: false,
+      cases: 0,
     };
     const stack: IScanContext[] = [outer];
     // `out` is the kept text the positions point into; `view` drops the data bodies inside substitutions too.
     let out = '';
     let view = '';
     let index = 0;
+    // Where a word may start: after a blank or an operator of a command context, never right after an expansion.
+    let breakAt = 0;
 
     const append = (piece: string): void => {
       out += piece;
@@ -710,8 +772,10 @@ class ShellScanner {
         program: { start: -1, name: '' },
         isOuter: false,
         isQuoted: opener.kind === ScanKinds.DOUBLE || parent.isQuoted,
+        cases: 0,
       });
       copy(opener.length);
+      breakAt = index;
     };
 
     const pop = (): void => {
@@ -750,14 +814,28 @@ class ShellScanner {
         let bodyEnd = text.length;
         let next = text.length;
         let isFound = false;
+        // In a body whose delimiter is not quoted, a backslash-newline joins two lines into one.
+        let carry = '';
 
         while (index < text.length) {
           const newline = text.indexOf('\n', index);
           const lineEnd = newline === -1 ? text.length : newline;
-          const line = text.slice(index, lineEnd);
+          const line = carry + text.slice(index, lineEnd);
           const after = newline === -1 ? text.length : newline + 1;
+          const isJoined =
+            !pending.isQuoted && newline !== -1 && ShellScanner.endsEscaped({ line });
 
-          if ((pending.stripTabs ? line.replace(/^\t+/, '') : line).trim() === pending.delimiter) {
+          // A joined line longer than the delimiter can never be it: a newline marks it, and costs nothing to carry.
+          const isShort = line.length <= pending.delimiter.length + 1;
+
+          carry = isJoined && isShort ? line.slice(0, -1) : '';
+          carry = isJoined && !isShort ? '\n' : carry;
+
+          // The delimiter line is the delimiter exactly; `<<-` strips leading tabs first.
+          if (
+            !isJoined &&
+            (pending.stripTabs ? line.replace(/^\t+/, '') : line) === pending.delimiter
+          ) {
             bodyEnd = Math.max(start, index - 1);
             next = after;
             isFound = true;
@@ -822,14 +900,18 @@ class ShellScanner {
       const char = text[index] ?? '';
       const next = text[index + 1] ?? '';
       const isCommand = kind === ScanKinds.COMMAND || kind === ScanKinds.BACKTICK;
-      const isWordStart = index === 0 || WORD_STARTS.has(text[index - 1] ?? '');
+      const isWordStart = index === breakAt;
       const takesSingle =
         isCommand ||
         kind === ScanKinds.ARITHMETIC ||
         (kind === ScanKinds.BRACE && !context.isQuoted);
 
       if (char === '\\') {
+        // A backslash-newline is removed before words are read: a word that started before it still starts.
+        const isJoin = next === '\n' && isWordStart;
+
         copy(2);
+        breakAt = isJoin ? index : breakAt;
         continue;
       }
 
@@ -987,18 +1069,30 @@ class ShellScanner {
         continue;
       }
 
+      // `case WORD in` opens patterns, each ended by a `)` that closes no substitution; `esac` ends them.
+      if (isWordStart && !context.isOuter) {
+        const reserved = ShellScanner.reservedAt({ text, index });
+
+        context.cases += reserved === 'case' ? 1 : 0;
+        context.cases -= reserved === 'esac' && context.cases > 0 ? 1 : 0;
+      }
+
       if ((char === '<' || char === '>') && next === '(') {
         open({ kind: ScanKinds.COMMAND, close: ')', length: 2 });
         continue;
       }
 
-      if (char === '<' && next === '<' && text[index + 2] === '<') {
-        copy(3);
+      // The second `<` of an operator, past a backslash-newline between the two.
+      const second = char === '<' ? ShellScanner.secondAngleAt({ text, index }) : -1;
+
+      if (second !== -1 && text[second + 1] === '<') {
+        copy(second + 2 - index);
+        breakAt = index;
         continue;
       }
 
-      if (char === '<' && next === '<') {
-        const operator = ShellScanner.operatorAt({ text, from: index });
+      if (second !== -1) {
+        const operator = ShellScanner.operatorAt({ text, from: second - 1 });
 
         if (operator === undefined) {
           layout.isUncertain = true;
@@ -1035,24 +1129,24 @@ class ShellScanner {
           context.commandStart = out.length;
         }
 
+        breakAt = index;
         continue;
       }
 
-      if (char === '(' && !context.isOuter) {
-        context.depth += 1;
+      // Inside a substitution: a subshell, the `)` of a case pattern, or the end of the substitution.
+      const isNestedParen = !context.isOuter && (char === '(' || char === ')');
+      const isOwnClose =
+        char === ')' && context.close === ')' && context.depth === 0 && context.cases === 0;
+
+      if (isNestedParen && !isOwnClose) {
+        context.depth += char === '(' ? 1 : -Math.min(1, context.depth);
         copy(1);
         context.commandStart = out.length;
+        breakAt = index;
         continue;
       }
 
-      if (char === ')' && !context.isOuter && context.depth > 0) {
-        context.depth -= 1;
-        copy(1);
-        context.commandStart = out.length;
-        continue;
-      }
-
-      if (char === ')' && context.close === ')') {
+      if (isOwnClose) {
         layout.closes.set(context.at, out.length);
         copy(1);
         pop();
@@ -1063,6 +1157,10 @@ class ShellScanner {
 
       if (';&|()'.includes(char)) {
         context.commandStart = out.length;
+      }
+
+      if (WORD_STARTS.has(char)) {
+        breakAt = index;
       }
     }
 
@@ -1088,13 +1186,25 @@ export class ShellUnread {
   static readonly UNCERTAIN =
     'this command line has a quote, substitution or heredoc that does not close, or a form the guard does not follow, so it could not be checked';
 
+  /** A command runs a program the line does not show: a variable or a substitution in its place. */
+  static readonly UNKNOWN_PROGRAM =
+    'a command on this line runs a program named by a variable or a substitution, so it could not be checked';
+
   /** The reason a parse was not read in full, or `undefined` when all of it was read. */
-  static reasonOf(opts: { isOverBudget: boolean; isUncertain: boolean }): string | undefined {
+  static reasonOf(opts: {
+    isOverBudget: boolean;
+    isUncertain: boolean;
+    hasUnknownProgram: boolean;
+  }): string | undefined {
     if (opts.isOverBudget) {
       return ShellUnread.OVER_BUDGET;
     }
 
-    return opts.isUncertain ? ShellUnread.UNCERTAIN : undefined;
+    if (opts.isUncertain) {
+      return ShellUnread.UNCERTAIN;
+    }
+
+    return opts.hasUnknownProgram ? ShellUnread.UNKNOWN_PROGRAM : undefined;
   }
 }
 
@@ -1171,6 +1281,12 @@ export class ShellParser {
       scripts.push(program.args.join(' '));
     }
 
+    const trapCode = ShellParser.trapCodeOf({ args: program.args });
+
+    if (name === 'trap' && trapCode !== undefined) {
+      scripts.push(trapCode);
+    }
+
     if (
       /\s/.test(program.name) &&
       command.words
@@ -1181,6 +1297,31 @@ export class ShellParser {
     }
 
     return scripts;
+  }
+
+  /**
+   * The code `trap` sets: its first operand, when signals follow it. `-p` and `-l` print, `-` resets, and a
+   * lone operand names a signal: none of them is code.
+   */
+  private static trapCodeOf(opts: { args: string[] }): string | undefined {
+    if (/^-[pl]+$/.test(opts.args[0] ?? '')) {
+      return undefined;
+    }
+
+    const at = opts.args[0] === '--' ? 1 : 0;
+
+    const code = opts.args[at];
+
+    return code === undefined || code === '-' || opts.args.length <= at + 1 ? undefined : code;
+  }
+
+  /** Whether a command's program is a variable or a substitution, which the line does not show. */
+  static isUnknownProgram(opts: { command: ISimpleCommand }): boolean {
+    const { name } = ShellParser.programOf({ command: opts.command });
+    // A variable in the folder part of a path (`$HOME/.bun/bin/bun`) leaves the program named; only its last part counts.
+    const base = name.slice(name.lastIndexOf('/') + 1);
+
+    return /[$`]/.test(base) || name.startsWith('<(') || name.startsWith('>(');
   }
 
   /** Whether the command carries another command line to read: a script, an eval, a `watch` string, or an `env -S`. */
@@ -1301,6 +1442,36 @@ export class ShellParser {
         continue;
       }
 
+      // `<(...)` and `>(...)`: a process substitution is a word (a path the command reads or writes), its text
+      // commands of their own.
+      const substitutionEnd =
+        (char === '<' || char === '>') && text[index + 1] === '('
+          ? layout.closes.get(index)
+          : undefined;
+
+      if (substitutionEnd !== undefined) {
+        nestedTexts.push(text.slice(index + 2, substitutionEnd));
+        current.words.push(text.slice(index, substitutionEnd + 1));
+        index = substitutionEnd + 1;
+        continue;
+      }
+
+      // A heredoc, read by the scanner: the delimiter is part of the operator, not a word, and the body goes to
+      // the command that reads it.
+      const heredoc = char === '<' ? layout.heredocAt.get(index) : undefined;
+
+      if (heredoc !== undefined) {
+        inputOf({ command: current }).hasHeredoc = true;
+
+        if (!heredoc.heredoc.isInline) {
+          current.heredoc = heredoc.heredoc.body;
+        }
+
+        pushAll({ target: nestedTexts, items: heredoc.substitutions });
+        index = heredoc.end;
+        continue;
+      }
+
       if (char === '>' || char === '&') {
         // `>`, `>>`, `>|`, `&>`, `&>>`; `>&2` duplicates a descriptor and names no file.
         let cursor = index + (char === '&' ? 1 : 0);
@@ -1346,34 +1517,9 @@ export class ShellParser {
           continue;
         }
 
+        // A `<<` the scanner did not read as a heredoc (it has no delimiter) names no file.
         if (text[index + 1] === '<') {
-          // The delimiter is part of the operator, not a word; the body goes to the command that reads it.
-          const found = layout.heredocAt.get(index);
-
-          if (found !== undefined) {
-            inputOf({ command: current }).hasHeredoc = true;
-
-            if (!found.heredoc.isInline) {
-              current.heredoc = found.heredoc.body;
-            }
-
-            pushAll({ target: nestedTexts, items: found.substitutions });
-            index = found.end;
-            continue;
-          }
-
-          // A `<<` the scanner did not read as a heredoc (it has no delimiter) names no file.
           index += 2;
-          continue;
-        }
-
-        // `<(...)`: a process substitution is a word (a path the command reads), its text commands of their own.
-        if (text[index + 1] === '(') {
-          const end = layout.closes.get(index) ?? text.length;
-
-          nestedTexts.push(text.slice(index + 2, end));
-          current.words.push(text.slice(index, end + 1));
-          index = end + 1;
           continue;
         }
 
@@ -1413,7 +1559,7 @@ export class ShellParser {
       const word = readWord({ text, from: index, layout });
 
       // A digit just before `>` is a descriptor (`2>file`), not a word.
-      if (/^\d$/.test(word.value) && text[word.next] === '>') {
+      if (/^\d+$/.test(word.value) && (text[word.next] === '>' || text[word.next] === '<')) {
         index = word.next;
         continue;
       }
@@ -1430,6 +1576,10 @@ export class ShellParser {
     }
 
     finish();
+
+    budget.hasUnknownProgram ||= commands.some((command) =>
+      ShellParser.isUnknownProgram({ command }),
+    );
 
     // A body whose delimiter never came is data, as bash reads it; its lines are also read as commands, on the side. The
     // guards ask: a start the scanner got wrong would otherwise hide what follows it.
@@ -1482,6 +1632,7 @@ export class ShellParser {
             return [...commands, ...synthesized];
           }
 
+          budget.hasUnknownProgram ||= ShellParser.isUnknownProgram({ command: split });
           synthesized.push(split);
           queue.push({ command: split, level: level + 1 });
         }
@@ -1738,6 +1889,22 @@ export class ShellParser {
         continue;
       }
 
+      // `coproc [NAME] command`: a NAME is there only before a compound command (`{ ...; }`).
+      if (word === 'coproc') {
+        const name = opts.command.words[index + 1];
+        const isNamed =
+          name !== undefined && !KEYWORDS.has(name) && opts.command.words[index + 2] === '{';
+
+        index += isNamed ? 2 : 1;
+        continue;
+      }
+
+      // `function NAME { ...; }`: the name is not a program; the body is read as the commands it holds.
+      if (word === 'function') {
+        index += 2;
+        continue;
+      }
+
       if (word === '--') {
         optionsEnded = true;
         index += 1;
@@ -1816,6 +1983,7 @@ export class ShellParser {
       commands,
       isOverBudget: budget.isOver,
       isUncertain: budget.isUncertain,
+      hasUnknownProgram: budget.hasUnknownProgram,
       unterminatedHeredocCommands: budget.unterminated,
     };
   }
@@ -1829,7 +1997,15 @@ export class ShellParser {
   }
 
   private static budgetOf(): IBudget {
-    return { commands: 0, words: 0, chars: 0, isOver: false, isUncertain: false, unterminated: [] };
+    return {
+      commands: 0,
+      words: 0,
+      chars: 0,
+      isOver: false,
+      isUncertain: false,
+      hasUnknownProgram: false,
+      unterminated: [],
+    };
   }
 }
 
@@ -1841,6 +2017,8 @@ interface IBudget {
   isOver: boolean;
   /** Something could not be followed to its end. */
   isUncertain: boolean;
+  /** A command's program is a variable or a substitution. */
+  hasUnknownProgram: boolean;
   /** The commands of heredoc bodies whose delimiter never came. */
   unterminated: ISimpleCommand[];
 }
@@ -1857,6 +2035,8 @@ interface IParsedShell {
   isOverBudget: boolean;
   /** Part of the line could not be followed to its end: a quote, a substitution or a heredoc operator. */
   isUncertain: boolean;
+  /** A command runs a program the line does not show (`$cmd`, `"$@"`, `$(tool)`): a guard cannot tell what it is. */
+  hasUnknownProgram: boolean;
   /** The lines of a heredoc body whose delimiter never came, read as commands: data to bash, a second view to a guard. */
   unterminatedHeredocCommands: ISimpleCommand[];
 }

@@ -211,3 +211,18 @@ describe('every guard reads the command after a line that only looks like a here
     expect(gitDecisions('cat > notes.md <<STOP\ngit status')).toEqual(['ask']);
   });
 });
+
+describe('a program the line does not name', () => {
+  test('a variable or a substitution as the program asks in the git, write and remote-host guards', () => {
+    expect(gitDecisions('tool=git; $tool push --force origin main')).toContain('ask');
+    expect(
+      asksOf('tool=kubectl; "$tool" apply -f deploy.yaml').some((ask) => ask.startsWith('write')),
+    ).toBe(true);
+    expect(asksOf('"$@"').some((ask) => ask.startsWith('remote'))).toBe(true);
+  });
+
+  test('a variable or a substitution as an argument stays quiet', () => {
+    expect(gitDecisions('git log "$HOME" $(date +%s)')).toEqual([]);
+    expect(asksOf('echo "$HOME" $(date +%s) "$@"')).toEqual([]);
+  });
+});

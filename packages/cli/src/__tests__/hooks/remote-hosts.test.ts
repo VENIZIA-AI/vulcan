@@ -493,6 +493,7 @@ describe('the program tables of the shell parser', () => {
   test('the wrappers and the shells are exactly these names', () => {
     expect([...ShellPrograms.WRAPPER_NAMES].sort()).toEqual(
       [
+        'builtin',
         'command',
         'doas',
         'env',

@@ -622,3 +622,108 @@ describe('ShellParser reads a line the way bash does', () => {
     }
   });
 });
+
+describe('ShellParser reads more of what bash reads', () => {
+  test('a # right after an expansion or an escaped blank is part of the word, not a comment', () => {
+    for (const command of [
+      'echo $((1))#x; ls',
+      'echo $(date)#y; ls',
+      'echo ${x}#y; ls',
+      'echo a\\ #b; ls',
+      'x=$((1))#; ls',
+      'echo $(( $(date) ))#x; ls',
+    ]) {
+      expect(programsOf(command), command).toContain('ls');
+    }
+
+    expect(wordsOf('echo a #b; ls')).toEqual([['echo', 'a']]);
+  });
+
+  test('the ) of a case pattern does not close the substitution around it', () => {
+    for (const command of [
+      'echo $(case x in x) ls;; esac)',
+      'echo "$(case x in x|y) ls;; esac)"',
+      'echo $(case x in (x) ls;; esac)',
+      'cat <(case x in x) ls;; esac)',
+      'x=$(case x in\nx)\nls\n;;\nesac\n)',
+    ]) {
+      expect(programsOf(command), command).toContain('ls');
+      expect(ShellParser.parseChecked({ command }).isUncertain, command).toBe(false);
+    }
+  });
+
+  test('an escaped backtick inside backticks is a substitution of its own', () => {
+    expect(programsOf('echo `echo \\`ls\\``')).toContain('ls');
+    expect(programsOf('echo "`echo \\`ls\\``"')).toContain('ls');
+    expect(programsOf('x=`echo \\`pwd \\\\\\`ls\\\\\\`\\``')).toEqual(
+      expect.arrayContaining(['pwd', 'ls']),
+    );
+  });
+
+  test('>(...) is a process substitution like <(...), its text read as commands', () => {
+    const [first] = ShellParser.parse({ command: 'tee >(wc -l) <(sort a)' });
+
+    expect(first?.words).toEqual(['tee', '>(wc -l)', '<(sort a)']);
+    expect(programsOf('tee >(wc -l) <(sort a)')).toEqual(['tee', 'wc', 'sort']);
+    expect(programsOf('echo a>(wc)')).toContain('wc');
+    expect(programsOf('cat < >(wc)')).toContain('wc');
+    expect(programsOf('tee >(tee >(wc))')).toEqual(['tee', 'tee', 'wc']);
+  });
+
+  test('coproc, function, builtin and trap name the command they run', () => {
+    expect(programsOf('coproc ls')).toEqual(['ls']);
+    expect(programsOf('coproc NAME { ls; }')).toEqual(['ls', '']);
+    expect(programsOf('coproc { ls; }')).toEqual(['ls', '']);
+    expect(programsOf('function g { ls; }; g')).toEqual(['ls', '', 'g']);
+    expect(programsOf('builtin eval ls')).toEqual(['eval', 'ls']);
+    expect(programsOf('builtin command ls')).toEqual(['ls']);
+    expect(programsOf("trap 'ls; pwd' EXIT")).toEqual(['trap', 'ls', 'pwd']);
+    expect(programsOf('trap -- "ls" INT ERR')).toEqual(['trap', 'ls']);
+
+    for (const command of ['trap -p', 'trap -p INT', 'trap - INT', 'trap INT', 'trap -l']) {
+      expect(programsOf(command), command).toEqual(['trap']);
+    }
+  });
+
+  test('a program named by a variable or a substitution is flagged; one in an argument is not', () => {
+    for (const command of [
+      '$cmd',
+      '"$x" a',
+      '"$@"',
+      '${x} a',
+      '$(echo git) push',
+      'eval "$(tool env)"',
+    ]) {
+      expect(ShellParser.parseChecked({ command }).hasUnknownProgram, command).toBe(true);
+    }
+
+    for (const command of [
+      'echo $x "$@" ${y}',
+      'ls $(pwd)',
+      'x=$(date)',
+      'cat "$HOME/f"',
+      '$HOME/.bun/bin/bun install',
+      '"${BUN_INSTALL}/bin/bun" install',
+    ]) {
+      expect(ShellParser.parseChecked({ command }).hasUnknownProgram, command).toBe(false);
+    }
+  });
+
+  test('a descriptor number before a heredoc is not a word, and << may be split by a backslash-newline', () => {
+    expect(wordsOf('cat 0<<EOF\nls\nEOF')).toEqual([['cat']]);
+    expect(wordsOf('cat 3<<EOF\nls\nEOF')).toEqual([['cat']]);
+    expect(wordsOf('cat <\\\n<EOF\nls\nEOF\npwd')).toEqual([['cat'], ['pwd']]);
+  });
+
+  test('the body ends only at the exact delimiter line, and a backslash-newline joins body lines', () => {
+    const [cat, after] = ShellParser.parse({ command: 'cat <<EOF\nx\n EOF\nEOF \nEOF\nls' });
+
+    expect(cat?.heredoc).toBe('x\n EOF\nEOF ');
+    expect(after?.words).toEqual(['ls']);
+    expect(ShellParser.parse({ command: 'cat <<EOF\nx\\\nEOF\ny\nEOF\nls' })[0]?.heredoc).toBe(
+      'x\\\nEOF\ny',
+    );
+    expect(ShellParser.parse({ command: "cat <<'EOF'\nx\\\nEOF\nls" })[0]?.heredoc).toBe('x\\');
+    expect(ShellParser.parse({ command: 'cat <<-EOF\n\tx\n\t\tEOF\nls' })[0]?.heredoc).toBe('\tx');
+  });
+});

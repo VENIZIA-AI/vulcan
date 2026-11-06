@@ -425,8 +425,16 @@ export class WriteGuard {
       message: check.what,
     }));
 
-    // Part of the line was not read: never an allow.
-    const unread = ShellUnread.reasonOf(view);
+    // Part of the line was not read: never an allow. A program that is a substitution is read below, by what it prints.
+    const unread = ShellUnread.reasonOf({
+      ...view,
+      hasUnknownProgram: view.commands.some(
+        (command) =>
+          ShellParser.isUnknownProgram({ command }) &&
+          WriteGuard.substitutionOf({ word: ShellParser.programOf({ command }).name }) ===
+            undefined,
+      ),
+    });
 
     if (unread !== undefined) {
       hits.push({ rule: 'V-W-02', message: unread });

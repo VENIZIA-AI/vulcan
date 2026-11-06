@@ -972,9 +972,13 @@ export class RemoteHosts {
       }
     }
 
-    // A line the shell parser cannot follow to its end hides where its commands start: never an allow.
-    if (ShellParser.parseChecked({ command }).isUncertain) {
-      ask(ShellUnread.UNCERTAIN);
+    // A line the shell parser cannot follow to its end, or a program it cannot name, hides what runs: never an
+    // allow. Over the budget is left out: this guard reads the line with its own tokenizer.
+    const parsed = ShellParser.parseChecked({ command });
+    const unread = ShellUnread.reasonOf({ ...parsed, isOverBudget: false });
+
+    if (unread !== undefined) {
+      ask(unread);
     }
 
     if (SENSITIVE_ASSIGNMENT.test(command)) {
