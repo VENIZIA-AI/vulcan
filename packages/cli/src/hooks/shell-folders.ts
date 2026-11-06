@@ -1,0 +1,180 @@
+import { isAbsolute, resolve } from 'node:path';
+import { ShellParser } from './shell.ts';
+import type { ISimpleCommand } from './shell.ts';
+
+export type TEnvironment = Record<string, string | undefined>;
+
+/** The folder a simple command runs in, as far as the line shows it. */
+export interface IShellFolder {
+  /** The folder a relative word is taken from: the start, moved by every `cd` the guard could work out. */
+  base: string;
+  /** What `$PWD` is in a word; `undefined` when it is not known. */
+  pwd: string | undefined;
+  /** False after a `cd` the guard could not work out: `base` is then only the last folder it knew. */
+  isKnown: boolean;
+}
+
+interface IFolderState extends IShellFolder {
+  /** The folders `pushd` saved, for `popd`. */
+  stack: IShellFolder[];
+  /** A `cd`, `pushd` or `popd` ran in this scope. */
+  hasMoved: boolean;
+}
+
+export class ShellFolders {
+  /** The builtins that change the shell's folder. */
+  static readonly MOVING_COMMANDS: ReadonlySet<string> = new Set(['cd', 'pushd', 'popd']);
+
+  /**
+   * `~` and `$NAME` / `${NAME}` expanded; `undefined` when a variable is unset or the word is not a plain path.
+   * `$PWD` is the folder the command runs in (`cwd`), not the `PWD` of this hook's own process.
+   */
+  static expandPath(opts: {
+    word: string;
+    home: string;
+    env: TEnvironment;
+    cwd?: string;
+  }): string | undefined {
+    if (opts.word === '' || /[`*?[]/.test(opts.word) || opts.word.includes('$(')) {
+      return undefined;
+    }
+
+    let unresolved = false;
+    const home = opts.word === '~' || opts.word.startsWith('~/') ? opts.home : undefined;
+    const withHome = home === undefined ? opts.word : `${home}${opts.word.slice(1)}`;
+    const expanded = withHome.replace(/\$\{?(\w+)\}?/g, (_, name: string) => {
+      const value = name === 'PWD' && opts.cwd !== undefined ? opts.cwd : opts.env[name];
+
+      if (value === undefined || value === '') {
+        unresolved = true;
+      }
+
+      return value ?? '';
+    });
+
+    return unresolved ? undefined : expanded;
+  }
+
+  /**
+   * The folder each of `commands` runs in, in their order. A `cd`, `pushd` or `popd` moves the commands after
+   * it in its own scope; a subshell starts where its parent is and gives nothing back. A command line a word
+   * carries (`$(...)`, `sh -c`) starts where the command that carries it started; without that command in
+   * `commands`, where its parent is when the parent never moves, else in a folder that is not known. A `cd` in
+   * a pipeline is not known either.
+   */
+  static foldersOf(opts: {
+    commands: ISimpleCommand[];
+    cwd: string;
+    pwd: string | undefined;
+    /** False when the folder the line starts in is itself not known. */
+    isKnown?: boolean;
+    home: string;
+    env: TEnvironment;
+  }): IShellFolder[] {
+    const states = new Map<string, IFolderState>();
+    const piped = new Set(opts.commands.flatMap((command) => command.input?.pipedFrom ?? []));
+    // The folder each command started in, for the command lines its words carry.
+    const started = new Map<ISimpleCommand, IShellFolder>();
+    const stateOf = (scope: string, carrier: ISimpleCommand | undefined): IFolderState => {
+      const known = states.get(scope);
+
+      if (known !== undefined) {
+        return known;
+      }
+
+      const cut = Math.max(scope.lastIndexOf('/'), scope.lastIndexOf('>'));
+      const parent = cut === -1 ? undefined : stateOf(scope.slice(0, cut), undefined);
+      const isNested = cut !== -1 && scope[cut] === '>';
+      const from = isNested && carrier !== undefined ? started.get(carrier) : undefined;
+      const state: IFolderState =
+        parent === undefined
+          ? {
+              base: resolve(opts.cwd),
+              pwd: opts.pwd,
+              isKnown: opts.isKnown ?? true,
+              stack: [],
+              hasMoved: false,
+            }
+          : {
+              base: from?.base ?? parent.base,
+              pwd: from === undefined ? parent.pwd : from.pwd,
+              isKnown: from?.isKnown ?? (parent.isKnown && !(isNested && parent.hasMoved)),
+              stack: [...parent.stack],
+              hasMoved: false,
+            };
+
+      states.set(scope, state);
+
+      return state;
+    };
+
+    return opts.commands.map((command) => {
+      const state = stateOf(command.scope ?? '', command.carrier);
+      const folder: IShellFolder = { base: state.base, pwd: state.pwd, isKnown: state.isKnown };
+
+      started.set(command, folder);
+      const program = ShellParser.programOf({ command });
+      const name = ShellParser.basenameOf({ word: program.name });
+
+      if (!ShellFolders.MOVING_COMMANDS.has(name)) {
+        return folder;
+      }
+
+      state.hasMoved = true;
+
+      if (piped.has(command) || command.input?.pipedFrom !== undefined) {
+        state.isKnown = false;
+
+        return folder;
+      }
+
+      ShellFolders.move({ ...opts, state, name, args: program.args });
+
+      return folder;
+    });
+  }
+
+  /** One `cd`, `pushd` or `popd` applied to `state`. */
+  private static move(opts: {
+    state: IFolderState;
+    name: string;
+    args: string[];
+    home: string;
+    env: TEnvironment;
+  }): void {
+    const { state } = opts;
+    const words = opts.args.filter((word) => !/^-[LPe@]+$/.test(word) && word !== '--');
+
+    if (opts.name === 'popd') {
+      const saved = words.length === 0 ? state.stack.pop() : undefined;
+
+      Object.assign(state, saved ?? { pwd: undefined, isKnown: false });
+
+      return;
+    }
+
+    const [destination] = words;
+    const target = destination ?? (opts.name === 'cd' && opts.home !== '' ? '~' : undefined);
+    // `cd -` and `pushd +N` name a folder from the shell's own history.
+    const expanded =
+      target === undefined || /^[-+]/.test(target)
+        ? undefined
+        : ShellFolders.expandPath({ word: target, home: opts.home, env: opts.env, cwd: state.pwd });
+
+    if (opts.name === 'pushd') {
+      state.stack.push({ base: state.base, pwd: state.pwd, isKnown: state.isKnown });
+    }
+
+    // A `cd` the guard cannot work out leaves the shell's folder unknown.
+    if (expanded === undefined) {
+      state.pwd = undefined;
+      state.isKnown = false;
+
+      return;
+    }
+
+    state.base = resolve(state.base, expanded);
+    state.pwd = state.base;
+    state.isKnown ||= isAbsolute(expanded);
+  }
+}

@@ -784,14 +784,18 @@ describe('a listed script is the file the shell runs', () => {
     }
   });
 
-  test('a folder or a pipe named like a script is not read', () => {
+  test('a folder named like a script is not read, and a pipe asks without being opened', () => {
     const { root } = setup();
 
     mkdirSync(join(root, 'dir.ts'));
     spawnSync('mkfifo', [join(root, 'fifo.ts')], { timeout: 5000 });
 
     expect(WriteGuard.inspectCommand({ command: 'bun dir.ts', cwd: root })).toEqual([]);
-    expect(WriteGuard.inspectCommand({ command: 'bun fifo.ts', cwd: root })).toEqual([]);
+    expect(
+      WriteGuard.inspectCommand({ command: 'bun fifo.ts', cwd: root }).map((hit) => hit.message),
+    ).toEqual([
+      'fifo.ts is not a regular file (a pipe, a device or a socket), so the guard cannot read it',
+    ]);
   });
 
   test('ScriptTrust.listedOf follows the link: the script behind it is not the listed one', () => {

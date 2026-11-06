@@ -1,8 +1,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { GitGuard } from '../../hooks/index.ts';
 import type { IGitRunner } from '../../hooks/index.ts';
+import { git as runGit, initRepo } from '../git-repo.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -506,5 +507,46 @@ describe('GitGuard.inspect and gh options before the group', () => {
         run: runner({ head: 'feature/x' }),
       }),
     ).toEqual([]);
+  });
+});
+
+describe('GitGuard.inspect and a repository configuration that names a program', () => {
+  /** A repository of 60 untracked files whose configuration makes git run a program that writes `ran` in `.git`. */
+  const repository = (): { root: string; ran: string } => {
+    const files: Record<string, string> = { 'a.txt': 'a' };
+
+    for (let index = 0; index < 60; index += 1) {
+      files[`new/file-${index}.txt`] = String(index);
+    }
+
+    const root = createProject({ files });
+    const ran = join(root, '.git', 'ran');
+
+    initRepo({ cwd: root });
+    runGit({ cwd: root, args: ['config', 'core.fsmonitor', `touch '${ran}'; false`] });
+
+    for (let index = 0; index < 60; index += 1) {
+      writeFileSync(join(root, `new/file-${index}.txt`), `changed ${index}`);
+    }
+
+    return { root, ran };
+  };
+
+  test('git add -A is judged the same, and the program the configuration names does not run', () => {
+    const { root, ran } = repository();
+    const hits = GitGuard.inspect({ command: 'git add -A', cwd: root });
+
+    expect(hits.map((hit) => hit.decision)).toEqual(['ask']);
+    expect(hits[0].message).toContain('stages 60 changed paths');
+    expect(existsSync(ran)).toBe(false);
+  });
+
+  test('a query for the current branch and for merged branches runs no such program either', () => {
+    const { root, ran } = repository();
+
+    GitGuard.inspect({ command: 'git push origin HEAD', cwd: root });
+    GitGuard.inspect({ command: 'git branch -D topic', cwd: root });
+
+    expect(existsSync(ran)).toBe(false);
   });
 });

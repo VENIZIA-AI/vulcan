@@ -90,6 +90,59 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     );
   });
 
+  test('a template with a placeholder it does not know is refused, and <package> is told to be <dir>', () => {
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<package>-v<version>' } }),
+    ).toThrow('<package> is not a placeholder of a release template');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<package>-v<version>' } }),
+    ).toThrow('<dir> replaces <package>');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({
+        atlas: { tagPattern: '<dir>-v<version>', legacyTagPatterns: ['<name>-<version>'] },
+      }),
+    ).toThrow('<name> is not a placeholder');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<dir >-<a>-v<version>' } }),
+    ).toThrow('<dir >, <a> are not placeholders');
+
+    for (const template of [
+      '<dir>-v<version>',
+      'v<version>',
+      '[#<issue>] release(<dir>): <version>',
+      '<version>-<date>',
+    ]) {
+      expect(VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: template } }).atlas.tagPattern).toBe(
+        template,
+      );
+    }
+  });
+
+  test("a source's repo and ref are values for git, not options: one that starts with '-' is refused", () => {
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: 'a', repo: '--version' }] } }),
+    ).toThrow("it must not start with '-'");
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({
+        atlas: { sources: [{ name: 'a', repo: 'acme/a', ref: '-x' }] },
+      }),
+    ).toThrow("it must not start with '-'");
+  });
+
+  test('a source name is a plain name: one that could be read as a flag is refused', () => {
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: '--only', repo: 'acme/a' }] } }),
+    ).toThrow('starting with a letter or a digit');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: 'a b', repo: 'acme/a' }] } }),
+    ).toThrow('starting with a letter or a digit');
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({
+        atlas: { sources: [{ name: 'ignis-2.core_x', repo: 'acme/a' }] },
+      }).atlas.sources[0]?.name,
+    ).toBe('ignis-2.core_x');
+  });
+
   test('a source defaults its ref to develop', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }] },

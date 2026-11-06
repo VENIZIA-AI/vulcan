@@ -9,6 +9,13 @@ export interface ISimpleCommand {
   heredoc?: string;
   /** What the line feeds the command's standard input; absent when the line feeds it nothing. */
   input?: ICommandInput;
+  /**
+   * Where the command runs, when not at the top of the line: `/N` is the subshell `( ... )` numbered N and
+   * `>N` the command line numbered N that a word carries (`$(...)`, `sh -c`), each segment inside the one before.
+   */
+  scope?: string;
+  /** The command whose word carries this command's line (`$(...)`, `sh -c`): the line starts in its folder. */
+  carrier?: ISimpleCommand;
 }
 
 /** The standard input of a simple command, as far as the line shows it. */
@@ -171,6 +178,9 @@ export class ShellPrograms {
 }
 
 const SHELLS = new Set(ShellPrograms.SHELL_NAMES);
+
+/** The mark of an open `case` among the groups the parser tracks: its `)` closes a pattern. */
+const CASE_GROUP = 'case';
 
 const MAX_DEPTH = 4;
 
@@ -1343,8 +1353,11 @@ export class ShellParser {
     command: string;
     depth: number;
     budget: IBudget;
+    scope?: string;
+    carrier?: ISimpleCommand;
   }): ISimpleCommand[] {
     const { depth, budget } = opts;
+    const base = opts.scope ?? '';
 
     // The characters of every text read count together, nested texts too: a line over the cap is not read.
     budget.chars += opts.command.length;
@@ -1361,11 +1374,20 @@ export class ShellParser {
     budget.isUncertain ||= layout.isUncertain;
 
     const commands: ISimpleCommand[] = [];
-    const nestedTexts: string[] = [];
+    const nestedTexts: { text: string; scope: string; carrier: ISimpleCommand }[] = [];
     let current: ISimpleCommand = { words: [], redirects: [], assignments: [] };
     let index = 0;
     // The command before a `|`: it feeds the next one.
     let pipeSource: ISimpleCommand | undefined;
+    // The open subshells, and a `case` marker while its `)` patterns are read.
+    const groups: string[] = [];
+    const scopeOf = (): string =>
+      `${base}${groups.filter((group) => group !== CASE_GROUP).join('')}`;
+    const nest = (nested: { texts: string[] }): void => {
+      for (const nestedText of nested.texts) {
+        nestedTexts.push({ text: nestedText, scope: scopeOf(), carrier: current });
+      }
+    };
 
     const finish = (): ISimpleCommand | undefined => {
       const finished = current;
@@ -1377,6 +1399,16 @@ export class ShellParser {
       if (!isEmpty) {
         if (pipeSource !== undefined) {
           inputOf({ command: finished }).pipedFrom = pipeSource;
+        }
+
+        const scope = scopeOf();
+
+        if (scope !== '') {
+          finished.scope = scope;
+        }
+
+        if (opts.carrier !== undefined) {
+          finished.carrier = opts.carrier;
         }
 
         commands.push(finished);
@@ -1422,16 +1454,28 @@ export class ShellParser {
 
       if (arithmeticEnd !== undefined) {
         finish();
-        pushAll({
-          target: nestedTexts,
-          items: substitutionsIn({ text, from: index, to: arithmeticEnd, layout }),
-        });
+        nest({ texts: substitutionsIn({ text, from: index, to: arithmeticEnd, layout }) });
         index = arithmeticEnd + 1;
         continue;
       }
 
-      if (char === ';' || char === '\n' || char === '(' || char === ')') {
+      if (char === ';' || char === '\n') {
         finish();
+        index += 1;
+        continue;
+      }
+
+      // A `(` opens a subshell; a `)` closes it, unless it ends a pattern of an open `case`.
+      if (char === '(' || char === ')') {
+        finish();
+
+        if (char === '(') {
+          budget.scopes += 1;
+          groups.push(`/${budget.scopes}`);
+        } else if (groups.length > 0 && groups.at(-1) !== CASE_GROUP) {
+          groups.pop();
+        }
+
         index += 1;
         continue;
       }
@@ -1450,7 +1494,7 @@ export class ShellParser {
           : undefined;
 
       if (substitutionEnd !== undefined) {
-        nestedTexts.push(text.slice(index + 2, substitutionEnd));
+        nest({ texts: [text.slice(index + 2, substitutionEnd)] });
         current.words.push(text.slice(index, substitutionEnd + 1));
         index = substitutionEnd + 1;
         continue;
@@ -1467,7 +1511,7 @@ export class ShellParser {
           current.heredoc = heredoc.heredoc.body;
         }
 
-        pushAll({ target: nestedTexts, items: heredoc.substitutions });
+        nest({ texts: heredoc.substitutions });
         index = heredoc.end;
         continue;
       }
@@ -1495,7 +1539,7 @@ export class ShellParser {
           current.redirects.push(target.value);
         }
 
-        pushAll({ target: nestedTexts, items: target.nested });
+        nest({ texts: target.nested });
         index = Math.max(target.next, cursor + 1);
         continue;
       }
@@ -1512,7 +1556,7 @@ export class ShellParser {
           const value = readWord({ text, from: cursor, layout });
 
           inputOf({ command: current }).texts.push(value.value);
-          pushAll({ target: nestedTexts, items: value.nested });
+          nest({ texts: value.nested });
           index = Math.max(value.next, cursor);
           continue;
         }
@@ -1551,7 +1595,7 @@ export class ShellParser {
           }
         }
 
-        pushAll({ target: nestedTexts, items: source.nested });
+        nest({ texts: source.nested });
         index = Math.max(source.next, index + 1);
         continue;
       }
@@ -1564,9 +1608,18 @@ export class ShellParser {
         continue;
       }
 
-      pushAll({ target: nestedTexts, items: word.nested });
+      nest({ texts: word.nested });
 
-      if (current.words.length === 0 && isAssignment({ word: word.value })) {
+      const isFirst = current.words.length === 0;
+
+      // In `case x in a) ...;; esac` each `)` ends a pattern, not a subshell.
+      if (isFirst && word.value === 'case') {
+        groups.push(CASE_GROUP);
+      } else if (isFirst && word.value === 'esac' && groups.includes(CASE_GROUP)) {
+        groups.splice(groups.lastIndexOf(CASE_GROUP));
+      }
+
+      if (isFirst && isAssignment({ word: word.value })) {
         current.assignments.push(word.value);
       } else {
         current.words.push(word.value);
@@ -1623,6 +1676,10 @@ export class ShellParser {
         for (const words of program.splitCommands) {
           const split: ISimpleCommand = { words, redirects: [], assignments: [] };
 
+          if (command.scope !== undefined) {
+            split.scope = command.scope;
+          }
+
           budget.commands += 1;
           budget.words += words.length;
 
@@ -1640,15 +1697,25 @@ export class ShellParser {
         budget.isOver = true;
       }
 
-      pushAll({ target: nestedTexts, items: ShellParser.nestedScripts({ command, program }) });
+      for (const script of ShellParser.nestedScripts({ command, program })) {
+        nestedTexts.push({ text: script, scope: command.scope ?? base, carrier: command });
+      }
     }
 
     return [
       ...commands,
       ...synthesized,
-      ...nestedTexts.flatMap((nested) =>
-        ShellParser.parseWithBudget({ command: nested, depth: depth + 1, budget }),
-      ),
+      ...nestedTexts.flatMap((nested) => {
+        budget.scopes += 1;
+
+        return ShellParser.parseWithBudget({
+          command: nested.text,
+          depth: depth + 1,
+          budget,
+          scope: `${nested.scope}>${budget.scopes}`,
+          carrier: nested.carrier,
+        });
+      }),
     ];
   }
 
@@ -2001,6 +2068,7 @@ export class ShellParser {
       commands: 0,
       words: 0,
       chars: 0,
+      scopes: 0,
       isOver: false,
       isUncertain: false,
       hasUnknownProgram: false,
@@ -2013,6 +2081,8 @@ interface IBudget {
   commands: number;
   words: number;
   chars: number;
+  /** The subshells and nested command lines numbered so far, so each scope is unique in the line. */
+  scopes: number;
   /** Something was not read: the budget ran out, or a command nests deeper than the depth limit. */
   isOver: boolean;
   /** Something could not be followed to its end. */

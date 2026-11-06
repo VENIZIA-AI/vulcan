@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { chmodSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { HookConstants, ShellBudget, WriteGuard } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -34,13 +34,36 @@ const runHookAt = async (opts: { root: string; command: string }) => {
   };
 };
 
+const CASE_ROOT = createProject({
+  files: {
+    'package.json': JSON.stringify({
+      name: 'cases',
+      scripts: {
+        test: 'bun test',
+        'db:generate:public:develop': 'drizzle-kit generate',
+        'db:migrate:public:develop': 'drizzle-kit migrate',
+      },
+    }),
+  },
+});
+
 const CASES: { name: string; command: string; cwd?: string; flagged: boolean }[] = [
   { name: 'psql SELECT', command: 'psql -h 127.0.0.1 -c "SELECT 1"', flagged: false },
   { name: 'build a package', command: 'make core inventory', flagged: false },
   { name: 'read-only git', command: 'git status --short', flagged: false },
   { name: 'grep the repo', command: 'grep -rn "POST" packages/inventory/src', flagged: false },
-  { name: 'run the test suite', command: 'bun run test', flagged: false },
-  { name: 'generate a migration', command: 'bun run db:generate:public:develop', flagged: false },
+  { name: 'run the test suite', command: 'bun run test', cwd: CASE_ROOT, flagged: false },
+  {
+    name: 'generate a migration',
+    command: 'bun run db:generate:public:develop',
+    cwd: CASE_ROOT,
+    flagged: false,
+  },
+  {
+    name: 'a package script the package.json does not have',
+    command: 'bun run db:generate:public:develop',
+    flagged: true,
+  },
   { name: 'curl POST', command: 'curl -X POST https://example.dev/v1/api/x', flagged: true },
   {
     name: 'psql UPDATE',
@@ -68,10 +91,10 @@ const CASES: { name: string; command: string; cwd?: string; flagged: boolean }[]
     flagged: false,
   },
   {
-    name: 'a script that does not exist',
+    name: 'a script that does not exist yet',
     command: 'bun missing-script.ts',
     cwd: FIXTURES,
-    flagged: false,
+    flagged: true,
   },
 ];
 
@@ -570,13 +593,16 @@ describe('the guard-writes hook, on a package.json that runs its scripts many ti
   test.each([
     ['one call', 'bun run s0'],
     ['1900 calls', line],
-  ])('asks, well under a second, for %s', (_name, command) => {
+    ['1900 npm calls', line.replaceAll('bun run ', 'npm run ')],
+    ['1900 pnpm calls', line.replaceAll('bun run ', 'pnpm ')],
+    ['1900 calls of names it does not have', line.replaceAll('bun run s', 'bun run none')],
+  ])('asks, within the work budget, for %s', (_name, command) => {
     const start = performance.now();
     const hits = WriteGuard.inspectCommand({ command, cwd: root });
     const elapsed = performance.now() - start;
 
     expect(hits.length).toBeGreaterThan(0);
-    expect(elapsed).toBeLessThan(1000);
+    expect(elapsed).toBeLessThan(2500);
   });
 
   test('the reason lists the first hits and counts the rest', () => {
@@ -591,5 +617,1027 @@ describe('the guard-writes hook, on a package.json that runs its scripts many ti
   test('the hook asks for the 1900 calls', async () => {
     const result = await runHookAt({ root, command: line });
     expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+});
+
+describe('the guard-writes hook, on the package scripts a command runs', () => {
+  const DEPLOY = 'kubectl apply -f k8s/';
+  const READ = 'kubectl get pods';
+  const MUTATING_JS = "await fetch('https://example.dev/v1/x', { method: 'DELETE' });\n";
+  const manifest = (opts: { name: string; scripts: Record<string, string>; extra?: object }) =>
+    JSON.stringify({ name: opts.name, ...opts.extra, scripts: opts.scripts });
+  const LIFECYCLE = { test: DEPLOY, start: DEPLOY, stop: DEPLOY, restart: DEPLOY };
+  const root = createProject({
+    files: {
+      'package.json': manifest({
+        name: 'fixture-root',
+        extra: { workspaces: ['packages/*'] },
+        scripts: {
+          release: DEPLOY,
+          check: READ,
+          test: READ,
+          start: READ,
+          stop: READ,
+          restart: READ,
+          'ship-file': 'bash scripts/deploy.sh && bun run check',
+          'ship-file-read': 'bash scripts/check.sh && bun run check',
+          'ship-var': 'bash $S',
+          'ship-missing': 'bash scripts/missing.sh',
+          'ship-cd': 'cd sub && npm run check',
+          'ship-cd-read': 'cd sub && npm run release',
+          'ship-pnpm': 'pnpm release',
+          'ship-yarn': 'yarn run release',
+        },
+      }),
+      'scripts/deploy.sh': `${DEPLOY}\n`,
+      'scripts/check.sh': `${READ}\n`,
+      'node_modules/.bin/tsc': MUTATING_JS,
+      'sub/package.json': manifest({
+        name: 'sub',
+        scripts: { release: READ, check: DEPLOY, ...LIFECYCLE },
+      }),
+      'sub/deploy.sh': `${DEPLOY}\n`,
+      'sub/check.sh': `${READ}\n`,
+      'packages/api/package.json': manifest({
+        name: '@fx/api',
+        scripts: { check: DEPLOY, release: READ },
+      }),
+      'packages/web/package.json': manifest({ name: '@fx/web', scripts: { check: READ } }),
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'bun release',
+    'bun run release',
+    'bun --silent run release',
+    'bun run --silent release',
+    'bun run --parallel check release',
+    'npm run release',
+    'npm run-script release',
+    'npm --loglevel silent run release',
+    'npm run release -- --flag',
+    'pnpm release',
+    'pnpm run release',
+    'yarn release',
+    'yarn run release',
+    'npm --prefix sub test',
+    'npm --prefix sub start',
+    'npm --prefix sub stop',
+    'npm --prefix sub restart',
+    'npm -C sub run check',
+    'npm run check --prefix sub',
+    'npm run check --workspace @fx/api',
+    "cd sub && bash -c 'bun run check'",
+    'cd sub && echo "$(bash deploy.sh)"',
+    'bun --cwd sub run check',
+    'bun --cwd=sub run check',
+    'bun run --cwd sub check',
+    'pnpm -C sub check',
+    'pnpm --dir sub check',
+    'yarn --cwd sub run check',
+    'cd sub && bun run check',
+    'cd sub; npm run check',
+    '(cd sub; bun run check)',
+    '(cd sub && pnpm check)',
+    'pushd sub && yarn run check',
+    '(cd sub; true); bun run release',
+    'pushd sub && popd && bun run release',
+    "bash -c 'cd sub'; bun run release",
+    'cd sub && cd .. && bun run release',
+    'cd sub && bash deploy.sh',
+    'cd "$DIR" && bun run check',
+    'cd "$(mktemp -d)" && bash check.sh',
+    "bun run --filter '@fx/*' check",
+    'bun run --filter @fx/api check',
+    'bun --filter=@fx/api run check',
+    'pnpm --filter @fx/api check',
+    'pnpm -F @fx/api run check',
+    'npm --workspace @fx/api run check',
+    'npm -w packages/api run check',
+    'npm --workspaces run check',
+    'pnpm -r check',
+    'bun run --workspaces check',
+    "bun run --filter './packages/api' check",
+    "pnpm --filter '...@fx/web' check",
+    'bun run --filter nothing check',
+    'yarn workspace @fx/api run check',
+    'yarn workspaces foreach run check',
+    'bun run nothing',
+    'bun nothing',
+    'npm run nothing',
+    'pnpm nothing',
+    'yarn nothing',
+    'pnpm run "/^chec.*/"',
+    'bun run $NAME',
+    'npm run "${NAME}"',
+    'bun --cwd $DIR run release',
+    'npm --prefix "$DIR" test',
+    'bun run ship-file',
+    'bun run ship-var',
+    'bun run ship-missing',
+    'bun run ship-cd',
+    'npm run ship-pnpm',
+    'npm run ship-yarn',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    'bun check',
+    'bun run check',
+    'npm run check',
+    'npm test',
+    'npm start',
+    'npm stop',
+    'npm restart',
+    'pnpm check',
+    'pnpm run check',
+    'pnpm test',
+    'yarn run check',
+    'yarn test',
+    'npm --prefix sub run release',
+    'npm run release --prefix sub',
+    "cd sub && bash -c 'bun run release'",
+    'cd sub && echo "$(bash check.sh)"',
+    "bash -c 'cd sub; true'; cd sub && bash -c 'bun run release'",
+    'bun --cwd sub run release',
+    'pnpm -C sub release',
+    'yarn --cwd sub release',
+    'cd sub && bun run release',
+    '(cd sub; bun run release)',
+    '(cd sub; true); bun run check',
+    'pushd sub && popd && bun run check',
+    "bash -c 'cd sub'; bun run check",
+    'cd sub && bash check.sh',
+    'cd sub && cd .. && bun run check',
+    'bun run --filter @fx/web check',
+    'pnpm --filter @fx/web check',
+    'npm -w packages/web run check',
+    'npm --workspace @fx/web run check',
+    "bun run --filter './packages/web' check",
+    'bun run --filter @fx/api release',
+    'yarn workspace @fx/web run check',
+    'yarn workspace @fx/api check',
+    'yarn workspaces list',
+    'bun install',
+    'bun i',
+    'bun add zod',
+    'bun test',
+    'bun x tsc',
+    'bunx tsc',
+    'npx tsc',
+    'npm install',
+    'npm ci',
+    'npm view zod version',
+    'npm nothing',
+    'npm run',
+    'pnpm install',
+    'pnpm add zod',
+    'pnpm deploy out',
+    'pnpm exec tsc',
+    'pnpm dlx cowsay',
+    'yarn add zod',
+    'yarn install',
+    'yarn check',
+    'yarn',
+    'pnpm',
+    'bun run tsc',
+    'pnpm tsc',
+    'bun --version',
+    'npm --version',
+    'bun run ship-file-read',
+    'bun run ship-cd-read',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+
+  test('names the manager that was typed in the reason', () => {
+    const [hit] = WriteGuard.inspectCommand({ command: 'pnpm release', cwd: root });
+
+    expect(hit?.message).toContain('pnpm run release');
+  });
+});
+
+describe('the guard-writes hook, on script words it cannot resolve', () => {
+  const DEPLOY = 'kubectl apply -f k8s/\n';
+  const READ = 'kubectl get pods\n';
+  const MUTATING_JS = "await fetch('https://example.dev/v1/x', { method: 'DELETE' });\n";
+  const READING_JS = "console.log('ready');\n";
+  const root = createProject({
+    files: {
+      'scripts/deploy.sh': DEPLOY,
+      'scripts/check.sh': READ,
+      'lib/mutate.js': MUTATING_JS,
+      'lib/read.js': READING_JS,
+      'build/index.js': MUTATING_JS,
+      'served/package.json': JSON.stringify({ name: 'served', main: 'main.js' }),
+      'served/main.js': MUTATING_JS,
+      'tools/post.py': "import requests\nrequests.post('https://example.dev/v1/x', json={})\n",
+      'tools/read.py':
+        "import requests\nprint(requests.get('https://example.dev/v1/x').status_code)\n",
+      'usage.sh': `# usage <<EOF\n${DEPLOY}EOF\n`,
+      'commented.sh': `#!/bin/bash\n# then run ./x.sh | bash, or kubectl apply\n${READ}`,
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'bash $S',
+    'bash "${S}"',
+    'bash $(echo scripts/deploy.sh)',
+    'bash `echo scripts/deploy.sh`',
+    'bash scripts/deplo*.sh',
+    'bash scripts/{deploy,check}.sh',
+    'bash $PWD/scripts/check.sh',
+    'bash "$(dirname "$0")/check.sh"',
+    'bash ~/check.sh',
+    'source $ENV_FILE',
+    '. "${X}"',
+    'node $SCRIPT',
+    'bun "$S"',
+    'python3 $S',
+    'ruby ${S}',
+    'perl $S',
+    'php $S',
+    'deno run $S',
+    'sh scripts/missing.sh',
+    'node missing.js',
+    'bun missing.ts',
+    'python3 missing.py',
+    './missing.sh',
+    'source missing.sh',
+    "echo 'kubectl apply -f x' > s.sh && bash s.sh",
+    "echo 'kubectl apply -f x' > scripts/check.sh && bash scripts/check.sh",
+    "cat > scripts/check.sh <<'EOF'\nkubectl apply -f x\nEOF\nbash scripts/check.sh",
+    'cp scripts/deploy.sh scripts/check.sh && bash scripts/check.sh',
+    'echo x | tee scripts/check.sh && bash scripts/check.sh',
+    'cd scripts && echo x > check.sh && cd .. && bash scripts/check.sh',
+    'bash /opt/nowhere/deploy.sh',
+    'bash /etc/hosts',
+    'python3 tools/post.py',
+    'node lib/mutate',
+    'node build',
+    'node served',
+    'bash usage.sh',
+    '# usage <<EOF\nkubectl apply -f x\nEOF',
+    'kubectl apply -f x # a comment',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    'bash scripts/check.sh',
+    'source scripts/check.sh',
+    'bash -n scripts/deploy.sh',
+    'bash -c "echo $S"',
+    'python3 tools/read.py',
+    'python3 -c "print(1)"',
+    'python3 -m http.server --help',
+    'python3 --version',
+    'node --version',
+    'node lib/read',
+    "perl -e 'print 1'",
+    'ruby -v',
+    '/usr/bin/env bash scripts/check.sh',
+    'bash /usr/bin/true',
+    'node /usr/local/lib/node_modules/npm/bin/npm-cli.js --version',
+    '$HOME/.bun/bin/bun install',
+    'bash commented.sh',
+    'bash scripts/check.sh > out.log',
+    'bash scripts/check.sh 2>&1 | tee check.log',
+    'echo x > notes.txt && bash scripts/check.sh',
+    'cd lib && echo x > check.sh && cd .. && bash scripts/check.sh',
+    'echo hi; # kubectl apply -f x',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+
+  test('reads an absolute path inside the project like a relative one', async () => {
+    const asked = await runHook({ command: `bash ${join(root, 'scripts/deploy.sh')}` });
+    expect(asked).toEqual({ code: 0, decision: 'ask' });
+    const program = await runHook({ command: join(root, 'scripts/deploy.sh') });
+    expect(program).toEqual({ code: 0, decision: 'ask' });
+    const code = await runHook({ command: `node ${join(root, 'lib/mutate.js')}` });
+    expect(code).toEqual({ code: 0, decision: 'ask' });
+    const silent = await runHook({ command: `bash ${join(root, 'scripts/check.sh')}` });
+    expect(silent).toEqual({ code: 0, decision: '' });
+    const silentProgram = await runHook({ command: join(root, 'scripts/check.sh') });
+    expect(silentProgram).toEqual({ code: 0, decision: '' });
+  });
+});
+
+describe('the guard-writes hook, on the workspace files a project may have', () => {
+  const DEPLOY = 'kubectl apply -f k8s/';
+  const READ = 'kubectl get pods';
+  const packages = {
+    'packages/api/package.json': JSON.stringify({ name: '@ws/api', scripts: { check: DEPLOY } }),
+    'packages/web/package.json': JSON.stringify({ name: '@ws/web', scripts: { check: READ } }),
+  };
+  const objectForm = createProject({
+    files: {
+      'package.json': JSON.stringify({ name: 'ws', workspaces: { packages: ['packages/*'] } }),
+      ...packages,
+    },
+  });
+  const pnpmForm = createProject({
+    files: {
+      'package.json': JSON.stringify({ name: 'ws' }),
+      'pnpm-workspace.yaml': "packages:\n  - 'packages/*'\n",
+      ...packages,
+    },
+  });
+
+  test.each([
+    [objectForm, "bun run --filter '@ws/api' check"],
+    [pnpmForm, 'pnpm --filter @ws/api check'],
+    [pnpmForm, 'pnpm -r check'],
+  ])('asks in %s for %p', async (root, command) => {
+    const result = await runHookAt({ root, command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    [objectForm, "bun run --filter '@ws/web' check"],
+    [pnpmForm, 'pnpm --filter @ws/web check'],
+  ])('stays silent in %s for %p', async (root, command) => {
+    const result = await runHookAt({ root, command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+});
+
+describe('the guard-writes hook, on the deploy, cloud, migration and request tools it knows', () => {
+  const root = createProject({
+    files: {
+      'manage.py': 'import sys\nprint(sys.argv)\n',
+      artisan: "<?php\necho 'artisan';\n",
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'terraform apply',
+    'terraform -chdir=infra apply -auto-approve',
+    'tofu destroy',
+    'terraform import aws_instance.web i-123',
+    'terraform taint aws_instance.web',
+    'terraform state rm aws_instance.web',
+    'pulumi up --yes',
+    'pulumi destroy',
+    'pulumi refresh',
+    'ansible-playbook site.yml',
+    "ansible all -m shell -a 'rm -rf /var/cache/app'",
+    "ansible web -m copy -a 'src=a dest=b'",
+    "ansible web -a 'systemctl restart app'",
+    'flyctl deploy',
+    'fly deploy --remote-only',
+    'fly scale count 2',
+    'fly secrets set TOKEN=x',
+    'fly apps destroy web',
+    'vercel --prod',
+    'vercel deploy',
+    'netlify deploy --prod',
+    'wrangler deploy',
+    'wrangler publish',
+    'wrangler delete',
+    'wrangler secret put TOKEN',
+    'gcloud run deploy web --image gcr.io/p/web',
+    'gcloud compute instances delete vm-1',
+    'gcloud projects set-iam-policy p policy.json',
+    'az group create -n rg -l westeurope',
+    'az webapp deploy --src-path app.zip',
+    'az vm delete -n vm-1',
+    'aws s3 rm s3://bucket/key',
+    'aws s3 sync ./dist s3://bucket',
+    'aws s3 cp report.csv s3://bucket/report.csv',
+    'aws ec2 delete-security-group --group-id sg-1',
+    'aws --region eu-west-1 lambda update-function-code --function-name f --zip-file fileb://f.zip',
+    'aws s3api put-object --bucket b --key k',
+    'aws cloudformation deploy --template-file t.yml --stack-name s',
+    'cdk deploy',
+    'npx cdk destroy',
+    'helmfile apply',
+    'helmfile -e prod sync',
+    'argocd app sync web',
+    'argocd app delete web',
+    'skaffold run',
+    'skaffold deploy',
+    'docker stack deploy -c stack.yml web',
+    'docker stack rm web',
+    'docker service create --name web nginx',
+    'docker service scale web=3',
+    'docker swarm init',
+    'kubectl edit deployment/web',
+    'kubectl run debug --image=busybox',
+    'kubectl label pod web tier=front',
+    'kubectl annotate pod web note=x',
+    'kubectl drain node-1',
+    'kubectl cordon node-1',
+    'kubectl uncordon node-1',
+    'kubectl taint nodes node-1 key=value:NoSchedule',
+    'kubectl expose deployment web --port=80',
+    'oc apply -f x.yaml',
+    'oc -n prod delete pod web',
+    'redis-cli FLUSHALL',
+    'redis-cli -h cache -p 6379 flushdb',
+    'redis-cli DEL session:1',
+    'redis-cli SET key value',
+    'redis-cli HSET user:1 name x',
+    'redis-cli EXPIRE key 10',
+    'redis-cli CONFIG SET maxmemory 1mb',
+    'redis-cli SHUTDOWN',
+    'dropdb app',
+    'createdb app',
+    'pg_restore -d app dump.custom',
+    'createuser bob',
+    'dropuser bob',
+    'mysqladmin -u root drop app',
+    'mysqladmin create app',
+    'mysqladmin shutdown',
+    'mongorestore dump/',
+    'mongoimport --db app --collection users users.json',
+    'knex migrate:latest',
+    'npx knex migrate:rollback',
+    'npx typeorm migration:run',
+    'typeorm migration:revert',
+    'alembic upgrade head',
+    'alembic -c alembic.ini downgrade -1',
+    'alembic stamp head',
+    'python manage.py migrate',
+    'python3 manage.py flush',
+    './manage.py loaddata fixtures.json',
+    'flyway migrate',
+    'flyway -url=jdbc:postgresql://db/app clean',
+    'goose -dir db/migrations postgres "user=app dbname=app" up',
+    'goose down',
+    'dbmate up',
+    'dbmate drop',
+    'supabase db push',
+    'supabase db reset',
+    'drizzle-kit up',
+    'drizzle-kit drop',
+    'drizzle-kit push --config drizzle.config.ts',
+    'bunx prisma migrate resolve --applied 20240101_init',
+    'npx sequelize-cli db:seed:all',
+    'sequelize db:migrate',
+    'rails db:drop',
+    'bundle exec rails db:seed',
+    'php artisan migrate',
+    'php artisan migrate:fresh',
+    "wget --post-data 'name=x' https://example.dev/v1/x",
+    'wget --post-file body.json https://example.dev/v1/x',
+    'wget --method=DELETE https://example.dev/v1/x',
+    'wget --method PUT https://example.dev/v1/x',
+    'http POST example.dev/v1/x name=x',
+    'https PUT example.dev/v1/x name=x',
+    'xh DELETE example.dev/v1/x',
+    'http --form POST example.dev/v1/x name=x',
+    'aws ec2 terminate-instances --instance-ids i-1',
+    'aws ec2 stop-instances --instance-ids i-1',
+    'aws rds reboot-db-instance --db-instance-identifier app',
+    'aws ec2 modify-instance-attribute --instance-id i-1 --no-disable-api-termination',
+    'aws iam attach-role-policy --role-name app --policy-arn arn:x',
+    'aws iam detach-role-policy --role-name app --policy-arn arn:x',
+    'aws ecs register-task-definition --cli-input-json file://task.json',
+    'aws elbv2 deregister-targets --target-group-arn arn:x --targets Id=i-1',
+    'aws ec2 run-instances --image-id ami-1',
+    'aws ec2 start-instances --instance-ids i-1',
+    'aws s3 mb s3://bucket',
+    'aws s3 rb s3://bucket',
+    'aws s3 mv s3://bucket/a s3://bucket/b',
+    "redis-cli EVAL \"return redis.call('del','k')\" 0",
+    'redis-cli UNLINK key',
+    'redis-cli LPUSH q x',
+    'redis-cli INCR counter',
+    'redis-cli SETEX k 10 v',
+    'redis-cli -h cache -p 6379 -n 2 FLUSHDB',
+    'redis-cli CONFIG SET maxmemory 1gb',
+    'redis-cli',
+    'redis-cli -h cache',
+    'redis-cli --eval script.lua key',
+    'redis-cli <<EOF\nGET a\nDEL b\nEOF',
+    'docker exec cache redis-cli FLUSHALL',
+    'typeorm schema:drop',
+    'typeorm schema:sync',
+    'rails db:schema:load',
+    'rails db:setup',
+    'rails db:structure:load',
+    'rails db:rollback',
+    'python manage.py shell',
+    'python manage.py dbshell',
+    'python manage.py migrate',
+    'npx prisma migrate deploy',
+    'prisma db push --create-only',
+    'prisma migrate deploy --create-only',
+    'http :3000/users name=x',
+    "http :3000/users 'age:=1'",
+    'http :3000/users @data.json',
+    'http :3000/users avatar=@photo.png',
+    'xh example.dev/v1/x name=x',
+    'http PURGE example.dev/v1/x',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    'terraform plan',
+    'terraform show',
+    'tofu validate',
+    'terraform state list',
+    'terraform apply -help',
+    'pulumi preview',
+    'pulumi stack ls',
+    'ansible-playbook site.yml --check',
+    'ansible-playbook -C site.yml',
+    'ansible-playbook --syntax-check site.yml',
+    'ansible all -m ping',
+    'fly status',
+    'fly logs',
+    'fly scale show',
+    'fly secrets list',
+    'vercel ls',
+    'vercel build --prod',
+    'tar -a -cf out.tar.gz dist',
+    'uname -a',
+    'aws s3 cp -a s3://bucket/report.csv .',
+    'netlify status',
+    'wrangler tail',
+    'gcloud config list',
+    'gcloud compute instances list',
+    'gcloud run services describe web',
+    'az group list',
+    'az account show',
+    'aws s3 ls',
+    'aws s3 ls s3://bucket/delete-me/',
+    'aws sts get-caller-identity',
+    'aws s3 cp s3://bucket/report.csv .',
+    'aws ec2 describe-instances',
+    'aws s3 sync ./dist s3://bucket --dryrun',
+    'cdk diff',
+    'cdk synth',
+    'helmfile diff',
+    'helmfile template',
+    'argocd app list',
+    'argocd app get web',
+    'skaffold build',
+    'docker stack ls',
+    'docker service ls',
+    'docker service logs web',
+    'docker swarm join-token worker',
+    'kubectl get pods',
+    'kubectl describe pod web',
+    'kubectl logs web',
+    'kubectl auth can-i delete pods',
+    'kubectl config set-context dev',
+    'oc get pods',
+    'oc status',
+    'redis-cli GET x',
+    'redis-cli ping',
+    "redis-cli -h cache KEYS 'session:*'",
+    'redis-cli --help',
+    'pg_restore -l dump.custom',
+    'pg_dump app -f backup.sql',
+    'createdb --help',
+    'mysqladmin status',
+    'mysqladmin -u root processlist',
+    'mongodump --db app',
+    'mongoimport --help',
+    'knex migrate:status',
+    'knex migrate:make add_users',
+    'typeorm migration:show',
+    'alembic history',
+    'alembic current',
+    'alembic revision -m add_users',
+    'python manage.py showmigrations',
+    'python manage.py makemigrations',
+    'python3 -m http.server --help',
+    'flyway info',
+    'flyway validate',
+    'goose status',
+    'goose create add_users sql',
+    'dbmate status',
+    'dbmate new add_users',
+    'supabase db diff',
+    'supabase status',
+    'drizzle-kit generate',
+    'prisma migrate status',
+    'prisma generate',
+    'php artisan migrate:status',
+    'rails routes',
+    'wget https://example.dev/v1/x',
+    'wget -O page.html https://example.dev/',
+    'http GET example.dev/v1/x',
+    'http example.dev/v1/x',
+    'xh example.dev/v1/x',
+    'curl https://example.dev/v1/x',
+    'aws ec2 terminate-instances --instance-ids i-1 --dry-run',
+    'aws ec2 describe-instances --filters Name=instance-state-name,Values=stopped',
+    'aws lambda invoke --function-name app out.json',
+    'redis-cli GET x',
+    'redis-cli -h cache -p 6379 MGET a b',
+    'redis-cli -n 2 HGETALL user:1',
+    'redis-cli CLIENT LIST',
+    'redis-cli CONFIG GET maxmemory',
+    'redis-cli MEMORY USAGE key',
+    'redis-cli SLOWLOG GET 10',
+    'redis-cli -a secret INFO',
+    "redis-cli --scan --pattern 'user:*'",
+    'redis-cli --bigkeys',
+    'redis-cli --stat',
+    'redis-cli --latency',
+    'redis-cli zrange board 0 -1',
+    'alembic upgrade head --sql',
+    'alembic heads',
+    'alembic branches',
+    'alembic show head',
+    'prisma migrate dev --create-only',
+    'npx prisma migrate dev --create-only',
+    'prisma migrate diff --from-empty --to-schema-datamodel schema.prisma',
+    'prisma db pull',
+    'prisma format',
+    'prisma validate',
+    'sequelize db:migrate:status',
+    'rails db:migrate:status',
+    'rails db:version',
+    'python manage.py migrate --plan',
+    'python manage.py runserver',
+    'python manage.py check',
+    'knex migrate:list',
+    'knex migrate:currentVersion',
+    'goose version',
+    'drizzle-kit check',
+    'drizzle-kit studio',
+    'drizzle-kit introspect',
+    'typeorm migration:generate src/migrations/AddUsers',
+    'typeorm migration:create src/migrations/AddUsers',
+    'http :3000/users q==x',
+    'http :3000/users Authorization:token',
+    "http 'example.dev/v1/x?a=b'",
+    'http -a user:pass example.dev/v1/x',
+    'http GET :3000/users name=x',
+    'http HEAD example.dev/v1/x',
+    'http OPTIONS example.dev/v1/x',
+    'http example.dev/v1/x --session=dev',
+    'http --offline :3000/users name=x',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+
+  test('reads a line of thousands of options within the work budget', () => {
+    const start = performance.now();
+
+    WriteGuard.inspectCommand({ command: `ansible all ${'-x '.repeat(30_000)}`, cwd: root });
+    WriteGuard.inspectCommand({ command: `psql -c "merge ${'/* '.repeat(30_000)}"`, cwd: root });
+    WriteGuard.inspectCommand({ command: `http ${'x'.repeat(64_000)}`, cwd: root });
+    WriteGuard.inspectCommand({ command: `redis-cli${' -h x'.repeat(12_000)}`, cwd: root });
+
+    expect(performance.now() - start).toBeLessThan(2500);
+  });
+
+  test('names the cloud action in the reason', () => {
+    const [hit] = WriteGuard.inspectCommand({ command: 'terraform apply', cwd: root });
+
+    expect(hit?.rule).toBe('V-W-03');
+    expect(hit?.message).toBe('deploying or changing cloud resources');
+  });
+});
+
+describe('the guard-writes hook, on the SQL a database client is given', () => {
+  const root = createProject({
+    files: { 'drop.js': 'db.users.drop();\n', 'q.sql': 'select 1;\n' },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    "mariadb -e 'DELETE FROM t'",
+    'mysql -e"DELETE FROM t"',
+    'psql -c"DROP TABLE t"',
+    "psql -qc'DELETE FROM t'",
+    "psql -c 'DELETE/**/FROM t'",
+    "psql -c 'TRUNCATE t;'",
+    "psql -c 'merge into t using s on t.id = s.id when matched then do nothing'",
+    "psql -c 'CALL refresh_all()'",
+    `psql -c "COPY users FROM '/srv/users.csv'"`,
+    "psql -c 'COPY users (id, name) FROM STDIN'",
+    "mysql -e 'REPLACE INTO t VALUES (1)'",
+    "psql -c 'GRANT ALL ON t TO bob'",
+    "psql -c 'ALTER TABLE t ADD c int'",
+    'psql -c "$SQL"',
+    'psql -c "$(cat q.sql)"',
+    'mysql -e "`cat q.sql`"',
+    'psql --command="$SQL"',
+    "psql -c '\\i repair.sql'",
+    "mysql -e 'source repair.sql'",
+    'sqlite3 app.db',
+    'sqlite3 app.db < q.sql',
+    'cat q.sql | sqlite3 app.db',
+    'sqlite3 app.db ".read q.sql"',
+    'sqlite3 app.db "DELETE FROM t"',
+    'sqlite3 app.db ".import users.csv users"',
+    'sqlite3 -init q.sql app.db .tables',
+    'mongosh drop.js',
+    'mongosh mongodb://db/app drop.js',
+    'mongosh --file drop.js',
+    "mongosh --eval 'db.runCommand({ dropDatabase: 1 })'",
+    "mongosh --eval 'db.users.drop()'",
+    "mongosh --eval 'db.users.createIndex({ a: 1 })'",
+    'cat drop.js | mongosh',
+    'mariadb app <<EOF\nDELETE FROM t;\nEOF',
+    'mariadb app < q.sql',
+    'psql -c "VACUUM FULL t"',
+    'psql -c "vacuum"',
+    'psql -c "REINDEX TABLE t"',
+    'psql -c "CLUSTER t USING t_pkey"',
+    'psql -c "CLUSTER;"',
+    'psql -c "REFRESH MATERIALIZED VIEW report"',
+    'psql -c "LOCK TABLE t IN ACCESS EXCLUSIVE MODE"',
+    'psql -c "SELECT pg_terminate_backend(123)"',
+    'psql -c "SELECT pg_cancel_backend(123)"',
+    'psql -c "SELECT setval(\'s\', 1)"',
+    'psql -c "SELECT nextval(\'s\')"',
+    'psql -c "SELECT lo_unlink(42)"',
+    'psql -c "SELECT pg_drop_replication_slot(\'slot\')"',
+    'psql -c "SELECT pg_reload_conf()"',
+    'mongo app --eval "db.c.remove({})"',
+    "mongo --eval 'db.users.drop()'",
+    'mongo drop.js',
+    'mongo --file drop.js',
+    'mongo app',
+    'cat drop.js | mongo',
+    '/usr/bin/mongo --eval "db.c.remove({})"',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    "psql -c 'COPY (SELECT * FROM users) TO STDOUT'",
+    "psql -c 'COPY users TO STDOUT'",
+    `psql -c "SELECT replace(name, 'a', 'b') FROM t"`,
+    'mysql -e"SELECT 1"',
+    "psql -qc'SELECT 1'",
+    "mariadb -e 'SELECT 1'",
+    'psql -c "SELECT created_at FROM t"',
+    `psql -c "SELECT * FROM t WHERE status = 'update'"`,
+    'sqlite3 app.db "SELECT count(*) FROM t"',
+    'sqlite3 app.db .tables',
+    'sqlite3 -version',
+    "mongosh --eval 'db.users.find()'",
+    'mongosh --version',
+    'psql -c "ANALYZE t"',
+    'psql -c "SET search_path TO app"',
+    'psql -h cluster -c "SELECT 1"',
+    'psql -h lock.internal app -c "SELECT 1"',
+    'psql -c "SELECT * FROM pg_stat_activity"',
+    "mongo app --eval 'db.users.find()'",
+    'mongo --version',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+});
+
+describe('the guard-writes hook, on the commands and requests a code script makes', () => {
+  const root = createProject({
+    files: {
+      'spawn.ts': "Bun.spawnSync(['kubectl', 'apply', '-f', 'k8s/']);\n",
+      'spawn-curl.ts':
+        "const url = 'https://example.dev/v1/x';\nBun.spawn(['curl', '-X', 'POST', url]);\n",
+      'exec.js':
+        "const { execSync } = require('node:child_process');\nexecSync('terraform apply -auto-approve');\n",
+      'exec-file.js':
+        "const cp = require('node:child_process');\ncp.execFileSync('helm', ['upgrade', '--install', 'web', './chart']);\n",
+      'shell-tag.ts': 'const name = "web";\nawait Bun.$`kubectl delete pod ${name}`;\n',
+      'zx.mjs': "import { $ } from 'zx';\nawait $`aws s3 rm s3://bucket/key`;\n",
+      'deno.ts': "await new Deno.Command('flyctl', { args: ['deploy'] }).output();\n",
+      'system.py': "import os\nos.system('redis-cli FLUSHALL')\n",
+      'subprocess.py': "import subprocess\nsubprocess.run(['dropdb', 'app'])\n",
+      'axios.ts': "import axios from 'axios';\nawait axios.post('https://example.dev/v1/x', {});\n",
+      'got.ts': "import got from 'got';\nawait got.delete('https://example.dev/v1/x');\n",
+      'ky.ts': "import ky from 'ky';\nawait ky.put('https://example.dev/v1/x');\n",
+      'superagent.js':
+        "const superagent = require('superagent');\nawait superagent.patch('https://example.dev/v1/x');\n",
+      'http-request.js':
+        "const https = require('node:https');\nhttps.request('https://example.dev/v1/x', { method: 'POST' }).end();\n",
+      'new-request.ts':
+        "await fetch(new Request('https://example.dev/v1/x', { method: 'PUT' }));\n",
+      'glob-then-delete.ts':
+        "const pattern = 'src/**/*.ts';\nawait fetch('https://example.dev/v1/x', { method: 'DELETE' });\n",
+      'hash-in-string.py':
+        "import requests\nurl = 'https://example.dev/v1/x#part'\nrequests.post(url)\n",
+      'sql-template.ts': 'const table = "users";\nawait sql`DELETE FROM ${table} WHERE id = 1`;\n',
+      'sql-string.py': 'cursor.execute("UPDATE users SET name = %s", ("x",))\n',
+      'router.ts':
+        "app.post('/users', create);\nrouter.delete('/users/:id', remove);\nexport {};\n",
+      'comment-sql.ts':
+        '// DELETE FROM users when the flag is set\n/* DROP TABLE users */\nconst flag = 1;\nconsole.log(flag);\n',
+      'comment-http.js': "// await axios.post('https://example.dev/v1/x')\nconsole.log(1);\n",
+      'comment-spawn.py': "# subprocess.run(['dropdb', 'app'])\nprint(1)\n",
+      'prose.ts': "console.log('run kubectl apply when the review is done');\n",
+      'spawn-read.ts': "Bun.spawnSync(['kubectl', 'get', 'pods']);\n",
+      'regex-exec.ts': "const match = /kubectl apply/.exec('text');\nconsole.log(match);\n",
+      'shell-exec.php': "<?php\nshell_exec('kubectl apply -f k8s');\n",
+      'passthru.php': "<?php\npassthru('helm upgrade web ./chart');\n",
+      'popen.py': "import os\nos.popen('terraform apply -auto-approve')\n",
+      'echo.php': "<?php\necho 'kubectl apply when ready';\n",
+      'spawn-redis.ts': "Bun.spawnSync(['redis-cli', 'FLUSHALL']);\n",
+      'spawn-redis-read.ts': "Bun.spawnSync(['redis-cli', 'GET', 'k']);\n",
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'bun spawn.ts',
+    'bun spawn-curl.ts',
+    'node exec.js',
+    'node exec-file.js',
+    'bun shell-tag.ts',
+    'node zx.mjs',
+    'deno run deno.ts',
+    'python3 system.py',
+    'python3 subprocess.py',
+    'bun axios.ts',
+    'bun got.ts',
+    'bun ky.ts',
+    'node superagent.js',
+    'node http-request.js',
+    'bun new-request.ts',
+    'bun glob-then-delete.ts',
+    'python3 hash-in-string.py',
+    'bun sql-template.ts',
+    'python3 sql-string.py',
+    `bun -e "Bun.spawnSync(['kubectl', 'apply', '-f', 'x'])"`,
+    'php shell-exec.php',
+    'php passthru.php',
+    'python3 popen.py',
+    'bun spawn-redis.ts',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    'bun router.ts',
+    'bun comment-sql.ts',
+    'node comment-http.js',
+    'python3 comment-spawn.py',
+    'bun prose.ts',
+    'bun spawn-read.ts',
+    'bun regex-exec.ts',
+    'php echo.php',
+    'bun spawn-redis-read.ts',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+
+  test('names the command a script runs in the reason', () => {
+    const [hit] = WriteGuard.inspectCommand({ command: 'bun spawn.ts', cwd: root });
+
+    expect(hit?.message).toBe('spawn.ts looks like it is deploying or hot-applying to a cluster');
+  });
+});
+
+describe('the guard-writes hook, on the TypeScript, Python and launcher runners', () => {
+  const root = createProject({
+    files: {
+      'scripts/seed.ts': "await fetch('http://localhost:3000/api/users', { method: 'POST' });\n",
+      'scripts/read.ts': 'console.log(1);\n',
+      'scripts/seed.py': "import subprocess\nsubprocess.run(['psql', '-c', 'DELETE FROM users'])\n",
+      'scripts/read.py': 'print(1)\n',
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'tsx scripts/seed.ts',
+    'tsx watch scripts/seed.ts',
+    'tsx --tsconfig tsconfig.json scripts/seed.ts',
+    'ts-node scripts/seed.ts',
+    'ts-node -P tsconfig.json scripts/seed.ts',
+    'npx tsx scripts/seed.ts',
+    'npx -y tsx scripts/seed.ts',
+    'bunx tsx scripts/seed.ts',
+    'npx ts-node scripts/seed.ts',
+    'uv run scripts/seed.py',
+    'uv run --with rich scripts/seed.py',
+    'uv run python scripts/seed.py',
+    'deno run scripts/seed.ts',
+    `tsx -e "Bun.spawnSync(['kubectl', 'apply', '-f', 'x'])"`,
+    `ts-node -e "Bun.spawnSync(['kubectl', 'apply', '-f', 'x'])"`,
+    'tsx scripts/missing.ts',
+    'uv run scripts/missing.py',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    'tsx scripts/read.ts',
+    'tsx watch scripts/read.ts',
+    'ts-node scripts/read.ts',
+    'npx tsx scripts/read.ts',
+    'bunx tsx scripts/read.ts',
+    'uv run scripts/read.py',
+    'uv run pytest',
+    'uv run python -m http.server',
+    'npx eslint .',
+    'npx @biomejs/biome check .',
+    'bunx @scope/tool',
+    'npx user/repo',
+    'deno run scripts/read.ts',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+});
+
+describe('the guard-writes hook, on a script word that is not a regular file', () => {
+  const root = createProject({ files: { 'scripts/read.sh': 'ls\n' } });
+
+  Bun.spawnSync(['mkfifo', join(root, 'scripts', 'fifo.sh'), join(root, 'scripts', 'fifo.ts')]);
+  symlinkSync(join(root, 'scripts', 'fifo.sh'), join(root, 'scripts', 'link.sh'));
+  symlinkSync('/dev/zero', join(root, 'scripts', 'zero.sh'));
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'bash scripts/fifo.sh',
+    'bun scripts/fifo.ts',
+    'node scripts/fifo.ts',
+    'source scripts/fifo.sh',
+    'bash scripts/link.sh',
+    'bash scripts/zero.sh',
+  ])('asks, without opening it, for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test('names the file it cannot read in the reason', () => {
+    const [hit] = WriteGuard.inspectCommand({ command: 'bash scripts/fifo.sh', cwd: root });
+
+    expect(hit?.message).toBe(
+      'scripts/fifo.sh is not a regular file (a pipe, a device or a socket), so the guard cannot read it',
+    );
+  });
+
+  test.each(['bash scripts/read.sh', 'bash scripts'])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+});
+
+describe('the guard-writes hook, on the code entry files a package script names', () => {
+  const SERVER =
+    "app.post('/users', create);\nawait fetch('https://example.dev/v1/x', { method: 'POST' });\n";
+  const DEPLOY = "Bun.spawnSync(['kubectl', 'apply', '-f', 'k8s/']);\n";
+  const root = createProject({
+    files: {
+      'package.json': JSON.stringify({
+        name: 'web',
+        scripts: {
+          dev: 'bun src/server.ts',
+          ship: 'bun scripts/ship.ts',
+          migrate: 'bun src/migrate.ts',
+          release: 'node src/release-web.js',
+          tool: 'bun tools/run.ts',
+        },
+      }),
+      'src/server.ts': SERVER,
+      'src/migrate.ts': 'await sql`DROP TABLE users`;\n',
+      'src/release-web.js': DEPLOY,
+      'scripts/ship.ts': DEPLOY,
+      'tools/run.ts': DEPLOY,
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'bun run ship',
+    'bun run migrate',
+    'bun run release',
+    'bun run tool',
+    'bun src/server.ts',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test('stays silent for a dev server a package script starts', async () => {
+    const result = await runHook({ command: 'bun run dev' });
+    expect(result).toEqual({ code: 0, decision: '' });
   });
 });

@@ -13,6 +13,7 @@ import { BoardServe } from '../board/common/constants.ts';
 import { ProjectKey } from '../events/project-key.ts';
 import { ThemeTokens } from '../theme/index.ts';
 import { ProjectTheme } from '../visualize/theme.ts';
+import { BoardLogo } from '../board/logo.ts';
 import { BOARD_AGENTS } from '../board/schema.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
@@ -22,6 +23,7 @@ import {
   HookEvents,
   LibraryKinds,
   PackageKinds,
+  TemplatePlaceholders,
 } from './common/index.ts';
 
 const CODING_AGENT = z.string().refine((value) => CodingAgents.isValid(value), {
@@ -218,9 +220,21 @@ const checkPackagesUnique = (
  * leading `[#<issue>] ` is optional and a trailing ` [<mode>]` is tolerated. A release train that
  * tags once leaves `<dir>` out (`v<version>`).
  */
-const RELEASE_TEMPLATE = z.string().refine((value) => value.includes('<version>'), {
-  message: 'a template with <version> (and <dir> for per-package releases)',
-});
+const RELEASE_TEMPLATE = z
+  .string()
+  .refine((value) => value.includes('<version>'), {
+    message: 'a template with <version> (and <dir> for per-package releases)',
+  })
+  .superRefine((value, context) => {
+    const unknown = TemplatePlaceholders.unknownIn({ template: value });
+
+    if (unknown.length > 0) {
+      context.addIssue({
+        code: 'custom',
+        message: TemplatePlaceholders.problemOf({ unknown }),
+      });
+    }
+  });
 
 /** A renderer by id: a built-in, or a project module (`module`); a bare string is the id alone. */
 const OKF_RENDERER = z.union([
@@ -372,12 +386,24 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       sources: z
         .array(
           z.strictObject({
-            /** Identifier of the source in atlas results. */
-            name: z.string(),
+            /** Identifier of the source in atlas results: letters, digits, `_`, `.` and `-`, starting with a letter or a digit. */
+            name: z
+              .string()
+              .regex(
+                /^[A-Za-z0-9][\w.-]*$/,
+                'a name of letters, digits, _ . and -, starting with a letter or a digit',
+              ),
             /** GitHub repository of the source, as `owner/repo`. */
-            repo: z.string(),
+            repo: z.string().refine((value) => !value.trimStart().startsWith('-'), {
+              message: "a repository, not an option: it must not start with '-'",
+            }),
             /** Branch, tag or commit the source is indexed at; default `develop`. */
-            ref: z.string().default('develop'),
+            ref: z
+              .string()
+              .refine((value) => !value.trimStart().startsWith('-'), {
+                message: "a ref, not an option: it must not start with '-'",
+              })
+              .default('develop'),
             /** `installed` (default): the docs are read at the tag of the newest installed package; `ref`: at `ref`. */
             pin: z.enum(['installed', 'ref']).optional(),
           }),
@@ -493,16 +519,9 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       logo: z
         .string()
         .min(1)
-        .refine(
-          (value) =>
-            value.toLowerCase().endsWith('.svg') &&
-            !value.startsWith('/') &&
-            !value.split('/').includes('..'),
-          {
-            message:
-              'a path inside the project to an .svg file, with no leading / and no .. segment',
-          },
-        )
+        .refine((value) => BoardLogo.isPath({ path: value }), {
+          message: 'a path inside the project to an .svg file, with no leading / and no .. segment',
+        })
         .optional(),
       /** Faces and roles of the board's agents, keyed by agent name; default `{}`. */
       agents: BOARD_AGENTS.default({}),

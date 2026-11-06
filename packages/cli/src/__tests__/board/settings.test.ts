@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, symlinkSync } from 'node:fs';
+import { join } from 'node:path';
 import { BoardSettings } from '../../board/settings.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
@@ -180,6 +181,75 @@ describe('BoardSettings.read', () => {
       expect(settings.logo).toBeUndefined();
       expect(settings.notes).toHaveLength(1);
     }
+  });
+
+  test('a path that is absolute or climbs out of the project is no logo, even when the file is an svg', () => {
+    const outside = project({ manifest: {}, files: { 'l.svg': SVG } });
+    const paths = [
+      join(outside, 'l.svg'),
+      `../${outside.split('/').at(-1)}/l.svg`,
+      'a/../../l.svg',
+    ];
+
+    for (const path of paths) {
+      const settings = BoardSettings.read({
+        root: project({ manifest: { board: { logo: path } } }),
+      });
+
+      expect(settings.logo, path).toBeUndefined();
+      expect(settings.notes, path).toHaveLength(1);
+    }
+  });
+
+  test('a path without the .svg suffix is no logo, whatever the file holds', () => {
+    const root = project({
+      manifest: { board: { logo: 'notes.html' } },
+      files: { 'notes.html': SVG },
+    });
+
+    expect(BoardSettings.read({ root }).logo).toBeUndefined();
+  });
+
+  test('a link to a file outside the project is no logo, and a link to a folder outside is none either', () => {
+    const outside = project({ manifest: {}, files: { 'secret.svg': SVG, 'dir/inner.svg': SVG } });
+    const root = project({ manifest: { board: { logo: 'link.svg' } } });
+
+    symlinkSync(join(outside, 'secret.svg'), join(root, 'link.svg'));
+    symlinkSync(join(outside, 'dir'), join(root, 'linked-dir'));
+
+    expect(BoardSettings.read({ root }).logo).toBeUndefined();
+
+    const viaFolder = project({ manifest: { board: { logo: 'linked-dir/inner.svg' } } });
+
+    symlinkSync(join(outside, 'dir'), join(viaFolder, 'linked-dir'));
+
+    expect(BoardSettings.read({ root: viaFolder }).logo).toBeUndefined();
+  });
+
+  test('a link to a file inside the project is read, and so is a project reached through a link', () => {
+    const root = project({
+      manifest: { board: { logo: 'brand/current.svg' } },
+      files: { 'assets/logo.svg': SVG },
+    });
+
+    mkdirSync(join(root, 'brand'), { recursive: true });
+    symlinkSync(join(root, 'assets/logo.svg'), join(root, 'brand/current.svg'));
+
+    const expected = `data:image/svg+xml;base64,${Buffer.from(SVG).toString('base64')}`;
+    const parent = project({ manifest: {} });
+
+    symlinkSync(root, join(parent, 'checkout'));
+
+    expect(BoardSettings.read({ root }).logo).toBe(expected);
+    expect(BoardSettings.read({ root: join(parent, 'checkout') }).logo).toBe(expected);
+  });
+
+  test('a link that points nowhere is no logo, not a crash', () => {
+    const root = project({ manifest: { board: { logo: 'gone.svg' } } });
+
+    symlinkSync(join(root, 'missing.svg'), join(root, 'gone.svg'));
+
+    expect(BoardSettings.read({ root }).logo).toBeUndefined();
   });
 
   test('the owner is git user.name of the project when the manifest has none', () => {

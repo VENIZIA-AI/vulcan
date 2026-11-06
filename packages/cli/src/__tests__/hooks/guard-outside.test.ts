@@ -154,6 +154,16 @@ describe('OutsideGuard.inspect flags what a review found', () => {
     expect(bash({ command: 'cd inner && cd .. && touch a.txt' })).toEqual([]);
     expect(bash({ command: 'cd inner && cd /etc && touch a.txt' }).length).toBeGreaterThan(0);
   });
+
+  test('a cd inside a subshell stays in it, and pushd and popd move like cd', () => {
+    expect(bash({ command: '(cd /etc; touch a.txt)' }).length).toBeGreaterThan(0);
+    expect(bash({ command: '(cd /etc; true); touch a.txt' })).toEqual([]);
+    expect(bash({ command: 'pushd /etc && touch a.txt' }).length).toBeGreaterThan(0);
+    expect(bash({ command: 'pushd /etc && popd && touch a.txt' })).toEqual([]);
+    expect(
+      bash({ command: 'cd /etc && case x in a) true;; esac && touch a.txt' }).length,
+    ).toBeGreaterThan(0);
+  });
 });
 
 describe('OutsideGuard.inspect passes', () => {

@@ -1,4 +1,4 @@
-import { ShellParser } from './shell.ts';
+import { ShellParser, ShellPrograms } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 
 /** Programs that only read or print what they are given: their arguments are text to find or show, never a command to run. */
@@ -47,8 +47,11 @@ const HEREDOC_READERS = new Set([
   'ssh',
   'psql',
   'mysql',
+  'mariadb',
   'mongosh',
+  'mongo',
   'sqlite3',
+  'redis-cli',
   'python',
   'python3',
   'node',
@@ -59,9 +62,21 @@ const HEREDOC_READERS = new Set([
   'php',
 ]);
 
-/** A pipe into a program that runs what it is fed: `echo "kubectl apply -f x" | sh`. */
-const PIPED_INTO_RUNNER =
-  /\|\s*(?:sudo\s+)?(?:\w+=\S*\s+)*(?:sh|bash|zsh|dash|psql|mysql|mongosh|sqlite3|python3?|node|bun|ssh)\b/;
+/** Programs that run what a pipe feeds them: `echo "kubectl apply -f x" | sh`. */
+const PIPE_RUNNERS = new Set([
+  ...ShellPrograms.SHELL_NAMES,
+  'psql',
+  'mysql',
+  'mariadb',
+  'mongosh',
+  'mongo',
+  'sqlite3',
+  'python',
+  'python3',
+  'node',
+  'bun',
+  'ssh',
+]);
 
 /** What a command line runs, for a guard that must not let an unread part through. */
 export interface ICommandView {
@@ -71,6 +86,8 @@ export interface ICommandView {
   sources: (ISimpleCommand | undefined)[];
   /** The simple commands whose arguments are not data, a reader's heredoc body still on them. */
   commands: ISimpleCommand[];
+  /** Every simple command of the line, data too, in the parser's order. */
+  parsed: ISimpleCommand[];
   /** Part of the line was not read: the guard asks. */
   isOverBudget: boolean;
   /** Part of the line could not be followed to its end: the guard asks. */
@@ -144,7 +161,12 @@ export class CommandView {
     const commands = parsed.commands.filter(
       (command) => !CommandView.isDataOnly({ command, withMessages: opts.withMessages }),
     );
-    const isWholeLine = PIPED_INTO_RUNNER.test(text);
+    // Read from the commands, not the text, so a `| sh` in a comment or in quotes feeds nothing.
+    const isWholeLine = parsed.commands.some(
+      (command) =>
+        command.input?.pipedFrom !== undefined &&
+        PIPE_RUNNERS.has(ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name })),
+    );
     const texts = isWholeLine
       ? [text]
       : parsed.commands.map((command) =>
@@ -156,6 +178,7 @@ export class CommandView {
       texts,
       sources,
       commands,
+      parsed: parsed.commands,
       isOverBudget: parsed.isOverBudget,
       isUncertain: parsed.isUncertain,
       hasUnknownProgram: parsed.hasUnknownProgram,

@@ -1,21 +1,12 @@
-import { spawnSync } from 'node:child_process';
 import { ShellParser, ShellUnread } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IGitHit, IGitRunner } from './common/index.ts';
+import { GitQueries } from './git-queries.ts';
 import { ProjectGuards } from './project-guards.ts';
 
-/** `git` and `gh` read-only queries the guard makes; `undefined` when the tool is missing, slow or fails. */
-const runQuery: IGitRunner = (opts) => {
-  const result = spawnSync(opts.program, opts.args, {
-    cwd: opts.cwd,
-    encoding: 'utf8',
-    timeout: HookConstants.QUERY_TIMEOUT_MS,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
-  });
-
-  return result.status === 0 ? result.stdout.trim() : undefined;
-};
+/** `git` and `gh` read-only queries the guard makes, inert (`GitQueries`); `undefined` when the tool is missing, slow or fails. */
+const runQuery: IGitRunner = (opts) => GitQueries.run(opts);
 
 /** Options of `git` before its subcommand, and how many words each takes. */
 const GIT_OPTIONS_WITH_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace']);
