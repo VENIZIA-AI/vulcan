@@ -67,6 +67,8 @@ const PIPED_INTO_RUNNER =
 export interface ICommandView {
   /** One text per simple command, as `CommandView.commandTextsOf` gives them. */
   texts: string[];
+  /** The simple command behind each of `texts`; `undefined` for a whole line that pipes into a runner. */
+  sources: (ISimpleCommand | undefined)[];
   /** The simple commands whose arguments are not data, a reader's heredoc body still on them. */
   commands: ISimpleCommand[];
   /** Part of the line was not read: the guard asks. */
@@ -138,12 +140,14 @@ export class CommandView {
     const commands = parsed.commands.filter(
       (command) => !CommandView.isDataOnly({ command, withMessages: opts.withMessages }),
     );
-    const texts = PIPED_INTO_RUNNER.test(text)
+    const isWholeLine = PIPED_INTO_RUNNER.test(text);
+    const texts = isWholeLine
       ? [text]
       : parsed.commands.map((command) =>
           CommandView.textOf({ command, withMessages: opts.withMessages }),
         );
+    const sources = isWholeLine ? [undefined] : parsed.commands;
 
-    return { texts, commands, isOverBudget: parsed.isOverBudget };
+    return { texts, sources, commands, isOverBudget: parsed.isOverBudget };
   }
 }

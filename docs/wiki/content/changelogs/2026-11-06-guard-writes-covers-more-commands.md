@@ -19,11 +19,16 @@ packages: ['@venizia/vulcan']
 - **Scripts.** The hook reads these scripts:
   - `.js`, `.mjs` and `.cjs` files and shell scripts run through `bun`, `node`, `bash`, `sh` or a relative path;
   - the `bun run <name>` script of the nearest `package.json`;
-  - the code given to `-e` or `--eval`.
+  - the code given to `-e` or `--eval`;
+  - a file run with `source` or `.`;
+  - a file a shell reads on its input: `bash < file`, `bash -s < file`, `cat file | bash`, `bash <(cat file)`, `bash -c "$(cat file)"` and `eval "$(cat file)"`.
 
-  Shell scripts and `package.json` scripts are checked like a command line, up to three levels deep.
-- **Limits.** The hook asks when a command line is over the parser's budget, a script is over 1 MB, or scripts run each other deeper than three levels.
-- **Reads.** `kubectl get`, `docker ps`, a plain `curl`, `psql -c 'SELECT 1'`, `bun test` and `bash -n` pass without a question.
+  Shell scripts and `package.json` scripts are checked like a command line, up to three levels deep. Each shell (`bash`, `sh`, `zsh`, `dash`, `ksh`) has its own option table, so `bash -e deploy.sh` reads `deploy.sh`. A file read as code is read again as shell when a shell runs it.
+- **What it cannot see asks.** A shell that reads commands from another program (`curl ... | bash`, `eval "$(tool env)"`) or from the terminal asks. So does `curl -K` or `--config`, because the file can set the method and the body.
+- **Files.** A compiled program is recognised by its first bytes (ELF, Mach-O, PE) and is not read. Any other file that is not text, or cannot be opened, asks. A NUL byte in a text script reads as a blank.
+- **Shared parser.** The guards that read commands share these readings: `ksh` is a shell, `-c` is found after other options and in a cluster, `<(...)` is one word, and `<<<` is a here-string.
+- **Limits.** The hook asks when a command line is over the parser's budget, a script is over 1 MB, scripts run each other deeper than three levels, or one call reads more than its budget: 4 MB, 1,000,000 characters of shell, 100 files or 2 seconds. Each `package.json` is parsed once per call. The reason lists the first 20 findings and counts the rest.
+- **Reads.** `kubectl get`, `kubectl rollout status` and `history`, `docker ps`, a plain `curl`, `curl -G` with `-d`, `psql -c 'SELECT 1'`, `bun test` and `bash -n` pass without a question. So does a call of `kubectl`, `helm`, `docker compose`, `curl`, `drizzle-kit` or `prisma`, run by its own name, with `--help`, `-h` or `--dry-run` (`--dry-run=none` still asks). In a code script, `truncate` counts as SQL in the shape of a statement: `TRUNCATE TABLE`, an upper-case `TRUNCATE <name>`, or a whole string such as `'truncate users'`.
 
 ## Who is affected
 
