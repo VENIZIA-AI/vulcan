@@ -971,3 +971,458 @@ describe('the guard-writes hook, on the workspace files a project may have', () 
     expect(result).toEqual({ code: 0, decision: '' });
   });
 });
+
+describe('the guard-writes hook, on the deploy, cloud, migration and request tools it knows', () => {
+  const root = createProject({
+    files: {
+      'manage.py': 'import sys\nprint(sys.argv)\n',
+      artisan: "<?php\necho 'artisan';\n",
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'terraform apply',
+    'terraform -chdir=infra apply -auto-approve',
+    'tofu destroy',
+    'terraform import aws_instance.web i-123',
+    'terraform taint aws_instance.web',
+    'terraform state rm aws_instance.web',
+    'pulumi up --yes',
+    'pulumi destroy',
+    'pulumi refresh',
+    'ansible-playbook site.yml',
+    "ansible all -m shell -a 'rm -rf /var/cache/app'",
+    "ansible web -m copy -a 'src=a dest=b'",
+    "ansible web -a 'systemctl restart app'",
+    'flyctl deploy',
+    'fly deploy --remote-only',
+    'fly scale count 2',
+    'fly secrets set TOKEN=x',
+    'fly apps destroy web',
+    'vercel --prod',
+    'vercel deploy',
+    'netlify deploy --prod',
+    'wrangler deploy',
+    'wrangler publish',
+    'wrangler delete',
+    'wrangler secret put TOKEN',
+    'gcloud run deploy web --image gcr.io/p/web',
+    'gcloud compute instances delete vm-1',
+    'gcloud projects set-iam-policy p policy.json',
+    'az group create -n rg -l westeurope',
+    'az webapp deploy --src-path app.zip',
+    'az vm delete -n vm-1',
+    'aws s3 rm s3://bucket/key',
+    'aws s3 sync ./dist s3://bucket',
+    'aws s3 cp report.csv s3://bucket/report.csv',
+    'aws ec2 delete-security-group --group-id sg-1',
+    'aws --region eu-west-1 lambda update-function-code --function-name f --zip-file fileb://f.zip',
+    'aws s3api put-object --bucket b --key k',
+    'aws cloudformation deploy --template-file t.yml --stack-name s',
+    'cdk deploy',
+    'npx cdk destroy',
+    'helmfile apply',
+    'helmfile -e prod sync',
+    'argocd app sync web',
+    'argocd app delete web',
+    'skaffold run',
+    'skaffold deploy',
+    'docker stack deploy -c stack.yml web',
+    'docker stack rm web',
+    'docker service create --name web nginx',
+    'docker service scale web=3',
+    'docker swarm init',
+    'kubectl edit deployment/web',
+    'kubectl run debug --image=busybox',
+    'kubectl label pod web tier=front',
+    'kubectl annotate pod web note=x',
+    'kubectl drain node-1',
+    'kubectl cordon node-1',
+    'kubectl uncordon node-1',
+    'kubectl taint nodes node-1 key=value:NoSchedule',
+    'kubectl expose deployment web --port=80',
+    'oc apply -f x.yaml',
+    'oc -n prod delete pod web',
+    'redis-cli FLUSHALL',
+    'redis-cli -h cache -p 6379 flushdb',
+    'redis-cli DEL session:1',
+    'redis-cli SET key value',
+    'redis-cli HSET user:1 name x',
+    'redis-cli EXPIRE key 10',
+    'redis-cli CONFIG SET maxmemory 1mb',
+    'redis-cli SHUTDOWN',
+    'dropdb app',
+    'createdb app',
+    'pg_restore -d app dump.custom',
+    'createuser bob',
+    'dropuser bob',
+    'mysqladmin -u root drop app',
+    'mysqladmin create app',
+    'mysqladmin shutdown',
+    'mongorestore dump/',
+    'mongoimport --db app --collection users users.json',
+    'knex migrate:latest',
+    'npx knex migrate:rollback',
+    'npx typeorm migration:run',
+    'typeorm migration:revert',
+    'alembic upgrade head',
+    'alembic -c alembic.ini downgrade -1',
+    'alembic stamp head',
+    'python manage.py migrate',
+    'python3 manage.py flush',
+    './manage.py loaddata fixtures.json',
+    'flyway migrate',
+    'flyway -url=jdbc:postgresql://db/app clean',
+    'goose -dir db/migrations postgres "user=app dbname=app" up',
+    'goose down',
+    'dbmate up',
+    'dbmate drop',
+    'supabase db push',
+    'supabase db reset',
+    'drizzle-kit up',
+    'drizzle-kit drop',
+    'drizzle-kit push --config drizzle.config.ts',
+    'bunx prisma migrate resolve --applied 20240101_init',
+    'npx sequelize-cli db:seed:all',
+    'sequelize db:migrate',
+    'rails db:drop',
+    'bundle exec rails db:seed',
+    'php artisan migrate',
+    'php artisan migrate:fresh',
+    "wget --post-data 'name=x' https://example.dev/v1/x",
+    'wget --post-file body.json https://example.dev/v1/x',
+    'wget --method=DELETE https://example.dev/v1/x',
+    'wget --method PUT https://example.dev/v1/x',
+    'http POST example.dev/v1/x name=x',
+    'https PUT example.dev/v1/x name=x',
+    'xh DELETE example.dev/v1/x',
+    'http --form POST example.dev/v1/x name=x',
+    'gh api -X POST repos/o/r/issues',
+    'gh api --method=PATCH repos/o/r',
+    'gh api repos/o/r/issues -f title=x',
+    "gh api graphql -f query='mutation { addStar(input: {}) { clientMutationId } }'",
+    'gh api repos/o/r/rulesets --input ruleset.json',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    'terraform plan',
+    'terraform show',
+    'tofu validate',
+    'terraform state list',
+    'terraform apply -help',
+    'pulumi preview',
+    'pulumi stack ls',
+    'ansible-playbook site.yml --check',
+    'ansible-playbook -C site.yml',
+    'ansible-playbook --syntax-check site.yml',
+    'ansible all -m ping',
+    'fly status',
+    'fly logs',
+    'fly scale show',
+    'fly secrets list',
+    'vercel ls',
+    'vercel build --prod',
+    'tar -a -cf out.tar.gz dist',
+    'uname -a',
+    'aws s3 cp -a s3://bucket/report.csv .',
+    'netlify status',
+    'wrangler tail',
+    'gcloud config list',
+    'gcloud compute instances list',
+    'gcloud run services describe web',
+    'az group list',
+    'az account show',
+    'aws s3 ls',
+    'aws s3 ls s3://bucket/delete-me/',
+    'aws sts get-caller-identity',
+    'aws s3 cp s3://bucket/report.csv .',
+    'aws ec2 describe-instances',
+    'aws s3 sync ./dist s3://bucket --dryrun',
+    'cdk diff',
+    'cdk synth',
+    'helmfile diff',
+    'helmfile template',
+    'argocd app list',
+    'argocd app get web',
+    'skaffold build',
+    'docker stack ls',
+    'docker service ls',
+    'docker service logs web',
+    'docker swarm join-token worker',
+    'kubectl get pods',
+    'kubectl describe pod web',
+    'kubectl logs web',
+    'kubectl auth can-i delete pods',
+    'kubectl config set-context dev',
+    'oc get pods',
+    'oc status',
+    'redis-cli GET x',
+    'redis-cli ping',
+    "redis-cli -h cache KEYS 'session:*'",
+    'redis-cli --help',
+    'pg_restore -l dump.custom',
+    'pg_dump app -f backup.sql',
+    'createdb --help',
+    'mysqladmin status',
+    'mysqladmin -u root processlist',
+    'mongodump --db app',
+    'mongoimport --help',
+    'knex migrate:status',
+    'knex migrate:make add_users',
+    'typeorm migration:show',
+    'alembic history',
+    'alembic current',
+    'alembic revision -m add_users',
+    'python manage.py showmigrations',
+    'python manage.py makemigrations',
+    'python3 -m http.server --help',
+    'flyway info',
+    'flyway validate',
+    'goose status',
+    'goose create add_users sql',
+    'dbmate status',
+    'dbmate new add_users',
+    'supabase db diff',
+    'supabase status',
+    'drizzle-kit generate',
+    'prisma migrate status',
+    'prisma generate',
+    'php artisan migrate:status',
+    'rails routes',
+    'wget https://example.dev/v1/x',
+    'wget -O page.html https://example.dev/',
+    'http GET example.dev/v1/x',
+    'http example.dev/v1/x',
+    'xh example.dev/v1/x',
+    'curl https://example.dev/v1/x',
+    'gh api repos/o/r',
+    'gh api -X GET search/issues -f q=x',
+    "gh api graphql -f query='query { viewer { login } }'",
+    'gh api repos/o/r/pulls --paginate',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+
+  test('reads a line of thousands of options well under a second', () => {
+    const start = performance.now();
+
+    WriteGuard.inspectCommand({ command: `ansible all ${'-x '.repeat(30_000)}`, cwd: root });
+    WriteGuard.inspectCommand({ command: `psql -c "merge ${'/* '.repeat(30_000)}"`, cwd: root });
+
+    expect(performance.now() - start).toBeLessThan(1000);
+  });
+
+  test('names the cloud action in the reason', () => {
+    const [hit] = WriteGuard.inspectCommand({ command: 'terraform apply', cwd: root });
+
+    expect(hit?.rule).toBe('V-W-03');
+    expect(hit?.message).toBe('deploying or changing cloud resources');
+  });
+});
+
+describe('the guard-writes hook, on the SQL a database client is given', () => {
+  const root = createProject({
+    files: { 'drop.js': 'db.users.drop();\n', 'q.sql': 'select 1;\n' },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    "mariadb -e 'DELETE FROM t'",
+    'mysql -e"DELETE FROM t"',
+    'psql -c"DROP TABLE t"',
+    "psql -qc'DELETE FROM t'",
+    "psql -c 'DELETE/**/FROM t'",
+    "psql -c 'TRUNCATE t;'",
+    "psql -c 'merge into t using s on t.id = s.id when matched then do nothing'",
+    "psql -c 'CALL refresh_all()'",
+    `psql -c "COPY users FROM '/srv/users.csv'"`,
+    "psql -c 'COPY users (id, name) FROM STDIN'",
+    "mysql -e 'REPLACE INTO t VALUES (1)'",
+    "psql -c 'GRANT ALL ON t TO bob'",
+    "psql -c 'ALTER TABLE t ADD c int'",
+    'psql -c "$SQL"',
+    'psql -c "$(cat q.sql)"',
+    'mysql -e "`cat q.sql`"',
+    'psql --command="$SQL"',
+    "psql -c '\\i repair.sql'",
+    "mysql -e 'source repair.sql'",
+    'sqlite3 app.db',
+    'sqlite3 app.db < q.sql',
+    'cat q.sql | sqlite3 app.db',
+    'sqlite3 app.db ".read q.sql"',
+    'sqlite3 app.db "DELETE FROM t"',
+    'sqlite3 app.db ".import users.csv users"',
+    'sqlite3 -init q.sql app.db .tables',
+    'mongosh drop.js',
+    'mongosh mongodb://db/app drop.js',
+    'mongosh --file drop.js',
+    "mongosh --eval 'db.runCommand({ dropDatabase: 1 })'",
+    "mongosh --eval 'db.users.drop()'",
+    "mongosh --eval 'db.users.createIndex({ a: 1 })'",
+    'cat drop.js | mongosh',
+    'mariadb app <<EOF\nDELETE FROM t;\nEOF',
+    'mariadb app < q.sql',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    "psql -c 'COPY (SELECT * FROM users) TO STDOUT'",
+    "psql -c 'COPY users TO STDOUT'",
+    `psql -c "SELECT replace(name, 'a', 'b') FROM t"`,
+    'mysql -e"SELECT 1"',
+    "psql -qc'SELECT 1'",
+    "mariadb -e 'SELECT 1'",
+    'psql -c "SELECT created_at FROM t"',
+    `psql -c "SELECT * FROM t WHERE status = 'update'"`,
+    'sqlite3 app.db "SELECT count(*) FROM t"',
+    'sqlite3 app.db .tables',
+    'sqlite3 -version',
+    "mongosh --eval 'db.users.find()'",
+    'mongosh --version',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+});
+
+describe('the guard-writes hook, on the commands and requests a code script makes', () => {
+  const root = createProject({
+    files: {
+      'spawn.ts': "Bun.spawnSync(['kubectl', 'apply', '-f', 'k8s/']);\n",
+      'spawn-curl.ts':
+        "const url = 'https://example.dev/v1/x';\nBun.spawn(['curl', '-X', 'POST', url]);\n",
+      'exec.js':
+        "const { execSync } = require('node:child_process');\nexecSync('terraform apply -auto-approve');\n",
+      'exec-file.js':
+        "const cp = require('node:child_process');\ncp.execFileSync('helm', ['upgrade', '--install', 'web', './chart']);\n",
+      'shell-tag.ts': 'const name = "web";\nawait Bun.$`kubectl delete pod ${name}`;\n',
+      'zx.mjs': "import { $ } from 'zx';\nawait $`aws s3 rm s3://bucket/key`;\n",
+      'deno.ts': "await new Deno.Command('flyctl', { args: ['deploy'] }).output();\n",
+      'system.py': "import os\nos.system('redis-cli FLUSHALL')\n",
+      'subprocess.py': "import subprocess\nsubprocess.run(['dropdb', 'app'])\n",
+      'axios.ts': "import axios from 'axios';\nawait axios.post('https://example.dev/v1/x', {});\n",
+      'got.ts': "import got from 'got';\nawait got.delete('https://example.dev/v1/x');\n",
+      'ky.ts': "import ky from 'ky';\nawait ky.put('https://example.dev/v1/x');\n",
+      'superagent.js':
+        "const superagent = require('superagent');\nawait superagent.patch('https://example.dev/v1/x');\n",
+      'http-request.js':
+        "const https = require('node:https');\nhttps.request('https://example.dev/v1/x', { method: 'POST' }).end();\n",
+      'new-request.ts':
+        "await fetch(new Request('https://example.dev/v1/x', { method: 'PUT' }));\n",
+      'glob-then-delete.ts':
+        "const pattern = 'src/**/*.ts';\nawait fetch('https://example.dev/v1/x', { method: 'DELETE' });\n",
+      'hash-in-string.py':
+        "import requests\nurl = 'https://example.dev/v1/x#part'\nrequests.post(url)\n",
+      'sql-template.ts': 'const table = "users";\nawait sql`DELETE FROM ${table} WHERE id = 1`;\n',
+      'sql-string.py': 'cursor.execute("UPDATE users SET name = %s", ("x",))\n',
+      'router.ts':
+        "app.post('/users', create);\nrouter.delete('/users/:id', remove);\nexport {};\n",
+      'comment-sql.ts':
+        '// DELETE FROM users when the flag is set\n/* DROP TABLE users */\nconst flag = 1;\nconsole.log(flag);\n',
+      'comment-http.js': "// await axios.post('https://example.dev/v1/x')\nconsole.log(1);\n",
+      'comment-spawn.py': "# subprocess.run(['dropdb', 'app'])\nprint(1)\n",
+      'prose.ts': "console.log('run kubectl apply when the review is done');\n",
+      'spawn-read.ts': "Bun.spawnSync(['kubectl', 'get', 'pods']);\n",
+      'regex-exec.ts': "const match = /kubectl apply/.exec('text');\nconsole.log(match);\n",
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'bun spawn.ts',
+    'bun spawn-curl.ts',
+    'node exec.js',
+    'node exec-file.js',
+    'bun shell-tag.ts',
+    'node zx.mjs',
+    'deno run deno.ts',
+    'python3 system.py',
+    'python3 subprocess.py',
+    'bun axios.ts',
+    'bun got.ts',
+    'bun ky.ts',
+    'node superagent.js',
+    'node http-request.js',
+    'bun new-request.ts',
+    'bun glob-then-delete.ts',
+    'python3 hash-in-string.py',
+    'bun sql-template.ts',
+    'python3 sql-string.py',
+    `bun -e "Bun.spawnSync(['kubectl', 'apply', '-f', 'x'])"`,
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    'bun router.ts',
+    'bun comment-sql.ts',
+    'node comment-http.js',
+    'python3 comment-spawn.py',
+    'bun prose.ts',
+    'bun spawn-read.ts',
+    'bun regex-exec.ts',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+
+  test('names the command a script runs in the reason', () => {
+    const [hit] = WriteGuard.inspectCommand({ command: 'bun spawn.ts', cwd: root });
+
+    expect(hit?.message).toBe('spawn.ts looks like it is deploying or hot-applying to a cluster');
+  });
+});
+
+describe('the guard-writes hook, on the code entry files a package script names', () => {
+  const SERVER =
+    "app.post('/users', create);\nawait fetch('https://example.dev/v1/x', { method: 'POST' });\n";
+  const DEPLOY = "Bun.spawnSync(['kubectl', 'apply', '-f', 'k8s/']);\n";
+  const root = createProject({
+    files: {
+      'package.json': JSON.stringify({
+        name: 'web',
+        scripts: {
+          dev: 'bun src/server.ts',
+          ship: 'bun scripts/ship.ts',
+          migrate: 'bun src/migrate.ts',
+          release: 'node src/release-web.js',
+          tool: 'bun tools/run.ts',
+        },
+      }),
+      'src/server.ts': SERVER,
+      'src/migrate.ts': 'await sql`DROP TABLE users`;\n',
+      'src/release-web.js': DEPLOY,
+      'scripts/ship.ts': DEPLOY,
+      'tools/run.ts': DEPLOY,
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'bun run ship',
+    'bun run migrate',
+    'bun run release',
+    'bun run tool',
+    'bun src/server.ts',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test('stays silent for a dev server a package script starts', async () => {
+    const result = await runHook({ command: 'bun run dev' });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+});

@@ -8,12 +8,15 @@ import {
   statSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { TConstValue } from '../common/types.ts';
 import { HookConstants } from './common/index.ts';
 import { TrustStates } from './common/index.ts';
 import type { IHookCommand, IReadOnlyScript, IWriteCheck, IWriteHit } from './common/index.ts';
+import { CodeLanguages, CodeText } from './code-text.ts';
+import type { ICodeText, TCodeLanguage } from './code-text.ts';
 import { CommandView } from './command-view.ts';
+import type { ICommandView } from './command-view.ts';
 import { HookDecision } from './decision.ts';
 import type { IProjectCommandCheck } from './project-guards.ts';
 import { PackageManagers } from './package-managers.ts';
@@ -21,6 +24,7 @@ import type { IPackageCall } from './package-managers.ts';
 import { ScriptRunners } from './script-runners.ts';
 import { ShellFolders } from './shell-folders.ts';
 import { ShellWrites } from './shell-writes.ts';
+import { WriteCommands } from './write-commands.ts';
 import type { IShellFolder } from './shell-folders.ts';
 import { ShellModes, ShellParser, ShellPrograms } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
@@ -28,131 +32,71 @@ import { ReadOnlyScripts, ScriptPaths, ScriptTrust } from './trusted-scripts.ts'
 
 const MUTATING_VERB = '(?:POST|PUT|PATCH|DELETE)';
 
-/** The options a program takes before its verb (`kubectl -n prod apply`), each with or without a value. */
-const OPTIONS = String.raw`(?:\s+-\S+(?:\s+[^\s-]\S*)?)*`;
-
-/** A verb ends at a blank, a quote or an operator, so `set` is not `set-context`. */
-const VERB_END = String.raw`(?=[\s"';|&)]|$)`;
-
-/** A program name starts a word: `ssh` is not `sh`, `deploy.sh` is not `sh`. */
-const PROGRAM_START = String.raw`(?:^|[^\w.-])`;
-
-/** curl's short options that take no value: in a cluster such as `-sd x`, the letters before the one that does. */
-const CURL_SWITCHES = '0-9:#aBfgGhiIjJklLMnNOpqRsSvVZ';
-
-const verbAfterOptions = (opts: { program: string; verbs: string[] }): string =>
-  `${PROGRAM_START}${opts.program}${OPTIONS}\\s+(?:${opts.verbs.join('|')})${VERB_END}`;
-
-const COMPOSE_VERBS = ['up', 'down', 'restart'];
-
-/** `kubectl rollout status` and `rollout history` only read; every other `rollout` changes the cluster. */
-const KUBECTL_ROLLOUT = `rollout(?!${OPTIONS}\\s+(?:status|history)${VERB_END})`;
-
-/** A request body sent with `-d` or `--data*`. With `-G` (`--get`) curl sends that data in the URL of a GET. */
-const CURL_DATA_CHECK: IWriteCheck = {
+/**
+ * A code script hides its real work inside the file, so the file is read too; so is the text of `-e`. A request
+ * counts when a client call carries a mutating method: `method: 'POST'` in its options, `axios.post(`, a
+ * method then a path (`api('POST', '/x')`), `.request('POST', ...)`.
+ */
+const REQUEST_CHECK: IWriteCheck = {
   rule: 'V-W-02',
   what: 'calling an endpoint that mutates data',
-  pattern: new RegExp(String.raw`\bcurl\b[^|]*\s(?:-[${CURL_SWITCHES}]*d|--data\b)`),
+  pattern: new RegExp(
+    [
+      `method\\s*:\\s*['"\`]${MUTATING_VERB}['"\`]`,
+      String.raw`\b(?:axios|got|ky|superagent|request|requests|httpx|needle|wretch)\s*\.\s*(?:post|put|patch|delete|del)\s*\(`,
+      `['"\`]${MUTATING_VERB}['"\`]\\s*,\\s*['"\`]/`,
+      `\\.request\\s*\\(\\s*['"\`]${MUTATING_VERB}['"\`]`,
+      String.raw`\bNet::HTTP::(?:Post|Put|Patch|Delete)\b`,
+    ].join('|'),
+    'i',
+  ),
 };
 
-/** Ordered by how much damage the action does. */
-const COMMAND_CHECKS: IWriteCheck[] = [
-  {
-    rule: 'V-W-03',
-    what: 'deploying or hot-applying to a cluster',
-    pattern: new RegExp(
-      [
-        verbAfterOptions({
-          program: 'kubectl',
-          verbs: ['apply', 'patch', 'delete', 'scale', KUBECTL_ROLLOUT, 'create', 'replace', 'set'],
-        }),
-        verbAfterOptions({ program: `docker${OPTIONS}\\s+compose`, verbs: COMPOSE_VERBS }),
-        verbAfterOptions({ program: 'docker-compose', verbs: COMPOSE_VERBS }),
-        verbAfterOptions({
-          program: 'helm',
-          verbs: ['upgrade', 'install', 'rollback', 'uninstall', 'delete'],
-        }),
-        verbAfterOptions({ program: String.raw`\.\/kc`, verbs: ['apply', 'patch', 'delete'] }),
-      ].join('|'),
-    ),
-  },
-  {
-    rule: 'V-W-02',
-    what: 'running a migration instead of handing it to the human',
-    pattern:
-      /\bdb:migrate\b|\bmigrate:(dev|local|alpha|develop)\b|drizzle-kit\s+(push|migrate)\b|make\s+db-migrate\b|\bprisma\s+(?:migrate\s+(?:deploy|dev|reset)|db\s+(?:push|execute))\b/,
-  },
+/** SQL in a string of a code script, in the shape of a statement, all upper case or all lower case. */
+const SQL_STRING_CHECKS: IWriteCheck[] = [
   {
     rule: 'V-W-02',
     what: 'writing to a database',
     pattern:
-      /\b(psql|mysql|mongosh|sqlite3)\b[^|]*?\b(insert|update|delete|truncate|drop|alter|create|grant|revoke)\s|\bmongosh\b[^|]*?\.(?:insert|update|delete|remove|replace|drop|bulkWrite|findOneAnd|findAndModify|createCollection|createIndex|renameCollection)\w*\s*\(/i,
+      /(?:^|;)\s*(?:INSERT\s+INTO\s|UPDATE\s+\S+\s+SET\s|DELETE\s+FROM\s|TRUNCATE\s+(?:TABLE\s+|ONLY\s+)?["\w]|DROP\s+(?:TABLE|DATABASE|SCHEMA)\b|ALTER\s+TABLE\s|(?:MERGE|REPLACE)\s+INTO\s)/,
   },
+  // `truncate` is a common word: in lower case it counts with `table`, or as a whole statement (`truncate users`).
   {
     rule: 'V-W-02',
-    what: 'writing to a database through a SQL file whose contents this check cannot see',
-    pattern: /\b(psql|mysql)\b[^|]*\s-f\s|\bpsql\b[^|]*\s(?:-[aAbeEHlnqsStwWxX0-9z]*f|--file\b)/,
-  },
-  CURL_DATA_CHECK,
-  {
-    rule: 'V-W-02',
-    what: 'calling an endpoint that mutates data',
-    pattern: new RegExp(
-      String.raw`\bcurl\b[^|]*\s(?:-[${CURL_SWITCHES}]*[FT]|--(?:json|form|upload-file)\b)`,
-    ),
-  },
-  {
-    rule: 'V-W-02',
-    what: 'calling an endpoint that mutates data',
-    pattern: new RegExp(
-      String.raw`\bcurl\b[^|]*\s(?:-[${CURL_SWITCHES}]*X\s*|--request(?:=|\s+))['"]?(?:${MUTATING_VERB}|post|put|patch|delete)\b`,
-    ),
-  },
-  {
-    rule: 'V-W-02',
-    what: 'calling an endpoint with options read from a file this check cannot see',
-    pattern: new RegExp(String.raw`\bcurl\b[^|]*\s(?:-[${CURL_SWITCHES}]*K|--config\b)`),
+    what: 'writing to a database',
+    pattern:
+      /(?:^|;)\s*(?:insert\s+into\s|update\s+\S+\s+set\s|delete\s+from\s|truncate\s+(?:table\s+\S|(?:only\s+)?["\w.]+\s*(?:;|$|\b(?:cascade|restart|continue)\b))|drop\s+(?:table|database|schema)\b|alter\s+table\s|(?:merge|replace)\s+into\s)/,
   },
 ];
 
-/** A local script hides its real work inside the file, so the file is read too; so is the text of `-e`. */
-const SCRIPT_CHECKS: IWriteCheck[] = [
-  {
-    rule: 'V-W-02',
-    what: 'calling an endpoint that mutates data',
-    pattern: new RegExp(
-      [
-        `method\\s*:\\s*['"\`]${MUTATING_VERB}['"\`]`,
-        '\\.(?:post|put|patch|delete)\\s*\\(',
-        `['"\`]${MUTATING_VERB}['"\`]\\s*,\\s*['"\`]/`,
-      ].join('|'),
-      'i',
-    ),
-  },
-  {
-    rule: 'V-W-02',
-    what: 'calling an endpoint that mutates data',
-    pattern: new RegExp(`^(?=[\\s\\S]*\\bfetch\\s*\\()[\\s\\S]*['"\`]${MUTATING_VERB}['"\`]`, 'i'),
-  },
-  {
-    rule: 'V-W-02',
-    what: 'writing to a database',
-    pattern:
-      /\b(INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|TRUNCATE\s+TABLE|DROP\s+TABLE|ALTER\s+TABLE)\b/i,
-  },
-  // `truncate` is a common word in code: it counts as SQL in the shape of a statement, with `TABLE`, in upper
-  // case, or as a whole string (`'truncate users'`, `"truncate users cascade"`).
-  {
-    rule: 'V-W-02',
-    what: 'writing to a database',
-    pattern: /\bTRUNCATE\s+(?:ONLY\s+)?["`]?[A-Za-z_][\w.]*/,
-  },
-  {
-    rule: 'V-W-02',
-    what: 'writing to a database',
-    pattern: /['"`]\s*truncate\s+(?:only\s+)?["\w.]+\s*(?:['"`;]|(?:cascade|restart|continue)\b)/i,
-  },
-];
+/**
+ * A call that runs a command, its arguments up to the first `)` (strings masked, see `CodeText`): `Bun.spawn`,
+ * `child_process`, `execa`, `Deno.Command`, Python's `subprocess` and `os.system`, and `system`.
+ * A method of another object (`regex.exec(`) is not one.
+ */
+const SPAWN_CALL = new RegExp(
+  String.raw`(?:\bBun\s*\.\s*spawn(?:Sync)?|\bnew\s+Deno\s*\.\s*Command|\bsubprocess\s*\.\s*(?:run|call|Popen|check_call|check_output)|(?:\bos\s*\.\s*|(?<![\w$.]))system|(?:\b(?:child_process|childProcess|cp)\s*\.\s*|(?<![\w$.]))(?:spawn|spawnSync|exec|execSync|execFile|execFileSync|execa|execaSync|execaCommand|execaCommandSync))\s*\(([^)]{0,2000})`,
+  'g',
+);
+
+/** A tagged template that runs its text as a shell line: `Bun.$\`...\`` and zx's `$\`...\``. */
+const SHELL_TAG = /(?:\bBun\s*\.\s*\$|(?<![\w$.])\$)\s*\uE000(\d+)\uE001/g;
+
+/** A string masked by `CodeText`. */
+const MASKED_STRING = /\uE000(\d+)\uE001/g;
+
+/** The runners and extensions of scripts with `#` comments. */
+const HASH_RUNNERS = new Set(['python', 'python3', 'ruby', 'perl']);
+const HASH_EXTENSIONS = new Set(['.py', '.rb', '.pl', '.pm']);
+
+/**
+ * A code file a package script names is read only when it looks like an operation: it lives in one of these
+ * folders, or its name says so. A plain `bun run dev` of a web app is not read.
+ */
+class EntryFiles {
+  static readonly FOLDERS = new Set(['scripts', 'bin', 'tools', 'ops', 'deploy', 'migrations']);
+  static readonly NAME = /deploy|migrate|seed|release|publish|provision|rollout/i;
+}
 
 /** How a script file is read: as JavaScript or TypeScript for the script checks, or as shell, command by command. */
 class ScriptKinds {
@@ -201,26 +145,6 @@ class WriteBudget {
   static readonly MAX_MILLISECONDS = 2000;
 }
 
-/** The covered tools for which `--help`, `-h` or a `--dry-run` make a call that changes nothing. */
-class InertCalls {
-  static readonly PROGRAMS = new Set([
-    'kubectl',
-    'kc',
-    'helm',
-    'docker',
-    'docker-compose',
-    'curl',
-    'drizzle-kit',
-    'prisma',
-  ]);
-  static readonly HELP = new Set(['--help', '-h']);
-  static readonly DRY_RUN = '--dry-run';
-  /** `kubectl --dry-run=none` runs for real. */
-  static readonly LIVE_DRY_RUNS = new Set(['none', 'false']);
-  /** `-G` and `--get`, alone or in a cluster of curl's switches (`-sG`). */
-  static readonly CURL_GET = new RegExp(`^(?:--get$|-[${CURL_SWITCHES}]*G)`);
-}
-
 const CODE_EXTENSIONS = new Set(ScriptRunners.CODE_EXTENSIONS);
 const SHELL_EXTENSIONS = new Set(['.sh', '.bash', '.zsh']);
 const SHELL_RUNNERS = new Set(ShellPrograms.SHELL_NAMES);
@@ -242,9 +166,6 @@ class ScriptPlaces {
   ];
   /** A folder of installed tools: a program under it is a known tool, whatever its first bytes. */
   static readonly TOOL_FOLDERS = new Set(['bin', 'sbin', 'libexec', 'node_modules']);
-  /** `npm start` and `pnpm start` with no `start` script run `node server.js`. */
-  static readonly START_FILE = 'server.js';
-  static readonly START_MANAGERS = new Set(['npm', 'pnpm']);
 }
 
 /**
@@ -252,16 +173,6 @@ class ScriptPlaces {
  * The guard cannot tell which file such a word names.
  */
 const isUnresolvedWord = (opts: { word: string }): boolean => /[$`*?[{]|^~/.test(opts.word);
-
-/** Database clients that read SQL from stdin when no SQL is on the line, and the option that puts it there. */
-const SQL_CLIENTS: Record<string, RegExp> = {
-  psql: /^(?:-[aAbeEHlnqsStwWxX0-9z]*c|--command(?:=|$))/,
-  mysql: /^(?:-e|--execute(?:=|$))/,
-  mariadb: /^(?:-e|--execute(?:=|$))/,
-};
-
-/** The options that make a database client only print something and read no SQL. */
-const SQL_CLIENT_INFO = new Set(['-l', '--list', '-V', '--version', '--help', '-?']);
 
 const UNSEEN_INPUT =
   'running shell commands that come from a pipe or the terminal, which this check cannot see';
@@ -355,6 +266,8 @@ interface IInspectState {
   work: IInspectWork;
   /** False when the folder the command line runs in is not known (after a `cd` the guard cannot work out). */
   isCwdKnown: boolean;
+  /** The line is a package script: a code file it names is read only when it looks like an operation. */
+  isPackageScript: boolean;
 }
 
 interface IInspectOptions {
@@ -395,7 +308,10 @@ export class WriteGuard {
       deadline: performance.now() + WriteBudget.MAX_MILLISECONDS,
       isOver: false,
     };
-    const hits = WriteGuard.inspectAt({ ...opts, state: { depth: 0, work, isCwdKnown: true } });
+    const hits = WriteGuard.inspectAt({
+      ...opts,
+      state: { depth: 0, work, isCwdKnown: true, isPackageScript: false },
+    });
 
     // Part of the work was not done: never an allow. First, so the reason shows it.
     if (work.isOver) {
@@ -447,24 +363,9 @@ export class WriteGuard {
     // of an `rg` and a commit message are data.
     const view = CommandView.viewOf({ command: opts.command, withMessages: true });
     const { texts } = view;
-    const fixed = COMMAND_CHECKS.filter((check) =>
-      texts.some(
-        (text, index) =>
-          WriteGuard.isCheckedOn({ check, command: view.sources[index] }) &&
-          check.pattern.test(text),
-      ),
+    const hits: IWriteHit[] = WriteGuard.commandChecksOf({ view, extra: opts.extra }).map(
+      (check) => ({ rule: check.rule, message: check.what }),
     );
-    const project = (opts.extra ?? [])
-      .map((check) => ({
-        rule: check.rule,
-        what: `${check.what} (this project's pattern)`,
-        pattern: check.pattern,
-      }))
-      .filter((check) => texts.some((text) => check.pattern.test(text)));
-    const hits: IWriteHit[] = [...fixed, ...project].map((check) => ({
-      rule: check.rule,
-      message: check.what,
-    }));
 
     // Part of the line was not read: never an allow.
     if (view.isOverBudget) {
@@ -477,8 +378,8 @@ export class WriteGuard {
 
     for (const command of view.commands) {
       hits.push(
-        ...WriteGuard.inspectSqlInput({ command }),
-        ...WriteGuard.inspectInline({ command }),
+        ...WriteCommands.inspectClient({ command }),
+        ...WriteGuard.inspectInline({ command, extra: opts.extra, work }),
       );
     }
 
@@ -536,7 +437,12 @@ export class WriteGuard {
       }
     }
 
-    const targets = sources.flatMap((source) => source.targets);
+    const targets = sources
+      .flatMap((source) => source.targets)
+      .filter(
+        (target) =>
+          !opts.state.isPackageScript || WriteGuard.isOperationFile({ target, root: work.root }),
+      );
     // A `bun x.ts` call counts for `readOnlyScripts` only when the shell's own words give the same scripts in the
     // same order; any other line (a script named in an argument, a pipe into a runner) is read as a whole.
     const calls = targets.filter(
@@ -578,6 +484,7 @@ export class WriteGuard {
             command: text,
             cwd: source.at.base,
             isCwdKnown: source.at.isKnown,
+            isPackageScript: opts.state.isPackageScript,
             label: `the text fed to ${source.label}`,
           }),
         );
@@ -588,67 +495,145 @@ export class WriteGuard {
   }
 
   /**
-   * Whether a fixed check applies to the text of `command`: not to a call of a covered tool that only prints
-   * its help or runs dry, and the request-body check not to a `curl -G`. A whole line (no command) always counts.
+   * The table's checks that match what a command line runs, and the project's own patterns. A check of the
+   * table does not apply to a call of its program that changes nothing (`--help`, `--dry-run`, `curl -G`); a
+   * whole line that pipes into a runner (no command behind it) always counts.
    */
-  private static isCheckedOn(opts: {
-    check: IWriteCheck;
-    command: ISimpleCommand | undefined;
-  }): boolean {
-    if (opts.command === undefined) {
+  private static commandChecksOf(opts: {
+    view: ICommandView;
+    extra: IProjectCommandCheck[] | undefined;
+  }): IWriteCheck[] {
+    const { texts, sources } = opts.view;
+    const fixed = WriteCommands.CHECKS.filter((check) =>
+      texts.some((text, index) => {
+        const command = sources[index];
+
+        if (command === undefined) {
+          return check.pattern.test(text);
+        }
+
+        const { name, args } = ShellParser.programOf({ command });
+        const program = ShellParser.basenameOf({ word: name });
+
+        return WriteCommands.isLive({ check, program, args }) && check.pattern.test(text);
+      }),
+    );
+    const project = (opts.extra ?? [])
+      .map((check) => ({
+        rule: check.rule,
+        what: `${check.what} (this project's pattern)`,
+        pattern: check.pattern,
+      }))
+      .filter((check) => texts.some((text) => check.pattern.test(text)));
+
+    return [...fixed, ...project];
+  }
+
+  /**
+   * What a code script, or the code of an eval option, looks like it does: a request with a mutating method
+   * in its code (comments left out), SQL in the shape of a statement in its strings, and the commands it runs
+   * (`Bun.spawn`, `child_process`, `Bun.$`, `subprocess`, ...) through the command table.
+   */
+  private static codeChecksOf(opts: {
+    text: string;
+    language: TCodeLanguage;
+    extra: IProjectCommandCheck[] | undefined;
+    work: IInspectWork;
+  }): IWriteCheck[] {
+    const read = CodeText.readOf({ text: opts.text, language: opts.language });
+    const checks: IWriteCheck[] = [];
+
+    if (REQUEST_CHECK.pattern.test(read.code)) {
+      checks.push(REQUEST_CHECK);
+    }
+
+    checks.push(
+      ...SQL_STRING_CHECKS.filter((check) =>
+        read.strings.some((string) => check.pattern.test(string.text)),
+      ),
+    );
+
+    for (const command of WriteGuard.commandsOf({ read, language: opts.language })) {
+      opts.work.spent.chars += command.length;
+
+      if (WriteGuard.isSpent({ work: opts.work })) {
+        break;
+      }
+
+      checks.push(
+        ...WriteGuard.commandChecksOf({
+          view: CommandView.viewOf({ command, withMessages: true }),
+          extra: opts.extra,
+        }),
+      );
+    }
+
+    return checks;
+  }
+
+  /**
+   * The command lines a code script gives to a call that runs them: the strings among a call's arguments
+   * joined by blanks (`spawn('helm', ['upgrade', ...])` is `helm upgrade ...`), the text of a shell tag, and
+   * a backtick command of Ruby or Perl. A variable among the arguments is left out.
+   */
+  private static commandsOf(opts: { read: ICodeText; language: TCodeLanguage }): string[] {
+    const { read } = opts;
+    const textOf = (index: string | undefined): string => read.strings[Number(index)]?.text ?? '';
+    const commands = [
+      ...[...read.masked.matchAll(SPAWN_CALL)].map((call) =>
+        [...(call[1] ?? '').matchAll(MASKED_STRING)].map((token) => textOf(token[1])).join(' '),
+      ),
+      ...[...read.masked.matchAll(SHELL_TAG)]
+        .filter((tag) => read.strings[Number(tag[1])]?.isBacktick === true)
+        .map((tag) => textOf(tag[1])),
+      ...(opts.language === CodeLanguages.HASH
+        ? read.strings.filter((string) => string.isBacktick).map((string) => string.text)
+        : []),
+    ];
+
+    return commands.filter((command) => command.trim() !== '');
+  }
+
+  /**
+   * Whether a package script's target is read: a shell script always; a code file only under one of
+   * `EntryFiles.FOLDERS`, or with a name of `EntryFiles.NAME`.
+   */
+  private static isOperationFile(opts: { target: IScriptTarget; root: string }): boolean {
+    const { target } = opts;
+    const isCode =
+      target.kind === ScriptKinds.CODE ||
+      (target.kind === undefined && CODE_EXTENSIONS.has(extname(target.word)));
+
+    if (!isCode) {
       return true;
     }
 
-    const { name, args } = ShellParser.programOf({ command: opts.command });
-    const program = ShellParser.basenameOf({ word: name });
-    const isInert =
-      InertCalls.PROGRAMS.has(program) &&
-      args.some(
-        (word) =>
-          InertCalls.HELP.has(word) ||
-          word === InertCalls.DRY_RUN ||
-          (word.startsWith(`${InertCalls.DRY_RUN}=`) &&
-            !InertCalls.LIVE_DRY_RUNS.has(word.slice(InertCalls.DRY_RUN.length + 1))),
-      );
+    const path = ScriptPaths.physicalOf({ path: resolve(target.folder, target.word) });
+    const folders = relative(opts.root, path).split(sep).slice(0, -1);
 
-    if (isInert) {
-      return false;
-    }
-
-    return !(
-      opts.check === CURL_DATA_CHECK &&
-      program === 'curl' &&
-      args.some((word) => InertCalls.CURL_GET.test(word))
+    return (
+      folders.some((folder) => EntryFiles.FOLDERS.has(folder)) ||
+      EntryFiles.NAME.test(basename(path))
     );
   }
 
-  /** A database client fed SQL the line does not show: from a pipe, a `<` file or the terminal. */
-  private static inspectSqlInput(opts: { command: ISimpleCommand }): IWriteHit[] {
-    const { name, args } = ShellParser.programOf({ command: opts.command });
-    const inline = SQL_CLIENTS[ShellParser.basenameOf({ word: name })];
-
-    if (
-      inline === undefined ||
-      opts.command.heredoc !== undefined ||
-      args.some((word) => inline.test(word) || SQL_CLIENT_INFO.has(word))
-    ) {
-      return [];
-    }
-
-    return [
-      {
-        rule: 'V-W-02',
-        message:
-          'writing to a database through SQL that comes from a pipe or a file, which this check cannot see',
-      },
-    ];
+  /** How a script's comments and strings are written: `#` for Python, Ruby and Perl, else JavaScript's. */
+  private static languageOf(opts: { word: string; runner?: string }): TCodeLanguage {
+    return HASH_EXTENSIONS.has(extname(opts.word)) ||
+      (opts.runner !== undefined && HASH_RUNNERS.has(opts.runner))
+      ? CodeLanguages.HASH
+      : CodeLanguages.C_LIKE;
   }
 
   /**
    * The code a runner's eval option runs (`bun -e`, `node --eval`, `deno eval`, `python -c`), and the heredoc a
-   * runner reads, through the script checks.
+   * runner reads, through the code checks.
    */
-  private static inspectInline(opts: { command: ISimpleCommand }): IWriteHit[] {
+  private static inspectInline(opts: {
+    command: ISimpleCommand;
+    extra: IProjectCommandCheck[] | undefined;
+    work: IInspectWork;
+  }): IWriteHit[] {
     const { name, args } = ShellParser.programOf({ command: opts.command });
     const program = ShellParser.basenameOf({ word: name });
 
@@ -660,13 +645,16 @@ export class WriteGuard {
       ...ScriptRunners.callOf({ program, args }).evals,
       ...(opts.command.heredoc === undefined ? [] : [opts.command.heredoc]),
     ];
+    const language = WriteGuard.languageOf({ word: '', runner: program });
 
-    return SCRIPT_CHECKS.filter((check) => texts.some((text) => check.pattern.test(text))).map(
-      (check) => ({
+    return texts
+      .flatMap((text) =>
+        WriteGuard.codeChecksOf({ text, language, extra: opts.extra, work: opts.work }),
+      )
+      .map((check) => ({
         rule: check.rule,
         message: `the inline script looks like it is ${check.what}`,
-      }),
-    );
+      }));
   }
 
   /**
@@ -1329,7 +1317,12 @@ export class WriteGuard {
 
       if (kind === ScriptKinds.CODE) {
         hits.push(
-          ...SCRIPT_CHECKS.filter((check) => check.pattern.test(text)).map((check) => ({
+          ...WriteGuard.codeChecksOf({
+            text,
+            language: WriteGuard.languageOf({ word: target, runner: file.runner }),
+            extra: opts.extra,
+            work,
+          }).map((check) => ({
             rule: check.rule,
             message: `${target} looks like it is ${check.what}${note}`,
           })),
@@ -1344,6 +1337,7 @@ export class WriteGuard {
           command: text,
           cwd: file.folder,
           isCwdKnown: true,
+          isPackageScript: false,
           label: target,
         }).map((hit) => ({
           rule: hit.rule,
@@ -1456,6 +1450,7 @@ export class WriteGuard {
           command: text,
           cwd: home,
           isCwdKnown: true,
+          isPackageScript: true,
           label,
         });
       });
@@ -1481,24 +1476,9 @@ export class WriteGuard {
       return [];
     }
 
+    // `npm start` with no `start` runs `node server.js`: a code entry file, not read, like any a package script names.
     if (call.isLifecycle) {
-      const start = join(opts.home, ScriptPlaces.START_FILE);
-
-      return name === 'start' &&
-        ScriptPlaces.START_MANAGERS.has(call.manager) &&
-        WriteGuard.isFile({ path: start })
-        ? WriteGuard.inspectFile({
-            ...opts,
-            file: {
-              word: ScriptPlaces.START_FILE,
-              kind: ScriptKinds.CODE,
-              folder: opts.home,
-              subcommand: undefined,
-              moved: true,
-            },
-            entries: [],
-          })
-        : [];
+      return [];
     }
 
     if (
@@ -1749,7 +1729,13 @@ export class WriteGuard {
 
   /** The command checks on a script one level deeper; past `MAX_SCRIPT_DEPTH` the guard asks instead of reading on. */
   private static inspectNested(
-    opts: IInspectOptions & { state: IInspectState; label: string; isCwdKnown: boolean },
+    opts: IInspectOptions & {
+      state: IInspectState;
+      label: string;
+      isCwdKnown: boolean;
+      /** The text is a package script, or what one feeds a shell. */
+      isPackageScript: boolean;
+    },
   ): IWriteHit[] {
     if (opts.state.depth >= HookConstants.MAX_SCRIPT_DEPTH) {
       return [
@@ -1765,7 +1751,12 @@ export class WriteGuard {
       cwd: opts.cwd,
       trust: opts.trust,
       extra: opts.extra,
-      state: { depth: opts.state.depth + 1, work: opts.state.work, isCwdKnown: opts.isCwdKnown },
+      state: {
+        depth: opts.state.depth + 1,
+        work: opts.state.work,
+        isCwdKnown: opts.isCwdKnown,
+        isPackageScript: opts.isPackageScript,
+      },
     }).map((hit) => ({
       rule: hit.rule,
       message: `${opts.label} runs what looks like ${hit.message}`,

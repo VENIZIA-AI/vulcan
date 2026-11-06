@@ -149,7 +149,9 @@ describe("the project's patterns see the request of gh api, gh secret and gh var
     ['under cd and &&', 'cd x && gh secret set X'],
     ['under sudo', 'sudo gh secret delete X'],
   ])('%s asks with the pattern', (_label, command) => {
-    expect(hitsOf({ command, extra: GH })).toEqual([expect.stringContaining('V-W-03')]);
+    expect(hitsOf({ command, extra: GH })).toContainEqual(
+      expect.stringMatching(/^V-W-03: .*\(this project's pattern\)$/),
+    );
   });
 
   test.each([
