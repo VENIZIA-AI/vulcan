@@ -1099,11 +1099,6 @@ describe('the guard-writes hook, on the deploy, cloud, migration and request too
     'https PUT example.dev/v1/x name=x',
     'xh DELETE example.dev/v1/x',
     'http --form POST example.dev/v1/x name=x',
-    'gh api -X POST repos/o/r/issues',
-    'gh api --method=PATCH repos/o/r',
-    'gh api repos/o/r/issues -f title=x',
-    "gh api graphql -f query='mutation { addStar(input: {}) { clientMutationId } }'",
-    'gh api repos/o/r/rulesets --input ruleset.json',
   ])('asks for %p', async (command) => {
     const result = await runHook({ command });
     expect(result).toEqual({ code: 0, decision: 'ask' });
@@ -1200,10 +1195,6 @@ describe('the guard-writes hook, on the deploy, cloud, migration and request too
     'http example.dev/v1/x',
     'xh example.dev/v1/x',
     'curl https://example.dev/v1/x',
-    'gh api repos/o/r',
-    'gh api -X GET search/issues -f q=x',
-    "gh api graphql -f query='query { viewer { login } }'",
-    'gh api repos/o/r/pulls --paginate',
   ])('stays silent for %p', async (command) => {
     const result = await runHook({ command });
     expect(result).toEqual({ code: 0, decision: '' });

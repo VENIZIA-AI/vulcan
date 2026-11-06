@@ -445,19 +445,6 @@ export class WriteCommands {
       inert: '^(?:--help|--offline)$',
       ignoreCase: true,
     },
-    {
-      rule: 'V-W-02',
-      what: REQUEST,
-      programs: ['gh'],
-      // A mutating method; or fields, which make a POST, unless the method is GET or it is a GraphQL query.
-      pattern: [
-        String.raw`${OPTIONS}\s+api\b${REST}\s(?:-X\s*|--method(?:=|\s+))['"]?${MUTATING_METHOD}\b`,
-        String.raw`${OPTIONS}\s+api\b(?!${REST}\s(?:-X\s*|--method(?:=|\s+))['"]?(?:GET|get|HEAD|head)\b)(?!${REST}\sgraphql(?=\s)(?!${REST}\bmutation\b))${REST}\s(?:-[fF]|--(?:field|raw-field|input)\b)`,
-      ]
-        .map((alternative) => `(?:${alternative})`)
-        .join('|'),
-      inert: INERT,
-    },
   ];
 
   /**
