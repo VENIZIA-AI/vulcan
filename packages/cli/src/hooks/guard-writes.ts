@@ -1,5 +1,14 @@
-import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
-import { dirname, extname, isAbsolute, join, resolve } from 'node:path';
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  readSync,
+  statSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import type { TConstValue } from '../common/types.ts';
 import { HookConstants } from './common/index.ts';
 import { TrustStates } from './common/index.ts';
@@ -7,6 +16,12 @@ import type { IHookCommand, IReadOnlyScript, IWriteCheck, IWriteHit } from './co
 import { CommandView } from './command-view.ts';
 import { HookDecision } from './decision.ts';
 import type { IProjectCommandCheck } from './project-guards.ts';
+import { PackageManagers } from './package-managers.ts';
+import type { IPackageCall } from './package-managers.ts';
+import { ScriptRunners } from './script-runners.ts';
+import { ShellFolders } from './shell-folders.ts';
+import { ShellWrites } from './shell-writes.ts';
+import type { IShellFolder } from './shell-folders.ts';
 import { ShellModes, ShellParser, ShellPrograms } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { ReadOnlyScripts, ScriptPaths, ScriptTrust } from './trusted-scripts.ts';
@@ -152,7 +167,9 @@ type TScriptKind = typeof ScriptKinds.CODE | typeof ScriptKinds.SHELL;
 /** What reading a script file gave. */
 class ReadStates {
   static readonly TEXT = 'text';
-  /** Missing, a folder, a pipe, or a compiled program: there is no script to read. */
+  /** Nothing is at the path. */
+  static readonly MISSING = 'missing';
+  /** A folder, a pipe, or a compiled program: there is no script to read. */
   static readonly NONE = 'none';
   static readonly TOO_LARGE = 'too-large';
   /** The file could not be opened, or is not text. */
@@ -204,39 +221,37 @@ class InertCalls {
   static readonly CURL_GET = new RegExp(`^(?:--get$|-[${CURL_SWITCHES}]*G)`);
 }
 
-const CODE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']);
+const CODE_EXTENSIONS = new Set(ScriptRunners.CODE_EXTENSIONS);
 const SHELL_EXTENSIONS = new Set(['.sh', '.bash', '.zsh']);
-const CODE_RUNNERS = new Set(['bun', 'node', 'deno']);
 const SHELL_RUNNERS = new Set(ShellPrograms.SHELL_NAMES);
 
 /** The builtins that run a file in the current shell. */
 const SOURCE_COMMANDS = new Set(['source', '.']);
 
-/** The options of `bun`, `node` and `deno` whose value is the next word, so that word is not the script. */
-const RUNNER_VALUE_OPTIONS = new Set([
-  '-r',
-  '--require',
-  '--preload',
-  '--import',
-  '--loader',
-  '--experimental-loader',
-  '-C',
-  '--conditions',
-  '--cwd',
-  '--env-file',
-  '--config',
-  '--filter',
-  '-o',
-  '--rcfile',
-  '--init-file',
-  '-e',
-  '--eval',
-  '-p',
-  '--print',
-]);
+/** Where the project's files end and installed tools begin, for a script word that is an absolute path. */
+class ScriptPlaces {
+  /** The system folders an installed program lives under. */
+  static readonly SYSTEM_PREFIXES = [
+    '/usr',
+    '/bin',
+    '/opt',
+    '/nix',
+    '/System',
+    '/Library',
+    '/Applications',
+  ];
+  /** A folder of installed tools: a program under it is a known tool, whatever its first bytes. */
+  static readonly TOOL_FOLDERS = new Set(['bin', 'sbin', 'libexec', 'node_modules']);
+  /** `npm start` and `pnpm start` with no `start` script run `node server.js`. */
+  static readonly START_FILE = 'server.js';
+  static readonly START_MANAGERS = new Set(['npm', 'pnpm']);
+}
 
-/** The options that make `bun`, `node` and `deno` run the next word as code. */
-const EVAL_OPTIONS = new Set(['-e', '--eval', '-p', '--print']);
+/**
+ * Whether a script word is not a plain path: a variable or a substitution, a glob or brace pattern, or `~`.
+ * The guard cannot tell which file such a word names.
+ */
+const isUnresolvedWord = (opts: { word: string }): boolean => /[$`*?[{]|^~/.test(opts.word);
 
 /** Database clients that read SQL from stdin when no SQL is on the line, and the option that puts it there. */
 const SQL_CLIENTS: Record<string, RegExp> = {
@@ -252,8 +267,8 @@ const UNSEEN_INPUT =
   'running shell commands that come from a pipe or the terminal, which this check cannot see';
 const UNSEEN_PRINTED = 'running commands that another command prints, which this check cannot see';
 
-const extractScriptTargets = (opts: { command: string }): string[] =>
-  [...opts.command.matchAll(/\bbun\s+(?:run\s+)?(\S+\.ts)\b/g)].map((match) => match[1]);
+/** A `bun x.ts` call anywhere in the text, arguments included: `readOnlyScripts` pairs only a line where each is a call. */
+const BUN_TS_MENTION = /\bbun\s+(?:run\s+)?(\S+\.ts)\b/g;
 
 /**
  * The files a script word can mean. `bun x.ts` opens the path as the OS does, following a link before a `..`;
@@ -266,36 +281,37 @@ const scriptPathsOf = (opts: { target: string; cwd: string }): string[] => [
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
 
-/** A script file a command runs, or a `bun run` name that the nearest package.json resolves. */
+/** A script file a command runs, and the folder its word is taken from. */
 interface IScriptTarget {
   word: string;
   /** The runner says how to read it (`bash x`); `undefined` leaves it to the extension and the first line. */
   kind?: TScriptKind;
-  isPackageScript: boolean;
+  /** The program that runs it (`node`, `bun`), for the extensions it adds to a word that names no file. */
+  runner?: string;
+  folder: string;
+}
+
+/** A call of a package manager that runs scripts of a package.json, and the folder it runs in. */
+interface IPackageRun {
+  call: IPackageCall;
+  folder: string;
 }
 
 /**
- * Where the code a simple command runs comes from: script files, shell text the line shows (`echo ... | sh`),
- * or, in `unseen`, the reason the guard cannot see it.
+ * Where the code a simple command runs comes from: script files, package scripts, shell text the line shows
+ * (`echo ... | sh`), and, in `unseen`, each reason the guard cannot see part of it.
  */
 interface ICodeSource {
   targets: IScriptTarget[];
+  runs: IPackageRun[];
   texts: string[];
   /** The command the texts are fed to, for the reason of a hit. */
   label: string;
-  unseen?: string;
+  unseen: string[];
 }
 
-/** What a command prints, when the line shows it: the files `cat` prints, the words `echo` prints. */
-interface IPrinted {
-  targets: IScriptTarget[];
-  texts: string[];
-}
-
-/** One file to read: the word, the word after it (for `readOnlyScripts`), and whether a `cd` came first. */
-interface IFileTarget {
-  word: string;
-  kind?: TScriptKind;
+/** One file to read: the target, the word after it (for `readOnlyScripts`), and whether a `cd` came first. */
+interface IFileTarget extends IScriptTarget {
   subcommand: string | undefined;
   moved: boolean;
 }
@@ -306,16 +322,28 @@ interface IScriptRead {
   text?: string;
 }
 
+/** The packages of a workspace: its root folder and the patterns that list them. */
+interface IWorkspace {
+  root: string;
+  patterns: string[];
+}
+
 /** The work of one call of the guard, shared by every level of scripts it reads. */
 interface IInspectWork {
+  /** The project: an absolute script word outside it is not the project's own. */
+  root: string;
   /** The files (by path and kind) and package scripts already read: each is read once. */
   seen: Set<string>;
   /** Each file is read from disk once, by path. */
   reads: Map<string, IScriptRead>;
-  /** The `scripts` of each package.json, parsed once, by path. */
-  manifests: Map<string, unknown>;
+  /** Each package.json, parsed once, by path; `undefined` when it cannot be read. */
+  manifests: Map<string, Record<string, unknown> | undefined>;
   /** The package.json nearest each folder. */
   nearest: Map<string, string | undefined>;
+  /** Whether `node_modules/.bin` holds a name, by folder and name. */
+  bins: Map<string, boolean>;
+  /** The workspace each folder is in, `undefined` for none. */
+  workspaces: Map<string, IWorkspace | undefined>;
   spent: { bytes: number; chars: number; files: number };
   /** `performance.now()` past which the guard reads nothing more. */
   deadline: number;
@@ -325,6 +353,8 @@ interface IInspectWork {
 interface IInspectState {
   depth: number;
   work: IInspectWork;
+  /** False when the folder the command line runs in is not known (after a `cd` the guard cannot work out). */
+  isCwdKnown: boolean;
 }
 
 interface IInspectOptions {
@@ -334,6 +364,14 @@ interface IInspectOptions {
   /** The project's own commands (`guard.writes.commands`), checked beside the fixed list. */
   extra?: IProjectCommandCheck[];
 }
+
+const sourceOf = (opts: { label: string }): ICodeSource => ({
+  targets: [],
+  runs: [],
+  texts: [],
+  label: opts.label,
+  unseen: [],
+});
 
 export class WriteGuard {
   /**
@@ -346,15 +384,18 @@ export class WriteGuard {
    */
   static inspectCommand(opts: IInspectOptions): IWriteHit[] {
     const work: IInspectWork = {
+      root: ScriptPaths.physicalOf({ path: resolve(opts.trust?.root ?? opts.cwd) }),
       seen: new Set(),
       reads: new Map(),
       manifests: new Map(),
       nearest: new Map(),
+      bins: new Map(),
+      workspaces: new Map(),
       spent: { bytes: 0, chars: 0, files: 0 },
       deadline: performance.now() + WriteBudget.MAX_MILLISECONDS,
       isOver: false,
     };
-    const hits = WriteGuard.inspectAt({ ...opts, state: { depth: 0, work } });
+    const hits = WriteGuard.inspectAt({ ...opts, state: { depth: 0, work, isCwdKnown: true } });
 
     // Part of the work was not done: never an allow. First, so the reason shows it.
     if (work.isOver) {
@@ -441,14 +482,8 @@ export class WriteGuard {
       );
     }
 
-    const targets = extractScriptTargets({ command: texts.join('\n') });
     const entries = opts.trust?.readOnlyScripts ?? [];
-    // A subcommand counts only when the shell's own words give the same scripts in the same order as the text
-    // does; any other line (a script named in an argument, a pipe into a runner) is read as a whole.
     const invocations = ReadOnlyScripts.extractInvocations({ command: opts.command });
-    const isPaired =
-      invocations.length === targets.length &&
-      invocations.every((invocation, index) => invocation.script === targets[index]);
     const hasMoving = texts.some((text) =>
       ShellParser.parse({ command: text }).some((command) =>
         ReadOnlyScripts.MOVING_COMMANDS.has(
@@ -456,40 +491,83 @@ export class WriteGuard {
         ),
       ),
     );
-    const sources = view.commands.map((command) => WriteGuard.codeOf({ command }));
+    const cwd = resolve(opts.cwd);
+    // Every command counts for the folders, data too: an `echo "$(bash x)"` carries a line that runs.
+    const started = ShellFolders.foldersOf({
+      commands: view.parsed,
+      cwd,
+      pwd: opts.state.isCwdKnown ? cwd : undefined,
+      isKnown: opts.state.isCwdKnown,
+      home: process.env.HOME ?? '',
+      env: {},
+    });
+    const folderOf = new Map(view.parsed.map((command, index) => [command, started[index]]));
+    // A script the line itself writes (`> x.sh`, `tee`, `cp`) holds what the line puts there, not what is on disk now.
+    const written = new Set(
+      view.parsed.flatMap((command, index) => {
+        const at = started[index];
+
+        return at === undefined
+          ? []
+          : ShellWrites.targetsOf({ command, base: at.base, tmp: tmpdir() }).flatMap((target) => {
+              const expanded = ShellFolders.expandPath({
+                word: target.word,
+                home: process.env.HOME ?? '',
+                env: {},
+                cwd: at.pwd,
+              });
+
+              return expanded === undefined
+                ? []
+                : [ScriptPaths.physicalOf({ path: resolve(target.base, expanded) })];
+            });
+      }),
+    );
+    const fallback: IShellFolder = { base: cwd, pwd: cwd, isKnown: opts.state.isCwdKnown };
+    const sources = view.commands.map((command) => {
+      const at = folderOf.get(command) ?? fallback;
+
+      return { ...WriteGuard.codeOf({ command, at, root: work.root }), at };
+    });
 
     for (const source of sources) {
-      if (source.unseen !== undefined) {
-        hits.push({ rule: 'V-W-02', message: source.unseen });
+      for (const message of source.unseen) {
+        hits.push({ rule: 'V-W-02', message });
       }
     }
 
-    const others = sources
-      .flatMap((source) => source.targets)
-      .filter((target) => !targets.includes(target.word));
-    const files: IFileTarget[] = [
-      ...targets.map((word, index): IFileTarget => ({
-        word,
-        kind: ScriptKinds.CODE,
-        subcommand: isPaired ? invocations[index]?.subcommand : undefined,
-        moved: isPaired ? invocations[index]?.moved === true : hasMoving,
-      })),
-      ...others
-        .filter((target) => !target.isPackageScript)
-        .map((target): IFileTarget => ({
-          word: target.word,
-          kind: target.kind,
-          subcommand: undefined,
-          moved: hasMoving,
-        })),
-    ];
+    const targets = sources.flatMap((source) => source.targets);
+    // A `bun x.ts` call counts for `readOnlyScripts` only when the shell's own words give the same scripts in the
+    // same order; any other line (a script named in an argument, a pipe into a runner) is read as a whole.
+    const calls = targets.filter(
+      (target) => target.runner === 'bun' && target.word.endsWith('.ts'),
+    );
+    const mentioned = [...texts.join('\n').matchAll(BUN_TS_MENTION)].map((match) => match[1]);
+    const isPaired =
+      invocations.length === calls.length &&
+      mentioned.length === calls.length &&
+      invocations.every(
+        (invocation, index) =>
+          invocation.script === calls[index]?.word && invocation.script === mentioned[index],
+      );
+    const files = targets.map((target): IFileTarget => {
+      const at = calls.indexOf(target);
+      const invocation = isPaired && at !== -1 ? invocations[at] : undefined;
+      const isMoved = invocation === undefined ? hasMoving : invocation.moved === true;
+
+      return {
+        ...target,
+        subcommand: invocation?.subcommand,
+        moved: isMoved || target.folder !== cwd,
+      };
+    });
 
     for (const file of files) {
-      hits.push(...WriteGuard.inspectFile({ ...opts, file, entries }));
+      hits.push(...WriteGuard.inspectFile({ ...opts, file, entries, written }));
     }
 
-    for (const target of others.filter((other) => other.isPackageScript)) {
-      hits.push(...WriteGuard.inspectPackageScript({ ...opts, name: target.word }));
+    for (const run of sources.flatMap((source) => source.runs)) {
+      hits.push(...WriteGuard.inspectPackageRun({ ...opts, run }));
     }
 
     for (const source of sources) {
@@ -498,6 +576,8 @@ export class WriteGuard {
           ...WriteGuard.inspectNested({
             ...opts,
             command: text,
+            cwd: source.at.base,
+            isCwdKnown: source.at.isKnown,
             label: `the text fed to ${source.label}`,
           }),
         );
@@ -564,27 +644,20 @@ export class WriteGuard {
     ];
   }
 
-  /** The code `bun -e`, `node --eval` and `deno eval` run, and the heredoc a runner reads, through the script checks. */
+  /**
+   * The code a runner's eval option runs (`bun -e`, `node --eval`, `deno eval`, `python -c`), and the heredoc a
+   * runner reads, through the script checks.
+   */
   private static inspectInline(opts: { command: ISimpleCommand }): IWriteHit[] {
     const { name, args } = ShellParser.programOf({ command: opts.command });
     const program = ShellParser.basenameOf({ word: name });
 
-    if (!CODE_RUNNERS.has(program)) {
+    if (!Object.hasOwn(ScriptRunners.TABLES, program)) {
       return [];
     }
 
-    const evaluated = args.flatMap((word, index) => {
-      if (EVAL_OPTIONS.has(word)) {
-        return args.slice(index + 1, index + 2);
-      }
-
-      const at = word.indexOf('=');
-
-      return at > 0 && EVAL_OPTIONS.has(word.slice(0, at)) ? [word.slice(at + 1)] : [];
-    });
     const texts = [
-      ...evaluated,
-      ...(program === 'deno' && args[0] === 'eval' ? args.slice(1) : []),
+      ...ScriptRunners.callOf({ program, args }).evals,
       ...(opts.command.heredoc === undefined ? [] : [opts.command.heredoc]),
     ];
 
@@ -596,67 +669,44 @@ export class WriteGuard {
     );
   }
 
-  /** Whether an option of `bun`, `node` or `deno` takes the next word as its value. */
-  private static takesValue(opts: { word: string }): boolean {
-    return RUNNER_VALUE_OPTIONS.has(opts.word) || /^-[a-zA-Z]*[oO]$/.test(opts.word);
-  }
-
-  /** The options of a runner itself: the option words before its first positional word (the script's own come after). */
-  private static optionsOf(opts: { args: string[] }): string[] {
-    const words: string[] = [];
-
-    for (let index = 0; index < opts.args.length; index += 1) {
-      const word = opts.args[index];
-
-      if (!word.startsWith('-')) {
-        return words;
-      }
-
-      words.push(word);
-      index += WriteGuard.takesValue({ word }) ? 1 : 0;
-    }
-
-    return words;
-  }
-
-  /** The words after a runner that are not options or their values. */
-  private static positionalsOf(opts: { args: string[] }): string[] {
-    const words: string[] = [];
-
-    for (let index = 0; index < opts.args.length; index += 1) {
-      const word = opts.args[index];
-
-      if (word.startsWith('-')) {
-        index += WriteGuard.takesValue({ word }) ? 1 : 0;
-        continue;
-      }
-
-      words.push(word);
-    }
-
-    return words;
-  }
-
   /**
-   * The code a simple command runs, when it is local: `bun x.js`, `bash x.sh`, `source x`, `./x`, a `bun run`
-   * name, the file `cat` feeds a shell, or the text `echo` feeds it. A shell whose commands come from where the
-   * line does not show, and a program that is the output of another command, are `unseen`.
+   * The code a simple command runs, when it is local: `bun x.js`, `bash x.sh`, `source x`, `./x`, a package
+   * script (`bun run`, `npm run`, `pnpm`, `yarn`), the file `cat` feeds a shell, or the text `echo` feeds it.
+   * What the guard cannot see is `unseen`: a shell fed from where the line does not show, a program that is the
+   * output of another command, a script word it cannot resolve, a folder it cannot work out.
    */
-  private static codeOf(opts: { command: ISimpleCommand }): ICodeSource {
+  private static codeOf(opts: {
+    command: ISimpleCommand;
+    at: IShellFolder;
+    root: string;
+  }): ICodeSource {
     const { name, args } = ShellParser.programOf({ command: opts.command });
     const program = ShellParser.basenameOf({ word: name });
-    const none: ICodeSource = { targets: [], texts: [], label: program };
+    const { at } = opts;
+    const none = sourceOf({ label: program });
     const printed = WriteGuard.substitutionOf({ word: name });
 
     // `$(cat x)` as a program: what it prints runs.
     if (printed !== undefined) {
-      return WriteGuard.fromPrinted({ text: printed, label: program });
+      return WriteGuard.fromPrinted({ text: printed, label: program, at });
     }
 
-    if (CODE_RUNNERS.has(program)) {
-      const target = WriteGuard.codeTargetOf({ program, args });
+    if (PackageManagers.isManager({ program })) {
+      return WriteGuard.managerCodeOf({ program, args, at });
+    }
 
-      return { ...none, targets: target === undefined ? [] : [target] };
+    if (Object.hasOwn(ScriptRunners.TABLES, program)) {
+      const { script } = ScriptRunners.callOf({ program, args });
+
+      return script === undefined || script === '-'
+        ? none
+        : WriteGuard.fileCodeOf({
+            word: script,
+            label: program,
+            kind: SHELL_EXTENSIONS.has(extname(script)) ? ScriptKinds.SHELL : ScriptKinds.CODE,
+            runner: program,
+            at,
+          });
     }
 
     if (SHELL_RUNNERS.has(program)) {
@@ -664,10 +714,15 @@ export class WriteGuard {
 
       switch (call.mode) {
         case ShellModes.FILE: {
-          return WriteGuard.fileCodeOf({ word: call.word, label: program });
+          return WriteGuard.fileCodeOf({
+            word: call.word,
+            label: program,
+            kind: ScriptKinds.SHELL,
+            at,
+          });
         }
         case ShellModes.STDIN: {
-          return WriteGuard.inputCodeOf({ command: opts.command, label: program });
+          return WriteGuard.inputCodeOf({ command: opts.command, label: program, at });
         }
         default: {
           // `-c` text is read by the parser as commands of the line; `-n` runs nothing.
@@ -677,92 +732,190 @@ export class WriteGuard {
     }
 
     if (SOURCE_COMMANDS.has(name)) {
-      return WriteGuard.fileCodeOf({ word: args[0], label: name });
+      return WriteGuard.fileCodeOf({ word: args[0], label: name, kind: ScriptKinds.SHELL, at });
     }
 
-    // `./deploy.sh`, `scripts/deploy`: a path run as a program. An absolute path is an installed program.
-    if (
-      name.includes('/') &&
-      !isAbsolute(name) &&
-      !/^[~$]/.test(name) &&
-      !WriteGuard.isInstalled({ word: name })
-    ) {
-      return { ...none, targets: [{ word: name, isPackageScript: false }] };
+    // `./deploy.sh`, `scripts/deploy`: a path run as a program. An absolute path outside the project is an
+    // installed program; a variable as the program is not followed.
+    if (!name.includes('/') || /^[~$]/.test(name) || WriteGuard.isInstalled({ word: name })) {
+      return none;
     }
 
-    return none;
+    if (isAbsolute(name) && !WriteGuard.isInside({ path: name, root: opts.root })) {
+      return none;
+    }
+
+    return { ...none, ...WriteGuard.targetOf({ word: name, label: program, at }) };
   }
 
-  /** The script `bun`, `node` or `deno` runs, or the `bun run` name; `undefined` for none. */
-  private static codeTargetOf(opts: {
+  /**
+   * What a package manager runs: the scripts it names, in the folder its options or the line give, a file
+   * (`bun x.ts`), or shell text (`bun exec`). A name or a folder the guard cannot resolve is `unseen`.
+   */
+  private static managerCodeOf(opts: {
     program: string;
     args: string[];
-  }): IScriptTarget | undefined {
-    const { program, args } = opts;
+    at: IShellFolder;
+  }): ICodeSource {
+    const { program, at } = opts;
+    const none = sourceOf({ label: program });
+    const call = PackageManagers.callOf({ manager: program, args: opts.args });
 
-    if (WriteGuard.optionsOf({ args }).some((word) => EVAL_OPTIONS.has(word.split('=')[0] ?? ''))) {
-      return undefined;
+    if (call === undefined) {
+      return none;
     }
 
-    const [first, second] = WriteGuard.positionalsOf({ args });
-    const isRun = first === 'run';
-    const word = isRun ? second : first;
-
-    if (word === undefined || (!isRun && program !== 'node' && !WriteGuard.isFileWord({ word }))) {
-      return undefined;
+    if (call.unseen !== undefined) {
+      return { ...none, unseen: [call.unseen] };
     }
 
-    if (WriteGuard.isInstalled({ word })) {
-      return undefined;
+    if (call.text !== undefined) {
+      return { ...none, texts: [call.text] };
+    }
+
+    if (call.names.length === 0 && call.file === undefined) {
+      return none;
+    }
+
+    if (call.folder !== undefined && isUnresolvedWord({ word: call.folder })) {
+      return {
+        ...none,
+        unseen: [`${program} runs in ${call.folder}, a folder the guard cannot work out`],
+      };
+    }
+
+    if (!at.isKnown && (call.folder === undefined || !isAbsolute(call.folder))) {
+      return { ...none, unseen: [`${program} runs from a folder the guard cannot work out`] };
+    }
+
+    const folder = call.folder === undefined ? at.base : resolve(at.base, call.folder);
+    const callAt: IShellFolder = { base: folder, pwd: folder, isKnown: true };
+
+    if (call.file !== undefined) {
+      return WriteGuard.fileCodeOf({
+        word: call.file,
+        label: program,
+        kind: SHELL_EXTENSIONS.has(extname(call.file)) ? ScriptKinds.SHELL : ScriptKinds.CODE,
+        runner: program,
+        at: callAt,
+      });
+    }
+
+    const unresolved = call.names.filter(
+      (name) => isUnresolvedWord({ word: name }) || /^\/.*\/$/.test(name),
+    );
+
+    if (unresolved.length > 0) {
+      return {
+        ...none,
+        unseen: unresolved.map(
+          (name) => `${program} runs ${name}, a script name the guard cannot resolve`,
+        ),
+      };
+    }
+
+    return { ...none, runs: [{ call, folder }] };
+  }
+
+  /**
+   * A script word as a target to read, from the folder it is taken from. A word that is not a plain path, or a
+   * relative word in a folder the guard cannot work out, is `unseen`.
+   */
+  private static targetOf(opts: {
+    word: string;
+    kind?: TScriptKind;
+    runner?: string;
+    label: string;
+    at: IShellFolder;
+  }): Pick<ICodeSource, 'targets' | 'unseen'> {
+    const { word, label } = opts;
+
+    if (isUnresolvedWord({ word })) {
+      return {
+        targets: [],
+        unseen: [
+          `${label} runs ${word}, a script named by a variable, a substitution or a pattern, which the guard cannot resolve`,
+        ],
+      };
+    }
+
+    if (!isAbsolute(word) && !opts.at.isKnown) {
+      return {
+        targets: [],
+        unseen: [`${label} runs ${word} from a folder the guard cannot work out`],
+      };
     }
 
     return {
-      word,
-      kind: SHELL_EXTENSIONS.has(extname(word)) ? ScriptKinds.SHELL : ScriptKinds.CODE,
-      isPackageScript: program === 'bun' && isRun && !WriteGuard.isFileWord({ word }),
+      targets: [{ word, kind: opts.kind, runner: opts.runner, folder: opts.at.base }],
+      unseen: [],
     };
   }
 
-  /** A file a shell runs (`bash x`, `source x`); a `<(cat x)` word is what `cat` prints. */
-  private static fileCodeOf(opts: { word: string | undefined; label: string }): ICodeSource {
+  /** A file a runner or a shell runs (`node x`, `bash x`, `source x`); a `<(cat x)` word is what `cat` prints. */
+  private static fileCodeOf(opts: {
+    word: string | undefined;
+    label: string;
+    kind: TScriptKind;
+    runner?: string;
+    at: IShellFolder;
+  }): ICodeSource {
     const { word, label } = opts;
+    const none = sourceOf({ label });
 
     if (word === undefined || WriteGuard.isInstalled({ word })) {
-      return { targets: [], texts: [], label };
+      return none;
     }
 
-    const printed = WriteGuard.substitutionOf({ word });
+    const printed = word.startsWith('<(') ? WriteGuard.substitutionOf({ word }) : undefined;
 
     if (printed !== undefined) {
-      return WriteGuard.fromPrinted({ text: printed, label });
+      return WriteGuard.fromPrinted({ text: printed, label, at: opts.at });
     }
 
-    return { targets: [WriteGuard.shellTarget({ word })], texts: [], label };
+    return { ...none, ...WriteGuard.targetOf({ ...opts, word }) };
   }
 
   /** The commands a shell reads from its standard input: `< file`, a heredoc, a here-string, or what a pipe feeds it. */
-  private static inputCodeOf(opts: { command: ISimpleCommand; label: string }): ICodeSource {
+  private static inputCodeOf(opts: {
+    command: ISimpleCommand;
+    label: string;
+    at: IShellFolder;
+  }): ICodeSource {
     const { input } = opts.command;
-    const { label } = opts;
+    const { label, at } = opts;
+    const none = sourceOf({ label });
 
     if (input === undefined) {
-      return { targets: [], texts: [], label, unseen: UNSEEN_INPUT };
+      return { ...none, unseen: [UNSEEN_INPUT] };
     }
 
-    const targets = input.files.map((word) => WriteGuard.shellTarget({ word }));
-    const texts = [...input.texts];
+    const files = input.files.map((word) =>
+      WriteGuard.targetOf({ word, kind: ScriptKinds.SHELL, label, at }),
+    );
+    const source: ICodeSource = {
+      ...none,
+      targets: files.flatMap((file) => file.targets),
+      texts: [...input.texts],
+      unseen: files.flatMap((file) => file.unseen),
+    };
 
     if (input.pipedFrom === undefined) {
-      return { targets, texts, label };
+      return source;
     }
 
-    const fed = WriteGuard.printedBy({ command: input.pipedFrom });
+    const fed = WriteGuard.printedBy({ command: input.pipedFrom, label, at });
 
     if (fed === undefined) {
-      return { targets, texts, label, unseen: UNSEEN_INPUT };
+      return { ...source, unseen: [...source.unseen, UNSEEN_INPUT] };
     }
 
-    return { targets: [...targets, ...fed.targets], texts: [...texts, ...fed.texts], label };
+    return {
+      ...source,
+      targets: [...source.targets, ...fed.targets],
+      texts: [...source.texts, ...fed.texts],
+      unseen: [...source.unseen, ...fed.unseen],
+    };
   }
 
   /** The text of `$(...)`, of a backtick substitution or of `<(...)` when the word is only that; else `undefined`. */
@@ -773,35 +926,47 @@ export class WriteGuard {
   }
 
   /** The code a substitution prints and something runs: the files of a lone `cat`, the words of a lone `echo`. */
-  private static fromPrinted(opts: { text: string; label: string }): ICodeSource {
+  private static fromPrinted(opts: { text: string; label: string; at: IShellFolder }): ICodeSource {
     const commands = ShellParser.parse({ command: opts.text });
     const [only] = commands;
     const fed =
       commands.length === 1 && only !== undefined && only.input === undefined
-        ? WriteGuard.printedBy({ command: only })
+        ? WriteGuard.printedBy({ command: only, label: opts.label, at: opts.at })
         : undefined;
 
     if (fed === undefined) {
-      return { targets: [], texts: [], label: opts.label, unseen: UNSEEN_PRINTED };
+      return { ...sourceOf({ label: opts.label }), unseen: [UNSEEN_PRINTED] };
     }
 
-    return { targets: fed.targets, texts: fed.texts, label: opts.label };
+    return { ...sourceOf({ label: opts.label }), ...fed };
   }
 
   /**
    * What `command` prints, when the line shows it: the files `cat` prints, or the words of `echo` and `printf`
    * when they hold no variable, substitution or escape. `undefined` for any other command.
    */
-  private static printedBy(opts: { command: ISimpleCommand }): IPrinted | undefined {
+  private static printedBy(opts: {
+    command: ISimpleCommand;
+    label: string;
+    at: IShellFolder;
+  }): Pick<ICodeSource, 'targets' | 'texts' | 'unseen'> | undefined {
     const { name, args } = ShellParser.programOf({ command: opts.command });
     const program = ShellParser.basenameOf({ word: name });
 
     if (program === 'cat') {
-      const files = args.filter((word) => !word.startsWith('-'));
+      const files = args
+        .filter((word) => !word.startsWith('-'))
+        .map((word) =>
+          WriteGuard.targetOf({ word, kind: ScriptKinds.SHELL, label: opts.label, at: opts.at }),
+        );
 
       return files.length === 0 || opts.command.input !== undefined
         ? undefined
-        : { targets: files.map((word) => WriteGuard.shellTarget({ word })), texts: [] };
+        : {
+            targets: files.flatMap((file) => file.targets),
+            texts: [],
+            unseen: files.flatMap((file) => file.unseen),
+          };
     }
 
     if (program !== 'echo' && program !== 'printf') {
@@ -815,11 +980,7 @@ export class WriteGuard {
       return undefined;
     }
 
-    return { targets: [], texts: [text] };
-  }
-
-  private static shellTarget(opts: { word: string }): IScriptTarget {
-    return { word: opts.word, kind: ScriptKinds.SHELL, isPackageScript: false };
+    return { targets: [], texts: [text], unseen: [] };
   }
 
   /** Whether a script word names an installed tool under `node_modules`, not the project's own script. */
@@ -827,13 +988,34 @@ export class WriteGuard {
     return opts.word.split('/').includes('node_modules');
   }
 
-  /** Whether a runner's word names a file (`x.js`, `./x`) rather than a package.json script or a subcommand. */
-  private static isFileWord(opts: { word: string }): boolean {
-    const extension = extname(opts.word);
+  /** Whether `path`, links followed, is `root` or under it. */
+  private static isInside(opts: { path: string; root: string }): boolean {
+    const path = ScriptPaths.physicalOf({ path: opts.path });
 
-    return (
-      opts.word.includes('/') || CODE_EXTENSIONS.has(extension) || SHELL_EXTENSIONS.has(extension)
+    return path === opts.root || path.startsWith(`${opts.root}${sep}`);
+  }
+
+  /**
+   * An absolute script word outside the project: an installed program under a system folder (a compiled one,
+   * or one in a folder of tools) is not read; any other asks, since the guard does not read outside the project.
+   */
+  private static outsideOf(opts: { target: string; work: IInspectWork }): IWriteHit[] {
+    const { target } = opts;
+    const isSystem = ScriptPlaces.SYSTEM_PREFIXES.some(
+      (prefix) => target === prefix || target.startsWith(`${prefix}/`),
     );
+    const isTool = target.split('/').some((segment) => ScriptPlaces.TOOL_FOLDERS.has(segment));
+
+    if (isSystem && (isTool || WriteGuard.isCompiledFile({ path: target, work: opts.work }))) {
+      return [];
+    }
+
+    return [
+      {
+        rule: 'V-W-02',
+        message: `${target} is outside the project, so the guard does not read it`,
+      },
+    ];
   }
 
   /** How to read a script: as the runner said, else by its extension, else by its `#!` line. */
@@ -875,13 +1057,13 @@ export class WriteGuard {
   }
 
   /**
-   * The text of a regular file; a folder, a pipe and a missing path read as nothing, so nothing is opened that
+   * The text of a regular file; a missing path, a folder and a pipe read as nothing, so nothing is opened that
    * can block. A compiled program (known by its first bytes) is not a script and reads as nothing too. A file
    * that cannot be opened or is not UTF-8 text is unreadable; a NUL byte in a text file reads as a blank.
    */
   private static readScript(opts: { path: string }): IScriptRead {
     if (!existsSync(opts.path)) {
-      return { state: ReadStates.NONE };
+      return { state: ReadStates.MISSING };
     }
 
     try {
@@ -955,9 +1137,72 @@ export class WriteGuard {
     }
   }
 
+  /** Whether `path` is a compiled program, from its first bytes; each look counts as a file. */
+  private static isCompiledFile(opts: { path: string; work: IInspectWork }): boolean {
+    opts.work.spent.files += 1;
+
+    try {
+      return WriteGuard.isFile({ path: opts.path }) && WriteGuard.isCompiled({ path: opts.path });
+    } catch (error) {
+      console.error(
+        `[WriteGuard.isCompiledFile] unreadable program | ${opts.path} | ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      return false;
+    }
+  }
+
+  /** Whether `path` is a regular file, without opening it. */
+  private static isFile(opts: { path: string }): boolean {
+    try {
+      return statSync(opts.path).isFile();
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * The file a runner opens for a word that names none: `node x` runs `x.js`, `node dir` runs the `main` of
+   * `dir/package.json` or `dir/index.js`. The word as written when it names a file, or when nothing matches.
+   */
+  private static fileWordOf(opts: { file: IScriptTarget; work: IInspectWork }): string {
+    const { file } = opts;
+    const table = file.runner === undefined ? undefined : ScriptRunners.TABLES[file.runner];
+    const path = resolve(file.folder, file.word);
+
+    if (table === undefined || table.extensions.length === 0 || WriteGuard.isFile({ path })) {
+      return file.word;
+    }
+
+    const withExtensions = (word: string): string[] => [
+      word,
+      ...table.extensions.map((extension) => `${word}${extension}`),
+    ];
+    const manifest = join(path, 'package.json');
+    const main = WriteGuard.isFile({ path: manifest })
+      ? WriteGuard.manifestOf({ manifest, work: opts.work })?.['main']
+      : undefined;
+    const candidates = [
+      ...withExtensions(file.word).slice(1),
+      ...(typeof main === 'string' ? withExtensions(join(file.word, main)) : []),
+      ...withExtensions(join(file.word, 'index')).slice(1),
+    ];
+
+    return (
+      candidates.find((word) => WriteGuard.isFile({ path: resolve(file.folder, word) })) ??
+      file.word
+    );
+  }
+
   /** One script file a command runs: the script checks on code, the command checks on shell, one level deeper. */
   private static inspectFile(
-    opts: IInspectOptions & { state: IInspectState; file: IFileTarget; entries: IReadOnlyScript[] },
+    opts: IInspectOptions & {
+      state: IInspectState;
+      file: IFileTarget;
+      entries: IReadOnlyScript[];
+      /** The files the same line writes, by physical path. */
+      written?: ReadonlySet<string>;
+    },
   ): IWriteHit[] {
     const { work } = opts.state;
 
@@ -967,8 +1212,35 @@ export class WriteGuard {
 
     const { file } = opts;
     const target = file.word;
-    const paths = scriptPathsOf({ target, cwd: opts.cwd });
+
+    if (isAbsolute(target) && !WriteGuard.isInside({ path: target, root: work.root })) {
+      return WriteGuard.outsideOf({ target, work });
+    }
+
+    const paths = scriptPathsOf({
+      target: WriteGuard.fileWordOf({ file, work }),
+      cwd: file.folder,
+    });
     const reads = paths.map((path) => ({ path, read: WriteGuard.readOnce({ path, work }) }));
+
+    // The file may be written by an earlier command of the same line: what it will hold cannot be seen.
+    if (reads.every((entry) => entry.read.state === ReadStates.MISSING)) {
+      return [
+        {
+          rule: 'V-W-02',
+          message: `${target} does not exist yet, so the guard cannot see what it runs`,
+        },
+      ];
+    }
+
+    if (reads.some((entry) => opts.written?.has(ScriptPaths.physicalOf({ path: entry.path })))) {
+      return [
+        {
+          rule: 'V-W-02',
+          message: `${target} is written by the same command line, so the guard cannot see what it will run`,
+        },
+      ];
+    }
 
     if (reads.some((entry) => entry.read.state === ReadStates.TOO_LARGE)) {
       return [
@@ -1065,8 +1337,15 @@ export class WriteGuard {
         continue;
       }
 
+      // A shell script runs in the folder it was started from, not in its own.
       hits.push(
-        ...WriteGuard.inspectNested({ ...opts, command: text, label: target }).map((hit) => ({
+        ...WriteGuard.inspectNested({
+          ...opts,
+          command: text,
+          cwd: file.folder,
+          isCwdKnown: true,
+          label: target,
+        }).map((hit) => ({
           rule: hit.rule,
           message: `${hit.message}${note}`,
         })),
@@ -1076,84 +1355,381 @@ export class WriteGuard {
     return hits;
   }
 
-  /** `bun run <name>`: the script of the nearest package.json, its `pre` and `post` scripts with it, read as shell. */
-  private static inspectPackageScript(
-    opts: IInspectOptions & { state: IInspectState; name: string },
+  /**
+   * A call that runs scripts of a package.json: each name in the package of its folder, or in each workspace
+   * package it picks (`--filter`, `--workspace`, `-r`), with their `pre` and `post` scripts, read as shell.
+   */
+  private static inspectPackageRun(
+    opts: IInspectOptions & { state: IInspectState; run: IPackageRun },
   ): IWriteHit[] {
     const { work } = opts.state;
+    const { call, folder } = opts.run;
 
     if (WriteGuard.isSpent({ work })) {
       return [];
     }
 
-    const manifest = WriteGuard.nearestPackageJson({ cwd: opts.cwd, work });
-
-    if (manifest === undefined) {
-      return [];
+    if (call.workspaces === undefined) {
+      return WriteGuard.inspectScripts({
+        ...opts,
+        manifest: WriteGuard.nearestPackageJson({ cwd: folder, work }),
+        folder,
+        isPicked: false,
+      });
     }
 
-    const keyOf = (name: string): string => `${ScriptKinds.PACKAGE}:${manifest}#${name}`;
-    // The visited set first: a name already read costs no parse.
-    const names = [`pre${opts.name}`, opts.name, `post${opts.name}`].filter(
-      (name) => !work.seen.has(keyOf(name)),
+    const picked = WriteGuard.packagesOf({
+      folder,
+      workspaces: call.workspaces,
+      work,
+    });
+
+    if (typeof picked === 'string') {
+      return [
+        { rule: 'V-W-02', message: `${call.manager} runs ${call.names.join(' ')}: ${picked}` },
+      ];
+    }
+
+    return picked.flatMap((dir) =>
+      WriteGuard.inspectScripts({
+        ...opts,
+        manifest: join(dir, 'package.json'),
+        folder: dir,
+        isPicked: !call.workspaces?.isRoot || call.workspaces.selectors.length > 0,
+      }),
     );
+  }
 
-    if (names.length === 0) {
-      return [];
-    }
+  /**
+   * The scripts `names` of `manifest`. A name it does not have asks, unless `node_modules/.bin` has it, it is a
+   * lifecycle the manager handles itself (`npm test` with no `test`), or the package was picked out of many
+   * (`--filter`), where a package without the script is skipped.
+   */
+  private static inspectScripts(
+    opts: IInspectOptions & {
+      state: IInspectState;
+      run: IPackageRun;
+      manifest: string | undefined;
+      folder: string;
+      isPicked: boolean;
+    },
+  ): IWriteHit[] {
+    const { work } = opts.state;
+    const { call } = opts.run;
+    const { manifest } = opts;
+    const parsed = manifest === undefined ? {} : WriteGuard.manifestOf({ manifest, work });
 
-    const label = `bun run ${opts.name}`;
-    const scripts = WriteGuard.scriptsOf({ manifest, work });
-
-    if (scripts === undefined) {
+    if (parsed === undefined) {
       return [
         {
           rule: 'V-W-02',
-          message: `${label}: ${manifest} could not be read, so the script could not be checked`,
+          message: `${call.manager} run ${call.names.join(' ')}: ${manifest} could not be read, so the script could not be checked`,
         },
       ];
     }
 
-    const holder = { value: scripts };
+    const holder = { value: parsed['scripts'] };
+    const scripts = isRecord(holder) ? holder.value : {};
+    const home = manifest === undefined ? opts.folder : dirname(manifest);
 
-    if (!isRecord(holder)) {
-      return [];
-    }
+    return call.names.flatMap((name) => {
+      const label = `${call.manager} run ${name}`;
 
-    return names.flatMap((name) => {
-      const script = holder.value[name];
-      const key = keyOf(name);
-
-      if (typeof script !== 'string' || work.seen.has(key)) {
-        return [];
+      if (typeof scripts[name] !== 'string') {
+        return WriteGuard.inspectMissingScript({ ...opts, name, label, home });
       }
 
-      work.seen.add(key);
+      const keyOf = (script: string): string => `${ScriptKinds.PACKAGE}:${manifest}#${script}`;
 
-      return WriteGuard.inspectNested({ ...opts, command: script, cwd: dirname(manifest), label });
+      return [`pre${name}`, name, `post${name}`].flatMap((script) => {
+        const text = scripts[script];
+        const key = keyOf(script);
+
+        if (typeof text !== 'string' || work.seen.has(key)) {
+          return [];
+        }
+
+        work.seen.add(key);
+
+        return WriteGuard.inspectNested({
+          ...opts,
+          command: text,
+          cwd: home,
+          isCwdKnown: true,
+          label,
+        });
+      });
     });
   }
 
+  /** A script name the package.json does not have: what the manager runs instead, or an ask. */
+  private static inspectMissingScript(
+    opts: IInspectOptions & {
+      state: IInspectState;
+      run: IPackageRun;
+      isPicked: boolean;
+      name: string;
+      label: string;
+      home: string;
+    },
+  ): IWriteHit[] {
+    const { work } = opts.state;
+    const { call } = opts.run;
+    const { name } = opts;
+
+    if (opts.isPicked) {
+      return [];
+    }
+
+    if (call.isLifecycle) {
+      const start = join(opts.home, ScriptPlaces.START_FILE);
+
+      return name === 'start' &&
+        ScriptPlaces.START_MANAGERS.has(call.manager) &&
+        WriteGuard.isFile({ path: start })
+        ? WriteGuard.inspectFile({
+            ...opts,
+            file: {
+              word: ScriptPlaces.START_FILE,
+              kind: ScriptKinds.CODE,
+              folder: opts.home,
+              subcommand: undefined,
+              moved: true,
+            },
+            entries: [],
+          })
+        : [];
+    }
+
+    if (
+      PackageManagers.isBuiltIn({ manager: call.manager, word: name }) ||
+      WriteGuard.hasBin({ folder: opts.run.folder, name, work })
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        rule: 'V-W-02',
+        message: `${opts.label}: ${name} is not a script of the package.json nor an installed tool, so the guard cannot tell what it runs`,
+      },
+    ];
+  }
+
+  /** Whether `node_modules/.bin/<name>` is in `folder` or a folder above it; each lookup counts as a file. */
+  private static hasBin(opts: { folder: string; name: string; work: IInspectWork }): boolean {
+    const key = `${opts.folder}\n${opts.name}`;
+    const cached = opts.work.bins.get(key);
+
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    opts.work.spent.files += 1;
+
+    let found = false;
+
+    for (let folder = resolve(opts.folder); ; folder = dirname(folder)) {
+      if (existsSync(join(folder, 'node_modules', '.bin', opts.name))) {
+        found = true;
+        break;
+      }
+
+      if (dirname(folder) === folder) {
+        break;
+      }
+    }
+
+    opts.work.bins.set(key, found);
+
+    return found;
+  }
+
   /**
-   * The `scripts` field of a package.json, `null` when it has none; `undefined` when the file cannot be read.
-   * Each file is parsed once per call.
+   * The folders of the workspace packages a call picks, or why the guard cannot tell. Selectors match a
+   * package's name (globs as `Bun.Glob` reads them) or its folder; pnpm's graph selectors (`...`, `^`, `{}`,
+   * `[]`, `!`) are not followed.
    */
-  private static scriptsOf(opts: { manifest: string; work: IInspectWork }): unknown {
+  private static packagesOf(opts: {
+    folder: string;
+    workspaces: NonNullable<IPackageCall['workspaces']>;
+    work: IInspectWork;
+  }): string[] | string {
+    const { workspaces, work } = opts;
+    const workspace = WriteGuard.workspaceOf({ folder: opts.folder, work });
+
+    if (workspace === undefined) {
+      return 'it runs in workspace packages, and the guard finds no workspace here';
+    }
+
+    if (workspaces.isRoot && workspaces.selectors.length === 0 && !workspaces.isEvery) {
+      return [workspace.root];
+    }
+
+    const packages = WriteGuard.workspacePackagesOf({ workspace, work });
+
+    if (typeof packages === 'string') {
+      return packages;
+    }
+
+    if (workspaces.isEvery) {
+      return packages.map((entry) => entry.folder);
+    }
+
+    const graph = workspaces.selectors.find((selector) => /\.\.\.|[\^{}[\]!=]/.test(selector));
+
+    if (graph !== undefined) {
+      return `the guard does not follow the selector ${graph}`;
+    }
+
+    const picked = packages.filter((entry) =>
+      workspaces.selectors.some(
+        (selector) =>
+          (entry.name !== undefined && new Bun.Glob(selector).match(entry.name)) ||
+          [opts.folder, workspace.root].some((base) =>
+            new Bun.Glob(resolve(base, selector)).match(entry.folder),
+          ),
+      ),
+    );
+
+    return picked.length === 0
+      ? `${workspaces.selectors.join(' ')} picks no package the guard can find`
+      : picked.map((entry) => entry.folder);
+  }
+
+  /** The workspace `folder` is in: the nearest folder whose package.json lists `workspaces`, or with a pnpm-workspace.yaml. */
+  private static workspaceOf(opts: { folder: string; work: IInspectWork }): IWorkspace | undefined {
+    const start = resolve(opts.folder);
+
+    if (opts.work.workspaces.has(start)) {
+      return opts.work.workspaces.get(start);
+    }
+
+    let found: IWorkspace | undefined;
+
+    for (let folder = start; found === undefined; folder = dirname(folder)) {
+      found = WriteGuard.workspaceAt({ folder, work: opts.work });
+
+      if (dirname(folder) === folder) {
+        break;
+      }
+    }
+
+    opts.work.workspaces.set(start, found);
+
+    return found;
+  }
+
+  private static workspaceAt(opts: { folder: string; work: IInspectWork }): IWorkspace | undefined {
+    const manifest = join(opts.folder, 'package.json');
+    const field = WriteGuard.isFile({ path: manifest })
+      ? WriteGuard.manifestOf({ manifest, work: opts.work })?.['workspaces']
+      : undefined;
+    const holder = { value: field };
+    const listed = isRecord(holder) ? holder.value['packages'] : field;
+
+    if (Array.isArray(listed)) {
+      return {
+        root: opts.folder,
+        patterns: listed.filter((pattern) => typeof pattern === 'string'),
+      };
+    }
+
+    const yaml = join(opts.folder, 'pnpm-workspace.yaml');
+
+    if (!WriteGuard.isFile({ path: yaml })) {
+      return undefined;
+    }
+
+    const text = WriteGuard.readOnce({ path: yaml, work: opts.work }).text ?? '';
+    const block = /^packages:\s*\n((?:[ \t]+.*\n?|\s*\n)*)/m.exec(text)?.[1] ?? '';
+    const patterns = [...block.matchAll(/^[ \t]+-[ \t]+['"]?([^'"#\n]+?)['"]?[ \t]*$/gm)].map(
+      (match) => match[1] ?? '',
+    );
+
+    return { root: opts.folder, patterns };
+  }
+
+  /**
+   * The packages of a workspace, its root among them: a pattern is a folder, or a folder whose last segment is a
+   * glob (`packages/*`). Any other pattern (`**`, a negation) is not expanded, and the guard says so.
+   */
+  private static workspacePackagesOf(opts: {
+    workspace: IWorkspace;
+    work: IInspectWork;
+  }): { folder: string; name: string | undefined }[] | string {
+    const { workspace, work } = opts;
+    const folders = new Set([workspace.root]);
+
+    for (const pattern of workspace.patterns) {
+      const segments = pattern.replace(/\/+$/, '').split('/');
+      const last = segments.at(-1) ?? '';
+      const parent = segments.slice(0, -1);
+
+      if (
+        pattern.startsWith('!') ||
+        parent.some((segment) => /[*?[{]/.test(segment)) ||
+        last.includes('**')
+      ) {
+        return `the workspace pattern ${pattern} is one the guard does not expand`;
+      }
+
+      if (!/[*?[{]/.test(last)) {
+        folders.add(resolve(workspace.root, pattern));
+        continue;
+      }
+
+      const base = resolve(workspace.root, ...parent);
+
+      work.spent.files += 1;
+
+      if (WriteGuard.isSpent({ work })) {
+        return 'the workspace has more packages than the guard reads in one call';
+      }
+
+      const glob = new Bun.Glob(last);
+
+      for (const entry of existsSync(base) ? readdirSync(base, { withFileTypes: true }) : []) {
+        if (entry.isDirectory() && glob.match(entry.name)) {
+          folders.add(join(base, entry.name));
+        }
+      }
+    }
+
+    return [...folders]
+      .filter((folder) => WriteGuard.isFile({ path: join(folder, 'package.json') }))
+      .map((folder) => {
+        const name = WriteGuard.manifestOf({ manifest: join(folder, 'package.json'), work })?.[
+          'name'
+        ];
+
+        return { folder, name: typeof name === 'string' ? name : undefined };
+      });
+  }
+
+  /** A package.json, parsed once per call; `undefined` when it cannot be read, an empty record when it is no object. */
+  private static manifestOf(opts: {
+    manifest: string;
+    work: IInspectWork;
+  }): Record<string, unknown> | undefined {
     if (opts.work.manifests.has(opts.manifest)) {
       return opts.work.manifests.get(opts.manifest);
     }
 
-    const scripts = WriteGuard.parseScripts({
+    const parsed = WriteGuard.parseManifest({
       manifest: opts.manifest,
       read: WriteGuard.readOnce({ path: opts.manifest, work: opts.work }),
     });
 
-    opts.work.manifests.set(opts.manifest, scripts);
+    opts.work.manifests.set(opts.manifest, parsed);
 
-    return scripts;
+    return parsed;
   }
 
-  private static parseScripts(opts: { manifest: string; read: IScriptRead }): unknown {
+  private static parseManifest(opts: {
+    manifest: string;
+    read: IScriptRead;
+  }): Record<string, unknown> | undefined {
     if (opts.read.text === undefined) {
       return undefined;
     }
@@ -1161,10 +1737,10 @@ export class WriteGuard {
     try {
       const holder = { value: JSON.parse(opts.read.text) };
 
-      return isRecord(holder) ? (holder.value['scripts'] ?? null) : null;
+      return isRecord(holder) ? holder.value : {};
     } catch (error) {
       console.error(
-        `[WriteGuard.scriptsOf] unreadable package.json | ${opts.manifest} | ${error instanceof Error ? error.message : String(error)}`,
+        `[WriteGuard.manifestOf] unreadable package.json | ${opts.manifest} | ${error instanceof Error ? error.message : String(error)}`,
       );
 
       return undefined;
@@ -1173,7 +1749,7 @@ export class WriteGuard {
 
   /** The command checks on a script one level deeper; past `MAX_SCRIPT_DEPTH` the guard asks instead of reading on. */
   private static inspectNested(
-    opts: IInspectOptions & { state: IInspectState; label: string },
+    opts: IInspectOptions & { state: IInspectState; label: string; isCwdKnown: boolean },
   ): IWriteHit[] {
     if (opts.state.depth >= HookConstants.MAX_SCRIPT_DEPTH) {
       return [
@@ -1189,14 +1765,14 @@ export class WriteGuard {
       cwd: opts.cwd,
       trust: opts.trust,
       extra: opts.extra,
-      state: { depth: opts.state.depth + 1, work: opts.state.work },
+      state: { depth: opts.state.depth + 1, work: opts.state.work, isCwdKnown: opts.isCwdKnown },
     }).map((hit) => ({
       rule: hit.rule,
       message: `${opts.label} runs what looks like ${hit.message}`,
     }));
   }
 
-  /** The package.json `bun run` reads: the first one in `cwd` or a folder above it, looked up once per folder. */
+  /** The package.json a package manager reads: the first one in `cwd` or a folder above it, looked up once per folder. */
   private static nearestPackageJson(opts: { cwd: string; work: IInspectWork }): string | undefined {
     const start = resolve(opts.cwd);
 

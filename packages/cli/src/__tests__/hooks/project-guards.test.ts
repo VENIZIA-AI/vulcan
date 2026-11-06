@@ -32,8 +32,18 @@ const DEPLOY: IProjectCommandCheck = {
 };
 const PROJECT = [MIGRATE, DEPLOY];
 
+// The package.json has the scripts the commands below name: a name it does not have asks on its own.
+const SCRIPTS_ROOT = createProject({
+  files: {
+    'package.json': JSON.stringify({
+      name: 'project',
+      scripts: { 'migrate:up': 'echo up', migrate: 'echo migrate', build: 'echo build' },
+    }),
+  },
+});
+
 const hitsOf = (opts: { command: string; extra?: IProjectCommandCheck[] }): string[] =>
-  WriteGuard.inspectCommand({ command: opts.command, cwd: '/p', extra: opts.extra }).map(
+  WriteGuard.inspectCommand({ command: opts.command, cwd: SCRIPTS_ROOT, extra: opts.extra }).map(
     (hit) => `${hit.rule}: ${hit.message}`,
   );
 

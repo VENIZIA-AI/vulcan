@@ -34,13 +34,36 @@ const runHookAt = async (opts: { root: string; command: string }) => {
   };
 };
 
+const CASE_ROOT = createProject({
+  files: {
+    'package.json': JSON.stringify({
+      name: 'cases',
+      scripts: {
+        test: 'bun test',
+        'db:generate:public:develop': 'drizzle-kit generate',
+        'db:migrate:public:develop': 'drizzle-kit migrate',
+      },
+    }),
+  },
+});
+
 const CASES: { name: string; command: string; cwd?: string; flagged: boolean }[] = [
   { name: 'psql SELECT', command: 'psql -h 127.0.0.1 -c "SELECT 1"', flagged: false },
   { name: 'build a package', command: 'make core inventory', flagged: false },
   { name: 'read-only git', command: 'git status --short', flagged: false },
   { name: 'grep the repo', command: 'grep -rn "POST" packages/inventory/src', flagged: false },
-  { name: 'run the test suite', command: 'bun run test', flagged: false },
-  { name: 'generate a migration', command: 'bun run db:generate:public:develop', flagged: false },
+  { name: 'run the test suite', command: 'bun run test', cwd: CASE_ROOT, flagged: false },
+  {
+    name: 'generate a migration',
+    command: 'bun run db:generate:public:develop',
+    cwd: CASE_ROOT,
+    flagged: false,
+  },
+  {
+    name: 'a package script the package.json does not have',
+    command: 'bun run db:generate:public:develop',
+    flagged: true,
+  },
   { name: 'curl POST', command: 'curl -X POST https://example.dev/v1/api/x', flagged: true },
   {
     name: 'psql UPDATE',
@@ -68,10 +91,10 @@ const CASES: { name: string; command: string; cwd?: string; flagged: boolean }[]
     flagged: false,
   },
   {
-    name: 'a script that does not exist',
+    name: 'a script that does not exist yet',
     command: 'bun missing-script.ts',
     cwd: FIXTURES,
-    flagged: false,
+    flagged: true,
   },
 ];
 
@@ -570,6 +593,9 @@ describe('the guard-writes hook, on a package.json that runs its scripts many ti
   test.each([
     ['one call', 'bun run s0'],
     ['1900 calls', line],
+    ['1900 npm calls', line.replaceAll('bun run ', 'npm run ')],
+    ['1900 pnpm calls', line.replaceAll('bun run ', 'pnpm ')],
+    ['1900 calls of names it does not have', line.replaceAll('bun run s', 'bun run none')],
   ])('asks, well under a second, for %s', (_name, command) => {
     const start = performance.now();
     const hits = WriteGuard.inspectCommand({ command, cwd: root });
@@ -591,5 +617,357 @@ describe('the guard-writes hook, on a package.json that runs its scripts many ti
   test('the hook asks for the 1900 calls', async () => {
     const result = await runHookAt({ root, command: line });
     expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+});
+
+describe('the guard-writes hook, on the package scripts a command runs', () => {
+  const DEPLOY = 'kubectl apply -f k8s/';
+  const READ = 'kubectl get pods';
+  const MUTATING_JS = "await fetch('https://example.dev/v1/x', { method: 'DELETE' });\n";
+  const manifest = (opts: { name: string; scripts: Record<string, string>; extra?: object }) =>
+    JSON.stringify({ name: opts.name, ...opts.extra, scripts: opts.scripts });
+  const LIFECYCLE = { test: DEPLOY, start: DEPLOY, stop: DEPLOY, restart: DEPLOY };
+  const root = createProject({
+    files: {
+      'package.json': manifest({
+        name: 'fixture-root',
+        extra: { workspaces: ['packages/*'] },
+        scripts: {
+          release: DEPLOY,
+          check: READ,
+          test: READ,
+          start: READ,
+          stop: READ,
+          restart: READ,
+          'ship-file': 'bash scripts/deploy.sh && bun run check',
+          'ship-file-read': 'bash scripts/check.sh && bun run check',
+          'ship-var': 'bash $S',
+          'ship-missing': 'bash scripts/missing.sh',
+          'ship-cd': 'cd sub && npm run check',
+          'ship-cd-read': 'cd sub && npm run release',
+          'ship-pnpm': 'pnpm release',
+          'ship-yarn': 'yarn run release',
+        },
+      }),
+      'scripts/deploy.sh': `${DEPLOY}\n`,
+      'scripts/check.sh': `${READ}\n`,
+      'node_modules/.bin/tsc': MUTATING_JS,
+      'sub/package.json': manifest({
+        name: 'sub',
+        scripts: { release: READ, check: DEPLOY, ...LIFECYCLE },
+      }),
+      'sub/deploy.sh': `${DEPLOY}\n`,
+      'sub/check.sh': `${READ}\n`,
+      'packages/api/package.json': manifest({
+        name: '@fx/api',
+        scripts: { check: DEPLOY, release: READ },
+      }),
+      'packages/web/package.json': manifest({ name: '@fx/web', scripts: { check: READ } }),
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'bun release',
+    'bun run release',
+    'bun --silent run release',
+    'bun run --silent release',
+    'bun run --parallel check release',
+    'npm run release',
+    'npm run-script release',
+    'npm --loglevel silent run release',
+    'npm run release -- --flag',
+    'pnpm release',
+    'pnpm run release',
+    'yarn release',
+    'yarn run release',
+    'npm --prefix sub test',
+    'npm --prefix sub start',
+    'npm --prefix sub stop',
+    'npm --prefix sub restart',
+    'npm -C sub run check',
+    'npm run check --prefix sub',
+    'npm run check --workspace @fx/api',
+    "cd sub && bash -c 'bun run check'",
+    'cd sub && echo "$(bash deploy.sh)"',
+    'bun --cwd sub run check',
+    'bun --cwd=sub run check',
+    'bun run --cwd sub check',
+    'pnpm -C sub check',
+    'pnpm --dir sub check',
+    'yarn --cwd sub run check',
+    'cd sub && bun run check',
+    'cd sub; npm run check',
+    '(cd sub; bun run check)',
+    '(cd sub && pnpm check)',
+    'pushd sub && yarn run check',
+    '(cd sub; true); bun run release',
+    'pushd sub && popd && bun run release',
+    "bash -c 'cd sub'; bun run release",
+    'cd sub && cd .. && bun run release',
+    'cd sub && bash deploy.sh',
+    'cd "$DIR" && bun run check',
+    'cd "$(mktemp -d)" && bash check.sh',
+    "bun run --filter '@fx/*' check",
+    'bun run --filter @fx/api check',
+    'bun --filter=@fx/api run check',
+    'pnpm --filter @fx/api check',
+    'pnpm -F @fx/api run check',
+    'npm --workspace @fx/api run check',
+    'npm -w packages/api run check',
+    'npm --workspaces run check',
+    'pnpm -r check',
+    'bun run --workspaces check',
+    "bun run --filter './packages/api' check",
+    "pnpm --filter '...@fx/web' check",
+    'bun run --filter nothing check',
+    'yarn workspace @fx/api run check',
+    'yarn workspaces foreach run check',
+    'bun run nothing',
+    'bun nothing',
+    'npm run nothing',
+    'pnpm nothing',
+    'yarn nothing',
+    'pnpm run "/^chec.*/"',
+    'bun run $NAME',
+    'npm run "${NAME}"',
+    'bun --cwd $DIR run release',
+    'npm --prefix "$DIR" test',
+    'bun run ship-file',
+    'bun run ship-var',
+    'bun run ship-missing',
+    'bun run ship-cd',
+    'npm run ship-pnpm',
+    'npm run ship-yarn',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    'bun check',
+    'bun run check',
+    'npm run check',
+    'npm test',
+    'npm start',
+    'npm stop',
+    'npm restart',
+    'pnpm check',
+    'pnpm run check',
+    'pnpm test',
+    'yarn run check',
+    'yarn test',
+    'npm --prefix sub run release',
+    'npm run release --prefix sub',
+    "cd sub && bash -c 'bun run release'",
+    'cd sub && echo "$(bash check.sh)"',
+    "bash -c 'cd sub; true'; cd sub && bash -c 'bun run release'",
+    'bun --cwd sub run release',
+    'pnpm -C sub release',
+    'yarn --cwd sub release',
+    'cd sub && bun run release',
+    '(cd sub; bun run release)',
+    '(cd sub; true); bun run check',
+    'pushd sub && popd && bun run check',
+    "bash -c 'cd sub'; bun run check",
+    'cd sub && bash check.sh',
+    'cd sub && cd .. && bun run check',
+    'bun run --filter @fx/web check',
+    'pnpm --filter @fx/web check',
+    'npm -w packages/web run check',
+    'npm --workspace @fx/web run check',
+    "bun run --filter './packages/web' check",
+    'bun run --filter @fx/api release',
+    'yarn workspace @fx/web run check',
+    'yarn workspace @fx/api check',
+    'yarn workspaces list',
+    'bun install',
+    'bun i',
+    'bun add zod',
+    'bun test',
+    'bun x tsc',
+    'bunx tsc',
+    'npx tsc',
+    'npm install',
+    'npm ci',
+    'npm view zod version',
+    'npm nothing',
+    'npm run',
+    'pnpm install',
+    'pnpm add zod',
+    'pnpm deploy out',
+    'pnpm exec tsc',
+    'pnpm dlx cowsay',
+    'yarn add zod',
+    'yarn install',
+    'yarn check',
+    'yarn',
+    'pnpm',
+    'bun run tsc',
+    'pnpm tsc',
+    'bun --version',
+    'npm --version',
+    'bun run ship-file-read',
+    'bun run ship-cd-read',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+
+  test('names the manager that was typed in the reason', () => {
+    const [hit] = WriteGuard.inspectCommand({ command: 'pnpm release', cwd: root });
+
+    expect(hit?.message).toContain('pnpm run release');
+  });
+});
+
+describe('the guard-writes hook, on script words it cannot resolve', () => {
+  const DEPLOY = 'kubectl apply -f k8s/\n';
+  const READ = 'kubectl get pods\n';
+  const MUTATING_JS = "await fetch('https://example.dev/v1/x', { method: 'DELETE' });\n";
+  const READING_JS = "console.log('ready');\n";
+  const root = createProject({
+    files: {
+      'scripts/deploy.sh': DEPLOY,
+      'scripts/check.sh': READ,
+      'lib/mutate.js': MUTATING_JS,
+      'lib/read.js': READING_JS,
+      'build/index.js': MUTATING_JS,
+      'served/package.json': JSON.stringify({ name: 'served', main: 'main.js' }),
+      'served/main.js': MUTATING_JS,
+      'tools/post.py': "import requests\nrequests.post('https://example.dev/v1/x', json={})\n",
+      'tools/read.py':
+        "import requests\nprint(requests.get('https://example.dev/v1/x').status_code)\n",
+      'usage.sh': `# usage <<EOF\n${DEPLOY}EOF\n`,
+      'commented.sh': `#!/bin/bash\n# then run ./x.sh | bash, or kubectl apply\n${READ}`,
+    },
+  });
+
+  const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
+
+  test.each([
+    'bash $S',
+    'bash "${S}"',
+    'bash $(echo scripts/deploy.sh)',
+    'bash `echo scripts/deploy.sh`',
+    'bash scripts/deplo*.sh',
+    'bash scripts/{deploy,check}.sh',
+    'bash $PWD/scripts/check.sh',
+    'bash "$(dirname "$0")/check.sh"',
+    'bash ~/check.sh',
+    'source $ENV_FILE',
+    '. "${X}"',
+    'node $SCRIPT',
+    'bun "$S"',
+    'python3 $S',
+    'ruby ${S}',
+    'perl $S',
+    'php $S',
+    'deno run $S',
+    'sh scripts/missing.sh',
+    'node missing.js',
+    'bun missing.ts',
+    'python3 missing.py',
+    './missing.sh',
+    'source missing.sh',
+    "echo 'kubectl apply -f x' > s.sh && bash s.sh",
+    "echo 'kubectl apply -f x' > scripts/check.sh && bash scripts/check.sh",
+    "cat > scripts/check.sh <<'EOF'\nkubectl apply -f x\nEOF\nbash scripts/check.sh",
+    'cp scripts/deploy.sh scripts/check.sh && bash scripts/check.sh',
+    'echo x | tee scripts/check.sh && bash scripts/check.sh',
+    'cd scripts && echo x > check.sh && cd .. && bash scripts/check.sh',
+    'bash /opt/nowhere/deploy.sh',
+    'bash /etc/hosts',
+    'python3 tools/post.py',
+    'node lib/mutate',
+    'node build',
+    'node served',
+    'bash usage.sh',
+    '# usage <<EOF\nkubectl apply -f x\nEOF',
+    'kubectl apply -f x # a comment',
+  ])('asks for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    'bash scripts/check.sh',
+    'source scripts/check.sh',
+    'bash -n scripts/deploy.sh',
+    'bash -c "echo $S"',
+    'python3 tools/read.py',
+    'python3 -c "print(1)"',
+    'python3 -m http.server --help',
+    'python3 --version',
+    'node --version',
+    'node lib/read',
+    "perl -e 'print 1'",
+    'ruby -v',
+    '/usr/bin/env bash scripts/check.sh',
+    'bash /usr/bin/true',
+    'node /usr/local/lib/node_modules/npm/bin/npm-cli.js --version',
+    '$HOME/.bun/bin/bun install',
+    'bash commented.sh',
+    'bash scripts/check.sh > out.log',
+    'bash scripts/check.sh 2>&1 | tee check.log',
+    'echo x > notes.txt && bash scripts/check.sh',
+    'cd lib && echo x > check.sh && cd .. && bash scripts/check.sh',
+    'echo hi; # kubectl apply -f x',
+  ])('stays silent for %p', async (command) => {
+    const result = await runHook({ command });
+    expect(result).toEqual({ code: 0, decision: '' });
+  });
+
+  test('reads an absolute path inside the project like a relative one', async () => {
+    const asked = await runHook({ command: `bash ${join(root, 'scripts/deploy.sh')}` });
+    expect(asked).toEqual({ code: 0, decision: 'ask' });
+    const program = await runHook({ command: join(root, 'scripts/deploy.sh') });
+    expect(program).toEqual({ code: 0, decision: 'ask' });
+    const code = await runHook({ command: `node ${join(root, 'lib/mutate.js')}` });
+    expect(code).toEqual({ code: 0, decision: 'ask' });
+    const silent = await runHook({ command: `bash ${join(root, 'scripts/check.sh')}` });
+    expect(silent).toEqual({ code: 0, decision: '' });
+    const silentProgram = await runHook({ command: join(root, 'scripts/check.sh') });
+    expect(silentProgram).toEqual({ code: 0, decision: '' });
+  });
+});
+
+describe('the guard-writes hook, on the workspace files a project may have', () => {
+  const DEPLOY = 'kubectl apply -f k8s/';
+  const READ = 'kubectl get pods';
+  const packages = {
+    'packages/api/package.json': JSON.stringify({ name: '@ws/api', scripts: { check: DEPLOY } }),
+    'packages/web/package.json': JSON.stringify({ name: '@ws/web', scripts: { check: READ } }),
+  };
+  const objectForm = createProject({
+    files: {
+      'package.json': JSON.stringify({ name: 'ws', workspaces: { packages: ['packages/*'] } }),
+      ...packages,
+    },
+  });
+  const pnpmForm = createProject({
+    files: {
+      'package.json': JSON.stringify({ name: 'ws' }),
+      'pnpm-workspace.yaml': "packages:\n  - 'packages/*'\n",
+      ...packages,
+    },
+  });
+
+  test.each([
+    [objectForm, "bun run --filter '@ws/api' check"],
+    [pnpmForm, 'pnpm --filter @ws/api check'],
+    [pnpmForm, 'pnpm -r check'],
+  ])('asks in %s for %p', async (root, command) => {
+    const result = await runHookAt({ root, command });
+    expect(result).toEqual({ code: 0, decision: 'ask' });
+  });
+
+  test.each([
+    [objectForm, "bun run --filter '@ws/web' check"],
+    [pnpmForm, 'pnpm --filter @ws/web check'],
+  ])('stays silent in %s for %p', async (root, command) => {
+    const result = await runHookAt({ root, command });
+    expect(result).toEqual({ code: 0, decision: '' });
   });
 });

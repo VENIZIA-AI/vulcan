@@ -409,3 +409,44 @@ describe('ShellParser.parse', () => {
     expect(() => ShellParser.parse({ command: `echo "unterminated` })).not.toThrow();
   });
 });
+
+describe('ShellParser.parse, on comments and scopes', () => {
+  test('a comment runs to the end of its line; a # inside a word or quotes is text', () => {
+    expect(wordsOf('#!/bin/bash\n# kubectl apply -f x | sh\necho hi # bye\nls')).toEqual([
+      ['echo', 'hi'],
+      ['ls'],
+    ]);
+    expect(wordsOf(`echo a#b '#c' "#d" $# \${#x}`)).toEqual([
+      ['echo', 'a#b', '#c', '#d', '$#', '${#x}'],
+    ]);
+  });
+
+  test('a << in a comment starts no heredoc', () => {
+    expect(wordsOf('# usage <<EOF\nkubectl apply -f x\nEOF')).toEqual([
+      ['kubectl', 'apply', '-f', 'x'],
+      ['EOF'],
+    ]);
+  });
+
+  test('a subshell, and a command line a word carries, each get their own scope', () => {
+    const scopes = ShellParser.parse({ command: "(cd a; x); y; bash -c 'z'" }).map((command) => [
+      command.words[0],
+      command.scope ?? '',
+    ]);
+
+    expect(scopes).toEqual([
+      ['cd', '/1'],
+      ['x', '/1'],
+      ['y', ''],
+      ['bash', ''],
+      ['z', '>2'],
+    ]);
+  });
+
+  test('the ) of a case pattern closes no subshell', () => {
+    const last = ShellParser.parse({ command: '(case x in a) true;; esac; y)' }).at(-1);
+
+    expect(last?.words).toEqual(['y']);
+    expect(last?.scope).toBe('/1');
+  });
+});

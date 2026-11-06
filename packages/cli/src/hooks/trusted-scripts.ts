@@ -4,6 +4,7 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { HookConstants, TrustStates } from './common/index.ts';
 import type { IReadOnlyScript, IScriptInvocation, IScriptTrust } from './common/index.ts';
 import { ShellParser } from './shell.ts';
+import { ShellFolders } from './shell-folders.ts';
 
 /** Variables that point git at another repository or index than the one in `cwd`. */
 const REDIRECTING_VARIABLES = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
@@ -187,7 +188,7 @@ export class ReadOnlyScripts {
   }
 
   /** Commands that change the folder the next commands of the line run in, which the hook does not follow. */
-  static readonly MOVING_COMMANDS = new Set(['cd', 'pushd', 'popd']);
+  static readonly MOVING_COMMANDS = ShellFolders.MOVING_COMMANDS;
 
   /**
    * The listed script a call to `target` with `subcommand` is read-only for: both resolved to absolute
