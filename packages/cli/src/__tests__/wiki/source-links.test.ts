@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { SourceLinkCheck } from '../../wiki/index.ts';
+import { SourceLinkCheck, SourceRoots } from '../../wiki/index.ts';
 import type { IMissingSourceLink } from '../../wiki/index.ts';
 import { git } from '../git-repo.helper.ts';
 
@@ -116,5 +116,93 @@ describe('SourceLinkCheck.check', () => {
     const files = run({ repo: 'VENIZIA-AI/acme' }).missing.map((miss) => miss.path);
 
     expect(files).toContain('packages/x/built.ts');
+  });
+});
+
+describe('SourceRoots.of', () => {
+  test('is the default list when the config has no layout, or a layout with no folder', () => {
+    expect(SourceRoots.of({})).toEqual(SourceRoots.DEFAULT);
+    expect(SourceRoots.of({ layout: {} })).toEqual(SourceRoots.DEFAULT);
+  });
+
+  test('is the layout folders of every key and the folders every project has', () => {
+    expect(
+      SourceRoots.of({
+        layout: {
+          backend: 'apps/api',
+          frontend: ['apps/web', 'apps/admin'],
+          shared: 'libs',
+          other: 'tools',
+        },
+      }),
+    ).toEqual([
+      'apps/api/',
+      'apps/web/',
+      'apps/admin/',
+      'libs/',
+      'tools/',
+      'docs/',
+      'scripts/',
+      '.agents/',
+    ]);
+  });
+
+  test('leaves out a folder the config would refuse and says each root once', () => {
+    expect(SourceRoots.of({ layout: { backend: ['apps/api', '../up', 'docs'] } })).toEqual([
+      'apps/api/',
+      'docs/',
+      'scripts/',
+      '.agents/',
+    ]);
+  });
+});
+
+describe('SourceLinkCheck.check with the roots of a layout', () => {
+  let root = '';
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'vulcan-wiki-source-roots-'));
+    roots.push(root);
+    git({ cwd: root, args: ['init', '--quiet'] });
+    write({ root, path: 'apps/api/src/server.ts', lines: ['export {};'] });
+    write({
+      root,
+      path: 'docs/a.md',
+      lines: ['Tracked: `apps/api/src/server.ts:3`', 'Gone: `apps/api/src/gone.ts`'],
+    });
+    write({
+      root,
+      path: '.agents/knowledge/gone.md',
+      lines: ['---', 'title: Gone', 'resource: apps/api/src/removed.ts', '---', '', 'Body.'],
+    });
+    git({ cwd: root, args: ['add', '-A'] });
+  });
+
+  const run = (opts: { roots?: string[] }) =>
+    SourceLinkCheck.check({
+      root,
+      repo: 'VENIZIA-AI/acme',
+      directories: ['docs', '.agents/knowledge'],
+      skipProseUnder: [],
+      skipFiles: [],
+      roots: opts.roots,
+    });
+
+  test('a path under a layout folder that git does not track is missing, in prose and in a resource line', () => {
+    const result = run({ roots: SourceRoots.of({ layout: { backend: 'apps/api' } }) });
+
+    expect(result.missing.map((miss) => miss.path)).toEqual([
+      'apps/api/src/removed.ts',
+      'apps/api/src/gone.ts',
+    ]);
+    expect(result.checked).toBe(3);
+  });
+
+  test('the default list does not know the folder, so it checks nothing there', () => {
+    expect(run({}).checked).toBe(0);
+  });
+
+  test('an empty list of roots is the default list, never every path', () => {
+    expect(run({ roots: [] }).checked).toBe(0);
   });
 });

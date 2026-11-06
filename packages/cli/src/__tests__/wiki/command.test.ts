@@ -68,6 +68,24 @@ describe('runSourceLinksCommand', () => {
     expect(quietly(() => runSourceLinksCommand({ args: ['--repo'], root }))).toBe(1);
   });
 
+  test('a broken link under a folder of the layout fails, and passes when the project has no layout', () => {
+    const root = repository({ link: 'packages/x/y.ts' });
+    const args = ['--repo', 'VENIZIA-AI/acme'];
+
+    mkdirSync(join(root, 'apps/api'), { recursive: true });
+    writeFileSync(join(root, 'apps/api/server.ts'), 'export {};\n');
+    writeFileSync(
+      join(root, 'docs/wiki/content/api.md'),
+      'Server: `apps/api/server.ts` and `apps/api/gone.ts`\n',
+    );
+    git({ cwd: root, args: ['add', '-A'] });
+
+    expect(quietly(() => runSourceLinksCommand({ args, root }))).toBe(0);
+    expect(
+      quietly(() => runSourceLinksCommand({ args, root, layout: { backend: 'apps/api' } })),
+    ).toBe(1);
+  });
+
   test('--dirs replaces the folders it walks', () => {
     const root = repository({ link: 'packages/x/gone.ts' });
     const args = ['--repo', 'VENIZIA-AI/acme', '--dirs', 'packages'];
@@ -112,6 +130,52 @@ describe('the shipped entry scripts', () => {
     expect(ok.stdout.toString()).toContain('1 paths checked, 0 missing');
     expect(bad.exitCode).toBe(1);
     expect(bad.stdout.toString()).toContain('docs/wiki/content/index.md:1 packages/x/gone.ts');
+  });
+
+  test('wiki-source-links reads the layout of the config: a broken link under its folder fails', () => {
+    const root = repository({ link: 'packages/x/y.ts' });
+    const run = () =>
+      spawnSyncBounded({
+        cmd: ['bun', entry('wiki-source-links'), '--repo', 'VENIZIA-AI/acme'],
+        cwd: root,
+      });
+
+    mkdirSync(join(root, 'apps/api'), { recursive: true });
+    mkdirSync(join(root, '.configs'), { recursive: true });
+    writeFileSync(join(root, 'apps/api/server.ts'), 'export {};\n');
+    writeFileSync(join(root, 'docs/wiki/content/api.md'), 'Gone: `apps/api/gone.ts`\n');
+    writeFileSync(
+      join(root, '.configs/vulcan.config.mts'),
+      "export default { layout: { backend: 'apps/api' } };\n",
+    );
+    git({ cwd: root, args: ['add', '-A'] });
+
+    const withLayout = run();
+
+    expect(withLayout.exitCode).toBe(1);
+    expect(withLayout.stdout.toString()).toContain('docs/wiki/content/api.md:1 apps/api/gone.ts');
+
+    writeFileSync(join(root, '.configs/vulcan.config.mts'), 'export default {};\n');
+
+    const withoutLayout = run();
+
+    expect(withoutLayout.exitCode).toBe(0);
+  });
+
+  test('wiki-source-links says so when the config cannot be read, and checks the default folders', () => {
+    const root = repository({ link: 'packages/x/gone.ts' });
+
+    mkdirSync(join(root, '.configs'), { recursive: true });
+    writeFileSync(join(root, '.configs/vulcan.config.mts'), 'export default { layout: 3 };\n');
+
+    const result = spawnSyncBounded({
+      cmd: ['bun', entry('wiki-source-links'), '--repo', 'VENIZIA-AI/acme'],
+      cwd: root,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain('the project config could not be read');
+    expect(result.stdout.toString()).toContain('packages/x/gone.ts');
   });
 
   test('wiki-anchors exits 1 and says to build first when there is no dist', () => {
