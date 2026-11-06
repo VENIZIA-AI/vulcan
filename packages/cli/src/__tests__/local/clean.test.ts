@@ -1163,9 +1163,10 @@ describe('what a live session uses is not stale to doctor either', () => {
     expect(names({ entries: plan.keep })).toEqual(['tmp/claude-1000']);
     expect(names({ entries: plan.remove })).toEqual(['tmp/claude-notes']);
 
-    const result = await DoctorRunner.runChecks({ root });
-    const warnings = result.map((violation) => violation.file);
+    const result = await DoctorRunner.runWarnings({ root });
+    const warned = SocketWarning.without({ warnings: result }).map((entry) => entry.file);
 
-    expect(warnings.some((path) => path?.includes('claude-1000'))).toBe(false);
+    expect(warned).toContain('.agents/local/tmp/claude-notes');
+    expect(warned.some((path) => path.includes('claude-1000'))).toBe(false);
   });
 });
