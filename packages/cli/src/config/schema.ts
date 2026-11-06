@@ -13,6 +13,7 @@ import { BoardServe } from '../board/common/constants.ts';
 import { ProjectKey } from '../events/project-key.ts';
 import { ThemeTokens } from '../theme/index.ts';
 import { ProjectTheme } from '../visualize/theme.ts';
+import { BoardLogo } from '../board/logo.ts';
 import { BOARD_AGENTS } from '../board/schema.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
@@ -518,16 +519,9 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       logo: z
         .string()
         .min(1)
-        .refine(
-          (value) =>
-            value.toLowerCase().endsWith('.svg') &&
-            !value.startsWith('/') &&
-            !value.split('/').includes('..'),
-          {
-            message:
-              'a path inside the project to an .svg file, with no leading / and no .. segment',
-          },
-        )
+        .refine((value) => BoardLogo.isPath({ path: value }), {
+          message: 'a path inside the project to an .svg file, with no leading / and no .. segment',
+        })
         .optional(),
       /** Faces and roles of the board's agents, keyed by agent name; default `{}`. */
       agents: BOARD_AGENTS.default({}),

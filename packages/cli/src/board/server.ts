@@ -3,6 +3,7 @@ import type { Server } from 'bun';
 import { BoardRoutes, BoardServe } from './common/index.ts';
 import type { IThemeTokens } from '../theme/index.ts';
 import type { IBoardData, TBoardRoute } from './common/index.ts';
+import { BoardOpenFile } from './open-file.ts';
 import { BoardPage } from './page.ts';
 import { BoardWatch } from './watch.ts';
 
@@ -17,6 +18,10 @@ interface IBoardServerOptions {
   /** The design tokens of the page; default the default preset. */
   tokens?: IThemeTokens;
   maxSnapshotBytes?: number;
+  /** The folder for the page `openFile` writes: the project's tmp folder. */
+  openFolder?: string;
+  /** How long that page stays when nothing reads the board; default `BoardServe.OPEN_FILE_TTL_MS`. */
+  openFileTtlMs?: number;
 }
 
 interface IBoardServerRun {
@@ -27,6 +32,12 @@ interface IBoardServerRun {
   max: number;
   stopWatch: () => void;
   timers: ReturnType<typeof setInterval>[];
+  /** The address with the token, as printed. */
+  url: string;
+  openFolder?: string;
+  openFileTtlMs: number;
+  /** The page `openFile` wrote, if it is still there. */
+  openFile?: { path: string; directory: string; timer: ReturnType<typeof setTimeout> };
 }
 
 const PAGE_HEADERS = {
@@ -79,6 +90,7 @@ export class BoardServer {
     }
 
     const url = new URL(opts.url);
+
     const given = url.searchParams.get(BoardServe.TOKEN_PARAM);
 
     if (given === null || !BoardServer.isToken({ given, token: opts.token })) {
@@ -154,6 +166,9 @@ export class BoardServer {
       max,
       stopWatch: () => undefined,
       timers: [],
+      url: '',
+      ...(opts.openFolder === undefined ? {} : { openFolder: opts.openFolder }),
+      openFileTtlMs: opts.openFileTtlMs ?? BoardServe.OPEN_FILE_TTL_MS,
     };
     const publish = (): void => {
       const data = BoardServer.snapshotOf({ collect: opts.collect });
@@ -182,11 +197,64 @@ export class BoardServer {
 
     const path = BoardServer.pathWithToken({ path: BoardServe.PAGE_PATH, token });
 
+    run.url = `http://${hostname}:${server.port}${path}`;
+
     return {
-      url: `http://${hostname}:${server.port}${path}`,
+      url: run.url,
       fallback: `http://${BoardServe.HOST}:${server.port}${path}`,
       ...(note === undefined ? {} : { note }),
     };
+  }
+
+  /**
+   * The page for the program that opens the browser: a file in a folder only its owner can enter, made in `openFolder`, that sends the
+   * browser to the address with the token. The path is not a secret, so it may be in an argument list. The file is
+   * removed by the first request that carries the token, after `openFileTtlMs` and when the server stops; a new call
+   * removes the one before it. `undefined` when no server runs or the file cannot be written.
+   */
+  static openFile(): string | undefined {
+    const { run } = BoardServer;
+
+    if (run === undefined || run.openFolder === undefined) {
+      return undefined;
+    }
+
+    BoardServer.dropOpenFile();
+
+    try {
+      const { path, directory } = BoardOpenFile.write({ folder: run.openFolder, url: run.url });
+      const timer = setTimeout(() => BoardServer.dropOpenFile(), run.openFileTtlMs);
+
+      timer.unref();
+      run.openFile = { path, directory, timer };
+
+      return path;
+    } catch (error) {
+      process.stderr.write(
+        `board: cannot write the page that opens the browser: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+
+      return undefined;
+    }
+  }
+
+  private static dropOpenFile(): void {
+    const file = BoardServer.run?.openFile;
+
+    if (BoardServer.run === undefined || file === undefined) {
+      return;
+    }
+
+    BoardServer.run.openFile = undefined;
+    clearTimeout(file.timer);
+
+    try {
+      BoardOpenFile.remove({ directory: file.directory });
+    } catch (error) {
+      process.stderr.write(
+        `board: cannot remove ${file.directory}: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+    }
   }
 
   /** Stops the server, the watch and the timers, and ends every open stream. */
@@ -197,6 +265,7 @@ export class BoardServer {
       return;
     }
 
+    BoardServer.dropOpenFile();
     BoardServer.run = undefined;
     run.stopWatch();
 
@@ -279,6 +348,10 @@ export class BoardServer {
       token,
       hostname: opts.hostname,
     });
+
+    if (verdict.route !== undefined) {
+      BoardServer.dropOpenFile();
+    }
 
     if (verdict.route === BoardRoutes.PAGE) {
       const data = BoardServer.snapshotOf({ collect: opts.collect });
