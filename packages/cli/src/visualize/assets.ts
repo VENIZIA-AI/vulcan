@@ -124,7 +124,7 @@ const BASE_CSS = [
   // The hero slab: the state, the title, the verdict, and the flow when the spec has one.
   `.hero{padding-block:56px}`,
   `.hero .state{display:inline-flex;align-items:center;gap:10px;margin-bottom:28px;color:var(--c);font:650 14.5px/1 var(--font);text-transform:uppercase;letter-spacing:.07em}`,
-  `.hero h1{font-size:clamp(32px,5vw,72px);line-height:1.02;max-width:30ch;letter-spacing:-.045em;color:var(--ink)}`,
+  `.hero h1{font-size:clamp(32px,5vw,72px);line-height:1.02;max-width:30ch;letter-spacing:-.045em;color:var(--ink);overflow-wrap:anywhere}`,
   `.hero .lede{margin-top:28px;font-size:clamp(18px,1.6vw,22px);max-width:46ch;color:var(--body)}`,
   `.hero .cap{margin-top:14px;max-width:60ch;color:var(--muted)}`,
   `.hero .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:4px 20px;font:500 13px/1.4 var(--code);color:var(--muted)}`,
@@ -327,7 +327,7 @@ const BASE_CSS = [
   // A phone: panels stack, the bar keeps only the title, the state, present and the switch.
   `@media (max-width:860px){.own,.facts,.q,.estep,.diff,.ev,.log li,.idea{grid-template-columns:minmax(0,1fr)}.q{gap:18px}.idea .centre{order:-1;grid-column:1;grid-row:auto}.idea .branch:nth-child(n){grid-column:1}.estep{gap:12px}.estep .no{font-size:56px}`,
   `.part{padding-top:64px}.hero{padding-block:40px}.figure{margin-top:36px}.foot{margin-top:80px}.sh{margin-bottom:26px}.own .nx,.own .stop{padding:26px 22px}.opt{padding:26px 22px 28px}.q{padding:24px 22px 26px}.ba{padding:24px 22px}`,
-  `.top .links,.top .sep,.top .stamp{display:none}.top .wrap{gap:10px}.top .ttl{max-width:none;flex:1 1 auto}.top nav{margin-left:0}`,
+  `.top .links,.top .sep,.top .stamp{display:none}.top .wrap{gap:10px}.top .ttl{max-width:none;flex:1 1 auto}.top nav{margin-left:0;flex:none}`,
   `.stack thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.stack,.stack tbody,.stack tr,.stack td{display:block;width:100%}.stack tr{padding:14px 0;border-top:1px solid var(--line)}.stack tbody tr:first-child{border-top:0;padding-top:0}.stack td{border:0;padding:3px 0}`,
   `.stack td[data-label]::before{content:attr(data-label);display:block;font:600 13px/1.3 var(--font);color:var(--muted);margin-bottom:2px}}`,
   `@media (max-width:520px){body{font-size:16px}#present{display:none}.tile{padding:22px 20px}.steps{grid-template-columns:minmax(0,1fr)}.say{grid-template-columns:minmax(0,1fr)}}`,
