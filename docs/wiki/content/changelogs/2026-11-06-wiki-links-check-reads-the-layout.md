@@ -22,4 +22,5 @@ packages: ['@venizia/vulcan']
 ## Who is affected
 
 - **Projects with a `layout`:** the next `make wiki-links-check` can report links into your app folders that were never checked. Fix them.
+- **Projects with a `layout` that also keep source in `packages/` or `examples/`:** those two folders are no longer checked, because the layout does not name them. Add the folder to `layout.other` to keep checking it.
 - **Everyone else:** nothing changes.
