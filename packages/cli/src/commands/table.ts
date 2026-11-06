@@ -244,14 +244,16 @@ export class CommandTable {
         '0 on saved, shown, reset or nothing to reset; 1 on cancelled, unreadable profile, .agents/local/ not gitignored, or unknown argument.',
     },
     [VulcanCommands.CLEAN]: {
-      help: `  clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--events|--release-candidates|--profile] [--yes]
+      help: `  clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--events|--release-candidates|--profile] [--include-fresh] [--yes]
                                   List what an agent left under .agents/local/ (a dry run) and, with
-                                  --yes, remove it; --tmp is the default, --worktrees takes merged or
-                                  gone branches only, --all never touches reports, prototypes, events, release candidates or the profile`,
+                                  --yes, remove it; --tmp is the default and takes stale items only (--include-fresh
+                                  adds the rest), --worktrees takes merged or gone branches only, --all never touches reports, prototypes, events, release candidates or the profile`,
       flags: {
-        '--tmp': 'Remove every item in tmp/, whatever its age; the default',
+        '--tmp': 'Remove the stale items of tmp/ (older than a day); the default',
+        '--include-fresh':
+          'Also remove items of tmp/ and clones/ that are not stale yet; a live session may be using them',
         '--worktrees': 'Remove worktrees whose branch is merged or gone and that are clean',
-        '--clones': 'Remove clones of other repositories',
+        '--clones': 'Remove stale clones of other repositories (older than two weeks)',
         '--cache': 'Remove what atlas fetched; it rebuilds',
         '--reports': 'Remove reports/; kept unless named',
         '--prototypes': 'Remove prototypes/; kept unless named',

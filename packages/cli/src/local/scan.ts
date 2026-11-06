@@ -5,7 +5,7 @@ import { join, resolve, sep } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
-import { CleanScopes, LocalConstants, LocalStates } from './constants.ts';
+import { CleanScopes, LocalConstants, LocalProtected, LocalStates } from './constants.ts';
 
 /** One thing under `.agents/local/`: a child of one of its directories, or the profile file. */
 export interface ILocalEntry {
@@ -519,6 +519,13 @@ export class LocalScan {
               });
         } else if (staleAfter !== undefined && ageMs > staleAfter) {
           state = LocalStates.STALE;
+        }
+
+        const inUse = LocalProtected.noteOf({ scope: layout.name, name });
+
+        if (inUse !== undefined) {
+          // Not stale either: it is in use, and doctor must not tell anyone to clean what clean never takes.
+          ({ state, removable, note } = { state: LocalStates.OK, removable: false, note: inUse });
         }
 
         entries.push({
