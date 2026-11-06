@@ -424,8 +424,8 @@ The `sources` array lists external repositories indexed by atlas:
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `name` | `string` | none | External source identifier in atlas results |
-| `repo` | `string` | none | GitHub repository identifier in `owner/repo` format |
-| `ref` | `string` | `'develop'` | Git branch, tag, or commit reference to index |
+| `repo` | `string` | none | GitHub repository identifier in `owner/repo` format, or a git URL; it must not start with `-` |
+| `ref` | `string` | `'develop'` | Git branch, tag, or commit reference to index; it must not start with `-` |
 | `pin` | `'installed'` or `'ref'` | `'installed'` | `installed`: the docs are read at the release tag of the newest installed package of the source. `ref`: always at `ref`. See [Which version of the docs](/references/atlas/sources#which-version-of-the-docs) |
 
 ```ts

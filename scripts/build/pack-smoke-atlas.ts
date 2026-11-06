@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { useRepoTmp } from '@venizia/dev-configs/testing';
+import { SmokeEnv } from './smoke-env.ts';
 
 const PACKAGE_DIRECTORY = resolve(import.meta.dir, '..', '..', 'packages', 'atlas');
 const PACKAGE_NAME = '@venizia/vulcan-atlas';
@@ -26,7 +27,7 @@ const run = (opts: {
     cwd: opts.cwd,
     input: opts.input,
     encoding: 'utf8',
-    env: { ...process.env, NODE_ENV: 'production', ...opts.env },
+    env: SmokeEnv.of({ env: process.env, extra: { NODE_ENV: 'production', ...opts.env } }),
   });
 
   return { status: result.status ?? -1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };

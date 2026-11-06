@@ -24,6 +24,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { useRepoTmp } from '@venizia/dev-configs/testing';
+import { SmokeEnv } from './smoke-env.ts';
 
 interface IStepResult {
   ok: boolean;
@@ -118,7 +119,7 @@ const runStep = (opts: {
     cwd: opts.cwd,
     input: opts.input,
     encoding: 'utf8',
-    env: { ...process.env, ...opts.env },
+    env: SmokeEnv.of({ env: process.env, extra: opts.env }),
   });
   const ok = result.status === opts.expectedCode;
 
@@ -366,7 +367,7 @@ const runHook = (opts: { hook: IHookEntry; sandbox: string; payload: string }) =
     cwd: opts.sandbox,
     input: opts.payload,
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: opts.sandbox },
+    env: SmokeEnv.of({ env: process.env, extra: { CLAUDE_PROJECT_DIR: opts.sandbox } }),
     timeout: 60_000,
   });
 
