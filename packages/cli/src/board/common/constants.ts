@@ -67,10 +67,12 @@ export class BoardFlags {
   static readonly PORT = '--port';
 }
 
-/** The two routes `vulcan board serve` answers. */
+/** The routes `vulcan board serve` answers. */
 export class BoardRoutes {
   static readonly PAGE = 'page';
   static readonly STREAM = 'stream';
+  /** The one-time address `--open` hands to the program that opens the browser. */
+  static readonly OPEN = 'open';
 }
 
 /** `vulcan board serve`: where it listens and how much it keeps open. */
@@ -87,6 +89,11 @@ export class BoardServe {
   static readonly TOKEN_PARAM = 't';
   static readonly PAGE_PATH = '/';
   static readonly STREAM_PATH = '/stream';
+  /** The folder of the one-time address: `/open/<code>`. */
+  static readonly OPEN_PATH = '/open/';
+  static readonly OPEN_CODE_BYTES = 16;
+  /** How long the code of the one-time address works. */
+  static readonly OPEN_CODE_TTL_MS = 10_000;
   static readonly MAX_STREAMS = 8;
   static readonly MAX_SNAPSHOT_BYTES = 20_000_000;
   static readonly HEARTBEAT_MS = 15_000;

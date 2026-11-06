@@ -1,9 +1,10 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { BoardConstants, BoardServe } from './common/index.ts';
 import { BoardAgentSetting } from './agent-setting.ts';
+import { BoardLogo } from './logo.ts';
 import { BOARD_AGENT, BOARD_AGENTS } from './schema.ts';
 import type { TBoardAgentSetting } from './schema.ts';
 
@@ -56,7 +57,9 @@ export class BoardSettings {
     }
 
     if (logoPath !== undefined && logo === undefined) {
-      notes.push(`board.logo ${logoPath} is missing, over 100 KB or not an SVG: no logo`);
+      notes.push(
+        `board.logo ${logoPath} is missing, outside the project, over 100 KB or not an SVG: no logo`,
+      );
     }
 
     return {
@@ -163,26 +166,7 @@ export class BoardSettings {
     return BoardSettings.resolve({
       manifest,
       gitUser: (opts.readGitUser ?? (() => BoardSettings.gitUserOf({ root: opts.root })))(),
-      readLogo: (path) => BoardSettings.logoOf({ root: opts.root, path }),
+      readLogo: (path) => BoardLogo.read({ root: opts.root, path }),
     });
-  }
-
-  /** The SVG at `path` in the project as a `data:` URL; a picture in an `img` runs no script, whatever the file holds. */
-  private static logoOf(opts: { root: string; path: string }): string | undefined {
-    const file = join(opts.root, opts.path);
-
-    try {
-      if (!existsSync(file) || statSync(file).size > BoardConstants.LOGO_MAX_BYTES) {
-        return undefined;
-      }
-
-      const svg = readFileSync(file);
-
-      return /<svg[\s>]/i.test(svg.toString('utf8', 0, 2000))
-        ? `data:image/svg+xml;base64,${svg.toString('base64')}`
-        : undefined;
-    } catch {
-      return undefined;
-    }
   }
 }

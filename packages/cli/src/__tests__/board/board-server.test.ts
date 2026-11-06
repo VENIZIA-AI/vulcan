@@ -123,6 +123,29 @@ describe('BoardServer.check: who may read the board', () => {
     expect(check({ method: 'POST', token: null })).toEqual({ status: 403 });
   });
 
+  test('the open route needs no token, but the Host, the Origin and GET', () => {
+    expect(check({ path: '/open/abc123', token: null })).toEqual({
+      status: 200,
+      route: 'open',
+      code: 'abc123',
+    });
+    expect(check({ path: '/open/abc123', token: null, host: null })).toEqual({ status: 403 });
+    expect(check({ path: '/open/abc123', token: null, host: `evil.example:${PORT}` })).toEqual({
+      status: 403,
+    });
+    expect(check({ path: '/open/abc123', token: null, origin: 'http://evil.example' })).toEqual({
+      status: 403,
+    });
+    expect(check({ path: '/open/abc123', token: null, method: 'POST' })).toEqual({ status: 405 });
+  });
+
+  test.each([['/open/'], ['/open'], ['/open/a/b'], ['/opened/abc']])(
+    'the path %s is not an open route: it needs the token like any other',
+    (path) => {
+      expect(check({ path, token: null })).toEqual({ status: 403 });
+    },
+  );
+
   test('an unknown route is 404, and only for a caller that passed the checks', () => {
     expect(check({ path: '/admin' })).toEqual({ status: 404 });
     expect(check({ path: '/admin', token: null })).toEqual({ status: 403 });
@@ -212,6 +235,135 @@ const openStream = async (opts: {
 
   return { next, status: response.status, close: () => controller.abort() };
 };
+
+describe('BoardServer.openUrl: the one-time address for the program that opens the browser', () => {
+  const tokenOf = (server: { url: string }): string =>
+    new URL(server.url).searchParams.get(BoardServe.TOKEN_PARAM) ?? '';
+  const start = async (opts: { now?: () => number } = {}) => {
+    const { root, dir } = projectWithLog();
+    const server = await BoardServer.start({
+      port: 0,
+      dir,
+      collect: () =>
+        BoardCommand.collect({ root, dir, since: SINCE, args: { repos: [], noGithub: true } }),
+      ...(opts.now === undefined ? {} : { now: opts.now }),
+    });
+
+    return server;
+  };
+
+  test('there is none before the server runs or after it stops', async () => {
+    expect(BoardServer.openUrl()).toBeUndefined();
+
+    await start();
+    expect(BoardServer.openUrl()).toBeDefined();
+
+    await BoardServer.stop();
+    expect(BoardServer.openUrl()).toBeUndefined();
+  });
+
+  test('the address names the configured host and port, and holds a code but not the token', async () => {
+    const server = await start();
+    const token = tokenOf(server);
+    const target = BoardServer.openUrl() ?? '';
+    const url = new URL(target);
+
+    expect(url.host).toBe(new URL(server.url).host);
+    expect(url.pathname).toMatch(/^\/open\/[0-9a-f]{32}$/);
+    expect(url.search).toBe('');
+    expect(url.hash).toBe('');
+    expect(token).toMatch(/^[0-9a-f]{32}$/);
+    expect(target).not.toContain(token);
+  });
+
+  test('the code moves the page to the address with the token, once', async () => {
+    const server = await start();
+    const token = tokenOf(server);
+    const target = BoardServer.openUrl() ?? '';
+    const first = await fetch(target, { redirect: 'manual' });
+    const second = await fetch(target, { redirect: 'manual' });
+    const landed = await fetch(new URL(first.headers.get('location') ?? '', target));
+
+    expect(first.status).toBe(302);
+    expect(first.headers.get('location')).toBe(
+      `${BoardServe.PAGE_PATH}?${BoardServe.TOKEN_PARAM}=${token}`,
+    );
+    expect(first.headers.get('cache-control')).toBe('no-store');
+    expect(first.headers.get('referrer-policy')).toBe('no-referrer');
+    expect(second.status).toBe(403);
+    const result = await second.text();
+    expect(result).toBe('');
+    expect(landed.status).toBe(200);
+  });
+
+  test('the code expires', async () => {
+    let clock = 1_000;
+    await start({ now: () => clock });
+
+    const target = BoardServer.openUrl() ?? '';
+
+    clock += BoardServe.OPEN_CODE_TTL_MS + 1;
+    const result = await fetch(target, { redirect: 'manual' });
+    expect(result.status).toBe(403);
+  });
+
+  test('a code is good for a little while before it expires', async () => {
+    let clock = 1_000;
+    await start({ now: () => clock });
+
+    const target = BoardServer.openUrl() ?? '';
+
+    clock += BoardServe.OPEN_CODE_TTL_MS - 1;
+    const result = await fetch(target, { redirect: 'manual' });
+    expect(result.status).toBe(302);
+  });
+
+  test('a wrong code is 403 with no body and does not use up the real one', async () => {
+    await start();
+
+    const target = BoardServer.openUrl() ?? '';
+    const wrong = new URL(target);
+
+    wrong.pathname = `/open/${'0'.repeat(32)}`;
+
+    const refused = await fetch(wrong, { redirect: 'manual' });
+
+    expect(refused.status).toBe(403);
+    const result = await refused.text();
+    expect(result).toBe('');
+    const result2 = await fetch(target, { redirect: 'manual' });
+    expect(result2.status).toBe(302);
+  });
+
+  test('a new code replaces the old one', async () => {
+    await start();
+
+    const older = BoardServer.openUrl() ?? '';
+    const newer = BoardServer.openUrl() ?? '';
+
+    const result = await fetch(older, { redirect: 'manual' });
+    expect(result.status).toBe(403);
+    const result2 = await fetch(newer, { redirect: 'manual' });
+    expect(result2.status).toBe(302);
+  });
+
+  test('a foreign Host or Origin does not get the token from a good code, and the code stays good', async () => {
+    const server = await start();
+    const target = BoardServer.openUrl() ?? '';
+    const foreignHost = await fetch(target, {
+      redirect: 'manual',
+      headers: { host: `evil.localhost:${new URL(server.url).port}` },
+    });
+    const foreignOrigin = await fetch(target, {
+      redirect: 'manual',
+      headers: { origin: 'http://evil.example' },
+    });
+
+    expect([foreignHost.status, foreignOrigin.status]).toEqual([403, 403]);
+    const result = await fetch(target, { redirect: 'manual' });
+    expect(result.status).toBe(302);
+  });
+});
 
 describe('vulcan board serve', () => {
   test('the address is the configured name; the plain 127.0.0.1 address is the fallback; both reach the page, no other name does', async () => {
