@@ -14,7 +14,7 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **A Bearer credential is matched by its shape.** The text after `Bearer` must hold a digit, a `+`, `/` or `=`, a dot between two characters, or a capital inside it, as a JWT, a hex key or base64 does. A plain word of letters ("Bearer authentication", at the end of a sentence too) has none of these.
+- **A Bearer credential is matched by its shape.** The text after `Bearer` must hold a digit, a `+`, `/` or `=`, a dot between two characters, or a lowercase letter followed by a capital, as a JWT, a hex key or base64 does. A plain word of letters ("Bearer authentication", at the end of a sentence too) has none of these.
 - **The same list drives both.** The private-values check in `vulcan doctor` and the redaction of event text read one list, so both change together.
 
 ## Who is affected
