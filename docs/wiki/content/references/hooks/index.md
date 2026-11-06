@@ -91,9 +91,12 @@ vulcan.manifest.json is generated - edit .configs/vulcan.config.* and run `vulca
 It refuses (a denial, not a question) these calls:
 
 - `Write`, `Edit`, `MultiEdit` and `NotebookEdit` on a path that ends in `.agents/vulcan.manifest.json`, however the path is spelled.
-- A Bash command that redirects into the file (`>`, `>>`), pipes to `tee`, edits it in place (`sed -i`), copies or moves onto it, or removes it.
+- The same four tools on a path that is a link to the file, or that goes through a link to `.agents`: the path is resolved before it is compared.
+- A Bash command that redirects into the file (`>`, `>>`), pipes to `tee`, edits it in place (`sed -i`), copies or moves onto it, or removes it. A redirect, `tee`, `cp` or `mv` onto a link to the file is the same.
+- An inline script (`bun -e`, `node -e`, `--eval`, `python -c`, `sh -c`, `bash -c`, a heredoc fed to an interpreter) that writes, copies, moves or removes a file and holds a piece of the manifest's name, in a command that mentions `.agents`. The name is read with quotes and joins taken out, so `'vulcan.mani' + 'fest.json'` counts. When the hook is unsure it refuses.
+- A `git checkout` or `git restore` whose path is the file, `.agents` or a pattern that matches the file; a `git apply` or `git am` of a patch that names the file; a `git stash pop`, `apply` or `branch` of a stash that holds it.
 
-Reading it (`cat`, `jq`, `git diff`) and `vulcan sync` itself pass. The hook does not see what a script it runs writes.
+Reading it (`cat`, `jq`, `git diff`) and `vulcan sync` itself pass, and so does an inline script that does not write or does not touch `.agents`. The hook does not see what a script file it runs writes.
 
 ## guard-package
 
