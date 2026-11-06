@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs';
 import { ExitCodes } from '../common/index.ts';
+import type { ILayout } from '../common/layout-folder.ts';
 import { AnchorCheck } from './anchors.ts';
 import { WikiDefaults, WikiFlags } from './constants.ts';
-import { SourceLinkCheck } from './source-links.ts';
+import { SourceLinkCheck, SourceRoots } from './source-links.ts';
 
 /** The value after `--flag`, or the fallback; `undefined` when the flag has no value after it. */
 const valueOf = (opts: { args: string[]; flag: string; fallback?: string }): string | undefined => {
@@ -25,9 +26,14 @@ const listOf = (opts: { value: string }): string[] =>
 
 /**
  * `wiki-source-links --repo <owner/name>`: every source path the wiki names is tracked by git. Run from the
- * repository root; the other flags replace the defaults (comma-separated lists).
+ * repository root; the other flags replace the defaults (comma-separated lists). The source folders it checks come
+ * from the project's `layout` (`SourceRoots.of`); the caller reads the config and passes the layout.
  */
-export const runSourceLinksCommand = (opts: { args: string[]; root: string }): number => {
+export const runSourceLinksCommand = (opts: {
+  args: string[];
+  root: string;
+  layout?: ILayout;
+}): number => {
   const { args } = opts;
   const repo = valueOf({ args, flag: WikiFlags.REPO });
   const directories = valueOf({
@@ -62,6 +68,7 @@ export const runSourceLinksCommand = (opts: { args: string[]; root: string }): n
     directories: listOf({ value: directories }),
     skipProseUnder: listOf({ value: skipProse }),
     skipFiles: listOf({ value: skip }),
+    roots: SourceRoots.of({ layout: opts.layout }),
   });
 
   for (const miss of missing) {

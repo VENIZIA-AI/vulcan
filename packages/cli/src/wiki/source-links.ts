@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { GitFiles } from '../common/git-files.ts';
+import { LayoutFolder, LayoutKeys } from '../common/layout-folder.ts';
+import type { ILayout } from '../common/layout-folder.ts';
 import { TextValue } from '../common/text.ts';
 import { WikiDefaults } from './constants.ts';
 
@@ -12,16 +14,44 @@ import { WikiDefaults } from './constants.ts';
  * value (checked only under `.agents/knowledge`). `git ls-files` is the truth, not the disk: a
  * gitignored artifact is not on GitHub.
  */
-const SOURCE_ROOTS = ['packages/', 'examples/', 'scripts/', 'docs/', '.agents/'];
 const SOURCE_EXTENSIONS = ['ts', 'tsx', 'md', 'json', 'mjs', 'js', 'yaml', 'yml'];
 const RESOURCE_LINE_PATTERN = /^resource:\s*(.+)$/;
 const LINE_SUFFIX_PATTERN = /(:\d+|#L\d+)$/;
 
-// `{}` and `*` mark a template or a glob and `<>` a placeholder, never one real file.
-const BACKTICK_PATTERN = new RegExp(
-  `\`((?:${SOURCE_ROOTS.map((root) => TextValue.escapeLiteral({ text: root })).join('|')})[^\`{}*<>]+?\\.(?:${SOURCE_EXTENSIONS.join('|')})(?::\\d+|#L\\d+)?)\``,
-  'g',
-);
+/**
+ * The folders whose paths the check holds to git: where a project's source lives. With a `layout` they are the layout's
+ * folders (backend, frontend, shared, other) and the folders every project has; without one, the list VULCAN's own
+ * repository uses.
+ */
+export class SourceRoots {
+  /** The folders every project has: its docs, its scripts and its agent files. */
+  static readonly FIXED = ['docs/', 'scripts/', '.agents/'];
+  /** What the check reads when the config has no layout. */
+  static readonly DEFAULT = ['packages/', 'examples/', ...SourceRoots.FIXED];
+
+  /** Each root ends with `/`. A layout folder the config would refuse is left out, and so is a repeat. */
+  static of(opts: { layout?: ILayout }): string[] {
+    const folders = LayoutKeys.ALL.flatMap((key) =>
+      LayoutFolder.valid({ value: opts.layout?.[key] }),
+    );
+
+    if (folders.length === 0) {
+      return SourceRoots.DEFAULT;
+    }
+
+    return [...new Set([...folders.map((folder) => `${folder}/`), ...SourceRoots.FIXED])];
+  }
+
+  /** A backticked path under a root. `{}` and `*` mark a template or a glob and `<>` a placeholder, never one real file. */
+  static backtickPatternOf(opts: { roots: string[] }): RegExp {
+    const roots = opts.roots.map((root) => TextValue.escapeLiteral({ text: root })).join('|');
+
+    return new RegExp(
+      `\`((?:${roots})[^\`{}*<>]+?\\.(?:${SOURCE_EXTENSIONS.join('|')})(?::\\d+|#L\\d+)?)\``,
+      'g',
+    );
+  }
+}
 
 export interface IMissingSourceLink {
   file: string;
@@ -74,7 +104,12 @@ const walkMarkdown = (opts: { directory: string }): string[] => {
   });
 };
 
-const extractPaths = (opts: { text: string; repo: string; skipProse: boolean }): string[] => {
+const extractPaths = (opts: {
+  text: string;
+  repo: string;
+  skipProse: boolean;
+  pattern: RegExp;
+}): string[] => {
   const github = new RegExp(
     `${TextValue.escapeLiteral({ text: opts.repo })}/(?:blob|tree)/main/([^\\s)\\]"'\`<>]+)`,
     'g',
@@ -87,7 +122,7 @@ const extractPaths = (opts: { text: string; repo: string; skipProse: boolean }):
     return found;
   }
 
-  const prose = [...opts.text.matchAll(BACKTICK_PATTERN)].map((match) =>
+  const prose = [...opts.text.matchAll(opts.pattern)].map((match) =>
     (match[1] ?? '').replace(LINE_SUFFIX_PATTERN, ''),
   );
 
@@ -95,8 +130,11 @@ const extractPaths = (opts: { text: string; repo: string; skipProse: boolean }):
 };
 
 /** The `resource:` line of a concept's frontmatter, or none when it has no tracked prefix. */
-const extractResource = (opts: { lines: string[] }): { line: number; path: string } | undefined => {
-  const { lines } = opts;
+const extractResource = (opts: {
+  lines: string[];
+  roots: string[];
+}): { line: number; path: string } | undefined => {
+  const { lines, roots } = opts;
 
   if (lines[0] !== '---') {
     return undefined;
@@ -115,11 +153,7 @@ const extractResource = (opts: { lines: string[] }): { line: number; path: strin
       .replace(/^["']|["']$/g, '')
       .replace(/\/+$/, '');
 
-    if (
-      value !== undefined &&
-      value !== '' &&
-      SOURCE_ROOTS.some((root) => value.startsWith(root))
-    ) {
+    if (value !== undefined && value !== '' && roots.some((root) => value.startsWith(root))) {
       return { line: index + 1, path: value };
     }
   }
@@ -130,7 +164,8 @@ const extractResource = (opts: { lines: string[] }): { line: number; path: strin
 export class SourceLinkCheck {
   /**
    * Walks the `.md` files under `directories` (paths relative to `root`) and reports every source path
-   * that git does not track. `skipFiles` are generated pages that are never held to the gate.
+   * that git does not track. `skipFiles` are generated pages that are never held to the gate. `roots` are the
+   * folders a path must start with to be checked (`SourceRoots.of`); the default list when left out.
    */
   static check(opts: {
     root: string;
@@ -138,8 +173,11 @@ export class SourceLinkCheck {
     directories: string[];
     skipProseUnder: string[];
     skipFiles: string[];
+    roots?: string[];
   }): { checked: number; missing: IMissingSourceLink[] } {
     const { root, repo, skipFiles, skipProseUnder } = opts;
+    const roots = opts.roots ?? SourceRoots.DEFAULT;
+    const pattern = SourceRoots.backtickPatternOf({ roots });
     const tracked = loadTracked({ root });
     const exists = (path: string): boolean =>
       tracked.files.has(path) || tracked.directories.has(path);
@@ -157,7 +195,7 @@ export class SourceLinkCheck {
         const skipProse = skipProseUnder.some((skip) => isUnder({ path, directory: skip }));
         const lines = readFileSync(file, 'utf8').split('\n');
         const resource = isUnder({ path, directory: WikiDefaults.KNOWLEDGE_DIRECTORY })
-          ? extractResource({ lines })
+          ? extractResource({ lines, roots })
           : undefined;
 
         if (resource !== undefined) {
@@ -169,7 +207,7 @@ export class SourceLinkCheck {
         }
 
         for (const [index, text] of lines.entries()) {
-          for (const found of extractPaths({ text, repo, skipProse })) {
+          for (const found of extractPaths({ text, repo, skipProse, pattern })) {
             checked += 1;
 
             if (!exists(found)) {
