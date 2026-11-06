@@ -22,6 +22,7 @@ import {
   HookEvents,
   LibraryKinds,
   PackageKinds,
+  TemplatePlaceholders,
 } from './common/index.ts';
 
 const CODING_AGENT = z.string().refine((value) => CodingAgents.isValid(value), {
@@ -218,9 +219,21 @@ const checkPackagesUnique = (
  * leading `[#<issue>] ` is optional and a trailing ` [<mode>]` is tolerated. A release train that
  * tags once leaves `<dir>` out (`v<version>`).
  */
-const RELEASE_TEMPLATE = z.string().refine((value) => value.includes('<version>'), {
-  message: 'a template with <version> (and <dir> for per-package releases)',
-});
+const RELEASE_TEMPLATE = z
+  .string()
+  .refine((value) => value.includes('<version>'), {
+    message: 'a template with <version> (and <dir> for per-package releases)',
+  })
+  .superRefine((value, context) => {
+    const unknown = TemplatePlaceholders.unknownIn({ template: value });
+
+    if (unknown.length > 0) {
+      context.addIssue({
+        code: 'custom',
+        message: TemplatePlaceholders.problemOf({ unknown }),
+      });
+    }
+  });
 
 /** A renderer by id: a built-in, or a project module (`module`); a bare string is the id alone. */
 const OKF_RENDERER = z.union([

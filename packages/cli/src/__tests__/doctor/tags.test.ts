@@ -67,3 +67,15 @@ test('<package> is no placeholder: a template written with it names no directory
 
   expect(result).toEqual([]);
 });
+
+test('a template with <package> is a config violation that names the placeholder and <dir>', async () => {
+  const root = projectWithTags({
+    tags: [],
+    config: "export default { atlas: { tagPattern: '<package>-v<version>' } };\n",
+  });
+  const violations = await DoctorRunner.runChecks({ root });
+
+  expect(violations.map((violation) => violation.check)).toEqual([DoctorChecks.CONFIG]);
+  expect(violations[0]?.message).toContain('<package> is not a placeholder of a release template');
+  expect(violations[0]?.message).toContain('<dir> replaces <package>');
+});

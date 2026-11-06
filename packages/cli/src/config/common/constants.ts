@@ -80,3 +80,29 @@ export class ConfigConstants {
     'V-B-09',
   ];
 }
+
+/** The placeholders a release template (`atlas.tagPattern`, `atlas.legacyTagPatterns`) knows; any other `<word>` would be read as literal text and match no tag. */
+export class TemplatePlaceholders {
+  static readonly ALLOWED = ['dir', 'version', 'issue', 'date'];
+  private static readonly PATTERN = /<([^<>\s]*)>/g;
+
+  /** The `<word>` placeholders of the template that are not allowed, each once, in the order they appear. */
+  static unknownIn(opts: { template: string }): string[] {
+    const found = [...opts.template.matchAll(TemplatePlaceholders.PATTERN)].map(
+      (match) => match[1] ?? '',
+    );
+
+    return [...new Set(found)].filter((word) => !TemplatePlaceholders.ALLOWED.includes(word));
+  }
+
+  /** What the config error says: the placeholders it does not know, the ones it does, and what replaces `<package>`. */
+  static problemOf(opts: { unknown: string[] }): string {
+    const named = opts.unknown.map((word) => `<${word}>`).join(', ');
+    const hint = opts.unknown.includes('package')
+      ? ' <dir> replaces <package>: it is the package directory.'
+      : '';
+    const allowed = TemplatePlaceholders.ALLOWED.map((word) => `<${word}>`).join(', ');
+
+    return `${named} is not a placeholder of a release template (${allowed}).${hint}`;
+  }
+}
