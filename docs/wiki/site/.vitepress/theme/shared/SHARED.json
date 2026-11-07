@@ -1,5 +1,5 @@
 {
-  "fingerprint": "19f8f6c8d3e951e80bf0004439639fcf260389ce940f49a8dfeb39f9189907b6",
+  "fingerprint": "8505a681fce16e23b71cacd8c8676e7d3dd6312959f5983bcb774bc4ad612064",
   "files": {
     "AtAGlance.vue": "82a497e03e3214a0aabca18d2dcf581bd2e9379c4d13594d0df48ce74f398991",
     "ChangelogEntryHead.vue": "f39ba1e011c369954e9a1cdf64dc0f3eefc965365e0e5a4fc99182753db70a2a",
@@ -55,6 +55,6 @@
     "venizia-logo.ts": "743b2255878053ec1e1c94359da71d7dc819b693507d8bd3c270c372dc4289ff",
     "vitepress-selectors.json": "e797e36f65d8113626814a8652e0736c4572a0eb27248db2162b7ecdbe1e66d5",
     "vp-map.css": "7c1efe72b5134d149040a13fbbe6c508beb4903ed2b9958541c421d840ef72c0",
-    "wiki-theme.ts": "381c159248be283ad620998f63d8a14e414c285d0ebc63272e7905d427415337"
+    "wiki-theme.ts": "d814507c87fe0d65d846e5aa52a7649f215ad9e8d1ce1f4d4f2aca90b9f2eaf6"
   }
 }

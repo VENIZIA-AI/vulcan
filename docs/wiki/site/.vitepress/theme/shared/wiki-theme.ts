@@ -8,7 +8,6 @@
  * wiki draws with (type, spacing, the code windows) stays in tokens.css.
  */
 import { readFileSync } from 'node:fs';
-import type { HeadConfig } from 'vitepress';
 
 /** The resolved colours of one mode, by token name (`ink`, `line`, `accent`, ...). */
 export type TWikiThemeMode = Record<string, string>;
@@ -86,8 +85,8 @@ export class WikiTheme {
     return `:root{${root.join(';')};}.dark{${dark.join(';')};}`;
   }
 
-  /** The `<style>` entry for the `head` of the VitePress config. */
-  static head(opts: IWikiThemeOptions): HeadConfig {
+  /** The `<style>` entry for the `head` of the VitePress config (a `HeadConfig`, typed here so cli never reaches vitepress). */
+  static head(opts: IWikiThemeOptions): ['style', Record<string, string>, string] {
     return ['style', {}, WikiTheme.css(opts)];
   }
 }
