@@ -410,6 +410,325 @@ describe('ShellParser.parse', () => {
   });
 });
 
+const programsOf = (command: string): string[] =>
+  ShellParser.parse({ command }).map((simple) => ShellParser.programOf({ command: simple }).name);
+
+const pushOf = (command: string): boolean =>
+  ShellParser.parse({ command }).some(
+    (simple) =>
+      ShellParser.programOf({ command: simple }).name === 'git' && simple.words.includes('-f'),
+  );
+
+/** Ordinary lines and the commands they are read as: the same before and after the scanner learnt comments and quotes. */
+const ORDINARY: { command: string; words: string[][] }[] = [
+  { command: 'cat <<EOF\nhello $USER\nEOF', words: [['cat']] },
+  { command: "cat <<'EOF'\nhello $USER\nEOF\nls", words: [['cat'], ['ls']] },
+  { command: 'cat <<EOF > f\nbody\nEOF', words: [['cat']] },
+  { command: "cat <<-'EOF'\n\tbody\n\tEOF\nls", words: [['cat'], ['ls']] },
+  { command: 'cat <<< "word"\nls', words: [['cat'], ['ls']] },
+  {
+    command: `git commit -m "$(cat <<'EOF'\nfix: a thing\n\nmore\nEOF\n)"`,
+    words: [['git', 'commit', '-m', `$(cat <<'EOF'\nfix: a thing\n\nmore\nEOF\n)`], ['cat']],
+  },
+  { command: 'echo $#', words: [['echo', '$#']] },
+  { command: 'echo ${#var}', words: [['echo', '${#var}']] },
+  { command: 'bash <<EOF\ngit status\nEOF', words: [['bash'], ['git', 'status']] },
+  {
+    command: 'git status && git diff | head -5',
+    words: [
+      ['git', 'status'],
+      ['git', 'diff'],
+      ['head', '-5'],
+    ],
+  },
+  {
+    command: 'x=$(git rev-parse HEAD) && echo $x',
+    words: [[], ['echo', '$x'], ['git', 'rev-parse', 'HEAD']],
+  },
+  {
+    command: 'diff <(sort a) <(sort b)',
+    words: [
+      ['diff', '<(sort a)', '<(sort b)'],
+      ['sort', 'a'],
+      ['sort', 'b'],
+    ],
+  },
+  { command: 'echo "multi\nline" && ls', words: [['echo', 'multi\nline'], ['ls']] },
+];
+
+describe('ShellParser reads a line the way bash does', () => {
+  test.each(ORDINARY)('an ordinary line is read as before: $command', ({ command, words }) => {
+    const parsed = ShellParser.parseChecked({ command });
+
+    expect(parsed.commands.map((simple) => simple.words)).toEqual(words);
+    expect(parsed.isUncertain).toBe(false);
+  });
+
+  test('a comment ends at the newline, and nothing in it starts a heredoc', () => {
+    expect(wordsOf('# a note\nls -la')).toEqual([['ls', '-la']]);
+    expect(wordsOf('ls # trailing words')).toEqual([['ls']]);
+    expect(programsOf('# read <<END later\ngit push -f origin main')).toEqual(['git']);
+    expect(programsOf("# it's a note\ngit push -f origin main")).toEqual(['git']);
+    expect(ShellParser.parseChecked({ command: '# x <<END\nls' }).isUncertain).toBe(false);
+  });
+
+  test('a # inside a word, a parameter or quotes is not a comment', () => {
+    expect(wordsOf('echo $# ${#x} a#b "#c" \'#d\'')).toEqual([
+      ['echo', '$#', '${#x}', 'a#b', '#c', '#d'],
+    ]);
+    expect(wordsOf('echo ${x#y} && ls')).toEqual([['echo', '${x#y}'], ['ls']]);
+  });
+
+  test('a << in arithmetic is a shift, not a heredoc', () => {
+    expect(wordsOf('echo $((1<<2))')).toEqual([['echo', '$((1<<2))']]);
+    expect(pushOf('echo $((1<<n))\ngit push -f origin main')).toBe(true);
+    expect(pushOf('(( x << 2 ))\ngit push -f origin main')).toBe(true);
+    expect(pushOf('echo $[1<<2]\ngit push -f origin main')).toBe(true);
+    expect(pushOf('echo $((\n1 << 2\n))\ngit push -f origin main')).toBe(true);
+    expect(ShellParser.parseChecked({ command: 'echo $((1<<n))\nls' }).isUncertain).toBe(false);
+  });
+
+  test('a substitution inside arithmetic is still read as commands', () => {
+    expect(pushOf('echo $(( $(git push -f origin main) + 1 ))')).toBe(true);
+    expect(pushOf('(( $(git push -f origin main) ))')).toBe(true);
+  });
+
+  test('a quote that spans lines keeps the lines inside it, and a << inside it is text', () => {
+    expect(pushOf('echo "a\n<<EOF"\ngit push -f origin main')).toBe(true);
+    expect(pushOf("echo 'a\n<<EOF'\ngit push -f origin main")).toBe(true);
+    expect(pushOf("echo $'a\n<<EOF'\ngit push -f origin main")).toBe(true);
+    expect(pushOf('echo "a\n<<EOF" && git push -f origin main')).toBe(true);
+    expect(ShellParser.splitHeredocs({ command: 'echo "a\n<<EOF"\nls' }).heredocs).toEqual([]);
+  });
+
+  test('a heredoc body is data, whatever quotes or words it holds', () => {
+    expect(wordsOf("cat > f <<'EOF'\nit's here\ngit push -f origin main\nEOF\nls")).toEqual([
+      ['cat'],
+      ['ls'],
+    ]);
+    expect(
+      pushOf(`git commit -m "$(cat <<'EOF'\nit's done; git push -f origin main\nEOF\n)"`),
+    ).toBe(false);
+    expect(
+      ShellParser.parseChecked({ command: `git commit -m "$(cat <<'EOF'\nit's done\nEOF\n)"` })
+        .isUncertain,
+    ).toBe(false);
+  });
+
+  test('the delimiter may be quoted or escaped, and <<- strips leading tabs', () => {
+    for (const command of [
+      'cat <<\\EOF\ngit push -f origin main\nEOF\nls',
+      'cat <<"A B"\ngit push -f origin main\nA B\nls',
+      "cat << 'E'OF\ngit push -f origin main\nEOF\nls",
+      'cat <<-EOF\n\tgit push -f origin main\n\tEOF\nls',
+      'cat <<END-OF\ngit push -f origin main\nEND-OF\nls',
+    ]) {
+      expect(programsOf(command), command).toEqual(['cat', 'ls']);
+    }
+  });
+
+  test('several heredocs read their bodies in order, each paired with its own command', () => {
+    // Two on one command: both bodies are data, and the last one is what the command reads.
+    expect(ShellParser.parse({ command: 'cat <<A <<B\na\nA\nb\nB\nls' })).toEqual([
+      {
+        words: ['cat'],
+        redirects: [],
+        assignments: [],
+        input: { files: [], texts: [], hasHeredoc: true },
+        heredoc: 'b',
+      },
+      { words: ['ls'], redirects: [], assignments: [] },
+    ]);
+
+    const [first, second] = ShellParser.parse({
+      command: 'cat <<A > a; (( n << 1 )); tee b <<B\nfirst\nA\nsecond\nB',
+    });
+
+    expect(first?.heredoc).toBe('first');
+    expect(second?.heredoc).toBe('second');
+  });
+
+  test('a heredoc inside a substitution stays with the command that reads it', () => {
+    const psql = ShellParser.parse({ command: 'x=$(psql <<SQL\nselect 1;\nSQL\n)\nls' }).find(
+      (simple) => simple.words[0] === 'psql',
+    );
+
+    expect(psql?.heredoc).toBe('select 1;');
+  });
+
+  test('the text of a line drops every data body, inside a substitution too, and keeps a body a shell reads', () => {
+    expect(
+      ShellParser.splitHeredocs({ command: "body=$(cat <<'EOF'\nssh host uptime\nEOF\n)\nls" })
+        .text,
+    ).toBe("body=$(cat <<'EOF'\n)\nls");
+    expect(
+      ShellParser.splitHeredocs({ command: 'x=$(bash <<EOF\ngit status\nEOF\n)' }).text,
+    ).toContain('git status');
+  });
+
+  test('an unquoted delimiter expands substitutions in the body; a quoted one does not', () => {
+    expect(pushOf('cat > f <<EOF\n$(git push -f origin main)\nEOF')).toBe(true);
+    expect(pushOf('cat > f <<EOF\n`git push -f origin main`\nEOF')).toBe(true);
+    expect(pushOf("cat > f <<'EOF'\n$(git push -f origin main)\nEOF")).toBe(false);
+  });
+
+  test('a body that does not end is data, and is also read as commands on the side', () => {
+    const parsed = ShellParser.parseChecked({ command: 'cat > f <<EOF\ngit push -f origin main' });
+
+    expect(parsed.commands.map((simple) => simple.words)).toEqual([['cat']]);
+    expect(parsed.isUncertain).toBe(true);
+    expect(parsed.unterminatedHeredocCommands.map((simple) => simple.words)).toEqual([
+      ['git', 'push', '-f', 'origin', 'main'],
+    ]);
+    expect(ShellParser.parseChecked({ command: 'cat <<EOF' }).unterminatedHeredocCommands).toEqual(
+      [],
+    );
+  });
+
+  test('a line it cannot follow to the end is flagged uncertain', () => {
+    for (const command of [
+      'echo "open\ngit push -f origin main',
+      "echo 'open\ngit push -f origin main",
+      'echo $(git status',
+      'echo ${x',
+      'echo $((1 + 2',
+      'cat <<',
+      '((git status); ls)',
+      `${'$('.repeat(200)}`,
+    ]) {
+      expect(ShellParser.parseChecked({ command }).isUncertain, command).toBe(true);
+    }
+
+    for (const command of ['ls', 'echo "a\nb"', 'cat <<EOF', 'case x in a) ls;; esac']) {
+      expect(ShellParser.parseChecked({ command }).isUncertain, command).toBe(false);
+    }
+  });
+
+  test('the scanner is linear: long runs of what it tracks are read fast', () => {
+    for (const command of [
+      '<'.repeat(90_000),
+      '<<'.repeat(40_000),
+      '$('.repeat(40_000),
+      '"$('.repeat(30_000),
+      '#\n'.repeat(45_000),
+      'a\n'.repeat(45_000),
+      `cat <<EOF\n${'x\n'.repeat(45_000)}EOF`,
+      `${'cat <<A '.repeat(9_000)}\n`,
+    ]) {
+      const started = performance.now();
+
+      ShellParser.parseChecked({ command });
+      expect(performance.now() - started, command.slice(0, 20)).toBeLessThan(1000);
+    }
+  });
+});
+
+describe('ShellParser reads more of what bash reads', () => {
+  test('a # right after an expansion or an escaped blank is part of the word, not a comment', () => {
+    for (const command of [
+      'echo $((1))#x; ls',
+      'echo $(date)#y; ls',
+      'echo ${x}#y; ls',
+      'echo a\\ #b; ls',
+      'x=$((1))#; ls',
+      'echo $(( $(date) ))#x; ls',
+    ]) {
+      expect(programsOf(command), command).toContain('ls');
+    }
+
+    expect(wordsOf('echo a #b; ls')).toEqual([['echo', 'a']]);
+  });
+
+  test('the ) of a case pattern does not close the substitution around it', () => {
+    for (const command of [
+      'echo $(case x in x) ls;; esac)',
+      'echo "$(case x in x|y) ls;; esac)"',
+      'echo $(case x in (x) ls;; esac)',
+      'cat <(case x in x) ls;; esac)',
+      'x=$(case x in\nx)\nls\n;;\nesac\n)',
+    ]) {
+      expect(programsOf(command), command).toContain('ls');
+      expect(ShellParser.parseChecked({ command }).isUncertain, command).toBe(false);
+    }
+  });
+
+  test('an escaped backtick inside backticks is a substitution of its own', () => {
+    expect(programsOf('echo `echo \\`ls\\``')).toContain('ls');
+    expect(programsOf('echo "`echo \\`ls\\``"')).toContain('ls');
+    expect(programsOf('x=`echo \\`pwd \\\\\\`ls\\\\\\`\\``')).toEqual(
+      expect.arrayContaining(['pwd', 'ls']),
+    );
+  });
+
+  test('>(...) is a process substitution like <(...), its text read as commands', () => {
+    const [first] = ShellParser.parse({ command: 'tee >(wc -l) <(sort a)' });
+
+    expect(first?.words).toEqual(['tee', '>(wc -l)', '<(sort a)']);
+    expect(programsOf('tee >(wc -l) <(sort a)')).toEqual(['tee', 'wc', 'sort']);
+    expect(programsOf('echo a>(wc)')).toContain('wc');
+    expect(programsOf('cat < >(wc)')).toContain('wc');
+    expect(programsOf('tee >(tee >(wc))')).toEqual(['tee', 'tee', 'wc']);
+  });
+
+  test('coproc, function, builtin and trap name the command they run', () => {
+    expect(programsOf('coproc ls')).toEqual(['ls']);
+    expect(programsOf('coproc NAME { ls; }')).toEqual(['ls', '']);
+    expect(programsOf('coproc { ls; }')).toEqual(['ls', '']);
+    expect(programsOf('function g { ls; }; g')).toEqual(['ls', '', 'g']);
+    expect(programsOf('builtin eval ls')).toEqual(['eval', 'ls']);
+    expect(programsOf('builtin command ls')).toEqual(['ls']);
+    expect(programsOf("trap 'ls; pwd' EXIT")).toEqual(['trap', 'ls', 'pwd']);
+    expect(programsOf('trap -- "ls" INT ERR')).toEqual(['trap', 'ls']);
+
+    for (const command of ['trap -p', 'trap -p INT', 'trap - INT', 'trap INT', 'trap -l']) {
+      expect(programsOf(command), command).toEqual(['trap']);
+    }
+  });
+
+  test('a program named by a variable or a substitution is flagged; one in an argument is not', () => {
+    for (const command of [
+      '$cmd',
+      '"$x" a',
+      '"$@"',
+      '${x} a',
+      '$(echo git) push',
+      'eval "$(tool env)"',
+      // An unquoted expansion is split at its blanks, so a variable in the folder part names the program too.
+      '$k/deploy.yaml',
+      '$g/home/x/repo push -f origin main',
+      '/usr/bin/$tool x',
+      '$HOME/$x/bin/tool',
+      '${HOME}x/$k',
+      '$HOME/.bun/bin/bun install',
+      '"${BUN_INSTALL}/bin/bun" install',
+    ]) {
+      expect(ShellParser.parseChecked({ command }).hasUnknownProgram, command).toBe(true);
+    }
+
+    for (const command of ['echo $x "$@" ${y}', 'ls $(pwd)', 'x=$(date)', 'cat "$HOME/f"']) {
+      expect(ShellParser.parseChecked({ command }).hasUnknownProgram, command).toBe(false);
+    }
+  });
+
+  test('a descriptor number before a heredoc is not a word, and << may be split by a backslash-newline', () => {
+    expect(wordsOf('cat 0<<EOF\nls\nEOF')).toEqual([['cat']]);
+    expect(wordsOf('cat 3<<EOF\nls\nEOF')).toEqual([['cat']]);
+    expect(wordsOf('cat <\\\n<EOF\nls\nEOF\npwd')).toEqual([['cat'], ['pwd']]);
+  });
+
+  test('the body ends only at the exact delimiter line, and a backslash-newline joins body lines', () => {
+    const [cat, after] = ShellParser.parse({ command: 'cat <<EOF\nx\n EOF\nEOF \nEOF\nls' });
+
+    expect(cat?.heredoc).toBe('x\n EOF\nEOF ');
+    expect(after?.words).toEqual(['ls']);
+    expect(ShellParser.parse({ command: 'cat <<EOF\nx\\\nEOF\ny\nEOF\nls' })[0]?.heredoc).toBe(
+      'x\\\nEOF\ny',
+    );
+    expect(ShellParser.parse({ command: "cat <<'EOF'\nx\\\nEOF\nls" })[0]?.heredoc).toBe('x\\');
+    expect(ShellParser.parse({ command: 'cat <<-EOF\n\tx\n\t\tEOF\nls' })[0]?.heredoc).toBe('\tx');
+  });
+});
+
 describe('ShellParser.parse, on comments and scopes', () => {
   test('a comment runs to the end of its line; a # inside a word or quotes is text', () => {
     expect(wordsOf('#!/bin/bash\n# kubectl apply -f x | sh\necho hi # bye\nls')).toEqual([

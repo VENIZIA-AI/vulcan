@@ -28,7 +28,7 @@ import { ShellFolders } from './shell-folders.ts';
 import { ShellWrites } from './shell-writes.ts';
 import { WriteCommands } from './write-commands.ts';
 import type { IShellFolder } from './shell-folders.ts';
-import { ShellModes, ShellParser, ShellPrograms } from './shell.ts';
+import { ShellModes, ShellParser, ShellPrograms, ShellUnread } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { ReadOnlyScripts, ScriptPaths, ScriptTrust } from './trusted-scripts.ts';
 
@@ -384,13 +384,18 @@ export class WriteGuard {
       (check) => ({ rule: check.rule, message: check.what }),
     );
 
-    // Part of the line was not read: never an allow.
-    if (view.isOverBudget) {
-      hits.push({
-        rule: 'V-W-02',
-        message:
-          'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
-      });
+    // Part of the line was not read: never an allow. A program that is a substitution is read below, by what it prints.
+    const unread = ShellUnread.reasonOf({
+      ...view,
+      hasUnknownProgram: view.commands.some(
+        (command) =>
+          ShellParser.isUnknownProgram({ command }) &&
+          !WriteGuard.isPrintedFile({ word: ShellParser.programOf({ command }).name }),
+      ),
+    });
+
+    if (unread !== undefined) {
+      hits.push({ rule: 'V-W-02', message: unread });
     }
 
     const commands = view.commands.flatMap((command) => [
@@ -1053,6 +1058,24 @@ export class WriteGuard {
   }
 
   /** The text of `$(...)`, of a backtick substitution or of `<(...)` when the word is only that; else `undefined`. */
+  /** A program word that is a lone `cat FILE` substitution: the files it prints are read as code below. Any other substitution names a program the line does not show. */
+  private static isPrintedFile(opts: { word: string }): boolean {
+    const text = WriteGuard.substitutionOf({ word: opts.word });
+
+    if (text === undefined) {
+      return false;
+    }
+
+    const commands = ShellParser.parse({ command: text });
+    const [only] = commands;
+
+    return (
+      commands.length === 1 &&
+      only !== undefined &&
+      ShellParser.programOf({ command: only }).name === 'cat'
+    );
+  }
+
   private static substitutionOf(opts: { word: string }): string | undefined {
     const match = /^(?:\$\(([\s\S]*)\)|`([\s\S]*)`|<\(([\s\S]*)\))$/.exec(opts.word);
 

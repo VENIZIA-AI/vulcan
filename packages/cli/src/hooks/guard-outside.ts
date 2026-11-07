@@ -1,7 +1,7 @@
 import { lstatSync, readlinkSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
-import { ShellParser } from './shell.ts';
+import { ShellParser, ShellUnread } from './shell.ts';
 import { ShellFolders } from './shell-folders.ts';
 import type { TEnvironment } from './shell-folders.ts';
 import { ShellWrites } from './shell-writes.ts';
@@ -139,7 +139,7 @@ export class OutsideGuard {
       });
     }
 
-    let isUnread = false;
+    let unread: string | undefined;
 
     if (opts.input.command !== undefined) {
       const parsed = ShellParser.parseChecked({ command: opts.input.command });
@@ -151,7 +151,7 @@ export class OutsideGuard {
         env,
       });
 
-      isUnread = parsed.isOverBudget;
+      unread = ShellUnread.reasonOf(parsed);
 
       // A command's own redirects open in the folder it starts in, a `cd`'s included.
       for (const [index, command] of parsed.commands.entries()) {
@@ -171,16 +171,10 @@ export class OutsideGuard {
     }
 
     // Part of the line was not read: never an allow.
-    const hits: IOutsideHit[] = isUnread
-      ? [
-          {
-            path: '(the command line)',
-            message:
-              'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
-            isAgentToolScratchpad: false,
-          },
-        ]
-      : [];
+    const hits: IOutsideHit[] =
+      unread === undefined
+        ? []
+        : [{ path: '(the command line)', message: unread, isAgentToolScratchpad: false }];
 
     for (const target of targets) {
       const expanded = ShellFolders.expandPath({ word: target.word, home, env, cwd: target.pwd });

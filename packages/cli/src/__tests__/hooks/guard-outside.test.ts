@@ -396,3 +396,17 @@ describe('the agent tool scratchpad', () => {
     expect(hitsOf({ command: 'mkdir -p .agents/local/tmp/x' })).toEqual([]);
   });
 });
+
+describe('OutsideGuard.inspect reads the command after a line that only looks like a heredoc start', () => {
+  test.each(['# feed <<STOP to the reader', 'echo $(( 2 << n ))', 'printf "%s" "first\n<<STOP"'])(
+    'after %s, a write outside the project asks',
+    (lead) => {
+      expect(bash({ command: `${lead}\necho hi > /tmp/out.txt` }).length).toBe(1);
+    },
+  );
+
+  test('a write outside the project inside a real heredoc body is data; a line it cannot follow asks', () => {
+    expect(bash({ command: "cat > notes.md <<'STOP'\necho hi > /tmp/out.txt\nSTOP" })).toEqual([]);
+    expect(bash({ command: 'echo "never closed\nls' }).join(' ')).toContain('does not close');
+  });
+});

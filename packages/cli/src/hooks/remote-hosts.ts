@@ -3,7 +3,7 @@ import { HostPatterns } from './host-pattern.ts';
 import type { IWriteHit } from './common/index.ts';
 import { CommandView } from './command-view.ts';
 import { HookDecision } from './decision.ts';
-import { ShellParser, ShellPrograms } from './shell.ts';
+import { ShellParser, ShellPrograms, ShellUnread } from './shell.ts';
 
 // -----------------------------------------------------------------------------
 // The remote-host guard: a Bash command that reaches a host the project has not listed asks first.
@@ -970,6 +970,15 @@ export class RemoteHosts {
       if (!RemoteHosts.matches({ host, entries: policy.trusted })) {
         ask(trustedMessage({ host, policy }));
       }
+    }
+
+    // A line the shell parser cannot follow to its end, or a program it cannot name, hides what runs: never an
+    // allow. Over the budget is left out: this guard reads the line with its own tokenizer.
+    const parsed = ShellParser.parseChecked({ command });
+    const unread = ShellUnread.reasonOf({ ...parsed, isOverBudget: false });
+
+    if (unread !== undefined) {
+      ask(unread);
     }
 
     if (SENSITIVE_ASSIGNMENT.test(command)) {

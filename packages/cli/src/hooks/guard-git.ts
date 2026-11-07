@@ -1,4 +1,4 @@
-import { ShellParser } from './shell.ts';
+import { ShellParser, ShellUnread } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IGitHit, IGitRunner } from './common/index.ts';
@@ -462,14 +462,27 @@ export class GitGuard {
       inspectOne({ command, cwd: opts.cwd, run: limited, askPush: opts.askPush ?? [] }),
     );
 
+    // The lines of a heredoc body that never ends are data to bash: what they would do is asked about, not denied.
+    for (const command of parsed.unterminatedHeredocCommands) {
+      for (const hit of inspectOne({
+        command,
+        cwd: opts.cwd,
+        run: limited,
+        askPush: opts.askPush ?? [],
+      })) {
+        hits.push({
+          ...hit,
+          decision: GuardDecisions.ASK,
+          message: `${hit.message} (in a heredoc body whose delimiter never comes)`,
+        });
+      }
+    }
+
     // Part of the line was not read: never an allow.
-    if (parsed.isOverBudget) {
-      hits.push({
-        decision: GuardDecisions.ASK,
-        rule: 'V-W-06',
-        message:
-          'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
-      });
+    const unread = ShellUnread.reasonOf(parsed);
+
+    if (unread !== undefined) {
+      hits.push({ decision: GuardDecisions.ASK, rule: 'V-W-06', message: unread });
     }
 
     if (isCapped) {

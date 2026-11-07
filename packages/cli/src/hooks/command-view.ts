@@ -90,6 +90,10 @@ export interface ICommandView {
   parsed: ISimpleCommand[];
   /** Part of the line was not read: the guard asks. */
   isOverBudget: boolean;
+  /** Part of the line could not be followed to its end: the guard asks. */
+  isUncertain: boolean;
+  /** A command's program is a variable or a substitution: the guard asks. */
+  hasUnknownProgram: boolean;
 }
 
 /** Whether a `gh` command is a request: its subcommand (the first word that is not an option or an option's value) is one of `GH_REQUESTS`. */
@@ -176,6 +180,8 @@ export class CommandView {
       commands,
       parsed: parsed.commands,
       isOverBudget: parsed.isOverBudget,
+      isUncertain: parsed.isUncertain,
+      hasUnknownProgram: parsed.hasUnknownProgram,
     };
   }
 }

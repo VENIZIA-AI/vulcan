@@ -87,6 +87,9 @@ describe('a line the guard cannot read in full asks, and the guard does not cras
     expect(ShellParser.parseChecked({ command: over })).toEqual({
       commands: [],
       isOverBudget: true,
+      isUncertain: false,
+      hasUnknownProgram: false,
+      unterminatedHeredocCommands: [],
     });
     expect(ShellParser.parseChecked({ command: at }).isOverBudget).toBe(false);
     expect(decisions({ command: over })).toEqual(['ask']);
