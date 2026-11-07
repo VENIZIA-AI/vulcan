@@ -79,7 +79,9 @@ const pull = async (opts: { root: string; cache: string; bare: string; flags?: s
 
   await child.exited;
 
-  const result = await new Response(child.stdout).text();
+  const stdoutResponse = new Response(child.stdout);
+
+  const result = await stdoutResponse.text();
   return { code: child.exitCode, stdout: result };
 };
 

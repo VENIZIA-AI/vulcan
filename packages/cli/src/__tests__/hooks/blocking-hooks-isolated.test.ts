@@ -75,9 +75,11 @@ const run = async (opts: { hook: string; payload: string }) => {
       killSignal: 'SIGKILL',
     },
   );
-  const result = await new Response(child.stdout).text();
+  const stdoutResponse = new Response(child.stdout);
+  const result = await stdoutResponse.text();
   const stdout = result.trim();
-  const stderr = await new Response(child.stderr).text();
+  const stderrResponse = new Response(child.stderr);
+  const stderr = await stderrResponse.text();
 
   const result2 = await child.exited;
   return { code: result2, stdout, stderr };

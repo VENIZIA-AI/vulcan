@@ -93,7 +93,9 @@ describe('vulcan x', () => {
       await child.stdin.write(`${JSON.stringify(initialize)}\n`);
       await child.stdin.end();
 
-      const stdout = await new Response(child.stdout).text();
+      const stdoutResponse = new Response(child.stdout);
+
+      const stdout = await stdoutResponse.text();
 
       await child.exited;
       const lines = stdout.trim().split('\n').filter(Boolean);

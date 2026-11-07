@@ -267,11 +267,12 @@ describe('SourceReleases with a local project that has no release on this ref', 
     ],
   });
   const ask = async (args: Record<string, unknown>) => {
-    const line = await new Transport({
+    const transport = new Transport({
       tools: [ChangesTool.build({ releases })],
       serverName: 'atlas-test',
       serverVersion: '0.0.0',
-    }).handleLine({
+    });
+    const line = await transport.handleLine({
       line: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,

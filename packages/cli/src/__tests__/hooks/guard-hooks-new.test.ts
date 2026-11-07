@@ -28,7 +28,8 @@ const runHook = async (opts: {
     timeout: SPAWN_TIMEOUT_MS,
     killSignal: 'SIGKILL',
   });
-  const stdout = await new Response(child.stdout).text();
+  const stdoutResponse = new Response(child.stdout);
+  const stdout = await stdoutResponse.text();
 
   const result = await child.exited;
   return { code: result, stdout: stdout.trim() };
@@ -435,8 +436,10 @@ describe('the kill switch does not depend on the install being healthy', () => {
           timeout: SPAWN_TIMEOUT_MS,
           killSignal: 'SIGKILL',
         });
-        const stderr = await new Response(child.stderr).text();
-        const stdout = await new Response(child.stdout).text();
+        const stderrResponse = new Response(child.stderr);
+        const stderr = await stderrResponse.text();
+        const stdoutResponse = new Response(child.stdout);
+        const stdout = await stdoutResponse.text();
 
         const result = await child.exited;
         return { code: result, stderr, stdout };

@@ -30,8 +30,10 @@ const runHook = async (opts: { hook: string; stdin: string; root: string }) => {
     timeout: SPAWN_TIMEOUT_MS,
     killSignal: 'SIGKILL',
   });
-  const stdout = await new Response(child.stdout).text();
-  const stderr = await new Response(child.stderr).text();
+  const stdoutResponse = new Response(child.stdout);
+  const stdout = await stdoutResponse.text();
+  const stderrResponse = new Response(child.stderr);
+  const stderr = await stderrResponse.text();
 
   await child.exited;
 

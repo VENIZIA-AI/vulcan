@@ -295,7 +295,8 @@ describe('the review of local.tmp', () => {
         killSignal: 'SIGKILL',
       },
     );
-    const stdout = await new Response(child.stdout).text();
+    const stdoutResponse = new Response(child.stdout);
+    const stdout = await stdoutResponse.text();
 
     await child.exited;
 
