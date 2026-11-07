@@ -130,7 +130,7 @@ describe('every git call in the atlas source', () => {
     const missing: string[] = [];
     let calls = 0;
 
-    for (const file of sourcesUnder(join(import.meta.dir, '..', '..'))) {
+    for (const file of sourcesUnder(join(__dirname, '..', '..'))) {
       const text = readFileSync(file, 'utf8');
 
       for (const match of text.matchAll(/spawnSync\(\s*'git'/g)) {
