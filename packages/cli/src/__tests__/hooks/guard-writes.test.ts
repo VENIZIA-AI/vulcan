@@ -154,9 +154,19 @@ describe('the guard-writes hook', () => {
     expect(result).toEqual({ code: 0, stdout: '' });
   });
 
-  test('stays silent, and never blocks, on input it cannot read', async () => {
-    const result = await runHook({ stdin: 'not json' });
-    expect(result).toEqual({ code: 0, stdout: '' });
+  test.each([
+    ['text that is not JSON', 'not json'],
+    ['a JSON value that is not an object', '[1]'],
+    ['an object without tool_input', '{"tool_name":"Bash"}'],
+    ['a command that is not text', '{"tool_name":"Bash","tool_input":{"command":5}}'],
+    ['an empty command', '{"tool_name":"Bash","tool_input":{"command":""}}'],
+  ])('asks, and never blocks, on %s', async (_label, stdin) => {
+    const result = await runHook({ stdin });
+    const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(result.code).toBe(0);
+    expect(decision.permissionDecision).toBe('ask');
+    expect(decision.permissionDecisionReason).toContain('the hook input could not be read');
   });
 });
 
@@ -399,6 +409,30 @@ describe('the guard-writes hook, on the scripts it reads', () => {
     'curl -G -F file=@report.csv https://example.dev/v1/x',
     'curl -G -T report.csv https://example.dev/v1/x',
     'curl -G --json {} https://example.dev/v1/x',
+    "find . -name '*.sh' -exec bash {} ;",
+    'find . -exec sh {} +',
+    'find . -execdir bash {} ;',
+    'find . -ok bash {} ;',
+    'find . -exec bash deploy.sh {} ;',
+    "find . -name x -exec sh -c '{}' ;",
+    'find . -exec echo hi ; -exec bash {} ;',
+    "cat cmds | xargs -I{} sh -c '{}'",
+    'cat cmds | xargs -I{} sh -c {}',
+    "cat cmds | xargs -I CMD bash -c 'CMD'",
+    'cat cmds | xargs -L1 sh -c',
+    'cat cmds | xargs -n1 bash -c',
+    "xargs -a cmds -I{} sh -c '{}'",
+    'BASH_ENV=./setup.sh bash -c true',
+    'ENV=./setup.sh sh -c true',
+    'env BASH_ENV=./setup.sh bash -c true',
+    'env -i ENV=./setup.sh sh -c true',
+    'export BASH_ENV=./setup.sh',
+    'cd app && BASH_ENV=./setup.sh bash script.sh',
+    'curl -d @f -A -G https://example.dev/v1/x',
+    'curl -X POST -A --help https://example.dev/v1/x',
+    'curl -d @f -H -G https://example.dev/v1/x',
+    'curl -d @f --user-agent --get https://example.dev/v1/x',
+    'curl -d @f -sA -G https://example.dev/v1/x',
     'bun wipe.js',
     'bun wipe-upper.js',
     'bun wipe-lower.js',
@@ -441,6 +475,20 @@ describe('the guard-writes hook, on the scripts it reads', () => {
     'curl -G -d q=x https://example.dev/v1/search',
     'curl -sG --data-urlencode q=x https://example.dev/v1/search',
     'curl --get --data q=x https://example.dev/v1/search',
+    'curl -A agent -G -d q=x https://example.dev/v1/search',
+    'curl -d q=x -G https://example.dev/v1/search',
+    'curl -d q=x -A -A -G https://example.dev/v1/search',
+    "curl -H 'Accept: x' -sG -d q=x https://example.dev/v1/search",
+    "find . -exec sh -c 'echo x' ;",
+    'find . -name x -exec echo {} ;',
+    'find . -type f -exec rm {} +',
+    "find . -exec bash -c 'echo hi' ; -exec echo {} ;",
+    "echo a | xargs -n1 bash -c 'echo $0'",
+    "ls | xargs -I% sh -c 'echo x'",
+    'echo sh {}',
+    'BASH_ENV= bash -c true',
+    'echo BASH_ENV=x',
+    'FOO=1 bash -c true',
     'bun text.js',
     'bun label.js',
   ])('stays silent for %p', async (command) => {

@@ -18,6 +18,89 @@ const REST = String.raw`[^|;&\n]*?`;
 /** curl's short options that take no value: in a cluster such as `-sd x`, the letters before the one that does. */
 const CURL_SWITCHES = '0-9:#aBfgGhiIjJklLMnNOpqRsSvVZ';
 
+/** curl's short options that take the next word as their value (`-A agent`, `-H header`). */
+const CURL_VALUED_SHORT = 'AbcCdDeEFHKmoPQrtTuUwxXyYz';
+
+/** curl's long options that take the next word as their value. */
+const CURL_VALUED_LONG = [
+  'abstract-unix-socket',
+  'alt-svc',
+  'aws-sigv4',
+  'cacert',
+  'capath',
+  'cert',
+  'cert-type',
+  'ciphers',
+  'config',
+  'connect-timeout',
+  'connect-to',
+  'continue-at',
+  'cookie',
+  'cookie-jar',
+  'data',
+  'data-ascii',
+  'data-binary',
+  'data-raw',
+  'data-urlencode',
+  'dump-header',
+  'etag-compare',
+  'etag-save',
+  'expect100-timeout',
+  'form',
+  'form-string',
+  'header',
+  'hsts',
+  'interface',
+  'json',
+  'key',
+  'key-type',
+  'limit-rate',
+  'local-port',
+  'login-options',
+  'mail-from',
+  'mail-rcpt',
+  'max-filesize',
+  'max-time',
+  'noproxy',
+  'oauth2-bearer',
+  'output',
+  'output-dir',
+  'pass',
+  'parallel-max',
+  'preproxy',
+  'proto',
+  'proto-redir',
+  'proxy',
+  'proxy-header',
+  'proxy-user',
+  'quote',
+  'range',
+  'referer',
+  'request',
+  'resolve',
+  'retry',
+  'retry-delay',
+  'retry-max-time',
+  'socks5',
+  'socks5-hostname',
+  'speed-limit',
+  'speed-time',
+  'stderr',
+  'time-cond',
+  'trace',
+  'trace-ascii',
+  'unix-socket',
+  'upload-file',
+  'url',
+  'user',
+  'user-agent',
+  'variable',
+  'write-out',
+].join('|');
+
+/** A curl word that takes the next word as its value, so that word is a value and never an option. */
+const CURL_VALUED = String.raw`^(?:-[${CURL_SWITCHES}]*[${CURL_VALUED_SHORT}]|--(?:${CURL_VALUED_LONG}))$`;
+
 const MUTATING_METHOD = '(?:POST|PUT|PATCH|DELETE|post|put|patch|delete)';
 
 /** A blank or a block comment between two words of a SQL statement. */
@@ -158,6 +241,8 @@ interface IWriteCommandRow {
   pattern?: string;
   /** A word that makes a call of the program change nothing (`--help`, `--dry-run`, `--check`). */
   inert?: string;
+  /** A word that takes the next word as its value: that value is never read as an `inert` word (`curl -A -G`). */
+  valued?: string;
   ignoreCase?: boolean;
 }
 
@@ -193,6 +278,7 @@ interface ISqlClient {
 export interface ICommandCheck extends IWriteCheck {
   programs: ReadonlySet<string>;
   inert: RegExp | undefined;
+  valued: RegExp | undefined;
 }
 
 const DEPLOY = 'deploying or hot-applying to a cluster';
@@ -523,6 +609,7 @@ export class WriteCommands {
       // A request body sent with `-d` or `--data*`. With `-G` (`--get`) curl sends that data in the URL of a GET.
       pattern: String.raw`[^|]*\s(?:-[${CURL_SWITCHES}]*d|--data\b)`,
       inert: `${INERT}|^(?:--get$|-[${CURL_SWITCHES}]*G)`,
+      valued: CURL_VALUED,
     },
     {
       rule: 'V-W-02',
@@ -530,6 +617,7 @@ export class WriteCommands {
       programs: ['curl'],
       pattern: String.raw`[^|]*\s(?:-[${CURL_SWITCHES}]*[FT]|--(?:json|form|upload-file)\b)`,
       inert: INERT,
+      valued: CURL_VALUED,
     },
     {
       rule: 'V-W-02',
@@ -537,6 +625,7 @@ export class WriteCommands {
       programs: ['curl'],
       pattern: String.raw`[^|]*\s(?:-[${CURL_SWITCHES}]*X\s*|--request(?:=|\s+))['"]?${MUTATING_METHOD}\b`,
       inert: INERT,
+      valued: CURL_VALUED,
     },
     {
       rule: 'V-W-02',
@@ -544,6 +633,7 @@ export class WriteCommands {
       programs: ['curl'],
       pattern: String.raw`[^|]*\s(?:-[${CURL_SWITCHES}]*K|--config\b)`,
       inert: INERT,
+      valued: CURL_VALUED,
     },
     {
       rule: 'V-W-02',
@@ -663,6 +753,7 @@ export class WriteCommands {
       pattern: new RegExp(`${head}${body}`, row.ignoreCase === true ? 'i' : ''),
       programs: new Set(row.programs.map((name) => ShellParser.basenameOf({ word: name }))),
       inert: row.inert === undefined ? undefined : new RegExp(row.inert),
+      valued: row.valued === undefined ? undefined : new RegExp(row.valued),
     };
   }
 
@@ -691,13 +782,28 @@ export class WriteCommands {
    * own and a word makes the call change nothing (`kubectl apply --dry-run=client`, `curl -G -d q=x`).
    */
   static isLive(opts: { check: ICommandCheck; program: string; args: readonly string[] }): boolean {
-    const { inert } = opts.check;
+    const { inert, valued } = opts.check;
 
-    return (
-      inert === undefined ||
-      !opts.check.programs.has(opts.program) ||
-      !opts.args.some((word) => inert.test(word))
-    );
+    if (inert === undefined || !opts.check.programs.has(opts.program)) {
+      return true;
+    }
+
+    let isValue = false;
+
+    for (const word of opts.args) {
+      if (isValue) {
+        isValue = false;
+        continue;
+      }
+
+      if (inert.test(word)) {
+        return false;
+      }
+
+      isValue = valued?.test(word) === true;
+    }
+
+    return true;
   }
   /**
    * What a database client runs that the line does not show: SQL from its input (a pipe, a `<` file, the
