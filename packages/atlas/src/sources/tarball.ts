@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AtlasTimeouts } from '@/common/constants';
+import { AtlasLimits, BoundedBody } from '@/common/limits';
 import { StderrLogger } from '@/common/logger';
 import type { IRemoteRef } from './common';
 import { GitRepository } from './git';
@@ -11,12 +12,13 @@ const CODELOAD = 'https://codeload.github.com';
 const ADVERTISED_REF = /([0-9a-f]{40}) (refs\/[^\0\n]+)/g;
 const LISTING_BUFFER = 256 * 1024 * 1024;
 
-/** A response's body, or `undefined` when the request failed or outlived `timeout`. */
+/** A response's body, or `undefined` when the request failed, outlived `timeout` or was over `cap` bytes (`isOver`). */
 const fetchBody = async (opts: {
   url: string;
   headers: Record<string, string>;
   timeout: number;
-}): Promise<{ status: number; body?: ArrayBuffer }> => {
+  cap: number;
+}): Promise<{ status: number; body?: Uint8Array; isOver?: boolean }> => {
   try {
     const response = await fetch(opts.url, {
       headers: opts.headers,
@@ -27,9 +29,11 @@ const fetchBody = async (opts: {
       return { status: response.status };
     }
 
-    const body = await response.arrayBuffer();
+    const body = await BoundedBody.read({ response, cap: opts.cap });
 
-    return { status: response.status, body };
+    return body === undefined
+      ? { status: response.status, isOver: true }
+      : { status: response.status, body };
   } catch (error) {
     StderrLogger.get('fetchBody').warn('the request failed | error: %s', error);
 
@@ -70,6 +74,7 @@ export class GithubTarball {
               authorization: `Basic ${Buffer.from(`x-access-token:${opts.token}`).toString('base64')}`,
             },
       timeout: AtlasTimeouts.REF_LOOKUP_MS,
+      cap: AtlasLimits.ADVERTISEMENT_BYTES,
     });
 
     if (body === undefined) {
@@ -99,11 +104,19 @@ export class GithubTarball {
     work: string;
   }): Promise<string> {
     const base = (process.env.VULCAN_CODELOAD_URL ?? CODELOAD).replace(/\/+$/, '');
-    const { status, body } = await fetchBody({
+    const cap = AtlasLimits.downloadBytes();
+    const { status, body, isOver } = await fetchBody({
       url: `${base}/${opts.owner}/${opts.repo}/tar.gz/${opts.sha}`,
       headers: opts.token === undefined ? {} : { authorization: `token ${opts.token}` },
       timeout: AtlasTimeouts.DOWNLOAD_MS,
+      cap,
     });
+
+    if (isOver === true) {
+      throw new Error(
+        `atlas: the tarball of ${opts.owner}/${opts.repo} at ${opts.sha.slice(0, 8)} is over atlas.limits.download (${cap} bytes) - raise it in the vulcan config if the source is meant to be that large`,
+      );
+    }
 
     if (body === undefined) {
       throw new Error(
@@ -113,7 +126,7 @@ export class GithubTarball {
 
     const archive = join(opts.work, 'source.tgz');
 
-    writeFileSync(archive, new Uint8Array(body));
+    writeFileSync(archive, body);
 
     return archive;
   }

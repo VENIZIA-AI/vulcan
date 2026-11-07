@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { GitArgument } from './git-argument';
+import { AtlasLimits } from './limits';
 import { WireValue } from './wire';
 import { LibraryKinds, PackageKinds, SourcePins } from './constants';
 import type { TAppSide, TLibraryKind, TPackageKind, TSourcePin } from './types';
@@ -75,6 +76,8 @@ export interface IAtlasProject {
   indexKeys?: string[];
   /** `false` when the manifest turns the prebuilt-index download off for this project's sources; absent otherwise. */
   prebuilt?: false;
+  /** `atlas.limits.download` of the manifest, in bytes; absent when it sets none or an unusable one. */
+  downloadLimit?: number;
 }
 
 /** The manifest's `graph` block: strings only, anything else is left out. */
@@ -150,6 +153,14 @@ const layoutOf = (opts: { value: unknown }): Pick<IAtlasProject, 'layout'> => {
   );
 
   return Object.keys(layout).length === 0 ? {} : { layout };
+};
+
+/** `atlas.limits.download` of the manifest: an integer within the bounds atlas keeps; nothing is added otherwise. */
+const downloadLimitOf = (opts: { value: unknown }): Pick<IAtlasProject, 'downloadLimit'> => {
+  const limits = WireValue.recordOf({ value: WireValue.recordOf({ value: opts.value }).limits });
+  const downloadLimit = AtlasLimits.validDownloadOf({ value: limits.download });
+
+  return downloadLimit === undefined ? {} : { downloadLimit };
 };
 
 /** `atlas.index.keys` of the manifest: the strings in it; nothing is added when there are none. */
@@ -252,6 +263,7 @@ export class ProjectConfig {
       ...(WireValue.recordOf({ value: manifest.atlas }).prebuilt === false
         ? { prebuilt: false as const }
         : {}),
+      ...downloadLimitOf({ value: manifest.atlas }),
       sources: (Array.isArray(manifest.sources) ? manifest.sources : []).flatMap((item) => {
         const source = WireValue.recordOf({ value: item });
         const name = WireValue.stringOf({ value: source.name });

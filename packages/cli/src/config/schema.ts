@@ -153,6 +153,13 @@ const TRUSTED_SCRIPT = z.union([
 /** One folder, or a list of them: a side whose apps are grouped keeps each group's folder. */
 const LAYOUT_VALUE = z.union([LAYOUT_FOLDER, z.array(LAYOUT_FOLDER).min(1)]);
 
+/** The bounds of `atlas.limits.download`: the ones atlas reads the value within; outside them it keeps its default. */
+const MIN_DOWNLOAD_BYTES = 1024 * 1024;
+const MAX_DOWNLOAD_BYTES = 1024 * 1024 * 1024;
+
+/** A source repository atlas will not give to git: an `http://` or `git://` URL (clear text), or a `scheme::` remote helper (it runs a command). */
+const SOURCE_TRANSPORT = /^(?:(http|git):\/\/|[a-z][a-z0-9+.-]*::)/i;
+
 /** An npm package name, lower case: the pattern and the length atlas applies to every package name of the manifest. */
 const NPM_NAME_PATTERN = /^(?:@[a-z0-9~-][a-z0-9._~-]*\/)?[a-z0-9~-][a-z0-9._~-]*$/;
 const NPM_NAME_MAX_LENGTH = 214;
@@ -400,28 +407,40 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       /** Repositories atlas indexes besides this one, each with a `name`, a `repo` and a `ref`; default `[]`. */
       sources: z
         .array(
-          z.strictObject({
-            /** Identifier of the source in atlas results: letters, digits, `_`, `.` and `-`, starting with a letter or a digit. */
-            name: z
-              .string()
-              .regex(
-                /^[A-Za-z0-9][\w.-]*$/,
-                'a name of letters, digits, _ . and -, starting with a letter or a digit',
-              ),
-            /** GitHub repository of the source, as `owner/repo`. */
-            repo: z.string().refine((value) => !value.trimStart().startsWith('-'), {
-              message: "a repository, not an option: it must not start with '-'",
+          z
+            .strictObject({
+              /** Identifier of the source in atlas results: letters, digits, `_`, `.` and `-`, starting with a letter or a digit. */
+              name: z
+                .string()
+                .regex(
+                  /^[A-Za-z0-9][\w.-]*$/,
+                  'a name of letters, digits, _ . and -, starting with a letter or a digit',
+                ),
+              /** GitHub repository of the source, as `owner/repo`. */
+              repo: z.string().refine((value) => !value.trimStart().startsWith('-'), {
+                message: "a repository, not an option: it must not start with '-'",
+              }),
+              /** Branch, tag or commit the source is indexed at; default `develop`. */
+              ref: z
+                .string()
+                .refine((value) => !value.trimStart().startsWith('-'), {
+                  message: "a ref, not an option: it must not start with '-'",
+                })
+                .default('develop'),
+              /** `installed` (default): the docs are read at the tag of the newest installed package; `ref`: at `ref`. */
+              pin: z.enum(['installed', 'ref']).optional(),
+            })
+            .superRefine((source, context) => {
+              const refused = SOURCE_TRANSPORT.exec(source.repo.trim());
+
+              if (refused !== null) {
+                context.addIssue({
+                  code: 'custom',
+                  path: ['repo'],
+                  message: `source '${source.name}': the repository uses ${refused[1] === undefined ? 'a remote-helper URL, which runs a command' : `${refused[1].toLowerCase()}://, which is clear text`} - use https or ssh`,
+                });
+              }
             }),
-            /** Branch, tag or commit the source is indexed at; default `develop`. */
-            ref: z
-              .string()
-              .refine((value) => !value.trimStart().startsWith('-'), {
-                message: "a ref, not an option: it must not start with '-'",
-              })
-              .default('develop'),
-            /** `installed` (default): the docs are read at the tag of the newest installed package; `ref`: at `ref`. */
-            pin: z.enum(['installed', 'ref']).optional(),
-          }),
         )
         .default([]),
       /** Tags neither read nor checked (globs) - an old layout's tags. */
@@ -434,6 +453,17 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       index: z.strictObject({ keys: z.array(INDEX_PUBLIC_KEY).default([]) }).optional(),
       /** `false`: atlas never downloads a prebuilt index for a source this project reads; the default is to. */
       prebuilt: z.boolean().optional(),
+      /** The sizes atlas holds to when it fetches. */
+      limits: z
+        .strictObject({
+          /**
+           * The most bytes atlas reads of one tarball it downloads (a source's commit from GitHub, an npm package
+           * for its declarations); a larger one is refused and nothing is kept. An integer from 1 MiB to 1 GiB;
+           * default 128 MiB.
+           */
+          download: z.number().int().min(MIN_DOWNLOAD_BYTES).max(MAX_DOWNLOAD_BYTES).optional(),
+        })
+        .optional(),
     })
     .default({
       tagPattern: '<dir>-v<version>',

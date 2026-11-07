@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { AtlasTimeouts } from '@/common/constants';
+import { AtlasLimits, BoundedBody } from '@/common/limits';
 import { PackageEntries } from '@/common/package-entries';
 import { ProjectConfig } from '@/common/project-config';
 import type { IAtlasProject } from '@/common/project-config';
@@ -146,8 +147,16 @@ export class SymbolCompute {
     try {
       const tarball = join(work, 'package.tgz');
 
-      const result = await response.arrayBuffer();
-      writeFileSync(tarball, new Uint8Array(result));
+      const cap = AtlasLimits.downloadBytes();
+      const result = await BoundedBody.read({ response, cap });
+
+      if (result === undefined) {
+        throw new Error(
+          `atlas: the npm tarball of ${opts.name}@${opts.version} is over atlas.limits.download (${cap} bytes) - raise it in the vulcan config if the package is meant to be that large`,
+        );
+      }
+
+      writeFileSync(tarball, result);
 
       const unpacked = spawnSync('tar', ['-xzf', tarball, '-C', work], { encoding: 'utf8' });
 

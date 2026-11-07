@@ -181,6 +181,9 @@ const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<strin
   const block = {
     ...(keys.length === 0 ? {} : { index: { keys } }),
     ...(opts.config.atlas.prebuilt === false ? { prebuilt: false } : {}),
+    ...(opts.config.atlas.limits?.download === undefined
+      ? {}
+      : { limits: { download: opts.config.atlas.limits.download } }),
   };
 
   return Object.keys(block).length === 0 ? {} : { atlas: block };
