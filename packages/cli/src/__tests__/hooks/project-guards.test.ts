@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, spyOn, test } from 'bun:test';
+import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { CommandView, GitGuard, ProjectGuards, WriteGuard } from '../../hooks/index.ts';
@@ -11,7 +11,6 @@ const EMPTY_POLICY = {
   askPush: [],
   outside: 'ask',
   toolOwnedPaths: [],
-  trustedScripts: [],
 };
 
 afterAll(removeProjects);
@@ -32,18 +31,8 @@ const DEPLOY: IProjectCommandCheck = {
 };
 const PROJECT = [MIGRATE, DEPLOY];
 
-// The package.json has the scripts the commands below name: a name it does not have asks on its own.
-const SCRIPTS_ROOT = createProject({
-  files: {
-    'package.json': JSON.stringify({
-      name: 'project',
-      scripts: { 'migrate:up': 'echo up', migrate: 'echo migrate', build: 'echo build' },
-    }),
-  },
-});
-
 const hitsOf = (opts: { command: string; extra?: IProjectCommandCheck[] }): string[] =>
-  WriteGuard.inspectCommand({ command: opts.command, cwd: SCRIPTS_ROOT, extra: opts.extra }).map(
+  WriteGuard.inspectCommand({ command: opts.command, extra: opts.extra }).map(
     (hit) => `${hit.rule}: ${hit.message}`,
   );
 
@@ -276,19 +265,17 @@ const manifestWith = (opts: { guard: unknown }): string =>
   });
 
 describe('ProjectGuards.readPolicy', () => {
-  test('reads what guard-outside and guard-writes need: outside, tool-owned paths and trusted script paths', () => {
+  test('reads what guard-outside needs: outside and tool-owned paths', () => {
     const root = manifestWith({
       guard: {
         outside: 'deny',
         toolOwnedPaths: ['/srv/store/**', 7, ''],
-        writes: { trustedScripts: ['scripts/plan.ts', null] },
       },
     });
     const policy = ProjectGuards.readPolicy({ root });
 
     expect(policy.outside).toBe('deny');
     expect(policy.toolOwnedPaths).toEqual(['/srv/store/**']);
-    expect(policy.trustedScripts).toEqual(['scripts/plan.ts']);
   });
 
   test('anything but deny reads as ask', () => {
@@ -439,61 +426,5 @@ describe('the hooks read the manifest', () => {
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('ignoring');
     expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
-  });
-});
-
-describe('ProjectGuards.readPolicy and the read-only scripts', () => {
-  const ENTRY = { script: 'tools/release.ts', readOnly: ['plan', 'registry'] };
-
-  test('reads the entries of guard.writes.readOnlyScripts', () => {
-    const root = manifestWith({ guard: { writes: { readOnlyScripts: [ENTRY] } } });
-
-    expect(ProjectGuards.readPolicy({ root }).readOnlyScripts).toEqual([ENTRY]);
-  });
-
-  test('a manifest that lists none has no readOnlyScripts key, so the empty policy keeps its shape', () => {
-    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: { writes: {} } }) })).toEqual(
-      EMPTY_POLICY,
-    );
-    expect(
-      ProjectGuards.readPolicy({
-        root: manifestWith({ guard: { writes: { readOnlyScripts: [] } } }),
-      }),
-    ).not.toHaveProperty('readOnlyScripts');
-  });
-
-  test('an entry that is not usable is skipped and said once each, and the others stay', () => {
-    const spy = spyOn(console, 'error').mockImplementation(() => undefined);
-
-    try {
-      const root = manifestWith({
-        guard: {
-          writes: {
-            readOnlyScripts: [
-              { script: 'a.ts' },
-              { script: 'a.ts', readOnly: 'plan' },
-              { script: 'a.ts', readOnly: ['plan', 7] },
-              { script: 'a.ts', readOnly: [''] },
-              { script: '', readOnly: ['plan'] },
-              'a.ts',
-              null,
-              ENTRY,
-            ],
-          },
-        },
-      });
-
-      expect(ProjectGuards.readPolicy({ root }).readOnlyScripts).toEqual([ENTRY]);
-      expect(spy).toHaveBeenCalledTimes(7);
-      expect(String(spy.mock.calls[0][0])).toContain('guard.writes.readOnlyScripts');
-    } finally {
-      spy.mockRestore();
-    }
-  });
-
-  test('a list that is not a list is ignored', () => {
-    const root = manifestWith({ guard: { writes: { readOnlyScripts: 'plan' } } });
-
-    expect(ProjectGuards.readPolicy({ root })).toEqual(EMPTY_POLICY);
   });
 });

@@ -21,7 +21,7 @@ import { CLAUDE_LAUNCH_FILE } from '../sync/claude-launch.ts';
 import { PrivateValues } from './private-values.ts';
 import { ReplySwitch, OwnerConstants, OwnerReplySwitch, OwnerProfile } from '../owner/index.ts';
 import { SkillCatalog } from '@venizia/vulcan-atlas';
-import { HookConstants, ProjectTmp, ScriptTrust, TrustStates } from '../hooks/index.ts';
+import { HookConstants, ProjectTmp } from '../hooks/index.ts';
 import { DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { Makefile } from './makefile.ts';
@@ -171,23 +171,6 @@ const formatOwners = (opts: ICheckContext): string[] => [
       .map((entry) => relative(opts.root, join(opts.root, entry.path)) || '.'),
   ]),
 ];
-
-/** The states of a listed script worth a warning: a typo or a script nobody committed. A modified one is normal work, so it is only a note. */
-const STALE_TRUST_STATES = new Set<string>([
-  TrustStates.MISSING,
-  TrustStates.UNTRACKED,
-  TrustStates.UNCOMMITTED,
-  TrustStates.SYMLINK,
-  TrustStates.UNKNOWN,
-]);
-
-/** The path of a `guard.writes.trustedScripts` entry, and the subcommands when it is the object form. */
-const trustedScriptOf = (opts: {
-  entry: TResolvedConfig['guard']['writes']['trustedScripts'][number];
-}): { script: string; readOnly: string[] | undefined } =>
-  typeof opts.entry === 'string'
-    ? { script: opts.entry, readOnly: undefined }
-    : { script: opts.entry.script, readOnly: opts.entry.readOnly };
 
 export class ProjectContract {
   static checkLayout(opts: ICheckContext): IViolation[] {
@@ -1163,43 +1146,6 @@ export class ProjectContract {
               check: DoctorChecks.LOCAL,
               file,
               message: `env sets ${OwnerReplySwitch.ENV}=${OwnerReplySwitch.OFF}: every session of this project gets no owner shape card and no profile card. Remove it and set the variable on the command that starts a session whose reader is an agent`,
-            }),
-          ]
-        : [];
-    });
-  }
-
-  /** One line per script in `guard.writes.trustedScripts` with what git says about it now (a note). */
-  static checkTrustedScripts(opts: ICheckContext): IViolation[] {
-    return opts.config.guard.writes.trustedScripts.map((entry) => {
-      const { script, readOnly } = trustedScriptOf({ entry });
-      const trust = ScriptTrust.trustOf({ root: opts.root, script });
-      const scope = readOnly === undefined ? 'mutating calls' : `the calls ${readOnly.join(', ')}`;
-
-      return createViolation({
-        check: DoctorChecks.GUARDS,
-        file: script,
-        message:
-          trust.state === TrustStates.TRUSTED
-            ? `guard-writes does not read this script for ${scope} (guard.writes.trustedScripts); it is ` +
-              trust.reason
-            : `listed in guard.writes.trustedScripts, but guard-writes reads it like any script now: ${trust.reason}`,
-      });
-    });
-  }
-
-  /** A listed script that does not exist or is not committed: the exemption never applies (a warning). */
-  static checkStaleTrustedScripts(opts: ICheckContext): IViolation[] {
-    return opts.config.guard.writes.trustedScripts.flatMap((entry) => {
-      const { script } = trustedScriptOf({ entry });
-      const trust = ScriptTrust.trustOf({ root: opts.root, script });
-
-      return STALE_TRUST_STATES.has(trust.state)
-        ? [
-            createViolation({
-              check: DoctorChecks.GUARDS,
-              file: script,
-              message: `guard.writes.trustedScripts lists it, but it never takes effect: ${trust.reason}; fix the path, or commit the script`,
             }),
           ]
         : [];

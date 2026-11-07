@@ -18,6 +18,8 @@ The table below lists all loader errors:
 
 The configuration file must provide a default export. Type the configuration using `satisfies VulcanConfig` or the `defineConfig` helper:
 
+`writes.trustedScripts` was removed: guard-writes no longer reads scripts, so a config that still sets it is refused with a message that says to delete the key.
+
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
@@ -47,7 +49,7 @@ vulcan doctor: 1 violation(s)
 
 The command exits with code 1.
 
-**Upgrading.** The schema is strict, so a key that a newer release added is an unknown key to an older `vulcan`. Upgrade first: run `bun x --no-install vulcan upgrade`, commit the lockfile, make sure every machine and CI job has installed that version, and only then add the new key to the config. While the installed `vulcan` cannot read the config, `vulcan sync` fails, but the guards keep working: `guard-outside` and `guard-writes` read what the project set (`guard.outside`, `guard.toolOwnedPaths`, `guard.writes.trustedScripts`) from the manifest of the last `sync`, so a `deny` stays a `deny`. The session digest names the unreadable key, and so does `vulcan doctor`, so run it after you pull a change to the config.
+**Upgrading.** The schema is strict, so a key that a newer release added is an unknown key to an older `vulcan`. Upgrade first: run `bun x --no-install vulcan upgrade`, commit the lockfile, make sure every machine and CI job has installed that version, and only then add the new key to the config. While the installed `vulcan` cannot read the config, `vulcan sync` fails, but the guards keep working: `guard-outside` and `guard-writes` read what the project set (`guard.outside`, `guard.toolOwnedPaths`, `guard.writes.commands`) from the manifest of the last `sync`, so a `deny` stays a `deny`. The session digest names the unreadable key, and so does `vulcan doctor`, so run it after you pull a change to the config.
 
 The table below lists the top-level configuration keys:
 
@@ -66,7 +68,7 @@ The table below lists the top-level configuration keys:
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `hooks` | `Array<object>` | `[]` | Custom project event hooks |
 | `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
-| `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask', writes: { trustedScripts: [], commands: [] }, git: { askPush: [] } }` | Tool-owned stores the outside-the-project guard allows, the project's own scripts the write guard does not read, and the commands and push targets the guards ask about beyond their own list |
+| `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask', writes: { commands: [] }, git: { askPush: [] } }` | Tool-owned stores the outside-the-project guard allows, and the commands and push targets the guards ask about beyond their own list |
 | `doctor` | `object` | `{ privateValues: { acknowledged: [] } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)) |
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 | `theme` | `object` | `undefined` | The colour the project's `vulcan visualize` pages use |
@@ -630,13 +632,8 @@ The `guard` object configures the write guards.
 | `outside` | `'ask'` or `'deny'` | `'ask'` | What `guard-outside` does with a write outside the project (`V-B-08`). `ask` leaves the call to the owner. `deny` refuses it and nothing is written; the answer names the path and `.agents/local/tmp/`. Set `deny` where the agent runs in an auto mode, because an ask can be approved there without the owner seeing it. A path in `toolOwnedPaths` still passes in both modes. It is a drift guard, not a boundary: an agent that can edit `.configs/vulcan.config.*` can change it, as it can `toolOwnedPaths`. An invalid key anywhere in the config, not only here, fails the load and the hook then asks. |
 | `writes.commands` | `Array<{ rule, what, pattern, ignoreCase? }>` | `[]` | Commands of this project that `guard-writes` asks about beside its fixed list: `rule` is `V-W-02` (a database write, a migration) or `V-W-03` (a deploy), `what` names the action (1 to 120 characters), `pattern` is a JavaScript regular expression (1 to 500 characters, case-sensitive unless `ignoreCase` is `true`). A pattern that does not compile fails the config. Written to the manifest by `vulcan sync`. |
 | `git.askPush` | `string[]` | `[]` | Branch names, with `*` for any run of characters, that a plain `git push` asks about in `guard-git`. Letters, digits, `. _ / * -` only. Written to the manifest by `vulcan sync`. |
-| `writes.trustedScripts` | `Array<string \| { script, readOnly }>` | `[]` | The project's own CLIs that `guard-writes` does not read for mutating calls. A path string trusts the whole script. An object `{ script, readOnly: ['plan', 'registry'] }` trusts only the calls whose first argument after the script is one of the `readOnly` words. A path may name a `.ts`, `.js`, `.mjs`, `.cjs` or `.sh` file; the object form is for a `.ts` script. Matched exactly against the file a command runs. |
 
-`writes.trustedScripts` validation: each path, and the `script` of each object, must be a path relative to the repo root (no absolute path, no `~`), must not contain `..`, must end in `.ts`, `.js`, `.mjs`, `.cjs` or `.sh` (the `script` of an object only in `.ts`), and takes no glob (`* ? [ ] { } !` are refused), so list every script by its exact path. An object needs `script` and `readOnly`, takes no other key, and `readOnly` is a list of one or more plain words (letters, digits and `_ . : -`; no space, glob or shell character). A config that breaks a rule fails the schema, and the message names the entry.
-
-A `readOnly` word is one argument, matched exactly: `plan` does not match `plan-all`, `PLAN` or `"plan x"`. A call with no argument, a flag first (`--dry-run plan`) or any other word is checked as if the script were not listed. The object entries are written to the manifest by `vulcan sync`, as `guard.writes.readOnlyScripts`, and the hook reads them there; run `vulcan sync` after you add one. Path strings stay in the config.
-
-A listed script skips the script-body check only while git tracks it and its working tree file, its index entry and `HEAD` hold the same bytes. Trusting a script trusts everything it runs: the scripts it calls are not read while it is unchanged. The checks on the command line itself (`curl -X POST`, `kubectl apply`, a migration, `psql`) still apply. The states, the ask text and the limits are on the [hooks page](/references/hooks/#trusted-scripts).
+`writes.trustedScripts` was removed: guard-writes no longer reads scripts, so it had nothing left to skip. A config that still sets it is refused, and the message says to delete the key.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -646,10 +643,6 @@ export default {
     toolOwnedPaths: ['/srv/build-cache/**', '~/.cache/my-tool/**'],
     outside: 'deny',
     writes: {
-      trustedScripts: [
-        'tools/i18n/cli.ts',
-        { script: 'scripts/release/release-run.ts', readOnly: ['plan', 'registry'] },
-      ],
       commands: [{ rule: 'V-W-03', what: 'deploying', pattern: '\\bmake deploy-' }],
     },
     git: { askPush: ['develop', 'main'] },

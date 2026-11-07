@@ -24,18 +24,12 @@ const HASH_LENGTH = 8;
 /**
  * The manifest's `guard` block: what the project sets for the guards, as data a hook reads without the config, so a
  * config this VULCAN cannot parse never changes a guard: `outside` (when it is not the default), `toolOwnedPaths`,
- * the commands and trusted scripts of guard-writes, the push targets of guard-git.
+ * the commands of guard-writes, the push targets of guard-git.
  */
 const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<string, unknown> } => {
-  const { commands, trustedScripts } = opts.config.guard.writes;
+  const { commands } = opts.config.guard.writes;
   const { askPush } = opts.config.guard.git;
   const { outside, toolOwnedPaths } = opts.config.guard;
-  const trustedPaths = trustedScripts.flatMap((entry) =>
-    typeof entry === 'string' ? [entry] : [],
-  );
-  const readOnlyScripts = trustedScripts.flatMap((entry) =>
-    typeof entry === 'string' ? [] : [{ script: entry.script, readOnly: entry.readOnly }],
-  );
   const writes = {
     ...(commands.length === 0
       ? {}
@@ -47,8 +41,6 @@ const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<strin
             ...(command.ignoreCase === true ? { ignoreCase: true } : {}),
           })),
         }),
-    ...(trustedPaths.length === 0 ? {} : { trustedScripts: trustedPaths }),
-    ...(readOnlyScripts.length === 0 ? {} : { readOnlyScripts }),
   };
   const block = {
     ...(outside === GuardDecisions.ASK ? {} : { outside }),

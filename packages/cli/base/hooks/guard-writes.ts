@@ -1,13 +1,9 @@
 /**
- * PreToolUse hook on Bash: catches the writes V-W-02 and V-W-03 reserve for a human, reading the
- * command and any local script it runs. It asks rather than denies (src/hooks/common/constants.ts).
+ * PreToolUse hook on Bash: catches the writes V-W-02 and V-W-03 reserve for a human, matching each command
+ * the shell parser finds against the command table (src/hooks/write-commands.ts). It asks rather than denies
+ * (src/hooks/common/constants.ts).
  * The project's own deploy and migrate commands (`guard.writes.commands`) are read from the manifest and
  * checked beside the fixed list, inside compound commands too.
- * A script the project lists in `guard.writes.trustedScripts` is not read for writes while git says it
- * is tracked and unchanged. The list is read from the manifest, never from the config: a config this VULCAN cannot
- * parse changes nothing here.
- * An entry of `guard.writes.readOnlyScripts` in the manifest (the object form of `trustedScripts`, written by
- * `vulcan sync`) skips that read for the calls whose first argument after the script is one of its words.
  *
  * It fails closed: Claude Code blocks a PreToolUse call only on exit 2, so a hook that throws - a
  * partial install, say, where its own modules are missing - would let every command through. The
@@ -26,12 +22,7 @@ try {
   const root = process.env.CLAUDE_PROJECT_DIR ?? cwd;
   const policy = ProjectGuards.readPolicy({ root });
   const hits = hookCommand
-    ? WriteGuard.inspectCommand({
-        command: hookCommand.command,
-        cwd,
-        trust: { root, scripts: policy.trustedScripts, readOnlyScripts: policy.readOnlyScripts },
-        extra: policy.commands,
-      })
+    ? WriteGuard.inspectCommand({ command: hookCommand.command, extra: policy.commands })
     : [
         {
           rule: 'V-W-02',
