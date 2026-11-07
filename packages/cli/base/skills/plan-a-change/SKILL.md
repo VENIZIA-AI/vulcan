@@ -7,7 +7,7 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 
 # Plan a change
 
-A plan ends with the plan: nothing runs before the owner approves it (V-P-03). Facts are looked up, not
+A plan ends with the plan: nothing runs before the owner approves it (V-P-02). Facts are looked up, not
 asked (V-P-07, V-P-10). The owner's own words are the goal; the card never rewrites them.
 
 `$ARGUMENTS` names the change. With no arguments, ask what to plan.

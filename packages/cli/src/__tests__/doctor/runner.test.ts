@@ -101,7 +101,7 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        '.agents/rules.md': '| **W-06** | **Extends V-W-04 and V-Z-99.** stay | SOFT |\n',
+        '.agents/rules.md': '| **W-06** | **Extends V-W-06 and V-Z-99.** stay | SOFT |\n',
       },
     });
     const result = runCli({ args: ['doctor'], cwd: root });
@@ -110,7 +110,7 @@ describe('doctor', () => {
     expect(result.stderr).toContain(
       `[${DoctorChecks.RULE_IDS}] .agents/rules.md: V-Z-99 is not a base rule`,
     );
-    expect(result.stderr).not.toContain('V-W-04');
+    expect(result.stderr).not.toContain('V-W-06');
   });
 
   test('a V- ID the base does not carry, extended or in a first cell', async () => {
@@ -134,7 +134,7 @@ describe('doctor', () => {
       '| ID | Rule |',
       '|---|---|',
       '| **W-00** | **Extends V-W-01 (slot `read-only`).** mine |',
-      '| **S-01** | **Extends V-S-01 and V-S-07.** mine |',
+      '| **S-01** | **Extends V-S-01 and V-S-06.** mine |',
       '| V-W-02, V-W-03 | the guard-writes hook asks |',
       '| **V-C-04** | quoted from the base |',
     ].join('\n');

@@ -517,7 +517,7 @@ The SessionStart hook displays these rules under the heading "The rules sessions
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-W-04', 'V-C-02', 'V-C-09', 'V-C-10', 'V-P-08', 'V-B-07', 'V-B-09']` | Rule IDs highlighted at session start |
+| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-C-02', 'V-C-09', 'V-C-10', 'V-P-08', 'V-B-07', 'V-B-09']` | Rule IDs highlighted at session start |
 
 Every rule ID in `oftenDropped` must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
 
@@ -526,7 +526,7 @@ import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
   digest: {
-    oftenDropped: ['V-B-03', 'V-P-06', 'V-W-04'],
+    oftenDropped: ['V-B-03', 'V-P-06', 'V-B-07'],
   },
 } satisfies VulcanConfig;
 ```
@@ -828,7 +828,7 @@ export default {
     },
   ],
   digest: {
-    oftenDropped: ['V-B-03', 'V-P-06', 'V-W-04'],
+    oftenDropped: ['V-B-03', 'V-P-06', 'V-B-07'],
   },
 } satisfies VulcanConfig;
 ```

@@ -423,7 +423,7 @@ const inspectOne = (opts: {
     return [
       {
         decision: GuardDecisions.ASK,
-        rule: 'V-W-04',
+        rule: 'V-W-06',
         message: 'git reset --hard discards every uncommitted change',
       },
     ];

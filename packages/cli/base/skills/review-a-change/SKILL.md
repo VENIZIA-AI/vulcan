@@ -45,7 +45,7 @@ axis hide the failing one.
   missing or only partly done, scope creep, and work that is implemented but wrong. Quote the claim.
 - **Standards**: a pass over the rules, then common smells as judgement calls. Read the files the diff
   touches, then the base rules (`rules.md`, the P, C and B sections) and the project's own rules once, and
-  judge the whole diff against them. Every rule finding names its rule id (`V-C-16`); a finding with no id is
+  judge the whole diff against them. Every rule finding names its rule id (`V-P-08`); a finding with no id is
   a judgement call and says so. Skip what a linter or formatter already enforces. The project's own standard
   wins over a general smell.
 - **Security** (lane L or a security-class change): injection, secrets in output or logs, authority and

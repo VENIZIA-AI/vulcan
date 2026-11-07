@@ -17,15 +17,15 @@ describe('RuleParser.parseIds', () => {
     expect(RuleParser.parseIds({ markdown })).toEqual(['V-W-01', 'V-C-04', 'W-06']);
   });
 
-  test('the shipped base: W5 S7 P13 B9 + the C group, 52 rules, every ID unique', () => {
+  test('the shipped base: W4 S6 P10 B7 + the C group, 40 rules, every ID unique', () => {
     const ids = RuleParser.parseIds({
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
 
-    expect(ids).toHaveLength(52);
+    expect(ids).toHaveLength(40);
     expect(ids.every((id) => id.startsWith('V-'))).toBe(true);
     expect(ids).toContain('V-W-01');
-    expect(ids.filter((id) => id.startsWith('V-C-'))).toHaveLength(18);
+    expect(ids.filter((id) => id.startsWith('V-C-'))).toHaveLength(13);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -34,7 +34,23 @@ describe('RuleParser.parseIds', () => {
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
 
-    for (const retired of ['V-W-05', 'V-C-03', 'V-C-05']) {
+    for (const retired of [
+      'V-W-05',
+      'V-C-03',
+      'V-C-05',
+      'V-P-01',
+      'V-C-15',
+      'V-C-17',
+      'V-W-04',
+      'V-S-07',
+      'V-P-03',
+      'V-P-09',
+      'V-B-01',
+      'V-B-06',
+      'V-C-12',
+      'V-C-16',
+      'V-C-19',
+    ]) {
       expect(ids).not.toContain(retired);
     }
   });
@@ -69,8 +85,8 @@ describe('RuleParser.parseBaseReferences', () => {
   test('reads Extends lists in rule rows and every V- ID in a first cell, once each, in order', () => {
     const markdown = [
       '| **W-00** | **Extends V-W-01 (slot).** mine | SOFT |',
-      '| **S-01** | **Extends V-S-01 and V-S-07.** mine | SOFT |',
-      '| **P-01** | Extends V-P-01, V-P-04 and V-W-01. mine | SOFT |',
+      '| **S-01** | **Extends V-S-01 and V-S-06.** mine | SOFT |',
+      '| **P-01** | Extends V-P-02, V-P-04 and V-W-01. mine | SOFT |',
       '| V-W-02, V-W-03 | the guard asks | Asks |',
       '| **V-C-04** | quoted | SOFT |',
     ].join('\n');
@@ -78,8 +94,8 @@ describe('RuleParser.parseBaseReferences', () => {
     expect(RuleParser.parseBaseReferences({ markdown })).toEqual([
       'V-W-01',
       'V-S-01',
-      'V-S-07',
-      'V-P-01',
+      'V-S-06',
+      'V-P-02',
       'V-P-04',
       'V-W-02',
       'V-W-03',
@@ -99,7 +115,7 @@ describe('BaseRules.read', () => {
   test('every base rule ID maps to its row', () => {
     const rules = BaseRules.read();
 
-    expect(Object.keys(rules)).toHaveLength(52);
+    expect(Object.keys(rules)).toHaveLength(40);
     expect(rules['V-W-02']).toStartWith('| V-W-02 | Never write to a database.');
   });
 
@@ -108,21 +124,44 @@ describe('BaseRules.read', () => {
     const phrases: Record<string, string> = {
       'V-W-06': 'Approval has a card',
       'V-P-08': 'does it need to exist at all?',
-      'V-P-09': 'Work card and done report',
       'V-P-10': 'Ask once, with a recommendation',
       'V-P-11': 'answer first',
       'V-P-12': 'Delegate by kind',
       'V-P-13': 'Name the flow',
-      'V-B-06': 'Small never cuts safety',
       'V-B-07': '// SHORTCUT: <what>, <why>, <revisit when>',
       'V-B-08': 'Leave no trace',
       'V-B-09': 'bun by default',
-      'V-C-19': 'Group options that serve one concern',
       'V-C-20': 'Declare the instance, then await on its own line',
     };
 
     for (const [id, phrase] of Object.entries(phrases)) {
       expect(rules[id] ?? '').toContain(phrase);
+    }
+  });
+
+  test('each merged rule carries the sentence of the rule it took in', () => {
+    const rules = BaseRules.read();
+    const survivors: Record<string, string[]> = {
+      'V-W-06': ['deleting files you did not create'],
+      'V-S-01': ['logs, errors, telemetry'],
+      'V-P-02': ['no implementation before approval'],
+      'V-P-08': [
+        'a second style for something that already has one is a defect',
+        'One concept has one implementation',
+      ],
+      'V-P-11': ['Lead with the answer', 'ends with a done report'],
+      'V-B-04': ['Write the failing test first'],
+      'V-C-02': ['Options that serve one concern live in one named sub-object'],
+      'V-C-11': [
+        'Small never cuts safety',
+        'input validation, error handling, security checks or data safety',
+      ],
+    };
+
+    for (const [id, sentences] of Object.entries(survivors)) {
+      for (const sentence of sentences) {
+        expect(rules[id] ?? '', id).toContain(sentence);
+      }
     }
   });
 
