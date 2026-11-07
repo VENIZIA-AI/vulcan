@@ -3,9 +3,10 @@
  * .agents/vulcan.manifest.json. The file is rendered from the config by `vulcan sync`, so a hand
  * edit is either lost on the next sync or hides a config change from the doctor.
  *
- * Unlike guard-writes it denies rather than asks, and it fails closed for the same reason: Claude
- * Code blocks a PreToolUse call only on exit 2, so a hook that throws would let every write through.
- * The modules load inside the try for that reason.
+ * Unlike guard-writes it denies rather than asks. Claude Code blocks a PreToolUse call only on exit
+ * 2, so the modules load inside the try: a throw (a missing module, a crash) exits 2 and blocks the
+ * call. Input that is not a tool call - invalid JSON, empty, null - is not an error: the parser
+ * notes it on stderr and the hook exits 0, so the call passes.
  */
 
 // A module, so the awaits below are top-level; it has no static import, by design.
