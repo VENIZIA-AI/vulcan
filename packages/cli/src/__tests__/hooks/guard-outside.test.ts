@@ -540,6 +540,9 @@ describe('OutsideGuard.inspect asks when it cannot tell where a write lands', ()
     'wget --output-doc /etc/zz https://example.test/u',
     'curl --out /etc/zz https://example.test/u',
     'cp --target-dir /etc a',
+    'cp --t /etc a',
+    'mv --t /etc a',
+    'install --t /etc a',
   ])('%s asks', (command) => {
     expect(bash({ command }).length).toBeGreaterThan(0);
   });

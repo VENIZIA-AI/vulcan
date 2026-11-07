@@ -67,7 +67,7 @@ const positional = (opts: { args: string[]; values?: IOptionValues }): string[] 
  */
 /** Whether `name` is a long option written short: `--output-doc` for `--output-document`. */
 const isPrefixOf = (opts: { name: string; flag: string }): boolean =>
-  opts.name.length >= 4 && opts.name.startsWith('--') && opts.flag.startsWith(opts.name);
+  opts.name.length >= 3 && opts.name.startsWith('--') && opts.flag.startsWith(opts.name);
 
 /**
  * The word before each long option of the program that is not in its table of valued options and has no `=`:
