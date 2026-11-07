@@ -4,6 +4,8 @@ import type { TConstValue } from '../common/types.ts';
 export interface ISimpleCommand {
   words: string[];
   redirects: string[];
+  /** The `>&word` targets that hold an expansion (`>&$fd`): a descriptor or a file, the line does not say which. They are in `redirects` too. */
+  copies?: string[];
   assignments: string[];
   /** The body of the heredoc this command reads, when it is not read as commands itself (data, or a query or script for another program). */
   heredoc?: string;
@@ -1525,9 +1527,11 @@ export class ShellParser {
           cursor += 1;
         }
 
-        if (text[cursor] === '&' && /[\d-]/.test(text[cursor + 1] ?? '')) {
-          index = cursor + 2;
-          continue;
+        // `>&2` and `>&-` duplicate or close a descriptor; `>&file` writes the file, as `&>file` does.
+        const isAmpersand = char === '>' && text[cursor] === '&';
+
+        if (isAmpersand) {
+          cursor += 1;
         }
 
         while (text[cursor] === ' ' || text[cursor] === '\t') {
@@ -1536,8 +1540,18 @@ export class ShellParser {
 
         const target = readWord({ text, from: cursor, layout });
 
+        if (isAmpersand && /^(?:\d+-?|-)$/.test(target.value)) {
+          nest({ texts: target.nested });
+          index = Math.max(target.next, cursor + 1);
+          continue;
+        }
+
         if (target.value !== '') {
           current.redirects.push(target.value);
+
+          if (isAmpersand && /[$`]/.test(target.value)) {
+            (current.copies ??= []).push(target.value);
+          }
         }
 
         nest({ texts: target.nested });

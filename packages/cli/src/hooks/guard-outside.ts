@@ -1,4 +1,4 @@
-import { lstatSync, readlinkSync, realpathSync } from 'node:fs';
+import { lstatSync, readlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { ShellParser, ShellUnread } from './shell.ts';
@@ -12,43 +12,66 @@ import type { IManifestHookInput, IOutsideHit } from './common/index.ts';
 
 const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
+/** The links one path may pass through before it is taken for a loop, as the OS counts them. */
+const MAX_LINKS = 40;
+
+/** The components of a path, without the empty and `.` ones, last first, so `pop` takes the next. */
+const partsOf = (opts: { path: string }): string[] =>
+  opts.path
+    .split('/')
+    .filter((part) => part !== '' && part !== '.')
+    .reverse();
+
 /**
- * The path with the nearest existing ancestor resolved through symlinks, so a link cannot walk out of the
- * project; a dangling link is followed to where it points.
+ * The file the OS opens for an absolute path that has not been folded: each component in turn, a symlink
+ * followed where it stands, so a `..` after a link goes to the parent of the link's target and not to the
+ * parent of the link. What does not exist is kept as text, a dangling link followed to where it points. A path
+ * that goes through more links than the OS follows has no file: `undefined`.
  */
-const realOf = (opts: { path: string; depth?: number }): string => {
-  const depth = opts.depth ?? 0;
-  let existing = opts.path;
-  const rest: string[] = [];
+const realOf = (opts: { path: string }): string | undefined => {
+  const pending = partsOf({ path: opts.path });
+  let current = '/';
+  let links = 0;
 
-  while (dirname(existing) !== existing) {
+  while (pending.length > 0) {
+    const part = pending.pop() ?? '';
+
+    if (part === '..') {
+      current = dirname(current);
+      continue;
+    }
+
+    const next = join(current, part);
+    let target: string | undefined;
+
     try {
-      lstatSync(existing);
-      break;
+      target = lstatSync(next).isSymbolicLink() ? readlinkSync(next) : undefined;
     } catch {
-      rest.unshift(existing.slice(dirname(existing).length + 1));
-      existing = dirname(existing);
-    }
-  }
-
-  let base: string;
-
-  try {
-    base = realpathSync(existing);
-  } catch {
-    // A dangling link: its target is where a write through it lands; a chain this long is a loop.
-    if (depth >= 8) {
-      return join(existing, ...rest);
+      target = undefined;
     }
 
-    base = realOf({
-      path: resolve(dirname(existing), readlinkSync(existing)),
-      depth: depth + 1,
-    });
+    if (target === undefined) {
+      current = next;
+      continue;
+    }
+
+    links += 1;
+
+    if (links > MAX_LINKS) {
+      return undefined;
+    }
+
+    if (isAbsolute(target)) {
+      current = '/';
+    }
+
+    pending.push(...partsOf({ path: target }));
   }
 
-  return join(base, ...rest);
+  return current;
 };
+/** The files that name a process by number or as `self`: their target depends on who opens them. */
+const PROCESS_FILES = /^\/(?:proc(?:\/|$)|dev\/fd(?:\/|$))/;
 
 const isInside = (opts: { path: string; root: string }): boolean =>
   opts.path === opts.root || opts.path.startsWith(`${opts.root}${sep}`);
@@ -118,7 +141,7 @@ export class OutsideGuard {
   }): IOutsideHit[] {
     const env = opts.env ?? process.env;
     const home = opts.home ?? env.HOME ?? '';
-    const root = realOf({ path: resolve(opts.projectRoot) });
+    const root = realOf({ path: resolve(opts.projectRoot) }) ?? resolve(opts.projectRoot);
     const patterns = allowPatterns({
       patterns: [...HookConstants.TOOL_OWNED_PATHS, ...(opts.toolOwnedPaths ?? [])],
       home,
@@ -180,10 +203,43 @@ export class OutsideGuard {
       const expanded = ShellFolders.expandPath({ word: target.word, home, env, cwd: target.pwd });
 
       if (expanded === undefined) {
+        // `>&$fd` is a descriptor or a file: with the variable unknown, the line does not say which.
+        if (target.isAmbiguous === true) {
+          hits.push({
+            path: target.word,
+            message: `${target.message}: the word has an expansion, so it may name a file`,
+            isAgentToolScratchpad: false,
+          });
+        }
+
         continue;
       }
 
-      const path = realOf({ path: resolve(target.base, expanded) });
+      const written = isAbsolute(expanded) ? expanded : `${target.base}/${expanded}`;
+
+      // `/proc/self` and `/dev/fd` name the hook's own process, not the shell the command runs in.
+      if (PROCESS_FILES.test(written)) {
+        hits.push({
+          path: written,
+          message: `${target.message}: a path under /proc or /dev/fd names a process, which this check cannot follow`,
+          isAgentToolScratchpad: false,
+        });
+
+        continue;
+      }
+
+      // Not folded here: a `..` after a symlink goes where the link points, which `realOf` follows.
+      const path = realOf({ path: written });
+
+      if (path === undefined) {
+        hits.push({
+          path: written,
+          message: `${target.message}: the path goes through more links than the system follows`,
+          isAgentToolScratchpad: false,
+        });
+
+        continue;
+      }
 
       if (!isInside({ path, root }) && !matchesAny({ path, patterns })) {
         hits.push({

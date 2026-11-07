@@ -769,3 +769,20 @@ describe('ShellParser.parse, on comments and scopes', () => {
     expect(last?.scope).toBe('/1');
   });
 });
+
+describe('the >&word redirect', () => {
+  test('a word with an expansion is listed as a copy that may name a file; a descriptor is not', () => {
+    const [command] = ShellParser.parse({ command: 'echo x >&$fd' });
+    const [plain] = ShellParser.parse({ command: 'echo x >&2 2>&1 >&-' });
+
+    expect(command?.redirects).toEqual(['$fd']);
+    expect(command?.copies).toEqual(['$fd']);
+    expect(plain?.redirects).toEqual([]);
+    expect(plain?.copies).toBeUndefined();
+  });
+
+  test('>&file is a file redirect, and <> is a write target too', () => {
+    expect(ShellParser.parse({ command: 'echo x >&out.txt' })[0]?.redirects).toEqual(['out.txt']);
+    expect(ShellParser.parse({ command: 'cat 1<> f' })[0]?.redirects).toEqual(['f']);
+  });
+});
