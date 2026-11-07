@@ -608,3 +608,16 @@ describe('OutsideGuard.inspect asks about a redirect to a word it cannot work ou
     expect(bash({ command }).filter((message) => message.includes('expansion'))).toEqual([]);
   });
 });
+
+describe('an input redirect on a compound command is not a program', () => {
+  test.each(['{ read -r A; } < "$S"', 'while read -r A; do echo "$A"; done < "$S"'])(
+    '%s asks about nothing',
+    (command) => {
+      expect(bash({ command })).toEqual([]);
+    },
+  );
+
+  test('a program named by a variable after the compound command still asks', () => {
+    expect(bash({ command: 'while read -r A; do :; done < "$S"; $CMD' })).not.toEqual([]);
+  });
+});

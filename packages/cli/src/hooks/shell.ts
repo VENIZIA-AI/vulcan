@@ -72,6 +72,8 @@ const DOUBLE_QUOTE_ESCAPES = new Set(['$', '`', '"', '\\', '\n']);
 
 /** What stops an unquoted word. */
 const WORD_END = new Set([' ', '\t', '\n', ';', '|', '&', '<', '>', '(', ')']);
+/** The keywords that end a compound command: a redirect after one belongs to the whole command. */
+const CLOSING_KEYWORDS = new Set(['}', 'fi', 'done', 'esac']);
 /** Shell keywords and braces that open a command: the program is the word after them. */
 const KEYWORDS = new Set([
   '{',
@@ -1639,7 +1641,10 @@ export class ShellParser {
             current.redirects.push(source.value);
           }
 
-          if (current.words.length > 0) {
+          const isClosing =
+            current.words.length === 1 && CLOSING_KEYWORDS.has(current.words[0] ?? '');
+
+          if (current.words.length > 0 && !isClosing) {
             current.words.push(source.value);
           }
         }
