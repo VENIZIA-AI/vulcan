@@ -182,6 +182,18 @@ const isUnresolvedWord = (opts: { word: string }): boolean => /[$`*?[{]|^~/.test
 const UNSEEN_INPUT =
   'running shell commands that come from a pipe or the terminal, which this check cannot see';
 const UNSEEN_PRINTED = 'running commands that another command prints, which this check cannot see';
+const UNSEEN_STARTUP =
+  'a shell startup file (BASH_ENV, ENV) that runs commands this check cannot see';
+
+/** The variables that make a shell run a file before its own script: `BASH_ENV` for bash, `ENV` for sh. */
+const STARTUP_ASSIGNMENT = /^(?:BASH_ENV|ENV)=./;
+const EXPORTING = new Set(['export', 'declare', 'typeset', 'local', 'readonly']);
+const UNSEEN_FED =
+  'running shell text that find or xargs fills in from the files or the input it reads, which this check cannot see';
+const FIND_EXECS = new Set(['-exec', '-execdir', '-ok', '-okdir']);
+
+/** The commands `find -exec` runs, made into commands of their own: they are not words of the line the shell splits. */
+const FOUND = new WeakSet<ISimpleCommand>();
 
 /** A `bun x.ts` call anywhere in the text, arguments included: `readOnlyScripts` pairs only a line where each is a call. */
 const BUN_TS_MENTION = /\bbun\s+(?:run\s+)?(\S+\.ts)\b/g;
@@ -386,8 +398,14 @@ export class WriteGuard {
       hits.push({ rule: 'V-W-02', message: unread });
     }
 
-    for (const command of view.commands) {
+    const commands = view.commands.flatMap((command) => [
+      command,
+      ...WriteGuard.foundOf({ command }),
+    ]);
+
+    for (const command of commands) {
       hits.push(
+        ...WriteGuard.inspectStartup({ command }),
         ...WriteCommands.inspectClient({ command }),
         ...WriteGuard.inspectInline({ command, extra: opts.extra, work }),
       );
@@ -435,8 +453,8 @@ export class WriteGuard {
       }),
     );
     const fallback: IShellFolder = { base: cwd, pwd: cwd, isKnown: opts.state.isCwdKnown };
-    const sources = view.commands.map((command) => {
-      const at = folderOf.get(command) ?? fallback;
+    const sources = commands.map((command) => {
+      const at = folderOf.get(command) ?? folderOf.get(command.carrier ?? command) ?? fallback;
 
       return { ...WriteGuard.codeOf({ command, at, root: work.root }), at };
     });
@@ -673,6 +691,103 @@ export class WriteGuard {
   }
 
   /** The program a simple command runs, past wrappers (`sudo`, `env`) and launchers (`npx tsx`, `uv run`). */
+  /**
+   * A startup file set for the command (`BASH_ENV=f bash -c x`, `env ENV=f sh`, `export BASH_ENV=f`): the shell
+   * runs it first, and its contents are not on the line.
+   */
+  private static inspectStartup(opts: { command: ISimpleCommand }): IWriteHit[] {
+    const { words, assignments } = opts.command;
+    const prefix: string[] = [];
+
+    for (const word of words) {
+      if (word !== 'env' && !word.startsWith('-') && !/^[A-Za-z_]\w*=/.test(word)) {
+        break;
+      }
+
+      prefix.push(word);
+    }
+
+    const { name, args } = ShellParser.programOf({ command: opts.command });
+    const exported = EXPORTING.has(name) ? args : [];
+    const isSet = [...assignments, ...prefix, ...exported].some((word) =>
+      STARTUP_ASSIGNMENT.test(word),
+    );
+
+    return isSet ? [{ rule: 'V-W-02', message: UNSEEN_STARTUP }] : [];
+  }
+
+  /** The commands a `find` runs with `-exec`, `-execdir`, `-ok` or `-okdir`, up to the `;` or `+` that ends each. */
+  private static foundOf(opts: { command: ISimpleCommand }): ISimpleCommand[] {
+    const { name } = ShellParser.programOf({ command: opts.command });
+
+    if (ShellParser.basenameOf({ word: name }) !== 'find') {
+      return [];
+    }
+
+    const found: ISimpleCommand[] = [];
+    const { words } = opts.command;
+
+    for (let index = 0; index < words.length; index += 1) {
+      if (!FIND_EXECS.has(words[index] ?? '')) {
+        continue;
+      }
+
+      const end = words.findIndex((word, at) => at > index && (word === ';' || word === '+'));
+      const run = words.slice(index + 1, end === -1 ? words.length : end);
+
+      if (run.length > 0) {
+        const command: ISimpleCommand = {
+          words: run,
+          redirects: [],
+          assignments: [],
+          scope: opts.command.scope,
+          carrier: opts.command,
+        };
+
+        FOUND.add(command);
+        found.push(command);
+      }
+
+      index = end === -1 ? words.length : end;
+    }
+
+    return found;
+  }
+
+  /**
+   * Why the text a shell runs with `-c` is not on the line: `xargs` adds its input to the command or puts it
+   * where the replace string is (`xargs -I{} sh -c '{}'`), and `find -exec` puts a file name there.
+   */
+  private static fedTextOf(opts: {
+    command: ISimpleCommand;
+    word: string | undefined;
+  }): string | undefined {
+    const { command, word } = opts;
+    const { index } = ShellParser.programOf({ command });
+    const before = command.words.slice(0, index);
+    const isXargs = before.some((item) => ShellParser.basenameOf({ word: item }) === 'xargs');
+
+    if (!isXargs && !FOUND.has(command)) {
+      return undefined;
+    }
+
+    const replaces = ['{}'];
+
+    before.forEach((item, at) => {
+      if (item === '-I' || item === '-i') {
+        replaces.push(before[at + 1] ?? '');
+      } else if (/^-[Ii]./.test(item)) {
+        replaces.push(item.slice(2));
+      } else if (item.startsWith('--replace=')) {
+        replaces.push(item.slice('--replace='.length));
+      }
+    });
+
+    return word === undefined || replaces.some((mark) => mark !== '' && word.includes(mark))
+      ? UNSEEN_FED
+      : undefined;
+  }
+
   private static callOf(opts: { command: ISimpleCommand }): {
     name: string;
     program: string;
@@ -740,7 +855,12 @@ export class WriteGuard {
         }
         default: {
           // `-c` text is read by the parser as commands of the line; `-n` runs nothing.
-          return none;
+          const fed =
+            call.mode === ShellModes.COMMAND
+              ? WriteGuard.fedTextOf({ command: opts.command, word: call.word })
+              : undefined;
+
+          return fed === undefined ? none : { ...none, unseen: [fed] };
         }
       }
     }
@@ -1886,7 +2006,7 @@ export class WriteGuard {
       payload = JSON.parse(opts.text);
     } catch (error) {
       console.error(
-        `[WriteGuard.parseHookCommand] unreadable hook input - letting the command through | ${error instanceof Error ? error.message : String(error)}`,
+        `[WriteGuard.parseHookCommand] unreadable hook input | ${error instanceof Error ? error.message : String(error)}`,
       );
 
       return undefined;
