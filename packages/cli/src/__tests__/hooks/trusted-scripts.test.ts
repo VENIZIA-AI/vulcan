@@ -937,3 +937,191 @@ describe('the guard-writes hook with read-only subcommands', () => {
     expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
   });
 });
+
+// A shell script that posts, and node scripts that delete: each is flagged as a whole unless it is trusted.
+const SHELL_BODY = 'curl -X POST https://example.dev/v1/x\n';
+const NODE_BODY = "await fetch('https://example.dev/v1/x', { method: 'DELETE' });\nexport {};\n";
+
+describe('WriteGuard.inspectCommand with a trusted shell or node script', () => {
+  const trusted = (opts: { script: string; body: string; files?: Record<string, string> }) => {
+    const root = repoWith({ files: { [opts.script]: opts.body, ...opts.files } });
+
+    return { root, trust: { root, scripts: [opts.script] } };
+  };
+
+  const asks = (opts: {
+    command: string;
+    root: string;
+    trust?: { root: string; scripts: string[] };
+  }) => WriteGuard.inspectCommand({ command: opts.command, cwd: opts.root, trust: opts.trust });
+
+  test.each([
+    [
+      'tools/deploy.sh',
+      SHELL_BODY,
+      ['bash tools/deploy.sh', 'sh tools/deploy.sh', 'bash -e tools/deploy.sh'],
+    ],
+    ['tools/check.js', NODE_BODY, ['node tools/check.js', 'bun tools/check.js']],
+    ['tools/check.mjs', NODE_BODY, ['node tools/check.mjs']],
+    ['tools/check.cjs', NODE_BODY, ['node tools/check.cjs']],
+  ])('%s: asks without trust, is quiet when listed and clean', (script, body, commands) => {
+    const { root, trust } = trusted({ script, body });
+
+    for (const command of commands) {
+      expect(asks({ command, root }).length).toBeGreaterThan(0);
+      expect(asks({ command, root, trust })).toEqual([]);
+    }
+  });
+
+  test('a listed shell script run by its own path is quiet when clean', () => {
+    const { root, trust } = trusted({ script: 'tools/deploy.sh', body: SHELL_BODY });
+
+    expect(asks({ command: './tools/deploy.sh', root }).length).toBeGreaterThan(0);
+    expect(asks({ command: './tools/deploy.sh', root, trust })).toEqual([]);
+  });
+
+  test('an edited, untracked or uncommitted shell script asks, saying why', () => {
+    const edited = trusted({ script: 'tools/deploy.sh', body: SHELL_BODY });
+
+    writeFileSync(join(edited.root, 'tools/deploy.sh'), `${SHELL_BODY}# edited\n`);
+
+    const editedHits = asks({
+      command: 'bash tools/deploy.sh',
+      root: edited.root,
+      trust: edited.trust,
+    });
+
+    expect(editedHits.map((hit) => hit.message).join('\n')).toContain('modified trusted script');
+
+    const untracked = trusted({ script: 'a.sh', body: SHELL_BODY });
+
+    writeFileSync(join(untracked.root, 'new.sh'), SHELL_BODY);
+
+    const untrackedHits = asks({
+      command: 'bash new.sh',
+      root: untracked.root,
+      trust: { root: untracked.root, scripts: ['new.sh'] },
+    });
+
+    expect(untrackedHits.map((hit) => hit.message).join('\n')).toContain('not tracked');
+
+    const uncommitted = trusted({ script: 'a.sh', body: SHELL_BODY });
+
+    writeFileSync(join(uncommitted.root, 'staged.sh'), SHELL_BODY);
+    git({ cwd: uncommitted.root, args: ['add', 'staged.sh'] });
+
+    const stagedHits = asks({
+      command: 'bash staged.sh',
+      root: uncommitted.root,
+      trust: { root: uncommitted.root, scripts: ['staged.sh'] },
+    });
+
+    expect(stagedHits.map((hit) => hit.message).join('\n')).toContain('not in the last commit');
+  });
+
+  test('a listed path that goes through a symlink is not trusted; the same file by its real path is', () => {
+    const { root, trust } = trusted({ script: 'tools/deploy.sh', body: SHELL_BODY });
+
+    symlinkSync(join(root, 'tools'), join(root, 'linked'));
+
+    const viaLink = { root, scripts: ['linked/deploy.sh'] };
+
+    expect(asks({ command: 'bash linked/deploy.sh', root, trust: viaLink }).length).toBeGreaterThan(
+      0,
+    );
+    expect(asks({ command: 'bash tools/deploy.sh', root, trust })).toEqual([]);
+  });
+  test('the command line is still read: a substitution in an argument of a trusted script asks', () => {
+    const { root, trust } = trusted({ script: 'tools/deploy.sh', body: SHELL_BODY });
+
+    for (const command of [
+      './tools/deploy.sh "$(kubectl apply -f y.yaml)"',
+      'bash tools/deploy.sh "$(kubectl apply -f y.yaml)"',
+      'bash tools/deploy.sh `kubectl apply -f y.yaml`',
+      'bash tools/deploy.sh && kubectl apply -f y.yaml',
+      'bash tools/deploy.sh; curl -X POST https://example.dev/a',
+    ]) {
+      expect(asks({ command, root, trust }).length, command).toBeGreaterThan(0);
+    }
+  });
+
+  test('a listed script does not exempt a different script in the same command', () => {
+    const { root, trust } = trusted({
+      script: 'tools/deploy.sh',
+      body: SHELL_BODY,
+      files: { 'tools/other.sh': SHELL_BODY },
+    });
+    const hits = asks({ command: 'bash tools/deploy.sh && bash tools/other.sh', root, trust });
+
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every((hit) => hit.message.startsWith('tools/other.sh'))).toBe(true);
+  });
+
+  test('trusting a script trusts everything it runs: what a clean listed script calls is not read', () => {
+    const { root, trust } = trusted({
+      script: 'tools/wrapper.sh',
+      body: 'bash tools/helper.sh\n',
+      files: { 'tools/helper.sh': SHELL_BODY },
+    });
+
+    expect(asks({ command: 'bash tools/helper.sh', root }).length).toBeGreaterThan(0);
+    expect(asks({ command: 'bash tools/wrapper.sh', root, trust })).toEqual([]);
+  });
+});
+
+describe('the guard-writes hook with a trusted shell script', () => {
+  const MANIFEST = guardManifest({ guard: { writes: { trustedScripts: ['tools/deploy.sh'] } } });
+
+  const runHook = async (opts: { root: string; command: string }) => {
+    const child = Bun.spawn([process.execPath, HOOK], {
+      stdin: new TextEncoder().encode(
+        `{"tool_name":"Bash","cwd":${JSON.stringify(opts.root)},"tool_input":{"command":${JSON.stringify(opts.command)}}}`,
+      ),
+      stdout: 'pipe',
+      stderr: 'pipe',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: opts.root },
+      timeout: SPAWN_TIMEOUT_MS,
+      killSignal: 'SIGKILL',
+    });
+    const stdout = await new Response(child.stdout).text();
+    const code = await child.exited;
+
+    return { code, stdout: stdout.trim() };
+  };
+
+  const project = (opts: { manifest: string }): string =>
+    repoWith({ files: { [GUARD_MANIFEST_FILE]: opts.manifest, 'tools/deploy.sh': SHELL_BODY } });
+
+  test('a clean listed script stays silent, an edited one asks, an unlisted one asks', async () => {
+    const listed = project({ manifest: MANIFEST });
+
+    const result2 = await runHook({ root: listed, command: 'bash tools/deploy.sh' });
+    expect(result2).toEqual({
+      code: 0,
+      stdout: '',
+    });
+
+    writeFileSync(join(listed, 'tools', 'deploy.sh'), `${SHELL_BODY}# edited\n`);
+
+    const edited = await runHook({ root: listed, command: 'bash tools/deploy.sh' });
+
+    expect(JSON.parse(edited.stdout).hookSpecificOutput.permissionDecisionReason).toContain(
+      'modified trusted script',
+    );
+
+    const unlisted = project({ manifest: guardManifest({ guard: {} }) });
+    const result = await runHook({ root: unlisted, command: 'bash tools/deploy.sh' });
+
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+
+  test('a substitution in an argument of the listed script asks', async () => {
+    const root = project({ manifest: MANIFEST });
+    const result = await runHook({
+      root,
+      command: 'bash tools/deploy.sh "$(kubectl apply -f y.yaml)"',
+    });
+
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+});

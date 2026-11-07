@@ -102,23 +102,38 @@ const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
   }
 });
 
-/** A script `guard-writes` may trust: a repo-relative `.ts` path - no glob, no `~`, never climbing out of the repo. */
-const TRUSTED_SCRIPT_PATH = z.string().superRefine((value, context) => {
-  const problem = /[*?[\]{}!]/.test(value)
-    ? 'no globs: list each script by its exact path'
-    : isAbsolute(value) || value.startsWith('~')
-      ? 'a path relative to the repo root'
-      : value.split(/[\\/]/).includes('..')
-        ? 'a path inside the repo, without ..'
-        : /\.ts$/.test(value)
-          ? undefined
-          : 'a .ts file - only bun scripts ending in .ts can be listed';
+/**
+ * A script `guard-writes` may trust: a repo-relative path - no glob, no `~`, never climbing out of the repo - that
+ * ends in one of `extensions`.
+ */
+const trustedScriptPath = (opts: { extensions: RegExp; what: string }) =>
+  z.string().superRefine((value, context) => {
+    const problem = /[*?[\]{}!]/.test(value)
+      ? 'no globs: list each script by its exact path'
+      : isAbsolute(value) || value.startsWith('~')
+        ? 'a path relative to the repo root'
+        : value.split(/[\\/]/).includes('..')
+          ? 'a path inside the repo, without ..'
+          : opts.extensions.test(value)
+            ? undefined
+            : opts.what;
 
-  if (problem !== undefined) {
-    context.addIssue({ code: 'custom', message: `${value}: ${problem}` });
-  }
+    if (problem !== undefined) {
+      context.addIssue({ code: 'custom', message: `${value}: ${problem}` });
+    }
+  });
+
+/** The whole file is trusted: a bun script (`.ts`), a node script (`.js`, `.mjs`, `.cjs`) or a shell script (`.sh`). */
+const TRUSTED_SCRIPT_PATH = trustedScriptPath({
+  extensions: /\.(?:ts|js|mjs|cjs|sh)$/,
+  what: 'a .ts, .js, .mjs, .cjs or .sh file - only a script ending in one of these can be listed',
 });
 
+/** Only the calls of a subcommand are trusted: paired with `bun x.ts <word>` calls, so a bun script. */
+const TRUSTED_BUN_SCRIPT_PATH = trustedScriptPath({
+  extensions: /\.ts$/,
+  what: 'a .ts file - only bun scripts ending in .ts can be listed with readOnly',
+});
 /**
  * A trusted script, whole or by subcommand: a path trusts the whole file; an object trusts only the calls
  * whose first argument after the script is one of `readOnly` (one word each, matched exactly).
@@ -132,7 +147,7 @@ const READ_ONLY_WORD = z
 
 const TRUSTED_SCRIPT = z.union([
   TRUSTED_SCRIPT_PATH,
-  z.strictObject({ script: TRUSTED_SCRIPT_PATH, readOnly: z.array(READ_ONLY_WORD).min(1) }),
+  z.strictObject({ script: TRUSTED_BUN_SCRIPT_PATH, readOnly: z.array(READ_ONLY_WORD).min(1) }),
 ]);
 
 /** One folder, or a list of them: a side whose apps are grouped keeps each group's folder. */
@@ -575,7 +590,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       /** Write guard lists: scripts guard-writes trusts and the project's own deploy and migrate commands; both default to `[]`. */
       writes: z
         .strictObject({
-          /** Repo-relative `.ts` scripts guard-writes does not read for mutating calls; a path or `{ script, readOnly }`. Default `[]`. */
+          /** Repo-relative scripts (`.ts`, `.js`, `.mjs`, `.cjs`, `.sh`) guard-writes does not read for mutating calls while git says they are unchanged; a path, or `{ script, readOnly }` for a `.ts` one. Default `[]`. */
           trustedScripts: z.array(TRUSTED_SCRIPT).default([]),
           /** The project's own deploy and migrate commands guard-writes asks about; default `[]`. */
           commands: z.array(GUARD_COMMAND).default([]),

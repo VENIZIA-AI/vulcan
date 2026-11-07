@@ -41,7 +41,7 @@ packages: ['@venizia/vulcan']
 ## Who is affected
 
 - **Every project that installs the VULCAN hooks:** update `@venizia/vulcan`. A command in one of the forms above asks once. So does `bun run <name>` for a name the `package.json` does not have, and a script run by a path that does not exist yet.
-- **Projects with their own CLI scripts:** a `.js` or shell script that calls a mutating API or deploys asks on each run, the way a `bun script.ts` does. `guard.writes.trustedScripts` takes `.ts` files only.
+- **Projects with their own CLI scripts:** a `.js` or shell script that calls a mutating API or deploys asks on each run, the way a `bun script.ts` does. `guard.writes.trustedScripts` takes `.ts`, `.js`, `.mjs`, `.cjs` and `.sh` files.
 
 ## Not covered
 

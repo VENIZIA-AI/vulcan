@@ -25,6 +25,35 @@ describe('guard.writes.trustedScripts', () => {
     expect(config.guard.toolOwnedPaths).toEqual(['/x']);
   });
 
+  test('accepts repo-relative .js, .mjs, .cjs and .sh paths too', () => {
+    const scripts = [
+      'tools/deploy.sh',
+      'scripts/check.js',
+      'scripts/check.mjs',
+      'scripts/check.cjs',
+      './x.sh',
+    ];
+    const result = parseScripts({ scripts });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.guard.writes.trustedScripts).toEqual(scripts);
+  });
+
+  test('a script with a readOnly list must still be a .ts file', () => {
+    for (const script of ['tools/deploy.sh', 'tools/cli.js', 'tools/cli.mjs']) {
+      const result = parseScripts({ scripts: [{ script, readOnly: ['plan'] }] });
+
+      expect(result.success).toBe(false);
+      expect(
+        result.success ? '' : result.error.issues.map((issue) => issue.message).join('\n'),
+      ).toContain('only bun scripts ending in .ts can be listed with readOnly');
+    }
+
+    expect(
+      parseScripts({ scripts: [{ script: 'tools/cli.ts', readOnly: ['plan'] }] }).success,
+    ).toBe(true);
+  });
+
   test('accepts repo-relative .ts paths', () => {
     const scripts = ['cli.ts', 'tools/cli.ts', './tools/cli.ts', 'my tools/the cli.ts'];
     const result = parseScripts({ scripts });
@@ -43,9 +72,30 @@ describe('guard.writes.trustedScripts', () => {
     { name: 'a parent segment', value: '../cli.ts', reason: 'without ..' },
     { name: 'a parent segment inside', value: 'tools/../../cli.ts', reason: 'without ..' },
     { name: 'a windows parent segment', value: 'tools\\..\\cli.ts', reason: 'without ..' },
-    { name: 'a non-ts file', value: 'tools/cli.js', reason: 'a .ts file' },
-    { name: 'a ts-looking suffix', value: 'tools/cli.ts.bak', reason: 'a .ts file' },
-    { name: 'a folder', value: 'tools', reason: 'a .ts file' },
+    {
+      name: 'a file of another language',
+      value: 'tools/cli.py',
+      reason: 'a .ts, .js, .mjs, .cjs or .sh file',
+    },
+    {
+      name: 'a ts-looking suffix',
+      value: 'tools/cli.ts.bak',
+      reason: 'a .ts, .js, .mjs, .cjs or .sh file',
+    },
+    {
+      name: 'a sh-looking suffix',
+      value: 'tools/cli.sh.bak',
+      reason: 'a .ts, .js, .mjs, .cjs or .sh file',
+    },
+    { name: 'an mts file', value: 'tools/cli.mts', reason: 'a .ts, .js, .mjs, .cjs or .sh file' },
+    { name: 'a folder', value: 'tools', reason: 'a .ts, .js, .mjs, .cjs or .sh file' },
+    { name: 'a glob over shell scripts', value: 'tools/*.sh', reason: 'no globs' },
+    {
+      name: 'an absolute shell script',
+      value: '/usr/bin/deploy.sh',
+      reason: 'relative to the repo root',
+    },
+    { name: 'a shell script that climbs out', value: '../deploy.sh', reason: 'without ..' },
   ];
 
   for (const testCase of REJECTED) {

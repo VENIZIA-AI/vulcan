@@ -306,7 +306,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-Entries are repo-relative `.ts` paths, no globs, an exact match resolved against the repo root (see [`guard`](/references/configuration/#guard)). A listed script skips the script-body check only while git tracks it and its working tree file, its index entry and `HEAD` hold the same bytes. Any other state runs the normal check, and the ask says why:
+Entries are repo-relative paths of a `.ts`, `.js`, `.mjs`, `.cjs` or `.sh` file, no globs, an exact match resolved against the repo root (see [`guard`](/references/configuration/#guard)). A path trusts the file however it is run (`bun x.ts`, `node x.js`, `bash x.sh`, `./x.sh`), because the match is on the file on disk. A listed script skips the script-body check only while git tracks it and its working tree file, its index entry and `HEAD` hold the same bytes. Any other state runs the normal check, and the ask says why:
 
 | State | When | Ask text adds |
 |---|---|---|
@@ -318,7 +318,7 @@ Entries are repo-relative `.ts` paths, no globs, an exact match resolved against
 | unknown | git is missing, slow or fails | `git could not say ...` or `git could not read the file` |
 | missing | the file does not exist | `the file does not exist` |
 
-The ask reads `<script> looks like it is ... (listed in guard.writes.trustedScripts, but not trusted: <reason>)`. The hook reads the list from the manifest (`guard.writes.trustedScripts`, written by `vulcan sync`), so run `vulcan sync` after you change it; a manifest without the list leaves it empty, so every script is read. The checks on the command line itself (`curl -X POST`, `kubectl apply`, a migration, `psql`) still apply to a trusted script's command.
+The ask reads `<script> looks like it is ... (listed in guard.writes.trustedScripts, but not trusted: <reason>)`. The hook reads the list from the manifest (`guard.writes.trustedScripts`, written by `vulcan sync`), so run `vulcan sync` after you change it; a manifest without the list leaves it empty, so every script is read. The checks on the command line itself (`curl -X POST`, `kubectl apply`, a migration, `psql`, a `$(...)` in an argument) still apply to a trusted script's command. **Trusting a script trusts everything it runs**: while the file is unchanged its body is not read, so a script it calls or sources is not read either, and a change to one of those is not seen. List only a script whose whole behaviour you have reviewed, and keep what it calls in the same reviewed commit.
 
 `vulcan doctor` prints one info line per listed script with its state, and warns when a listed path does not exist, is untracked, is not committed yet, is a symlink or git cannot say.
 

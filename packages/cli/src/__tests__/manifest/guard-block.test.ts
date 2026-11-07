@@ -107,6 +107,19 @@ describe('the guard block and the read-only scripts', () => {
     });
   });
 
+  test('shell and node scripts are written as writes.trustedScripts, next to the bun ones', () => {
+    const scripts = [
+      'tools/deploy.sh',
+      'tools/check.js',
+      'tools/check.mjs',
+      'tools/check.cjs',
+      'cli.ts',
+    ];
+    const manifest = JSON.parse(render({ guard: { writes: { trustedScripts: scripts } } }));
+
+    expect(manifest.guard.writes.trustedScripts).toEqual(scripts);
+    expect(manifest.guard.writes.readOnlyScripts).toBeUndefined();
+  });
   test('a list of path strings is written as writes.trustedScripts: the hook reads them here, not from the config', () => {
     expect(
       JSON.parse(render({ guard: { writes: { trustedScripts: ['cli.ts', 'tools/b.ts'] } } })).guard,
