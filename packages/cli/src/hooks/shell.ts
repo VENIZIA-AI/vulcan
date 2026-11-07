@@ -1325,21 +1325,16 @@ export class ShellParser {
     return code === undefined || code === '-' || opts.args.length <= at + 1 ? undefined : code;
   }
 
-  /** A leading `$HOME/` or `$BUN_INSTALL/`: a tool folder with no blank in it, so the program after it is named by the line. */
-  private static readonly KNOWN_FOLDER = /^(?:\$(?:HOME|BUN_INSTALL)|\$\{(?:HOME|BUN_INSTALL)\})\//;
-
   /**
    * Whether a command's program is a variable or a substitution, which the line does not show. An expansion
-   * anywhere in the word counts, not only in its last part: an unquoted `$k/deploy.yaml` is split at the blanks of
-   * `k`, so its first word is the program. Only a leading `$HOME/` or `$BUN_INSTALL/` is left out (`$HOME/.bun/bin/bun`).
+   * anywhere in the word counts, not only in its last part: an unquoted `$k/deploy.yaml` is split at the blanks
+   * of `k`, so its first word is the program. No variable is exempt, `HOME` included: the same line can set it.
    */
   static isUnknownProgram(opts: { command: ISimpleCommand }): boolean {
     const { name } = ShellParser.programOf({ command: opts.command });
-    const rest = name.replace(ShellParser.KNOWN_FOLDER, '');
 
-    return /[$`]/.test(rest) || name.startsWith('<(') || name.startsWith('>(');
+    return /[$`]/.test(name) || name.startsWith('<(') || name.startsWith('>(');
   }
-
   /** Whether the command carries another command line to read: a script, an eval, a `watch` string, or an `env -S`. */
   private static nests(opts: { command: ISimpleCommand }): boolean {
     const program = ShellParser.programOf({ command: opts.command });

@@ -901,6 +901,7 @@ describe('the guard-writes hook, on script words it cannot resolve', () => {
   const runHook = (opts: { command: string }) => runHookAt({ root, command: opts.command });
 
   test.each([
+    '$HOME/.bun/bin/bun install',
     'bash $S',
     'bash "${S}"',
     'bash $(echo scripts/deploy.sh)',
@@ -961,7 +962,6 @@ describe('the guard-writes hook, on script words it cannot resolve', () => {
     '/usr/bin/env bash scripts/check.sh',
     'bash /usr/bin/true',
     'node /usr/local/lib/node_modules/npm/bin/npm-cli.js --version',
-    '$HOME/.bun/bin/bun install',
     'bash commented.sh',
     'bash scripts/check.sh > out.log',
     'bash scripts/check.sh 2>&1 | tee check.log',

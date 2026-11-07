@@ -95,11 +95,41 @@ describe('every guard reads a variable in the folder part of the program', () =>
     expect(['ask', 'deny']).toContain(result.decision);
   });
 
-  test.each(GUARDS)('%s stays silent on a program under $HOME', async (guard) => {
-    const result = await runGuard({ guard, command: '$HOME/.bun/bin/bun --version' });
-    expect(result).toEqual({
-      code: 0,
-      decision: '',
-    });
-  });
+  test.each(GUARDS)(
+    '%s asks or denies a program under $HOME, a variable like any other',
+    async (guard) => {
+      const result = await runGuard({ guard, command: '$HOME/.bun/bin/bun --version' });
+
+      expect(result.code).toBe(0);
+      expect(['ask', 'deny']).toContain(result.decision);
+    },
+  );
+});
+
+// A variable the same line sets is no known folder: `HOME` split at its blanks names the program too.
+const THROUGH_SET_HOME: Record<TGuard, string[]> = {
+  'guard-writes': [
+    "HOME='kubectl apply -f'; $HOME/deploy.yaml",
+    "export BUN_INSTALL='kubectl apply -f'; $BUN_INSTALL/deploy.yaml",
+    "read HOME <<< 'kubectl apply -f'; ${HOME}/deploy.yaml",
+    "env HOME='kubectl apply -f' sh -c '$HOME/x.yaml'",
+  ],
+  'guard-git': [
+    "HOME='git -C'; $HOME/repo push -f origin main",
+    "for HOME in 'git -C'; do $HOME/repo push -f origin main; done",
+  ],
+  'guard-outside': ["HOME='touch /etc'; $HOME/seam-probe"],
+  'guard-remote-hosts': ["HOME='ssh -i'; $HOME/k/id seam.example.invalid uptime"],
+};
+
+describe('every guard reads a program under a variable the line sets', () => {
+  test.each(GUARDS.flatMap((guard) => THROUGH_SET_HOME[guard].map((command) => [guard, command])))(
+    '%s asks or denies %s',
+    async (guard, command) => {
+      const result = await runGuard({ guard: guard as TGuard, command: command ?? '' });
+
+      expect(result.code).toBe(0);
+      expect(['ask', 'deny']).toContain(result.decision);
+    },
+  );
 });
