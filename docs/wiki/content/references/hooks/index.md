@@ -18,7 +18,6 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 | `stop` | `Stop` | all | Checks the reply that just ended against the owner's report shape and logs the faults by class and date | Fires when a reply ends; does nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off` |
 | `prompt-submit` | `UserPromptSubmit` | all | Adds one line to the prompt: the shape contract, and the faults of the previous reply | Fires on every prompt; adds nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off` |
 | `post-tool` | `PostToolUse`, `PostToolUseFailure` | all | Keeps notes about the turn for the Stop check, says when the agent seems stuck, and suggests the evals when a skill or rules file is changed | Fires after every tool call (about 10 ms); speaks only on a loop or a skill or rules edit |
-| `guard-remote-hosts` | `PreToolUse` | `Bash` | Prompts for confirmation before commands reach unlisted network hosts | Fires on Bash commands only when `remoteHosts` is set |
 | `guard-manifest` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Refuses a write to `.agents/vulcan.manifest.json` | Fires on every one of those tool calls; only a write to the manifest is refused |
 
 ## Session digest
@@ -106,17 +105,17 @@ This is a guard that matches names, not a sandbox. On Linux a name is compared a
 
 Beyond what is below, a plain `git push` asks for a branch the project lists in `guard.git.askPush` (names, `*` for any run of characters; for example `['develop', 'main', 'release/*']`). It is read from the manifest like the commands of `guard-writes`, found in compound commands too, and applies to `git push origin develop`, `git push origin HEAD:release/1.2` and a bare `git push` from a listed branch. A force-push or a delete of `develop` or `main` is still denied, once, not also asked about. By default nothing is listed and a push that is not forced and deletes nothing passes.
 
-The guards that read a command (`guard-git`, `guard-outside`, `guard-remote-hosts`) look past the wrappers `sudo`, `doas`, `env`, `nice`, `ionice`, `nohup`, `setsid`, `exec`, `command`, `time`, `timeout`, `watch`, `stdbuf` and `xargs`, and past each one's own options with the right meaning for that wrapper: `-n` takes a value for `nice` and `xargs` and is a switch for `sudo`, `-E` is a switch for `sudo` and takes a value for `xargs`, `timeout 5` takes a duration. So `sudo -E git push -f origin main`, `timeout 5 git push -f origin main` and `env -i git push -f origin main` are read as the `git` push they are. `env -S "..."` and `env --split-string=...` (any unique prefix of the long option, as getopt reads it) carry a whole command line in one word. The guards split the value the way `env` does - blanks separate, quotes group, `\_` separates, `\c` ends the string, `;`, `|` and `$(...)` mean nothing - and read `env` followed by those words and the words after the value as one command, so `env`'s own options inside the value apply and `env -S "git push -f origin main"` is denied like the plain command. Only the first `-S` of a command counts, because it holds the rest of the line. `--` ends a wrapper's options.
+The guards that read a command (`guard-git`, `guard-outside`) look past the wrappers `sudo`, `doas`, `env`, `nice`, `ionice`, `nohup`, `setsid`, `exec`, `command`, `time`, `timeout`, `watch`, `stdbuf` and `xargs`, and past each one's own options with the right meaning for that wrapper: `-n` takes a value for `nice` and `xargs` and is a switch for `sudo`, `-E` is a switch for `sudo` and takes a value for `xargs`, `timeout 5` takes a duration. So `sudo -E git push -f origin main`, `timeout 5 git push -f origin main` and `env -i git push -f origin main` are read as the `git` push they are. `env -S "..."` and `env --split-string=...` (any unique prefix of the long option, as getopt reads it) carry a whole command line in one word. The guards split the value the way `env` does - blanks separate, quotes group, `\_` separates, `\c` ends the string, `;`, `|` and `$(...)` mean nothing - and read `env` followed by those words and the words after the value as one command, so `env`'s own options inside the value apply and `env -S "git push -f origin main"` is denied like the plain command. Only the first `-S` of a command counts, because it holds the rest of the line. `--` ends a wrapper's options.
 
-**Quoting the guards read.** Single quotes, double quotes (a backslash escapes only `$`, a backtick, `"`, `\` and a newline), backslashes, ANSI-C quotes `$'...'` (`\n`, `\t`, octal `\nnn`, `\xHH`, `\uHHHH`, `\UHHHHHHHH`, `\cX`; a NUL ends the string) and `$"..."`, so `$'git' push -f origin main` and `env -S $'git push -f origin main'` are read as the commands they are. **What they do not read: a variable.** `$VAR`, `${VAR}` and `${VAR:-git}` are not expanded: a static parser cannot know a variable's value. A command whose program is a variable or a substitution (`$cmd`, `"$@"`, `$(tool) push`, `eval "$(tool env)"`) asks in `guard-git`, `guard-outside`, `guard-writes` and `guard-remote-hosts`; a variable in an argument does not. A variable anywhere in the program word counts (`$k/deploy.yaml`: the shell splits `$k` at its blanks, so its first word is the program), `$HOME/` included, because the same line can set it. The guards are drift guards, not a security boundary (an action of class C still needs the owner's own words, `V-W-06`).
+**Quoting the guards read.** Single quotes, double quotes (a backslash escapes only `$`, a backtick, `"`, `\` and a newline), backslashes, ANSI-C quotes `$'...'` (`\n`, `\t`, octal `\nnn`, `\xHH`, `\uHHHH`, `\UHHHHHHHH`, `\cX`; a NUL ends the string) and `$"..."`, so `$'git' push -f origin main` and `env -S $'git push -f origin main'` are read as the commands they are. **What they do not read: a variable.** `$VAR`, `${VAR}` and `${VAR:-git}` are not expanded: a static parser cannot know a variable's value. A command whose program is a variable or a substitution (`$cmd`, `"$@"`, `$(tool) push`, `eval "$(tool env)"`) asks in `guard-git`, `guard-outside` and `guard-writes`; a variable in an argument does not. A variable anywhere in the program word counts (`$k/deploy.yaml`: the shell splits `$k` at its blanks, so its first word is the program), `$HOME/` included, because the same line can set it. The guards are drift guards, not a security boundary (an action of class C still needs the owner's own words, `V-W-06`).
 
 **Comments, arithmetic and heredocs.** The parser reads a line once, left to right, the way bash does, and keeps its quote state across lines. A `#` at the start of a word, outside quotes, starts a comment that ends at the newline; `$#`, `${#x}`, `a#b`, `a\ #b` and a `#` right after an expansion (`$((1))#x`, `$(cmd)#x`) are not comments. A `<<` is a heredoc only outside quotes, comments and arithmetic, so `$((1 << 2))`, `(( x << 2 ))` and `$[1 << 2]` are shifts, and a `<<` inside a quoted string that spans lines is text. A heredoc body starts at the next newline and ends at the line that is exactly its delimiter (`<<-` strips leading tabs first; blanks around the delimiter make another line; the delimiter may be quoted or escaped, and any word works); several heredocs on one line read their bodies in order. In a body whose delimiter is not quoted, a backslash-newline joins two lines. A body whose delimiter is not quoted still runs its `$(...)` and backtick substitutions, so those are read as commands. A body whose delimiter never comes is data up to the end of the line, as bash reads it, and the line asks; `guard-git` also reads its lines as commands and asks about what it would deny or ask.
 
 **Other forms.** The `)` of a `case` pattern inside `$(...)`, `<(...)` or backticks does not close the substitution. An escaped backtick inside backticks is a substitution of its own. `>(...)` is read like `<(...)`: a word, its text commands of their own. `coproc [NAME]`, `function NAME` and `builtin` are read past to the command they run, and the code `trap` sets (`trap 'cmd' EXIT`) is read as commands; `trap -p`, `trap - INT` and a lone signal set no code. A descriptor number before a redirection (`0<<EOF`, `2>file`) is not a word.
 
-**What it cannot follow asks.** A quote, `$(...)`, `${...}` or arithmetic that never closes, a `<<` with no delimiter word, a `((` that bash reads again as subshells, or nesting past 64 levels makes the line uncertain. `guard-git`, `guard-outside`, `guard-writes` and `guard-remote-hosts` ask about an uncertain line, the same way they ask about a line over the budget.
+**What it cannot follow asks.** A quote, `$(...)`, `${...}` or arithmetic that never closes, a `<<` with no delimiter word, a `((` that bash reads again as subshells, or nesting past 64 levels makes the line uncertain. `guard-git`, `guard-outside` and `guard-writes` ask about an uncertain line, the same way they ask about a line over the budget.
 
-**The budget.** The parser reads at most 2,000 commands, 20,000 words and 100,000 characters of one line (the characters of nested texts count together), and nests at most four levels (`sh -c`, `eval`, `watch`, `$(...)`, `env -S`). A line past a limit, or one with a command left unread at the depth limit, is not allowed by silence: `guard-git`, `guard-outside` and `guard-writes` ask (`guard-remote-hosts` already asks past its depth). The cost of reading a line is linear in its length, and a parse that fails for any reason (a stack or memory limit) reads nothing and asks, instead of crashing the hook and letting the call pass.
+**The budget.** The parser reads at most 2,000 commands, 20,000 words and 100,000 characters of one line (the characters of nested texts count together), and nests at most four levels (`sh -c`, `eval`, `watch`, `$(...)`, `env -S`). A line past a limit, or one with a command left unread at the depth limit, is not allowed by silence: `guard-git`, `guard-outside` and `guard-writes` ask. The cost of reading a line is linear in its length, and a parse that fails for any reason (a stack or memory limit) reads nothing and asks, instead of crashing the hook and letting the call pass.
 
 The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `$(...)`, `sh -c`, `git -C <dir>`), not with substring matching, so `git commit -m "never push --force"` and `echo git branch -D develop` pass.
 
@@ -140,7 +139,7 @@ The branch checks run read-only `git` and `gh` queries with a five-second limit.
 
 ### What the guards are, and are not
 
-The guards that read a command line stop **accidental and drifting commands**: an agent that force-pushes `develop` because a flag looked right, writes outside the project because a path was relative, or runs `ssh` to a host nobody named. They are not a sandbox and not a security boundary. A shell is a language no hand-written parser reads completely, and each independent review of this one has found another spelling that hides a command; every one found so far is fixed and kept below as a test. What stays out of reach of a static parser is stated, not promised away: the value of a variable or of a command built at run time (a program named that way asks, an argument does not), an alias, a script file that holds the push. Anything that must not happen by any route belongs in the permission settings (`permissions.deny`, the `read-only` slot of `V-W-01`) or in the remote's branch protection, not in a guard.
+The guards that read a command line stop **accidental and drifting commands**: an agent that force-pushes `develop` because a flag looked right, or writes outside the project because a path was relative. They are not a sandbox and not a security boundary. A shell is a language no hand-written parser reads completely, and each independent review of this one has found another spelling that hides a command; every one found so far is fixed and kept below as a test. What stays out of reach of a static parser is stated, not promised away: the value of a variable or of a command built at run time (a program named that way asks, an argument does not), an alias, a script file that holds the push. Anything that must not happen by any route belongs in the permission settings (`permissions.deny`, the `read-only` slot of `V-W-01`) or in the remote's branch protection, not in a guard.
 
 When a guard cannot read a line in full (it is over a limit above), it asks. When the hook itself crashes or times out, the wrapper in `settings.json` lets the call pass, by design, so a broken install does not block every command.
 
@@ -209,7 +208,7 @@ It asks about commands in categories defined by base write rules `V-W-02` and `V
 - Not covered: `make` targets, deno tasks, what a package run by `npx` or `bunx` does inside, shell aliases and functions, a variable used as the program name, and the lifecycle scripts an install runs. A file changed in place (`sed -i`) is read as it is on disk, and a `cd` inside `if`, after `||` or in a function body is taken as run. The command patterns above still apply to their text.
 - What it cannot read asks: a command line over the parser's budget (`ShellBudget`), a script over `HookConstants.MAX_SCRIPT_BYTES` (1 MB), a script chain deeper than the limit, a `package.json` it cannot parse, a file that is not text or cannot be opened, a script word that is a pipe, a device or a socket (never opened, since that can block), a shell whose commands come from another program or the terminal (`curl ... | bash`, `eval "$(tool env)"`, a bare `bash`), a shell that `find -exec`, `fd --exec` (also `--exec=cmd` and `-xcmd`) or `xargs` gives a file name or its input as the script or as the `-c` text (`find . -exec bash {} \;`, `xargs -I{} sh -c '{}'`, `xargs sh -c`), a program that comes from the files or the input (`find . -exec {} \;`, `xargs -I{} {} apply`, `xargs -L1 env`, `xargs sudo`), a startup file set for a shell (`BASH_ENV=f bash ...`, `env -u X BASH_ENV=f bash`, `nice env ENV=f sh`, `export BASH_ENV` after `read BASH_ENV` or `printf -v BASH_ENV`, `bash --rcfile f`, `--init-file f`; an empty value does not count), a preloaded library or module (`LD_PRELOAD`, `LD_AUDIT`, `DYLD_INSERT_LIBRARIES` set to anything, and `NODE_OPTIONS` that names a module with `-r`, `--require`, `--import` or `--loader`; it counts for any program, `ls` included), a program word that is a glob or a brace pattern (`kube*l`, `{kubectl,apply}`) or a `${x@P}` expansion anywhere on the line (an unquoted heredoc body included), input the hook cannot read (not JSON, or no command in it), and a call that reads more than its budget (4 MB, 1,000,000 characters of shell, 100 files or 2 seconds in total). A compiled program is recognised by its first bytes (ELF, Mach-O, PE); a NUL byte in a text file reads as a blank. The reason lists the first 20 findings and counts the rest.
 
-**What it reads.** The patterns run on what each simple command runs, through the shared parser of `guard-git`, not on the text of the line. The body of a heredoc that is only data (`cat > f <<EOF`, `tee f <<EOF`) is not a command, and the arguments of the read-only tools (`rg`, `grep`, `egrep`, `fgrep`, `ag`, `ack`, `cat`, `less`, `more`, `head`, `tail`, `wc`, `ls`, `diff`, `sort`, `uniq`, `echo`, `printf`, `man`, `file`, `stat`, `which`, `find` without `-exec`, `-execdir`, `-ok`, `-okdir` or `-delete`) and of `git` and `gh` (a commit message, an issue body) are data, so `rg -n "kubectl apply" docs/` and a commit message that quotes a deploy pass. A heredoc that a program runs still counts: `bash <<EOF` is read as commands, and the body of `ssh`, `psql`, `mysql`, `mongosh`, `mongo`, `sqlite3`, `python`, `node`, `bun`, `deno`, `ruby`, `perl` and `php` is part of that command. A print or search piped into `sh`, `bash`, `psql` and the like stands as one text, because what it prints is code. A comment (a `#` that starts a word, to the end of its line) is not read. `guard-remote-hosts` reads the same way, except that a `git` remote is still a host.
+**What it reads.** The patterns run on what each simple command runs, through the shared parser of `guard-git`, not on the text of the line. The body of a heredoc that is only data (`cat > f <<EOF`, `tee f <<EOF`) is not a command, and the arguments of the read-only tools (`rg`, `grep`, `egrep`, `fgrep`, `ag`, `ack`, `cat`, `less`, `more`, `head`, `tail`, `wc`, `ls`, `diff`, `sort`, `uniq`, `echo`, `printf`, `man`, `file`, `stat`, `which`, `find` without `-exec`, `-execdir`, `-ok`, `-okdir` or `-delete`) and of `git` and `gh` (a commit message, an issue body) are data, so `rg -n "kubectl apply" docs/` and a commit message that quotes a deploy pass. A heredoc that a program runs still counts: `bash <<EOF` is read as commands, and the body of `ssh`, `psql`, `mysql`, `mongosh`, `mongo`, `sqlite3`, `python`, `node`, `bun`, `deno`, `ruby`, `perl` and `php` is part of that command. A print or search piped into `sh`, `bash`, `psql` and the like stands as one text, because what it prints is code. A comment (a `#` that starts a word, to the end of its line) is not read.
 
 The hook returns a decision object asking the human for confirmation and never denies a command directly.
 
@@ -267,7 +266,7 @@ export default {
 
 ### Trusted scripts
 
-`guard-writes` reads the body of a local script a command runs (`bun <script>.ts`, `node x.js`, `bash x.sh`) and asks `V-W-02` when it finds a mutating fetch or a database write. A project's own CLI that calls its API would ask on every run, and neither `permissions.allow` (a hook ask wins over it) nor `remoteHosts` (ssh only) silences that. List the script instead, in `.configs/vulcan.config.*`:
+`guard-writes` reads the body of a local script a command runs (`bun <script>.ts`, `node x.js`, `bash x.sh`) and asks `V-W-02` when it finds a mutating fetch or a database write. A project's own CLI that calls its API would ask on every run, and `permissions.allow` does not silence that (a hook ask wins over it). List the script instead, in `.configs/vulcan.config.*`:
 
 ```ts
 export default {
@@ -362,13 +361,13 @@ Several kinds of hook run in every session of every project, so each kind has a 
 
 | Kind | Hooks | When it cannot run (missing package, missing `bun`, a crash) |
 |---|---|---|
-| Safety hooks | `guard-writes`, `guard-manifest`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
+| Safety hooks | `guard-writes`, `guard-manifest` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
 | Deny-class guards | `guard-git`, `guard-outside` | a missing package or `bun` passes, with a note on stderr (a broken install must not stop every call); a hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**. `guard-git` asks only about a command that names `git` or `gh`; `guard-outside` asks about the call |
 | Shape and signal hooks | `stop`, `prompt-submit`, `post-tool` | fail open: the reply, prompt or call passes and a note goes to stderr |
 
 `subagent-start` never blocks. `VULCAN_GUARDS=off` switches the guards, the shape hooks and `post-tool` off and is read before any module loads.
 
-**Where the project root comes from.** Claude Code sets `CLAUDE_PROJECT_DIR`, and every wrapper builds its path from `${CLAUDE_PROJECT_DIR:-$PWD}`, so a host that reads `.claude/settings.json` without setting the variable (Cursor and Copilot document that they read it) still finds the install when its hooks run from the project root. A set variable always wins, and a missing install still exits 2 for a safety hook. Without the fallback, an unset variable would point the wrapper at `/node_modules/...`, a missing install, and `guard-writes`, `guard-manifest`, `session-start`, `subagent-start` and `guard-remote-hosts` would exit 2, which a host that treats a non-zero exit as a refusal would apply to every call.
+**Where the project root comes from.** Claude Code sets `CLAUDE_PROJECT_DIR`, and every wrapper builds its path from `${CLAUDE_PROJECT_DIR:-$PWD}`, so a host that reads `.claude/settings.json` without setting the variable (Cursor and Copilot document that they read it) still finds the install when its hooks run from the project root. A set variable always wins, and a missing install still exits 2 for a safety hook. Without the fallback, an unset variable would point the wrapper at `/node_modules/...`, a missing install, and `guard-writes`, `guard-manifest`, `session-start` and `subagent-start` would exit 2, which a host that treats a non-zero exit as a refusal would apply to every call.
 
 **Why the deny-class guards ask.** A guard that refuses must not be switched off by the same input that breaks it: a line that overflows the stack or runs for minutes can crash `guard-git`, and a wrapper that let the call through would switch the guard off. The wrapper of `guard-git` and `guard-outside` runs the hook under `timeout 30` (where `timeout` exists; macOS has none, and a hook that hangs there is bounded by Claude Code's own limit) and, when the hook ends with a non-zero status, prints an `ask` decision and exits 0. A hook that fails inside its own `try` (an internal error, a module that does not load) asks the same way, with the error in the reason. The cost is noise on a broken install: `guard-git` asks about each `git` or `gh` command and `guard-outside` about each call until you run `bun install` or set `VULCAN_GUARDS=off`. A missing package or `bun` is not that case and still passes, so the first `bun install` of a fresh clone is never blocked.
 
@@ -389,13 +388,7 @@ The shipped hook scripts exit 2 on internal errors.
 vulcan: the guard-writes hook failed (...) - blocked; run bun install
 ```
 
-`guard-remote-hosts` reports:
-
-```text
-vulcan: the guard-remote-hosts hook failed (...) - blocked
-```
-
-When `node_modules` or `bun` is missing, or the hook crashes, the Bash safety hooks (`guard-writes`, `guard-manifest`, `guard-remote-hosts`) let `bun install` or `bun i` through; the agent can then repair the install.
+When `node_modules` or `bun` is missing, or the hook crashes, the Bash safety hooks (`guard-writes`, `guard-manifest`) let `bun install` or `bun i` through; the agent can then repair the install.
 Both forms accept the usual flags: `--frozen-lockfile`, `--production`, `-p`, `--no-save`, `--ignore-scripts`, `--force`, `--verbose`, or `--silent`.
 
 When `node_modules` is missing, `guard-writes` exits 2 on other commands, while `bun install` exits 0:
@@ -408,7 +401,7 @@ $ same, with the input {"tool_name":"Bash","tool_input":{"command":"bun install"
 ```
 
 The parse-failure behavior differs per hook.
-On input that is not JSON, or that carries no command, `guard-writes`, `guard-git`, `guard-outside` and `guard-remote-hosts` ask ("the hook input could not be read"), because nothing was checked.
+On input that is not JSON, or that carries no command, `guard-writes`, `guard-git` and `guard-outside` ask ("the hook input could not be read"), because nothing was checked.
 An input that is not JSON also logs a line to stderr that begins with `[WriteGuard.parseHookCommand] unreadable hook input`.
 
 ## Your own hooks
@@ -438,22 +431,11 @@ When writing `.claude/settings.json`, `vulcan sync` applies settings in this ord
 
 1. Shipped default settings from `@venizia/vulcan/base/claude/settings.json`.
 2. Settings generated by rule slots such as `V-W-01`.
-3. Remote host hook definitions when `remoteHosts` is configured.
-4. Custom hooks defined in `hooks`.
-5. Team configuration defined in `claude.settings`.
+3. Custom hooks defined in `hooks`.
+4. Team configuration defined in `claude.settings`.
 
 These managed layers merge over personal settings in `.claude/settings.json`.
 For details on adapter generation and pruning, see [vulcan sync](/references/commands/sync).
-
-## The remote-host guard
-
-The remote-host guard intercepts Bash commands targeting network destinations.
-Trusted hosts pass freely.
-Read-only hosts pass only strict read-only forms.
-Any other host or form asks.
-The guard asks. It blocks only when it cannot run.
-
-See [remote-host-guard](/references/hooks/remote-host-guard) for host pattern syntax and inspection rules.
 
 ## The guards on omp and pi
 
@@ -468,7 +450,7 @@ omp and pi take extensions instead of hook commands, so `vulcan sync` writes one
 | `guard-git` or `guard-outside` that crashes or times out | asks, as the Claude wrappers do |
 | `guard-git` or `guard-outside` whose script is missing | the call runs |
 
-`VULCAN_GUARDS=off` is read by the guard scripts, so it switches the guards off here too. `guard-remote-hosts` is not run on these two agents.
+`VULCAN_GUARDS=off` is read by the guard scripts, so it switches the guards off here too.
 
 omp skips files git ignores when it looks for extensions, `.git/info/exclude` included, and `sync` hides its files that way, so the omp file is a hook (`.omp/hooks/pre/`), which loads either way. Pi loads project extensions only after you trust the project.
 

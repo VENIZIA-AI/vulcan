@@ -17,7 +17,6 @@ const SCAFFOLD_FILES: IScaffoldFile[] = [
   { path: 'AGENTS.md', template: 'AGENTS.md' },
   { path: '.agents/rules.md', template: 'rules.md' },
   { path: '.agents/knowledge/index.md', template: 'knowledge-index.md' },
-  { path: `${ProjectLayout.TRUSTED_HOSTS_FILE}.example`, template: 'trusted-hosts.local.example' },
 ];
 
 /** The lint configs of a single-package project. A workspaces project keeps them in each app. */
@@ -238,7 +237,6 @@ export class ProjectScaffold {
     const install = needed.filter((packageName) => !(packageName in declared));
     const todo = [
       `describe the project in ${ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE}/index.md, then delete the ${ProjectLayout.SCAFFOLD_MARKER} line`,
-      `private hosts go in ${ProjectLayout.TRUSTED_HOSTS_FILE} (copy the .example), not in the committed config`,
       ...(hasEnvRule
         ? [
             `.gitignore has .env rules of its own and was left as it is: check that they ignore ${ProjectLayout.SECRET_PATTERNS.join(' ')} the way you want`,

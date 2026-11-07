@@ -377,11 +377,10 @@ const runHook = (opts: { hook: IHookEntry; sandbox: string; payload: string }) =
 const BLOCKING = new Set([
   'guard-writes',
   'guard-manifest',
-  'guard-remote-hosts',
   'guard-git',
   'guard-outside',
 ]);
-const SAFETY = new Set(['guard-writes', 'guard-manifest', 'guard-remote-hosts']);
+const SAFETY = new Set(['guard-writes', 'guard-manifest']);
 
 /** A path of the installed package moved aside while `run` executes, then put back. */
 const withoutFile = <T>(opts: { path: string; run: () => T }): T => {
@@ -425,7 +424,7 @@ const withBrokenPackages = <T>(opts: { paths: string[]; run: () => T }): T => {
 };
 
 /** Blocking hooks that were removed; an older `vulcan sync` still registers each, and the package keeps an empty file for it. */
-const REMOVED_BLOCKING_HOOKS = ['guard-package'];
+const REMOVED_BLOCKING_HOOKS = ['guard-package', 'guard-remote-hosts'];
 const OLD_ENTRY = readFileSync(
   resolve(import.meta.dir, '..', '..', 'packages/cli/src/__tests__/fixtures/old-blocking-hook-entry.txt'),
   'utf8',
@@ -632,30 +631,6 @@ try {
         failure = result.detail;
         break;
       }
-    }
-
-    // The project sets `remoteHosts`, so `sync` registers the remote-host guard too and the manifest
-    // carries the policy it reads: every hook of the product runs below, not only the default ones.
-    if (failure === undefined) {
-      const configFile = join(sandbox, '.configs/vulcan.config.mts');
-      const config = readFileSync(configFile, 'utf8');
-
-      writeFileSync(
-        configFile,
-        config.replace(
-          'export default {',
-          "export default {\n  remoteHosts: { trusted: ['example.test'], readOnly: [] },",
-        ),
-      );
-
-      const synced = runStep({
-        name: 'sync with remoteHosts',
-        command: ['bun', 'x', 'vulcan', 'sync'],
-        cwd: sandbox,
-        expectedCode: 0,
-      });
-
-      failure = synced.ok ? undefined : synced.detail;
     }
 
     // Every registered hook, from the installed tarball (the release-blocking check on the hook path).

@@ -670,7 +670,5 @@ describe('the ignore files of a new project', () => {
     expect(ignored('.env.production')).toBe(true);
     expect(ignored('apps/api/.env.local')).toBe(true);
     expect(ignored('.env.example')).toBe(false);
-    expect(ignored('.agents/hooks/trusted-hosts.local')).toBe(true);
-    expect(ignored('.agents/hooks/trusted-hosts.local.example')).toBe(false);
   });
 });

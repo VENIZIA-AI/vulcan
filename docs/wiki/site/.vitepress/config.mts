@@ -62,10 +62,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
   { text: 'Rules', items: [{ text: 'Base rules and slots', link: '/references/rules' }] },
   {
     text: 'Hooks',
-    items: [
-      { text: 'Overview', link: '/references/hooks/' },
-      { text: 'Remote-host guard', link: '/references/hooks/remote-host-guard' },
-    ],
+    items: [{ text: 'Overview', link: '/references/hooks/' }],
   },
   {
     text: 'okf',

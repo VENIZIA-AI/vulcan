@@ -21,7 +21,7 @@ You write configuration and rules, VULCAN generates agent adapters and the manif
 | `.claude/skills/*` | `vulcan sync` | No (gitignored) | Claude Code |
 | `.agents/vulcan.local.json` | `vulcan sync`, `vulcan agents` | No (gitignored) | `vulcan sync`, `vulcan doctor` |
 | `.agents/local/` | Agents and `vulcan sync` (creates the folders) | No (gitignored) | Agents, `vulcan clean` |
-| `.agents/vulcan.manifest.json` | `vulcan sync` | Yes | atlas, `vulcan doctor`, the guard-remote-hosts hook, the knowledge-sync skill |
+| `.agents/vulcan.manifest.json` | `vulcan sync` | Yes | atlas, `vulcan doctor`, the knowledge-sync skill |
 
 `vulcan init` appends `CLAUDE.md`, `CLAUDE.*.md`, `.claude/`, `.agents/plans`, `.agents/vulcan.local.json` and `.agents/local/` to `.gitignore`. For the files `sync` writes for the other agents you chose, it keeps a list in your clone's `.git/info/exclude`, so the committed `.gitignore` does not change with each developer's choice.
 
@@ -59,7 +59,7 @@ Extensions must avoid naming collisions with shipped identifiers:
 
 atlas reads `.agents/vulcan.manifest.json` directly to discover metadata and packages. atlas never evaluates `.configs/vulcan.config.*` and never runs project code.
 
-The `remoteHosts` policy lives in the manifest. The guard-remote-hosts hook reads it at run time (see [Hooks and guards](/guides/core-concepts/hooks-and-guards)). The knowledge-sync skill reads bundle paths and package paths from the manifest.
+The knowledge-sync skill reads bundle paths and package paths from the manifest.
 
 The manifest carries the following fields:
 
@@ -74,7 +74,6 @@ The manifest carries the following fields:
 | `release` | Release `tagPattern`, `ignoreTags`, and `legacyTagPatterns` (only when it lists something) |
 | `rules` | Path to project rules and short 8-character hashes of each base rule row |
 | `sources` | External knowledge sources from `atlas.sources` when configured |
-| `remoteHosts` | Remote-host security policy when configured |
 
 To update the manifest, run `vulcan sync` after changing configuration or updating base rules. Running `vulcan doctor` compares the manifest against the resolved configuration. If the manifest is missing or stale, `vulcan doctor` fails with exit code 1.
 

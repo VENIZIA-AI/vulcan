@@ -78,8 +78,8 @@ Find the exact contract for keys, commands, and messages. The [guides](/guides/)
 <span class="stage-num">3</span>
 <h4>Guarding the agent</h4>
 </div>
-<p><a href="/references/hooks/remote-host-guard">Remote-host guard</a></p>
-<span class="stage-desc">Intercept tool calls and configure host allowlists for outbound requests.</span>
+<p><a href="/references/hooks/">Hooks</a></p>
+<span class="stage-desc">Intercept tool calls: what each hook asks about, denies or blocks.</span>
 </div>
 
 <div class="roadmap-stage">

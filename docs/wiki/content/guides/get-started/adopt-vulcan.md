@@ -78,7 +78,6 @@ The project it creates (the files `init` and `sync` wrote, without `.git`, `node
 
 ```text
 $ cd my-product && find . -type f -not -path './.git/*' -not -path '*/node_modules/*' -not -name bun.lock | LC_ALL=C sort
-./.agents/hooks/trusted-hosts.local.example
 ./.agents/knowledge/index.md
 ./.agents/knowledge/packages/core-api.md
 ./.agents/local/claude.launch.settings.json
@@ -168,7 +167,7 @@ The `style` check in `vulcan doctor` requires `@venizia/dev-configs` in `package
 bun x --no-install vulcan init
 ```
 
-`init` writes `AGENTS.md`, `.agents/rules.md`, `.agents/knowledge/index.md`, `.agents/hooks/trusted-hosts.local.example`, `.configs/vulcan.config.mts`, the lint configs under `.configs/lints/`, `.dockerignore`, `bunfig.toml` and a `Makefile` (with a hint instead when you already have one). It also appends the agent entries (including `.agents/local/`) to `.gitignore`, installs the lint tools with `bun add -d`, and ends with a numbered list of what is left to do.
+`init` writes `AGENTS.md`, `.agents/rules.md`, `.agents/knowledge/index.md`, `.configs/vulcan.config.mts`, the lint configs under `.configs/lints/`, `.dockerignore`, `bunfig.toml` and a `Makefile` (with a hint instead when you already have one). It also appends the agent entries (including `.agents/local/`) to `.gitignore`, installs the lint tools with `bun add -d`, and ends with a numbered list of what is left to do.
 For command options and file details, see the [init reference](/references/commands/init).
 
 **Check:** The command exits with code 0.

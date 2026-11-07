@@ -1,10 +1,8 @@
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
-import { ProjectLayout } from '../common/constants.ts';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { DOCTOR_SCHEMA } from '../doctor/schema.ts';
 import { GuardDecisions } from '../hooks/common/constants.ts';
-import { HostPatterns } from '../hooks/host-pattern.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
@@ -271,14 +269,6 @@ const OKF_RENDERER = z.union([
   }),
 ]);
 
-/** A host name, or a pattern whose only wildcard is `*`; a `$VAR` stands for a host the shell expands. Never a user, a path or a port. */
-const REMOTE_HOST = z
-  .string()
-  .regex(HostPatterns.SHAPE, 'a host name or a pattern with *, not a user, a path or a port')
-  .refine((value) => HostPatterns.hasLiteral({ value }), {
-    message: 'a pattern needs at least one letter or digit, not only * . - or _',
-  });
-
 /** A colour of a design token: six-digit hex, or eight-digit with an alpha channel for lines and soft text. */
 const TOKEN_COLOUR = z.string().regex(ThemeTokens.COLOUR, 'a hex colour like #8a5a20');
 
@@ -469,23 +459,10 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       tagPattern: '<dir>-v<version>',
       sources: [],
     }),
-  /**
-   * The remote-host guard (W-04 in a project's own words): with this key set, sync registers a hook that
-   * asks before a Bash command reaches a host not listed here. `trusted` hosts are free; `readOnly`
-   * hosts pass only the strict read-only forms. Matching is by whole name or `*` pattern, never by substring.
-   * `localFile` is a gitignored list of personal hosts, one per line: a host is trusted, `readonly: <host>` is a
-   * read-only host. Each entry follows the same rule as the lists above; one that does not is skipped.
-   */
-  remoteHosts: z
-    .strictObject({
-      /** Hosts or `*` patterns a Bash command may reach without asking; default `[]`. */
-      trusted: z.array(REMOTE_HOST).default([]),
-      /** Hosts or `*` patterns that pass only the strict read-only command forms; default `[]`. */
-      readOnly: z.array(REMOTE_HOST).default([]),
-      /** Gitignored file of personal hosts, one per line (`readonly: <host>` for read-only); default `.agents/hooks/trusted-hosts.local`. */
-      localFile: z.string().default(ProjectLayout.TRUSTED_HOSTS_FILE),
-    })
-    .optional(),
+  /** Removed with the guard that read it: the key is refused with what to do. */
+  remoteHosts: REMOVED_OKF_KEY({
+    fix: "the guard that read this key is deleted; delete the key and the personal file `.agents/hooks/trusted-hosts.local`, the host's own permission rules cover network access",
+  }),
   /**
    * The colour the project is known by: `vulcan visualize` takes the accent of its pages from here (the spec's own
    * `accent` wins). `accent` is the colour for marks and fills; `accentDark` is the same on dark grounds (derived

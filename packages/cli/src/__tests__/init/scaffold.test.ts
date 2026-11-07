@@ -20,7 +20,6 @@ const SCAFFOLD = [
   '.configs/lints/eslint.config.mjs',
   '.agents/rules.md',
   '.agents/knowledge/index.md',
-  '.agents/hooks/trusted-hosts.local.example',
   'Makefile',
 ];
 
@@ -144,36 +143,6 @@ describe('vulcan init', () => {
     expect(existsSync(join(root, '.configs/vulcan.config.mts'))).toBe(true);
   });
 
-  test('the personal hosts example is written with no real host, and the hint says where private hosts go', () => {
-    const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
-    const example = readFileSync(join(root, '.agents/hooks/trusted-hosts.local.example'), 'utf8');
-    const lines = example.split('\n').filter((line) => line.trim() !== '');
-
-    expect(lines.length).toBeGreaterThan(3);
-    expect(lines.every((line) => line.startsWith('#'))).toBe(true);
-    expect(example).toContain('readonly: ');
-    expect(example).toContain('.agents/hooks/trusted-hosts.local');
-    expect(example).not.toMatch(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/);
-    expect(result.stderr).toContain(
-      'private hosts go in .agents/hooks/trusted-hosts.local (copy the .example), not in the committed config',
-    );
-  });
-
-  test('an example the project already has is kept', () => {
-    const root = createProject({
-      files: {
-        'package.json': STYLED_PACKAGE,
-        '.agents/hooks/trusted-hosts.local.example': '# mine\n',
-      },
-    });
-
-    runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
-    expect(readFileSync(join(root, '.agents/hooks/trusted-hosts.local.example'), 'utf8')).toBe(
-      '# mine\n',
-    );
-  });
-
   test('missing .gitignore entries are written, existing lines kept', () => {
     const root = createProject({
       files: { '.gitignore': 'node_modules/\n', 'package.json': STYLED_PACKAGE },
@@ -181,7 +150,7 @@ describe('vulcan init', () => {
 
     runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n.agents/hooks/trusted-hosts.local\n',
+      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n',
     );
   });
 
@@ -237,7 +206,7 @@ describe('vulcan init', () => {
 
     runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n.agents/hooks/trusted-hosts.local\n',
+      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n',
     );
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { HookDecision, ManifestGuard, RemoteHosts, WriteGuard } from '../../hooks/index.ts';
+import { HookDecision, ManifestGuard, WriteGuard } from '../../hooks/index.ts';
 
 const ASK = {
   hookSpecificOutput: {
@@ -38,7 +38,6 @@ describe('forHost', () => {
       HookDecision.buildTool({ decision: 'ask', reason: ['x'] }),
       WriteGuard.buildDecision({ hits: [{ rule: 'V-W-03', message: 'deploy' }] }),
       ManifestGuard.buildDecision(),
-      RemoteHosts.buildDecision({ hits: [{ rule: 'remote-hosts', message: 'ssh evil' }] }),
     ];
 
     for (const output of outputs) {

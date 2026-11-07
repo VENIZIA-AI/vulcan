@@ -268,8 +268,6 @@ export class ProjectManifest {
       ...atlasBlockOf({ config }),
       // The commands and push targets the guards ask about beyond their own list; neither set, nothing is written.
       ...guardBlockOf({ config }),
-      // The remote-host guard reads its policy here; a project without the key has no guard.
-      ...(config.remoteHosts === undefined ? {} : { remoteHosts: config.remoteHosts }),
       // The design tokens: the preset, the seeds the project gave and the resolved set every consumer reads.
       ...themeBlockOf({ config }),
       ...commitBlockOf({ config }),

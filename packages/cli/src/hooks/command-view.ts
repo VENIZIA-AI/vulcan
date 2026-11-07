@@ -125,7 +125,7 @@ export class CommandView {
 
   /**
    * Whether the arguments of a command are data. `withMessages` adds `git` and `gh` (their arguments are
-   * messages to the write guards, but a `git` remote is a host to the remote-host guard).
+   * messages to the write guards).
    */
   static isDataOnly(opts: { command: ISimpleCommand; withMessages: boolean }): boolean {
     const name = ShellParser.basenameOf({

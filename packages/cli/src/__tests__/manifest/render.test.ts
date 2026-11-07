@@ -169,7 +169,7 @@ describe('the prebuilt index in the manifest (C27)', () => {
     expect(manifest.schemaVersion).toBe(1);
   });
 
-  test('sources come first, then the atlas block, then the remote-host guard', () => {
+  test('sources come first, then the atlas block', () => {
     const manifest = JSON.parse(
       render({
         root,
@@ -178,14 +178,12 @@ describe('the prebuilt index in the manifest (C27)', () => {
             sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }],
             index: { keys: [newPublicKey()] },
           },
-          remoteHosts: { trusted: ['github.com'] },
         },
       }),
     );
     const keys = Object.keys(manifest);
 
     expect(keys.indexOf('sources')).toBeLessThan(keys.indexOf('atlas'));
-    expect(keys.indexOf('atlas')).toBeLessThan(keys.indexOf('remoteHosts'));
   });
 
   test('the theme block carries the seeds the project gave and the resolved tokens, and the schema version stays 1', () => {

@@ -79,15 +79,6 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
     }
   }
 
-  if (opts.config.remoteHosts !== undefined) {
-    overlay = ProjectSettings.merge({
-      base: overlay,
-      overlay: JSON.parse(
-        readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.REMOTE_HOSTS_FILE), 'utf8'),
-      ),
-    });
-  }
-
   if (opts.config.commit.message.agent.signature === AgentSignaturePolicies.DENY) {
     overlay = ProjectSettings.merge({
       base: overlay,
