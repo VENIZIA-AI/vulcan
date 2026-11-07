@@ -25,21 +25,17 @@ export class DoctorChecks {
   static readonly SCAFFOLD = 'scaffold';
   /** Layout folders are workspaces and every package lives in a listed folder; a miss is an error. */
   static readonly APPS = 'apps';
-  /** The standard package.json scripts of each app, and retired names still in use; a note only. */
-  static readonly SCRIPTS = 'scripts';
   /** The stored agents file must parse and name known agents (an error); a stale Atlas block in AGENTS.md is a note. */
   static readonly AGENTS = 'agents';
-  /** A root .dockerignore that is missing or lacks .env lines while an app has a Dockerfile; a warning. */
-  static readonly DOCKERIGNORE = 'dockerignore';
   /** The .mcp.json atlas entry, its git visibility and the Claude settings that enable atlas; a warning. */
   static readonly MCP = 'mcp';
   /** The bunfig.toml [fmt] oxfmt setup, no fmt script and no leftover oxfmt config; a warning. */
   static readonly FORMAT = 'format';
-  /** The .agents/local workspace, stray worktrees, leftovers, reply switch, launch file and size: mostly warnings, some notes. */
+  /** The .agents/local workspace, leftovers, reply switch and the tmp folder: mostly warnings, some notes. */
   static readonly LOCAL = 'local';
   /** The personal profile file: unreadable, not gitignored or tracked by git; a warning. */
   static readonly PROFILE = 'profile';
-  /** Guard config: trusted scripts and added patterns are notes; a stale or subcommand-less trusted script is a warning. */
+  /** Guard config: a trusted script is a note; a stale one is a warning. */
   static readonly GUARDS = 'guards';
   /** The clone commit-msg hook when a commit check is on: missing, stale or not calling commit-check; a warning. */
   static readonly COMMIT_HOOK = 'commit-hook';
@@ -97,20 +93,6 @@ export class PrivateValueScan {
     /\.test\.[^/]*$/,
   ];
   static readonly MAX_BYTES = 1_000_000;
-}
-
-/** The `package.json` scripts every app carries, and the names the standard retired. */
-export class AppScripts {
-  static readonly STANDARD = [
-    'server:dev',
-    'compile',
-    'typecheck',
-    'lint',
-    'lint:fix',
-    'test',
-    'clean',
-  ];
-  static readonly LEGACY = ['dev', 'start', 'build', 'rebuild', 'preview', 'server:prod'];
 }
 
 export class DoctorConstants {

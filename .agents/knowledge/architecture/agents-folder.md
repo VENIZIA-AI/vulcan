@@ -19,7 +19,7 @@ tags: [architecture, agents, local, clean]
 - A worktree is merged when its branch is in `git branch --merged` of the root's branch, of `origin/develop` or of `origin/HEAD` AND its reflog shows a commit of its own (`BranchHistory.hasOwnCommits`: a new branch has its parent's commit, so `--merged` calls it merged; with no reflog it is judged by `--merged` alone). It is removable only when it has no uncommitted or untracked file and no ignored file outside the rebuildable set (`LocalConstants.REBUILDABLE_DIRECTORIES` and `_SUFFIXES`: node_modules, dist, .turbo, coverage, .cache, *.tsbuildinfo), because `git worktree remove --force` deletes ignored files too; `unrebuildableIgnored` walks the directories git lists whole (`packages/`) and skips the rebuildable ones.
 - A release candidate counts only when its name matches `LocalConstants.RELEASE_VERSION` (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`); it is `shipped` (removable) when `git show-ref --verify refs/tags/v<version>` or `refs/tags/<version>` exists (never `rev-parse`, which reads `1.0.0~0` as a revision), and kept otherwise.
 - `vulcan clean` is a dry run until `--yes`. `--all` is `tmp`, `worktrees`, `clones`, `cache`; every other scope is named (`CleanScopes`).
-- `doctor` only warns: `checkStaleLocal` (stale, merged, gone, orphan, shipped), `checkUnknownLocal` (`LocalScan.unknown`: entries that are neither layout folders, known files nor a browser's folder) and `checkLocalSize`. Nothing deletes an unknown entry.
+- `doctor` only warns: `checkStaleLocal` (stale, merged, gone, orphan, shipped) and `checkUnknownLocal` (`LocalScan.unknown`: entries that are neither layout folders, known files nor a browser's folder). Nothing deletes an unknown entry.
 
 ## Gotchas
 

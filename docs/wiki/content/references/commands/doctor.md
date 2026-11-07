@@ -13,7 +13,7 @@ An exit code of `1` indicates one or more contract violations.
 
 Each violation line follows the shape `[check] file: message`.
 The final line prints `vulcan doctor: OK` on success or `vulcan doctor: N violation(s)` on failure.
-A line that starts with `info` is a note, not a violation: it never changes the exit code or the final line ([scripts](#scripts)). A line that starts with `warning` is louder than a note and still not a violation: the exit code stays `0`, and the final line becomes `vulcan doctor: OK with N warning(s)` ([dockerignore](#dockerignore)).
+A line that starts with `info` is a note, not a violation: it never changes the exit code or the final line. A line that starts with `warning` is louder than a note and still not a violation: the exit code stays `0`, and the final line becomes `vulcan doctor: OK with N warning(s)` ([format](#format)).
 
 When all checks pass, the command reports an OK status:
 
@@ -44,24 +44,21 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `style` | Packages declare `@venizia/dev-configs` and lint configuration files import the shared style | Add `@venizia/dev-configs` as a devDependency and import it in lint configuration files |
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
 | `apps` | Every `backend`, `frontend` and `shared` folder of `layout` is a workspace, and every package lives in a listed folder (`other` included) | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
-| `scripts` (note) | Each app in a `layout` app folder has the standard `package.json` scripts (`server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`) and none of the retired names (`dev`, `start`, `build`, `rebuild`, `preview`, `server:prod`) | Add the missing script or rename the retired one |
-| `dockerignore` (warning) | An app has a `Dockerfile` and the root `.dockerignore` is missing or does not exclude `.env` files, which would land in the image | Create `.dockerignore` with the `.env` lines the warning shows |
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
 | `format` (warning) | The root `bunfig.toml` has a `[fmt]` section with `flavor = "oxfmt"`, no `package.json` defines a `fmt` script, and no oxfmt config is left behind | Add the section, rename the script, delete the config or the copy |
 | `commit-hook` (warning) | A commit check is on in `commit.message` and this clone's `commit-msg` hook is missing, out of date, or does not call `vulcan commit-check` | Run `bun x --no-install vulcan sync`; for a hook of yours or a `core.hooksPath` hook, add the line the warning shows |
 | `events-size` (warning) | Today's event file alone is over `events.maxSize` | Raise `maxSize` or write fewer events |
 | `events-dir` (warning) | `events.dir` names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
 | `profile` (warning) | `.agents/local/profile.json` cannot be read, is not ignored by git, or is tracked by git | Fix or delete the file and run the profile form again; add `.agents/local/` to `.gitignore`, or run `git rm --cached .agents/local/profile.json` |
-| `guards` (note, warning) | Notes list each `guard.writes.trustedScripts` entry, each `guard.writes.commands` pattern and `guard.git.askPush`, so the owner sees what the guards were told; a trusted script whose trust does not hold (not committed, changed, or a listed subcommand the script does not contain) is a warning | Fix the path, commit the script, or take the entry out of the config |
+| `guards` (note, warning) | Notes list each `guard.writes.trustedScripts` entry; a trusted script whose trust does not hold (missing, not committed or a link) is a warning | Fix the path, commit the script, or take the entry out of the config |
 | `local` (warning) | The project's tmp folder (`.agents/local/tmp` under the project path) is too deep for a browser: Chrome and Chromium put a socket below the temp folder, a socket path is 107 characters at most on Linux (104 on macOS, which this check does not count), and past that the browser exits with `Socket path too long`. The warning names the folder, the length and the longest project path that fits | Set `local.tmp` to a short folder of the project and run `vulcan sync`, or check the project out at a shorter path |
 | `local` (failure) | `local.tmp` names a folder whose browser socket path is still over 107 characters (the checkout path plus the folder plus the longest socket name) | Use a shorter folder name or a shorter checkout path |
 | `project-key` (warning) | `events.log` is on and `project.key` is not set, so no flow can be created | Add `project: { key: 'KEY' }` to the config and run `vulcan sync` |
 | `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `doctor.privateValues.acknowledged` |
 | `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git does not list it as untracked and not ignored (a release refuses on that), and the Claude settings enable `atlas` | Use the entry the warning shows, add `/.mcp.json` to `.gitignore` or run `vulcan sync` at the top level, and run `bun x --no-install vulcan sync` |
 | `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor`: sessions started from it are not held to the owner reply shape | Unset it in a shell the owner works in; a started session gets it on its own command line only |
-| `local` (note) | `doctor` runs inside Claude Code (`CLAUDECODE` is set) and `CLAUDE_CODE_TMPDIR` is not this project's `.agents/local/tmp`: the session was not started with the launch file, so its task output and its MCP servers use `/tmp`. Claude Code ignores `TMPDIR` in the project's own settings, so only `--settings` or the environment moves them. Run from a plain terminal it says nothing | Start the session with `claude --settings .agents/local/claude.launch.settings.json` |
 | `local` (warning) | `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env`: every session of the project skips the owner reply shape | Remove it from `env` |
-| `local` (warning) | `.agents/local/` exists with its subdirectories, is gitignored and holds the Claude Code launch file (`claude.launch.settings.json`, written by `sync` for the project's temp folder), no git worktree of the repository lives outside it, and nothing under it has outlived its use (`tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch, a release candidate whose version is tagged, a browser's `com.google.Chrome.*` folder an hour old), and nothing sits directly under `.agents/local/` that is neither a folder of [the layout](/guides/core-concepts/the-agents-folder), a file VULCAN writes, nor a browser's folder (the warning names it and its size; nothing removes it) | Run `bun x --no-install vulcan sync`; for a worktree outside, run the `git worktree move` command the warning prints; for leftovers, run the `vulcan clean` command it names. An info line prints the size of `.agents/local/` once it passes 50 MB |
+| `local` (warning) | `.agents/local/` exists with its subdirectories, is gitignored and holds the Claude Code launch file (`claude.launch.settings.json`, written by `sync` for the project's temp folder), and nothing under it has outlived its use (`tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch, a release candidate whose version is tagged, a browser's `com.google.Chrome.*` folder an hour old), and nothing sits directly under `.agents/local/` that is neither a folder of [the layout](/guides/core-concepts/the-agents-folder), a file VULCAN writes, nor a browser's folder (the warning names it and its size; nothing removes it) | Run `bun x --no-install vulcan sync`; for leftovers, run the `vulcan clean` command it names |
 
 ### config
 
@@ -268,21 +265,9 @@ $ bun x --no-install vulcan doctor
 
 Retired packages are not checked.
 
-### scripts
-
-An info note, not a violation. Every app (a live package inside the `layout.backend` or `layout.frontend` folder) carries the seven standard scripts of rule `V-B-05`: `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test` and `clean`. The note names, for each app, the standard scripts it lacks and the legacy ones it carries (`dev`, `start`, `build`, `rebuild`, `preview`, `server:prod`). Shared code, retired packages, apps without a `package.json` and projects without `layout` produce none. Domain extras such as `migrate:dev` are fine.
-
-```text
-$ bun x --no-install vulcan doctor
-  info [scripts] services/core-api/package.json: app core-api: missing server:dev, compile, typecheck, lint, lint:fix, clean; legacy dev, start (use the standard names)
-vulcan doctor: OK
-```
-
-Rename the scripts, and keep the work in `.configs/builders/` or behind `devz`, not in the `package.json` string. The exit code stays `0`, so no existing project starts failing.
-
 ### mcp
 
-Warnings (the same level as [dockerignore](#dockerignore): exit code `0`, `vulcan doctor: OK with N warning(s)`). Claude Code, omp and Copilot CLI read the root `.mcp.json`, which `vulcan sync` writes on each machine, and Claude enables a project server on its own only under the name the managed settings list. The check looks at the file only when one of those agents is chosen on this machine, and a missing file is the `adapters` check's (not synced yet). It expects:
+Warnings (the same level as [format](#format): exit code `0`, `vulcan doctor: OK with N warning(s)`). Claude Code, omp and Copilot CLI read the root `.mcp.json`, which `vulcan sync` writes on each machine, and Claude enables a project server on its own only under the name the managed settings list. The check looks at the file only when one of those agents is chosen on this machine, and a missing file is the `adapters` check's (not synced yet). It expects:
 
 - `.mcp.json` holds the entry `sync` writes, a server named `atlas` that runs `bun x --no-install vulcan x atlas mcp --root .`;
 - git does not list it as untracked and not ignored: a clone where nothing hides it gets `untracked and not ignored, so a clean-tree check (a release) refuses to run. Add `/.mcp.json` to .gitignore, or run `vulcan sync` at the top level of the repository, which lists it in .git/info/exclude.`;
@@ -333,16 +318,6 @@ A warning, not a violation: the folder belongs to the machine, and a CI checkout
 | `does not exist` | Run the `mkdir -p` it names |
 | `is not a folder` | Point `dir` at a folder |
 | `is not writable by this user` | Fix the folder's permissions or its owner |
-
-### dockerignore
-
-A warning, not a violation: it is printed as `warning [dockerignore]`, the exit code stays `0`, and the last line says `vulcan doctor: OK with 1 warning(s)`. An app (a live package) that holds `.configs/builders/Dockerfile` is built from the project root, and a Dockerfile that copies the project puts every `.env` in the image layer, which a CI cache (kaniko, for one) can keep. The warning fires when the root has no `.dockerignore`, or has one that does not exclude `.env` and `.env.*`. A later `!` line that brings them back counts as not excluding; `.env*` and `**/.env*` are accepted spellings.
-
-```text
-  warning [dockerignore] .dockerignore: app api has a Dockerfile and the root .dockerignore does not exclude .env files, which hold secrets and would land in the image layer: add **/.env, **/.env.* and !**/.env.example (in that order) to the root .dockerignore
-```
-
-Add the three lines at the end of the root `.dockerignore`, in that order: the negation of `.env.example` must come after the excludes, or Docker does not apply it. With no `.dockerignore` at all, create it (`vulcan init` writes the whole file for a new project), then add the lines.
 
 ### private-values
 

@@ -44,7 +44,7 @@ vulcan clean: removing
 removed 1 item(s), 2.9 MB
 ```
 
-`vulcan doctor` warns about an item that has outlived its use (a `tmp/` item older than a day, a clone older than two weeks, a worktree on a merged or gone branch) with the command that clears it, and prints the size of `.agents/local/` once it passes 50 MB.
+`vulcan doctor` warns about an item that has outlived its use (a `tmp/` item older than a day, a clone older than two weeks, a worktree on a merged or gone branch) with the command that clears it.
 
 ## The automatic clean
 
