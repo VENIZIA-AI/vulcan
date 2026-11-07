@@ -41,7 +41,7 @@ export interface IHookCommand {
   cwd: string | undefined;
 }
 
-/** What the manifest guard reads of any tool call: the tool, the file it names, or the Bash command. */
+/** What a guard reads of any tool call: the tool, the file it names, or the Bash command. */
 export interface IManifestHookInput {
   tool: string;
   filePath: string | undefined;

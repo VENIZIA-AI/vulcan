@@ -97,9 +97,9 @@ describe('the Antigravity hook command runs the real guards', () => {
     expect(deploy.answer.reason).toContain('V-W-03');
   });
 
-  test('the file tools are mapped: a write onto the manifest is denied', () => {
+  test('the file tools are mapped: a write outside the project is asked about', () => {
     const root = installedProject();
-    const target = join(root, '.agents', 'vulcan.manifest.json');
+    const target = '/var/tmp/vulcan-guard-probe-never-created';
 
     for (const name of ['write_to_file', 'replace_file_content', 'multi_replace_file_content']) {
       const result = run({
@@ -107,7 +107,8 @@ describe('the Antigravity hook command runs the real guards', () => {
         stdin: eventOf({ root, name, args: { TargetFile: target } }),
       });
 
-      expect(result.answer.decision, name).toBe('deny');
+      expect(result.answer.decision, name).toBe('ask');
+      expect(result.answer.reason, name).toContain('V-B-08');
     }
   });
 

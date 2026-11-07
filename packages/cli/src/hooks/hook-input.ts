@@ -1,15 +1,7 @@
-import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IManifestHookInput } from './common/index.ts';
-import { HookDecision } from './decision.ts';
-import { GitQuery } from './manifest-git.ts';
-import { ManifestPath, PathRef } from './manifest-path.ts';
-import { ManifestShell } from './manifest-shell.ts';
 
 /** The shell tool under the names the hosts give it: Cursor's `Shell`, and a lower-case `bash`. */
 const SHELL_NAMES = new Set(['Shell', 'shell', 'bash']);
-
-const MANIFEST_BLOCK_MESSAGE =
-  'vulcan.manifest.json is generated - edit .configs/vulcan.config.* and run `vulcan sync`';
 
 const BASH_TOOL = 'Bash';
 
@@ -26,16 +18,16 @@ const toolOf = (opts: { value: unknown }): string | undefined => {
   return name !== undefined && SHELL_NAMES.has(name) ? BASH_TOOL : name;
 };
 
-export class ManifestGuard {
+export class HookInput {
   /** The tool call from the hook's JSON; `undefined` when it is not what Claude Code sends. */
-  static parseHookInput(opts: { text: string }): IManifestHookInput | undefined {
+  static parse(opts: { text: string }): IManifestHookInput | undefined {
     let payload: unknown;
 
     try {
       payload = JSON.parse(opts.text);
     } catch (error) {
       console.error(
-        `[ManifestGuard.parseHookInput] unreadable hook input | ${error instanceof Error ? error.message : String(error)}`,
+        `[HookInput.parse] unreadable hook input | ${error instanceof Error ? error.message : String(error)}`,
       );
 
       return undefined;
@@ -61,35 +53,5 @@ export class ManifestGuard {
           command: toText({ value: input['command'] }),
           cwd: toText({ value: holder.value['cwd'] }),
         };
-  }
-
-  /** Whether this tool call writes `.agents/vulcan.manifest.json` - which only `vulcan sync` may do. */
-  static inspectWrite(opts: { input: IManifestHookInput }): boolean {
-    const { tool, filePath, command, cwd } = opts.input;
-
-    // What was read of the file system and asked of git belongs to one call.
-    GitQuery.begin();
-    PathRef.reset();
-
-    if (tool === BASH_TOOL) {
-      return (
-        command !== undefined &&
-        ManifestShell.inspectLine({ line: command, dir: cwd ?? process.cwd(), cwd, depth: 0 })
-      );
-    }
-
-    return filePath !== undefined && ManifestPath.isWriteTarget({ path: filePath, cwd });
-  }
-
-  static buildDecision() {
-    return HookDecision.forHost({
-      output: {
-        hookSpecificOutput: {
-          hookEventName: HookConstants.PRE_TOOL_USE,
-          permissionDecision: GuardDecisions.DENY,
-          permissionDecisionReason: MANIFEST_BLOCK_MESSAGE,
-        },
-      },
-    });
   }
 }

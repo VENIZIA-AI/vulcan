@@ -331,7 +331,7 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
   };
 
   test('every wrapper is written with the working directory as the fallback', () => {
-    expect(shippedHooks().length).toBe(10);
+    expect(shippedHooks().length).toBe(9);
 
     for (const hook of shippedHooks()) {
       expect(hook.command, nameOf(hook)).toContain('${CLAUDE_PROJECT_DIR:-$PWD}/node_modules');

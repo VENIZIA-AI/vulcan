@@ -166,9 +166,9 @@ describe('.claude/settings.json', () => {
     const settings = readSettings({ root });
 
     expect(settings.hooks.Stop.at(-1).hooks[0].command).toBe('echo bye');
-    // guard-writes, guard-manifest, guard-git and guard-outside ship; the config's hook comes after all four.
-    expect(settings.hooks.PreToolUse).toHaveLength(5);
-    expect(settings.hooks.PreToolUse[4].matcher).toBe('Edit');
+    // guard-writes, guard-git and guard-outside ship; the config's hook comes after all three.
+    expect(settings.hooks.PreToolUse).toHaveLength(4);
+    expect(settings.hooks.PreToolUse[3].matcher).toBe('Edit');
   });
 
   test('switching V-W-01 back to on-user-word removes the deny list sync added', () => {

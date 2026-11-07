@@ -29,10 +29,10 @@ try {
   const { GuardDecisions } = await import('../../src/hooks/common/index.ts');
   const { HookDecision } = await import('../../src/hooks/decision.ts');
   const { OutsideGuard } = await import('../../src/hooks/guard-outside.ts');
-  const { ManifestGuard } = await import('../../src/hooks/guard-manifest.ts');
+  const { HookInput } = await import('../../src/hooks/hook-input.ts');
   const { ProjectTmp } = await import('../../src/hooks/project-tmp.ts');
   const { relative } = await import('node:path');
-  const input = ManifestGuard.parseHookInput({ text });
+  const input = HookInput.parse({ text });
 
   if (!input) {
     console.log(

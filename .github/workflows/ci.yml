@@ -64,8 +64,18 @@ jobs:
         run: make okf-check-strict
 
       - name: Agent setup (VULCAN)
+        id: sync
         if: ${{ !cancelled() && steps.atlas.outcome == 'success' }}
-        run: make vulcan-sync vulcan-doctor
+        run: make vulcan-sync
+
+      # The manifest is generated: a committed copy that differs from what sync wrote is stale or edited by hand.
+      - name: Committed manifest matches sync
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        run: git diff --exit-code -- .agents/vulcan.manifest.json
+
+      - name: Agent setup checks (VULCAN doctor)
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        run: make vulcan-doctor
 
       - name: Gate scripts' own tests
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}

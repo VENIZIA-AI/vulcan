@@ -75,11 +75,6 @@ const BUN_INSTALL =
 /** The guards of `.claude/settings.json`, with the tools each covers and what each does when it cannot answer. */
 const GUARDS: IGuard[] = [
   { name: 'guard-writes', tools: [Tools.BASH], onFailure: Failures.BLOCK },
-  {
-    name: 'guard-manifest',
-    tools: [Tools.BASH, Tools.WRITE, Tools.EDIT],
-    onFailure: Failures.BLOCK,
-  },
   { name: 'guard-git', tools: [Tools.BASH], onFailure: Failures.ASK },
   { name: 'guard-outside', tools: [Tools.BASH, Tools.WRITE, Tools.EDIT], onFailure: Failures.ASK },
 ];

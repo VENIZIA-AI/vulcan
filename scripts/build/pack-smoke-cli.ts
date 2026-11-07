@@ -376,11 +376,10 @@ const runHook = (opts: { hook: IHookEntry; sandbox: string; payload: string }) =
 
 const BLOCKING = new Set([
   'guard-writes',
-  'guard-manifest',
   'guard-git',
   'guard-outside',
 ]);
-const SAFETY = new Set(['guard-writes', 'guard-manifest']);
+const SAFETY = new Set(['guard-writes']);
 
 /** A path of the installed package moved aside while `run` executes, then put back. */
 const withoutFile = <T>(opts: { path: string; run: () => T }): T => {
@@ -424,7 +423,7 @@ const withBrokenPackages = <T>(opts: { paths: string[]; run: () => T }): T => {
 };
 
 /** Blocking hooks that were removed; an older `vulcan sync` still registers each, and the package keeps an empty file for it. */
-const REMOVED_BLOCKING_HOOKS = ['guard-package', 'guard-remote-hosts'];
+const REMOVED_BLOCKING_HOOKS = ['guard-package', 'guard-remote-hosts', 'guard-manifest'];
 const OLD_ENTRY = readFileSync(
   resolve(import.meta.dir, '..', '..', 'packages/cli/src/__tests__/fixtures/old-blocking-hook-entry.txt'),
   'utf8',

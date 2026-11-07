@@ -95,26 +95,28 @@ describe('the omp and pi extension runs the real guards', () => {
     expect(result).toBeUndefined();
   });
 
-  test('every guard of the Claude settings is reached: a deploy, a manifest write, a hand-made package', async () => {
+  test('every guard of the Claude settings is reached: a deploy, a write and an edit outside the project', async () => {
     const root = installedProject();
     const handle = handlerOf();
     const deploy = await handle(bash('kubectl apply -f deploy.yaml'), contextOf({ cwd: root }));
-    const manifest = await handle(
+    const outside = await handle(
       {
         toolName: 'write',
-        input: { path: join(root, '.agents', 'vulcan.manifest.json'), content: '{}' },
+        input: { path: '/var/tmp/vulcan-guard-probe-never-created', content: '{}' },
       },
       contextOf({ cwd: root }),
     );
     const edit = await handle(
-      { toolName: 'edit', input: { path: join(root, '.agents', 'vulcan.manifest.json') } },
+      { toolName: 'edit', input: { path: '/var/tmp/vulcan-guard-probe-never-created' } },
       contextOf({ cwd: root }),
     );
 
     expect(deploy?.block).toBe(true);
     expect(deploy?.reason).toContain('V-W-03');
-    expect(manifest?.block).toBe(true);
+    expect(outside?.block).toBe(true);
+    expect(outside?.reason).toContain('V-B-08');
     expect(edit?.block).toBe(true);
+    expect(edit?.reason).toContain('V-B-08');
   });
 
   test('with guard.outside set to deny, a write outside the project is blocked even when the owner would confirm', async () => {
@@ -237,7 +239,7 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
       contextOf({ cwd: root }),
     );
 
-    expect(written?.block).toBe(true);
+    expect(written).toBeUndefined();
     const result3 = await handle(
       { toolName: 'read', input: { path: 'a.txt' } },
       contextOf({ cwd: root }),
