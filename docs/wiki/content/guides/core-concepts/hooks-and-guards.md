@@ -34,7 +34,7 @@ The guards know a fixed list of commands (`kubectl apply`, `docker compose up`, 
 
 They stop accidental and drifting commands: a force-push because a flag looked right, or a write outside the project because a path was relative. They are not a sandbox. A shell is a language no hand-written parser reads completely, and each review of the parser has found spellings it missed (the [reference lists every one](/references/hooks/#what-the-guards-are-and-are-not)).
 
-Whatever must never happen belongs in `permissions.deny`, the `read-only` slot of `V-W-01`, or branch protection on the remote. When `guard-git`, `guard-outside` or `guard-remote-hosts` cannot read a line in full, it asks; `guard-writes` asks only for the commands it can name.
+Whatever must never happen belongs in `permissions.deny`, the `read-only` slot of `V-W-01`, or branch protection on the remote. When `guard-git` or `guard-outside` cannot read a line in full, it asks; `guard-writes` asks only for the commands it can name.
 
 ## When a hook cannot run
 
