@@ -185,13 +185,16 @@ const UNSEEN_PRINTED = 'running commands that another command prints, which this
 const UNSEEN_STARTUP =
   'a shell startup file (BASH_ENV, ENV, --rcfile) that runs commands this check cannot see';
 const UNSEEN_PRELOAD =
-  'a library loaded into a program (LD_PRELOAD), which runs code this check cannot see';
+  'a library or module loaded into a program (LD_PRELOAD, LD_AUDIT, NODE_OPTIONS --require), which runs code this check cannot see';
 
 /** The variables that make a shell run a file before its own script: `BASH_ENV` for bash, `ENV` for sh. */
 const STARTUP_ASSIGNMENT = /^(?:BASH_ENV|ENV)=./;
 const STARTUP_NAME = /^(?:BASH_ENV|ENV)$/;
-const PRELOAD_ASSIGNMENT = /^LD_PRELOAD=./;
-const PRELOAD_NAME = /^LD_PRELOAD$/;
+/** The variables that make a program load code of its own before it runs, and a `NODE_OPTIONS` that names a module to load. */
+const PRELOAD_ASSIGNMENT = /^(?:LD_PRELOAD|LD_AUDIT|DYLD_INSERT_LIBRARIES)=./;
+const NODE_LOADER =
+  /^NODE_OPTIONS=(?:.*\s)?(?:-r|--require|--import|--loader|--experimental-loader)(?:[\s=]|$)/;
+const PRELOAD_NAME = /^(?:LD_PRELOAD|LD_AUDIT|DYLD_INSERT_LIBRARIES|NODE_OPTIONS)$/;
 /** The bash options that name a startup file of their own. */
 const RC_OPTION = /^--(?:rcfile|init-file)(?:=|$)/;
 const EXPORTING = new Set(['export', 'declare', 'typeset', 'local', 'readonly']);
@@ -213,11 +216,14 @@ const UNSEEN_FED_PROGRAM =
 interface IExecOptions {
   flags: ReadonlySet<string>;
   ends: ReadonlySet<string>;
+  /** The option with its command attached (`--exec=cmd`, `-xcmd`): the command is the first group. */
+  attached?: RegExp;
 }
 
 const FD_EXEC: IExecOptions = {
   flags: new Set(['-x', '--exec', '-X', '--exec-batch']),
   ends: new Set([';']),
+  attached: /^(?:--exec(?:-batch)?=|-[xX])(.+)$/s,
 };
 const EXEC_OPTIONS: Readonly<Record<string, IExecOptions>> = {
   find: {
@@ -756,7 +762,7 @@ export class WriteGuard {
     }
 
     if (
-      assigned.some((word) => PRELOAD_ASSIGNMENT.test(word)) ||
+      assigned.some((word) => PRELOAD_ASSIGNMENT.test(word) || NODE_LOADER.test(word)) ||
       setting.some((word) => PRELOAD_NAME.test(word))
     ) {
       hits.push({ rule: 'V-W-02', message: UNSEEN_PRELOAD });
@@ -781,12 +787,17 @@ export class WriteGuard {
     const { words } = opts.command;
 
     for (let index = 0; index < words.length; index += 1) {
-      if (!options.flags.has(words[index] ?? '')) {
+      const attached = options.attached?.exec(words[index] ?? '')?.[1];
+
+      if (!options.flags.has(words[index] ?? '') && attached === undefined) {
         continue;
       }
 
       const end = words.findIndex((word, at) => at > index && options.ends.has(word));
-      const run = words.slice(index + 1, end === -1 ? words.length : end);
+      const run = [
+        ...(attached === undefined ? [] : [attached]),
+        ...words.slice(index + 1, end === -1 ? words.length : end),
+      ];
 
       if (run.length > 0) {
         const command: ISimpleCommand = {

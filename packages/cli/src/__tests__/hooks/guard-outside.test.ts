@@ -584,6 +584,10 @@ describe('OutsideGuard.inspect asks about a redirect to a word it cannot work ou
     'echo x > *.log',
     'echo x >> ${LOG}',
     'echo x > $(mktemp)',
+    // `~name` is that user's home, which is outside the project.
+    'echo x > ~root/zz',
+    'mkdir ~root/x',
+    'cp a ~root/',
   ])('%s asks', (command) => {
     expect(bash({ command }).length).toBeGreaterThan(0);
   });
@@ -593,6 +597,11 @@ describe('OutsideGuard.inspect asks about a redirect to a word it cannot work ou
     'echo x >&2',
     'echo x > /dev/null',
     'echo x > "$PWD/out.txt"',
+    'echo x > ~+/out.txt',
+    // A name the password file does not list stays a plain path, as bash leaves it; so does `~-`.
+    'echo x > ~no-such-user-zz/zz',
+    'echo x > ~-/zz',
+    'mkdir ~no-such-user-zz',
     'echo x 2>&1',
     'cat < in.txt',
   ])('%s stays silent: a file in the project, or a descriptor', (command) => {

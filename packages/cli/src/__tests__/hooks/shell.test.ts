@@ -536,6 +536,7 @@ describe('ShellParser reads a line the way bash does', () => {
         assignments: [],
         input: { files: [], texts: [], hasHeredoc: true },
         heredoc: 'b',
+        expandedBodies: ['a', 'b'],
       },
       { words: ['ls'], redirects: [], assignments: [] },
     ]);
@@ -779,6 +780,19 @@ describe('the >&word redirect', () => {
     expect(command?.copies).toEqual(['$fd']);
     expect(plain?.redirects).toEqual([]);
     expect(plain?.copies).toBeUndefined();
+  });
+
+  test('a heredoc body whose delimiter is not quoted is listed as expanded; a quoted one is data', () => {
+    const [open] = ShellParser.parse({ command: 'cat <<EOF\n${x@P}\nEOF' });
+    const [shut] = ShellParser.parse({ command: "cat <<'EOF'\n${x@P}\nEOF" });
+
+    expect(open?.expandedBodies).toEqual(['${x@P}']);
+    expect(shut?.expandedBodies).toBeUndefined();
+    expect(
+      ShellParser.hasPromptExpansion({
+        command: open ?? { words: [], redirects: [], assignments: [] },
+      }),
+    ).toBe(true);
   });
 
   test('>&file is a file redirect, and <> is a write target too', () => {

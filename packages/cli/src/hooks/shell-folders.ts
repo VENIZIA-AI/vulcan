@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import { ShellParser } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
@@ -25,6 +26,23 @@ export class ShellFolders {
   /** The builtins that change the shell's folder. */
   static readonly MOVING_COMMANDS: ReadonlySet<string> = new Set(['cd', 'pushd', 'popd']);
 
+  /** The home folder of a user, read from the password file; `undefined` for a name it does not list. */
+  private static homeOf(opts: { name: string }): string | undefined {
+    try {
+      for (const line of readFileSync('/etc/passwd', 'utf8').split('\n')) {
+        const fields = line.split(':');
+
+        if (fields[0] === opts.name) {
+          return fields[5];
+        }
+      }
+    } catch {
+      return undefined;
+    }
+
+    return undefined;
+  }
+
   /**
    * `~` and `$NAME` / `${NAME}` expanded; `undefined` when a variable is unset or the word is not a plain path.
    * `$PWD` is the folder the command runs in (`cwd`), not the `PWD` of this hook's own process.
@@ -40,8 +58,23 @@ export class ShellFolders {
     }
 
     let unresolved = false;
-    const home = opts.word === '~' || opts.word.startsWith('~/') ? opts.home : undefined;
-    const withHome = home === undefined ? opts.word : `${home}${opts.word.slice(1)}`;
+    // `~` is the home folder, `~+` the working folder, `~name` the home of that user. A name the password file does
+    // not list, and `~-` (the shell's previous folder, not known here), stay as written: a plain path, as bash
+    // leaves an unknown `~name`.
+    const tilde = opts.word.startsWith('~') ? /^~([^/]*)/.exec(opts.word) : null;
+    const user = tilde?.[1] ?? '';
+    let home: string | undefined = user === '' ? opts.home : undefined;
+
+    if (user === '+') {
+      home = opts.cwd;
+    } else if (user !== '' && user !== '-') {
+      home = ShellFolders.homeOf({ name: user });
+    }
+
+    const withHome =
+      tilde === null || home === undefined
+        ? opts.word
+        : `${home}${opts.word.slice(tilde[0].length)}`;
     const expanded = withHome.replace(/\$\{?(\w+)\}?/g, (_, name: string) => {
       const value = name === 'PWD' && opts.cwd !== undefined ? opts.cwd : opts.env[name];
 
