@@ -127,7 +127,7 @@ const BASE_CSS = [
   `.hero h1{font-size:clamp(32px,5vw,72px);line-height:1.02;max-width:30ch;letter-spacing:-.045em;color:var(--ink);overflow-wrap:anywhere}`,
   `.hero .lede{margin-top:28px;font-size:clamp(18px,1.6vw,22px);max-width:46ch;color:var(--body)}`,
   `.hero .cap{margin-top:14px;max-width:60ch;color:var(--muted)}`,
-  `.hero .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:4px 20px;font:500 13px/1.4 var(--code);color:var(--muted)}`,
+  `.hero .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:4px 20px;font:500 13px/1.4 var(--font);color:var(--muted)}`,
   // Sections: each a part with its title; the compositions below differ from neighbour to neighbour.
   `.part{padding-top:88px}`,
   `.sh{font-size:clamp(26px,3vw,40px);line-height:1.05;margin-bottom:36px;max-width:30ch}`,
@@ -192,7 +192,7 @@ const BASE_CSS = [
   `.path{display:none;margin:0}`,
   `.path li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:14px 16px;background:var(--bg-soft);margin-top:2px;color:var(--body);font-size:15px}.path li:first-child{margin-top:0;border-radius:var(--radius) var(--radius) 0 0}.path li:last-child{border-radius:0 0 var(--radius) var(--radius)}`,
   `.path b{font-weight:600;color:var(--ink)}`,
-  `.verb{display:inline-block;border:1px solid var(--line);border-radius:var(--radius);padding:0 8px;font:13px/1.7 var(--code);color:var(--muted)}.verb.error{color:var(--bad);border-color:var(--bad)}.verb.branch,.verb.return{border-style:dashed}`,
+  `.verb{display:inline-block;border:1px solid var(--line);border-radius:var(--radius);padding:0 8px;font:13px/1.7 var(--font);color:var(--muted)}.verb.error{color:var(--bad);border-color:var(--bad)}.verb.branch,.verb.return{border-style:dashed}`,
   `.path-detail{display:none;margin-top:12px;color:var(--body)}.path-detail li{padding:10px 0;border-top:1px solid var(--line)}.path-detail b{display:block;color:var(--ink)}`,
   // The steps: panels to press; the line below says what is picked.
   `.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:2px;margin-top:36px;border-radius:var(--radius);overflow:hidden}`,
@@ -258,7 +258,7 @@ const BASE_CSS = [
   `.tl li{position:relative;display:grid;gap:3px}`,
   `.tl .dot{position:absolute;left:-46px;top:0;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--bg);color:var(--c);border:2px solid var(--c)}`,
   `.tl .dot .ic{width:15px;height:15px}.tl li.c-mut .dot{border-style:dashed}`,
-  `.tl time{font:600 14px/1.4 var(--code);color:var(--muted)}.tl h3{font-size:20px;line-height:1.25}.tl p{color:var(--body);max-width:60ch}`,
+  `.tl time{font:600 14px/1.4 var(--font);color:var(--muted)}.tl h3{font-size:20px;line-height:1.25}.tl p{color:var(--body);max-width:60ch}`,
   // Findings: tiles, panels with a chart each, and callouts with a stripe.
   `.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:2px;margin-top:2px;border-radius:var(--radius);overflow:hidden}`,
   `.tiles+.charts{margin-top:2px}`,
@@ -300,10 +300,10 @@ const BASE_CSS = [
   // Evidence and log: ledgers, a rule between rows.
   `.ledger,.log{display:grid}`,
   `.ev{display:grid;grid-template-columns:160px minmax(0,1.6fr) minmax(0,1fr);gap:8px 28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--line)}.ev:first-child,.log li:first-child{border-top:0}`,
-  `.ev b{color:var(--ink);font-weight:600;line-height:1.35}.ev .cl{display:grid;gap:4px}.ev .pr{color:var(--muted);font-size:15px}.ev .rs{font:600 15px/1.4 var(--code);color:var(--ink)}`,
+  `.ev b{color:var(--ink);font-weight:600;line-height:1.35}.ev .cl{display:grid;gap:4px}.ev .pr{color:var(--muted);font-size:15px}.ev .rs{font:600 15px/1.4 var(--font);color:var(--ink)}`,
   `.badge{display:inline-flex;align-items:center;gap:8px;justify-self:start;color:var(--c);font:600 13.5px/1.3 var(--font)}`,
   `.ev-verified{--c:var(--ok);--cb:var(--ok-bg)}.ev-inferred{--c:var(--warn);--cb:var(--warn-bg)}.ev-guess{--c:var(--muted);--cb:var(--bg-soft)}`,
-  `.log li{display:grid;grid-template-columns:160px minmax(0,1fr);gap:8px 28px;padding:18px 0;border-top:1px solid var(--line)}.log time{font:600 14px/1.6 var(--code);color:var(--muted)}.log li>span{color:var(--ink)}`,
+  `.log li{display:grid;grid-template-columns:160px minmax(0,1fr);gap:8px 28px;padding:18px 0;border-top:1px solid var(--line)}.log time{font:600 14px/1.6 var(--font);color:var(--muted)}.log li>span{color:var(--ink)}`,
   // Risks: a table.
   `.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:16.5px}`,
   `th{font:600 13.5px/1.3 var(--font);color:var(--muted);text-align:left;padding:0 20px 12px 0;border-bottom:1px solid var(--ink)}`,
