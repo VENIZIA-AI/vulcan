@@ -58,8 +58,9 @@ export class ShellFolders {
     }
 
     let unresolved = false;
-    // `~` is the home folder, `~+` the working folder, `~name` the home of that user; `~-` and an unknown user
-    // cannot be worked out.
+    // `~` is the home folder, `~+` the working folder, `~name` the home of that user. A name the password file does
+    // not list, and `~-` (the shell's previous folder, not known here), stay as written: a plain path, as bash
+    // leaves an unknown `~name`.
     const tilde = opts.word.startsWith('~') ? /^~([^/]*)/.exec(opts.word) : null;
     const user = tilde?.[1] ?? '';
     let home: string | undefined = user === '' ? opts.home : undefined;
@@ -68,10 +69,6 @@ export class ShellFolders {
       home = opts.cwd;
     } else if (user !== '' && user !== '-') {
       home = ShellFolders.homeOf({ name: user });
-    }
-
-    if (tilde !== null && home === undefined) {
-      return undefined;
     }
 
     const withHome =
