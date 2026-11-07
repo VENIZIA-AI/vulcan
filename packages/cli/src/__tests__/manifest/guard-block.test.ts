@@ -62,19 +62,18 @@ describe('the guard block of the manifest', () => {
     ).toEqual({ writes: { commands: [GUARD.writes.commands[0]] } });
   });
 
-  test('sits after the atlas block and before the remote-host policy', () => {
+  test('sits after the atlas block and before the theme block', () => {
     const keys = Object.keys(
       JSON.parse(
         render({
           atlas: { prebuilt: false },
           guard: GUARD,
-          remoteHosts: { trusted: ['github.com'] },
         }),
       ),
     );
 
     expect(keys.indexOf('atlas')).toBeLessThan(keys.indexOf('guard'));
-    expect(keys.indexOf('guard')).toBeLessThan(keys.indexOf('remoteHosts'));
+    expect(keys.indexOf('guard')).toBeLessThan(keys.indexOf('theme'));
   });
 
   test('a manifest rendered before a pattern was added differs from the one the config renders', () => {

@@ -14,8 +14,6 @@ export class SyncConstants {
 
   static readonly CLAUDE_DIRECTORY = '.claude';
   static readonly SETTINGS_FILE = 'settings.json';
-  /** The hook sync adds when the config sets `remoteHosts`; lives next to the shipped settings. */
-  static readonly REMOTE_HOSTS_FILE = 'remote-hosts.json';
   static readonly COMMIT_ATTRIBUTION_FILE = 'commit-attribution.json';
   /** The hooks sync adds when the config sets `events.log`. */
   static readonly EVENTS_FILE = 'events.json';

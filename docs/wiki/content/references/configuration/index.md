@@ -63,7 +63,6 @@ The table below lists the top-level configuration keys:
 | `knowledge` | `object` | `{ bundle: '.agents/knowledge' }` | Locations for knowledge documents and concepts |
 | `okf` | `object` | `{ renderers: [], ... }` | Renderers, regions, and coverage checks for okf |
 | `atlas` | `object` | `{ tagPattern: '...', sources: [] }` | Release tags and external knowledge sources |
-| `remoteHosts` | `object` | `undefined` | Remote host network guard permissions |
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `hooks` | `Array<object>` | `[]` | Custom project event hooks |
 | `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
@@ -445,36 +444,6 @@ export default {
 
 To configure external repositories, see the [atlas sources reference](/references/atlas/sources).
 
-## remoteHosts
-
-Defining `remoteHosts` activates the remote host guard. `vulcan sync` registers a `PreToolUse` hook in `.claude/settings.json` and saves host rules to `.agents/vulcan.manifest.json`.
-
-If you omit `remoteHosts`, `vulcan sync` registers no remote host guard. When set, the guard hook intercepts Bash commands targeting remote servers. It prompts for confirmation when the destination is unlisted.
-
-The defaults for `trusted`, `readOnly`, and `localFile` apply once `remoteHosts` is set:
-
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `trusted` | `string[]` | `[]` | Host names or patterns permitted for all commands |
-| `readOnly` | `string[]` | `[]` | Host names or patterns permitted only for strict read commands |
-| `localFile` | `string` | `'.agents/hooks/trusted-hosts.local'` | Path to uncommitted personal hosts file: a plain line is trusted, `readonly: <host>` is read-only. The hook reads it at run time; `vulcan sync` never copies it into the tracked manifest |
-
-Each host pattern must match `/^(?:\$\{?\w+\}?|[A-Za-z0-9._*-]+)$/`. The pattern admits host names, wildcard patterns with `*`, or shell variables such as `$HOST` or `${HOST}`. Every pattern needs at least one letter or digit: `*`, `-`, `_` and `*-*` are refused, `*-db` and `prod-*` are fine. Values must not contain user names, URL paths, or port numbers.
-
-```ts
-import type { VulcanConfig } from '@venizia/vulcan';
-
-export default {
-  remoteHosts: {
-    trusted: ['dev-server', '*.internal.net'],
-    readOnly: ['prod-db'],
-    localFile: '.agents/hooks/trusted-hosts.local',
-  },
-} satisfies VulcanConfig;
-```
-
-To inspect matching behavior and strict read commands, see the [remote host guard reference](/references/hooks/remote-host-guard).
-
 ## claude
 
 The `claude` object provides team-shared assistant configuration. `vulcan sync` merges `claude.settings` into `.claude/settings.json` over personal keys.
@@ -854,11 +823,6 @@ export default {
       { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
     ],
     ignoreTags: ['legacy-*'],
-  },
-  remoteHosts: {
-    trusted: ['lab-node-01', '*.lab.internal'],
-    readOnly: ['prod-db'],
-    localFile: '.agents/hooks/trusted-hosts.local',
   },
   claude: {
     settings: {

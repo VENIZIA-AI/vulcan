@@ -227,11 +227,10 @@ Each later source overrides the earlier sources:
 1. Personal settings: Existing user keys in `.claude/settings.json` form the base.
 2. Shipped settings: Base settings from VULCAN register [the shipped hooks](/references/hooks/), and approve the project's `atlas` server (`enabledMcpjsonServers: ["atlas"]`), so Claude does not ask you to approve `.mcp.json` the first time. A list of your own approved servers is kept and `atlas` is added to it.
 3. Slot choices: Settings defined for chosen slot options in `base/slots.json`, such as git write restrictions for `V-W-01`.
-4. Remote hosts: If configuration defines `remoteHosts`, VULCAN adds the `guard-remote-hosts` `PreToolUse` hook.
-5. Commit attribution: With `commit.message.agent.signature: 'deny'`, VULCAN sets `attribution` empty so Claude Code adds no signature to commits and pull requests ([the details](/references/commands/commit-check#claude-code-s-own-attribution)).
-6. Event hooks: With `events.log: true`, VULCAN adds the five hooks of the [agent event log](/references/commands/event).
-7. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.mts`, grouped by event.
-8. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`.
+4. Commit attribution: With `commit.message.agent.signature: 'deny'`, VULCAN sets `attribution` empty so Claude Code adds no signature to commits and pull requests ([the details](/references/commands/commit-check#claude-code-s-own-attribution)).
+5. Event hooks: With `events.log: true`, VULCAN adds the five hooks of the [agent event log](/references/commands/event).
+6. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.mts`, grouped by event.
+7. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`.
 
 ### Merge behavior
 
@@ -244,12 +243,7 @@ Arrays inside these four keys concatenate without duplicates (for example `permi
 For all other keys, incoming configuration values overwrite existing values.
 Original key ordering from `.claude/settings.json` is preserved to keep diffs stable.
 
-### Remote host guard hook
-
-Setting `remoteHosts` in `.configs/vulcan.config.mts` registers a second `PreToolUse` hook.
-The hook runs `guard-remote-hosts.ts` on Bash commands.
-The skill lines and the lines that did not change are dropped from the output below.
-The settings and the manifest are what change when you add `remoteHosts`:
+The settings and the manifest are what change; the skill lines and the lines that did not change are dropped from the output below:
 
 ```text
 $ bun x --no-install vulcan sync
@@ -371,7 +365,6 @@ The manifest also includes optional fields when configured:
 - `presets`: The presets the project's apps came from, each `{ spec, side, summary }` and `lib` when the preset also makes libraries. atlas's `presets` tool answers from it.
 - `kind`: `"lib"` on a package entry that `add --lib` made (apps carry no `kind`).
 - `sources`: External repository sources for atlas, present when `atlas.sources` contains entries.
-- `remoteHosts`: Remote host security policy, present when `remoteHosts` is configured.
 
 ## See also
 

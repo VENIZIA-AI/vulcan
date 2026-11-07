@@ -14,7 +14,7 @@ const OLD_ENTRY = readFileSync(
 setDefaultTimeout(60_000);
 
 /** Blocking hooks that were removed. A project that has not run `vulcan sync` since still registers each one. */
-const REMOVED_BLOCKING = ['guard-package'];
+const REMOVED_BLOCKING = ['guard-package', 'guard-remote-hosts'];
 
 const roots: string[] = [];
 

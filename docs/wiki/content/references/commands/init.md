@@ -21,18 +21,16 @@ $ bun x --no-install vulcan init
   created  AGENTS.md
   created  .agents/rules.md
   created  .agents/knowledge/index.md
-  created  .agents/hooks/trusted-hosts.local.example
   created  .configs/lints/oxlint.config.mts
   created  .configs/lints/eslint.config.mjs
   created  .configs/vulcan.config.mts
   created  .dockerignore
   created  bunfig.toml
   created  Makefile
-  updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans .agents/vulcan.local.json .agents/local/ **/.env **/.env.* !**/.env.example .agents/hooks/trusted-hosts.local
+  updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans .agents/vulcan.local.json .agents/local/ **/.env **/.env.* !**/.env.example
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
-  2. private hosts go in .agents/hooks/trusted-hosts.local (copy the .example), not in the committed config
-  3. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
+  2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
 ```
 
 When a package needs installing, `installing <packages>` appears between the file lines and `left to do:`, followed by the output of `bun add -d`.
@@ -68,7 +66,6 @@ It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index an
 | `AGENTS.md` | Routing file that points coding agents to base rules, project rules and facts | Usually nothing; it holds routing only |
 | `.agents/rules.md` | Project rule extensions that build on the base rules | Add project rules with bare rule IDs |
 | `.agents/knowledge/index.md` | Entry point of the project knowledge bundle in okf v0.2 format | Describe the project |
-| `.agents/hooks/trusted-hosts.local.example` | An example of your own host list for the [remote-host guard](/references/hooks/remote-host-guard#host-lists): every line is a comment. Copy it to `.agents/hooks/trusted-hosts.local`, which git ignores, so host names stay out of the committed config | Nothing in it; edit your copy |
 | `.configs/lints/oxlint.config.mts` | Lint configuration for oxlint extending `@venizia/dev-configs` | Add project linter rule overrides when needed |
 | `.configs/lints/eslint.config.mjs` | Lint configuration for ESLint naming conventions extending `@venizia/dev-configs` | Add project naming convention overrides when needed |
 | `.dockerignore` | Keeps dependencies, build output, `.git` and every agent's local files out of a Docker build context (the same list `init --preset` writes) | Edit it freely; `init` never overwrites it |
@@ -95,7 +92,6 @@ $ bun x --no-install vulcan init
   kept     AGENTS.md
   kept     .agents/rules.md
   kept     .agents/knowledge/index.md
-  kept     .agents/hooks/trusted-hosts.local.example
   kept     .configs/lints/oxlint.config.mts
   kept     .configs/lints/eslint.config.mjs
   kept     .configs/vulcan.config.mts
@@ -103,9 +99,8 @@ $ bun x --no-install vulcan init
   kept     bunfig.toml
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
-  2. private hosts go in .agents/hooks/trusted-hosts.local (copy the .example), not in the committed config
-  3. .gitignore has .env rules of its own and was left as it is: check that they ignore **/.env **/.env.* !**/.env.example the way you want
-  4. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
+  2. .gitignore has .env rules of its own and was left as it is: check that they ignore **/.env **/.env.* !**/.env.example the way you want
+  3. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
 tell VULCAN how you like to work (language, how to address you, tone): run 'bun x --no-install vulcan profile'
 ```
 
@@ -150,10 +145,9 @@ CLAUDE.*.md
 **/.env
 **/.env.*
 !**/.env.example
-.agents/hooks/trusted-hosts.local
 ```
 
-The three `.env` lines are the list the generated `.dockerignore` carries too, so a `.env.local` or a `.env.production` is neither committed nor copied into an image, and `.env.example` stays. **A `.gitignore` that already has a `.env` rule is left alone on those three lines.** Git applies the last matching line, so lines appended after yours would override a negation such as `!.env.development`. In that case `init` adds the other lines, does not add the three `.env` lines, and says in `left to do:` to check that your rules ignore what you want. A comment that only mentions `.env` is not a rule. Only the default `remoteHosts.localFile` is added to `.gitignore`: when the config names another path, add that path yourself.
+The three `.env` lines are the list the generated `.dockerignore` carries too, so a `.env.local` or a `.env.production` is neither committed nor copied into an image, and `.env.example` stays. **A `.gitignore` that already has a `.env` rule is left alone on those three lines.** Git applies the last matching line, so lines appended after yours would override a negation such as `!.env.development`. In that case `init` adds the other lines, does not add the three `.env` lines, and says in `left to do:` to check that your rules ignore what you want. A comment that only mentions `.env` is not a rule.
 
 Existing lines are kept in order, and the new lines follow them.
 Run on an initialized project, `vulcan init` changes nothing.

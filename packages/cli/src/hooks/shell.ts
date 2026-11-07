@@ -163,7 +163,7 @@ const WRAPPER_OPTIONS: Record<string, IWrapperOptions> = {
       '--process-slot-var',
     ],
   }),
-  // Not a wrapper of a local command: its options are known so `remote-hosts` can read past them.
+  // Not a wrapper of a local command: its options are known so a reader can read past them.
   sshpass: wrapperOptions({ shortValues: 'pfPd' }),
 };
 /** The programs whose words after their own options are the command they run. */
@@ -173,11 +173,11 @@ const WRAPPERS = new Set(Object.keys(WRAPPER_OPTIONS).filter((name) => name !== 
 const wrapperPositionals = (opts: { wrapper: string }): number =>
   WRAPPER_OPTIONS[opts.wrapper]?.positionals ?? 0;
 
-/** The program names `remote-hosts.ts` reads too: one table here, so the two parsers cannot drift apart. */
+/** The program names the guards read: one table here, so the readers cannot drift apart. */
 export class ShellPrograms {
   /** Every wrapper whose options the parser knows, `command` and `sshpass` included; a reader drops what it handles apart. */
   static readonly WRAPPER_NAMES: readonly string[] = Object.keys(WRAPPER_OPTIONS);
-  /** The shells whose heredoc body is read as commands; `remote-hosts.ts` adds the ones it only follows. */
+  /** The shells whose heredoc body is read as commands. */
   static readonly SHELL_NAMES: readonly string[] = ['bash', 'sh', 'zsh', 'dash', 'ksh'];
 }
 

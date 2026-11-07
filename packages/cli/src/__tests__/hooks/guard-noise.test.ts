@@ -1,18 +1,15 @@
 import { describe, expect, test } from 'bun:test';
-import { CommandView, GitGuard, RemoteHosts, ShellParser, WriteGuard } from '../../hooks/index.ts';
+import { CommandView, GitGuard, ShellParser, WriteGuard } from '../../hooks/index.ts';
 import { ASKS, QUIET } from './noise-corpus.ts';
-
-const POLICY = { trusted: ['lab1'], readOnly: [] as string[] };
 
 const asksOf = (command: string): string[] => [
   ...WriteGuard.inspectCommand({ command, cwd: '/nowhere' }).map(
     (hit) => `write ${hit.rule}: ${hit.message}`,
   ),
-  ...RemoteHosts.inspectCommand({ command, policy: POLICY }).map((hit) => `remote: ${hit.message}`),
 ];
 
 // A downstream project's scan: 142 asks in 13,000 Bash calls, most of them on data. These shapes stay quiet; the real ones ask.
-describe('the write guard and the remote-host guard do not ask about data', () => {
+describe('the write guard does not ask about data', () => {
   test.each(QUIET)('$id is quiet: $note', ({ command }) => {
     expect(asksOf(command)).toEqual([]);
   });
@@ -91,7 +88,7 @@ describe('CommandView.commandTextsOf and isDataOnly', () => {
     ).toEqual(['find']);
   });
 
-  test('git and gh are data to the write guard, and a host to the remote-host guard', () => {
+  test('git and gh are data to the write guard', () => {
     const [push] = ShellParser.parse({ command: 'git remote add x user@evil.example.com:repo' });
 
     expect(
@@ -162,7 +159,7 @@ describe('every guard reads the command after a line that only looks like a here
   });
 
   test.each(BEFORE_A_COMMAND)(
-    'after $note, a deploy write, a database write and a remote host ask',
+    'after $note, a deploy write and a database write ask',
     ({ lead }) => {
       const write = WriteGuard.inspectCommand({
         command: `${lead}\nkubectl apply -f deploy.yaml`,
@@ -172,19 +169,14 @@ describe('every guard reads the command after a line that only looks like a here
         command: `${lead}\npsql app -c "delete from users"`,
         cwd: '/nowhere',
       });
-      const remote = RemoteHosts.inspectCommand({
-        command: `${lead}\nssh prod.example.com uptime`,
-        policy: POLICY,
-      });
 
       expect(write.length).toBeGreaterThan(0);
       expect(database.length).toBeGreaterThan(0);
-      expect(remote.length).toBeGreaterThan(0);
     },
   );
 
   test('a real heredoc with the same words in its body is still data to every guard', () => {
-    const body = `${BEFORE_A_COMMAND.map((row) => row.lead).join('\n')}\ngit push --force origin main\nkubectl apply -f deploy.yaml\npsql app -c "delete from users"\nssh prod.example.com uptime`;
+    const body = `${BEFORE_A_COMMAND.map((row) => row.lead).join('\n')}\ngit push --force origin main\nkubectl apply -f deploy.yaml\npsql app -c "delete from users"`;
 
     for (const command of [
       `cat > notes.md <<'STOP'\n${body}\nSTOP`,
@@ -200,7 +192,6 @@ describe('every guard reads the command after a line that only looks like a here
 
     expect(gitDecisions(command)).toContain('ask');
     expect(asksOf(command).some((ask) => ask.startsWith('write'))).toBe(true);
-    expect(asksOf(command).some((ask) => ask.startsWith('remote'))).toBe(true);
     expect(gitDecisions('echo "closed\nhere"')).toEqual([]);
     expect(asksOf('echo "closed\nhere"')).toEqual([]);
   });
@@ -213,12 +204,11 @@ describe('every guard reads the command after a line that only looks like a here
 });
 
 describe('a program the line does not name', () => {
-  test('a variable or a substitution as the program asks in the git, write and remote-host guards', () => {
+  test('a variable or a substitution as the program asks in the git and write guards', () => {
     expect(gitDecisions('tool=git; $tool push --force origin main')).toContain('ask');
     expect(
       asksOf('tool=kubectl; "$tool" apply -f deploy.yaml').some((ask) => ask.startsWith('write')),
     ).toBe(true);
-    expect(asksOf('"$@"').some((ask) => ask.startsWith('remote'))).toBe(true);
   });
 
   test('a variable or a substitution as an argument stays quiet', () => {

@@ -15,7 +15,6 @@ import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const SHIPPED_SETTINGS = join(PACKAGE_ROOT, 'base', 'claude', 'settings.json');
-const REMOTE_HOSTS_TEMPLATE = join(PACKAGE_ROOT, 'base', 'claude', 'remote-hosts.json');
 
 // Every test here starts bun processes (a hook, twice in some): its time is the machine's load, not a property
 // of the hooks. The default of 5 s was reached on a loaded run of the whole suite, so this file allows 60 s. A hook
@@ -57,8 +56,6 @@ const hooksOf = (path: string): IShippedHook[] => {
 
 /** Every hook command the shipped settings register. */
 const shippedHooks = (): IShippedHook[] => hooksOf(SHIPPED_SETTINGS);
-/** The hook sync adds only when the config sets `remoteHosts`: its command is shipped in a template. */
-const remoteHostsHooks = (): IShippedHook[] => hooksOf(REMOTE_HOSTS_TEMPLATE);
 
 /** The hooks that fail OPEN: the owner-shape hooks, which pass when they cannot run. */
 const FAIL_OPEN = ['stop.ts', 'prompt-submit.ts', 'post-tool.ts'];
@@ -319,7 +316,6 @@ describe('the deny-class guards ask when the hook starts and then fails', () => 
 // Copilot and Cursor read `.claude/settings.json` too and may not set CLAUDE_PROJECT_DIR: a wrapper that
 // built its path from the bare variable looked in `/node_modules`, found nothing and exited 2.
 describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
-  const everyHook = (): IShippedHook[] => [...shippedHooks(), ...remoteHostsHooks()];
   const nameOf = (hook: IShippedHook): string =>
     /hooks\/([\w-]+)\.ts/.exec(hook.command)?.[1] ?? '';
 
@@ -335,9 +331,9 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
   };
 
   test('every wrapper is written with the working directory as the fallback', () => {
-    expect(everyHook().length).toBe(11);
+    expect(shippedHooks().length).toBe(10);
 
-    for (const hook of everyHook()) {
+    for (const hook of shippedHooks()) {
       expect(hook.command, nameOf(hook)).toContain('${CLAUDE_PROJECT_DIR:-$PWD}/node_modules');
       expect(hook.command, nameOf(hook)).not.toContain('${CLAUDE_PROJECT_DIR}');
     }
@@ -346,7 +342,7 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
   // One test per wrapper and input, two hook runs each: the time of a test does not grow with the number of
   // shipped hooks, which is what once ran a single test of 26 runs into the limit on a loaded machine.
   test.each(
-    everyHook().flatMap((hook) =>
+    shippedHooks().flatMap((hook) =>
       ['ls', 'git status', ''].map((command) => ({ name: nameOf(hook), hook, command })),
     ),
   )(
@@ -362,7 +358,6 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
     },
   );
 
-  // guard-remote-hosts is left out: with no remoteHosts policy in the project it blocks, set or unset.
   test.each(shippedHooks().map((hook) => ({ name: nameOf(hook), hook })))(
     'with the package present, an unset variable does not make a safety hook exit 2: $name',
     ({ name, hook }) => {
@@ -380,7 +375,7 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
   test('with the install missing, an unset variable still exits 2 for a safety hook and 0 for the rest', () => {
     const root = makeRoot();
 
-    for (const hook of everyHook()) {
+    for (const hook of shippedHooks()) {
       const result = runHook({
         command: hook.command,
         root,
@@ -397,7 +392,7 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
     const root = installedRoot();
     const elsewhere = makeRoot();
 
-    for (const hook of [...closedHooks(), ...remoteHostsHooks()]) {
+    for (const hook of closedHooks()) {
       const result = runHook({
         command: hook.command,
         root,
