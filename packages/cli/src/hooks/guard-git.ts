@@ -289,6 +289,29 @@ const ghCall = (opts: { args: string[] }): { group: string; action: string; rest
   return { group: names[0] ?? '', action: names[1] ?? '', rest: opts.args.slice(index) };
 };
 
+/** `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>` deletes the branch as `git push --delete` does. */
+const inspectGhApi = (opts: { args: string[] }): IGitHit[] => {
+  const { args } = opts;
+  const isDelete = args.some(
+    (word, index) =>
+      /^(-X|--method)=?DELETE$/i.test(word) ||
+      (/^(-X|--method)$/.test(word) && (args[index + 1] ?? '').toUpperCase() === 'DELETE'),
+  );
+
+  if (ghCall({ args }).group !== 'api' || !isDelete) {
+    return [];
+  }
+
+  return args
+    .map((word) => /^\/?repos\/[^/]+\/[^/]+\/git\/refs\/heads\/(.+)$/.exec(word)?.[1])
+    .filter((name): name is string => name !== undefined && isProtected({ name }))
+    .map((name) => ({
+      decision: GuardDecisions.DENY,
+      rule: 'V-W-06',
+      message: `deleting the remote branch '${name}'`,
+    }));
+};
+
 /** `gh pr merge [<pr>] --delete-branch`: the PR's head branch decides, and `gh` is asked for it. */
 const inspectGhMerge = (opts: {
   args: string[];
@@ -385,6 +408,7 @@ const inspectOne = (opts: {
     return [
       ...inspectGhMerge({ args: program.args, cwd: opts.cwd, run: opts.run }),
       ...inspectGhCreate({ args: program.args }),
+      ...inspectGhApi({ args: program.args }),
     ];
   }
 

@@ -185,6 +185,9 @@ export class ShellPrograms {
 
 const SHELLS = new Set(ShellPrograms.SHELL_NAMES);
 
+/** The options of `find` that run a command. */
+const FIND_RUN_OPTIONS = new Set(['-exec', '-execdir', '-ok', '-okdir']);
+
 /** The mark of an open `case` among the groups the parser tracks: its `)` closes a pattern. */
 const CASE_GROUP = 'case';
 
@@ -1294,6 +1297,10 @@ export class ShellParser {
       if (call.mode === ShellModes.COMMAND && call.word !== undefined) {
         scripts.push(call.word);
       }
+
+      if (call.mode === ShellModes.STDIN) {
+        scripts.push(...ShellParser.stdinScriptsOf({ command }));
+      }
     }
 
     if (name === 'eval') {
@@ -1313,6 +1320,39 @@ export class ShellParser {
         .some((word) => ShellParser.basenameOf({ word }) === 'watch')
     ) {
       scripts.push([program.name, ...program.args].join(' '));
+    }
+
+    return scripts;
+  }
+
+  /**
+   * The text a shell reads from its standard input, when the line shows it: a here-string, what `echo` or
+   * `printf` prints into it, or the body of the heredoc of a `cat` that feeds it. `printf` and `echo` print one
+   * word per line, and a `\\n` in a word is a line break.
+   */
+  private static stdinScriptsOf(opts: { command: ISimpleCommand }): string[] {
+    const { input } = opts.command;
+
+    if (input === undefined) {
+      return [];
+    }
+
+    const scripts = [...input.texts];
+    const source = input.pipedFrom;
+
+    if (source !== undefined) {
+      const { name, args } = ShellParser.programOf({ command: source });
+      const program = ShellParser.basenameOf({ word: name });
+
+      if (program === 'echo' || program === 'printf') {
+        const printed = args.filter((word) => !/^-[neE]+$/.test(word));
+
+        scripts.push(printed.join('\n').replaceAll('\\n', '\n'));
+      }
+
+      if (program === 'cat' && source.heredoc !== undefined) {
+        scripts.push(source.heredoc);
+      }
     }
 
     return scripts;
@@ -2058,10 +2098,38 @@ export class ShellParser {
         continue;
       }
 
-      return { name: word, index, args: opts.command.words.slice(index + 1), splitCommands };
+      const args = opts.command.words.slice(index + 1);
+
+      if (ShellParser.basenameOf({ word }) === 'find') {
+        splitCommands.push(...ShellParser.findRunsOf({ args }));
+      }
+
+      return { name: word, index, args, splitCommands };
     }
 
     return { name: '', index: -1, args: [], splitCommands };
+  }
+
+  /** The commands `find` runs: the words after each `-exec`, `-execdir`, `-ok` or `-okdir`, up to its `;` or `+`. */
+  private static findRunsOf(opts: { args: string[] }): string[][] {
+    const runs: string[][] = [];
+
+    for (let index = 0; index < opts.args.length; index += 1) {
+      if (!FIND_RUN_OPTIONS.has(opts.args[index] ?? '')) {
+        continue;
+      }
+
+      const end = opts.args.findIndex((word, at) => at > index && (word === ';' || word === '+'));
+      const words = opts.args.slice(index + 1, end === -1 ? undefined : end);
+
+      if (words.length > 0) {
+        runs.push(words);
+      }
+
+      index = end === -1 ? opts.args.length : end;
+    }
+
+    return runs;
   }
 
   /**

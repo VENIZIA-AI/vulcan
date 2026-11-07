@@ -34,6 +34,26 @@ const BYPASSES: { id: string; found: string; command: string }[] = [
   { id: 'B-11', found: '#414', command: 'cat <<< word\ngit push -f origin main' },
   { id: 'B-12', found: '#414', command: `echo "$(echo ')'; git push -f origin main)"` },
   { id: 'B-13', found: '#414', command: "watch -n 1 'git push -f origin main'" },
+  { id: 'S-1', found: 'review', command: 'bash <<< "git push -f origin main"' },
+  { id: 'S-2', found: 'review', command: String.raw`printf 'git push -f origin main\n' | sh` },
+  { id: 'S-3', found: 'review', command: "cat <<'EOF' | sh\ngit push -f origin main\nEOF" },
+  { id: 'S-4', found: 'review', command: String.raw`echo -e 'ls\ngit push -f origin main' | bash` },
+  {
+    id: 'S-5',
+    found: 'review',
+    command: String.raw`find . -name x -exec git push -f origin main \;`,
+  },
+  {
+    id: 'S-6',
+    found: 'review',
+    command: String.raw`find . -execdir sh -c 'git push -f origin main' \;`,
+  },
+  { id: 'S-7', found: 'review', command: 'gh api -X DELETE repos/o/r/git/refs/heads/main' },
+  {
+    id: 'S-8',
+    found: 'review',
+    command: 'gh api --method=DELETE /repos/o/r/git/refs/heads/develop',
+  },
 ];
 
 /** A fake `git`/`gh` that answers every query with a branch and counts the calls. */
@@ -62,6 +82,22 @@ describe('the bypasses the reviews found stay fixed', () => {
     expect(decisions({ command })).toContain('deny');
     expect(performance.now() - started).toBeLessThan(1000);
   });
+
+  test.each([
+    'bash <<< "ls"',
+    "printf 'hello\\n' | sh",
+    'echo "git push -f origin main" | cat',
+    'find . -name "*.ts" -exec grep -l foo {} +',
+    'find . -name x -exec rm {} \\;',
+    'gh api repos/o/r/git/refs/heads/main',
+    'gh api -X DELETE repos/o/r/git/refs/heads/feature/x',
+    'gh api -X POST repos/o/r/git/refs -f ref=refs/heads/main',
+  ])(
+    'what stdin, find and gh api only read or do inside a branch of its own stays quiet: %s',
+    (command) => {
+      expect(decisions({ command })).toEqual([]);
+    },
+  );
 
   test('a real heredoc and a quoted mention are still data, not commands', () => {
     expect(decisions({ command: 'cat <<EOF\ngit push -f origin main\nEOF' })).toEqual([]);
