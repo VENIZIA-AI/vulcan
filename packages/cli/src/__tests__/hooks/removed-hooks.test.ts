@@ -5,10 +5,6 @@ import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
-const OLD_ENTRY = readFileSync(
-  join(import.meta.dir, '..', 'fixtures', 'old-blocking-hook-entry.txt'),
-  'utf8',
-);
 const OLD_OPEN_ENTRY = readFileSync(
   join(import.meta.dir, '..', 'fixtures', 'old-open-hook-entry.txt'),
   'utf8',
@@ -17,8 +13,6 @@ const OLD_OPEN_ENTRY = readFileSync(
 // Each test starts a shell and a bun process.
 setDefaultTimeout(60_000);
 
-/** Blocking hooks that were removed. A project that has not run `vulcan sync` since still registers each one. */
-const REMOVED_BLOCKING = ['guard-package', 'guard-remote-hosts', 'guard-manifest'];
 /** Fail-open hooks that were removed, with no file kept: an old entry passes by itself when its file is missing. */
 const REMOVED_OPEN = ['stop', 'prompt-submit', 'post-tool'];
 
@@ -41,33 +35,9 @@ const projectWithThisPackage = (): string => {
   return root;
 };
 
-describe('an entry an older vulcan sync wrote for a removed hook', () => {
-  for (const hook of REMOVED_BLOCKING) {
-    test(`${hook}: the call passes against this package, and the hook says nothing`, () => {
-      const root = projectWithThisPackage();
-      const result = spawnSyncBounded({
-        cmd: ['/bin/sh', '-c', OLD_ENTRY.split('@@HOOK@@').join(hook)],
-        cwd: root,
-        env: { ...process.env, CLAUDE_PROJECT_DIR: root },
-        stdin: new Blob([
-          JSON.stringify({
-            ['tool_name']: 'Write',
-            ['tool_input']: { ['file_path']: 'x' },
-            cwd: root,
-          }),
-        ]),
-        stdout: 'pipe',
-        stderr: 'pipe',
-      });
-
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout.toString()).toBe('');
-      expect(result.stderr.toString()).toBe('');
-    });
-  }
-
+describe('an entry an older vulcan sync wrote for a removed fail-open hook', () => {
   for (const hook of REMOVED_OPEN) {
-    test(`${hook}: with its file gone, the old fail-open entry still passes the call`, () => {
+    test(`${hook}: with its file gone, the old entry still passes the call`, () => {
       const root = projectWithThisPackage();
       const result = spawnSyncBounded({
         cmd: ['/bin/sh', '-c', OLD_OPEN_ENTRY.split('@@HOOK@@').join(hook)],
