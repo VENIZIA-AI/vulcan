@@ -14,6 +14,26 @@ export class AtlasConstants {
   static readonly INDEX_FORMAT = 1;
 }
 
+/** How atlas runs git: every call, local or remote, takes this environment. */
+export class AtlasGit {
+  /**
+   * The transports git may use for a source: `https` and `ssh` carry the repository authenticated and
+   * encrypted, `file` is a repository on this machine. `http` and `git://` are clear text with no
+   * authentication, and `ext::` and `fd::` run a command: none of them is allowed, whatever URL a source names.
+   * Set in the environment, it overrides any `protocol.*.allow` of the user's git configuration.
+   */
+  static readonly ALLOWED_PROTOCOLS = 'https:ssh:file';
+
+  /** Built at each call: tests and callers change `process.env` (PATH among them) after load. Never prompts for credentials. */
+  static buildEnvironment(): NodeJS.ProcessEnv {
+    return {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: '0',
+      GIT_ALLOW_PROTOCOL: AtlasGit.ALLOWED_PROTOCOLS,
+    };
+  }
+}
+
 /** Every wait atlas puts on the network or on git: past its bound, a call counts as failed. */
 export class AtlasTimeouts {
   /** `git ls-remote`, or the ref advertisement without git: a start never waits longer on a remote. */

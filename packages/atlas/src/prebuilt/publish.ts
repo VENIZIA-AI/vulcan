@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { AtlasTimeouts } from '@/common/constants';
+import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { IndexPair } from './build';
 import { PrebuiltConstants, PublishConstants, PairNames } from './constants';
 import { WireValue } from '@/common/wire';
@@ -67,7 +67,7 @@ const tagCommitsOf = (opts: { root: string }): Set<string> => {
   const listed = spawnSync(
     'git',
     ['for-each-ref', 'refs/tags', '--format=%(refname:short)%09%(objectname)%09%(*objectname)'],
-    { cwd: opts.root, encoding: 'utf8' },
+    { cwd: opts.root, encoding: 'utf8', env: AtlasGit.buildEnvironment() },
   ).stdout;
 
   return new Set(
@@ -207,8 +207,10 @@ export class IndexPublish {
   static isOnBranch(opts: { root: string; sha: string; branch: string }): boolean {
     return [`refs/remotes/origin/${opts.branch}`, `refs/heads/${opts.branch}`].some(
       (ref) =>
-        spawnSync('git', ['merge-base', '--is-ancestor', opts.sha, ref], { cwd: opts.root })
-          .status === 0,
+        spawnSync('git', ['merge-base', '--is-ancestor', opts.sha, ref], {
+          cwd: opts.root,
+          env: AtlasGit.buildEnvironment(),
+        }).status === 0,
     );
   }
 
@@ -229,6 +231,7 @@ export class IndexPublish {
       const found = spawnSync('git', ['rev-parse', '--verify', '--quiet', `${full}^{commit}`], {
         cwd: opts.root,
         encoding: 'utf8',
+        env: AtlasGit.buildEnvironment(),
       });
 
       if (found.status === 0 && /^[0-9a-f]{40}$/.test(found.stdout.trim())) {

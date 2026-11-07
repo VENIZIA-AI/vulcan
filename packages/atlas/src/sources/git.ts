@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, rmSync } from 'node:fs';
-import { AtlasTimeouts } from '@/common/constants';
+import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { GitArgument } from '@/common/git-argument';
 import { StderrLogger } from '@/common/logger';
 import type { IRemoteRef } from './common';
@@ -13,13 +13,6 @@ const FULL_SHA_LENGTH = 40;
 const TAGS_FINGERPRINT_LENGTH = 16;
 
 export class GitRepository {
-  /**
-   * The transports git may use for a source: `https` and `ssh` carry the repository authenticated and
-   * encrypted, `file` is a repository on this machine. `http` and `git://` are clear text with no
-   * authentication, and `ext::` and `fd::` run a command: none of them is allowed, whatever URL a source names.
-   */
-  static readonly ALLOWED_PROTOCOLS = 'https:ssh:file';
-
   /**
    * What is wrong with the transport of a source `repo`, as a phrase for the message; `undefined` when git may use it.
    * An `owner/repo` path, an scp-like `git@host:path`, an `https://` or `ssh://` URL and a local path pass.
@@ -56,12 +49,8 @@ export class GitRepository {
       maxBuffer: GIT_BUFFER,
       timeout: opts.timeout ?? AtlasTimeouts.GIT_TRANSFER_MS,
       killSignal: 'SIGKILL',
-      // Never prompt for credentials: a source that needs them uses the machine's, or fails.
-      env: {
-        ...process.env,
-        GIT_TERMINAL_PROMPT: '0',
-        GIT_ALLOW_PROTOCOL: GitRepository.ALLOWED_PROTOCOLS,
-      },
+      // No credential prompt and only the allowed transports: a source that needs more fails.
+      env: AtlasGit.buildEnvironment(),
     });
 
     if (result.status !== 0) {
@@ -156,6 +145,7 @@ export class GitRepository {
       encoding: 'utf8',
       timeout: AtlasTimeouts.LOCAL_GIT_MS,
       killSignal: 'SIGKILL',
+      env: AtlasGit.buildEnvironment(),
     });
 
     return result.status === 0 ? result.stdout.trim() : undefined;
@@ -171,6 +161,7 @@ export class GitRepository {
       spawnSync('git', ['--git-dir', opts.gitDir, 'rev-parse', '--git-dir'], {
         timeout: AtlasTimeouts.LOCAL_GIT_MS,
         killSignal: 'SIGKILL',
+        env: AtlasGit.buildEnvironment(),
       }).status === 0
     );
   }

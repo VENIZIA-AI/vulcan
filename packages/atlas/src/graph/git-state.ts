@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { AtlasGit } from '@/common/constants';
 
 export class GitState {
   private static readonly TIMEOUT_MS = 20_000;
@@ -10,6 +11,7 @@ export class GitState {
       encoding: 'utf8',
       timeout: GitState.TIMEOUT_MS,
       maxBuffer: GitState.BUFFER_BYTES,
+      env: AtlasGit.buildEnvironment(),
     });
 
     return result.status === 0 ? result.stdout : undefined;
@@ -38,6 +40,7 @@ export class GitState {
       cwd: opts.root,
       encoding: 'utf8',
       timeout: GitState.TIMEOUT_MS,
+      env: AtlasGit.buildEnvironment(),
     });
 
     if (result.status === 0) {

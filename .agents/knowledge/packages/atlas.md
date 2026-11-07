@@ -21,7 +21,7 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   naming it. Only a remote that cannot be asked within 10 s serves the cache (OFFLINE): the SHA last
   served for that same ref (`<cache>/refs/ref-<ref>`), never another ref's. Every
   network and git wait has a bound, all in `AtlasTimeouts` (`src/common/constants.ts`).
-- **What a fetch may take and use**: git runs with `GIT_ALLOW_PROTOCOL=https:ssh:file` (`GitRepository.ALLOWED_PROTOCOLS`);
+- **What a fetch may take and use**: every git call, local ones too, runs with `AtlasGit.buildEnvironment()` (`GIT_ALLOW_PROTOCOL=https:ssh:file` and `GIT_TERMINAL_PROMPT=0`);
   a source over `http://`, `git://` or a `scheme::` helper is refused by name (`GitRepository.refusedTransportOf`, and the
   cli schema). A tarball (GitHub commit, npm package) is read through `BoundedBody` up to `atlas.limits.download` bytes
   (`AtlasLimits`, default 128 MiB, 1 MiB to 1 GiB, set once at start from the manifest); the ref advertisement is held to 16 MiB.

@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { AtlasGit } from '@/common/constants';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { relative } from 'node:path';
 import { AtlasConstants } from '@/common';
@@ -167,7 +168,12 @@ const timeOf = (opts: { file?: string }): number =>
 /** HEAD and every tag of the project's own repository: what changes when a release lands. */
 const repositoryFingerprintOf = (opts: { root: string }): string => {
   const run = (args: string[]): string =>
-    spawnSync('git', args, { cwd: opts.root, encoding: 'utf8', timeout: 10_000 }).stdout ?? '';
+    spawnSync('git', args, {
+      cwd: opts.root,
+      encoding: 'utf8',
+      timeout: 10_000,
+      env: AtlasGit.buildEnvironment(),
+    }).stdout ?? '';
 
   return `${run(['rev-parse', '--verify', '--quiet', 'HEAD'])}${run(['for-each-ref', 'refs/tags', '--format=%(objectname) %(refname)'])}`;
 };

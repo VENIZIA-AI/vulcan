@@ -2,6 +2,7 @@ import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { AtlasGit } from '@/common/constants';
 import { GitRepository } from '@/sources/git';
 import { SourceResolver } from '@/sources';
 import {
@@ -44,9 +45,9 @@ const messageOf = (opts: { run: () => unknown }): string => {
   }
 };
 
-describe('GitRepository.ALLOWED_PROTOCOLS', () => {
+describe('AtlasGit.ALLOWED_PROTOCOLS', () => {
   test('names https, ssh and file, and nothing that is clear text or runs a command', () => {
-    expect(GitRepository.ALLOWED_PROTOCOLS).toBe('https:ssh:file');
+    expect(AtlasGit.ALLOWED_PROTOCOLS).toBe('https:ssh:file');
   });
 });
 
