@@ -6,6 +6,8 @@ export interface ISimpleCommand {
   redirects: string[];
   /** The `>&word` targets that hold an expansion (`>&$fd`): a descriptor or a file, the line does not say which. They are in `redirects` too. */
   copies?: string[];
+  /** The bodies of the heredocs whose delimiter is not quoted: the shell expands them before the command reads them. */
+  expandedBodies?: string[];
   assignments: string[];
   /** The body of the heredoc this command reads, when it is not read as commands itself (data, or a query or script for another program). */
   heredoc?: string;
@@ -542,6 +544,8 @@ interface IHeredocAt {
   end: number;
   /** The substitutions of a body whose delimiter is not quoted: bash runs them. */
   substitutions: string[];
+  /** The delimiter is quoted: the body is data. */
+  isQuoted: boolean;
 }
 
 /** What the scanner found in a text, every position an index of the kept text. */
@@ -816,6 +820,7 @@ class ShellScanner {
         heredoc,
         end: entry.pending.end,
         substitutions: entry.substitutions,
+        isQuoted: entry.pending.isQuoted,
       });
     };
 
@@ -1332,9 +1337,11 @@ export class ShellParser {
    * `echo` argument included.
    */
   static hasPromptExpansion(opts: { command: ISimpleCommand }): boolean {
-    return [...opts.command.words, ...opts.command.assignments].some((word) =>
-      /\$\{[^}]*@P\}/.test(word),
-    );
+    return [
+      ...opts.command.words,
+      ...opts.command.assignments,
+      ...(opts.command.expandedBodies ?? []),
+    ].some((text) => /\$\{[^}]*@P\}/.test(text));
   }
 
   /**
@@ -1529,6 +1536,10 @@ export class ShellParser {
 
         if (!heredoc.heredoc.isInline) {
           current.heredoc = heredoc.heredoc.body;
+        }
+
+        if (!heredoc.isQuoted) {
+          (current.expandedBodies ??= []).push(heredoc.heredoc.body);
         }
 
         nest({ texts: heredoc.substitutions });
