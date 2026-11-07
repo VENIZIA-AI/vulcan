@@ -212,6 +212,26 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
     expect(result?.reason).toContain('guard-writes crashed or timed out');
   });
 
+  test('a guard that is gone from an installed package passes; with no package the safety guard still blocks', async () => {
+    const handle = handlerOf();
+    const installed = createProject({ files: { 'package.json': '{}' } });
+    const hollow = createProject({ files: { 'package.json': '{}' } });
+
+    mkdirSync(join(installed, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks'), {
+      recursive: true,
+    });
+    writeFileSync(join(installed, 'node_modules', '@venizia', 'vulcan', 'package.json'), '{}');
+    mkdirSync(join(hollow, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks'), {
+      recursive: true,
+    });
+
+    const gone = await handle(bash('ls'), contextOf({ cwd: installed }));
+    const noPackage = await handle(bash('ls'), contextOf({ cwd: hollow }));
+
+    expect(gone).toBeUndefined();
+    expect(noPackage?.block).toBe(true);
+  });
+
   test('with the guard scripts missing, the safety guards block and the rest pass, bar a bare bun install', async () => {
     // An install with no scripts in it: the folder is found, the scripts are not (a test folder sits under the
     // repository, whose own install would otherwise be found above it).

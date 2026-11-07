@@ -5,7 +5,8 @@
 // with a Claude-shaped event on stdin, and turns the answer into this agent's: `deny` blocks, `ask` asks
 // the owner (and blocks when there is no UI to ask). A guard that cannot give an answer follows the same
 // policy as the Claude wrappers: the safety guards block, the others ask, and a missing install passes
-// except for the safety guards, which block - bar a bare `bun install`, the way to repair it.
+// except for the safety guards, which block - bar a bare `bun install`, the way to repair it. A guard that
+// is gone from an installed package passes: there is nothing to run.
 // Only node: modules are imported, so any host that loads TypeScript can load it.
 
 import { spawnSync } from 'node:child_process';
@@ -66,7 +67,8 @@ interface IAnswer {
   reason: string;
 }
 
-const HOOKS_DIRECTORY = join('node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+const PACKAGE_DIRECTORY = join('node_modules', '@venizia', 'vulcan');
+const HOOKS_DIRECTORY = join(PACKAGE_DIRECTORY, 'base', 'hooks');
 const TIMEOUT_MS = 30_000;
 /** The one command that passes while the install is missing: it is how the install is repaired. */
 const BUN_INSTALL =
@@ -181,6 +183,11 @@ const runGuard = (opts: {
   const script = join(opts.root, HOOKS_DIRECTORY, `${opts.guard.name}.ts`);
 
   if (!existsSync(script)) {
+    // The package is installed and only this guard is gone from it: nothing to run, the call passes.
+    if (existsSync(join(opts.root, PACKAGE_DIRECTORY, 'package.json'))) {
+      return { kind: Answers.ALLOW, reason: '' };
+    }
+
     return { kind: Answers.MISSING, reason: `${opts.guard.name} is missing: run bun install` };
   }
 
