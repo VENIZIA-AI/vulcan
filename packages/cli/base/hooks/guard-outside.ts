@@ -7,8 +7,8 @@
  * approved unseen. A write into the agent tool scratchpad is always denied.
  *
  * It guards against drift, not against an attacker, and a guard that blocks every call when its install
- * is broken costs more than it protects. So input it cannot read passes, and so does a missing package or
- * `bun` (the settings wrapper says so on stderr). A guard that started and then failed - a crash or a
+ * is broken costs more than it protects. So a missing package or `bun` passes (the settings wrapper says so on
+ * stderr); input it cannot read ASKS, because nothing was checked. A guard that started and then failed - a crash or a
  * timeout, here an internal error or an unloadable module - ASKS instead of passing the call unchecked; a
  * manifest that cannot be read leaves the default allowlist. `VULCAN_GUARDS=off` switches it off,
  * read before anything is imported. It reads what the project set (`guard.outside`, `guard.toolOwnedPaths`)
@@ -34,7 +34,19 @@ try {
   const { relative } = await import('node:path');
   const input = ManifestGuard.parseHookInput({ text });
 
-  if (input) {
+  if (!input) {
+    console.log(
+      JSON.stringify(
+        HookDecision.buildTool({
+          decision: GuardDecisions.ASK,
+          reason: [
+            'The hook input could not be read, so this call was not checked for files outside the project (V-B-08).',
+            'Confirm only if the call stays inside the project.',
+          ],
+        }),
+      ),
+    );
+  } else {
     const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
     const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
     const { toolOwnedPaths, outside } = ProjectGuards.readPolicy({ root: projectRoot });

@@ -35,7 +35,7 @@ export class ManifestGuard {
       payload = JSON.parse(opts.text);
     } catch (error) {
       console.error(
-        `[ManifestGuard.parseHookInput] unreadable hook input - letting the call through | ${error instanceof Error ? error.message : String(error)}`,
+        `[ManifestGuard.parseHookInput] unreadable hook input | ${error instanceof Error ? error.message : String(error)}`,
       );
 
       return undefined;
