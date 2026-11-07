@@ -249,7 +249,7 @@ const BASE_CSS = [
   `.chips{display:flex;flex-wrap:wrap;align-content:flex-start;align-items:flex-start;gap:6px;margin-bottom:12px}.chips li{padding:3px 10px;border-radius:var(--radius);background:var(--bg);color:var(--ink);font-size:15px}`,
   // Explainer: a big numeral, the words, then the drawing.
   `.ex{display:grid;gap:60px}`,
-  `.estep{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px 32px;align-items:start}.estep .dg{grid-column:2/-1;min-width:0}`,
+  `.estep{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px 32px;align-items:start}.estep .dg{grid-column:2/-1;min-width:0}.estep .dg .win{width:fit-content;max-width:100%}.estep .dg .fig svg{margin-inline:0}`,
   `.estep .no{font-size:72px;line-height:.8;font-weight:650;letter-spacing:-.05em;color:var(--ink)}`,
   `.estep h3{font-size:24px;line-height:1.2}.estep .sb p{margin-top:10px;max-width:44ch;color:var(--body)}`,
   // Timeline: a rule with a ring per date.

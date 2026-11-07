@@ -148,6 +148,14 @@ describe('the explainer step diagrams', () => {
     expect(html).toMatch(/class="fig f\d+i128"/);
   });
 
+  test('the layers list says each layer with its colon attached, and the diagrams share a left edge', () => {
+    const html = pageOf(figuresSpec());
+
+    expect(html).toContain('<li><b>Giao diện:</b> Màn hình nhập, Biểu mẫu</li>');
+    expect(html).toContain('.estep .dg .fig svg{margin-inline:0}');
+    expect(html).toContain('.estep .dg .win{width:fit-content;max-width:100%}');
+  });
+
   test('its row gap fits the arrow labels', () => {
     const html = pageOf(figuresSpec());
     const first = /<g class="dbox"><rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)"/.exec(html);

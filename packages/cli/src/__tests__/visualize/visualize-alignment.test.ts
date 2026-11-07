@@ -152,6 +152,18 @@ describe.skipIf(!hasBrowser)('figures hold their text (measured in a browser)', 
     }
   }
 
+  test('the diagrams of one explainer share their left edge', async () => {
+    const lefts = await BrowserPage.measure<number[]>({
+      html: figuresHtml,
+      width: 1280,
+      dark: false,
+      expression: `[...document.querySelectorAll('.estep .dg .fig svg')].filter((svg) => svg.getClientRects().length > 0).map((svg) => Math.round(svg.getBoundingClientRect().left))`,
+    });
+
+    expect(lefts.length).toBe(2);
+    expect(new Set(lefts).size).toBe(1);
+  });
+
   test('the check sees a box too narrow for its text, a label on a box, and a figure too wide for its frame', async () => {
     const narrowed = figuresHtml.replace(
       /(<rect x="[\d.]+" y="[\d.]+" width=")[\d.]+(" height="[\d.]+" rx="4"\/>)/,
