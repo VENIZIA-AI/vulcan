@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import {
   chmodSync,
   copyFileSync,
@@ -16,6 +16,12 @@ import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const SHIPPED_SETTINGS = join(PACKAGE_ROOT, 'base', 'claude', 'settings.json');
 const REMOTE_HOSTS_TEMPLATE = join(PACKAGE_ROOT, 'base', 'claude', 'remote-hosts.json');
+
+// Every test here starts bun processes (a hook, twice in some): its time is the machine's load, not a property
+// of the hooks. The default of 5 s was reached on a loaded run of the whole suite, so this file allows 60 s. A hook
+// that hangs still fails: `spawnSyncBounded` kills a spawn after 120 s and throws, a sync spawn being the one wait
+// the test timeout cannot cut short.
+setDefaultTimeout(60_000);
 
 const roots: string[] = [];
 
@@ -337,37 +343,39 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
     }
   });
 
-  test.each(['ls', 'git status', ''])(
-    'with the package present, an unset variable answers like a set one, for every wrapper (input %j)',
-    (command) => {
+  // One test per wrapper and input, two hook runs each: the time of a test does not grow with the number of
+  // shipped hooks, which is what once ran a single test of 26 runs into the limit on a loaded machine.
+  test.each(
+    everyHook().flatMap((hook) =>
+      ['ls', 'git status', ''].map((command) => ({ name: nameOf(hook), hook, command })),
+    ),
+  )(
+    'with the package present, an unset variable answers like a set one: $name (input $command)',
+    ({ name, hook, command }) => {
       const root = installedRoot();
       const stdin = command === '' ? '' : BASH_INPUT(command);
+      const set = runHook({ command: hook.command, root, stdin });
+      const unset = runHook({ command: hook.command, root, stdin, unsetProjectDir: true });
 
-      for (const hook of everyHook()) {
-        const set = runHook({ command: hook.command, root, stdin });
-        const unset = runHook({ command: hook.command, root, stdin, unsetProjectDir: true });
-
-        expect(unset.code, nameOf(hook)).toBe(set.code);
-        expect(unset.stdout, nameOf(hook)).toBe(set.stdout);
-      }
+      expect(unset.code, name).toBe(set.code);
+      expect(unset.stdout, name).toBe(set.stdout);
     },
   );
 
   // guard-remote-hosts is left out: with no remoteHosts policy in the project it blocks, set or unset.
-  test('with the package present, an unset variable does not make a safety hook exit 2', () => {
-    const root = installedRoot();
-
-    for (const hook of shippedHooks()) {
+  test.each(shippedHooks().map((hook) => ({ name: nameOf(hook), hook })))(
+    'with the package present, an unset variable does not make a safety hook exit 2: $name',
+    ({ name, hook }) => {
       const result = runHook({
         command: hook.command,
-        root,
+        root: installedRoot(),
         stdin: BASH_INPUT('ls'),
         unsetProjectDir: true,
       });
 
-      expect(result.code, nameOf(hook)).toBe(0);
-    }
-  });
+      expect(result.code, name).toBe(0);
+    },
+  );
 
   test('with the install missing, an unset variable still exits 2 for a safety hook and 0 for the rest', () => {
     const root = makeRoot();
