@@ -13,14 +13,19 @@ export interface IShellFolder {
   pwd: string | undefined;
   /** False after a `cd` the guard could not work out: `base` is then only the last folder it knew. */
   isKnown: boolean;
+  /** The plain `NAME=value` words an earlier command of this same shell set; they win over the environment in a word. */
+  vars: Record<string, string>;
 }
 
 interface IFolderState extends IShellFolder {
   /** The folders `pushd` saved, for `popd`. */
-  stack: IShellFolder[];
+  stack: Omit<IShellFolder, 'vars'>[];
   /** A `cd`, `pushd` or `popd` ran in this scope. */
   hasMoved: boolean;
 }
+
+/** A value the guard may hold as written: no expansion, quote, glob or tilde in it. */
+const PLAIN_VALUE = /^[\w@%+=:,./-]+$/;
 
 export class ShellFolders {
   /** The builtins that change the shell's folder. */
@@ -89,6 +94,42 @@ export class ShellFolders {
   }
 
   /**
+   * The variables a line cannot be trusted to have kept: assigned more than once, or named anywhere else in the line
+   * (`for NAME`, `read NAME`, `printf -v NAME`, a nameref, `eval`).
+   */
+  private static reboundOf(opts: { commands: ISimpleCommand[] }): Set<string> {
+    const counts = new Map<string, number>();
+
+    for (const command of opts.commands) {
+      for (const assignment of command.assignments) {
+        const name = assignment.slice(0, Math.max(assignment.indexOf('='), 0));
+
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+      }
+    }
+
+    const texts = opts.commands.flatMap((command) => [
+      ...command.words,
+      ...command.assignments.map((assignment) => assignment.slice(assignment.indexOf('=') + 1)),
+    ]);
+
+    return new Set(
+      [...counts.entries()]
+        .filter(
+          ([name, count]) =>
+            count > 1 ||
+            !/^[A-Za-z_]\w*$/.test(name) ||
+            texts.some((text) =>
+              new RegExp(`\\b${name}\\b`).test(
+                text.replaceAll(`\${${name}}`, '').replaceAll(`$${name}`, ''),
+              ),
+            ),
+        )
+        .map(([name]) => name),
+    );
+  }
+
+  /**
    * The folder each of `commands` runs in, in their order. A `cd`, `pushd` or `popd` moves the commands after
    * it in its own scope; a subshell starts where its parent is and gives nothing back. A command line a word
    * carries (`$(...)`, `sh -c`) starts where the command that carries it started; without that command in
@@ -106,6 +147,7 @@ export class ShellFolders {
   }): IShellFolder[] {
     const states = new Map<string, IFolderState>();
     const piped = new Set(opts.commands.flatMap((command) => command.input?.pipedFrom ?? []));
+    const rebound = ShellFolders.reboundOf({ commands: opts.commands });
     // The folder each command started in, for the command lines its words carry.
     const started = new Map<ISimpleCommand, IShellFolder>();
     const stateOf = (scope: string, carrier: ISimpleCommand | undefined): IFolderState => {
@@ -125,6 +167,7 @@ export class ShellFolders {
               base: resolve(opts.cwd),
               pwd: opts.pwd,
               isKnown: opts.isKnown ?? true,
+              vars: {},
               stack: [],
               hasMoved: false,
             }
@@ -132,6 +175,7 @@ export class ShellFolders {
               base: from?.base ?? parent.base,
               pwd: from === undefined ? parent.pwd : from.pwd,
               isKnown: from?.isKnown ?? (parent.isKnown && !(isNested && parent.hasMoved)),
+              vars: isNested ? {} : { ...parent.vars },
               stack: [...parent.stack],
               hasMoved: false,
             };
@@ -143,9 +187,31 @@ export class ShellFolders {
 
     return opts.commands.map((command) => {
       const state = stateOf(command.scope ?? '', command.carrier);
-      const folder: IShellFolder = { base: state.base, pwd: state.pwd, isKnown: state.isKnown };
+      const folder: IShellFolder = {
+        base: state.base,
+        pwd: state.pwd,
+        isKnown: state.isKnown,
+        vars: { ...state.vars },
+      };
 
       started.set(command, folder);
+
+      // A command that is only assignments sets them in its own shell, unless it is a stage of a pipeline.
+      if (
+        command.words.length === 0 &&
+        !piped.has(command) &&
+        command.input?.pipedFrom === undefined
+      ) {
+        for (const assignment of command.assignments) {
+          const at = assignment.indexOf('=');
+          const name = assignment.slice(0, at);
+          const value = assignment.slice(at + 1);
+
+          if (at > 0 && !rebound.has(name) && PLAIN_VALUE.test(value)) {
+            state.vars[name] = value;
+          }
+        }
+      }
       const program = ShellParser.programOf({ command });
       const name = ShellParser.basenameOf({ word: program.name });
 

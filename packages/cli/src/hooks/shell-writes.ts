@@ -10,6 +10,8 @@ export interface IWriteTarget {
   base: string;
   /** What `$PWD` is in `word`: the shell's folder, moved by `cd` but not by `git -C`; undefined when it is not known. */
   pwd?: string;
+  /** The plain variables the same shell set earlier on the line. */
+  vars?: Record<string, string>;
   /** `>&word` with an expansion in it: a file, or a descriptor held in a variable. */
   isAmbiguous?: boolean;
   /** The target of a shell redirect. */
