@@ -198,7 +198,7 @@ const gitTargets = (opts: {
 
 export class ShellWrites {
   /** curl's short options that take a value; every other letter is a switch (`-sL`). */
-  static readonly CURL_VALUED_SHORT = 'AbcCdDeEFHKmoPQrtTuUwxXyYz';
+  private static readonly CURL_VALUED_SHORT = 'AbcCdDeEFHKmoPQrtTuUwxXyYz';
 
   /** What the options of the programs that name a destination take as values, so a value is not read as the destination. */
   private static readonly VALUES: Readonly<Record<string, IOptionValues>> = {
