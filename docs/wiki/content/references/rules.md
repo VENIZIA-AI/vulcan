@@ -92,7 +92,7 @@ Build rules require test-driven workflows, command output verification, zero war
 | `V-B-06` | Saving code never removes validation, error handling, security checks or data safety. | SOFT |
 | `V-B-07` | Say what you skipped or did not check; mark a deliberate shortcut `// SHORTCUT: <what>, <why>, <revisit when>`. | SOFT - build-a-feature step 8 summary, session-start digest |
 | `V-B-08` | Create nothing outside the project: scratch, temporary files, logs, worktrees, clones and subagent output live under the gitignored `.agents/local/` (or the folder `local.tmp` names, inside the project), and you remove each when its lifetime ends (table below); the done report says what was removed or kept. The scratchpad folder an agent tool offers is a system temp directory, so it is not allowed either (`guard-outside` denies a write there). | SOFT |
-| `V-B-09` | Agent scripting uses bun by default (`bun -e`, `bun file.ts`, `Bun.file()`); Python or another language is allowed when the task needs it (an existing project script, a tool only that language has), said in one line. | SOFT - the `guard-scripting` hook reminds, never blocks |
+| `V-B-09` | Agent scripting uses bun by default (`bun -e`, `bun file.ts`, `Bun.file()`); Python or another language is allowed when the task needs it (an existing project script, a tool only that language has), said in one line. | SOFT |
 
 ### Where agent files live, and when they go
 

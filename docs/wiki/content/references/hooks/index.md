@@ -13,7 +13,6 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 | Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Quotes base write rules (`V-W-*`), slot choices, and often-dropped rules to stdout | Fires on session start, resume, clear, or compact |
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
 | `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes, `git branch -D` of an unmerged branch, a blanket stage of more than 50 changed paths, and `gh pr create` with no `--base` | Fires on every Bash command; only those git and gh actions are flagged |
-| `guard-scripting` | `PreToolUse` | `Bash` | Adds one line of advice when a command runs `python`, `python3` or `pip`: agent scripting uses bun by default, another language is fine when the task needs it (`V-B-09`); it never asks and never blocks | Fires on every Bash command; only a command that runs one of those programs gets the line |
 | `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
 | `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
 | `stop` | `Stop` | all | Checks the reply that just ended against the owner's report shape and logs the faults by class and date | Fires when a reply ends; does nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off` |
@@ -127,7 +126,7 @@ It stays silent for a `package.json` that already exists, anything under `node_m
 
 Beyond what is below, a plain `git push` asks for a branch the project lists in `guard.git.askPush` (names, `*` for any run of characters; for example `['develop', 'main', 'release/*']`). It is read from the manifest like the commands of `guard-writes`, found in compound commands too, and applies to `git push origin develop`, `git push origin HEAD:release/1.2` and a bare `git push` from a listed branch. A force-push or a delete of `develop` or `main` is still denied, once, not also asked about. By default nothing is listed and a push that is not forced and deletes nothing passes.
 
-The guards that read a command (`guard-git`, `guard-outside`, `guard-scripting`, `guard-remote-hosts`) look past the wrappers `sudo`, `doas`, `env`, `nice`, `ionice`, `nohup`, `setsid`, `exec`, `command`, `time`, `timeout`, `watch`, `stdbuf` and `xargs`, and past each one's own options with the right meaning for that wrapper: `-n` takes a value for `nice` and `xargs` and is a switch for `sudo`, `-E` is a switch for `sudo` and takes a value for `xargs`, `timeout 5` takes a duration. So `sudo -E git push -f origin main`, `timeout 5 git push -f origin main` and `env -i git push -f origin main` are read as the `git` push they are. `env -S "..."` and `env --split-string=...` (any unique prefix of the long option, as getopt reads it) carry a whole command line in one word. The guards split the value the way `env` does - blanks separate, quotes group, `\_` separates, `\c` ends the string, `;`, `|` and `$(...)` mean nothing - and read `env` followed by those words and the words after the value as one command, so `env`'s own options inside the value apply and `env -S "git push -f origin main"` is denied like the plain command. Only the first `-S` of a command counts, because it holds the rest of the line. `--` ends a wrapper's options.
+The guards that read a command (`guard-git`, `guard-outside`, `guard-remote-hosts`) look past the wrappers `sudo`, `doas`, `env`, `nice`, `ionice`, `nohup`, `setsid`, `exec`, `command`, `time`, `timeout`, `watch`, `stdbuf` and `xargs`, and past each one's own options with the right meaning for that wrapper: `-n` takes a value for `nice` and `xargs` and is a switch for `sudo`, `-E` is a switch for `sudo` and takes a value for `xargs`, `timeout 5` takes a duration. So `sudo -E git push -f origin main`, `timeout 5 git push -f origin main` and `env -i git push -f origin main` are read as the `git` push they are. `env -S "..."` and `env --split-string=...` (any unique prefix of the long option, as getopt reads it) carry a whole command line in one word. The guards split the value the way `env` does - blanks separate, quotes group, `\_` separates, `\c` ends the string, `;`, `|` and `$(...)` mean nothing - and read `env` followed by those words and the words after the value as one command, so `env`'s own options inside the value apply and `env -S "git push -f origin main"` is denied like the plain command. Only the first `-S` of a command counts, because it holds the rest of the line. `--` ends a wrapper's options.
 
 **Quoting the guards read.** Single quotes, double quotes (a backslash escapes only `$`, a backtick, `"`, `\` and a newline), backslashes, ANSI-C quotes `$'...'` (`\n`, `\t`, octal `\nnn`, `\xHH`, `\uHHHH`, `\UHHHHHHHH`, `\cX`; a NUL ends the string) and `$"..."`, so `$'git' push -f origin main` and `env -S $'git push -f origin main'` are read as the commands they are. **What they do not read: a variable.** `$VAR`, `${VAR}` and `${VAR:-git}` are not expanded: a static parser cannot know a variable's value. A command whose program is a variable or a substitution (`$cmd`, `"$@"`, `$(tool) push`, `eval "$(tool env)"`) asks in `guard-git`, `guard-outside`, `guard-writes` and `guard-remote-hosts`; a variable in an argument does not. A variable anywhere in the program word counts (`$k/deploy.yaml`: the shell splits `$k` at its blanks, so its first word is the program), `$HOME/` included, because the same line can set it. The guards are drift guards, not a security boundary (an action of class C still needs the owner's own words, `V-W-06`).
 
@@ -193,16 +192,6 @@ When a guard cannot read a line in full (it is over a limit above), it asks. Whe
 | B-13 | #414 | `watch -n 1 'git push -f origin main'` | `watch` hands its words to a shell |
 
 Three more ways to make a guard fail are closed the same way: about 700,000 substitutions in one word overflowed the stack and crashed the hook, a megabyte through an `env -S` and `eval` chain took seconds and gigabytes, and a line of many `gh pr merge` commands ran one process each. Each now asks.
-
-## guard-scripting
-
-`V-B-09` says agent scripting uses bun by default and allows another language when the task needs it. The `guard-scripting` hook is a reminder, not a gate: when a Bash command runs `python`, `python3` (any `python3.x`), `pip` or `pip3` it adds one line to the model's context and lets the call through:
-
-```text
-V-B-09: agent scripting uses bun by default (bun -e, bun file.ts, Bun.file()). Python or another language is fine when the task needs it (an existing project script, a tool only that language has); say so in one line when you use it.
-```
-
-It reads the command with the shell parser of `guard-git`, so only a program that is run counts: `python3 fix.py`, `cd src && python3 x.py`, `cat a | python3 -c ...`, `sudo python3 x.py` and `sh -c "python3 x.py"` get the line, while `echo python3`, `grep python3 packages`, a commit message that names python and a heredoc body do not. It never asks, never denies, and does not look at what a script does. It sees the program a command runs, past `sudo`, `doas`, `env`, `nice`, `ionice`, `nohup`, `setsid`, `exec`, `command`, `time`, `timeout`, `watch`, `stdbuf` and `xargs`, but not one a program it does not know starts (`uv run python`, `ssh host python3`, `docker run image python3`), and `command -v python3` is a check, not a run. It fails open and honours `VULCAN_GUARDS=off`. The rule `V-B-09` is in the default `digest.oftenDropped` list, so the session digest repeats it.
 
 ## guard-outside
 
@@ -397,7 +386,6 @@ Several kinds of hook run in every session of every project, so each kind has a 
 |---|---|---|
 | Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
 | Deny-class guards | `guard-git`, `guard-outside` | a missing package or `bun` passes, with a note on stderr (a broken install must not stop every call); a hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**. `guard-git` asks only about a command that names `git` or `gh`; `guard-outside` asks about the call |
-| Drift guard | `guard-scripting` | fail open: the call passes and a note goes to stderr |
 | Shape and signal hooks | `stop`, `prompt-submit`, `post-tool` | fail open: the reply, prompt or call passes and a note goes to stderr |
 
 `subagent-start` never blocks. `VULCAN_GUARDS=off` switches the guards, the shape hooks and `post-tool` off and is read before any module loads.
@@ -444,7 +432,6 @@ $ same, with the input {"tool_name":"Bash","tool_input":{"command":"bun install"
 The parse-failure behavior differs per hook.
 On input that is not JSON, or that carries no command, `guard-writes`, `guard-git`, `guard-outside` and `guard-remote-hosts` ask ("the hook input could not be read"), because nothing was checked.
 An input that is not JSON also logs a line to stderr that begins with `[WriteGuard.parseHookCommand] unreadable hook input`.
-`guard-scripting` lets such a call through and exits with code 0: it never asks.
 
 ## Your own hooks
 
@@ -503,7 +490,7 @@ omp and pi take extensions instead of hook commands, so `vulcan sync` writes one
 | `guard-git` or `guard-outside` that crashes or times out | asks, as the Claude wrappers do |
 | `guard-git` or `guard-outside` whose script is missing | the call runs |
 
-`VULCAN_GUARDS=off` is read by the guard scripts, so it switches the guards off here too. `guard-scripting` (advice) and `guard-remote-hosts` are not run on these two agents.
+`VULCAN_GUARDS=off` is read by the guard scripts, so it switches the guards off here too. `guard-remote-hosts` is not run on these two agents.
 
 omp skips files git ignores when it looks for extensions, `.git/info/exclude` included, and `sync` hides its files that way, so the omp file is a hook (`.omp/hooks/pre/`), which loads either way. Pi loads project extensions only after you trust the project.
 

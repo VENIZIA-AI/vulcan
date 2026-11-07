@@ -5,7 +5,6 @@ export * from './guard-git.ts';
 export * from './guard-manifest.ts';
 export * from './guard-outside.ts';
 export * from './guard-package.ts';
-export * from './guard-scripting.ts';
 export * from './guard-writes.ts';
 export * from './trusted-scripts.ts';
 export * from './session-digest.ts';
