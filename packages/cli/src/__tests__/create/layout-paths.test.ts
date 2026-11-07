@@ -468,7 +468,6 @@ describe('vulcan add --lib says why a folder it used was not recorded', () => {
     expect(existsSync(join(root, dir, 'money/package.json'))).toBe(true);
     expect(result.stderr).toContain(`note: '${dir}' is not added to layout.shared`);
     expect(result.stderr).toContain(why);
-    expect(result.stderr).toContain('guard-package does not cover it');
     const layout = await layoutOf({ root });
 
     expect(layout?.shared).toBe('kits');

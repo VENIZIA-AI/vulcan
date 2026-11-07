@@ -23,7 +23,6 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 | `guard-outside` | A file, worktree, clone or temp file created outside the project | Asks (`V-B-08`), or denies when `guard.outside` is `deny`; always denies a write into the scratchpad folder the agent tool offers |
 | `guard-remote-hosts` | A command that reaches a host you have not listed in `remoteHosts` (only registered when that key is set) | Asks |
 | `guard-manifest` | A write to `.agents/vulcan.manifest.json`, which `vulcan sync` generates | Refuses |
-| `guard-package` | A hand-written new `package.json` in a backend, frontend or shared folder, when a `vulcan add` command exists | Refuses, and gives the command |
 
 Around them, `session-start` prints the rules digest into the session and, in Claude Code, exports `TMPDIR` (the project's `.agents/local/tmp`) into every Bash command ([Temporary files](/references/agents#temporary-files)), `subagent-start` gives every subagent a small rules card, and `stop` and `prompt-submit` check the shape of replies ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
 
@@ -43,7 +42,7 @@ A broken install must not stop every command, and a guard must not be switched o
 
 | Kind | Hooks | If it cannot run |
 |---|---|---|
-| Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | Exit 2: the tool call is blocked. A bare `bun install` still passes |
+| Safety hooks | `guard-writes`, `guard-manifest`, `guard-remote-hosts` | Exit 2: the tool call is blocked. A bare `bun install` still passes |
 | Deny-class guards | `guard-git`, `guard-outside` | A missing package or `bun` passes with a note; a hook that started and then crashed or timed out asks |
 | Shape hooks | `stop`, `prompt-submit`, `post-tool` | Fail open: the call passes |
 

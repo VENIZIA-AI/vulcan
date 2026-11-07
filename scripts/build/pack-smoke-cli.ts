@@ -377,12 +377,11 @@ const runHook = (opts: { hook: IHookEntry; sandbox: string; payload: string }) =
 const BLOCKING = new Set([
   'guard-writes',
   'guard-manifest',
-  'guard-package',
   'guard-remote-hosts',
   'guard-git',
   'guard-outside',
 ]);
-const SAFETY = new Set(['guard-writes', 'guard-manifest', 'guard-package', 'guard-remote-hosts']);
+const SAFETY = new Set(['guard-writes', 'guard-manifest', 'guard-remote-hosts']);
 
 /** A path of the installed package moved aside while `run` executes, then put back. */
 const withoutFile = <T>(opts: { path: string; run: () => T }): T => {

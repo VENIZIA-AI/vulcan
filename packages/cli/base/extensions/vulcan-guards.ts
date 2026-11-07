@@ -80,7 +80,6 @@ const GUARDS: IGuard[] = [
     tools: [Tools.BASH, Tools.WRITE, Tools.EDIT],
     onFailure: Failures.BLOCK,
   },
-  { name: 'guard-package', tools: [Tools.WRITE], onFailure: Failures.BLOCK },
   { name: 'guard-git', tools: [Tools.BASH], onFailure: Failures.ASK },
   { name: 'guard-outside', tools: [Tools.BASH, Tools.WRITE, Tools.EDIT], onFailure: Failures.ASK },
 ];

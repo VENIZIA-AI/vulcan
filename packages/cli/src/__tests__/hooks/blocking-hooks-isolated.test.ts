@@ -135,15 +135,6 @@ describe('the blocking hooks do not depend on config, rules, the digest or zod',
     expect(other).toEqual({ code: 0, stdout: '', stderr: '' });
   });
 
-  test('guard-package passes a Write that is not a new package.json', async () => {
-    const result = await run({ hook: 'guard-package', payload: write(join(root, 'a.txt')) });
-    expect(result).toEqual({
-      code: 0,
-      stdout: '',
-      stderr: '',
-    });
-  });
-
   test('guard-git denies a force-push to main and passes a status', async () => {
     const push = await run({ hook: 'guard-git', payload: bash('git push -f origin main') });
     const status = await run({ hook: 'guard-git', payload: bash('git status') });

@@ -20,7 +20,6 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 | `post-tool` | `PostToolUse`, `PostToolUseFailure` | all | Keeps notes about the turn for the Stop check, says when the agent seems stuck, and suggests the evals when a skill or rules file is changed | Fires after every tool call (about 10 ms); speaks only on a loop or a skill or rules edit |
 | `guard-remote-hosts` | `PreToolUse` | `Bash` | Prompts for confirmation before commands reach unlisted network hosts | Fires on Bash commands only when `remoteHosts` is set |
 | `guard-manifest` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Refuses a write to `.agents/vulcan.manifest.json` | Fires on every one of those tool calls; only a write to the manifest is refused |
-| `guard-package` | `PreToolUse` | `Write` | Refuses a new `package.json` in a backend, frontend or shared folder when a `vulcan add` command exists for it | Fires on every `Write`; only the creation of a package file in a layout folder is acted on |
 
 ## Session digest
 
@@ -102,25 +101,6 @@ A program that decompresses (`gunzip`, `xz -d`, `zstd -d`, `bunzip2` ...) is jud
 Reading the file (`cat`, `jq`, `git diff`) and `vulcan sync` itself pass.
 
 This is a guard that matches names, not a sandbox. On Linux a name is compared as written (`VULCAN.MANIFEST.JSON` is another file); on macOS and Windows case is folded. It does not see a command that runs later (`tmux send-keys`, `crontab`, `at`), a decompression into the file when the compressed name does not appear, `less -o`-style logging by a reader it does not know, an editor opened read-only (`vim -R` is refused like any editor), a name built at run time (from the environment, an encoding, a directory listing), a script run from a file (`bun run x.ts`, `python x.py`, `make`, `npm run`), a hard link, a tool or input shape that a host sends without the adapter, or the git commands that rewrite history or switch trees (`reset --hard`, `merge`, `switch -f`, `cherry-pick`, `rebase`, a branch switch; `guard-git` decides those). A line the parser cannot read in full is refused when it mentions `.agents` and holds a write verb. The hook asks `git` at most 8 times per call, with a total budget of 1.5 seconds and 4 seconds for one run, and refuses when the budget is used up.
-
-## guard-package
-
-An agent that needs a new app or library tends to write its `package.json`, `tsconfig.json` and scripts by hand, and gets them subtly different from the framework's. The `guard-package` hook catches the first file of that, a `Write` of a new `package.json` in a folder `layout` names, and points at the command that builds it properly. A side can list several folders (`frontend: ['frontends/apps', 'frontends/guests']`); the hook matches any of them, and the command it prints names the folder (`--frontend-dir frontends/guests`) when the side lists more than one. Folders under `layout.other` are not guarded. The hook reads the manifest through the same folder rule as the config and drops a folder that is not valid (`..`, a leading `/`, `node_modules`, more than 4 segments), so a manifest is never trusted.
-
-It reads only the generated manifest (`layout` and `presets`). A command exists when a recorded preset makes that kind: an app preset of the folder's side for a backend or frontend folder, a preset with a library kind for the shared folder. Then the call is denied with the exact command:
-
-```text
-services/api3 is a new backend app: create it with a preset, not by hand - run bun x --no-install vulcan add --preset ignis --app api3 (ask atlas `presets` for the choice); do not hand-write package.json, tsconfig or scripts
-```
-
-With no preset behind the folder there is no command to offer, so the hook never blocks: it adds a note to the agent's context and lets the call through.
-
-```text
-services/api3 looks like a new backend app but no recorded preset makes a backend app: ask the user how it should be made; do not hand-write package.json, tsconfig or scripts
-```
-
-It stays silent for a `package.json` that already exists, anything under `node_modules`, a file that is not named `package.json`, a path outside every layout folder or deeper than one package, a project with no manifest or `layout`, and every tool but `Write`. An unreadable manifest lets the call through.
-`vulcan add` itself writes through the CLI, not through `Write`, so it is never blocked.
 
 ## guard-git
 
@@ -384,13 +364,13 @@ Several kinds of hook run in every session of every project, so each kind has a 
 
 | Kind | Hooks | When it cannot run (missing package, missing `bun`, a crash) |
 |---|---|---|
-| Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
+| Safety hooks | `guard-writes`, `guard-manifest`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
 | Deny-class guards | `guard-git`, `guard-outside` | a missing package or `bun` passes, with a note on stderr (a broken install must not stop every call); a hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**. `guard-git` asks only about a command that names `git` or `gh`; `guard-outside` asks about the call |
 | Shape and signal hooks | `stop`, `prompt-submit`, `post-tool` | fail open: the reply, prompt or call passes and a note goes to stderr |
 
 `subagent-start` never blocks. `VULCAN_GUARDS=off` switches the guards, the shape hooks and `post-tool` off and is read before any module loads.
 
-**Where the project root comes from.** Claude Code sets `CLAUDE_PROJECT_DIR`, and every wrapper builds its path from `${CLAUDE_PROJECT_DIR:-$PWD}`, so a host that reads `.claude/settings.json` without setting the variable (Cursor and Copilot document that they read it) still finds the install when its hooks run from the project root. A set variable always wins, and a missing install still exits 2 for a safety hook. Without the fallback, an unset variable would point the wrapper at `/node_modules/...`, a missing install, and `guard-writes`, `guard-manifest`, `guard-package`, `session-start`, `subagent-start` and `guard-remote-hosts` would exit 2, which a host that treats a non-zero exit as a refusal would apply to every call.
+**Where the project root comes from.** Claude Code sets `CLAUDE_PROJECT_DIR`, and every wrapper builds its path from `${CLAUDE_PROJECT_DIR:-$PWD}`, so a host that reads `.claude/settings.json` without setting the variable (Cursor and Copilot document that they read it) still finds the install when its hooks run from the project root. A set variable always wins, and a missing install still exits 2 for a safety hook. Without the fallback, an unset variable would point the wrapper at `/node_modules/...`, a missing install, and `guard-writes`, `guard-manifest`, `session-start`, `subagent-start` and `guard-remote-hosts` would exit 2, which a host that treats a non-zero exit as a refusal would apply to every call.
 
 **Why the deny-class guards ask.** A guard that refuses must not be switched off by the same input that breaks it: a line that overflows the stack or runs for minutes can crash `guard-git`, and a wrapper that let the call through would switch the guard off. The wrapper of `guard-git` and `guard-outside` runs the hook under `timeout 30` (where `timeout` exists; macOS has none, and a hook that hangs there is bounded by Claude Code's own limit) and, when the hook ends with a non-zero status, prints an `ask` decision and exits 0. A hook that fails inside its own `try` (an internal error, a module that does not load) asks the same way, with the error in the reason. The cost is noise on a broken install: `guard-git` asks about each `git` or `gh` command and `guard-outside` about each call until you run `bun install` or set `VULCAN_GUARDS=off`. A missing package or `bun` is not that case and still passes, so the first `bun install` of a fresh clone is never blocked.
 
@@ -417,7 +397,7 @@ vulcan: the guard-writes hook failed (...) - blocked; run bun install
 vulcan: the guard-remote-hosts hook failed (...) - blocked
 ```
 
-When `node_modules` or `bun` is missing, or the hook crashes, the Bash safety hooks (`guard-writes`, `guard-manifest`, `guard-remote-hosts`) let `bun install` or `bun i` through; the agent can then repair the install. `guard-package` watches `Write` calls only, so it has no `bun install` to let through.
+When `node_modules` or `bun` is missing, or the hook crashes, the Bash safety hooks (`guard-writes`, `guard-manifest`, `guard-remote-hosts`) let `bun install` or `bun i` through; the agent can then repair the install.
 Both forms accept the usual flags: `--frozen-lockfile`, `--production`, `-p`, `--no-save`, `--ignore-scripts`, `--force`, `--verbose`, or `--silent`.
 
 When `node_modules` is missing, `guard-writes` exits 2 on other commands, while `bun install` exits 0:
@@ -479,14 +459,14 @@ See [remote-host-guard](/references/hooks/remote-host-guard) for host pattern sy
 
 ## The guards on omp and pi
 
-omp and pi take extensions instead of hook commands, so `vulcan sync` writes one file for each of the two you choose (`.omp/hooks/pre/vulcan-guards.ts`, `.pi/extensions/vulcan-guards.ts`; the content is `base/extensions/vulcan-guards.ts`, and its first line is how `sync` knows the file is its own). Before each `bash`, `write` and `edit` call the file runs the guard scripts of the Claude settings (`guard-writes`, `guard-manifest`, `guard-package`, `guard-git`, `guard-outside`; each for the tools its `matcher` names) with a Claude-shaped event on stdin and reads the `permissionDecision` of the answer:
+omp and pi take extensions instead of hook commands, so `vulcan sync` writes one file for each of the two you choose (`.omp/hooks/pre/vulcan-guards.ts`, `.pi/extensions/vulcan-guards.ts`; the content is `base/extensions/vulcan-guards.ts`, and its first line is how `sync` knows the file is its own). Before each `bash`, `write` and `edit` call the file runs the guard scripts of the Claude settings (`guard-writes`, `guard-manifest`, `guard-git`, `guard-outside`; each for the tools its `matcher` names) with a Claude-shaped event on stdin and reads the `permissionDecision` of the answer:
 
 | Answer | omp or pi |
 |---|---|
 | `deny` | the call is blocked with the guard's reason |
 | `ask` | the owner is asked; with no UI (a print-mode run) the call is blocked and says to hand it to the owner |
 | no output | the call runs |
-| a safety guard (`guard-writes`, `guard-manifest`, `guard-package`) that crashes, times out (30 s) or whose script is missing | blocked, bar a bare `bun install` when the install is missing |
+| a safety guard (`guard-writes`, `guard-manifest`) that crashes, times out (30 s) or whose script is missing | blocked, bar a bare `bun install` when the install is missing |
 | `guard-git` or `guard-outside` that crashes or times out | asks, as the Claude wrappers do |
 | `guard-git` or `guard-outside` whose script is missing | the call runs |
 

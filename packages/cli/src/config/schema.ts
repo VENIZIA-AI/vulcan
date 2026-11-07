@@ -93,7 +93,7 @@ const REMOVED_OKF_KEY = (opts: { fix: string }) =>
     })
     .optional();
 
-/** A layout folder: 1 to 4 plain segments, never climbing, never absolute (the validator `guard-package` shares). */
+/** A layout folder: 1 to 4 plain segments, never climbing, never absolute. */
 const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
   const problem = LayoutFolder.layoutFolderProblem({ folder: value });
 
