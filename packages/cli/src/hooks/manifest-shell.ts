@@ -220,6 +220,8 @@ export class ManifestShell {
     'builtin',
     'command',
   ]);
+  /** A line that names `IFS`, or defines a function (`f() ...`, `function f ...`). */
+  static readonly REBINDS = /\bIFS\b|(?:^|[\s;&|(){}])(?:function\s+[\w:.-]+|[\w:.-]+\s*\(\s*\))/;
   /** Programs that read a file into the shell. */
   static readonly READ_BACK = new Set(['read', 'mapfile', 'readarray', 'source', '.']);
   /** Programs that hand a variable to the commands it starts. */
@@ -303,8 +305,16 @@ export class ManifestShell {
 
     const calls = commands.map((command) => ManifestShell.callOf({ command }));
 
-    // A link made on the line can turn a closed path into another one.
-    if (calls.some((call) => call.program === 'ln')) {
+    // A link made on the line can turn a closed path into another one. So can a line that splits words on
+    // another character (`IFS`), sets a variable by `printf -v`, or defines a function, whose parameters
+    // take a closed path and put it into another word.
+    if (
+      calls.some(
+        (call) =>
+          call.program === 'ln' || (call.program === 'printf' && call.args[0]?.startsWith('-v')),
+      ) ||
+      ManifestShell.REBINDS.test(line)
+    ) {
       return 0;
     }
 
