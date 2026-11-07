@@ -105,7 +105,7 @@ export class SpecDiagrams {
     return {
       svg: `<svg width="${width}" viewBox="0 0 ${width} ${diagram.layers.length * 62 + 12}" role="group" aria-label="layers">${parts}</svg>`,
       width,
-      fallback: `<ul class="path">${diagram.layers.map((layer) => `<li><b>${escaped(layer.label)}:</b> ${layer.items.map(escaped).join(', ')}</li>`).join('')}</ul>`,
+      fallback: `<ul class="path">${diagram.layers.map((layer) => `<li><b>${escaped(layer.label)}:</b> <span>${layer.items.map(escaped).join(', ')}</span></li>`).join('')}</ul>`,
     };
   }
 
