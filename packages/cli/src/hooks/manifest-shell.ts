@@ -1,4 +1,4 @@
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { GitRewrite, PatchInput } from './manifest-git.ts';
 import { ManifestPath, PathPattern, PathRef } from './manifest-path.ts';
 import type { TPathRef } from './manifest-path.ts';
@@ -26,6 +26,8 @@ interface ILine {
   cwd: string | undefined;
   depth: number;
   isAbout: boolean;
+  /** The folder the line starts in: a `cd` into an `.agents` folder from outside it makes the rest of the line about it. */
+  startDir: string;
   /** How many commands of the line moved the stash stack so far. */
   stashMoves: number;
 }
@@ -187,6 +189,8 @@ export class ManifestShell {
   static readonly SED_COMMAND = /(?:^|[\s;{}!0-9$/])[weW](?:\s|$)/;
   static readonly SED_FLAG = /\/[gpiImMx0-9]*[we][gpiImMx0-9]*(?:\s|;|$)/;
   static readonly SHELL_FEEDERS = new Set(['echo', 'printf']);
+  /** `for NAME in WORDS` and `select NAME in WORDS` only walk their list; the body reads what it does with each word. */
+  static readonly LOOP_HEADERS = new Set(['for', 'select']);
   static readonly FIND_ACTIONS = new Set([
     '-delete',
     '-exec',
@@ -204,6 +208,20 @@ export class ManifestShell {
   static readonly TAR_WRITES = new Set(['r', 'u']);
 
   private static view: IView = { previous: undefined, dotglob: false, globstar: false };
+
+  /** Whether a line that starts in `from` is now in `to`, and `to` is inside a folder of a manifest it could mean that `from` is not in. */
+  private static entersFolder(opts: { from: string; to: string }): boolean {
+    if (opts.from === opts.to) {
+      return false;
+    }
+
+    const isInside = (inner: string, folder: string): boolean =>
+      inner === folder || inner.startsWith(`${folder}/`);
+
+    return ManifestPath.candidatesOf({ dir: opts.to })
+      .map((manifest) => dirname(manifest))
+      .some((folder) => isInside(opts.to, folder) && !isInside(opts.from, folder));
+  }
 
   /** What a word names, read with the folder before and the glob options of the line. */
   private static classify(opts: {
@@ -1035,7 +1053,10 @@ export class ManifestShell {
     const call = ManifestShell.callOf({ command });
     const { program, args } = call;
     const dir = call.chdir === undefined ? opts.dir : resolve(opts.dir, call.chdir);
-    const isAbout = context.isAbout || basename(dir) === ManifestPath.FOLDER;
+    const isAbout =
+      context.isAbout ||
+      basename(dir) === ManifestPath.FOLDER ||
+      ManifestShell.entersFolder({ from: context.startDir, to: dir });
 
     if (
       call.nested.some((nested) =>
@@ -1059,6 +1080,10 @@ export class ManifestShell {
       )
     ) {
       return true;
+    }
+
+    if (ManifestShell.LOOP_HEADERS.has(program)) {
+      return false;
     }
 
     if (program === 'git') {
@@ -1356,6 +1381,7 @@ export class ManifestShell {
       cwd: opts.cwd,
       depth: opts.depth,
       isAbout: InlineScript.mentionsFolder({ text: line }),
+      startDir: opts.dir,
       stashMoves: 0,
     };
     const globs = ManifestShell.globsOf({ line });

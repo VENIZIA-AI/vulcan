@@ -688,6 +688,57 @@ rows.push(
   ['A-read', 'deny', 'xxd in.hex .agents/vulcan.manifest.json'],
   ['A-read', 'deny', 'sort -o .agents/vulcan.manifest.json other.json'],
   ['A-read', 'deny', 'uniq other.json .agents/vulcan.manifest.json'],
+  // A plain path below an `agents` folder is not a mention of the manifest: an expansion next to it is not suspect (#857).
+  [
+    'B-expansion',
+    'allow',
+    'for i in $(seq 1 40); do sleep 1; done; tail -3 .agents/local/tmp/gates.log',
+  ],
+  [
+    'B-expansion',
+    'allow',
+    'for i in $(seq 1 40); do if grep -q "x" .agents/local/tmp/gates.log 2>/dev/null; then break; fi; sleep 12; done; tail -3 .agents/local/tmp/gates.log',
+  ],
+  [
+    'B-expansion',
+    'allow',
+    'cd .agents/local/etalon; start=$(ls block*.txt | wc -l); for i in $(seq 1 60); do n=$(ls block*.txt | wc -l); [ "$n" -gt "$start" ] && { echo "new block: $(ls -t block*.txt | head -1)"; exit 0; }; sleep 60; done; echo "no new block after 60 min"',
+  ],
+  ['B-expansion', 'allow', 'F=scripts/agents/etalon/scan-await-new.ts; bun $F out.txt'],
+  [
+    'B-expansion',
+    'allow',
+    `F=scripts/agents/etalon/scan-await-new.ts; printf '%s\\n' $F > .agents/local/tmp/etalon-rerun/own2.txt; echo "-- scan-added:"; bash scripts/agents/etalon/scan-added.sh .agents/local/tmp/etalon-rerun/own2.txt 2>&1 | cut -c1-150; bun $F .agents/local/tmp/etalon-rerun/own4.txt`,
+  ],
+  ['B-expansion', 'allow', 'cp .agents/rules.md $BACKUP'],
+  ['B-expansion', 'allow', 'for f in $(ls); do cat $f; done; ls .agents/local/tmp/'],
+  ['B-expansion', 'allow', 'for i in $(seq 1 3); do cat .agents/vulcan.manifest.json; done'],
+  ['B-expansion', 'allow', 'for i in 1 2 3; do jq .v .agents/vulcan.manifest.json | head -1; done'],
+  ['B-expansion', 'allow', 'for i in $(ls .agents); do echo $i; done'],
+  [
+    'B-expansion',
+    'allow',
+    'U="a b c"; for n in ${=U}; do [ -s .agents/plans/final/pending/$n.hashes ] || echo "NOT RECORDED $n"; done; bash scripts/agents/etalon/make-block.sh .agents/local/etalon/block49.txt ${=U} 2>&1 | tail -2; ALLOW_BEHIND=1 ALLOW_ADVANCED=1 bash .agents/plans/final/guard.sh ${=U} 2>&1 | tail -3 | cut -c1-250; git diff --cached --name-only | wc -l',
+  ],
+  [
+    'B-expansion',
+    'allow',
+    `export T14_HOST=user@host; ssh -o BatchMode=yes $T14_HOST 'for p in $(ps -eo pid,args | grep "g261" | grep -v grep | awk "{print \\$1}"); do kill $p 2>/dev/null; done; sleep 3; ls ~/gate | tr "\\n" " "'; echo; ls .agents/plans/final/pending | sed 's/\\..*//' | sort -u | tr '\\n' ' '; for g in g258 g260; do bash scripts/agents/etalon/collect-gate.sh $g 2>&1 | tail -2 | head -1 | cut -c1-110; done`,
+  ],
+  // The same lines still refuse where the expansion can reach the manifest.
+  ['A-expansion', 'deny', 'f=.agents/vulcan.manifest.json; cp x $f'],
+  ['A-expansion', 'deny', 'a=vulcan; b=.manifest.json; cp x .agents/$a$b'],
+  ['A-expansion', 'deny', "cp x $(printf '%s/%s' .agents vulcan.manifest.json)"],
+  ['A-expansion', 'deny', 'cp x .agents/$F'],
+  ['A-expansion', 'deny', 'a=.agents; b=vulcan.manifest.json; cp x $a/$b'],
+  ['A-expansion', 'deny', 'cp x .agents/local/../$F'],
+  ['A-expansion', 'deny', 'cd .agents/local && sed -i s/2/9/ ../$F'],
+  ['A-expansion', 'deny', 'F=vulcan.manifest.json; cd .agents/local; sed -i s/2/9/ ../$F'],
+  ['A-expansion', 'deny', 'for f in .agents/vulcan.manifest.json; do sed -i s/2/9/ $f; done'],
+  ['A-expansion', 'deny', 'for f in .agents/*; do rm $f; done'],
+  ['A-expansion', 'deny', 'for f in .agents; do cp x $f/vulcan.manifest.json; done'],
+  ['A-expansion', 'deny', 'cat .agents/vulcan.manifest.json > /dev/null; cp x $F'],
+  ['A-expansion', 'deny', 'ls .agents/local/tmp/; cd .agents; cp x $F'],
 );
 
 export const TABLE_CASES: ITableCase[] = rows.map(([area, exp, cmd, opts]) => ({

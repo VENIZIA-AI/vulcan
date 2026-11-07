@@ -26,6 +26,12 @@ export class InlineScript {
   /** The pieces of the name that stay when a script joins it from parts, as letters and digits only. */
   static readonly NAME_PARTS = ['vulcanm', 'manif', 'nifest', 'festjson'];
   static readonly AGENTS = 'agents';
+  /** A character of a plain path component. */
+  static readonly PLAIN_CHAR = /[\w.@%+,:~-]/;
+  /** A variable on its own, `$name` or `${name}`, read at `lastIndex`. */
+  static readonly SIMPLE_VARIABLE = /\$(?:[A-Za-z_]\w*|\{[A-Za-z_]\w*\})/y;
+  /** What, right after a path, could make it longer or another path: an expansion, a glob, a brace, an escape, a slash. */
+  static readonly EXTENDS_PATH = /[$`*?[{(\\/]/;
   static readonly MAX_CALLS = 1000;
   static readonly MAX_CALL_CHARS = 2048;
   static readonly MAX_DEPTH = 3;
@@ -220,9 +226,134 @@ export class InlineScript {
     return InlineScript.NAME_PARTS.some((part) => opts.letters.includes(part));
   }
 
-  /** Whether the text, as letters, mentions `.agents`. */
+  /**
+   * Whether the text, as letters, mentions `.agents`. A plain literal path below a folder named `agents`
+   * (`.agents/local/tmp/run.log`, `scripts/agents/tool.ts`) is not a mention: it is neither the folder nor
+   * the manifest, and says nothing about what an expansion elsewhere on the line could be.
+   */
   static mentionsFolder(opts: { text: string }): boolean {
-    return InlineScript.toLetters({ text: opts.text }).includes(InlineScript.AGENTS);
+    return InlineScript.toLetters({ text: InlineScript.withoutClosedPaths(opts) }).includes(
+      InlineScript.AGENTS,
+    );
+  }
+
+  /**
+   * The text with every closed path below an `agents` folder blanked out. A path is closed when each
+   * component after `agents/` is a plain name (no `.`, `..`, expansion, glob, brace or escape) and nothing
+   * that could extend it follows; one that holds a piece of the manifest's name stays. One pass, so a long
+   * run of `agents/agents/...` costs no more than its length.
+   */
+  static withoutClosedPaths(opts: { text: string }): string {
+    const { text } = opts;
+    const lower = text.toLowerCase();
+    const marker = `${InlineScript.AGENTS}/`;
+
+    // A few characters change length in lower case; the offsets would no longer line up.
+    if (lower.length !== text.length) {
+      return text;
+    }
+
+    let result = '';
+    let copied = 0;
+    let at = lower.indexOf(marker);
+
+    while (at !== -1) {
+      const start = at + marker.length;
+      const end = InlineScript.closedPathEnd({ text, start });
+
+      if (end.kind === 'closed') {
+        const letters = InlineScript.toLetters({ text: lower.slice(at, end.at) });
+
+        if (!InlineScript.hasNamePart({ letters })) {
+          result += `${text.slice(copied, at)} `;
+          copied = end.at;
+        }
+      }
+
+      // A path that ends at a character that could extend it fails from every start inside it too.
+      at = lower.indexOf(marker, Math.max(end.at, start));
+    }
+
+    return result + text.slice(copied);
+  }
+
+  /**
+   * Where the components that begin at `start` stop, and whether the path they make is closed: plain
+   * directories, then a last name that may hold a simple variable or a glob (`.agents/plans/$n.hashes`,
+   * `.agents/plans/*.json`) but only below a directory, since one expansion or glob never crosses a slash and
+   * so cannot reach the file that sits in `.agents` itself.
+   */
+  private static closedPathEnd(opts: { text: string; start: number }): {
+    kind: 'closed' | 'open';
+    at: number;
+  } {
+    const { text } = opts;
+    let index = opts.start;
+    let depth = 0;
+
+    for (;;) {
+      const from = index;
+
+      while (index < text.length && InlineScript.PLAIN_CHAR.test(text.charAt(index))) {
+        index += 1;
+      }
+
+      const component = text.slice(from, index);
+
+      if (component === '.' || component === '..') {
+        return { kind: 'open', at: index };
+      }
+
+      if (text.charAt(index) !== '/') {
+        break;
+      }
+
+      if (component === '') {
+        return { kind: 'open', at: index };
+      }
+
+      depth += 1;
+      index += 1;
+    }
+
+    // The last name: plain characters, and below a directory also `$name`, `${name}`, `*` and `?`.
+    for (;;) {
+      const char = text.charAt(index);
+
+      if (InlineScript.PLAIN_CHAR.test(char)) {
+        index += 1;
+        continue;
+      }
+
+      let length = char === '*' || char === '?' ? 1 : 0;
+
+      if (char === '$') {
+        InlineScript.SIMPLE_VARIABLE.lastIndex = index;
+        length = InlineScript.SIMPLE_VARIABLE.exec(text)?.[0].length ?? 0;
+      }
+
+      if (length === 0) {
+        break;
+      }
+
+      if (depth === 0) {
+        return { kind: 'open', at: index };
+      }
+
+      index += length;
+    }
+
+    // `agents/` with nothing after it is the folder itself.
+    if (depth === 0 && index === opts.start) {
+      return { kind: 'open', at: index };
+    }
+
+    const next = text.charAt(index);
+
+    return {
+      kind: next === '' || !InlineScript.EXTENDS_PATH.test(next) ? 'closed' : 'open',
+      at: index,
+    };
   }
 
   /**
