@@ -32,7 +32,12 @@ try {
         trust: { root, scripts: policy.trustedScripts, readOnlyScripts: policy.readOnlyScripts },
         extra: policy.commands,
       })
-    : [];
+    : [
+        {
+          rule: 'V-W-02',
+          message: 'the hook input could not be read, so the command was not checked',
+        },
+      ];
 
   if (hits.length > 0) {
     console.log(JSON.stringify(WriteGuard.buildDecision({ hits })));

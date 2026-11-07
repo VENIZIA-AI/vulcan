@@ -1,3 +1,5 @@
+import type { TConstValue } from '../common/types.ts';
+
 /** One simple command of a shell line: its words, the files it redirects into, its leading `NAME=value` words. */
 export interface ISimpleCommand {
   words: string[];
@@ -5,7 +7,54 @@ export interface ISimpleCommand {
   assignments: string[];
   /** The body of the heredoc this command reads, when it is not read as commands itself (data, or a query or script for another program). */
   heredoc?: string;
+  /** What the line feeds the command's standard input; absent when the line feeds it nothing. */
+  input?: ICommandInput;
+  /**
+   * Where the command runs, when not at the top of the line: `/N` is the subshell `( ... )` numbered N and
+   * `>N` the command line numbered N that a word carries (`$(...)`, `sh -c`), each segment inside the one before.
+   */
+  scope?: string;
+  /** The command whose word carries this command's line (`$(...)`, `sh -c`): the line starts in its folder. */
+  carrier?: ISimpleCommand;
 }
+
+/** The standard input of a simple command, as far as the line shows it. */
+export interface ICommandInput {
+  /** The files a `<` reads. */
+  files: string[];
+  /** The command whose output a `|` feeds in. */
+  pipedFrom?: ISimpleCommand;
+  /** The text of each here-string (`<<< text`). */
+  texts: string[];
+  /** A heredoc feeds it: its body is on `heredoc`, or read as commands of the line when a shell reads it. */
+  hasHeredoc: boolean;
+}
+
+/** How a shell runs: the text of `-c`, a script file, its standard input, or nothing (`-n` only checks the syntax). */
+export class ShellModes {
+  static readonly COMMAND = 'command';
+  static readonly FILE = 'file';
+  static readonly STDIN = 'stdin';
+  static readonly CHECK = 'check';
+}
+
+export type TShellMode = TConstValue<typeof ShellModes>;
+
+/** A shell call read past its own options: how it runs, and its first word that is not an option. */
+export interface IShellCall {
+  mode: TShellMode;
+  /** The `-c` text, the script, or the first argument after `-s`; `undefined` when there is none. */
+  word: string | undefined;
+}
+
+/** The long options of a shell that take the next word as their value; every other long option is a switch. */
+const SHELL_LONG_VALUES = new Set(['--rcfile', '--init-file']);
+
+const inputOf = (opts: { command: ISimpleCommand }): ICommandInput => {
+  opts.command.input ??= { files: [], texts: [], hasHeredoc: false };
+
+  return opts.command.input;
+};
 
 interface IWordRead {
   value: string;
@@ -124,10 +173,13 @@ export class ShellPrograms {
   /** Every wrapper whose options the parser knows, `command` and `sshpass` included; a reader drops what it handles apart. */
   static readonly WRAPPER_NAMES: readonly string[] = Object.keys(WRAPPER_OPTIONS);
   /** The shells whose heredoc body is read as commands; `remote-hosts.ts` adds the ones it only follows. */
-  static readonly SHELL_NAMES: readonly string[] = ['bash', 'sh', 'zsh', 'dash'];
+  static readonly SHELL_NAMES: readonly string[] = ['bash', 'sh', 'zsh', 'dash', 'ksh'];
 }
 
 const SHELLS = new Set(ShellPrograms.SHELL_NAMES);
+
+/** The mark of an open `case` among the groups the parser tracks: its `)` closes a pattern. */
+const CASE_GROUP = 'case';
 
 const MAX_DEPTH = 4;
 
@@ -409,6 +461,11 @@ const ENV_ESCAPES: Record<string, string> = {
   "'": "'",
 };
 
+/** Whether an unquoted `#` at `index` starts a comment: it opens a word, so `a#b`, `$#` and `${#x}` do not. */
+const isCommentAt = (opts: { text: string; index: number }): boolean =>
+  opts.text[opts.index] === '#' &&
+  (opts.index === 0 || /[\s;|&()]/.test(opts.text[opts.index - 1] ?? ''));
+
 /**
  * The delimiter of a heredoc started on `line`: a `<<WORD` outside quotes. `<<<` is a here-string, and a `<<`
  * inside quotes is text.
@@ -440,6 +497,11 @@ const heredocOf = (opts: {
       continue;
     }
 
+    // A comment runs to the end of the line: a `<<` in it starts nothing.
+    if (isCommentAt({ text: line, index })) {
+      return undefined;
+    }
+
     if (char === '<' && line[index + 1] === '<') {
       if (line[index + 2] === '<') {
         index += 2;
@@ -457,13 +519,6 @@ const heredocOf = (opts: {
   }
 
   return undefined;
-};
-
-/** Appends every item; a spread into `push` overflows the stack at a few hundred thousand items. */
-const pushAll = (opts: { target: string[]; items: string[] }): void => {
-  for (const item of opts.items) {
-    opts.target.push(item);
-  }
 };
 
 /** What the parser reads of one command line at most: a guard that reads more would be slow, and a slow guard is skipped. */
@@ -536,13 +591,10 @@ export class ShellParser {
     const scripts: string[] = [];
 
     if (SHELLS.has(name)) {
-      const flag = command.words.findIndex(
-        (word, position) => position > program.index && /^-[a-zA-Z]*c$/.test(word),
-      );
-      const script = flag === -1 ? undefined : command.words[flag + 1];
+      const call = ShellParser.shellCallOf({ args: program.args });
 
-      if (script !== undefined) {
-        scripts.push(script);
+      if (call.mode === ShellModes.COMMAND && call.word !== undefined) {
+        scripts.push(call.word);
       }
     }
 
@@ -581,8 +633,11 @@ export class ShellParser {
     command: string;
     depth: number;
     budget: IBudget;
+    scope?: string;
+    carrier?: ISimpleCommand;
   }): ISimpleCommand[] {
     const { depth, budget } = opts;
+    const base = opts.scope ?? '';
 
     // The characters of every text read count together, nested texts too: a line over the cap is not read.
     budget.chars += opts.command.length;
@@ -597,20 +652,50 @@ export class ShellParser {
     const { text } = heredocSplit;
     let heredocIndex = 0;
     const commands: ISimpleCommand[] = [];
-    const nestedTexts: string[] = [];
+    const nestedTexts: { text: string; scope: string; carrier: ISimpleCommand }[] = [];
     let current: ISimpleCommand = { words: [], redirects: [], assignments: [] };
     let index = 0;
+    // The command before a `|`: it feeds the next one.
+    let pipeSource: ISimpleCommand | undefined;
+    // The open subshells, and a `case` marker while its `)` patterns are read.
+    const groups: string[] = [];
+    const scopeOf = (): string =>
+      `${base}${groups.filter((group) => group !== CASE_GROUP).join('')}`;
+    const nest = (nested: { texts: string[] }): void => {
+      for (const nestedText of nested.texts) {
+        nestedTexts.push({ text: nestedText, scope: scopeOf(), carrier: current });
+      }
+    };
 
-    const finish = (): void => {
-      if (
-        current.words.length > 0 ||
-        current.redirects.length > 0 ||
-        current.assignments.length > 0
-      ) {
-        commands.push(current);
+    const finish = (): ISimpleCommand | undefined => {
+      const finished = current;
+      const isEmpty =
+        finished.words.length === 0 &&
+        finished.redirects.length === 0 &&
+        finished.assignments.length === 0;
+
+      if (!isEmpty) {
+        if (pipeSource !== undefined) {
+          inputOf({ command: finished }).pipedFrom = pipeSource;
+        }
+
+        const scope = scopeOf();
+
+        if (scope !== '') {
+          finished.scope = scope;
+        }
+
+        if (opts.carrier !== undefined) {
+          finished.carrier = opts.carrier;
+        }
+
+        commands.push(finished);
       }
 
+      pipeSource = undefined;
       current = { words: [], redirects: [], assignments: [] };
+
+      return isEmpty ? undefined : finished;
     };
 
     while (index < text.length) {
@@ -627,8 +712,45 @@ export class ShellParser {
         continue;
       }
 
-      if (char === ';' || char === '\n' || char === '|' || char === '(' || char === ')') {
+      if (isCommentAt({ text, index })) {
+        const end = text.indexOf('\n', index);
+
+        index = end === -1 ? text.length : end;
+        continue;
+      }
+
+      // `||` runs the next command after this one; `|` and `|&` feed this one's output into it.
+      if (char === '|') {
+        if (text[index + 1] === '|') {
+          finish();
+          index += 2;
+          continue;
+        }
+
+        const source = finish();
+
+        pipeSource = source;
+        index += text[index + 1] === '&' ? 2 : 1;
+        continue;
+      }
+
+      if (char === ';' || char === '\n') {
         finish();
+        index += 1;
+        continue;
+      }
+
+      // A `(` opens a subshell; a `)` closes it, unless it ends a pattern of an open `case`.
+      if (char === '(' || char === ')') {
+        finish();
+
+        if (char === '(') {
+          budget.scopes += 1;
+          groups.push(`/${budget.scopes}`);
+        } else if (groups.length > 0 && groups.at(-1) !== CASE_GROUP) {
+          groups.pop();
+        }
+
         index += 1;
         continue;
       }
@@ -662,20 +784,36 @@ export class ShellParser {
           current.redirects.push(target.value);
         }
 
-        pushAll({ target: nestedTexts, items: target.nested });
+        nest({ texts: target.nested });
         index = Math.max(target.next, cursor + 1);
         continue;
       }
 
       if (char === '<') {
-        const operator =
-          text[index + 2] === '<' ? null : /^<<-?\s*["']?[A-Za-z_]\w*["']?/.exec(text.slice(index));
+        // `<<< text`: a here-string, its text fed to the command.
+        if (text[index + 1] === '<' && text[index + 2] === '<') {
+          let cursor = index + 3;
+
+          while (text[cursor] === ' ' || text[cursor] === '\t') {
+            cursor += 1;
+          }
+
+          const value = readWord({ text, from: cursor });
+
+          inputOf({ command: current }).texts.push(value.value);
+          nest({ texts: value.nested });
+          index = Math.max(value.next, cursor);
+          continue;
+        }
+
+        const operator = /^<<-?\s*["']?[A-Za-z_]\w*["']?/.exec(text.slice(index));
 
         if (operator !== null) {
           // The delimiter is part of the operator, not a word; the body goes to the command that reads it.
           const heredoc = heredocSplit.heredocs[heredocIndex];
 
           heredocIndex += 1;
+          inputOf({ command: current }).hasHeredoc = true;
 
           if (heredoc !== undefined && !heredoc.isInline) {
             current.heredoc = heredoc.body;
@@ -685,7 +823,52 @@ export class ShellParser {
           continue;
         }
 
-        index += 1;
+        // `<(...)`: a process substitution is a word (a path the command reads), its text commands of their own.
+        if (text[index + 1] === '(') {
+          const end = closingOf({ text, from: index + 2, open: '(', close: ')' });
+
+          nest({ texts: [text.slice(index + 2, end)] });
+          current.words.push(text.slice(index, end + 1));
+          index = end + 1;
+          continue;
+        }
+
+        let cursor = index + 1;
+
+        // `<&3` and `<&-` duplicate or close a descriptor and name no file.
+        if (text[cursor] === '&') {
+          index = cursor + 2;
+          continue;
+        }
+
+        // `<>` opens the file for reading and writing: it is a write target too.
+        const isReadWrite = text[cursor] === '>';
+
+        if (isReadWrite) {
+          cursor += 1;
+        }
+
+        while (text[cursor] === ' ' || text[cursor] === '\t') {
+          cursor += 1;
+        }
+
+        // The file stays a word of the command too, where the guards that read words have always found it.
+        const source = readWord({ text, from: cursor });
+
+        if (source.value !== '') {
+          inputOf({ command: current }).files.push(source.value);
+
+          if (isReadWrite) {
+            current.redirects.push(source.value);
+          }
+
+          if (current.words.length > 0) {
+            current.words.push(source.value);
+          }
+        }
+
+        nest({ texts: source.nested });
+        index = Math.max(source.next, index + 1);
         continue;
       }
 
@@ -697,9 +880,18 @@ export class ShellParser {
         continue;
       }
 
-      pushAll({ target: nestedTexts, items: word.nested });
+      nest({ texts: word.nested });
 
-      if (current.words.length === 0 && isAssignment({ word: word.value })) {
+      const isFirst = current.words.length === 0;
+
+      // In `case x in a) ...;; esac` each `)` ends a pattern, not a subshell.
+      if (isFirst && word.value === 'case') {
+        groups.push(CASE_GROUP);
+      } else if (isFirst && word.value === 'esac' && groups.includes(CASE_GROUP)) {
+        groups.splice(groups.lastIndexOf(CASE_GROUP));
+      }
+
+      if (isFirst && isAssignment({ word: word.value })) {
         current.assignments.push(word.value);
       } else {
         current.words.push(word.value);
@@ -739,6 +931,10 @@ export class ShellParser {
         for (const words of program.splitCommands) {
           const split: ISimpleCommand = { words, redirects: [], assignments: [] };
 
+          if (command.scope !== undefined) {
+            split.scope = command.scope;
+          }
+
           budget.commands += 1;
           budget.words += words.length;
 
@@ -755,15 +951,25 @@ export class ShellParser {
         budget.isOver = true;
       }
 
-      pushAll({ target: nestedTexts, items: ShellParser.nestedScripts({ command, program }) });
+      for (const script of ShellParser.nestedScripts({ command, program })) {
+        nestedTexts.push({ text: script, scope: command.scope ?? base, carrier: command });
+      }
     }
 
     return [
       ...commands,
       ...synthesized,
-      ...nestedTexts.flatMap((nested) =>
-        ShellParser.parseWithBudget({ command: nested, depth: depth + 1, budget }),
-      ),
+      ...nestedTexts.flatMap((nested) => {
+        budget.scopes += 1;
+
+        return ShellParser.parseWithBudget({
+          command: nested.text,
+          depth: depth + 1,
+          budget,
+          scope: `${nested.scope}>${budget.scopes}`,
+          carrier: nested.carrier,
+        });
+      }),
     ];
   }
 
@@ -814,6 +1020,64 @@ export class ShellParser {
     }
 
     return false;
+  }
+
+  /**
+   * How a shell (`bash`, `sh`, `zsh`, `dash`, `ksh`) runs, from the words after its name. Only `-o`, `-O` (in a
+   * cluster too, `-euo pipefail`), `--rcfile` and `--init-file` take the next word; every other option is a
+   * switch. `-` and `--` end the options. `-c` runs its first word as text, `-n` runs nothing, and `-s`, or no
+   * word at all, reads the commands from standard input.
+   */
+  static shellCallOf(opts: { args: string[] }): IShellCall {
+    let isCommand = false;
+    let isCheck = false;
+    let isStdin = false;
+    let word: string | undefined;
+
+    for (let index = 0; index < opts.args.length; index += 1) {
+      const arg = opts.args[index] ?? '';
+
+      if (arg === '-' || arg === '--') {
+        word = opts.args[index + 1];
+        break;
+      }
+
+      if (arg.startsWith('--')) {
+        index += SHELL_LONG_VALUES.has(arg) ? 1 : 0;
+        continue;
+      }
+
+      if (/^[-+][A-Za-z]+$/.test(arg)) {
+        const letters = arg.slice(1);
+
+        // `+c`, `+s` and `+n` turn an option off; they do not set the mode.
+        if (arg.startsWith('-')) {
+          isCommand ||= letters.includes('c');
+          isStdin ||= letters.includes('s');
+          isCheck ||= letters.includes('n');
+        }
+
+        index += [...letters].filter((letter) => letter === 'o' || letter === 'O').length;
+        continue;
+      }
+
+      word = arg;
+      break;
+    }
+
+    if (isCommand) {
+      return { mode: ShellModes.COMMAND, word };
+    }
+
+    if (isCheck) {
+      return { mode: ShellModes.CHECK, word };
+    }
+
+    if (isStdin || word === undefined) {
+      return { mode: ShellModes.STDIN, word };
+    }
+
+    return { mode: ShellModes.FILE, word };
   }
 
   static basenameOf(opts: { word: string }): string {
@@ -1040,7 +1304,7 @@ export class ShellParser {
   }
 
   static parseChecked(opts: { command: string }): IParsedShell {
-    const budget: IBudget = { commands: 0, words: 0, chars: 0, isOver: false };
+    const budget: IBudget = { commands: 0, words: 0, chars: 0, scopes: 0, isOver: false };
     const commands = ShellParser.parseGuarded({ command: opts.command, depth: 0, budget });
 
     return { commands, isOverBudget: budget.isOver };
@@ -1050,7 +1314,7 @@ export class ShellParser {
     return ShellParser.parseGuarded({
       command: opts.command,
       depth: opts.depth ?? 0,
-      budget: { commands: 0, words: 0, chars: 0, isOver: false },
+      budget: { commands: 0, words: 0, chars: 0, scopes: 0, isOver: false },
     });
   }
 }
@@ -1059,6 +1323,8 @@ interface IBudget {
   commands: number;
   words: number;
   chars: number;
+  /** The subshells and nested command lines numbered so far, so each scope is unique in the line. */
+  scopes: number;
   /** Something was not read: the budget ran out, or a command nests deeper than the depth limit. */
   isOver: boolean;
 }

@@ -112,7 +112,7 @@ const TRUSTED_SCRIPT_PATH = z.string().superRefine((value, context) => {
         ? 'a path inside the repo, without ..'
         : /\.ts$/.test(value)
           ? undefined
-          : 'a .ts file - guard-writes reads only bun scripts ending in .ts';
+          : 'a .ts file - only bun scripts ending in .ts can be listed';
 
   if (problem !== undefined) {
     context.addIssue({ code: 'custom', message: `${value}: ${problem}` });

@@ -4,6 +4,7 @@ import { TrustStates } from './common/index.ts';
 import type { IReadOnlyScript, IScriptInvocation, IScriptTrust } from './common/index.ts';
 import { GitQueries } from './git-queries.ts';
 import { ShellParser } from './shell.ts';
+import { ShellFolders } from './shell-folders.ts';
 
 /** Git mode of a symlink entry in the index. */
 const SYMLINK_MODE = '120000';
@@ -166,7 +167,7 @@ export class ReadOnlyScripts {
   }
 
   /** Commands that change the folder the next commands of the line run in, which the hook does not follow. */
-  static readonly MOVING_COMMANDS = new Set(['cd', 'pushd', 'popd']);
+  static readonly MOVING_COMMANDS = ShellFolders.MOVING_COMMANDS;
 
   /**
    * The listed script a call to `target` with `subcommand` is read-only for: both resolved to absolute

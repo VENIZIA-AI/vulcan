@@ -122,6 +122,9 @@ describe('OutsideGuard.inspect flags what a review found', () => {
     'wget -qO /etc/x https://example.test/u',
     'curl --output-dir /etc -O https://example.test/u',
     'cp -t /etc/ a',
+    'echo x 1<>/etc/zz',
+    'echo x <>/etc/zz',
+    'cat a <> /etc/zz',
     'mv -t /etc a',
     'git clone -b main https://example.test/r.git /etc/x',
     'git clone --depth 1 https://example.test/r.git /etc/x',
@@ -153,6 +156,16 @@ describe('OutsideGuard.inspect flags what a review found', () => {
     expect(bash({ command: 'cd inner && touch a.txt' })).toEqual([]);
     expect(bash({ command: 'cd inner && cd .. && touch a.txt' })).toEqual([]);
     expect(bash({ command: 'cd inner && cd /etc && touch a.txt' }).length).toBeGreaterThan(0);
+  });
+
+  test('a cd inside a subshell stays in it, and pushd and popd move like cd', () => {
+    expect(bash({ command: '(cd /etc; touch a.txt)' }).length).toBeGreaterThan(0);
+    expect(bash({ command: '(cd /etc; true); touch a.txt' })).toEqual([]);
+    expect(bash({ command: 'pushd /etc && touch a.txt' }).length).toBeGreaterThan(0);
+    expect(bash({ command: 'pushd /etc && popd && touch a.txt' })).toEqual([]);
+    expect(
+      bash({ command: 'cd /etc && case x in a) true;; esac && touch a.txt' }).length,
+    ).toBeGreaterThan(0);
   });
 });
 

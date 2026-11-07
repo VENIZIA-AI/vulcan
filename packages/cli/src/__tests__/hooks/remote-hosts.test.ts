@@ -510,7 +510,7 @@ describe('the program tables of the shell parser', () => {
         'xargs',
       ].sort(),
     );
-    expect([...ShellPrograms.SHELL_NAMES].sort()).toEqual(['bash', 'dash', 'sh', 'zsh']);
+    expect([...ShellPrograms.SHELL_NAMES].sort()).toEqual(['bash', 'dash', 'ksh', 'sh', 'zsh']);
   });
 
   test.each(ShellPrograms.WRAPPER_NAMES)(
