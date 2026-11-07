@@ -1,11 +1,11 @@
 ---
 title: vulcan board
-description: Fold the agent event log, and GitHub when gh can read it, into flows and write one read-only HTML page.
+description: Fold the agent event log, and GitHub or GitLab when gh or glab can read it, into flows and write one read-only HTML page.
 ---
 
 # vulcan board
 
-`vulcan board` shows what your coding agents are doing as one HTML file: each flow, whose turn it is, how far it got, and what waits for you. It reads the [event log](/references/commands/event) of the project. When `gh` can read the repository it adds the pull requests, their checks and their reviews. It writes the file and prints its path. Nothing is posted or changed anywhere else.
+`vulcan board` shows what your coding agents are doing as one HTML file: each flow, whose turn it is, how far it got, and what waits for you. It reads the [event log](/references/commands/event) of the project. When `gh` can read the repository it adds the pull requests, their checks and their reviews; a project on GitLab sets [`provider`](/references/configuration/#provider) and gets merge requests, approvals, pipelines and commits through `glab`. It writes the file and prints its path. Nothing is posted or changed anywhere else.
 
 ```text
 $ bun x --no-install vulcan board --open
@@ -14,7 +14,7 @@ board: github: VENIZIA-AI/vulcan 18 pull request(s) since the date (the newest 3
 /path/to/project/.agents/local/reports/board.html
 ```
 
-The event log is what the board is made of. GitHub is a bonus: a project on GitLab, such as one that has no `gh` access, gets the same board from its events alone, and `--no-github` leaves GitHub out. GitLab itself is not read yet.
+The event log is what the board is made of. GitHub or GitLab is a bonus: a project that has no `gh` or `glab` access gets the same board from its events alone. `--no-github` leaves out whichever host the project uses (the flag keeps its name).
 
 ## Usage
 
@@ -29,11 +29,11 @@ vulcan board serve [--port <n>] [--open] [--since <date>] [--dir <events folder>
 | `--open` | Open the file in your browser when it is written (`xdg-open`, `open` or `start`) |
 | `--since` | Read events and pull requests changed at or after this date, such as `2026-11-03` or `2026-11-03T09:00:00Z`. Default: the last 7 days |
 | `--dir` | The events folder. Default: `events.dir` of the config, else `.agents/local/events` |
-| `--repo` | A GitHub repository, `owner/name`. Repeat it to read several, such as three repositories on one board. Default: the repository `gh` finds for the project folder (`gh repo view`); when it finds none, GitHub is skipped with a note |
-| `--no-github` | Do not read GitHub |
+| `--repo` | A repository, `owner/name`; on GitLab a project path of any depth, `group/sub/name`. Repeat it to read several, such as three repositories on one board. Default on GitHub: the repository `gh` finds for the project folder (`gh repo view`). Default on GitLab: the project of `git remote get-url origin`, used only when its host is the configured `provider.host`. When none is found, the host is skipped with a note |
+| `--no-github` | Do not read GitHub, or GitLab when `provider.type` is `gitlab` |
 | `--port` | `serve` only: the port to listen on. Default `4317`; `0` takes any free port |
 
-Exit codes: `0` written, or `serve` stopped with Ctrl+C; `1` the file cannot be written, or `serve` cannot start; `2` bad input (an unknown date, a `--repo` that is not `owner/name`, an unknown or repeated flag, `--port` outside `serve` or not a number from 0 to 65535, `--out` with `serve`).
+Exit codes: `0` written, or `serve` stopped with Ctrl+C; `1` the file cannot be written, or `serve` cannot start; `2` bad input (an unknown date, a `--repo` that is not `owner/name` or a longer project path, an unknown or repeated flag, `--port` outside `serve` or not a number from 0 to 65535, `--out` with `serve`).
 
 Run in a subfolder, it uses the project of that folder, as [vulcan event](/references/commands/event) does. A shared `events.dir` gives the page the events of every project that writes to it.
 
@@ -72,6 +72,8 @@ An event belongs to the flow named by its `flowId` (`VULZ-ACME-12`; an older `F-
 
 From GitHub: each pull request, each finished check (pass or fail), each review (approved, changes requested), and the merge. One call per repository asks for the newest 30 pull requests; the note on stderr says how many of them changed since `--since`.
 
+From GitLab (`provider: { type: 'gitlab' }`): each merge request, each approval, each finished job of a pipeline (pass or fail), the merge or the close, and each commit of the default branch. A pipeline belongs to the merge request whose source branch is its ref; one on another branch, such as the default branch, belongs to no flow and is listed under Unsorted. A commit joins the flow named by a `Flow: <id>` line in its message. The lines come from `glab api` with GET only; `glab` must be installed and logged in to the host (`glab auth login --hostname <host>`), otherwise GitLab is skipped with a note and the board is built from the event log alone. At most 30 merge requests, 30 pipelines and 30 commits are asked for, and the jobs of the 10 newest finished pipelines. An approval has no time of its own in GitLab, so it is shown at the time of the merge, the close, or the last update of the merge request.
+
 ### The state of a flow
 
 | State | When |
@@ -92,7 +94,7 @@ The heading of a flow is its title, from the newest `flow` line of that flow (`v
 
 The right pane opens when you pick a flow or an agent, and closes with the cross or `Esc`. From the top, the pane of a flow shows: the title, a line with the flow id, the tracker id, the due day and the holder, the stage bar, **What it is** (the context of the newest `flow` line, and its apps), the **Steps** and **Acceptance checks** lists with their counts, what the flow waits for (the next step, else the question asked of you), and **Milestones**: when the flow was opened, decided, merged or deployed, newest first. The button **All events** lists every line of the flow, with the time, the actor, who it went to or came from, and what was done.
 
-A flow with only `flow` lines is not at a stage. It shows **No work logged yet** where the stage bar would be and its card says **No work yet** instead of a stage; the `flow` line is still listed under **All events**. Where a line came from is shown only when it changes how to read it (an estimated time, GitHub); the tag of the tool that wrote it, such as `cli`, is not shown.
+A flow with only `flow` lines is not at a stage. It shows **No work logged yet** where the stage bar would be and its card says **No work yet** instead of a stage; the `flow` line is still listed under **All events**. Where a line came from is shown only when it changes how to read it (an estimated time, GitHub, GitLab); the tag of the tool that wrote it, such as `cli`, is not shown.
 
 The pane of an agent shows its newest five lines, its open pull requests and the messages nobody has answered, each message with its direction (`→` to, `←` from).
 
@@ -149,7 +151,7 @@ Each agent also has a solid colour, taken from a hash of its name out of a fixed
 
 - Request, design, release and handover stages and the releases tab have no source in the log: the Release tab is not shown, and those stages stay empty.
 - GitHub gives the newest run of each check, so CI attempts that were overwritten are not counted.
-- GitLab is not read.
+- GitLab shows a pipeline's jobs only for the 10 newest finished pipelines; an older one is one line.
 - The page is written in English and Vietnamese only.
 
 ## See also

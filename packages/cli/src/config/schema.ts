@@ -6,7 +6,7 @@ import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
 import { SubjectShape } from '../commit/subject.ts';
-import { BoardServe } from '../board/common/constants.ts';
+import { BoardConstants, BoardServe, ProviderTypes } from '../board/common/constants.ts';
 import { ProjectKey } from '../events/project-key.ts';
 import { ThemeTokens } from '../theme/index.ts';
 import { ProjectTheme } from '../visualize/theme.ts';
@@ -500,6 +500,29 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       agents: BOARD_AGENTS.default({}),
     })
     .default({ agents: {} }),
+  /**
+   * The code host `vulcan board` reads pull requests, checks and commits from: `github` through `gh` (the default),
+   * or `gitlab` through `glab`. `host` names the GitLab server (default `gitlab.com`): a bare host name with an
+   * optional port, never a URL. Written to the manifest only when it is not `github`.
+   */
+  provider: z
+    .strictObject({
+      /** `github` or `gitlab`; default `github`. */
+      type: z.enum([ProviderTypes.GITHUB, ProviderTypes.GITLAB]).default(ProviderTypes.GITHUB),
+      /** The GitLab host name, such as `gitlab.example.com` or `gitlab.example.com:8443`; only with `gitlab`; default `gitlab.com`. */
+      host: z
+        .string()
+        .regex(
+          BoardConstants.GITLAB_HOST,
+          'a bare host name such as gitlab.example.com, with an optional :port, no scheme, path or credentials',
+        )
+        .optional(),
+    })
+    .refine((provider) => provider.host === undefined || provider.type === ProviderTypes.GITLAB, {
+      message: 'host is only for type "gitlab"',
+      path: ['host'],
+    })
+    .default({ type: ProviderTypes.GITHUB }),
   /** What `vulcan doctor` is told: `privateValues.acknowledged` lists the files that may keep private values, each with a `reason`. */
   doctor: DOCTOR_SCHEMA.default({ privateValues: { acknowledged: [] } }),
   /** Team-shared Claude settings (permissions, env, enabledPlugins...), merged by sync over personal keys. */

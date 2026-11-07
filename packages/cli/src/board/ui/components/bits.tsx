@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { IBoardItem } from '../../common/index.ts';
+import { BoardSources } from '../../common/index.ts';
 import { BoardTables } from '../common/constants.ts';
 import type { IBoardViewEvent } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
@@ -92,8 +93,10 @@ export const EventItem = (props: { event: IBoardViewEvent; chip?: ReactNode }) =
 
   if (approx) {
     origin = t('giờ ước lượng');
-  } else if (event.source === 'github') {
+  } else if (event.source === BoardSources.GITHUB) {
     origin = 'GitHub';
+  } else if (event.source === BoardSources.GITLAB) {
+    origin = 'GitLab';
   }
 
   return (

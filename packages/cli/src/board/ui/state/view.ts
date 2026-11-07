@@ -1,6 +1,6 @@
 import { EventActorNames } from '../../../events/common/actor-names.ts';
 import type { IBoardAgent, IBoardData, IBoardEvent, IBoardFlow } from '../../common/index.ts';
-import { BoardConstants } from '../../common/index.ts';
+import { BoardConstants, BoardSources } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
 import type { IAgentRow, IBoardViewEvent, IFlowView, TTranslate } from '../common/types.ts';
 import { BoardTime } from './time.ts';
@@ -80,7 +80,9 @@ export class BoardView {
       listed.includes(name) ? listed.indexOf(name) : listed.length;
     const names = new Set([
       ...Object.keys(docs).filter(isShown),
-      ...events.filter((e) => e.source !== 'github' && isShown(e.actor)).map((e) => e.actor),
+      ...events
+        .filter((e) => !BoardSources.HOSTS.has(e.source) && isShown(e.actor))
+        .map((e) => e.actor),
     ]);
 
     return [...names]

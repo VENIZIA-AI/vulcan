@@ -73,6 +73,7 @@ The table below lists the top-level configuration keys:
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 | `theme` | `object` | `undefined` | The colour the project's `vulcan visualize` pages use |
 | `board` | `object` | `{ agents: {} }` | What `vulcan board` puts on its page: owner, title, host name, logo and the faces of agents ([board](#board)) |
+| `provider` | `object` | `{ type: 'github' }` | The code host `vulcan board` reads pull requests from: GitHub through `gh`, or GitLab through `glab` ([provider](#provider)) |
 | `commit` | `object` | every check off | The checks of `vulcan commit-check` and the `commit-msg` hook: the agent signature policy and the subject shape ([commit](#commit)) |
 | `ci` | `object` | `{ affected: { global: [] } }` | Paths that make `vulcan ci affected` run every check ([ci](#ci)) |
 | `events` | `object` | `{ log: false }` | The agent event log: on or off, its folder and its limits ([events](#events)) |
@@ -767,6 +768,25 @@ import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
   board: { owner: 'Ana', title: 'Acme Shop Board', logo: '.configs/board-logo.svg' },
+} satisfies VulcanConfig;
+```
+
+## provider
+
+The `provider` object says which code host [`vulcan board`](/references/commands/board) reads pull requests, checks and commits from. Nothing is required: GitHub, read through `gh`, is the default.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `type` | `'github' \| 'gitlab'` | `'github'` | `github` reads through `gh`; `gitlab` reads merge requests, approvals, pipelines with their jobs, and commits of the default branch through `glab` |
+| `host` | `string` | `'gitlab.com'` | Only with `type: 'gitlab'`: the GitLab server, as a bare host name with an optional port, such as `git.example.com` or `git.example.com:8443`. A scheme, a path, credentials or a space is refused, so the setting can never carry a token to another place. With `type: 'github'` it is refused |
+
+`vulcan sync` writes the block to the manifest only when `type` is `gitlab`, and the board reads it from there. `glab` keeps the sign-in: VULCAN stores no token and makes only GET requests.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  provider: { type: 'gitlab', host: 'git.example.com' },
 } satisfies VulcanConfig;
 ```
 

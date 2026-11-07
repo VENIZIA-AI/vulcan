@@ -234,7 +234,7 @@ const AgentDetail = (props: {
                   target="_blank"
                   rel="noopener"
                 >
-                  {`${pr.repo ?? ''}#${pr.n}`}
+                  {BoardAgentInfo.labelOf({ pr })}
                 </a>
                 {pr.ci ? <Mark bad={pr.ci === 'fail'} /> : null}
                 {pr.flow}

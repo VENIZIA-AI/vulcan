@@ -42,8 +42,8 @@ Usage: bun x vulcan <command>
                                   agent in a trailer or a "generated with" line, the project's subject shape);
                                   sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input
   board [--out <file>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
-                                  Fold the event log (and GitHub pull requests, checks and reviews when gh
-                                  can read them) into flows and write one HTML file, by default
+                                  Fold the event log (and GitHub or GitLab pull requests, checks and reviews
+                                  when gh or glab can read them) into flows and write one HTML file, by default
                                   .agents/local/reports/board.html; read-only; exit 2 on bad input
   board serve [--port <n>] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
                                   Serve the same page on 127.0.0.1 (default port 4317) and push the new events to the open page, with no reload
@@ -91,7 +91,7 @@ The following table lists each command, its purpose, its exit codes, and its ref
 | `profile` | Tell VULCAN how you like to work (language, how to address you, tone, habits); `show` prints it, `reset` deletes it | `0` on success; `1` when cancelled, unreadable, not gitignored or on an unknown argument | [vulcan profile](/references/commands/profile) |
 | `clean` | List what an agent left under `.agents/local/` and remove it with `--yes` | `0` on a dry run, a removal or nothing to remove; `1` when an item cannot be removed or on an unknown flag | [vulcan clean](/references/commands/clean) |
 | `commit-check` | Check a commit message for an agent signature and the project's subject shape, as the `commit-msg` hook that `sync` installs does; nothing is checked until `commit.message` turns a check on | `0` when clean or when no check is configured; `1` on a problem; `2` on bad input | [vulcan commit-check](/references/commands/commit-check) |
-| `board` | Fold the event log, and GitHub pull requests when `gh` can read them, into flows and write one read-only HTML page, by default `.agents/local/reports/board.html` | `0` written; `1` the file cannot be written; `2` on bad input | [vulcan board](/references/commands/board) |
+| `board` | Fold the event log, and GitHub or GitLab pull requests when `gh` or `glab` can read them, into flows and write one read-only HTML page, by default `.agents/local/reports/board.html` | `0` written; `1` the file cannot be written; `2` on bad input | [vulcan board](/references/commands/board) |
 | `ci` | `ci affected` lists the workspace packages a change touches (changed ones and every package that depends on them) with the checks each has; `ci template github\|gitlab` prints a CI file that runs exactly those | `0` with a list (empty too); `2` on bad input | [vulcan ci](/references/commands/ci) |
 | `event` | `event add` writes a line to the agent event log, `event tail` reads it; with `events.log` on, `sync` installs the Claude Code hooks that write it | `0` on success; `1` when the log cannot be written; `2` on bad input | [vulcan event](/references/commands/event) |
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |

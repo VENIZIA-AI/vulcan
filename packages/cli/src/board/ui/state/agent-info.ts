@@ -1,3 +1,4 @@
+import { BoardSources } from '../../common/index.ts';
 import type { IBoardData } from '../../common/index.ts';
 import type { IBoardViewEvent } from '../common/types.ts';
 import { BoardUrl } from '../url.ts';
@@ -5,6 +6,7 @@ import { BoardView } from './view.ts';
 
 export interface IOpenPr {
   repo?: string;
+  source?: string;
   n: number;
   flow: string;
   ci: string | null;
@@ -28,7 +30,14 @@ export class BoardAgentInfo {
       : { sender: message.actor, receiver: message.to };
   }
 
-  /** The pull request a link or a repo and number name; only an `https://` link, or one made from `owner/name` and the number. */
+  /** The label of a pull request: `owner/name#7` on GitHub, `group/project!7` on GitLab. */
+  static labelOf(opts: { pr: Pick<IOpenPr, 'repo' | 'n' | 'source'> }): string {
+    const { pr } = opts;
+
+    return `${pr.repo ?? ''}${pr.source === BoardSources.GITLAB ? '!' : '#'}${pr.n}`;
+  }
+
+  /** The pull request a link or a repo and number name; only an `http(s)://` link, or on GitHub one made from `owner/name` and the number. */
   static prHref(opts: { pr: IOpenPr }): string | undefined {
     const { pr } = opts;
 
@@ -36,7 +45,7 @@ export class BoardAgentInfo {
       return pr.link ?? undefined;
     }
 
-    return pr.repo && /^[\w.-]+\/[\w.-]+$/.test(pr.repo)
+    return pr.source !== BoardSources.GITLAB && pr.repo && /^[\w.-]+\/[\w.-]+$/.test(pr.repo)
       ? `https://github.com/${pr.repo}/pull/${pr.n}`
       : undefined;
   }
@@ -57,6 +66,7 @@ export class BoardAgentInfo {
 
       const pr = (prs[`${event.ref.repo ?? ''}#${event.ref.pr}`] ??= {
         repo: event.ref.repo,
+        source: event.source,
         n: event.ref.pr,
         flow: event.flowId,
         ci: null,
@@ -69,7 +79,10 @@ export class BoardAgentInfo {
       pr.merged ||= event.kind === 'merge';
       pr.closed ||= event.status === 'closed';
       pr.ci = event.kind === 'ci' ? (event.status ?? null) : pr.ci;
-      pr.link = event.link && /^https:\/\/.+\/pull\//.test(event.link) ? event.link : pr.link;
+      pr.link =
+        event.link && /^https?:\/\/.+\/(?:pull|-\/merge_requests)\//.test(event.link)
+          ? event.link
+          : pr.link;
     }
 
     return Object.values(prs);

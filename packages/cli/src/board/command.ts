@@ -9,17 +9,23 @@ import { EventSettings } from '../events/settings.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { ThemeTokens } from '../theme/index.ts';
 import type { IThemeTokens } from '../theme/index.ts';
-import { BoardConstants, BoardFlags, BoardServe, BoardStates } from './common/index.ts';
-import type { IBoardData, IBoardEvent } from './common/index.ts';
+import {
+  BoardConstants,
+  BoardFlags,
+  BoardServe,
+  BoardStates,
+  ProviderTypes,
+} from './common/index.ts';
+import type { IBoardData, IBoardEvent, IBoardProvider } from './common/index.ts';
 import { BoardFold } from './fold.ts';
 import { BoardGithub } from './github.ts';
+import { BoardGitlab } from './gitlab.ts';
 import { BoardSettings } from './settings.ts';
 import { BoardPage } from './page.ts';
 import { BoardServer } from './server.ts';
 
 const SHARED_FLAGS = `[${BoardFlags.OPEN}] [${BoardFlags.SINCE} <date>] [${BoardFlags.DIR} <events folder>] [${BoardFlags.REPO} owner/name]... [${BoardFlags.NO_GITHUB}]`;
 const USAGE = `usage: vulcan board [${BoardFlags.OUT} <file>] ${SHARED_FLAGS}\n       vulcan board ${BoardServe.COMMAND} [${BoardFlags.PORT} <n>] ${SHARED_FLAGS}`;
-const REPO_NAME = /^[\w.-]+\/[\w.-]+$/;
 
 /** Starts the program that opens the browser; `target` is what it is given, `fallback` what a person is told to open if it fails. */
 type TBoardOpener = (opts: { target: string; fallback: string }) => void;
@@ -35,7 +41,7 @@ interface IBoardArgs {
   noGithub: boolean;
 }
 
-/** `vulcan board`: the flows of a project, from its event log and, when `gh` can read them, its pull requests, as one HTML file. */
+/** `vulcan board`: the flows of a project, from its event log and, when `gh` or `glab` can read them, its pull requests, as one HTML file. */
 export class BoardCommand {
   static async run(opts: ICommandContext & { opener?: TBoardOpener }): Promise<number> {
     const args = BoardCommand.parse({ args: opts.args });
@@ -114,28 +120,33 @@ export class BoardCommand {
     return tokens;
   }
 
-  /** The folded data of a project: its log since `since`, and GitHub unless it is left out or cannot be read. */
+  /** The folded data of a project: its log since `since`, and GitHub or GitLab (by `provider`) unless it is left out or cannot be read. */
   static collect(opts: {
     root: string;
     dir: string;
     since: number;
     args: Pick<IBoardArgs, 'repos' | 'noGithub'>;
-    /** The GitHub lines to use; with none, they are read here (unless `noGithub`). */
+    /** The GitHub or GitLab lines to use; with none, they are read here (unless `noGithub`). */
     github?: { events: IBoardEvent[]; note: string };
     /** The git user name, when the caller already has it; otherwise it is read from git. */
     readGitUser?: () => string | undefined;
   }): IBoardData {
     const read = EventLog.read({ dir: opts.dir, since: opts.since });
     const fromLog = BoardFold.fromLog({ events: read.events });
-    const github =
-      opts.github ??
-      (opts.args.noGithub
-        ? { events: [], note: 'github: left out (--no-github)' }
-        : BoardGithub.read({ repos: opts.args.repos, cwd: opts.root, since: opts.since }));
     const settings = BoardSettings.read({
       root: opts.root,
       ...(opts.readGitUser === undefined ? {} : { readGitUser: opts.readGitUser }),
     });
+    const github =
+      opts.github ??
+      (opts.args.noGithub
+        ? { events: [], note: `${settings.provider.type}: left out (--no-github)` }
+        : BoardCommand.readHost({
+            repos: opts.args.repos,
+            cwd: opts.root,
+            since: opts.since,
+            provider: settings.provider,
+          }));
     // An older `F-n` is shown as `VULZ-<key>-n`; the log itself is never rewritten.
     const key = EventSettings.keyOf({ root: opts.root });
     const { flows, decisions } = BoardFold.fold({
@@ -172,6 +183,17 @@ export class BoardCommand {
     };
   }
 
+  private static readHost(opts: {
+    repos: string[];
+    cwd: string;
+    since: number;
+    provider: IBoardProvider;
+  }): { events: IBoardEvent[]; note: string } {
+    return opts.provider.type === ProviderTypes.GITLAB
+      ? BoardGitlab.read({ ...opts, host: opts.provider.host })
+      : BoardGithub.read(opts);
+  }
+
   /** `vulcan board serve`: the board on 127.0.0.1 that updates when the log does, until Ctrl+C. */
   private static async serve(opts: {
     args: IBoardArgs;
@@ -182,13 +204,17 @@ export class BoardCommand {
   }): Promise<number> {
     const { args } = opts;
     const gitUser = BoardSettings.gitUserOf({ root: opts.root });
+    const { provider, hostname } = BoardSettings.read({
+      root: opts.root,
+      readGitUser: () => gitUser,
+    });
     let github: { events: IBoardEvent[]; note: string } | undefined;
     let readAt = 0;
     const collect = (): IBoardData => {
       const since = opts.sinceOf();
 
       if (!args.noGithub && Date.now() - readAt >= BoardServe.REFRESH_MS) {
-        github = BoardGithub.read({ repos: args.repos, cwd: opts.root, since });
+        github = BoardCommand.readHost({ repos: args.repos, cwd: opts.root, since, provider });
         readAt = Date.now();
       }
 
@@ -204,7 +230,6 @@ export class BoardCommand {
     const port = args.port === undefined ? BoardServe.DEFAULT_PORT : Number(args.port);
 
     try {
-      const { hostname } = BoardSettings.read({ root: opts.root, readGitUser: () => gitUser });
       const { url, fallback, note } = await BoardServer.start({
         port,
         dir: opts.dir,
@@ -297,7 +322,7 @@ export class BoardCommand {
       index++;
 
       if (arg === BoardFlags.REPO) {
-        if (!REPO_NAME.test(value)) {
+        if (!BoardConstants.PROJECT_PATH.test(value)) {
           return `${BoardFlags.REPO} must look like owner/name, got '${value}'`;
         }
 

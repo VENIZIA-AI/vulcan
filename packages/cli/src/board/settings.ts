@@ -2,7 +2,8 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
-import { BoardConstants, BoardServe } from './common/index.ts';
+import { BoardConstants, BoardServe, ProviderTypes } from './common/index.ts';
+import type { IBoardProvider } from './common/index.ts';
 import { BoardAgentSetting } from './agent-setting.ts';
 import { BoardLogo } from './logo.ts';
 import { BOARD_AGENT, BOARD_AGENTS } from './schema.ts';
@@ -22,6 +23,8 @@ export interface IBoardSettings {
   lanes: Record<string, string>;
   /** What `board.agents` says each agent is. */
   roles: Record<string, string>;
+  /** The code host to read: `provider`, else GitHub. */
+  provider: IBoardProvider;
   /** Why a setting was not used, for the note the command prints. */
   notes: string[];
 }
@@ -62,7 +65,17 @@ export class BoardSettings {
       );
     }
 
+    const provider = RecordValue.isRecord(manifest.provider) ? manifest.provider : {};
+    const host = text(provider.host);
+
     return {
+      provider: {
+        type: provider.type === ProviderTypes.GITLAB ? ProviderTypes.GITLAB : ProviderTypes.GITHUB,
+        host:
+          host !== undefined && BoardConstants.GITLAB_HOST.test(host)
+            ? host
+            : BoardConstants.GITLAB_DEFAULT_HOST,
+      },
       title: text(block.title) ?? `${name} Board`,
       hostname:
         typeof block.hostname === 'string' && BoardServe.HOSTNAME.test(block.hostname)

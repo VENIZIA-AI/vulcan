@@ -74,7 +74,7 @@ export class BoardCards {
       checks: count(flow.checks),
       prs: BoardAgentInfo.prsOf({ events: view.evs })
         .filter((pr) => !pr.merged && !pr.closed)
-        .map((pr) => ({ label: `${pr.repo ?? ''}#${pr.n}`, ci: pr.ci })),
+        .map((pr) => ({ label: BoardAgentInfo.labelOf({ pr }), ci: pr.ci })),
       people: [...new Set([view.holder, ...who])],
       updates: view.evs.filter((event) => event.kind === 'flow').length,
       deploys: [

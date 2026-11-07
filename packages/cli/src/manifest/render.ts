@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
+import { ProviderTypes } from '../board/common/constants.ts';
 import { BunFormatter, EnvVariables } from '../common/index.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { ProjectPackages } from '../config/index.ts';
@@ -167,6 +168,17 @@ const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<strin
       };
 };
 
+/** The manifest's `provider` block, which `vulcan board` reads: written only when the code host is not GitHub. */
+const providerBlockOf = (opts: {
+  config: TResolvedConfig;
+}): { provider?: Record<string, unknown> } => {
+  const { type, host } = opts.config.provider;
+
+  return type === ProviderTypes.GITHUB
+    ? {}
+    : { provider: { type, ...(host === undefined ? {} : { host }) } };
+};
+
 /** The manifest's `atlas` block: only what the config sets (keys listed, the download turned off). */
 const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<string, unknown> } => {
   const keys = opts.config.atlas.index?.keys ?? [];
@@ -267,6 +279,8 @@ export class ProjectManifest {
       ...ciBlockOf({ config }),
       // The names and the logo `vulcan board` puts on its page; nothing set, nothing is written.
       ...boardBlockOf({ config }),
+      // The code host the board reads; GitHub, the default, writes nothing.
+      ...providerBlockOf({ config }),
       // The automatic clean of .agents/local is on unless the project turns it off here.
       ...localBlockOf({ config }),
       ...graphBlockOf({ config }),
