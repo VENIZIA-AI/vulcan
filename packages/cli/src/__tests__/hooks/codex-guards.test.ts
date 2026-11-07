@@ -121,18 +121,10 @@ describe('the Codex hook command runs the real guards', () => {
     expect(outside.text).not.toContain('Codex cannot ask about a tool call');
   });
 
-  test('an apply_patch is read file by file: the manifest and a path outside the project are refused', () => {
+  test('an apply_patch is read file by file: a path outside the project is refused', () => {
     const root = installedProject();
     const patch = (lines: string[]): string =>
       ['*** Begin Patch', ...lines, '*** End Patch'].join('\n');
-    const manifest = run({
-      root,
-      stdin: eventOf({
-        root,
-        tool: 'apply_patch',
-        command: patch(['*** Update File: .agents/vulcan.manifest.json', '@@', '-a', '+b']),
-      }),
-    });
     const outside = run({
       root,
       stdin: eventOf({
@@ -150,7 +142,6 @@ describe('the Codex hook command runs the real guards', () => {
       }),
     });
 
-    expect(decisionOf(manifest.output)).toBe('deny');
     expect(decisionOf(outside.output)).toBe('deny');
     expect(outside.text).toContain('V-B-08');
     expect(inside.text).toBe('');

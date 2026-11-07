@@ -86,8 +86,6 @@ const run = async (opts: { hook: string; payload: string }) => {
 };
 const bash = (command: string): string =>
   `{"tool_name":"Bash","tool_input":{"command":${JSON.stringify(command)}},"cwd":${JSON.stringify(root)}}`;
-const write = (file: string): string =>
-  `{"tool_name":"Write","tool_input":{"file_path":${JSON.stringify(file)}},"cwd":${JSON.stringify(root)}}`;
 const decisionOf = (stdout: string): string =>
   JSON.parse(stdout).hookSpecificOutput.permissionDecision;
 
@@ -99,17 +97,6 @@ describe('the blocking hooks do not depend on config, rules, the digest or zod',
     expect(deploy.code).toBe(0);
     expect(decisionOf(deploy.stdout)).toBe('ask');
     expect(read).toEqual({ code: 0, stdout: '', stderr: '' });
-  });
-
-  test('guard-manifest denies a write to the manifest and passes another file', async () => {
-    const manifest = await run({
-      hook: 'guard-manifest',
-      payload: write(join(root, '.agents/vulcan.manifest.json')),
-    });
-    const other = await run({ hook: 'guard-manifest', payload: write(join(root, 'a.txt')) });
-
-    expect(decisionOf(manifest.stdout)).toBe('deny');
-    expect(other).toEqual({ code: 0, stdout: '', stderr: '' });
   });
 
   test('guard-git denies a force-push to main and passes a status', async () => {

@@ -21,9 +21,10 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 | `guard-writes` | A Bash command that writes to a database, runs a migration or deploys; the body of a local script it runs (`bun script.ts`, `bash deploy.sh`, `bun run <name>`) | Asks (`V-W-02`, `V-W-03`) |
 | `guard-git` | `git` and `gh`: deleting or force-pushing `develop` or `main`, `gh pr merge --delete-branch` on a pull request headed by one of them, `reset --hard`, `branch -D` of an unmerged branch | Refuses the first group, asks about the rest (`V-W-06`) |
 | `guard-outside` | A file, worktree, clone or temp file created outside the project | Asks (`V-B-08`), or denies when `guard.outside` is `deny`; always denies a write into the scratchpad folder the agent tool offers |
-| `guard-manifest` | A write to `.agents/vulcan.manifest.json`, which `vulcan sync` generates | Refuses |
 
 Around them, `session-start` prints the rules digest into the session and, in Claude Code, exports `TMPDIR` (the project's `.agents/local/tmp`) into every Bash command ([Temporary files](/references/agents#temporary-files)), `subagent-start` gives every subagent a small rules card, and `stop` and `prompt-submit` check the shape of replies ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
+
+No hook guards `.agents/vulcan.manifest.json`: `vulcan sync` rewrites it from the config, and `vulcan doctor` fails a copy that is stale or edited by hand ([The generated manifest](/references/hooks/#the-generated-manifest)).
 
 ## Your own deploy and migrate commands
 
@@ -41,7 +42,7 @@ A broken install must not stop every command, and a guard must not be switched o
 
 | Kind | Hooks | If it cannot run |
 |---|---|---|
-| Safety hooks | `guard-writes`, `guard-manifest` | Exit 2: the tool call is blocked. A bare `bun install` still passes |
+| Safety hooks | `guard-writes` | Exit 2: the tool call is blocked. A bare `bun install` still passes |
 | Deny-class guards | `guard-git`, `guard-outside` | A missing package or `bun` passes with a note; a hook that started and then crashed or timed out asks |
 | Shape hooks | `stop`, `prompt-submit`, `post-tool` | Fail open: the call passes |
 
@@ -59,7 +60,7 @@ A broken install must not stop every command, and a guard must not be switched o
 | Cursor | Reads the Claude hooks in `.claude/settings.json` | **NOT VERIFIED** |
 | Copilot (CLI and VS Code) | Reads the Claude hooks in `.claude/settings.json` | **NOT VERIFIED** |
 
-NOT VERIFIED means built from the agent's documentation and unit tests, and never run in that agent. omp and pi run the safety guards, `guard-git` and `guard-outside`. Choose your agents with `vulcan sync --agents <list>` ([Coding agents](/references/agents)).
+NOT VERIFIED means built from the agent's documentation and unit tests, and never run in that agent. omp and pi run the safety guards `guard-git` and `guard-outside`. Choose your agents with `vulcan sync --agents <list>` ([Coding agents](/references/agents)).
 
 ## Let your own CLI through
 

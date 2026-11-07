@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { HookDecision, ManifestGuard, WriteGuard } from '../../hooks/index.ts';
+import { HookDecision, HookInput, WriteGuard } from '../../hooks/index.ts';
 
 const ASK = {
   hookSpecificOutput: {
@@ -37,7 +37,6 @@ describe('forHost', () => {
     const outputs = [
       HookDecision.buildTool({ decision: 'ask', reason: ['x'] }),
       WriteGuard.buildDecision({ hits: [{ rule: 'V-W-03', message: 'deploy' }] }),
-      ManifestGuard.buildDecision(),
     ];
 
     for (const output of outputs) {
@@ -52,23 +51,20 @@ describe('the shell tool of another host is read as Bash', () => {
     JSON.stringify(
       Object.fromEntries([
         ['tool_name', tool],
-        ['tool_input', { command: 'echo x > .agents/vulcan.manifest.json' }],
+        ['tool_input', { command: 'echo x > notes.txt' }],
         ['cwd', '/p'],
       ]),
     );
 
-  test.each(['Bash', 'Shell', 'shell', 'bash'])(
-    '%s: a redirect onto the manifest is caught',
-    (tool) => {
-      const input = ManifestGuard.parseHookInput({ text: eventOf(tool) });
+  test.each(['Bash', 'Shell', 'shell', 'bash'])('%s: read as Bash, the command kept', (tool) => {
+    const input = HookInput.parse({ text: eventOf(tool) });
 
-      expect(input?.tool).toBe('Bash');
-      expect(input !== undefined && ManifestGuard.inspectWrite({ input })).toBe(true);
-    },
-  );
+    expect(input?.tool).toBe('Bash');
+    expect(input?.command).toBe('echo x > notes.txt');
+  });
 
   test('Write and Edit keep their names', () => {
-    expect(ManifestGuard.parseHookInput({ text: eventOf('Write') })?.tool).toBe('Write');
-    expect(ManifestGuard.parseHookInput({ text: eventOf('Edit') })?.tool).toBe('Edit');
+    expect(HookInput.parse({ text: eventOf('Write') })?.tool).toBe('Write');
+    expect(HookInput.parse({ text: eventOf('Edit') })?.tool).toBe('Edit');
   });
 });
