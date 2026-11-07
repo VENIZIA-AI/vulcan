@@ -60,8 +60,8 @@ const shippedHooks = (): IShippedHook[] => hooksOf(SHIPPED_SETTINGS);
 /** The hook sync adds only when the config sets `remoteHosts`: its command is shipped in a template. */
 const remoteHostsHooks = (): IShippedHook[] => hooksOf(REMOTE_HOSTS_TEMPLATE);
 
-/** The hooks that fail OPEN: the drift guard and the owner-shape hooks, which pass when they cannot run. */
-const FAIL_OPEN = ['guard-scripting.ts', 'stop.ts', 'prompt-submit.ts', 'post-tool.ts'];
+/** The hooks that fail OPEN: the owner-shape hooks, which pass when they cannot run. */
+const FAIL_OPEN = ['stop.ts', 'prompt-submit.ts', 'post-tool.ts'];
 /** The deny-class guards: a missing package or bun passes; a hook that started and then failed asks. */
 const ASKING = ['guard-git.ts', 'guard-outside.ts'];
 const closedHooks = (): IShippedHook[] =>
@@ -119,7 +119,7 @@ describe('the drift guards fail open', () => {
   test('with node_modules absent or bun missing, every drift guard and shape hook passes the call and says so', () => {
     const root = makeRoot();
 
-    expect(openHooks().length).toBe(5);
+    expect(openHooks().length).toBe(4);
     expect(askingHooks().length).toBe(2);
 
     // A missing package or bun is a broken install, not a failed guard: the deny-class guards pass too.
@@ -335,7 +335,7 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
   };
 
   test('every wrapper is written with the working directory as the fallback', () => {
-    expect(everyHook().length).toBe(13);
+    expect(everyHook().length).toBe(12);
 
     for (const hook of everyHook()) {
       expect(hook.command, nameOf(hook)).toContain('${CLAUDE_PROJECT_DIR:-$PWD}/node_modules');
