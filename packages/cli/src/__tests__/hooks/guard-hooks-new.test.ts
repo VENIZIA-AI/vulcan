@@ -63,18 +63,29 @@ describe('the guard-git hook', () => {
     expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
   });
 
-  test('is silent for a plain command, for input it cannot read, and with the kill switch on', async () => {
+  test('asks, and never blocks, on input it cannot read', async () => {
+    for (const stdin of [
+      'not json',
+      '[1]',
+      '{"tool_name":"Bash","tool_input":{"command":5}}',
+      '{"tool_name":"Bash","tool_input":{}}',
+    ]) {
+      const result = await runHook({ hook: 'guard-git', root, stdin });
+      const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+      expect(result.code).toBe(0);
+      expect(decision.permissionDecision).toBe('ask');
+      expect(decision.permissionDecisionReason).toContain('the hook input could not be read');
+    }
+  });
+
+  test('is silent for a plain command, and with the kill switch on', async () => {
     const result = await runHook({
       hook: 'guard-git',
       root,
       stdin: bash({ command: 'git status', cwd: root }),
     });
     expect(result).toEqual({ code: 0, stdout: '' });
-    const result2 = await runHook({ hook: 'guard-git', root, stdin: 'not json' });
-    expect(result2).toEqual({
-      code: 0,
-      stdout: '',
-    });
     const result3 = await runHook({
       hook: 'guard-git',
       root,
@@ -211,18 +222,24 @@ describe('the guard-outside hook', () => {
     expect(result).toEqual({ code: 0, stdout: '' });
   });
 
-  test('is silent inside the project, for input it cannot read, and with the kill switch on', async () => {
+  test('asks, and never blocks, on input it cannot read', async () => {
+    for (const stdin of ['not json', '[1]', '{"tool_input":{"command":"ls"}}']) {
+      const result = await runHook({ hook: 'guard-outside', root, stdin });
+      const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+      expect(result.code).toBe(0);
+      expect(decision.permissionDecision).toBe('ask');
+      expect(decision.permissionDecisionReason).toContain('hook input could not be read');
+    }
+  });
+
+  test('is silent inside the project, and with the kill switch on', async () => {
     const result = await runHook({
       hook: 'guard-outside',
       root,
       stdin: bash({ command: 'mkdir -p .agents/local/tmp/x', cwd: root }),
     });
     expect(result).toEqual({ code: 0, stdout: '' });
-    const result2 = await runHook({ hook: 'guard-outside', root, stdin: 'not json' });
-    expect(result2).toEqual({
-      code: 0,
-      stdout: '',
-    });
     const result3 = await runHook({
       hook: 'guard-outside',
       root,
