@@ -800,3 +800,40 @@ describe('the >&word redirect', () => {
     expect(ShellParser.parse({ command: 'cat 1<> f' })[0]?.redirects).toEqual(['f']);
   });
 });
+
+describe('a redirect after a keyword that ends a compound command', () => {
+  test.each([
+    ['{ read -r A; } < "$S"', '}'],
+    ['while read -r A; do echo "$A"; done < "$S"', 'done'],
+    ['if true; then :; fi < "$S"', 'fi'],
+    ['case x in x) :;; esac < "$S"', 'esac'],
+  ])('%s: the target is an input file of the keyword, not a word', (command, keyword) => {
+    const closing = ShellParser.parse({ command }).find((entry) => entry.words[0] === keyword);
+
+    expect(closing?.words).toEqual([keyword]);
+    expect(closing?.input?.files).toEqual(['$S']);
+    expect(
+      ShellParser.programOf({ command: closing as NonNullable<typeof closing> }).name,
+    ).not.toBe('$S');
+  });
+
+  test('an output redirect, a subshell and a real program after a keyword read as before', () => {
+    const [group, closing] = ShellParser.parse({ command: '{ cat; } > "$S"' });
+    const [subshell] = ShellParser.parse({ command: '( cat ) < "$S"' });
+    const unknown = ShellParser.parse({ command: 'done; $CMD' });
+
+    expect(group?.words).toEqual(['{', 'cat']);
+    expect(closing?.words).toEqual(['}']);
+    expect(subshell?.words).toEqual(['cat']);
+    expect(
+      ShellParser.programOf({ command: unknown[1] as NonNullable<(typeof unknown)[number]> }).name,
+    ).toBe('$CMD');
+  });
+
+  test('a simple command keeps the file of its input redirect as a word', () => {
+    const [command] = ShellParser.parse({ command: 'read -r A < "$S"' });
+
+    expect(command?.words).toEqual(['read', '-r', 'A', '$S']);
+    expect(command?.input?.files).toEqual(['$S']);
+  });
+});
