@@ -1,6 +1,7 @@
 import type { TConstValue } from '../common/types.ts';
 import type { IWriteCheck, IWriteHit } from './common/index.ts';
 import { ShellParser } from './shell.ts';
+import { ShellWrites } from './shell-writes.ts';
 import type { ISimpleCommand } from './shell.ts';
 
 /** The options a program takes before its verb (`kubectl -n prod apply`), each with or without a value. */
@@ -17,9 +18,6 @@ const REST = String.raw`[^|;&\n]*?`;
 
 /** curl's short options that take no value: in a cluster such as `-sd x`, the letters before the one that does. */
 const CURL_SWITCHES = '0-9:#aBfgGhiIjJklLMnNOpqRsSvVZ';
-
-/** curl's short options that take the next word as their value (`-A agent`, `-H header`). */
-const CURL_VALUED_SHORT = 'AbcCdDeEFHKmoPQrtTuUwxXyYz';
 
 /** curl's long options that take the next word as their value. */
 const CURL_VALUED_LONG = [
@@ -99,7 +97,7 @@ const CURL_VALUED_LONG = [
 ].join('|');
 
 /** A curl word that takes the next word as its value, so that word is a value and never an option. */
-const CURL_VALUED = String.raw`^(?:-[${CURL_SWITCHES}]*[${CURL_VALUED_SHORT}]|--(?:${CURL_VALUED_LONG}))$`;
+const CURL_VALUED = String.raw`^(?:-[${CURL_SWITCHES}]*[${ShellWrites.CURL_VALUED_SHORT}]|--(?:${CURL_VALUED_LONG}))$`;
 
 const MUTATING_METHOD = '(?:POST|PUT|PATCH|DELETE|post|put|patch|delete)';
 

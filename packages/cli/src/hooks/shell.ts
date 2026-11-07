@@ -1524,9 +1524,11 @@ export class ShellParser {
           cursor += 1;
         }
 
-        if (text[cursor] === '&' && /[\d-]/.test(text[cursor + 1] ?? '')) {
-          index = cursor + 2;
-          continue;
+        // `>&2` and `>&-` duplicate or close a descriptor; `>&file` writes the file, as `&>file` does.
+        const isAmpersand = char === '>' && text[cursor] === '&';
+
+        if (isAmpersand) {
+          cursor += 1;
         }
 
         while (text[cursor] === ' ' || text[cursor] === '\t') {
@@ -1534,6 +1536,12 @@ export class ShellParser {
         }
 
         const target = readWord({ text, from: cursor, layout });
+
+        if (isAmpersand && /^(?:\d+-?|-)$/.test(target.value)) {
+          nest({ texts: target.nested });
+          index = Math.max(target.next, cursor + 1);
+          continue;
+        }
 
         if (target.value !== '') {
           current.redirects.push(target.value);

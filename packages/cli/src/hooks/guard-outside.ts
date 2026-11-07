@@ -12,44 +12,61 @@ import type { IManifestHookInput, IOutsideHit } from './common/index.ts';
 
 const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
+/** The links one path may pass through before it is taken for a loop, as the OS counts them. */
+const MAX_LINKS = 40;
+
+/** The components of a path, without the empty and `.` ones, last first, so `pop` takes the next. */
+const partsOf = (opts: { path: string }): string[] =>
+  opts.path.split('/').filter((part) => part !== '' && part !== '.').reverse();
+
 /**
- * The path with the nearest existing ancestor resolved through symlinks, so a link cannot walk out of the
- * project; a dangling link is followed to where it points.
+ * The file the OS opens for an absolute path that has not been folded: each component in turn, a symlink
+ * followed where it stands, so a `..` after a link goes to the parent of the link's target and not to the
+ * parent of the link. What does not exist is kept as text, a dangling link followed to where it points.
  */
-const realOf = (opts: { path: string; depth?: number }): string => {
-  const depth = opts.depth ?? 0;
-  let existing = opts.path;
-  const rest: string[] = [];
+const realOf = (opts: { path: string }): string => {
+  const pending = partsOf({ path: opts.path });
+  let current = '/';
+  let links = 0;
 
-  while (dirname(existing) !== existing) {
+  while (pending.length > 0) {
+    const part = pending.pop() ?? '';
+
+    if (part === '..') {
+      current = dirname(current);
+      continue;
+    }
+
+    const next = join(current, part);
+    let target: string | undefined;
+
     try {
-      lstatSync(existing);
-      break;
+      target = lstatSync(next).isSymbolicLink() ? readlinkSync(next) : undefined;
     } catch {
-      rest.unshift(existing.slice(dirname(existing).length + 1));
-      existing = dirname(existing);
-    }
-  }
-
-  let base: string;
-
-  try {
-    base = realpathSync(existing);
-  } catch {
-    // A dangling link: its target is where a write through it lands; a chain this long is a loop.
-    if (depth >= 8) {
-      return join(existing, ...rest);
+      target = undefined;
     }
 
-    base = realOf({
-      path: resolve(dirname(existing), readlinkSync(existing)),
-      depth: depth + 1,
-    });
+    if (target === undefined) {
+      current = next;
+      continue;
+    }
+
+    links += 1;
+
+    // A loop of links: the rest is kept as written.
+    if (links > MAX_LINKS) {
+      return join(next, ...pending.reverse());
+    }
+
+    if (isAbsolute(target)) {
+      current = '/';
+    }
+
+    pending.push(...partsOf({ path: target }));
   }
 
-  return join(base, ...rest);
+  return current;
 };
-
 const isInside = (opts: { path: string; root: string }): boolean =>
   opts.path === opts.root || opts.path.startsWith(`${opts.root}${sep}`);
 
@@ -183,7 +200,10 @@ export class OutsideGuard {
         continue;
       }
 
-      const path = realOf({ path: resolve(target.base, expanded) });
+      // Not folded here: a `..` after a symlink goes where the link points, which `realOf` follows.
+      const path = realOf({
+        path: isAbsolute(expanded) ? expanded : `${target.base}/${expanded}`,
+      });
 
       if (!isInside({ path, root }) && !matchesAny({ path, patterns })) {
         hits.push({
