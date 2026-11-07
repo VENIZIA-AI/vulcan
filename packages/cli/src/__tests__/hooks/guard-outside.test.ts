@@ -621,3 +621,39 @@ describe('an input redirect on a compound command is not a program', () => {
     expect(bash({ command: 'while read -r A; do :; done < "$S"; $CMD' })).not.toEqual([]);
   });
 });
+
+describe('a plain variable set earlier on the same line, in the same shell', () => {
+  test.each([
+    'T=out; echo x > $T/log',
+    'f=out/x; echo x > ${f}',
+    'f=ok; (echo x > $f)',
+    'f=a; g=b; echo x > $f/$g',
+  ])('%s is worked out and passes inside the project', (command) => {
+    expect(bash({ command })).toEqual([]);
+  });
+
+  test('a value that points outside asks, naming the path it works out', () => {
+    const hits = bash({ command: 'f=../outside/x; echo x > $f' });
+
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).not.toContain('cannot work out');
+  });
+
+  test.each([
+    ['assigned twice', 'f=../x; f=ok; echo x > $f'],
+    ['bound by a for loop', 'f=ok; for f in ../x; do echo x > $f; done'],
+    ['bound by read', 'f=ok; read f; echo x > $f'],
+    ['bound by printf -v', 'f=ok; printf -v f ../x; echo x > $f'],
+    ['bound through eval', 'f=ok; eval "f=../x"; echo x > $f'],
+    ['set in a subshell, used outside it', '(f=ok); echo x > $f'],
+    ['set in a stage of a pipeline', 'f=ok | cat; echo x > $f'],
+    ['a value with an expansion', 'f=$HOME/x; echo x > $f'],
+    ['a value with a space', 'f="a b"; echo x > $f'],
+    ['set for one command only', 'f=ok cat > $f'],
+    ['copied through another variable', 'f=ok; g=$f; echo x > $g'],
+    ['inside a command substitution', 'f=ok; echo x > $(echo $f)'],
+    ['never set', 'echo x > $f'],
+  ])('%s: still asks that the target cannot be worked out', (_name, command) => {
+    expect(bash({ command }).join(' ')).toContain('an expansion this check cannot work out');
+  });
+});

@@ -188,6 +188,7 @@ export class OutsideGuard {
           ...ShellWrites.targetsOf({ command, base: folder.base, tmp }).map((target) => ({
             ...target,
             pwd: folder.pwd,
+            vars: folder.vars,
           })),
         );
       }
@@ -200,7 +201,12 @@ export class OutsideGuard {
         : [{ path: '(the command line)', message: unread, isAgentToolScratchpad: false }];
 
     for (const target of targets) {
-      const expanded = ShellFolders.expandPath({ word: target.word, home, env, cwd: target.pwd });
+      const expanded = ShellFolders.expandPath({
+        word: target.word,
+        home,
+        env: { ...env, ...target.vars },
+        cwd: target.pwd,
+      });
 
       if (expanded === undefined) {
         // A redirect to a word that cannot be worked out (`> $f`, `&>$fd`, `>&$fd`) may write a file outside the project.
