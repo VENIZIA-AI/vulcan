@@ -1,5 +1,3 @@
-import { SignalConstants } from '../signals/constants.ts';
-
 /** The state of one thing under `.agents/local/`, as `clean` and `doctor` read it. */
 export class LocalStates {
   static readonly OK = 'ok';
@@ -59,7 +57,6 @@ export class LocalConstants {
   static readonly KNOWN_FILES = new Set([
     'profile.json',
     'claude.launch.settings.json',
-    'violations.jsonl',
     'auto-clean.json',
     '.gitkeep',
   ]);
@@ -96,11 +93,6 @@ export class LocalProtected {
   static noteOf(opts: { scope: string; name: string }): string | undefined {
     if (opts.scope === CleanScopes.TMP && LocalProtected.CLAUDE_TASKS.test(opts.name)) {
       return "in use: Claude Code's background task output; never removed";
-    }
-
-    // The signals log: the one file the hooks append to, named once in the signals module.
-    if (`${opts.scope}/${opts.name}` === SignalConstants.LOG_FILE) {
-      return 'in use: the hooks append to it; never removed';
     }
 
     return undefined;

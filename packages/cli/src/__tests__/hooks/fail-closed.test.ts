@@ -57,16 +57,10 @@ const hooksOf = (path: string): IShippedHook[] => {
 /** Every hook command the shipped settings register. */
 const shippedHooks = (): IShippedHook[] => hooksOf(SHIPPED_SETTINGS);
 
-/** The hooks that fail OPEN: the owner-shape hooks, which pass when they cannot run. */
-const FAIL_OPEN = ['stop.ts', 'prompt-submit.ts', 'post-tool.ts'];
 /** The deny-class guards: a missing package or bun passes; a hook that started and then failed asks. */
 const ASKING = ['guard-git.ts', 'guard-outside.ts'];
 const closedHooks = (): IShippedHook[] =>
-  shippedHooks().filter(
-    (hook) => ![...FAIL_OPEN, ...ASKING].some((name) => hook.command.includes(name)),
-  );
-const openHooks = (): IShippedHook[] =>
-  shippedHooks().filter((hook) => FAIL_OPEN.some((name) => hook.command.includes(name)));
+  shippedHooks().filter((hook) => !ASKING.some((name) => hook.command.includes(name)));
 const askingHooks = (): IShippedHook[] =>
   shippedHooks().filter((hook) => ASKING.some((name) => hook.command.includes(name)));
 
@@ -112,22 +106,19 @@ const BASH_INPUT = (command: string): string =>
   `{"tool_name":"Bash","tool_input":{"command":${JSON.stringify(command)}},"cwd":"/tmp"}`;
 
 // Claude Code blocks a PreToolUse call only on exit 2; any other failure lets the call through.
-describe('the drift guards fail open', () => {
-  test('with node_modules absent or bun missing, every drift guard and shape hook passes the call and says so', () => {
+describe('the deny-class guards fail open', () => {
+  test('with node_modules absent or bun missing, every deny-class guard passes the call and says so', () => {
     const root = makeRoot();
 
-    expect(openHooks().length).toBe(4);
     expect(askingHooks().length).toBe(2);
 
-    // A missing package or bun is a broken install, not a failed guard: the deny-class guards pass too.
-    for (const hook of [...openHooks(), ...askingHooks()]) {
+    // A missing package or bun is a broken install, not a failed guard: the deny-class guards pass.
+    for (const hook of askingHooks()) {
       const absent = runHook({ command: hook.command, root, stdin: BASH_INPUT('ls') });
       const noBun = runHook({ command: hook.command, root, path: '/nonexistent' });
 
       expect(absent.code, hook.command).toBe(0);
-      expect(absent.stderr).toMatch(
-        /the (call|reply) passes|the prompt goes through|the call is unaffected/,
-      );
+      expect(absent.stderr).toMatch(/the call passes/);
       expect(noBun.code, hook.command).toBe(0);
     }
   });
@@ -138,7 +129,6 @@ describe('the drift guards fail open', () => {
     const lonely = join(root, 'lonely');
 
     for (const hook of [
-      ...openHooks(),
       ...askingHooks(),
       ...closedHooks().filter((item) => item.event === 'PreToolUse'),
     ]) {
@@ -149,7 +139,7 @@ describe('the drift guards fail open', () => {
       copyFileSync(join(PACKAGE_ROOT, 'base', 'hooks', `${name}.ts`), join(target, `${name}.ts`));
 
       const result = runHook({ command: hook.command, root: lonely, stdin: BASH_INPUT('ls') });
-      const open = [...FAIL_OPEN, ...ASKING].includes(`${name}.ts`);
+      const open = ASKING.includes(`${name}.ts`);
 
       expect(result.code, name).toBe(open ? 0 : 2);
     }
@@ -331,7 +321,7 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
   };
 
   test('every wrapper is written with the working directory as the fallback', () => {
-    expect(shippedHooks().length).toBe(9);
+    expect(shippedHooks().length).toBe(5);
 
     for (const hook of shippedHooks()) {
       expect(hook.command, nameOf(hook)).toContain('${CLAUDE_PROJECT_DIR:-$PWD}/node_modules');
@@ -382,7 +372,7 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
         stdin: BASH_INPUT('ls'),
         unsetProjectDir: true,
       });
-      const passes = [...FAIL_OPEN, ...ASKING].some((name) => hook.command.includes(name));
+      const passes = ASKING.some((name) => hook.command.includes(name));
 
       expect(result.code, nameOf(hook)).toBe(passes ? 0 : 2);
     }

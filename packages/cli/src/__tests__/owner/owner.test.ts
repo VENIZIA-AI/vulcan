@@ -77,13 +77,28 @@ describe('the owner block defaults', () => {
       report: { labels: { ...OwnerConstants.DEFAULT_LABELS.labels, recommend: 'I recommend it.' } },
     },
     { report: { headlineMaxSentences: 0 } },
+    { report: { shortReplyWords: 20 } },
+    { report: { claimWords: { public: ['shipped'] } } },
     { surprise: true },
   ])('rejects %j', (value) => {
     expect(OWNER_SCHEMA.safeParse(value).success).toBe(false);
   });
+
+  test('a removed key is refused with what to do', () => {
+    const result = OWNER_SCHEMA.safeParse({ report: { shortReplyWords: 20 } });
+
+    expect(result.error?.issues[0]?.message).toContain('removed: delete this key');
+    expect(result.error?.issues[0]?.path).toEqual(['report', 'shortReplyWords']);
+  });
 });
 
 describe('the profile', () => {
+  test('a removed key is refused with what to do', () => {
+    const result = PROFILE_SCHEMA.safeParse({ ...PROFILE, shortReplyWords: 5 });
+
+    expect(result.error?.issues[0]?.message).toContain('removed: delete this key');
+  });
+
   test('a minimal profile gets neutral defaults', () => {
     const profile = PROFILE_SCHEMA.parse(PROFILE);
 

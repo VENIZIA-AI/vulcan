@@ -29,13 +29,13 @@ The headline answers first, the minimap shows progress, and Blocked names what s
 | Reader | Gets |
 |---|---|
 | The owner | The shape above, with labels and form of address in their language |
-| Another agent | The plain format it asked for, with no shape and no check |
+| Another agent | The plain format it asked for, with no shape |
 
 A wall of prose makes the owner hunt for the answer. A minimap table breaks a script. So the shape belongs to the owner's sessions only.
 
 ## Set the project's contract
 
-The `owner` block of the config holds the project's contract. Every default is English, and `enforce` defaults to `advise`.
+The `owner` block of the config holds the project's contract. Every default is English, and `enforce` defaults to `advise`. VULCAN does not check a reply against the shape: the session digest tells the model, and nothing else holds it to it.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -43,32 +43,28 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export default {
   owner: {
     language: 'pt-BR',
-    report: { enforce: 'block', headlineMaxSentences: 1 },
+    report: { enforce: 'off', headlineMaxSentences: 1 },
   },
 } satisfies VulcanConfig;
 ```
 
-| `report.enforce` | What happens to a reply that breaks the shape |
+| `report.enforce` | What the session digest does |
 |---|---|
-| `off` | Nothing is checked or printed |
-| `advise` (default) | The fault is logged and the next prompt reminds the agent |
-| `block` | A structural fault sends the reply back once |
+| `off` | Leaves the shape card out |
+| `advise` (default) | Prints the shape card |
+| `block` | Prints the shape card, the same as `advise` |
 
 ## Set your own profile
 
-Run `vulcan profile` to set your language, form of address, tone and detail. The answers go in `.agents/local/profile.json`, inside the project and gitignored. Use `vulcan profile show` to read the file and `vulcan profile reset --yes` to delete it. A profile can make `enforce` stricter than the project, never looser. See [vulcan profile](/references/commands/profile).
+Run `vulcan profile` to set your language, form of address, tone and detail. The answers go in `.agents/local/profile.json`, inside the project and gitignored. Use `vulcan profile show` to read the file and `vulcan profile reset --yes` to delete it. A profile cannot switch the shape card off when the project shows it. See [vulcan profile](/references/commands/profile).
 
-## What the hooks check
+## What the model is told
 
-The session digest prints the card "How to answer the owner" at the start. The `stop` hook checks the last reply against it, and `prompt-submit` carries any faults into the next prompt.
-
-It checks for a headline that is a sentence within the cap, the minimap with the configured header and statuses, the Blocked line, numbered decisions each ending in the recommendation, and the order of the sections.
-
-A reply under `report.shortReplyWords` (20 by default) is exempt. The full list is in the [hooks reference](/references/hooks/#stop-and-prompt-submit).
+The session digest prints the card "How to answer the owner" at the start: a headline that is a sentence within the cap, the minimap with the configured header and statuses, the Blocked line, numbered decisions each ending in the recommendation, and the order of the sections. Nothing checks the reply afterwards: no hook reads it, logs it or sends it back.
 
 ## A language other than English
 
-English labels ship, and no other language does. If your language has no label set, from the `owner` block or your profile, the agent writes the labels itself. The check then looks at the structure only: a headline, a table, a blocker line, a numbered decisions list. Type your own words in `vulcan profile` to have them held exactly.
+English labels ship, and no other language does. If your language has no label set, from the `owner` block or your profile, the agent writes the labels itself. The card then names the structure only: a headline, a table, a blocker line, a numbered decisions list. Type your own words in `vulcan profile` to have the card use them exactly.
 
 ## When the reader is an agent
 
@@ -78,12 +74,11 @@ A session another agent starts has no owner to read the shape. Start it with `VU
 VULCAN_OWNER_REPLY=off claude -p "take item 12, return the four statuses"
 ```
 
-That session gets no shape card and no profile card, and its replies are not checked. Only the exact value `off` counts.
+That session gets no shape card and no profile card. Only the exact value `off` counts.
 
-Never `export` the variable or put it in the `env` of a settings file: either switches the check off for your own sessions. `vulcan doctor` warns when it finds that.
+Never `export` the variable or put it in the `env` of a settings file: either takes the cards away from your own sessions. `vulcan doctor` warns when it finds that.
 
 ## See also
 
 - [Configuration: owner](/references/configuration/#owner)
 - [vulcan profile](/references/commands/profile)
-- [Hooks: stop and prompt-submit](/references/hooks/#stop-and-prompt-submit)

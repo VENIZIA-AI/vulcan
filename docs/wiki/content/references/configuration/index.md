@@ -575,9 +575,7 @@ The `owner` object is the project's contract for how an agent answers its owners
 | `report.labels` | `object` | `Blocked:`, `Decisions needed`, `none`, `Nothing needed yet.`, `I recommend **{x}**.` | Keys `blocked`, `decisions`, `noBlocker`, `noDecision`, `recommend`; `recommend` must contain `{x}` |
 | `report.headlineMaxSentences` | `number` | `2` | Sentences allowed in the headline, 1 to 5 |
 | `report.absolutePaths` | `boolean` | `true` | Name a file the owner should open by its full path |
-| `report.enforce` | `'off' \| 'advise' \| 'block'` | `'advise'` | How hard the shape is held; `off` prints no shape card and checks nothing, `advise` logs a reply that breaks the shape and reminds the next turn, `block` also sends a structurally wrong reply back once. A person's profile may only make it stricter |
-| `report.claimWords` | `{ public?: string[]; done?: string[] }` | `{}` | Words in the owner's language that say something is published or live (`public`), or that the checks pass (`done`), added to the English ones the Stop check looks for |
-| `report.shortReplyWords` | `number` | `20` | A reply under this many words, an acknowledgement, is exempt from the shape; `0` holds every reply to it. A profile may only lower it |
+| `report.enforce` | `'off' \| 'advise' \| 'block'` | `'advise'` | `off` leaves the shape card out of the session digest; `advise` and `block` print it, the same. Nothing checks a reply. A person's profile cannot turn the card off when the project shows it |
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -593,21 +591,21 @@ export default {
 
 No label is a fixed word. What the reply is held to depends on whether a label set exists for the reader's language:
 
-| The reader's language | Label set | What the card says | What the check does |
-|---|---|---|---|
-| English (`en`, `en-GB`) | the project's `owner.report` words, which default to the English ones | quotes the words | exact words: the table header, the statuses, the blocked label, the decisions label, the none strings, the recommendation |
-| Another language, with a set (the `owner` block when `owner.language` is that language, or the person's `labels` for it) | that set | quotes the words | exact words, as above |
-| Another language, with none (a project left at the default words, a person who skipped the label questions) | none | tells the agent to write the table header, the status words, the blocked label, the decisions heading and the recommendation in that language and form of address | structure only: a headline that is a sentence, a table with its header and separator row, a labelled blocker line after it, a decisions heading with a numbered list or one short line, the order; the status words and the recommendation are not checked, and the style faults still are |
+| The reader's language | Label set | What the card says |
+|---|---|---|
+| English (`en`, `en-GB`) | the project's `owner.report` words, which default to the English ones | quotes the words |
+| Another language, with a set (the `owner` block when `owner.language` is that language, or the person's `labels` for it) | that set | quotes the words |
+| Another language, with none (a project left at the default words, a person who skipped the label questions) | none | tells the agent to write the table header, the status words, the blocked label, the decisions heading and the recommendation in that language and form of address |
 
-A person who wants their own exact words types them in the profile form, or a project writes them in `owner.report`; nothing else is needed for a language to be held exactly.
+A person who wants their own exact words types them in the profile form, or a project writes them in `owner.report`; nothing else is needed for the card to use a language's exact words.
 
 ### A session whose reader is an agent
 
-The shape is for a reader who is the owner. A session another agent starts (a script, `claude -p`, another terminal) is started with `VULCAN_OWNER_REPLY=off` in its environment: it gets no shape card and no profile card, and its replies are not checked, logged or blocked. Only the exact value `off` counts; the variable is not a VULCAN config key. Set it on the command that starts the session (`VULCAN_OWNER_REPLY=off claude -p ...`), never with `export` in a shell or terminal multiplexer the owner works in, and never in the `env` of a committed Claude Code settings file: either would switch the check off for the owner's own sessions. `vulcan doctor` prints a note when it is set in the shell that runs it, and a warning when `.claude/settings.json` or `.claude/settings.local.json` sets it in `env`. Subagents started through the tool's own mechanism are exempt already. See [hooks](/references/hooks/#stop-and-prompt-submit).
+The shape is for a reader who is the owner. A session another agent starts (a script, `claude -p`, another terminal) is started with `VULCAN_OWNER_REPLY=off` in its environment: it gets no shape card and no profile card. Only the exact value `off` counts; the variable is not a VULCAN config key. Set it on the command that starts the session (`VULCAN_OWNER_REPLY=off claude -p ...`), never with `export` in a shell or terminal multiplexer the owner works in, and never in the `env` of a committed Claude Code settings file: either would take the cards away from the owner's own sessions. `vulcan doctor` prints a note when it is set in the shell that runs it, and a warning when `.claude/settings.json` or `.claude/settings.local.json` sets it in `env`. Subagents started through the tool's own mechanism are exempt already. See [hooks](/references/hooks/#sessions-whose-reader-is-an-agent).
 
 ### The personal profile
 
-Each developer has their own settings, in `.agents/local/profile.json` inside the project (gitignored with the rest of `.agents/local/`; nothing is written outside the project). It holds how to address the person, the reply language and its label set, tone, how much detail to report, working habits, and a free line in their own words. The profile changes style and defaults only: it never changes the project's shape or status set, never loosens a base rule, and `enforce` is the stricter of the project's and the person's.
+Each developer has their own settings, in `.agents/local/profile.json` inside the project (gitignored with the rest of `.agents/local/`; nothing is written outside the project). It holds how to address the person, the reply language and its label set, tone, how much detail to report, working habits, and a free line in their own words. The profile changes style and defaults only: it never changes the project's shape or status set, never loosens a base rule, and `enforce` is the stricter of the project's and the person's: a profile cannot turn the shape card off when the project shows it.
 
 | Field | Meaning |
 |---|---|
@@ -617,8 +615,7 @@ Each developer has their own settings, in `.agents/local/profile.json` inside th
 | `reportDetail` | `headline` or `tables` |
 | `habits.askBeforeReversible`, `habits.proposeCommits` | Ask before a reversible choice, or state a default and continue (V-P-10); whether to propose commits |
 | `about`, `codeTaste` | Free text, recorded as written; never scored or used to infer traits |
-| `enforce` | `off`, `advise` or `block`; counts only when stricter than the project's |
-| `shortReplyWords` | A number from 0; counts only when lower than the project's, and `0` holds every reply to the shape |
+| `enforce` | `off`, `advise` or `block`; counts only when stricter than the project's, so it never leaves the card out for a project that shows it |
 | `labels` | A label set per language code, in the same shape as `report.minimapColumns`, `report.status` and `report.labels` |
 
 Labels and forms of address are one line each (at most 80 characters, no backtick, pipe or quote) because they sit inside a card line; a language is a code such as `en` or `pt-BR`. The file must be a regular file inside the project: a symlink at its place or at `.agents/local` is refused on read and on write. [`vulcan profile`](/references/commands/profile) asks the questions and writes the file; `vulcan init` offers it once in a terminal. The session digest prints a short "Working with this person" card from it, with the free text cut and quoted as one line. `vulcan doctor` warns when the file cannot be read, when git would pick it up (`git check-ignore` decides, so a later `!` line counts), and when git tracks it. The file is created with mode 0600 and is never read by atlas, telemetry or any network call.
@@ -851,7 +848,7 @@ The variables the cli reads. The atlas server has variables of its own (`VULCAN_
 |---|---|---|
 | `VULCAN_ACTOR` | `vulcan event add`, the event hook | The name of the writer of an event line; it wins over the name Claude Code gave the session (see [vulcan event](/references/commands/event)) |
 | `VULCAN_AUTO_CLEAN` | the session-start hook | `off` turns the daily automatic clean of `.agents/local/` off for the shell (see [local](#local)) |
-| `VULCAN_OWNER_REPLY` | the hooks | `off` takes the session out of the owner reply shape; an agent that starts a session sets it, an owner who exported it by mistake is told by `vulcan doctor` (see [owner](#owner)) |
+| `VULCAN_OWNER_REPLY` | the session-start hook | `off` leaves the owner shape card and the profile card out of the session; an agent that starts a session sets it, an owner who exported it by mistake is told by `vulcan doctor` (see [owner](#owner)) |
 | `VULCAN_GUARDS` | the guard hooks | `off` switches the guards off for one session; set it only for the command that needs it (see [Hooks and guards](/guides/core-concepts/hooks-and-guards)) |
 | `VULCAN_NO_INSTALL` | `init`, `add`, `upgrade` | `1` prints the install, `git init`, `sync` and the checks as `skipped` and writes the files; VULCAN's own tests use it |
 | `VULCAN_CONFIG`, `VULCAN_MANIFEST`, `VULCAN_PROJECT_ROOT` | `okf` and `atlas` | Set by `vulcan x` for the tool it starts: the resolved config as JSON, the manifest rendered fresh, the project root (see [vulcan x](/references/commands/#x)) |

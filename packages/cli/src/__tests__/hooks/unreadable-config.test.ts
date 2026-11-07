@@ -1,8 +1,8 @@
-import { afterAll, describe, expect, spyOn, test } from 'bun:test';
+import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 import { ConfigLoader } from '../../config/index.ts';
-import { OwnerReply, SessionDigest } from '../../hooks/index.ts';
+import { SessionDigest } from '../../hooks/index.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
@@ -150,49 +150,6 @@ describe('the guard-writes hook with a config that does not parse', () => {
     const result = await runHook({ hook: 'guard-writes', stdin: command({ root }), root });
 
     expect(result.stderr).toBe('');
-  });
-});
-
-describe('the owner-reply check with a config that does not parse', () => {
-  const stopEvent = (): Record<string, unknown> => {
-    const event: Record<string, unknown> = {};
-
-    event['last_assistant_message'] = 'The build passes.';
-    event['stop_hook_active'] = false;
-
-    return event;
-  };
-
-  test('says on stderr that the defaults apply', async () => {
-    const root = createProject({ files: { '.configs/vulcan.config.mts': UNREADABLE } });
-    const written: string[] = [];
-    const spy = spyOn(console, 'error').mockImplementation((...parts: unknown[]) => {
-      written.push(parts.join(' '));
-    });
-
-    try {
-      await OwnerReply.buildStopOutput({ projectRoot: root, input: stopEvent() });
-    } finally {
-      spy.mockRestore();
-    }
-
-    expect(written.join('\n')).toContain(`the owner-reply hook: ${NOTE}`);
-  });
-
-  test('a readable config says nothing', async () => {
-    const root = createProject({ files: { '.configs/vulcan.config.mts': READABLE } });
-    const written: string[] = [];
-    const spy = spyOn(console, 'error').mockImplementation((...parts: unknown[]) => {
-      written.push(parts.join(' '));
-    });
-
-    try {
-      await OwnerReply.buildStopOutput({ projectRoot: root, input: stopEvent() });
-    } finally {
-      spy.mockRestore();
-    }
-
-    expect(written).toEqual([]);
   });
 });
 
