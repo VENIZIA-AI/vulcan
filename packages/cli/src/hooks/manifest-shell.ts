@@ -220,12 +220,38 @@ export class ManifestShell {
     'builtin',
     'command',
   ]);
-  /** A line that names `IFS`, or defines a function (`f() ...`, `function f ...`). */
-  static readonly REBINDS = /\bIFS\b|(?:^|[\s;&|(){}])(?:function\s+[\w:.-]+|[\w:.-]+\s*\(\s*\))/;
+  /** Programs that rebind a word, a variable or the commands themselves: a line that runs one is outside the plain subset. */
+  static readonly REBINDING_PROGRAMS = new Set([
+    'eval',
+    'source',
+    '.',
+    'exec',
+    'trap',
+    'alias',
+    'unalias',
+    'function',
+    'read',
+    'mapfile',
+    'readarray',
+    'declare',
+    'typeset',
+    'local',
+    'readonly',
+    'set',
+    'builtin',
+    'command',
+    'getopts',
+    'shift',
+    'let',
+    'ln',
+    'enable',
+  ]);
+  /** A program word the plain subset reads: letters, digits and `._+-/`, or a test bracket. */
+  static readonly PLAIN_PROGRAM = /^(?:[\w.+/-]+|\[\[?|\]\])$/;
+  /** An assignment with a name and a literal value: no expansion, glob, brace, quote or separator. */
+  static readonly PLAIN_ASSIGNMENT = /^([A-Za-z_]\w*)=([^$`'"\\*?[\]{}()<>|&;]*)$/;
   /** Programs that read a file into the shell. */
   static readonly READ_BACK = new Set(['read', 'mapfile', 'readarray', 'source', '.']);
-  /** Programs that hand a variable to the commands it starts. */
-  static readonly EXPORTERS = new Set(['export', 'declare', 'typeset', 'readonly', 'set']);
   static readonly MAX_EXEMPT_COMMANDS = 200;
   static readonly FIND_ACTIONS = new Set([
     '-delete',
@@ -284,6 +310,91 @@ export class ManifestShell {
   }
 
   /**
+   * Whether the whole line is in the small subset the exemption trusts. Anything outside it gets none, which
+   * is what a line got before the exemption existed. In the subset: every program is a plain literal word
+   * (so not `$p`, and not a name a function was defined for), none of the programs that rebind words,
+   * variables or commands runs (`eval`, `read`, `declare`, `source`, `ln`, ...), `printf` has no `-v`, a
+   * shell is not given a script (`-c`, a heredoc, a pipe or a file on its input), `export` sets only a
+   * literal that does not mention `agents`, every assignment is a literal `NAME=value`, and `IFS` is not
+   * named anywhere, in the words as they are once quotes and backslashes are taken out.
+   */
+  private static isPlainLine(opts: {
+    commands: ISimpleCommand[];
+    calls: ICall[];
+    line: string;
+  }): boolean {
+    const { commands, calls } = opts;
+    const words = commands.flatMap((command) => [
+      ...command.words,
+      ...command.assignments,
+      ...command.redirects,
+      ...(command.input?.texts ?? []),
+      ...(command.input?.files ?? []),
+      ...(command.heredoc === undefined ? [] : [command.heredoc]),
+      ...(command.expandedBodies ?? []),
+    ]);
+
+    if (/\bIFS\b/.test(opts.line) || words.some((word) => word.includes('IFS'))) {
+      return false;
+    }
+
+    return commands.every((command, index) => {
+      const call = calls[index];
+      const next = commands[index + 1];
+
+      if (call === undefined) {
+        return false;
+      }
+
+      const assignments = [...command.assignments, ...(call.program === 'export' ? call.args : [])];
+
+      if (
+        !assignments.every((assignment) => {
+          const parts = ManifestShell.PLAIN_ASSIGNMENT.exec(assignment);
+
+          return (
+            parts !== null &&
+            (call.program !== 'export' || !InlineScript.mentionsFolder({ text: parts[2] ?? '' }))
+          );
+        })
+      ) {
+        return false;
+      }
+
+      if (command.words.length === 0) {
+        return true;
+      }
+
+      const name = ShellParser.programOf({ command }).name;
+
+      // `done`, `fi`, `}` and the like hold only a keyword.
+      if (name === '') {
+        return true;
+      }
+
+      const isFunctionDefinition =
+        command.words[0] === 'function' ||
+        (command.words.length === 1 &&
+          next !== undefined &&
+          (next.words[0] === '{' || next.scope?.startsWith('/') === true));
+
+      return (
+        !isFunctionDefinition &&
+        ManifestShell.PLAIN_PROGRAM.test(name) &&
+        !ManifestShell.REBINDING_PROGRAMS.has(name) &&
+        !ManifestShell.REBINDING_PROGRAMS.has(call.program) &&
+        !(call.program === 'printf' && call.args[0]?.startsWith('-v') === true) &&
+        !(
+          ManifestShell.SHELLS.has(call.program) &&
+          (InlineScript.payloadOf({ args: call.args }) !== -1 ||
+            command.heredoc !== undefined ||
+            command.input !== undefined)
+        )
+      );
+    });
+  }
+
+  /**
    * How many mentions of `agents` on the line are a closed path (`InlineScript.isClosedPath`) used as it is
    * written: an argument or a redirect target of a command at the top of the line. A path in any other
    * place still counts: an assignment value, a `for` or `select` word, a word after the script of
@@ -305,20 +416,11 @@ export class ManifestShell {
 
     const calls = commands.map((command) => ManifestShell.callOf({ command }));
 
-    // A link made on the line can turn a closed path into another one. So can a line that splits words on
-    // another character (`IFS`), sets a variable by `printf -v`, or defines a function, whose parameters
-    // take a closed path and put it into another word.
-    if (
-      calls.some(
-        (call) =>
-          call.program === 'ln' || (call.program === 'printf' && call.args[0]?.startsWith('-v')),
-      ) ||
-      ManifestShell.REBINDS.test(line)
-    ) {
+    // Only a line in the plain subset is trusted; any other line is read as before, every mention counts.
+    if (!ManifestShell.isPlainLine({ commands, calls, line })) {
       return 0;
     }
 
-    const hasExports = calls.some((call) => ManifestShell.EXPORTERS.has(call.program));
     const kept = new Set<ISimpleCommand>();
     // The files the line reads back into the shell: in a command inside `$(...)`, as an input, or for `read`.
     const readBack = new Set<string>();
@@ -417,7 +519,7 @@ export class ManifestShell {
           }
         }
 
-        if (!hasExports && command.words.length === 0) {
+        if (command.words.length === 0) {
           for (const assignment of command.assignments) {
             const equals = assignment.indexOf('=');
             const value = assignment.slice(equals + 1);
@@ -435,7 +537,7 @@ export class ManifestShell {
           }
         }
 
-        if (!hasExports && ManifestShell.LOOP_HEADERS.has(call.program) && call.args[1] === 'in') {
+        if (ManifestShell.LOOP_HEADERS.has(call.program) && call.args[1] === 'in') {
           const values = call.args.slice(2);
 
           if (
