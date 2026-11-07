@@ -575,3 +575,27 @@ describe('OutsideGuard.inspect on a path that names the hook process', () => {
     }
   });
 });
+
+describe('OutsideGuard.inspect asks about a redirect to a word it cannot work out', () => {
+  test.each([
+    'f=/etc/x; echo x > $f',
+    'echo x &>$fd',
+    'echo x > $NOPE_UNSET/zz',
+    'echo x > *.log',
+    'echo x >> ${LOG}',
+    'echo x > $(mktemp)',
+  ])('%s asks', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'echo x > out.txt',
+    'echo x >&2',
+    'echo x > /dev/null',
+    'echo x > "$PWD/out.txt"',
+    'echo x 2>&1',
+    'cat < in.txt',
+  ])('%s stays silent: a file in the project, or a descriptor', (command) => {
+    expect(bash({ command }).filter((message) => message.includes('expansion'))).toEqual([]);
+  });
+});
