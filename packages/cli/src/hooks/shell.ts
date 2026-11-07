@@ -1325,15 +1325,16 @@ export class ShellParser {
     return code === undefined || code === '-' || opts.args.length <= at + 1 ? undefined : code;
   }
 
-  /** Whether a command's program is a variable or a substitution, which the line does not show. */
+  /**
+   * Whether a command's program is a variable or a substitution, which the line does not show. An expansion
+   * anywhere in the word counts, not only in its last part: an unquoted `$k/deploy.yaml` is split at the blanks
+   * of `k`, so its first word is the program. No variable is exempt, `HOME` included: the same line can set it.
+   */
   static isUnknownProgram(opts: { command: ISimpleCommand }): boolean {
     const { name } = ShellParser.programOf({ command: opts.command });
-    // A variable in the folder part of a path (`$HOME/.bun/bin/bun`) leaves the program named; only its last part counts.
-    const base = name.slice(name.lastIndexOf('/') + 1);
 
-    return /[$`]/.test(base) || name.startsWith('<(') || name.startsWith('>(');
+    return /[$`]/.test(name) || name.startsWith('<(') || name.startsWith('>(');
   }
-
   /** Whether the command carries another command line to read: a script, an eval, a `watch` string, or an `env -S`. */
   private static nests(opts: { command: ISimpleCommand }): boolean {
     const program = ShellParser.programOf({ command: opts.command });

@@ -693,18 +693,19 @@ describe('ShellParser reads more of what bash reads', () => {
       '${x} a',
       '$(echo git) push',
       'eval "$(tool env)"',
+      // An unquoted expansion is split at its blanks, so a variable in the folder part names the program too.
+      '$k/deploy.yaml',
+      '$g/home/x/repo push -f origin main',
+      '/usr/bin/$tool x',
+      '$HOME/$x/bin/tool',
+      '${HOME}x/$k',
+      '$HOME/.bun/bin/bun install',
+      '"${BUN_INSTALL}/bin/bun" install',
     ]) {
       expect(ShellParser.parseChecked({ command }).hasUnknownProgram, command).toBe(true);
     }
 
-    for (const command of [
-      'echo $x "$@" ${y}',
-      'ls $(pwd)',
-      'x=$(date)',
-      'cat "$HOME/f"',
-      '$HOME/.bun/bin/bun install',
-      '"${BUN_INSTALL}/bin/bun" install',
-    ]) {
+    for (const command of ['echo $x "$@" ${y}', 'ls $(pwd)', 'x=$(date)', 'cat "$HOME/f"']) {
       expect(ShellParser.parseChecked({ command }).hasUnknownProgram, command).toBe(false);
     }
   });

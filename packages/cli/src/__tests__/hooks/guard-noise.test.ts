@@ -245,12 +245,12 @@ describe('a command inside a process substitution or run through a variable is r
     },
   );
 
-  test('a variable as an argument, or a program under a variable folder, stays quiet', () => {
+  test('a variable as an argument stays quiet, a program under a variable folder asks', () => {
     expect(WriteGuard.inspectCommand({ command: 'ls $HOME/projects', cwd: '/nowhere' })).toEqual(
       [],
     );
     expect(
-      WriteGuard.inspectCommand({ command: '$HOME/.bun/bin/bun install', cwd: '/nowhere' }),
-    ).toEqual([]);
+      WriteGuard.inspectCommand({ command: '$HOME/.bun/bin/bun install', cwd: '/nowhere' }).length,
+    ).toBeGreaterThan(0);
   });
 });
