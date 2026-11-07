@@ -189,6 +189,21 @@ export const DEFAULT_CHROME = {
   result: 'Result',
   label: 'Basis',
   evidenceLabels: { verified: 'verified', inferred: 'inferred', guess: 'guess' },
+  /** The words of the flow legend: what a box is, and how an arrow reads. */
+  nodeKinds: {
+    step: 'step',
+    service: 'service',
+    store: 'store',
+    actor: 'actor',
+    external: 'external',
+  },
+  edgeVariants: {
+    main: 'main',
+    branch: 'branch',
+    return: 'return',
+    fanout: 'fan-out',
+    error: 'error',
+  },
   risks: 'Risks',
   risk: 'Risk',
   impact: 'Impact',

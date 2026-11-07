@@ -54,23 +54,30 @@ export class CompareView {
     return `<svg class="lg" viewBox="0 0 44 12" aria-hidden="true"><g class="edge ${opts.variant}"><path d="M0 6H44"/></g></svg>`;
   }
 
+  /** The compare view as a flow: the same boxes, and every arrow with its sign. */
+  private static flowOf(opts: {
+    compare: TCompare;
+  }): Parameters<typeof FigureLayout.render>[0]['flow'] {
+    const { compare } = opts;
+
+    return {
+      nodes: compare.nodes,
+      edges: compare.edges.map((edge) => ({
+        from: edge.from,
+        to: edge.to,
+        label: CompareView.signedLabel({ edge }),
+        ...(CompareView.variantOf({ edge }) === undefined
+          ? {}
+          : { variant: CompareView.variantOf({ edge }) }),
+      })),
+      steps: [],
+    };
+  }
+
   /** The figure: the flow's own grid drawing with the added and removed arrows as their own classes. */
   private static svgOf(opts: { compare: TCompare; chrome: TChrome }): string {
     const { compare, chrome } = opts;
-    const svg = FigureLayout.render({
-      flow: {
-        nodes: compare.nodes,
-        edges: compare.edges.map((edge) => ({
-          from: edge.from,
-          to: edge.to,
-          label: CompareView.signedLabel({ edge }),
-          ...(CompareView.variantOf({ edge }) === undefined
-            ? {}
-            : { variant: CompareView.variantOf({ edge }) }),
-        })),
-        steps: [],
-      },
-    });
+    const svg = FigureLayout.render({ flow: CompareView.flowOf({ compare }) });
     // A function as the replacement: a string would read `$&`, `$'` and `` $` `` in the spec's text as patterns.
     let named = svg.replace(
       'aria-label="flow"',
@@ -91,13 +98,6 @@ export class CompareView {
         );
       }
     }
-
-    // The label of an arrow that runs straight down or up sits on the line, and a heavy line would run through it: beside it.
-    named = named.replace(
-      /(<path d="M(-?[\d.]+) -?[\d.]+L\2 -?[\d.]+"[^>]*\/><text x=")-?[\d.]+(" y="-?[\d.]+" )text-anchor="middle"/g,
-      (_match, before: string, x: string, after: string) =>
-        `${before}${Number(x) + 10}${after}text-anchor="start"`,
-    );
 
     // The page script highlights and describes the flow's boxes by these names: the compare view is its own thing.
     return named
@@ -165,9 +165,7 @@ export class CompareView {
 
     return {
       svg: CompareView.svgOf(opts),
-      width: FigureLayout.figureWidth({
-        cols: Math.max(...compare.nodes.map((node) => node.col)) + 1,
-      }),
+      width: FigureLayout.widthOf(CompareView.flowOf({ compare })),
       fallback: `<ul class="legend cmp-key">${key}</ul>${CompareView.listOf(opts)}`,
     };
   }

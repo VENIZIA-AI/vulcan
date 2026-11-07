@@ -71,7 +71,7 @@ const specOf = (): INewKindsSpec => ({
 const contextOf = (opts: { spec?: INewKindsSpec; chrome?: INewKindsContext['chrome'] } = {}) => ({
   spec: opts.spec ?? specOf(),
   chrome: opts.chrome ?? DEFAULT_CHROME,
-  fits: new Set<number>(),
+  fits: new Set<string>(),
 });
 
 const sections = (opts: { spec?: INewKindsSpec; chrome?: INewKindsContext['chrome'] } = {}) => {
@@ -674,7 +674,7 @@ describe('a phone, escaping and no script', () => {
     for (const kind of ['sequence', 'lifecycle', 'tree'] as const) {
       const width = Number(/<div class="fig f(\d+)">/.exec(html[kind])?.[1]);
 
-      expect(html.ctx.fits.has(width)).toBe(true);
+      expect(html.ctx.fits.has(String(width))).toBe(true);
       expect(Math.ceil(width * FIGURE_FIT) + 66).toBeGreaterThan(390);
       expect(html[kind].indexOf('<div class="fig')).toBeLessThan(
         html[kind].indexOf('class="path kl'),
@@ -707,7 +707,7 @@ describe('a phone, escaping and no script', () => {
     KindsRender.treeSection({ ctx });
 
     for (const width of ctx.fits) {
-      expect(Math.ceil(width * FIGURE_FIT) + 66).toBeGreaterThan(390);
+      expect(Math.ceil(Number.parseInt(width, 10) * FIGURE_FIT) + 66).toBeGreaterThan(390);
     }
   });
 

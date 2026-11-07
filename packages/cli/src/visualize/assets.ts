@@ -127,7 +127,7 @@ const BASE_CSS = [
   `.hero h1{font-size:clamp(32px,5vw,72px);line-height:1.02;max-width:30ch;letter-spacing:-.045em;color:var(--ink);overflow-wrap:anywhere}`,
   `.hero .lede{margin-top:28px;font-size:clamp(18px,1.6vw,22px);max-width:46ch;color:var(--body)}`,
   `.hero .cap{margin-top:14px;max-width:60ch;color:var(--muted)}`,
-  `.hero .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:4px 20px;font:500 13px/1.4 var(--code);color:var(--muted)}`,
+  `.hero .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:4px 20px;font:500 13px/1.4 var(--font);color:var(--muted)}`,
   // Sections: each a part with its title; the compositions below differ from neighbour to neighbour.
   `.part{padding-top:88px}`,
   `.sh{font-size:clamp(26px,3vw,40px);line-height:1.05;margin-bottom:36px;max-width:30ch}`,
@@ -192,7 +192,7 @@ const BASE_CSS = [
   `.path{display:none;margin:0}`,
   `.path li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:14px 16px;background:var(--bg-soft);margin-top:2px;color:var(--body);font-size:15px}.path li:first-child{margin-top:0;border-radius:var(--radius) var(--radius) 0 0}.path li:last-child{border-radius:0 0 var(--radius) var(--radius)}`,
   `.path b{font-weight:600;color:var(--ink)}`,
-  `.verb{display:inline-block;border:1px solid var(--line);border-radius:var(--radius);padding:0 8px;font:13px/1.7 var(--code);color:var(--muted)}.verb.error{color:var(--bad);border-color:var(--bad)}.verb.branch,.verb.return{border-style:dashed}`,
+  `.verb{display:inline-block;border:1px solid var(--line);border-radius:var(--radius);padding:0 8px;font:13px/1.7 var(--font);color:var(--muted)}.verb.error{color:var(--bad);border-color:var(--bad)}.verb.branch,.verb.return{border-style:dashed}`,
   `.path-detail{display:none;margin-top:12px;color:var(--body)}.path-detail li{padding:10px 0;border-top:1px solid var(--line)}.path-detail b{display:block;color:var(--ink)}`,
   // The steps: panels to press; the line below says what is picked.
   `.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:2px;margin-top:36px;border-radius:var(--radius);overflow:hidden}`,
@@ -249,7 +249,7 @@ const BASE_CSS = [
   `.chips{display:flex;flex-wrap:wrap;align-content:flex-start;align-items:flex-start;gap:6px;margin-bottom:12px}.chips li{padding:3px 10px;border-radius:var(--radius);background:var(--bg);color:var(--ink);font-size:15px}`,
   // Explainer: a big numeral, the words, then the drawing.
   `.ex{display:grid;gap:60px}`,
-  `.estep{display:grid;grid-template-columns:96px minmax(0,1fr) minmax(0,1.3fr);gap:10px 32px;align-items:start}`,
+  `.estep{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px 32px;align-items:start}.estep .dg{grid-column:2/-1;min-width:0}.estep .dg .win{width:fit-content;max-width:100%}.estep .dg .fig svg{margin-inline:0}`,
   `.estep .no{font-size:72px;line-height:.8;font-weight:650;letter-spacing:-.05em;color:var(--ink)}`,
   `.estep h3{font-size:24px;line-height:1.2}.estep .sb p{margin-top:10px;max-width:44ch;color:var(--body)}`,
   // Timeline: a rule with a ring per date.
@@ -258,7 +258,7 @@ const BASE_CSS = [
   `.tl li{position:relative;display:grid;gap:3px}`,
   `.tl .dot{position:absolute;left:-46px;top:0;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--bg);color:var(--c);border:2px solid var(--c)}`,
   `.tl .dot .ic{width:15px;height:15px}.tl li.c-mut .dot{border-style:dashed}`,
-  `.tl time{font:600 14px/1.4 var(--code);color:var(--muted)}.tl h3{font-size:20px;line-height:1.25}.tl p{color:var(--body);max-width:60ch}`,
+  `.tl time{font:600 14px/1.4 var(--font);color:var(--muted)}.tl h3{font-size:20px;line-height:1.25}.tl p{color:var(--body);max-width:60ch}`,
   // Findings: tiles, panels with a chart each, and callouts with a stripe.
   `.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:2px;margin-top:2px;border-radius:var(--radius);overflow:hidden}`,
   `.tiles+.charts{margin-top:2px}`,
@@ -300,10 +300,10 @@ const BASE_CSS = [
   // Evidence and log: ledgers, a rule between rows.
   `.ledger,.log{display:grid}`,
   `.ev{display:grid;grid-template-columns:160px minmax(0,1.6fr) minmax(0,1fr);gap:8px 28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--line)}.ev:first-child,.log li:first-child{border-top:0}`,
-  `.ev b{color:var(--ink);font-weight:600;line-height:1.35}.ev .cl{display:grid;gap:4px}.ev .pr{color:var(--muted);font-size:15px}.ev .rs{font:600 15px/1.4 var(--code);color:var(--ink)}`,
+  `.ev b{color:var(--ink);font-weight:600;line-height:1.35}.ev .cl{display:grid;gap:4px}.ev .pr{color:var(--muted);font-size:15px}.ev .rs{font:600 15px/1.4 var(--font);color:var(--ink)}`,
   `.badge{display:inline-flex;align-items:center;gap:8px;justify-self:start;color:var(--c);font:600 13.5px/1.3 var(--font)}`,
   `.ev-verified{--c:var(--ok);--cb:var(--ok-bg)}.ev-inferred{--c:var(--warn);--cb:var(--warn-bg)}.ev-guess{--c:var(--muted);--cb:var(--bg-soft)}`,
-  `.log li{display:grid;grid-template-columns:160px minmax(0,1fr);gap:8px 28px;padding:18px 0;border-top:1px solid var(--line)}.log time{font:600 14px/1.6 var(--code);color:var(--muted)}.log li>span{color:var(--ink)}`,
+  `.log li{display:grid;grid-template-columns:160px minmax(0,1fr);gap:8px 28px;padding:18px 0;border-top:1px solid var(--line)}.log time{font:600 14px/1.6 var(--font);color:var(--muted)}.log li>span{color:var(--ink)}`,
   // Risks: a table.
   `.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:16.5px}`,
   `th{font:600 13.5px/1.3 var(--font);color:var(--muted);text-align:left;padding:0 20px 12px 0;border-bottom:1px solid var(--ink)}`,
@@ -325,14 +325,14 @@ const BASE_CSS = [
   `html.present .deck{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;gap:12px;align-items:center;justify-content:center;padding:10px;border-top:1px solid var(--line)}`,
   `html.present .deck span{font:600 14px var(--font);color:var(--muted)}`,
   // A phone: panels stack, the bar keeps only the title, the state, present and the switch.
-  `@media (max-width:860px){.own,.facts,.q,.estep,.diff,.ev,.log li,.idea{grid-template-columns:minmax(0,1fr)}.q{gap:18px}.idea .centre{order:-1;grid-column:1;grid-row:auto}.idea .branch:nth-child(n){grid-column:1}.estep{gap:12px}.estep .no{font-size:56px}`,
+  `@media (max-width:860px){.own,.facts,.q,.estep,.diff,.ev,.log li,.idea{grid-template-columns:minmax(0,1fr)}.estep .dg{grid-column:auto}.estep .no{line-height:1}.q{gap:18px}.idea .centre{order:-1;grid-column:1;grid-row:auto}.idea .branch:nth-child(n){grid-column:1}.estep{gap:12px}.estep .no{font-size:56px}`,
   `.part{padding-top:64px}.hero{padding-block:40px}.figure{margin-top:36px}.foot{margin-top:80px}.sh{margin-bottom:26px}.own .nx,.own .stop{padding:26px 22px}.opt{padding:26px 22px 28px}.q{padding:24px 22px 26px}.ba{padding:24px 22px}`,
   `.top .links,.top .sep,.top .stamp{display:none}.top .wrap{gap:10px}.top .ttl{max-width:none;flex:1 1 auto}.top nav{margin-left:0;flex:none}`,
   `.stack thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.stack,.stack tbody,.stack tr,.stack td{display:block;width:100%}.stack tr{padding:14px 0;border-top:1px solid var(--line)}.stack tbody tr:first-child{border-top:0;padding-top:0}.stack td{border:0;padding:3px 0}`,
   `.stack td[data-label]::before{content:attr(data-label);display:block;font:600 13px/1.3 var(--font);color:var(--muted);margin-bottom:2px}}`,
   `@media (max-width:520px){body{font-size:16px}#present{display:none}.tile{padding:22px 20px}.steps{grid-template-columns:minmax(0,1fr)}.say{grid-template-columns:minmax(0,1fr)}}`,
   // Motion is an extra: the hero rises and the owner's gate glows only when the reader has not asked for less.
-  `@media (prefers-reduced-motion:no-preference){.gate .halo{animation:heat 2.6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}@keyframes heat{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.12)}}.hero h1,.hero .lede,.figure{animation:rise .7s cubic-bezier(.22,1,.36,1) both}.hero .lede{animation-delay:.08s}.figure{animation-delay:.16s}@keyframes rise{from{opacity:.001;transform:translateY(20px)}}}`,
+  `@media (prefers-reduced-motion:no-preference){.gate .halo{animation:heat 2.6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}@keyframes heat{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.12)}}.hero h1,.hero .lede,.figure{animation:rise .7s cubic-bezier(.22,1,.36,1) both}.hero .lede{animation-delay:.08s}.figure{animation-delay:.16s}@keyframes rise{from{transform:translateY(14px)}}}`,
   `@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}`,
   // Print: the final state, light on paper, one slide after another.
   `@media print{body{background:#fff;color:#000}.top,.deck,.js-only,.say{display:none}.slab,.win,.pull{--slab:#fff;--slab-2:#f1f1f1;--slab-3:#e6e6e6;--slab-ink:#000;--slab-body:#222;--slab-muted:#444;--hot:#5a3600;--hot-ink:#fff;--hot-glow:transparent;--ok:#0f5c2a;--warn:#7a4504;--bad:#9a1d17;--info:#164a9e;background-image:none}`,

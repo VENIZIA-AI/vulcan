@@ -461,16 +461,25 @@ describe('the page reads the answer first', () => {
 
     expect(html).toContain('<ol class="path">');
     expect(html).toContain('<span class="verb main">');
-    // 3 columns are 3 x 290 + 48 = 918 px; 92% of that, plus the page padding, is the width below which the list shows.
-    expect(html).toMatch(/class="fig f918"/);
+    // The figure is as wide as its boxes and its arrow labels need; 92% of that, plus the page padding, is the width below which the list shows.
+    const width = Number(/class="fig f(\d+)"/.exec(html)?.[1]);
+
+    expect(width).toBeGreaterThan(400);
     expect(html).toContain(
-      `@media (max-width:${Math.ceil(918 * 0.92) + 66}px){.fig.f918{display:none}`,
+      `@media (max-width:${Math.ceil(width * 0.92) + 66}px){.fig.f${width}{display:none}`,
     );
-    expect(html).toContain('.fig.f918~.path');
+    expect(html).toContain(`.fig.f${width}~.path`);
   });
 
   test('there is no inline style anywhere: the page policy would block it', () => {
     expect(rendered(fullSpec())).not.toMatch(/ style=/);
+  });
+
+  test('the page is complete from its first frame: the intro moves the hero and never hides it', () => {
+    const intro = /@keyframes rise\{([^}]*\{[^}]*\}[^}]*)\}/.exec(PAGE_CSS)?.[1] ?? '';
+
+    expect(intro).toContain('transform');
+    expect(intro).not.toContain('opacity');
   });
 
   test('print shows the figure and not the phone list', () => {

@@ -13,12 +13,15 @@ import { SourceRefs } from './sources.ts';
 export interface ISectionContext {
   spec: TVisualizeSpec;
   chrome: TChrome;
-  fits: Set<number>;
+  fits: Set<string>;
   /** The row spans the page uses (see `GridSpans`). */
   spans: Set<number>;
 }
 
 const escaped = (value: string): string => FigureLayout.escapeText({ value });
+
+/** The numeral column and the gap of an explainer step: space a step diagram does not have beside the text. */
+const EXPLAINER_INSET = 128;
 
 /** JSON for a `<script type="application/json">`: nothing in it can close the tag or start a comment. */
 const jsonForScript = (opts: { value: unknown }): string =>
@@ -101,7 +104,7 @@ export class SpecSections {
       return '';
     }
 
-    const width = FigureLayout.figureWidth({ cols: FigureLayout.columnsOf({ flow }) });
+    const width = FigureLayout.widthOf({ nodes: flow.nodes, edges: flow.edges });
     const kinds = [...new Set(flow.nodes.map((node) => node.kind ?? 'step'))];
     const variants = [...new Set(flow.edges.map((edge) => edge.variant ?? 'main'))];
     const states = [
@@ -110,10 +113,16 @@ export class SpecSections {
     const steps = flow.steps;
     const legend = [
       ...states.map((state) => `<li>${SpecSections.chip({ chrome, state })}</li>`),
-      ...(kinds.length > 1 ? kinds.map((kind) => `<li>${escaped(kind)}</li>`) : []),
+      ...(kinds.length > 1
+        ? kinds.map(
+            (kind) =>
+              `<li>${escaped(chrome.nodeKinds[kind as keyof TChrome['nodeKinds']] ?? kind)}</li>`,
+          )
+        : []),
       ...(variants.length > 1
         ? variants.map(
-            (variant) => `<li>${variantSwatch({ variant })}<span>${escaped(variant)}</span></li>`,
+            (variant) =>
+              `<li>${variantSwatch({ variant })}<span>${escaped(chrome.edgeVariants[variant as keyof TChrome['edgeVariants']] ?? variant)}</span></li>`,
           )
         : []),
     ];
@@ -126,7 +135,7 @@ export class SpecSections {
         ? `<button class="btn" id="all" type="button" hidden>${escaped(chrome.allSteps)}</button>`
         : '';
 
-    opts.ctx.fits.add(width);
+    opts.ctx.fits.add(`${width}`);
 
     // A box that has a source says it in its detail line: on hover, and in the phone list.
     const shown = {
@@ -250,7 +259,7 @@ export class SpecSections {
       body: `<ol class="ex">${explainer.steps
         .map(
           (step, index) =>
-            `<li class="estep"><span class="no">${index + 1}</span><div class="sb"><h3>${escaped(step.title)}</h3><p>${escaped(step.text)}</p></div>${step.diagram === undefined ? '' : `<div class="dg">${SpecSections.figure({ ctx: opts.ctx, drawing: SpecDiagrams.render({ diagram: step.diagram }) })}</div>`}</li>`,
+            `<li class="estep"><span class="no">${index + 1}</span><div class="sb"><h3>${escaped(step.title)}</h3><p>${escaped(step.text)}</p></div>${step.diagram === undefined ? '' : `<div class="dg">${SpecSections.figure({ ctx: opts.ctx, drawing: SpecDiagrams.render({ diagram: step.diagram }), inset: EXPLAINER_INSET })}</div>`}</li>`,
         )
         .join('')}</ol>`,
     });
@@ -452,11 +461,13 @@ export class SpecSections {
   }
 
   /** A drawing in a dark window; below the width where its text would pass 12 px the list takes its place. */
-  static figure(opts: { ctx: ISectionContext; drawing: IDrawing }): string {
+  static figure(opts: { ctx: ISectionContext; drawing: IDrawing; inset?: number }): string {
     const width = Math.round(opts.drawing.width);
+    const inset = opts.inset ?? 0;
+    const key = inset === 0 ? `${width}` : `${width}:${inset}`;
 
-    opts.ctx.fits.add(width);
+    opts.ctx.fits.add(key);
 
-    return `<div class="win"><div class="fig f${width}">${opts.drawing.svg}</div>${opts.drawing.fallback}</div>`;
+    return `<div class="win"><div class="fig f${key.replace(':', 'i')}">${opts.drawing.svg}</div>${opts.drawing.fallback}</div>`;
   }
 }
