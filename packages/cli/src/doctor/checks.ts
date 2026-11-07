@@ -1,16 +1,7 @@
 import { Glob } from 'bun';
 import { spawnSync } from 'node:child_process';
-import {
-  accessSync,
-  constants,
-  existsSync,
-  lstatSync,
-  readdirSync,
-  readFileSync,
-  realpathSync,
-  statSync,
-} from 'node:fs';
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
 import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
 import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
@@ -25,26 +16,13 @@ import { EventConstants } from '../events/common/index.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
 import { AgentFiles, AtlasBlockPlan, LocalPlan, SyncPlanner, SyncStatuses } from '../sync/index.ts';
-import {
-  BrowserSocket,
-  LocalConstants,
-  LocalFormat,
-  LocalScan,
-  LocalStates,
-} from '../local/index.ts';
-import { CLAUDE_LAUNCH_FILE, ClaudeLaunch } from '../sync/claude-launch.ts';
+import { BrowserSocket, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
+import { CLAUDE_LAUNCH_FILE } from '../sync/claude-launch.ts';
 import { PrivateValues } from './private-values.ts';
-import {
-  ReplySwitch,
-  OwnerConstants,
-  OwnerReplySwitch,
-  OwnerProfile,
-  ViolationLog,
-  ViolationConstants,
-} from '../owner/index.ts';
+import { ReplySwitch, OwnerConstants, OwnerReplySwitch, OwnerProfile } from '../owner/index.ts';
 import { SkillCatalog } from '@venizia/vulcan-atlas';
 import { HookConstants, ProjectTmp, ScriptTrust, TrustStates } from '../hooks/index.ts';
-import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
+import { DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { Makefile } from './makefile.ts';
 
@@ -171,37 +149,6 @@ const isUntrackedAndVisible = (opts: { root: string; path: string }): boolean =>
 
 const mcpWarning = (opts: { file: string; message: string }): IViolation =>
   createViolation({ check: DoctorChecks.MCP, file: opts.file, message: opts.message });
-
-const DOCKERFILE = '.configs/builders/Dockerfile';
-
-const SECRET_LINES = ['**/.env', '**/.env.*', '!**/.env.example'];
-
-const ADD_SECRET_LINES = `add ${SECRET_LINES[0]}, ${SECRET_LINES[1]} and ${SECRET_LINES[2]} (in that order) to the root .dockerignore`;
-
-/** Whether a `.dockerignore` pattern, as Docker reads it, names the file `opts.file` at any depth. */
-const patternNames = (opts: { pattern: string; file: string }): boolean => {
-  const bare = opts.pattern.replace(/^\*\*\//, '').replace(/^\//, '');
-
-  return (
-    bare === opts.file ||
-    (bare.endsWith('*') && opts.file.startsWith(bare.slice(0, -1)) && bare.startsWith('.env'))
-  );
-};
-
-/** Whether the last pattern that names `opts.file` excludes it: a later `!` line brings it back. */
-const excludes = (opts: { lines: string[]; file: string }): boolean => {
-  let excluded = false;
-
-  for (const line of opts.lines) {
-    const negated = line.startsWith('!');
-
-    if (patternNames({ pattern: negated ? line.slice(1) : line, file: opts.file })) {
-      excluded = !negated;
-    }
-  }
-
-  return excluded;
-};
 
 const FMT_SECTION_ADVICE =
   'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "always", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
@@ -625,58 +572,6 @@ export class ProjectContract {
     return violations;
   }
 
-  /**
-   * Info only, never a failure: an app that lacks a standard script or carries a legacy one gets one
-   * line naming them. Apps are the live packages inside the backend and frontend folders.
-   */
-  static checkAppScripts(opts: ICheckContext): IViolation[] {
-    const layout = opts.config.layout;
-
-    if (layout === undefined) {
-      return [];
-    }
-
-    const appFolders = [
-      ...LayoutFolder.layoutFoldersOf({ value: layout.backend }),
-      ...LayoutFolder.layoutFoldersOf({ value: layout.frontend }),
-    ];
-    const notes: IViolation[] = [];
-
-    for (const entry of ProjectPackages.resolve({ config: opts.config }).filter(
-      (item) => !item.retired,
-    )) {
-      if (!appFolders.some((folder) => entry.path.startsWith(`${folder}/`))) {
-        continue;
-      }
-
-      const file = `${entry.path}/package.json`;
-      const names = readScriptNames({ file: join(opts.root, file) });
-
-      if (names === undefined) {
-        continue;
-      }
-
-      const missing = AppScripts.STANDARD.filter((name) => !names.includes(name));
-      const legacy = AppScripts.LEGACY.filter((name) => names.includes(name));
-      const parts = [
-        ...(missing.length === 0 ? [] : [`missing ${missing.join(', ')}`]),
-        ...(legacy.length === 0 ? [] : [`legacy ${legacy.join(', ')} (use the standard names)`]),
-      ];
-
-      if (parts.length > 0) {
-        notes.push(
-          createViolation({
-            check: DoctorChecks.SCRIPTS,
-            file,
-            message: `app ${entry.dir}: ${parts.join('; ')}`,
-          }),
-        );
-      }
-    }
-
-    return notes;
-  }
-
   /** The developer's stored agents must parse and name known agents; a broken file would otherwise hide as a default. */
   static checkAgents(opts: ICheckContext): IViolation[] {
     const stored = LocalChoice.read({ root: opts.root });
@@ -918,52 +813,6 @@ export class ProjectContract {
   }
 
   /**
-   * A Dockerfile is built from the project root. Without a root `.dockerignore` the context carries
-   * node_modules, dist, .git and every `.env` (secrets that would land in an image layer a CI cache
-   * can keep); with one that does not exclude `.env` and `.env.*` the secrets are still copied.
-   * A warning, not a violation: the exit code is unchanged, so a project made before this check
-   * does not start failing.
-   */
-  static checkDockerignore(opts: ICheckContext): IViolation[] {
-    const file = join(opts.root, '.dockerignore');
-    const lines = existsSync(file)
-      ? readText({ file })
-          .split('\n')
-          .map((line) => line.trim())
-          .filter((line) => line !== '' && !line.startsWith('#'))
-      : undefined;
-
-    if (
-      lines !== undefined &&
-      excludes({ lines, file: '.env' }) &&
-      excludes({ lines, file: '.env.production' })
-    ) {
-      return [];
-    }
-
-    const apps = ProjectPackages.resolve({ config: opts.config })
-      .filter((entry) => !entry.retired && existsSync(join(opts.root, entry.path, DOCKERFILE)))
-      .map((entry) => entry.dir);
-
-    if (apps.length === 0) {
-      return [];
-    }
-
-    const subject = apps.length === 1 ? `app ${apps[0]} has` : `apps ${apps.join(', ')} have`;
-
-    return [
-      createViolation({
-        check: DoctorChecks.DOCKERIGNORE,
-        file: '.dockerignore',
-        message:
-          lines === undefined
-            ? `${subject} a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist, .git and every .env file (secrets) - create it, then ${ADD_SECRET_LINES}`
-            : `${subject} a Dockerfile and the root .dockerignore does not exclude .env files, which hold secrets and would land in the image layer: ${ADD_SECRET_LINES}`,
-      }),
-    ];
-  }
-
-  /**
    * `bun fmt` reads the `[fmt]` section of `bunfig.toml`; without it, it formats with Bun's defaults
    * (width 80, double quotes) and rewrites a tree the shared style formatted, and without
    * `flavor = "oxfmt"` it formats like Prettier once oxfmt is not a dependency. A `fmt` script in a
@@ -1108,47 +957,6 @@ export class ProjectContract {
       );
   }
 
-  /**
-   * A worktree of this repository that lives outside it: the repository's own `git worktree list` names it
-   * (git metadata is inside the project), and the exact command moves it in. Nothing is moved or removed.
-   */
-  static checkOutsideWorktrees(opts: ICheckContext): IViolation[] {
-    const listed = spawnSync('git', ['worktree', 'list', '--porcelain'], {
-      cwd: opts.root,
-      encoding: 'utf8',
-      timeout: 5000,
-    });
-
-    if (listed.status !== 0) {
-      return [];
-    }
-
-    const [boundary, ...linked] = listed.stdout
-      .split('\n')
-      .filter((line) => line.startsWith('worktree '))
-      .map((line) => line.slice('worktree '.length));
-
-    if (boundary === undefined) {
-      return [];
-    }
-
-    const inside = (path: string): boolean => {
-      const real = existsSync(path) ? realpathSync(path) : path;
-
-      return real === boundary || real.startsWith(`${boundary}${sep}`);
-    };
-
-    return linked
-      .filter((path) => !inside(path))
-      .map((path) =>
-        createViolation({
-          check: DoctorChecks.LOCAL,
-          file: path,
-          message: `a git worktree outside the project - move it in: git worktree move '${path}' '${join(boundary, ProjectLayout.LOCAL_DIRECTORY, 'worktrees', basename(path))}'`,
-        }),
-      );
-  }
-
   /** The personal profile: a file that cannot be read is named, and one git tracks is a personal file about to be shared. */
   static checkProfile(opts: ICheckContext): IViolation[] {
     const read = OwnerProfile.read({ root: opts.root });
@@ -1230,39 +1038,6 @@ export class ProjectContract {
       );
   }
 
-  /** How often replies to the owner were flagged (the report shape, or a claim the turn did not back), from the log the Stop hook keeps; a note, never a failure. */
-  static checkReplyShape(opts: ICheckContext): IViolation[] {
-    const { byClass, replies, days } = ViolationLog.readCounts({ root: opts.root });
-
-    if (replies === 0) {
-      return [];
-    }
-
-    const parts = [...byClass.entries()]
-      .sort((first, second) => second[1] - first[1])
-      .map(([name, count]) => `${name} ${count}`);
-
-    const isFull =
-      ViolationLog.violationBytes({ root: opts.root }) > ViolationConstants.LOG_MAX_BYTES;
-
-    return [
-      ...(isFull
-        ? [
-            createViolation({
-              check: DoctorChecks.LOCAL,
-              file: `${ProjectLayout.LOCAL_DIRECTORY}/${ViolationConstants.LOG_FILE}`,
-              message: `the log is full (${LocalFormat.formatBytes({ bytes: ViolationConstants.LOG_MAX_BYTES })}) and no longer grows; keep or delete it, and a new one starts`,
-            }),
-          ]
-        : []),
-      createViolation({
-        check: DoctorChecks.LOCAL,
-        file: `${ProjectLayout.LOCAL_DIRECTORY}/${ViolationConstants.LOG_FILE}`,
-        message: `${replies} repl${replies === 1 ? 'y was' : 'ies were'} flagged on ${days} day${days === 1 ? '' : 's'} (${parts.join(', ')}); the retro skill turns a pattern into a check`,
-      }),
-    ];
-  }
-
   /** The owner reply shape is off for this shell (`VULCAN_OWNER_REPLY=off`): a session an agent starts sets it, an owner who exported it by mistake sees why nothing is checked; a note, never a failure. */
   static checkOwnerReplySwitch(opts: { env: Record<string, string | undefined> }): IViolation[] {
     return ReplySwitch.isOwnerOff({ env: opts.env })
@@ -1271,27 +1046,6 @@ export class ProjectContract {
             check: DoctorChecks.LOCAL,
             file: OwnerReplySwitch.ENV,
             message: `set to ${OwnerReplySwitch.OFF} in this shell: a session started from here is not held to the owner reply shape and its replies are not logged. Unset it for a session whose reader is the owner`,
-          }),
-        ]
-      : [];
-  }
-
-  /**
-   * The session running doctor is Claude Code (`CLAUDECODE` is set) and its `CLAUDE_CODE_TMPDIR` is not this project's folder: it was
-   * not started with the launch file, so its task output and its MCP servers use `/tmp`. Outside Claude Code doctor cannot know. A note.
-   */
-  static checkLaunchSettings(opts: {
-    root: string;
-    env: Record<string, string | undefined>;
-  }): IViolation[] {
-    const tmp = ClaudeLaunch.tmpOf(opts);
-
-    return opts.env.CLAUDECODE !== undefined && tmp.state !== 'inside'
-      ? [
-          createViolation({
-            check: DoctorChecks.LOCAL,
-            file: CLAUDE_LAUNCH_FILE,
-            message: `this Claude Code session was not started with the launch file, so its task output and its MCP servers use ${tmp.folder ?? '/tmp'}. Start it with: ${ClaudeLaunch.COMMAND}`,
           }),
         ]
       : [];
@@ -1452,34 +1206,6 @@ export class ProjectContract {
     });
   }
 
-  /**
-   * The commands and push targets the project adds to guard-writes and guard-git, one note each: so the
-   * guards' reach beyond their own list is visible where a person looks, with the rule and the pattern.
-   */
-  static checkGuardPatterns(opts: ICheckContext): IViolation[] {
-    const { commands } = opts.config.guard.writes;
-    const { askPush } = opts.config.guard.git;
-
-    return [
-      ...commands.map((command) =>
-        createViolation({
-          check: DoctorChecks.GUARDS,
-          file: opts.configFile,
-          message: `guard.writes.commands: ${command.rule} '${command.what}' asks when a command matches /${command.pattern}/${command.ignoreCase === true ? 'i' : ''}`,
-        }),
-      ),
-      ...(askPush.length === 0
-        ? []
-        : [
-            createViolation({
-              check: DoctorChecks.GUARDS,
-              file: opts.configFile,
-              message: `guard.git.askPush: a plain git push asks for ${askPush.join(', ')}`,
-            }),
-          ]),
-    ];
-  }
-
   /** Private values in committed files: one warning per file with the kinds and counts, never the text, and one per acknowledgment that covered nothing. */
   static checkPrivateValues(opts: ICheckContext): IViolation[] {
     const { findings, unmatched } = PrivateValues.scan({
@@ -1525,83 +1251,5 @@ export class ProjectContract {
             message: `${acknowledgedFiles} ${acknowledgedFiles === 1 ? 'file' : 'files'} acknowledged in doctor.privateValues.acknowledged`,
           }),
         ];
-  }
-
-  /** The size of `.agents/local/` once it is large: where the space went, and the command that gives it back. */
-  static checkLocalSize(opts: ICheckContext): IViolation[] {
-    const entries = LocalScan.scan({ root: opts.root });
-    const total = entries.reduce((sum, entry) => sum + entry.bytes, 0);
-
-    if (total < LocalConstants.NOTE_BYTES) {
-      return [];
-    }
-
-    const byScope = new Map<string, number>();
-
-    for (const entry of entries) {
-      byScope.set(entry.scope, (byScope.get(entry.scope) ?? 0) + entry.bytes);
-    }
-
-    const parts = [...byScope.entries()]
-      .sort((first, second) => second[1] - first[1])
-      .map(([scope, bytes]) => `${scope} ${LocalFormat.formatBytes({ bytes })}`);
-
-    return [
-      createViolation({
-        check: DoctorChecks.LOCAL,
-        file: ProjectLayout.LOCAL_DIRECTORY,
-        message: `holds ${LocalFormat.formatBytes({ bytes: total })} (${parts.join(', ')}); vulcan clean lists what an agent left and --yes removes it`,
-      }),
-    ];
-  }
-}
-
-const QUOTES = ["'", '"', '`'];
-
-/**
- * A subcommand an object entry lists that its script never holds as a quoted string (a note). It reads the
- * text of the file, so it cannot tell a subcommand the script handles another way from a typo.
- */
-export class ReadOnlySubcommandChecks {
-  static readonly MAX_SOURCE_BYTES = 1_000_000;
-
-  static sourceOf(opts: { path: string }): string | undefined {
-    try {
-      const stat = lstatSync(opts.path);
-
-      return stat.isFile() && stat.size <= ReadOnlySubcommandChecks.MAX_SOURCE_BYTES
-        ? readFileSync(opts.path, 'utf8')
-        : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
-  static check(opts: ICheckContext): IViolation[] {
-    return opts.config.guard.writes.trustedScripts.flatMap((entry) => {
-      const { script, readOnly } = trustedScriptOf({ entry });
-      const path = join(opts.root, script);
-
-      if (readOnly === undefined) {
-        return [];
-      }
-
-      // Only a plain, small file inside the repo is read: a link, a folder or a device is skipped, never followed.
-      const source = ReadOnlySubcommandChecks.sourceOf({ path });
-
-      if (source === undefined) {
-        return [];
-      }
-
-      return readOnly
-        .filter((word) => !QUOTES.some((quote) => source.includes(`${quote}${word}${quote}`)))
-        .map((word) =>
-          createViolation({
-            check: DoctorChecks.GUARDS,
-            file: script,
-            message: `guard.writes.trustedScripts lists the subcommand '${word}' for this script, but the script does not hold it as a quoted string; this is a check of the text of the file, not what the script does`,
-          }),
-        );
-    });
   }
 }

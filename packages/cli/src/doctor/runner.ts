@@ -1,6 +1,6 @@
 import { relative } from 'node:path';
 import { ConfigLoader } from '../config/index.ts';
-import { ProjectContract, ReadOnlySubcommandChecks } from './checks.ts';
+import { ProjectContract } from './checks.ts';
 import { SkillLint } from './skills.ts';
 import { TagCheck } from './tags.ts';
 import { DoctorChecks } from './common/index.ts';
@@ -66,16 +66,10 @@ export class DoctorRunner {
     };
 
     return [
-      ...ProjectContract.checkAppScripts(context),
       ...ProjectContract.checkAtlasBlock(context),
-      ...ProjectContract.checkLocalSize(context),
-      ...ProjectContract.checkGuardPatterns(context),
       ...ProjectContract.checkAcknowledgedValues(context),
-      ...ProjectContract.checkReplyShape(context),
       ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
-      ...ProjectContract.checkLaunchSettings({ root: opts.root, env: opts.env ?? process.env }),
       ...ProjectContract.checkTrustedScripts(context),
-      ...ReadOnlySubcommandChecks.check(context),
     ];
   }
 
@@ -100,11 +94,9 @@ export class DoctorRunner {
       ...ProjectContract.checkEventsSize(context),
       ...ProjectContract.checkProjectKey(context),
       ...ProjectContract.checkBrowserSocket({ root: opts.root, tmp: context.config.local.tmp }),
-      ...ProjectContract.checkDockerignore(context),
       ...ProjectContract.checkSkillTriggers(context),
       ...ProjectContract.checkFormat(context),
       ...ProjectContract.checkLocalWorkspace(context),
-      ...ProjectContract.checkOutsideWorktrees(context),
       ...ProjectContract.checkProfile(context),
       ...ProjectContract.checkOwnerReplySettings(context),
       ...ProjectContract.checkStaleLocal(context),

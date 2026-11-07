@@ -5,7 +5,6 @@ import {
   readFileSync,
   rmSync,
   symlinkSync,
-  truncateSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
@@ -591,21 +590,6 @@ describe('doctor and what an agent left behind', () => {
     const result2 = await DoctorRunner.runWarnings({ root });
     const result = SocketWarning.without({ warnings: result2 });
     expect(result.filter((entry) => entry.file.startsWith('.agents/local/'))).toEqual([]);
-  });
-
-  test('prints the size of .agents/local/ once it is large, with where it went', async () => {
-    const root = repository();
-
-    file({ root, path: 'cache/big', text: '' });
-    truncateSync(join(root, '.agents/local/cache/big'), 60 * 1024 * 1024);
-
-    const notes = await DoctorRunner.runNotes({ root });
-    const [note] = notes.filter((entry) => entry.file === '.agents/local');
-
-    expect(note?.message).toContain('holds 60.0 MB');
-    expect(note?.message).toContain('cache 60.0 MB');
-    const result = await DoctorRunner.runNotes({ root: repository() });
-    expect(result.filter((entry) => entry.file === '.agents/local')).toEqual([]);
   });
 });
 

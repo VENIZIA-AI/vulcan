@@ -185,7 +185,7 @@ docker build -f be/api3/.configs/builders/Dockerfile \
   --build-arg APP_BUILD_BRANCH="$(git rev-parse --abbrev-ref HEAD)" .
 ```
 
-The root `.dockerignore` that `vulcan init` writes leaves out `.git`, so the image gets the commit and branch from the build arguments instead. It also excludes `**/.env` and `**/.env.*` (and keeps `!**/.env.example`): a Dockerfile that copies the project would otherwise put every app's secrets in an image layer, which a CI cache can keep. `vulcan doctor` warns when an app has a Dockerfile and the root `.dockerignore` is missing or does not exclude them ([dockerignore](/references/commands/doctor#dockerignore)).
+The root `.dockerignore` that `vulcan init` writes leaves out `.git`, so the image gets the commit and branch from the build arguments instead. It also excludes `**/.env` and `**/.env.*` (and keeps `!**/.env.example`): a Dockerfile that copies the project would otherwise put every app's secrets in an image layer, which a CI cache can keep.
 
 Never copy a file with a credential into an image: an `.npmrc` with an auth token, a `.netrc`, a key. A build that installs from a private registry takes it from the environment, `BUN_CONFIG_REGISTRY`, handed over as a build secret (`docker build --secret`) and never as a copied file; a build argument is visible in the image history, so it does not carry a token either.
 

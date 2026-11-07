@@ -5,7 +5,6 @@ import { DoctorRunner } from '../../doctor/index.ts';
 import { SocketWarning } from '../doctor/socket-warning.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
@@ -14,16 +13,6 @@ const PRE_UPGRADE = {
   '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
   'AGENTS.md': '# x\n',
   '.gitignore': 'node_modules/\n.agents/vulcan.local.json\n',
-};
-
-const git = (opts: { cwd: string; args: string[] }): void => {
-  const result = spawnSyncBounded({
-    cmd: ['git', ...opts.args],
-    cwd: opts.cwd,
-    timeout: 20_000,
-  });
-
-  expect(result.exitCode).toBe(0);
 };
 
 describe('upgrading a project from the layout before .agents/local/', () => {
@@ -65,28 +54,5 @@ describe('upgrading a project from the layout before .agents/local/', () => {
     const after = SocketWarning.without({ warnings: result });
 
     expect(after.filter((entry) => entry.check === 'local')).toEqual([]);
-  });
-
-  test('a worktree outside the project is named with the exact command to move it in', async () => {
-    const root = createProject({ files: PRE_UPGRADE });
-    const outside = join(createProject({ files: {} }), 'elsewhere');
-
-    git({ cwd: root, args: ['init', '-q', '-b', 'develop'] });
-    git({ cwd: root, args: ['config', 'user.email', 'a@example.com'] });
-    git({ cwd: root, args: ['config', 'user.name', 'a'] });
-    git({ cwd: root, args: ['add', '.'] });
-    git({ cwd: root, args: ['commit', '-q', '-m', 'init'] });
-    git({ cwd: root, args: ['worktree', 'add', '-q', outside, '-b', 'topic'] });
-    runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
-
-    const result2 = await DoctorRunner.runWarnings({ root });
-    const result = SocketWarning.without({ warnings: result2 });
-    const warnings = result.filter((entry) => entry.check === 'local');
-
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]?.message).toContain(`git worktree move '${outside}'`);
-    expect(warnings[0]?.message).toContain('.agents/local/worktrees/elsewhere');
-    // Nothing was moved or removed.
-    expect(existsSync(outside)).toBe(true);
   });
 });
