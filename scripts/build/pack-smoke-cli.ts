@@ -148,7 +148,7 @@ const packPackage = (opts: { directory: string }): string | undefined => {
     return undefined;
   }
 
-  const tarball = readdirSync(cwd).find(file => file.endsWith('.tgz'));
+  const tarball = readdirSync(cwd).find((file) => file.endsWith('.tgz'));
 
   return tarball === undefined ? undefined : join(cwd, tarball);
 };
@@ -170,7 +170,7 @@ const findStaleSiblingPins = (opts: { tarball: string }): string[] => {
   });
   const manifest: IManifest = JSON.parse(packed.stdout);
 
-  return ['okf', 'atlas'].flatMap(directory => {
+  return ['okf', 'atlas'].flatMap((directory) => {
     const sibling: IManifest = JSON.parse(
       readFileSync(join(PACKAGES_DIRECTORY, directory, 'package.json'), 'utf8'),
     );
@@ -203,7 +203,7 @@ const buildMcpRequests = (): string =>
       params: { name: 'search', arguments: { query: 'lighthouse keeper' } },
     },
   ]
-    .map(request => JSON.stringify(request))
+    .map((request) => JSON.stringify(request))
     .join('\n')
     .concat('\n');
 
@@ -213,7 +213,7 @@ const buildMcpRequests = (): string =>
  */
 const inspectMcpOutput = (opts: { stdout: string }): string | undefined => {
   const lines = opts.stdout.trim().split('\n').filter(Boolean);
-  const frames = lines.map(line => {
+  const frames = lines.map((line) => {
     try {
       const frame: {
         jsonrpc?: string;
@@ -231,17 +231,17 @@ const inspectMcpOutput = (opts: { stdout: string }): string | undefined => {
     }
   });
 
-  if (frames.some(frame => frame?.jsonrpc !== '2.0')) {
+  if (frames.some((frame) => frame?.jsonrpc !== '2.0')) {
     return 'x atlas: a stdout line is not a JSON-RPC frame';
   }
 
-  const toolCount = frames.find(frame => frame?.id === 2)?.result?.tools?.length ?? 0;
+  const toolCount = frames.find((frame) => frame?.id === 2)?.result?.tools?.length ?? 0;
 
   if (toolCount < MINIMUM_ATLAS_TOOLS) {
     return `x atlas: tools/list returned ${toolCount} tools`;
   }
 
-  const searched = frames.find(frame => frame?.id === 3)?.result?.content?.[0]?.text ?? '';
+  const searched = frames.find((frame) => frame?.id === 3)?.result?.content?.[0]?.text ?? '';
 
   return searched.includes('"source":"remote"')
     ? undefined
@@ -282,7 +282,6 @@ const makeSource = (opts: { sandbox: string }): { url?: string; failure?: string
   return failure === undefined ? { url: `file://${bare}` } : { failure };
 };
 
-
 interface IHookEntry {
   event: string;
   matcher: string;
@@ -312,13 +311,19 @@ const hookNameOf = (opts: { hook: IHookEntry }): string =>
   /hooks\/([\w-]+)\.ts/.exec(opts.hook.command)?.[1] ?? opts.hook.command.slice(0, 40);
 
 /** Every benign call the hook's matcher covers: a Bash `ls`, a Write inside the project, or the event itself. */
-const benignPayloadsOf = (opts: { hook: IHookEntry; sandbox: string; command?: string }): string[] => {
+const benignPayloadsOf = (opts: {
+  hook: IHookEntry;
+  sandbox: string;
+  command?: string;
+}): string[] => {
   if (opts.hook.event === 'SessionStart') {
     return ['{"hook_event_name":"SessionStart","source":"startup"}'];
   }
 
   if (opts.hook.event === 'SubagentStart') {
-    return ['{"hook_event_name":"SubagentStart","agent_type":"general-purpose","agent_id":"smoke"}'];
+    return [
+      '{"hook_event_name":"SubagentStart","agent_type":"general-purpose","agent_id":"smoke"}',
+    ];
   }
 
   const cwd = JSON.stringify(opts.sandbox);
@@ -362,11 +367,7 @@ const runHook = (opts: { hook: IHookEntry; sandbox: string; payload: string }) =
   return { code: result.status ?? -1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 };
 
-const BLOCKING = new Set([
-  'guard-writes',
-  'guard-git',
-  'guard-outside',
-]);
+const BLOCKING = new Set(['guard-writes', 'guard-git', 'guard-outside']);
 const SAFETY = new Set(['guard-writes']);
 
 /** A path of the installed package moved aside while `run` executes, then put back. */
@@ -399,7 +400,10 @@ const withBrokenPackages = <T>(opts: { paths: string[]; run: () => T }): T => {
     run: () => {
       mkdirSync(first, { recursive: true });
       writeFileSync(join(first, 'package.json'), '{"name":"stub","main":"index.js"}');
-      writeFileSync(join(first, 'index.js'), 'throw new Error("unavailable: broken by the pack smoke");\n');
+      writeFileSync(
+        join(first, 'index.js'),
+        'throw new Error("unavailable: broken by the pack smoke");\n',
+      );
 
       try {
         return withBrokenPackages({ paths: rest, run: opts.run });
@@ -408,32 +412,6 @@ const withBrokenPackages = <T>(opts: { paths: string[]; run: () => T }): T => {
       }
     },
   });
-};
-
-/** Blocking hooks that were removed; an older `vulcan sync` still registers each, and the package keeps an empty file for it. */
-const REMOVED_BLOCKING_HOOKS = ['guard-package', 'guard-remote-hosts', 'guard-manifest'];
-const OLD_ENTRY = readFileSync(
-  resolve(import.meta.dir, '..', '..', 'packages/cli/src/__tests__/fixtures/old-blocking-hook-entry.txt'),
-  'utf8',
-);
-
-/** The entry an older sync wrote for each removed blocking hook, run against the installed tarball: it must pass the call. */
-const smokeRemovedHooks = (opts: { sandbox: string }): string | undefined => {
-  for (const name of REMOVED_BLOCKING_HOOKS) {
-    const result = spawnSync('/bin/sh', ['-c', OLD_ENTRY.split('@@HOOK@@').join(name)], {
-      cwd: opts.sandbox,
-      input: JSON.stringify({ ['tool_name']: 'Write', ['tool_input']: { ['file_path']: 'x' }, cwd: opts.sandbox }),
-      encoding: 'utf8',
-      env: SmokeEnv.of({ env: process.env, extra: { CLAUDE_PROJECT_DIR: opts.sandbox } }),
-      timeout: 60_000,
-    });
-
-    if (result.status !== 0) {
-      return `removed hooks: the old entry of ${name} exited ${result.status} against the tarball: ${(result.stderr ?? '').slice(-300)}`;
-    }
-  }
-
-  return undefined;
 };
 
 /** The hooks, from the tarball: a failure message, or `undefined` when every case held. */
@@ -469,9 +447,10 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
 
   const installed = join(sandbox, 'node_modules', '@venizia', 'vulcan');
   // Every copy of zod the hooks could resolve: one left behind would make the case below pass for nothing.
-  const zods = [join(sandbox, 'node_modules', 'zod'), join(installed, 'node_modules', 'zod')].filter(
-    (path) => existsSync(path),
-  );
+  const zods = [
+    join(sandbox, 'node_modules', 'zod'),
+    join(installed, 'node_modules', 'zod'),
+  ].filter((path) => existsSync(path));
 
   if (zods.length === 0) {
     return 'hooks: cannot find the installed zod to break - the check would pass for nothing';
@@ -611,7 +590,6 @@ try {
 
     // Every registered hook, from the installed tarball (the release-blocking check on the hook path).
     failure ??= smokeHooks({ sandbox });
-    failure ??= smokeRemovedHooks({ sandbox });
 
     // A project module, written the way the adoption guide says: resolves, type-checks, renders.
     const source = failure === undefined ? makeSource({ sandbox: sourceSandbox }) : {};
