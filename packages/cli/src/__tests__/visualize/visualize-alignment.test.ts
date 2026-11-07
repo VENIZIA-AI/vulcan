@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { SpecPage } from '../../visualize/index.ts';
 import { GROUPS, MEASURE } from './alignment.groups.ts';
 import { alignmentSpec } from './alignment.fixture.ts';
+import { figuresSpec } from './figures.fixture.ts';
 import { BrowserPage } from './browser.helper.ts';
 
 /**
@@ -81,3 +82,155 @@ describe.skipIf(hasBrowser)('no browser here', () => {
     expect(hasBrowser).toBe(false);
   });
 });
+
+/**
+ * Figures hold their text. Measured in a real browser, on a page of long Vietnamese labels: no text of a box sticks
+ * out of its box, no arrow label touches a box, and no figure scrolls sideways inside its frame, at 1280 and at 1440 px
+ * (below that the figure gives way to its list).
+ */
+const figuresHtml = ((): string => {
+  const result = SpecPage.renderText({ text: JSON.stringify(figuresSpec()) });
+
+  if (!result.ok) {
+    throw new Error(result.problems.join('; '));
+  }
+
+  return result.page.html;
+})();
+
+const FIGURES = `(() => {
+  const visible = (el) => el.getClientRects().length > 0;
+  const issues = [];
+  const nodes = [...document.querySelectorAll('.fig svg .node')].filter(visible);
+  const rects = nodes.map((node) => ({ id: node.dataset.node, box: node.querySelector('rect').getBBox() }));
+
+  for (const node of nodes) {
+    const rect = node.querySelector('rect').getBBox();
+
+    for (const text of node.querySelectorAll('text')) {
+      const box = text.getBBox();
+
+      if (box.x < rect.x + 2 || box.x + box.width > rect.x + rect.width - 2 || box.y < rect.y || box.y + box.height > rect.y + rect.height) {
+        issues.push('box text outside its box: ' + text.textContent);
+      }
+    }
+  }
+
+  for (const label of [...document.querySelectorAll('.fig svg .edge text')].filter(visible)) {
+    const box = label.getBBox();
+
+    for (const { id, box: rect } of rects) {
+      if (box.x < rect.x + rect.width + 2 && box.x + box.width > rect.x - 2 && box.y < rect.y + rect.height + 2 && box.y + box.height > rect.y - 2) {
+        issues.push('arrow label over a box: ' + label.textContent + ' / ' + id);
+      }
+    }
+  }
+
+  for (const frame of [...document.querySelectorAll('.fig')].filter(visible)) {
+    if (frame.scrollWidth > frame.clientWidth + 1) {
+      issues.push('a figure scrolls sideways inside its frame: ' + frame.className);
+    }
+  }
+
+  return { figures: [...document.querySelectorAll('.fig')].filter(visible).length, issues };
+})()`;
+
+describe.skipIf(!hasBrowser)('figures hold their text (measured in a browser)', () => {
+  for (const width of [1280, 1440]) {
+    for (const dark of [false, true]) {
+      test(`${width} px, ${dark ? 'dark' : 'light'}: no overflow, no label on a box, no sideways scroll`, async () => {
+        const found = await BrowserPage.measure<{ figures: number; issues: string[] }>({
+          html: figuresHtml,
+          width,
+          dark,
+          expression: FIGURES,
+        });
+
+        expect(found.figures).toBeGreaterThanOrEqual(3);
+        expect(found.issues).toEqual([]);
+      });
+    }
+  }
+
+  test('the check sees a box too narrow for its text, a label on a box, and a figure too wide for its frame', async () => {
+    const narrowed = figuresHtml.replace(
+      /(<rect x="[\d.]+" y="[\d.]+" width=")[\d.]+(" height="[\d.]+" rx="4"\/>)/,
+      '$140$2',
+    );
+    const moved = figuresHtml.replace(
+      /(<g class="edge main" data-edge="b&gt;c"><title>[^<]*<\/title><path d="[^"]*"[^>]*\/><text x=")[\d.]+(")/,
+      '$1240$2',
+    );
+    const wide = figuresHtml.replace('.fig{overflow-x:auto}', '.fig{overflow-x:auto;width:300px}');
+    const measure = (page: string) =>
+      BrowserPage.measure<{ issues: string[] }>({
+        html: page,
+        width: 1280,
+        dark: false,
+        expression: FIGURES,
+      });
+
+    const result = await measure(narrowed);
+    expect(result.issues.some((issue) => issue.startsWith('box text'))).toBe(true);
+    const result2 = await measure(moved);
+    expect(result2.issues.some((issue) => issue.startsWith('arrow label'))).toBe(true);
+    const result3 = await measure(wide);
+    expect(result3.issues.some((issue) => issue.startsWith('a figure scrolls'))).toBe(true);
+  });
+});
+
+describe.skipIf(!hasBrowser)(
+  'a figure too wide for the page gives way to its list (measured in a browser)',
+  () => {
+    const tooWide = ((): string => {
+      const spec = figuresSpec() as {
+        flow: { nodes: Record<string, unknown>[]; edges: Record<string, unknown>[] };
+      };
+
+      spec.flow.nodes.push(
+        {
+          id: 'f',
+          label: 'Người đọc báo cáo cuối cùng',
+          sublabel: 'xem kết quả mỗi tuần',
+          row: 0,
+          col: 4,
+          kind: 'actor',
+        },
+        {
+          id: 'g',
+          label: 'Kho lưu trữ lâu dài',
+          sublabel: 'giữ bản sao một năm',
+          row: 0,
+          col: 5,
+          kind: 'store',
+        },
+      );
+      spec.flow.edges.push(
+        { from: 'd', to: 'f', label: 'gửi báo cáo tuần' },
+        { from: 'f', to: 'g', label: 'lưu bản sao' },
+      );
+
+      const result = SpecPage.renderText({ text: JSON.stringify(spec) });
+
+      if (!result.ok) {
+        throw new Error(result.problems.join('; '));
+      }
+
+      return result.page.html;
+    })();
+
+    for (const width of [1280, 1920]) {
+      test(`${width} px: the six-column flow is shown as its list, and nothing scrolls sideways`, async () => {
+        const found = await BrowserPage.measure<{ flowVisible: boolean; issues: string[] }>({
+          html: tooWide,
+          width,
+          dark: false,
+          expression: `(() => { const flow = document.querySelector('.hero .fig'); const base = ${FIGURES}; return { flowVisible: flow !== null && flow.getClientRects().length > 0, issues: base.issues }; })()`,
+        });
+
+        expect(found.flowVisible).toBe(false);
+        expect(found.issues).toEqual([]);
+      });
+    }
+  },
+);

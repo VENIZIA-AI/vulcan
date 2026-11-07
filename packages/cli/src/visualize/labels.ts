@@ -48,6 +48,8 @@ export class Labels {
       statusStates: { ...base.statusStates, ...definedOnly({ value: given.statusStates }) },
       minimapStates: { ...base.minimapStates, ...definedOnly({ value: given.minimapStates }) },
       evidenceLabels: { ...base.evidenceLabels, ...definedOnly({ value: given.evidenceLabels }) },
+      nodeKinds: { ...base.nodeKinds, ...definedOnly({ value: given.nodeKinds }) },
+      edgeVariants: { ...base.edgeVariants, ...definedOnly({ value: given.edgeVariants }) },
     };
   }
 }

@@ -249,7 +249,7 @@ const BASE_CSS = [
   `.chips{display:flex;flex-wrap:wrap;align-content:flex-start;align-items:flex-start;gap:6px;margin-bottom:12px}.chips li{padding:3px 10px;border-radius:var(--radius);background:var(--bg);color:var(--ink);font-size:15px}`,
   // Explainer: a big numeral, the words, then the drawing.
   `.ex{display:grid;gap:60px}`,
-  `.estep{display:grid;grid-template-columns:96px minmax(0,1fr) minmax(0,1.3fr);gap:10px 32px;align-items:start}`,
+  `.estep{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px 32px;align-items:start}.estep .dg{grid-column:2/-1;min-width:0}`,
   `.estep .no{font-size:72px;line-height:.8;font-weight:650;letter-spacing:-.05em;color:var(--ink)}`,
   `.estep h3{font-size:24px;line-height:1.2}.estep .sb p{margin-top:10px;max-width:44ch;color:var(--body)}`,
   // Timeline: a rule with a ring per date.
@@ -325,14 +325,14 @@ const BASE_CSS = [
   `html.present .deck{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;gap:12px;align-items:center;justify-content:center;padding:10px;border-top:1px solid var(--line)}`,
   `html.present .deck span{font:600 14px var(--font);color:var(--muted)}`,
   // A phone: panels stack, the bar keeps only the title, the state, present and the switch.
-  `@media (max-width:860px){.own,.facts,.q,.estep,.diff,.ev,.log li,.idea{grid-template-columns:minmax(0,1fr)}.q{gap:18px}.idea .centre{order:-1;grid-column:1;grid-row:auto}.idea .branch:nth-child(n){grid-column:1}.estep{gap:12px}.estep .no{font-size:56px}`,
+  `@media (max-width:860px){.own,.facts,.q,.estep,.diff,.ev,.log li,.idea{grid-template-columns:minmax(0,1fr)}.estep .dg{grid-column:auto}.estep .no{line-height:1}.q{gap:18px}.idea .centre{order:-1;grid-column:1;grid-row:auto}.idea .branch:nth-child(n){grid-column:1}.estep{gap:12px}.estep .no{font-size:56px}`,
   `.part{padding-top:64px}.hero{padding-block:40px}.figure{margin-top:36px}.foot{margin-top:80px}.sh{margin-bottom:26px}.own .nx,.own .stop{padding:26px 22px}.opt{padding:26px 22px 28px}.q{padding:24px 22px 26px}.ba{padding:24px 22px}`,
   `.top .links,.top .sep,.top .stamp{display:none}.top .wrap{gap:10px}.top .ttl{max-width:none;flex:1 1 auto}.top nav{margin-left:0;flex:none}`,
   `.stack thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.stack,.stack tbody,.stack tr,.stack td{display:block;width:100%}.stack tr{padding:14px 0;border-top:1px solid var(--line)}.stack tbody tr:first-child{border-top:0;padding-top:0}.stack td{border:0;padding:3px 0}`,
   `.stack td[data-label]::before{content:attr(data-label);display:block;font:600 13px/1.3 var(--font);color:var(--muted);margin-bottom:2px}}`,
   `@media (max-width:520px){body{font-size:16px}#present{display:none}.tile{padding:22px 20px}.steps{grid-template-columns:minmax(0,1fr)}.say{grid-template-columns:minmax(0,1fr)}}`,
   // Motion is an extra: the hero rises and the owner's gate glows only when the reader has not asked for less.
-  `@media (prefers-reduced-motion:no-preference){.gate .halo{animation:heat 2.6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}@keyframes heat{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.12)}}.hero h1,.hero .lede,.figure{animation:rise .7s cubic-bezier(.22,1,.36,1) both}.hero .lede{animation-delay:.08s}.figure{animation-delay:.16s}@keyframes rise{from{opacity:.001;transform:translateY(20px)}}}`,
+  `@media (prefers-reduced-motion:no-preference){.gate .halo{animation:heat 2.6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}@keyframes heat{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.12)}}.hero h1,.hero .lede,.figure{animation:rise .7s cubic-bezier(.22,1,.36,1) both}.hero .lede{animation-delay:.08s}.figure{animation-delay:.16s}@keyframes rise{from{transform:translateY(14px)}}}`,
   `@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}`,
   // Print: the final state, light on paper, one slide after another.
   `@media print{body{background:#fff;color:#000}.top,.deck,.js-only,.say{display:none}.slab,.win,.pull{--slab:#fff;--slab-2:#f1f1f1;--slab-3:#e6e6e6;--slab-ink:#000;--slab-body:#222;--slab-muted:#444;--hot:#5a3600;--hot-ink:#fff;--hot-glow:transparent;--ok:#0f5c2a;--warn:#7a4504;--bad:#9a1d17;--info:#164a9e;background-image:none}`,

@@ -324,6 +324,24 @@ const CHROME = z
         guess: text(VisualizeLimits.MAX_LABEL).optional(),
       })
       .optional(),
+    nodeKinds: z
+      .strictObject({
+        step: text(VisualizeLimits.MAX_LABEL).optional(),
+        service: text(VisualizeLimits.MAX_LABEL).optional(),
+        store: text(VisualizeLimits.MAX_LABEL).optional(),
+        actor: text(VisualizeLimits.MAX_LABEL).optional(),
+        external: text(VisualizeLimits.MAX_LABEL).optional(),
+      })
+      .optional(),
+    edgeVariants: z
+      .strictObject({
+        main: text(VisualizeLimits.MAX_LABEL).optional(),
+        branch: text(VisualizeLimits.MAX_LABEL).optional(),
+        return: text(VisualizeLimits.MAX_LABEL).optional(),
+        fanout: text(VisualizeLimits.MAX_LABEL).optional(),
+        error: text(VisualizeLimits.MAX_LABEL).optional(),
+      })
+      .optional(),
   })
   .optional();
 

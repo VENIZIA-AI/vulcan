@@ -45,12 +45,18 @@ export class SpecDiagrams {
     if (diagram.type === 'row') {
       const longest = Math.max(
         ...diagram.nodes.flatMap((node) => [
-          node.label.length * 8.2,
-          (node.sub?.length ?? 0) * 7.6,
+          FigureLayout.textWidth({ text: node.label, size: 14, isBold: true }),
+          node.sub === undefined ? 0 : FigureLayout.textWidth({ text: node.sub, size: 12.5 }),
         ]),
       );
       const bw = Math.max(124, Math.ceil(longest) + 24);
-      const gap = 78;
+      const arrowWidth = Math.max(
+        0,
+        ...(diagram.arrows ?? []).map((label) =>
+          FigureLayout.textWidth({ text: label, size: 12.5 }),
+        ),
+      );
+      const gap = Math.max(78, Math.ceil(arrowWidth) + 24);
       const width = diagram.nodes.length * bw + (diagram.nodes.length - 1) * gap + 16;
       const parts = diagram.nodes
         .map((node, index) => {

@@ -26,6 +26,10 @@ const MARK =
 
 /** A figure is drawn at most this much larger than its natural width, so a short flow does not turn into a poster. */
 const FIGURE_MAX = 1.25;
+/** The page becomes one column at and below this viewport width. */
+const STACKED_AT = 860;
+/** The widest a figure can be drawn: the content column is 1208 px at most. */
+const CONTENT_WIDTH = 1208;
 
 const sha256 = (opts: { text: string }): string =>
   `'sha256-${createHash('sha256').update(opts.text).digest('base64')}'`;
@@ -39,19 +43,38 @@ const BANNER_STATE: Record<string, string> = {
 };
 
 /**
- * For each figure width: the size it may take (never under FIGURE_FIT of its natural width, never past a quarter more),
+ * For each figure: the size it may take (never under FIGURE_FIT of its natural width, never past a quarter more),
  * and the rule that swaps the figure for its list below the viewport width at which it would shrink under FIGURE_FIT
- * of its natural size (text under 12 px). The 66 is the page and frame padding.
+ * of its natural size (text under 12 px). The 66 is the page and frame padding. A key is the width, or the width and
+ * the inset: the space a figure shares with something beside it (the numeral of an explainer step) while the page
+ * is wide enough for the two columns; at and below 860 px the page is one column and the inset is gone.
  */
-const figureFitCss = (opts: { widths: Set<number> }): string =>
-  [...opts.widths]
-    .sort((a, b) => a - b)
-    .map((width) => {
-      const at = Math.ceil(width * FIGURE_FIT) + 66;
+const figureFitCss = (opts: { keys: Set<string> }): string =>
+  [...opts.keys]
+    .sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10))
+    .map((key) => {
+      const [widthText = '0', insetText = '0'] = key.split(':');
+      const width = Number(widthText);
+      const inset = Number(insetText);
+      const name = inset === 0 ? `f${width}` : `f${width}i${inset}`;
       const least = Math.ceil(width * FIGURE_FIT);
       const most = Math.ceil(width * FIGURE_MAX);
+      const swap = `.fig.${name}{display:none}.fig.${name}~.path,.fig.${name}~.path-detail{display:block}.fig.${name}~.say,.fig.${name}~.legend{display:none}.fig.${name}~.steps .explain{display:block}.fig.${name}~.steps button{pointer-events:none}`;
+      const narrow = least + 66;
+      const wide = narrow + inset;
+      const rules =
+        least > CONTENT_WIDTH - inset
+          ? [swap]
+          : inset === 0
+            ? [`@media (max-width:${narrow}px){${swap}}`]
+            : [
+                `@media (max-width:${Math.min(narrow, STACKED_AT)}px){${swap}}`,
+                ...(wide > STACKED_AT
+                  ? [`@media (min-width:${STACKED_AT + 1}px) and (max-width:${wide}px){${swap}}`]
+                  : []),
+              ];
 
-      return `.fig.f${width} svg{min-width:${least}px;max-width:${most}px}\n@media (max-width:${at}px){.fig.f${width}{display:none}.fig.f${width}~.path,.fig.f${width}~.path-detail{display:block}.fig.f${width}~.say,.fig.f${width}~.legend{display:none}.fig.f${width}~.steps .explain{display:block}.fig.f${width}~.steps button{pointer-events:none}}`;
+      return `.fig.${name} svg{min-width:${least}px;max-width:${most}px}\n${rules.join('\n')}`;
     })
     .join('\n');
 
@@ -180,7 +203,7 @@ export class PageShell {
     const ctx: ISectionContext = {
       spec,
       chrome,
-      fits: new Set<number>(),
+      fits: new Set<string>(),
       spans: new Set<number>(),
     };
     const { state, tone, word } = stateOf({ spec, chrome });
@@ -226,7 +249,7 @@ export class PageShell {
           }),
       SpecSections.links({ ctx }),
     ].join('');
-    const css = `${Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? DEFAULT_THEME }) })}\n${NEW_KINDS_CSS}\n${COMPARE_CSS}\n${GridSpans.css({ spans: ctx.spans })}\n${figureFitCss({ widths: ctx.fits })}`;
+    const css = `${Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? DEFAULT_THEME }) })}\n${NEW_KINDS_CSS}\n${COMPARE_CSS}\n${GridSpans.css({ spans: ctx.spans })}\n${figureFitCss({ keys: ctx.fits })}`;
     const policy = `default-src 'none'; style-src ${sha256({ text: css })}; script-src ${sha256({ text: HEAD_JS })} ${sha256({ text: PAGE_JS })}; base-uri 'none'; form-action 'none'`;
     const links = SpecSections.sectionLinks({ spec, chrome })
       .map((link) => `<a href="#${link.id}">${escaped(link.title)}</a>`)
