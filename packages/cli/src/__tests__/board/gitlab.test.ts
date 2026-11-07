@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { BoardGitlab } from '../../board/gitlab.ts';
 import { BoardSettings } from '../../board/settings.ts';
 import { BoardAgentInfo } from '../../board/ui/state/agent-info.ts';
+import { BoardUrl } from '../../board/ui/url.ts';
 import type { IBoardViewEvent } from '../../board/ui/common/types.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
@@ -478,6 +479,43 @@ describe('vulcan board with provider gitlab', () => {
 });
 
 describe('the page', () => {
+  const pull = (opts: { source: string; link?: string }) => ({
+    repo: 'group/sub/shop',
+    source: opts.source,
+    n: 7,
+    flow: 'F-1',
+    ci: null,
+    link: opts.link ?? null,
+  });
+
+  test('a merge request is `!7`, a pull request `#7`', () => {
+    expect(BoardAgentInfo.labelOf({ pr: pull({ source: 'gitlab' }) })).toBe('group/sub/shop!7');
+    expect(BoardAgentInfo.labelOf({ pr: pull({ source: 'github' }) })).toBe('group/sub/shop#7');
+  });
+
+  test('a merge request on a plain http server keeps its own link', () => {
+    const link = 'http://git.internal.example/group/sub/shop/-/merge_requests/7';
+
+    expect(BoardUrl.safe({ value: link })).toBe(link);
+    expect(BoardAgentInfo.prHref({ pr: pull({ source: 'gitlab', link }) })).toBe(link);
+  });
+
+  test('a merge request with no link gets none, never a github.com address', () => {
+    expect(BoardAgentInfo.prHref({ pr: pull({ source: 'gitlab' }) })).toBeUndefined();
+    expect(
+      BoardAgentInfo.prHref({ pr: { ...pull({ source: 'github' }), repo: 'acme/shop' } }),
+    ).toBe('https://github.com/acme/shop/pull/7');
+  });
+
+  test('only http and https make a link; an image is https or inline', () => {
+    expect(BoardUrl.safe({ value: 'javascript:alert(1)' })).toBeUndefined();
+    expect(BoardUrl.safe({ value: 'ftp://example.com/x' })).toBeUndefined();
+    expect(BoardUrl.safe({ value: 'http://example.com/logo.svg', image: true })).toBeUndefined();
+    expect(BoardUrl.safe({ value: 'https://example.com/logo.svg', image: true })).toBe(
+      'https://example.com/logo.svg',
+    );
+  });
+
   test('a merge request link is a pull request link of the agent card', () => {
     const event = (opts: Partial<IBoardViewEvent>): IBoardViewEvent =>
       ({
