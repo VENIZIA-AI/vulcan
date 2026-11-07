@@ -1,14 +1,15 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
 import { ThemeTokens } from '../../theme/index.ts';
 import { ProjectTheme } from '../../visualize/theme.ts';
+import { WikiTheme } from '../../../../../docs/wiki/site/.vitepress/theme/shared/wiki-theme.ts';
 
 const ROOT = join(import.meta.dir, '../../../../..');
 const WIKI = join(ROOT, 'docs/wiki/site/.vitepress/theme');
 const TOKENS_CSS = readFileSync(join(WIKI, 'shared/tokens.css'), 'utf8');
-const PRODUCT_CSS = readFileSync(join(WIKI, 'product.css'), 'utf8');
 
 /** The `--name: value` declarations of the block that opens at `marker` (up to its closing brace). */
 const declarations = (opts: {
@@ -27,50 +28,72 @@ const declarations = (opts: {
 
 const venizia = ThemeTokens.PRESETS.venizia;
 
-describe('the venizia preset is the palette the wiki holds today (the board takes the tokens from it)', () => {
-  test('the wiki: text, lines, surfaces and the accent have the same values', () => {
-    const colours = declarations({
-      css: TOKENS_CSS,
-      marker: ':root {',
-      from: TOKENS_CSS.indexOf('--bg:') - 20,
-    });
-    const wikiDark = declarations({ css: TOKENS_CSS, marker: '.dark {' });
-    const accent = declarations({ css: PRODUCT_CSS, marker: ':root {' });
-    const accentDark = declarations({ css: PRODUCT_CSS, marker: '.dark {' });
-    const light: Record<string, string> = {
-      'text-title': 'ink',
-      'text-body': 'body',
-      'text-muted': 'muted',
-      stroke: 'line',
-      'stroke-strong': 'line-strong',
-      bg: 'bg',
-    };
-    const dark: Record<string, string> = {
-      'text-title': 'ink',
-      'text-body': 'body',
-      'text-muted': 'muted',
-      stroke: 'line',
-      'stroke-strong': 'line-strong',
-      bg: 'ground',
-      surface: 'bg',
-    };
+describe('the wiki takes the venizia palette from the manifest theme, value for value', () => {
+  const LIGHT: Record<string, string> = {
+    bg: '#ffffff',
+    surface: '#ffffff',
+    stroke: '#0000001a',
+    'stroke-strong': '#101010',
+    'text-title': '#000000',
+    'text-body': '#4b4b4b',
+    'text-muted': '#6b6b6b',
+    accent: '#8a5a20',
+    'accent-ink': '#ffffff',
+    'accent-text': '#8a5a20',
+    'accent-on-dark': '#dead6a',
+    'accent-2': '#c48a5a',
+  };
+  const DARK: Record<string, string> = {
+    bg: '#121214',
+    surface: '#1b1b1b',
+    stroke: '#ffffff1a',
+    'stroke-strong': '#ffffff4d',
+    'text-title': '#ffffff',
+    'text-body': '#ffffffb3',
+    'text-muted': '#ffffff8c',
+    accent: '#dead6a',
+    'accent-ink': '#1a1200',
+    'accent-text': '#dead6a',
+  };
+  const css = WikiTheme.css({ theme: venizia, accent2: '#c48a5a' });
 
-    for (const [name, token] of Object.entries(light)) {
-      expect(colours[name], `wiki light ${name}`).toBe(venizia.light[token]);
+  test('the generated blocks hold the values the wiki held before it read the manifest', () => {
+    const light = declarations({ css, marker: ':root{' });
+    const dark = declarations({ css, marker: '.dark{' });
+
+    for (const [name, value] of Object.entries(LIGHT)) {
+      expect(light[name], `light ${name}`).toBe(value);
     }
 
-    for (const [name, token] of Object.entries(dark)) {
-      expect(wikiDark[name], `wiki dark ${name}`).toBe(venizia.dark[token]);
+    for (const [name, value] of Object.entries(DARK)) {
+      expect(dark[name], `dark ${name}`).toBe(value);
     }
 
-    for (const [name, token] of [
-      ['accent', 'accent'],
-      ['accent-ink', 'accent-ink'],
-      ['accent-text', 'accent-text'],
-    ]) {
-      expect(accent[name], `product light ${name}`).toBe(venizia.light[token]);
-      expect(accentDark[name], `product dark ${name}`).toBe(venizia.dark[token]);
+    expect(light.glow).toBe('color-mix(in srgb, var(--accent) 13%, transparent)');
+    expect(dark.glow).toBe('color-mix(in srgb, var(--accent) 16%, transparent)');
+  });
+
+  test('the committed manifest carries the same theme, and shared tokens.css declares none of these', () => {
+    const fromManifest = WikiTheme.read({ manifest: join(ROOT, '.agents/vulcan.manifest.json') });
+    const declared = declarations({ css: TOKENS_CSS, marker: ':root {' });
+
+    expect(WikiTheme.css({ theme: fromManifest, accent2: '#c48a5a' })).toBe(css);
+
+    for (const name of Object.keys(LIGHT)) {
+      expect(declared[name], `tokens.css declares --${name}`).toBeUndefined();
     }
+  });
+
+  test('a manifest with no theme is an error that says what to run', () => {
+    const path = join(tmpdir(), `wiki-theme-${process.pid}.json`);
+
+    writeFileSync(path, '{}');
+    expect(() => WikiTheme.read({ manifest: path })).toThrow('vulcan sync');
+    rmSync(path);
+  });
+
+  test('a theme that lacks a token is refused, naming it', () => {
+    expect(() => WikiTheme.css({ theme: { light: { bg: '#fff' }, dark: {} } })).toThrow('has no');
   });
 });
 

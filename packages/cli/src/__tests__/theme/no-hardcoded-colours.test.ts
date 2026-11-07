@@ -17,13 +17,8 @@ const COLOUR = /#[0-9a-fA-F]{8}\b|#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b/g;
 const ALLOWED: { file: string; why: string; colours: string[] }[] = [
   {
     file: 'docs/wiki/site/.vitepress/config.mts',
-    why: 'the browser theme-color of the site',
-    colours: ['#e8930a'],
-  },
-  {
-    file: 'docs/wiki/site/.vitepress/theme/product.css',
-    why: 'the second colour of the product gradient (sienna)',
-    colours: ['#c48a5a'],
+    why: 'the browser theme-color of the site and the second colour of the product gradient (sienna)',
+    colours: ['#c48a5a', '#e8930a'],
   },
   {
     file: 'packages/cli/src/board/ui/components/face.tsx',
@@ -174,7 +169,7 @@ describe('a consumer of the design tokens hard-codes no colour that is not a tok
     expect(files.length).toBeGreaterThan(20);
     expect(files).toContain('packages/cli/src/board/ui/shell.html');
     expect(files).toContain('packages/cli/src/visualize/theme.ts');
-    expect(files).toContain('docs/wiki/site/.vitepress/theme/product.css');
+    expect(files).toContain('docs/wiki/site/.vitepress/config.mts');
   });
 
   test('every colour in a consumer is a value of a preset or is allowed for that file', () => {

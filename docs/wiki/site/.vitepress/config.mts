@@ -1,6 +1,13 @@
 import { defineConfig, type DefaultTheme } from 'vitepress';
 import { writeChangelogFeed } from './theme/shared/changelog-loader.ts';
 import { venziaCodeTheme } from './theme/shared/code-theme.ts';
+import { WikiTheme } from './theme/shared/wiki-theme.ts';
+
+// The colours of the wiki are the project's resolved theme, as `vulcan sync` wrote it to the manifest.
+const THEME = WikiTheme.read({
+  manifest: new URL('../../../../.agents/vulcan.manifest.json', import.meta.url).pathname,
+});
+const ACCENT_2 = '#c48a5a';
 
 // The sidebars mirror IGNIS: Guides and References each have an index landing page.
 const guidesSidebar: DefaultTheme.SidebarItem[] = [
@@ -88,8 +95,8 @@ export default defineConfig({
   appearance: 'dark',
   markdown: {
     // The code windows are dark in both themes (theme/shared/tokens.css), so one dark theme serves both: the
-    // shared theme built from VULCAN's accent on dark (the same value as --accent-on-dark in theme/product.css).
-    theme: venziaCodeTheme({ accent: '#dead6a' }),
+    // shared theme built from the accent on dark of the manifest theme (the value of --accent-on-dark).
+    theme: venziaCodeTheme({ accent: THEME.dark.accent ?? '' }),
   },
   srcDir: '../content',
   outDir: './.vitepress/dist',
@@ -117,6 +124,7 @@ export default defineConfig({
         href: '/changelog.xml',
       },
     ],
+    WikiTheme.head({ theme: THEME, accent2: ACCENT_2 }),
     // The home page and its terminal hide their reveal states only under this class, set before first paint.
     ['script', {}, "document.documentElement.classList.add('js');"],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
