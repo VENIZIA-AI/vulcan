@@ -21,7 +21,7 @@ describe('the base text agrees with the base rules', () => {
   test('the rules table defines each id once', () => {
     const rows = [...rulesText.matchAll(/^\| (V-[A-Z]-\d\d) \|/gm)].map((match) => match[1]);
 
-    expect(rows.length).toBeGreaterThan(40);
+    expect(rows.length).toBeGreaterThanOrEqual(40);
     expect(new Set(rows).size).toBe(rows.length);
   });
 

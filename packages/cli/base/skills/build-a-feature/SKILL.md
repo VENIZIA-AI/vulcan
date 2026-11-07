@@ -106,7 +106,7 @@ For each slice, in order:
 2. Call `symbol` for each export of the framework or of a workspace package you are about to
    import or call, and use the signature and import path it returns.
 3. Write the smallest code that turns the test **green**: only what the slice needs, nothing for a
-   later need (V-C-11). Keep its validation, error handling, security and data safety (V-B-06). Mark a
+   later need. Keep its validation, error handling, security and data safety (V-C-11). Mark a
    deliberate shortcut in the code with `// SHORTCUT: <what>, <why>, <revisit when>` (V-B-07). Run it.
 
 A database change is a migration file you write and hand to the user to apply.
@@ -143,8 +143,8 @@ files of the diff, read the base rules (`rules.md`, the P, C and B sections) and
 write one line per rule that changed something: the rule id and what you changed because of it. A rule you
 checked that changed nothing is listed by id only. Add one line, "Kept out to stay small": what you did not
 add or removed to keep the change small (`V-C-11`), or "nothing". That list is the "Rules checked" section of
-the pull request (`ship`). The commonest misses are `V-P-08` and `V-C-16` (what already exists, one implementation of
-one concept) and `V-C-18` (derived types).
+the pull request (`ship`). The commonest misses are `V-P-08` (what already exists, one implementation of one concept) and
+`V-C-18` (derived types).
 
 Review with the `review-a-change` skill: lane L gets an independent, non-forked reviewer per axis; lane
 M reviews its own diff and may ask for a fresh review; lane S reads the diff once. Refactor here, with the

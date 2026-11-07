@@ -70,8 +70,8 @@ Done when one hypothesis is confirmed by a loop result, and the others are ruled
 
 1. Write the regression test **before** the fix, at a seam that reproduces the real bug pattern. Run it:
    it is red, and you say why.
-2. Make the smallest fix for the cause, not for the symptom (V-C-11). Keep validation and error handling
-   (V-B-06).
+2. Make the smallest fix for the cause, not for the symptom. Keep validation and error handling
+   (V-C-11).
 3. Run the test (green), then the loop, then the project's gates.
 
 How a test is kept honest, and what to mock, is in `node_modules/@venizia/vulcan/base/references/testing.md`. If no correct seam exists for a regression test, that is itself the finding: report it, do not write a

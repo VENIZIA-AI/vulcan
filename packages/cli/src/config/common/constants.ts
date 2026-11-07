@@ -71,7 +71,6 @@ export class ConfigConstants {
     'V-P-05',
     'V-P-06',
     'V-B-04',
-    'V-W-04',
     'V-C-02',
     'V-C-09',
     'V-C-10',

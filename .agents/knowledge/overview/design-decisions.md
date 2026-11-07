@@ -15,7 +15,7 @@ tags: [overview, decisions]
 | Atlas is the single knowledge server; v1 adds concept graph, multi-project, persisted index, frozen contracts | spec D6 |
 | Project config at `.configs/vulcan.config.mts` | spec D7 |
 | The table generators live in atlas | ruling 2026-10-16 |
-| VULCAN ships a coding style: IGNIS's C-rules (`V-C-01..19`) plus `@venizia/dev-configs` | spec D9 |
+| VULCAN ships a coding style: IGNIS's C-rules (`V-C-*`) plus `@venizia/dev-configs` | spec D9 |
 | OKF v0.2 as a spec layer (`okf check`) plus a house layer (`okf check --strict`) | ruling 2026-10-16 |
 | Third-party code comes in as pinned typed dependencies, never vendored JS | ruling 2026-10-16 |
 | Base rule IDs carry the `V-` namespace; a project's own stay bare | God, 2026-10-17 |

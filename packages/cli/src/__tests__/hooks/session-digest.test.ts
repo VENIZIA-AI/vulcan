@@ -154,7 +154,6 @@ describe('SessionDigest.build', () => {
         'V-P-05',
         'V-P-06',
         'V-B-04',
-        'V-W-04',
         'V-C-02',
         'V-C-10',
         'V-P-08',
@@ -280,7 +279,7 @@ describe('the owner cards in the digest', () => {
       expect(rules, id).toContain(`| ${id} |`);
     }
 
-    for (const id of ['V-B-08', 'V-W-01', 'V-P-08', 'V-B-06', 'V-B-07', 'V-P-11']) {
+    for (const id of ['V-B-08', 'V-W-01', 'V-P-08', 'V-C-11', 'V-B-07', 'V-P-11']) {
       expect(cited, id).toContain(id);
     }
   });
