@@ -183,16 +183,52 @@ const UNSEEN_INPUT =
   'running shell commands that come from a pipe or the terminal, which this check cannot see';
 const UNSEEN_PRINTED = 'running commands that another command prints, which this check cannot see';
 const UNSEEN_STARTUP =
-  'a shell startup file (BASH_ENV, ENV) that runs commands this check cannot see';
+  'a shell startup file (BASH_ENV, ENV, --rcfile) that runs commands this check cannot see';
+const UNSEEN_PRELOAD =
+  'a library loaded into a program (LD_PRELOAD), which runs code this check cannot see';
 
 /** The variables that make a shell run a file before its own script: `BASH_ENV` for bash, `ENV` for sh. */
 const STARTUP_ASSIGNMENT = /^(?:BASH_ENV|ENV)=./;
+const STARTUP_NAME = /^(?:BASH_ENV|ENV)$/;
+const PRELOAD_ASSIGNMENT = /^LD_PRELOAD=./;
+const PRELOAD_NAME = /^LD_PRELOAD$/;
+/** The bash options that name a startup file of their own. */
+const RC_OPTION = /^--(?:rcfile|init-file)(?:=|$)/;
 const EXPORTING = new Set(['export', 'declare', 'typeset', 'local', 'readonly']);
+/** The builtins that give a variable a value or mark it for export, by the name alone (`read NAME`, `export NAME`). */
+const SETTING_COMMANDS = new Set([
+  ...EXPORTING,
+  'read',
+  'printf',
+  'mapfile',
+  'readarray',
+  'getopts',
+]);
 const UNSEEN_FED =
-  'running shell text that find or xargs fills in from the files or the input it reads, which this check cannot see';
-const FIND_EXECS = new Set(['-exec', '-execdir', '-ok', '-okdir']);
+  'running shell text that find, fd or xargs fills in from the files or the input it reads, which this check cannot see';
+const UNSEEN_FED_PROGRAM =
+  'running a program that find, fd or xargs takes from the files or the input it reads, which this check cannot see';
 
-/** The commands `find -exec` runs, made into commands of their own: they are not words of the line the shell splits. */
+/** The options that run a command on each result, and the words that end it, per program. */
+interface IExecOptions {
+  flags: ReadonlySet<string>;
+  ends: ReadonlySet<string>;
+}
+
+const FD_EXEC: IExecOptions = {
+  flags: new Set(['-x', '--exec', '-X', '--exec-batch']),
+  ends: new Set([';']),
+};
+const EXEC_OPTIONS: Readonly<Record<string, IExecOptions>> = {
+  find: {
+    flags: new Set(['-exec', '-execdir', '-ok', '-okdir']),
+    ends: new Set([';', '+']),
+  },
+  fd: FD_EXEC,
+  fdfind: FD_EXEC,
+};
+
+/** The commands `find -exec` and `fd --exec` run, made into commands of their own: they are not words of the line the shell splits. */
 const FOUND = new WeakSet<ISimpleCommand>();
 
 /** A `bun x.ts` call anywhere in the text, arguments included: `readOnlyScripts` pairs only a line where each is a call. */
@@ -387,11 +423,13 @@ export class WriteGuard {
     // Part of the line was not read: never an allow. A program that is a substitution is read below, by what it prints.
     const unread = ShellUnread.reasonOf({
       ...view,
-      hasUnknownProgram: view.commands.some(
-        (command) =>
-          ShellParser.isUnknownProgram({ command }) &&
-          !WriteGuard.isPrintedFile({ word: ShellParser.programOf({ command }).name }),
-      ),
+      // `${x@P}` runs a substitution wherever it stands, in the argument of an `echo` too: every command counts.
+      hasUnknownProgram:
+        view.commands.some(
+          (command) =>
+            ShellParser.isUnknownProgram({ command }) &&
+            !WriteGuard.isPrintedFile({ word: ShellParser.programOf({ command }).name }),
+        ) || view.parsed.some((command) => ShellParser.hasPromptExpansion({ command })),
     });
 
     if (unread !== undefined) {
@@ -403,9 +441,14 @@ export class WriteGuard {
       ...WriteGuard.foundOf({ command }),
     ]);
 
+    // A startup file or a preloaded library counts for every command, a read-only tool included: `LD_PRELOAD=f ls`.
+    for (const command of view.parsed) {
+      hits.push(...WriteGuard.inspectStartup({ command }));
+    }
+
     for (const command of commands) {
       hits.push(
-        ...WriteGuard.inspectStartup({ command }),
+        ...WriteGuard.inspectFedProgram({ command }),
         ...WriteCommands.inspectClient({ command }),
         ...WriteGuard.inspectInline({ command, extra: opts.extra, work }),
       );
@@ -690,37 +733,47 @@ export class WriteGuard {
       }));
   }
 
-  /** The program a simple command runs, past wrappers (`sudo`, `env`) and launchers (`npx tsx`, `uv run`). */
   /**
-   * A startup file set for the command (`BASH_ENV=f bash -c x`, `env ENV=f sh`, `export BASH_ENV=f`): the shell
-   * runs it first, and its contents are not on the line.
+   * What makes a shell or a program run code the line does not show, set outside the command itself: a startup
+   * file (`BASH_ENV=f bash -c x`, `env -u X BASH_ENV=f bash`, `nice env ENV=f sh`, `export BASH_ENV`,
+   * `read BASH_ENV`, `bash --rcfile f`) and a preloaded library (`LD_PRELOAD=f.so ls`).
    */
   private static inspectStartup(opts: { command: ISimpleCommand }): IWriteHit[] {
-    const { words, assignments } = opts.command;
-    const prefix: string[] = [];
+    const { command } = opts;
+    const { name, index, args } = ShellParser.programOf({ command });
+    const before = index === -1 ? command.words : command.words.slice(0, index);
+    const setting = SETTING_COMMANDS.has(name) ? args : [];
+    const assigned = [...command.assignments, ...before, ...setting];
+    const isShell = SHELL_RUNNERS.has(ShellParser.basenameOf({ word: name }));
+    const hits: IWriteHit[] = [];
 
-    for (const word of words) {
-      if (word !== 'env' && !word.startsWith('-') && !/^[A-Za-z_]\w*=/.test(word)) {
-        break;
-      }
-
-      prefix.push(word);
+    if (
+      assigned.some((word) => STARTUP_ASSIGNMENT.test(word)) ||
+      setting.some((word) => STARTUP_NAME.test(word)) ||
+      (isShell && args.some((word) => RC_OPTION.test(word)))
+    ) {
+      hits.push({ rule: 'V-W-02', message: UNSEEN_STARTUP });
     }
 
-    const { name, args } = ShellParser.programOf({ command: opts.command });
-    const exported = EXPORTING.has(name) ? args : [];
-    const isSet = [...assignments, ...prefix, ...exported].some((word) =>
-      STARTUP_ASSIGNMENT.test(word),
-    );
+    if (
+      assigned.some((word) => PRELOAD_ASSIGNMENT.test(word)) ||
+      setting.some((word) => PRELOAD_NAME.test(word))
+    ) {
+      hits.push({ rule: 'V-W-02', message: UNSEEN_PRELOAD });
+    }
 
-    return isSet ? [{ rule: 'V-W-02', message: UNSEEN_STARTUP }] : [];
+    return hits;
   }
 
-  /** The commands a `find` runs with `-exec`, `-execdir`, `-ok` or `-okdir`, up to the `;` or `+` that ends each. */
+  /**
+   * The commands a `find` runs with `-exec`, `-execdir`, `-ok` or `-okdir`, up to the `;` or `+` that ends each, and
+   * the command `fd` runs with `-x`, `--exec`, `-X` or `--exec-batch`.
+   */
   private static foundOf(opts: { command: ISimpleCommand }): ISimpleCommand[] {
     const { name } = ShellParser.programOf({ command: opts.command });
+    const options = EXEC_OPTIONS[ShellParser.basenameOf({ word: name })];
 
-    if (ShellParser.basenameOf({ word: name }) !== 'find') {
+    if (options === undefined) {
       return [];
     }
 
@@ -728,11 +781,11 @@ export class WriteGuard {
     const { words } = opts.command;
 
     for (let index = 0; index < words.length; index += 1) {
-      if (!FIND_EXECS.has(words[index] ?? '')) {
+      if (!options.flags.has(words[index] ?? '')) {
         continue;
       }
 
-      const end = words.findIndex((word, at) => at > index && (word === ';' || word === '+'));
+      const end = words.findIndex((word, at) => at > index && options.ends.has(word));
       const run = words.slice(index + 1, end === -1 ? words.length : end);
 
       if (run.length > 0) {
@@ -754,17 +807,13 @@ export class WriteGuard {
     return found;
   }
 
-  /**
-   * Why the text a shell runs with `-c` is not on the line: `xargs` adds its input to the command or puts it
-   * where the replace string is (`xargs -I{} sh -c '{}'`), and `find -exec` puts a file name there.
-   */
-  private static fedTextOf(opts: {
+  /** What feeds a command: the `xargs` before it, with its replace strings, or the `find` that made it. */
+  private static feedOf(opts: {
     command: ISimpleCommand;
-    word: string | undefined;
-  }): string | undefined {
-    const { command, word } = opts;
+  }): { before: string[]; replaces: string[]; isXargs: boolean } | undefined {
+    const { command } = opts;
     const { index } = ShellParser.programOf({ command });
-    const before = command.words.slice(0, index);
+    const before = index === -1 ? command.words : command.words.slice(0, index);
     const isXargs = before.some((item) => ShellParser.basenameOf({ word: item }) === 'xargs');
 
     if (!isXargs && !FOUND.has(command)) {
@@ -783,11 +832,59 @@ export class WriteGuard {
       }
     });
 
-    return word === undefined || replaces.some((mark) => mark !== '' && word.includes(mark))
+    return { before, replaces, isXargs };
+  }
+
+  /**
+   * Why the text a shell runs with `-c` is not on the line: `xargs` adds its input to the command or puts it
+   * where the replace string is (`xargs -I{} sh -c '{}'`), and `find -exec` puts a file name there.
+   */
+  private static fedTextOf(opts: {
+    command: ISimpleCommand;
+    word: string | undefined;
+  }): string | undefined {
+    const feed = WriteGuard.feedOf({ command: opts.command });
+
+    if (feed === undefined) {
+      return undefined;
+    }
+
+    return opts.word === undefined ||
+      feed.replaces.some((mark) => mark !== '' && opts.word?.includes(mark))
       ? UNSEEN_FED
       : undefined;
   }
 
+  /**
+   * A program that comes from the files or the input: the replace string or `{}` as the program word
+   * (`find . -exec {} ;`, `xargs -I{} {} apply`), or `xargs` followed by wrappers alone (`xargs -L1 env`, `xargs
+   * sudo`): each input line then names the program.
+   */
+  private static inspectFedProgram(opts: { command: ISimpleCommand }): IWriteHit[] {
+    const feed = WriteGuard.feedOf({ command: opts.command });
+
+    if (feed === undefined) {
+      return [];
+    }
+
+    const { name } = ShellParser.programOf({ command: opts.command });
+    const isMarked = feed.replaces.some((mark) => mark !== '' && name.includes(mark));
+    const after = opts.command.words.slice(
+      opts.command.words.findIndex((word) => ShellParser.basenameOf({ word }) === 'xargs') + 1,
+    );
+    const isInput =
+      feed.isXargs &&
+      name === '' &&
+      after.some(
+        (word) =>
+          !word.startsWith('-') &&
+          ShellPrograms.WRAPPER_NAMES.includes(ShellParser.basenameOf({ word })),
+      );
+
+    return isMarked || isInput ? [{ rule: 'V-W-02', message: UNSEEN_FED_PROGRAM }] : [];
+  }
+
+  /** The program a simple command runs, past wrappers (`sudo`, `env`) and launchers (`npx tsx`, `uv run`). */
   private static callOf(opts: { command: ISimpleCommand }): {
     name: string;
     program: string;

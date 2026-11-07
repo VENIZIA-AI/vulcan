@@ -12,6 +12,8 @@ export interface IWriteTarget {
   pwd?: string;
   /** `>&word` with an expansion in it: a file, or a descriptor held in a variable. */
   isAmbiguous?: boolean;
+  /** The target of a shell redirect. */
+  isRedirect?: boolean;
 }
 
 /** The options of a program that take a value, so the word after one is its value and no file of its own. */
@@ -312,6 +314,7 @@ export class ShellWrites {
       base,
       message: `a shell redirect writes ${word}`,
       isAmbiguous: opts.command.copies?.includes(word) === true,
+      isRedirect: true,
     }));
     const assignments = [
       ...opts.command.assignments,

@@ -1200,7 +1200,7 @@ export class ShellUnread {
 
   /** A command runs a program the line does not show: a variable or a substitution in its place. */
   static readonly UNKNOWN_PROGRAM =
-    'a command on this line runs a program named by a variable or a substitution, so it could not be checked';
+    'a command on this line runs a program named by a variable, a substitution, a glob or a brace pattern, or runs a ${var@P} expansion, so it could not be checked';
 
   /** The reason a parse was not read in full, or `undefined` when all of it was read. */
   static reasonOf(opts: {
@@ -1328,14 +1328,31 @@ export class ShellParser {
   }
 
   /**
-   * Whether a command's program is a variable or a substitution, which the line does not show. An expansion
+   * Whether a word of the command is `${x@P}`, which runs the commands in the value of `x` wherever it stands, an
+   * `echo` argument included.
+   */
+  static hasPromptExpansion(opts: { command: ISimpleCommand }): boolean {
+    return [...opts.command.words, ...opts.command.assignments].some((word) =>
+      /\$\{[^}]*@P\}/.test(word),
+    );
+  }
+
+  /**
+   * Whether a command's program is a variable, a substitution, a glob or a brace pattern, which the line does not show. An expansion
    * anywhere in the word counts, not only in its last part: an unquoted `$k/deploy.yaml` is split at the blanks
    * of `k`, so its first word is the program. No variable is exempt, `HOME` included: the same line can set it.
    */
   static isUnknownProgram(opts: { command: ISimpleCommand }): boolean {
     const { name } = ShellParser.programOf({ command: opts.command });
 
-    return /[$`]/.test(name) || name.startsWith('<(') || name.startsWith('>(');
+    return (
+      /[$`*?]/.test(name) ||
+      /\[[^\]]+\]/.test(name) ||
+      /\{[^{}]*(?:,|\.\.)[^{}]*\}/.test(name) ||
+      name.startsWith('<(') ||
+      name.startsWith('>(') ||
+      ShellParser.hasPromptExpansion({ command: opts.command })
+    );
   }
   /** Whether the command carries another command line to read: a script, an eval, a `watch` string, or an `env -S`. */
   private static nests(opts: { command: ISimpleCommand }): boolean {

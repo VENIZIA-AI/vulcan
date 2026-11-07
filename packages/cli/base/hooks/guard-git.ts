@@ -6,8 +6,8 @@
  * (ask: the pull request would land on the default branch).
  *
  * It guards against drift, it is not the last line of defence, and a guard that blocks every command when
- * its install is broken costs more than it protects. So input it cannot read passes, and so does a missing
- * package or `bun` (the settings wrapper says so on stderr). A guard that started and then failed - a crash
+ * its install is broken costs more than it protects. So a missing package or `bun` passes (the settings wrapper
+ * says so on stderr); input it cannot read ASKS, because nothing was checked. A guard that started and then failed - a crash
  * or a timeout, here an internal error or an unloadable module - ASKS about a command that names `git` or
  * `gh`, instead of passing it unchecked. `VULCAN_GUARDS=off` switches it off, read before anything is
  * imported. It imports only the modules it needs - no config, no zod. The branches the project lists in
@@ -37,7 +37,13 @@ try {
         cwd,
         askPush: ProjectGuards.readPolicy({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd }).askPush,
       })
-    : [];
+    : [
+        {
+          rule: 'V-W-01',
+          message: 'the hook input could not be read, so the command was not checked',
+          decision: GuardDecisions.ASK,
+        },
+      ];
 
   if (hits.length > 0) {
     const denied = hits.some((hit) => hit.decision === GuardDecisions.DENY);

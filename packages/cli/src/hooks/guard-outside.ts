@@ -203,11 +203,11 @@ export class OutsideGuard {
       const expanded = ShellFolders.expandPath({ word: target.word, home, env, cwd: target.pwd });
 
       if (expanded === undefined) {
-        // `>&$fd` is a descriptor or a file: with the variable unknown, the line does not say which.
-        if (target.isAmbiguous === true) {
+        // A redirect to a word that cannot be worked out (`> $f`, `&>$fd`, `>&$fd`) may write a file outside the project.
+        if (target.isAmbiguous === true || target.isRedirect === true) {
           hits.push({
             path: target.word,
-            message: `${target.message}: the word has an expansion, so it may name a file`,
+            message: `${target.message}: the target has an expansion this check cannot work out`,
             isAgentToolScratchpad: false,
           });
         }
