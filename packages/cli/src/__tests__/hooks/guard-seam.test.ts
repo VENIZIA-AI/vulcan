@@ -8,7 +8,11 @@ afterAll(removeProjects);
 const HOOKS = join(import.meta.dir, '..', '..', '..', 'base', 'hooks');
 const GUARDS = ['guard-writes', 'guard-git', 'guard-outside'] as const;
 
+// guard-writes matches its command table only: a program named by a variable is not its case.
+const VARIABLE_GUARDS = ['guard-git', 'guard-outside'] as const;
+
 type TGuard = (typeof GUARDS)[number];
+type TVariableGuard = (typeof VARIABLE_GUARDS)[number];
 
 const root = createProject({ files: {} });
 
@@ -42,15 +46,13 @@ const INSIDE_SUBSTITUTION: Record<TGuard, string> = {
   'guard-outside': 'echo x | tee >(cat > /etc/seam-probe)',
 };
 
-const THROUGH_VARIABLE: Record<TGuard, string> = {
-  'guard-writes': 'k=kubectl; $k apply -f x.yaml',
+const THROUGH_VARIABLE: Record<TVariableGuard, string> = {
   'guard-git': 'g=git; $g push -f origin main',
   'guard-outside': 't=touch; $t /etc/seam-probe',
 };
 
 // The variable is in the folder part of the word: the shell splits it at its blanks, so its first word is the program.
-const THROUGH_FOLDER_VARIABLE: Record<TGuard, string> = {
-  'guard-writes': "k='kubectl apply -f'; $k/deploy.yaml",
+const THROUGH_FOLDER_VARIABLE: Record<TVariableGuard, string> = {
   'guard-git': "g='git -C'; $g/home/x/repo push -f origin main",
   'guard-outside': "t='touch /etc'; $t/seam-probe",
 };
@@ -73,7 +75,7 @@ describe('every guard reads a command in a process substitution', () => {
 });
 
 describe('every guard reads a command run through a variable', () => {
-  test.each(GUARDS)('%s asks or denies a variable as the program', async (guard) => {
+  test.each(VARIABLE_GUARDS)('%s asks or denies a variable as the program', async (guard) => {
     const result = await runGuard({ guard, command: THROUGH_VARIABLE[guard] });
 
     expect(result.code).toBe(0);
@@ -82,14 +84,17 @@ describe('every guard reads a command run through a variable', () => {
 });
 
 describe('every guard reads a variable in the folder part of the program', () => {
-  test.each(GUARDS)('%s asks or denies when the variable is split at its blanks', async (guard) => {
-    const result = await runGuard({ guard, command: THROUGH_FOLDER_VARIABLE[guard] });
+  test.each(VARIABLE_GUARDS)(
+    '%s asks or denies when the variable is split at its blanks',
+    async (guard) => {
+      const result = await runGuard({ guard, command: THROUGH_FOLDER_VARIABLE[guard] });
 
-    expect(result.code).toBe(0);
-    expect(['ask', 'deny']).toContain(result.decision);
-  });
+      expect(result.code).toBe(0);
+      expect(['ask', 'deny']).toContain(result.decision);
+    },
+  );
 
-  test.each(GUARDS)(
+  test.each(VARIABLE_GUARDS)(
     '%s asks or denies a program under $HOME, a variable like any other',
     async (guard) => {
       const result = await runGuard({ guard, command: '$HOME/.bun/bin/bun --version' });
@@ -101,13 +106,7 @@ describe('every guard reads a variable in the folder part of the program', () =>
 });
 
 // A variable the same line sets is no known folder: `HOME` split at its blanks names the program too.
-const THROUGH_SET_HOME: Record<TGuard, string[]> = {
-  'guard-writes': [
-    "HOME='kubectl apply -f'; $HOME/deploy.yaml",
-    "export BUN_INSTALL='kubectl apply -f'; $BUN_INSTALL/deploy.yaml",
-    "read HOME <<< 'kubectl apply -f'; ${HOME}/deploy.yaml",
-    "env HOME='kubectl apply -f' sh -c '$HOME/x.yaml'",
-  ],
+const THROUGH_SET_HOME: Record<TVariableGuard, string[]> = {
   'guard-git': [
     "HOME='git -C'; $HOME/repo push -f origin main",
     "for HOME in 'git -C'; do $HOME/repo push -f origin main; done",
@@ -116,13 +115,12 @@ const THROUGH_SET_HOME: Record<TGuard, string[]> = {
 };
 
 describe('every guard reads a program under a variable the line sets', () => {
-  test.each(GUARDS.flatMap((guard) => THROUGH_SET_HOME[guard].map((command) => [guard, command])))(
-    '%s asks or denies %s',
-    async (guard, command) => {
-      const result = await runGuard({ guard: guard as TGuard, command: command ?? '' });
+  test.each(
+    VARIABLE_GUARDS.flatMap((guard) => THROUGH_SET_HOME[guard].map((command) => [guard, command])),
+  )('%s asks or denies %s', async (guard, command) => {
+    const result = await runGuard({ guard: guard as TVariableGuard, command: command ?? '' });
 
-      expect(result.code).toBe(0);
-      expect(['ask', 'deny']).toContain(result.decision);
-    },
-  );
+    expect(result.code).toBe(0);
+    expect(['ask', 'deny']).toContain(result.decision);
+  });
 });

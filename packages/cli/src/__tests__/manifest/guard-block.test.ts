@@ -45,11 +45,10 @@ describe('the guard block of the manifest', () => {
     expect(manifest.schemaVersion).toBe(1);
   });
 
-  test('a config that lists neither renders the text it always did, trustedScripts included', () => {
+  test('a config that lists neither renders the text it always did', () => {
     const plain = render({});
 
     expect(render({ guard: { writes: { commands: [] }, git: { askPush: [] } } })).toBe(plain);
-    expect(render({ guard: { writes: { trustedScripts: [] } } })).toBe(plain);
     expect(JSON.parse(plain)).not.toHaveProperty('guard');
   });
 
@@ -76,55 +75,6 @@ describe('the guard block of the manifest', () => {
     expect(keys.indexOf('guard')).toBeLessThan(keys.indexOf('theme'));
   });
 
-  test('a manifest rendered before a pattern was added differs from the one the config renders', () => {
-    expect(render({})).not.toBe(render({ guard: GUARD }));
-  });
-});
-
-describe('the guard block and the read-only scripts', () => {
-  const ENTRY = { script: 'scripts/release/release-run.ts', readOnly: ['plan', 'registry'] };
-
-  test('carries the object entries of trustedScripts as writes.readOnlyScripts, after the commands', () => {
-    const manifest = JSON.parse(
-      render({
-        guard: { writes: { trustedScripts: ['cli.ts', ENTRY], commands: GUARD.writes.commands } },
-      }),
-    );
-
-    expect(manifest.guard.writes.trustedScripts).toEqual(['cli.ts']);
-    expect(manifest.guard.writes.readOnlyScripts).toEqual([ENTRY]);
-    expect(Object.keys(manifest.guard.writes)).toEqual([
-      'commands',
-      'trustedScripts',
-      'readOnlyScripts',
-    ]);
-  });
-
-  test('an object entry alone writes only the entry', () => {
-    expect(JSON.parse(render({ guard: { writes: { trustedScripts: [ENTRY] } } })).guard).toEqual({
-      writes: { readOnlyScripts: [ENTRY] },
-    });
-  });
-
-  test('shell and node scripts are written as writes.trustedScripts, next to the bun ones', () => {
-    const scripts = [
-      'tools/deploy.sh',
-      'tools/check.js',
-      'tools/check.mjs',
-      'tools/check.cjs',
-      'cli.ts',
-    ];
-    const manifest = JSON.parse(render({ guard: { writes: { trustedScripts: scripts } } }));
-
-    expect(manifest.guard.writes.trustedScripts).toEqual(scripts);
-    expect(manifest.guard.writes.readOnlyScripts).toBeUndefined();
-  });
-  test('a list of path strings is written as writes.trustedScripts: the hook reads them here, not from the config', () => {
-    expect(
-      JSON.parse(render({ guard: { writes: { trustedScripts: ['cli.ts', 'tools/b.ts'] } } })).guard,
-    ).toEqual({ writes: { trustedScripts: ['cli.ts', 'tools/b.ts'] } });
-  });
-
   test('outside is written when it is deny, and toolOwnedPaths when it lists any; the defaults write nothing', () => {
     expect(
       JSON.parse(render({ guard: { outside: 'deny', toolOwnedPaths: ['/srv/store/**'] } })).guard,
@@ -132,7 +82,7 @@ describe('the guard block and the read-only scripts', () => {
     expect(render({ guard: { outside: 'ask', toolOwnedPaths: [] } })).toBe(render({}));
   });
 
-  test('a manifest rendered before an entry was added differs from the one the config renders', () => {
-    expect(render({})).not.toBe(render({ guard: { writes: { trustedScripts: [ENTRY] } } }));
+  test('a manifest rendered before a pattern was added differs from the one the config renders', () => {
+    expect(render({})).not.toBe(render({ guard: GUARD }));
   });
 });

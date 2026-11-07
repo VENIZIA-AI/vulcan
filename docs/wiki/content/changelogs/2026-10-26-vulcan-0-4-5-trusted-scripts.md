@@ -26,7 +26,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-Commit the script and the config together. See the [hooks page](/references/hooks/#trusted-scripts) and the [configuration reference](/references/configuration/#guard).
+Commit the script and the config together. See the [hooks page](/references/hooks/) and the [configuration reference](/references/configuration/#guard).
 
 ## Who is affected
 

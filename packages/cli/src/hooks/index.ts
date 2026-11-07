@@ -5,7 +5,6 @@ export * from './guard-git.ts';
 export * from './hook-input.ts';
 export * from './guard-outside.ts';
 export * from './guard-writes.ts';
-export * from './trusted-scripts.ts';
 export * from './session-digest.ts';
 export * from './subagent-card.ts';
 export * from './project-tmp.ts';

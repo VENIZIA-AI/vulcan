@@ -20,9 +20,7 @@ describe('guard.writes.commands and guard.git.askPush', () => {
     expect(result.success).toBe(true);
     expect(VULCAN_CONFIG_SCHEMA.parse({}).guard.writes.commands).toEqual([]);
     expect(VULCAN_CONFIG_SCHEMA.parse({}).guard.git.askPush).toEqual([]);
-    expect(
-      VULCAN_CONFIG_SCHEMA.parse({ guard: { writes: { trustedScripts: [] } } }).guard.git,
-    ).toEqual({
+    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: { writes: {} } }).guard.git).toEqual({
       askPush: [],
     });
   });

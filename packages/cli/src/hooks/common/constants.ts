@@ -4,17 +4,6 @@ export class GuardDecisions {
   static readonly DENY = 'deny';
 }
 
-/** What git says about a script a project trusts: only `TRUSTED` skips the script checks of guard-writes. */
-export class TrustStates {
-  static readonly TRUSTED = 'trusted';
-  static readonly MISSING = 'missing';
-  static readonly UNTRACKED = 'untracked';
-  static readonly UNCOMMITTED = 'uncommitted';
-  static readonly MODIFIED = 'modified';
-  static readonly SYMLINK = 'symlink';
-  static readonly UNKNOWN = 'unknown';
-}
-
 export class HookConstants {
   /** `ask` until the transcript shows the guard does not over-fire; a false positive costs one keystroke. */
   static readonly GUARD_DECISION = GuardDecisions.ASK;
@@ -26,10 +15,6 @@ export class HookConstants {
   static readonly QUERY_TIMEOUT_MS = 5000;
   /** The `git` and `gh` queries one command line may make; past it the guard asks instead of querying on. */
   static readonly MAX_QUERIES = 4;
-  /** A local script guard-writes reads is at most this many bytes; a larger one is not read, and the command asks. */
-  static readonly MAX_SCRIPT_BYTES = 1_000_000;
-  /** How many scripts deep guard-writes follows a script that runs another one; past it the command asks. */
-  static readonly MAX_SCRIPT_DEPTH = 3;
   /**
    * A blanket stage (`git add -A`, `git commit -a`) asks past this many changed paths. A formatter run once put 152
    * unintended files into one commit; on this repository's develop the median commit touches 7 files and 2.2% touch more than 50.

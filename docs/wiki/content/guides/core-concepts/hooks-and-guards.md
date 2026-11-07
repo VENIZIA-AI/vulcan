@@ -18,7 +18,7 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 
 | Guard | Acts on | Answer |
 |---|---|---|
-| `guard-writes` | A Bash command that writes to a database, runs a migration or deploys; the body of a local script it runs (`bun script.ts`, `bash deploy.sh`, `bun run <name>`) | Asks (`V-W-02`, `V-W-03`) |
+| `guard-writes` | A Bash command of its table that writes to a database, runs a migration or deploys, in any simple command of the line; it does not read the scripts a command runs | Asks (`V-W-02`, `V-W-03`) |
 | `guard-git` | `git` and `gh`: deleting or force-pushing `develop` or `main`, `gh pr merge --delete-branch` on a pull request headed by one of them, `reset --hard`, `branch -D` of an unmerged branch | Refuses the first group, asks about the rest (`V-W-06`) |
 | `guard-outside` | A file, worktree, clone or temp file created outside the project | Asks (`V-B-08`), or denies when `guard.outside` is `deny`; always denies a write into the scratchpad folder the agent tool offers |
 
@@ -34,7 +34,7 @@ The guards know a fixed list of commands (`kubectl apply`, `docker compose up`, 
 
 They stop accidental and drifting commands: a force-push because a flag looked right, or a write outside the project because a path was relative. They are not a sandbox. A shell is a language no hand-written parser reads completely, and each review of the parser has found spellings it missed (the [reference lists every one](/references/hooks/#what-the-guards-are-and-are-not)).
 
-Whatever must never happen belongs in `permissions.deny`, the `read-only` slot of `V-W-01`, or branch protection on the remote. When a guard cannot read a line in full, it asks.
+Whatever must never happen belongs in `permissions.deny`, the `read-only` slot of `V-W-01`, or branch protection on the remote. When `guard-git`, `guard-outside` or `guard-remote-hosts` cannot read a line in full, it asks; `guard-writes` asks only for the commands it can name.
 
 ## When a hook cannot run
 
@@ -60,20 +60,6 @@ A broken install must not stop every command, and a guard must not be switched o
 | Copilot (CLI and VS Code) | Reads the Claude hooks in `.claude/settings.json` | **NOT VERIFIED** |
 
 NOT VERIFIED means built from the agent's documentation and unit tests, and never run in that agent. omp and pi run the safety guards `guard-git` and `guard-outside`. Choose your agents with `vulcan sync --agents <list>` ([Coding agents](/references/agents)).
-
-## Let your own CLI through
-
-`guard-writes` reads the body of a local script a command runs (`bun script.ts`, `node x.js`, `bash x.sh`), so a project's own CLI that calls its API asks on every run. List it, and it is skipped while git tracks it and its file matches the last commit:
-
-```ts
-import type { VulcanConfig } from '@venizia/vulcan';
-
-export default {
-  guard: { writes: { trustedScripts: ['tools/i18n/cli.ts'] } },
-} satisfies VulcanConfig;
-```
-
-Entries are exact repo-relative `.ts` paths. A modified or uncommitted script asks again and says why, and the command line itself is still checked. Trust means committed and unchanged, not reviewed: the pull request that edits the script and the list is your review. A script with both a read-only and a publishing subcommand can list only the read-only ones: `{ script: 'scripts/release/release-run.ts', readOnly: ['plan', 'registry'] }`; run `vulcan sync` after you add one, because the hook reads it from the manifest. [`guard`](/references/configuration/#guard) and the [reference](/references/hooks/#trusted-scripts) have the details; `vulcan doctor` lists each entry.
 
 ## Your own hooks
 

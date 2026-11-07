@@ -1,17 +1,13 @@
-import { PackageManagers } from './package-managers.ts';
-
 /**
  * How a program that runs a script file reads its own options: `values` take the next word (or the rest of a
  * cluster), `evals` take code to run instead of a file, `ends` run something that is no file (`python -m`),
- * `files` take the script itself (`php -f`). `bun` reads its words through `PackageManagers`.
+ * `files` take the script itself (`php -f`).
  */
 interface IRunnerTable {
   values: ReadonlySet<string>;
   evals: ReadonlySet<string>;
   ends: ReadonlySet<string>;
   files: ReadonlySet<string>;
-  /** The extensions it adds to a word that names no file (`node x` runs `x.js`). */
-  extensions: readonly string[];
 }
 
 /**
@@ -38,28 +34,14 @@ const runnerOf = (opts: {
   evals?: string[];
   ends?: string[];
   files?: string[];
-  extensions?: string[];
 }): IRunnerTable => ({
   values: new Set(opts.values ?? []),
   evals: new Set(opts.evals ?? []),
   ends: new Set(opts.ends ?? []),
   files: new Set(opts.files ?? []),
-  extensions: opts.extensions ?? [],
 });
 
 export class ScriptRunners {
-  /** The extensions of JavaScript and TypeScript files. */
-  static readonly CODE_EXTENSIONS: readonly string[] = [
-    '.ts',
-    '.tsx',
-    '.mts',
-    '.cts',
-    '.js',
-    '.jsx',
-    '.mjs',
-    '.cjs',
-  ];
-
   static readonly PYTHON = runnerOf({
     values: ['-W', '-X', '--check-hash-based-pycs'],
     evals: ['-c'],
@@ -88,7 +70,6 @@ export class ScriptRunners {
       '--scope-dir',
     ],
     evals: ['-e', '--eval', '-p', '--print'],
-    extensions: [...ScriptRunners.CODE_EXTENSIONS],
   });
 
   static readonly TABLES: Readonly<Record<string, IRunnerTable>> = {
@@ -108,12 +89,34 @@ export class ScriptRunners {
         '--title',
       ],
       evals: ['-e', '--eval', '-p', '--print'],
-      extensions: ['.js', '.mjs', '.cjs'],
     }),
     bun: runnerOf({
-      values: [...(PackageManagers.TABLES['bun']?.values ?? [])],
+      values: [
+        '--cwd',
+        '-F',
+        '--filter',
+        '--elide-lines',
+        '--shell',
+        '-r',
+        '--preload',
+        '--require',
+        '--import',
+        '--port',
+        '--conditions',
+        '--env-file',
+        '-c',
+        '--config',
+        '-d',
+        '--define',
+        '-l',
+        '--loader',
+        '--tsconfig-override',
+        '--main-fields',
+        '--extension-order',
+        '--title',
+        '--console-depth',
+      ],
       evals: ['-e', '--eval', '-p', '--print'],
-      extensions: [...ScriptRunners.CODE_EXTENSIONS],
     }),
     deno: runnerOf({
       values: [
@@ -323,15 +326,14 @@ export class ScriptRunners {
   }
 
   /**
-   * What `program` runs from its words: the script word, the code of an eval option, or nothing (a module,
-   * a server, only options). `undefined` script for none.
+   * The script word `program` runs, from its words; `undefined` for none (the code of an eval option, a
+   * module, a server, only options).
    */
-  static callOf(opts: { program: string; args: string[] }): { script?: string; evals: string[] } {
+  static callOf(opts: { program: string; args: string[] }): { script?: string } {
     const table = ScriptRunners.TABLES[opts.program];
-    const evals: string[] = [];
 
     if (table === undefined) {
-      return { evals };
+      return {};
     }
 
     const { args } = opts;
@@ -340,15 +342,11 @@ export class ScriptRunners {
       const word = args[index] ?? '';
 
       if (word === '--') {
-        return { script: args[index + 1], evals };
+        return { script: args[index + 1] };
       }
 
       if (!word.startsWith('-') || word === '-') {
-        return ScriptRunners.positionalOf({
-          program: opts.program,
-          args: args.slice(index),
-          evals,
-        });
+        return ScriptRunners.positionalOf({ program: opts.program, args: args.slice(index) });
       }
 
       const { option, value } = ScriptRunners.optionOf({ table, word });
@@ -357,33 +355,24 @@ export class ScriptRunners {
 
       index += takes && value === undefined ? 1 : 0;
 
-      if (table.evals.has(option) && given !== undefined) {
-        evals.push(given);
-
-        // `python -c` and `ruby -e` run the code, and the words after it are its arguments.
-        return { evals };
-      }
-
-      if (table.ends.has(option)) {
-        return { evals };
+      // `python -c` and `ruby -e` run the code, and the words after it are its arguments.
+      if ((table.evals.has(option) && given !== undefined) || table.ends.has(option)) {
+        return {};
       }
 
       if (table.files.has(option)) {
-        return { script: given, evals };
+        return { script: given };
       }
     }
 
-    return { evals };
+    return {};
   }
 
   /**
    * The script word among the positional words: `deno run x` and `deno x`, `tsx watch x` and `tsx x`, any
    * other runner's first word.
    */
-  private static positionalOf(opts: { program: string; args: string[]; evals: string[] }): {
-    script?: string;
-    evals: string[];
-  } {
+  private static positionalOf(opts: { program: string; args: string[] }): { script?: string } {
     const [first, ...rest] = opts.args;
 
     if (opts.program === 'tsx' && first !== undefined && ScriptRunners.TSX_RUNS.has(first)) {
@@ -391,19 +380,13 @@ export class ScriptRunners {
     }
 
     if (opts.program !== 'deno' || first === undefined) {
-      return { script: first, evals: opts.evals };
-    }
-
-    if (first === 'eval') {
-      return { evals: [...opts.evals, ...rest] };
+      return { script: first };
     }
 
     if (ScriptRunners.DENO_RUNS.has(first)) {
       return ScriptRunners.callOf({ program: 'deno', args: rest });
     }
 
-    return ScriptRunners.DENO_BUILT_INS.has(first)
-      ? { evals: opts.evals }
-      : { script: first, evals: opts.evals };
+    return first === 'eval' || ScriptRunners.DENO_BUILT_INS.has(first) ? {} : { script: first };
   }
 }

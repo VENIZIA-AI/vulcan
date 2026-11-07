@@ -69,7 +69,6 @@ export class DoctorRunner {
       ...ProjectContract.checkAtlasBlock(context),
       ...ProjectContract.checkAcknowledgedValues(context),
       ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
-      ...ProjectContract.checkTrustedScripts(context),
     ];
   }
 
@@ -101,7 +100,6 @@ export class DoctorRunner {
       ...ProjectContract.checkOwnerReplySettings(context),
       ...ProjectContract.checkStaleLocal(context),
       ...ProjectContract.checkUnknownLocal(context),
-      ...ProjectContract.checkStaleTrustedScripts(context),
       ...ProjectContract.checkPrivateValues(context),
     ];
   }

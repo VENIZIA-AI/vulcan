@@ -1,4 +1,3 @@
-import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { DOCTOR_SCHEMA } from '../doctor/schema.ts';
@@ -99,54 +98,6 @@ const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
     context.addIssue({ code: 'custom', message: problem });
   }
 });
-
-/**
- * A script `guard-writes` may trust: a repo-relative path - no glob, no `~`, never climbing out of the repo - that
- * ends in one of `extensions`.
- */
-const trustedScriptPath = (opts: { extensions: RegExp; what: string }) =>
-  z.string().superRefine((value, context) => {
-    const problem = /[*?[\]{}!]/.test(value)
-      ? 'no globs: list each script by its exact path'
-      : isAbsolute(value) || value.startsWith('~')
-        ? 'a path relative to the repo root'
-        : value.split(/[\\/]/).includes('..')
-          ? 'a path inside the repo, without ..'
-          : opts.extensions.test(value)
-            ? undefined
-            : opts.what;
-
-    if (problem !== undefined) {
-      context.addIssue({ code: 'custom', message: `${value}: ${problem}` });
-    }
-  });
-
-/** The whole file is trusted: a bun script (`.ts`), a node script (`.js`, `.mjs`, `.cjs`) or a shell script (`.sh`). */
-const TRUSTED_SCRIPT_PATH = trustedScriptPath({
-  extensions: /\.(?:ts|js|mjs|cjs|sh)$/,
-  what: 'a .ts, .js, .mjs, .cjs or .sh file - only a script ending in one of these can be listed',
-});
-
-/** Only the calls of a subcommand are trusted: paired with `bun x.ts <word>` calls, so a bun script. */
-const TRUSTED_BUN_SCRIPT_PATH = trustedScriptPath({
-  extensions: /\.ts$/,
-  what: 'a .ts file - only bun scripts ending in .ts can be listed with readOnly',
-});
-/**
- * A trusted script, whole or by subcommand: a path trusts the whole file; an object trusts only the calls
- * whose first argument after the script is one of `readOnly` (one word each, matched exactly).
- */
-const READ_ONLY_WORD = z
-  .string()
-  .regex(
-    /^[A-Za-z0-9_.:-]+$/,
-    'one plain word: letters, digits and _ . : - only, no spaces or globs',
-  );
-
-const TRUSTED_SCRIPT = z.union([
-  TRUSTED_SCRIPT_PATH,
-  z.strictObject({ script: TRUSTED_BUN_SCRIPT_PATH, readOnly: z.array(READ_ONLY_WORD).min(1) }),
-]);
 
 /** One folder, or a list of them: a side whose apps are grouped keeps each group's folder. */
 const LAYOUT_VALUE = z.union([LAYOUT_FOLDER, z.array(LAYOUT_FOLDER).min(1)]);
@@ -575,17 +526,12 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   /**
    * The hooks that guard writes. `toolOwnedPaths` extends the defaults (package manager caches, the
    * runtime dir for locks, git config, the agent tool's memory) with stores a tool in this project
-   * manages itself: absolute globs, `~` and `$NAME` allowed. `writes.trustedScripts` lists the project's own
-   * CLIs (repo-relative `.ts` paths, no globs) whose body guard-writes does not read for mutating calls
-   * while git tracks them and they equal HEAD; the command line is still checked. An entry may instead be
-   * `{ script, readOnly: ['plan'] }`: only a call whose first argument after the script is listed skips the
-   * read, and `vulcan sync` writes those entries to the manifest. `writes.commands` adds the
+   * manages itself: absolute globs, `~` and `$NAME` allowed. `writes.commands` adds the
    * project's own deploy and migrate commands to what guard-writes asks about (a pattern, matched inside
    * compound commands too), and `git.askPush` lists the branches a plain `git push` asks about; `vulcan sync`
-   * writes both to the manifest, where the hooks read them, and writes `outside` (when it is `deny`),
-   * `toolOwnedPaths` and the path entries of `writes.trustedScripts` there too, so a config this VULCAN cannot
-   * parse changes no guard. `outside` is what `guard-outside` does with a
-   * write outside the project: `ask` (the default) or `deny`. Where the agent runs in an auto mode an ask can be
+   * writes both to the manifest, where the hooks read them, and writes `outside` (when it is `deny`) and
+   * `toolOwnedPaths` there too, so a config this VULCAN cannot parse changes no guard. `outside` is what
+   * `guard-outside` does with a write outside the project: `ask` (the default) or `deny`. Where the agent runs in an auto mode an ask can be
    * approved without the owner seeing it, so a project that wants the line held sets `deny`.
    */
   guard: z
@@ -594,22 +540,24 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       toolOwnedPaths: z.array(z.string().min(1)).default([]),
       /** What guard-outside does with a write outside the project: `ask` or `deny`; default `ask`. */
       outside: z.enum([GuardDecisions.ASK, GuardDecisions.DENY]).default(GuardDecisions.ASK),
-      /** Write guard lists: scripts guard-writes trusts and the project's own deploy and migrate commands; both default to `[]`. */
+      /** Write guard list: the project's own deploy and migrate commands; default `[]`. */
       writes: z
         .strictObject({
-          /** Repo-relative scripts (`.ts`, `.js`, `.mjs`, `.cjs`, `.sh`) guard-writes does not read for mutating calls while git says they are unchanged; a path, or `{ script, readOnly }` for a `.ts` one. Default `[]`. */
-          trustedScripts: z.array(TRUSTED_SCRIPT).default([]),
+          /** Removed with the script reading of guard-writes: the key is refused with what to do. */
+          trustedScripts: REMOVED_OKF_KEY({
+            fix: 'delete this key; guard-writes no longer reads scripts, it asks only for the commands of its table and of guard.writes.commands',
+          }),
           /** The project's own deploy and migrate commands guard-writes asks about; default `[]`. */
           commands: z.array(GUARD_COMMAND).default([]),
         })
-        .default({ trustedScripts: [], commands: [] }),
+        .default({ commands: [] }),
       /** Git guard settings; `askPush` lists the branches a plain `git push` asks about, `*` for any run of characters. Default `[]`. */
       git: z.strictObject({ askPush: z.array(PUSH_TARGET).default([]) }).default({ askPush: [] }),
     })
     .default({
       toolOwnedPaths: [],
       outside: GuardDecisions.ASK,
-      writes: { trustedScripts: [], commands: [] },
+      writes: { commands: [] },
       git: { askPush: [] },
     }),
   /**
