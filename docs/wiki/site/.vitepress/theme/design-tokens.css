@@ -1,2 +1,2 @@
-/* VULCAN's colours are all in product.css; this file exists because the shared theme entry (shared/index.ts) loads
- * design-tokens.css in IGNIS, ARDOR and VULCAN alike. */
+/* VULCAN's colours come from the manifest theme (shared/wiki-theme.ts); this file exists because the shared theme
+ * entry (shared/index.ts) loads design-tokens.css in IGNIS, ARDOR and VULCAN alike. */
