@@ -29,7 +29,8 @@ const runGuard = async (opts: { guard: TGuard; command: string }) => {
     timeout: SPAWN_TIMEOUT_MS,
     killSignal: 'SIGKILL',
   });
-  const result = await new Response(child.stdout).text();
+  const stdoutResponse = new Response(child.stdout);
+  const result = await stdoutResponse.text();
   const stdout = result.trim();
   const code = await child.exited;
   const decision = stdout === '' ? '' : JSON.parse(stdout).hookSpecificOutput.permissionDecision;

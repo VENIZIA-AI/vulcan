@@ -133,6 +133,7 @@ Code and writing rules define TypeScript standards, parameter limits, naming pat
 | `V-C-17` | Name files by role without repeating parent folder names. | SOFT |
 | `V-C-19` | Options that serve one concern live in one named sub-object (`{ limit: { default, max } }`), not as prefixed siblings (`defaultLimit`, `maxLimit`); a shared prefix or suffix across sibling names marks a scattered group. New code; an existing shape changes when touched. | SOFT |
 | `V-C-18` | Derive compile-time types from schemas or functions rather than duplicating definitions. | SOFT |
+| `V-C-20` | Declare the instance, then await on its own line: `const runner = new X({...}); await runner.run({...});`, never `await new X({...}).run({...})`. Tests and scripts too. | SOFT |
 
 ## Identifiers are never reused
 

@@ -64,7 +64,7 @@ An unknown key is an error; every error names the file and the field. The exampl
 
 ## What ships (`base/`)
 
-- `rules.md` - the base rules: write boundaries, security, process, build, and the coding style V-C-01..V-C-19 (51 rules).
+- `rules.md` - the base rules: write boundaries, security, process, build, and the coding style V-C-01..V-C-20 (52 rules).
 - `slots.json` - rules a project picks a wording for (V-W-01 today).
 - `skills/` - 12 project-neutral skills, described in `docs/wiki/content/references/skills.md` (a project-specific skill stays in its project). Each but `knowledge-sync` has an `evals/evals.json`; `make skill-evals` runs them against models and spends quota.
 - `hooks/` - 16 hook files, described in `docs/wiki/content/references/hooks/index.md`.

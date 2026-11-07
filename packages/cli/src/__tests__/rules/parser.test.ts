@@ -17,15 +17,15 @@ describe('RuleParser.parseIds', () => {
     expect(RuleParser.parseIds({ markdown })).toEqual(['V-W-01', 'V-C-04', 'W-06']);
   });
 
-  test('the shipped base: W5 S7 P13 B9 + the C group, 51 rules, every ID unique', () => {
+  test('the shipped base: W5 S7 P13 B9 + the C group, 52 rules, every ID unique', () => {
     const ids = RuleParser.parseIds({
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
 
-    expect(ids).toHaveLength(51);
+    expect(ids).toHaveLength(52);
     expect(ids.every((id) => id.startsWith('V-'))).toBe(true);
     expect(ids).toContain('V-W-01');
-    expect(ids.filter((id) => id.startsWith('V-C-'))).toHaveLength(17);
+    expect(ids.filter((id) => id.startsWith('V-C-'))).toHaveLength(18);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -99,7 +99,7 @@ describe('BaseRules.read', () => {
   test('every base rule ID maps to its row', () => {
     const rules = BaseRules.read();
 
-    expect(Object.keys(rules)).toHaveLength(51);
+    expect(Object.keys(rules)).toHaveLength(52);
     expect(rules['V-W-02']).toStartWith('| V-W-02 | Never write to a database.');
   });
 
@@ -118,6 +118,7 @@ describe('BaseRules.read', () => {
       'V-B-08': 'Leave no trace',
       'V-B-09': 'bun by default',
       'V-C-19': 'Group options that serve one concern',
+      'V-C-20': 'Declare the instance, then await on its own line',
     };
 
     for (const [id, phrase] of Object.entries(phrases)) {

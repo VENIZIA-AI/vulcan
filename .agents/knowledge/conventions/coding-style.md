@@ -13,7 +13,7 @@ The rules are `V-C-01..19` in `packages/cli/base/rules.md`; this is how they loo
   folder (`V-C-17`): `commands/sync.command.ts`, `sync/planner.ts`. Durable artifacts carry ISO
   dates (C-19).
 - **Options objects everywhere** (`V-C-02`), with options that serve one concern grouped into a named sub-object, not prefixed siblings (`V-C-19`); verb-first arrow functions (`V-C-07`); full-word names
-  (`V-C-04`).
+  (`V-C-04`); an instance is declared before it is awaited on (`await runner.run()`, never `await new X().run()`, `V-C-20`).
 - **Enumerable strings** are const classes, with `SCHEME_SET` / `isValid` where a value is validated (`V-C-08`) - see any
   `common/constants.ts`.
 - **Scopes** are folders with `common/{constants,types,index}.ts` and an `index.ts` barrel

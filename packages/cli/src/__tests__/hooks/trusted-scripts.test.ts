@@ -353,8 +353,10 @@ describe('the guard-writes hook with trusted scripts', () => {
       timeout: SPAWN_TIMEOUT_MS,
       killSignal: 'SIGKILL',
     });
-    const stdout = await new Response(child.stdout).text();
-    const stderr = await new Response(child.stderr).text();
+    const stdoutResponse = new Response(child.stdout);
+    const stdout = await stdoutResponse.text();
+    const stderrResponse = new Response(child.stderr);
+    const stderr = await stderrResponse.text();
 
     const result = await child.exited;
     return { code: result, stdout: stdout.trim(), stderr };
@@ -1083,7 +1085,8 @@ describe('the guard-writes hook with a trusted shell script', () => {
       timeout: SPAWN_TIMEOUT_MS,
       killSignal: 'SIGKILL',
     });
-    const stdout = await new Response(child.stdout).text();
+    const stdoutResponse = new Response(child.stdout);
+    const stdout = await stdoutResponse.text();
     const code = await child.exited;
 
     return { code, stdout: stdout.trim() };
