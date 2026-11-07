@@ -1,4 +1,4 @@
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { GitRewrite, PatchInput } from './manifest-git.ts';
 import { ManifestPath, PathPattern, PathRef } from './manifest-path.ts';
 import type { TPathRef } from './manifest-path.ts';
@@ -191,6 +191,40 @@ export class ManifestShell {
   static readonly SHELL_FEEDERS = new Set(['echo', 'printf']);
   /** `for NAME in WORDS` and `select NAME in WORDS` only walk their list; the body reads what it does with each word. */
   static readonly LOOP_HEADERS = new Set(['for', 'select']);
+  /** Programs that turn a word into something else: a folder, a variable, a command, a list. A closed path given to one is still a mention. */
+  static readonly MENTION_PROGRAMS = new Set([
+    ...ManifestShell.LOOP_HEADERS,
+    'cd',
+    'pushd',
+    'popd',
+    'eval',
+    'source',
+    '.',
+    'exec',
+    'xargs',
+    'parallel',
+    'find',
+    'fd',
+    'read',
+    'mapfile',
+    'readarray',
+    'export',
+    'declare',
+    'typeset',
+    'local',
+    'readonly',
+    'set',
+    'unset',
+    'alias',
+    'trap',
+    'builtin',
+    'command',
+  ]);
+  /** Programs that read a file into the shell. */
+  static readonly READ_BACK = new Set(['read', 'mapfile', 'readarray', 'source', '.']);
+  /** Programs that hand a variable to the commands it starts. */
+  static readonly EXPORTERS = new Set(['export', 'declare', 'typeset', 'readonly', 'set']);
+  static readonly MAX_EXEMPT_COMMANDS = 200;
   static readonly FIND_ACTIONS = new Set([
     '-delete',
     '-exec',
@@ -208,6 +242,221 @@ export class ManifestShell {
   static readonly TAR_WRITES = new Set(['r', 'u']);
 
   private static view: IView = { previous: undefined, dotglob: false, globstar: false };
+
+  /** Whether the line is about the `.agents` folder: it says `agents` somewhere that is not a closed path used as written. */
+  private static isAboutFolder(opts: {
+    commands: ISimpleCommand[];
+    line: string;
+    dir: string;
+  }): boolean {
+    const total = InlineScript.agentsCount({ text: opts.line });
+
+    // More exempted than said would mean the words and the text disagree: not told, so about.
+    return total > 0 && ManifestShell.exemptedMentions(opts) !== total;
+  }
+
+  /** Whether a closed path, read from the folder `dir`, has a link below its `agents` folder. */
+  private static hasLinkBelow(opts: { word: string; dir: string }): boolean {
+    const at = opts.word.toLowerCase().indexOf(`${InlineScript.AGENTS}/`);
+
+    if (at === -1) {
+      return true;
+    }
+
+    const end = at + InlineScript.AGENTS.length;
+    const folder = resolve(opts.dir, opts.word.slice(0, end));
+    const parent = dirname(resolve(folder, `.${opts.word.slice(end)}`));
+    const realFolder = ManifestPath.resolveReal({ path: folder });
+    const realParent = ManifestPath.resolveReal({ path: parent });
+
+    return (
+      realFolder === undefined ||
+      realParent === undefined ||
+      realParent !== join(realFolder, relative(folder, parent))
+    );
+  }
+
+  /** The name of a variable the word is, on its own: `$F`, `${F}`. */
+  private static bareVariableOf(opts: { word: string }): string | undefined {
+    return /^\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})$/.exec(opts.word)?.slice(1).find(Boolean);
+  }
+
+  /**
+   * How many mentions of `agents` on the line are a closed path (`InlineScript.isClosedPath`) used as it is
+   * written: an argument or a redirect target of a command at the top of the line. A path in any other
+   * place still counts: an assignment value, a `for` or `select` word, a word after the script of
+   * `sh -c`, a command inside `$(...)` or `<(...)`, the argument of a command whose output is kept (a
+   * file, a variable, a pipe into anything but a reader), and a path with a link below its `agents`
+   * folder. A variable that holds a closed path is let through only when every use of it on the line is
+   * the bare word `$NAME` given to a command that takes it as it is.
+   */
+  private static exemptedMentions(opts: {
+    commands: ISimpleCommand[];
+    line: string;
+    dir: string;
+  }): number {
+    const { commands, line } = opts;
+
+    if (commands.length > ManifestShell.MAX_EXEMPT_COMMANDS) {
+      return 0;
+    }
+
+    const calls = commands.map((command) => ManifestShell.callOf({ command }));
+
+    // A link made on the line can turn a closed path into another one.
+    if (calls.some((call) => call.program === 'ln')) {
+      return 0;
+    }
+
+    const hasExports = calls.some((call) => ManifestShell.EXPORTERS.has(call.program));
+    const kept = new Set<ISimpleCommand>();
+    // The files the line reads back into the shell: in a command inside `$(...)`, as an input, or for `read`.
+    const readBack = new Set<string>();
+
+    for (const [index, command] of commands.entries()) {
+      const call = calls[index];
+
+      if (call === undefined) {
+        continue;
+      }
+
+      if (command.scope !== undefined || ManifestShell.READ_BACK.has(call.program)) {
+        call.args.forEach((word) => readBack.add(word));
+      }
+
+      command.input?.files.forEach((file) => readBack.add(file));
+    }
+
+    for (const [index, command] of commands.entries()) {
+      const producer = command.input?.pipedFrom;
+      const call = calls[index];
+
+      if (
+        producer !== undefined &&
+        call !== undefined &&
+        (call.isFed || !ManifestShell.isReader({ program: call.program, args: call.args }))
+      ) {
+        kept.add(producer);
+      }
+
+      // Output written to a file the line reads back is kept as well; `$(<file)` is not told, so any file counts.
+      if (
+        command.redirects.some(
+          (target) =>
+            !target.startsWith('&') &&
+            target !== '/dev/null' &&
+            (readBack.has(target) || /\$\(\s*<|`\s*</.test(line)),
+        )
+      ) {
+        kept.add(command);
+      }
+    }
+
+    const binders: { name: string; count: number }[] = [];
+    const uses = new Map<string, number>();
+    let exempt = 0;
+    let links = 0;
+    let dir = opts.dir;
+    let previous = opts.dir;
+
+    for (const [index, command] of commands.entries()) {
+      const call = calls[index];
+
+      if (call === undefined) {
+        continue;
+      }
+
+      const isClosed = (word: string): boolean => {
+        if (!InlineScript.isClosedPath({ word })) {
+          return false;
+        }
+
+        links += 1;
+
+        return (
+          links <= ManifestShell.MAX_EXEMPT_COMMANDS && !ManifestShell.hasLinkBelow({ word, dir })
+        );
+      };
+
+      if (command.scope === undefined && command.carrier === undefined) {
+        const isGiven =
+          !ManifestShell.MENTION_PROGRAMS.has(call.program) &&
+          !call.isFed &&
+          call.nested.length === 0 &&
+          InlineScript.payloadOf({ args: call.args }) === -1 &&
+          command.heredoc === undefined &&
+          !kept.has(command);
+
+        for (const word of call.args) {
+          const name = ManifestShell.bareVariableOf({ word });
+
+          if (!isGiven) {
+            continue;
+          }
+
+          if (name !== undefined) {
+            uses.set(name, (uses.get(name) ?? 0) + 1);
+          } else if (isClosed(word)) {
+            exempt += InlineScript.agentsCount({ text: word });
+          }
+        }
+
+        for (const target of command.redirects) {
+          if (!target.startsWith('&') && isClosed(target)) {
+            exempt += InlineScript.agentsCount({ text: target });
+          }
+        }
+
+        if (!hasExports && command.words.length === 0) {
+          for (const assignment of command.assignments) {
+            const equals = assignment.indexOf('=');
+            const value = assignment.slice(equals + 1);
+
+            if (
+              equals > 0 &&
+              /^[A-Za-z_]\w*$/.test(assignment.slice(0, equals)) &&
+              isClosed(value)
+            ) {
+              binders.push({
+                name: assignment.slice(0, equals),
+                count: InlineScript.agentsCount({ text: value }),
+              });
+            }
+          }
+        }
+
+        if (!hasExports && ManifestShell.LOOP_HEADERS.has(call.program) && call.args[1] === 'in') {
+          const values = call.args.slice(2);
+
+          if (
+            values.length > 0 &&
+            /^[A-Za-z_]\w*$/.test(call.args[0] ?? '') &&
+            values.every((word) => isClosed(word))
+          ) {
+            binders.push({
+              name: call.args[0] ?? '',
+              count: values.reduce(
+                (sum, word) => sum + InlineScript.agentsCount({ text: word }),
+                0,
+              ),
+            });
+          }
+        }
+      }
+
+      ({ dir, previous } = ManifestShell.folderAfter({ call, dir, previous, isAbout: true }));
+    }
+
+    for (const binder of binders) {
+      const pattern = new RegExp(`\\$\\{?${binder.name}(?![A-Za-z0-9_])`, 'g');
+
+      if ((line.match(pattern)?.length ?? 0) === (uses.get(binder.name) ?? 0)) {
+        exempt += binder.count;
+      }
+    }
+
+    return exempt;
+  }
 
   /** Whether a line that starts in `from` is now in `to`, and `to` is inside a folder of a manifest it could mean that `from` is not in. */
   private static entersFolder(opts: { from: string; to: string }): boolean {
@@ -1380,7 +1629,7 @@ export class ManifestShell {
     const context: ILine = {
       cwd: opts.cwd,
       depth: opts.depth,
-      isAbout: InlineScript.mentionsFolder({ text: line }),
+      isAbout: ManifestShell.isAboutFolder({ commands: parsed.commands, line, dir: opts.dir }),
       startDir: opts.dir,
       stashMoves: 0,
     };

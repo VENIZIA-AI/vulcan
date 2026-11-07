@@ -16,6 +16,9 @@ type TRow = [string, 'deny' | 'allow', string, Omit<ITableCase, 'area' | 'exp' |
 
 const M = '.agents/vulcan.manifest.json';
 
+/** Sets F to `../vulcan.manifest.json` without the line spelling it. */
+const HIDDEN = 'F=$(echo Li4vdnVsY2FuLm1hbmlmZXN0Lmpzb24= | base64 -d); ';
+
 const rows: TRow[] = [
   // ---------------------------------------------------------------- A: git checkout / restore forms
   ['A-git', 'deny', `git checkout HEAD~1 -- ${M}`],
@@ -739,6 +742,45 @@ rows.push(
   ['A-expansion', 'deny', 'for f in .agents; do cp x $f/vulcan.manifest.json; done'],
   ['A-expansion', 'deny', 'cat .agents/vulcan.manifest.json > /dev/null; cp x $F'],
   ['A-expansion', 'deny', 'ls .agents/local/tmp/; cd .agents; cp x $F'],
+  // A closed path is a mention again where it becomes part of another word (the #858 attack review).
+  ['A-flow', 'deny', 'G=.agents/local; cd $G/.. && cp ../x *.json'],
+  ['A-flow', 'deny', 'G=.agents/local; for f in $G/../*.json; do cp x $f; done'],
+  ['A-flow', 'deny', 'for d in .agents/local; do cd $d/.. && cp ../x *.json; done'],
+  ['A-flow', 'deny', `bash -c 'cd "$0"/.. && cp ../x *.json' .agents/local`],
+  ['A-flow', 'deny', `${HIDDEN}bash -c 'cp x "$0"' .agents/local/$F`],
+  ['A-flow', 'deny', `${HIDDEN}G=.agents/local; cp x $G/$F`],
+  ['A-flow', 'deny', `${HIDDEN}G=$(dirname .agents/local/x); cp x $G/$F`],
+  ['A-flow', 'deny', `${HIDDEN}for f in .agents/local/$F; do cp x $f; done`],
+  ['A-flow', 'deny', `${HIDDEN}for f in .agents/local/$F; do echo x > $f; done`],
+  ['A-flow', 'deny', `${HIDDEN}for f in .agents/local/$F; do sed -i s/a/b/ $f; done`],
+  ['A-flow', 'deny', `${HIDDEN}for f in .agents/local/$F; do rm $f; done`],
+  ['A-flow', 'deny', `${HIDDEN}for f in .agents/local/$F; do perl -pi -e s/a/b/ $f; done`],
+  ['A-flow', 'deny', `${HIDDEN}select f in .agents/local/$F; do cp x $f; done`],
+  ['A-flow', 'deny', `${HIDDEN}for f in .agents/local/$F; { cp x $f; }`],
+  [
+    'A-flow',
+    'deny',
+    'ln -sfn .. .agents/local/l2 && for f in .agents/local/l2/*.json; do cp x $f; done',
+  ],
+  // A path given to a script, a pipe into anything but a reader, a file read back, or a substitution is kept.
+  ['A-flow', 'deny', `bash -c 'true' .agents/local/x.log; cp x $DEST`],
+  ['A-flow', 'deny', 'echo .agents/local | xargs echo; cp x $DEST'],
+  ['A-flow', 'deny', 'ls .agents/local/tmp | while read d; do echo $d; done; cp x $DEST'],
+  ['A-flow', 'deny', 'echo .agents/local/x.log > p; read G < p; cp x $G'],
+  ['A-flow', 'deny', 'echo $(echo .agents/local/x.log); cp x $DEST'],
+  // A trailing variable is never closed: it can hold slashes and `..`, so the line stays about the folder.
+  ['A-flow', 'deny', `${HIDDEN}cp x .agents/local/$F; cp x $G`],
+  ['A-flow', 'deny', `${HIDDEN}cp x .agents/local/$F.json; cp x $G`],
+  // The same words used as written stay quiet.
+  ['B-flow', 'allow', 'G=.agents/local/x.log; cat $G; tail -1 $G'],
+  [
+    'B-flow',
+    'allow',
+    'for f in .agents/local/a.log .agents/local/b.log; do cat $f; done; cp x $DEST',
+  ],
+  ['B-flow', 'allow', 'ls .agents/local/tmp | head -3; cp x $DEST'],
+  ['B-flow', 'allow', 'ls .agents/local/tmp | sed s/a/b/ | sort -u; cp x $DEST'],
+  ['B-flow', 'allow', 'cat .agents/plans/$n.hashes; cp x $DEST'],
 );
 
 export const TABLE_CASES: ITableCase[] = rows.map(([area, exp, cmd, opts]) => ({

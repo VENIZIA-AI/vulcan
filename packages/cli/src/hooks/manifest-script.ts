@@ -26,6 +26,8 @@ export class InlineScript {
   /** The pieces of the name that stay when a script joins it from parts, as letters and digits only. */
   static readonly NAME_PARTS = ['vulcanm', 'manif', 'nifest', 'festjson'];
   static readonly AGENTS = 'agents';
+  /** The file name the guard keeps. */
+  static readonly MANIFEST_NAME = 'vulcan.manifest.json';
   /** A character of a plain path component. */
   static readonly PLAIN_CHAR = /[\w.@%+,:~-]/;
   /** A variable on its own, `$name` or `${name}`, read at `lastIndex`. */
@@ -226,55 +228,52 @@ export class InlineScript {
     return InlineScript.NAME_PARTS.some((part) => opts.letters.includes(part));
   }
 
-  /**
-   * Whether the text, as letters, mentions `.agents`. A plain literal path below a folder named `agents`
-   * (`.agents/local/tmp/run.log`, `scripts/agents/tool.ts`) is not a mention: it is neither the folder nor
-   * the manifest, and says nothing about what an expansion elsewhere on the line could be.
-   */
+  /** Whether the text, as letters, mentions `.agents`. */
   static mentionsFolder(opts: { text: string }): boolean {
-    return InlineScript.toLetters({ text: InlineScript.withoutClosedPaths(opts) }).includes(
-      InlineScript.AGENTS,
-    );
+    return InlineScript.agentsCount(opts) > 0;
+  }
+
+  /** How many times the text, as letters, says `agents`. */
+  static agentsCount(opts: { text: string }): number {
+    return InlineScript.toLetters(opts).split(InlineScript.AGENTS).length - 1;
   }
 
   /**
-   * The text with every closed path below an `agents` folder blanked out. A path is closed when each
-   * component after `agents/` is a plain name (no `.`, `..`, expansion, glob, brace or escape) and nothing
-   * that could extend it follows; one that holds a piece of the manifest's name stays. One pass, so a long
-   * run of `agents/agents/...` costs no more than its length.
+   * Whether the whole word is a closed path below a folder named `agents` (`.agents/local/tmp/run.log`,
+   * `scripts/agents/tool.ts`): a plain prefix, then plain directories, then a last name that may hold a
+   * simple variable or a glob only below a directory. Such a path is neither the folder nor the manifest.
+   * It says nothing about the manifest only where it is used as given: an argument or a redirect target,
+   * never a value that is put into another word (`G=.agents/local; cd $G/..`).
+   * One pass over the word, so a long run of `agents/agents/...` costs no more than its length.
    */
-  static withoutClosedPaths(opts: { text: string }): string {
-    const { text } = opts;
-    const lower = text.toLowerCase();
-    const marker = `${InlineScript.AGENTS}/`;
+  static isClosedPath(opts: { word: string }): boolean {
+    const { word } = opts;
+    const lower = word.toLowerCase();
 
     // A few characters change length in lower case; the offsets would no longer line up.
-    if (lower.length !== text.length) {
-      return text;
+    if (lower.length !== word.length) {
+      return false;
     }
 
-    let result = '';
-    let copied = 0;
-    let at = lower.indexOf(marker);
+    const at = lower.indexOf(`${InlineScript.AGENTS}/`);
 
-    while (at !== -1) {
-      const start = at + marker.length;
-      const end = InlineScript.closedPathEnd({ text, start });
-
-      if (end.kind === 'closed') {
-        const letters = InlineScript.toLetters({ text: lower.slice(at, end.at) });
-
-        if (!InlineScript.hasNamePart({ letters })) {
-          result += `${text.slice(copied, at)} `;
-          copied = end.at;
-        }
-      }
-
-      // A path that ends at a character that could extend it fails from every start inside it too.
-      at = lower.indexOf(marker, Math.max(end.at, start));
+    if (
+      at === -1 ||
+      ![...word.slice(0, at)].every((char) => char === '/' || InlineScript.PLAIN_CHAR.test(char))
+    ) {
+      return false;
     }
 
-    return result + text.slice(copied);
+    const end = InlineScript.closedPathEnd({
+      text: word,
+      start: at + InlineScript.AGENTS.length + 1,
+    });
+
+    return (
+      end.kind === 'closed' &&
+      end.at === word.length &&
+      !InlineScript.hasNamePart({ letters: InlineScript.toLetters({ text: word }) })
+    );
   }
 
   /**
@@ -290,6 +289,7 @@ export class InlineScript {
     const { text } = opts;
     let index = opts.start;
     let depth = 0;
+    let afterVariable = -1;
 
     for (;;) {
       const from = index;
@@ -341,6 +341,20 @@ export class InlineScript {
       }
 
       index += length;
+
+      if (char === '$') {
+        afterVariable = index;
+      }
+    }
+
+    // A variable may hold slashes and `..`, so what follows it must not complete the file's name:
+    // `$n.hashes` cannot be `vulcan.manifest.json`, but `$n`, `$n.json` and `${n}son` can.
+    if (afterVariable !== -1) {
+      const suffix = text.slice(afterVariable, index).toLowerCase();
+
+      if (/[*?]/.test(suffix) || InlineScript.MANIFEST_NAME.endsWith(suffix)) {
+        return { kind: 'open', at: index };
+      }
     }
 
     // `agents/` with nothing after it is the folder itself.
