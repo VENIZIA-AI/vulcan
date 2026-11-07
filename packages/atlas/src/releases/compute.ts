@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 import { Resolve } from '@/changelogs/resolve';
-import { AtlasTimeouts } from '@/common/constants';
+import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { PackageMap } from '@/common/package-map';
 import { DirectoryPath } from '@/common/paths';
 import type { IAtlasProject } from '@/common/project-config';
@@ -28,6 +28,7 @@ const git = (opts: { root: string; args: string[] }): string => {
     maxBuffer: GIT_BUFFER,
     timeout: AtlasTimeouts.LOCAL_GIT_MS,
     killSignal: 'SIGKILL',
+    env: AtlasGit.buildEnvironment(),
   });
 
   if (result.status !== 0) {
@@ -46,6 +47,7 @@ const isRepositoryRoot = (opts: { root: string }): boolean => {
     encoding: 'utf8',
     timeout: AtlasTimeouts.LOCAL_GIT_MS,
     killSignal: 'SIGKILL',
+    env: AtlasGit.buildEnvironment(),
   });
 
   return result.status === 0 && realpathSync(result.stdout.trim()) === realpathSync(opts.root);
@@ -57,6 +59,7 @@ const hasCommits = (opts: { root: string }): boolean =>
     cwd: opts.root,
     timeout: AtlasTimeouts.LOCAL_GIT_MS,
     killSignal: 'SIGKILL',
+    env: AtlasGit.buildEnvironment(),
   }).status === 0;
 
 /**

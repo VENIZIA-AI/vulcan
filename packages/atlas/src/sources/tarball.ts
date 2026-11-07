@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { AtlasTimeouts } from '@/common/constants';
+import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { AtlasLimits, BoundedBody } from '@/common/limits';
 import { StderrLogger } from '@/common/logger';
 import type { IRemoteRef } from './common';
@@ -44,7 +44,7 @@ const fetchBody = async (opts: {
 export class GithubTarball {
   /** Whether git runs on this machine; without it, a GitHub source comes by tarball. */
   static hasGit(): boolean {
-    return spawnSync('git', ['--version']).status === 0;
+    return spawnSync('git', ['--version'], { env: AtlasGit.buildEnvironment() }).status === 0;
   }
 
   /** `owner/repo` - the only form with a tarball path. */
