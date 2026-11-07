@@ -690,7 +690,8 @@ export class WriteCommands {
    * Whether a check applies to a call of `program` with `args`: not when the program is one of the check's
    * own and a word makes the call change nothing (`kubectl apply --dry-run=client`). A word right after an
    * option is no inert word: it may be the option's value (`kubectl apply -f x --field-manager --dry-run=client`
-   * applies), and no table of which options take a value is complete.
+   * applies), and no table of which options take a value is complete. An inert word whose option is named more
+   * than once on the line is not read either: the last value wins.
    */
   static isLive(opts: { check: ICommandCheck; program: string; args: readonly string[] }): boolean {
     const { inert } = opts.check;
@@ -699,10 +700,17 @@ export class WriteCommands {
       return true;
     }
 
+    // The last value of an option wins: `--dry-run --dry-run=none` runs for real. An option named twice is not read.
+    const nameOf = (word: string): string => word.split('=')[0] ?? word;
+
     return !opts.args.some((word, index) => {
       const previous = opts.args[index - 1] ?? '';
 
-      return inert.test(word) && !(previous.startsWith('-') && !previous.includes('='));
+      return (
+        inert.test(word) &&
+        !(previous.startsWith('-') && !previous.includes('=')) &&
+        !opts.args.some((other, at) => at !== index && nameOf(other) === nameOf(word))
+      );
     });
   }
   /**
