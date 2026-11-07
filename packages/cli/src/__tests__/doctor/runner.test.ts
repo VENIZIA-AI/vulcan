@@ -948,7 +948,7 @@ describe('the owner reply switch', () => {
     const set = await notesOf({ VULCAN_OWNER_REPLY: 'off' });
 
     expect(set).toHaveLength(1);
-    expect(set[0]).toContain('not held to the owner reply shape');
+    expect(set[0]).toContain('gets no owner shape card');
     const result = await notesOf({ VULCAN_OWNER_REPLY: 'OFF' });
     expect(result).toEqual([]);
     const result2 = await notesOf({});

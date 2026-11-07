@@ -15,14 +15,11 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 | `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes, `git branch -D` of an unmerged branch, a blanket stage of more than 50 changed paths, and `gh pr create` with no `--base` | Fires on every Bash command; only those git and gh actions are flagged |
 | `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
 | `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
-| `stop` | `Stop` | all | Checks the reply that just ended against the owner's report shape and logs the faults by class and date | Fires when a reply ends; does nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off` |
-| `prompt-submit` | `UserPromptSubmit` | all | Adds one line to the prompt: the shape contract, and the faults of the previous reply | Fires on every prompt; adds nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off` |
-| `post-tool` | `PostToolUse`, `PostToolUseFailure` | all | Keeps notes about the turn for the Stop check, says when the agent seems stuck, and suggests the evals when a skill or rules file is changed | Fires after every tool call (about 10 ms); speaks only on a loop or a skill or rules edit |
 
 ## Session digest
 
 The session-start hook injects rule context into your agent at the start of a session.
-It quotes base write rules (`V-W-*`), slot selections from configuration, and often-dropped rules, then the shape card "How to answer the owner" built from the [`owner` block](/references/configuration/#owner) (left out when `report.enforce` is `off`) and, when the developer has a [profile](/references/configuration/#the-personal-profile), a short "Working with this person" card.
+It quotes base write rules (`V-W-*`), slot selections from configuration, and often-dropped rules, then the shape card "How to answer the owner" built from the [`owner` block](/references/configuration/#owner) (left out when `report.enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off`) and, when the developer has a [profile](/references/configuration/#the-personal-profile), a short "Working with this person" card.
 
 ```text
 $ echo '{}' | bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
@@ -311,30 +308,9 @@ Limits, stated plainly:
 - A removed entry keeps its trust until `vulcan sync` rewrites the manifest and you commit it. `vulcan doctor` flags the difference.
 - This is not a sandbox: see [what the guards are, and are not](#what-the-guards-are-and-are-not). Anything that must never run belongs in `permissions.deny`, the read-only slot of `V-W-01` or branch protection.
 
-## stop and prompt-submit
+## Sessions whose reader is an agent
 
-The two hooks hold the [report shape](/references/configuration/#owner) the session digest prints. `stop` runs `OwnerShape.check` on the last reply: a headline that is a sentence within the cap, the minimap table with the configured header and statuses, the Blocked line, the decisions list ending in the recommendation or exactly the none string, the order of the sections, and, as style faults, emoji, an all-caps phrase and a relative path where full paths are asked for. A reply under `report.shortReplyWords` is exempt; `0` checks every reply.
-
-| `enforce` | What happens to a reply that breaks the shape |
-|---|---|
-| `off` | Nothing is checked, and `prompt-submit` adds nothing |
-| `advise` | Logged; the next prompt carries the faults of that reply |
-| `block` | A structural fault sends the reply back once with what to fix; a reply sent back again is let through. Style faults are only logged |
-
-The log is `.agents/local/violations.jsonl` (gitignored, inside the project): one line per faulty reply with the date and the fault classes, never the text. The note the next prompt reads (the faults of the last reply, and the block cooldown) is kept per session in `.agents/local/cache/replies/<session>.json`, so a session never hears about another session's reply; notes older than 30 minutes and all but the 32 newest are removed on every write. The retro skill reads them. What no program can see, whether each point has a plain meaning or the answer is right, is left to the owner or an eval. Both hooks fail open and honour `VULCAN_GUARDS=off`.
-
-### Sessions whose reader is an agent
-
-`VULCAN_OWNER_REPLY=off` in the environment of a session switches the shape off for that session only: `session-start` leaves out the shape card and the profile card, `stop` checks and logs nothing and never blocks, `prompt-submit` adds nothing. The value is read when the hooks run, only `off` counts, the claim checks at Stop are skipped with it, and everything else (the guards, `post-tool`, the rules) stays on. Set it on the command that starts the session, never with `export`, and never in the `env` of a committed Claude Code settings file. The launcher of a session whose reader is an agent sets it (see "Starting another session" in the delegation brief of the shipped references); `vulcan doctor` prints a note when it is set in the shell that runs it and a warning when a Claude Code settings file of the project sets it in `env`, so an owner who exported it by mistake sees why nothing is checked. Subagents started through the tool's own mechanism never had the shape.
-
-## post-tool and the claims at Stop
-
-`post-tool` appends one line per call to `.agents/local/cache/signals.jsonl` (gitignored, kept per session, cut down at a new prompt once it grows): the call, whether a public-state probe ran (`npm view`, `gh` reads, `git ls-remote`, `curl` of an outside URL; not a `gh pr create`, a POST or a localhost URL), and which gate commands ran (tests, lint, build, typecheck, `bun check`, `vulcan doctor`, found by parsing the command, so a commit message that mentions `tsc` is not one) with whether each passed. A result with a non-zero exit code is a failure; a command sent to the background has no result yet and counts as none. It never blocks. It tells the model:
-
-- **Loop check**: the same call three times in a row within a minute (polling further apart is not a loop), two calls alternating for three rounds, or one call failing three times with the same input in the last six. Each agent's loop is its own; said once in five minutes.
-- **After an edit of a skill or a rules file**: run the skill's evals, or keep to the admission bar for a rule.
-
-At Stop, the same check that holds the report shape also compares the reply with the note. A reply that says something is published, released, deployed or live, with no public-state probe in the turn, is logged as `public-claim-no-probe`. A reply that says the checks pass, while a gate of the turn still failed on its latest run, is logged as `contradicted-completion`. The phrases match as whole words in a sentence that does not deny, ask, quote or speak of the future ("nothing was published yet", "was it released?", "I will tell you when it is released" are not claims). The words are English plus any the project adds in `owner.report.claimWords` (`public` and `done`, for the owner's language, three characters or more). A match is a hint, so these two classes are only logged, never blocked and never said back to the model as a fault of the last reply, and a short reply is checked too. A pipeline such as `bun test | tail` hides the exit code, and the hook cannot see a result it is not given.
+`VULCAN_OWNER_REPLY=off` in the environment of a session takes the shape card and the profile card out of `session-start` for that session only. The value is read when the hook runs, only `off` counts, and everything else (the guards, the rules) stays on. Set it on the command that starts the session, never with `export`, and never in the `env` of a committed Claude Code settings file. The launcher of a session whose reader is an agent sets it (see "Starting another session" in the delegation brief of the shipped references); `vulcan doctor` prints a note when it is set in the shell that runs it and a warning when a Claude Code settings file of the project sets it in `env`, so an owner who exported it by mistake sees why the rules carry no card. Subagents started through the tool's own mechanism never had the shape.
 
 ## How the hooks fail
 
@@ -344,9 +320,8 @@ Several kinds of hook run in every session of every project, so each kind has a 
 |---|---|---|
 | Safety hooks | `guard-writes` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
 | Deny-class guards | `guard-git`, `guard-outside` | a missing package or `bun` passes, with a note on stderr (a broken install must not stop every call); a hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**. `guard-git` asks only about a command that names `git` or `gh`; `guard-outside` asks about the call |
-| Shape and signal hooks | `stop`, `prompt-submit`, `post-tool` | fail open: the reply, prompt or call passes and a note goes to stderr |
 
-`subagent-start` never blocks. `VULCAN_GUARDS=off` switches the guards, the shape hooks and `post-tool` off and is read before any module loads.
+`subagent-start` never blocks. `VULCAN_GUARDS=off` switches the guards off and is read before any module loads.
 
 **Where the project root comes from.** Claude Code sets `CLAUDE_PROJECT_DIR`, and every wrapper builds its path from `${CLAUDE_PROJECT_DIR:-$PWD}`, so a host that reads `.claude/settings.json` without setting the variable (Cursor and Copilot document that they read it) still finds the install when its hooks run from the project root. A set variable always wins, and a missing install still exits 2 for a safety hook. Without the fallback, an unset variable would point the wrapper at `/node_modules/...`, a missing install, and `guard-writes`, `session-start` and `subagent-start` would exit 2, which a host that treats a non-zero exit as a refusal would apply to every call.
 

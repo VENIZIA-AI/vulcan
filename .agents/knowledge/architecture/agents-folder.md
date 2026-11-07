@@ -11,7 +11,7 @@ tags: [architecture, agents, local, clean]
 
 **`local/` is the one place an agent creates files** (rule V-B-08). `ProjectLayout.LOCAL_LAYOUT` is the single list of its folders, each with a lifetime: `tmp` (task, stale after 1 day), `worktrees` (branch), `clones` (research, 14 days), `cache`, `reports`, `prototypes`, `agents` (kept; `agents/<name>/` is one agent's own state, never cleaned, never warned about), `events` (kept) and `release-candidates` (release). `agents`, `events` and `release-candidates` carry `onDemand`, so `sync` does not create them (`LocalPlan.planWorkspace`). `sync`, `doctor` and `clean` all read that list; the docs page `guides/core-concepts/the-agents-folder.md` repeats it as a table, and a test keeps the two together.
 
-**Files VULCAN writes directly in `local/`:** `profile.json`, `claude.launch.settings.json`, `violations.jsonl` (`LocalConstants.KNOWN_FILES`).
+**Files VULCAN writes directly in `local/`:** `profile.json`, `claude.launch.settings.json` (`LocalConstants.KNOWN_FILES`).
 
 ## How expiry and cleaning work
 

@@ -12,10 +12,6 @@ export interface IOwnerView {
   headlineMaxSentences: number;
   absolutePaths: boolean;
   enforce: string;
-  /** Replies under this many words are exempt from the shape: the lower of the project's and the person's. */
-  shortReplyWords: number;
-  /** Words that add to the English ones when a reply is checked for a claim its turn does not back. */
-  claimWords: { public: string[]; done: string[] };
   /** Personal settings; absent when the person has no profile. */
   address: { you?: string; self?: string; formality: string } | undefined;
   tone: string | undefined;
@@ -79,11 +75,6 @@ export class OwnerView {
         first: owner.report.enforce,
         second: profile?.enforce,
       }),
-      claimWords: owner.report.claimWords,
-      shortReplyWords: Math.min(
-        owner.report.shortReplyWords,
-        profile?.shortReplyWords ?? owner.report.shortReplyWords,
-      ),
       address: profile?.address,
       tone: profile?.tone,
       reportDetail: profile?.reportDetail,

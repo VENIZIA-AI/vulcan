@@ -69,13 +69,11 @@ unit that does not fit is split before it starts.
 
 A subagent started through the tool's own subagent mechanism is already exempt from the owner's report
 shape: it gets the subagent card, not the owner shape or the profile. A session you start another way (a
-new terminal, `claude -p`, a script, a session another agent works in) is not: its hooks hold its replies to
-the owner's shape, log them as faults and, under `enforce: block`, send them back, although its reader is
-you.
+new terminal, `claude -p`, a script, a session another agent works in) is not: its session digest carries the
+owner's shape card and the profile card, although its reader is you.
 
 Start it with `VULCAN_OWNER_REPLY=off` on the command that starts it (`VULCAN_OWNER_REPLY=off claude -p ...`), never with `export`, which reaches every later session started from that shell. Only the exact value `off` counts. The
-session then gets no owner shape card and no profile card, and its replies are not checked, logged or
-blocked; everything else (the guards, the rules, the signals) stays on. A session started for one piece of
+session then gets no owner shape card and no profile card; everything else (the guards, the rules) stays on. A session started for one piece of
 work is handed the item and the format ("take item X, return as Y"), not a long message. Say in the brief which plain
 format you want back (the four statuses and the evidence table above are the default), in the language
 you work in. Never set it in a shell the owner works in, or in the `env` of a settings file: `vulcan doctor` prints a

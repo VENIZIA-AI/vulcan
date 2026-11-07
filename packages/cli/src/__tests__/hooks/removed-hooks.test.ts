@@ -9,12 +9,18 @@ const OLD_ENTRY = readFileSync(
   join(import.meta.dir, '..', 'fixtures', 'old-blocking-hook-entry.txt'),
   'utf8',
 );
+const OLD_OPEN_ENTRY = readFileSync(
+  join(import.meta.dir, '..', 'fixtures', 'old-open-hook-entry.txt'),
+  'utf8',
+);
 
 // Each test starts a shell and a bun process.
 setDefaultTimeout(60_000);
 
 /** Blocking hooks that were removed. A project that has not run `vulcan sync` since still registers each one. */
 const REMOVED_BLOCKING = ['guard-package', 'guard-remote-hosts', 'guard-manifest'];
+/** Fail-open hooks that were removed, with no file kept: an old entry passes by itself when its file is missing. */
+const REMOVED_OPEN = ['stop', 'prompt-submit', 'post-tool'];
 
 const roots: string[] = [];
 
@@ -57,6 +63,22 @@ describe('an entry an older vulcan sync wrote for a removed hook', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout.toString()).toBe('');
       expect(result.stderr.toString()).toBe('');
+    });
+  }
+
+  for (const hook of REMOVED_OPEN) {
+    test(`${hook}: with its file gone, the old fail-open entry still passes the call`, () => {
+      const root = projectWithThisPackage();
+      const result = spawnSyncBounded({
+        cmd: ['/bin/sh', '-c', OLD_OPEN_ENTRY.split('@@HOOK@@').join(hook)],
+        cwd: root,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+        stdin: new Blob(['{}']),
+        stdout: 'pipe',
+        stderr: 'pipe',
+      });
+
+      expect(result.exitCode).toBe(0);
     });
   }
 });

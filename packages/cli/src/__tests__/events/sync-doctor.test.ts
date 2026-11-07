@@ -98,8 +98,6 @@ describe('vulcan sync and the event hooks', () => {
       expect(hook.command).toEndWith('exit 0');
     }
 
-    // The shipped hooks of those events are still there beside ours.
-    expect(settingsOf({ root }).hooks?.Stop?.length).toBeGreaterThan(1);
     expect(sync({ root }).code).toBe(0);
     expect(eventEntries({ root })).toHaveLength(HOOK_EVENTS.length);
   });

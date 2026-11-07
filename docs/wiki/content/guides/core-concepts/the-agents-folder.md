@@ -29,8 +29,7 @@ description: What lives in .agents, which parts git tracks, which parts are loca
     ├── release-candidates/             builds made to test a release (on demand)
     ├── profile.json                    how you like to work (vulcan profile)
     ├── claude.launch.settings.json     the file to start Claude Code with (vulcan sync)
-    ├── auto-clean.json                 when the automatic clean last ran, and what it removed
-    └── violations.jsonl                the log of faulty replies
+    └── auto-clean.json                 when the automatic clean last ran, and what it removed
 ```
 
 `plans/` is created and ignored by init. `specs/` is the default folder where plan-a-change writes lane-L cards. It is not created and not ignored, so cards are tracked unless the project adds it to `.gitignore`.

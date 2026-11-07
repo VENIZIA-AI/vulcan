@@ -465,27 +465,22 @@ describe('vulcan clean', () => {
     ]);
   });
 
-  test("Claude Code's task folder and the hooks' signals file are never removed, stale or not, with or without the flag", () => {
+  test("Claude Code's task folder is never removed, stale or not, with or without the flag", () => {
     const root = repository();
 
     file({ root, path: 'tmp/claude-1000/tasks/out.txt', ageDays: 9 });
     file({ root, path: 'tmp/b945/x' });
-    file({ root, path: 'cache/signals.jsonl', ageDays: 9 });
     file({ root, path: 'cache/atlas/x' });
 
     for (const includeFresh of [false, true]) {
       const plan = LocalClean.plan({ root, scopes: ['tmp', 'cache'], includeFresh });
 
-      expect(
-        names({ entries: plan.keep }).filter(
-          (name) => name.includes('claude-') || name.includes('signals'),
-        ),
-      ).toEqual(['cache/signals.jsonl', 'tmp/claude-1000']);
-      expect(
-        names({ entries: plan.remove }).filter(
-          (name) => name.includes('claude-') || name.includes('signals'),
-        ),
-      ).toEqual([]);
+      expect(names({ entries: plan.keep }).filter((name) => name.includes('claude-'))).toEqual([
+        'tmp/claude-1000',
+      ]);
+      expect(names({ entries: plan.remove }).filter((name) => name.includes('claude-'))).toEqual(
+        [],
+      );
     }
 
     const result = runCli({ args: ['clean', '--all', '--include-fresh', '--yes'], cwd: root });
@@ -493,7 +488,6 @@ describe('vulcan clean', () => {
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('in use');
     expect(existsSync(join(root, '.agents/local/tmp/claude-1000/tasks/out.txt'))).toBe(true);
-    expect(existsSync(join(root, '.agents/local/cache/signals.jsonl'))).toBe(true);
     expect(existsSync(join(root, '.agents/local/tmp/b945'))).toBe(false);
     expect(existsSync(join(root, '.agents/local/cache/atlas'))).toBe(false);
   });
@@ -903,7 +897,6 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     file({ root, path: 'scope.txt', text: 'x' });
     file({ root, path: 'audit/report.md', text: 'x' });
     file({ root, path: 'profile.json', text: '{}' });
-    file({ root, path: 'violations.jsonl', text: '' });
     chrome({ root, name: 'com.google.Chrome.xyz', hours: 5 });
 
     expect(LocalScan.unknown({ root }).map((entry) => entry.name)).toEqual([

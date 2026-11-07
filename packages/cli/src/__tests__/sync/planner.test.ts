@@ -199,7 +199,7 @@ describe('.claude/settings.json', () => {
     );
     runSync({ root });
     expect(JSON.stringify(readSettings({ root }).hooks)).not.toContain('echo bye');
-    expect(readSettings({ root }).hooks.Stop).toHaveLength(1);
+    expect(readSettings({ root }).hooks.Stop).toBeUndefined();
   });
 
   test('claude.settings from the config are shared, removable, and never touch personal keys', () => {

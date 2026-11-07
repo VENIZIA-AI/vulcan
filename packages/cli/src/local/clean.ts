@@ -88,7 +88,7 @@ export class LocalClean {
   /**
    * What the chosen scopes hold: what `clean` would remove and what it keeps, with the reason. An item of a scope that
    * goes stale (`tmp`, `clones`) that is not stale yet may belong to a live session: it is kept unless `includeFresh`
-   * is set. An item a live session always uses (`tmp/claude-*`, `cache/signals.jsonl`) is kept whatever the flags.
+   * is set. An item a live session always uses (`tmp/claude-*`) is kept whatever the flags.
    */
   static plan(opts: {
     root: string;
