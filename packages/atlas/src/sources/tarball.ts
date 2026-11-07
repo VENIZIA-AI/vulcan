@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { AtlasLimits, BoundedBody } from '@/common/limits';
 import { StderrLogger } from '@/common/logger';
+import { RepositoryRefs } from '@/provider/repository-refs';
 import type { IRemoteRef } from './common';
 import { GitRepository } from './git';
 
@@ -49,9 +50,7 @@ export class GithubTarball {
 
   /** `owner/repo` - the only form with a tarball path. */
   static githubRepoOf(opts: { repo: string }): { owner: string; repo: string } | undefined {
-    const parts = /^([\w.-]+)\/([\w.-]+)$/.exec(opts.repo);
-
-    return parts === null ? undefined : { owner: parts[1], repo: parts[2] };
+    return RepositoryRefs.bareOf({ value: opts.repo });
   }
 
   /**

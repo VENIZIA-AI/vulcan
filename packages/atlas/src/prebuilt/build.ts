@@ -5,6 +5,7 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { AtlasConstants, AtlasGit } from '@/common/constants';
 import { MANIFEST_FILE, ProjectConfig } from '@/common/project-config';
+import { RepositoryRefs } from '@/provider/repository-refs';
 import { ReleaseCompute } from '@/releases/compute';
 import { GitRepository } from '@/sources/git';
 import { IndexBuild } from '@/sources/index-build';
@@ -17,9 +18,6 @@ export interface IBuiltPair {
   gz: string;
   envelope: string;
 }
-
-const REPOSITORY_NAME = /^[\w.-]+\/[\w.-]+$/;
-const GITHUB_REMOTE = /github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/;
 
 /** HEAD, or `commit` when one is named; a name that is not a commit of this repository is refused. */
 const commitOf = (opts: { root: string; commit?: string }): string => {
@@ -48,11 +46,13 @@ const repositoryOf = (opts: { root: string; repo?: string }): string => {
       env: AtlasGit.buildEnvironment(),
     });
 
-    return result.status === 0 ? GITHUB_REMOTE.exec(result.stdout.trim())?.[1] : undefined;
+    return result.status === 0
+      ? RepositoryRefs.parse({ value: result.stdout.trim() })?.path
+      : undefined;
   };
   const named = opts.repo ?? process.env.GITHUB_REPOSITORY ?? origin();
 
-  if (named === undefined || !REPOSITORY_NAME.test(named)) {
+  if (named === undefined || RepositoryRefs.bareOf({ value: named }) === undefined) {
     throw new Error('atlas index: cannot tell the repository - pass --repo <owner/name>');
   }
 

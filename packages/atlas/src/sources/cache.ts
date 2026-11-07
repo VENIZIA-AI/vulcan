@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path';
+import { RepositoryRefs } from '@/provider/repository-refs';
 
 /** The cache layout this atlas reads and writes (V2): a layout from another version is never read. */
 const CACHE_LAYOUT = 'v1';
@@ -16,7 +17,7 @@ export const DEFAULT_CACHE_DIRECTORY = '.agents/local/cache';
 export class SourceCache {
   /** `owner/repo` is GitHub's; anything with a scheme (or a path) is a git URL as given. */
   static urlOf(opts: { repo: string }): string {
-    return /^[\w.-]+\/[\w.-]+$/.test(opts.repo) ? `https://github.com/${opts.repo}.git` : opts.repo;
+    return RepositoryRefs.githubUrlOf({ value: opts.repo }) ?? opts.repo;
   }
 
   /**
