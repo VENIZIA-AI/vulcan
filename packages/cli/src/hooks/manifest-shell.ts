@@ -1286,7 +1286,8 @@ export class ManifestShell {
     const call = ManifestShell.callOf({
       command: commands[index] ?? { words: [], redirects: [], assignments: [] },
     });
-    const hasFile = call.args.some((word) => !word.startsWith('-'));
+    // A process substitution is what the shell reads, not a file it opens: the commands next to it feed it.
+    const hasFile = call.args.some((word) => !word.startsWith('-') && !/^[<>]\(/.test(word));
     const hasString = call.args.some((word) => /^-[A-Za-z]*c$/.test(word));
     const isReading =
       ((ManifestShell.SHELLS.has(call.program) && !hasFile && !hasString) ||

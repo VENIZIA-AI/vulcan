@@ -841,8 +841,10 @@ export class ShellParser {
           continue;
         }
 
-        // `<>` opens the file for reading and writing.
-        if (text[cursor] === '>') {
+        // `<>` opens the file for reading and writing: it is a write target too.
+        const isReadWrite = text[cursor] === '>';
+
+        if (isReadWrite) {
           cursor += 1;
         }
 
@@ -855,6 +857,10 @@ export class ShellParser {
 
         if (source.value !== '') {
           inputOf({ command: current }).files.push(source.value);
+
+          if (isReadWrite) {
+            current.redirects.push(source.value);
+          }
 
           if (current.words.length > 0) {
             current.words.push(source.value);
