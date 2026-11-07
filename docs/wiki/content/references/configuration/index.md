@@ -379,6 +379,7 @@ The `atlas` object configures release tags and external repository sources. `vul
 | `ignoreTags` | `string[]` | `undefined` | Glob patterns of git tags ignored by checks |
 | `index.keys` | `string[]` | `[]` | The public keys a prebuilt atlas index of this repository may be signed with; each is the base64 of 32 bytes, as `vulcan x atlas index keygen` prints it |
 | `prebuilt` | `boolean` | `true` | `false`: atlas never downloads a prebuilt index for a source this project reads |
+| `limits.download` | `number` | `134217728` (128 MiB) | The most bytes atlas reads of one tarball it downloads: the commit of a GitHub source, or an npm package read for its declarations. A larger one is refused, nothing is kept, and the error names this setting. An integer from `1048576` (1 MiB) to `1073741824` (1 GiB); a value outside it is a schema error. Written to the manifest as `atlas.limits.download`, and only when set. |
 
 ### legacyTagPatterns
 
@@ -398,7 +399,7 @@ Unlike `ignoreTags`, a tag a legacy template reads counts as a release. The key 
 
 ### index and prebuilt
 
-`index.keys` and `prebuilt` are written to the manifest as `atlas: { index: { keys }, prebuilt }`, and only when set: a project that sets neither has the manifest it always had (`schemaVersion` stays 1, and an atlas that does not know the block ignores it).
+`index.keys`, `prebuilt` and `limits.download` are written to the manifest as `atlas: { index: { keys }, prebuilt, limits: { download } }`, and only when set: a project that sets neither has the manifest it always had (`schemaVersion` stays 1, and an atlas that does not know the block ignores it).
 A key that is not the base64 of 32 bytes fails when the config is read.
 Listing keys lets the projects that read this one as a source use the signed index its CI publishes; replacing the list is how a key is rotated.
 See [the prebuilt index](/references/atlas/prebuilt-index).

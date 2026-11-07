@@ -560,6 +560,12 @@ const resolveRemote = async (opts: {
   prebuilt?: boolean;
   indexKeys?: string[];
 }): Promise<IResolvedSource> => {
+  const refused = GitRepository.refusedTransportOf({ repo: opts.source.repo });
+
+  if (refused !== undefined) {
+    throw new Error(`atlas: ${describe(opts)} uses ${refused} - use https or ssh`);
+  }
+
   const cacheRoot = SourceCache.cacheRootOf({ repo: opts.source.repo, cacheBase: opts.cacheBase });
   const byGit = GithubTarball.hasGit();
   const github = GithubTarball.githubRepoOf(opts.source);

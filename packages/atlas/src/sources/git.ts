@@ -13,6 +13,34 @@ const FULL_SHA_LENGTH = 40;
 const TAGS_FINGERPRINT_LENGTH = 16;
 
 export class GitRepository {
+  /**
+   * The transports git may use for a source: `https` and `ssh` carry the repository authenticated and
+   * encrypted, `file` is a repository on this machine. `http` and `git://` are clear text with no
+   * authentication, and `ext::` and `fd::` run a command: none of them is allowed, whatever URL a source names.
+   */
+  static readonly ALLOWED_PROTOCOLS = 'https:ssh:file';
+
+  /**
+   * What is wrong with the transport of a source `repo`, as a phrase for the message; `undefined` when git may use it.
+   * An `owner/repo` path, an scp-like `git@host:path`, an `https://` or `ssh://` URL and a local path pass.
+   */
+  static refusedTransportOf(opts: { repo: string }): string | undefined {
+    const repo = opts.repo.trim();
+
+    if (/^http:\/\//i.test(repo)) {
+      return 'an http:// URL, which is clear text';
+    }
+
+    if (/^git:\/\//i.test(repo)) {
+      return 'a git:// URL, which is clear text with no authentication';
+    }
+
+    if (/^[a-z][a-z0-9+.-]*::/i.test(repo)) {
+      return 'a remote-helper URL (ext::, fd:: ...), which runs a command';
+    }
+
+    return undefined;
+  }
   /** A repository or a ref that git would read as an option is refused before any git call: it never reaches the command line. */
   static assertNotOption(opts: { name: string; value: string }): void {
     if (GitArgument.isOptionLike({ value: opts.value })) {
@@ -29,7 +57,11 @@ export class GitRepository {
       timeout: opts.timeout ?? AtlasTimeouts.GIT_TRANSFER_MS,
       killSignal: 'SIGKILL',
       // Never prompt for credentials: a source that needs them uses the machine's, or fails.
-      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_ALLOW_PROTOCOL: GitRepository.ALLOWED_PROTOCOLS,
+      },
     });
 
     if (result.status !== 0) {

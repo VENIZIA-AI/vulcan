@@ -4,6 +4,7 @@ import { InteractiveRun, ModeArguments, ModeUsageError, SourceArguments } from '
 import { runReleasesCommand } from './releases/generator';
 import { Refresher, SourceBoot, SourcesServer } from './server/index';
 import type { Transport } from './protocol/index';
+import { AtlasLimits } from './common/limits';
 import { ProjectConfig } from './common/project-config';
 import { TextValue } from './common/text';
 import { runIndexCommand } from './prebuilt/index';
@@ -100,6 +101,13 @@ const sourcesToServe = (opts: {
 }): { project: boolean; sources: IAtlasSource[] } => {
   const project = ProjectConfig.hasAtlasProject({ root: opts.root });
   const declared = project ? ProjectConfig.readAtlasProject({ root: opts.root }).sources : [];
+
+  // What this project allows a download to hold: set once, before any source is fetched.
+  AtlasLimits.configure({
+    download: project
+      ? ProjectConfig.readAtlasProject({ root: opts.root }).downloadLimit
+      : undefined,
+  });
 
   return { project, sources: [...declared, ...SourceArguments.read({ argv: opts.argv })] };
 };
