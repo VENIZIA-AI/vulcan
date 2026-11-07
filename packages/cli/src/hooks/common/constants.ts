@@ -4,12 +4,6 @@ export class GuardDecisions {
   static readonly DENY = 'deny';
 }
 
-/** What the package guard says about a hand-made package: refuse where a `vulcan add` command exists, else warn. */
-export class PackageVerdictKinds {
-  static readonly DENY = GuardDecisions.DENY;
-  static readonly WARN = 'warn';
-}
-
 /** What git says about a script a project trusts: only `TRUSTED` skips the script checks of guard-writes. */
 export class TrustStates {
   static readonly TRUSTED = 'trusted';

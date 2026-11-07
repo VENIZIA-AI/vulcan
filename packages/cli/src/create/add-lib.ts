@@ -252,11 +252,9 @@ export class LibraryScaffold {
       process.stderr.write(`${warning}\n`);
     }
 
-    // The folder is used all the same; the layout does not list it, so `guard-package` does not cover it.
+    // The folder is used all the same; the layout does not list it.
     if (notRecorded !== undefined && notRecorded !== '') {
-      process.stderr.write(
-        `note: '${folder}' is not added to layout.shared (${notRecorded}); guard-package does not cover it\n`,
-      );
+      process.stderr.write(`note: '${folder}' is not added to layout.shared (${notRecorded})\n`);
     }
 
     const rows: [string, string][] = [

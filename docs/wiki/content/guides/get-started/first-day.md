@@ -76,7 +76,7 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"ls -la"}}' | bun node_modul
 
 The command produces no output and exits with code 0.
 
-Other guards run beside it: `guard-git`, `guard-outside`, `guard-package`, `guard-remote-hosts` and `guard-manifest` ([Hooks](/references/hooks/)). If the guard asks about a project CLI of your own, list it in `guard.writes.trustedScripts` ([configuration reference](/references/configuration/#guard)).
+Other guards run beside it: `guard-git`, `guard-outside`, `guard-remote-hosts` and `guard-manifest` ([Hooks](/references/hooks/)). If the guard asks about a project CLI of your own, list it in `guard.writes.trustedScripts` ([configuration reference](/references/configuration/#guard)).
 
 ## 3. Write one knowledge page
 

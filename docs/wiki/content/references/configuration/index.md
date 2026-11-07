@@ -170,7 +170,7 @@ The `layout` object records the folders that hold your apps. `vulcan init` and `
 | `shared` | `string` or `string[]` | none | Folder, or folders, for code shared between apps |
 | `other` | `string` or `string[]` | none | Folders the layout deliberately does not manage: documentation, third-party code, tests |
 
-Each value is a folder path, or a list of them; a plain string stays valid. The object is strict, so any other key is an error. A folder path is checked by one rule, in the schema, in `add` and in the `guard-package` hook alike:
+Each value is a folder path, or a list of them; a plain string stays valid. The object is strict, so any other key is an error. A folder path is checked by one rule, in the schema and in `add` alike:
 
 - 1 to 4 segments joined by `/`, each matching `/^[a-z0-9][a-z0-9-]*$/` (`frontends/apps` is two);
 - no `..`, no `.` segment, no leading or trailing `/`, no backslash, no empty segment, no `node_modules` segment;
@@ -189,7 +189,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-`other` lists folders that hold packages the layout does not manage. A package there is allowed by [`doctor`](/references/commands/doctor#apps), is never the target of `vulcan add`, and is not guarded by `guard-package`. A package under no listed folder is still reported.
+`other` lists folders that hold packages the layout does not manage. A package there is allowed by [`doctor`](/references/commands/doctor#apps) and is never the target of `vulcan add`. A package under no listed folder is still reported.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
