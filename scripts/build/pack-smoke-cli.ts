@@ -424,6 +424,32 @@ const withBrokenPackages = <T>(opts: { paths: string[]; run: () => T }): T => {
   });
 };
 
+/** Blocking hooks that were removed; an older `vulcan sync` still registers each, and the package keeps an empty file for it. */
+const REMOVED_BLOCKING_HOOKS = ['guard-package'];
+const OLD_ENTRY = readFileSync(
+  resolve(import.meta.dir, '..', '..', 'packages/cli/src/__tests__/fixtures/old-blocking-hook-entry.txt'),
+  'utf8',
+);
+
+/** The entry an older sync wrote for each removed blocking hook, run against the installed tarball: it must pass the call. */
+const smokeRemovedHooks = (opts: { sandbox: string }): string | undefined => {
+  for (const name of REMOVED_BLOCKING_HOOKS) {
+    const result = spawnSync('/bin/sh', ['-c', OLD_ENTRY.split('@@HOOK@@').join(name)], {
+      cwd: opts.sandbox,
+      input: JSON.stringify({ ['tool_name']: 'Write', ['tool_input']: { ['file_path']: 'x' }, cwd: opts.sandbox }),
+      encoding: 'utf8',
+      env: SmokeEnv.of({ env: process.env, extra: { CLAUDE_PROJECT_DIR: opts.sandbox } }),
+      timeout: 60_000,
+    });
+
+    if (result.status !== 0) {
+      return `removed hooks: the old entry of ${name} exited ${result.status} against the tarball: ${(result.stderr ?? '').slice(-300)}`;
+    }
+  }
+
+  return undefined;
+};
+
 /** The hooks, from the tarball: a failure message, or `undefined` when every case held. */
 const smokeHooks = (opts: { sandbox: string }): string | undefined => {
   const { sandbox } = opts;
@@ -634,6 +660,7 @@ try {
 
     // Every registered hook, from the installed tarball (the release-blocking check on the hook path).
     failure ??= smokeHooks({ sandbox });
+    failure ??= smokeRemovedHooks({ sandbox });
 
     // A project module, written the way the adoption guide says: resolves, type-checks, renders.
     const source = failure === undefined ? makeSource({ sandbox: sourceSandbox }) : {};
