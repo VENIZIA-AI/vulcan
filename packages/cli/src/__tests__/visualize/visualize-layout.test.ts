@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { SpecPage } from '../../visualize/index.ts';
 import { FigureLayout } from '../../visualize/layout.ts';
+import { architectureSpec } from './architecture.fixture.ts';
 import { figuresSpec } from './figures.fixture.ts';
 
 const pageOf = (spec: Record<string, unknown>): string => {
@@ -145,13 +146,13 @@ describe('the explainer step diagrams', () => {
     const html = pageOf(figuresSpec());
 
     expect(html).toContain('.estep .dg{grid-column:2/-1;min-width:0}');
-    expect(html).toMatch(/class="fig f\d+i128"/);
+    expect(html).toMatch(/class="fig f\d+i128p32"/);
   });
 
   test('the layers list says each layer with its colon attached, and the diagrams share a left edge', () => {
     const html = pageOf(figuresSpec());
 
-    expect(html).toContain('<li><b>Giao diện:</b> Màn hình nhập, Biểu mẫu</li>');
+    expect(html).toContain('<li><b>Giao diện:</b> <span>Màn hình nhập, Biểu mẫu</span></li>');
     expect(html).toContain('.estep .dg .fig svg{margin-inline:0}');
     expect(html).toContain('.estep .dg .win{width:fit-content;max-width:100%}');
   });
@@ -166,5 +167,72 @@ describe('the explainer step diagrams', () => {
 
     expect(Number(second?.[3]) - (Number(second?.[1]) + Number(second?.[2]))).toBeGreaterThan(78);
     expect(first).not.toBeNull();
+  });
+});
+
+describe('the architecture figure', () => {
+  test('six boxes in a layer are drawn, not given up for the list, and the frame is counted in the fit rule', () => {
+    const html = pageOf(architectureSpec());
+    const name = /class="fig (f\d+p32)"/.exec(html)?.[1] ?? '';
+    const width = Number(/^f(\d+)/.exec(name)?.[1]);
+
+    expect(name).not.toBe('');
+    expect(width).toBeLessThanOrEqual(1270);
+    expect(html).toMatch(
+      new RegExp(`@media \\(max-width:\\d+px\\)\\{\\.fig\\.${name}\\{display:none\\}`),
+    );
+    expect(html).toContain(`.fig.${name} svg{min-width:`);
+  });
+
+  test('a long word breaks at a hyphen or a dot, never inside its last letters', () => {
+    expect(FigureLayout.wrapText({ text: 'package-release.yml', size: 12.5, max: 100 })).toEqual([
+      'package-',
+      'release.yml',
+    ]);
+    expect(FigureLayout.wrapText({ text: 'guard-writes, guard-git', size: 12.5, max: 99 })).toEqual(
+      ['guard-writes,', 'guard-git'],
+    );
+  });
+
+  test('a link between two boxes of one layer runs below the row, and a link over several layers down the right margin', () => {
+    const html = pageOf(architectureSpec());
+    const paths = [...html.matchAll(/<path d="(M[^"]*)" class="dline"\/>/g)].map(
+      (match) => match[1] ?? '',
+    );
+    const points = (path: string): number[][] =>
+      path
+        .slice(1)
+        .split('L')
+        .map((pair) => pair.split(' ').map(Number));
+    const boxes = [
+      ...html.matchAll(
+        /<g class="dbox"[^>]*><rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/g,
+      ),
+    ].map((match) => ({
+      x: Number(match[1]),
+      y: Number(match[2]),
+      w: Number(match[3]),
+      h: Number(match[4]),
+    }));
+    const widest = Math.max(...boxes.map((box) => box.x + box.w));
+
+    expect(paths.length).toBe(9);
+
+    for (const path of paths) {
+      // Every vertex of every link is outside every box (the ends touch an edge, never the inside).
+      for (const [x = 0, y = 0] of points(path)) {
+        expect(
+          boxes.some(
+            (box) =>
+              x > box.x + 1 && x < box.x + box.w - 1 && y > box.y + 1 && y < box.y + box.h - 1,
+          ),
+        ).toBe(false);
+      }
+    }
+
+    // The three links over more than one layer go beyond the widest box.
+    expect(
+      paths.filter((path) => points(path).some(([x = 0]) => x > widest)).length,
+    ).toBeGreaterThanOrEqual(2);
   });
 });

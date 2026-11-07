@@ -90,7 +90,7 @@ const BASE_CSS = [
   `.c-ok{--c:var(--ok);--cb:var(--ok-bg)}.c-warn{--c:var(--accent);--cb:var(--accent-soft)}.c-bad{--c:var(--bad);--cb:var(--bad-bg)}.c-info{--c:var(--info);--cb:var(--info-bg)}.c-mut{--c:var(--muted);--cb:var(--bg-soft)}`,
   `.chip{display:inline-flex;align-items:center;gap:8px;color:var(--c);font:600 13.5px/1.2 var(--font);letter-spacing:.02em;white-space:nowrap}`,
   `.lab{font:600 13.5px/1.3 var(--font);color:var(--muted)}`,
-  `.inl{display:inline-flex;margin-right:6px;color:var(--c)}`,
+  `.inl{display:inline-flex;margin-right:6px;color:var(--c)}.nb{white-space:nowrap}`,
   `.btn{font:600 13.5px/1.2 var(--font);color:var(--body);background:transparent;border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px;cursor:pointer;transition:color .2s,background-color .2s,border-color .2s}`,
   `.btn:hover{color:var(--ink);border-color:var(--muted)}`,
   `.btn:focus-visible{outline:2px solid var(--accent)}`,

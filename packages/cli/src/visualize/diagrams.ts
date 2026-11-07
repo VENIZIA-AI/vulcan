@@ -1,6 +1,5 @@
-import { NodeStates } from './constants.ts';
 import type { TChrome } from './constants.ts';
-import { SpecCharts } from './charts.ts';
+import { SpecArchitecture } from './architecture.ts';
 import { GridSpans } from './grid-span.ts';
 import { IconSet } from './icons.ts';
 import { FigureLayout } from './layout.ts';
@@ -106,126 +105,13 @@ export class SpecDiagrams {
     return {
       svg: `<svg width="${width}" viewBox="0 0 ${width} ${diagram.layers.length * 62 + 12}" role="group" aria-label="layers">${parts}</svg>`,
       width,
-      fallback: `<ul class="path">${diagram.layers.map((layer) => `<li><b>${escaped(layer.label)}:</b> ${layer.items.map(escaped).join(', ')}</li>`).join('')}</ul>`,
+      fallback: `<ul class="path">${diagram.layers.map((layer) => `<li><b>${escaped(layer.label)}:</b> <span>${layer.items.map(escaped).join(', ')}</span></li>`).join('')}</ul>`,
     };
   }
 
-  /** The layered view: bands from top to bottom, boxes in each, and an elbow line for every link. */
+  /** The layered view: bands from top to bottom, boxes in each, and a line for every link that never crosses a box. */
   static renderArchitecture(opts: { architecture: TArchitecture; chrome: TChrome }): IDrawing {
-    const { architecture } = opts;
-    const most = Math.max(...architecture.layers.map((layer) => layer.boxes.length));
-    const label = 120;
-    const bw = 176;
-    const bh = 68;
-    const gap = 64;
-    const rowHeight = 190;
-    const width = label + most * (bw + gap) + 4;
-    const height = architecture.layers.length * rowHeight + 8;
-    const positions = new Map<string, { x: number; y: number; row: number }>();
-
-    architecture.layers.forEach((layer, row) => {
-      const total = layer.boxes.length * (bw + gap) - gap;
-      const start = label + (most * (bw + gap) - gap - total) / 2;
-
-      layer.boxes.forEach((boxSpec, col) =>
-        positions.set(boxSpec.id, {
-          x: start + col * (bw + gap),
-          y: 4 + row * rowHeight + 34,
-          row,
-        }),
-      );
-    });
-
-    const bands = architecture.layers
-      .map(
-        (layer, row) =>
-          `<rect x="2" y="${4 + row * rowHeight}" width="${width - 4}" height="${rowHeight - 14}" rx="4" class="dband"/><text class="dlab" x="14" y="${4 + row * rowHeight + 24}">${escaped(layer.label)}</text>`,
-      )
-      .join('');
-    // Links that cross the same gap between two layers get their own horizontal run, so no two lines share one.
-    const lanes = new Map<number, number>();
-    const across = new Map<number, number>();
-
-    for (const link of architecture.links) {
-      const from = positions.get(link.from);
-      const to = positions.get(link.to);
-
-      if (from !== undefined && to !== undefined && from.row !== to.row) {
-        across.set(Math.min(from.row, to.row), (across.get(Math.min(from.row, to.row)) ?? 0) + 1);
-      }
-    }
-
-    const links = architecture.links
-      .map((link) => {
-        const a = positions.get(link.from);
-        const b = positions.get(link.to);
-
-        if (a === undefined || b === undefined) {
-          return '';
-        }
-
-        if (a.row === b.row) {
-          const sign = a.x < b.x ? 1 : -1;
-          const x1 = sign === 1 ? a.x + bw : a.x;
-          const x2 = sign === 1 ? b.x : b.x + bw;
-          const y = a.y + bh / 2;
-
-          return `<g class="dlink"><path d="M${x1} ${y}H${x2}" class="dline"/><path d="M${x2 - sign * 7} ${y - 5}L${x2} ${y}L${x2 - sign * 7} ${y + 5}" fill="none" class="dline"/>${link.label === undefined ? '' : `<text class="dl" x="${(x1 + x2) / 2}" y="${y - 8}" text-anchor="middle">${escaped(link.label)}</text>`}</g>`;
-        }
-
-        const down = a.row < b.row;
-        const gapIndex = Math.min(a.row, b.row);
-        const lane = lanes.get(gapIndex) ?? 0;
-
-        lanes.set(gapIndex, lane + 1);
-
-        const top = 4 + gapIndex * rowHeight + 34 + bh;
-        const bottom = 4 + (gapIndex + 1) * rowHeight + 34;
-        const ym =
-          top + 14 + ((bottom - top - 28) * (lane + 1)) / ((across.get(gapIndex) ?? 1) + 1);
-        const shift = lane % 3 === 1 ? 10 : lane % 3 === 2 ? -10 : 0;
-        const x1 = a.x + bw / 2 + shift;
-        const x2 = b.x + bw / 2 + shift;
-        const y1 = down ? a.y + bh : a.y;
-        const y2 = down ? b.y : b.y + bh;
-        const tip = down ? -7 : 7;
-
-        return `<g class="dlink"><path d="M${x1} ${y1}V${ym}H${x2}V${y2}" class="dline"/><path d="M${x2 - 5} ${y2 + tip}L${x2} ${y2}L${x2 + 5} ${y2 + tip}" fill="none" class="dline"/>${link.label === undefined ? '' : `<text class="dl" x="${(x1 + x2) / 2}" y="${ym - 5}" text-anchor="middle">${escaped(link.label)}</text>`}</g>`;
-      })
-      .join('');
-    const boxes = architecture.layers
-      .flatMap((layer) => layer.boxes)
-      .map((spec) => {
-        const p = positions.get(spec.id);
-
-        return p === undefined
-          ? ''
-          : box({
-              x: p.x,
-              y: p.y,
-              width: bw,
-              height: bh,
-              label: spec.label,
-              sub: spec.sub,
-              tone: spec.state === undefined ? undefined : NodeStates.toneOf(spec.state),
-              icon:
-                spec.state === undefined
-                  ? undefined
-                  : SpecCharts.stateIcon({ state: spec.state, size: 20 }),
-            });
-      })
-      .join('');
-    const names = new Map(
-      architecture.layers.flatMap((layer) =>
-        layer.boxes.map((spec) => [spec.id, spec.label] as const),
-      ),
-    );
-
-    return {
-      svg: `<svg width="${width}" viewBox="0 0 ${width} ${height}" role="group" aria-label="${escaped(opts.chrome.architecture)}">${bands}${links}${boxes}</svg>`,
-      width,
-      fallback: `<ul class="path">${architecture.layers.map((layer) => `<li><b>${escaped(layer.label)}</b>: ${layer.boxes.map((spec) => `${spec.state === undefined ? '' : `<span class="c-${NodeStates.toneOf(spec.state)} inl">${SpecCharts.stateIcon({ state: spec.state, size: 16 })}</span>`}${escaped(spec.label)}`).join(', ')}</li>`).join('')}${architecture.links.map((link) => `<li>${escaped(names.get(link.from) ?? link.from)} <span class="verb">${escaped(link.label ?? opts.chrome.uses)}</span> ${escaped(names.get(link.to) ?? link.to)}</li>`).join('')}</ul>`,
-    };
+    return SpecArchitecture.render(opts);
   }
 
   /** The idea map: the centre between two columns of branches, each branch a cluster of ideas. */

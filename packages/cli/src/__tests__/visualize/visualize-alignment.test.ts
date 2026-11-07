@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { SpecPage } from '../../visualize/index.ts';
 import { GROUPS, MEASURE } from './alignment.groups.ts';
 import { alignmentSpec } from './alignment.fixture.ts';
+import { architectureSpec } from './architecture.fixture.ts';
 import { figuresSpec } from './figures.fixture.ts';
 import { BrowserPage } from './browser.helper.ts';
 
@@ -244,5 +245,240 @@ describe.skipIf(!hasBrowser)(
         expect(found.issues).toEqual([]);
       });
     }
+  },
+);
+
+const architectureHtml = ((): string => {
+  const result = SpecPage.renderText({ text: JSON.stringify(architectureSpec()) });
+
+  if (!result.ok) {
+    throw new Error(result.problems.join('; '));
+  }
+
+  return result.page.html;
+})();
+
+/**
+ * The architecture figure keeps its lines off the boxes: no point of a link is inside a box, every link has its label
+ * drawn on its own line (nearer to it than to any other), parallel lines of different links stay 20 px apart, no
+ * link has a step with no purpose, no box text leaves its box, and the figure fits its frame.
+ */
+const ARCHITECTURE = `(() => {
+  const issues = [];
+  const visible = (el) => el.getClientRects().length > 0;
+  const svg = [...document.querySelectorAll('.fig svg')].find((item) => visible(item) && item.querySelector('.dbox'));
+
+  if (svg === undefined) {
+    return { drawn: false, issues };
+  }
+
+  const boxes = [...svg.querySelectorAll('.dbox')].map((g) => ({ id: g.dataset.box, rect: g.querySelector('rect').getBBox(), g }));
+  const links = [...svg.querySelectorAll('.dlink')].map((link) => {
+    const path = link.querySelector('path.dline');
+    const points = path.getAttribute('d').slice(1).split('L').map((pair) => pair.split(' ').map(Number));
+
+    return { link, path, points, label: link.querySelector('text.dl') };
+  });
+  const segmentsOf = (points) =>
+    points.slice(1).map((point, at) => {
+      const before = points[at];
+
+      return { x1: Math.min(before[0], point[0]), x2: Math.max(before[0], point[0]), y1: Math.min(before[1], point[1]), y2: Math.max(before[1], point[1]) };
+    });
+  const distance = (box, seg) => Math.hypot(Math.max(box.x - seg.x2, seg.x1 - (box.x + box.width), 0), Math.max(box.y - seg.y2, seg.y1 - (box.y + box.height), 0));
+
+  for (const { id, rect, g } of boxes) {
+    for (const text of g.querySelectorAll('text')) {
+      const box = text.getBBox();
+
+      if (box.x < rect.x + 2 || box.x + box.width > rect.x + rect.width - 2 || box.y < rect.y || box.y + box.height > rect.y + rect.height) {
+        issues.push('box text outside its box: ' + id + ' ' + text.textContent);
+      }
+    }
+  }
+
+  links.forEach(({ path, points, label }, index) => {
+    const length = path.getTotalLength();
+
+    for (let at = 0; at <= length; at += 3) {
+      const point = path.getPointAtLength(at);
+      const inside = boxes.find(({ rect }) => point.x > rect.x + 1 && point.x < rect.x + rect.width - 1 && point.y > rect.y + 1 && point.y < rect.y + rect.height - 1);
+
+      if (inside !== undefined) {
+        issues.push('a link runs through box ' + inside.id);
+        break;
+      }
+    }
+
+    // A bend with no purpose: a step shorter than the width of a line pair.
+    for (const seg of segmentsOf(points)) {
+      const run = Math.max(seg.x2 - seg.x1, seg.y2 - seg.y1);
+
+      if (run > 0 && run < 14) {
+        issues.push('a link has a bend with no purpose (a step of ' + Math.round(run) + ' px)');
+        break;
+      }
+    }
+
+    if (label === null) {
+      issues.push('a link has no label drawn');
+      return;
+    }
+
+    const box = label.getBBox();
+
+    for (const { id, rect } of boxes) {
+      if (box.x < rect.x + rect.width + 2 && box.x + box.width > rect.x - 2 && box.y < rect.y + rect.height + 2 && box.y + box.height > rect.y - 2) {
+        issues.push('link label on box ' + id + ': ' + label.textContent);
+      }
+    }
+
+    const own = Math.min(...segmentsOf(points).map((seg) => distance(box, seg)));
+    const rival = Math.min(...links.flatMap((other, at) => (at === index ? [] : segmentsOf(other.points).map((seg) => distance(box, seg)))), Infinity);
+
+    if (own > 12) {
+      issues.push('link label away from its own line (' + Math.round(own) + ' px): ' + label.textContent);
+    }
+
+    if (rival < own + 6) {
+      issues.push('link label as close to another line as to its own: ' + label.textContent);
+    }
+  });
+
+  // Parallel lines of different links stay apart.
+  links.forEach((one, first) => {
+    links.forEach((other, second) => {
+      if (second <= first) {
+        return;
+      }
+
+      for (const a of segmentsOf(one.points)) {
+        for (const b of segmentsOf(other.points)) {
+          const horizontal = a.y1 === a.y2 && b.y1 === b.y2 && a.x2 > a.x1 && b.x2 > b.x1;
+          const vertical = a.x1 === a.x2 && b.x1 === b.x2 && a.y2 > a.y1 && b.y2 > b.y1;
+
+          if (horizontal && Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1) > 2 && Math.abs(a.y1 - b.y1) < 20) {
+            issues.push('two horizontal lines are closer than 20 px (' + Math.round(Math.abs(a.y1 - b.y1)) + ' px)');
+          }
+
+          if (vertical && Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1) > 2 && Math.abs(a.x1 - b.x1) < 20) {
+            issues.push('two vertical lines are closer than 20 px (' + Math.round(Math.abs(a.x1 - b.x1)) + ' px)');
+          }
+        }
+      }
+    });
+  });
+
+  const frame = svg.closest('.fig');
+
+  if (frame.scrollWidth > frame.clientWidth + 1) {
+    issues.push('the figure scrolls sideways inside its frame');
+  }
+
+  return { drawn: true, issues };
+})()`;
+
+describe.skipIf(!hasBrowser)(
+  'the architecture figure keeps its lines off its boxes (measured in a browser)',
+  () => {
+    for (const width of [1280, 1440]) {
+      for (const dark of [false, true]) {
+        test(`${width} px, ${dark ? 'dark' : 'light'}: six boxes in a layer are drawn, and nothing crosses a box or a label`, async () => {
+          const found = await BrowserPage.measure<{ drawn: boolean; issues: string[] }>({
+            html: architectureHtml,
+            width,
+            dark,
+            expression: ARCHITECTURE,
+          });
+
+          expect(found.drawn).toBe(true);
+          expect(found.issues).toEqual([]);
+        });
+      }
+    }
+
+    test('the check sees a link through a box, a label on a box, and a box text that sticks out', async () => {
+      const measure = (page: string) =>
+        BrowserPage.measure<{ issues: string[] }>({
+          html: page,
+          width: 1280,
+          dark: false,
+          expression: ARCHITECTURE,
+        });
+      const through = architectureHtml.replace(
+        /(<g class="dlink"><path d=")M[^"]*(" class="dline"\/>)/,
+        '$1M0 60L2000 60$2',
+      );
+      const onBox = architectureHtml.replace(
+        /(<text class="dl" x=")[\d.]+(" y=")[\d.]+(")/,
+        '$1200$2100$3',
+      );
+      const narrow = architectureHtml.replace(
+        /(<g class="dbox" data-box="w"><rect x="[\d.]+" y="[\d.]+" width=")[\d.]+/,
+        '$130',
+      );
+
+      const result = await measure(through);
+      expect(result.issues.some((issue) => issue.startsWith('a link runs through'))).toBe(true);
+      const result2 = await measure(onBox);
+      expect(result2.issues.some((issue) => issue.startsWith('link label on box'))).toBe(true);
+      const result3 = await measure(narrow);
+      expect(result3.issues.some((issue) => issue.startsWith('box text outside'))).toBe(true);
+    });
+  },
+);
+
+describe.skipIf(!hasBrowser)(
+  'the architecture figure is checked in all its parts (measured in a browser)',
+  () => {
+    const measure = (page: string) =>
+      BrowserPage.measure<{ drawn: boolean; issues: string[] }>({
+        html: page,
+        width: 1280,
+        dark: false,
+        expression: ARCHITECTURE,
+      });
+
+    test('the check sees a missing label, a label away from its line, two lines too close and a step with no purpose', async () => {
+      const lost = architectureHtml.replace(/<text class="dl"[^>]*>sync ghi<\/text>/, '');
+      const away = architectureHtml.replace(
+        /(<text class="dl" x=")[\d.]+(" y=")[\d.]+(" text-anchor="[a-z]+">sync ghi<\/text>)/,
+        '$1700$2500$3',
+      );
+      const paths = [...architectureHtml.matchAll(/<path d="(M[^"]*)" class="dline"\/>/g)].map(
+        (match) => match[1] ?? '',
+      );
+      const shifted = (paths[1] ?? '').replace(
+        /M([\d.]+) |L([\d.]+) /g,
+        (_match, first: string | undefined, next: string | undefined) =>
+          `${first === undefined ? 'L' : 'M'}${Number(first ?? next) + 8} `,
+      );
+      const close = architectureHtml.replace(paths[0] ?? '', shifted);
+      const jog = architectureHtml.replace(
+        /(<g class="dlink"><path d="M)([\d.]+)( [\d.]+L)[\d.]+( [\d.]+L)[\d.]+( [\d.]+L)[\d.]+/,
+        (_match, before: string, x: string, one: string, two: string, three: string) =>
+          `${before}${x}${one}${x}${two}${Number(x) + 8}${three}${Number(x) + 8}`,
+      );
+
+      const result = await measure(lost);
+      expect(result.issues.some((issue) => issue.includes('no label drawn'))).toBe(true);
+      const result2 = await measure(away);
+      expect(result2.issues.some((issue) => issue.includes('away from its own line'))).toBe(true);
+      expect(close).not.toBe(architectureHtml);
+      const result4 = await measure(close);
+      expect(result4.issues.some((issue) => issue.includes('closer than 20 px'))).toBe(true);
+      expect(jog).not.toBe(architectureHtml);
+      const result3 = await measure(jog);
+      expect(result3.issues.some((issue) => issue.includes('bend with no purpose'))).toBe(true);
+    });
+
+    test('a link with no label still says what it does, in the page language', () => {
+      const named =
+        /<path d="[^"]*" class="dline"\/><path d="[^"]*" fill="none" class="dline"\/><text class="dl"[^>]*>dùng<\/text>/.test(
+          architectureHtml,
+        );
+
+      expect(named).toBe(true);
+    });
   },
 );
