@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { SpecPage } from '../../visualize/index.ts';
 import { GROUPS, MEASURE } from './alignment.groups.ts';
 import { alignmentSpec } from './alignment.fixture.ts';
+import { architectureSpec } from './architecture.fixture.ts';
 import { figuresSpec } from './figures.fixture.ts';
 import { BrowserPage } from './browser.helper.ts';
 
@@ -244,5 +245,145 @@ describe.skipIf(!hasBrowser)(
         expect(found.issues).toEqual([]);
       });
     }
+  },
+);
+
+const architectureHtml = ((): string => {
+  const result = SpecPage.renderText({ text: JSON.stringify(architectureSpec()) });
+
+  if (!result.ok) {
+    throw new Error(result.problems.join('; '));
+  }
+
+  return result.page.html;
+})();
+
+/**
+ * The architecture figure keeps its lines off the boxes: no point of a link is inside a box, no label sits on a box
+ * or on another link, no box text leaves its box, and the figure fits its frame.
+ */
+const ARCHITECTURE = `(() => {
+  const issues = [];
+  const visible = (el) => el.getClientRects().length > 0;
+  const svg = [...document.querySelectorAll('.fig svg')].find((item) => visible(item) && item.querySelector('.dbox'));
+
+  if (svg === undefined) {
+    return { drawn: false, issues };
+  }
+
+  const boxes = [...svg.querySelectorAll('.dbox')].map((g) => ({ id: g.dataset.box, rect: g.querySelector('rect').getBBox(), g }));
+  const lines = [...svg.querySelectorAll('.dlink')].map((link) => ({ link, path: link.querySelector('path.dline') }));
+
+  for (const { id, rect, g } of boxes) {
+    for (const text of g.querySelectorAll('text')) {
+      const box = text.getBBox();
+
+      if (box.x < rect.x + 2 || box.x + box.width > rect.x + rect.width - 2 || box.y < rect.y || box.y + box.height > rect.y + rect.height) {
+        issues.push('box text outside its box: ' + id + ' ' + text.textContent);
+      }
+    }
+  }
+
+  lines.forEach(({ link, path }, index) => {
+    const length = path.getTotalLength();
+
+    for (let at = 0; at <= length; at += 3) {
+      const point = path.getPointAtLength(at);
+      const inside = boxes.find(({ rect }) => point.x > rect.x + 1 && point.x < rect.x + rect.width - 1 && point.y > rect.y + 1 && point.y < rect.y + rect.height - 1);
+
+      if (inside !== undefined) {
+        issues.push('a link runs through box ' + inside.id);
+        break;
+      }
+    }
+
+    const label = link.querySelector('text.dl');
+
+    if (label === null) {
+      return;
+    }
+
+    const box = label.getBBox();
+
+    for (const { id, rect } of boxes) {
+      if (box.x < rect.x + rect.width + 2 && box.x + box.width > rect.x - 2 && box.y < rect.y + rect.height + 2 && box.y + box.height > rect.y - 2) {
+        issues.push('link label on box ' + id + ': ' + label.textContent);
+      }
+    }
+
+    lines.forEach((other, at) => {
+      if (at === index) {
+        return;
+      }
+
+      const total = other.path.getTotalLength();
+
+      for (let step = 0; step <= total; step += 3) {
+        const point = other.path.getPointAtLength(step);
+
+        if (point.x > box.x && point.x < box.x + box.width && point.y > box.y && point.y < box.y + box.height) {
+          issues.push('link label crossed by another link: ' + label.textContent);
+          break;
+        }
+      }
+    });
+  });
+
+  const frame = svg.closest('.fig');
+
+  if (frame.scrollWidth > frame.clientWidth + 1) {
+    issues.push('the figure scrolls sideways inside its frame');
+  }
+
+  return { drawn: true, issues };
+})()`;
+
+describe.skipIf(!hasBrowser)(
+  'the architecture figure keeps its lines off its boxes (measured in a browser)',
+  () => {
+    for (const width of [1280, 1440]) {
+      for (const dark of [false, true]) {
+        test(`${width} px, ${dark ? 'dark' : 'light'}: six boxes in a layer are drawn, and nothing crosses a box or a label`, async () => {
+          const found = await BrowserPage.measure<{ drawn: boolean; issues: string[] }>({
+            html: architectureHtml,
+            width,
+            dark,
+            expression: ARCHITECTURE,
+          });
+
+          expect(found.drawn).toBe(true);
+          expect(found.issues).toEqual([]);
+        });
+      }
+    }
+
+    test('the check sees a link through a box, a label on a box, and a box text that sticks out', async () => {
+      const measure = (page: string) =>
+        BrowserPage.measure<{ issues: string[] }>({
+          html: page,
+          width: 1280,
+          dark: false,
+          expression: ARCHITECTURE,
+        });
+      const through = architectureHtml.replace(
+        /(<g class="dlink"><path d=")M[^"]*(" class="dline"\/>)/,
+        '$1M0 60L2000 60$2',
+      );
+      const onBox = architectureHtml.replace(
+        /(<text class="dl" x=")[\d.]+(" y=")[\d.]+(")/,
+        '$1200$2100$3',
+      );
+      const narrow = architectureHtml.replace(
+        /(<g class="dbox" data-box="w"><rect x="[\d.]+" y="[\d.]+" width=")[\d.]+/,
+        '$130',
+      );
+
+      const result = await measure(through);
+      expect(result.issues.some((issue) => issue.startsWith('a link runs through'))).toBe(true);
+      const result2 = await measure(onBox);
+      expect(result2.issues.some((issue) => issue.startsWith('link label on box'))).toBe(true);
+      const result3 = await measure(narrow);
+      expect(result3.issues.some((issue) => issue.startsWith('box text outside'))).toBe(true);
+    });
   },
 );

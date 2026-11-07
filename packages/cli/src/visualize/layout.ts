@@ -83,6 +83,18 @@ const breakLines = (opts: {
         cut -= 1;
       }
 
+      // Break at a hyphen, dot, slash or comma near the middle when the word has one, else wherever it fits.
+      const marks = [...rest.slice(0, cut)]
+        .map((char, index) => (['-', '.', '/', '_', ','].includes(char) ? index + 1 : 0))
+        .filter((index) => index >= 2 && index < rest.length);
+      const soft = marks.sort(
+        (first, second) => Math.abs(first - rest.length / 2) - Math.abs(second - rest.length / 2),
+      )[0];
+
+      if (soft !== undefined) {
+        cut = soft;
+      }
+
       lines.push(rest.slice(0, cut));
       rest = rest.slice(cut);
     }
@@ -98,8 +110,13 @@ const wrap = (opts: { text: string; size: number; isBold?: boolean; max: number 
   const lines = breakLines(opts);
   let best = lines;
 
+  // Never narrower than the widest word: balancing moves a break, it does not split a word.
+  const widest = Math.max(
+    ...opts.text.split(/\s+/).map((word) => widthOf({ ...opts, text: word })),
+  );
+
   if (lines.length > 1) {
-    for (let max = opts.max - 4; max > 0; max -= 4) {
+    for (let max = opts.max - 4; max >= widest; max -= 4) {
       const tighter = breakLines({ ...opts, max });
 
       if (tighter.length !== lines.length) {
@@ -357,9 +374,24 @@ export class FigureLayout {
       .replaceAll("'", '&#39;');
   }
 
+  /**
+   * The class name of a figure by its fit key: the width, then the space beside it that goes when the page is one
+   * column (`i`), then the padding of its frame (`p`).
+   */
+  static fitName(opts: { key: string }): string {
+    const [width = '0', inset = '0', frame = '0'] = opts.key.split(':');
+
+    return `f${width}${Number(inset) === 0 ? '' : `i${inset}`}${Number(frame) === 0 ? '' : `p${frame}`}`;
+  }
+
   /** The width of a text in pixels, by the same estimate the figure uses for its boxes and its arrow labels. */
   static textWidth(opts: { text: string; size: number; isBold?: boolean }): number {
     return widthOf(opts);
+  }
+
+  /** The lines a text wraps into at `max` pixels, balanced: the same breaking the boxes of a flow use. */
+  static wrapText(opts: { text: string; size: number; isBold?: boolean; max: number }): string[] {
+    return wrap(opts);
   }
 
   /** The natural width of a figure, in pixels: its columns as wide as their boxes need, and the gaps as wide as their arrow labels need. */

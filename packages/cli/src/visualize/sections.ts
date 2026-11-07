@@ -22,6 +22,8 @@ const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
 /** The numeral column and the gap of an explainer step: space a step diagram does not have beside the text. */
 const EXPLAINER_INSET = 128;
+/** The padding of a figure's frame (`.win`) on both sides: space the figure does not have. */
+const WIN_FRAME = 32;
 
 /** JSON for a `<script type="application/json">`: nothing in it can close the tag or start a comment. */
 const jsonForScript = (opts: { value: unknown }): string =>
@@ -464,10 +466,10 @@ export class SpecSections {
   static figure(opts: { ctx: ISectionContext; drawing: IDrawing; inset?: number }): string {
     const width = Math.round(opts.drawing.width);
     const inset = opts.inset ?? 0;
-    const key = inset === 0 ? `${width}` : `${width}:${inset}`;
+    const key = `${width}:${inset}:${WIN_FRAME}`;
 
     opts.ctx.fits.add(key);
 
-    return `<div class="win"><div class="fig f${key.replace(':', 'i')}">${opts.drawing.svg}</div>${opts.drawing.fallback}</div>`;
+    return `<div class="win"><div class="fig ${FigureLayout.fitName({ key })}">${opts.drawing.svg}</div>${opts.drawing.fallback}</div>`;
   }
 }

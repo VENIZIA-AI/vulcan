@@ -53,17 +53,18 @@ const figureFitCss = (opts: { keys: Set<string> }): string =>
   [...opts.keys]
     .sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10))
     .map((key) => {
-      const [widthText = '0', insetText = '0'] = key.split(':');
+      const [widthText = '0', insetText = '0', frameText = '0'] = key.split(':');
       const width = Number(widthText);
       const inset = Number(insetText);
-      const name = inset === 0 ? `f${width}` : `f${width}i${inset}`;
+      const frame = Number(frameText);
+      const name = FigureLayout.fitName({ key });
       const least = Math.ceil(width * FIGURE_FIT);
       const most = Math.ceil(width * FIGURE_MAX);
       const swap = `.fig.${name}{display:none}.fig.${name}~.path,.fig.${name}~.path-detail{display:block}.fig.${name}~.say,.fig.${name}~.legend{display:none}.fig.${name}~.steps .explain{display:block}.fig.${name}~.steps button{pointer-events:none}`;
-      const narrow = least + 66;
+      const narrow = least + 66 + frame;
       const wide = narrow + inset;
       const rules =
-        least > CONTENT_WIDTH - inset
+        least > CONTENT_WIDTH - inset - frame
           ? [swap]
           : inset === 0
             ? [`@media (max-width:${narrow}px){${swap}}`]
