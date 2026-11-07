@@ -15,7 +15,8 @@ packages: ['@venizia/vulcan']
 ## What changed
 
 - **`base/hooks/guard-package.ts`, `guard-remote-hosts.ts` and `guard-manifest.ts` are removed from the package.** They only exited 0, for a project whose `.claude/settings.json` still listed the hooks.
-- **Nothing else changes.** A project that ran `vulcan sync` with 0.4.10-7 or later has no entry for them.
+- **A hook file that is gone from an installed package no longer blocks.** The `session-start`, `guard-writes` and `subagent-start` entries that `vulcan sync` writes to `.claude/settings.json`, and the omp and pi extension, let the call through when `node_modules/@venizia/vulcan` is installed and only that hook's file is missing; the Claude Code entry prints a note on stderr that names `vulcan sync`. They still block when the package itself is missing, as before. A later release can remove a hook without keeping an empty file for it.
+- **Nothing else changes.** A project that ran `vulcan sync` with 0.4.10-7 or later has no entry for the three removed hooks. The new behavior reaches a project when `vulcan sync` rewrites these entries.
 
 ## Who is affected
 

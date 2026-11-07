@@ -246,7 +246,7 @@ Several kinds of hook run in every session of every project, so each kind has a 
 
 | Kind | Hooks | When it cannot run (missing package, missing `bun`, a crash) |
 |---|---|---|
-| Safety hooks | `guard-writes` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
+| Safety hooks | `guard-writes` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes. A hook file that is gone from an installed package passes with a note on stderr (see below) |
 | Deny-class guards | `guard-git`, `guard-outside` | a missing package or `bun` passes, with a note on stderr (a broken install must not stop every call); a hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**. `guard-git` asks only about a command that names `git` or `gh`; `guard-outside` asks about the call |
 
 `subagent-start` never blocks. `VULCAN_GUARDS=off` switches the guards off and is read before any module loads.
@@ -257,7 +257,7 @@ Several kinds of hook run in every session of every project, so each kind has a 
 
 The safety hooks import only the modules they need, not the config loader, the rules reader or `zod`, so a defect in those cannot stop every tool call. The release pipeline's pack smoke runs every hook of the generated settings from the installed tarball (a benign call each, with every copy of `zod` made unresolvable, and with `src/hooks/common/constants.ts` removed) and refuses to publish if one fails.
 
-A safety hook's command exits 2 when `node_modules/@venizia/vulcan` is absent, `bun` is missing from `PATH` or the hook crashes. Claude Code treats exit code 2 as a blocking failure only for a `PreToolUse` hook (the call is blocked); `session-start` also exits 2 but cannot block a session.
+A safety hook's command exits 2 when `node_modules/@venizia/vulcan` is absent, `bun` is missing from `PATH` or the hook crashes. When the package is installed (its `package.json` is there) and only this hook's file is missing, because a later release removed the hook, the command exits 0 and prints a note on stderr that names `vulcan sync`: nothing is left to run, and a release can remove a hook without keeping an empty file for it. Claude Code treats exit code 2 as a blocking failure only for a `PreToolUse` hook (the call is blocked); `session-start` also exits 2 but cannot block a session.
 
 If `bun` is missing from `PATH`, the wrapper prints:
 
@@ -330,7 +330,8 @@ omp and pi take extensions instead of hook commands, so `vulcan sync` writes one
 | `deny` | the call is blocked with the guard's reason |
 | `ask` | the owner is asked; with no UI (a print-mode run) the call is blocked and says to hand it to the owner |
 | no output | the call runs |
-| a safety guard (`guard-writes`) that crashes, times out (30 s) or whose script is missing | blocked, bar a bare `bun install` when the install is missing |
+| a safety guard (`guard-writes`) that crashes, times out (30 s) or whose script is missing with no installed package | blocked, bar a bare `bun install` when the install is missing |
+| a guard whose script is missing from an installed package (its `package.json` is there) | the call runs |
 | `guard-git` or `guard-outside` that crashes or times out | asks, as the Claude wrappers do |
 | `guard-git` or `guard-outside` whose script is missing | the call runs |
 

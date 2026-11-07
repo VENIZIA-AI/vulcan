@@ -8,7 +8,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/session-start.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; exit 2; fi; [ -f \"$f\" ] || echo \"vulcan: the session-start hook cannot run: node_modules/@venizia/vulcan is missing - run bun install\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the session-start hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/session-start.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; exit 2; fi; if [ ! -f \"$f\" ] && [ -f \"${f%/*/*/*}/package.json\" ]; then echo \"vulcan: the session-start hook is not in this node_modules/@venizia/vulcan - the call passes; run bun x vulcan sync to drop its entry\" >&2; exit 0; fi; [ -f \"$f\" ] || echo \"vulcan: the session-start hook cannot run: node_modules/@venizia/vulcan is missing - run bun install\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the session-start hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
           }
         ]
       }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/guard-writes.ts\"; in=$(cat); ok() { printf '%s' \"$in\" | grep -Eq '\"command\" *: *\"bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*\"'; }; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then printf '%s' \"$in\" | bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; ok && exit 0; exit 2; fi; ok && exit 0; [ -f \"$f\" ] || echo \"vulcan: the guard-writes hook cannot run: node_modules/@venizia/vulcan is missing - run bun install (the one command that passes until then)\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the guard-writes hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/guard-writes.ts\"; in=$(cat); ok() { printf '%s' \"$in\" | grep -Eq '\"command\" *: *\"bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*\"'; }; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then printf '%s' \"$in\" | bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; ok && exit 0; exit 2; fi; if [ ! -f \"$f\" ] && [ -f \"${f%/*/*/*}/package.json\" ]; then echo \"vulcan: the guard-writes hook is not in this node_modules/@venizia/vulcan - the call passes; run bun x vulcan sync to drop its entry\" >&2; exit 0; fi; ok && exit 0; [ -f \"$f\" ] || echo \"vulcan: the guard-writes hook cannot run: node_modules/@venizia/vulcan is missing - run bun install (the one command that passes until then)\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the guard-writes hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
           }
         ]
       },
@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/subagent-start.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; exit 2; fi; [ -f \"$f\" ] || echo \"vulcan: the subagent-start hook cannot run: node_modules/@venizia/vulcan is missing - run bun install\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the subagent-start hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/subagent-start.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; exit 2; fi; if [ ! -f \"$f\" ] && [ -f \"${f%/*/*/*}/package.json\" ]; then echo \"vulcan: the subagent-start hook is not in this node_modules/@venizia/vulcan - the call passes; run bun x vulcan sync to drop its entry\" >&2; exit 0; fi; [ -f \"$f\" ] || echo \"vulcan: the subagent-start hook cannot run: node_modules/@venizia/vulcan is missing - run bun install\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the subagent-start hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
           }
         ]
       }

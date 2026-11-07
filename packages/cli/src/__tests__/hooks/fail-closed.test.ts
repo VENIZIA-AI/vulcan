@@ -146,6 +146,57 @@ describe('the deny-class guards fail open', () => {
   });
 });
 
+describe('a hook that is gone from an installed package', () => {
+  const nameOf = (hook: IShippedHook): string =>
+    /hooks\/([\w-]+)\.ts/.exec(hook.command)?.[1] ?? '';
+
+  /** A project with `node_modules/@venizia/vulcan` present, `package.json` or not, and no hook file in it. */
+  const rootWithoutHooks = (opts: { withPackageJson: boolean }): string => {
+    const root = makeRoot();
+    const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+
+    mkdirSync(join(installed, 'base', 'hooks'), { recursive: true });
+
+    if (opts.withPackageJson) {
+      writeFileSync(join(installed, 'package.json'), '{}');
+    }
+
+    return root;
+  };
+
+  test.each(closedHooks().map((hook) => ({ name: nameOf(hook), hook })))(
+    'passes with a true note, whatever the call: $name',
+    ({ name, hook }) => {
+      const root = rootWithoutHooks({ withPackageJson: true });
+
+      for (const command of ['ls', 'bun install && ls']) {
+        const result = runHook({ command: hook.command, root, stdin: BASH_INPUT(command) });
+
+        expect(result.code, command).toBe(0);
+        expect(result.stderr).toContain(
+          `the ${name} hook is not in this node_modules/@venizia/vulcan`,
+        );
+        expect(result.stderr).toContain('vulcan sync');
+      }
+    },
+  );
+
+  test.each(closedHooks().map((hook) => ({ name: nameOf(hook), hook })))(
+    'still blocks when the package itself is missing: $name',
+    ({ name, hook }) => {
+      const absent = makeRoot();
+      const hollow = rootWithoutHooks({ withPackageJson: false });
+
+      for (const root of [absent, hollow]) {
+        const result = runHook({ command: hook.command, root, stdin: BASH_INPUT('ls') });
+
+        expect(result.code, name).toBe(2);
+        expect(result.stderr, name).toContain('is missing - run bun install');
+      }
+    },
+  );
+});
+
 describe('a crashed safety hook', () => {
   test('lets a bare bun install through, so the agent can repair the install, and blocks anything else', () => {
     const lonely = makeRoot();
