@@ -5,7 +5,7 @@ description: Fold the agent event log, and GitHub or GitLab when gh or glab can 
 
 # vulcan board
 
-`vulcan board` shows what your coding agents are doing as one HTML file: each flow, whose turn it is, how far it got, and what waits for you. It reads the [event log](/references/commands/event) of the project. When `gh` can read the repository it adds the pull requests, their checks and their reviews; a project on GitLab sets [`provider`](/references/configuration#provider) and gets merge requests, approvals, pipelines and commits through `glab`. It writes the file and prints its path. Nothing is posted or changed anywhere else.
+`vulcan board` shows what your coding agents are doing as one HTML file: each flow, whose turn it is, how far it got, and what waits for you. It reads the [event log](/references/commands/event) of the project. When `gh` can read the repository it adds the pull requests, their checks and their reviews; a project on GitLab sets [`provider`](/references/configuration/#provider) and gets merge requests, approvals, pipelines and commits through `glab`. It writes the file and prints its path. Nothing is posted or changed anywhere else.
 
 ```text
 $ bun x --no-install vulcan board --open
