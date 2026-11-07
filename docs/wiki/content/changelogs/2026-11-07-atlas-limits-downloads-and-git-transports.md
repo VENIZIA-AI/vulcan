@@ -1,6 +1,6 @@
 ---
 title: atlas limits what it downloads and which transports git may use
-description: atlas reads a tarball up to atlas.limits.download bytes (default 128 MiB) and runs git with GIT_ALLOW_PROTOCOL=https:ssh:file; a source over http://, git:// or ext:: is refused.
+description: "atlas reads a tarball up to atlas.limits.download bytes (default 128 MiB) and runs git with GIT_ALLOW_PROTOCOL=https:ssh:file; a source over http://, git:// or ext:: is refused."
 packages: ['@venizia/vulcan', '@venizia/vulcan-atlas']
 ---
 

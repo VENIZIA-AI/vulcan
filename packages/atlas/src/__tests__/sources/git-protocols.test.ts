@@ -81,9 +81,10 @@ describe('GitRepository.refusedTransportOf', () => {
 describe('the transports git is given', () => {
   test('git:// and http:// are not allowed, whatever the URL: git refuses them itself', () => {
     for (const url of ['git://127.0.0.1:1/a.git', 'http://127.0.0.1:1/a.git']) {
-      expect(messageOf({ run: () => GitRepository.run({ args: ['ls-remote', '--', url] }) }), url).toContain(
-        'not allowed',
-      );
+      expect(
+        messageOf({ run: () => GitRepository.run({ args: ['ls-remote', '--', url] }) }),
+        url,
+      ).toContain('not allowed');
     }
   });
 
@@ -110,7 +111,11 @@ describe('the transports git is given', () => {
     expect(GitRepository.lsRemote({ url, ref: 'develop' })).toEqual({ reachable: false });
     expect(
       messageOf({
-        run: () => GitRepository.updateClone({ url, gitDir: join(makeTempDirectory({ prefix: 'atlas-ext-' }), 'c.git') }),
+        run: () =>
+          GitRepository.updateClone({
+            url,
+            gitDir: join(makeTempDirectory({ prefix: 'atlas-ext-' }), 'c.git'),
+          }),
       }),
     ).toContain('not allowed');
     expect(existsSync(marker)).toBe(false);

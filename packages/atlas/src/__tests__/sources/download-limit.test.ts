@@ -78,7 +78,10 @@ const serve = (opts: { bytes: number }) => {
 
 describe('BoundedBody.read', () => {
   test('a body within the cap is returned whole, and so is one of exactly the cap', async () => {
-    const small = await BoundedBody.read({ response: responseOf({ bytes: 1000 }).response, cap: 4096 });
+    const small = await BoundedBody.read({
+      response: responseOf({ bytes: 1000 }).response,
+      cap: 4096,
+    });
     const exact = await BoundedBody.read({
       response: responseOf({ bytes: 200_000 }).response,
       cap: 200_000,
@@ -92,28 +95,33 @@ describe('BoundedBody.read', () => {
   test('a body one byte over the cap is refused, and the stream is cancelled', async () => {
     const { response, state } = responseOf({ bytes: 200_001 });
 
-    expect(await BoundedBody.read({ response, cap: 200_000 })).toBeUndefined();
+    const result = await BoundedBody.read({ response, cap: 200_000 });
+    expect(result).toBeUndefined();
     expect(state.isCancelled).toBe(true);
   });
 
   test('an announced length over the cap is refused before the body is read', async () => {
     const { response, state } = responseOf({ bytes: 1000, announced: 5000 });
 
-    expect(await BoundedBody.read({ response, cap: 4096 })).toBeUndefined();
+    const result = await BoundedBody.read({ response, cap: 4096 });
+    expect(result).toBeUndefined();
     expect(state.pulled).toBe(0);
   });
 
   test('a response that announces a small length and sends more is cut off at the cap', async () => {
     const { response, state } = responseOf({ bytes: 10 * MIB, announced: 100 });
 
-    expect(await BoundedBody.read({ response, cap: MIB })).toBeUndefined();
+    const result = await BoundedBody.read({ response, cap: MIB });
+    expect(result).toBeUndefined();
     expect(state.isCancelled).toBe(true);
     // 1 MiB is 16 chunks of 64 KiB: it stopped there, not at the end of 10 MiB.
     expect(state.pulled).toBeLessThan(40);
   });
 
   test('an empty body is empty', async () => {
-    expect((await BoundedBody.read({ response: new Response(null), cap: 10 }))?.byteLength).toBe(0);
+    const empty = await BoundedBody.read({ response: new Response(null), cap: 10 });
+
+    expect(empty?.byteLength).toBe(0);
   });
 });
 
@@ -179,11 +187,13 @@ describe('the tarball of a GitHub source', () => {
         work: directory,
       }).catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
 
-      expect(failure).toContain('atlas: the tarball of acme/src at aaaaaaaa is over atlas.limits.download');
+      expect(failure).toContain(
+        'atlas: the tarball of acme/src at aaaaaaaa is over atlas.limits.download',
+      );
       expect(failure).toContain(`(${MIB} bytes)`);
       expect(existsSync(join(directory, 'source.tgz'))).toBe(false);
     } finally {
-      server.stop();
+      await server.stop();
     }
   });
 
@@ -205,7 +215,7 @@ describe('the tarball of a GitHub source', () => {
       expect(existsSync(archive)).toBe(true);
       expect(server.paths).toEqual([`/acme/src/tar.gz/${sha}`]);
     } finally {
-      server.stop();
+      await server.stop();
     }
   });
 
@@ -224,7 +234,7 @@ describe('the tarball of a GitHub source', () => {
 
       expect(existsSync(archive)).toBe(true);
     } finally {
-      server.stop();
+      await server.stop();
     }
   });
 });
@@ -243,10 +253,12 @@ describe('the npm tarball of a package version', () => {
         cacheBase: makeTempDirectory({ prefix: 'atlas-npm-cache-' }),
       }).catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
 
-      expect(failure).toContain('atlas: the npm tarball of @x/big@1.0.0 is over atlas.limits.download');
+      expect(failure).toContain(
+        'atlas: the npm tarball of @x/big@1.0.0 is over atlas.limits.download',
+      );
       expect(failure).toContain(`(${MIB} bytes)`);
     } finally {
-      server.stop();
+      await server.stop();
     }
   });
 });
