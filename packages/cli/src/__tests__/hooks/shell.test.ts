@@ -693,6 +693,12 @@ describe('ShellParser reads more of what bash reads', () => {
       '${x} a',
       '$(echo git) push',
       'eval "$(tool env)"',
+      // An unquoted expansion is split at its blanks, so a variable in the folder part names the program too.
+      '$k/deploy.yaml',
+      '$g/home/x/repo push -f origin main',
+      '/usr/bin/$tool x',
+      '$HOME/$x/bin/tool',
+      '${HOME}x/$k',
     ]) {
       expect(ShellParser.parseChecked({ command }).hasUnknownProgram, command).toBe(true);
     }
