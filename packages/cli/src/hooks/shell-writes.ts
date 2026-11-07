@@ -22,7 +22,7 @@ interface IOptionValues {
 
 /** Whether a short-option cluster ends in an option whose value is the next word (`-t`, `-vt`, not `-tDIR`). */
 const takesNext = (opts: { word: string; shorts: string }): boolean => {
-  if (!/^-[A-Za-z0-9]+$/.test(opts.word)) {
+  if (!/^-[A-Za-z0-9]/.test(opts.word)) {
     return false;
   }
 
@@ -80,7 +80,7 @@ const valueOf = (opts: {
       }
     }
 
-    if (/^-[A-Za-z0-9]+$/.test(word)) {
+    if (/^-[A-Za-z0-9]/.test(word)) {
       const letters = [...word.slice(1)];
       const at = letters.findIndex((letter) => valued.includes(letter));
       const letter = letters[at];

@@ -407,3 +407,105 @@ describe('OutsideGuard.inspect reads the command after a line that only looks li
     expect(bash({ command: 'echo "never closed\nls' }).join(' ')).toContain('does not close');
   });
 });
+
+describe('OutsideGuard.inspect follows a link before a .. and sees more write targets', () => {
+  const OUTSIDE = createProject({ files: { 'dir/keep': '' } });
+
+  mkdirSync(join(PROJECT, 'real/sub'), { recursive: true });
+  symlinkSync(join(OUTSIDE, 'dir'), join(PROJECT, 'out-link'));
+  symlinkSync(join(PROJECT, 'real'), join(PROJECT, 'in-link'));
+
+  // A `..` after a link goes to the parent of the link's target, as the OS opens it, not to the parent of the link.
+  test.each([
+    'echo x > out-link/../probe',
+    'mkdir -p out-link/../made',
+    'touch out-link/sub/../../probe',
+    'cd out-link && echo x > ../probe',
+    'cd out-link && touch ../probe',
+  ])('%s asks', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'echo x > real/../fine',
+    'echo x > in-link/../fine',
+    'cd in-link && echo x > ../fine',
+    'touch real/sub/../ok',
+  ])('%s stays silent: it lands in the project', (command) => {
+    expect(bash({ command })).toEqual([]);
+  });
+
+  test.each([
+    'echo x >&/etc/probe',
+    'echo x >& /etc/probe',
+    'echo x >&${HOME}/../probe',
+    'ls >& /tmp/probe.log',
+  ])('%s asks: >&file writes the file', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'echo x >&2',
+    'echo x >& 2',
+    'echo x 2>&1',
+    'echo x >&-',
+    'echo x >&2 | cat',
+    'echo x >&out.txt',
+  ])('%s stays silent: a descriptor, or a file in the project', (command) => {
+    expect(bash({ command })).toEqual([]);
+  });
+
+  // The value of an option can be attached to it, alone or at the end of a cluster.
+  test.each([
+    'cp a -t/etc',
+    'cp -vt/etc a',
+    'cp --target-directory=/etc a',
+    'install -t/etc a',
+    'install -D -m755 -t /etc a',
+    'curl -o/etc/x https://example.test/u',
+    'curl -sLo/etc/x https://example.test/u',
+    'curl -sLo /etc/x https://example.test/u',
+    'wget -O/etc/x https://example.test/u',
+    'wget -P/etc https://example.test/u',
+    'mktemp -p/etc',
+  ])('%s asks', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  // An option that takes a value, after the destination, is not the destination.
+  test.each([
+    'rsync -av src /etc/dest --exclude x',
+    'rsync src /etc/dest -e ssh',
+    'rsync src /etc/dest --exclude-from list.txt --delete',
+    'cp a /etc/dest -S .bak',
+    'cp a /etc/dest --suffix .bak',
+    'install a /etc/dest -m 755',
+    'ln -s a /etc/l -S .bak',
+    'cp -- a /etc/dest',
+  ])('%s asks', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'rsync -av /etc/src dest --exclude x',
+    'rsync -rt src dest',
+    'cp -S .bak a b',
+    'cp -S.bak a b',
+    'cp -r a b',
+    'curl -d ofile https://example.test/u',
+    'curl -H x -ofile https://example.test/u',
+    'wget -O- https://example.test/u',
+  ])('%s stays silent: it writes inside the project', (command) => {
+    expect(bash({ command })).toEqual([]);
+  });
+
+  test.each([
+    'pushd /etc && touch x',
+    'builtin cd /etc && touch x',
+    'command builtin cd /etc && touch x',
+    'builtin pushd /etc; touch x',
+    'pushd -- /etc && touch x',
+  ])('%s asks: the write is in the folder the builtin moved to', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+});
