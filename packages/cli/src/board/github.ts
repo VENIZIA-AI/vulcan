@@ -23,8 +23,7 @@ const FAILED = new Set([
   'ERROR',
 ]);
 
-const text = (opts: { value: unknown }): string =>
-  typeof opts.value === 'string' ? opts.value : '';
+const text = RecordValue.textOf;
 
 /** Pull requests, their checks and their reviews, read through `gh`: an extra for projects on GitHub. */
 export class BoardGithub {

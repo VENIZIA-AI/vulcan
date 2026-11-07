@@ -1,8 +1,15 @@
 import type { TConstValue } from '../../common/index.ts';
 import type { IEventItem } from '../../events/common/index.ts';
-import type { BoardRoutes, BoardStates } from './constants.ts';
+import type { BoardRoutes, BoardStates, ProviderTypes } from './constants.ts';
 
 export type TBoardState = TConstValue<typeof BoardStates>;
+export type TProviderType = TConstValue<typeof ProviderTypes>;
+
+/** The code host the board reads, with the host name GitLab is asked at. */
+export interface IBoardProvider {
+  type: TProviderType;
+  host: string;
+}
 export type TBoardRoute = TConstValue<typeof BoardRoutes>;
 
 export interface IBoardRef {

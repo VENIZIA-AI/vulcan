@@ -69,7 +69,10 @@ export class BoardAgentInfo {
       pr.merged ||= event.kind === 'merge';
       pr.closed ||= event.status === 'closed';
       pr.ci = event.kind === 'ci' ? (event.status ?? null) : pr.ci;
-      pr.link = event.link && /^https:\/\/.+\/pull\//.test(event.link) ? event.link : pr.link;
+      pr.link =
+        event.link && /^https:\/\/.+\/(?:pull|-\/merge_requests)\//.test(event.link)
+          ? event.link
+          : pr.link;
     }
 
     return Object.values(prs);

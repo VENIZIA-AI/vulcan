@@ -146,8 +146,8 @@ export class CommandTable {
     },
     [VulcanCommands.BOARD]: {
       help: `  board [--out <file>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
-                                  Fold the event log (and GitHub pull requests, checks and reviews when gh
-                                  can read them) into flows and write one HTML file, by default
+                                  Fold the event log (and GitHub or GitLab pull requests, checks and reviews
+                                  when gh or glab can read them) into flows and write one HTML file, by default
                                   .agents/local/reports/board.html; read-only; exit 2 on bad input
   board serve [--port <n>] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
                                   Serve the same page on 127.0.0.1 (default port 4317) and push the new events to the open page, with no reload`,

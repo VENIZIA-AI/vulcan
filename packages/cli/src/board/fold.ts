@@ -623,7 +623,7 @@ export class BoardFold {
     }
 
     const pr = opts.events.find(
-      (event) => event.kind === BoardKinds.PR && event.source === BoardSources.GITHUB,
+      (event) => event.kind === BoardKinds.PR && BoardSources.HOSTS.has(event.source),
     );
 
     return (pr ?? opts.events[0]).summary;

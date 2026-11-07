@@ -126,6 +126,15 @@ export class BoardShapes {
 
 export class BoardSources {
   static readonly GITHUB = 'github';
+  static readonly GITLAB = 'gitlab';
+  /** The sources that are a code host: their lines carry people and bots that are no agent of the project. */
+  static readonly HOSTS = new Set<string>([this.GITHUB, this.GITLAB]);
+}
+
+/** The code host the board reads pull requests and checks from (`provider.type`). */
+export class ProviderTypes {
+  static readonly GITHUB = 'github';
+  static readonly GITLAB = 'gitlab';
 }
 
 export class BoardConstants {
@@ -151,6 +160,14 @@ export class BoardConstants {
   static readonly TOKENS_MARKER = '<!--BOARD_TOKENS-->';
   static readonly GH_TIMEOUT_MS = 15_000;
   static readonly GH_LIMIT = 30;
+  /** `owner/name` on GitHub, `group/sub/name` of any depth on GitLab. */
+  static readonly PROJECT_PATH = /^[\w.-]+(?:\/[\w.-]+)+$/;
+  static readonly GITLAB_DEFAULT_HOST = 'gitlab.com';
+  /** A bare host name with an optional port: no scheme, path or credentials, so it can never carry a token elsewhere. */
+  static readonly GITLAB_HOST =
+    /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*(?::\d{1,5})?$/;
+  /** How many pipelines have their jobs read. */
+  static readonly GITLAB_JOB_PIPELINES = 10;
   /** A `needs-owner` line whose whole summary is one of these is the harness waiting, not a person asking. */
   static readonly HARNESS_ASKS = new Set<string>([
     'idle_prompt',
