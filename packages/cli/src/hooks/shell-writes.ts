@@ -47,7 +47,9 @@ const positional = (opts: { args: string[]; values?: IOptionValues }): string[] 
     } else if (opts.values !== undefined) {
       const isLong = word.startsWith('--');
 
-      if (isLong ? opts.values.longs.includes(word) : takesNext({ word, shorts: opts.values.shorts })) {
+      if (
+        isLong ? opts.values.longs.includes(word) : takesNext({ word, shorts: opts.values.shorts })
+      ) {
         index += 1;
       }
     }
@@ -210,15 +212,57 @@ export class ShellWrites {
     rsync: {
       shorts: 'efBMT@',
       longs: [
-        '--rsh', '--rsync-path', '--exclude', '--exclude-from', '--include', '--include-from', '--filter',
-        '--files-from', '--backup-dir', '--suffix', '--log-file', '--log-file-format', '--out-format',
-        '--port', '--bwlimit', '--partial-dir', '--temp-dir', '--compare-dest', '--copy-dest',
-        '--link-dest', '--chmod', '--chown', '--usermap', '--groupmap', '--timeout', '--contimeout',
-        '--max-size', '--min-size', '--max-delete', '--modify-window', '--block-size',
-        '--compress-level', '--skip-compress', '--compress-choice', '--checksum-choice', '--iconv',
-        '--password-file', '--read-batch', '--write-batch', '--only-write-batch', '--address',
-        '--sockopts', '--info', '--debug', '--stop-after', '--stop-at', '--protocol', '--copy-as',
-        '--early-input', '--outbuf', '--remote-option',
+        '--rsh',
+        '--rsync-path',
+        '--exclude',
+        '--exclude-from',
+        '--include',
+        '--include-from',
+        '--filter',
+        '--files-from',
+        '--backup-dir',
+        '--suffix',
+        '--log-file',
+        '--log-file-format',
+        '--out-format',
+        '--port',
+        '--bwlimit',
+        '--partial-dir',
+        '--temp-dir',
+        '--compare-dest',
+        '--copy-dest',
+        '--link-dest',
+        '--chmod',
+        '--chown',
+        '--usermap',
+        '--groupmap',
+        '--timeout',
+        '--contimeout',
+        '--max-size',
+        '--min-size',
+        '--max-delete',
+        '--modify-window',
+        '--block-size',
+        '--compress-level',
+        '--skip-compress',
+        '--compress-choice',
+        '--checksum-choice',
+        '--iconv',
+        '--password-file',
+        '--read-batch',
+        '--write-batch',
+        '--only-write-batch',
+        '--address',
+        '--sockopts',
+        '--info',
+        '--debug',
+        '--stop-after',
+        '--stop-at',
+        '--protocol',
+        '--copy-as',
+        '--early-input',
+        '--outbuf',
+        '--remote-option',
       ],
     },
   };

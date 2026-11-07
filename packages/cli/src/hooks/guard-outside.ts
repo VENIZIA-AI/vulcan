@@ -17,7 +17,10 @@ const MAX_LINKS = 40;
 
 /** The components of a path, without the empty and `.` ones, last first, so `pop` takes the next. */
 const partsOf = (opts: { path: string }): string[] =>
-  opts.path.split('/').filter((part) => part !== '' && part !== '.').reverse();
+  opts.path
+    .split('/')
+    .filter((part) => part !== '' && part !== '.')
+    .reverse();
 
 /**
  * The file the OS opens for an absolute path that has not been folded: each component in turn, a symlink
