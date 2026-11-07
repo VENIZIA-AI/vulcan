@@ -10,6 +10,8 @@ export interface IWriteTarget {
   base: string;
   /** What `$PWD` is in `word`: the shell's folder, moved by `cd` but not by `git -C`; undefined when it is not known. */
   pwd?: string;
+  /** `>&word` with an expansion in it: a file, or a descriptor held in a variable. */
+  isAmbiguous?: boolean;
 }
 
 /** The options of a program that take a value, so the word after one is its value and no file of its own. */
@@ -63,6 +65,40 @@ const positional = (opts: { args: string[]; values?: IOptionValues }): string[] 
  * `-sLo X`). `valued` lists every short letter of the program that takes a value, so a cluster is cut where
  * its first value starts (`-dofile` is `-d` with the value `ofile`); without it only the letters asked for count.
  */
+/** Whether `name` is a long option written short: `--output-doc` for `--output-document`. */
+const isPrefixOf = (opts: { name: string; flag: string }): boolean =>
+  opts.name.length >= 4 && opts.name.startsWith('--') && opts.flag.startsWith(opts.name);
+
+/**
+ * The word before each long option of the program that is not in its table of valued options and has no `=`:
+ * what it takes next may be the destination, so the word before it may be too (`cp a dest --sparse never`).
+ */
+const wordsBeforeUnknownOptions = (opts: { args: string[]; values: IOptionValues }): string[] => {
+  const found: string[] = [];
+  let last: string | undefined;
+  let isEnd = false;
+
+  for (let index = 0; index < opts.args.length; index += 1) {
+    const word = opts.args[index] ?? '';
+
+    if (!isEnd && word === '--') {
+      isEnd = true;
+    } else if (isEnd || !word.startsWith('-')) {
+      last = word;
+    } else if (word.startsWith('--')) {
+      if (opts.values.longs.includes(word)) {
+        index += 1;
+      } else if (!word.includes('=') && last !== undefined) {
+        found.push(last);
+      }
+    } else if (takesNext({ word, shorts: opts.values.shorts })) {
+      index += 1;
+    }
+  }
+
+  return found;
+};
+
 const valueOf = (opts: {
   args: string[];
   long?: string[];
@@ -73,12 +109,11 @@ const valueOf = (opts: {
 
   for (const [index, word] of opts.args.entries()) {
     for (const flag of opts.long ?? []) {
-      if (word === flag) {
-        return opts.args[index + 1];
-      }
+      const name = word.split('=')[0] ?? word;
 
-      if (word.startsWith(`${flag}=`)) {
-        return word.slice(flag.length + 1);
+      // getopt takes a unique prefix of a long option for it (`--output-doc`).
+      if (name === flag || isPrefixOf({ name, flag })) {
+        return word.includes('=') ? word.slice(name.length + 1) : opts.args[index + 1];
       }
     }
 
@@ -276,6 +311,7 @@ export class ShellWrites {
       word,
       base,
       message: `a shell redirect writes ${word}`,
+      isAmbiguous: opts.command.copies?.includes(word) === true,
     }));
     const assignments = [
       ...opts.command.assignments,
@@ -309,6 +345,15 @@ export class ShellWrites {
         add(directory, `${name} writes into ${directory}`);
       } else if (last !== undefined) {
         add(last, `${name} writes ${last}`);
+      }
+
+      for (const word of values === undefined ? [] : wordsBeforeUnknownOptions({ args, values })) {
+        if (word !== last) {
+          add(
+            word,
+            `${name} may write ${word}: an option it does not know could take what follows`,
+          );
+        }
       }
     } else if (name === 'tee') {
       for (const word of positional({ args })) {

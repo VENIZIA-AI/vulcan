@@ -512,3 +512,63 @@ describe('OutsideGuard.inspect follows a link before a .. and sees more write ta
     expect(bash({ command }).length).toBeGreaterThan(0);
   });
 });
+
+describe('OutsideGuard.inspect asks when it cannot tell where a write lands', () => {
+  symlinkSync(join(PROJECT, 'spin2'), join(PROJECT, 'spin1'));
+  symlinkSync(join(PROJECT, 'spin1'), join(PROJECT, 'spin2'));
+
+  test.each([
+    // `>&word` is a descriptor or a file; with an expansion in it the line does not say which.
+    'fd=/etc/f; echo x >&$fd',
+    'echo x >&${fd}',
+    'echo x 1<>/etc/zz',
+    'echo x <>/etc/zz',
+    // A path through more links than the system follows has no file.
+    'touch spin1/x',
+    'echo x > spin2/y',
+    // `/proc/self` and `/dev/fd` name the hook's own process, not the shell the command runs in.
+    'echo x > /dev/fd/3',
+    'echo x > /proc/self/fd/1',
+    'echo x > /proc/self/cwd/zz',
+    // The destination before an option the table does not know: what follows may be its value.
+    'cp a /etc/zz --sparse never',
+    'cp a /etc/zz --suff .bak',
+    'mv a /etc/zz --suff .bak',
+    'install a /etc/zz --own root',
+    'rsync a /etc/zz --zl 3',
+    // A long option written short, as getopt reads it.
+    'wget --output-doc /etc/zz https://example.test/u',
+    'curl --out /etc/zz https://example.test/u',
+    'cp --target-dir /etc a',
+  ])('%s asks', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'echo x >&2',
+    'echo x >&-',
+    'echo x > /dev/null',
+    'rsync -a src dest --delete --progress',
+    'cp a b --force',
+    'cp /etc/hosts here --force',
+    'cp a b --sparse=never',
+    'ln -s a b --relative',
+  ])('%s stays silent', (command) => {
+    expect(bash({ command })).toEqual([]);
+  });
+});
+
+describe('OutsideGuard.inspect on a path that names the hook process', () => {
+  test('/proc/self/cwd lands in the project when the hook runs there, and still asks: the shell may be elsewhere', () => {
+    const before = process.cwd();
+
+    process.chdir(PROJECT);
+
+    try {
+      expect(bash({ command: 'cd /etc && echo x > /proc/self/cwd/zz' }).length).toBeGreaterThan(0);
+      expect(bash({ command: 'echo x > /proc/thread-self/cwd/zz' }).length).toBeGreaterThan(0);
+    } finally {
+      process.chdir(before);
+    }
+  });
+});

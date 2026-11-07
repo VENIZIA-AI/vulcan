@@ -18,6 +18,8 @@ packages: ['@venizia/vulcan']
 - **`>&file`.** The redirect `>&file` writes the file, like `&>file`. `>&2`, `>& 2` and `>&-` still name no file.
 - **Attached values.** A value attached to its option counts: `cp a -t/etc`, `cp -vt/etc a`, `install -t/etc a`, `curl -o/etc/x`, `curl -sLo/etc/x`, `wget -O/etc/x`, `wget -P/etc`, `mktemp -p/etc`.
 - **Options after the destination.** An option that takes a value is no longer taken for the destination: `cp a /etc/x -S .bak`, `install a /etc/x -m 755`, `ln -s a /etc/x -S .bak`, `rsync src /etc/x --exclude y` and `rsync src /etc/x -e ssh` ask about `/etc/x`. `--` ends the options.
+- **What it cannot tell asks.** `>&$fd` with the variable unknown (a descriptor or a file), a path under `/proc` or `/dev/fd`, which names the hook's own process and not the shell, and a path through more than 40 links ask. `<>` is a write target too.
+- **Unknown options.** An option the tables do not know, put after the destination, makes the word before it a destination too (`cp a /etc/x --sparse never`). A long option written short counts, as getopt reads it (`wget --output-doc /etc/x`, `curl --out /etc/x`).
 - **Already covered.** A write after `pushd` or `builtin cd` is read in the folder the builtin moved to; tests now hold that.
 
 ## Who is affected

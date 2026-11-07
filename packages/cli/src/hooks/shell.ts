@@ -4,6 +4,8 @@ import type { TConstValue } from '../common/types.ts';
 export interface ISimpleCommand {
   words: string[];
   redirects: string[];
+  /** The `>&word` targets that hold an expansion (`>&$fd`): a descriptor or a file, the line does not say which. They are in `redirects` too. */
+  copies?: string[];
   assignments: string[];
   /** The body of the heredoc this command reads, when it is not read as commands itself (data, or a query or script for another program). */
   heredoc?: string;
@@ -1546,6 +1548,10 @@ export class ShellParser {
 
         if (target.value !== '') {
           current.redirects.push(target.value);
+
+          if (isAmpersand && /[$`]/.test(target.value)) {
+            (current.copies ??= []).push(target.value);
+          }
         }
 
         nest({ texts: target.nested });

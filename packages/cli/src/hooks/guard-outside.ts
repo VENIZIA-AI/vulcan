@@ -25,9 +25,10 @@ const partsOf = (opts: { path: string }): string[] =>
 /**
  * The file the OS opens for an absolute path that has not been folded: each component in turn, a symlink
  * followed where it stands, so a `..` after a link goes to the parent of the link's target and not to the
- * parent of the link. What does not exist is kept as text, a dangling link followed to where it points.
+ * parent of the link. What does not exist is kept as text, a dangling link followed to where it points. A path
+ * that goes through more links than the OS follows has no file: `undefined`.
  */
-const realOf = (opts: { path: string }): string => {
+const realOf = (opts: { path: string }): string | undefined => {
   const pending = partsOf({ path: opts.path });
   let current = '/';
   let links = 0;
@@ -56,9 +57,8 @@ const realOf = (opts: { path: string }): string => {
 
     links += 1;
 
-    // A loop of links: the rest is kept as written.
     if (links > MAX_LINKS) {
-      return join(next, ...pending.reverse());
+      return undefined;
     }
 
     if (isAbsolute(target)) {
@@ -70,6 +70,9 @@ const realOf = (opts: { path: string }): string => {
 
   return current;
 };
+/** The files that name a process by number or as `self`: their target depends on who opens them. */
+const PROCESS_FILES = /^\/(?:proc(?:\/|$)|dev\/fd(?:\/|$))/;
+
 const isInside = (opts: { path: string; root: string }): boolean =>
   opts.path === opts.root || opts.path.startsWith(`${opts.root}${sep}`);
 
@@ -138,7 +141,7 @@ export class OutsideGuard {
   }): IOutsideHit[] {
     const env = opts.env ?? process.env;
     const home = opts.home ?? env.HOME ?? '';
-    const root = realOf({ path: resolve(opts.projectRoot) });
+    const root = realOf({ path: resolve(opts.projectRoot) }) ?? resolve(opts.projectRoot);
     const patterns = allowPatterns({
       patterns: [...HookConstants.TOOL_OWNED_PATHS, ...(opts.toolOwnedPaths ?? [])],
       home,
@@ -200,13 +203,43 @@ export class OutsideGuard {
       const expanded = ShellFolders.expandPath({ word: target.word, home, env, cwd: target.pwd });
 
       if (expanded === undefined) {
+        // `>&$fd` is a descriptor or a file: with the variable unknown, the line does not say which.
+        if (target.isAmbiguous === true) {
+          hits.push({
+            path: target.word,
+            message: `${target.message}: the word has an expansion, so it may name a file`,
+            isAgentToolScratchpad: false,
+          });
+        }
+
+        continue;
+      }
+
+      const written = isAbsolute(expanded) ? expanded : `${target.base}/${expanded}`;
+
+      // `/proc/self` and `/dev/fd` name the hook's own process, not the shell the command runs in.
+      if (PROCESS_FILES.test(written)) {
+        hits.push({
+          path: written,
+          message: `${target.message}: a path under /proc or /dev/fd names a process, which this check cannot follow`,
+          isAgentToolScratchpad: false,
+        });
+
         continue;
       }
 
       // Not folded here: a `..` after a symlink goes where the link points, which `realOf` follows.
-      const path = realOf({
-        path: isAbsolute(expanded) ? expanded : `${target.base}/${expanded}`,
-      });
+      const path = realOf({ path: written });
+
+      if (path === undefined) {
+        hits.push({
+          path: written,
+          message: `${target.message}: the path goes through more links than the system follows`,
+          isAgentToolScratchpad: false,
+        });
+
+        continue;
+      }
 
       if (!isInside({ path, root }) && !matchesAny({ path, patterns })) {
         hits.push({
