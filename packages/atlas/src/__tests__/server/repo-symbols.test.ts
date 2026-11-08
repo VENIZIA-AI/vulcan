@@ -13,7 +13,11 @@ afterAll(() => {
 });
 
 /** A project in an application's shape: its one package outside packages/, built or not. */
-const project = (opts: { built: boolean; exports?: Record<string, { types: string }> }): string => {
+const project = (opts: {
+  built: boolean;
+  exports?: Record<string, unknown>;
+  files?: Record<string, string>;
+}): string => {
   const root = mkdtempSync(join(tmpdir(), 'atlas-repo-symbols-'));
   const files: Record<string, string> = {
     '.agents/vulcan.manifest.json': JSON.stringify({
@@ -32,6 +36,8 @@ const project = (opts: { built: boolean; exports?: Record<string, { types: strin
       exports: opts.exports ?? { '.': { types: './dist/index.d.ts' } },
     }),
   };
+
+  Object.assign(files, opts.files);
 
   if (opts.built) {
     files['backends/kit/dist/index.d.ts'] =
@@ -189,4 +195,93 @@ test('a rebuild that changes a signature is seen without a restart - the store f
 
   expect(after.error).toBeUndefined();
   expect(after.result.content[0].text).toContain('greet(name: string, loud: boolean): string');
+});
+
+/** A package that publishes its TypeScript source, as the VULCAN packages do: no `.d.ts`, `exports` points at `src`. */
+const sourceProject = (): string =>
+  project({
+    built: false,
+    exports: { '.': './src/index.ts' },
+    files: {
+      'backends/kit/src/index.ts': "export * from './greet.ts';\n",
+      'backends/kit/src/greet.ts':
+        '/** Says hello. */\nexport const greet = (name: string): string => `hi ${name}`;\n',
+    },
+  });
+
+test('a package that publishes its TypeScript source answers symbol, with no build', async () => {
+  const reply = await callSymbol({ root: sourceProject(), name: 'greet' });
+
+  expect(reply.error).toBeUndefined();
+  expect(reply.result.content[0].text).toContain('@shop/kit');
+  expect(reply.result.content[0].text).toContain('backends/kit/src/greet.ts');
+});
+
+test('a source package follows an edit of a file its entry re-exports, without a restart', async () => {
+  const root = sourceProject();
+  const server = buildRepositoryServer({ root, version: '0.0.0' });
+  const ask = async (name: string) => {
+    const line = await server.handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'symbol', arguments: { name } },
+      }),
+    });
+
+    return JSON.parse(line ?? 'null');
+  };
+
+  const result2 = await ask('greet');
+  expect(result2.error).toBeUndefined();
+  const result3 = await ask('farewell');
+  expect(result3.result.content[0].text).toContain('"matches":[]');
+
+  const file = join(root, 'backends/kit/src/greet.ts');
+
+  writeFileSync(
+    file,
+    'export const greet = (name: string): string => name;\nexport const farewell = (name: string): string => name;\n',
+  );
+  utimesSync(file, new Date(), new Date(Date.now() + 60_000));
+
+  const after = await ask('farewell');
+
+  expect(after.error).toBeUndefined();
+  expect(after.result.content[0].text).not.toContain('"matches":[]');
+  expect(after.result.content[0].text).toContain('backends/kit/src/greet.ts');
+});
+
+test('a package with a .d.ts and a source entry of the same subpath is read from the .d.ts', async () => {
+  const root = project({
+    built: true,
+    exports: { '.': { types: './dist/index.d.ts', import: './src/index.ts' } },
+    files: { 'backends/kit/src/index.ts': 'export const other = 1;\n' },
+  });
+  const reply = await callSymbol({ root, name: 'greet' });
+
+  expect(reply.result.content[0].text).toContain('greet(name: string): string');
+  const result2 = await callSymbol({ root, name: 'other' });
+  expect(result2.result.content[0].text).toContain('"matches":[]');
+});
+
+test('a source entry whose file is missing does not stop symbol: the other entries still answer', async () => {
+  const warnSpy = spyOn(console, 'error').mockImplementation(() => undefined);
+  const root = project({
+    built: false,
+    exports: { '.': './src/index.ts', './gone': './missing/index.ts' },
+    files: {
+      'backends/kit/src/index.ts': 'export const greet = (name: string): string => name;\n',
+    },
+  });
+
+  try {
+    const reply = await callSymbol({ root, name: 'greet' });
+
+    expect(reply.error).toBeUndefined();
+    expect(reply.result.content[0].text).toContain('backends/kit/src/index.ts');
+  } finally {
+    warnSpy.mockRestore();
+  }
 });

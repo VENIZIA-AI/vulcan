@@ -9,7 +9,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { AtlasTimeouts } from '@/common/constants';
 import { AtlasLimits, BoundedBody } from '@/common/limits';
 import { PackageEntries } from '@/common/package-entries';
@@ -68,6 +68,8 @@ const writeCache = (opts: {
 };
 
 const DECLARATIONS = new Bun.Glob('**/*.d.{ts,mts,cts}');
+const TYPESCRIPT = new Bun.Glob('**/*.{ts,mts,cts}');
+const DECLARATION_FILE = /\.d\.[cm]?ts$/;
 
 export class SymbolCompute {
   /** The cached symbols of `name@version`, or `undefined` when no pull or install has read them yet. */
@@ -174,14 +176,32 @@ export class SymbolCompute {
   }
 
   /**
-   * Repo mode's dist fingerprint (D2): how many declaration files the live packages hold, the newest
-   * mtime and the total size. A rebuild moves it - a changed signature changes the size or the mtime -
-   * so the symbol store reads the declarations again instead of serving the last build until a restart.
+   * Repo mode's fingerprint (D2): how many declaration files the live packages hold, and for a package that
+   * publishes its TypeScript source, how many `.ts` files sit below each source entry's folder, with the newest
+   * mtime and the total size of them all. A rebuild or an edit moves it - a changed signature changes the size
+   * or the mtime - so the symbol store reads the exports again instead of serving the last read until a restart.
    */
   static declarationsFingerprintOf(opts: { project: IAtlasProject }): string {
     let count = 0;
     let newestMtimeMs = 0;
     let totalBytes = 0;
+    const scan = (folder: string, glob: Bun.Glob): void => {
+      if (!existsSync(folder)) {
+        return;
+      }
+
+      for (const relativePath of glob.scanSync({ cwd: folder })) {
+        if (relativePath.split('/').includes('node_modules')) {
+          continue;
+        }
+
+        const { mtimeMs, size } = statSync(join(folder, relativePath));
+
+        count += 1;
+        newestMtimeMs = Math.max(newestMtimeMs, mtimeMs);
+        totalBytes += size;
+      }
+    };
 
     for (const entry of opts.project.packages.filter((item) => !item.retired)) {
       const directory = join(opts.project.root, entry.path);
@@ -190,16 +210,15 @@ export class SymbolCompute {
         continue;
       }
 
-      for (const relativePath of DECLARATIONS.scanSync({ cwd: directory })) {
-        if (relativePath.split('/').includes('node_modules')) {
-          continue;
+      scan(directory, DECLARATIONS);
+
+      if (existsSync(join(directory, 'package.json'))) {
+        const { entries } = PackageEntries.readDirectory({ directory, withSource: true });
+        const sources = entries.filter((item) => !DECLARATION_FILE.test(item.file));
+
+        for (const folder of new Set(sources.map((item) => dirname(item.file)))) {
+          scan(folder, TYPESCRIPT);
         }
-
-        const { mtimeMs, size } = statSync(join(directory, relativePath));
-
-        count += 1;
-        newestMtimeMs = Math.max(newestMtimeMs, mtimeMs);
-        totalBytes += size;
       }
     }
 
