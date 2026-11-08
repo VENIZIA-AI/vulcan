@@ -92,7 +92,6 @@ Every publish makes one GitHub Release on its tag (`scripts/release/github-relea
 - **A failure never fails a publish.** The step continues on error and reports in the run summary.
 - **To make a missing Release,** dispatch `make release ARGS="--bump none"` (add `--branch main` for a stable). It releases the version at the head of that branch, so do it before the next release lands.
 - **The atlas index release is not touched.** The script refuses the tag `atlas-index`.
-- **Backfill, on the owner's word only.** `bun scripts/release/github-release.ts backfill --tag v0.4.7` prints the notes and whether the Release would be Latest. `--yes` writes it, with commit subjects when no entry covers the tag. It makes the Release of a stable only, and it is a public write.
 
 ## Accepted risks of the stable path
 

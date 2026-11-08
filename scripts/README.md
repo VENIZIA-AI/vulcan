@@ -9,7 +9,7 @@ Root tooling of the VULCAN monorepo, grouped by purpose. Each group keeps its te
 | `release/` | `release-args.ts` | Reads `--bump`, `--issue`, `--branch`, `--dry-run`, `--yes` | `release.ts` |
 | `release/` | `plan.ts` | The `plan` job: resolves the target version of a bump, says whether it is a prerelease or a stable, and refuses a branch and version that do not belong together | `package-release.yml`, job `plan` |
 | `release/` | `release-wait.ts` | Waits until every tarball of the train answers 200 (the registry lists a version minutes before it serves it) | `release.ts` |
-| `release/` | `github-release.ts` | `create` makes the GitHub Release on the tag of a publish; `backfill` makes the Release of an earlier stable tag (a dry run without `--yes`) | `package-release.yml`; `backfill` by hand |
+| `release/` | `github-release.ts` | `create` makes the GitHub Release on the tag of a publish | `package-release.yml` |
 | `release/` | `merge-back.ts` | `trial` merges `main` into `develop` in throwaway worktrees and reports; `apply` makes that merge in the publish job | `package-release.yml`, jobs `plan` and `publish` |
 | `release/` | `sync-pr.ts` | `open` makes the Sync PR that takes the exact commit of a gated prerelease into `main`; `verify` checks after the merge that the trees are equal | by hand, on the owner's word |
 | `release/` | `next-tag.ts` | Moves `next` up to `latest` after a publish | `package-release.yml`, step "Keep next at or above latest" |
