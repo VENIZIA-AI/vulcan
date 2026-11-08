@@ -26,7 +26,7 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   cli schema). A tarball (GitHub commit, npm package) is read through `BoundedBody` up to `atlas.limits.download` bytes
   (`AtlasLimits`, default 128 MiB, 1 MiB to 1 GiB, set once at start from the manifest); the ref advertisement is held to 16 MiB.
 - **The source cache** is keyed by host and every segment of the repository's path (GitHub reads
-  `github.com/<owner>/<repo>`), and keeps the newest 3 SHAs per source plus each ref's last one. A
+  `github.com/<owner>/<repo>`), and keeps the newest 3 SHAs per source plus the last one of each of the newest 5 refs. A
   `git/` directory that is not a repository (a killed clone) is cloned again. Each start also
   fingerprints the tags `ls-remote` lists: a tag pushed on a cached SHA recomputes `releases.json`
   with no new pull. Starts racing on one cold cache take

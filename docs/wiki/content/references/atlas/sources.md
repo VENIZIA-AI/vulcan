@@ -111,7 +111,7 @@ When an atlas version changes what an index holds, its format number changes, an
 On startup, atlas checks whether the remote reference moved.
 If the reference moved to a newer commit, atlas pulls the new commit.
 If new tags appear on the same commit, atlas updates release records without re-indexing markdown files.
-The cache keeps the newest 3 commits per source.
+The cache keeps the newest 3 commits per source, and the commit of each of the newest 5 refs it served (a ref file under `refs/` is rewritten each time its ref is served; the sixth oldest is removed, and its commit with it on the next pull).
 When the remote repository is unreachable, atlas serves the commit last served for that ref.
 atlas never serves another ref's cache.
 An unreachable remote serves only a cache built at the current index format; with none, the source is unavailable.

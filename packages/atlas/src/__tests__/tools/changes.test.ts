@@ -59,6 +59,7 @@ interface IChangesPayload {
   to: string;
   entries: { id: string; date: string; title: string; kind: string | null; packages: string[] }[];
   truncated?: boolean;
+  nextOffset?: number;
 }
 
 const callChanges = async (opts: {
@@ -291,6 +292,105 @@ describe('changes tool', () => {
     expect(payload.truncated).toBe(true);
     expect(payload.entries.length).toBeGreaterThan(0);
     expect(payload.entries[0].date).toBe('2026-07-30');
+  });
+
+  test('the pages of a long window, followed by nextOffset, hold every entry once, newest first', async () => {
+    const crowded = new ReleaseStore({
+      table: {
+        livePackages: [],
+        packageMap: [],
+        releases: TABLE.releases,
+        changelogs: Array.from({ length: 30 }, (_unused, index) =>
+          entry({
+            date: `2026-07-${String(index + 1).padStart(2, '0')}`,
+            slug: `entry-number-${index}-with-a-long-enough-slug-to-cost-budget`,
+            packages: ['kernel'],
+            title: `A title long enough to make the reply outgrow its budget ${index}`,
+          }),
+        ),
+      },
+    });
+    const seen: string[] = [];
+    let offset: number | undefined;
+    let pages = 0;
+
+    do {
+      const reply = await callChanges({
+        releases: crowded,
+        args: { from: '2026-01-01', to: '2026-09-05', ...(offset === undefined ? {} : { offset }) },
+      });
+      const payload = payloadOf(reply);
+
+      expect(reply.result?.content[0]?.text.length).toBeLessThanOrEqual(
+        AtlasConstants.SEARCH_BUDGET_CHARS,
+      );
+      expect(payload.truncated === true).toBe(payload.nextOffset !== undefined);
+      seen.push(...payload.entries.map((item) => item.date));
+      offset = payload.nextOffset;
+      pages += 1;
+    } while (offset !== undefined && pages < 40);
+
+    expect(pages).toBeGreaterThan(1);
+    expect(seen).toEqual(
+      Array.from(
+        { length: 30 },
+        (_unused, index) => `2026-07-${String(30 - index).padStart(2, '0')}`,
+      ),
+    );
+  });
+
+  test('an entry larger than the budget is still a page of its own, so paging always moves on', async () => {
+    const huge = new ReleaseStore({
+      table: {
+        livePackages: [],
+        packageMap: [],
+        releases: TABLE.releases,
+        changelogs: [
+          entry({
+            date: '2026-07-02',
+            slug: 'huge',
+            packages: ['kernel'],
+            title: 'x'.repeat(3000),
+          }),
+          entry({ date: '2026-07-01', slug: 'small', packages: ['kernel'], title: 'small' }),
+        ],
+      },
+    });
+    const result = await callChanges({
+      releases: huge,
+      args: { from: '2026-01-01', to: '2026-09-05' },
+    });
+    const first = payloadOf(result);
+    const result2 = await callChanges({
+      releases: huge,
+      args: { from: '2026-01-01', to: '2026-09-05', offset: first.nextOffset },
+    });
+    const second = payloadOf(result2);
+
+    expect(first.entries.map((item) => item.date)).toEqual(['2026-07-02']);
+    expect(first.nextOffset).toBe(1);
+    expect(second.entries.map((item) => item.date)).toEqual(['2026-07-01']);
+    expect(second.nextOffset).toBeUndefined();
+  });
+
+  test('an offset past the last entry answers an empty page with no nextOffset', async () => {
+    const reply = await callChanges({
+      releases,
+      args: { package: 'kernel', from: '0.2.0-13', to: '0.2.0-16', offset: 50 },
+    });
+    const payload = payloadOf(reply);
+
+    expect(payload.entries).toEqual([]);
+    expect(payload.nextOffset).toBeUndefined();
+    expect(payload.truncated).toBeUndefined();
+  });
+
+  test('a negative or fractional offset is refused', async () => {
+    const negative = await callChanges({ releases, args: { offset: -1 } });
+    const fractional = await callChanges({ releases, args: { offset: 1.5 } });
+
+    expect(negative.error?.code).toBe(-32602);
+    expect(fractional.error?.code).toBe(-32602);
   });
 
   test('a source with no releases and no entries says why instead of guessing', async () => {

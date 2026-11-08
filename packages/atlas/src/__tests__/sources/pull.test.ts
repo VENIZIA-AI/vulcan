@@ -1,5 +1,13 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { lstatSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { SourcesServer } from '@/server/index';
 import { SourceCache, SourceResolver } from '@/sources';
@@ -136,6 +144,43 @@ describe('a pull', () => {
     expect(
       git({ cwd: join(cacheRoot, 'git'), args: ['worktree', 'list', '--porcelain'] }),
     ).not.toContain(pulled[0]);
+  });
+
+  test('a source keeps the SHAs of its newest five refs only, so a pinned release no longer stays for good', async () => {
+    const source = makeSourceRepository();
+    const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
+    const cacheRoot = SourceCache.cacheRootOf({ repo: source.url, cacheBase: cacheDir });
+
+    for (const step of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+      writeSourceFile({
+        work: source.work,
+        path: `docs/changelogs/2026-03-0${step}-step.md`,
+        text: `---\ntitle: Step ${step}\npackages: ['@x/kernel']\n---\n\nStep ${step}.\n`,
+      });
+      commitAll({ work: source.work, message: `docs: step ${step}` });
+      git({ cwd: source.work, args: ['tag', `v${step}`] });
+      git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop', `v${step}`] });
+
+      await SourceResolver.resolve({
+        cwd,
+        sources: [{ name: 'src', repo: source.url, ref: `v${step}` }],
+        cacheDir,
+      });
+
+      // The mtime orders the refs; a fast machine would give two of them the same one.
+      utimesSync(
+        join(cacheRoot, 'refs', `ref-v${step}`),
+        new Date(1_000_000 * step),
+        new Date(1_000_000 * step),
+      );
+    }
+
+    const refs = readdirSync(join(cacheRoot, 'refs')).sort();
+    const sets = readdirSync(cacheRoot).filter((name) => /^[0-9a-f]{40}$/.test(name));
+
+    expect(refs).toEqual(['ref-v5', 'ref-v6', 'ref-v7', 'ref-v8', 'ref-v9']);
+    // The five refs' SHAs, and the one a ref that just left held until the next pull prunes it.
+    expect(sets.length).toBeLessThanOrEqual(6);
   });
 
   test('a clone directory a killed pull left empty is cloned again, by a start and by pull', async () => {
