@@ -146,6 +146,10 @@ jobs:
       - name: Lint
         run: make lint-all
 
+      # The shared wiki theme is the same in the three wikis (C-21): a release goes out with them in step.
+      - name: Shared wiki theme
+        run: make wiki-shared-check
+
       - name: Dependency catalog
         run: make catalog-check
 

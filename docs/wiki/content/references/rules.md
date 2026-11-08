@@ -118,7 +118,7 @@ Code and writing rules define TypeScript standards, parameter limits, naming pat
 | `V-C-09` | A comment states a lasting fact the code cannot show or is public-API TSDoc; never a decision, history, an issue or PR number or a review note; delete a comment that repeats the code. TSDoc on an export is optional: write it when it says what the name and types do not (summary first, `@param`/`@returns` without `{type}`, `@default`, `@deprecated`, `@example`, on the declaration itself), within the line limit except an `@example`, when you write or change the export and never as a sweep. | SOFT |
 | `V-C-10` | Avoid explicit type casts in new code; refine types instead. | SOFT |
 | `V-C-11` | Prioritize simplicity in code and prose; justify complexity with correctness, speed, or safety. Small means only what the task needs, not golfed, and never cuts validation, error handling, security checks or data safety. | SOFT |
-| `V-C-13` | Use hyphens instead of dashes; spell brands accurately; keep documentation native to generators. | SOFT - `okf check --strict` (bundle) |
+| `V-C-13` | Use hyphens instead of dashes; spell brands accurately; keep documentation native to its generator unless the project's rules name an exception. | SOFT - `okf check --strict` (bundle) |
 | `V-C-14` | Use camelCase for types; restrict snake_case to external boundary mappers. | LINT (naming convention) + SOFT |
 | `V-C-18` | Derive compile-time types from schemas or functions rather than duplicating definitions. | SOFT |
 | `V-C-20` | Declare the instance, then await on its own line: `const runner = new X({...}); await runner.run({...});`, never `await new X({...}).run({...})`. Tests and scripts too. | SOFT |
