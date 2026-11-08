@@ -34,8 +34,6 @@ flag `bun x` fetches it when `@venizia/vulcan` is not installed yet.
 | `profile [show\|edit\|reset]` | Tell VULCAN how you like to work (reply language, tone, habits) in `.agents/local/profile.json` |
 | `clean [--tmp\|--worktrees\|--clones\|--cache\|--all] [--include-fresh] [--yes]` | List what an agent left under `.agents/local/` (a dry run) and, with `--yes`, remove it |
 | `upgrade [--stable \| --nightly] [<version\|tag>]` | Install the target `@venizia/vulcan`, then run `sync` from the newly installed CLI. `--stable` (default) is the `latest` dist-tag, never a prerelease; `--nightly` is the higher of `latest` and `next`; a named version or tag wins over both. `--nightly` that cannot read the dist-tags exits 1; a stable upgrade from an installed prerelease says that `--nightly` keeps the prerelease line |
-| `graph build [--full]` | Write the code graph of the project (the short name of `x atlas graph build`); `--full` reads everything again |
-| `graph status [--json]` | Say whether the graph still matches the files it was built from (fresh, behind, diverged or unknown) |
 | `x <tool> [args...]` | Run a shipped tool at the pinned version: `okf`, `atlas`. `x --help` prints the help; `x <tool> --help` goes to the tool |
 | `help`, `version` | `help` prints the usage; `version` prints the installed version |
 

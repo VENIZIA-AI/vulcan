@@ -2,7 +2,6 @@ import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { chmodSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AtlasGit } from '@/common/constants';
-import { GitState } from '@/graph/git-state';
 import { GitRepository } from '@/sources/git';
 import { GithubTarball } from '@/sources/tarball';
 import { makeTempDirectory, TEMP_DIRECTORIES } from './source-repo.helper';
@@ -73,7 +72,7 @@ describe('AtlasGit.buildEnvironment', () => {
 });
 
 describe('a local git call of atlas takes the environment too', () => {
-  test('hasGit, hasClone, commitOf and the graph state run with it, whatever the parent set', () => {
+  test('hasGit, hasClone and commitOf run with it, whatever the parent set', () => {
     const recorder = fakeGit();
     const gitDir = makeTempDirectory({ prefix: 'atlas-local-' });
 
@@ -83,13 +82,10 @@ describe('a local git call of atlas takes the environment too', () => {
     GithubTarball.hasGit();
     GitRepository.hasClone({ gitDir });
     GitRepository.commitOf({ gitDir, ref: 'develop' });
-    GitState.trackedFiles({ root: gitDir, paths: ['.'] });
-    GitState.commitOf({ root: gitDir });
-    GitState.isAncestor({ root: gitDir, ancestor: 'a'.repeat(40) });
 
     const seen = recorder.seen();
 
-    expect(seen).toHaveLength(6);
+    expect(seen).toHaveLength(3);
     expect(new Set(seen)).toEqual(new Set(['https:ssh:file|0']));
   });
 });
@@ -145,7 +141,7 @@ describe('every git call in the atlas source', () => {
     }
 
     // The positive control: the scan did find the calls it is about.
-    expect(calls).toBeGreaterThanOrEqual(15);
+    expect(calls).toBeGreaterThanOrEqual(14);
     expect(missing).toEqual([]);
   });
 
