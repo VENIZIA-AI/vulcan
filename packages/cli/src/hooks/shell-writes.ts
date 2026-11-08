@@ -12,6 +12,8 @@ export interface IWriteTarget {
   pwd?: string;
   /** The plain variables the same shell set earlier on the line. */
   vars?: Record<string, string>;
+  /** False after a `cd` the guard could not work out: `base` is then only the last folder it knew. */
+  isKnown?: boolean;
   /** `>&word` with an expansion in it: a file, or a descriptor held in a variable. */
   isAmbiguous?: boolean;
   /** The target of a shell redirect. */

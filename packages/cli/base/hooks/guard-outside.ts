@@ -4,7 +4,9 @@
  * themselves are allowed - a default list, extended by `guard.toolOwnedPaths` in the project config.
  * `TMPDIR` or `mktemp` pointed at the system temp directory is not allowed.
  * It asks by default; `guard.outside: 'deny'` in the project config refuses instead, for agents where an ask can be
- * approved unseen. A write into the agent tool scratchpad is always denied.
+ * approved unseen. A write into the agent tool scratchpad is always denied. A part of the call it cannot read (a
+ * program or a target named by a variable, a line it cannot follow to its end) is asked about even under `deny`: it
+ * does not know that anything is outside.
  *
  * It guards against drift, not against an attacker, and a guard that blocks every call when its install
  * is broken costs more than it protects. So a missing package or `bun` passes (the settings wrapper says so on
@@ -54,36 +56,58 @@ try {
     const hits = OutsideGuard.inspect({ input, projectRoot, toolOwnedPaths });
 
     if (hits.length > 0) {
-      const isScratchpad = hits.some((hit) => hit.isAgentToolScratchpad);
-      const hitLines = hits.map((hit) => `  - ${hit.message} (${hit.path})`);
+      const read = hits.filter((hit) => !hit.isUnread);
+      const isScratchpad = read.some((hit) => hit.isAgentToolScratchpad);
+      const linesOf = (list: typeof hits) => list.map((hit) => `  - ${hit.message} (${hit.path})`);
       const tmpFolder = relative(projectRoot, ProjectTmp.projectOf({ root: projectRoot }));
       const places = `Scratch files go under ${tmpFolder}/<task>/ (worktrees under .agents/local/worktrees/, clones under .agents/local/clones/), never in /tmp or the home folder.`;
+      const owned =
+        'A store a tool manages itself can be allowed with guard.toolOwnedPaths in .configs/vulcan.config.*.';
 
-      const isDeny = isScratchpad || outside === GuardDecisions.DENY;
+      // A line the check could not read is asked about even where the project denies: it does not know of a path outside.
+      const unread =
+        read.length === hits.length
+          ? []
+          : [
+              ...(read.length > 0 ? [''] : []),
+              'Part of this call could not be read, so it was not checked for files outside the project (V-B-08):',
+              ...linesOf(hits.filter((hit) => hit.isUnread)),
+            ];
+      const isDeny = isScratchpad || (outside === GuardDecisions.DENY && read.length > 0);
       let reason: string[];
 
-      if (isScratchpad) {
+      if (read.length === 0) {
+        reason = [
+          ...unread,
+          '',
+          `Confirm only if it creates nothing outside the project. ${places} A literal path can be read.`,
+          owned,
+        ];
+      } else if (isScratchpad) {
         reason = [
           'This would write into the scratchpad folder the agent tool offers (V-B-08):',
-          ...hitLines,
+          ...linesOf(read),
+          ...unread,
           '',
           `That folder is under /tmp, and V-B-08 overrides the tool line that says to use it. Nothing was written. ${places} Read a fetched file through a pipe (for example gh api ... | grep) rather than saving it.`,
         ];
       } else if (isDeny) {
         reason = [
           'This would create files outside the project (V-B-08), and this project denies it (guard.outside):',
-          ...hitLines,
+          ...linesOf(read),
+          ...unread,
           '',
           `Nothing was written. ${places}`,
-          'A store a tool manages itself can be allowed with guard.toolOwnedPaths in .configs/vulcan.config.*.',
+          owned,
         ];
       } else {
         reason = [
           'This would create files outside the project (V-B-08):',
-          ...hitLines,
+          ...linesOf(read),
+          ...unread,
           '',
           `${places} Use that place, or confirm only if the owner asked for this exact path.`,
-          'A store a tool manages itself can be allowed with guard.toolOwnedPaths in .configs/vulcan.config.*.',
+          owned,
         ];
       }
 

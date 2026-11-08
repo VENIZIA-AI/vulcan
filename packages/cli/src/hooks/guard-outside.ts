@@ -163,6 +163,7 @@ export class OutsideGuard {
     }
 
     let unread: string | undefined;
+    let assigned = new Set<string>();
 
     if (opts.input.command !== undefined) {
       const parsed = ShellParser.parseChecked({ command: opts.input.command });
@@ -175,6 +176,7 @@ export class OutsideGuard {
       });
 
       unread = ShellUnread.reasonOf(parsed);
+      assigned = ShellFolders.assignedNames({ commands: parsed.commands });
 
       // A command's own redirects open in the folder it starts in, a `cd`'s included.
       for (const [index, command] of parsed.commands.entries()) {
@@ -189,6 +191,7 @@ export class OutsideGuard {
             ...target,
             pwd: folder.pwd,
             vars: folder.vars,
+            isKnown: folder.isKnown,
           })),
         );
       }
@@ -198,7 +201,14 @@ export class OutsideGuard {
     const hits: IOutsideHit[] =
       unread === undefined
         ? []
-        : [{ path: '(the command line)', message: unread, isAgentToolScratchpad: false }];
+        : [
+            {
+              path: '(the command line)',
+              message: unread,
+              isAgentToolScratchpad: false,
+              isUnread: true,
+            },
+          ];
 
     for (const target of targets) {
       const expanded = ShellFolders.expandPath({
@@ -209,12 +219,43 @@ export class OutsideGuard {
       });
 
       if (expanded === undefined) {
+        // Part of the word is unknown, but the folder in front of it may not be: that folder decides.
+        const lands = ShellFolders.folderOfUnknown({
+          word: target.word,
+          home,
+          env: { ...env, ...target.vars },
+          cwd: target.pwd,
+          base: target.base,
+          isKnown: target.isKnown ?? true,
+          assigned,
+        });
+        const folder = lands === undefined ? undefined : realOf({ path: lands });
+
+        if (
+          folder !== undefined &&
+          !isInside({ path: folder, root }) &&
+          !matchesAny({ path: `${folder}/x`, patterns })
+        ) {
+          hits.push({
+            path: folder,
+            message: `${target.message}: it lands in ${folder}, outside the project, whatever the expansion is`,
+            isAgentToolScratchpad: matchesAny({
+              path: folder,
+              patterns: HookConstants.AGENT_TOOL_SCRATCHPAD_PATTERNS,
+            }),
+            isUnread: false,
+          });
+
+          continue;
+        }
+
         // A redirect to a word that cannot be worked out (`> $f`, `&>$fd`, `>&$fd`) may write a file outside the project.
         if (target.isAmbiguous === true || target.isRedirect === true) {
           hits.push({
             path: target.word,
             message: `${target.message}: the target has an expansion this check cannot work out`,
             isAgentToolScratchpad: false,
+            isUnread: true,
           });
         }
 
@@ -229,6 +270,7 @@ export class OutsideGuard {
           path: written,
           message: `${target.message}: a path under /proc or /dev/fd names a process, which this check cannot follow`,
           isAgentToolScratchpad: false,
+          isUnread: true,
         });
 
         continue;
@@ -242,6 +284,7 @@ export class OutsideGuard {
           path: written,
           message: `${target.message}: the path goes through more links than the system follows`,
           isAgentToolScratchpad: false,
+          isUnread: true,
         });
 
         continue;
@@ -255,6 +298,7 @@ export class OutsideGuard {
             path,
             patterns: HookConstants.AGENT_TOOL_SCRATCHPAD_PATTERNS,
           }),
+          isUnread: false,
         });
       }
     }
