@@ -318,8 +318,8 @@ describe('skills', () => {
     });
 
     runSync({ root });
-    expect(readlinkSync(join(root, '.claude', 'skills', 'knowledge-sync'))).toContain(
-      'base/skills/knowledge-sync',
+    expect(readlinkSync(join(root, '.claude', 'skills', 'research'))).toContain(
+      'base/skills/research',
     );
     expect(existsSync(join(root, '.claude', 'skills', 'mine', 'SKILL.md'))).toBe(true);
   });
@@ -357,26 +357,23 @@ describe('skills', () => {
     symlinkSync(PACKAGE_ROOT, installed);
     runSync({ root });
 
-    expect(readlinkSync(join(root, '.claude', 'skills', 'knowledge-sync'))).toBe(
-      join(installed, 'base', 'skills', 'knowledge-sync'),
+    expect(readlinkSync(join(root, '.claude', 'skills', 'research'))).toBe(
+      join(installed, 'base', 'skills', 'research'),
     );
   });
 
   test('a dead link to a path that is gone is replaced by the stable one', () => {
     const root = createProject({ files: READ_ONLY_PROJECT });
     const installed = join(root, 'node_modules', '@venizia', 'vulcan');
-    const link = join(root, '.claude', 'skills', 'knowledge-sync');
+    const link = join(root, '.claude', 'skills', 'research');
 
     mkdirSync(dirname(installed), { recursive: true });
     symlinkSync(PACKAGE_ROOT, installed);
     mkdirSync(dirname(link), { recursive: true });
-    symlinkSync(
-      join(root, 'node_modules', '.bun', 'gone', 'base', 'skills', 'knowledge-sync'),
-      link,
-    );
+    symlinkSync(join(root, 'node_modules', '.bun', 'gone', 'base', 'skills', 'research'), link);
 
     expect(runSync({ root }).stderr).toContain('replaced');
-    expect(readlinkSync(link)).toBe(join(installed, 'base', 'skills', 'knowledge-sync'));
+    expect(readlinkSync(link)).toBe(join(installed, 'base', 'skills', 'research'));
     expect(existsSync(join(link, 'SKILL.md'))).toBe(true);
   });
 
@@ -390,7 +387,7 @@ describe('skills', () => {
     const result = runSync({ root });
 
     expect(result.stderr).toContain('.claude/skills (a symlink - left untouched)');
-    expect(existsSync(join(elsewhere, 'knowledge-sync'))).toBe(false);
+    expect(existsSync(join(elsewhere, 'research'))).toBe(false);
   });
 
   test('a shipped skill this version no longer has: doctor flags its dead link, plain sync takes it back', async () => {
@@ -432,9 +429,7 @@ describe('skills', () => {
 
     expect(result.stderr).toContain('removed   .claude/skills/mine (a skill that is gone)');
     expect(() => lstatSync(join(root, '.claude', 'skills', 'mine'))).toThrow();
-    expect(lstatSync(join(root, '.claude', 'skills', 'knowledge-sync')).isSymbolicLink()).toBe(
-      true,
-    );
+    expect(lstatSync(join(root, '.claude', 'skills', 'research')).isSymbolicLink()).toBe(true);
   });
 
   test('a skill the user adds later is linked on the next sync', () => {
@@ -449,13 +444,13 @@ describe('skills', () => {
 
   test('a real directory where a skill link belongs is left alone', () => {
     const root = createProject({
-      files: { ...READ_ONLY_PROJECT, '.claude/skills/knowledge-sync/SKILL.md': 'mine' },
+      files: { ...READ_ONLY_PROJECT, '.claude/skills/research/SKILL.md': 'mine' },
     });
 
     expect(runSync({ root }).stderr).toContain('skipped');
-    expect(
-      readFileSync(join(root, '.claude', 'skills', 'knowledge-sync', 'SKILL.md'), 'utf8'),
-    ).toBe('mine');
+    expect(readFileSync(join(root, '.claude', 'skills', 'research', 'SKILL.md'), 'utf8')).toBe(
+      'mine',
+    );
   });
 });
 
@@ -525,7 +520,6 @@ describe('SyncPlanner.plan with the resolved agents', () => {
       join(root, '.agents/skills/docs-update'),
       join(root, '.agents/skills/docs-writing'),
       join(root, '.agents/skills/fix-a-bug'),
-      join(root, '.agents/skills/knowledge-sync'),
       join(root, '.agents/skills/plan-a-change'),
       join(root, '.agents/skills/report-back'),
       join(root, '.agents/skills/research'),

@@ -130,7 +130,6 @@ Which agents you use is your choice, so the committed `.gitignore` cannot list y
 /.agents/skills/docs-update
 /.agents/skills/docs-writing
 /.agents/skills/fix-a-bug
-/.agents/skills/knowledge-sync
 /.agents/skills/plan-a-change
 /.agents/skills/report-back
 /.agents/skills/review-a-change
@@ -153,7 +152,6 @@ $ bun x --no-install vulcan sync
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
   created   .claude/skills/fix-a-bug
-  created   .claude/skills/knowledge-sync
   created   .claude/skills/plan-a-change
   created   .claude/skills/report-back
   created   .claude/skills/research
@@ -182,7 +180,6 @@ $ bun x --no-install vulcan sync
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/fix-a-bug
-  unchanged .claude/skills/knowledge-sync
   unchanged .claude/skills/plan-a-change
   unchanged .claude/skills/report-back
   unchanged .claude/skills/research
@@ -263,7 +260,6 @@ $ bun x --no-install vulcan sync --dry-run
   would create  .claude/skills/docs-update
   would create  .claude/skills/docs-writing
   would create  .claude/skills/fix-a-bug
-  would create  .claude/skills/knowledge-sync
   would create  .claude/skills/plan-a-change
   would create  .claude/skills/report-back
   would create  .claude/skills/research

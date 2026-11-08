@@ -348,10 +348,6 @@ const readEvaluations = (opts: { skill: string; skillDirectory: string }): ISkil
     return fail({ message: `no skill '${opts.skill}' in ${SkillEvalConstants.SKILLS_DIRECTORY}` });
   }
 
-  if (!existsSync(join(REPOSITORY_ROOT, evalsFile))) {
-    return fail({ message: `${evalsFile} not found - ${opts.skill} has no evals` });
-  }
-
   try {
     return SkillEvals.parseFile({
       text: readFileSync(join(REPOSITORY_ROOT, evalsFile), 'utf8'),

@@ -41,7 +41,7 @@ bun x --no-install vulcan doctor
 |---|---|---|
 | [Base rules](/guides/core-concepts/rules-and-slots) | 35 rules in five groups (write boundaries, security, process, build, coding style) that the agent reads at session start. A project picks a wording for a few and adds its own | `node_modules/@venizia/vulcan/base/rules.md`, `.agents/rules.md` |
 | [Guards](/guides/core-concepts/hooks-and-guards) | Hooks that ask or refuse before a database write, a deploy, a force-push to `develop` or `main` or a file outside the project. Your own CLIs can be listed as trusted | `vulcan sync` and `guard` in the config |
-| [Skills](/references/skills) | 12 workflows an agent loads when the task matches: plan, build, fix, review, report, ship, research, retro, docs | `vulcan sync` links them |
+| [Skills](/references/skills) | 11 workflows an agent loads when the task matches: plan, build, fix, review, report, ship, research, retro, docs | `vulcan sync` links them |
 | [The owner and the reply shape](/guides/core-concepts/owner-and-replies) | The agent answers its owner in a fixed shape, in the owner's language, and another agent in the plain format it asked for | `owner` in the config, `vulcan profile` |
 | [Work items](/guides/core-concepts/work-items) | A template for a unit of work a person can read and a fresh agent can do | `base/references/work-item.md` |
 | [Knowledge bundle](/guides/core-concepts/knowledge-bundle) | Markdown facts about your project, checked in Open Knowledge Format v0.2 | `vulcan x okf` |

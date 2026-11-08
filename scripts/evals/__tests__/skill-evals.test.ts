@@ -490,16 +490,6 @@ describe('skill-evals --baseline', () => {
 });
 
 describe('skill-evals bad input exits 2', () => {
-  test('a skill without evals/evals.json is named and nothing runs', () => {
-    const run = runSkillEvals({ args: ['--skill', 'knowledge-sync'] });
-
-    expect(run.code).toBe(2);
-    expect(run.stderr).toContain(
-      'skill-evals: packages/cli/base/skills/knowledge-sync/evals/evals.json not found - knowledge-sync has no evals',
-    );
-    expect(run.calls).toEqual([]);
-  });
-
   test('an input file missing from the project stops a real run before any claude call', () => {
     const run = runSkillEvals({
       args: ['--skill', 'docs-writing', '--models', 'haiku'],

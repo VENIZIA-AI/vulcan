@@ -61,7 +61,7 @@ The guards stop accidental commands; they are not a sandbox.
 
 - **35 base rules** that every agent reads at session start: [rules and slots](https://vulcan.venizia.ai/guides/core-concepts/rules-and-slots).
 - **Guards** that ask or refuse before a database write, a deploy or a force-push, on seven agents (Codex, Cursor and Copilot not yet verified): [hooks and guards](https://vulcan.venizia.ai/guides/core-concepts/hooks-and-guards).
-- **12 skills and a work item format** an agent loads when the task fits: [skills](https://vulcan.venizia.ai/references/skills) and [work items](https://vulcan.venizia.ai/guides/core-concepts/work-items).
+- **11 skills and a work item format** an agent loads when the task fits: [skills](https://vulcan.venizia.ai/references/skills) and [work items](https://vulcan.venizia.ai/guides/core-concepts/work-items).
 - **Replies that follow the reader**, in the owner's language: [the owner and the reply shape](https://vulcan.venizia.ai/guides/core-concepts/owner-and-replies).
 - **A knowledge bundle and a search server** for your docs and symbols: [knowledge bundle](https://vulcan.venizia.ai/guides/core-concepts/knowledge-bundle) and [atlas](https://vulcan.venizia.ai/guides/core-concepts/atlas).
 

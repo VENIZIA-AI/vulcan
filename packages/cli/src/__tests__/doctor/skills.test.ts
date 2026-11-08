@@ -145,7 +145,7 @@ describe('doctor [skills] - a project skill named like a shipped one', () => {
     const root = createProject({
       files: {
         '.configs/vulcan.config.mts': "export default { name: 'shop' };\n",
-        '.agents/skills/knowledge-sync/SKILL.md': SKILL({ name: 'knowledge-sync' }),
+        '.agents/skills/research/SKILL.md': SKILL({ name: 'research' }),
       },
     });
     const result = await DoctorRunner.runChecks({ root });
@@ -154,7 +154,7 @@ describe('doctor [skills] - a project skill named like a shipped one', () => {
       .map((violation) => violation.message);
 
     expect(messages).toContain(
-      "'knowledge-sync' is a shipped skill - rename the project skill, for example to 'shop-knowledge-sync'",
+      "'research' is a shipped skill - rename the project skill, for example to 'shop-research'",
     );
   });
 });

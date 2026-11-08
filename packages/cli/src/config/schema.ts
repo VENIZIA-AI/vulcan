@@ -272,7 +272,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .optional(),
   /** The project's packages in release order; okf, atlas, make and release read this one list. */
   packages: z.array(PROJECT_PACKAGE).superRefine(checkPackagesUnique).default([]),
-  /** Where the project keeps its knowledge bundle, wiki, changelogs and sync map; read by okf, doctor and the knowledge-sync skill. */
+  /** Where the project keeps its knowledge bundle, wiki, changelogs and sync map; read by okf and doctor. */
   knowledge: z
     .strictObject({
       /** Folder of the knowledge bundle (the OKF concepts); default `.agents/knowledge`. */
@@ -281,7 +281,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       wiki: z.string().optional(),
       /** Folder of the changelog files; absent means the project has none. */
       changelogs: z.string().optional(),
-      /** The knowledge-sync skill's map of code areas to concepts. */
+      /** A map of code areas to concepts; no shipped skill reads it. */
       syncAreas: z.string().optional(),
     })
     .default({ bundle: ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE }),
