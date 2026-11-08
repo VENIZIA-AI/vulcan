@@ -133,7 +133,9 @@ describe('the session digest and the launch file', () => {
     });
 
     expect(digest.indexOf('## Launch warning')).toBeGreaterThan(-1);
-    expect(digest.indexOf('## Launch warning')).toBeLessThan(digest.indexOf('## Write boundaries'));
+    expect(digest.indexOf('## Launch warning')).toBeLessThan(
+      digest.indexOf('## How to answer the owner'),
+    );
     expect(digest).toContain(LAUNCH_COMMAND);
   });
 

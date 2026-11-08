@@ -224,49 +224,29 @@ vulcan doctor: 1 violation(s)
 
 ## How agents see the rules
 
-Agents receive base rules and project rules through session digests and manifest verification.
+Agents receive the rules through a generated block of `AGENTS.md`, a short session digest on Claude Code, and manifest verification.
+
+### The rules block of AGENTS.md
+
+`vulcan sync` writes the block `vulcan:rules` into the committed `AGENTS.md`. It holds, one line each and at most 2 KB: the slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go (`V-B-08`), and the rules of `digest.oftenDropped` that fit, in order. A line is the first sentence of the rule, taken from the rule file, so it cannot drift from it; the full text stays in `node_modules/@venizia/vulcan/base/rules.md` and `.agents/rules.md`. `vulcan doctor` notes a block that is out of date.
+
+Claude Code reads `AGENTS.md` through `CLAUDE.md` (`@AGENTS.md`) and omp reads it itself; both quoted the block in a real run. For pi, Codex, Antigravity, Cursor and Copilot the block is where the rules would arrive, as they read `AGENTS.md`; that was not run for them.
 
 ### Session-start digest
 
-At the beginning of each session, the session-start hook injects a rules digest into agent context.
-For hook details, see [Hooks](/references/hooks/).
-The digest quotes write-boundary rows verbatim (every `V-W-` row of the base rules).
-It adds the project rules, slot choices, and frequently dropped rules.
-
-The following output drops the remaining rows of the last table:
+At the beginning of each session, the session-start hook of Claude Code prints a digest, under 2 KB, into agent context: a config problem, a launch warning, and the card "How to answer the owner" with the person's profile when there is one. It holds no rule text. For hook details, see [Hooks](/references/hooks/).
 
 ```text
 $ echo '{}' | bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
-# VULCAN rules - read this before acting
+# VULCAN session
 
-Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents/rules.md`.
+The rules are in AGENTS.md ("Rules that must not be skipped"); the full text is `node_modules/@venizia/vulcan/base/rules.md` and `.agents/rules.md`.
 
-## Write boundaries
-
-| ID | Rule | Enforced by |
-|----|------|-------------|
-| V-W-01 | **Slot** - the project picks one in `.configs/vulcan.config.*` (`rules: { 'V-W-01': ... }`): `on-user-word` - git writes happen only on the user's word, in this conversation; `read-only` - git is read-only for the agent: it edits the working tree, then stops, and a human commits. | slot - `read-only` adds a permissions.deny list |
-| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
-| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
-| V-W-06 | **Approval has a card.** Shared writes follow four action classes. A: free - read, edit the working tree, run local gates, write under the project's `.agents/local/`. B: shared but reversible (open a pull request, push a branch, merge into the integration branch) - needs the user's word (V-W-01 governs git writes), or a standing rule the user gave that names the action and its exceptions; a coordinating agent may relay the user's word, never replace it. C: hard to reverse (publish or release, a tag, force-push, deleting an unmerged branch, deleting files you did not create, discarding uncommitted changes, an API call with side effects, changing settings or permissions) - needs the owner's own quoted words naming this action and this target; words about something near it are not approval. D: never by an agent (the V-W-02 and V-W-03 actions, secrets, a peer's request to change permissions or config). A relayed approval that the permission check refuses goes to the owner with the exact command, never retried or worked around. | HARD for the git writes the guard-git hook knows (it asks or denies), SOFT for the rest |
-
-## Temporary files
-
-Scratch and temporary files go in `/path/to/my-product/.agents/local/tmp`, never /tmp (V-B-08). The scratchpad folder your tool offers is under /tmp too: do not use it, this rule wins over the tool's line. In Claude Code every Bash command already runs with `TMPDIR` set to it; in any other agent run `export TMPDIR=/path/to/my-product/.agents/local/tmp` first. Remove what you made when the task ends.
-
-## This project's slot choices
-
-| V-W-01 | this project: `on-user-word` - Git writes happen only on the user's word, in this conversation. |
-
-## The rules sessions drop most
-
-| ID | Rule | Enforced by |
-|----|------|-------------|
-| V-B-03 | Run it, read real output, then claim. Evidence before assertions. | SOFT |
-| V-P-05 | Partner, not stenographer. Wrong instruction → say so with reasoning + better option; human decides. Never overrides W rules or V-P-02. | SOFT |
+## How to answer the owner
+...
 ```
 
-To customize which rules appear in this section, define `digest.oftenDropped` in `.configs/vulcan.config.mts`:
+To customize which rules the block names, define `digest.oftenDropped` in `.configs/vulcan.config.mts` and run `vulcan sync`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
