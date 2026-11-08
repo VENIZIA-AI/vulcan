@@ -40,13 +40,17 @@ describe('RulesBlock.summaryOf', () => {
     ).toBe('Run it, read real output, then claim the result of the work.');
   });
 
-  test('a long first sentence is cut at a word, with an ellipsis', () => {
-    const summary = RulesBlock.summaryOf({ row: row('V-C-09', `${'word '.repeat(60)}end.`) });
+  test('a long first sentence is kept whole, never cut', () => {
+    const sentence = `${'word '.repeat(60)}end.`;
+    const summary = RulesBlock.summaryOf({ row: row('V-C-09', `${sentence} Second sentence.`) });
 
-    expect(summary.endsWith(' ...')).toBe(true);
-    expect(summary.length).toBeLessThanOrEqual(124);
+    expect(summary).toBe(sentence);
     expect(summary).not.toContain('**');
   });
+});
+
+test('the block may weigh 6 KB: the owner chose it, Claude Code gives a hook up to about 10,000 bytes', () => {
+  expect(RulesBlock.MAX_BYTES).toBe(6144);
 });
 
 describe('RulesBlock.render', () => {
@@ -84,7 +88,7 @@ describe('RulesBlock.render', () => {
   test('over its budget, the often-dropped rules go from the last; the fixed part stays', () => {
     const long = 'x'.repeat(100);
     const many = Array.from(
-      { length: 40 },
+      { length: 90 },
       (_unused, index) => `V-Z-${String(index).padStart(2, '0')}`,
     );
     const block = RulesBlock.render({
@@ -118,6 +122,13 @@ describe('RulesBlock.render', () => {
     expect(Buffer.byteLength(block)).toBeLessThanOrEqual(RulesBlock.MAX_BYTES);
     expect(block).toContain('- V-P-07: ');
     expect(block).toContain('- V-W-06: ');
+
+    // Every default rule is there, and no line is cut.
+    for (const id of ConfigConstants.DEFAULT_OFTEN_DROPPED) {
+      expect(block, id).toContain(`- ${id}: `);
+    }
+
+    expect(block).not.toContain(' ...');
   });
 });
 

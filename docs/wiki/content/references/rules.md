@@ -228,7 +228,7 @@ Agents receive the rules through a generated block of `AGENTS.md`, a short sessi
 
 ### The rules block of AGENTS.md
 
-`vulcan sync` writes the block `vulcan:rules` into the committed `AGENTS.md`. It holds, one line each and at most 2 KB: the slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go (`V-B-08`), and the rules of `digest.oftenDropped` that fit, in order. A line is the first sentence of the rule, taken from the rule file, so it cannot drift from it; the full text stays in `node_modules/@venizia/vulcan/base/rules.md` and `.agents/rules.md`. `vulcan doctor` notes a block that is out of date.
+`vulcan sync` writes the block `vulcan:rules` into the committed `AGENTS.md`. It holds, one line each, the whole first sentence of the rule, and at most 6 KB: the slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go (`V-B-08`), and the rules of `digest.oftenDropped` that fit, in order. A line is the first sentence of the rule, taken from the rule file, so it cannot drift from it; the full text stays in `node_modules/@venizia/vulcan/base/rules.md` and `.agents/rules.md`. `vulcan doctor` notes a block that is out of date.
 
 Claude Code reads `AGENTS.md` through `CLAUDE.md` (`@AGENTS.md`) and omp reads it itself; both quoted the block in a real run. For pi, Codex, Antigravity, Cursor and Copilot the block is where the rules would arrive, as they read `AGENTS.md`; that was not run for them.
 
