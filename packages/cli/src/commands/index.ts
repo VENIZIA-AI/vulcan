@@ -8,7 +8,6 @@ export const COMMAND_LOADERS: Record<string, () => Promise<TCommandHandler>> = {
     import('./agents.command.ts').then((module) => module.runAgentsCommand),
   [VulcanCommands.BOARD]: () =>
     import('./board.command.ts').then((module) => module.runBoardCommand),
-  [VulcanCommands.CI]: () => import('./ci.command.ts').then((module) => module.runCiCommand),
   [VulcanCommands.CLEAN]: () =>
     import('./clean.command.ts').then((module) => module.runCleanCommand),
   [VulcanCommands.COMMIT_CHECK]: () =>

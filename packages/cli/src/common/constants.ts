@@ -13,7 +13,6 @@ export class VulcanCommands {
   static readonly PRESET = 'preset';
   static readonly VISUALIZE = 'visualize';
   static readonly COMMIT_CHECK = 'commit-check';
-  static readonly CI = 'ci';
   static readonly BOARD = 'board';
   static readonly EVENT = 'event';
   static readonly X = 'x';

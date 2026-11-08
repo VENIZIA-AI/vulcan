@@ -327,6 +327,17 @@ describe('ProjectPackages.resolve', () => {
     expect(messages.join('; ')).toContain(`Unrecognized key: "${key}"`);
   });
 
+  test.each([['ci', { affected: { global: ['Makefile'] } }]])(
+    '%s was removed: a config that still sets it is refused, with the key named',
+    (key, value) => {
+      const result = VULCAN_CONFIG_SCHEMA.safeParse({ [key]: value });
+      const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
+
+      expect(result.success).toBe(false);
+      expect(messages.join('; ')).toContain(`Unrecognized key: "${key}"`);
+    },
+  );
+
   test('without packages the list is empty', () => {
     expect(ProjectPackages.resolve({ config: VULCAN_CONFIG_SCHEMA.parse({}) })).toEqual([]);
   });

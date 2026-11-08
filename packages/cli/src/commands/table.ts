@@ -1,6 +1,5 @@
 import { AgentConstants } from '../agents/index.ts';
 import { BoardFlags } from '../board/common/index.ts';
-import { CiFlags } from '../ci/common/index.ts';
 import { CommitCheckFlags } from '../commit/common/index.ts';
 import { ExitCodes, UpgradeFlags, VULCAN_VERSION, VulcanCommands } from '../common/index.ts';
 import { CreateFlags } from '../create/common/index.ts';
@@ -166,24 +165,6 @@ export class CommandTable {
       unknownExit: ExitCodes.USAGE,
       exits:
         '0 on written or serve stopped; 1 when the file cannot be written or serve cannot start; 2 on bad input.',
-    },
-    [VulcanCommands.CI]: {
-      help: `  ci affected --base <ref> [--head <ref>] [--check <check>] [--json | --names] | template <github|gitlab>
-                                  List the workspace packages a change touches (changed ones and what
-                                  depends on them) with the checks each has; template prints a CI file that
-                                  runs exactly those; exit 2 on bad input`,
-      flags: {
-        [CiFlags.JSON]: 'Print the result as JSON',
-        [CiFlags.NAMES]: 'Print only the package names, one per line',
-      },
-      values: {
-        [CiFlags.BASE]: 'The commit to compare with; required',
-        [CiFlags.HEAD]: 'The commit that holds the change; default HEAD',
-        [CiFlags.CHECK]: 'Keep only packages with this check: typecheck, lint, test or compile',
-      },
-      positionals: 2,
-      unknownExit: ExitCodes.USAGE,
-      exits: '0 with a list, an empty one included; 2 on bad input or a run that cannot finish.',
     },
     [VulcanCommands.EVENT]: {
       help: `  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] | tail [--since <time>] [--json] [--dir <folder>]

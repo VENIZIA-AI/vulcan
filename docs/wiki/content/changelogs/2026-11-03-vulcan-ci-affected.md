@@ -17,7 +17,7 @@ packages: ['@venizia/vulcan']
 - **A new command.** `vulcan ci affected --base <ref> [--head <ref>] [--check <check>] [--json | --names]` compares the merge base of `--base` and `--head` with `--head`, maps each changed file to its package, and walks the workspace dependency graph (`workspace:*`, version ranges and `catalog:` links) to add the dependents. `--json` gives each package with its reason (`changed`, `dependent` or `global`) and checks; `--names` prints names only; `--check` keeps the packages that have a check. It exits `0` with a list, an empty one included, and `2` on bad input or when the run cannot finish.
 - **Checks come from the scripts.** A package has `typecheck`, `lint`, `test` or `compile` when its `package.json` has a script of that name. A retired `build` script is not a check.
 - **Shared files affect everything.** A change to a lockfile, the root `package.json`, `bunfig.toml`, a root `tsconfig*.json`, `.configs/` or a workflow file lists every package. A project adds its own paths with `ci.affected.global`.
-- **Two templates.** `vulcan ci template github` and `vulcan ci template gitlab` print a GitHub Actions workflow and a GitLab CI file that call the command: pull requests and `develop` run only the affected checks. Both are in the [command page](/references/commands/ci). `vulcan init` does not write them.
+- **Two templates.** `vulcan ci template github` and `vulcan ci template gitlab` print a GitHub Actions workflow and a GitLab CI file that call the command: pull requests and `develop` run only the affected checks. Both are in the command page. `vulcan init` does not write them.
 
 ## Turn it on
 
@@ -27,7 +27,7 @@ Nothing changes until you use it. Save a template as your CI file, or call the c
 bun x --no-install vulcan ci affected --base origin/develop --check test --names
 ```
 
-The CI must fetch the full history (`fetch-depth: 0` in GitHub Actions, `GIT_DEPTH: "0"` in GitLab CI); the templates do. To count more files as shared, add `ci: { affected: { global: ['Makefile'] } }` to `.configs/vulcan.config.mts`, run `vulcan sync` and commit the manifest. The keys are in the [configuration reference](/references/configuration/#ci) and the details in [vulcan ci](/references/commands/ci).
+The CI must fetch the full history (`fetch-depth: 0` in GitHub Actions, `GIT_DEPTH: "0"` in GitLab CI); the templates do. To count more files as shared, add `ci: { affected: { global: ['Makefile'] } }` to `.configs/vulcan.config.mts`, run `vulcan sync` and commit the manifest. The keys are in the configuration reference and the details in vulcan ci.
 
 ## Who is affected
 
