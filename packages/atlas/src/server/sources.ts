@@ -102,7 +102,7 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
       }),
       symbols: new SymbolStore({
         load: () => ({
-          symbols: SymbolCompute.symbolsOfRepository({ project: source.project }),
+          symbols: SymbolCompute.symbolsOfRepository({ project: source.project, withSource: true }),
           packageMap,
         }),
         fingerprint: () => SymbolCompute.declarationsFingerprintOf({ project: source.project }),
