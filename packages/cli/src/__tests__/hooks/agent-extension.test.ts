@@ -160,6 +160,45 @@ describe('the omp and pi extension runs the real guards', () => {
     expect(both?.reason).toContain('guard.outside');
   });
 
+  test('with guard.outside set to deny, a folder outside the project is denied whatever the file name expands to', async () => {
+    const root = installedProject({
+      files: {
+        '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG,
+        [GUARD_MANIFEST_FILE]: DENY_OUTSIDE_MANIFEST,
+      },
+    });
+    const handle = handlerOf();
+    const named = await handle(
+      bash('echo x > /var/tmp/vulcan-guard-probe-never-created/$X'),
+      contextOf({ cwd: root, hasUI: true, answer: true }),
+    );
+    const mixed = await handle(
+      bash('echo x > $f; echo y > /var/tmp/vulcan-guard-probe-never-created'),
+      contextOf({ cwd: root, hasUI: true, answer: true }),
+    );
+
+    expect(named?.block).toBe(true);
+    expect(named?.reason).toContain('guard.outside');
+    expect(named?.reason).not.toContain('could not be read');
+    expect(mixed?.block).toBe(true);
+    expect(mixed?.reason).toContain('guard.outside');
+    expect(mixed?.reason).toContain('Part of this call could not be read');
+    expect(mixed?.reason.indexOf('Part of this call')).toBeGreaterThan(
+      mixed?.reason.indexOf('vulcan-guard-probe-never-created') ?? 0,
+    );
+  });
+
+  test('a line the guard cannot read keeps the scratch and tool-owned hints under ask', async () => {
+    const root = installedProject();
+    const handle = handlerOf();
+    const result = await handle(bash('echo x > $f'), contextOf({ cwd: root }));
+
+    expect(result?.block).toBe(true);
+    expect(result?.reason).toContain('could not be read');
+    expect(result?.reason).toContain('Scratch files go under');
+    expect(result?.reason).toContain('guard.toolOwnedPaths');
+  });
+
   test('an ask is put to the owner when there is a UI, and blocks when there is none', async () => {
     const root = installedProject();
     const handle = handlerOf();

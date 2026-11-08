@@ -14,9 +14,10 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **Four cases ask in both modes.** A program named by a variable or a substitution, a line the guard cannot follow to its end (a quote that never closes, a line over its limits), a redirect to a word it cannot work out (`> $f`, `> out/$name.log`), and a path under `/proc` or through more links than the system follows.
+- **Four cases ask in both modes.** A program named by a variable or a substitution, a line the guard cannot follow to its end (a quote that never closes, a line over its limits), a write to a word whose folder it cannot work out (`> $f` after a `cd` it could not follow, `> $D/x`, `> out/$name.log` inside the project), and a path under `/proc` or through more links than the system follows.
+- **A folder outside the project is read even when the file name is not.** `> /etc/$X`, `>> ~/.ssh/authorized_keys$S`, `cd /etc && cmd > $f`, `> /etc/*.conf` and a name that expands after the scratchpad folder are taken as written to a folder outside the project, so they are denied under `deny` as before. The same now holds for `cp`, `mv`, `touch`, `mkdir`, `dd of=` and `tee` with an expansion in the file name, which the guard did not report at all.
 - **A path the guard read outside the project is still denied.** So is a line that holds one next to an unread part, and so is a write into the scratchpad folder the agent tool offers.
-- **The reason is honest.** It says part of the call could not be read and to confirm only if nothing is created outside the project. Before, it said the call would create files outside the project.
+- **The reason is honest.** It says part of the call could not be read and to confirm only if nothing is created outside the project, and keeps the scratch-folder and `guard.toolOwnedPaths` hints. In a line that also has a path it read, the unread part is listed on its own. Before, it said the call would create files outside the project.
 - **Nothing changes under the default `ask`**, except the reason of the same four cases.
 
 ## Who is affected

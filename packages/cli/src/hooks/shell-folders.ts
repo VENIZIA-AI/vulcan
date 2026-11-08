@@ -94,6 +94,65 @@ export class ShellFolders {
   }
 
   /**
+   * The folder a word lands in when part of it cannot be worked out (`/etc/$X`, `~/.ssh/key$N`, `/etc/*.conf`):
+   * what comes before the first unknown part, up to its last `/`, with `~` and the variables that are set
+   * expanded; a name with no folder in front of it is in `base`. `undefined` when the folder itself is the unknown
+   * part (`$D/x`; `$f` when the line assigned `f`, whose value may be a path of its own), the word is `~` followed
+   * by an unknown name, or it is taken from a `base` the guard lost (`isKnown` false).
+   */
+  static folderOfUnknown(opts: {
+    word: string;
+    home: string;
+    env: TEnvironment;
+    cwd?: string;
+    base: string;
+    isKnown: boolean;
+    /** The names the line assigned. */
+    assigned: ReadonlySet<string>;
+  }): string | undefined {
+    const known = opts.word.replace(
+      /\$\{(\w+)\}|\$(\w+)/g,
+      (match, braced?: string, plain?: string) => {
+        const name = braced ?? plain ?? '';
+        const value = name === 'PWD' && opts.cwd !== undefined ? opts.cwd : opts.env[name];
+
+        return value === undefined || value === '' ? match : value;
+      },
+    );
+    const cut = known.search(/[$`*?[]/);
+
+    if (cut === -1) {
+      return undefined;
+    }
+
+    const slash = known.lastIndexOf('/', cut);
+
+    if (slash === -1) {
+      const name = /^\$\{?(\w+)/.exec(known)?.[1];
+
+      return !opts.isKnown ||
+        known.startsWith('~') ||
+        (cut === 0 && known.includes('/')) ||
+        (name !== undefined && opts.assigned.has(name))
+        ? undefined
+        : opts.base;
+    }
+
+    const folder = ShellFolders.expandPath({
+      word: known.slice(0, slash + 1),
+      home: opts.home,
+      env: opts.env,
+      cwd: opts.cwd,
+    });
+
+    if (folder === undefined || isAbsolute(folder)) {
+      return folder;
+    }
+
+    return opts.isKnown ? `${opts.base}/${folder}` : undefined;
+  }
+
+  /**
    * The variables a line cannot be trusted to have kept: assigned more than once, or named anywhere else in the line
    * (`for NAME`, `read NAME`, `printf -v NAME`, a nameref, `eval`).
    */

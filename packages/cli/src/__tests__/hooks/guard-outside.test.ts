@@ -679,6 +679,8 @@ describe('a plain variable set earlier on the same line, in the same shell', () 
 });
 
 describe('OutsideGuard.inspect says which hits it could not read', () => {
+  const SCRATCHPAD =
+    '/tmp/claude-1000/-home-user-project/0b1c2d3e-aaaa-bbbb-cccc-1234567890ab/scratchpad';
   const hitsOf = (opts: { command: string }) =>
     OutsideGuard.inspect({
       input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: PROJECT },
@@ -709,6 +711,83 @@ describe('OutsideGuard.inspect says which hits it could not read', () => {
       expect(hits.some((hit) => hit.isUnread)).toBe(false);
     },
   );
+
+  test.each([
+    'echo x > /etc/$X',
+    'echo x > /etc/${X:-passwd}',
+    'echo x > /etc/passwd$X',
+    'echo x > "/etc/$X"',
+    'echo x 2> /etc/$X',
+    'echo k >> /home/u/.ssh/authorized_keys$S',
+    'echo x > ~/.ssh/$(echo k)',
+    'echo x > ~/"$X"',
+    'echo x > ~/$X/../.bashrc',
+    'printf x > ~/.config/systemd/user/$N.service',
+    'cd ~/.ssh && echo k >> authorized_keys$S',
+    'cd /etc && echo x > $f',
+    'echo x > /etc/*.conf',
+    'echo x > $HOME/.ssh/$X',
+    'cd $w && echo x > /etc/$X',
+    'bash -c "echo > /etc/$X"',
+    'cp a /etc/$X',
+    'cp a ~/.config/$N/x',
+    'touch /etc/$X',
+    'mkdir -p ~/.config/$N',
+    'dd of=/etc/$X',
+    'echo x | tee ~/.bashrc$X',
+  ])(
+    '%s lands in a folder outside the project whatever the expansion is: read, so denied',
+    (command) => {
+      const hits = hitsOf({ command });
+
+      expect(hits.length).toBeGreaterThan(0);
+      expect(hits.some((hit) => hit.isUnread)).toBe(false);
+    },
+  );
+
+  test('an expansion after the scratchpad folder is the scratchpad', () => {
+    const hits = hitsOf({ command: `echo x > ${SCRATCHPAD}/$X` });
+
+    expect(hits.map((hit) => hit.isAgentToolScratchpad)).toEqual([true]);
+    expect(hits.some((hit) => hit.isUnread)).toBe(false);
+  });
+
+  test.each([
+    'echo x > $f',
+    'echo x > $D/x',
+    'cd /etc && echo x > $D/x',
+    'cd /etc && echo x > ~$X',
+    'cd $w && echo x > ../out-$t.log',
+    'cd $w && echo x > $f',
+    'cd /etc && cd $w && echo x > out-$t.log',
+    'cd /etc && f=$(date) && echo x > $f',
+    'cd /etc && for p in a b; do f=/home/u/$(date).txt; echo x > $f; done',
+    'echo x > .agents/local/tmp/$t.log',
+    'echo x > out-$t.log',
+    'cd src && echo x > $f',
+  ])('%s has no folder it can read outside the project: unread', (command) => {
+    const hits = hitsOf({ command });
+
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every((hit) => hit.isUnread)).toBe(true);
+  });
+
+  test('a folder a tool owns is not outside: an expansion in it stays unread', () => {
+    const hits = OutsideGuard.inspect({
+      input: {
+        tool: 'Bash',
+        filePath: undefined,
+        command: `echo x > ${HOME}/owned/$X`,
+        cwd: PROJECT,
+      },
+      projectRoot: PROJECT,
+      toolOwnedPaths: [`${HOME}/owned`],
+      home: HOME,
+      env: ENV,
+    });
+
+    expect(hits.every((hit) => hit.isUnread)).toBe(true);
+  });
 
   test('a file tool writing outside the project is read', () => {
     const hits = OutsideGuard.inspect({
