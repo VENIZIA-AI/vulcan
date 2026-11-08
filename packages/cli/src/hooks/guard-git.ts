@@ -289,6 +289,22 @@ const ghCall = (opts: { args: string[] }): { group: string; action: string; rest
   return { group: names[0] ?? '', action: names[1] ?? '', rest: opts.args.slice(index) };
 };
 
+const REF_ENDPOINT = /^repos\/[^/]+\/[^/]+\/git\/refs\/heads\/(.+)$/;
+
+/** The path `gh api` calls for a word: without the host, a `?query`, the slashes at its ends, decoded once. */
+const endpointOf = (opts: { word: string }): string => {
+  const path = opts.word
+    .replace(/^https?:\/\/api\.github\.com/i, '')
+    .replace(/[?#].*$/s, '')
+    .replace(/^\/+|\/+$/g, '');
+
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+};
+
 /** `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>` deletes the branch as `git push --delete` does. */
 const inspectGhApi = (opts: { args: string[] }): IGitHit[] => {
   const { args } = opts;
@@ -303,7 +319,7 @@ const inspectGhApi = (opts: { args: string[] }): IGitHit[] => {
   }
 
   return args
-    .map((word) => /^\/?repos\/[^/]+\/[^/]+\/git\/refs\/heads\/(.+)$/.exec(word)?.[1])
+    .map((word) => REF_ENDPOINT.exec(endpointOf({ word }))?.[1])
     .filter((name): name is string => name !== undefined && isProtected({ name }))
     .map((name) => ({
       decision: GuardDecisions.DENY,

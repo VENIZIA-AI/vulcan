@@ -154,6 +154,11 @@ When a guard cannot read a line in full (it is over a limit above), it asks; `gu
 | S-6 | review | `find . -execdir sh -c 'git push -f origin main' \;` | the command `find` runs is read like any other, a `sh -c` too |
 | S-7 | review | `gh api -X DELETE repos/o/r/git/refs/heads/main` | deleting a protected branch through the API is a deny, as `git push --delete` is |
 | S-8 | review | `gh api --method=DELETE /repos/o/r/git/refs/heads/develop` | the same, with the long option and a leading `/` |
+| S-9 | attack review | `echo git push --force origin main \| bash` | `echo` joins its words with spaces, so the unquoted form is the same line as the quoted one |
+| S-10 | attack review | `printf '%s ' git push -f origin main \| sh` | the first word of `printf` is its format; each `%s` is filled from the words after it |
+| S-11 | attack review | `echo -n git push -f origin main \| sh` | the options of `echo` are not part of the text |
+| S-12 | attack review | `find . -name x -exec git push -f origin main +` | `find` ends the command with `+` as well as `;` |
+| S-13 to S-19 | attack review | `gh api -X delete ...`, a full `https://api.github.com/...` URL, a trailing `/`, a `?query`, a leading `//`, `heads%2Fmain`, `ma%69n` | every form of the endpoint GitHub accepts is read the same way |
 
 Three more ways to make a guard fail are closed the same way: about 700,000 substitutions in one word overflowed the stack and crashed the hook, a megabyte through an `env -S` and `eval` chain took seconds and gigabytes, and a line of many `gh pr merge` commands ran one process each. Each now asks.
 

@@ -181,12 +181,12 @@ export class ShellPrograms {
   static readonly WRAPPER_NAMES: readonly string[] = Object.keys(WRAPPER_OPTIONS);
   /** The shells whose heredoc body is read as commands. */
   static readonly SHELL_NAMES: readonly string[] = ['bash', 'sh', 'zsh', 'dash', 'ksh'];
+  /** The options of `find` that run a command, each ended by a `;` or a `+`. */
+  static readonly FIND_RUN_OPTIONS: readonly string[] = ['-exec', '-execdir', '-ok', '-okdir'];
 }
 
 const SHELLS = new Set(ShellPrograms.SHELL_NAMES);
-
-/** The options of `find` that run a command. */
-const FIND_RUN_OPTIONS = new Set(['-exec', '-execdir', '-ok', '-okdir']);
+const FIND_RUN_OPTIONS = new Set(ShellPrograms.FIND_RUN_OPTIONS);
 
 /** The mark of an open `case` among the groups the parser tracks: its `)` closes a pattern. */
 const CASE_GROUP = 'case';
@@ -1327,8 +1327,7 @@ export class ShellParser {
 
   /**
    * The text a shell reads from its standard input, when the line shows it: a here-string, what `echo` or
-   * `printf` prints into it, or the body of the heredoc of a `cat` that feeds it. `printf` and `echo` print one
-   * word per line, and a `\\n` in a word is a line break.
+   * `printf` prints into it, or the body of the heredoc of a `cat` that feeds it.
    */
   private static stdinScriptsOf(opts: { command: ISimpleCommand }): string[] {
     const { input } = opts.command;
@@ -1345,9 +1344,7 @@ export class ShellParser {
       const program = ShellParser.basenameOf({ word: name });
 
       if (program === 'echo' || program === 'printf') {
-        const printed = args.filter((word) => !/^-[neE]+$/.test(word));
-
-        scripts.push(printed.join('\n').replaceAll('\\n', '\n'));
+        scripts.push(ShellParser.printedBy({ program, args }).replaceAll('\\n', '\n'));
       }
 
       if (program === 'cat' && source.heredoc !== undefined) {
@@ -1356,6 +1353,36 @@ export class ShellParser {
     }
 
     return scripts;
+  }
+
+  /**
+   * What `echo` or `printf` prints: `echo` its words, joined by spaces (an option is a word the parser skips); `printf` its format
+   * with each conversion (`%s`, `%b`...) filled from the words that follow, the format again while words are
+   * left. A guess toward a hit: a conversion is never read as a width or an escape, only as a place for a word.
+   */
+  private static printedBy(opts: { program: string; args: string[] }): string {
+    if (opts.program === 'echo') {
+      return opts.args.join(' ');
+    }
+
+    const words = opts.args[0] === '--' ? opts.args.slice(1) : opts.args;
+    const [format = '', ...rest] = words;
+    const conversion = /%%|%[-+ #0-9.*]*[a-zA-Z]/g;
+
+    if (![...format.matchAll(conversion)].some((match) => match[0] !== '%%')) {
+      return format;
+    }
+
+    let next = 0;
+    let printed = '';
+
+    do {
+      printed += format.replace(conversion, (found) =>
+        found === '%%' ? '%' : (rest[next++] ?? ''),
+      );
+    } while (next < rest.length);
+
+    return printed;
   }
 
   /**
@@ -2119,7 +2146,16 @@ export class ShellParser {
         continue;
       }
 
-      const end = opts.args.findIndex((word, at) => at > index && (word === ';' || word === '+'));
+      let end = index + 1;
+
+      while (end < opts.args.length && opts.args[end] !== ';' && opts.args[end] !== '+') {
+        end += 1;
+      }
+
+      if (end === opts.args.length) {
+        end = -1;
+      }
+
       const words = opts.args.slice(index + 1, end === -1 ? undefined : end);
 
       if (words.length > 0) {

@@ -36,6 +36,8 @@ describe('a shell that reads its commands from stdin is followed', () => {
   test.each([
     'bash <<< "echo x > /tmp/y"',
     String.raw`printf 'echo x > /tmp/y\n' | sh`,
+    'echo cp a /etc/passwd | sh',
+    "printf '%s ' cp a /etc/passwd | sh",
     "cat <<'EOF' | sh\necho x > /tmp/y\nEOF",
     'find . -name x -exec cp {} /tmp/y \\;',
   ])('%s asks about the file outside the project', (command) => {
