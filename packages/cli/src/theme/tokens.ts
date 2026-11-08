@@ -35,9 +35,9 @@ interface IPreset {
 
 /** The neutral part shared by the presets: grounds, text, lines and the states. Board and wiki agree on these values. */
 const NEUTRAL_LIGHT: TTokenMode = {
-  ground: '#f5f5f5',
+  ground: '#f6f6f7',
   bg: '#ffffff',
-  line: '#0000001a',
+  line: '#e2e2e3',
   'line-strong': '#101010',
   ink: '#000000',
   body: '#4b4b4b',
@@ -52,9 +52,9 @@ const NEUTRAL_LIGHT: TTokenMode = {
   'info-soft': '#eff8ff',
 };
 const NEUTRAL_DARK: TTokenMode = {
-  ground: '#121214',
-  bg: '#1b1b1b',
-  line: '#ffffff1a',
+  ground: '#1b1b1f',
+  bg: '#202127',
+  line: '#2e2e32',
   'line-strong': '#ffffff4d',
   ink: '#ffffff',
   body: '#ffffffb3',

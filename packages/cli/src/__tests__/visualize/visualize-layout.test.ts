@@ -194,6 +194,12 @@ describe('the architecture figure', () => {
     );
   });
 
+  test('a camelCase word breaks before a capital letter, never inside a word', () => {
+    expect(
+      FigureLayout.wrapText({ text: 'resolveUpdateOperations', size: 15, isBold: true, max: 140 }),
+    ).toEqual(['resolveUpdate', 'Operations']);
+  });
+
   test('a link between two boxes of one layer runs below the row, and a link over several layers down the right margin', () => {
     const html = pageOf(architectureSpec());
     const paths = [...html.matchAll(/<path d="(M[^"]*)" class="dline"\/>/g)].map(

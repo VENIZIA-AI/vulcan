@@ -212,23 +212,23 @@ describe('state colours are separate from the accent (C13)', () => {
 });
 
 describe('the token blocks', () => {
-  test('light on :root, the system dark setting unless the page is set to light, then an explicit dark, with the same tokens in each', () => {
+  test('dark on :root, the system light setting unless the page is set to dark, then an explicit light, with the same tokens in each', () => {
     const css = ProjectTheme.tokensCss({
       theme: palettes({ accent: '#8a5a20', accentDark: '#dead6a' }),
     });
-    const [light, system, explicit] = css.split('\n');
+    const [dark, system, explicit] = css.split('\n');
 
-    expect(light).toStartWith(':root{');
-    expect(system).toContain('@media (prefers-color-scheme:dark){:root:not([data-theme=light])');
-    expect(explicit).toStartWith(':root[data-theme=dark]{');
+    expect(dark).toStartWith(':root{');
+    expect(system).toContain('@media (prefers-color-scheme:light){:root:not([data-theme=dark])');
+    expect(explicit).toStartWith(':root[data-theme=light]{');
 
     const names = (block: string): string[] =>
       [...block.matchAll(/--[a-z0-9-]+(?=:)/g)].map((match) => match[0]);
 
-    expect(names(system).sort()).toEqual(names(light).sort());
-    expect(names(explicit).sort()).toEqual(names(light).sort());
-    expect(light).toContain('--accent:#8a5a20');
-    expect(explicit).toContain('--accent:#dead6a');
+    expect(names(system).sort()).toEqual(names(dark).sort());
+    expect(names(explicit).sort()).toEqual(names(dark).sort());
+    expect(dark).toContain('--accent:#dead6a');
+    expect(explicit).toContain('--accent:#8a5a20');
   });
 });
 

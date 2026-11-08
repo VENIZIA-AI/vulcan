@@ -126,6 +126,47 @@ const stateOf = (opts: {
   return { state, tone: NodeStates.toneOf(state), word };
 };
 
+/** The group each part belongs to: the small amber label above its heading. */
+const KICKS: Record<string, keyof TChrome> = {
+  flow: 'kickOverview',
+  minimap: 'kickOverview',
+  next: 'kickOverview',
+  architecture: 'kickStructure',
+  compare: 'kickStructure',
+  sequence: 'kickStructure',
+  lifecycle: 'kickStructure',
+  tree: 'kickStructure',
+  'idea-map': 'kickStructure',
+  comparison: 'kickDecision',
+  'decision-record': 'kickDecision',
+  decisions: 'kickDecision',
+  findings: 'kickEvidence',
+  grades: 'kickEvidence',
+  metrics: 'kickEvidence',
+  evidence: 'kickEvidence',
+  explainer: 'kickPlan',
+  timeline: 'kickPlan',
+  'before-after': 'kickPlan',
+  risks: 'kickReference',
+  log: 'kickReference',
+  terms: 'kickReference',
+  sources: 'kickReference',
+  links: 'kickReference',
+};
+
+/** Puts the label above the heading of every part that has a group. */
+const withKickers = (opts: { html: string; chrome: TChrome }): string =>
+  opts.html.replace(
+    /(<section class="[^"]*" id="([a-z-]+)" data-slide><div class="wrap">)(<h2 class="sh">)/g,
+    (match, open: string, id: string, heading: string) => {
+      const key = KICKS[id];
+
+      return key === undefined
+        ? match
+        : `${open}<p class="kick">${escaped(String(opts.chrome[key]))}</p>${heading}`;
+    },
+  );
+
 /** The always-dark hero: the state, the title, the verdict, the caption, and the flow when the spec has one. */
 const heroHtml = (opts: { ctx: ISectionContext }): string => {
   const { spec, chrome } = opts.ctx;
@@ -135,7 +176,7 @@ const heroHtml = (opts: { ctx: ISectionContext }): string => {
     spec.scope === undefined ? '' : `<span>${escaped(chrome.scope)}: ${escaped(spec.scope)}</span>`,
   ].join('');
 
-  return `<div class="banner slab c-${tone}" data-slide data-hero><div class="wrap hero"><p class="state">${SpecCharts.stateIcon({ state, size: 22 })}<span class="word">${escaped(word)}</span></p><h1>${escaped(spec.title)}</h1><p class="lede">${escaped(spec.verdict)}</p>${spec.caption === undefined ? '' : `<p class="cap">${escaped(spec.caption)}</p>`}${meta === '' ? '' : `<p class="meta">${meta}</p>`}${SpecSections.flow({ ctx: opts.ctx })}</div></div>`;
+  return `<div class="banner slab c-${tone}" data-slide data-hero><div class="wrap hero"><p class="state">${SpecCharts.stateIcon({ state, size: 22 })}<span class="word">${escaped(word)}</span></p><h1>${escaped(spec.title)}${spec.titleMuted === undefined ? '' : ` <span class="mute">${escaped(spec.titleMuted)}</span>`}</h1><p class="lede">${escaped(spec.verdict)}</p>${spec.caption === undefined ? '' : `<p class="cap">${escaped(spec.caption)}</p>`}${meta === '' ? '' : `<p class="meta">${meta}</p>`}${SpecSections.flow({ ctx: opts.ctx })}</div></div>`;
 };
 
 /** The minimap as a track: a stripe, a shape and a word for every task. */
@@ -228,6 +269,8 @@ export class PageShell {
       SpecSections.explainer({ ctx }),
       SpecSections.timeline({ ctx }),
       SpecSections.findings({ ctx }),
+      SpecSections.grades({ ctx }),
+      SpecSections.metrics({ ctx }),
       SpecSections.beforeAfter({ ctx }),
       SpecSections.decisionRecord({ ctx }),
       SpecSections.decisions({ ctx }),
@@ -262,6 +305,6 @@ export class PageShell {
     const bar = `<header class="top slab c-${tone}"><div class="wrap">${MARK}<b class="ttl">${escaped(spec.title)}</b>${SpecSections.chip({ chrome, state, size: 18, label: word })}<nav aria-label="${escaped(chrome.navLabel)}"><span class="links">${links}</span>${stamp}<span class="sep" aria-hidden="true"></span><button class="btn js-only" id="present" type="button" data-on="${escaped(chrome.present)}" data-off="${escaped(chrome.exitPresent)}">${escaped(chrome.present)}</button><button class="theme" id="theme" type="button" aria-label="${escaped(chrome.themeToDark)}" data-to-light="${escaped(chrome.themeToLight)}" data-to-dark="${escaped(chrome.themeToDark)}">${IconSet.iconSvg({ name: 'sun', size: 20, className: 'sun' })}${IconSet.iconSvg({ name: 'moon', size: 20, className: 'moon' })}<span class="tip" aria-hidden="true"></span></button></nav></div></header>`;
     const deck = `<nav class="deck" aria-label="${escaped(chrome.slide)}"><button class="btn" id="slide-prev" type="button">${escaped(chrome.previous)}</button><span id="slide-count" aria-live="polite"></span><button class="btn" id="slide-next" type="button">${escaped(chrome.following)}</button></nav>`;
 
-    return `<!doctype html><html lang="${escaped(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="${escaped(policy)}"><meta name="generator" content="vulcan visualize"><title>${escaped(spec.title)}</title><script>${HEAD_JS}</script><style>${css}</style></head><body>${bar}<main>${body}</main><footer class="slab foot"><div class="wrap"><p>${escaped(chrome.footer)}</p></div></footer>${deck}<script>${PAGE_JS}</script></body></html>`;
+    return `<!doctype html><html lang="${escaped(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="${escaped(policy)}"><meta name="generator" content="vulcan visualize"><title>${escaped(spec.title)}</title><script>${HEAD_JS}</script><style>${css}</style></head><body>${bar}<main>${withKickers({ html: body, chrome })}</main><footer class="slab foot"><div class="wrap"><p>${escaped(chrome.footer)}</p></div></footer>${deck}<script>${PAGE_JS}</script></body></html>`;
   }
 }

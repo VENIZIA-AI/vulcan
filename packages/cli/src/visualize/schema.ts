@@ -12,7 +12,13 @@ import {
 } from './constants.ts';
 import type { TChangeKind } from './constants.ts';
 import { COMPARE_SCHEMA } from './compare-schema.ts';
-import { LIFECYCLE_SCHEMA, SEQUENCE_SCHEMA, TREE_SCHEMA } from './kinds-schema.ts';
+import {
+  GRADES_SCHEMA,
+  LIFECYCLE_SCHEMA,
+  METRICS_SCHEMA,
+  SEQUENCE_SCHEMA,
+  TREE_SCHEMA,
+} from './kinds-schema.ts';
 import { SOURCE_SCHEMA, TERMS_SCHEMA } from './sources.ts';
 
 /** One line of plain text: no markup is interpreted anywhere, it is all escaped. */
@@ -350,6 +356,8 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   schemaVersion: z.literal(VisualizeLimits.SCHEMA_VERSION),
   /** The takeaway, not a topic. */
   title: text(VisualizeLimits.MAX_TITLE),
+  /** The second half of the headline, shown muted after the title. */
+  titleMuted: text(VisualizeLimits.MAX_TITLE).optional(),
   /** The page's language; absent, it is the owner's profile language, else English. */
   language: z
     .string()
@@ -416,6 +424,8 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   explainer: EXPLAINER.optional(),
   timeline: TIMELINE.optional(),
   findings: FINDINGS.optional(),
+  grades: GRADES_SCHEMA.optional(),
+  metrics: METRICS_SCHEMA.optional(),
   sequence: SEQUENCE_SCHEMA.optional(),
   lifecycle: LIFECYCLE_SCHEMA.optional(),
   tree: TREE_SCHEMA.optional(),

@@ -204,7 +204,7 @@ describe('the prebuilt index in the manifest (C27)', () => {
       accent: '#8a5a20',
       'accent-soft': '#f5ecdf',
     });
-    expect(manifest.theme.tokens.dark).toMatchObject({ accent: '#dead6a', ground: '#121214' });
+    expect(manifest.theme.tokens.dark).toMatchObject({ accent: '#dead6a', ground: '#1b1b1f' });
   });
 
   test('a config that sets neither renders the text it always did', () => {

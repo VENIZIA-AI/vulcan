@@ -58,10 +58,10 @@ const declarations = (opts: { palette: IStatePalette }): string => {
   return `--ok:${p.ok};--ok-bg:${p.okBg};--warn:${p.warn};--warn-bg:${p.warnBg};--bad:${p.bad};--bad-bg:${p.badBg};--info:${p.info};--info-bg:${p.infoBg};--s1:${p.s1};--s2:${p.s2};--s3:${p.s3};--s4:${p.s4};--s5:${p.s5}`;
 };
 
-/** The state colours in the same three-block form as the project tokens: light, system dark, explicit dark. */
-const STATE_CSS = `:root{${declarations({ palette: STATE_PALETTE.light })}}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){${declarations({ palette: STATE_PALETTE.dark })}}}
-:root[data-theme=dark]{${declarations({ palette: STATE_PALETTE.dark })}}`;
+/** The state colours in the same three-block form as the project tokens: dark, system light, explicit light. */
+const STATE_CSS = `:root{${declarations({ palette: STATE_PALETTE.dark })}}
+@media (prefers-color-scheme:light){:root:not([data-theme=dark]){${declarations({ palette: STATE_PALETTE.light })}}}
+:root[data-theme=light]{${declarations({ palette: STATE_PALETTE.light })}}`;
 
 /** The dark values, set again on everything that sits on the always-dark slab. */
 const SLAB_STATES = declarations({ palette: STATE_PALETTE.dark });
@@ -114,9 +114,9 @@ const BASE_CSS = [
   `.theme:hover{color:var(--ink);background:#ffffff0d}`,
   `.theme:focus-visible{outline:2px solid var(--hot);outline-offset:1px}`,
   `.theme svg{position:absolute;top:8px;left:8px;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:transform .4s cubic-bezier(.22,1,.36,1),opacity .25s ease}`,
-  `.theme .moon{opacity:0;transform:rotate(-90deg) scale(.6)}`,
-  `:root[data-theme=dark] .theme .sun{opacity:0;transform:rotate(90deg) scale(.6)}:root[data-theme=dark] .theme .moon{opacity:1;transform:none}`,
-  `@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .theme .sun{opacity:0;transform:rotate(90deg) scale(.6)}:root:not([data-theme=light]) .theme .moon{opacity:1;transform:none}}`,
+  `.theme .sun{opacity:0;transform:rotate(90deg) scale(.6)}`,
+  `:root[data-theme=light] .theme .sun{opacity:1;transform:none}:root[data-theme=light] .theme .moon{opacity:0;transform:rotate(-90deg) scale(.6)}`,
+  `@media (prefers-color-scheme:light){:root:not([data-theme=dark]) .theme .sun{opacity:1;transform:none}:root:not([data-theme=dark]) .theme .moon{opacity:0;transform:rotate(-90deg) scale(.6)}}`,
   `.theme .tip{position:absolute;top:calc(100% + 8px);right:0;white-space:nowrap;background:var(--slab-2);color:var(--slab-ink);font-size:13px;padding:6px 10px;border-radius:var(--radius);opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity .15s,transform .15s;box-shadow:0 8px 24px #0006}`,
   `.theme:hover .tip,.theme:focus-visible .tip{opacity:1;transform:none}`,
   `::view-transition-old(root),::view-transition-new(root){animation-duration:200ms;animation-timing-function:ease}`,
@@ -134,13 +134,23 @@ const BASE_CSS = [
   `.panels{display:grid;gap:2px;border-radius:var(--radius);overflow:hidden}`,
   // Tiles: fields of colour with a big number.
   `.slide-tiles{padding-top:56px}`,
-  `.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:2px;border-radius:var(--radius);overflow:hidden}`,
+  `.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:color-mix(in srgb,var(--ink) 14%,transparent);border:1px solid color-mix(in srgb,var(--ink) 14%,transparent);border-radius:var(--radius);overflow:hidden}`,
   `.tile{position:relative;display:grid;align-content:start;padding:28px 26px 30px;background:var(--bg-soft)}`,
-  `.tile.c-ok,.tile.c-warn,.tile.c-bad,.tile.c-info{background:var(--cb)}`,
-  `.tile .n{font-size:clamp(36px,4.4vw,60px);line-height:.95;font-weight:650;letter-spacing:-.05em;color:var(--ink);overflow-wrap:anywhere;margin-bottom:10px}`,
+  `.tile .n{font-size:clamp(30px,3vw,44px);line-height:.95;font-weight:650;letter-spacing:-.05em;color:var(--ink);overflow-wrap:break-word;margin-bottom:10px}`,
   `.tile.c-ok .n,.tile.c-warn .n,.tile.c-bad .n,.tile.c-info .n{padding-right:36px}`,
-  `.tile .l{color:var(--body);font-size:16px}`,
+  `.tile .l{color:var(--body);font-size:13px;letter-spacing:.06em;text-transform:uppercase}`,
   `.tile .ic{position:absolute;top:22px;right:22px;color:var(--c)}`,
+  `.kick{display:flex;align-items:center;gap:8px;margin:0 0 14px;color:var(--accent);font-size:12px;font-weight:650;letter-spacing:.14em;text-transform:uppercase}.kick:before{content:'';width:6px;height:6px;background:currentColor}`,
+  `h1 .mute{color:var(--slab-muted)}`,
+  `.grades,.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1px;margin:0;padding:0;list-style:none;background:color-mix(in srgb,var(--ink) 14%,transparent);border:1px solid color-mix(in srgb,var(--ink) 14%,transparent);border-radius:var(--radius);overflow:hidden}`,
+  `.grades li,.metrics li.mc{display:grid;align-content:start;gap:8px;padding:20px 22px;background:var(--bg-soft)}`,
+  `.gn{color:var(--ink);font-weight:650}.gt{color:var(--body);font-size:15px}`,
+  `.gr{display:inline-flex;align-items:center;gap:8px;justify-self:start;padding:3px 10px;border-radius:var(--radius);color:var(--c);background:var(--cb);font-size:14px}.gr b{font-size:16px}`,
+  `.mv{margin:0;color:var(--ink);font-size:clamp(30px,3.4vw,44px);line-height:1;font-weight:650;letter-spacing:-.04em}.mv small{margin-left:6px;color:var(--muted);font-size:.45em;font-weight:500;letter-spacing:0}`,
+  `.ml{margin:0;color:var(--ink);font-weight:650}.mt{margin:0;color:var(--body);font-size:15px}`,
+  `.mb{display:block;width:100%;height:8px;border-radius:2px;overflow:hidden;background:color-mix(in srgb,var(--ink) 10%,transparent)}.mb rect{fill:var(--tc)}`,
+  `.t-ok{--tc:var(--ok)}.t-warn{--tc:var(--accent)}.t-bad{--tc:var(--bad)}.t-info{--tc:var(--info)}`,
+  `.mlg{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0;padding:0;list-style:none;color:var(--body);font-size:13px}.mlg .sw{display:inline-block;width:8px;height:8px;margin-right:6px;background:var(--tc)}`,
   // The minimap: a track, a stripe and a word per task.
   `.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:2px;border-radius:var(--radius);overflow:hidden}`,
   `.seg{display:grid;align-content:start;padding:0 20px 22px;background:var(--bg-soft)}`,
@@ -358,8 +368,8 @@ export const PAGE_JS = `(()=>{
 const d=document,q=(s,r=d)=>r.querySelector(s),qa=(s,r=d)=>[...r.querySelectorAll(s)],root=d.documentElement;
 const tb=q('#theme');
 if(tb){
-const mq=matchMedia('(prefers-color-scheme: dark)'),tip=q('.tip',tb);
-const dark=()=>{const t=root.dataset.theme;return t?t==='dark':mq.matches};
+const mq=matchMedia('(prefers-color-scheme: light)'),tip=q('.tip',tb);
+const dark=()=>{const t=root.dataset.theme;return t?t==='dark':!mq.matches};
 const paint=()=>{const w=dark()?tb.dataset.toLight:tb.dataset.toDark;tb.setAttribute('aria-label',w);if(tip)tip.textContent=w};
 const flip=()=>{const n=dark()?'light':'dark';root.dataset.theme=n;try{localStorage.setItem('vz-theme',n)}catch(e){}paint()};
 paint();

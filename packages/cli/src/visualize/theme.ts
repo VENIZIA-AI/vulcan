@@ -142,8 +142,8 @@ const ratioText = (value: number): string => `${value.toFixed(2)}:1`;
 
 /** The fixed grounds: tinted a little toward the accent, so a page reads as the project's own. */
 const GROUNDS = {
-  light: { bg: '#ffffff', bgSoft: '#f6f6f5', ink: '#0e0e0f', body: '#3a3a3d', muted: '#66666b' },
-  dark: { bg: '#121214', bgSoft: '#1b1b1e', ink: '#f6f6f7', body: '#d0d0d4', muted: '#a2a2a8' },
+  light: { bg: '#ffffff', bgSoft: '#f6f6f7', ink: '#0e0e0f', body: '#3a3a3d', muted: '#66666b' },
+  dark: { bg: '#1b1b1f', bgSoft: '#202127', ink: '#f6f6f7', body: '#d0d0d4', muted: '#a2a2a8' },
   slab: {
     slab: '#151517',
     slab2: '#202023',
@@ -154,7 +154,7 @@ const GROUNDS = {
   },
   slabDark: { slab: '#0b0b0c', slab2: '#19191b', slab3: '#252528' },
   accentLightSoft: 0.12,
-  accentDarkSoft: 0.14,
+  accentDarkSoft: 0.12,
   tint: 0.035,
 };
 
@@ -396,14 +396,14 @@ export class ProjectTheme {
   }
 
   /**
-   * The theme blocks: light on `:root`, then the system dark setting unless the page was set to light, then an
-   * explicit dark. The same tokens in each.
+   * The theme blocks: dark on `:root`, then the system light setting unless the page was set to dark, then an
+   * explicit light. The same tokens in each.
    */
   static tokensCss(opts: { theme: IResolvedTheme }): string {
     const light = ProjectTheme.declarations({ palette: opts.theme.light });
     const dark = ProjectTheme.declarations({ palette: opts.theme.dark });
 
-    return `:root{${light};color-scheme:light}\n@media (prefers-color-scheme:dark){:root:not([data-theme=light]){${dark};color-scheme:dark}}\n:root[data-theme=dark]{${dark};color-scheme:dark}`;
+    return `:root{${dark};color-scheme:dark}\n@media (prefers-color-scheme:light){:root:not([data-theme=dark]){${light};color-scheme:light}}\n:root[data-theme=light]{${light};color-scheme:light}`;
   }
 
   /**
