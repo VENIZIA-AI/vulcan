@@ -305,6 +305,42 @@ describe('vulcan doctor: the warning', () => {
     expect(warnings[0].message).not.toContain('10.0.0.9');
   });
 
+  test('files that hold only addresses or machine paths are one warning that names them all; a key keeps its own line', async () => {
+    const root = repository({
+      'src/policy-a.ts': 'const blocked = "10.20.30.40";\n',
+      'src/policy-b.ts': 'const blocked = "10.20.30.41"; const other = "10.20.30.42";\n',
+      'docs/setup.md': 'run it in /home/alice/work/app\n',
+      'env/dev.env': `${KEY_HEADER}\n`,
+    });
+    const result = await DoctorRunner.runWarnings({ root });
+    const warnings = result.filter((warning) => warning.check === 'private-values');
+
+    expect(warnings).toHaveLength(2);
+
+    const key = warnings.find((warning) => warning.file === 'env/dev.env');
+    const mild = warnings.find((warning) => warning.file === '3 files');
+
+    expect(key?.message).toContain('1 private-key');
+    expect(mild?.message).toContain('3 files hold only addresses or machine paths');
+    expect(mild?.message).toContain('src/policy-a.ts (1 ipv4)');
+    expect(mild?.message).toContain('src/policy-b.ts (2 ipv4)');
+    expect(mild?.message).toContain('docs/setup.md (1 machine-path)');
+    expect(mild?.message).not.toContain('10.20.30');
+    expect(mild?.message).not.toContain('alice');
+    expect(mild?.message).toContain('doctor.privateValues.acknowledged');
+  });
+
+  test('one file that holds only an address keeps its own line', async () => {
+    const root = repository({ 'src/policy.ts': 'const blocked = "10.20.30.40";\n' });
+    const result = await DoctorRunner.runWarnings({ root });
+    const warnings = result.filter((warning) => warning.check === 'private-values');
+
+    expect(warnings.map((warning) => warning.file)).toEqual(['src/policy.ts']);
+    expect(warnings[0].message).toContain(
+      'holds only addresses or machine paths: src/policy.ts (1 ipv4)',
+    );
+  });
+
   test('an acknowledged file is counted in one note, not a warning, and the check is never silent', async () => {
     const root = repository(
       { 'env/dev.env': `${KEY_HEADER}\n`, 'env/two.env': `${KEY_HEADER}\n` },
