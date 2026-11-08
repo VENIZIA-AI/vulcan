@@ -44,6 +44,8 @@ export class RulesBlock {
   static render(opts: {
     rows: string[];
     slotLines: string[];
+    /** The rule packs the project follows: each one's name, the path of its file and the IDs of its rules. */
+    packs?: { name: string; path: string; ids: string[] }[];
     /** The project's temp folder, relative to its root: the block is committed, so it holds no path of one machine. */
     tmp: string;
     oftenDropped: string[];
@@ -62,6 +64,10 @@ export class RulesBlock {
         'Full text, cited by ID: `node_modules/@venizia/vulcan/base/rules.md` (V-*) and `.agents/rules.md`.',
         '',
         ...opts.slotLines,
+        ...(opts.packs ?? []).map(
+          (pack) =>
+            `- Pack \`${pack.name}\` (\`${pack.path}\`): this project follows it - ${pack.ids.join(', ')}.`,
+        ),
         ...['V-W-02', 'V-W-03', 'V-W-06']
           .map((id) => bullet(id))
           .filter((line) => line !== undefined),

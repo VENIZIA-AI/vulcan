@@ -1,11 +1,11 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AtlasBlock, RulesBlock } from '../agents/index.ts';
-import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
+import { ProjectLayout } from '../common/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { ProjectManifest } from '../manifest/index.ts';
-import { RuleParser, RuleSlots } from '../rules/index.ts';
+import { BaseRules, RulePacks, RuleParser, RuleSlots } from '../rules/index.ts';
 import { SyncStatuses } from './common/index.ts';
 import type { ISyncAction } from './common/index.ts';
 
@@ -18,12 +18,17 @@ export class AgentsBlockPlan {
   /** The rules block of this project: the base rules and the project's own, the slot choices and the config's often-dropped list. */
   private static rulesBlockOf(opts: { root: string; config: TResolvedConfig }): string {
     return RulesBlock.render({
-      rows: RuleParser.extractRows({
-        markdown: [
-          readText({ file: join(BASE_DIRECTORY, 'rules.md') }),
-          readText({ file: join(opts.root, '.agents', 'rules.md') }),
-        ].join('\n'),
-      }),
+      rows: [
+        ...Object.values(BaseRules.read({ packs: opts.config.packs })),
+        ...RuleParser.extractRows({
+          markdown: readText({ file: join(opts.root, '.agents', 'rules.md') }),
+        }),
+      ],
+      packs: opts.config.packs.map((name) => ({
+        path: RulePacks.pathOf({ name }),
+        name,
+        ids: Object.keys(RulePacks.rowsOf({ name })),
+      })),
       slotLines: RulesBlock.slotLinesOf({
         slots: RuleSlots.read(),
         choices: opts.config.rules,

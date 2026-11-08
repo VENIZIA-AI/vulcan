@@ -214,9 +214,9 @@ export class ProjectManifest {
   }
 
   /** Each base rule's ID with a hash of its row: a sync after an upgrade can say which rules changed. */
-  static buildBaseRuleHashes(): Record<string, string> {
+  static buildBaseRuleHashes(opts: { packs?: string[] } = {}): Record<string, string> {
     return Object.fromEntries(
-      Object.entries(BaseRules.read()).map(([id, row]) => {
+      Object.entries(BaseRules.read(opts)).map(([id, row]) => {
         const hash = new Bun.CryptoHasher('sha256').update(row.trim()).digest('hex');
 
         return [id, hash.slice(0, HASH_LENGTH)];
@@ -264,7 +264,7 @@ export class ProjectManifest {
       },
       rules: {
         project: ManifestConstants.PROJECT_RULES,
-        base: ProjectManifest.buildBaseRuleHashes(),
+        base: ProjectManifest.buildBaseRuleHashes({ packs: config.packs }),
       },
       // The sources this project reads knowledge from (atlas, git mode); a project without any carries none.
       ...(config.atlas.sources.length === 0 ? {} : { sources: config.atlas.sources }),

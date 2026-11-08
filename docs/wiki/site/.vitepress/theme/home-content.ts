@@ -9,7 +9,7 @@
 import pkg from '../../../../../packages/cli/package.json';
 import type { THomeContent, TSiteInfo } from './shared/home-types';
 
-export const COUNTS = { rules: 40, skills: 12, agents: 7, tools: 6 };
+export const COUNTS = { rules: 35, skills: 12, agents: 7, tools: 6 };
 
 export const SITE: TSiteInfo = {
   id: 'vulcan',

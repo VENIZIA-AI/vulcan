@@ -113,6 +113,26 @@ describe('doctor', () => {
     expect(result.stderr).not.toContain('V-W-06');
   });
 
+  test('a rule of a pack the project did not turn on says which pack holds it; with the pack on, it is known', async () => {
+    const rules = '| **C-30** | **Extends V-C-08.** mine | SOFT |\n';
+    const off = createSyncedProject({ files: { ...CONFORMANT, '.agents/rules.md': rules } });
+    const on = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.configs/vulcan.config.mts':
+          "export default { rules: { 'V-W-01': 'read-only' }, packs: ['venizia'] };\n",
+        '.agents/rules.md': rules,
+      },
+    });
+
+    const result = await DoctorRunner.runChecks({ root: off });
+    expect(result.map((item) => item.message)).toEqual([
+      "V-C-08 is in the venizia pack - add 'venizia' to packs in the config",
+    ]);
+    const result2 = await findChecks({ root: on });
+    expect(result2).toEqual([]);
+  });
+
   test('a V- ID the base does not carry, extended or in a first cell', async () => {
     const root = createSyncedProject({
       files: {

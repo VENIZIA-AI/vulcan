@@ -4,13 +4,14 @@ import { join } from 'node:path';
 import { AtlasBlock, GeneratedBlock, RulesBlock } from '../../agents/index.ts';
 import { BASE_DIRECTORY } from '../../common/index.ts';
 import { ConfigConstants } from '../../config/index.ts';
-import { RuleParser, RuleSlots } from '../../rules/index.ts';
+import { RulePacks, RuleParser, RuleSlots } from '../../rules/index.ts';
 
 const row = (id: string, text: string): string => `| ${id} | ${text} | SOFT |`;
 
-const BASE_ROWS = RuleParser.extractRows({
-  markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
-});
+const BASE_ROWS = [
+  ...RuleParser.extractRows({ markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8') }),
+  ...Object.values(RulePacks.rowsOf({ name: 'venizia' })),
+];
 
 describe('RulesBlock.summaryOf', () => {
   test('a rule is its first sentence, plain; a title alone takes the next sentence', () => {
@@ -105,6 +106,24 @@ describe('RulesBlock.render', () => {
     expect(block).toContain('- V-P-07: ');
     expect(block).toContain('- V-W-06: ');
     expect(block).toContain('export TMPDIR=');
+  });
+
+  test('a pack the project follows is named with its file and its rule IDs', () => {
+    const block = RulesBlock.render({
+      ...input,
+      packs: [
+        {
+          name: 'venizia',
+          path: 'node_modules/@venizia/vulcan/base/packs/venizia.md',
+          ids: ['V-B-05', 'V-C-08'],
+        },
+      ],
+    });
+
+    expect(block).toContain(
+      '- Pack `venizia` (`node_modules/@venizia/vulcan/base/packs/venizia.md`): this project follows it - V-B-05, V-C-08.',
+    );
+    expect(RulesBlock.render(input)).not.toContain('- Pack ');
   });
 
   test('the real base rules and the default often-dropped list fit in the budget, whole', () => {
