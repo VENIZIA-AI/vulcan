@@ -80,6 +80,8 @@ export class SpecSections {
       [spec.explainer !== undefined, 'explainer', chrome.explainer],
       [spec.timeline !== undefined, 'timeline', chrome.timeline],
       [spec.findings !== undefined, 'findings', chrome.findings],
+      [spec.grades !== undefined, 'grades', chrome.grades],
+      [spec.metrics !== undefined, 'metrics', chrome.metrics],
       [spec.beforeAfter !== undefined, 'before-after', `${chrome.before} / ${chrome.after}`],
       [spec.decisionRecord !== undefined, 'decision-record', chrome.decisionRecord],
       [spec.decisions !== undefined, 'decisions', chrome.decisions],
@@ -312,6 +314,60 @@ export class SpecSections {
       id: 'findings',
       title: chrome.findings,
       body: `${findings.numbers === undefined ? '' : SpecSections.tilesHtml({ tiles: findings.numbers, chrome })}${findings.charts === undefined ? '' : `<div class="charts">${findings.charts.map((chart) => SpecCharts.render({ chart, chrome })).join('')}</div>`}${findings.callouts === undefined ? '' : `<ul class="callouts">${findings.callouts.map((callout) => `<li class="callout c-${callout.state === undefined ? 'info' : NodeStates.toneOf(callout.state)}">${SpecCharts.stateIcon({ state: callout.state ?? 'info', size: 22 })}<p>${callout.state === undefined ? '' : `<span class="vh">${escaped(SpecSections.stateWord({ chrome, state: callout.state }))}: </span>`}${escaped(callout.text)}</p></li>`).join('')}</ul>`}`,
+    });
+  }
+
+  /** A grade for each area: a chip whose letter is always shown, so colour is never the only signal. */
+  static grades(opts: { ctx: ISectionContext }): string {
+    const { grades } = opts.ctx.spec;
+    const { chrome } = opts.ctx;
+    const tones: Record<string, string> = { A: 'ok', B: 'info', C: 'bad' };
+    const words: Record<string, string> = { A: chrome.gradeA, B: chrome.gradeB, C: chrome.gradeC };
+
+    if (grades === undefined) {
+      return '';
+    }
+
+    return SpecSections.section({
+      id: 'grades',
+      title: chrome.grades,
+      body: `<ul class="grades">${grades
+        .map(
+          (item) =>
+            `<li><span class="gn">${escaped(item.label)}</span><span class="gr c-${tones[item.grade]}"><b>${item.grade}</b>${escaped(words[item.grade] ?? '')}</span>${item.note === undefined ? '' : `<span class="gt">${escaped(item.note)}</span>`}</li>`,
+        )
+        .join('')}</ul>`,
+    });
+  }
+
+  /** Numbers as cards: the value, what it is of, and a bar split into its parts with a legend that says each. */
+  static metrics(opts: { ctx: ISectionContext }): string {
+    const { metrics } = opts.ctx.spec;
+    const { chrome } = opts.ctx;
+
+    if (metrics === undefined) {
+      return '';
+    }
+
+    const card = (metric: NonNullable<TVisualizeSpec['metrics']>[number]): string => {
+      const total = metric.parts.reduce((sum, part) => sum + part.value, 0);
+      let at = 0;
+      const rects = metric.parts.map((part) => {
+        const width = (part.value / total) * 100;
+        const rect = `<rect class="t-${part.tone}" x="${at.toFixed(2)}" width="${width.toFixed(2)}" height="8"/>`;
+
+        at += width;
+
+        return rect;
+      });
+
+      return `<li class="mc"><p class="mv">${escaped(metric.value)}${metric.of === undefined ? '' : `<small>/ ${escaped(metric.of)}</small>`}</p><p class="ml">${escaped(metric.label)}</p>${metric.note === undefined ? '' : `<p class="mt">${escaped(metric.note)}</p>`}<svg class="mb" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="${escaped(metric.parts.map((part) => `${part.label}: ${part.value}`).join(', '))}">${rects.join('')}</svg><ul class="mlg">${metric.parts.map((part) => `<li><i class="sw t-${part.tone}"></i>${escaped(part.label)}: ${part.value}</li>`).join('')}</ul></li>`;
+    };
+
+    return SpecSections.section({
+      id: 'metrics',
+      title: chrome.metrics,
+      body: `<ul class="metrics">${metrics.map(card).join('')}</ul>`,
     });
   }
 

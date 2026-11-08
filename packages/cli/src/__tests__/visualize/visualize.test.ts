@@ -314,7 +314,7 @@ describe('the page is safe by construction', () => {
   test('the final state needs no script and no motion: print and reduced motion are handled', () => {
     expect(PAGE_CSS).toContain('prefers-reduced-motion:reduce');
     expect(PAGE_CSS).toContain('@media print');
-    expect(PAGE_CSS).toContain('prefers-color-scheme:dark');
+    expect(PAGE_CSS).toContain('prefers-color-scheme:light');
     // Without script the steps are a plain list and every step shows its note.
     expect(rendered(fullSpec())).toContain('<ol class="steps">');
     expect(rendered(fullSpec())).toContain('<p class="explain">');

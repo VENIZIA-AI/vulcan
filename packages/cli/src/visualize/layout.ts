@@ -83,9 +83,15 @@ const breakLines = (opts: {
         cut -= 1;
       }
 
-      // Break at a hyphen, dot, slash or comma near the middle when the word has one, else wherever it fits.
+      // Break at a hyphen, dot, slash, comma or a capital letter after a small one (resolve|Update|Operations)
+      // near the middle when the word has one, else wherever it fits.
       const marks = [...rest.slice(0, cut)]
-        .map((char, index) => (['-', '.', '/', '_', ','].includes(char) ? index + 1 : 0))
+        .map((char, index) =>
+          ['-', '.', '/', '_', ','].includes(char) ||
+          (/[a-z0-9]/.test(char) && /[A-Z]/.test(rest[index + 1] ?? ''))
+            ? index + 1
+            : 0,
+        )
         .filter((index) => index >= 2 && index < rest.length);
       const soft = marks.sort(
         (first, second) => Math.abs(first - rest.length / 2) - Math.abs(second - rest.length / 2),

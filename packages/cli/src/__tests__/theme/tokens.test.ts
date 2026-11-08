@@ -32,7 +32,7 @@ describe('the wiki takes the venizia palette from the manifest theme, value for 
   const LIGHT: Record<string, string> = {
     bg: '#ffffff',
     surface: '#ffffff',
-    stroke: '#0000001a',
+    stroke: '#e2e2e3',
     'stroke-strong': '#101010',
     'text-title': '#000000',
     'text-body': '#4b4b4b',
@@ -44,9 +44,9 @@ describe('the wiki takes the venizia palette from the manifest theme, value for 
     'accent-2': '#c48a5a',
   };
   const DARK: Record<string, string> = {
-    bg: '#121214',
-    surface: '#1b1b1b',
-    stroke: '#ffffff1a',
+    bg: '#1b1b1f',
+    surface: '#202127',
+    stroke: '#2e2e32',
     'stroke-strong': '#ffffff4d',
     'text-title': '#ffffff',
     'text-body': '#ffffffb3',

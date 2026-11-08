@@ -246,6 +246,18 @@ export const DEFAULT_CHROME = {
   inBoth: 'in both',
   sources: 'Sources',
   terms: 'Words in this page',
+  grades: 'Grades',
+  gradeA: 'good',
+  gradeB: 'has gaps',
+  gradeC: 'weak',
+  metrics: 'Numbers',
+  /** The small label above a section: the group its part of the page belongs to. */
+  kickOverview: 'Overview',
+  kickStructure: 'Structure',
+  kickDecision: 'Decision',
+  kickEvidence: 'Evidence',
+  kickPlan: 'Plan',
+  kickReference: 'Reference',
   /** The words that tell an added arrow from a removed one: never colour alone. */
   onlyHere: 'only here',
   addedEdge: 'added',

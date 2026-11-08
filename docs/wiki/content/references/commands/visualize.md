@@ -19,7 +19,7 @@ The command validates the spec (shape, limits, unique ids, every arrow, step and
 
 ## The kinds
 
-A page is the sections its spec has, in a fixed order: the banner, the tiles, the minimap, what you need to do and what blocks it, then a flow (drawn in the top slab, under the verdict), an architecture, a compare view, a sequence, a lifecycle, a tree, a comparison, an idea map, an explainer, a timeline, findings, a before and after, a decision record, the decisions, the evidence, the risks, the log, the terms, the sources and the links. The fields of each are in the [spec reference](/references/skills) of the `visualize-work` skill.
+A page is the sections its spec has, in a fixed order: the banner, the tiles, the minimap, what you need to do and what blocks it, then a flow (drawn in the top slab, under the verdict), an architecture, a compare view, a sequence, a lifecycle, a tree, a comparison, an idea map, an explainer, a timeline, findings, grades, metrics, a before and after, a decision record, the decisions, the evidence, the risks, the log, the terms, the sources and the links. The fields of each are in the [spec reference](/references/skills) of the `visualize-work` skill.
 
 - **Status and handoff**: a banner coloured by the state with a large status word and icon, key numbers as tiles (counted from the minimap when you give none), the minimap as a stepper with one coloured segment per task, **What you need to do** as a card with a numbered checklist, and **Blocked by** beside it.
 - **Flow and architecture**: boxes and labelled arrows on a grid, or layers with links between boxes; a box can carry a state (a colour, an icon and a word); Play animates the arrows and Next steps through the lit boxes.
