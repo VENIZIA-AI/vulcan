@@ -67,7 +67,7 @@ An event belongs to the flow named by its `flowId` (`VULZ-ACME-12`; an older `F-
 | `needs-owner` | an ask: the flow waits on you. Not when the Claude Code hook raised it (its `notification` field says which prompt, whatever the title); a line without that field is judged by its summary being the name of a prompt (`idle_prompt`, `permission_prompt`, `elicitation_dialog`, in any case): that is [agent plumbing](#agent-plumbing) |
 | `flow` | the flow's title and reason (the heading of the flow, a line in its Proposal stage). See [The title of a flow](#the-title-of-a-flow) |
 | `decision` (`approve`, `park`, `reject`) | your answer: it answers the ask and, for `park` and `reject`, parks the flow |
-| `session-start`, `session-stop` | the agents pane: working, or idle. Also [agent plumbing](#agent-plumbing) |
+| `session-start` | the agents pane: working. Also [agent plumbing](#agent-plumbing). A `session-stop` or `tool-tick` line written by an earlier release is read the same way until the log's age limit removes it |
 | `subagent-stop` | [agent plumbing](#agent-plumbing) |
 
 From GitHub: each pull request, each finished check (pass or fail), each review (approved, changes requested), and the merge. One call per repository asks for the newest 30 pull requests; the note on stderr says how many of them changed since `--since`.
@@ -143,7 +143,7 @@ export default {
 
 **Unanswered.** On an agent's card, the messages sent to it after the last one it sent, each counted once. It is not the count of every message it ever got.
 
-**Working or idle.** An agent is working from a session start, a tool use or any line of work it writes, and idle from a session stop until its next line of work. A half hour with no line also makes it idle, whatever its record says; the card says since when.
+**Working or idle.** An agent is working from a session start or any line of work it writes. A half hour with no line makes it idle, whatever its record says; the card says since when. The hooks no longer log a turn that ends or a tool that is used, so a session that works for more than half an hour without a message or a line of work shows as idle.
 
 Each agent also has a solid colour, taken from a hash of its name out of a fixed palette of six, so it is the same on every load. Its mascot is that colour with a thick outline: at work it digs with a hoe, waiting on you it waves under a "?" bubble, idle it sleeps in grey, and stuck it sweats. The motion is plain CSS and stops for `prefers-reduced-motion`. A logo or a name the page cannot use is left out, with a note on stderr.
 

@@ -3,6 +3,7 @@ import { EventActorNames } from './actor-names.ts';
 /** What happened. A board reads these; add one only when a reader needs to tell it apart. */
 export class EventKinds {
   static readonly SESSION_START = 'session-start';
+  /** No longer written (a turn that ends is not an event); read so a log written before still folds until its retention removes it. */
   static readonly SESSION_STOP = 'session-stop';
   static readonly MSG_SENT = 'msg-sent';
   static readonly MSG_RECEIVED = 'msg-received';
@@ -16,7 +17,7 @@ export class EventKinds {
   static readonly FLOW = 'flow';
   /** Something was put live; a milestone of its flow, like a merge. Its summary says what. */
   static readonly DEPLOY = 'deploy';
-  /** An agent used a tool, at most once in `EventConstants.TICK_SECONDS` per session: the board reads it as working. */
+  /** No longer written (a tool that is used is not an event); read so a log written before still folds until its retention removes it. */
   static readonly TOOL_TICK = 'tool-tick';
 
   static readonly SCHEME_SET = new Set<string>([
@@ -112,7 +113,6 @@ export class EventFlags {
 /** The names a Claude Code hook payload carries, as Claude Code 2.1.317 sends them. */
 export class ClaudeHookEvents {
   static readonly SESSION_START = 'SessionStart';
-  static readonly STOP = 'Stop';
   static readonly SUBAGENT_STOP = 'SubagentStop';
   static readonly NOTIFICATION = 'Notification';
   static readonly POST_TOOL_USE = 'PostToolUse';
@@ -152,16 +152,6 @@ export class EventConstants {
   static readonly CONTEXT_MAX = 600;
   /** What a sent message is called when its sender gave no label: the text of a message is never used. */
   static readonly MESSAGE_SENT_LABEL = 'message sent';
-  /** The summary of a tool tick: it says that a tool was used, and nothing of which. */
-  static readonly TOOL_TICK_LABEL = 'using a tool';
-  /** A session writes at most one tool tick in each window of this many seconds. */
-  static readonly TICK_SECONDS = 30;
-  /**
-   * The folder, from the project root, that holds one empty stamp per session and window, `<session>.<window>`; a tick
-   * removes the stamps of earlier windows. Spelt out because the hook imports no other module of the package (a test holds it
-   * inside `ProjectLayout.LOCAL_DIRECTORY/tmp`).
-   */
-  static readonly TICK_FOLDER = '.agents/local/tmp/event-ticks';
   static readonly REF_MAX = 120;
   /** A flow line's lists: how many items, and how long one is. */
   static readonly ITEM_COUNT_MAX = 30;

@@ -40,7 +40,7 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 | `ts` | ISO 8601, UTC |
 | `flowId` | `VULZ-<key>-<number>` (or the older `F-<number>`), when the line belongs to a flow; absent otherwise |
 | `actor` | The session that wrote it, as other sessions address it |
-| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow`, `deploy`, `tool-tick` |
+| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow`, `deploy`, `tool-tick`; the hooks no longer write `session-stop` and `tool-tick`, which stay valid so an older log is read |
 | `status` | Only on a `decision`: `approve`, `park` or `reject` |
 | `summary` | One line, at most 200 characters. On a `flow` line it is the flow's title |
 | `notification` | Only on a `needs-owner` the Claude Code hook wrote: the notification type that raised it (`permission_prompt`, `idle_prompt` or `elicitation_dialog`). A board uses it to tell the harness waiting from a question someone wrote, whatever the `summary` says; anything else is not written and is dropped on read |
@@ -116,20 +116,18 @@ It prints the events at or after `--since`, oldest first. `--since` takes anythi
 
 ## What the Claude Code hooks log
 
-`sync` installs one hook per event. Each runs `base/hooks/event.ts`, reads the payload from stdin and writes at most one line. The payload fields are those of Claude Code 2.1.317.
+`sync` installs one hook per event (four of them: `PostToolUse` only for the `SendMessage` tool). Each runs `base/hooks/event.ts`, reads the payload from stdin and writes at most one line. The payload fields are those of Claude Code 2.1.317.
 
 | Claude Code event | Logged as | Summary | Read from the payload |
 |---|---|---|---|
 | `SessionStart` | `session-start` | the `source` and the `model`; the model is also stored in `model` | `source`, `model` |
-| `Stop` | `session-stop` | `turn ended`. Not logged while `stop_hook_active` is true | `stop_hook_active` |
 | `SubagentStop` | `subagent-stop` | the `agent_type` and the `agent_id` | `agent_type`, `agent_id` |
 | `Notification` | `needs-owner`, for `permission_prompt`, `idle_prompt` and `elicitation_dialog` | the notification `title`, else its type; the type is also stored in `notification` | `notification_type`, `title` |
-| `PostToolUse` of any other tool | `tool-tick` | the fixed text `using a tool`. At most one line per session in each 30-second window; the first call of a window creates an empty stamp file, `<session>.<window>`, in `.agents/local/tmp/event-ticks/` (with exclusive create, so calls at the same instant write one line), and the next tick removes the stamps of earlier windows. The tool, its input and its result are never read | nothing but the event's name |
 | `PostToolUse` of `SendMessage` | `msg-sent` | the sender's own `summary` label, else the fixed text `message sent`. The text of the message is never used | `tool_input.to`, `tool_input.summary`; the first line of `tool_input.message` only to look for `Flow: F-n` |
 
-A tick is how the board tells an agent that is working from one that is thinking: `vulcan board` reads it as the agent working at that time, and does not list it as an event of a flow. A busy session writes at most 120 ticks an hour, about 150 bytes each, so about 18 KB an hour; the log limits (`maxSize`, `maxFiles`, `maxAgeDays`) bound it as for any line. Only Claude Code has the hook, so other agents write no ticks.
+A turn that ends (`Stop`) and a tool that is used (`PostToolUse` of any tool but `SendMessage`) are not logged: an earlier release wrote a `session-stop` line of the fixed text `turn ended` and a `tool-tick` line at most every 30 seconds, and together they were over half of the lines of a busy log (8,600 of 16,400 in the one project that kept one). Neither carried anything but the fact itself. The board still reads them in a log written before, until the age limit removes them.
 
-A `Stop` fires at the end of every turn, so `session-stop` means "the agent stopped to wait", not "the session closed". `msg-received` has no hook: Claude Code runs none when a message arrives, and VULCAN does not read transcripts to find out. A reader gets it from the sender's `msg-sent`, or an agent writes it with `event add`. `commit` and `pr` are written with `event add` too.
+`msg-received` has no hook: Claude Code runs none when a message arrives, and VULCAN does not read transcripts to find out. A reader gets it from the sender's `msg-sent`, or an agent writes it with `event add`. `commit` and `pr` are written with `event add` too.
 
 ### Name a flow
 
