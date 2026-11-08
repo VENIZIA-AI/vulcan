@@ -702,11 +702,23 @@ describe('ShellParser reads more of what bash reads', () => {
       '${HOME}x/$k',
       '$HOME/.bun/bin/bun install',
       '"${BUN_INSTALL}/bin/bun" install',
+      'while read -r A; do :; done < "$S"; $CMD',
     ]) {
       expect(ShellParser.parseChecked({ command }).hasUnknownProgram, command).toBe(true);
     }
 
-    for (const command of ['echo $x "$@" ${y}', 'ls $(pwd)', 'x=$(date)', 'cat "$HOME/f"']) {
+    for (const command of [
+      'echo $x "$@" ${y}',
+      'ls $(pwd)',
+      'x=$(date)',
+      'cat "$HOME/f"',
+      // The target of an input redirect on a compound command is a file, not the program.
+      '{ read -r A; } < "$S"',
+      '{ cat; } < "$S"',
+      'while read -r A; do echo "$A"; done < "$S"',
+      'if true; then :; fi < "$S"',
+      'case x in x) :;; esac < "$S"',
+    ]) {
       expect(ShellParser.parseChecked({ command }).hasUnknownProgram, command).toBe(false);
     }
   });
