@@ -561,18 +561,52 @@ describe('doctor and what an agent left behind', () => {
 
     const result2 = await DoctorRunner.runWarnings({ root });
     const result = SocketWarning.without({ warnings: result2 });
-    const warnings = result.filter((entry) => entry.file.startsWith('.agents/local/'));
+    const warnings = result.filter((entry) => entry.file.startsWith('.agents/local'));
 
-    expect(warnings.map((entry) => entry.file).sort()).toEqual([
-      '.agents/local/tmp/old',
-      '.agents/local/worktrees/done',
-    ]);
-    expect(warnings.find((entry) => entry.file.endsWith('tmp/old'))?.message).toContain(
-      'vulcan clean --tmp --yes',
+    expect(warnings.map((entry) => entry.file)).toEqual(['.agents/local']);
+    expect(warnings[0].message).toContain('2 entries have outlived their use');
+    expect(warnings[0].message).toContain('1 stale in tmp, 1 merged in worktrees');
+    expect(warnings[0].message).toContain('run: vulcan clean --tmp --worktrees --yes');
+  });
+
+  test('forty stale entries are one warning with the count and the command, not forty lines', async () => {
+    const root = repository();
+
+    for (let index = 0; index < 40; index++) {
+      file({ root, path: `tmp/old-${index}/a.txt`, ageDays: 3 });
+      utimesSync(
+        join(root, `.agents/local/tmp/old-${index}`),
+        new Date(Date.now() - 3 * DAY),
+        new Date(Date.now() - 3 * DAY),
+      );
+    }
+
+    const result = await DoctorRunner.runWarnings({ root });
+    const warnings = SocketWarning.without({ warnings: result }).filter((entry) =>
+      entry.file.startsWith('.agents/local'),
     );
-    expect(warnings.find((entry) => entry.file.endsWith('done'))?.message).toContain(
-      'vulcan clean --worktrees --yes',
-    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain('40 entries have outlived their use');
+    expect(warnings[0].message).toContain('40 stale in tmp');
+    expect(warnings[0].message).toContain('vulcan clean --tmp --yes');
+  });
+
+  test('forty entries it does not know are one warning that names the first ten', async () => {
+    const root = repository();
+
+    for (let index = 0; index < 40; index++) {
+      file({ root, path: `scratch-${String(index).padStart(2, '0')}.txt`, text: 'x' });
+    }
+
+    const result = await DoctorRunner.runWarnings({ root });
+    const warnings = result.filter((entry) => entry.message.includes('VULCAN knows'));
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain('40 entries are not ones VULCAN knows');
+    expect(warnings[0].message).toContain('scratch-09.txt');
+    expect(warnings[0].message).not.toContain('scratch-10.txt');
+    expect(warnings[0].message).toContain('and 30 more');
   });
 
   test('is quiet about fresh tmp and an unmerged worktree', async () => {
@@ -583,7 +617,7 @@ describe('doctor and what an agent left behind', () => {
 
     const result2 = await DoctorRunner.runWarnings({ root });
     const result = SocketWarning.without({ warnings: result2 });
-    expect(result.filter((entry) => entry.file.startsWith('.agents/local/'))).toEqual([]);
+    expect(result.filter((entry) => entry.file.startsWith('.agents/local'))).toEqual([]);
   });
 });
 
@@ -652,10 +686,15 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     const result = await DoctorRunner.runWarnings({ root });
     const warnings = result.filter((entry) => entry.file.includes('release-candidates'));
 
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0].file).toBe('.agents/local/release-candidates/1.0.0');
-    expect(warnings[0].message).toContain('the release shipped');
-    expect(warnings[0].message).toContain('vulcan clean --release-candidates --yes');
+    expect(warnings).toHaveLength(0);
+
+    const folded = result.filter((entry) =>
+      entry.message.includes('shipped in release-candidates'),
+    );
+
+    expect(folded).toHaveLength(1);
+    expect(folded[0].file).toBe('.agents/local');
+    expect(folded[0].message).toContain('vulcan clean --release-candidates --yes');
   });
 
   test('only a version can be a release candidate, and only a tag of that exact name ships it', () => {
@@ -906,17 +945,14 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     ]);
 
     const result = await DoctorRunner.runWarnings({ root });
-    const warnings = result.filter((entry) => entry.file.startsWith('.agents/local/'));
-    const unknown = warnings.filter((entry) =>
-      entry.message.startsWith('not an entry VULCAN knows'),
-    );
+    const warnings = result.filter((entry) => entry.file.startsWith('.agents/local'));
+    const unknown = warnings.filter((entry) => entry.message.includes('VULCAN knows'));
 
-    expect(unknown.map((entry) => entry.file)).toEqual([
-      '.agents/local/audit',
-      '.agents/local/diag.ts',
-      '.agents/local/scope.txt',
-    ]);
-    expect(unknown.find((entry) => entry.file.endsWith('diag.ts'))?.message).toContain('2.0 KB');
+    expect(unknown.map((entry) => entry.file)).toEqual(['.agents/local']);
+    expect(unknown[0].message).toContain('3 entries are not ones VULCAN knows');
+    expect(unknown[0].message).toContain('audit (');
+    expect(unknown[0].message).toContain('diag.ts (2.0 KB)');
+    expect(unknown[0].message).toContain('scope.txt (');
     expect(unknown[0].message).toContain(
       'put scratch in tmp/ and what you want to keep in reports/',
     );
@@ -926,9 +962,10 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     );
 
     // The browser folder is expired tmp, not unknown, and the command that takes it is named.
-    const chromeWarning = warnings.find((entry) => entry.file.endsWith('com.google.Chrome.xyz'));
+    const stale = warnings.find((entry) => entry.message.includes('outlived'));
 
-    expect(chromeWarning?.message).toContain('vulcan clean --tmp --yes');
+    expect(stale?.message).toContain('1 stale in tmp');
+    expect(stale?.message).toContain('vulcan clean --tmp --yes');
     expect(existsSync(join(root, '.agents/local/diag.ts'))).toBe(true);
     expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
     expect(existsSync(join(root, '.agents/local/diag.ts'))).toBe(true);
@@ -1141,9 +1178,12 @@ describe('what a live session uses is not stale to doctor either', () => {
     expect(names({ entries: plan.remove })).toEqual(['tmp/claude-notes']);
 
     const result = await DoctorRunner.runWarnings({ root });
-    const warned = SocketWarning.without({ warnings: result }).map((entry) => entry.file);
+    const stale = SocketWarning.without({ warnings: result }).find((entry) =>
+      entry.message.includes('outlived'),
+    );
 
-    expect(warned).toContain('.agents/local/tmp/claude-notes');
-    expect(warned.some((path) => path.includes('claude-1000'))).toBe(false);
+    // Only the look-alike is counted: the live session's task folder is not stale.
+    expect(stale?.message).toContain('1 entry has outlived its use');
+    expect(stale?.message).toContain('1 stale in tmp');
   });
 });

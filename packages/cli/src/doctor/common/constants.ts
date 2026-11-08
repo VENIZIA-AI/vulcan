@@ -35,8 +35,6 @@ export class DoctorChecks {
   static readonly LOCAL = 'local';
   /** The personal profile file: unreadable, not gitignored or tracked by git; a warning. */
   static readonly PROFILE = 'profile';
-  /** Guard config: a trusted script is a note; a stale one is a warning. */
-  static readonly GUARDS = 'guards';
   /** The clone commit-msg hook when a commit check is on: missing, stale or not calling commit-check; a warning. */
   static readonly COMMIT_HOOK = 'commit-hook';
   /** The events.dir folder when outside the project: missing, not a folder or not writable; a warning. */

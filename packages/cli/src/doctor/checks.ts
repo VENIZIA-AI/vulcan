@@ -28,7 +28,7 @@ import { PrivateValues } from './private-values.ts';
 import { ReplySwitch, OwnerConstants, OwnerReplySwitch, OwnerProfile } from '../owner/index.ts';
 import { SkillCatalog } from '@venizia/vulcan-atlas';
 import { HookConstants, ProjectTmp } from '../hooks/index.ts';
-import { DoctorChecks, DoctorConstants } from './common/index.ts';
+import { DoctorChecks, DoctorConstants, PrivateValueKinds } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { Makefile } from './makefile.ts';
 
@@ -998,38 +998,66 @@ export class ProjectContract {
   }
 
   /**
-   * Something directly under `.agents/local/` that is not a folder of the layout, a file VULCAN writes, or a
-   * browser's scratch folder. Nothing removes it; the message says where scratch belongs. A warning.
+   * What is directly under `.agents/local/` and is not a folder of the layout, a file VULCAN writes, or a browser's
+   * scratch folder, in one warning: how many, how big, and their names. Nothing removes them.
    */
   static checkUnknownLocal(opts: ICheckContext): IViolation[] {
-    return LocalScan.unknown({ root: opts.root }).map((entry) =>
-      createViolation({
-        check: DoctorChecks.LOCAL,
-        file: `${ProjectLayout.LOCAL_DIRECTORY}/${entry.name}`,
-        message: `not an entry VULCAN knows (${LocalFormat.formatBytes({ bytes: entry.bytes })}): put scratch in tmp/ and what you want to keep in reports/, what one agent keeps for itself in agents/<name>/; a script the team relies on belongs in the tracked tree (scripts/), where it gets review and history; nothing removes it`,
-      }),
-    );
+    const unknown = LocalScan.unknown({ root: opts.root });
+
+    return unknown.length === 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.LOCAL,
+            file: ProjectLayout.LOCAL_DIRECTORY,
+            message: `${unknown.length} ${unknown.length === 1 ? 'entry is' : 'entries are'} not ${unknown.length === 1 ? 'one' : 'ones'} VULCAN knows: ${unknown
+              .slice(0, 10)
+              .map((entry) => `${entry.name} (${LocalFormat.formatBytes({ bytes: entry.bytes })})`)
+              .join(
+                ', ',
+              )}${unknown.length > 10 ? `, and ${unknown.length - 10} more` : ''}; put scratch in tmp/ and what you want to keep in reports/, what one agent keeps for itself in agents/<name>/; a script the team relies on belongs in the tracked tree (scripts/), where it gets review and history; nothing removes ${unknown.length === 1 ? 'it' : 'them'}`,
+          }),
+        ];
   }
 
-  /** What an agent left under `.agents/local/` that has outlived its use, one line each with the command that clears it. */
+  /**
+   * What an agent left under `.agents/local/` that has outlived its use, in one warning: how many in each scope, how
+   * big, and the command that clears them (which, without `--yes`, lists each one).
+   */
   static checkStaleLocal(opts: ICheckContext): IViolation[] {
-    return LocalScan.scan({ root: opts.root })
-      .filter((entry) =>
-        [
-          LocalStates.STALE,
-          LocalStates.MERGED,
-          LocalStates.GONE,
-          LocalStates.ORPHAN,
-          LocalStates.SHIPPED,
-        ].includes(entry.state),
-      )
-      .map((entry) =>
-        createViolation({
-          check: DoctorChecks.LOCAL,
-          file: `${ProjectLayout.LOCAL_DIRECTORY}/${entry.where}`,
-          message: `${entry.state === LocalStates.STALE && entry.note === '' ? `left ${LocalFormat.formatAge({ ageMs: entry.ageMs })} ago` : entry.note} (${LocalFormat.formatBytes({ bytes: entry.bytes })}) - run: vulcan clean --${entry.scope} --yes`,
-        }),
-      );
+    const stale = LocalScan.scan({ root: opts.root }).filter((entry) =>
+      [
+        LocalStates.STALE,
+        LocalStates.MERGED,
+        LocalStates.GONE,
+        LocalStates.ORPHAN,
+        LocalStates.SHIPPED,
+      ].includes(entry.state),
+    );
+
+    if (stale.length === 0) {
+      return [];
+    }
+
+    const scopes = [...new Set(stale.map((entry) => entry.scope))];
+    const counts = new Map<string, number>();
+
+    for (const entry of stale) {
+      const group = `${entry.state} in ${entry.scope}`;
+
+      counts.set(group, (counts.get(group) ?? 0) + 1);
+    }
+
+    const groups = [...counts.entries()];
+    const bytes = stale.reduce((total, entry) => total + entry.bytes, 0);
+
+    return [
+      createViolation({
+        check: DoctorChecks.LOCAL,
+        file: ProjectLayout.LOCAL_DIRECTORY,
+        message: `${stale.length} ${stale.length === 1 ? 'entry has' : 'entries have'} outlived ${stale.length === 1 ? 'its' : 'their'} use (${LocalFormat.formatBytes({ bytes })}): ${groups.map(([group, count]) => `${count} ${group}`).join(', ')}; run: vulcan clean ${scopes.map((scope) => `--${scope}`).join(' ')} --yes (without --yes it lists each one)`,
+      }),
+    ];
   }
 
   /** The owner cards are off for this shell (`VULCAN_OWNER_REPLY=off`): a session an agent starts sets it, an owner who exported it by mistake sees why the rules carry no shape card; a note, never a failure. */
@@ -1163,24 +1191,46 @@ export class ProjectContract {
     });
   }
 
-  /** Private values in committed files: one warning per file with the kinds and counts, never the text, and one per acknowledgment that covered nothing. */
+  /**
+   * Private values in committed files, never the text: one warning per file that holds a key, a token or a URL
+   * credential, with the kinds and counts; the files that hold only addresses or machine paths (an example IP in a
+   * policy file, a path in a doc) in one warning; and one per acknowledgment that covered nothing.
+   */
   static checkPrivateValues(opts: ICheckContext): IViolation[] {
     const { findings, unmatched } = PrivateValues.scan({
       root: opts.root,
       acknowledged: opts.config.doctor.privateValues.acknowledged,
     });
     const where = 'doctor.privateValues.acknowledged';
+    const kindsOf = (counts: Record<string, number | undefined>): string =>
+      Object.entries(counts)
+        .map(([kind, count]) => `${count} ${kind}`)
+        .join(', ');
+    const isMild = (finding: { counts: Record<string, number | undefined> }): boolean =>
+      Object.keys(finding.counts).every((kind) =>
+        [PrivateValueKinds.IPV4, PrivateValueKinds.MACHINE_PATH].includes(kind),
+      );
+    const mild = findings.filter((finding) => isMild(finding));
 
     return [
-      ...findings.map((finding) =>
-        createViolation({
-          check: DoctorChecks.PRIVATE_VALUES,
-          file: finding.file,
-          message: `holds private values: ${Object.entries(finding.counts)
-            .map(([kind, count]) => `${count} ${kind}`)
-            .join(', ')} (not shown); remove them, or record the decision in ${where}`,
-        }),
-      ),
+      ...findings
+        .filter((finding) => !isMild(finding))
+        .map((finding) =>
+          createViolation({
+            check: DoctorChecks.PRIVATE_VALUES,
+            file: finding.file,
+            message: `holds private values: ${kindsOf(finding.counts)} (not shown); remove them, or record the decision in ${where}`,
+          }),
+        ),
+      ...(mild.length === 0
+        ? []
+        : [
+            createViolation({
+              check: DoctorChecks.PRIVATE_VALUES,
+              file: mild.length === 1 ? mild[0].file : `${mild.length} files`,
+              message: `${mild.length === 1 ? 'holds' : `${mild.length} files hold`} only addresses or machine paths: ${mild.map((finding) => `${finding.file} (${kindsOf(finding.counts)})`).join(', ')} (not shown); remove them, or record the decision in ${where}`,
+            }),
+          ]),
       ...unmatched.map((entry) =>
         createViolation({
           check: DoctorChecks.PRIVATE_VALUES,
