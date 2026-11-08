@@ -815,3 +815,61 @@ describe('OutsideGuard.inspect says which hits it could not read', () => {
     expect(hits.map((hit) => hit.isUnread).sort()).toEqual([false, true]);
   });
 });
+
+describe('a write target with a brace list is checked branch by branch', () => {
+  const hitsOf = (opts: { command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: PROJECT },
+      projectRoot: PROJECT,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    'touch {/etc,/var}/x',
+    'cp a {/etc,/var}/$X',
+    'touch {,/etc/}$X',
+    'echo x > {out,/etc}/f',
+    'echo x | tee {out,/etc}/f',
+    'mkdir -p {out,{/etc,/var}}/z',
+    'mv a {c,/etc/d}',
+    'touch {~,out}/x',
+    'touch {a}/{..,y}/..',
+    'touch {x/{..,y}/../..',
+    'touch {a..bc}/{..,y}/..',
+    'touch {a},/etc/x}',
+    'git -C {,/etc} clone u d',
+    'cp {-t,/etc} a',
+    'curl {-o,/etc/a} http://x',
+    'dd {of=/etc/x,if=/dev/null}',
+    'dd of{,=/etc/x}',
+    'export TMPDIR={x,/etc}',
+    'export {A,TMPDIR}=/etc/z',
+  ])('%s has a branch outside the project: read, so it is a deny', (command) => {
+    expect(hitsOf({ command }).map((hit) => hit.isUnread)).toContain(false);
+  });
+
+  test.each([
+    ['a sequence with an end that is a slash', 'touch {/..0}etc/x'],
+    ['thirty lists of two, a billion words', `touch ${'{a,b}'.repeat(30)}`],
+    [
+      'a list longer than the guard expands',
+      `touch ${`{${Array.from({ length: 70 }, (_, i) => `a${i}`).join(',')}}`}/x`,
+    ],
+  ])('%s cannot be expanded, so it is asked about and never passed', (_, command) => {
+    expect(hitsOf({ command }).map((hit) => hit.isUnread)).toEqual([true]);
+  });
+
+  test.each([
+    'touch out/{a,b}',
+    'mkdir -p src/{a,b}/{x,y}',
+    'touch file{1..3}.txt',
+    'touch {a..c}/x',
+    'touch {a}',
+    'touch {}',
+    'echo x > ${PWD}/out',
+    'TMPDIR={/tmp,x} true',
+  ])('%s stays inside the project and stays quiet', (command) => {
+    expect(hitsOf({ command })).toEqual([]);
+  });
+});
