@@ -211,6 +211,7 @@ When `package.json` is missing, `version` answers with `installed: {}`.
 | `package` | String | None | Package name or alias; omitted, filters across all packages by date |
 | `from` | String | Earlier release or date | Starting version or starting YYYY-MM-DD date |
 | `to` | String | Newest release or date | Ending version or ending YYYY-MM-DD date |
+| `offset` | Integer | `0` | Where the page starts in the window's entries, newest first; the `nextOffset` of the previous reply |
 
 For a package, `from` defaults to the newest release on an earlier day than `to`.
 Without a package, `from` defaults to the newest entry date below `to`.
@@ -254,8 +255,9 @@ Each entry carries `id`, `date`, `title`, `kind`, and `packages`.
 }
 ```
 
-If the reply exceeds 2,000 characters, `changes` sets `truncated` to `true`.
-A truncated reply drops the oldest entries and keeps the newest.
+A reply holds at most 2,000 characters, and always at least one entry.
+When entries remain, `changes` sets `truncated` to `true` and `nextOffset` to where the next page starts: call again with `offset: nextOffset`, and repeat until `nextOffset` is absent to read every entry once, newest first.
+An `offset` past the last entry answers an empty page.
 For a declared package with no recorded release, `from` is `null`.
 The reply includes a `note` explaining why no release bounded the window.
 Passing `from` or `to` returns an error: `no release of <pkg> is recorded on this ref`.

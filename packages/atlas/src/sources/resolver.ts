@@ -49,6 +49,8 @@ const HISTORY = 'history';
 const TAGS = 'tags';
 /** A source's newest SHAs the cache keeps - each one a checkout and an index - so it never grows unbounded. */
 const KEPT_SHAS = 3;
+/** The `refs/ref-*` files the cache keeps, the newest served first: each one holds a SHA out of pruning. */
+const KEPT_REFS = 5;
 /** `refs/ref-<ref>` holds the SHA last served for that ref: an offline start stays on its ref. */
 const REFS = 'refs';
 
@@ -81,6 +83,27 @@ const recordedShas = (opts: { cacheRoot: string }): Set<string> => {
       .filter((name) => name.startsWith('ref-'))
       .map((name) => readFileSync(join(directory, name), 'utf8').trim()),
   );
+};
+
+/**
+ * A ref that was pinned once and never served again lets its SHA go: only the newest `KEPT_REFS` stay, and the SHAs
+ * of the ones that left are pruned by the next pull.
+ */
+const pruneOlderRefs = (opts: { cacheRoot: string }): void => {
+  const directory = join(opts.cacheRoot, REFS);
+
+  if (!existsSync(directory)) {
+    return;
+  }
+
+  const refs = readdirSync(directory)
+    .filter((name) => name.startsWith('ref-'))
+    .map((name) => ({ name, at: statSync(join(directory, name)).mtimeMs }))
+    .sort((left, right) => right.at - left.at);
+
+  for (const ref of refs.slice(KEPT_REFS)) {
+    rmSync(join(directory, ref.name), { force: true });
+  }
 };
 
 const describe = (opts: { source: IAtlasSource }): string =>
@@ -131,6 +154,7 @@ const servedFrom = (opts: {
 
   if (opts.mode !== 'offline-cache') {
     recordRef({ cacheRoot: opts.cacheRoot, ref: opts.source.ref, sha: opts.sha });
+    pruneOlderRefs({ cacheRoot: opts.cacheRoot });
   }
 
   return {

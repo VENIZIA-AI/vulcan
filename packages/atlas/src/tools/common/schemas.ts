@@ -35,6 +35,8 @@ export const ChangesInputSchema = z.object({
   package: z.string().min(1).optional(),
   from: z.string().min(1).optional(),
   to: z.string().min(1).optional(),
+  /** Where in the window's entries (newest first) the page starts; the previous page's `nextOffset`. */
+  offset: z.number().int().min(0).optional(),
 });
 
 export const GetInputSchema = z.object({

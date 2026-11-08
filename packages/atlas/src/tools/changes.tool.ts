@@ -7,7 +7,9 @@ import { ChangesInputSchema, ToolInput, ToolTriggers } from './common';
 
 const DESCRIPTION =
   'List the changelog entries between two releases: a package with two of its versions, or no ' +
-  'package with two `YYYY-MM-DD` dates. Every entry carries the id `get` reads it in full by.';
+  'package with two `YYYY-MM-DD` dates. Every entry carries the id `get` reads it in full by. A ' +
+  'window too long for one reply returns `nextOffset`: call again with `offset: nextOffset` for the ' +
+  'older entries.';
 
 // Built once at module load - a guarded tool that re-resolves its store on every call never needs
 // to rebuild this.
@@ -36,7 +38,10 @@ interface IChangesResponse {
   from: string | null;
   to: string;
   entries: IChangesEntry[];
+  /** Present when entries remain after this page: the window is longer than one reply. */
   truncated?: boolean;
+  /** Where the next page starts; present exactly when `truncated` is. */
+  nextOffset?: number;
   /** Why the window is what it is, when the package has no release to bound it. */
   note?: string;
 }
@@ -203,25 +208,37 @@ const dateWindowOf = (opts: { releases: IReleaseIndex; from?: string; to?: strin
   };
 };
 
-/** Drops the oldest entries until the reply fits, and says so - a trimmed page never looks whole. */
-const withinBudget = (opts: { window: IWindow; entries: IChangesEntry[] }): IChangesResponse => {
+/**
+ * The page of the window that starts at `offset` and fits the budget: it drops entries from the end of the page,
+ * never the first, and says where the next page starts - a trimmed page never looks whole.
+ */
+const withinBudget = (opts: {
+  window: IWindow;
+  entries: IChangesEntry[];
+  offset: number;
+}): IChangesResponse => {
   const base = {
     package: opts.window.package,
     from: opts.window.from,
     to: opts.window.to,
     ...(opts.window.note === undefined ? {} : { note: opts.window.note }),
   };
-  let entries = [...opts.entries];
-  let response: IChangesResponse = { ...base, entries };
-  const isOverBudget = (): boolean =>
-    JSON.stringify(response).length > AtlasConstants.SEARCH_BUDGET_CHARS;
+  const rest = opts.entries.slice(opts.offset);
+  let count = rest.length;
+  const responseOf = (): IChangesResponse => {
+    const entries = rest.slice(0, count);
+    const nextOffset = opts.offset + count;
 
-  while (isOverBudget() && entries.length > 0) {
-    entries = entries.slice(0, -1);
-    response = { ...base, entries, truncated: true };
+    return nextOffset < opts.entries.length
+      ? { ...base, entries, truncated: true, nextOffset }
+      : { ...base, entries };
+  };
+
+  while (count > 1 && JSON.stringify(responseOf()).length > AtlasConstants.SEARCH_BUDGET_CHARS) {
+    count -= 1;
   }
 
-  return response;
+  return responseOf();
 };
 
 export class ChangesTool {
@@ -266,7 +283,11 @@ export class ChangesTool {
                 toDate: resolved.toDate,
               });
 
-        return withinBudget({ window: resolved, entries: found.map(entryOf) });
+        return withinBudget({
+          window: resolved,
+          entries: found.map(entryOf),
+          offset: input.offset ?? 0,
+        });
       },
     };
   }
