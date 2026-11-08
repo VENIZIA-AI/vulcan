@@ -63,29 +63,3 @@ bun x --no-install vulcan x okf check
 ## What the base text is held to
 
 `packages/cli/src/__tests__/base-consistency.test.ts` runs with `make test`: every `V-*` id cited anywhere under `packages/cli/base/` is defined once in `base/rules.md` (a bullet there that opens with an id lists one VULCAN deliberately does not carry), every skill's frontmatter parses with a name equal to its folder, and the size budgets hold (rules under 4000 words, a shared reference under 250 lines, a skill under 24 KB). Cite a rule that does not exist and the build fails.
-
-## Skill evals across models
-
-A shipped skill that carries `evals/evals.json` can be run against every model that will use it -
-what works for Opus may need more detail for Haiku. **Each run calls the real `claude` and spends
-model quota**: 2 evals x 3 models is 6 runs plus 6 grader calls. Plan first, run nothing:
-
-```bash
-make skill-evals-plan SKILL=docs-writing PROJECT=../ignis
-make skill-evals SKILL=docs-writing PROJECT=../ignis MODELS=haiku,sonnet   # real runs
-```
-
-- `--baseline` (in `ARGS`) also runs every case with the skill NOT installed and not in the prompt, grades it the same way, and reports both arms; the exit code follows the skill arm only (a baseline is expected to do worse). A real run doubles the calls.
-- `scripts/evals/skill-evals.ts` (core in `scripts/evals/skill-evals-core.ts`). `PROJECT` is the checkout the
-  evals' `files` live in; it defaults to this repository. A missing input file stops a real run with
-  exit 2 before any call. Flags: `--grader` (default `opus`), `--out`, `--timeout` (seconds, default
-  900), `--max-budget-usd` (a cap passed to every `claude` call, run and grader alike), passed as
-  `ARGS="..."`.
-- Every run works in a scratch copy of the project - no `node_modules`, `.git` or symlinks, so the
-  project's hooks that need `node_modules` do not run. The skill reaches the model inline (SKILL.md in
-  the prompt) and installed at `.claude/skills/<name>/` without its `evals/`, so its references
-  resolve and the expected output stays hidden.
-- One grader call per run returns `{ pass, reasons }`; malformed grader output is a recorded failure.
-  Results land in `<out>/<skill>/<eval-id>/<model>/` and `<out>/<skill>/report.md`. Exit 0 when every
-  run passed, 1 otherwise, 2 on bad arguments.
-- Tests never run a model: `scripts/evals/__tests__/skill-evals.test.ts` puts a fake `claude` on `PATH`.

@@ -17,7 +17,7 @@ const SOURCE_GLOBS = [
 ];
 /** The registry of published presets is data that names the frameworks by design; nothing else is exempt. */
 const EXEMPT =
-  /\/(__tests__|fixtures|evals)\/|\/packages\/atlas\/src\/tools\/common\/official-presets\.ts$/;
+  /\/(__tests__|fixtures)\/|\/packages\/atlas\/src\/tools\/common\/official-presets\.ts$/;
 
 const readRoot = (opts: { argv: string[] }): string => {
   const index = opts.argv.indexOf('--root');

@@ -3,7 +3,7 @@
 How a claim is turned into a test, and how the test is kept honest. It is loaded by `plan-a-change`,
 `build-a-feature` (steps 3 and 5), `fix-a-bug` and `review-a-change`.
 
-**Contents**: [Where a test lives](#where-a-test-lives) · [The loop](#the-loop) · [Anti-patterns](#anti-patterns) · [Mocking](#mocking) · [Fixtures and environment](#fixtures-and-environment) · [Blast radius](#blast-radius) · [Async UI and shipped UI](#async-ui-and-shipped-ui) · [When a verifier cannot run](#when-a-verifier-cannot-run) · [Regression tests](#regression-tests) · [Evals for skills and rules](#evals-for-skills-and-rules)
+**Contents**: [Where a test lives](#where-a-test-lives) · [The loop](#the-loop) · [Anti-patterns](#anti-patterns) · [Mocking](#mocking) · [Fixtures and environment](#fixtures-and-environment) · [Blast radius](#blast-radius) · [Async UI and shipped UI](#async-ui-and-shipped-ui) · [When a verifier cannot run](#when-a-verifier-cannot-run) · [Regression tests](#regression-tests)
 
 ## Where a test lives
 
@@ -79,11 +79,3 @@ deferred-verify. It is never described as works, live, verified or shipped.
 
 A regression test goes in before the fix, at a seam that reproduces the real bug pattern. If no such seam
 exists, that is itself a finding: report it, and do not write a test that cannot fail.
-
-## Evals for skills and rules
-
-A suite has should-do cases and should-not cases: an eval that only checks the wanted behaviour optimises
-for it blindly. The grader is a different model level from the one under test, gives its reasons before
-its verdict, and answers UNKNOWN when it cannot tell (counted as a miss). Always include a baseline arm
-(the same case with no skill) so the skill's effect is visible. Read the transcripts before trusting a
-score. Changing a rule or a skill is a reason to run its eval again.

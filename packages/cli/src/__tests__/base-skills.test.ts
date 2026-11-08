@@ -25,12 +25,12 @@ describe('the shipped skill docs-update', () => {
     expect(SkillLint.lint({ directory })).toEqual([]);
   });
 
-  test('names no project in any file, its evals included - they run against any project', () => {
+  test('names no project in any file', () => {
     const files = readdirSync(directory, { recursive: true, withFileTypes: true })
       .filter((entry) => entry.isFile())
       .map((entry) => join(entry.parentPath, entry.name));
 
-    expect(files.length).toBeGreaterThan(1);
+    expect(files.length).toBeGreaterThan(0);
     expect(files.filter((file) => PROJECT_NAMES.test(readFileSync(file, 'utf8')))).toEqual([]);
   });
 
@@ -117,25 +117,6 @@ describe('the shipped agent-work skills', () => {
     expect(SkillCatalog.triggerOf({ description }).text.length).toBeGreaterThan(0);
   });
 
-  test.each(NAMES)('%s has evals with a prompt, an expected output and no project name', (name) => {
-    const text = read(name, 'evals/evals.json');
-    // The wire names stay behind string-literal access (V-C-14).
-    const file: Record<string, unknown> = JSON.parse(text);
-    const cases: Record<string, unknown>[] = Array.isArray(file['evals']) ? file['evals'] : [];
-
-    expect(file['skill_name']).toBe(name);
-    expect(cases.length).toBeGreaterThanOrEqual(2);
-    expect(new Set(cases.map((item) => item['id'])).size).toBe(cases.length);
-
-    for (const item of cases) {
-      expect(String(item['prompt']).length).toBeGreaterThan(20);
-      expect(String(item['expected_output']).length).toBeGreaterThan(40);
-      expect(Array.isArray(item['files'])).toBe(true);
-    }
-
-    expect(text).not.toMatch(PROJECT_NAMES);
-  });
-
   test('the skills point at each other by their real names', () => {
     const everything = NAMES.map((name) => read(name)).join('\n');
 
@@ -197,30 +178,15 @@ describe('the plan-a-change card names who runs each outward action', () => {
     expect(card).toContain('the session');
     expect(skill).toContain('who runs each outward action');
   });
-
-  test('an eval holds a plan with outward actions to the Runs by line', () => {
-    const evals: { evals: Record<string, unknown>[] } = JSON.parse(
-      readFileSync(join(directory, 'evals', 'evals.json'), 'utf8'),
-    );
-
-    expect(
-      evals.evals.some(
-        (entry) =>
-          String(entry['prompt']).includes('release') &&
-          String(entry['expected_output']).includes('Runs by'),
-      ),
-    ).toBe(true);
-  });
 });
 
 describe('the shipped skill visualize-work', () => {
   const directory = join(SKILLS_DIRECTORY, 'visualize-work');
   const skill = (): string => readFileSync(join(directory, 'SKILL.md'), 'utf8');
 
-  test('ships with its spec reference and evals, and lints clean', () => {
+  test('ships with its spec reference, and lints clean', () => {
     expect(SkillLint.lint({ directory })).toEqual([]);
     expect(existsSync(join(directory, 'references', 'spec.md'))).toBe(true);
-    expect(existsSync(join(directory, 'evals', 'evals.json'))).toBe(true);
   });
 
   test('keeps the page a local file: no publishing, nothing outside .agents/local', () => {

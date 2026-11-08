@@ -13,7 +13,7 @@ Root tooling of the VULCAN monorepo, grouped by purpose. Each group keeps its te
 | `release/` | `merge-back.ts` | `trial` merges `main` into `develop` in throwaway worktrees and reports; `apply` makes that merge in the publish job | `package-release.yml`, jobs `plan` and `publish` |
 | `release/` | `sync-pr.ts` | `open` makes the Sync PR that takes the exact commit of a gated prerelease into `main`; `verify` checks after the merge that the trees are equal | by hand, on the owner's word |
 | `release/` | `next-tag.ts` | Moves `next` up to `latest` after a publish | `package-release.yml`, step "Keep next at or above latest" |
-| `checks/` | `check-project-names.ts` | No project name (IGNIS, ARDOR or a downstream project) in `packages/*/src` or in what the cli ships (`packages/cli/base/**`), outside tests, fixtures, evals and the registry of official presets | `make project-names-check`, part of `make lint-all` |
+| `checks/` | `check-project-names.ts` | No project name (IGNIS, ARDOR or a downstream project) in `packages/*/src` or in what the cli ships (`packages/cli/base/**`), outside tests, fixtures and the registry of official presets | `make project-names-check`, part of `make lint-all` |
 | `checks/` | `gates.ts` | Runs every `make` line of the jobs of `ci.yml`, in CI's order (`--keep-going` runs all, `--list` prints them) | `make gates` |
 | `checks/` | `check-changelog-placeholder.ts` | No `X.Y.Z` placeholder in a changelog entry | `make changelog-check`, part of `make lint-all` |
 | `checks/` | `release-workflow-guards.ts` | The guards of `package-release.yml` (read-only default permissions, no npm token, exact tool versions, ...) as a check over the parsed workflow | its test, in `make test-scripts` |
@@ -21,8 +21,6 @@ Root tooling of the VULCAN monorepo, grouped by purpose. Each group keeps its te
 | `build/` | `pack-smoke-atlas.ts` | Packs atlas, installs it alone in an empty project, runs it | `make smoke-atlas` (CI, release workflow) |
 | `build/` | `pack-smoke-cli.ts` | The same for the cli | `make smoke-cli` (CI, release workflow) |
 | `build/` | `force-update.sh` | Raises a package's dependencies to the registry's latest | the `force-update` script of each package, `make update-<pkg>` |
-| `evals/` | `skill-evals.ts` | Runs a shipped skill's evals against models (spends quota) | `make skill-evals`, `make skill-evals-plan` |
-| `evals/` | `skill-evals-core.ts` | Prompts, grading and reports for `skill-evals.ts` | `skill-evals.ts` |
 | `board-ui/` | `build.ts` | Builds the board page from its TSX components (`packages/cli/src/board/ui/`, preact through the `react` alias of `packages/cli/tsconfig.json`) into one HTML file: the bundle inline, the data marker left for `BoardPage.render` | `make board-ui OUT=<file>` |
 | `wiki-shared/` | `build.ts` | Builds the wiki and checks the build (`--check [--log <file>]` checks the last one) | `make docs` |
 | `wiki-shared/` | `manifest.ts` | Writes (or with `--check` verifies) `SHARED.json`, the hashes of the shared wiki theme folder | by hand after editing `docs/wiki/site/.vitepress/theme/shared/` |
