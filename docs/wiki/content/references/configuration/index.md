@@ -76,7 +76,6 @@ The table below lists the top-level configuration keys:
 | `board` | `object` | `{ agents: {} }` | What `vulcan board` puts on its page: owner, title, host name, logo and the faces of agents ([board](#board)) |
 | `provider` | `object` | `{ type: 'github' }` | The code host `vulcan board` reads pull requests from: GitHub through `gh`, or GitLab through `glab` ([provider](#provider)) |
 | `commit` | `object` | every check off | The checks of `vulcan commit-check` and the `commit-msg` hook: the agent signature policy and the subject shape ([commit](#commit)) |
-| `ci` | `object` | `{ affected: { global: [] } }` | Paths that make `vulcan ci affected` run every check ([ci](#ci)) |
 | `events` | `object` | `{ log: false }` | The agent event log: on or off, its folder and its limits ([events](#events)) |
 | `local` | `object` | `{ autoClean: true }` | The automatic clean of `.agents/local/` and the project's own tmp folder, `local.tmp` ([local](#local)) |
 
@@ -684,24 +683,6 @@ export default {
       subject: { pattern: '^\\[#\\d+\\] ', hint: '[#N] type(scope): subject' },
     },
   },
-} satisfies VulcanConfig;
-```
-
-## ci
-
-The `ci` object configures `vulcan ci affected` ([vulcan ci](/references/commands/ci)).
-
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `affected.global` | `string[]` | `[]` | Globs, relative to the project root, of files that make every package affected, added to the shipped list (lockfiles, `bunfig.toml`, root `tsconfig*.json`, `.configs/`, the workflow files). A project cannot remove a shipped one. A leading `/` and a `..` segment are refused |
-
-`vulcan sync` writes the block to the manifest only when `global` is not empty, and the command reads it from there.
-
-```ts
-import type { VulcanConfig } from '@venizia/vulcan';
-
-export default {
-  ci: { affected: { global: ['Makefile', 'make/**'] } },
 } satisfies VulcanConfig;
 ```
 

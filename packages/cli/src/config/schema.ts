@@ -634,32 +634,6 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       message: { agent: { signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] } },
     }),
   /**
-   * What `vulcan ci affected` treats as touching every package. `affected.global` adds root-relative globs
-   * to the shipped list (lockfiles, `bunfig.toml`, root `tsconfig*.json`, `.configs/`, the workflow files);
-   * a project cannot remove a shipped one. Written to the manifest only when it is not empty.
-   */
-  ci: z
-    .strictObject({
-      /** Which changed files make `vulcan ci affected` treat every package as affected. */
-      affected: z
-        .strictObject({
-          /** Root-relative globs, no leading `/` and no `..` segment, added to the shipped list of files that touch every package; default `[]`. */
-          global: z
-            .array(
-              z
-                .string()
-                .min(1)
-                .refine((glob) => !glob.startsWith('/') && !glob.split('/').includes('..'), {
-                  message:
-                    'a glob relative to the project root, with no leading / and no .. segment',
-                }),
-            )
-            .default([]),
-        })
-        .default({ global: [] }),
-    })
-    .default({ affected: { global: [] } }),
-  /**
    * The agent event log: one JSON line per thing an agent did (a session started, a message sent, an
    * owner is needed), summaries only, in `.agents/local/events/<day>.jsonl`. `log: true` makes
    * `vulcan sync` install the Claude Code hooks that write it; `vulcan event add` writes it for any

@@ -75,13 +75,6 @@ const commitBlockOf = (opts: { config: TResolvedConfig }): { commit?: Record<str
   };
 };
 
-/** The manifest's `ci` block, which `vulcan ci affected` reads: only the globs the project adds. */
-const ciBlockOf = (opts: { config: TResolvedConfig }): { ci?: Record<string, unknown> } => {
-  const { global } = opts.config.ci.affected;
-
-  return global.length === 0 ? {} : { ci: { affected: { global } } };
-};
-
 /** The manifest's `events` block, which the hooks and `vulcan event` read: only when the log is on or has a folder. */
 const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<string, unknown> } => {
   const { log, dir, maxSize, maxFiles, maxAgeDays } = opts.config.events;
@@ -264,8 +257,6 @@ export class ProjectManifest {
       // The design tokens: the preset, the seeds the project gave and the resolved set every consumer reads.
       ...themeBlockOf({ config }),
       ...commitBlockOf({ config }),
-      // The files the project adds to the ones that make every package affected; none added, nothing is written.
-      ...ciBlockOf({ config }),
       // The names and the logo `vulcan board` puts on its page; nothing set, nothing is written.
       ...boardBlockOf({ config }),
       // The code host the board reads; GitHub, the default, writes nothing.

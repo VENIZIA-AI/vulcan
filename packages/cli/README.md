@@ -28,7 +28,6 @@ flag `bun x` fetches it when `@venizia/vulcan` is not installed yet.
 | `commit-check <message-file> \| --range <revs> \| --text <message>` | Check a commit message against the `commit.message` checks of the config; `sync` installs it as the `commit-msg` hook; exit 1 on a problem, 2 on bad input |
 | `board [--out <file>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]` | Fold the event log (and GitHub pull requests, checks and reviews when `gh` can read them) into flows and write one HTML file, by default `.agents/local/reports/board.html`; read-only. `--repo` is repeatable; `--no-github` leaves GitHub out |
 | `board serve [--port <n>] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]` | Serve the same page on 127.0.0.1 (default port 4317) and push new events to the open page with no reload, until Ctrl+C |
-| `ci affected --base <ref> \| template <github\|gitlab>` | List the workspace packages a change touches with the checks each has; `template` prints a CI file that runs exactly those |
 | `event add \| tail` | Write a line to the agent event log (`.agents/local/events/<day>.jsonl`) or read it |
 | `visualize <spec.json> [--out <name>] \| --schema` | Make one small static HTML page from a JSON spec, in `.agents/local/prototypes/` (`--out` names the page); `--schema` prints the spec's schema |
 | `profile [show\|edit\|reset]` | Tell VULCAN how you like to work (reply language, tone, habits) in `.agents/local/profile.json` |
@@ -67,7 +66,7 @@ An unknown key is an error; every error names the file and the field. The exampl
 - `skills/` - 11 project-neutral skills, described in `docs/wiki/content/references/skills.md` (a project-specific skill stays in its project).
 - `hooks/` - 16 hook files, described in `docs/wiki/content/references/hooks/index.md`.
 - `claude/settings.json`, `make/vulcan.mk`, `templates/`.
-- `agents.json` (the coding agents `sync` can write adapters for), `commit-agents.json` (the agent names, addresses and phrases `commit-check` looks for in a message), `ci-global.json` (the files that make `ci affected` select every package), `checks/` (the wiki link and anchor gates), `extensions/` (the guards for an agent that loads an extension, such as omp or pi) and `references/` (testing, design pass, evidence and the other pages the skills link to).
+- `agents.json` (the coding agents `sync` can write adapters for), `commit-agents.json` (the agent names, addresses and phrases `commit-check` looks for in a message), `checks/` (the wiki link and anchor gates), `extensions/` (the guards for an agent that loads an extension, such as omp or pi) and `references/` (testing, design pass, evidence and the other pages the skills link to).
 
 A project **extends** this: it adds rules with bare IDs (the base owns `V-`), skills, hooks and make targets, and never edits
 or shadows a shipped one.
