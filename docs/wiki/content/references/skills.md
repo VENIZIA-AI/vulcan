@@ -30,7 +30,7 @@ Detail that several skills share lives in `node_modules/@venizia/vulcan/base/ref
 | Reference | Holds | Loaded by |
 |---|---|---|
 | `design-pass.md` | The decisions worth writing down, designing an interface twice, what becomes knowledge | `plan-a-change`, `build-a-feature` step 3 |
-| `testing.md` | Where a test lives, the red-green loop, anti-patterns, mocking, fixtures, blast radius, evals | `build-a-feature` step 5, `fix-a-bug`, `review-a-change`, `plan-a-change` |
+| `testing.md` | Where a test lives, the red-green loop, anti-patterns, mocking, fixtures, blast radius | `build-a-feature` step 5, `fix-a-bug`, `review-a-change`, `plan-a-change` |
 | `evidence.md` | The evidence each kind of claim needs, and the probe kinds a card names | `plan-a-change`, `report-back` |
 | `delegation-brief.md` | The brief a subagent gets, the four statuses, liveness, parallel work | the delegation rule `V-P-12`, `plan-a-change`, `build-a-feature`, `review-a-change` |
 | `phase-boundaries.md` | Continue, clear, hand off, subagent or compact: the order of questions | `report-back` |
@@ -44,7 +44,3 @@ Detail that several skills share lives in `node_modules/@venizia/vulcan/base/ref
 - A skill that changes files works only inside the project; scratch goes under `.agents/local/` (`V-B-08`).
 - `plan-a-change` ends on the plan, and `review-a-change` is read-only: a reviewer reports, it does not fix.
 - `report-back` does not restate the reply shape: the session digest carries it, built from the [`owner` block](/references/configuration/#owner) and the developer's [profile](/references/configuration/#the-personal-profile).
-
-## Checking a skill
-
-A skill with `evals/evals.json` can be run against the models that will use it, with and without the skill, from the VULCAN repository: `make skill-evals-plan SKILL=plan-a-change` prints what a run would cost without running anything, and `make skill-evals SKILL=plan-a-change ARGS="--baseline"` runs each case on each model once with the skill and once without it, and reports both. Real runs spend model quota.

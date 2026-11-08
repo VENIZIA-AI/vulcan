@@ -74,16 +74,12 @@ test('the registry of published presets may name the frameworks; the same names 
   expect(result.stderr).not.toContain('official-presets.ts');
 });
 
-test('what VULCAN ships under base/ names no project either; skill evals are test data', () => {
+test('what VULCAN ships under base/ names no project either', () => {
   const root = plant({
-    files: {
-      'packages/cli/base/skills/syncing/SKILL.md': '# Syncing\n\nThe ARDOR way.\n',
-      'packages/cli/base/skills/syncing/evals/evals.json': '{ "prompt": "in the IGNIS repo" }\n',
-    },
+    files: { 'packages/cli/base/skills/syncing/SKILL.md': '# Syncing\n\nThe ARDOR way.\n' },
   });
   const result = run({ root });
 
   expect(result.code).toBe(1);
   expect(result.stderr).toContain('packages/cli/base/skills/syncing/SKILL.md:3');
-  expect(result.stderr).not.toContain('evals.json');
 });
