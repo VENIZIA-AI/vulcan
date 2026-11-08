@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { PresetScratch } from '../../create/scratch.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { ProjectContract } from '../../doctor/checks.ts';
-import { HookConstants, ProjectTmp, SessionDigest } from '../../hooks/index.ts';
+import { HookConstants, ProjectTmp } from '../../hooks/index.ts';
 import { CleanScopes, LocalScan } from '../../local/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
 import { ClaudeLaunch, CLAUDE_LAUNCH_FILE } from '../../sync/claude-launch.ts';
@@ -111,12 +111,21 @@ describe('the five readers follow the key', () => {
     expect(existsSync(join(root, 't'))).toBe(true);
   });
 
-  test('the session digest names it', async () => {
-    const root = projectWith('t');
-    const digest = await SessionDigest.build({ projectRoot: root });
+  test('the rules block of AGENTS.md names it, relative to the project', () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.mts': CONFIG,
+        'AGENTS.md': '# AGENTS.md\n\n## Must read first\n\n| a | b |\n',
+      },
+    });
 
-    expect(digest).toContain(`Scratch and temporary files go in \`${join(root, 't')}\``);
-    expect(digest).toContain(`export TMPDIR=${join(root, 't')}`);
+    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+
+    const text = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+
+    expect(text).toContain('go in `t`, never /tmp');
+    expect(text).toContain('export TMPDIR="$PWD/t"');
+    expect(text).not.toContain(root);
   });
 
   test('a Claude Code session with CLAUDE_CODE_TMPDIR on it is inside the project', () => {

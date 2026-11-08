@@ -160,8 +160,7 @@ describe('the session digest with a config that does not parse', () => {
 
     expect(digest).toContain('## Config problem');
     expect(digest).toContain('aKeyOfANewerRelease');
-    expect(digest).toContain('**unknown** - the config could not be read');
-    expect(digest).not.toContain('**not chosen**');
+    expect(digest).not.toContain('not chosen');
   });
 
   test('a readable config has no config problem section', async () => {

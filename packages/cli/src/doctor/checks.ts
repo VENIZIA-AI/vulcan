@@ -15,7 +15,13 @@ import { CommitHook, CommitHookStates } from '../commit/index.ts';
 import { EventConstants } from '../events/common/index.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
-import { AgentFiles, AtlasBlockPlan, LocalPlan, SyncPlanner, SyncStatuses } from '../sync/index.ts';
+import {
+  AgentFiles,
+  AgentsBlockPlan,
+  LocalPlan,
+  SyncPlanner,
+  SyncStatuses,
+} from '../sync/index.ts';
 import { BrowserSocket, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
 import { CLAUDE_LAUNCH_FILE } from '../sync/claude-launch.ts';
 import { PrivateValues } from './private-values.ts';
@@ -896,9 +902,9 @@ export class ProjectContract {
     return warnings;
   }
 
-  /** Info only: the Atlas block of AGENTS.md is missing or no longer matches the config. */
+  /** Info only: the Atlas or rules block of AGENTS.md is missing or no longer matches the config. */
   static checkAtlasBlock(opts: ICheckContext): IViolation[] {
-    const merged = AtlasBlockPlan.merged({ root: opts.root, config: opts.config });
+    const merged = AgentsBlockPlan.merged({ root: opts.root, config: opts.config });
 
     return merged === undefined || !merged.changed
       ? []
@@ -906,7 +912,7 @@ export class ProjectContract {
           createViolation({
             check: DoctorChecks.AGENTS,
             file: 'AGENTS.md',
-            message: `the Atlas block is missing or out of date - run '${ProjectLayout.VULCAN_COMMAND} sync'`,
+            message: `the Atlas or rules block of AGENTS.md is missing or out of date - run '${ProjectLayout.VULCAN_COMMAND} sync'`,
           }),
         ];
   }

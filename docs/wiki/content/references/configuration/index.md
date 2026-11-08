@@ -67,7 +67,7 @@ The table below lists the top-level configuration keys:
 | `atlas` | `object` | `{ tagPattern: '...', sources: [] }` | Release tags and external knowledge sources |
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `hooks` | `Array<object>` | `[]` | Custom project event hooks |
-| `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
+| `digest` | `object` | `{ oftenDropped: [...] }` | The rules the rules block of `AGENTS.md` names |
 | `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask', writes: { commands: [] }, git: { askPush: [] } }` | Tool-owned stores the outside-the-project guard allows, and the commands and push targets the guards ask about beyond their own list |
 | `doctor` | `object` | `{ privateValues: { acknowledged: [] } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)) |
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
@@ -512,13 +512,11 @@ export default {
 
 ## digest
 
-The `digest` object configures which rule IDs the SessionStart hook prints at session start.
-
-The SessionStart hook displays these rules under the heading "The rules sessions drop most". If you omit `digest`, VULCAN prints the default rule list shown below.
+The `digest` object configures which rule IDs `vulcan sync` names, one line each, in the rules block of `AGENTS.md`, after the write boundaries. The block holds at most 2 KB, so the last IDs of a long list are the ones left out. If you omit `digest`, the default list below is used. Run `vulcan sync` after you change it.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-C-02', 'V-C-09', 'V-C-10', 'V-P-08', 'V-B-07', 'V-B-09']` | Rule IDs highlighted at session start |
+| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-C-02', 'V-C-09', 'V-C-10', 'V-P-08', 'V-B-07', 'V-B-09']` | Rule IDs the rules block names, most important first |
 
 Every rule ID in `oftenDropped` must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
 

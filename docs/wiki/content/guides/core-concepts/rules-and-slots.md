@@ -68,41 +68,23 @@ vulcan doctor: 1 violation(s)
 
 ## How an agent sees them
 
-At session start, the SessionStart hook builds a session digest from the rules files. The hook prints the digest to standard output, which becomes session context.
+`vulcan sync` writes a block into the committed `AGENTS.md`, between `<!-- vulcan:rules:start ... -->` and `<!-- vulcan:rules:end -->`: your slot choices, the write boundaries (`V-W-02`, `V-W-03`, `V-W-06`), where scratch files go, and the rules sessions drop most (`digest.oftenDropped`), one line each, at most 2 KB. It is built from the rule files and the config, holds no path of one machine, and is the same for every developer.
 
-The digest includes the atlas pointer, write boundaries, your slot choices, how to answer the owner, and frequently dropped rules. It also prints 'This project's own rules' and the minimap when present, so your rules reach the agent.
+Every agent that reads `AGENTS.md` gets it, and so does Claude Code, whose `CLAUDE.md` is `@AGENTS.md`. Verified in a real run: Claude Code and omp both quoted the block. `vulcan doctor` notes a block that is missing or no longer matches the rules or the config, and `vulcan sync` rewrites it.
 
-Run the hook directly to see the digest. This output is cut: `...` marks shortened text, and whole sections are left out, the end included:
+At session start, the SessionStart hook of Claude Code prints a short digest, under 2 KB, of what only that session knows: a config problem, a launch warning, and how to answer the owner. It holds no rule text: Claude Code gives the model a hook's output whole only up to about 10,000 bytes, and beyond that a file and its first 2 KB, which is what the old digest, 20 to 150 KB, always was.
 
 ```text
-$ echo '{}' | bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
-# VULCAN rules - read this before acting
+$ bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
+# VULCAN session
 
-Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents/rules.md`.
-
-## Atlas
-
-The `atlas` MCP server holds the real code and docs of: demo-app (this repository).
-Look facts up there before you answer or write from memory: `symbol` for an export you import, ...
-
-## Write boundaries
-
-| ID | Rule | Enforced by |
-|----|------|-------------|
-| V-W-01 | **Slot** - the project picks one in `.configs/vulcan.config.*` ... | slot - `read-only` adds a permissions.deny list |
-| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
-| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
-| V-W-06 | **Approval has a card.** Shared writes follow four action classes. ... | HARD for the git writes the guard-git hook knows (it asks or denies), SOFT for the rest |
-
-## This project's slot choices
-
-| V-W-01 | this project: `on-user-word` - Git writes happen only on the user's word, in this conversation. |
+The rules are in AGENTS.md ("Rules that must not be skipped"); the full text is `node_modules/@venizia/vulcan/base/rules.md` and `.agents/rules.md`.
 
 ## How to answer the owner
 ...
 ```
 
-The hook command exits with code 0. You can customize the dropped list with the `digest.oftenDropped` configuration key.
+You can customize the rules named in the block with the `digest.oftenDropped` configuration key; run `vulcan sync` after.
 
 ## See also
 

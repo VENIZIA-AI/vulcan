@@ -441,8 +441,8 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
       ? undefined
       : runHook({ hook: start, sandbox, payload: startPayload });
 
-  if (!digest?.stdout.includes('VULCAN rules')) {
-    return 'hooks: session-start printed no rules digest';
+  if (!digest?.stdout.includes('# VULCAN session')) {
+    return 'hooks: session-start printed no session digest';
   }
 
   const installed = join(sandbox, 'node_modules', '@venizia', 'vulcan');

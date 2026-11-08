@@ -108,7 +108,7 @@ describe('the session-start hook', () => {
     });
 
     expect(child.exitCode).toBe(0);
-    expect(child.stdout.toString()).toContain('# VULCAN rules');
+    expect(child.stdout.toString()).toContain('# VULCAN session');
     expect(readFileSync(envFile, 'utf8')).toBe(
       `export TMPDIR='${join(root, '.agents/local/tmp')}'\n`,
     );

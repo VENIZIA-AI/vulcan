@@ -1,7 +1,7 @@
 # AGENTS.md
 
-How to work in {{name}}. **This file is routing only** - it holds no rules and no facts, it points
-to where both live.
+How to work in {{name}}. **This file is routing** - it holds no facts and, apart from the generated
+`vulcan:rules` block, no rules: it points to where both live.
 
 Tool files (`CLAUDE.md`, ...) are per-developer pointers to this one, written by
 `bun x --no-install vulcan sync` for the agents you chose.

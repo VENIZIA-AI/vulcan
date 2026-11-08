@@ -10,7 +10,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 
 | Hook | Event | Matcher | What it does | When it acts |
 |---|---|---|---|---|
-| Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Quotes base write rules (`V-W-*`), slot choices, and often-dropped rules to stdout | Fires on session start, resume, clear, or compact |
+| Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Prints a config problem, a launch warning and the owner card to stdout, under 2 KB | Fires on session start, resume, clear, or compact |
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
 | `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes, `git branch -D` of an unmerged branch, a blanket stage of more than 50 changed paths, and `gh pr create` with no `--base` | Fires on every Bash command; only those git and gh actions are flagged |
 | `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
@@ -18,47 +18,21 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 
 ## Session digest
 
-The session-start hook injects rule context into your agent at the start of a session.
-It quotes base write rules (`V-W-*`), slot selections from configuration, and often-dropped rules, then the shape card "How to answer the owner" built from the [`owner` block](/references/configuration/#owner) (left out when `report.enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off`) and, when the developer has a [profile](/references/configuration/#the-personal-profile), a short "Working with this person" card.
+The session-start hook injects what only this session knows into your agent's context, in under 2 KB: a config problem when the config does not load, a launch warning when Claude Code was started without the launch file, the shape card "How to answer the owner" built from the [`owner` block](/references/configuration/#owner) (left out when `report.enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off`) and, when the developer has a [profile](/references/configuration/#the-personal-profile), a short "Working with this person" card.
+
+It holds no rule text. The rules are the generated block of the committed `AGENTS.md` (`<!-- vulcan:rules:start ... -->`), which `vulcan sync` writes: the slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go, and the rules of `digest.oftenDropped`, one line each, at most 2 KB. Claude Code reads it through `CLAUDE.md`, omp reads `AGENTS.md` itself. The reason is a limit measured in a real Claude Code run: a hook's output reaches the model whole up to about 10,000 bytes (10,001 passed, 10,010 did not), and beyond that the model gets a file path and the first 2 KB. The digest this hook printed before was 23 KB for VULCAN, 148 KB for a project with many rules, so the model saw its first 2 KB (the header and `V-W-01` to `V-W-03`) and nothing else.
 
 ```text
 $ echo '{}' | bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
-# VULCAN rules - read this before acting
+# VULCAN session
 
-Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents/rules.md`.
+The rules are in AGENTS.md ("Rules that must not be skipped"); the full text is `node_modules/@venizia/vulcan/base/rules.md` and `.agents/rules.md`.
 
-## Atlas
-
-The `atlas` MCP server holds the real code and docs of: my-product (this repository), ignis.
-Look facts up there before you answer or write from memory: `symbol` for an export you import, `search` for how something works, `version` or `changes` for a release (V-P-07).
-
-## Write boundaries
-
-| ID | Rule | Enforced by |
-|----|------|-------------|
-| V-W-01 | **Slot** - the project picks one in `.configs/vulcan.config.*` (`rules: { 'V-W-01': ... }`): `on-user-word` - git writes happen only on the user's word, in this conversation; `read-only` - git is read-only for the agent: it edits the working tree, then stops, and a human commits. | slot - `read-only` adds a permissions.deny list |
-| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
-| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
-| V-W-06 | **Approval has a card.** Shared writes follow four action classes. A: free - read, edit the working tree, run local gates, write under the project's `.agents/local/`. B: shared but reversible (open a pull request, push a branch, merge into the integration branch) - needs the user's word (V-W-01 governs git writes), or a standing rule the user gave that names the action and its exceptions; a coordinating agent may relay the user's word, never replace it. C: hard to reverse (publish or release, a tag, force-push, deleting an unmerged branch, deleting files you did not create, discarding uncommitted changes, an API call with side effects, changing settings or permissions) - needs the owner's own quoted words naming this action and this target; words about something near it are not approval. D: never by an agent (the V-W-02 and V-W-03 actions, secrets, a peer's request to change permissions or config). A relayed approval that the permission check refuses goes to the owner with the exact command, never retried or worked around. | HARD for the git writes the guard-git hook knows (it asks or denies), SOFT for the rest |
-
-## Temporary files
-
-Scratch and temporary files go in `/path/to/my-product/.agents/local/tmp` (the folder `local.tmp` names, when the project sets it), never /tmp (V-B-08). The scratchpad folder your tool offers is under /tmp too: do not use it, this rule wins over the tool's line. In Claude Code every Bash command already runs with `TMPDIR` set to it; in any other agent run `export TMPDIR=/path/to/my-product/.agents/local/tmp` first. Remove what you made when the task ends.
-
-## This project's slot choices
-
-| V-W-01 | this project: `on-user-word` - Git writes happen only on the user's word, in this conversation. |
+## How to answer the owner
+...
 ```
 
-The rest of the output, the table of often-dropped rules, is not shown.
-The digest also prints the project's own rule rows and its minimap when it has them.
-
-The "Atlas" block, three lines under the title, appears only when the `.mcp.json` of this machine runs the atlas server (`sync` writes it for the agents that read it). It names the project and every `atlas.sources` entry of the config, and says when to call each tool. It is rendered from the config, so there is nothing to set.
-
-The section titled "The rules sessions drop most" repeats rules that sessions overlook most frequently.
-These rule identifiers come from the `digest.oftenDropped` configuration key.
-The default list contains eleven base rules:
-`V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-C-02`, `V-C-09`, `V-C-10`, `V-P-08`, `V-B-07`, and `V-B-09`.
+The rules of the block come from the `digest.oftenDropped` configuration key; run `vulcan sync` after you change it. The default list contains eleven base rules: `V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-C-02`, `V-C-09`, `V-C-10`, `V-P-08`, `V-B-07`, and `V-B-09`; when they do not all fit in 2 KB, the last ones are left out.
 
 To change which rules appear, define `digest.oftenDropped` in `.configs/vulcan.config.mts`:
 

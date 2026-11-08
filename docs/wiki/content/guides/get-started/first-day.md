@@ -10,40 +10,29 @@ This tutorial walks you through the four tools you touch during daily work.
 
 | Step | What you touch | Observable result |
 |---|---|---|
-| 1. Start an agent session | Session-start hook | Rule digest prints to session context (Claude Code) |
+| 1. Start an agent session | Session-start hook and `AGENTS.md` | A short digest prints to session context (Claude Code); the rules block of `AGENTS.md` reaches every agent that reads it |
 | 2. Watch a guard work | Guard-writes hook | Mutating commands ask for human confirmation (Claude Code, omp, pi; see [Which agents are guarded](#which-agents-are-guarded)) |
 | 3. Write one knowledge page | OKF conformance gate | New concept page passes strict check |
 | 4. Ask atlas | atlas MCP server | Search hits return chunk ids and bodies |
 
 ## 1. Start an agent session
 
-In Claude Code, the session-start hook runs by itself at session start and injects a rules digest into session context. Every agent reads `AGENTS.md`; whether another agent runs the hook is in the [table below](#which-agents-are-guarded).
+In Claude Code, the session-start hook runs by itself at session start and injects a short digest into session context (a config problem, a launch warning, how to answer the owner). The rules are the block `vulcan sync` wrote into `AGENTS.md`, which every agent reads; whether another agent runs the hook is in the [table below](#which-agents-are-guarded).
 To test the hook directly, run it from the project root.
 The hook uses `CLAUDE_PROJECT_DIR` or the working directory.
-The output is about 44 lines; these are the first lines:
+The output is under 2 KB:
 
 ```text
 $ bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
-# VULCAN rules - read this before acting
+# VULCAN session
 
-Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents/rules.md`.
+The rules are in AGENTS.md ("Rules that must not be skipped"); the full text is `node_modules/@venizia/vulcan/base/rules.md` and `.agents/rules.md`.
 
-## Atlas
-
-The `atlas` MCP server holds the real code and docs of: demo-app (this repository).
-Look facts up there before you answer or write from memory: `symbol` for an export you import, `search` for how something works, `version` or `changes` for a release (V-P-07).
-
-## Write boundaries
-
-| ID | Rule | Enforced by |
-|----|------|-------------|
-| V-W-01 | **Slot** - the project picks one in `.configs/vulcan.config.*` (`rules: { 'V-W-01': ... }`): `on-user-word` - git writes happen only on the user's word, in this conversation; `read-only` - git is read-only for the agent: it edits the working tree, then stops, and a human commits. | slot - `read-only` adds a permissions.deny list |
-
+## How to answer the owner
 ...
 ```
 
-The `Atlas` block names the project and the sources atlas holds; the rows below it carry the base write-boundary rules.
-The rows for V-W-02 and V-W-03 (further down) name the guard hook.
+The rules are in the block "Rules that must not be skipped" of `AGENTS.md`: the slot choices, `V-W-02`, `V-W-03` and `V-W-06`, one line each, where scratch files go, and the rules sessions drop most.
 To inspect hook configuration and events, see [Hooks](/references/hooks/).
 
 ## 2. Watch a guard work

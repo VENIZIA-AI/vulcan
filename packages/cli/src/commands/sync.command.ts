@@ -14,7 +14,7 @@ import { ConfigLoader } from '../config/index.ts';
 import {
   AgentFiles,
   AgentRemoval,
-  AtlasBlockPlan,
+  AgentsBlockPlan,
   BaseRulesDiff,
   ExcludePlan,
   LocalPlan,
@@ -117,7 +117,7 @@ export class SyncFlow {
     const actions = [
       ...AgentRemoval.plan({ root: opts.cwd, removed, remaining: resolved.agents }),
       ...SyncPlanner.plan({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
-      ...AtlasBlockPlan.plan({ root: opts.cwd, config: loaded.config }),
+      ...AgentsBlockPlan.plan({ root: opts.cwd, config: loaded.config }),
       ...stored,
       ...LocalPlan.planWorkspace({
         root: opts.cwd,
