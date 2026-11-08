@@ -134,9 +134,9 @@ const BASE_CSS = [
   `.panels{display:grid;gap:2px;border-radius:var(--radius);overflow:hidden}`,
   // Tiles: fields of colour with a big number.
   `.slide-tiles{padding-top:56px}`,
-  `.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:color-mix(in srgb,var(--ink) 14%,transparent);border:1px solid color-mix(in srgb,var(--ink) 14%,transparent);border-radius:var(--radius);overflow:hidden}`,
+  `.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:color-mix(in srgb,var(--ink) 14%,transparent);border:1px solid color-mix(in srgb,var(--ink) 14%,transparent);border-radius:var(--radius);overflow:hidden}`,
   `.tile{position:relative;display:grid;align-content:start;padding:28px 26px 30px;background:var(--bg-soft)}`,
-  `.tile .n{font-size:clamp(30px,3vw,44px);line-height:.95;font-weight:650;letter-spacing:-.05em;color:var(--ink);overflow-wrap:break-word;margin-bottom:10px}`,
+  `.tile .n{font-size:clamp(36px,4.4vw,60px);line-height:.95;font-weight:650;letter-spacing:-.05em;color:var(--ink);overflow-wrap:anywhere;margin-bottom:10px}`,
   `.tile.c-ok .n,.tile.c-warn .n,.tile.c-bad .n,.tile.c-info .n{padding-right:36px}`,
   `.tile .l{color:var(--body);font-size:13px;letter-spacing:.06em;text-transform:uppercase}`,
   `.tile .ic{position:absolute;top:22px;right:22px;color:var(--c)}`,
