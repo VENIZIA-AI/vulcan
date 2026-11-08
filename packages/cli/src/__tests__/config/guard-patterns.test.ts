@@ -68,14 +68,3 @@ describe('guard.outside', () => {
     expect(parse({ outside: { mode: 'deny' } }).success).toBe(false);
   });
 });
-
-describe('remoteHosts was removed', () => {
-  test('a config that still sets it is refused with what to do', () => {
-    const result = VULCAN_CONFIG_SCHEMA.safeParse({ remoteHosts: { trusted: ['example.test'] } });
-
-    expect(result.success).toBe(false);
-    expect(result.success ? '' : result.error.message).toContain(
-      '.agents/hooks/trusted-hosts.local',
-    );
-  });
-});

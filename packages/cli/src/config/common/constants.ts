@@ -37,27 +37,6 @@ export class CodingAgents {
   }
 }
 
-/** Claude Code hook events a project may add a hook to. */
-export class HookEvents {
-  static readonly PRE_TOOL_USE = 'PreToolUse';
-  static readonly POST_TOOL_USE = 'PostToolUse';
-  static readonly USER_PROMPT_SUBMIT = 'UserPromptSubmit';
-  static readonly SESSION_START = 'SessionStart';
-  static readonly STOP = 'Stop';
-
-  static readonly SCHEME_SET = new Set<string>([
-    this.PRE_TOOL_USE,
-    this.POST_TOOL_USE,
-    this.USER_PROMPT_SUBMIT,
-    this.SESSION_START,
-    this.STOP,
-  ]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
-}
-
 export class ConfigConstants {
   static readonly DIRECTORY = '.configs';
   /** The one config file name, under `.configs/`. */

@@ -36,7 +36,6 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `rule-slots` | Every base rule slot receives a valid choice option in configuration | Provide an allowed choice in `.configs/vulcan.config.mts` under `rules` |
 | `skills` (shipped names) | Project skills avoid names reserved by shipped skills | Rename the colliding skill directory under `.agents/skills/` |
 | `make` | The project `Makefile` includes `vulcan.mk` and avoids shipped target names | Add the `-include` line or rename conflicting project make targets |
-| `hooks` | Project hook configuration registers project commands instead of shipped hooks | Remove shipped hook paths from `hooks` in `.configs/vulcan.config.mts` |
 | `adapters` | Generated tool files, settings and links match configuration | Run `bun x --no-install vulcan sync` |
 | `manifest` | Committed `.agents/vulcan.manifest.json` matches project configuration | Run `bun x --no-install vulcan sync` and commit the manifest |
 | `tags` | Git tags matching `atlas.tagPattern` resolve to declared packages | Declare the package, add an alias, or add the tag to `atlas.ignoreTags` |
@@ -156,21 +155,6 @@ vulcan doctor: 1 violation(s)
 ```
 
 If the include line is missing, the check reports `add: -include node_modules/@venizia/vulcan/base/make/vulcan.mk`.
-
-### hooks
-
-A hook in configuration running a shipped hook path triggers this check.
-
-The following output drops one line that belongs to the `adapters` check:
-
-```text
-$ bun x --no-install vulcan doctor
-  [hooks] .configs/vulcan.config.mts: the SessionStart hook runs a shipped hook - sync registers those, never the project
-vulcan doctor: 2 violation(s)
-```
-
-`vulcan sync` registers shipped hooks automatically.
-Remove shipped hook paths from `hooks` in `.configs/vulcan.config.mts`.
 
 ### adapters
 

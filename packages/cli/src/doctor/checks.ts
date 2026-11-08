@@ -314,18 +314,6 @@ export class ProjectContract {
     return violations;
   }
 
-  static checkHooks(opts: ICheckContext): IViolation[] {
-    return opts.config.hooks
-      .filter((hook) => hook.command.includes(DoctorConstants.SHIPPED_HOOKS_PATH))
-      .map((hook) =>
-        createViolation({
-          check: DoctorChecks.HOOKS,
-          file: opts.configFile,
-          message: `the ${hook.event} hook runs a shipped hook - sync registers those, never the project`,
-        }),
-      );
-  }
-
   static checkAdapters(opts: ICheckContext): IViolation[] {
     const pending = SyncPlanner.plan({
       root: opts.root,

@@ -255,7 +255,7 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
   available: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
 ? Agents > claude
   created   CLAUDE.md
-  created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  created   .claude/settings.json (shipped, slot and claude.settings over personal keys)
   created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing

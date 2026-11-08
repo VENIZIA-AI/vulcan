@@ -18,7 +18,6 @@ import { EventSettings } from '../events/settings.ts';
 import {
   CodingAgents,
   ConfigConstants,
-  HookEvents,
   LibraryKinds,
   PackageKinds,
   TemplatePlaceholders,
@@ -26,9 +25,6 @@ import {
 
 const CODING_AGENT = z.string().refine((value) => CodingAgents.isValid(value), {
   message: `one of: ${[...CodingAgents.SCHEME_SET].join(', ')}`,
-});
-const HOOK_EVENT = z.string().refine((value) => HookEvents.isValid(value), {
-  message: `one of: ${[...HookEvents.SCHEME_SET].join(', ')}`,
 });
 
 /** An ed25519 public key as `atlas index keygen` prints it: the base64 of its 32 raw bytes, nothing else. */
@@ -282,7 +278,6 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       /** Folder of the changelog files; absent means the project has none. */
       changelogs: z.string().optional(),
       /** A map of code areas to concepts; no shipped skill reads it. */
-      syncAreas: z.string().optional(),
     })
     .default({ bundle: ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE }),
   /** Settings of okf, the knowledge bundle tool: renderers, regions, coverage axes and the brand. */
@@ -407,10 +402,6 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       tagPattern: '<dir>-v<version>',
       sources: [],
     }),
-  /** Removed with the guard that read it: the key is refused with what to do. */
-  remoteHosts: REMOVED_OKF_KEY({
-    fix: "the guard that read this key is deleted; delete the key and the personal file `.agents/hooks/trusted-hosts.local`, the host's own permission rules cover network access",
-  }),
   /**
    * The colour the project is known by: `vulcan visualize` takes the accent of its pages from here (the spec's own
    * `accent` wins). `accent` is the colour for marks and fills; `accentDark` is the same on dark grounds (derived
@@ -526,12 +517,6 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   claude: z
     .strictObject({ settings: z.record(z.string(), z.unknown()).default({}) })
     .default({ settings: {} }),
-  /** Project hooks, each an `event`, an optional `matcher` and a `command`; `vulcan sync` merges them into the agent settings. Default `[]`. */
-  hooks: z
-    .array(
-      z.strictObject({ event: HOOK_EVENT, matcher: z.string().optional(), command: z.string() }),
-    )
-    .default([]),
   /** The session-start digest: the rule IDs it repeats as "the rules sessions drop most" - base or the project's own. */
   digest: z
     .strictObject({

@@ -1,4 +1,3 @@
-import type { TResolvedConfig } from '../config/index.ts';
 import { SyncConstants } from './common/index.ts';
 import type { TSettings } from './common/index.ts';
 
@@ -221,21 +220,5 @@ export class ProjectSettings {
     }
 
     return remaining;
-  }
-
-  /** The project's own hooks from config, in Claude Code's settings shape. */
-  static buildHook(opts: { hooks: TResolvedConfig['hooks'] }): TSettings {
-    const byEvent: Record<string, unknown[]> = {};
-
-    for (const hook of opts.hooks) {
-      const entry = {
-        ...(hook.matcher === undefined ? {} : { matcher: hook.matcher }),
-        hooks: [{ type: 'command', command: hook.command }],
-      };
-
-      byEvent[hook.event] = [...(byEvent[hook.event] ?? []), entry];
-    }
-
-    return { hooks: byEvent };
   }
 }

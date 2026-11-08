@@ -277,19 +277,6 @@ describe('doctor', () => {
     expect(result).toEqual([]);
   });
 
-  test('a config hook that runs a shipped hook', async () => {
-    const root = createSyncedProject({
-      files: {
-        ...CONFORMANT,
-        '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, hooks: [{ event: 'Stop', command: 'bun node_modules/@venizia/vulcan/base/hooks/guard-writes.ts' }] };\n",
-      },
-    });
-
-    const result = await findChecks({ root });
-    expect(result).toEqual([DoctorChecks.HOOKS]);
-  });
-
   test('never synced: one adapters violation, and the missing manifest', async () => {
     const checks = await findChecks({ root: createProject({ files: CONFORMANT }) });
 

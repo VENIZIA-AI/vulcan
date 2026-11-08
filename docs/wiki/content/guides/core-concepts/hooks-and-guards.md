@@ -63,23 +63,23 @@ NOT VERIFIED means built from the agent's documentation and unit tests, and neve
 
 ## Your own hooks
 
-Add entries to the `hooks` array in `.configs/vulcan.config.mts`; `vulcan sync` merges them into `.claude/settings.json` next to the shipped ones:
+Put a project hook under `claude.settings.hooks` in `.configs/vulcan.config.mts`, in Claude Code's own settings shape; `vulcan sync` merges it into `.claude/settings.json` next to the shipped ones:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  hooks: [
-    {
-      event: 'PreToolUse',
-      matcher: 'Bash',
-      command: 'bun .agents/hooks/check-lint.ts',
+  claude: {
+    settings: {
+      hooks: {
+        PreToolUse: [
+          { matcher: 'Bash', hooks: [{ type: 'command', command: 'bun .agents/hooks/check-lint.ts' }] },
+        ],
+      },
     },
-  ],
+  },
 } satisfies VulcanConfig;
 ```
-
-`vulcan doctor` `[hooks]` fails a project hook that runs a shipped hook.
 
 ## See also
 

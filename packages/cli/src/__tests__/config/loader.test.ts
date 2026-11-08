@@ -37,7 +37,6 @@ describe('ConfigLoader.load', () => {
     if (result.ok) {
       expect(result.config.agents).toEqual(['claude']);
       expect(result.config.knowledge.bundle).toBe('.agents/knowledge');
-      expect(result.config.hooks).toEqual([]);
     }
   });
 
