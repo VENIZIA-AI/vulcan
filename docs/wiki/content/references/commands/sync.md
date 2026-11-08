@@ -13,7 +13,7 @@ The manifest is always written.
 | Output | Where | Committed? | Built from |
 |---|---|---|---|
 | Agent instructions | `CLAUDE.md` | No (gitignored adapter) | `@AGENTS.md` import line |
-| Claude settings | `.claude/settings.json` | No (gitignored adapter) | Shipped settings, slot choices, project hooks, `claude.settings`, and personal settings |
+| Claude settings | `.claude/settings.json` | No (gitignored adapter) | Shipped settings, slot choices, `claude.settings` (project hooks included), and personal settings |
 | Skill links | `.claude/skills/<name>` | No (gitignored adapter) | Symbolic links to shipped and project skills |
 | Project manifest | `.agents/vulcan.manifest.json` | Yes (committed manifest) | Project configuration and base rule hashes |
 | Managed overlay | `.claude/vulcan-managed.json` | No (gitignored adapter) | Managed overlay record of settings written by VULCAN |
@@ -149,7 +149,7 @@ To generate missing adapters and the manifest, run `vulcan sync`:
 ```text
 $ bun x --no-install vulcan sync
   created   CLAUDE.md
-  created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  created   .claude/settings.json (shipped, slot and claude.settings over personal keys)
   created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
@@ -228,8 +228,7 @@ Each later source overrides the earlier sources:
 3. Slot choices: Settings defined for chosen slot options in `base/slots.json`, such as git write restrictions for `V-W-01`.
 4. Commit attribution: With `commit.message.agent.signature: 'deny'`, VULCAN sets `attribution` empty so Claude Code adds no signature to commits and pull requests ([the details](/references/commands/commit-check#claude-code-s-own-attribution)).
 5. Event hooks: With `events.log: true`, VULCAN adds the five hooks of the [agent event log](/references/commands/event).
-6. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.mts`, grouped by event.
-7. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`.
+6. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`, project hooks (`claude.settings.hooks`) included.
 
 ### Merge behavior
 
@@ -246,7 +245,7 @@ The settings and the manifest are what change; the skill lines and the lines tha
 
 ```text
 $ bun x --no-install vulcan sync
-  replaced  .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  replaced  .claude/settings.json (shipped, slot and claude.settings over personal keys)
   replaced  .agents/vulcan.manifest.json
 ```
 
@@ -257,7 +256,7 @@ To preview filesystem operations without making changes, pass `--dry-run`:
 ```text
 $ bun x --no-install vulcan sync --dry-run
   would create  CLAUDE.md
-  would create  .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  would create  .claude/settings.json (shipped, slot and claude.settings over personal keys)
   would create  .claude/skills/build-a-feature
   would create  .claude/skills/docs-update
   would create  .claude/skills/docs-writing
@@ -358,7 +357,6 @@ The manifest also includes optional fields when configured:
 
 - `knowledge.wiki`: Path to wiki documentation, present when set.
 - `knowledge.changelogs`: Path to changelogs, present when set.
-- `knowledge.syncAreas`: Map of code areas to concepts, present when set.
 - `layout`: The folders of backend apps, frontend apps and shared packages (`backend`, `frontend`, `shared`), present when set; `init --preset` and `add` write it.
 - `presets`: The presets the project's apps came from, each `{ spec, side, summary }` and `lib` when the preset also makes libraries. atlas's `presets` tool answers from it.
 - `kind`: `"lib"` on a package entry that `add --lib` made (apps carry no `kind`).

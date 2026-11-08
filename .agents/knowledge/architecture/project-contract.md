@@ -12,7 +12,7 @@ tags: [architecture, project, contract]
 Makefile that `-include`s `vulcan.mk`.
 
 **Written by `vulcan sync`, gitignored:** `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json`
-(shipped, slot, project hooks and `claude.settings`, merged over personal keys), the record of what
+(shipped, slot and `claude.settings` with the project hooks in it, merged over personal keys), the record of what
 it applied (`.claude/vulcan-managed.json`), and the `.claude/skills/` links.
 
 **Checked by `vulcan doctor`:** config, layout, rule IDs (a `V-` ID a project rule

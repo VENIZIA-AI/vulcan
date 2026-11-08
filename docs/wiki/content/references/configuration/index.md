@@ -67,7 +67,6 @@ The table below lists the top-level configuration keys:
 | `okf` | `object` | `{ renderers: [], ... }` | Renderers, regions, and coverage checks for okf |
 | `atlas` | `object` | `{ tagPattern: '...', sources: [] }` | Release tags and external knowledge sources |
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
-| `hooks` | `Array<object>` | `[]` | Custom project event hooks |
 | `digest` | `object` | `{ oftenDropped: [...] }` | The rules the rules block of `AGENTS.md` names |
 | `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask', writes: { commands: [] }, git: { askPush: [] } }` | Tool-owned stores the outside-the-project guard allows, and the commands and push targets the guards ask about beyond their own list |
 | `doctor` | `object` | `{ privateValues: { acknowledged: [] } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)) |
@@ -277,14 +276,13 @@ export default {
 
 The `knowledge` object configures paths for knowledge bundles and documentation. `vulcan sync` writes these paths to `.agents/vulcan.manifest.json`.
 
-`vulcan doctor` verifies that the `bundle` directory exists using the `[layout]` label. Atlas reads `bundle`, `wiki`, and `changelogs` from the manifest to index concepts and release notes. `syncAreas` is written to the manifest, and no shipped skill reads it.
+`vulcan doctor` verifies that the `bundle` directory exists using the `[layout]` label. Atlas reads `bundle`, `wiki`, and `changelogs` from the manifest to index concepts and release notes.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `bundle` | `string` | `'.agents/knowledge'` | Location of the Open Knowledge Format bundle |
 | `wiki` | `string` | `undefined` | Location of the documentation wiki content |
 | `changelogs` | `string` | `undefined` | Location of changelog files |
-| `syncAreas` | `string` | `undefined` | Path to the knowledge synchronization concept map |
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -294,7 +292,6 @@ export default {
     bundle: '.agents/knowledge',
     wiki: 'docs/wiki/content',
     changelogs: 'docs/wiki/content/changelogs',
-    syncAreas: '.agents/knowledge/process/knowledge-sync-areas.md',
   },
 } satisfies VulcanConfig;
 ```
@@ -466,6 +463,8 @@ The `claude` object provides team-shared assistant configuration. `vulcan sync` 
 |---|---|---|---|
 | `settings` | `Record<string, unknown>` | `{}` | Settings dictionary merged into `.claude/settings.json` |
 
+A project hook goes in `settings.hooks`, in Claude Code's own shape (an event, then entries with an optional `matcher` and a list of `hooks`). It is added next to the shipped hooks of that event. A hook of the shipped scripts is registered by `vulcan sync`; do not add one.
+
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
@@ -477,45 +476,6 @@ export default {
       },
     },
   },
-} satisfies VulcanConfig;
-```
-
-## hooks
-
-The `hooks` array registers custom shell commands for assistant lifecycle events. `vulcan sync` converts and merges these definitions into `.claude/settings.json`.
-
-`vulcan doctor` checks project hook definitions under the `[hooks]` label. If a project hook attempts to run a shipped VULCAN hook command, `vulcan doctor` reports a violation:
-
-```text
-$ bun x --no-install vulcan doctor
-  [hooks] .configs/vulcan.config.mts: the SessionStart hook runs a shipped hook - sync registers those, never the project
-  [adapters] .claude/settings.json: stale (replaced) - run 'bun x --no-install vulcan sync'
-vulcan doctor: 2 violation(s)
-```
-
-The command exits with code 1.
-
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `event` | `string` | none | Hook event: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `SessionStart`, or `Stop` |
-| `matcher` | `string` | `undefined` | Tool matcher string such as `Bash` |
-| `command` | `string` | none | Shell command to execute |
-
-```ts
-import type { VulcanConfig } from '@venizia/vulcan';
-
-export default {
-  hooks: [
-    {
-      event: 'Stop',
-      command: 'bun .agents/hooks/notify.ts',
-    },
-    {
-      event: 'PreToolUse',
-      matcher: 'Bash',
-      command: 'bun .agents/hooks/lint-check.ts',
-    },
-  ],
 } satisfies VulcanConfig;
 ```
 
@@ -793,7 +753,6 @@ export default {
     bundle: '.agents/knowledge',
     wiki: 'docs/wiki/content',
     changelogs: 'docs/wiki/content/changelogs',
-    syncAreas: '.agents/knowledge/process/knowledge-sync-areas.md',
   },
   okf: {
     renderers: [
@@ -821,12 +780,6 @@ export default {
       },
     },
   },
-  hooks: [
-    {
-      event: 'Stop',
-      command: 'bun .agents/hooks/notify.ts',
-    },
-  ],
   digest: {
     oftenDropped: ['V-B-03', 'V-P-06', 'V-B-07'],
   },

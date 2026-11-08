@@ -97,11 +97,6 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
     });
   }
 
-  overlay = ProjectSettings.merge({
-    base: overlay,
-    overlay: ProjectSettings.buildHook({ hooks: opts.config.hooks }),
-  });
-
   return ProjectSettings.merge({ base: overlay, overlay: opts.config.claude.settings });
 };
 
@@ -142,7 +137,7 @@ const planSettings = (opts: { root: string; config: TResolvedConfig }): ISyncAct
   return {
     path,
     status: before === undefined ? SyncStatuses.CREATED : SyncStatuses.REPLACED,
-    note: 'shipped, slot, project hooks and claude.settings over personal keys',
+    note: 'shipped, slot and claude.settings over personal keys',
     apply: () => {
       mkdirSync(directory, { recursive: true });
       writeFileSync(path, text);

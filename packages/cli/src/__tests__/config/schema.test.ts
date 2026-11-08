@@ -327,10 +327,15 @@ describe('ProjectPackages.resolve', () => {
     expect(messages.join('; ')).toContain(`Unrecognized key: "${key}"`);
   });
 
-  test.each([['ci', { affected: { global: ['Makefile'] } }]])(
+  test.each([
+    ['ci', { ci: { affected: { global: ['Makefile'] } } }],
+    ['hooks', { hooks: [{ event: 'Stop', command: 'echo done' }] }],
+    ['remoteHosts', { remoteHosts: { trusted: ['example.test'] } }],
+    ['syncAreas', { knowledge: { syncAreas: '.agents/knowledge/process/areas.md' } }],
+  ])(
     '%s was removed: a config that still sets it is refused, with the key named',
-    (key, value) => {
-      const result = VULCAN_CONFIG_SCHEMA.safeParse({ [key]: value });
+    (key, config) => {
+      const result = VULCAN_CONFIG_SCHEMA.safeParse(config);
       const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
 
       expect(result.success).toBe(false);

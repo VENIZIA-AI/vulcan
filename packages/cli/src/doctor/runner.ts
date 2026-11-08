@@ -34,7 +34,6 @@ export class DoctorRunner {
       ...ProjectContract.checkRuleSlots(context),
       ...ProjectContract.checkSkills(context),
       ...ProjectContract.checkMake(context),
-      ...ProjectContract.checkHooks(context),
       ...ProjectContract.checkAdapters(context),
       ...ProjectContract.checkAgents(context),
       ...ProjectContract.checkManifest(context),

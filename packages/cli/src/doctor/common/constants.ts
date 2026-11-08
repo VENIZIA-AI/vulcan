@@ -12,7 +12,6 @@ export class DoctorChecks {
   /** The Makefile include of vulcan.mk and clashes with shipped target names; a violation is an error. */
   static readonly MAKE = 'make';
   /** Project hooks in the config; one that registers a shipped hook path is an error. */
-  static readonly HOOKS = 'hooks';
   /** Generated tool files, settings and links against the config; a missing or stale one is an error. */
   static readonly ADAPTERS = 'adapters';
   /** Packages declare @venizia/dev-configs and lint configs import the shared style; a miss is an error. */
@@ -96,7 +95,6 @@ export class PrivateValueScan {
 export class DoctorConstants {
   static readonly MAKE_INCLUDE_PATTERN =
     /^-?include\s+\S*@venizia\/vulcan\/base\/make\/vulcan\.mk\s*$/m;
-  static readonly SHIPPED_HOOKS_PATH = '@venizia/vulcan/base/hooks/';
   /** The `[fmt]` table header of a `bunfig.toml`, on a line of its own, a trailing comment allowed. */
   static readonly BUNFIG_FMT_SECTION = /^\s*\[fmt\]\s*(#.*)?$/m;
   static readonly BUNFIG_FMT_FLAVOR = /^\s*flavor\s*=\s*["']oxfmt["']/m;

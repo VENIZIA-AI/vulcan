@@ -28,6 +28,12 @@ const runSync = (opts: { root: string }) => runCli({ args: ['sync'], cwd: opts.r
 const readSettings = (opts: { root: string }) =>
   JSON.parse(readFileSync(join(opts.root, '.claude', 'settings.json'), 'utf8'));
 
+/** Two project hooks in Claude Code's own settings shape: what the removed `hooks` key wrote for them. */
+const HOOKS_SETTING = JSON.stringify({
+  Stop: [{ hooks: [{ type: 'command', command: 'echo bye' }] }],
+  PreToolUse: [{ matcher: 'Edit', hooks: [{ type: 'command', command: 'echo edit' }] }],
+});
+
 describe('CLAUDE.md', () => {
   test('absent: created as the @AGENTS.md import file', () => {
     const root = createProject({ files: READ_ONLY_PROJECT });
@@ -153,12 +159,11 @@ describe('.claude/settings.json', () => {
     expect(readSettings({ root }).permissions?.deny).toBeUndefined();
   });
 
-  test('config hooks are appended after the shipped ones', () => {
+  test('claude.settings hooks are appended after the shipped ones', () => {
     const root = createProject({
       files: {
         ...READ_ONLY_PROJECT,
-        '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, hooks: [{ event: 'Stop', command: 'echo bye' }, { event: 'PreToolUse', matcher: 'Edit', command: 'echo edit' }] };\n",
+        '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }, claude: { settings: { hooks: ${HOOKS_SETTING} } } };\n`,
       },
     });
 
@@ -183,12 +188,11 @@ describe('.claude/settings.json', () => {
     expect(readSettings({ root }).permissions?.deny).toBeUndefined();
   });
 
-  test('a config hook removed from the config is removed from the settings', () => {
+  test('a hook removed from claude.settings is removed from the settings', () => {
     const root = createProject({
       files: {
         ...READ_ONLY_PROJECT,
-        '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, hooks: [{ event: 'Stop', command: 'echo bye' }] };\n",
+        '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }, claude: { settings: { hooks: ${HOOKS_SETTING} } } };\n`,
       },
     });
 

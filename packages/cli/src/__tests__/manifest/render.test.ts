@@ -21,7 +21,6 @@ const CONFIG = {
   knowledge: {
     bundle: '.agents/knowledge',
     changelogs: 'docs/changes',
-    syncAreas: '.agents/knowledge/process/sync-areas.md',
   },
   atlas: { tagPattern: '<dir>-v<version>', ignoreTags: ['*/0.0.1-0'] },
 };
@@ -66,7 +65,6 @@ describe('ProjectManifest.render', () => {
     expect(manifest.knowledge).toEqual({
       bundle: '.agents/knowledge',
       changelogs: 'docs/changes',
-      syncAreas: '.agents/knowledge/process/sync-areas.md',
     });
     expect(manifest.release).toEqual({
       tagPattern: '<dir>-v<version>',

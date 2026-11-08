@@ -212,7 +212,7 @@ export class ProjectManifest {
    */
   static render(opts: { root: string; config: TResolvedConfig }): string {
     const { config } = opts;
-    const { wiki, changelogs, syncAreas } = config.knowledge;
+    const { wiki, changelogs } = config.knowledge;
 
     const manifest = {
       [ManifestConstants.GENERATED_KEY]: ManifestConstants.GENERATED_NOTE,
@@ -234,7 +234,6 @@ export class ProjectManifest {
         bundle: config.knowledge.bundle,
         ...(wiki === undefined ? {} : { wiki }),
         ...(changelogs === undefined ? {} : { changelogs }),
-        ...(syncAreas === undefined ? {} : { syncAreas }),
       },
       release: {
         tagPattern: config.atlas.tagPattern,

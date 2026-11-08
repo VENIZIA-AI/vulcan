@@ -17,7 +17,7 @@ const HOOK = 'node_modules/@venizia/vulcan/base/hooks/event.ts';
 
 const parse = (events: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ events });
 const config = (opts: { events?: string; hooks?: string }) =>
-  `export default {${opts.events === undefined ? '' : ` events: ${opts.events},`}${opts.hooks === undefined ? '' : ` hooks: ${opts.hooks},`} };\n`;
+  `export default {${opts.events === undefined ? '' : ` events: ${opts.events},`}${opts.hooks === undefined ? '' : ` claude: { settings: { hooks: ${opts.hooks} } },`} };\n`;
 
 const projectWith = (opts: { events?: string; hooks?: string }): string =>
   createProject({ files: { '.configs/vulcan.config.mts': config(opts), 'AGENTS.md': '# x\n' } });
@@ -154,7 +154,7 @@ describe('vulcan sync and the event hooks', () => {
   });
 
   test('turning the log off takes exactly our entries back and keeps the project own hooks', () => {
-    const own = "[{ event: 'Stop', command: 'echo mine' }]";
+    const own = "{ Stop: [{ hooks: [{ type: 'command', command: 'echo mine' }] }] }";
     const root = projectWith({ events: '{ log: true }', hooks: own });
 
     sync({ root });
