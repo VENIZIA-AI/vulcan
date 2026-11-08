@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { ContentsList } from '@venizia/vulcan-okf';
 import { AtlasBlock, RulesBlock } from '../agents/index.ts';
 import { ProjectLayout } from '../common/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
@@ -10,6 +11,8 @@ import { SyncStatuses } from './common/index.ts';
 import type { ISyncAction } from './common/index.ts';
 
 const NO_CHANGE = (): void => {};
+
+const AGENTS_FILE = 'AGENTS.md';
 
 const readText = (opts: { file: string }): string =>
   existsSync(opts.file) ? readFileSync(opts.file, 'utf8') : '';
@@ -48,7 +51,7 @@ export class AgentsBlockPlan {
     root: string;
     config: TResolvedConfig;
   }): { path: string; changed: boolean; text: string } | undefined {
-    const path = join(opts.root, 'AGENTS.md');
+    const path = join(opts.root, AGENTS_FILE);
 
     if (!existsSync(path)) {
       return undefined;
@@ -67,7 +70,14 @@ export class AgentsBlockPlan {
       block: AgentsBlockPlan.rulesBlockOf(opts),
     });
 
-    return { path, changed: rules.text !== original, text: rules.text };
+    // The blocks can make the file long, and a long agent-read file carries a contents list that `okf check --strict` wants fresh.
+    const text = opts.config.okf.contents.files.some((pattern) =>
+      new Bun.Glob(pattern).match(AGENTS_FILE),
+    )
+      ? ContentsList.withContents({ text: rules.text })
+      : rules.text;
+
+    return { path, changed: text !== original, text };
   }
 
   /** The committed AGENTS.md carries the blocks for every agent, Claude included. */

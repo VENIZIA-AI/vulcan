@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { ContentsList } from '@venizia/vulcan-okf';
 import { RulesBlock } from '../../agents/index.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -31,6 +32,13 @@ const project = (opts: { mcp?: boolean; agents?: string } = {}) =>
       ...(opts.mcp === false ? {} : { '.mcp.json': MCP }),
     },
   });
+
+/** Short enough to need no contents list until the two blocks make it long. */
+const LONG_AGENTS_MD = [
+  '# AGENTS.md',
+  '',
+  ...Array.from({ length: 20 }, (_, index) => `## Part ${index}\n\nText of part ${index}.\n`),
+].join('\n');
 
 const sync = (opts: { root: string; agents?: string }) =>
   runCli({ args: ['sync', '--agents', opts.agents ?? 'omp'], cwd: opts.root });
@@ -199,5 +207,37 @@ describe('the Atlas and rules blocks in AGENTS.md', () => {
 
     const result = await DoctorRunner.runNotes({ root });
     expect(result.map((note) => note.file)).toContain('AGENTS.md');
+  });
+
+  test('the blocks that make AGENTS.md long come with its contents list, so okf check --strict finds it fresh', () => {
+    const root = createProject({
+      files: { '.configs/vulcan.config.mts': CONFIG, 'AGENTS.md': LONG_AGENTS_MD },
+    });
+
+    expect(LONG_AGENTS_MD.split('\n').length).toBeLessThan(100);
+    sync({ root });
+
+    const text = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+
+    expect(text.split('\n').length).toBeGreaterThan(100);
+    expect(text).toContain('[Part 19](#part-19)');
+    expect(ContentsList.withContents({ text })).toBe(text);
+    expect(sync({ root }).stderr).not.toContain('replaced  AGENTS.md');
+  });
+
+  test('a project that takes AGENTS.md out of okf.contents.files gets no list', () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.mts': CONFIG.replace(
+          '};',
+          "  okf: { contents: { files: ['.agents/rules.md'] } },\n};",
+        ),
+        'AGENTS.md': LONG_AGENTS_MD,
+      },
+    });
+
+    sync({ root });
+
+    expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).not.toContain('(#part-19)');
   });
 });
