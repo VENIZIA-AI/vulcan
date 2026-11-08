@@ -211,6 +211,15 @@ export class OutsideGuard {
           ];
 
     for (const target of targets) {
+      if (target.hasUnreadBrace === true) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: the word has a brace pattern this check cannot expand`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+      }
+
       const expanded = ShellFolders.expandPath({
         word: target.word,
         home,

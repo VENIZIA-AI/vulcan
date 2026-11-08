@@ -18,7 +18,101 @@ export interface IWriteTarget {
   isAmbiguous?: boolean;
   /** The target of a shell redirect. */
   isRedirect?: boolean;
+  /** The word has a brace the guard cannot expand into its branches, so where it writes is not known. */
+  hasUnreadBrace?: boolean;
 }
+
+/** The most words one word may make of its brace lists before the guard stops expanding it. */
+const MAX_BRACE_WORDS = 64;
+
+/** The `}` that closes the `{` at `open`, and the top-level commas between them; -1 when it never closes. */
+const braceGroupAt = (opts: {
+  word: string;
+  open: number;
+}): { close: number; commas: number[] } => {
+  const commas: number[] = [];
+  let depth = 0;
+
+  for (let index = opts.open; index < opts.word.length; index += 1) {
+    const char = opts.word[index];
+
+    depth += Number(char === '{') - Number(char === '}');
+
+    if (depth === 0) {
+      // Like bash: a `}` closes a list only after a comma or a `..`; before that it is text (`{a},/etc}`).
+      if (commas.length > 0 || opts.word.slice(opts.open, index).includes('..')) {
+        return { close: index, commas };
+      }
+
+      depth = 1;
+    }
+
+    if (char === ',' && depth === 1) {
+      commas.push(index);
+    }
+  }
+
+  return { close: -1, commas };
+};
+
+/**
+ * The words a shell makes of a word with brace lists (`{out,/etc}/x` is `out/x` and `/etc/x`), each branch alone, so a
+ * branch outside the project is a target of its own. `{a}` and `{}` stay as written, and a
+ * sequence of digits or letters (`{1..3}`) is its first value: it can change no folder. What the guard cannot expand -
+ * another sequence of single characters (zsh makes `/` and `0` of `{/..0}`), a word that makes more than
+ * `MAX_BRACE_WORDS` words - is kept as written and marked unread.
+ */
+const bracedWordsOf = (opts: { word: string }): { words: string[]; isUnread: boolean } => {
+  const words: string[] = [];
+  let isUnread = false;
+  const expand = (word: string, from: number): void => {
+    // Stops the expansion itself: thirty lists of two make a billion words.
+    if (words.length > MAX_BRACE_WORDS) {
+      return;
+    }
+
+    const open = word.indexOf('{', from);
+    const { close, commas } =
+      open === -1 ? { close: -1, commas: [] } : braceGroupAt({ word, open });
+
+    if (close === -1) {
+      // An unmatched `{` is text, and a list after it is still expanded.
+      if (open === -1) {
+        words.push(word);
+      } else {
+        expand(word, open + 1);
+      }
+
+      return;
+    }
+
+    const [head, tail, inner] = [
+      word.slice(0, open),
+      word.slice(close + 1),
+      word.slice(open + 1, close),
+    ];
+    const sequence = /^(?:(-?\d+)\.\.-?\d+|([A-Za-z])\.\.[A-Za-z])(?:\.\.-?\d+)?$/.exec(inner);
+
+    if (commas.length > 0) {
+      const bounds = [open, ...commas, close];
+
+      for (const [index, start] of bounds.slice(0, -1).entries()) {
+        expand(`${head}${word.slice(start + 1, bounds[index + 1])}${tail}`, open);
+      }
+    } else if (sequence !== null) {
+      expand(`${head}${sequence[1] ?? sequence[2]}${tail}`, open);
+    } else {
+      isUnread ||= /^.\.\..(?:\.\.-?\d+)?$/s.test(inner);
+      expand(word, open + 1);
+    }
+  };
+
+  expand(opts.word, 0);
+
+  return words.length > MAX_BRACE_WORDS
+    ? { words: [opts.word], isUnread: true }
+    : { words, isUnread };
+};
 
 /** The options of a program that take a value, so the word after one is its value and no file of its own. */
 interface IOptionValues {
@@ -311,22 +405,34 @@ export class ShellWrites {
   static targetsOf(opts: { command: ISimpleCommand; base: string; tmp: string }): IWriteTarget[] {
     const program = ShellParser.programOf({ command: opts.command });
     const name = ShellParser.basenameOf({ word: program.name });
-    const { args } = program;
     const { base } = opts;
-    const targets: IWriteTarget[] = opts.command.redirects.map((word) => ({
-      word,
-      base,
-      message: `a shell redirect writes ${word}`,
-      isAmbiguous: opts.command.copies?.includes(word) === true,
-      isRedirect: true,
-    }));
+    // The shell expands braces before the program sees its words: `{-t,/etc}` is `-t /etc`, so the options are read after.
+    const redirected = opts.command.redirects.map((word) => ({ word, ...bracedWordsOf({ word }) }));
+    const braced = program.args.map((word) => bracedWordsOf({ word }));
+    // Bash drops an empty branch (`{,/etc}` is the one word `/etc`).
+    const args = braced.flatMap((entry) =>
+      entry.words.length > 1 ? entry.words.filter((word) => word !== '') : entry.words,
+    );
+    const isUnread = [...redirected, ...braced].some((entry) => entry.isUnread);
+    const targets: IWriteTarget[] = redirected.flatMap(({ word, words }) =>
+      words.map((expanded) => ({
+        word: expanded,
+        base,
+        message: `a shell redirect writes ${expanded}`,
+        isAmbiguous: opts.command.copies?.includes(word) === true,
+        isRedirect: true,
+      })),
+    );
     const assignments = [
       ...opts.command.assignments,
       ...(['export', 'declare', 'typeset', 'local', 'readonly'].includes(name) ? args : []),
     ];
 
+    // A prefix assignment (`TMPDIR={a,b} cmd`) is not expanded for braces; the arguments of `export` and the like are.
+    const assigned: IWriteTarget[] = [];
+
     for (const assignment of assignments.filter((word) => word.startsWith('TMPDIR='))) {
-      targets.push({
+      assigned.push({
         word: assignment.slice('TMPDIR='.length),
         base,
         message: 'TMPDIR points outside the project',
@@ -416,6 +522,8 @@ export class ShellWrites {
       targets.push(...gitTargets({ rest, base, dir }));
     }
 
-    return targets;
+    return [...assigned, ...targets].map((target) =>
+      isUnread ? { ...target, hasUnreadBrace: true } : target,
+    );
   }
 }
