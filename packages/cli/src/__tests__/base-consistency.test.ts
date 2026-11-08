@@ -13,16 +13,26 @@ const filesUnder = (opts: { directory: string }): string[] =>
     .map((entry) => join(entry.parentPath, entry.name));
 
 const rulesText = readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
+const packsDirectory = join(BASE_DIRECTORY, 'packs');
+const packsText = readdirSync(packsDirectory).map((name) =>
+  readFileSync(join(packsDirectory, name), 'utf8'),
+);
 const definedRules = new Set(
-  [...rulesText.matchAll(/^\| (V-[A-Z]-\d\d) \|/gm)].map((match) => match[1]),
+  [rulesText, ...packsText].flatMap((text) =>
+    [...text.matchAll(/^\| (V-[A-Z]-\d\d) \|/gm)].map((match) => match[1]),
+  ),
 );
 
 describe('the base text agrees with the base rules', () => {
   test('the rules table defines each id once', () => {
     const rows = [...rulesText.matchAll(/^\| (V-[A-Z]-\d\d) \|/gm)].map((match) => match[1]);
 
-    expect(rows.length).toBeGreaterThanOrEqual(40);
-    expect(new Set(rows).size).toBe(rows.length);
+    const inPacks = packsText.flatMap((text) =>
+      [...text.matchAll(/^\| (V-[A-Z]-\d\d) \|/gm)].map((match) => match[1]),
+    );
+
+    expect(rows.length).toBeGreaterThanOrEqual(35);
+    expect(new Set([...rows, ...inPacks]).size).toBe(rows.length + inPacks.length);
   });
 
   // A skill, a reference or a hook that cites a rule that does not exist sends the agent to nothing.

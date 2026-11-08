@@ -127,7 +127,7 @@ export class SyncFlow {
       ...CommitHookPlan.plan({ root: opts.cwd, config: loaded.config }),
     ];
     // Read before the manifest action rewrites the hashes it compares against.
-    const changes = BaseRulesDiff.diff({ root: opts.cwd });
+    const changes = BaseRulesDiff.diff({ root: opts.cwd, packs: loaded.config.packs });
     const width = dryRun ? DRY_RUN_LABEL_WIDTH : LABEL_WIDTH;
 
     for (const action of actions) {

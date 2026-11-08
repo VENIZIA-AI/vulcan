@@ -3,6 +3,7 @@ import { LayoutFolder } from '../common/layout-folder.ts';
 import { DOCTOR_SCHEMA } from '../doctor/schema.ts';
 import { GuardDecisions } from '../hooks/common/constants.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
+import { RulePacks } from '../rules/packs.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
 import { SubjectShape } from '../commit/subject.ts';
@@ -238,6 +239,14 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   agents: z.array(CODING_AGENT).optional(),
   /** Choice of each base rule slot, keyed by rule ID (for example `V-W-01`) to the option picked; default `{}`. */
   rules: z.record(z.string().regex(ConfigConstants.RULE_ID_PATTERN), z.string()).default({}),
+  /** The shipped rule packs this project follows, by name (`venizia`): rules for one stack, outside the base rules every project gets. */
+  packs: z
+    .array(
+      z.string().refine((name) => RulePacks.names().includes(name), {
+        error: () => `a rule pack VULCAN ships: ${RulePacks.names().join(', ')}`,
+      }),
+    )
+    .default([]),
   /** The folders `vulcan init` and `add` put apps in, as the user named them. */
   layout: z
     .strictObject({

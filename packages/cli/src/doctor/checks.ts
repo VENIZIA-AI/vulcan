@@ -8,7 +8,7 @@ import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
 import { ProjectPackages } from '../config/index.ts';
 import { ProjectKey } from '../events/project-key.ts';
 import type { TResolvedConfig } from '../config/index.ts';
-import { BaseRules, RuleParser, RuleSlots } from '../rules/index.ts';
+import { BaseRules, RulePacks, RuleParser, RuleSlots } from '../rules/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
 import { AgentScopes, AgentSelection, AgentTable, LocalChoice } from '../agents/index.ts';
 import { CommitHook, CommitHookStates } from '../commit/index.ts';
@@ -196,19 +196,24 @@ export class ProjectContract {
    * rules points at a base rule - one the base does not carry dangles.
    */
   static checkRuleIds(opts: ICheckContext): IViolation[] {
-    const base = BaseRules.read();
+    const base = BaseRules.read({ packs: opts.config.packs });
 
     return RuleParser.parseBaseReferences({
       markdown: readText({ file: join(opts.root, '.agents', 'rules.md') }),
     })
       .filter((id) => base[id] === undefined)
-      .map((id) =>
-        createViolation({
+      .map((id) => {
+        const pack = RulePacks.holderOf({ id });
+
+        return createViolation({
           check: DoctorChecks.RULE_IDS,
           file: '.agents/rules.md',
-          message: `${id} is not a base rule - give the extension a bare ID`,
-        }),
-      );
+          message:
+            pack === undefined
+              ? `${id} is not a base rule - give the extension a bare ID`
+              : `${id} is in the ${pack} pack - add '${pack}' to packs in the config`,
+        });
+      });
   }
 
   static checkRuleSlots(opts: ICheckContext): IViolation[] {

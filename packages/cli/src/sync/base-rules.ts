@@ -37,15 +37,15 @@ const readSyncedHashes = (opts: { root: string }): Record<string, unknown> => {
 
 export class BaseRulesDiff {
   /** V3: each base rule added, changed or removed since the committed manifest's last sync. */
-  static diff(opts: { root: string }): IBaseRuleChange[] {
+  static diff(opts: { root: string; packs?: string[] }): IBaseRuleChange[] {
     const synced = readSyncedHashes(opts);
 
     if (Object.keys(synced).length === 0) {
       return [];
     }
 
-    const installed = ProjectManifest.buildBaseRuleHashes();
-    const rows = BaseRules.read();
+    const installed = ProjectManifest.buildBaseRuleHashes({ packs: opts.packs });
+    const rows = BaseRules.read({ packs: opts.packs });
     const changes: IBaseRuleChange[] = [];
 
     for (const [id, hash] of Object.entries(installed)) {

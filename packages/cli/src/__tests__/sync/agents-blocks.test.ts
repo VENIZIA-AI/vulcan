@@ -91,6 +91,29 @@ describe('the Atlas and rules blocks in AGENTS.md', () => {
     expect(text).toContain('acme (this repository), ignis');
   });
 
+  test('a project that turns the venizia pack on gets it named, with its rules, in the block; one that does not, neither', () => {
+    const off = project();
+    const on = project();
+
+    writeFileSync(
+      join(on, '.configs/vulcan.config.mts'),
+      CONFIG.replace('  rules:', "  packs: ['venizia'],\n  rules:"),
+    );
+    sync({ root: off });
+    sync({ root: on });
+
+    const withPack = readFileSync(join(on, 'AGENTS.md'), 'utf8');
+    const without = readFileSync(join(off, 'AGENTS.md'), 'utf8');
+
+    expect(withPack).toContain(
+      '- Pack `venizia` (`node_modules/@venizia/vulcan/base/packs/venizia.md`)',
+    );
+    expect(withPack).toContain('V-B-05, V-B-09, V-C-07, V-C-08, V-C-20');
+    expect(withPack).toContain('- V-B-09: Agent scripting uses bun by default.');
+    expect(without).not.toContain('Pack `venizia`');
+    expect(without).not.toContain('- V-B-09:');
+  });
+
   test('doctor says the rules block is out of date after the config changes', async () => {
     const root = project();
 

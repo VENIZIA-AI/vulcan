@@ -59,6 +59,7 @@ The table below lists the top-level configuration keys:
 | `project.key` | `string` | none | The key a flow is named by: `VULZ-<key>-<number>`, such as `VULZ-ACME-15`. Uppercase letters and digits, 2 to 8; set once. `vulcan init` writes it (`--key`, a terminal's answer, or one made from the project name). The event log and the board read it from the manifest. `vulcan doctor` warns when the log is on and it is missing |
 | `agents` | `string[]` | unset | Coding agents the project suggests; each developer's choice is stored locally |
 | `rules` | `Record<string, string>` | `{}` | Base rule slot choices |
+| `packs` | `string[]` | `[]` | The rule packs this project follows (`venizia`) |
 | `layout` | `object` | `undefined` | The folders `vulcan init` and `vulcan add` put apps in, as a path or a list of paths per side, and the folders left alone |
 | `presets` | `object[]` | `undefined` | The presets this project's apps came from, as `--preset` takes them back; `init` and `add` record them |
 | `packages` | `Array<object>` | `[]` | Monorepo packages in release order |
@@ -111,6 +112,16 @@ import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
   agents: ['claude'],
+} satisfies VulcanConfig;
+```
+
+## packs
+
+`packs` lists the shipped rule packs the project follows, by name. The only pack today is `venizia`: the rules of the Venizia stack (one script set per app, bun for scripts, verb-first names, const classes, the instance declared before it is awaited). They are not in the base rules; a project that does not list the pack is not held to them. `vulcan sync` names each pack, its file and its rule IDs in the rules block of `AGENTS.md`, and a name VULCAN does not ship is refused when the config is read. See [Rule packs](/references/rules#rule-packs).
+
+```ts
+export default {
+  packs: ['venizia'],
 } satisfies VulcanConfig;
 ```
 

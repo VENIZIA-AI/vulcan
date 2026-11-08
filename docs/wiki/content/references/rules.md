@@ -82,10 +82,8 @@ Build rules require test-driven workflows, command output verification, zero war
 | `V-B-02` | Ensure all lint and test gates pass with zero warnings before completion. | SOFT - the project's own pre-commit, if it has one, runs `vulcan doctor` and lint |
 | `V-B-03` | Run commands and read real output before making claims; provide evidence first. | SOFT |
 | `V-B-04` | Write the failing test first. Never pass tests by deleting cases, skipping checks, or relaxing types. | SOFT |
-| `V-B-05` | Give every app, backend and frontend, the same seven scripts: `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`. The work lives in `.configs/builders/` or in `devz` (`devz lint`, `devz lint --fix`, `devz clean`), never in the `package.json` string. An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`; every other config lives in `.configs/{lints,formatters,builders}/`. No `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`. A library package keeps Makefile targets `build`, `typecheck`, `lint`, `lint-fix`, `test`, `clean`. | SOFT |
 | `V-B-07` | Say what you skipped or did not check; mark a deliberate shortcut `// SHORTCUT: <what>, <why>, <revisit when>`. | SOFT - build-a-feature step 8 summary, session-start digest |
 | `V-B-08` | Create nothing outside the project: scratch, temporary files, logs, worktrees, clones and subagent output live under the gitignored `.agents/local/` (or the folder `local.tmp` names, inside the project), and you remove each when its lifetime ends (table below); the done report says what was removed or kept. The scratchpad folder an agent tool offers is a system temp directory, so it is not allowed either (`guard-outside` denies a write there). | SOFT |
-| `V-B-09` | Agent scripting uses bun by default (`bun -e`, `bun file.ts`, `Bun.file()`); Python or another language is allowed when the task needs it (an existing project script, a tool only that language has), said in one line. | SOFT |
 
 ### Where agent files live, and when they go
 
@@ -113,19 +111,36 @@ Code and writing rules define TypeScript standards, parameter limits, naming pat
 | `V-C-02` | Pass one options object first with at most five parameters; options that serve one concern live in one named sub-object (`{ limit: { default, max } }`), not as prefixed siblings (`defaultLimit`, `maxLimit`). | SOFT - lint (`venizia/max-params-own`, 5) in a project that enables `houseConfigs` of `@venizia/dev-configs` |
 | `V-C-04` | Never abbreviate identifiers or type parameters; spell out full descriptive names. | SOFT |
 | `V-C-06` | Always log caught errors, use braces and early returns, and avoid `any` where a type exists. | LINT (braces, floating promises) + SOFT |
-| `V-C-07` | Open function names with verbs, prefer arrow functions, and group state in classes. | SOFT |
-| `V-C-08` | Define enumerable strings as constant classes with validation sets; prefix types with T or I. | SOFT - lint (`const-class-values`) in a project that enables `houseConfigs` of `@venizia/dev-configs` |
 | `V-C-09` | A comment states a lasting fact the code cannot show or is public-API TSDoc; never a decision, history, an issue or PR number or a review note; delete a comment that repeats the code. TSDoc on an export is optional: write it when it says what the name and types do not (summary first, `@param`/`@returns` without `{type}`, `@default`, `@deprecated`, `@example`, on the declaration itself), within the line limit except an `@example`, when you write or change the export and never as a sweep. | SOFT |
 | `V-C-10` | Avoid explicit type casts in new code; refine types instead. | SOFT |
 | `V-C-11` | Prioritize simplicity in code and prose; justify complexity with correctness, speed, or safety. Small means only what the task needs, not golfed, and never cuts validation, error handling, security checks or data safety. | SOFT |
 | `V-C-13` | Use hyphens instead of dashes; spell brands accurately; keep documentation native to its generator unless the project's rules name an exception. | SOFT - `okf check --strict` (bundle) |
 | `V-C-14` | Use camelCase for types; restrict snake_case to external boundary mappers. | LINT (naming convention) + SOFT |
 | `V-C-18` | Derive compile-time types from schemas or functions rather than duplicating definitions. | SOFT |
+
+## Rule packs
+
+A rule pack is a file of rules for one stack, shipped in `@venizia/vulcan` under `base/packs/`. It is not part of the base rules every project gets: a project follows it by listing it in `.configs/vulcan.config.*`, and `vulcan sync` then names it in the rules block of `AGENTS.md` and records its rule hashes in the manifest.
+
+```ts
+export default {
+  packs: ['venizia'],
+} satisfies VulcanConfig;
+```
+
+The `venizia` pack holds the five rules that bind the Venizia stack (Bun, `devz`, the vite builders, the house lint rules). They keep the IDs they had in the base rules, and `vulcan doctor` accepts a citation of one only in a project that follows the pack, and says which pack holds it otherwise.
+
+| ID | Rule | Enforced by |
+|----|------|-------------|
+| `V-B-05` | Give every app, backend and frontend, the same seven scripts: `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`. The work lives in `.configs/builders/` or in `devz` (`devz lint`, `devz lint --fix`, `devz clean`), never in the `package.json` string. An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`; every other config lives in `.configs/{lints,formatters,builders}/`. No `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`. A library package keeps Makefile targets `build`, `typecheck`, `lint`, `lint-fix`, `test`, `clean`. | SOFT |
+| `V-B-09` | Agent scripting uses bun by default (`bun -e`, `bun file.ts`, `Bun.file()`); Python or another language is allowed when the task needs it (an existing project script, a tool only that language has), said in one line. | SOFT |
+| `V-C-07` | Open function names with verbs, prefer arrow functions, and group state in classes. | SOFT |
+| `V-C-08` | Define enumerable strings as constant classes with validation sets; prefix types with T or I. | SOFT - lint (`const-class-values`) in a project that enables `houseConfigs` of `@venizia/dev-configs` |
 | `V-C-20` | Declare the instance, then await on its own line: `const runner = new X({...}); await runner.run({...});`, never `await new X({...}).run({...})`. Tests and scripts too. | SOFT |
 
 ## Identifiers are never reused
 
-An identifier the base drops is never given to another rule.
+An identifier the base drops is never given to another rule. The five rules that moved to the `venizia` pack keep theirs; the end of `base/rules.md` lists them.
 
 ## Slots
 

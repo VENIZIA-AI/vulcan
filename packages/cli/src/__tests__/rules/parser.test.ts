@@ -17,15 +17,15 @@ describe('RuleParser.parseIds', () => {
     expect(RuleParser.parseIds({ markdown })).toEqual(['V-W-01', 'V-C-04', 'W-06']);
   });
 
-  test('the shipped base: W4 S6 P10 B7 + the C group, 40 rules, every ID unique', () => {
+  test('the shipped base: W4 S6 P10 B6 + the C group, 35 rules, every ID unique', () => {
     const ids = RuleParser.parseIds({
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
 
-    expect(ids).toHaveLength(40);
+    expect(ids).toHaveLength(35);
     expect(ids.every((id) => id.startsWith('V-'))).toBe(true);
     expect(ids).toContain('V-W-01');
-    expect(ids.filter((id) => id.startsWith('V-C-'))).toHaveLength(13);
+    expect(ids.filter((id) => id.startsWith('V-C-'))).toHaveLength(10);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -64,7 +64,7 @@ describe('RuleParser.parseIds', () => {
     expect(row).toContain('One options object first, at most 5 parameters');
     expect(row).toContain('isValidName({ name })');
     expect(row).toContain('venizia/max-params-own');
-    expect(row).toContain('72 call sites');
+    expect(row).not.toContain('IStorageHelper');
   });
 
   test('V-C-18 binds no stack; V-P-02 is design the surface first', () => {
@@ -115,7 +115,7 @@ describe('BaseRules.read', () => {
   test('every base rule ID maps to its row', () => {
     const rules = BaseRules.read();
 
-    expect(Object.keys(rules)).toHaveLength(40);
+    expect(Object.keys(rules)).toHaveLength(35);
     expect(rules['V-W-02']).toStartWith('| V-W-02 | Never write to a database.');
   });
 
@@ -130,8 +130,6 @@ describe('BaseRules.read', () => {
       'V-P-13': 'Name the flow',
       'V-B-07': '// SHORTCUT: <what>, <why>, <revisit when>',
       'V-B-08': 'Leave no trace',
-      'V-B-09': 'bun by default',
-      'V-C-20': 'Declare the instance, then await on its own line',
     };
 
     for (const [id, phrase] of Object.entries(phrases)) {
@@ -170,7 +168,7 @@ describe('BaseRules.read', () => {
   });
 
   test('V-B-05 states the seven app scripts, the legacy names and where the logic lives', () => {
-    const row = BaseRules.read()['V-B-05'] ?? '';
+    const row = BaseRules.read({ packs: ['venizia'] })['V-B-05'] ?? '';
 
     for (const name of [
       'server:dev',
@@ -198,7 +196,7 @@ describe('BaseRules.read', () => {
   });
 
   test('V-B-05 also says what an app root holds and where every other config lives', () => {
-    const row = BaseRules.read()['V-B-05'] ?? '';
+    const row = BaseRules.read({ packs: ['venizia'] })['V-B-05'] ?? '';
 
     expect(row).toContain(
       'An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`',
