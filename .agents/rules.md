@@ -127,6 +127,7 @@ The code and writing rules are the shared VULCAN base, `V-C-*`, in
 | ID | Rule |
 |---|---|
 | **C-19** | **ISO dates** (`2026-10-17`) in every durable artifact. |
+| **C-21** | **The wiki's one custom theme is the shared Venizia theme, and nothing else is custom.** `V-C-13` keeps a docs site native to its generator; this repository's exception is the folder `docs/wiki/site/.vitepress/theme/shared` (components and CSS), canonical here and copied unedited into IGNIS and ARDOR with `scripts/wiki-shared/copy.ts`. `make wiki-shared-check` compares the three copies and the release gate runs it; a component or a style outside that folder is not an exception. |
 | **C-20** | **Every export reachable from the `exports` of the cli or the okf package carries TSDoc (an `@internal` export excepted),** because the generated API reference and the atlas `symbol` tool read it. Same format as `V-C-09`; written when the export is written or changed; it says only what the name and the types do not, no restating; the `@param`, `@default` and `@example` lines have no length limit. `make public-api-check` is the gate. |
 
 ---
@@ -141,11 +142,12 @@ Most of these rules hold because agents read this file. Only these have tooling 
 | `W-08` | `guard.writes.commands` in `.configs/vulcan.config.mts` (rendered into the manifest), read by the guard-writes hook; `scripts/checks/__tests__/release-guards-config.test.ts` runs the hook on the commands | Asks, never denies; a command that builds its name at run time is not seen |
 | `C-20` | `make public-api-check` (part of `make lint-all`, so of the pre-commit hook and the release gates) runs `vulcan x atlas api undocumented` | Blocks |
 | `B-02` | `.githooks/pre-commit` runs `vulcan doctor` and `make lint-all` (after `make setup-hooks`); the release workflow runs every gate | Lint blocks a commit; the release blocks on every gate |
-| This file's rules | the session-start hook prints them into every Claude session | Reminds, never blocks |
+| `C-21` | `make wiki-shared-check` (the release gate) compares `docs/wiki/site/.vitepress/theme/shared` with the copies IGNIS and ARDOR publish on develop | Fails the release when a copy differs |
+| This file's rules | `AGENTS.md` names this file under "Must read first" | Reminds, never blocks |
 | everything else | this file | No |
 
 Git is deliberately not blocked: W-01 is a rule about *when*, not a deny list (`V-W-01` is
-`on-user-word` in `.configs/vulcan.config.mts`). Treat the session hook as the ceiling of what tooling
+`on-user-word` in `.configs/vulcan.config.mts`). Treat the hooks and gates above as the ceiling of what tooling
 will do.
 
 To change a rule, edit this file. Never fork the list into a tool-specific file.

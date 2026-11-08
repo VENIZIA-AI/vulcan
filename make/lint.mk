@@ -6,7 +6,7 @@ LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FIX_PKG_TARGETS := $(addprefix lint-fix-,$(PACKAGES))
 TYPECHECK_PKG_TARGETS := $(addprefix typecheck-,$(PACKAGES))
 
-.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-wiki lint-files project-names-check public-api-check changelog-check agent-signature-check lint-fix-packages lint-fix-wiki fmt-files \
+.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-wiki lint-files project-names-check public-api-check changelog-check agent-signature-check wiki-shared-check lint-fix-packages lint-fix-wiki fmt-files \
         typecheck typecheck-packages $(LINT_PKG_TARGETS) $(FIX_PKG_TARGETS) $(TYPECHECK_PKG_TARGETS)
 
 lint: lint-packages
@@ -88,6 +88,13 @@ changelog-check:
 agent-signature-check:
 	@echo "lint: no agent signature in the branch commits"
 	@bun x --no-install vulcan commit-check --range $(or $(RANGE),origin/develop..HEAD)
+
+# C-21: the shared wiki theme is the same in the three wikis. It reads the SHARED.json that IGNIS and ARDOR publish on develop
+# (a public file, over the network) and fails when a copy differs; ARGS='../ignis ../ardor' compares local checkouts instead.
+# The release gate runs it; a pull request does not, so a VULCAN change never waits on another repository.
+wiki-shared-check:
+	@echo "check: the shared wiki theme against IGNIS and ARDOR"
+	@bun scripts/wiki-shared/check.ts $(or $(ARGS),--remote)
 
 fmt-files:
 	@bun fmt $(BUN_FMT_FLAGS) $(FMT_GLOB) $(ROOT_FMT_IGNORE)
