@@ -69,8 +69,6 @@ Usage: bun x vulcan <command>
   upgrade [--stable | --nightly] [<version|tag>]
                                   Bump the pinned @venizia/vulcan, then sync; --stable (default)
                                   takes the latest tag, --nightly the newest of latest and next
-  graph build [--full]            Write the code graph of the project (vulcan x atlas graph build)
-  graph status [--json]           Say whether the graph still matches the files it was built from
   x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas
   help · version
 ```
@@ -171,10 +169,6 @@ The command exits 0 on success.
 The command exits `1` when `node_modules/.bin/vulcan` is missing.
 It also exits `1` on an unknown argument, on `--stable` with `--nightly`, and on `--nightly` when the dist-tags cannot be read.
 Otherwise, the command returns the exit code of `bun add` or of the child `vulcan sync`.
-
-## graph
-
-`vulcan graph build [--full]` and `vulcan graph status [--json]` are `vulcan x atlas graph build` and `status` under a short name. The graph, how a build decides how much to read, and what each answer of `status` means are in [the atlas reference](/references/atlas/#graph).
 
 ## x
 

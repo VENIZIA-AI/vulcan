@@ -79,8 +79,6 @@ vulcan-atlas index keygen
 vulcan-atlas index publish [--key-env <name>]
 vulcan-atlas surface gen|check
 vulcan-atlas api gen|check|undocumented [--package <dir, name or path>]...
-vulcan-atlas graph build [--full]
-vulcan-atlas graph status [--json]
 vulcan-atlas symbols | releases
 vulcan-atlas help
 ```
@@ -99,8 +97,6 @@ or when you give `mcp` or a flag such as `--root .`.
 | `index publish` | Uploads the pair of the commit to the repository's `atlas-index` release; what the CI action runs |
 | `surface gen\|check` | Writes or checks `reference/public-surface.md` from the built `.d.ts`; `check` exits `1` when it is stale |
 | `api gen\|check\|undocumented` | Writes the API reference of the project's packages under the wiki (`references/api/`); `check` exits `1` when a page is stale; `undocumented` lists the exports with no TSDoc and exits `1` when there are any. `--package` (repeatable) limits it to some packages, by dir, npm name or path from the root, and a value that matches no package is named |
-| `graph build [--full]` | Writes the code graph to `.agents/local/graph/code.json`; `--full` reads everything again instead of only what changed |
-| `graph status [--json]` | Says whether the graph still matches the files it was built from |
 | `symbols`, `releases` | Print what the `symbol`, `version` and `changes` tools read - nothing to commit |
 
 | Exit code | Meaning |

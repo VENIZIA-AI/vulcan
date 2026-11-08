@@ -171,10 +171,5 @@
       "pnt-ardor-1": "ember",
       "pnt-vulcan-1": "rock"
     }
-  },
-  "graph": {
-    "aliases": {
-      "@/": "src/"
-    }
   }
 }

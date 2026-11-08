@@ -70,18 +70,6 @@ const PUSH_TARGET = z
   .string()
   .regex(/^[A-Za-z0-9._/*-]+$/, { message: 'a branch name, with * for any run of characters' });
 
-/** An import prefix: the start of a specifier, ending in a slash (`@/`, `~/`). */
-const GRAPH_ALIAS_PREFIX = z
-  .string()
-  .regex(/^[^\s]+\/$/, 'an alias prefix ends with a slash, for example "@/"');
-/** The folder an alias leads to, from the importing package: relative to the package, never climbing. */
-const GRAPH_ALIAS_FOLDER = z
-  .string()
-  .refine(
-    (value) => !value.startsWith('/') && !value.split('/').includes('..'),
-    'a folder of the package, from its root',
-  );
-
 /** A key that was removed: optional, and refused when present with the key and what to do, instead of a bare "unrecognized key". */
 const REMOVED_OKF_KEY = (opts: { fix: string }) =>
   z
@@ -712,19 +700,6 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       maxAgeDays: z.number().int().min(1).optional(),
     })
     .default({ log: false }),
-  /**
-   * How `vulcan x atlas graph build` reads the code. `exclude` is globs of tracked files left out; `aliases` maps an import
-   * prefix to a folder of the importing package (`{ '@/': 'src/' }`), so `@/x` in `packages/a/src/y.ts` leads to
-   * `packages/a/src/x`. An alias not listed is counted as an external import.
-   */
-  graph: z
-    .strictObject({
-      /** Globs of tracked files, from the project root, the graph leaves out. */
-      exclude: z.array(z.string().min(1)).default([]),
-      /** An import prefix ending in a slash, mapped to a folder of the importing package. */
-      aliases: z.record(GRAPH_ALIAS_PREFIX, GRAPH_ALIAS_FOLDER).default({}),
-    })
-    .default({ exclude: [], aliases: {} }),
   /**
    * What `vulcan` keeps tidy in `.agents/local/` by itself. `autoClean` (default true) lets the session-start hook, at
    * most once a day, remove the safe part: stale `tmp/`, browser leftovers older than an hour, event files past their

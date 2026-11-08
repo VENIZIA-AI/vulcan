@@ -78,7 +78,6 @@ The table below lists the top-level configuration keys:
 | `commit` | `object` | every check off | The checks of `vulcan commit-check` and the `commit-msg` hook: the agent signature policy and the subject shape ([commit](#commit)) |
 | `ci` | `object` | `{ affected: { global: [] } }` | Paths that make `vulcan ci affected` run every check ([ci](#ci)) |
 | `events` | `object` | `{ log: false }` | The agent event log: on or off, its folder and its limits ([events](#events)) |
-| `graph` | `object` | `{ exclude: [], aliases: {} }` | How `vulcan x atlas graph build` reads the code: files left out and import prefixes it follows ([graph](#graph)) |
 | `local` | `object` | `{ autoClean: true }` | The automatic clean of `.agents/local/` and the project's own tmp folder, `local.tmp` ([local](#local)) |
 
 ## name
@@ -737,15 +736,6 @@ The `doctor` object tells [`vulcan doctor`](/references/commands/doctor#private-
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `privateValues.acknowledged` | `Array<{ path, kinds?, reason }>` | `[]` | Files that may keep private values. `path` is a glob relative to the repo root (no absolute path, no `..`); `kinds` is some of `private-key`, `token`, `url-credentials`, `ipv4`, `machine-path` (all when absent); `reason` is required and not blank. An acknowledged file is counted in one summary line, never dropped silently |
-
-## graph
-
-The `graph` object tells `vulcan x atlas graph build` how to read the code ([the code graph](/references/atlas/#graph)).
-
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `exclude` | `string[]` | `[]` | Globs of tracked files, from the project root, that the graph leaves out (generated code, fixtures) |
-| `aliases` | `Record<string, string>` | `{}` | An import prefix that ends with a slash, mapped to a folder of the importing package. `{ '@/': 'src/' }` makes `@/lib/x` in `packages/a/src/y.ts` lead to `packages/a/src/lib/x`. A prefix not listed is counted as an external import. The folder is relative and never climbs |
 
 ## local
 
