@@ -94,6 +94,8 @@ How to build something here (a feature, a controller, a service, a repository): 
 
 The corpora come from the config (the project and every `atlas.sources` entry). `sync` inserts the block before the section that follows "Must read first" (or at the end), rewrites only what sits between the markers on later runs, and never touches your text around it. `vulcan doctor` prints an `info` line when the block is missing or out of date; it never fails.
 
+The blocks can make `AGENTS.md` pass 100 lines. When it is one of `okf.contents.files` (it is by default), `sync` then also writes its contents list, so `vulcan x okf check --strict` never reports `AGENTS.md has no fresh contents list` after a `sync`.
+
 ## The event hooks
 
 When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `SubagentStop`, `Notification` and `PostToolUse` (only the `SendMessage` tool, so no process starts for any other tool call) to `.claude/settings.json`; a `Stop` hook and a `PostToolUse` hook for every tool, which an earlier release installed, are removed by the next `sync`. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.

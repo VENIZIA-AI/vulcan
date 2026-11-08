@@ -177,6 +177,7 @@ const insertionPointOf = (opts: { text: string }): number => {
   return at + (/^\n*/.exec(opts.text.slice(at))?.[0].length ?? 0);
 };
 
+/** The contents list a long agent-read file carries; `vulcan sync` writes it into the `AGENTS.md` it rewrites. */
 export class ContentsList {
   /**
    * The file as `okf gen` writes it: a contents list of its `##` headings near the top when it runs
