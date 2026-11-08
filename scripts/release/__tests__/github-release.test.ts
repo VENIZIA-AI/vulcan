@@ -126,15 +126,7 @@ const stubGh = (opts: { existing?: boolean; createFails?: boolean }): IStubGh =>
   };
 };
 
-const make = (opts: {
-  root: string;
-  tag: string;
-  kind: string;
-  version: string;
-  stub: IStubGh;
-  withSubjectFallback?: boolean;
-  dryRun?: boolean;
-}) =>
+const make = (opts: { root: string; tag: string; kind: string; version: string; stub: IStubGh }) =>
   GithubRelease.create({
     cwd: opts.root,
     tag: opts.tag,
@@ -142,8 +134,6 @@ const make = (opts: {
     version: opts.version,
     gh: opts.stub.gh,
     scratchRoot: scratch(),
-    withSubjectFallback: opts.withSubjectFallback,
-    dryRun: opts.dryRun,
   });
 
 describe('GithubRelease.versionOfTag', () => {
@@ -288,7 +278,6 @@ describe('GithubRelease.create', () => {
       kind: 'stable',
       version: '0.4.7',
       stub,
-      withSubjectFallback: true,
     });
 
     expect(stub.created()).toContain('--latest=false');
@@ -371,85 +360,19 @@ describe('GithubRelease.create', () => {
     expect(broken.state).toBe('failed');
   });
 
-  test('a stable with no entry in its range says there is no change for users; a backfill falls back to the commits', () => {
+  test('a stable with no entry in its range says there is no change for users', () => {
     const root = fixture();
 
     commit({ root, message: '[#12] chore(x): a change with no entry' });
     tag({ root, name: 'vulcan-v0.4.9' });
 
     const stub = stubGh({});
-    const backfill = stubGh({});
 
     expect(make({ root, tag: 'vulcan-v0.4.9', kind: 'stable', version: '0.4.9', stub }).state).toBe(
       'created',
     );
     expect(stub.notes()).toContain(GithubReleaseConstants.NO_USER_CHANGES);
     expect(stub.notes()).not.toContain('a change with no entry');
-    expect(
-      make({
-        root,
-        tag: 'vulcan-v0.4.9',
-        kind: 'stable',
-        version: '0.4.9',
-        stub: backfill,
-        withSubjectFallback: true,
-      }).state,
-    ).toBe('created');
-    expect(backfill.notes()).toContain('[#12] chore(x): a change with no entry');
-  });
-
-  test('a backfill whose range holds no commit of its own says there is no change for users', () => {
-    const root = fixture();
-
-    tag({ root, name: 'vulcan-v0.4.9' });
-
-    const stub = stubGh({});
-
-    expect(
-      make({
-        root,
-        tag: 'vulcan-v0.4.9',
-        kind: 'stable',
-        version: '0.4.9',
-        stub,
-        withSubjectFallback: true,
-      }).state,
-    ).toBe('created');
-    expect(stub.notes()).toContain(GithubReleaseConstants.NO_USER_CHANGES);
-  });
-
-  test('a backfill of a prerelease is refused: a backfill makes the Release of a stable only', () => {
-    const stub = stubGh({});
-
-    expect(
-      make({
-        root: fixture(),
-        tag: 'vulcan-v0.4.8-1',
-        kind: 'prerelease',
-        version: '0.4.8-1',
-        stub,
-        withSubjectFallback: true,
-      }).state,
-    ).toBe('refused');
-    expect(stub.calls).toEqual([]);
-  });
-
-  test('a dry run stops before gh creates anything and returns the notes and whether it would be Latest', () => {
-    const stub = stubGh({});
-    const outcome = make({
-      root: fixture(),
-      tag: 'v0.4.7',
-      kind: 'stable',
-      version: '0.4.7',
-      stub,
-      withSubjectFallback: true,
-      dryRun: true,
-    });
-
-    expect(outcome.state).toBe('planned');
-    expect(outcome.message).toContain('not Latest');
-    expect(outcome.message).toContain('Old change');
-    expect(stub.created()).toEqual([]);
   });
 
   test('a subject cannot ping anyone or close an issue through the notes', () => {
@@ -513,22 +436,5 @@ describe('GithubRelease.main', () => {
     expect(run({ args: ['check', '--version', '0.4.9'], root, stub })).toBe(2);
     expect(run({ args: ['create', '--tag', 'x'], root, stub })).toBe(2);
     expect(run({ args: ['publish'], root, stub })).toBe(2);
-  });
-
-  test('backfill writes nothing without --yes, with it makes the Release of an old stable, and refuses a prerelease tag', () => {
-    const root = fixture();
-    const dry = stubGh({});
-    const written = stubGh({});
-
-    expect(run({ args: ['backfill', '--tag', 'v0.4.7'], root, stub: dry })).toBe(0);
-    expect(dry.created()).toEqual([]);
-    expect(run({ args: ['backfill', '--tag', 'v0.4.7', '--yes'], root, stub: written })).toBe(0);
-    expect(written.created()).toContain('--latest=false');
-    expect(
-      run({ args: ['backfill', '--tag', 'vulcan-v0.4.8-1', '--yes'], root, stub: stubGh({}) }),
-    ).toBe(1);
-    expect(
-      run({ args: ['backfill', '--tag', 'atlas-index', '--yes'], root, stub: stubGh({}) }),
-    ).toBe(2);
   });
 });
