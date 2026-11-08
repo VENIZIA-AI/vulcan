@@ -48,4 +48,6 @@ export interface IOutsideHit {
   message: string;
   /** Whether the path is under the scratchpad folder an agent tool offers: the hook denies it, it does not ask. */
   isAgentToolScratchpad: boolean;
+  /** Whether the check could not read the line or the target, so it does not know that anything is outside: the hook asks, even where the project denies. */
+  isUnread: boolean;
 }

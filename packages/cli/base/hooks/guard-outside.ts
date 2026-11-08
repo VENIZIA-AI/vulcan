@@ -4,7 +4,9 @@
  * themselves are allowed - a default list, extended by `guard.toolOwnedPaths` in the project config.
  * `TMPDIR` or `mktemp` pointed at the system temp directory is not allowed.
  * It asks by default; `guard.outside: 'deny'` in the project config refuses instead, for agents where an ask can be
- * approved unseen. A write into the agent tool scratchpad is always denied.
+ * approved unseen. A write into the agent tool scratchpad is always denied. A part of the call it cannot read (a
+ * program or a target named by a variable, a line it cannot follow to its end) is asked about even under `deny`: it
+ * does not know that anything is outside.
  *
  * It guards against drift, not against an attacker, and a guard that blocks every call when its install
  * is broken costs more than it protects. So a missing package or `bun` passes (the settings wrapper says so on
@@ -59,10 +61,19 @@ try {
       const tmpFolder = relative(projectRoot, ProjectTmp.projectOf({ root: projectRoot }));
       const places = `Scratch files go under ${tmpFolder}/<task>/ (worktrees under .agents/local/worktrees/, clones under .agents/local/clones/), never in /tmp or the home folder.`;
 
-      const isDeny = isScratchpad || outside === GuardDecisions.DENY;
+      // A line the check could not read is asked about even where the project denies: it does not know of a path outside.
+      const isUnreadOnly = hits.every((hit) => hit.isUnread);
+      const isDeny = isScratchpad || (outside === GuardDecisions.DENY && !isUnreadOnly);
       let reason: string[];
 
-      if (isScratchpad) {
+      if (isUnreadOnly) {
+        reason = [
+          'Part of this call could not be read, so it was not checked for files outside the project (V-B-08):',
+          ...hitLines,
+          '',
+          `Confirm only if it creates nothing outside the project. A literal path under ${tmpFolder}/<task>/ can be read.`,
+        ];
+      } else if (isScratchpad) {
         reason = [
           'This would write into the scratchpad folder the agent tool offers (V-B-08):',
           ...hitLines,

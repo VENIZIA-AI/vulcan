@@ -677,3 +677,53 @@ describe('a plain variable set earlier on the same line, in the same shell', () 
     expect(bash({ command }).join(' ')).toContain('an expansion this check cannot work out');
   });
 });
+
+describe('OutsideGuard.inspect says which hits it could not read', () => {
+  const hitsOf = (opts: { command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: PROJECT },
+      projectRoot: PROJECT,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    ['a program named by a variable', '$tool run'],
+    ['a quote that never closes', 'echo "unclosed'],
+    ['a redirect to an expansion', 'echo x > $f'],
+    ['a path under /proc', 'echo x > /proc/self/fd/1'],
+    ['a path through more links than the system follows', 'echo x > spin1/y'],
+  ])('%s is unread: the hook asks even where the project denies', (_, command) => {
+    const hits = hitsOf({ command });
+
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every((hit) => hit.isUnread)).toBe(true);
+  });
+
+  test.each(['echo x > /var/tmp/guard-probe', 'cp a /etc/guard-probe', 'echo x 1<>/etc/zz'])(
+    '%s is a path the check read, outside the project: it is not unread',
+    (command) => {
+      const hits = hitsOf({ command });
+
+      expect(hits.length).toBeGreaterThan(0);
+      expect(hits.some((hit) => hit.isUnread)).toBe(false);
+    },
+  );
+
+  test('a file tool writing outside the project is read', () => {
+    const hits = OutsideGuard.inspect({
+      input: { tool: 'Write', filePath: '/var/tmp/guard-probe', command: undefined, cwd: PROJECT },
+      projectRoot: PROJECT,
+      home: HOME,
+      env: ENV,
+    });
+
+    expect(hits.map((hit) => hit.isUnread)).toEqual([false]);
+  });
+
+  test('a line with a read path outside and an unread part has both, so the read one decides', () => {
+    const hits = hitsOf({ command: '$tool run; echo x > /var/tmp/guard-probe' });
+
+    expect(hits.map((hit) => hit.isUnread).sort()).toEqual([false, true]);
+  });
+});

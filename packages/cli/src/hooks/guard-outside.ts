@@ -198,7 +198,14 @@ export class OutsideGuard {
     const hits: IOutsideHit[] =
       unread === undefined
         ? []
-        : [{ path: '(the command line)', message: unread, isAgentToolScratchpad: false }];
+        : [
+            {
+              path: '(the command line)',
+              message: unread,
+              isAgentToolScratchpad: false,
+              isUnread: true,
+            },
+          ];
 
     for (const target of targets) {
       const expanded = ShellFolders.expandPath({
@@ -215,6 +222,7 @@ export class OutsideGuard {
             path: target.word,
             message: `${target.message}: the target has an expansion this check cannot work out`,
             isAgentToolScratchpad: false,
+            isUnread: true,
           });
         }
 
@@ -229,6 +237,7 @@ export class OutsideGuard {
           path: written,
           message: `${target.message}: a path under /proc or /dev/fd names a process, which this check cannot follow`,
           isAgentToolScratchpad: false,
+          isUnread: true,
         });
 
         continue;
@@ -242,6 +251,7 @@ export class OutsideGuard {
           path: written,
           message: `${target.message}: the path goes through more links than the system follows`,
           isAgentToolScratchpad: false,
+          isUnread: true,
         });
 
         continue;
@@ -255,6 +265,7 @@ export class OutsideGuard {
             path,
             patterns: HookConstants.AGENT_TOOL_SCRATCHPAD_PATTERNS,
           }),
+          isUnread: false,
         });
       }
     }
