@@ -96,7 +96,7 @@ The corpora come from the config (the project and every `atlas.sources` entry). 
 
 ## The event hooks
 
-When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `Stop`, `SubagentStop`, `Notification` and `PostToolUse` (every tool: a `SendMessage` is logged as a message, any other tool as at most one tick every 30 seconds) to `.claude/settings.json`. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.
+When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `SubagentStop`, `Notification` and `PostToolUse` (only the `SendMessage` tool, so no process starts for any other tool call) to `.claude/settings.json`; a `Stop` hook and a `PostToolUse` hook for every tool, which an earlier release installed, are removed by the next `sync`. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.
 
 ## The commit-msg hook
 

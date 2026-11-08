@@ -2,8 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
-import { ProjectLayout } from '../../common/index.ts';
-import { EventConstants, EventHook, EventLog } from '../../events/index.ts';
+import { EventHook, EventLog } from '../../events/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { wire } from './wire.helper.ts';
 
@@ -38,13 +37,10 @@ describe('EventHook.map', () => {
     expect(map({ hookEventName: 'SessionStart' })).toEqual({ kind: 'session-start', summary: '' });
   });
 
-  test('Stop: a turn ended, never the reply; a stop hook that is already active is skipped', () => {
+  test('a turn that ends is not an event, whatever the reply', () => {
     expect(
       map({ hookEventName: 'Stop', stopHookActive: false, lastAssistantMessage: 'SECRET REPLY' }),
-    ).toEqual({
-      kind: 'session-stop',
-      summary: 'turn ended',
-    });
+    ).toBeUndefined();
     expect(map({ hookEventName: 'Stop', stopHookActive: true })).toBeUndefined();
   });
 
@@ -137,16 +133,15 @@ describe('EventHook.map', () => {
     expect(refOf('uds:/run/x/')).toBe('to:uds:x');
   });
 
-  test('PostToolUse of any other tool is a tick: the fixed text, nothing of the tool, its input or its result', () => {
-    const mapped = map({
-      hookEventName: 'PostToolUse',
-      toolName: 'Bash',
-      toolInput: { command: 'cat /home/me/SECRET-PROJECT/.env' },
-      toolResponse: { stdout: 'TOKEN-IN-OUTPUT' },
-    });
-
-    expect(mapped).toEqual({ kind: 'tool-tick', summary: 'using a tool' });
-    expect(JSON.stringify(mapped)).not.toMatch(/SECRET|TOKEN|Bash|cat/);
+  test('PostToolUse of any other tool than SendMessage is not an event: nothing of the tool, its input or its result is read', () => {
+    expect(
+      map({
+        hookEventName: 'PostToolUse',
+        toolName: 'Bash',
+        toolInput: { command: 'cat /home/me/SECRET-PROJECT/.env' },
+        toolResponse: { stdout: 'TOKEN-IN-OUTPUT' },
+      }),
+    ).toBeUndefined();
   });
 
   test('a failed send and malformed payloads are not logged', () => {
@@ -166,108 +161,27 @@ describe('EventHook.map', () => {
   });
 });
 
-describe('EventHook.run: the tool tick', () => {
+describe('EventHook.run: what is no longer logged', () => {
   const env = { VULCAN_ACTOR: 'pnt-vulcan-1' };
-  const tick = (opts: { root: string; session?: string; at: string }) =>
-    EventHook.run({
-      root: opts.root,
-      input: wire({
-        hookEventName: 'PostToolUse',
-        toolName: 'Bash',
-        sessionId: opts.session ?? SESSION,
-      }),
-      env,
-      now: Date.parse(opts.at),
-    });
 
-  test('at most one line per session in 30 seconds, then the next one', () => {
+  test('a turn that ends and a tool that is used write no line, no stamp and no folder, with the log on', () => {
     const root = project({ events: { log: true } });
 
-    expect(tick({ root, at: '2026-11-03T09:00:00Z' })).toMatchObject({ kind: 'tool-tick' });
-    expect(tick({ root, at: '2026-11-03T09:00:10Z' })).toBeUndefined();
-    expect(tick({ root, at: '2026-11-03T09:00:29Z' })).toBeUndefined();
-    expect(tick({ root, at: '2026-11-03T09:00:30Z' })).toMatchObject({ kind: 'tool-tick' });
-    expect(tick({ root, at: '2026-11-03T09:00:40Z' })).toBeUndefined();
-    expect(eventsOf({ dir: join(root, '.agents/local/events') }).map((event) => event.ts)).toEqual([
-      '2026-11-03T09:00:00.000Z',
-      '2026-11-03T09:00:30.000Z',
-    ]);
-  });
+    for (const input of [
+      wire({ hookEventName: 'Stop', sessionId: SESSION }),
+      wire({ hookEventName: 'PostToolUse', toolName: 'Bash', sessionId: SESSION }),
+      wire({ hookEventName: 'PostToolUse', toolName: 'Read', sessionId: SESSION }),
+    ]) {
+      expect(
+        EventHook.run({ root, input, env, now: Date.parse('2026-11-03T09:00:00Z') }),
+      ).toBeUndefined();
+    }
 
-  test('two sessions are throttled apart', () => {
-    const root = project({ events: { log: true } });
-
-    expect(tick({ root, session: 's-one', at: '2026-11-03T09:00:00Z' })).toBeDefined();
-    expect(tick({ root, session: 's-two', at: '2026-11-03T09:00:01Z' })).toBeDefined();
-    expect(tick({ root, session: 's-one', at: '2026-11-03T09:00:02Z' })).toBeUndefined();
-  });
-
-  test('the stamp is an empty file in the tmp folder of the project, named by the session, and a path in an id cannot leave it', () => {
-    const root = project({ events: { log: true } });
-
-    tick({ root, session: '../../evil/id', at: '2026-11-03T09:00:00Z' });
-
-    const folder = join(root, '.agents/local/tmp/event-ticks');
-
-    expect(readdirSync(folder)).toHaveLength(1);
-    expect(readFileSync(join(folder, readdirSync(folder)[0]), 'utf8')).toBe('');
-    expect(existsSync(join(root, 'evil'))).toBe(false);
-  });
-
-  test('six calls at the same instant write one tick, not several', async () => {
-    const root = project({ events: { log: true } });
-    const window = EventConstants.TICK_SECONDS * 1000;
-    const wait = window - (Date.now() % window);
-
-    // Start just after a window opens, so the six calls cannot straddle two windows.
-    await Bun.sleep(wait <= 8000 ? wait + 5 : 0);
-
-    const children = Array.from({ length: 6 }, () =>
-      Bun.spawn([process.execPath, SCRIPT], {
-        stdin: new TextEncoder().encode(
-          JSON.stringify(
-            wire({ hookEventName: 'PostToolUse', toolName: 'Bash', sessionId: SESSION }),
-          ),
-        ),
-        env: { ...process.env, CLAUDE_PROJECT_DIR: root, VULCAN_ACTOR: 'pnt-vulcan-1' },
-        stdout: 'ignore',
-        stderr: 'ignore',
-      }),
-    );
-
-    await Promise.all(children.map((child) => child.exited));
-
-    expect(eventsOf({ dir: join(root, '.agents/local/events') })).toHaveLength(1);
-  }, 30_000);
-
-  test('the stamp folder is inside the layout the project keeps its tmp in', () => {
-    expect(EventConstants.TICK_FOLDER).toBe(`${ProjectLayout.LOCAL_DIRECTORY}/tmp/event-ticks`);
-  });
-
-  test('a stamp from an earlier window is removed by the next tick, so the folder stays small', () => {
-    const root = project({ events: { log: true } });
-    const folder = join(root, '.agents/local/tmp/event-ticks');
-
-    tick({ root, session: 's-one', at: '2026-11-03T09:00:00Z' });
-    tick({ root, session: 's-two', at: '2026-11-03T09:00:10Z' });
-    expect(readdirSync(folder)).toHaveLength(2);
-
-    tick({ root, session: 's-one', at: '2026-11-03T09:05:00Z' });
-    expect(readdirSync(folder)).toHaveLength(1);
-  });
-
-  test('log off writes no line and no stamp', () => {
-    const root = project({ events: { log: false } });
-
-    expect(tick({ root, at: '2026-11-03T09:00:00Z' })).toBeUndefined();
     expect(existsSync(join(root, '.agents/local'))).toBe(false);
   });
 
-  test('a SendMessage is still a msg-sent line and is not throttled by the ticks', () => {
+  test('a SendMessage is still a msg-sent line', () => {
     const root = project({ events: { log: true } });
-
-    tick({ root, at: '2026-11-03T09:00:00Z' });
-
     const sent = EventHook.run({
       root,
       input: wire({
@@ -361,7 +275,7 @@ describe('EventHook.run', () => {
     const shared = createProject({ files: {} });
     const root = project({ events: { log: true, dir: shared } });
 
-    EventHook.run({ root, input: wire({ hookEventName: 'Stop' }), env });
+    EventHook.run({ root, input: wire({ hookEventName: 'SessionStart' }), env });
 
     expect(eventsOf({ dir: shared })).toHaveLength(1);
     expect(existsSync(join(root, '.agents/local/events'))).toBe(false);
@@ -378,7 +292,7 @@ describe('EventHook.run', () => {
     ];
     const inputs = [
       {
-        hookEventName: 'Stop',
+        hookEventName: 'SessionStart',
         lastAssistantMessage: secrets[1],
         transcriptPath: secrets[3],
         cwd: root,
@@ -440,7 +354,7 @@ describe('the hook script', () => {
     const root = project({ events: { log: true } });
     const result = run({
       root,
-      input: JSON.stringify(wire({ hookEventName: 'Stop', sessionId: SESSION, cwd: root })),
+      input: JSON.stringify(wire({ hookEventName: 'SessionStart', sessionId: SESSION, cwd: root })),
     });
 
     expect(result.exitCode).toBe(0);
@@ -459,7 +373,7 @@ describe('the hook script', () => {
     const blocked = project({ events: { log: true, dir: '/proc/vulcan-no-such/events' } });
     const unwritable = run({
       root: blocked,
-      input: JSON.stringify(wire({ hookEventName: 'Stop' })),
+      input: JSON.stringify(wire({ hookEventName: 'SessionStart' })),
     });
 
     expect(unwritable.exitCode).toBe(0);
@@ -477,7 +391,9 @@ describe('the hook script', () => {
 
   test('is fast: the median of 20 runs stays far under a second even on a slow runner', () => {
     const root = project({ events: { log: true } });
-    const input = JSON.stringify(wire({ hookEventName: 'Stop', sessionId: SESSION, cwd: root }));
+    const input = JSON.stringify(
+      wire({ hookEventName: 'SessionStart', sessionId: SESSION, cwd: root }),
+    );
     const times: number[] = [];
 
     for (let index = 0; index < 20; index++) {
