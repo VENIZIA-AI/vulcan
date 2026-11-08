@@ -134,9 +134,9 @@ const BASE_CSS = [
   `.panels{display:grid;gap:2px;border-radius:var(--radius);overflow:hidden}`,
   // Tiles: fields of colour with a big number.
   `.slide-tiles{padding-top:56px}`,
-  `.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:color-mix(in srgb,var(--ink) 14%,transparent);border:1px solid color-mix(in srgb,var(--ink) 14%,transparent);border-radius:var(--radius);overflow:hidden}`,
-  `.tile{position:relative;display:grid;align-content:start;padding:28px 26px 30px;background:var(--bg-soft)}`,
-  `.tile .n{font-size:clamp(36px,4.4vw,60px);line-height:.95;font-weight:650;letter-spacing:-.05em;color:var(--ink);overflow-wrap:anywhere;margin-bottom:10px}`,
+  `.tiles{display:flex;flex-wrap:wrap;gap:1px;background:color-mix(in srgb,var(--ink) 14%,transparent);border:1px solid color-mix(in srgb,var(--ink) 14%,transparent);border-radius:var(--radius);overflow:hidden}`,
+  `.tile{flex:1 1 220px;position:relative;display:grid;align-content:start;padding:28px 26px 30px;background:var(--bg-soft)}`,
+  `.tile .n{font-size:clamp(36px,4.4vw,60px);line-height:.95;font-weight:650;letter-spacing:-.05em;color:var(--ink);white-space:nowrap;margin-bottom:10px}`,
   `.tile.c-ok .n,.tile.c-warn .n,.tile.c-bad .n,.tile.c-info .n{padding-right:36px}`,
   `.tile .l{color:var(--body);font-size:13px;letter-spacing:.06em;text-transform:uppercase}`,
   `.tile .ic{position:absolute;top:22px;right:22px;color:var(--c)}`,
@@ -341,7 +341,7 @@ const BASE_CSS = [
   `.top .links,.top .sep,.top .stamp{display:none}.top .wrap{gap:10px}.top .ttl{max-width:none;flex:1 1 auto}.top nav{margin-left:0;flex:none}`,
   `.stack thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.stack,.stack tbody,.stack tr,.stack td{display:block;width:100%}.stack tr{padding:14px 0;border-top:1px solid var(--line)}.stack tbody tr:first-child{border-top:0;padding-top:0}.stack td{border:0;padding:3px 0}`,
   `.stack td[data-label]::before{content:attr(data-label);display:block;font:600 13px/1.3 var(--font);color:var(--muted);margin-bottom:2px}}`,
-  `@media (max-width:520px){body{font-size:16px}#present{display:none}.tile{padding:22px 20px}.steps{grid-template-columns:minmax(0,1fr)}.say{grid-template-columns:minmax(0,1fr)}}`,
+  `@media (max-width:520px){body{font-size:16px}#present{display:none}.tile{padding:22px 20px}.tile .n{font-size:30px}.steps{grid-template-columns:minmax(0,1fr)}.say{grid-template-columns:minmax(0,1fr)}}`,
   // Motion is an extra: the hero rises and the owner's gate glows only when the reader has not asked for less.
   `@media (prefers-reduced-motion:no-preference){.gate .halo{animation:heat 2.6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}@keyframes heat{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.12)}}.hero h1,.hero .lede,.figure{animation:rise .7s cubic-bezier(.22,1,.36,1) both}.hero .lede{animation-delay:.08s}.figure{animation-delay:.16s}@keyframes rise{from{transform:translateY(14px)}}}`,
   `@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}`,
