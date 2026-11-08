@@ -74,9 +74,8 @@ For axis configuration and threshold gates, see the [okf reference](/references/
 
 Rule `V-P-04` requires updating the knowledge bundle whenever code changes a fact.
 
-To audit concepts against repository code, ask your agent for a knowledge sync.
-The `knowledge-sync` skill is user-invocable.
-It requires the Workflow tool, and `vulcan doctor` must pass before starting.
+To audit concepts against repository code, ask your agent to audit the knowledge bundle.
+The `docs-update` skill does it, and `vulcan doctor` must pass before starting.
 
 The skill audits concepts against code, treating source code as ground truth.
 Every finding cites a `file:line` witness.

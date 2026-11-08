@@ -145,7 +145,6 @@ installed @venizia/vulcan@0.4.8 with binaries:
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/fix-a-bug
-  unchanged .claude/skills/knowledge-sync
   unchanged .claude/skills/plan-a-change
   unchanged .claude/skills/report-back
   unchanged .claude/skills/research

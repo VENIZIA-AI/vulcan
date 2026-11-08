@@ -141,7 +141,7 @@ describe('the shipped agent-work skills', () => {
 
     for (const reference of [
       ...everything.matchAll(
-        /`((?:plan-a-change|report-back|review-a-change|fix-a-bug|build-a-feature|docs-update|docs-writing|knowledge-sync|visualize-work|ship|retro|research))` skill/g,
+        /`((?:plan-a-change|report-back|review-a-change|fix-a-bug|build-a-feature|docs-update|docs-writing|visualize-work|ship|retro|research))` skill/g,
       ),
     ]) {
       expect(existsSync(join(SKILLS_DIRECTORY, reference[1], 'SKILL.md'))).toBe(true);
@@ -427,13 +427,12 @@ describe('every shipped skill and the shared references', () => {
     }
   });
 
-  test('docs-update says where it runs in a change, and knowledge-sync that it is periodic', () => {
-    expect(readFileSync(join(SKILLS_DIRECTORY, 'docs-update', 'SKILL.md'), 'utf8')).toContain(
-      'Where this runs in a change',
-    );
-    expect(readFileSync(join(SKILLS_DIRECTORY, 'knowledge-sync', 'SKILL.md'), 'utf8')).toContain(
-      'periodic audit',
-    );
+  test('docs-update says where it runs in a change, and that an audit of the bundle is not once per change', () => {
+    const text = readFileSync(join(SKILLS_DIRECTORY, 'docs-update', 'SKILL.md'), 'utf8');
+
+    expect(text).toContain('Where this runs in a change');
+    expect(text).toContain('## Auditing the bundle');
+    expect(text).toContain('not once per change');
   });
 
   test('docs-writing carries the agent-documents reference', () => {

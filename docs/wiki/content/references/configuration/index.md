@@ -278,7 +278,7 @@ export default {
 
 The `knowledge` object configures paths for knowledge bundles and documentation. `vulcan sync` writes these paths to `.agents/vulcan.manifest.json`.
 
-`vulcan doctor` verifies that the `bundle` directory exists using the `[layout]` label. Atlas reads `bundle`, `wiki`, and `changelogs` from the manifest to index concepts and release notes. The `knowledge-sync` skill reads `syncAreas` to map source code directories to knowledge concepts.
+`vulcan doctor` verifies that the `bundle` directory exists using the `[layout]` label. Atlas reads `bundle`, `wiki`, and `changelogs` from the manifest to index concepts and release notes. `syncAreas` is written to the manifest, and no shipped skill reads it.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|

@@ -10,7 +10,7 @@ const PROJECT = {
   '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
-const SHIPPED = ['build-a-feature', 'docs-update', 'docs-writing', 'knowledge-sync'];
+const SHIPPED = ['build-a-feature', 'docs-update', 'docs-writing', 'research'];
 
 const sync = (opts: { root: string; agents: string }) =>
   runCli({ args: ['sync', '--agents', opts.agents], cwd: opts.root });

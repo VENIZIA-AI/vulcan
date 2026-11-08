@@ -64,7 +64,7 @@ An unknown key is an error; every error names the file and the field. The exampl
 
 - `rules.md` - the base rules: write boundaries, security, process, build, and the coding style V-C-* (35 rules).
 - `slots.json` - rules a project picks a wording for (V-W-01 today).
-- `skills/` - 12 project-neutral skills, described in `docs/wiki/content/references/skills.md` (a project-specific skill stays in its project). Each but `knowledge-sync` has an `evals/evals.json`; `make skill-evals` runs them against models and spends quota.
+- `skills/` - 11 project-neutral skills, described in `docs/wiki/content/references/skills.md` (a project-specific skill stays in its project). Each has an `evals/evals.json`; `make skill-evals` runs them against models and spends quota.
 - `hooks/` - 16 hook files, described in `docs/wiki/content/references/hooks/index.md`.
 - `claude/settings.json`, `make/vulcan.mk`, `templates/`.
 - `agents.json` (the coding agents `sync` can write adapters for), `commit-agents.json` (the agent names, addresses and phrases `commit-check` looks for in a message), `ci-global.json` (the files that make `ci affected` select every package), `checks/` (the wiki link and anchor gates), `extensions/` (the guards for an agent that loads an extension, such as omp or pi) and `references/` (testing, design pass, evidence and the other pages the skills link to).

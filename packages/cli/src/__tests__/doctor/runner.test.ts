@@ -227,7 +227,7 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        '.agents/skills/knowledge-sync/SKILL.md': '---\nname: knowledge-sync\n---\n',
+        '.agents/skills/research/SKILL.md': '---\nname: research\n---\n',
       },
     });
 

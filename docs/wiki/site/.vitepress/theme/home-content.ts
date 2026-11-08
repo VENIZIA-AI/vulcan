@@ -9,7 +9,7 @@
 import pkg from '../../../../../packages/cli/package.json';
 import type { THomeContent, TSiteInfo } from './shared/home-types';
 
-export const COUNTS = { rules: 35, skills: 12, agents: 7, tools: 6 };
+export const COUNTS = { rules: 35, skills: 11, agents: 7, tools: 6 };
 
 export const SITE: TSiteInfo = {
   id: 'vulcan',
@@ -86,7 +86,7 @@ export default {
           '  created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)',
         ],
         ['ok', '  created   .claude/skills/build-a-feature'],
-        ['c', '  ... 11 more skills'],
+        ['c', '  ... 10 more skills'],
         ['gap', ''],
         ['ok', '  created   .mcp.json'],
         ['ok', '  created   .agents/vulcan.manifest.json'],

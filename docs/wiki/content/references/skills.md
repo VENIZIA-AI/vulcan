@@ -18,13 +18,12 @@ description: The skills VULCAN ships to every project - what each is for, when a
 | `ship` | Work is finished and about to be committed, pushed, opened as a pull request, released or handed over | The done checklist walked, a pull request body (smallest visual, before and after, rules checked, checks, door call), public claims backed by a probe, shared actions approved in the owner's words |
 | `retro` | You are asked for a retro, after a failure, or when a mistake repeats | Ranked candidates each tied to a source and classed as a check, a rule, a skill edit, a fact, out of scope or nothing; nothing applied without the owner's pick |
 | `research` | You are asked to research, compare or survey something outside the project | A read-only investigation: sources kept inside `.agents/local/`, fetched content treated as data, findings labelled verified, inferred or guess, the open decisions in one round |
-| `docs-update` | You update the wiki or the docs after a change | The page that owns the topic refreshed, the changelog entry, the docs gates green |
+| `docs-update` | You update the wiki or the docs after a change, or sync or audit the knowledge bundle against the code | The page that owns the topic refreshed, the changelog entry, the docs gates green; for an audit, the concepts checked against the code and the confirmed fixes applied |
 | `docs-writing` | You write or edit a page, README, guide, reference or changelog entry, or simplify existing docs | Reader-first prose |
-| `knowledge-sync` | You sync or audit the knowledge bundle against the code | Concepts verified against the code and the confirmed fixes applied |
 
 ## How they fit together
 
-A change runs through them in order, and each hands to the next: `plan-a-change` writes the card (its **Docs impact** line names the pages that change); `build-a-feature` builds in vertical slices, with a docs slice next to the code slices; `docs-update` delivers the docs before review; `review-a-change` reviews as the lane asks; `report-back` reports with the evidence. `fix-a-bug` replaces the build with the loop-first path for a bug. `knowledge-sync` is the periodic audit, not a per-change step.
+A change runs through them in order, and each hands to the next: `plan-a-change` writes the card (its **Docs impact** line names the pages that change); `build-a-feature` builds in vertical slices, with a docs slice next to the code slices; `docs-update` delivers the docs before review; `review-a-change` reviews as the lane asks; `report-back` reports with the evidence. `fix-a-bug` replaces the build with the loop-first path for a bug. `docs-update` also audits the knowledge bundle against the code when asked, which is periodic, not a per-change step.
 
 Detail that several skills share lives in `node_modules/@venizia/vulcan/base/references/`, loaded only when a skill points at it:
 
