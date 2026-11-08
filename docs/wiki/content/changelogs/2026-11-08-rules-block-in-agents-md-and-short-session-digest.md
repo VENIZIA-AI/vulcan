@@ -1,6 +1,6 @@
 ---
 title: The rules reach the agent as a block of AGENTS.md, and the session digest is under 2 KB
-description: vulcan sync writes a 2 KB block of the rules that must not be skipped into AGENTS.md, for every agent that reads it; the Claude Code session-start digest drops its rule text, which the model never saw, and keeps what only the session knows.
+description: vulcan sync writes a block of at most 6 KB of the rules that must not be skipped into AGENTS.md, for every agent that reads it; the Claude Code session-start digest drops its rule text, which the model never saw, and keeps what only the session knows.
 packages: ['@venizia/vulcan']
 ---
 
@@ -14,9 +14,9 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **A `vulcan:rules` block in `AGENTS.md`.** `vulcan sync` writes it, between `<!-- vulcan:rules:start ... -->` and `<!-- vulcan:rules:end -->`, next to the Atlas block: your slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go, and the rules of `digest.oftenDropped`, one line each, the first sentence of the rule taken from the rule file. When they do not fit 2 KB, the last of `digest.oftenDropped` are left out. It holds no path of one machine, so it is safe to commit. `vulcan doctor` notes a block that is missing or out of date.
+- **A `vulcan:rules` block in `AGENTS.md`.** `vulcan sync` writes it, between `<!-- vulcan:rules:start ... -->` and `<!-- vulcan:rules:end -->`, next to the Atlas block: your slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go, and the rules of `digest.oftenDropped`, one line each, the whole first sentence of the rule taken from the rule file. When they do not fit 6 KB, the last of `digest.oftenDropped` are left out. It holds no path of one machine, so it is safe to commit. `vulcan doctor` notes a block that is missing or out of date.
 - **The session digest is short.** In Claude Code it now prints a config problem, a launch warning and the owner card (with the person's profile), under 2 KB, and no rule text. The project's own rule rows, the minimap and the Atlas block it used to print are gone from it: `AGENTS.md` routes to the project's rules and holds the Atlas block.
-- **Why 2 KB.** Measured in a real Claude Code run: a hook's output reaches the model whole up to about 10,000 bytes (10,001 passed, 10,010 did not); beyond that the model gets a file path and the first 2 KB. The old digest was always beyond it.
+- **Why these sizes.** Measured in a real Claude Code run: a hook's output reaches the model whole up to about 10,000 bytes (10,001 passed, 10,010 did not); beyond that the model gets a file path and the first 2 KB. The old digest was always beyond it. The digest keeps to 2 KB, and the rules block, which every agent reads from `AGENTS.md`, to 6 KB, so a rule line is never cut.
 - **Which agents get the rules.** Claude Code reads `AGENTS.md` through `CLAUDE.md` and omp reads it itself: in a real run each quoted the block back. pi, Codex, Antigravity, Cursor and Copilot read `AGENTS.md` too, but were not run, so nothing is claimed for them.
 - **`digest.oftenDropped` keeps its name and its default.** It now chooses the lines of the block, and takes effect at the next `vulcan sync`.
 

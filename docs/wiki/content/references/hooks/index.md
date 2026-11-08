@@ -20,7 +20,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 
 The session-start hook injects what only this session knows into your agent's context, in under 2 KB: a config problem when the config does not load, a launch warning when Claude Code was started without the launch file, the shape card "How to answer the owner" built from the [`owner` block](/references/configuration/#owner) (left out when `report.enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off`) and, when the developer has a [profile](/references/configuration/#the-personal-profile), a short "Working with this person" card.
 
-It holds no rule text. The rules are the generated block of the committed `AGENTS.md` (`<!-- vulcan:rules:start ... -->`), which `vulcan sync` writes: the slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go, and the rules of `digest.oftenDropped`, one line each, at most 2 KB. Claude Code reads it through `CLAUDE.md`, omp reads `AGENTS.md` itself. The reason is a limit measured in a real Claude Code run: a hook's output reaches the model whole up to about 10,000 bytes (10,001 passed, 10,010 did not), and beyond that the model gets a file path and the first 2 KB. The digest this hook printed before was 23 KB for VULCAN, 148 KB for a project with many rules, so the model saw its first 2 KB (the header and `V-W-01` to `V-W-03`) and nothing else.
+It holds no rule text. The rules are the generated block of the committed `AGENTS.md` (`<!-- vulcan:rules:start ... -->`), which `vulcan sync` writes: the slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go, and the rules of `digest.oftenDropped`, one line each with the whole first sentence of the rule, at most 6 KB. Claude Code reads it through `CLAUDE.md`, omp reads `AGENTS.md` itself. The reason is a limit measured in a real Claude Code run: a hook's output reaches the model whole up to about 10,000 bytes (10,001 passed, 10,010 did not), and beyond that the model gets a file path and the first 2 KB. The digest this hook printed before was 23 KB for VULCAN, 148 KB for a project with many rules, so the model saw its first 2 KB (the header and `V-W-01` to `V-W-03`) and nothing else.
 
 ```text
 $ echo '{}' | bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
@@ -32,7 +32,7 @@ The rules are in AGENTS.md ("Rules that must not be skipped"); the full text is 
 ...
 ```
 
-The rules of the block come from the `digest.oftenDropped` configuration key; run `vulcan sync` after you change it. The default list contains eleven base rules: `V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-C-02`, `V-C-09`, `V-C-10`, `V-P-08`, `V-B-07`, and `V-B-09`; when they do not all fit in 2 KB, the last ones are left out.
+The rules of the block come from the `digest.oftenDropped` configuration key; run `vulcan sync` after you change it. The default list contains eleven base rules: `V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-C-02`, `V-C-09`, `V-C-10`, `V-P-08`, `V-B-07`, and `V-B-09`; when they do not all fit in 6 KB, the last ones are left out.
 
 To change which rules appear, define `digest.oftenDropped` in `.configs/vulcan.config.mts`:
 

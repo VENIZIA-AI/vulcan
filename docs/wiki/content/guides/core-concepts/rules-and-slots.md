@@ -68,7 +68,7 @@ vulcan doctor: 1 violation(s)
 
 ## How an agent sees them
 
-`vulcan sync` writes a block into the committed `AGENTS.md`, between `<!-- vulcan:rules:start ... -->` and `<!-- vulcan:rules:end -->`: your slot choices, the write boundaries (`V-W-02`, `V-W-03`, `V-W-06`), where scratch files go, and the rules sessions drop most (`digest.oftenDropped`), one line each, at most 2 KB. It is built from the rule files and the config, holds no path of one machine, and is the same for every developer.
+`vulcan sync` writes a block into the committed `AGENTS.md`, between `<!-- vulcan:rules:start ... -->` and `<!-- vulcan:rules:end -->`: your slot choices, the write boundaries (`V-W-02`, `V-W-03`, `V-W-06`), where scratch files go, and the rules sessions drop most (`digest.oftenDropped`), one line each, the whole first sentence, at most 6 KB. It is built from the rule files and the config, holds no path of one machine, and is the same for every developer.
 
 Every agent that reads `AGENTS.md` gets it, and so does Claude Code, whose `CLAUDE.md` is `@AGENTS.md`. Verified in a real run: Claude Code and omp both quoted the block. `vulcan doctor` notes a block that is missing or no longer matches the rules or the config, and `vulcan sync` rewrites it.
 

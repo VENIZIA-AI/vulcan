@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { RulesBlock } from '../../agents/index.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -62,7 +63,7 @@ describe('the Atlas and rules blocks in AGENTS.md', () => {
     expect(block).toContain('- V-W-01: this project: `read-only`');
     expect(block).toContain('`.agents/local/tmp`');
     expect(block).not.toContain(root);
-    expect(Buffer.byteLength(block)).toBeLessThanOrEqual(2048);
+    expect(Buffer.byteLength(block)).toBeLessThanOrEqual(RulesBlock.MAX_BYTES);
   });
 
   test('a change of the slot choice or of the often-dropped list rewrites the rules block only', () => {

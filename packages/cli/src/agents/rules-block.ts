@@ -9,21 +9,16 @@ const { start: RULES_BLOCK_START, end: RULES_BLOCK_END } = GeneratedBlock.marker
 
 /** A summary of a rule shorter than this takes the next sentence too (`Approval has a card.`). */
 const SHORT_SUMMARY_CHARACTERS = 40;
-const SUMMARY_MAX_CHARACTERS = 120;
 
 export class RulesBlock {
-  /** What the block may weigh with its markers: Claude Code puts a hook's output beyond 10,000 bytes in a file and shows the model 2 KB of it, and an agent reads this block whole. */
-  static readonly MAX_BYTES = 2048;
+  /** What the block may weigh with its markers: Claude Code gives a hook's output whole up to about 10,000 bytes (measured), so 6 KB leaves room for the rest of the session's context, and each rule line carries its whole first sentence. */
+  static readonly MAX_BYTES = 6144;
 
-  /** A rule row as one line: its first sentence, plain, with the next one when the first is only a title. */
+  /** A rule row as one line: its whole first sentence, plain, with the next one when the first is only a title. */
   static summaryOf(opts: { row: string }): string {
     const cell = (opts.row.split('|')[2] ?? '').replaceAll('**', '').replace(/\s+/g, ' ').trim();
     const [first = '', second = ''] = cell.split(/(?<=[.!?])\s+/);
-    const text = first.length < SHORT_SUMMARY_CHARACTERS ? `${first} ${second}`.trim() : first;
-
-    return text.length <= SUMMARY_MAX_CHARACTERS
-      ? text
-      : `${text.slice(0, SUMMARY_MAX_CHARACTERS).replace(/\s+\S*$/, '')} ...`;
+    return first.length < SHORT_SUMMARY_CHARACTERS ? `${first} ${second}`.trim() : first;
   }
 
   /** One line for each slot of the base rules: the option this project chose, or that it has not chosen. */

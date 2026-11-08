@@ -512,7 +512,7 @@ export default {
 
 ## digest
 
-The `digest` object configures which rule IDs `vulcan sync` names, one line each, in the rules block of `AGENTS.md`, after the write boundaries. The block holds at most 2 KB, so the last IDs of a long list are the ones left out. If you omit `digest`, the default list below is used. Run `vulcan sync` after you change it.
+The `digest` object configures which rule IDs `vulcan sync` names, one line each, in the rules block of `AGENTS.md`, after the write boundaries. The block holds at most 6 KB, so the last IDs of a long list are the ones left out. If you omit `digest`, the default list below is used. Run `vulcan sync` after you change it.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
