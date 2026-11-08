@@ -772,6 +772,15 @@ describe('OutsideGuard.inspect says which hits it could not read', () => {
     expect(hits.every((hit) => hit.isUnread)).toBe(true);
   });
 
+  test.each([
+    'touch ~/.bun/install/$X',
+    'touch $XDG_RUNTIME_DIR/$X',
+    'touch ~/.claude/projects/p/memory/$X',
+    'echo x > ~/.bun/install/$X',
+  ])('%s is in a folder a tool owns: no hit that is read, whatever the file name is', (command) => {
+    expect(hitsOf({ command }).some((hit) => !hit.isUnread)).toBe(false);
+  });
+
   test('a folder a tool owns is not outside: an expansion in it stays unread', () => {
     const hits = OutsideGuard.inspect({
       input: {

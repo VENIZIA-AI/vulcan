@@ -94,11 +94,11 @@ export class ShellFolders {
   }
 
   /**
-   * The folder a word lands in when part of it cannot be worked out (`/etc/$X`, `~/.ssh/key$N`, `/etc/*.conf`):
-   * what comes before the first unknown part, up to its last `/`, with `~` and the variables that are set
-   * expanded; a name with no folder in front of it is in `base`. `undefined` when the folder itself is the unknown
-   * part (`$D/x`; `$f` when the line assigned `f`, whose value may be a path of its own), the word is `~` followed
-   * by an unknown name, or it is taken from a `base` the guard lost (`isKnown` false).
+   * The folder a word lands in when part of it cannot be worked out (`/etc/$X`, `~/.ssh/key$N`, `/etc/*.conf`): the
+   * longest run of folders in front of the unknown part that `expandPath` can work out; a name with no folder in
+   * front of it is in `base`. `undefined` when the first folder is the unknown part (`$D/x`; `$f` when the line
+   * assigned `f`, whose value may be a path of its own), the word is `~` followed by an unknown name, or it is taken
+   * from a `base` the guard lost (`isKnown` false).
    */
   static folderOfUnknown(opts: {
     word: string;
@@ -110,46 +110,54 @@ export class ShellFolders {
     /** The names the line assigned. */
     assigned: ReadonlySet<string>;
   }): string | undefined {
-    const known = opts.word.replace(
-      /\$\{(\w+)\}|\$(\w+)/g,
-      (match, braced?: string, plain?: string) => {
-        const name = braced ?? plain ?? '';
-        const value = name === 'PWD' && opts.cwd !== undefined ? opts.cwd : opts.env[name];
+    const parts = opts.word.split('/');
 
-        return value === undefined || value === '' ? match : value;
-      },
-    );
-    const cut = known.search(/[$`*?[]/);
+    for (let count = parts.length - 1; count >= 1; count -= 1) {
+      const folder = ShellFolders.expandPath({
+        word: `${parts.slice(0, count).join('/')}/`,
+        home: opts.home,
+        env: opts.env,
+        cwd: opts.cwd,
+      });
 
-    if (cut === -1) {
-      return undefined;
+      if (folder !== undefined) {
+        return isAbsolute(folder) ? folder : opts.isKnown ? `${opts.base}/${folder}` : undefined;
+      }
     }
 
-    const slash = known.lastIndexOf('/', cut);
+    const name = /^\$\{?(\w+)/.exec(opts.word)?.[1];
+    const isUnknown =
+      !opts.isKnown ||
+      parts.length > 1 ||
+      opts.word.startsWith('~') ||
+      (name !== undefined && opts.assigned.has(name));
 
-    if (slash === -1) {
-      const name = /^\$\{?(\w+)/.exec(known)?.[1];
+    return isUnknown ? undefined : opts.base;
+  }
 
-      return !opts.isKnown ||
-        known.startsWith('~') ||
-        (cut === 0 && known.includes('/')) ||
-        (name !== undefined && opts.assigned.has(name))
-        ? undefined
-        : opts.base;
+  /**
+   * How often each name is assigned on the line. A word `NAME=value` counts as an assignment too, because the parser
+   * keeps it as a word where a keyword (`do`, `then`) stands in front of it.
+   */
+  private static assignmentCounts(opts: { commands: ISimpleCommand[] }): Map<string, number> {
+    const counts = new Map<string, number>();
+
+    for (const command of opts.commands) {
+      for (const word of [...command.assignments, ...command.words]) {
+        const name = /^([A-Za-z_]\w*)=/.exec(word)?.[1];
+
+        if (name !== undefined) {
+          counts.set(name, (counts.get(name) ?? 0) + 1);
+        }
+      }
     }
 
-    const folder = ShellFolders.expandPath({
-      word: known.slice(0, slash + 1),
-      home: opts.home,
-      env: opts.env,
-      cwd: opts.cwd,
-    });
+    return counts;
+  }
 
-    if (folder === undefined || isAbsolute(folder)) {
-      return folder;
-    }
-
-    return opts.isKnown ? `${opts.base}/${folder}` : undefined;
+  /** The names the line assigns. */
+  static assignedNames(opts: { commands: ISimpleCommand[] }): Set<string> {
+    return new Set(ShellFolders.assignmentCounts(opts).keys());
   }
 
   /**
@@ -157,15 +165,7 @@ export class ShellFolders {
    * (`for NAME`, `read NAME`, `printf -v NAME`, a nameref, `eval`).
    */
   private static reboundOf(opts: { commands: ISimpleCommand[] }): Set<string> {
-    const counts = new Map<string, number>();
-
-    for (const command of opts.commands) {
-      for (const assignment of command.assignments) {
-        const name = assignment.slice(0, Math.max(assignment.indexOf('='), 0));
-
-        counts.set(name, (counts.get(name) ?? 0) + 1);
-      }
-    }
+    const counts = ShellFolders.assignmentCounts({ commands: opts.commands });
 
     const texts = opts.commands.flatMap((command) => [
       ...command.words,

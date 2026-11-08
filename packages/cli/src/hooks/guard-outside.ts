@@ -163,7 +163,7 @@ export class OutsideGuard {
     }
 
     let unread: string | undefined;
-    const assigned = new Set<string>();
+    let assigned = new Set<string>();
 
     if (opts.input.command !== undefined) {
       const parsed = ShellParser.parseChecked({ command: opts.input.command });
@@ -176,17 +176,7 @@ export class OutsideGuard {
       });
 
       unread = ShellUnread.reasonOf(parsed);
-
-      // A word `NAME=value` is an assignment too where a keyword (`do`, `then`) stands in front of it.
-      for (const command of parsed.commands) {
-        for (const word of [...command.assignments, ...command.words]) {
-          const name = /^([A-Za-z_]\w*)=/.exec(word)?.[1];
-
-          if (name !== undefined) {
-            assigned.add(name);
-          }
-        }
-      }
+      assigned = ShellFolders.assignedNames({ commands: parsed.commands });
 
       // A command's own redirects open in the folder it starts in, a `cd`'s included.
       for (const [index, command] of parsed.commands.entries()) {
@@ -244,7 +234,7 @@ export class OutsideGuard {
         if (
           folder !== undefined &&
           !isInside({ path: folder, root }) &&
-          !matchesAny({ path: folder, patterns })
+          !matchesAny({ path: `${folder}/x`, patterns })
         ) {
           hits.push({
             path: folder,
