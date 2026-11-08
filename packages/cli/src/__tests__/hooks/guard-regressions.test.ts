@@ -34,6 +34,71 @@ const BYPASSES: { id: string; found: string; command: string }[] = [
   { id: 'B-11', found: '#414', command: 'cat <<< word\ngit push -f origin main' },
   { id: 'B-12', found: '#414', command: `echo "$(echo ')'; git push -f origin main)"` },
   { id: 'B-13', found: '#414', command: "watch -n 1 'git push -f origin main'" },
+  { id: 'S-1', found: 'review', command: 'bash <<< "git push -f origin main"' },
+  { id: 'S-2', found: 'review', command: String.raw`printf 'git push -f origin main\n' | sh` },
+  { id: 'S-3', found: 'review', command: "cat <<'EOF' | sh\ngit push -f origin main\nEOF" },
+  { id: 'S-4', found: 'review', command: String.raw`echo -e 'ls\ngit push -f origin main' | bash` },
+  {
+    id: 'S-5',
+    found: 'review',
+    command: String.raw`find . -name x -exec git push -f origin main \;`,
+  },
+  {
+    id: 'S-6',
+    found: 'review',
+    command: String.raw`find . -execdir sh -c 'git push -f origin main' \;`,
+  },
+  { id: 'S-7', found: 'review', command: 'gh api -X DELETE repos/o/r/git/refs/heads/main' },
+  {
+    id: 'S-8',
+    found: 'review',
+    command: 'gh api --method=DELETE /repos/o/r/git/refs/heads/develop',
+  },
+  { id: 'S-9', found: 'attack review', command: 'echo git push --force origin main | bash' },
+  { id: 'S-10', found: 'attack review', command: "printf '%s ' git push -f origin main | sh" },
+  { id: 'S-11', found: 'attack review', command: 'echo -n git push -f origin main | sh' },
+  { id: 'S-12', found: 'attack review', command: 'find . -name x -exec git push -f origin main +' },
+  {
+    id: 'S-20',
+    found: 'attack review',
+    command: String.raw`find . -exec ls {} + -exec git push -f origin main \;`,
+  },
+  { id: 'S-13', found: 'attack review', command: 'gh api -X delete repos/o/r/git/refs/heads/main' },
+  {
+    id: 'S-13b',
+    found: 'attack review',
+    command: 'gh api --method=delete repos/o/r/git/refs/heads/main',
+  },
+  {
+    id: 'S-14',
+    found: 'attack review',
+    command: 'gh api -X DELETE https://api.github.com/repos/o/r/git/refs/heads/main',
+  },
+  {
+    id: 'S-15',
+    found: 'attack review',
+    command: 'gh api -X DELETE repos/o/r/git/refs/heads/main/',
+  },
+  {
+    id: 'S-16',
+    found: 'attack review',
+    command: 'gh api -X DELETE repos/o/r/git/refs/heads/main?x=1',
+  },
+  {
+    id: 'S-17',
+    found: 'attack review',
+    command: 'gh api -X DELETE //repos/o/r/git/refs/heads/main',
+  },
+  {
+    id: 'S-18',
+    found: 'attack review',
+    command: 'gh api -X DELETE repos/o/r/git/refs/heads%2Fmain',
+  },
+  {
+    id: 'S-19',
+    found: 'attack review',
+    command: 'gh api -X DELETE repos/o/r/git/refs/heads/ma%69n',
+  },
 ];
 
 /** A fake `git`/`gh` that answers every query with a branch and counts the calls. */
@@ -62,6 +127,26 @@ describe('the bypasses the reviews found stay fixed', () => {
     expect(decisions({ command })).toContain('deny');
     expect(performance.now() - started).toBeLessThan(1000);
   });
+
+  test.each([
+    'bash <<< "ls"',
+    "printf 'hello\\n' | sh",
+    'echo "git push -f origin main" | cat',
+    'echo git status | sh',
+    "printf '%s\\n' ls pwd | sh",
+    'find . -name x -exec echo {} +',
+    'gh api -X DELETE repos/o/r/git/refs/heads/feature%2Fx',
+    'find . -name "*.ts" -exec grep -l foo {} +',
+    'find . -name x -exec rm {} \\;',
+    'gh api repos/o/r/git/refs/heads/main',
+    'gh api -X DELETE repos/o/r/git/refs/heads/feature/x',
+    'gh api -X POST repos/o/r/git/refs -f ref=refs/heads/main',
+  ])(
+    'what stdin, find and gh api only read or do inside a branch of its own stays quiet: %s',
+    (command) => {
+      expect(decisions({ command })).toEqual([]);
+    },
+  );
 
   test('a real heredoc and a quoted mention are still data, not commands', () => {
     expect(decisions({ command: 'cat <<EOF\ngit push -f origin main\nEOF' })).toEqual([]);
@@ -93,6 +178,14 @@ describe('a line the guard cannot read in full asks, and the guard does not cras
     });
     expect(ShellParser.parseChecked({ command: at }).isOverBudget).toBe(false);
     expect(decisions({ command: over })).toEqual(['ask']);
+  });
+
+  test('a find with thousands of -exec options is read in linear time', () => {
+    const command = `find .${' -exec x \\;'.repeat(6500)}`;
+    const started = performance.now();
+
+    expect(decisions({ command })).toEqual(['ask']);
+    expect(performance.now() - started).toBeLessThan(150);
   });
 
   test('a chain of env -S and eval over a megabyte asks at once', () => {

@@ -32,6 +32,26 @@ const file = (opts: { tool: string; path: string }): string[] =>
     env: ENV,
   }).map((hit) => hit.message);
 
+describe('a shell that reads its commands from stdin is followed', () => {
+  test.each([
+    'bash <<< "echo x > /tmp/y"',
+    String.raw`printf 'echo x > /tmp/y\n' | sh`,
+    'echo cp a /etc/passwd | sh',
+    "printf '%s ' cp a /etc/passwd | sh",
+    "cat <<'EOF' | sh\necho x > /tmp/y\nEOF",
+    'find . -name x -exec cp {} /tmp/y \\;',
+  ])('%s asks about the file outside the project', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each(['bash <<< "echo x > out.txt"', String.raw`printf 'ls\n' | sh`])(
+    '%s writes inside the project and stays quiet',
+    (command) => {
+      expect(bash({ command })).toEqual([]);
+    },
+  );
+});
+
 describe('mktemp where the temp folder is inside the project', () => {
   // Claude Code: the session-start hook exports TMPDIR into every Bash command, so a bare mktemp lands in the project.
   const inClaudeCode = { ...ENV, CLAUDE_PROJECT_DIR: PROJECT };

@@ -8,6 +8,23 @@ afterAll(removeProjects);
 
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-writes.ts');
 
+describe('a shell that reads its commands from stdin, and find -exec, are followed', () => {
+  test.each([
+    'bash <<< "kubectl apply -f x.yaml"',
+    "printf 'kubectl apply -f x.yaml' | sh",
+    'find . -name x -exec kubectl apply -f {} +',
+  ])('%s asks', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each(['bash <<< "ls"', "printf 'ls' | sh", 'find . -name x -exec grep -l foo {} +'])(
+    '%s stays quiet',
+    (command) => {
+      expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+    },
+  );
+});
+
 /** The real hook, run in `root` with the command as Claude Code sends it: its exit code and its decision. */
 const runHookAt = async (opts: { root: string; command: string }) => {
   const child = Bun.spawn([process.execPath, HOOK], {

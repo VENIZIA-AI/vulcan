@@ -289,6 +289,45 @@ const ghCall = (opts: { args: string[] }): { group: string; action: string; rest
   return { group: names[0] ?? '', action: names[1] ?? '', rest: opts.args.slice(index) };
 };
 
+const REF_ENDPOINT = /^repos\/[^/]+\/[^/]+\/git\/refs\/heads\/(.+)$/;
+
+/** The path `gh api` calls for a word: without the host, a `?query`, the slashes at its ends, decoded once. */
+const endpointOf = (opts: { word: string }): string => {
+  const path = opts.word
+    .replace(/^https?:\/\/api\.github\.com/i, '')
+    .replace(/[?#].*$/s, '')
+    .replace(/^\/+|\/+$/g, '');
+
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+};
+
+/** `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>` deletes the branch as `git push --delete` does. */
+const inspectGhApi = (opts: { args: string[] }): IGitHit[] => {
+  const { args } = opts;
+  const isDelete = args.some(
+    (word, index) =>
+      /^(-X|--method)=?DELETE$/i.test(word) ||
+      (/^(-X|--method)$/.test(word) && (args[index + 1] ?? '').toUpperCase() === 'DELETE'),
+  );
+
+  if (ghCall({ args }).group !== 'api' || !isDelete) {
+    return [];
+  }
+
+  return args
+    .map((word) => REF_ENDPOINT.exec(endpointOf({ word }))?.[1])
+    .filter((name): name is string => name !== undefined && isProtected({ name }))
+    .map((name) => ({
+      decision: GuardDecisions.DENY,
+      rule: 'V-W-06',
+      message: `deleting the remote branch '${name}'`,
+    }));
+};
+
 /** `gh pr merge [<pr>] --delete-branch`: the PR's head branch decides, and `gh` is asked for it. */
 const inspectGhMerge = (opts: {
   args: string[];
@@ -385,6 +424,7 @@ const inspectOne = (opts: {
     return [
       ...inspectGhMerge({ args: program.args, cwd: opts.cwd, run: opts.run }),
       ...inspectGhCreate({ args: program.args }),
+      ...inspectGhApi({ args: program.args }),
     ];
   }
 

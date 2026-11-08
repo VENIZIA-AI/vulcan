@@ -181,9 +181,12 @@ export class ShellPrograms {
   static readonly WRAPPER_NAMES: readonly string[] = Object.keys(WRAPPER_OPTIONS);
   /** The shells whose heredoc body is read as commands. */
   static readonly SHELL_NAMES: readonly string[] = ['bash', 'sh', 'zsh', 'dash', 'ksh'];
+  /** The options of `find` that run a command, each ended by a `;` or a `+`. */
+  static readonly FIND_RUN_OPTIONS: readonly string[] = ['-exec', '-execdir', '-ok', '-okdir'];
 }
 
 const SHELLS = new Set(ShellPrograms.SHELL_NAMES);
+const FIND_RUN_OPTIONS = new Set(ShellPrograms.FIND_RUN_OPTIONS);
 
 /** The mark of an open `case` among the groups the parser tracks: its `)` closes a pattern. */
 const CASE_GROUP = 'case';
@@ -1294,6 +1297,10 @@ export class ShellParser {
       if (call.mode === ShellModes.COMMAND && call.word !== undefined) {
         scripts.push(call.word);
       }
+
+      if (call.mode === ShellModes.STDIN) {
+        scripts.push(...ShellParser.stdinScriptsOf({ command }));
+      }
     }
 
     if (name === 'eval') {
@@ -1316,6 +1323,66 @@ export class ShellParser {
     }
 
     return scripts;
+  }
+
+  /**
+   * The text a shell reads from its standard input, when the line shows it: a here-string, what `echo` or
+   * `printf` prints into it, or the body of the heredoc of a `cat` that feeds it.
+   */
+  private static stdinScriptsOf(opts: { command: ISimpleCommand }): string[] {
+    const { input } = opts.command;
+
+    if (input === undefined) {
+      return [];
+    }
+
+    const scripts = [...input.texts];
+    const source = input.pipedFrom;
+
+    if (source !== undefined) {
+      const { name, args } = ShellParser.programOf({ command: source });
+      const program = ShellParser.basenameOf({ word: name });
+
+      if (program === 'echo' || program === 'printf') {
+        scripts.push(ShellParser.printedBy({ program, args }).replaceAll('\\n', '\n'));
+      }
+
+      if (program === 'cat' && source.heredoc !== undefined) {
+        scripts.push(source.heredoc);
+      }
+    }
+
+    return scripts;
+  }
+
+  /**
+   * What `echo` or `printf` prints: `echo` its words, joined by spaces (an option is a word the parser skips); `printf` its format
+   * with each conversion (`%s`, `%b`...) filled from the words that follow, the format again while words are
+   * left. A guess toward a hit: a conversion is never read as a width or an escape, only as a place for a word.
+   */
+  private static printedBy(opts: { program: string; args: string[] }): string {
+    if (opts.program === 'echo') {
+      return opts.args.join(' ');
+    }
+
+    const words = opts.args[0] === '--' ? opts.args.slice(1) : opts.args;
+    const [format = '', ...rest] = words;
+    const conversion = /%%|%[-+ #0-9.*]*[a-zA-Z]/g;
+
+    if (![...format.matchAll(conversion)].some((match) => match[0] !== '%%')) {
+      return format;
+    }
+
+    let next = 0;
+    let printed = '';
+
+    do {
+      printed += format.replace(conversion, (found) =>
+        found === '%%' ? '%' : (rest[next++] ?? ''),
+      );
+    } while (next < rest.length);
+
+    return printed;
   }
 
   /**
@@ -2058,10 +2125,47 @@ export class ShellParser {
         continue;
       }
 
-      return { name: word, index, args: opts.command.words.slice(index + 1), splitCommands };
+      const args = opts.command.words.slice(index + 1);
+
+      if (ShellParser.basenameOf({ word }) === 'find') {
+        splitCommands.push(...ShellParser.findRunsOf({ args }));
+      }
+
+      return { name: word, index, args, splitCommands };
     }
 
     return { name: '', index: -1, args: [], splitCommands };
+  }
+
+  /** The commands `find` runs: the words after each `-exec`, `-execdir`, `-ok` or `-okdir`, up to its `;` or `+`. */
+  private static findRunsOf(opts: { args: string[] }): string[][] {
+    const runs: string[][] = [];
+
+    for (let index = 0; index < opts.args.length; index += 1) {
+      if (!FIND_RUN_OPTIONS.has(opts.args[index] ?? '')) {
+        continue;
+      }
+
+      let end = index + 1;
+
+      while (end < opts.args.length && opts.args[end] !== ';' && opts.args[end] !== '+') {
+        end += 1;
+      }
+
+      if (end === opts.args.length) {
+        end = -1;
+      }
+
+      const words = opts.args.slice(index + 1, end === -1 ? undefined : end);
+
+      if (words.length > 0) {
+        runs.push(words);
+      }
+
+      index = end === -1 ? opts.args.length : end;
+    }
+
+    return runs;
   }
 
   /**

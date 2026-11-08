@@ -40,7 +40,7 @@ const GH_REQUESTS = new Set(['api', 'secret', 'variable']);
 const GH_REPOSITORY_FLAGS = new Set(['-R', '--repo']);
 
 /** `find` runs a command only with these; without them it only lists. */
-const FIND_RUNS = new Set(['-exec', '-execdir', '-ok', '-okdir', '-delete']);
+const FIND_RUNS = new Set([...ShellPrograms.FIND_RUN_OPTIONS, '-delete']);
 
 /** Programs that read their heredoc as a query or a script: the body is part of what they run. */
 const HEREDOC_READERS = new Set([

@@ -79,7 +79,7 @@ describe('CommandView.commandTextsOf and isDataOnly', () => {
         command: "find . -name '*.yaml' -exec kubectl delete -f {} +",
         withMessages: true,
       }),
-    ).toEqual(['find . -name *.yaml -exec kubectl delete -f {} +']);
+    ).toEqual(['find . -name *.yaml -exec kubectl delete -f {} +', 'kubectl delete -f {}']);
     expect(
       CommandView.commandTextsOf({ command: 'find . -name "*.md"', withMessages: true }),
     ).toEqual(['find']);
