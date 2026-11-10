@@ -796,3 +796,38 @@ describe('the guard-writes hook, on the SQL a database client is given', () => {
     expect(result).toEqual({ code: 0, decision: '' });
   });
 });
+
+describe('a program name is matched exactly, so an identifier that spells one is no call', () => {
+  const heredoc = (body: string) => `python3 - <<'PY'\n${body}\nPY`;
+
+  test.each([
+    heredoc("print(1)\nopen('x.ts', 'w').write('export { HTTP as _HTTP };')"),
+    heredoc('text = "import { HTTP, ResolverUtility } from \'@venizia/ignis\';"'),
+    heredoc('text = "const r = MONGO.insert(item);"'),
+    heredoc('text = "PSQL -c DROP TABLE x"'),
+    'HTTP POST example.dev/v1/x name=x',
+    'REDIS-CLI SET key value',
+  ])('%s stays quiet', (command) => {
+    expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+  });
+
+  test.each([
+    'http POST example.dev/v1/x name=x',
+    'http post example.dev/v1/x name=x',
+    'https PUT example.dev/v1/x name=x',
+    'xh delete example.dev/v1/x',
+    'redis-cli set key value',
+    'psql -c "drop table x"',
+    heredoc('import os\nos.system("http POST example.dev/v1/x name=x")'),
+    'bash <<EOF\nhttp POST example.dev/v1/x name=x\nEOF',
+  ])('%s still asks', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each(['http --help', 'http --offline POST example.dev/v1/x name=x'])(
+    '%s stays inert',
+    (command) => {
+      expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+    },
+  );
+});

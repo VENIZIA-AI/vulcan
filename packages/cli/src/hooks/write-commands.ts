@@ -494,7 +494,7 @@ export class WriteCommands {
       rule: 'V-W-02',
       what: DATABASE,
       programs: [],
-      pattern: String.raw`\b(?:psql|mysql|mariadb|mongosh|mongo|sqlite3)\b[^|]*?${SQL_START}(?:${SQL_WRITE})|\bmongo(?:sh)?\b[^|]*?\.(?:insert|update|delete|remove|replace|drop|bulkWrite|findOneAnd|findAndModify|createCollection|createIndex|renameCollection|runCommand|adminCommand)\w*\s*\(`,
+      pattern: String.raw`\b(?-i:psql|mysql|mariadb|mongosh|mongo|sqlite3)\b[^|]*?${SQL_START}(?:${SQL_WRITE})|\b(?-i:mongo(?:sh)?)\b[^|]*?\.(?:insert|update|delete|remove|replace|drop|bulkWrite|findOneAnd|findAndModify|createCollection|createIndex|renameCollection|runCommand|adminCommand)\w*\s*\(`,
       ignoreCase: true,
     },
     {
@@ -672,7 +672,8 @@ export class WriteCommands {
   private static compile(opts: { row: IWriteCommandRow }): ICommandCheck {
     const { row } = opts;
     const names = row.programs.map((name) => name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&'));
-    const head = names.length === 0 ? '' : `${PROGRAM_START}(?:${names.join('|')})`;
+    // A program name is exact (`HTTP` in TypeScript is no `http`): `ignoreCase` covers the words after it.
+    const head = names.length === 0 ? '' : `${PROGRAM_START}(?-i:${names.join('|')})`;
     const verbs = (row.verbs ?? []).map((verb) => WriteCommands.wordsOf({ verb })).join('|');
     const reads = (row.reads ?? []).map((verb) => WriteCommands.wordsOf({ verb })).join('|');
     const notRead = reads === '' ? '' : `(?!(?:${reads})${VERB_END})`;
