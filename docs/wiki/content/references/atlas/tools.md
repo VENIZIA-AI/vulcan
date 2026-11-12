@@ -299,6 +299,7 @@ The reply holds `app`, `plans` (one for each package) and `skipped`: an installe
 | `package`, `from`, `to` | The move |
 | `direction` | `upgrade`, `downgrade`, or `none` when both versions are the same |
 | `target` | `release table` when `to` was `latest` or `next`, else `version`: the registry is never read |
+| `apply` | The `vulcan migrate apply` command that runs the codemods the steps link; absent when no step links one. The tool never runs it |
 | `note` | Present when the plan needs a warning, for example `latest` is older than the installed prerelease, so the plan is a downgrade; use `next` to stay on the newest release |
 | `steps` | The window's migration items in the order they apply (newest first for a downgrade): `id`, `entry`, `symbols`, `change` (the `upgrade` or `downgrade` of the item), `data`, `codemod`, and `touches`, the `file`, `line` and `symbol` where the app's code reaches it (empty when no static import of it was found) |
 | `unstructured` | Breaking entries of the window with no `migration` block: read each with `get` |

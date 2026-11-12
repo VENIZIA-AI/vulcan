@@ -71,6 +71,10 @@ Usage: bun x vulcan <command>
                                   What an app must change to move a package between two releases, newer or
                                   older: the steps in order, the places in your code they touch (file:line),
                                   codemods and data warnings; read only
+  migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]
+                                  Run the codemods the plan links, once each in order (reversed for a
+                                  rollback), then print the steps that stay manual; refuses an app with
+                                  uncommitted changes or outside git unless --force
   x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas
   help · version
 ```
@@ -96,7 +100,7 @@ The following table lists each command, its purpose, its exit codes, and its ref
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |
 | `upgrade` | Bump the pinned `@venizia/vulcan` dependency and run sync | `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync` | [upgrade](#upgrade) |
 | `changelog` | `changelog check`: check the `migration` blocks of the changelog entries | `0` when every entry conforms; `1` when an entry does not, the tool is missing or the configuration is invalid; `2` for a subcommand other than `check` | [changelog](#changelog) |
-| `migrate` | `migrate plan`: what an app must change to move a package between two releases, newer or older | `0` when a plan is printed; `1` when the plan cannot be made or the tool is missing; `2` for a subcommand other than `plan` or a missing `--to` | [migrate](#migrate) |
+| `migrate` | `migrate plan`: what an app must change to move a package between two releases, newer or older; `migrate apply`: run the codemods the plan links | `0` when a plan is printed or apply ran; `1` when the plan cannot be made, apply is refused or a codemod fails, or the tool is missing; `2` for a subcommand other than `plan` or `apply`, or a missing `--to` | [migrate](#migrate) |
 | `x` | Run a shipped tool (`okf` or `atlas`) at the pinned package version | `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool | [x](#x) |
 | `help` | Print usage information and available command options (`--help` and `-h` are aliases) | `0` | - |
 | `version` | Print the installed VULCAN package version (`--version` and `-v` are aliases) | `0` | - |
@@ -183,7 +187,9 @@ Each problem prints as `<file>: <message>` on stderr.
 
 `vulcan migrate plan --to <version|latest|next>` is [`vulcan x atlas migrate plan`](/references/atlas/tools#migrate) at the pinned version: the same plan the atlas `migrate` tool answers, printed as Markdown, or as JSON with `--format json`.
 It asks the sources the project serves, so a package from a remote source is planned too. `--package`, `--from` and `--app` default as the tool's do.
-It never edits the app.
+`vulcan migrate plan` never edits the app.
+
+`vulcan migrate apply` runs the codemods the plan links, each once and in plan order, as `devz codemod <name> . --write` in the app (`--reverse` for a rollback), using the `devz` of `@venizia/dev-configs` found in `node_modules/.bin` of the app or a parent folder. It then prints the steps that stay manual: a step with no codemod, and a step whose codemod is not reversible (it exits `2` and says `not reversible`). A codemod that fails stops the run with exit `1`. It rewrites nothing itself, and it refuses an app with uncommitted changes, or outside a git work tree, unless you pass `--force`: the app's own diff is the undo. A plan that links no codemod needs neither `devz` nor a clean tree.
 
 ## x
 

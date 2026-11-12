@@ -273,19 +273,26 @@ export class CommandTable {
       help: `  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json]
                                   What an app must change to move a package between two releases, newer or
                                   older: the steps in order, the places in your code they touch (file:line),
-                                  codemods and data warnings; read only`,
+                                  codemods and data warnings; read only
+  migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]
+                                  Run the codemods the plan links, once each in order (reversed for a
+                                  rollback), then print the steps that stay manual; refuses an app with
+                                  uncommitted changes or outside git unless --force`,
       values: {
         '--package': 'The package to move; absent, every installed package the sources know',
         '--from': 'The version the app runs now; default the installed one',
         '--to':
           'A version, latest (newest stable) or next (newest release) of the atlas release table',
         '--app': 'The app directory to scan; default the current directory',
-        '--format': 'md (default) or json',
+        '--format': 'md (default) or json (plan only)',
+      },
+      flags: {
+        '--force': 'apply: run on an app with uncommitted changes, or outside git',
       },
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
       exits:
-        '0 when a plan is printed; 1 when the plan cannot be made (an unknown package or version, nothing installed) or the tool is missing; 2 for a subcommand other than plan or a missing --to.',
+        '0 when a plan is printed or apply ran; 1 when the plan cannot be made (an unknown package or version, nothing installed), apply is refused (uncommitted changes, no git, no devz) or a codemod fails, or the tool is missing; 2 for a subcommand other than plan or apply, or a missing --to.',
     },
     [VulcanCommands.X]: {
       help: `  x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas`,
