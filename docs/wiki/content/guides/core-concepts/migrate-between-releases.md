@@ -16,15 +16,15 @@ description: Ask what your app must change to move a @venizia/* package to anoth
 ## Plan an upgrade
 
 ```bash
-bun x --no-install vulcan migrate plan --package @venizia/kernel --to latest
+bun x --no-install vulcan migrate plan --package @venizia/ignis --to latest
 ```
 
 `--from` defaults to the version the app has installed. `--to` takes a version, `latest` (the newest stable release) or `next` (the newest release of any kind). `latest` and `next` come from atlas's release table, not from the registry, so they are as new as your atlas.
 
 ```text
-## @venizia/kernel: 1.0.0 to 1.1.0
+## @venizia/ignis: 1.0.0 to 1.1.0
 
-Run the codemods: `vulcan migrate apply --package @venizia/kernel --from 1.0.0 --to 1.1.0 --app .`
+Run the codemods: `vulcan migrate apply --package @venizia/ignis --from 1.0.0 --to 1.1.0 --app .`
 
 An upgrade: 1 of 2 changes found in your code. The target version comes from the atlas release table, not the registry.
 
@@ -59,7 +59,7 @@ Leave out `--package` to plan every installed package the atlas sources know. Th
 Give the version you run as `--from` and an older one as `--to`:
 
 ```bash
-bun x --no-install vulcan migrate plan --package @venizia/kernel --from 1.1.0 --to 1.0.0
+bun x --no-install vulcan migrate plan --package @venizia/ignis --from 1.1.0 --to 1.0.0
 ```
 
 The plan lists the same changes newest first, each with the steps that undo it. A rollback is not always possible. When a change cannot be undone, its entry says so in its steps, and `Data:` lines tell you what to restore.
@@ -69,7 +69,7 @@ The plan lists the same changes newest first, each with the steps that undo it. 
 ## Run the codemods
 
 ```bash
-bun x --no-install vulcan migrate apply --package @venizia/kernel --to 1.1.0
+bun x --no-install vulcan migrate apply --package @venizia/ignis --to 1.1.0
 ```
 
 `apply` builds the same plan, then runs each linked codemod once, in plan order, as `devz codemod <name> . --write` in the app. For a rollback it adds `--reverse`. It then prints what is still manual: a step with no codemod, a step whose codemod does not reverse, and the `Data:` lines of the steps it rewrote.
