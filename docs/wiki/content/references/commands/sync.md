@@ -22,8 +22,10 @@ The manifest is always written.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `--agents <list>` | string | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/vulcan.local.json`. `--agents list` prints the table of agents and writes nothing. In a terminal, `--agents` with no value asks again |
+| `--agents <list>` | string | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/vulcan.local.json` |
 | `--dry-run` | boolean | false | Print planned changes without writing to disk |
+
+`--agents list` prints the table of agents and writes nothing. In a terminal, `--agents` with no value asks again.
 
 ## Choosing your agents
 
@@ -206,7 +208,7 @@ $ bun x --no-install vulcan sync
 | `created` | The target file or symbolic link did not exist and was written. |
 | `unchanged` | The target file or symbolic link already matches the planned content. |
 | `replaced` | The target existed with different content or pointed elsewhere, and was rewritten. |
-| `removed` | A dead skill link was removed: a link into a shipped skill this version no longer has, or into a skill of yours that is gone. |
+| `removed` | A dead skill link was removed: into a shipped skill this version lacks, or a skill of yours that is gone. |
 | `skipped` | The target was left untouched due to a conflict or invalid content. |
 
 A target is skipped when `CLAUDE.md` exists and is not exactly `@AGENTS.md`: `sync` never replaces a file it did not write (`skipped (hand-written - delete it to let sync write '@AGENTS.md')`).

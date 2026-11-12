@@ -16,11 +16,24 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 
 ## The guards
 
-| Guard | Acts on | Answer |
-|---|---|---|
-| `guard-writes` | A Bash command of its table that writes to a database, runs a migration or deploys, in any simple command of the line; it does not read the scripts a command runs | Asks (`V-W-02`, `V-W-03`) |
-| `guard-git` | `git` and `gh`: deleting or force-pushing `develop` or `main`, `gh pr merge --delete-branch` on a pull request headed by one of them, `reset --hard`, `branch -D` of an unmerged branch | Refuses the first group, asks about the rest (`V-W-06`) |
-| `guard-outside` | A file, worktree, clone or temp file created outside the project | Asks (`V-B-08`), or denies when `guard.outside` is `deny`; always denies a write into the scratchpad folder the agent tool offers; asks, never denies, about what it cannot read |
+### guard-writes
+
+- Acts on: a Bash command of its table that writes to a database, runs a migration or deploys, in any simple command of the line.
+- It does not read the scripts a command runs.
+- Answer: asks (`V-W-02`, `V-W-03`).
+
+### guard-git
+
+- Acts on: `git` and `gh`.
+- Refuses: deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request headed by one of them.
+- Asks about: `reset --hard`, and `branch -D` of an unmerged branch (`V-W-06`).
+
+### guard-outside
+
+- Acts on: a file, worktree, clone or temp file created outside the project.
+- Answer: asks (`V-B-08`), or denies when `guard.outside` is `deny`.
+- Always denies a write into the scratchpad folder the agent tool offers.
+- Asks, never denies, about what it cannot read.
 
 Around them, `session-start` prints a short digest (a config problem, a launch warning, how to answer the owner) into the session and, in Claude Code, exports `TMPDIR` (the project's `.agents/local/tmp`) into every Bash command ([Temporary files](/references/agents#temporary-files)), and `subagent-start` gives every subagent a small rules card. The shape of replies to the owner is a card in that digest, not a check ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
 
@@ -53,11 +66,17 @@ A broken install must not stop every command, and a guard must not be switched o
 |---|---|---|
 | Claude Code | Hooks in `.claude/settings.json` | Real sessions |
 | omp | `.omp/hooks/pre/vulcan-guards.ts`, written by `vulcan sync` | omp 18.8.9 with a real model |
-| pi | `.pi/extensions/vulcan-guards.ts`, written by `vulcan sync`; pi asks you to trust the project first | pi 1.4.0 through its SDK with a scripted provider, not a real model |
-| Antigravity | A `vulcan-guards` entry in `.agents/hooks.json`, written by `vulcan sync` | `agy` 1.4.7: a `deny` holds; `agy --dangerously-skip-permissions` approves an `ask` |
-| Codex | A hook in `.codex/hooks.json`, written by `vulcan sync`; Codex runs it after you trust it in `/hooks`; it cannot ask, so an ask is shown as a deny | **NOT VERIFIED** |
+| pi | `.pi/extensions/vulcan-guards.ts`, written by `vulcan sync` | pi 1.4.0, scripted provider (see below) |
+| Antigravity | A `vulcan-guards` entry in `.agents/hooks.json`, written by `vulcan sync` | `agy` 1.4.7 (see below) |
+| Codex | A hook in `.codex/hooks.json`, written by `vulcan sync` (see below) | **NOT VERIFIED** |
 | Cursor | Reads the Claude hooks in `.claude/settings.json` | **NOT VERIFIED** |
 | Copilot (CLI and VS Code) | Reads the Claude hooks in `.claude/settings.json` | **NOT VERIFIED** |
+
+Notes on the table:
+
+- pi asks you to trust the project first. It was checked through its SDK with a scripted provider, not a real model.
+- Antigravity: a `deny` holds; `agy --dangerously-skip-permissions` approves an `ask`.
+- Codex runs its hook after you trust it in `/hooks`. It cannot ask, so an ask is shown as a deny.
 
 NOT VERIFIED means built from the agent's documentation and unit tests, and never run in that agent. omp and pi run the safety guards `guard-git` and `guard-outside`. Choose your agents with `vulcan sync --agents <list>` ([Coding agents](/references/agents)).
 

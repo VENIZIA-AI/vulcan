@@ -57,9 +57,14 @@ Every folder of `local/` has a lifetime, and one command takes it back. `vulcan 
 | `cache/` | by `sync` | You ask; it rebuilds | `vulcan clean --cache` |
 | `reports/` | by `sync` | You delete it | `vulcan clean --reports` |
 | `prototypes/` | by `sync` | You delete it | `vulcan clean --prototypes` |
-| `agents/` | on first write | You delete it. One folder per agent, `agents/<name>/`: its notes, staged copies and per-session scratch that outlives a session | Nothing: `vulcan clean` never takes it, and `doctor` never warns about it |
+| `agents/` | on first write | You delete it | Nothing: `vulcan clean` never takes it |
 | `events/` | on first write | You delete it | `vulcan clean --events` |
-| `release-candidates/` | on first write | The release ships: each folder is a version, and `doctor` warns when that version is tagged | `vulcan clean --release-candidates`, tagged versions only |
+| `release-candidates/` | on first write | The release ships | `vulcan clean --release-candidates`, tagged versions only |
+
+About two of these rows:
+
+- `agents/` holds one folder per agent, `agents/<name>/`: its notes, staged copies and per-session scratch that outlives a session. `doctor` never warns about it.
+- `release-candidates/` holds one folder per version, and `doctor` warns when that version is tagged.
 
 `--all` takes `tmp/`, `worktrees/`, `clones/` and `cache/`. It never takes `reports/`, `prototypes/`, `agents/`, `events/`, `release-candidates/` or the profile: those are named, or deleted by you. A worktree is removed with `git worktree remove` and only when its branch is merged into the branch checked out at the project root, into `origin/develop` or into the default branch of origin, **and** it is safe to lose: the branch has commits of its own (a new branch has the commit it came from, so git calls it merged; `clean` keeps it and says "no commits of its own yet"), it holds no uncommitted or untracked file, and every file git ignores in it is one a build or an install makes again (`node_modules`, `dist`, `.turbo`, `coverage`, `.cache`, `*.tsbuildinfo`). An ignored `.env`, a local database or a key keeps the worktree, and the output names the file. A folder in `release-candidates/` counts only when its name is a version (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`) and a tag of that name exists, with or without the `v`: the folder `1.0.0` is removed when the tag `v1.0.0` exists, and `v1.0.0` when the tag `1.0.0` exists. Any other name is kept. The [clean reference](/references/commands/clean) has the details.
 
@@ -69,10 +74,12 @@ You do not have to run `vulcan clean` for the safe part. At most once a day per 
 
 | What | When |
 |---|---|
-| `tmp/` entries | older than a day, unless the folder holds a repository: a `.git` folder or file anywhere inside it (a scratch clone, a `git worktree add` into `tmp/`; a `.git` inside `node_modules` does not count) is somebody's work and stays |
+| `tmp/` entries | older than a day, unless the folder holds a repository (see below) |
 | `com.google.Chrome.*` and `org.chromium.Chromium.*` folders under `.agents/local/` | older than an hour |
 | Event day files | past `maxAgeDays`, `maxFiles` or `maxSize`; never today's or a later day's |
 | `release-candidates/` folders | whose version is tagged |
+
+A `tmp/` folder that holds a repository stays: a `.git` folder or file anywhere inside it (a scratch clone, a `git worktree add` into `tmp/`; a `.git` inside `node_modules` does not count) is somebody's work.
 
 It never removes a worktree or a clone, wherever it sits, and never touches the cache, `reports/`, `prototypes/` or anything it does not know: a wrong guess there loses work, so those stay with `vulcan clean --yes` and the warnings of `vulcan doctor`. When a run removed something, the next session prints one line on stderr, such as `vulcan: cleaned 12.0 MB from .agents/local`. Set `local: { autoClean: false }` in the config to turn it off, or `VULCAN_AUTO_CLEAN=off` for one shell. A shared events folder outside the project is kept by whichever session starts first.
 

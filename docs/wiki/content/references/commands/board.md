@@ -23,15 +23,13 @@ vulcan board [--out <file>] [--open] [--since <date>] [--dir <events folder>] [-
 vulcan board serve [--port <n>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
 ```
 
-| Flag | Meaning |
-|---|---|
-| `--out` | The file to write. Default `.agents/local/reports/board.html`, relative to the project |
-| `--open` | Open the file in your browser when it is written (`xdg-open`, `open` or `start`) |
-| `--since` | Read events and pull requests changed at or after this date, such as `2026-11-03` or `2026-11-03T09:00:00Z`. Default: the last 7 days |
-| `--dir` | The events folder. Default: `events.dir` of the config, else `.agents/local/events` |
-| `--repo` | A repository, `owner/name`; on GitLab a project path of any depth, `group/sub/name`. Repeat it to read several, such as three repositories on one board. Default on GitHub: the repository `gh` finds for the project folder (`gh repo view`). Default on GitLab: the project of `git remote get-url origin`, used only when its host is the configured `provider.host`. When none is found, the host is skipped with a note |
-| `--no-github` | Do not read GitHub, or GitLab when `provider.type` is `gitlab` |
-| `--port` | `serve` only: the port to listen on. Default `4317`; `0` takes any free port |
+- `--out`: The file to write. Default `.agents/local/reports/board.html`, relative to the project.
+- `--open`: Open the file in your browser when it is written (`xdg-open`, `open` or `start`).
+- `--since`: Read events and pull requests changed at or after this date, such as `2026-11-03` or `2026-11-03T09:00:00Z`. Default: the last 7 days.
+- `--dir`: The events folder. Default: `events.dir` of the config, else `.agents/local/events`.
+- `--repo`: A repository, `owner/name`; on GitLab a project path of any depth, `group/sub/name`. Repeat it to read several, such as three repositories on one board. Default on GitHub: the repository `gh` finds for the project folder (`gh repo view`). Default on GitLab: the project of `git remote get-url origin`, used only when its host is the configured `provider.host`. When none is found, the host is skipped with a note.
+- `--no-github`: Do not read GitHub, or GitLab when `provider.type` is `gitlab`.
+- `--port`: `serve` only: the port to listen on. Default `4317`; `0` takes any free port.
 
 Exit codes: `0` written, or `serve` stopped with Ctrl+C; `1` the file cannot be written, or `serve` cannot start; `2` bad input (an unknown date, a `--repo` that is not `owner/name` or a longer project path, an unknown or repeated flag, `--port` outside `serve` or not a number from 0 to 65535, `--out` with `serve`).
 
@@ -59,16 +57,14 @@ It prints one line on stdout, the address with this run's token; open that addre
 
 An event belongs to the flow named by its `flowId` (`VULZ-ACME-12`; an older `F-12` shows as `VULZ-<key>-12` once the project has a `project.key`). A line with no flow is in the flow called **Unsorted**, which is not a work item: it is one muted line under the groups, **Unsorted · n**, and opens a list of those events, newest first. A pull request is in the flow named by `Flow: VULZ-ACME-12` in its body or by a flow id part of its branch name, else in Unsorted. [A flow id](/references/commands/event#a-flow-id) says how the log finds it.
 
-| Log line | On the board |
-|---|---|
-| `commit` | a Code step |
-| `pr` | a PR + CI step (with `--ref merged:12` it is the merge: the flow is Done) |
-| `msg-sent`, `msg-received` | a message, at the stage the flow was at; a received one keeps its direction (`got a message from` the sender when its ref is `from:<sender>`) |
-| `needs-owner` | an ask: the flow waits on you. Not when the Claude Code hook raised it (its `notification` field says which prompt, whatever the title); a line without that field is judged by its summary being the name of a prompt (`idle_prompt`, `permission_prompt`, `elicitation_dialog`, in any case): that is [agent plumbing](#agent-plumbing) |
-| `flow` | the flow's title and reason (the heading of the flow, a line in its Proposal stage). See [The title of a flow](#the-title-of-a-flow) |
-| `decision` (`approve`, `park`, `reject`) | your answer: it answers the ask and, for `park` and `reject`, parks the flow |
-| `session-start` | the agents pane: working. Also [agent plumbing](#agent-plumbing). A `session-stop` or `tool-tick` line written by an earlier release is read the same way until the log's age limit removes it |
-| `subagent-stop` | [agent plumbing](#agent-plumbing) |
+- `commit`: a Code step.
+- `pr`: a PR + CI step (with `--ref merged:12` it is the merge: the flow is Done).
+- `msg-sent`, `msg-received`: a message, at the stage the flow was at; a received one keeps its direction (`got a message from` the sender when its ref is `from:<sender>`).
+- `needs-owner`: an ask: the flow waits on you. Not when the Claude Code hook raised it (its `notification` field says which prompt, whatever the title); a line without that field is judged by its summary being the name of a prompt (`idle_prompt`, `permission_prompt`, `elicitation_dialog`, in any case): that is [agent plumbing](#agent-plumbing).
+- `flow`: the flow's title and reason (the heading of the flow, a line in its Proposal stage). See [The title of a flow](#the-title-of-a-flow).
+- `decision` (`approve`, `park`, `reject`): your answer: it answers the ask and, for `park` and `reject`, parks the flow.
+- `session-start`: the agents pane: working. Also [agent plumbing](#agent-plumbing). A `session-stop` or `tool-tick` line written by an earlier release is read the same way until the log's age limit removes it.
+- `subagent-stop`: [agent plumbing](#agent-plumbing).
 
 From GitHub: each pull request, each finished check (pass or fail), each review (approved, changes requested), and the merge. One call per repository asks for the newest 30 pull requests; the note on stderr says how many of them changed since `--since`.
 
@@ -76,13 +72,11 @@ From GitLab (`provider: { type: 'gitlab' }`): each merge request, each approval,
 
 ### The state of a flow
 
-| State | When |
-|---|---|
-| **Needs you** | The last ask has no later decision and no later progress (a commit, a pull request, a merge). A message does not answer it |
-| **Blocked** | The newest CI run or review failed and nothing was committed or merged since |
-| **Parked** | The last decision was `park` or `reject` |
-| **Done** | The pull request was merged, or a `deploy` line was written. Work after it (a commit, a fix, a pull request) reopens the flow. The group keeps the last seven days |
-| **Running** | Anything else |
+- **Needs you**: The last ask has no later decision and no later progress (a commit, a pull request, a merge). A message does not answer it.
+- **Blocked**: The newest CI run or review failed and nothing was committed or merged since.
+- **Parked**: The last decision was `park` or `reject`.
+- **Done**: The pull request was merged, or a `deploy` line was written. Work after it (a commit, a fix, a pull request) reopens the flow. The group keeps the last seven days.
+- **Running**: Anything else.
 
 The **stage** is the one of the last line, from Proposal to Handover; the page shows it as a bar with the stage the flow is at marked. The **holder** is you while the flow needs you; otherwise the actor of the last piece of work, or the named recipient of a later message (`--ref to:name`).
 
@@ -125,13 +119,11 @@ export default {
 };
 ```
 
-| Key | Meaning | Default |
-|---|---|---|
-| `owner` | Who an ask waits on: the flow's holder while it needs you | `git config user.name` of the project, else `Owner` |
-| `title` | The name in the page header and the tab | `<project name> Board` |
-| `logo` | A path inside the project to an `.svg` file, shown next to the title. A path that is absolute, has a `..` segment or does not end in `.svg` is refused, and so is a file that, with links resolved, lies outside the project. It is put in an `img`, so it runs no script. Up to 100 KB. Draw it in a colour that reads on a light and on a dark page | none |
-| `hostname` | The name in the address of `vulcan board serve`. It must be lowercase and end in `.localhost`: a browser resolves such a name to your own machine by itself, while a name that reaches `127.0.0.1` through DNS or a hosts file is what a DNS-rebinding page uses, so it is refused | `vulz-board.venizia.ai.localhost` |
-| `agents` | The agents of the board by name. A value is a face (`bun`, `flame`, `ember`, `rock` or `banana`), or `{ shape?, lane?, role? }` (`role` is free text, up to 60 characters, for the card). The listed names come first; `lane` says whom a helper works under | every agent shows with `bun`; the owner is a person |
+- `owner`: Who an ask waits on: the flow's holder while it needs you. Default: `git config user.name` of the project, else `Owner`.
+- `title`: The name in the page header and the tab. Default: `<project name> Board`.
+- `logo`: A path inside the project to an `.svg` file, shown next to the title. A path that is absolute, has a `..` segment or does not end in `.svg` is refused, and so is a file that, with links resolved, lies outside the project. It is put in an `img`, so it runs no script. Up to 100 KB. Draw it in a colour that reads on a light and on a dark page. Default: none.
+- `hostname`: The name in the address of `vulcan board serve`. It must be lowercase and end in `.localhost`: a browser resolves such a name to your own machine by itself, while a name that reaches `127.0.0.1` through DNS or a hosts file is what a DNS-rebinding page uses, so it is refused. Default: `vulz-board.venizia.ai.localhost`.
+- `agents`: The agents of the board by name. A value is a face (`bun`, `flame`, `ember`, `rock` or `banana`), or `{ shape?, lane?, role? }` (`role` is free text, up to 60 characters, for the card). The listed names come first; `lane` says whom a helper works under. Default: every agent shows with `bun`; the owner is a person.
 
 **Sessions with no name.** A session whose actor is `claude:` and the start of its id, or `unknown`, has no name of its own and is no agent: it has no card on the agents pane and is not counted, and its lines stay in their flows. Name a session (`/rename`, `--name` or `VULCAN_ACTOR`) to see it; a name that starts with `claude:` is reserved for unnamed sessions and is read as no name.
 

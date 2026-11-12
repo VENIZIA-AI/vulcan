@@ -11,16 +11,25 @@ Run it at the project root: it works on the `.agents/local/` of the current fold
 
 | Flag | Scope | What it takes |
 |---|---|---|
-| `--tmp` (the default) | `tmp/` | every item that is stale (older than a day): scratch, temporary files, logs, subagent output. An item that is not stale yet may belong to a session that is running now: it is kept and the output says so, until you add `--include-fresh`. `tmp/claude-<uid>` (Claude Code's background task output) is never removed. Also the `com.google.Chrome.*` and `org.chromium.Chromium.*` folders (a leading dot too) a browser left directly under `.agents/local/`, once they are an hour old (a younger one may belong to a running browser and is kept) |
-| `--worktrees` | `worktrees/` | a worktree whose branch is merged into the branch checked out at the project root, into `origin/develop` or into the default branch of origin, or no longer exists, that holds no uncommitted or untracked file and no ignored file a build cannot make again (`.env`, a database, a key: the output names it; `node_modules`, `dist`, `.turbo`, `coverage`, `.cache` and `*.tsbuildinfo` do not count), and whose branch has a commit of its own (a new branch is kept as "no commits of its own yet"); plus a folder git does not list. An unmerged worktree, one on a detached HEAD and one with uncommitted work are kept, and the reason is printed |
-| `--clones` | `clones/` | clones of other repositories that are stale (older than two weeks); a younger one is kept like a fresh `tmp/` item |
+| `--tmp` (the default) | `tmp/` | every stale item (older than a day) |
+| `--worktrees` | `worktrees/` | a worktree that is merged or gone and safe to lose |
+| `--clones` | `clones/` | clones stale for two weeks |
 | `--cache` | `cache/` | what atlas fetched; it rebuilds |
-| `--include-fresh` | `tmp/`, `clones/` | also takes the items of these two that are not stale yet; use it when no session is working in the project. It never takes `tmp/claude-<uid>` |
+| `--include-fresh` | `tmp/`, `clones/` | also the items not stale yet |
 | `--all` | the four above | never `reports/`, `prototypes/`, `events/`, `release-candidates/` or the profile |
-| `--events` | the event log | only when named, and only the day files the limits of `events` (`maxAgeDays`, `maxFiles`, `maxSize`) say to remove, in the folder the project's `events.dir` names (else `events/`); today's file, later ones and the files within the limits are kept, and the output says so. A log outside the project is listed by its whole path, and only a `yyyy-mm-dd.jsonl` file directly in that folder is ever removed |
+| `--events` | the event log | only when named: the day files past the limits |
 | `--reports`, `--prototypes`, `--profile` | `reports/`, `prototypes/`, `profile.json` | only when named; they are kept until you delete them |
-| `--release-candidates` | `release-candidates/` | only when named, and only a folder named as a version (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`) whose tag exists, with or without the `v` (the folder `1.0.0` goes when the tag `v1.0.0` exists, and the other way round); a candidate not released yet, or a name that is not a version, is kept, and the reason is printed |
+| `--release-candidates` | `release-candidates/` | only when named: a folder whose version is tagged |
 | `--yes` | | removes what the dry run listed |
+
+### What each flag takes
+
+- `--tmp`: every item that is stale (older than a day): scratch, temporary files, logs, subagent output. An item that is not stale yet may belong to a session that is running now: it is kept and the output says so, until you add `--include-fresh`. `tmp/claude-<uid>` (Claude Code's background task output) is never removed. Also the `com.google.Chrome.*` and `org.chromium.Chromium.*` folders (a leading dot too) a browser left directly under `.agents/local/`, once they are an hour old (a younger one may belong to a running browser and is kept).
+- `--worktrees`: a worktree whose branch is merged into the branch checked out at the project root, into `origin/develop` or into the default branch of origin, or no longer exists. It must hold no uncommitted or untracked file and no ignored file a build cannot make again (`.env`, a database, a key: the output names it; `node_modules`, `dist`, `.turbo`, `coverage`, `.cache` and `*.tsbuildinfo` do not count), and its branch must have a commit of its own (a new branch is kept as "no commits of its own yet"). A folder git does not list is taken too. An unmerged worktree, one on a detached HEAD and one with uncommitted work are kept, and the reason is printed.
+- `--clones`: clones of other repositories that are stale (older than two weeks); a younger one is kept like a fresh `tmp/` item.
+- `--include-fresh`: also takes the items of `tmp/` and `clones/` that are not stale yet; use it when no session is working in the project. It never takes `tmp/claude-<uid>`.
+- `--events`: only the day files the limits of `events` (`maxAgeDays`, `maxFiles`, `maxSize`) say to remove, in the folder the project's `events.dir` names (else `events/`). Today's file, later ones and the files within the limits are kept, and the output says so. A log outside the project is listed by its whole path, and only a `yyyy-mm-dd.jsonl` file directly in that folder is ever removed.
+- `--release-candidates`: only a folder named as a version (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`) whose tag exists, with or without the `v` (the folder `1.0.0` goes when the tag `v1.0.0` exists, and the other way round). A candidate not released yet, or a name that is not a version, is kept, and the reason is printed.
 
 A worktree is removed with `git worktree remove`, then `git worktree prune`. A symlink under `.agents/local/` is unlinked and never followed; a path that does not resolve to a place inside `.agents/local/` is refused. If `.agents` or `.agents/local` is a symlink, or `.agents/local` resolves outside the project, nothing is scanned or removed. A scope folder that is a file or a link is skipped. An item's age is its newest change anywhere inside it, not its folder's own time. For a worktree on a deleted branch git keeps no commit to compare with, so work that was staged but never committed there cannot be told from the checkout itself.
 

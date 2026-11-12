@@ -42,10 +42,15 @@ The knowledge bundle lives at `.agents/knowledge/` by default:
 Run `vulcan x okf check` to validate conformance to the Open Knowledge Format v0.2 specification.
 Both commands exit with code 0 on success and exit with code 1 on errors.
 
-| Command | What it adds | What a failure looks like |
-|---|---|---|
-| `vulcan x okf check` | Validates OKF conformance. Every concept needs parseable frontmatter with a non-empty `type`. `index.md` carries no frontmatter except `okf_version` at the root. Soft guidance (status, timestamps, actors) prints as warnings and does not fail. | `.agents/knowledge/overview/example.md: §11.2 missing or empty top-level type` |
-| `vulcan x okf check --strict` | Enforces project house rules. Checks link resolution, brand casing, hyphen style, structural coverage, and generation freshness. | `.agents/knowledge/overview/example.md: broken link -> /overview/missing.md` |
+| Command | What a failure looks like |
+|---|---|
+| `vulcan x okf check` | `.agents/knowledge/overview/example.md: §11.2 missing or empty top-level type` |
+| `vulcan x okf check --strict` | `.agents/knowledge/overview/example.md: broken link -> /overview/missing.md` |
+
+What each one checks:
+
+- `vulcan x okf check` validates OKF conformance. Every concept needs parseable frontmatter with a non-empty `type`. `index.md` carries no frontmatter except `okf_version` at the root. Soft guidance (status, timestamps, actors) prints as warnings and does not fail.
+- `vulcan x okf check --strict` adds the project house rules. It checks link resolution, brand casing, hyphen style, structural coverage, and generation freshness.
 
 ## Generated pages
 

@@ -39,14 +39,22 @@ bun x --no-install vulcan doctor
 
 | Part | What it does | Where to read more |
 |---|---|---|
-| [Base rules](/guides/core-concepts/rules-and-slots) | 35 rules in five groups (write boundaries, security, process, build, coding style) that the agent reads at session start. A project picks a wording for a few and adds its own | `node_modules/@venizia/vulcan/base/rules.md`, `.agents/rules.md` |
-| [Guards](/guides/core-concepts/hooks-and-guards) | Hooks that ask or refuse before a database write, a deploy, a force-push to `develop` or `main` or a file outside the project. Your own commands can be added to the ones the guard asks about | `vulcan sync` and `guard` in the config |
-| [Skills](/references/skills) | 11 workflows an agent loads when the task matches: plan, build, fix, review, report, ship, research, retro, docs | `vulcan sync` links them |
-| [The owner and the reply shape](/guides/core-concepts/owner-and-replies) | The agent answers its owner in a fixed shape, in the owner's language, and another agent in the plain format it asked for | `owner` in the config, `vulcan profile` |
+| [Base rules](/guides/core-concepts/rules-and-slots) | 35 rules in five groups that the agent reads at session start | `node_modules/@venizia/vulcan/base/rules.md`, `.agents/rules.md` |
+| [Guards](/guides/core-concepts/hooks-and-guards) | Hooks that ask or refuse before a risky command | `vulcan sync` and `guard` in the config |
+| [Skills](/references/skills) | 11 workflows an agent loads when the task matches | `vulcan sync` links them |
+| [The owner and the reply shape](/guides/core-concepts/owner-and-replies) | The agent answers its owner in a fixed shape, in the owner's language | `owner` in the config, `vulcan profile` |
 | [Work items](/guides/core-concepts/work-items) | A template for a unit of work a person can read and a fresh agent can do | `base/references/work-item.md` |
 | [Knowledge bundle](/guides/core-concepts/knowledge-bundle) | Markdown facts about your project, checked in Open Knowledge Format v0.2 | `vulcan x okf` |
-| [atlas](/guides/core-concepts/atlas) | An MCP server with 7 tools that searches your docs, changelogs and symbols, and those of other projects | `vulcan x atlas mcp` |
+| [atlas](/guides/core-concepts/atlas) | An MCP server with 7 tools that searches your docs, changelogs and symbols | `vulcan x atlas mcp` |
 | [doctor](/references/commands/doctor) | Checks that the repository follows the contract | `vulcan doctor` |
+
+More on the rows:
+
+- Base rules: the five groups are write boundaries, security, process, build and coding style. A project picks a wording for a few and adds its own.
+- Guards: they ask or refuse before a database write, a deploy, a force-push to `develop` or `main` or a file outside the project. Your own commands can be added to the ones the guard asks about.
+- The owner and the reply shape: another agent gets the plain format it asked for.
+- Skills: plan, build, fix, review, report, ship, research, retro, docs.
+- atlas: it also searches the docs, changelogs and symbols of other projects.
 
 Also in the box: `vulcan add` makes an app or a library other apps import from a framework preset, `vulcan preset diff` shows where an app drifted from its preset, `vulcan clean` removes what agents left under `.agents/local/`, and `vulcan visualize` makes a small HTML page from a JSON spec ([commands](/references/commands/)).
 
@@ -58,10 +66,12 @@ What has been run, and what has not:
 
 | Part | Checked | Not checked |
 |---|---|---|
-| Guards | Claude Code, omp (with a real model) and Antigravity; pi through its SDK | **NOT VERIFIED**: the Codex, Cursor and Copilot guards were built from their documentation and unit tests and never run. The guards are not a sandbox |
+| Guards | Claude Code, omp (with a real model) and Antigravity; pi through its SDK | **NOT VERIFIED**: Codex, Cursor and Copilot guards (see below) |
 | Rules, skills, doctor | Covered by the test suite and the release gates | The shipped skills have no measured effect on the quality of an agent's work |
 | atlas, okf | Tests, and a smoke that installs the packed tarball and talks to it | Windows |
 | Owner reply shape | Tests and daily use on Claude Code | Languages other than English with real transcripts |
+
+The Codex, Cursor and Copilot guards were built from their documentation and unit tests and never run. The guards are not a sandbox.
 
 The [changelog](/changelogs/) lists what each release verified and left open.
 

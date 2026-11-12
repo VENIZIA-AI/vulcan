@@ -31,18 +31,30 @@ The output for an app names the folder "the app": `missing in the app`, `(the ap
 
 | Flag | Meaning |
 |---|---|
-| `--preset <name\|file:path>` | The preset to render, when it cannot be found from the package. A bare `name` is read from the app's or the monorepo's `node_modules`; `name@range` is fetched into a scratch folder under `.agents/local/tmp/` (network) and removed afterwards; `file:<path>` reads a checkout |
-| `--api <backend app>`, `--no-api` | A frontend app whose preset files use the proxy target needs one of them, as it did when `add` made the app; the proxy target cannot be recovered from the app. A library or a shared package has no proxy target, so either flag stops the command |
+| `--preset <name\|file:path>` | The preset to render, when it cannot be found from the package (forms below) |
+| `--api <backend app>`, `--no-api` | The proxy target of a frontend app (see below) |
 | `--full` | Print the unified diff under each file that differs: `-` is the package's line, `+` the preset's |
 | `--check` | Exit `1` when a file differs or is missing, for CI; without it the exit code is `0` after any report |
+
+- `--preset` forms: a bare `name` is read from the app's or the monorepo's `node_modules`; `name@range` is fetched into a scratch folder under `.agents/local/tmp/` (network) and removed afterwards; `file:<path>` reads a checkout.
+- `--api`, `--no-api`: a frontend app whose preset files use the proxy target needs one of them, as it did when `add` made the app; the proxy target cannot be recovered from the app. A library or a shared package has no proxy target, so either flag stops the command.
 
 ## What each line says
 
 | Status | Means |
 |---|---|
 | `same` | The package's file holds exactly what the preset makes now |
-| `differs` | The package's file is not what the preset makes now (`(the app has a folder here)` when a folder stands where the file should be; a library or a shared package says `the package`). `(+N -M)` counts the lines only the preset has and the lines only the package has; `(binary)` is a file compared by bytes; `(line endings or the last newline)` is the same lines in another ending |
-| `missing` | The preset makes the file and the package has none at that path. It is new in the preset, or the package deleted it: without the version the package was made from the two cannot be told apart |
+| `differs` | The package's file is not what the preset makes now (see below) |
+| `missing` | The preset makes the file and the package has none at that path (see below) |
+
+A `differs` line can carry a note:
+
+- `(the app has a folder here)`: a folder stands where the file should be. A library or a shared package says `the package`.
+- `(+N -M)`: the lines only the preset has and the lines only the package has.
+- `(binary)`: a file compared by bytes.
+- `(line endings or the last newline)`: the same lines in another ending.
+
+A `missing` file is new in the preset, or the package deleted it: without the version the package was made from the two cannot be told apart.
 
 Files only the package has are not listed. A `package.json` among the preset's files is not compared: `add` replaces it with a generated one, and the package owns it after creation.
 
@@ -70,9 +82,11 @@ The same way `add` renders them: dotfile names (`_env.example`), tokens replaced
 
 | Package | Tokens |
 |---|---|
-| App | `{{project}}`, `{{app}}`, `{{appPath}}`, `{{devPort}}` and `{{apiUrl}}`: the project name (the config `name`, else the root package name), the app's `dir` and path, the port in the app's own `.env.example` (else the preset's default), and the proxy target from `--api` or `--no-api` |
+| App | `{{project}}`, `{{app}}`, `{{appPath}}`, `{{devPort}}` and `{{apiUrl}}` |
 | Library | `{{project}}`, `{{lib}}` (its `dir`) and `{{package}}` (its npm name from the config) |
 | Shared package | `{{project}}`, `{{shared}}` (its `dir`) and `{{package}}` |
+
+For an app, the tokens are the project name (the config `name`, else the root package name), the app's `dir` and path, the port in the app's own `.env.example` (else the preset's default), and the proxy target from `--api` or `--no-api`.
 
 For a library or a shared package, `{{project}}` is the config `name`, else the root package name, else the package's `dir`.
 
@@ -85,7 +99,19 @@ Apply a change, merge a change with the package's own edits, report the generate
 | Code | When |
 |---|---|
 | `0` | A report was printed (with `--check`: and nothing differs or is missing) |
-| `1` | `--check` and a file differs or is missing; an unknown package (the message lists the apps and the libraries), no preset found or more than one that fits, a preset that is not installed (run `bun install`), a refusal from the preset, a missing `--api` or `--no-api` on a frontend app, `--api` or `--no-api` on a library or a shared package, an unknown argument, or no monorepo at the working directory |
+| `1` | A check failed or the command was refused (list below) |
+
+Exit `1` happens on:
+
+- `--check` and a file differs or is missing;
+- an unknown package (the message lists the apps and the libraries);
+- no preset found, or more than one that fits;
+- a preset that is not installed (run `bun install`);
+- a refusal from the preset;
+- a missing `--api` or `--no-api` on a frontend app;
+- `--api` or `--no-api` on a library or a shared package;
+- an unknown argument;
+- no monorepo at the working directory.
 
 ## See also
 

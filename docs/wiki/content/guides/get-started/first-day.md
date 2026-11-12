@@ -11,7 +11,7 @@ This tutorial walks you through the four tools you touch during daily work.
 | Step | What you touch | Observable result |
 |---|---|---|
 | 1. Start an agent session | Session-start hook and `AGENTS.md` | A short digest prints to session context (Claude Code); the rules block of `AGENTS.md` reaches every agent that reads it |
-| 2. Watch a guard work | Guard-writes hook | Mutating commands ask for human confirmation (Claude Code, omp, pi; see [Which agents are guarded](#which-agents-are-guarded)) |
+| 2. Watch a guard work | Guard-writes hook | Mutating commands ask for confirmation (Claude Code, omp, pi; see [Which agents are guarded](#which-agents-are-guarded)) |
 | 3. Write one knowledge page | OKF conformance gate | New concept page passes strict check |
 | 4. Ask atlas | atlas MCP server | Search hits return chunk ids and bodies |
 

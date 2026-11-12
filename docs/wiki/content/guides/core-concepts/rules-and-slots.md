@@ -34,9 +34,9 @@ Rule `V-W-01` defines git write boundaries and provides two options:
 | Option | Meaning |
 |---|---|
 | `on-user-word` | Git writes happen only on the user's word, in this conversation. |
-| `read-only` | Git is read-only for the agent: it edits the working tree, then stops; a human commits. Every git verb that writes the index, the history, a ref, the config or the work tree is denied. |
+| `read-only` | Git is read-only for the agent: it edits the working tree, then stops; a human commits. |
 
-The `read-only` option adds 40 deny patterns to `permissions.deny`.
+With `read-only`, every git verb that writes the index, the history, a ref, the config or the work tree is denied. The option adds 40 deny patterns to `permissions.deny`.
 
 If you omit the slot choice, `vulcan doctor` reports a violation and exits with code 1:
 
