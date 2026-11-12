@@ -161,6 +161,7 @@ export class OkfProject {
       stringOf({ value: knowledge.bundle, fallback: OkfProjectConstants.DEFAULT_BUNDLE }),
     );
     const changelogs = knowledge.changelogs;
+    const wiki = knowledge.wiki;
     const atlas = recordOf({ value: config.atlas });
 
     const project: IOkfProject = {
@@ -185,6 +186,10 @@ export class OkfProject {
       denylist: new Set(stringsOf({ value: okf.denylist })),
       brand: stringOf({ value: okf.brand, fallback: brandOf({ root }) }),
     };
+
+    if (typeof wiki === 'string') {
+      project.wiki = resolve(root, wiki);
+    }
 
     cached = { text, root, project };
 

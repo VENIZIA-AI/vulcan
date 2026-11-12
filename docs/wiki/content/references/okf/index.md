@@ -112,7 +112,7 @@ check: N warning(s):
 To enforce house rules on top of OKF conformance, pass `--strict`.
 House style rules run over every markdown file in the bundle, index and log included.
 
-`check --strict` enforces seven groups of house rules:
+`check --strict` enforces eight groups of house rules:
 
 1. Broken links: Every markdown link target in concept prose must resolve to an existing concept in the bundle:
    - `<file>: broken link -> <target>.md`
@@ -175,6 +175,18 @@ House style rules run over every markdown file in the bundle, index and log incl
    ```
 
    The check runs only when `knowledge.changelogs` is set. A `release:` override lists the tags with `git tag --list`, so `git` must be on the `PATH` and the tags must be in the clone.
+
+8. Code in the wiki: The fenced `ts`, `tsx`, `js`, `jsx`, `mts` and `mjs` blocks of every page under `knowledge.wiki`, changelogs excluded, follow the code rules, because a reader copies them:
+   - `docs-code: <file>:<line>: an explicit cast (<as ...>) - parse or narrow the value instead (V-C-10)`
+   - `docs-code: <file>:<line>: \`any\` as a type - type it, or take unknown and narrow it`
+   - `docs-code: <file>:<line>: a conditional spread - build the object, then assign the optional key`
+   - `docs-code: <file>:<line>: a string-literal union - a const class and its value type (V-C-08)`
+
+   `as const`, `import { A as B }`, `export { A as B }` and `import * as ns` are not casts. An `as` in a comment, in a string or outside a fence is not read.
+
+   The same run prints warnings, which never fail it, about the shape of the tables of the wiki:
+   - `docs-table: <file>:<line>: a cell of <n> characters (over 120) - a heading and a short table, or a list`
+   - `docs-table: <file>:<line>: a continuation row with an empty first cell - one row for one item`
 
 ## gen
 
