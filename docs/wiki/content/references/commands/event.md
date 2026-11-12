@@ -34,25 +34,23 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 {"id":"0y4k2m9xa1b2c3d4","ts":"2026-11-03T09:30:12.431Z","flowId":"VULZ-ACME-12","actor":"pnt-vulcan-1","kind":"commit","summary":"fixed the lock age","ref":"28592dd","source":"cli"}
 ```
 
-| Field | Meaning |
-|---|---|
-| `id` | Sorts by time and does not repeat across sessions |
-| `ts` | ISO 8601, UTC |
-| `flowId` | `VULZ-<key>-<number>` (or the older `F-<number>`), when the line belongs to a flow; absent otherwise |
-| `actor` | The session that wrote it, as other sessions address it |
-| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow`, `deploy`, `tool-tick`; the hooks do not write `session-stop` and `tool-tick`; they stay valid so a log that holds them is read |
-| `status` | Only on a `decision`: `approve`, `park` or `reject` |
-| `summary` | One line, at most 200 characters. On a `flow` line it is the flow's title |
-| `notification` | Only on a `needs-owner` the Claude Code hook wrote: the notification type that raised it (`permission_prompt`, `idle_prompt` or `elicitation_dialog`). A board uses it to tell the harness waiting from a question someone wrote, whatever the `summary` says; anything else is not written and is dropped on read |
-| `why` | Only on a `flow`: one line, at most 200 characters, why the flow exists |
-| `context` | Only on a `flow`: what the flow is, what is done and what is left, a few sentences on one line, at most 600 characters |
-| `next` | Only on a `flow`: the next step and who does it, one line, at most 200 characters |
-| `steps`, `checks` | Only on a `flow`: a list of `{ "text": ..., "done": true|false }`, at most 30 items of 200 characters: what is to be done, and what must hold (acceptance). The line restates the whole list, and the newest line wins |
-| `apps` | Only on a `flow`: the apps or modules it touches, at most 12 names of 40 characters |
-| `due` | Only on a `flow`: the day it is due, `YYYY-MM-DD` |
-| `model` | Only on a `session-start` the Claude Code hook wrote: the model of the session |
-| `ref` | A commit, a PR, `to:<recipient>` for a message sent or `from:<sender>` for one received; absent when there is none. A recipient that is an address keeps its scheme and the last part of its path (`to:uds:3326301.sock`), never the folders |
-| `source` | `claude-hook` or `cli` |
+- `id`: sorts by time and does not repeat across sessions.
+- `ts`: ISO 8601, UTC.
+- `flowId`: `VULZ-<key>-<number>` (or the older `F-<number>`), when the line belongs to a flow; absent otherwise.
+- `actor`: the session that wrote it, as other sessions address it.
+- `kind`: one of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow`, `deploy`, `tool-tick`. The hooks do not write `session-stop` and `tool-tick`; they stay valid so a log that holds them is read.
+- `status`: only on a `decision`: `approve`, `park` or `reject`.
+- `summary`: one line, at most 200 characters. On a `flow` line it is the flow's title.
+- `notification`: only on a `needs-owner` the Claude Code hook wrote: the notification type that raised it (`permission_prompt`, `idle_prompt` or `elicitation_dialog`). A board uses it to tell the harness waiting from a question someone wrote, whatever the `summary` says; anything else is not written and is dropped on read.
+- `why`: only on a `flow`: one line, at most 200 characters, why the flow exists.
+- `context`: only on a `flow`: what the flow is, what is done and what is left, a few sentences on one line, at most 600 characters.
+- `next`: only on a `flow`: the next step and who does it, one line, at most 200 characters.
+- `steps`, `checks`: only on a `flow`: a list of `{ "text": ..., "done": true|false }`, at most 30 items of 200 characters: what is to be done, and what must hold (acceptance). The line restates the whole list, and the newest line wins.
+- `apps`: only on a `flow`: the apps or modules it touches, at most 12 names of 40 characters.
+- `due`: only on a `flow`: the day it is due, `YYYY-MM-DD`.
+- `model`: only on a `session-start` the Claude Code hook wrote: the model of the session.
+- `ref`: a commit, a PR, `to:<recipient>` for a message sent or `from:<sender>` for one received; absent when there is none. A recipient that is an address keeps its scheme and the last part of its path (`to:uds:3326301.sock`), never the folders.
+- `source`: `claude-hook` or `cli`.
 
 A reader cleans the free text of every line it reads (`summary`, `why`, `context`, `next` and `ref`) the way the writer does: one line, anything shaped like a secret replaced by `[redacted]`, the same length caps. A line written by hand, or by an older version, cannot put a huge string or a token on a board.
 
@@ -84,23 +82,21 @@ vulcan event add --kind flow [--flow <flow id>] --title <text> [--why <text>] [-
 
 It prints the id of the line. This is the way in for any coding agent: a hook of Claude Code is only one writer.
 
-| Flag | Meaning |
-|---|---|
-| `--kind` | One of the twelve kinds. `deploy` says something went live (`--summary "block 10" --flow <id>`); a board shows it as a milestone of its flow and, like a merge, counts it as Done until later work reopens the flow |
-| `--summary` | A short label (not on a `flow` line: it takes `--title`). It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]` |
-| `--flow` | The id of a flow that the log already has: `VULZ-<key>-<number>`, as the command printed it when the flow was made, or an older `F-<number>`. An id no line carries is refused, with the recent flows listed. Without it, the flow is read from the branch, when its name has a flow id segment such as `feature/VULZ-ACME-12-events-log`; a `flow` line with no `--flow` and no open flow on its branch makes a new flow (a flow the board would show as Done or Parked is over: the command asks the board's own rules, so the two agree; a merge only GitHub knows of is not in the log, and is not seen here) |
-| `--ref` | A commit, a PR number, a recipient; on a `flow` line, the id of the flow in a tracker (`TICKET-12`). On a `pr` line, `merged:12` says pull request 12 was merged |
-| `--status` | `approve`, `park` or `reject`. Required on a `decision`, refused on any other kind. The owner's answer to a flow, written by whoever relays it |
-| `--title` | Only for `--kind flow`, where it is required: the title of the flow, in the language of the owner. Same limits as `--summary` |
-| `--why` | Only for `--kind flow`, optional: one line on why the flow exists. Same limits and the same secret removal |
-| `--context` | Only for `--kind flow`, optional: two to four sentences, in the language of the owner, on what the flow is, what is done and what is left. Cut to one line of 600 characters, with the same secret removal |
-| `--next` | Only for `--kind flow`, optional: the next step and who does it. Cut to one line of 200 characters, with the same secret removal |
-| `--step`, `--step-done` | Only for `--kind flow`, optional, repeatable: a step still to do, a step done. The list is the flags in the order given. Each text is 1 to 200 characters (longer is refused, not cut), at most 30 steps |
-| `--check`, `--check-done` | As the steps, for the acceptance checks |
-| `--app` | Only for `--kind flow`, optional, repeatable: an app or module the flow touches, 1 to 40 characters, at most 12 |
-| `--due` | Only for `--kind flow`, optional: the day it is due, `YYYY-MM-DD`, a day that exists |
-| `--actor` | Who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session, when a person or a peer gave it (a name Claude Code made up from the folder, a counter or a clash does not count; when several of its session files hold the session id, the one of a live process, then the newest), else `claude:` and the start of the session id, else `unknown`. A name that starts with `claude:` is reserved for unnamed sessions: the board shows no agent for it |
-| `--dir` | The folder, for this call: `--dir` over `events.dir` over `.agents/local/events`. A relative path is relative to where you run the command |
+- `--kind`: one of the twelve kinds. `deploy` says something went live (`--summary "block 10" --flow <id>`); a board shows it as a milestone of its flow and, like a merge, counts it as Done until later work reopens the flow.
+- `--summary`: a short label (not on a `flow` line: it takes `--title`). It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]`.
+- `--flow`: the id of a flow that the log already has: `VULZ-<key>-<number>`, as the command printed it when the flow was made, or an older `F-<number>`. An id no line carries is refused, with the recent flows listed. Without it, the flow is read from the branch, when its name has a flow id segment such as `feature/VULZ-ACME-12-events-log`; a `flow` line with no `--flow` and no open flow on its branch makes a new flow (a flow the board would show as Done or Parked is over: the command asks the board's own rules, so the two agree; a merge only GitHub knows of is not in the log, and is not seen here).
+- `--ref`: a commit, a PR number, a recipient; on a `flow` line, the id of the flow in a tracker (`TICKET-12`). On a `pr` line, `merged:12` says pull request 12 was merged.
+- `--status`: `approve`, `park` or `reject`. Required on a `decision`, refused on any other kind. The owner's answer to a flow, written by whoever relays it.
+- `--title`: only for `--kind flow`, where it is required: the title of the flow, in the language of the owner. Same limits as `--summary`.
+- `--why`: only for `--kind flow`, optional: one line on why the flow exists. Same limits and the same secret removal.
+- `--context`: only for `--kind flow`, optional: two to four sentences, in the language of the owner, on what the flow is, what is done and what is left. Cut to one line of 600 characters, with the same secret removal.
+- `--next`: only for `--kind flow`, optional: the next step and who does it. Cut to one line of 200 characters, with the same secret removal.
+- `--step`, `--step-done`: only for `--kind flow`, optional, repeatable: a step still to do, a step done. The list is the flags in the order given. Each text is 1 to 200 characters (longer is refused, not cut), at most 30 steps.
+- `--check`, `--check-done`: as the steps, for the acceptance checks.
+- `--app`: only for `--kind flow`, optional, repeatable: an app or module the flow touches, 1 to 40 characters, at most 12.
+- `--due`: only for `--kind flow`, optional: the day it is due, `YYYY-MM-DD`, a day that exists.
+- `--actor`: who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session, when a person or a peer gave it (a name Claude Code made up from the folder, a counter or a clash does not count; when several of its session files hold the session id, the one of a live process, then the newest), else `claude:` and the start of the session id, else `unknown`. A name that starts with `claude:` is reserved for unnamed sessions: the board shows no agent for it.
+- `--dir`: the folder, for this call: `--dir` over `events.dir` over `.agents/local/events`. A relative path is relative to where you run the command.
 
 Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.
 

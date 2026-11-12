@@ -29,9 +29,11 @@ bun x --no-install vulcan sync
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | `name` | `string` | required | Source identifier reported in citations and search hits |
-| `repo` | `string` | required | GitHub `owner/repo` path or git URL over `https`, `ssh` or `file`; an `http://` or `git://` URL (clear text) and a `scheme::` remote helper (it runs a command) are refused |
+| `repo` | `string` | required | GitHub `owner/repo` path or git URL over `https`, `ssh` or `file` |
 | `ref` | `string` | `'develop'` | Git branch name, tag, or commit hash to fetch |
 | `pin` | `'installed'` or `'ref'` | `'installed'` | `installed` reads the docs at the release tag of the version the project has installed; `ref` always reads `ref` |
+
+A `repo` with an `http://` or `git://` URL (clear text) or a `scheme::` remote helper (it runs a command) is refused.
 
 ## What a source may be, and how much atlas takes
 
@@ -219,17 +221,15 @@ vulcan-atlas: source '<name>' is not served - <reason>
 
 A source is not served when it hits any of these conditions:
 
-| Condition | Reason message |
-|---|---|
-| Unreachable with no cache | `atlas: source '<name>' (<repo>@<ref>) is unreachable and has no cache` |
-| Missing ref on remote | `atlas: source '<name>' (<repo>@<ref>) - the remote has no branch or tag '<ref>'` |
-| `http://`, `git://` or `ext::` repository | `atlas: source '<name>' (<repo>@<ref>) uses an http:// URL, which is clear text - use https or ssh` |
-| Tarball over `atlas.limits.download` | `atlas: the tarball of <owner>/<repo> at <sha> is over atlas.limits.download (<bytes> bytes) - raise it in the vulcan config if the source is meant to be that large` |
-| Git URL without git | `atlas: source '<name>' (<repo>@<ref>) needs git on this machine - only an owner/repo source has a tarball path` |
-| Short commit hash without git | `atlas: source '<name>' (<repo>@<ref>) - a short commit hash needs git on this machine; give all 40 characters` |
-| Missing manifest | `atlas: source '<name>' (<repo>@<ref>) has no .agents/vulcan.manifest.json - its maintainers run \`vulcan sync\` and commit it` |
-| Changelog entries lost | `atlas: source '<name>' (<repo>@<ref>) commits <n> dated entries in <folder>, but the checkout holds none, so its release table holds no changelog entry` or `... has <n> dated entries in <folder>, but its release table holds none` |
-| Incompatible manifest | `atlas: the manifest is schemaVersion <n>; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan` |
+- Unreachable with no cache: `atlas: source '<name>' (<repo>@<ref>) is unreachable and has no cache`
+- Missing ref on remote: `atlas: source '<name>' (<repo>@<ref>) - the remote has no branch or tag '<ref>'`
+- `http://`, `git://` or `ext::` repository: `atlas: source '<name>' (<repo>@<ref>) uses an http:// URL, which is clear text - use https or ssh`
+- Tarball over `atlas.limits.download`: `atlas: the tarball of <owner>/<repo> at <sha> is over atlas.limits.download (<bytes> bytes) - raise it in the vulcan config if the source is meant to be that large`
+- Git URL without git: `atlas: source '<name>' (<repo>@<ref>) needs git on this machine - only an owner/repo source has a tarball path`
+- Short commit hash without git: `atlas: source '<name>' (<repo>@<ref>) - a short commit hash needs git on this machine; give all 40 characters`
+- Missing manifest: `atlas: source '<name>' (<repo>@<ref>) has no .agents/vulcan.manifest.json - its maintainers run \`vulcan sync\` and commit it`
+- Changelog entries lost: `atlas: source '<name>' (<repo>@<ref>) commits <n> dated entries in <folder>, but the checkout holds none, so its release table holds no changelog entry` or `... has <n> dated entries in <folder>, but its release table holds none`
+- Incompatible manifest: `atlas: the manifest is schemaVersion <n>; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan`
 
 If every source is unavailable and no local project exists, atlas halts with exit code 2:
 

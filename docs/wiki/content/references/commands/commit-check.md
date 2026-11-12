@@ -98,7 +98,7 @@ commit: {
 |---|---|
 | No `commit-msg` hook | Writes `.git/hooks/commit-msg` (a linked worktree shares the hooks of its repository) |
 | A hook written by sync | Updates it when the template changed; removes it when you turn every check off |
-| A hook written by sync for another project of the same repository | Leaves it. A repository has one `commit-msg` hook and it belongs to the project that wrote it: `sync` prints `skipped` and whose it is |
+| A hook written by sync for another project of the same repository | Leaves it. The repository's one `commit-msg` hook belongs to its writer: `sync` prints `skipped` and whose it is |
 | A hook of yours | Leaves it. `sync` prints `skipped` and the line to add: `bun x --no-install vulcan commit-check "$1"` |
 | `core.hooksPath` set (for example `.githooks`) | Writes nothing there. `sync` prints the same line for that folder's `commit-msg` hook |
 | A symbolic link in the hook's place | Leaves it and says so |

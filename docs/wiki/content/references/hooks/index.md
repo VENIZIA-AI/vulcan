@@ -12,11 +12,13 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 |---|---|---|---|---|
 | Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Prints a config problem, a launch warning and the owner card to stdout, under 2 KB | Fires on session start, resume, clear, or compact |
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
-| `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes, `git branch -D` of an unmerged branch, a blanket stage of more than 50 changed paths, and `gh pr create` with no `--base` | Fires on every Bash command; only those git and gh actions are flagged |
+| `guard-git` | `PreToolUse` | `Bash` | Refuses some git and gh actions on `develop` and `main`; asks before other risky ones | Fires on every Bash command; only those git and gh actions are flagged |
 | `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
 | `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
-| Event log (`event.ts`) | `SessionStart`, `SubagentStop`, `Notification`, `PostToolUse` | `SendMessage` for `PostToolUse` | Appends one line (names and short labels, never a message body, a command or a path) to the [agent event log](/references/commands/event) | Only when `events.log` is `true`; fails open; `VULCAN_GUARDS=off` switches it off |
+| Event log (`event.ts`) | `SessionStart`, `SubagentStop`, `Notification`, `PostToolUse` | `SendMessage` for `PostToolUse` | Appends one line to the [agent event log](/references/commands/event) | Only when `events.log` is `true`; fails open; `VULCAN_GUARDS=off` switches it off |
 | Automatic clean (`auto-clean.ts`) | Not registered: the session-start hook starts it | None | Removes the safe part of `.agents/local/` (stale scratch) and writes a stamp of what went | At most once a day; off with `local.autoClean: false` or `VULCAN_AUTO_CLEAN=off` |
+
+`guard-git` refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them. It asks before `git reset --hard`, other force-pushes, `git branch -D` of an unmerged branch, a blanket stage of more than 50 changed paths, and `gh pr create` with no `--base`. The event log line holds names and short labels, never a message body, a command or a path.
 
 ## Session digest
 
@@ -76,13 +78,15 @@ The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `
 |---|---|
 | `git branch -D develop` (or `main`, `-d`, `--delete`) | deny |
 | `git push origin --delete develop`, `git push origin :main` | deny |
-| `git push --force origin develop` (`-f`, `+develop`, `--force-with-lease` to `develop` or `main`, or no refspec while on one of them) | deny |
+| `git push --force origin develop` | deny |
 | `gh pr merge <pr> --delete-branch` when `gh pr view` reports the head branch as `develop` or `main` | deny |
 | `gh pr create` with no `--base` (`--base <branch>`, `--base=<branch>`, `-B <branch>` and `--help` pass) | ask |
 | `git reset --hard` | ask |
 | `git push --force` of another branch | ask |
 | `git branch -D <branch>` when the branch is not merged into the current one | ask |
-| `git add -A`, `git add --all`, `git add .`, `git add -u`, `git commit -a` when it would stage more than 50 changed paths (`-u` and `-a` count tracked files only) | ask, naming the count |
+| `git add -A`, `git add --all`, `git add .`, `git add -u`, `git commit -a` | ask, naming the count |
+
+The force-push row also covers `-f`, `+develop`, `--force-with-lease` to `develop` or `main`, and no refspec while on one of them. The blanket stage row applies when the command would stage more than 50 changed paths (`-u` and `-a` count tracked files only).
 
 The blanket stage ask exists because a formatter run followed by `git add -A` once committed 152 files nobody meant to stage. It reads `git status --porcelain --untracked-files=all`, one line per file (the default status prints a new folder as one line, which would undercount what `git add -A` takes), and asks only past 50 paths: on this repository's develop the median commit touches 7 files and 2.2% touch more than 50, so a small change is never asked about. A stage of named paths (`git add src/a.ts`), `git add -p` and a status that cannot be read pass; the guard asks, it does not deny, and a command that changes directory first (`cd x && git add -A`) is checked in the folder the session started in.
 
@@ -134,7 +138,9 @@ When a guard cannot read a line in full (it is over a limit above), it asks; `gu
 | S-10 | attack review | `printf '%s ' git push -f origin main \| sh` | the first word of `printf` is its format; each `%s` is filled from the words after it |
 | S-11 | attack review | `echo -n git push -f origin main \| sh` | the options of `echo` are not part of the text |
 | S-12 | attack review | `find . -name x -exec git push -f origin main +` | `find` ends the command with `+` as well as `;` |
-| S-13 to S-19 | attack review | `gh api -X delete ...`, a full `https://api.github.com/...` URL, a trailing `/`, a `?query`, a leading `//`, `heads%2Fmain`, `ma%69n` | every form of the endpoint GitHub accepts is read the same way |
+| S-13 to S-19 | attack review | `gh api -X delete ...` and other spellings of the endpoint | every form of the endpoint GitHub accepts is read the same way |
+
+S-13 to S-19 are `gh api -X delete ...`, a full `https://api.github.com/...` URL, a trailing `/`, a `?query`, a leading `//`, `heads%2Fmain` and `ma%69n`.
 
 Three more ways to make a guard fail are closed the same way: about 700,000 substitutions in one word overflowed the stack and crashed the hook, a megabyte through an `env -S` and `eval` chain took seconds and gigabytes, and a line of many `gh pr merge` commands ran one process each. Each now asks.
 
@@ -233,10 +239,8 @@ export default {
 
 Several kinds of hook run in every session of every project, so each kind has a stated failure mode.
 
-| Kind | Hooks | When it cannot run (missing package, missing `bun`, a crash) |
-|---|---|---|
-| Safety hooks | `guard-writes` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes. A hook file that is gone from an installed package passes with a note on stderr (see below) |
-| Deny-class guards | `guard-git`, `guard-outside` | a missing package or `bun` passes, with a note on stderr (a broken install must not stop every call); a hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**. `guard-git` asks only about a command that names `git` or `gh`; `guard-outside` asks about the call |
+- **Safety hooks** (`guard-writes`): when one cannot run (missing package, missing `bun`, a crash), it fails closed: exit 2, the tool call is blocked; a bare `bun install` still passes. A hook file that is gone from an installed package passes with a note on stderr (see below)
+- **Deny-class guards** (`guard-git`, `guard-outside`): when one cannot run, a missing package or `bun` passes, with a note on stderr (a broken install must not stop every call); a hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**. `guard-git` asks only about a command that names `git` or `gh`; `guard-outside` asks about the call
 
 `subagent-start` never blocks. `VULCAN_GUARDS=off` switches the guards off and is read before any module loads.
 

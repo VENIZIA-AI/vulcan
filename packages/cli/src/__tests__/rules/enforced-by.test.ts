@@ -52,12 +52,13 @@ describe('the Enforced by column says what really enforces a rule', () => {
 
   test('the rules page of the wiki gives each rule the same mechanism as the file it is copied from', () => {
     for (const [id, cell] of CELLS) {
-      const row = DOCS.split('\n').find((line) => line.startsWith(`| \`${id}\` |`));
-      const shown = row === undefined ? undefined : cellOf({ row });
+      const lines = DOCS.split('\n');
+      const start = lines.findIndex((line) => line.startsWith(`- \`${id}\` - `));
+      const line = start < 0 ? undefined : lines[start + 1];
+      const shown = line?.match(/^ {2}- Enforced by: (.*)$/)?.[1];
 
-      if (shown !== undefined) {
-        expect(shown.split(/[\s(:,]/)[0], id).toBe(cell.split(/[\s(:,]/)[0]);
-      }
+      expect(shown, id).toBeDefined();
+      expect(shown?.split(/[\s(:,]/)[0], id).toBe(cell.split(/[\s(:,]/)[0]);
     }
   });
 });

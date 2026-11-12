@@ -69,8 +69,10 @@ bun x @venizia/vulcan init --preset ignis --project my-product --backend-dir ser
 | Backend folder (or `Frontend folder`, for a frontend preset) | `--backend-dir services` (or `--frontend-dir`) |
 | Name of this app | `--app core-api` |
 | Shared code folder | `--shared-dir libs` (leave it out to skip) |
-| Project key (flow ids) | `--key MYPROD` (leave it out and the key is made from the project name, with a note; a name with fewer than 2 letters or digits is an error that asks for `--key`) |
+| Project key (flow ids) | `--key MYPROD` (made from the project name when left out) |
 | Package scope (optional) | `--scope @acme` (a plain terminal never asks; leave it out for none) |
+
+A name with fewer than 2 letters or digits is an error that asks for `--key`; otherwise the key is made from the project name, with a note.
 
 A missing flag is an error that names it (`vulcan init: missing --app (Name of the first app) - names are never chosen for you`). Without a terminal there is no agents question either: `sync` writes the Claude files and prints one line saying how to choose (`vulcan sync --agents claude,omp`).
 
@@ -267,10 +269,17 @@ The table below lists common findings and how to resolve them:
 
 | You already have | What to do |
 |---|---|
-| An existing Makefile | Add `-include node_modules/@venizia/vulcan/base/make/vulcan.mk`, and do not reuse shipped target names. See the [make check](/references/commands/doctor#make). |
-| A project skill with a shipped name | Rename the directory under `.agents/skills/` to avoid collisions. See the [skills check](/references/commands/doctor#skills). |
-| Lint configs not built on the shared style | Add `@venizia/dev-configs` as a devDependency and import from it in lint configurations. See the [style check](/references/commands/doctor#style). |
-| Git tags of another layout | Declare the package, add an alias, or add the tags to `atlas.ignoreTags`. See the [tags check](/references/commands/doctor#tags). |
+| An existing Makefile | Include `vulcan.mk` and keep target names apart. See the [make check](/references/commands/doctor#make). |
+| A project skill with a shipped name | Rename its directory. See the [skills check](/references/commands/doctor#skills). |
+| Lint configs not built on the shared style | Build them on `@venizia/dev-configs`. See the [style check](/references/commands/doctor#style). |
+| Git tags of another layout | Declare the package, add an alias, or ignore the tags. See the [tags check](/references/commands/doctor#tags). |
+
+Details:
+
+- For a Makefile, add `-include node_modules/@venizia/vulcan/base/make/vulcan.mk`, and do not reuse shipped target names.
+- For a skill with a shipped name, rename the directory under `.agents/skills/` to avoid collisions.
+- For lint configs, add `@venizia/dev-configs` as a devDependency and import from it in the lint configurations.
+- For git tags, declare the package, add an alias, or add the tags to `atlas.ignoreTags`.
 
 ## Run it in CI
 

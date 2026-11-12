@@ -36,30 +36,32 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `rule-slots` | Every base rule slot receives a valid choice option in configuration | Provide an allowed choice in `.configs/vulcan.config.mts` under `rules` |
 | `skills` (shipped names) | Project skills avoid names reserved by shipped skills | Rename the colliding skill directory under `.agents/skills/` |
 | `make` | The project `Makefile` includes `vulcan.mk` and avoids shipped target names | Add the `-include` line or rename conflicting project make targets |
-| `adapters` | Generated tool files, settings and links match configuration, and the Atlas and rules blocks of `AGENTS.md` are present and up to date | Run `bun x --no-install vulcan sync` |
+| `adapters` | Generated files, settings and links match configuration; the `AGENTS.md` blocks are present and current | Run `bun x --no-install vulcan sync` |
 | `manifest` | Committed `.agents/vulcan.manifest.json` matches project configuration | Run `bun x --no-install vulcan sync` and commit the manifest |
 | `tags` | Git tags matching `atlas.tagPattern` resolve to declared packages | Declare the package, add an alias, or add the tag to `atlas.ignoreTags` |
 | `skills` (warning) | A skill's description has no "Use when" part, so atlas cannot tell an agent when to load it; never a failure | Start the description with when to use the skill |
 | `skills` (skill lint) | Project skills satisfy authoring rules for frontmatter and structure | Fix frontmatter formatting, limits, or missing sections in `SKILL.md` |
 | `style` | Packages declare `@venizia/dev-configs` and lint configuration files import the shared style | Add `@venizia/dev-configs` as a devDependency and import it in lint configuration files |
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
-| `apps` | Every `backend`, `frontend` and `shared` folder of `layout` is a workspace, and every package lives in a listed folder (`other` included) | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
+| `apps` | Each `backend`, `frontend`, `shared` folder of `layout` is a workspace; each package is in a listed folder (`other` too) | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
-| `format` (warning) | The root `bunfig.toml` has a `[fmt]` section with `flavor = "oxfmt"`, no `package.json` defines a `fmt` script, and no oxfmt config is left behind | Add the section, rename the script, delete the config or the copy |
-| `commit-hook` (warning) | A commit check is on in `commit.message` and this clone's `commit-msg` hook is missing, out of date, or does not call `vulcan commit-check` | Run `bun x --no-install vulcan sync`; for a hook of yours or a `core.hooksPath` hook, add the line the warning shows |
+| `format` (warning) | Root `bunfig.toml` has `[fmt]` with `flavor = "oxfmt"`; no `package.json` defines `fmt`; no oxfmt config is left | Add the section, rename the script, delete the config or the copy |
+| `commit-hook` (warning) | `commit.message` has a check on and this clone's `commit-msg` hook is missing, stale or skips `vulcan commit-check` | Run `bun x --no-install vulcan sync`; for your own hook, add the line the warning shows |
 | `events-size` (warning) | Today's event file alone is over `events.maxSize` | Raise `maxSize` or write fewer events |
 | `events-dir` (warning) | `events.dir` names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
-| `profile` (warning) | `.agents/local/profile.json` cannot be read, is not ignored by git, or is tracked by git | Fix or delete the file and run the profile form again; add `.agents/local/` to `.gitignore`, or run `git rm --cached .agents/local/profile.json` |
-| `guards` (note) | Notes list each `guard.writes.commands` pattern and `guard.git.askPush`, so the owner sees what the guards were told | Change the list in the config |
-| `local` (warning) | The project's tmp folder (`.agents/local/tmp` under the project path) is too deep for a browser: Chrome and Chromium put a socket below the temp folder, a socket path is 107 characters at most on Linux (104 on macOS, which this check does not count), and past that the browser exits with `Socket path too long`. The warning names the folder, the length and the longest project path that fits | Set `local.tmp` to a short folder of the project and run `vulcan sync`, or check the project out at a shorter path |
-| `local` (failure) | `local.tmp` names a folder whose browser socket path is still over 107 characters (the checkout path plus the folder plus the longest socket name) | Use a shorter folder name or a shorter checkout path |
+| `profile` (warning) | `.agents/local/profile.json` cannot be read, is not ignored by git, or is tracked by git | Fix or delete the file and run the profile form again; ignore `.agents/local/` or untrack the file |
+| `guards` (note) | Notes list each `guard.writes.commands` pattern and `guard.git.askPush` | Change the list in the config |
+| `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `local.tmp` to a short folder and run `vulcan sync`, or check out at a shorter path |
+| `local` (failure) | `local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
 | `project-key` (warning) | `events.log` is on and `project.key` is not set, so no flow can be created | Add `project: { key: 'KEY' }` to the config and run `vulcan sync` |
 | `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `doctor.privateValues.acknowledged` |
-| `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git does not list it as untracked and not ignored (a release refuses on that), and the Claude settings enable `atlas` | Use the entry the warning shows, add `/.mcp.json` to `.gitignore` or run `vulcan sync` at the top level, and run `bun x --no-install vulcan sync` |
-| `local` (warning) | One or more entries directly under `.agents/local/` are not a folder of the layout, a file VULCAN writes or a browser's scratch folder; the warning counts them, gives their size and names the first ten. Nothing removes them | Put scratch in `tmp/`, what you keep in `reports/`, what one agent keeps for itself in `agents/<name>/`, and a script the team relies on in the tracked tree |
-| `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor`: sessions started from it get no owner shape card and no profile card | Unset it in a shell the owner works in; a started session gets it on its own command line only |
-| `local` (warning) | `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env`: every session of the project gets no owner shape card and no profile card | Remove it from `env` |
-| `local` (warning) | `.agents/local/` exists with its subdirectories, is gitignored and holds the Claude Code launch file (`claude.launch.settings.json`, written by `sync` for the project's temp folder), and nothing under it has outlived its use (`tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch, a release candidate whose version is tagged, a browser's `com.google.Chrome.*` folder an hour old), and nothing sits directly under `.agents/local/` that is neither a folder of [the layout](/guides/core-concepts/the-agents-folder), a file VULCAN writes, nor a browser's folder (one warning lists them with their sizes; nothing removes them). The leftovers are one warning too: how many, in which state and scope, and the one `vulcan clean` command that clears them (without `--yes` it lists each one) | Run `bun x --no-install vulcan sync`; for leftovers, run the `vulcan clean` command it names |
+| `mcp` (warning) | `.mcp.json` holds the canonical `atlas` entry, is not untracked and unignored, and the Claude settings enable `atlas` | Use the entry the warning shows; ignore `/.mcp.json` or run `vulcan sync` at the top level; run `vulcan sync` |
+| `local` (warning) | Stray entries directly under `.agents/local/` | Move them to `tmp/`, `reports/` or `agents/<name>/` |
+| `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor` | Unset it in a shell the owner works in |
+| `local` (warning) | `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env` | Remove it from `env` |
+| `local` (warning) | `.agents/local/` is incomplete, not gitignored, or holds leftovers | Run `bun x --no-install vulcan sync`; for leftovers, run the `vulcan clean` command it names |
+
+The `adapters` check reads the Atlas block and the rules block of `AGENTS.md`. The `skills` lint rule for contents accepts `**Contents**`, `## Contents`, `### Contents` or an okf generated-contents comment. The `mcp` check looks at `.mcp.json` only when a chosen agent reads it, and a release refuses when git lists the file as untracked and not ignored. A `commit-hook` fix for a hook in the `core.hooksPath` folder is the same line. The `profile` fix for a tracked file is `git rm --cached .agents/local/profile.json`. The `local` checks are described in [local](#local).
 
 ### config
 
@@ -137,10 +139,10 @@ The runner lints project skills against authoring rules:
 | Rule | Requirement | Fix |
 |---|---|---|
 | Frontmatter syntax | Frontmatter must be valid YAML; invalid YAML reports `the frontmatter is not valid YAML at line N` | Correct syntax errors at the indicated line in `SKILL.md` |
-| Name format | At most 64 lowercase alphanumeric characters and hyphens matching `^[a-z0-9-]{1,64}$`, and must not contain `claude` or `anthropic` (substring test) | Update `name` in `SKILL.md` frontmatter |
-| Description length | Description must be between 1 and 1024 characters with no XML tags | Update `description` in `SKILL.md` frontmatter to fit the character limit |
+| Name format | Matches `^[a-z0-9-]{1,64}$`; no `claude` or `anthropic` in it (substring test) | Update `name` in `SKILL.md` frontmatter |
+| Description length | Description must be between 1 and 1024 characters with no XML tags | Update `description` in the frontmatter to fit the limit |
 | Body line limit | The `SKILL.md` body must be under 500 lines | Move detailed content into reference files |
-| Contents list | Markdown files over 100 lines require a contents list in their first 30 lines (`**Contents**`, `## Contents`, `### Contents`, or okf generated-contents comment) | Add a contents list within the first 30 lines of the file |
+| Contents list | Markdown files over 100 lines need a contents list in their first 30 lines | Add a contents list within the first 30 lines of the file |
 | Reference depth | Reference markdown files must be linked from `SKILL.md` directly, one level deep | Link all reference files from `SKILL.md` instead of linking between reference files |
 | Flat layout | Skills must reside directly in `.agents/skills/<name>` | Move nested skill directories up to `.agents/skills/<name>` |
 | Script requirements | Skills containing script files require a `## Requirements` or `## Prerequisites` section | Add a `## Requirements` or `## Prerequisites` section to `SKILL.md` |
@@ -281,7 +283,9 @@ A warning, not a violation: a hook belongs to one clone, and a fresh CI checkout
 | `is not installed` | No `commit-msg` hook in the clone | Run `vulcan sync` |
 | `is out of date` | A hook that `sync` wrote from an older template, or one that lost its execute bit | Run `vulcan sync` |
 | `does not run the commit check` | A hook of yours, or the hook in the `core.hooksPath` folder, does not call the command | Add `bun x --no-install vulcan commit-check "$1"` to it |
-| `this project's commit check is not installed: the hook belongs to ...` | The repository's one `commit-msg` hook was written by another project of the repository (the top level, or a folder below it); `sync` does not touch it | Let that project own the check, or make this project the owner by removing the hook and running `vulcan sync` here |
+| `this project's commit check is not installed: ...` | The repository's one `commit-msg` hook was written by another project of it; `sync` does not touch it | Let that project own it, or remove the hook and run `vulcan sync` here |
+
+The last message reads `this project's commit check is not installed: the hook belongs to ...`; the other project is the top level or a folder below it.
 
 ### events-size
 
@@ -304,6 +308,17 @@ A warning, not a violation: the folder belongs to the machine, and a CI checkout
 | `does not exist` | Run the `mkdir -p` it names |
 | `is not a folder` | Point `dir` at a folder |
 | `is not writable by this user` | Fix the folder's permissions or its owner |
+
+### local
+
+Six results share the name `local`.
+
+- **tmp too deep (warning):** the project's tmp folder (`.agents/local/tmp` under the project path) is too deep for a browser. Chrome and Chromium put a socket below the temp folder, a socket path is 107 characters at most on Linux (104 on macOS, which this check does not count), and past that the browser exits with `Socket path too long`. The warning names the folder, the length and the longest project path that fits. Fix: set `local.tmp` to a short folder of the project and run `vulcan sync`, or check the project out at a shorter path.
+- **tmp still too deep (failure):** `local.tmp` names a folder whose browser socket path is still over 107 characters (the checkout path plus the folder plus the longest socket name). Fix: use a shorter folder name or a shorter checkout path.
+- **stray entries (warning):** one or more entries directly under `.agents/local/` are not a folder of the layout, a file VULCAN writes or a browser's scratch folder. The warning counts them, gives their size and names the first ten. Nothing removes them. Fix: put scratch in `tmp/`, what you keep in `reports/`, what one agent keeps for itself in `agents/<name>/`, and a script the team relies on in the tracked tree.
+- **owner reply off in the shell (note):** `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor`, so sessions started from it get no owner shape card and no profile card. Fix: unset it in a shell the owner works in; a started session gets it on its own command line only.
+- **owner reply off in the settings (warning):** `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env`, so every session of the project gets no owner shape card and no profile card. Fix: remove it from `env`.
+- **layout and leftovers (warning):** `.agents/local/` must exist with its subdirectories, be gitignored and hold the Claude Code launch file (`claude.launch.settings.json`, written by `sync` for the project's temp folder). Nothing under it may have outlived its use: `tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch, a release candidate whose version is tagged, a browser's `com.google.Chrome.*` folder an hour old. Nothing may sit directly under `.agents/local/` that is neither a folder of [the layout](/guides/core-concepts/the-agents-folder), a file VULCAN writes, nor a browser's folder (one warning lists them with their sizes; nothing removes them). The leftovers are one warning too: how many, in which state and scope, and the one `vulcan clean` command that clears them (without `--yes` it lists each one). Fix: run `bun x --no-install vulcan sync`; for leftovers, run the `vulcan clean` command it names.
 
 ### private-values
 
