@@ -166,3 +166,112 @@ test('a table in a code fence and the separator row are not read; an escaped pip
   expect(tableWarnings({ page: `\`\`\`text\n| a | ${long} |\n\`\`\`\n` })).toEqual([]);
   expect(tableWarnings({ page: '| a | b |\n|:---:|---:|\n| `x \\| y` | z |\n' })).toEqual([]);
 });
+
+test('an `as` in a template literal, a block or JSDoc comment, or a multi-line string is not a cast', () => {
+  const code = [
+    'const sql = `SELECT COUNT(*) as total FROM orders`;',
+    'const many = `',
+    '  SELECT a as b',
+    '  FROM t',
+    '`;',
+    '/**',
+    ' * The value as fetched, typed as a User by the caller.',
+    ' */',
+    '/* value as User */',
+    'const ok = 1;',
+  ].join('\n');
+
+  expect(problems({ code })).toEqual([]);
+});
+
+test('code inside a template expression is still code, and a quote inside a comment does not open a string', () => {
+  expect(problems({ code: 'const text = `${value as User}`;' })).toHaveLength(1);
+  expect(
+    problems({ code: "// it's a comment with an apostrophe\nconst x = value as User;" }),
+  ).toHaveLength(1);
+});
+
+test('a page the generator owns is not read: its declarations are the source types, not an example', () => {
+  const generated = [
+    '# Api',
+    '',
+    '> Generated from the built declarations by `vulcan x atlas api gen` - do not edit.',
+    '',
+    '```ts',
+    'declare function f(value: any): never;',
+    'const x = y as Z;',
+    '```',
+    '',
+  ].join('\n');
+
+  wikiWith({
+    pages: { 'references/api/a.md': generated, 'b.md': fenced({ code: 'const x = y as Z;' }) },
+  });
+
+  const found = DocsCodeCheck.collectProblems();
+
+  expect(found).toHaveLength(1);
+  expect(found[0]).toContain('wiki/b.md');
+});
+
+test('a region between okf generated markers is not read', () => {
+  const page = [
+    '<!-- okf:generated:api start -->',
+    '```ts',
+    'const x = y as Z;',
+    '```',
+    '<!-- okf:generated:api end -->',
+    '',
+    '```ts',
+    'const w = v as Z;',
+    '```',
+    '',
+  ].join('\n');
+
+  wikiWith({ pages: { 'a.md': page } });
+
+  const found = DocsCodeCheck.collectProblems();
+
+  expect(found).toHaveLength(1);
+  expect(found[0]).toContain('wiki/a.md:8');
+});
+
+test('docs-code off and on comments leave out what a page quotes from the source, such as a real signature', () => {
+  const page = [
+    '<!-- docs-code: off -->',
+    '```ts',
+    'declare function f(value: any): never;',
+    '```',
+    '<!-- docs-code: on -->',
+    '',
+    '```ts',
+    'const w = v as Z;',
+    '```',
+    '',
+  ].join('\n');
+
+  wikiWith({ pages: { 'a.md': page } });
+
+  const found = DocsCodeCheck.collectProblems();
+
+  expect(found).toHaveLength(1);
+  expect(found[0]).toContain('wiki/a.md:8');
+});
+
+test('AnyType, the alias of any, is any: in a type position it is a problem, in a name or a string it is not', () => {
+  for (const code of [
+    'const response: INetworkResponse<AnyType> = load();',
+    'function f(value: AnyType) {}',
+    'const list: AnyType[] = [];',
+    'const m = new Map<string, AnyType>();',
+  ]) {
+    const found = problems({ code });
+
+    expect(found, code).toHaveLength(1);
+    expect(found[0], code).toContain('any');
+  }
+
+  expect(
+    problems({ code: "const AnyTypeOf = 1;\nconst s = 'AnyType';\nconst x: AnyTypeValue = y;" }),
+  ).toEqual([]);
+});

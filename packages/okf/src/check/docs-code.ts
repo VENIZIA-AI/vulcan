@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { OkfProject } from '../project/index.ts';
+import { CodeMask } from './code-mask.ts';
 import { SourceScanner } from '../source/index.ts';
 
 const CODE_LANGUAGES = new Set([
@@ -15,14 +16,18 @@ const CODE_LANGUAGES = new Set([
 ]);
 const FENCE = /^\s*(`{3,}|~{3,})(\S*)\s*$/;
 const FENCE_OPEN = /^\s*(`{3,}|~{3,})(\S*)/;
-const STRING_LITERAL = /'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`/g;
-const LINE_COMMENT = /\/\/.*$/;
+/** The note a generator writes on a page it owns, such as `atlas api gen`: its content is the project's own source, not an example. */
+const GENERATED_NOTE = /^>\s*Generated\b.*\bdo not edit\.?\s*$/m;
+/** What okf generated, and what a page marks `docs-code: off` (a signature quoted from the source) until `docs-code: on`. */
+const REGION_START = /<!--\s*(?:okf:generated:\S+\s+start|docs-code:\s*off)\s*-->/;
+const REGION_END = /<!--\s*(?:okf:generated:\S+\s+end|docs-code:\s*on)\s*-->/;
 const IMPORT_OR_EXPORT = /^\s*(?:import|export)\b/;
 
 /** `value as User`, `as unknown as`, `as any`, `as never`: every `as` that is not `as const`. */
 const CAST = /\bas\s+(?!const\b)(?:unknown|any|never|[A-Za-z_$][\w$.]*|[{([])/;
-/** `: any`, `<any>`, `, any>`, `| any`, `any[]`. */
-const ANY_TYPE = /(?::\s*|<\s*|,\s*|\|\s*|&\s*|\bkeyof\s+)any\b(?!\s*:)|\bany\[\]/;
+/** `: any`, `<any>`, `, any>`, `| any`, `any[]`, and the same for `AnyType`, the Venizia alias of `any`. */
+const ANY_TYPE =
+  /(?::\s*|<\s*|,\s*|\|\s*|&\s*|\bkeyof\s+)(?:any|AnyType)\b(?!\s*:)|\b(?:any|AnyType)\[\]/;
 const CONDITIONAL_SPREAD = /\.\.\.\(.*(?:\?.*:\s*(?:\{\}|\[\])|&&\s*[{[])/;
 /** `type Mode = 'on' | 'off'`: strings are masked to `''` before this runs. */
 const LITERAL_UNION = /\btype\s+\w+(?:<[^>]*>)?\s*=\s*(?:\|\s*)?''\s*\|/;
@@ -34,10 +39,6 @@ interface IFence {
   length: number;
   language: string;
 }
-
-/** The line with every string replaced by `''` and its `//` comment dropped: what is left is syntax. */
-const syntaxOf = (opts: { line: string }): string =>
-  opts.line.replace(STRING_LITERAL, "''").replace(LINE_COMMENT, '');
 
 const cellsOf = (opts: { line: string }): string[] =>
   opts.line
@@ -75,10 +76,33 @@ export class DocsCodeCheck {
     return SourceScanner.walkFiles({ dir: wiki })
       .filter((file) => file.endsWith('.md'))
       .filter((file) => changelogs === undefined || !file.startsWith(`${changelogs}/`))
-      .map((file) => ({
+      .map((file) => ({ file, text: readFileSync(file, 'utf8') }))
+      .filter(({ text }) => !GENERATED_NOTE.test(text))
+      .map(({ file, text }) => ({
         file: SourceScanner.repoRelative({ path: file }),
-        lines: readFileSync(file, 'utf8').split('\n'),
+        lines: DocsCodeCheck.withoutGeneratedRegions({ lines: text.split('\n') }),
       }));
+  }
+
+  /** The lines with what sits between okf generated markers, or `docs-code: off` and `on`, blanked, so line numbers hold. */
+  private static withoutGeneratedRegions(opts: { lines: string[] }): string[] {
+    let inRegion = false;
+
+    return opts.lines.map((line) => {
+      if (REGION_START.test(line)) {
+        inRegion = true;
+
+        return '';
+      }
+
+      if (REGION_END.test(line)) {
+        inRegion = false;
+
+        return '';
+      }
+
+      return inRegion ? '' : line;
+    });
   }
 
   /** Each line with the fence it is in, `undefined` outside any; the fence lines themselves are left out. */
@@ -126,18 +150,51 @@ export class DocsCodeCheck {
     return found;
   }
 
+  /** Every line masked (strings, template literals and comments out); a fence is read whole, so a comment or a template can span lines. */
+  private static maskedFences(opts: { lines: { text: string; fence?: IFence }[] }): string[] {
+    const masked = opts.lines.map((line) => line.text);
+    let start = 0;
+
+    while (start < opts.lines.length) {
+      const { fence } = opts.lines[start];
+      let end = start + 1;
+
+      while (end < opts.lines.length && opts.lines[end].fence === fence) {
+        end += 1;
+      }
+
+      if (fence !== undefined) {
+        const text = opts.lines
+          .slice(start, end)
+          .map((line) => line.text)
+          .join('\n');
+
+        CodeMask.of({ text })
+          .split('\n')
+          .forEach((line, offset) => {
+            masked[start + offset] = line;
+          });
+      }
+
+      start = end;
+    }
+
+    return masked;
+  }
+
   private static codeProblemsOf(opts: { page: { file: string; lines: string[] } }): string[] {
     const problems: string[] = [];
     let inImportBraces = false;
 
-    for (const { text, number, fence } of DocsCodeCheck.linesWithFence({
-      lines: opts.page.lines,
-    })) {
+    const lines = DocsCodeCheck.linesWithFence({ lines: opts.page.lines });
+    const masked = DocsCodeCheck.maskedFences({ lines });
+
+    for (const [at, { number, fence }] of lines.entries()) {
       if (fence === undefined || !CODE_LANGUAGES.has(fence.language)) {
         continue;
       }
 
-      const syntax = syntaxOf({ line: text });
+      const syntax = masked[at];
       const isImportLine = IMPORT_OR_EXPORT.test(syntax);
       const where = `docs-code: ${opts.page.file}:${number}: `;
 
@@ -159,7 +216,9 @@ export class DocsCodeCheck {
       }
 
       if (ANY_TYPE.test(syntax)) {
-        problems.push(`${where}\`any\` as a type - type it, or take unknown and narrow it`);
+        problems.push(
+          `${where}\`any\` or \`AnyType\` as a type - type it, or take unknown and narrow it`,
+        );
       }
 
       if (CONDITIONAL_SPREAD.test(syntax)) {
