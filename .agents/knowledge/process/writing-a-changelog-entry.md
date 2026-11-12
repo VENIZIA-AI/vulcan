@@ -71,7 +71,7 @@ migration:
     upgrade: { before: "RedisHelper.new()", after: "RedisHelperFactory.create()" }  # or { steps: ["..."] }
     downgrade: { steps: ["Call RedisHelper.new() again"] }   # required; an irreversible change says so here
     data: "Stored tokens keep the old prefix."               # optional: stored data that does not cross the boundary
-    codemod: namespace-functions                             # optional: a `devz codemod` name
+    codemod: namespace-functions                             # optional: a `devz codemod` name, lower-case words joined by -
 ```
 
 List the symbols as the app spells them before the change (a removed or renamed name is not in the new exports, so the check does not look them up). `before`/`after` and `steps` are alternatives, never both. The `## Breaking changes` section stays: it is the human version of the same steps.

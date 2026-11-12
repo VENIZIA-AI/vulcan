@@ -50,6 +50,8 @@ export interface IMigrationPlan {
   direction: string;
   /** Where `to` came from: the release table (`latest`, `next`) or the version as given. */
   target: string;
+  /** The command that runs the codemods the steps link; absent when no step links one. */
+  apply?: string;
   /** A warning about how to read the plan, e.g. `latest` is older than the installed version; absent otherwise. */
   note?: string;
   steps: IMigrationStep[];
@@ -268,6 +270,10 @@ export class MigratePlan {
         )
         .map((entry) => ({ id: entry.id, title: entry.title, date: entry.date })),
     };
+
+    if (steps.some((step) => step.codemod !== undefined)) {
+      plan.apply = `vulcan migrate apply --package ${opts.package} --from ${opts.from} --to ${to} --app ${opts.app}`;
+    }
 
     if (isAlias && !isUpgrade) {
       plan.note = `${opts.to} is ${to}, older than the installed ${opts.from}: this plan is a downgrade; use next to stay on the newest release`;

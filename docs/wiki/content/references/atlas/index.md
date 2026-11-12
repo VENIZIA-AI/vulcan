@@ -366,7 +366,7 @@ It exits `0` when every entry conforms and `1` when one does not, printing `<fil
 | Shape | Each item has `id` (lower-case words joined by `-`, unique across the folder), `symbols` (at least one export name, `Name.member` or module specifier), `upgrade` and `downgrade` (each `before` and `after`, or `steps`, never both), and optionally `data` and `codemod` |
 | Who owes a block | An entry with a `Breaking Change` or `Breaking` badge (the badge line or `badges:`) dated on or after `knowledge.migrationFrom`; the short spelling is also reported there: use `Breaking Change`; with no `migrationFrom` nothing is owed, but a block that is present is still checked |
 | Who is skipped | An entry dated before `knowledge.migrationFrom` |
-| `codemod` | Must be a name `devz codemod --list` prints; when `devz` is not installed or cannot list, the names are not checked and the command says so |
+| `codemod` | Lower-case words joined by `-` (it reaches a command line, so never starts with `-`), and a name `devz codemod --list` prints; when `devz` is not installed or cannot list, the names are not checked and the command says so |
 
 ## Why a result is empty
 

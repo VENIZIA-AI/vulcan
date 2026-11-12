@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ToolRunner } from '../../commands/x.command.ts';
 import { VulcanTools } from '../../common/index.ts';
@@ -20,6 +20,7 @@ migration:
     symbols: [Thing.make]
     upgrade: { before: "Thing.make()", after: "ThingFactory.build()" }
     downgrade: { steps: ["Call Thing.make() again"] }
+    codemod: stub-cm
 ---
 
 # Changelog - 2026-02-01
@@ -63,7 +64,7 @@ describe('vulcan migrate', () => {
   test('a missing or other subcommand exits 2 with the usage', () => {
     const { framework } = world();
 
-    for (const args of [['migrate'], ['migrate', 'apply']]) {
+    for (const args of [['migrate'], ['migrate', 'nope']]) {
       const result = runCli({ args, cwd: framework });
 
       expect(result.code, args.join(' ')).toBe(2);
@@ -124,6 +125,56 @@ describe('vulcan migrate', () => {
     expect(JSON.parse(up.stdout).plans[0].steps[0].id).toBe('thing-factory');
     expect(down.stdout).toContain('A downgrade');
     expect(down.stdout).toContain('Call Thing.make() again');
+  });
+
+  test.skipIf(!built)(
+    'apply runs the linked codemod through a stub devz on a clean git app; --force and a dirty tree',
+    () => {
+      const { framework, app } = world();
+      const log = join(framework, 'devz.log');
+
+      mkdirSync(join(app, 'node_modules', '.bin'), { recursive: true });
+      writeFileSync(
+        join(app, 'node_modules', '.bin', 'devz'),
+        `#!/bin/sh\necho "$@" >> "${log}"\n`,
+      );
+      chmodSync(join(app, 'node_modules', '.bin', 'devz'), 0o755);
+      writeFileSync(join(app, '.gitignore'), 'node_modules\n');
+      initRepo({ cwd: app });
+
+      const args = [
+        'migrate',
+        'apply',
+        '--package',
+        '@venizia/kernel',
+        '--to',
+        '1.1.0',
+        '--app',
+        app,
+      ];
+
+      writeFileSync(join(app, 'src', 'a.ts'), '// edited\n');
+
+      const refused = runCli({ args, cwd: framework });
+
+      expect(refused.code).toBe(1);
+      expect(refused.stderr).toContain('uncommitted');
+
+      commitAll({ cwd: app });
+
+      const applied = runCli({ args, cwd: framework });
+
+      expect(applied.stderr).toBe('');
+      expect(applied.code).toBe(0);
+      expect(readFileSync(log, 'utf8').trim()).toBe('codemod stub-cm . --write');
+      expect(applied.stdout).toContain('Ran `stub-cm`');
+    },
+  );
+
+  test('a usage error of apply exits 2', () => {
+    const { framework } = world();
+
+    expect(runCli({ args: ['migrate', 'apply'], cwd: framework }).code).toBe(2);
   });
 
   test.skipIf(!built)('an unknown version exits 1 with the message on stderr', () => {
