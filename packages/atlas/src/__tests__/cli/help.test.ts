@@ -63,17 +63,22 @@ describe('help', () => {
 });
 
 describe('an unknown subcommand', () => {
-  test.each(['changelogs', 'concepts'])(
-    '%s is a usage error: exit 2, the usage on stderr',
-    (word) => {
-      const result = run({ args: [word, 'migrate'], cwd: makeTempDirectory() });
+  test.each(['concepts'])('%s is a usage error: exit 2, the usage on stderr', (word) => {
+    const result = run({ args: [word, 'migrate'], cwd: makeTempDirectory() });
 
-      expect(result.code).toBe(2);
-      expect(result.stderr).toContain(`unknown subcommand: ${word}`);
-      expect(result.stderr).not.toContain('changelogs migrate');
-      expect(result.stderr).not.toContain('concepts stamp');
-    },
-  );
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(`unknown subcommand: ${word}`);
+    expect(result.stderr).not.toContain('concepts stamp');
+  });
+});
+
+describe('changelogs', () => {
+  test('takes only `check`: any other word is a usage error, exit 2', () => {
+    const result = run({ args: ['changelogs', 'migrate'], cwd: makeTempDirectory() });
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain('usage: vulcan x atlas changelogs check');
+  });
 });
 
 describe('tools', () => {

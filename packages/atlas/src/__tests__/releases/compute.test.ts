@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
-import { ReleaseCompute } from '@/releases';
+import { ReleaseCompute, ReleaseStore } from '@/releases';
 
 const roots: string[] = [];
 
@@ -346,5 +346,70 @@ describe('ReleaseCompute.compute with a legacy tag template', () => {
     });
 
     expect((table.releases.kernel ?? []).map((record) => record.version)).toEqual(['0.4.8']);
+  });
+});
+
+describe('ReleaseCompute.compute carries the migration block', () => {
+  const MIGRATION = `migration:
+  - id: rename-thing
+    symbols: [Thing.make]
+    upgrade: { before: "Thing.make()", after: "ThingFactory.build()" }
+    downgrade: { steps: ["Call Thing.make() again"] }
+    data: "Stored tokens keep the old prefix."
+    codemod: namespace-functions
+`;
+  const { root, git, write } = scratch();
+
+  git(['commit', '-q', '--allow-empty', '-m', 'init']);
+  write('changes/2026-02-01-with.md', changelog({ title: 'With', extra: MIGRATION }));
+  write('changes/2026-02-02-without.md', changelog({ title: 'Without' }));
+  write(
+    'changes/2026-02-03-invalid.md',
+    changelog({ title: 'Invalid', extra: 'migration:\n  - id: x\n' }),
+  );
+  git(['add', '-A']);
+  git(['commit', '-q', '-m', 'docs: entries']);
+
+  const table = ReleaseCompute.compute({ project: projectAt({ root }) });
+  const entry = (opts: { file: string }) =>
+    table.changelogs.find((record) => record.file === opts.file);
+
+  test('C6.1: an entry with a valid block carries it, parsed', () => {
+    expect(entry({ file: '2026-02-01-with.md' })?.migration).toEqual([
+      {
+        id: 'rename-thing',
+        symbols: ['Thing.make'],
+        upgrade: { before: 'Thing.make()', after: 'ThingFactory.build()' },
+        downgrade: { steps: ['Call Thing.make() again'] },
+        data: 'Stored tokens keep the old prefix.',
+        codemod: 'namespace-functions',
+      },
+    ]);
+  });
+
+  test('C6.1: an entry without a block, or with an invalid one, carries none', () => {
+    expect(entry({ file: '2026-02-02-without.md' })).not.toHaveProperty('migration');
+    expect(entry({ file: '2026-02-03-invalid.md' })).not.toHaveProperty('migration');
+  });
+
+  test('C6.2: the block survives JSON into a store; a table written without the field still loads', () => {
+    const window = { fromDate: '', toDate: '2026-12-31' };
+    const stored = new ReleaseStore({ table: JSON.parse(JSON.stringify(table)) });
+    const found = stored
+      .entriesBetween(window)
+      .find((record) => record.file === '2026-02-01-with.md');
+
+    expect(found?.migration?.[0].id).toBe('rename-thing');
+
+    const withoutField = JSON.parse(JSON.stringify(table));
+
+    for (const record of withoutField.changelogs) {
+      delete record.migration;
+    }
+
+    const loaded = new ReleaseStore({ table: withoutField }).entriesBetween(window);
+
+    expect(loaded).toHaveLength(3);
+    expect(loaded.every((record) => record.migration === undefined)).toBe(true);
   });
 });

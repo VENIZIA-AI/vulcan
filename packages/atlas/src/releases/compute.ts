@@ -7,6 +7,7 @@ import { PackageMap } from '@/common/package-map';
 import { DirectoryPath } from '@/common/paths';
 import type { IAtlasProject } from '@/common/project-config';
 import { TextValue } from '@/common/text';
+import { MigrationSchema } from '@/migrations/schema';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
 import { ReleaseTemplate } from './template';
 
@@ -324,7 +325,7 @@ export class ReleaseCompute {
           (record) => record.version === override?.[2],
         );
 
-        changelogs.push({
+        const record: IChangelogRecord = {
           id: `changelog:${file.replace(/\.md$/, '')}`,
           file,
           date: DATE_PREFIX_PATTERN.exec(file)?.[1] ?? '',
@@ -337,7 +338,15 @@ export class ReleaseCompute {
           ...(added === undefined
             ? {}
             : { order: placed?.order ?? countOf(added.get(file) ?? UNCOMMITTED_POSITION) }),
-        });
+        };
+        const migration = MigrationSchema.safeParse(data.migration);
+
+        // An invalid block is left out: `changelogs check` is where it fails, never the table.
+        if (migration.success) {
+          record.migration = migration.data;
+        }
+
+        changelogs.push(record);
       }
     }
 
