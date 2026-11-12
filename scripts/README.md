@@ -15,7 +15,7 @@ Root tooling of the VULCAN monorepo, grouped by purpose. Each group keeps its te
 | `release/` | `next-tag.ts` | Moves `next` up to `latest` after a publish | `package-release.yml`, step "Keep next at or above latest" |
 | `checks/` | `check-project-names.ts` | No project name (IGNIS, ARDOR or a downstream project) in `packages/*/src` or in what the cli ships (`packages/cli/base/**`), outside tests, fixtures and the registry of official presets | `make project-names-check`, part of `make lint-all` |
 | `checks/` | `gates.ts` | Runs every `make` line of the jobs of `ci.yml`, in CI's order (`--keep-going` runs all, `--list` prints them) | `make gates` |
-| `checks/` | `check-changelog-placeholder.ts` | No `X.Y.Z` placeholder in a changelog entry | `make changelog-check`, part of `make lint-all` |
+| `checks/` | `check-changelog-placeholder.ts` | No `X.Y.Z` placeholder in a changelog entry (`vulcan changelog check` then validates the `migration` blocks) | `make changelog-check`, part of `make lint-all` |
 | `checks/` | `release-workflow-guards.ts` | The guards of `package-release.yml` (read-only default permissions, no npm token, exact tool versions, ...) as a check over the parsed workflow | its test, in `make test-scripts` |
 | `checks/` | `publish-condition.ts` | The cases of the publish job's `if:` (a prerelease needs no approval, a stable does, a failed or cancelled dependency stops either) | the workflow test and `release-workflow-guards.ts` |
 | `build/` | `pack-smoke-atlas.ts` | Packs atlas, installs it alone in an empty project, runs it | `make smoke-atlas` (CI, release workflow) |

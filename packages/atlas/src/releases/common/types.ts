@@ -1,4 +1,5 @@
 import type { IPackageMapEntry } from '@/common/package-map';
+import type { TMigrationItem } from '@/migrations/schema';
 
 /** One published version of one package, as `vulcan x atlas releases` reads it off a release commit. */
 export interface IReleaseRecord {
@@ -24,6 +25,8 @@ export interface IChangelogRecord {
   title: string;
   packages: string[];
   kind: string | null;
+  /** How an app migrates across the entry: present only when the file's `migration` block is valid. */
+  migration?: TMigrationItem[];
   /** Release commits before the commit that added the file, all of them while it is uncommitted; absent when the project has no git history. */
   order?: number;
 }

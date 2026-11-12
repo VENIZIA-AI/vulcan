@@ -65,6 +65,8 @@ Usage: bun x vulcan <command>
   upgrade [--stable | --nightly] [<version|tag>]
                                   Bump the pinned @venizia/vulcan, then sync; --stable (default)
                                   takes the latest tag, --nightly the newest of latest and next
+  changelog check                 Check the changelog entries' `migration` blocks: a Breaking Change entry
+                                  dated on or after knowledge.migrationFrom must carry one, and every block must be valid
   x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas
   help · version
 ```
@@ -89,6 +91,7 @@ The following table lists each command, its purpose, its exit codes, and its ref
 | `event` | `event add` writes a line to the agent event log, `event tail` reads it; with `events.log` on, `sync` installs the Claude Code hooks that write it | `0` on success; `1` when the log cannot be written; `2` on bad input | [vulcan event](/references/commands/event) |
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |
 | `upgrade` | Bump the pinned `@venizia/vulcan` dependency and run sync | `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync` | [upgrade](#upgrade) |
+| `changelog` | `changelog check`: check the `migration` blocks of the changelog entries | `0` when every entry conforms; `1` when an entry does not, the tool is missing or the configuration is invalid; `2` for a subcommand other than `check` | [changelog](#changelog) |
 | `x` | Run a shipped tool (`okf` or `atlas`) at the pinned package version | `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool | [x](#x) |
 | `help` | Print usage information and available command options (`--help` and `-h` are aliases) | `0` | - |
 | `version` | Print the installed VULCAN package version (`--version` and `-v` are aliases) | `0` | - |
@@ -163,6 +166,13 @@ The command exits 0 on success.
 The command exits `1` when `node_modules/.bin/vulcan` is missing.
 It also exits `1` on an unknown argument, on `--stable` with `--nightly`, and on `--nightly` when the dist-tags cannot be read.
 Otherwise, the command returns the exit code of `bun add` or of the child `vulcan sync`.
+
+## changelog
+
+`vulcan changelog check` runs the gate over the dated entries of `knowledge.changelogs`: it is [`vulcan x atlas changelogs check`](/references/atlas/) at the pinned version.
+An entry with a `migration:` block in its frontmatter must have a valid one: every item has an `id` (unique in the folder), `symbols`, an `upgrade` and a `downgrade`, each either `before` and `after` or `steps`.
+An entry with a Breaking Change badge, dated on or after `knowledge.migrationFrom`, must carry a block; an earlier entry is never read.
+Each problem prints as `<file>: <message>` on stderr.
 
 ## x
 

@@ -261,6 +261,14 @@ export class CommandTable {
       exits:
         '0 on success; 1 when --stable and --nightly are both given, the dist-tags cannot be read, or the install or sync fails.',
     },
+    [VulcanCommands.CHANGELOG]: {
+      help: `  changelog check                 Check the changelog entries' \`migration\` blocks: a Breaking Change entry
+                                  dated on or after knowledge.migrationFrom must carry one, and every block must be valid`,
+      positionals: 1,
+      unknownExit: ExitCodes.USAGE,
+      exits:
+        '0 when every entry conforms; 1 when an entry does not, the tool is missing or the configuration is invalid; 2 for a subcommand other than check.',
+    },
     [VulcanCommands.X]: {
       help: `  x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas`,
       passthrough: true,

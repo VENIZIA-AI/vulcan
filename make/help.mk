@@ -35,7 +35,7 @@ help:
 	@$(HELP_ROW) "lint-all" "lint-<pkg> for every package, lint-wiki, lint-scripts, lint-files, then project-names-check, public-api-check, changelog-check."
 	@$(HELP_ROW) "project-names-check" "Gate: no project name (IGNIS, ARDOR or a downstream project) in packages/*/src or packages/cli/base outside tests."
 	@$(HELP_ROW) "public-api-check" "Gate: every export of cli and okf has a doc comment (vulcan x atlas api undocumented). Needs make atlas and make build first."
-	@$(HELP_ROW) "changelog-check" "Gate: no X.Y.Z placeholder in the changelog entries."
+	@$(HELP_ROW) "changelog-check" "Gate: no X.Y.Z placeholder in the changelog entries, and every migration block is valid."
 	@$(HELP_ROW) "wiki-shared-check" "Gate (C-21, release): the shared wiki theme equals the copies IGNIS and ARDOR publish on develop; ARGS='../ignis ../ardor' compares checkouts."
 	@$(HELP_ROW) "gates" "Run every check CI runs, in CI's order, stopping at the first failure (ARGS=\"--keep-going\" runs all, ARGS=\"--list\" prints them). Read from ci.yml."
 	@$(HELP_ROW) "agent-signature-check" "Gate (W-00): no commit of origin/develop..HEAD (or RANGE=...) signs itself as an agent."

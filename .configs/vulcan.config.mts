@@ -24,6 +24,8 @@ export default {
     bundle: '.agents/knowledge',
     wiki: 'docs/wiki/content',
     changelogs: 'docs/wiki/content/changelogs',
+    // The first day whose Breaking Change entries carry a `migration:` block (vulcan changelog check); earlier entries are never read.
+    migrationFrom: '2026-11-13',
   },
   // In release order: okf, then atlas, then the cli that pins both.
   packages: [

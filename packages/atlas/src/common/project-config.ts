@@ -67,7 +67,7 @@ export interface IAtlasProject {
   /** Absolute: where the project's `typescript` resolves from. */
   typescriptFrom: string;
   /** Absolute paths. */
-  knowledge: { bundle: string; wiki?: string; changelogs?: string };
+  knowledge: { bundle: string; wiki?: string; changelogs?: string; migrationFrom?: string };
   /** The sources this project reads knowledge from (git mode): `atlas.sources` of its config. */
   sources: { name: string; repo: string; ref: string; pin?: TSourcePin }[];
   /** The ed25519 public keys (base64, 32 raw bytes) whose signature a prebuilt index of this project must carry; absent when it publishes none. */
@@ -217,6 +217,7 @@ export class ProjectConfig {
     const knowledge = WireValue.recordOf({ value: manifest.knowledge });
     const wiki = WireValue.stringOf({ value: knowledge.wiki });
     const changelogs = WireValue.stringOf({ value: knowledge.changelogs });
+    const migrationFrom = WireValue.stringOf({ value: knowledge.migrationFrom });
 
     if (manifest.schemaVersion !== MANIFEST_SCHEMA_VERSION) {
       throw new Error(
@@ -279,6 +280,7 @@ export class ProjectConfig {
         ),
         ...(wiki === undefined ? {} : { wiki: resolve(opts.root, wiki) }),
         ...(changelogs === undefined ? {} : { changelogs: resolve(opts.root, changelogs) }),
+        migrationFrom,
       },
     };
   }
