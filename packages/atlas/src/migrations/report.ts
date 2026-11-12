@@ -80,7 +80,7 @@ const planOf = (opts: { plan: IMigrationPlan }): string[] => {
   }
 
   lines.push(
-    `A ${plan.direction}: ${touched.length} of ${plan.steps.length} changes found in your code.${source}`,
+    `${plan.direction === MigrateDirections.UPGRADE ? 'An' : 'A'} ${plan.direction}: ${touched.length} of ${plan.steps.length} changes found in your code.${source}`,
     '',
     ...touched.flatMap((step) => stepOf({ step })),
   );
