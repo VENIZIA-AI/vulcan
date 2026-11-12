@@ -115,6 +115,7 @@ The cache keeps the newest 3 commits per source, and the commit of each of the n
 When the remote repository is unreachable, atlas serves the commit last served for that ref.
 atlas never serves another ref's cache.
 An unreachable remote serves only a cache built at the current index format; with none, the source is unavailable.
+A cached set whose release table holds no changelog entry, although its commit holds some, is not served: the next start pulls it again.
 atlas tells the client at startup:
 
 ```text
@@ -227,6 +228,7 @@ A source is not served when it hits any of these conditions:
 | Git URL without git | `atlas: source '<name>' (<repo>@<ref>) needs git on this machine - only an owner/repo source has a tarball path` |
 | Short commit hash without git | `atlas: source '<name>' (<repo>@<ref>) - a short commit hash needs git on this machine; give all 40 characters` |
 | Missing manifest | `atlas: source '<name>' (<repo>@<ref>) has no .agents/vulcan.manifest.json - its maintainers run \`vulcan sync\` and commit it` |
+| Changelog entries lost | `atlas: source '<name>' (<repo>@<ref>) commits <n> dated entries in <folder>, but the checkout holds none, so its release table holds no changelog entry` or `... has <n> dated entries in <folder>, but its release table holds none` |
 | Incompatible manifest | `atlas: the manifest is schemaVersion <n>; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan` |
 
 If every source is unavailable and no local project exists, atlas halts with exit code 2:

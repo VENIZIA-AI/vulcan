@@ -18,6 +18,7 @@ import type { IReleaseTable } from '@/releases/common';
 import { ReleaseCompute } from '@/releases/compute';
 import { StderrLogger } from '@/common/logger';
 import { PrebuiltAttempt } from '@/prebuilt/attempt';
+import { ChangelogGuard } from './changelog-guard';
 import { SymbolCompute } from '@/symbols/compute';
 import { SourceCache } from './cache';
 import type {
@@ -178,9 +179,55 @@ const isComplete = (opts: { cacheRoot: string; sha: string }): boolean =>
   existsSync(join(SourceCache.artifactsOf(opts), COMPLETE)) &&
   existsSync(SourceCache.checkoutOf(opts));
 
+/** The dated entries the fetched commit holds in the changelog folder: what the checkout must show, whatever the sparse paths did. */
+const committedEntriesOf = (opts: {
+  checkout: string;
+  project: IAtlasProject;
+}): number | undefined => {
+  const directory = opts.project.knowledge.changelogs;
+
+  if (directory === undefined) {
+    return undefined;
+  }
+
+  const listed = GitRepository.run({
+    cwd: opts.checkout,
+    args: ['ls-tree', '--name-only', 'HEAD', '--', `${relative(opts.checkout, directory)}/`],
+  });
+
+  return ChangelogGuard.datedIn({ names: listed.split('\n').filter((line) => line.length > 0) });
+};
+
+/**
+ * A set whose release table holds no changelog entry although its commit holds some: a table that lost them
+ * (a checkout that did not show the folder when it was built). It is not served: the next start pulls it again.
+ */
+const hasLostChangelogs = (opts: { cacheRoot: string; sha: string }): boolean => {
+  try {
+    const table: IReleaseTable = JSON.parse(
+      readFileSync(join(SourceCache.artifactsOf(opts), RELEASES), 'utf8'),
+    );
+
+    if (table.changelogs.length > 0) {
+      return false;
+    }
+
+    const checkout = SourceCache.checkoutOf(opts);
+    const project = ProjectConfig.toAtlasProject({
+      root: checkout,
+      manifest: JSON.parse(readFileSync(join(checkout, MANIFEST_FILE), 'utf8')),
+    });
+
+    return (committedEntriesOf({ checkout, project }) ?? 0) > 0;
+  } catch {
+    // A set that cannot be read for this check is judged as it was before: by being complete and current.
+    return false;
+  }
+};
+
 /** A complete set built at this atlas's format: the only kind a start serves, online without pulling, offline from the cache. */
 const isCurrentSet = (opts: { cacheRoot: string; sha: string }): boolean =>
-  isComplete(opts) && isCurrentFormat(opts);
+  isComplete(opts) && isCurrentFormat(opts) && !hasLostChangelogs(opts);
 
 /** Every SHA pulled completely, the most recent pull first. */
 const completeShas = (opts: { cacheRoot: string }): string[] => {
@@ -305,6 +352,8 @@ const buildArtifacts = async (opts: {
   tags?: string;
   /** A pinned tag is read for its docs; the symbols come from what the project installed. */
   corpusOnly?: boolean;
+  /** How many dated changelog entries the fetched commit holds in the changelog folder, when git can say. */
+  committedEntries?: number;
   /** A verified downloaded index (and, while the tags are unchanged, its release table) in place of building them. */
   prebuilt?: { index: Uint8Array; releases?: IReleaseTable; builtBy: string };
 }): Promise<void> => {
@@ -316,6 +365,14 @@ const buildArtifacts = async (opts: {
   writeFileSync(join(partial, INDEX), opts.prebuilt?.index ?? IndexBuild.indexBytesOf({ project }));
 
   const releases = opts.prebuilt?.releases ?? ReleaseCompute.compute({ project });
+
+  // Not cached and not served: a table that lost its changelog would answer every window as empty.
+  ChangelogGuard.check({
+    project,
+    releases,
+    label: describe({ source: opts.source }),
+    committed: opts.committedEntries,
+  });
 
   writeFileSync(join(partial, RELEASES), `${JSON.stringify(releases)}\n`);
 
@@ -401,6 +458,7 @@ const pullByGit = async (opts: {
     project,
     history: true,
     tags: opts.tags,
+    committedEntries: committedEntriesOf({ checkout, project }),
     corpusOnly: opts.corpusOnly,
     ...(hit === undefined
       ? {}

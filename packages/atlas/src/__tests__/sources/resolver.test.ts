@@ -78,6 +78,41 @@ describe('SourceResolver.resolve', () => {
     ]);
   });
 
+  test('a source whose commit holds no changelog entry resolves with none: only entries that exist are owed', async () => {
+    const source = makeSourceRepository();
+
+    git({ cwd: source.work, args: ['rm', '-rq', 'docs/changelogs'] });
+    commitAll({ work: source.work, message: 'chore: the changelogs are gone' });
+    git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
+
+    const [resolved] = await SourceResolver.resolve({
+      cwd: consumer(),
+      cacheDir,
+      sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
+    });
+    const releases = JSON.parse(readFileSync(resolved.releasesFile ?? '', 'utf8'));
+
+    expect(releases.changelogs).toEqual([]);
+  });
+
+  test('a cached set whose release table lost its changelog is pulled again, not served', async () => {
+    const source = makeSourceRepository();
+    const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
+    const [first] = await SourceResolver.resolve({ cwd: consumer(), cacheDir, sources });
+    const file = first.releasesFile ?? '';
+    const table = JSON.parse(readFileSync(file, 'utf8'));
+
+    // The shape a downstream cache held: releases, and no changelog entry at all.
+    writeFileSync(file, `${JSON.stringify({ ...table, changelogs: [] })}\n`);
+
+    const [again] = await SourceResolver.resolve({ cwd: consumer(), cacheDir, sources });
+    const healed = JSON.parse(readFileSync(again.releasesFile ?? '', 'utf8'));
+
+    expect(healed.changelogs.map((entry: { id: string }) => entry.id)).toEqual([
+      'changelog:2026-01-01-first',
+    ]);
+  });
+
   test('the same SHA again is served from the cache, with no clone', async () => {
     const source = makeSourceRepository();
     const cwd = consumer();
