@@ -138,6 +138,26 @@ describe('the migrate tool', () => {
 });
 
 describe('MigrateReport.markdown', () => {
+  test('a source atlas could not serve is a Warning at the top, so an answer from the rest never reads as complete', () => {
+    const text = MigrateReport.markdown({
+      result: {
+        app: '/app',
+        skipped: [],
+        plans: [],
+        notServed: {
+          answeredFrom: ['app'],
+          indexing: [],
+          failed: [{ source: 'ignis', reason: 'fetch failed' }],
+          message:
+            'ignis could not be indexed (fetch failed) and is not searched; this answer covers only app',
+        },
+      },
+    });
+
+    expect(text).toContain('Warning: ignis could not be indexed (fetch failed)');
+    expect(text.indexOf('Warning:')).toBeLessThan(text.indexOf('Places are found'));
+  });
+
   test('prints the plan note, the skipped packages and the files not read, and says what the scan covers', () => {
     const text = MigrateReport.markdown({
       result: {
@@ -151,9 +171,24 @@ describe('MigrateReport.markdown', () => {
             direction: 'downgrade',
             target: 'release table',
             note: 'latest is older than the installed 1.3.0-0',
+            entries: 2,
+            steps: [],
+            unstructured: [
+              { id: 'changelog:2026-02-01-x', title: 'X', date: '2026-02-01' },
+              { id: 'changelog:2026-02-02-y', title: 'Y', date: '2026-02-02' },
+            ],
+            unreadable: ['src/locked.ts'],
+          },
+          {
+            package: '@venizia/web',
+            from: '1.0.0',
+            to: '1.1.0',
+            direction: 'upgrade',
+            target: 'version',
+            entries: 0,
             steps: [],
             unstructured: [],
-            unreadable: ['src/locked.ts'],
+            unreadable: [],
           },
         ],
       },
@@ -162,6 +197,14 @@ describe('MigrateReport.markdown', () => {
     expect(text).toContain('Note: latest is older than the installed 1.3.0-0');
     expect(text).toContain('Skipped @venizia/x: unknown version');
     expect(text).toContain('Not read (1): src/locked.ts');
+    // Entries and no structured step: the headline says so and does not read as clean.
+    expect(text).toContain(
+      'A downgrade: 2 changelog entries in the window; 0 structured steps, 0 found in your code; 2 breaking entries have no structured steps, so the scan could not check them.',
+    );
+    // An empty window says it is empty and why it proves nothing.
+    expect(text).toContain('No changelog entry falls between 1.0.0 and 1.1.0 in the release table');
+    expect(text).toContain('proves nothing');
+    expect(text).not.toContain('0 of 0');
     expect(text).toContain('static imports');
   });
 
@@ -176,7 +219,9 @@ describe('MigrateReport.markdown', () => {
     const text = MigrateReport.markdown({ result });
 
     expect(text).toContain('## @venizia/kernel: 1.0.0 to 2.0.0');
-    expect(text).toContain('An upgrade: 1 of 1 changes found in your code.');
+    expect(text).toContain(
+      'An upgrade: 1 changelog entry in the window; 1 structured step, 1 found in your code.',
+    );
     expect(text).toContain('src/a.ts:3 (Thing.make)');
     expect(text).toContain('ThingFactory.build()');
     expect(text).toContain('Data: Stored values change.');
@@ -206,7 +251,9 @@ describe('MigrateReport.markdown', () => {
     });
     const text = MigrateReport.markdown({ result });
 
-    expect(text).toContain('A downgrade: 0 of 1 changes found in your code.');
+    expect(text).toContain(
+      'A downgrade: 1 changelog entry in the window; 1 structured step, 0 found in your code.',
+    );
     expect(text).toContain('### No static import found');
     expect(text).toContain('Use Thing.make() again');
   });

@@ -294,6 +294,41 @@ describe('MigrateApply.run', () => {
     expect(calls({ log })).toEqual([]);
   });
 
+  test('a plan made while a source was not served is refused unless --force: it may be incomplete', () => {
+    const { app, log } = appWith();
+    const out: string[] = [];
+    const err: string[] = [];
+    const result = MigratePlan.plans({
+      releases,
+      app,
+      package: '@venizia/kernel',
+      from: '1.0.0',
+      to: '1.2.0',
+    });
+    const partial = {
+      ...result,
+      notServed: {
+        answeredFrom: ['app'],
+        indexing: [],
+        failed: [{ source: 'ignis', reason: 'fetch failed' }],
+        message: 'ignis could not be indexed (fetch failed) and is not searched',
+      },
+    };
+    const code = MigrateApply.run({
+      result: partial,
+      force: false,
+      out: (text) => out.push(text),
+      err: (text) => err.push(text),
+    });
+
+    expect(code).toBe(1);
+    expect(err.join('')).toContain('ignis could not be indexed');
+    expect(calls({ log })).toEqual([]);
+    expect(MigrateApply.run({ result: partial, force: true, out: () => {}, err: () => {} })).toBe(
+      0,
+    );
+  });
+
   test('a codemod name that is not lower-case words joined by - is refused before anything runs', () => {
     const { app, log } = appWith();
     const out: string[] = [];
