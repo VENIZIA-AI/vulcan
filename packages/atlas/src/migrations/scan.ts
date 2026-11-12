@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
+import type { Dirent } from 'node:fs';
 import { join, relative } from 'node:path';
 import type TypeScript from 'typescript';
 import { TypeScriptCompiler } from '@/common/compiler';
@@ -24,9 +25,11 @@ export interface IScanTarget {
 interface IFileFacts {
   /** Every `import ... from` and `export ... from` with a string specifier, and `import('...')`. */
   modules: { specifier: string; line: number }[];
+  /** `export * from '<specifier>'`: everything of the module, so every bare name of it. */
+  stars: { specifier: string; line: number }[];
   /** Named imports and the names `export { } from` re-exports. */
   named: { specifier: string; imported: string; line: number }[];
-  /** Local names bound by an import: `{ A as B }` binds `B` to `A`, `* as ns` binds `ns` to everything. */
+  /** Local names bound by an import: `{ A as B }` binds `B` to `A`; `* as ns` and a default import bind the local to everything. */
   bindings: { local: string; imported: string; specifier: string; isNamespace: boolean }[];
   /** Every identifier that is not a member name, with the member read from it (`a.b.c`: member `b`, deeper `c`). */
   uses: { local: string; member?: string; deeper?: string; line: number }[];
@@ -38,39 +41,72 @@ const SKIPPED_DIRECTORIES = new Set(['node_modules', 'dist', 'build', 'coverage'
 const belongsTo = (opts: { specifier: string; packages: string[] }): boolean =>
   opts.packages.some((name) => opts.specifier === name || opts.specifier.startsWith(`${name}/`));
 
-const filesOf = (opts: { directory: string }): string[] =>
-  readdirSync(opts.directory, { withFileTypes: true }).flatMap((entry) => {
+/** Source files under `directory`; a folder that cannot be read is named in `unreadable` and left out. */
+const filesOf = (opts: { directory: string; unreadable: string[]; root?: string }): string[] => {
+  const root = opts.root ?? opts.directory;
+  let entries: Dirent[];
+
+  try {
+    entries = readdirSync(opts.directory, { withFileTypes: true });
+  } catch {
+    opts.unreadable.push(relative(root, opts.directory) || '.');
+
+    return [];
+  }
+
+  return entries.flatMap((entry) => {
     const path = join(opts.directory, entry.name);
 
     if (entry.isDirectory()) {
       return entry.name.startsWith('.') || SKIPPED_DIRECTORIES.has(entry.name)
         ? []
-        : filesOf({ directory: path });
+        : filesOf({ directory: path, unreadable: opts.unreadable, root });
     }
 
     return entry.isFile() && SOURCE_FILE.test(entry.name) ? [path] : [];
   });
+};
 
 /**
  * Where an app's code uses what a migration names. Syntax only (no program, no type check): an
  * import binding is followed to its uses by name, so a local that shadows an import is counted -
  * the plan lists a place to look, never an edit.
  */
+/** What a scan found: the touches of each target by id, and the files it could not read. */
+export interface IScanResult {
+  touches: Record<string, IMigrationTouch[]>;
+  /** Relative paths of files or folders that could not be read; the rest was scanned. */
+  unreadable: string[];
+}
+
 export class AppScan {
-  static scan(opts: { app: string; targets: IScanTarget[] }): Record<string, IMigrationTouch[]> {
+  static scan(opts: { app: string; targets: IScanTarget[] }): IScanResult {
     const compiler = TypeScriptCompiler.get();
     const found: Record<string, IMigrationTouch[]> = Object.fromEntries(
       opts.targets.map((target) => [target.id, []]),
     );
+    const unreadable: string[] = [];
     const needles = opts.targets.flatMap((target) =>
       target.symbols.map((symbol) => (symbol.startsWith('@') ? symbol : symbol.split('.')[0])),
     );
+    const packages = opts.targets.flatMap((target) => target.packages);
 
-    for (const path of filesOf({ directory: opts.app })) {
-      const text = readFileSync(path, 'utf8');
+    for (const path of filesOf({ directory: opts.app, unreadable })) {
+      let text: string;
 
-      // Most files name none of the symbols: they are never parsed.
-      if (!needles.some((needle) => text.includes(needle))) {
+      try {
+        text = readFileSync(path, 'utf8');
+      } catch {
+        unreadable.push(relative(opts.app, path));
+
+        continue;
+      }
+
+      // Most files name none of the symbols: they are never parsed. `export *` names none, only the package.
+      const names = needles.some((needle) => text.includes(needle));
+      const stars = text.includes('export *') && packages.some((name) => text.includes(name));
+
+      if (!names && !stars) {
         continue;
       }
 
@@ -86,7 +122,7 @@ export class AppScan {
       }
     }
 
-    return found;
+    return { touches: found, unreadable: unreadable.map((path) => path) };
   }
 
   private static factsOf(opts: {
@@ -101,7 +137,7 @@ export class AppScan {
       compiler.ScriptTarget.Latest,
       true,
     );
-    const facts: IFileFacts = { modules: [], named: [], bindings: [], uses: [] };
+    const facts: IFileFacts = { modules: [], stars: [], named: [], bindings: [], uses: [] };
     const lineOf = (node: TypeScript.Node): number =>
       source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
     const specifierOf = (node: TypeScript.Node | undefined): string | undefined =>
@@ -120,6 +156,19 @@ export class AppScan {
         const clause = compiler.isImportDeclaration(node)
           ? node.importClause?.namedBindings
           : node.exportClause;
+
+        if (compiler.isExportDeclaration(node) && node.exportClause === undefined) {
+          facts.stars.push({ specifier, line: lineOf(node) });
+        }
+
+        if (compiler.isImportDeclaration(node) && node.importClause?.name !== undefined) {
+          facts.bindings.push({
+            local: node.importClause.name.text,
+            imported: 'default',
+            specifier,
+            isNamespace: true,
+          });
+        }
 
         if (clause !== undefined && compiler.isNamespaceImport(clause)) {
           facts.bindings.push({
@@ -215,6 +264,10 @@ export class AppScan {
 
     // The import (or re-export) of the bare name is itself a place the migration reaches.
     if (member === undefined) {
+      for (const star of facts.stars.filter((candidate) => ours(candidate.specifier))) {
+        lines.add(star.line);
+      }
+
       for (const entry of facts.named.filter(
         (candidate) => candidate.imported === head && ours(candidate.specifier),
       )) {

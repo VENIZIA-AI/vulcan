@@ -38,7 +38,11 @@ const parse = (opts: { args: string[] }): IParsed | undefined => {
       continue;
     }
 
-    if (!VALUE_FLAGS.has(flag) || value === undefined) {
+    if (
+      !VALUE_FLAGS.has(flag) ||
+      value === undefined ||
+      (joined === undefined && value.startsWith('--'))
+    ) {
       return undefined;
     }
 

@@ -32,10 +32,10 @@ const stepOf = (opts: { step: IMigrationStep }): string[] => {
   ];
 
   if (step.touches.length === 0) {
-    lines.push('Not in your code.');
+    lines.push('No static import found.');
   } else {
     lines.push(
-      'In your code:',
+      'Found in your code:',
       ...step.touches.map((touch) => `- ${touch.file}:${touch.line} (${touch.symbol})`),
     );
   }
@@ -69,16 +69,20 @@ const planOf = (opts: { plan: IMigrationPlan }): string[] => {
     plan.target === MigrateTargets.RELEASE_TABLE
       ? ' The target version comes from the atlas release table, not the registry.'
       : '';
-  const lines = [
-    heading,
-    '',
-    `A ${plan.direction}: ${touched.length} of ${plan.steps.length} changes reach your code.${source}`,
+  const lines = [heading, ''];
+
+  if (plan.note !== undefined) {
+    lines.push(`Note: ${plan.note}`, '');
+  }
+
+  lines.push(
+    `A ${plan.direction}: ${touched.length} of ${plan.steps.length} changes found in your code.${source}`,
     '',
     ...touched.flatMap((step) => stepOf({ step })),
-  ];
+  );
 
   if (rest.length > 0) {
-    lines.push('### Not in your code', '', ...rest.flatMap((step) => stepOf({ step })));
+    lines.push('### No static import found', '', ...rest.flatMap((step) => stepOf({ step })));
   }
 
   if (plan.unstructured.length > 0) {
@@ -92,6 +96,10 @@ const planOf = (opts: { plan: IMigrationPlan }): string[] => {
     );
   }
 
+  if (plan.unreadable.length > 0) {
+    lines.push(`Not read (${plan.unreadable.length}): ${plan.unreadable.join(', ')}`, '');
+  }
+
   return lines;
 };
 
@@ -101,8 +109,14 @@ export class MigrateReport {
     const lines = [
       `# Migration plan for ${opts.result.app}`,
       '',
+      'Places are found by static imports of the package in `.ts`, `.tsx`, `.js` and similar files; `require()` calls and destructured namespaces are not scanned.',
+      '',
       ...opts.result.plans.flatMap((plan) => planOf({ plan })),
     ];
+
+    for (const skipped of opts.result.skipped) {
+      lines.push(`Skipped ${skipped.package}: ${skipped.reason}`, '');
+    }
 
     return `${lines.join('\n').trimEnd()}\n`;
   }

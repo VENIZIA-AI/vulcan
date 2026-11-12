@@ -138,6 +138,33 @@ describe('the migrate tool', () => {
 });
 
 describe('MigrateReport.markdown', () => {
+  test('prints the plan note, the skipped packages and the files not read, and says what the scan covers', () => {
+    const text = MigrateReport.markdown({
+      result: {
+        app: '/app',
+        skipped: [{ package: '@venizia/x', reason: "unknown version '1.0.0+local'" }],
+        plans: [
+          {
+            package: '@venizia/kernel',
+            from: '1.3.0-0',
+            to: '1.2.1',
+            direction: 'downgrade',
+            target: 'release table',
+            note: 'latest is older than the installed 1.3.0-0',
+            steps: [],
+            unstructured: [],
+            unreadable: ['src/locked.ts'],
+          },
+        ],
+      },
+    });
+
+    expect(text).toContain('Note: latest is older than the installed 1.3.0-0');
+    expect(text).toContain('Skipped @venizia/x: unknown version');
+    expect(text).toContain('Not read (1): src/locked.ts');
+    expect(text).toContain('static imports');
+  });
+
   test('lists what reaches the app first, with file:line, the steps, data and codemod', () => {
     const app = appWith({ dependencies: { '@venizia/kernel': '1.0.0' } });
     const result = MigratePlan.plans({
@@ -178,8 +205,8 @@ describe('MigrateReport.markdown', () => {
     });
     const text = MigrateReport.markdown({ result });
 
-    expect(text).toContain('A downgrade: 0 of 1 changes reach your code.');
-    expect(text).toContain('### Not in your code');
+    expect(text).toContain('A downgrade: 0 of 1 changes found in your code.');
+    expect(text).toContain('### No static import found');
     expect(text).toContain('Use Thing.make() again');
   });
 });

@@ -1,3 +1,5 @@
+import { existsSync, statSync } from 'node:fs';
+import { RpcError } from '@/protocol/common';
 import { InstalledVersions, ToolErrors } from '@/tools/common';
 import type { IChangelogRecord, IReleaseIndex } from '@/releases';
 import { AppScan } from './scan';
@@ -48,13 +50,24 @@ export interface IMigrationPlan {
   direction: string;
   /** Where `to` came from: the release table (`latest`, `next`) or the version as given. */
   target: string;
+  /** A warning about how to read the plan, e.g. `latest` is older than the installed version; absent otherwise. */
+  note?: string;
   steps: IMigrationStep[];
   unstructured: IUnstructuredEntry[];
+  /** Files of the app that could not be read; the scan covered the rest. */
+  unreadable: string[];
+}
+
+/** A package left out of a run over every installed package, with why. */
+export interface ISkippedPackage {
+  package: string;
+  reason: string;
 }
 
 export interface IMigrationResult {
   app: string;
   plans: IMigrationPlan[];
+  skipped: ISkippedPackage[];
 }
 
 const LATEST = 'latest';
@@ -80,6 +93,10 @@ export class MigratePlan {
       throw ToolErrors.invalidParams(opts.releases.emptyReason);
     }
 
+    if (!existsSync(opts.app) || !statSync(opts.app).isDirectory()) {
+      throw ToolErrors.invalidParams(`app directory not found: ${opts.app}`);
+    }
+
     const installed = InstalledVersions.read({ cwd: opts.app });
 
     if (opts.package !== undefined) {
@@ -88,7 +105,11 @@ export class MigratePlan {
         opts.from ??
         MigratePlan.installedOf({ installed, name, releases: opts.releases, app: opts.app });
 
-      return { app: opts.app, plans: [MigratePlan.build({ ...opts, package: name, from })] };
+      return {
+        app: opts.app,
+        plans: [MigratePlan.build({ ...opts, package: name, from })],
+        skipped: [],
+      };
     }
 
     if (opts.from !== undefined || (opts.to !== LATEST && opts.to !== NEXT)) {
@@ -109,18 +130,30 @@ export class MigratePlan {
       );
     }
 
-    return {
-      app: opts.app,
-      plans: served.map(({ name, version }) =>
-        MigratePlan.build({
-          releases: opts.releases,
-          app: opts.app,
-          package: name,
-          from: version,
-          to: opts.to,
-        }),
-      ),
-    };
+    const result: IMigrationResult = { app: opts.app, plans: [], skipped: [] };
+
+    for (const { name, version } of served) {
+      try {
+        result.plans.push(
+          MigratePlan.build({
+            releases: opts.releases,
+            app: opts.app,
+            package: name,
+            from: version,
+            to: opts.to,
+          }),
+        );
+      } catch (error) {
+        // One package the table cannot place (a local build) does not stop the plans of the others.
+        if (!(error instanceof RpcError)) {
+          throw error;
+        }
+
+        result.skipped.push({ package: name, reason: error.message });
+      }
+    }
+
+    return result;
   }
 
   private static installedOf(opts: {
@@ -173,6 +206,7 @@ export class MigratePlan {
       target,
       steps: [],
       unstructured: [],
+      unreadable: [],
     };
     const sign = MigratePlan.compare({ releases, package: opts.package, from: opts.from, to });
 
@@ -192,7 +226,8 @@ export class MigratePlan {
         symbols: migration.symbols,
       })),
     );
-    const touches = AppScan.scan({ app: opts.app, targets });
+    const scanned = AppScan.scan({ app: opts.app, targets });
+    const { touches } = scanned;
     const steps = withBlock.flatMap((entry) => {
       const items = isUpgrade ? (entry.migration ?? []) : [...(entry.migration ?? [])].reverse();
 
@@ -219,9 +254,10 @@ export class MigratePlan {
       });
     });
 
-    return {
+    const plan: IMigrationPlan = {
       ...base,
       direction: isUpgrade ? MigrateDirections.UPGRADE : MigrateDirections.DOWNGRADE,
+      unreadable: scanned.unreadable,
       steps,
       unstructured: ordered
         .filter(
@@ -232,6 +268,12 @@ export class MigratePlan {
         )
         .map((entry) => ({ id: entry.id, title: entry.title, date: entry.date })),
     };
+
+    if (isAlias && !isUpgrade) {
+      plan.note = `${opts.to} is ${to}, older than the installed ${opts.from}: this plan is a downgrade; use next to stay on the newest release`;
+    }
+
+    return plan;
   }
 
   private static keyOf(opts: { entry: IChangelogRecord; migration: TMigrationItem }): string {

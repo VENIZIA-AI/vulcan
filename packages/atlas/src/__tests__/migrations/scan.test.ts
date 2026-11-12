@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { AppScan } from '@/migrations';
@@ -29,7 +29,7 @@ const lines = (opts: { app: string; symbols: string[]; packages?: string[] }): s
   AppScan.scan({
     app: opts.app,
     targets: [{ id: 't', packages: opts.packages ?? ['@a/kernel'], symbols: opts.symbols }],
-  }).t.map((touch) => `${touch.file}:${touch.line}:${touch.symbol}`);
+  }).touches.t.map((touch) => `${touch.file}:${touch.line}:${touch.symbol}`);
 
 describe('AppScan.scan', () => {
   test('C10.1: an import and every use of a named symbol are reported with file and line', () => {
@@ -139,6 +139,49 @@ describe('AppScan.scan', () => {
     ]);
   });
 
+  test('a default import is followed like a namespace: Foo.Name reaches Name', () => {
+    const app = appWith({
+      files: { 'a.ts': "import Foo from '@a/kernel';\n\nFoo.Thing.make();\nFoo.Other();\n" },
+    });
+
+    expect(lines({ app, symbols: ['Thing'] })).toEqual(['a.ts:3:Thing']);
+    expect(lines({ app, symbols: ['Thing.make'] })).toEqual(['a.ts:3:Thing.make']);
+  });
+
+  test('`export * from` a package of the target reaches every bare name, at its line, never a member', () => {
+    const app = appWith({
+      files: {
+        'a.ts': "export * from '@a/kernel';\n",
+        'b.ts': "export * from '@a/kernel/sub';\n",
+        'c.ts': "export * from '@z/other';\n",
+      },
+    });
+
+    expect(lines({ app, symbols: ['Thing'] }).sort()).toEqual(['a.ts:1:Thing', 'b.ts:1:Thing']);
+    expect(lines({ app, symbols: ['Thing.make'] })).toEqual([]);
+  });
+
+  test('an unreadable file is skipped and reported, the rest is still scanned', () => {
+    const app = appWith({
+      files: {
+        'good.ts': "import { Thing } from '@a/kernel';\n",
+        'locked.ts': "import { Thing } from '@a/kernel';\n",
+      },
+    });
+
+    chmodSync(join(app, 'locked.ts'), 0o000);
+
+    const found = AppScan.scan({
+      app,
+      targets: [{ id: 't', packages: ['@a/kernel'], symbols: ['Thing'] }],
+    });
+
+    chmodSync(join(app, 'locked.ts'), 0o644);
+
+    expect(found.touches.t.map((touch) => touch.file)).toEqual(['good.ts']);
+    expect(found.unreadable).toEqual(['locked.ts']);
+  });
+
   test('two targets are answered apart, and a target with no touch holds an empty list', () => {
     const app = appWith({ files: { 'a.ts': "import { Thing } from '@a/kernel';\n" } });
     const found = AppScan.scan({
@@ -149,7 +192,7 @@ describe('AppScan.scan', () => {
       ],
     });
 
-    expect(found.one).toHaveLength(1);
-    expect(found.two).toEqual([]);
+    expect(found.touches.one).toHaveLength(1);
+    expect(found.touches.two).toEqual([]);
   });
 });

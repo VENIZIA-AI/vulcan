@@ -1,6 +1,14 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { MigratePlan } from '@/migrations';
@@ -358,6 +366,60 @@ describe('MigratePlan.plans', () => {
     });
 
     expect(result.plans[0].steps.map((step) => step.id)).toEqual(['rename-thing']);
+  });
+
+  test('a served package whose installed version is not in the table is skipped with the reason; the others are planned', () => {
+    const app = appWith({
+      dependencies: { '@venizia/kernel': '1.1.0+local', '@venizia/web': '2.0.0' },
+    });
+    const result = MigratePlan.plans({ releases, app, to: 'latest' });
+
+    expect(result.plans.map((entryOf) => entryOf.package)).toEqual(['@venizia/web']);
+    expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0].package).toBe('@venizia/kernel');
+    expect(result.skipped[0].reason).toContain("unknown version '1.1.0+local'");
+  });
+
+  test('a package named by the caller keeps the hard error', () => {
+    const app = appWith({ dependencies: { '@venizia/kernel': '1.1.0+local' } });
+
+    expect(() => plan({ app, to: 'latest' })).toThrow(/unknown version '1.1.0\+local'/);
+  });
+
+  test('latest from a prerelease newer than the newest stable is a downgrade with a note; the semantics stay', () => {
+    const app = appWith({});
+    const [toLatest] = plan({ app, from: '1.3.0-0', to: 'latest' }).plans;
+    const [toVersion] = plan({ app, from: '1.3.0-0', to: '1.2.1' }).plans;
+    const [upgrade] = plan({ app, from: '1.0.0', to: 'latest' }).plans;
+
+    expect(toLatest.direction).toBe('downgrade');
+    expect(toLatest.note).toContain('latest');
+    expect(toLatest.note).toContain('next');
+    expect(toVersion.note).toBeUndefined();
+    expect(upgrade.note).toBeUndefined();
+  });
+
+  test('a missing app directory is invalid params naming it, never a raw ENOENT', () => {
+    const missing = join(tmpdir(), 'atlas-plan-does-not-exist');
+
+    expect(() => plan({ app: missing, from: '1.0.0', to: '1.2.0' })).toThrow(
+      `app directory not found: ${missing}`,
+    );
+  });
+
+  test('an unreadable file is counted on the plan, not an abort', () => {
+    const app = appWith({
+      files: { ...USES, 'src/locked.ts': "import { Thing } from '@venizia/kernel';\n" },
+    });
+
+    chmodSync(join(app, 'src', 'locked.ts'), 0o000);
+
+    const [result] = plan({ app, from: '1.0.0', to: '1.2.0' }).plans;
+
+    chmodSync(join(app, 'src', 'locked.ts'), 0o644);
+
+    expect(result.unreadable).toEqual(['src/locked.ts']);
+    expect(result.steps[0].touches).toHaveLength(1);
   });
 
   test('C14: planning writes nothing in the app', () => {
