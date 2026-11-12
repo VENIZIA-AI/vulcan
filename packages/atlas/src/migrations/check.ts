@@ -4,14 +4,15 @@ import { join } from 'node:path';
 import { Resolve } from '@/changelogs/resolve';
 import type { IAtlasProject } from '@/common/project-config';
 import { TextValue } from '@/common/text';
+import { BreakingBadge } from './badges';
 import { MigrationSchema } from './schema';
 
 const DATED_ENTRY = /^(\d{4}-\d{2}-\d{2})-.*\.md$/;
 /** Both spellings the repositories use mean a breaking change; only the long one is canonical. */
 const BREAKING_BADGE = /<Badge[^>]*\stext="Breaking(?: Change)?"/;
 const SHORT_BADGE = /<Badge[^>]*\stext="Breaking"/;
-const BREAKING = 'Breaking Change';
-const BREAKING_SHORT = 'Breaking';
+const BREAKING = BreakingBadge.CANONICAL;
+const BREAKING_SHORT = BreakingBadge.SHORT;
 const DEVZ_TIMEOUT_MS = 30_000;
 
 /** One reason an entry fails the check; `file` is the entry's name in the changelog folder. */

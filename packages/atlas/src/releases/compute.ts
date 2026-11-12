@@ -7,6 +7,7 @@ import { PackageMap } from '@/common/package-map';
 import { DirectoryPath } from '@/common/paths';
 import type { IAtlasProject } from '@/common/project-config';
 import { TextValue } from '@/common/text';
+import { BreakingBadge } from '@/migrations/badges';
 import { MigrationSchema } from '@/migrations/schema';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
 import { ReleaseTemplate } from './template';
@@ -243,9 +244,11 @@ export class ReleaseCompute {
       : opts.file.replace(/\.md$/, '');
   }
 
-  /** The first `<Badge ... text="X" />` in the file, or `null` when it carries none. */
+  /** The first `<Badge ... text="X" />` in the file, or `null` when it carries none; the short `Breaking` is reported as `Breaking Change`. */
   static kindOfChangelog(opts: { text: string }): string | null {
-    return BADGE_TEXT_PATTERN.exec(opts.text)?.[1] ?? null;
+    const kind = BADGE_TEXT_PATTERN.exec(opts.text)?.[1];
+
+    return kind === undefined ? null : BreakingBadge.canonical({ text: kind });
   }
 
   /**
