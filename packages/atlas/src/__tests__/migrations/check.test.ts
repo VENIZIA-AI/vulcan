@@ -307,6 +307,22 @@ describe('ChangelogCheck.scan', () => {
     expect(ChangelogCheck.scan({ project, codemods: ['nope'] })).toEqual([]);
   });
 
+  test('a codemod name is lower-case words joined by -: anything else, a leading - included, fails', () => {
+    for (const name of ['--write', '-x', 'Has Space', 'UPPER', 'a_b', '../x', 'a;b']) {
+      const { project } = projectWith({
+        files: {
+          '2026-11-20-a.md': entry({
+            badge: BREAKING,
+            extra: ITEM.replace('    downgrade', `    codemod: "${name}"\n    downgrade`),
+          }),
+        },
+        migrationFrom: '2026-11-13',
+      });
+
+      expect(ChangelogCheck.scan({ project }).length, name).toBeGreaterThan(0);
+    }
+  });
+
   test('C5: with no codemod list the name is not checked', () => {
     const { project } = projectWith({
       files: {

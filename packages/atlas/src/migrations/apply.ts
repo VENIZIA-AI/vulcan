@@ -1,8 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { AtlasGit } from '@/common/constants';
 import { MigrateDirections } from './plan';
+import { MIGRATION_NAME_PATTERN } from './schema';
 import type { IMigrationPlan, IMigrationResult, IMigrationStep } from './plan';
 import { MigrateReport } from './report';
 
@@ -25,9 +26,19 @@ interface ICodemodOutcome {
   output: string;
 }
 
-/** The first `node_modules/.bin/devz` from `directory` up: a workspace installs it at the root, not beside each app. */
+/**
+ * The first `node_modules/.bin/devz` from `directory` up to the app's git work tree root (a workspace
+ * installs it at the root, not beside each app). Outside git only `directory` itself is searched: a
+ * `devz` of an unrelated parent folder is never run.
+ */
 const devzFrom = (opts: { directory: string }): string | undefined => {
-  let directory = opts.directory;
+  const toplevel = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: opts.directory,
+    encoding: 'utf8',
+    env: AtlasGit.buildEnvironment(),
+  });
+  const top = toplevel.status === 0 ? realpathSync(toplevel.stdout.trim()) : undefined;
+  let directory = realpathSync(opts.directory);
 
   for (;;) {
     const candidate = join(directory, 'node_modules', '.bin', 'devz');
@@ -38,7 +49,7 @@ const devzFrom = (opts: { directory: string }): string | undefined => {
 
     const parent = dirname(directory);
 
-    if (parent === directory) {
+    if (top === undefined || directory === top || parent === directory) {
       return undefined;
     }
 
@@ -183,6 +194,19 @@ export class MigrateApply {
       opts.out(reportOf({ result, outcomes }));
 
       return 0;
+    }
+
+    // A codemod name reaches a command line: a table that is not schema-checked is checked here, before anything runs.
+    const badName = planned
+      .flatMap((entry) => entry.codemods)
+      .find((entry) => !MIGRATION_NAME_PATTERN.test(entry.codemod));
+
+    if (badName !== undefined) {
+      opts.err(
+        `vulcan migrate apply: codemod name '${badName.codemod}' is not lower-case words joined by -; refusing to run it\n`,
+      );
+
+      return 1;
     }
 
     const refusal = opts.force ? undefined : refusalOf({ app: result.app });

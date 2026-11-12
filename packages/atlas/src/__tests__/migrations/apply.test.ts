@@ -294,6 +294,101 @@ describe('MigrateApply.run', () => {
     expect(calls({ log })).toEqual([]);
   });
 
+  test('a codemod name that is not lower-case words joined by - is refused before anything runs', () => {
+    const { app, log } = appWith();
+    const out: string[] = [];
+    const err: string[] = [];
+    const bad = new ReleaseStore({
+      table: {
+        ...TABLE,
+        changelogs: [
+          {
+            ...entry({ slug: 'x', order: 1, items: [item({ id: 'one', codemod: 'cm-a' })] }),
+            // A table from an older or hostile source is not schema-checked: the name is checked again here.
+            migration: [{ ...item({ id: 'one' }), codemod: '--write' }],
+          },
+        ],
+      },
+    });
+    const code = MigrateApply.run({
+      result: MigratePlan.plans({
+        releases: bad,
+        app,
+        package: '@venizia/kernel',
+        from: '1.0.0',
+        to: '1.1.0',
+      }),
+      force: false,
+      out: (text) => out.push(text),
+      err: (text) => err.push(text),
+    });
+
+    expect(code).toBe(1);
+    expect(err.join('')).toContain("codemod name '--write'");
+    expect(calls({ log })).toEqual([]);
+  });
+
+  test('devz is looked for from the app up to its git root, never beyond', () => {
+    const { app, log } = appWith({ devz: false });
+    const parentBin = join(dirname(app), 'node_modules', '.bin');
+
+    mkdirSync(parentBin, { recursive: true });
+    writeFileSync(join(parentBin, 'devz'), STUB({ log }));
+    chmodSync(join(parentBin, 'devz'), 0o755);
+
+    const result = apply({ app, from: '1.0.0', to: '1.2.0' });
+
+    expect(result.code).toBe(1);
+    expect(result.err).toContain('devz is not installed');
+    expect(calls({ log })).toEqual([]);
+  });
+
+  test('an app inside a larger git work tree finds the devz at that work tree root', () => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-apply-mono-'));
+    const log = join(root, 'devz.log');
+    const app = join(root, 'apps', 'web');
+
+    roots.push(root);
+    mkdirSync(join(root, 'node_modules', '.bin'), { recursive: true });
+    mkdirSync(join(app, 'src'), { recursive: true });
+    writeFileSync(join(root, 'node_modules', '.bin', 'devz'), STUB({ log }));
+    chmodSync(join(root, 'node_modules', '.bin', 'devz'), 0o755);
+    writeFileSync(join(root, '.gitignore'), 'node_modules\n');
+    writeFileSync(
+      join(app, 'package.json'),
+      JSON.stringify({ dependencies: { '@venizia/kernel': '1.0.0' } }),
+    );
+    writeFileSync(log, '');
+    execFileSync('git', ['init', '-q', '-b', 'develop'], { cwd: root, stdio: 'ignore' });
+    execFileSync('git', ['add', '-A'], { cwd: root, stdio: 'ignore' });
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'i'], {
+      cwd: root,
+      stdio: 'ignore',
+    });
+    // The log file sits in the work tree: ignore it so the tree stays clean.
+    writeFileSync(join(root, '.git', 'info', 'exclude'), 'devz.log\n');
+
+    const result = apply({ app, from: '1.0.0', to: '1.2.0' });
+
+    expect(result.code).toBe(0);
+    expect(calls({ log })).toHaveLength(3);
+  });
+
+  test('with --force outside git only the app directory is searched', () => {
+    const { app, log } = appWith({ git: false, devz: false });
+    const parentBin = join(dirname(app), 'node_modules', '.bin');
+
+    mkdirSync(parentBin, { recursive: true });
+    writeFileSync(join(parentBin, 'devz'), STUB({ log }));
+    chmodSync(join(parentBin, 'devz'), 0o755);
+
+    const result = apply({ app, from: '1.0.0', to: '1.2.0', force: true });
+
+    expect(result.code).toBe(1);
+    expect(result.err).toContain('devz is not installed');
+    expect(calls({ log })).toEqual([]);
+  });
+
   test('the plan names the apply command when a step links a codemod', () => {
     const { app } = appWith();
     const [plan] = MigratePlan.plans({
