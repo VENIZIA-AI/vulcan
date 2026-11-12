@@ -413,3 +413,16 @@ describe('ReleaseCompute.compute carries the migration block', () => {
     expect(loaded.every((record) => record.migration === undefined)).toBe(true);
   });
 });
+
+describe('ReleaseCompute.kindOfChangelog', () => {
+  test('reports the first badge, and the short Breaking as Breaking Change', () => {
+    const kind = (opts: { text: string }): string | null => ReleaseCompute.kindOfChangelog(opts);
+
+    expect(kind({ text: '<Badge type="tip" text="New Feature" />' })).toBe('New Feature');
+    expect(kind({ text: '<Badge type="danger" text="Breaking Change" />' })).toBe(
+      'Breaking Change',
+    );
+    expect(kind({ text: '<Badge type="danger" text="Breaking" />' })).toBe('Breaking Change');
+    expect(kind({ text: 'no badge' })).toBeNull();
+  });
+});

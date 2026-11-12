@@ -1,11 +1,11 @@
 ---
 title: atlas tools
-description: Arguments, schemas, and return formats for the six atlas MCP tools.
+description: Arguments, schemas, and return formats for the seven atlas MCP tools.
 ---
 
 # atlas tools
 
-atlas provides six MCP tools for search, retrieval, code inspection, release tracking, and creating apps and packages.
+atlas provides seven MCP tools for search, retrieval, code inspection, release tracking, migration plans, and creating apps and packages.
 Agents call these tools over JSON-RPC 2.0 stdio.
 
 | Tool | Required arguments |
@@ -15,6 +15,7 @@ Agents call these tools over JSON-RPC 2.0 stdio.
 | `symbol` | `name` |
 | `version` | None |
 | `changes` | None |
+| `migrate` | `to` |
 | `presets` | None |
 
 The following output drops the initialize handshake line:
@@ -279,6 +280,33 @@ If you pass a version without a package, `changes` returns error `-32602`:
 ```text
 to must be a YYYY-MM-DD date when no package is given; got '0.2.0-16'
 ```
+
+## migrate
+
+`migrate` plans what an app must change to move a package from one version to another. The move can be an upgrade or a rollback, and any number of releases apart. It reads the app and never edits it.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `to` | String | Required | A version, `latest` (the newest stable release in the release table) or `next` (the newest release in it) |
+| `package` | String | Every installed package the sources serve | The package to move; a version for `to` or `from` needs it |
+| `from` | String | The installed version | The version the app runs now |
+| `app` | String | The server's working directory | The app directory to scan |
+
+The reply holds `app`, `plans` (one for each package) and `skipped`: an installed package the release table cannot place (a local build, a version that was never released) is listed there with the reason while the other packages are planned. Naming that package with `package` is an error instead. A plan holds:
+
+| Field | Meaning |
+|---|---|
+| `package`, `from`, `to` | The move |
+| `direction` | `upgrade`, `downgrade`, or `none` when both versions are the same |
+| `target` | `release table` when `to` was `latest` or `next`, else `version`: the registry is never read |
+| `note` | Present when the plan needs a warning, for example `latest` is older than the installed prerelease, so the plan is a downgrade; use `next` to stay on the newest release |
+| `steps` | The window's migration items in the order they apply (newest first for a downgrade): `id`, `entry`, `symbols`, `change` (the `upgrade` or `downgrade` of the item), `data`, `codemod`, and `touches`, the `file`, `line` and `symbol` where the app's code reaches it (empty when no static import of it was found) |
+| `unstructured` | Breaking entries of the window with no `migration` block: read each with `get` |
+| `unreadable` | Files of the app that could not be read; the scan covered the rest |
+
+The scan reads static imports in `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs` and `.cjs` files, skipping `node_modules`, `dist`, `build`, `coverage` and folders that start with a dot: named, aliased, namespace and default imports, re-exports and `export *`, and a string `import()` of a module-specifier symbol. It does not scan `require()` calls or destructured namespaces, so an empty `touches` means no static import was found, not that the code is safe. It matches by name, without types, so a local that shadows an import is counted. A missing `app` directory is an error naming it.
+
+An entry that names several packages is in the plan of each. `vulcan migrate plan` and `vulcan x atlas migrate plan` print the same answer as Markdown or, with `--format json`, as this JSON.
 
 ## presets
 

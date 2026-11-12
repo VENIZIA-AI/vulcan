@@ -1,9 +1,8 @@
 import { AtlasConstants } from '@/common';
-import { RpcError, RpcErrorCodes } from '@/protocol/common';
-import type { IToolHandler } from '@/protocol/common';
+import type { IToolHandler, RpcError } from '@/protocol/common';
 import type { IChangelogRecord, IReleaseIndex } from '@/releases';
 import { z } from 'zod';
-import { ChangesInputSchema, ToolInput, ToolTriggers } from './common';
+import { ChangesInputSchema, ToolErrors, ToolInput, ToolTriggers } from './common';
 
 const DESCRIPTION =
   'List the changelog entries between two releases: a package with two of its versions, or no ' +
@@ -15,7 +14,6 @@ const DESCRIPTION =
 // to rebuild this.
 const INPUT_JSON_SCHEMA = z.toJSONSchema(ChangesInputSchema);
 
-const KNOWN_VALUES_MAX = 10;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 // Sorts below every real date, so a window with no lower bound opens before the first entry.
@@ -59,25 +57,8 @@ interface IWindow {
   note?: string;
 }
 
-const invalidParams = (message: string): RpcError =>
-  new RpcError({ code: RpcErrorCodes.INVALID_PARAMS, message });
-
-const listOf = (values: string[]): string => values.slice(0, KNOWN_VALUES_MAX).join(', ');
-
-const unknownPackageError = (opts: { name: string; known: string[] }): RpcError =>
-  invalidParams(`unknown package '${opts.name}'; known packages: ${listOf(opts.known)}`);
-
-const unknownVersionError = (opts: {
-  package: string;
-  version: string;
-  known: string[];
-}): RpcError =>
-  invalidParams(
-    `unknown version '${opts.version}' for ${opts.package}; known versions: ${listOf(opts.known)}`,
-  );
-
 const notADateError = (opts: { field: string; value: string }): RpcError =>
-  invalidParams(
+  ToolErrors.invalidParams(
     `${opts.field} must be a YYYY-MM-DD date when no package is given; got '${opts.value}'`,
   );
 
@@ -111,7 +92,7 @@ const packageWindowOf = (opts: {
     const note = `no release of ${name} is recorded on this ref (a tag has to match the project's tagPattern and be in this branch's history); every dated entry that names it`;
 
     if (opts.from !== undefined || opts.to !== undefined) {
-      throw invalidParams(
+      throw ToolErrors.invalidParams(
         `${note.split(';')[0]}, so there is no version ${opts.to ?? opts.from} to window by`,
       );
     }
@@ -130,14 +111,14 @@ const packageWindowOf = (opts: {
 
   if (versions.length === 0) {
     throw opts.releases.packages().length === 0
-      ? invalidParams(opts.releases.emptyReason)
-      : unknownPackageError({ name: opts.package, known: opts.releases.declaredPackages() });
+      ? ToolErrors.invalidParams(opts.releases.emptyReason)
+      : ToolErrors.unknownPackage({ name: opts.package, known: opts.releases.declaredPackages() });
   }
 
   const to = opts.to ?? versions[0];
 
   if (!versions.includes(to)) {
-    throw unknownVersionError({ package: name, version: to, known: versions });
+    throw ToolErrors.unknownVersion({ package: name, version: to, known: versions });
   }
 
   // The default lower bound is the newest version released on an EARLIER day: several releases of
@@ -154,7 +135,7 @@ const packageWindowOf = (opts: {
       );
 
   if (from !== undefined && !versions.includes(from)) {
-    throw unknownVersionError({ package: name, version: from, known: versions });
+    throw ToolErrors.unknownVersion({ package: name, version: from, known: versions });
   }
 
   const toOrder = opts.releases.releaseOrderOf({ package: name, version: to });
@@ -185,7 +166,7 @@ const dateWindowOf = (opts: { releases: IReleaseIndex; from?: string; to?: strin
   const dates = opts.releases.entryDates();
 
   if (dates.length === 0) {
-    throw invalidParams(opts.releases.noEntriesReason);
+    throw ToolErrors.invalidParams(opts.releases.noEntriesReason);
   }
 
   if (opts.to !== undefined && !DATE_PATTERN.test(opts.to)) {
@@ -253,7 +234,7 @@ export class ChangesTool {
         const input = ToolInput.parse({ schema: ChangesInputSchema, args });
 
         if (opts.releases.isEmpty()) {
-          throw invalidParams(opts.releases.emptyReason);
+          throw ToolErrors.invalidParams(opts.releases.emptyReason);
         }
 
         const resolved =

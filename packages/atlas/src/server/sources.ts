@@ -14,7 +14,15 @@ import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
 import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
 import { SymbolCompute, SymbolStore } from '@/symbols';
 import type { ISymbolRecord } from '@/symbols';
-import { ChangesTool, GetTool, PresetsTool, SearchTool, SymbolTool, VersionTool } from '@/tools';
+import {
+  ChangesTool,
+  GetTool,
+  MigrateTool,
+  PresetsTool,
+  SearchTool,
+  SymbolTool,
+  VersionTool,
+} from '@/tools';
 import { SkillCatalog } from '@/skills';
 import { FreshnessGuard } from './freshness';
 import { ServerGuidance } from './guidance';
@@ -377,6 +385,7 @@ export class SourcesServer {
         guarded(SymbolTool.build({ store: chunks, symbols, projects })),
         guarded(VersionTool.build({ releases, projects })),
         guarded(ChangesTool.build({ releases, projects })),
+        guarded(MigrateTool.build({ releases, projects })),
         PresetsTool.build({ project: project?.project, projects }),
       ],
       // A project names its server whatever sources ride with it: a name that moved with the network

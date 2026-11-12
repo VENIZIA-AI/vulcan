@@ -20,7 +20,7 @@ atlas is an MCP server. It indexes your wiki, changelogs and knowledge bundle. I
 }
 ```
 
-The agent receives six tools: `search`, `get`, `symbol`, `version`, `changes` and `presets`.
+The agent receives seven tools: `search`, `get`, `symbol`, `version`, `changes`, `migrate` and `presets`.
 
 You do not need to tell the agent to use them. The server's instructions and the tool descriptions say when to call each one, and name this project and every source it reads. The session-start digest repeats it, and the base rule `V-P-07` says facts come from atlas, not from memory.
 
@@ -94,10 +94,11 @@ get      After `search`, read the hit here before you rely on it
 symbol   Before you import or call an export of demo-app, get its real signature, import path and source line here instead of recalling it
 version  When a version, an upgrade or an installed @venizia/* package comes up in demo-app, check here
 changes  When the user asks what changed, what a release added or what breaks on upgrade in demo-app, list the entries here
+migrate  When the user asks what to change to upgrade or roll back a @venizia/* package, or how to move an app between two versions of demo-app, plan it here before you answer
 presets  When you are asked to create a new app or package in demo-app, ask here which preset and which exact command to use before you write any file
 ```
 
-`vulcan x atlas tools` lists the six tools, with the descriptions your agent sees. It does not start the server.
+`vulcan x atlas tools` lists the seven tools, with the descriptions your agent sees. It does not start the server.
 The descriptions name your project, here `demo-app`.
 For a real check, restart the agent session and ask it to search.
 

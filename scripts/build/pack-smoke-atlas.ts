@@ -166,7 +166,7 @@ const main = (): void => {
       | { tools?: { name: string }[] }
       | undefined;
     const names = (toolList?.tools ?? []).map(tool => tool.name).sort();
-    const expected = 'changes,get,presets,search,symbol,version';
+    const expected = 'changes,get,migrate,presets,search,symbol,version';
 
     if (names.join(',') !== expected) {
       fail(

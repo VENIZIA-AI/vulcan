@@ -34,6 +34,7 @@ flag `bun x` fetches it when `@venizia/vulcan` is not installed yet.
 | `clean [--tmp\|--worktrees\|--clones\|--cache\|--all] [--include-fresh] [--yes]` | List what an agent left under `.agents/local/` (a dry run) and, with `--yes`, remove it |
 | `upgrade [--stable \| --nightly] [<version\|tag>]` | Install the target `@venizia/vulcan`, then run `sync` from the newly installed CLI. `--stable` (default) is the `latest` dist-tag, never a prerelease; `--nightly` is the higher of `latest` and `next`; a named version or tag wins over both. `--nightly` that cannot read the dist-tags exits 1; a stable upgrade from an installed prerelease says that `--nightly` keeps the prerelease line |
 | `changelog check` | Check the changelog entries' `migration` blocks: a Breaking Change entry dated on or after `knowledge.migrationFrom` must carry one, and every block must be valid |
+| `migrate plan --to <version>` | What an app must change to move a package between two releases, newer or older: the steps in order, where its code touches them, codemods and data warnings; read only |
 | `x <tool> [args...]` | Run a shipped tool at the pinned version: `okf`, `atlas`. `x --help` prints the help; `x <tool> --help` goes to the tool |
 | `help`, `version` | `help` prints the usage; `version` prints the installed version |
 

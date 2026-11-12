@@ -63,6 +63,7 @@ A private repository uses `GITHUB_TOKEN`, else `gh auth token`, sent in request 
 | `symbol` | `name`, `package?` (an npm name, a directory or an alias) | Where an exported symbol is declared (`file`, `line`, `signature`, the import `specifier`) and the pages that document it; `matches` when several packages export it. An unknown name answers `matches: []` and up to 5 `closest` names |
 | `version` | `cwd?` (a project directory) | The served packages installed there, the newest release atlas computed for each, and which are `behind` |
 | `changes` | `package?`, `from?`, `to?` (versions, or dates) | The changelog entries between two versions |
+| `migrate` | `to`, `package?`, `from?`, `app?` | What an app must change to move a package between two releases, newer or older: the steps in order, where its code touches them (`file:line`), codemods, data warnings. Read only |
 | `presets` | `kind?` (`app`, `lib` for a library other apps import, or `shared` for a side-neutral package; default `app`), `name?` (the name of the new app or package, put into the command; default `<name>`), `side?` (`backend`, `frontend`) | The presets the project can create from, the folder each lands in and the exact `vulcan add` command; `presets: []` with a `note` when no preset makes the kind |
 
 Page `search` with `offset: nextOffset`, not `offset + limit`: the reply-size budget can return fewer

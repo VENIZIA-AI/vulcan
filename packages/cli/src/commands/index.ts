@@ -10,6 +10,8 @@ export const COMMAND_LOADERS: Record<string, () => Promise<TCommandHandler>> = {
     import('./board.command.ts').then((module) => module.runBoardCommand),
   [VulcanCommands.CHANGELOG]: () =>
     import('./changelog.command.ts').then((module) => module.runChangelogCommand),
+  [VulcanCommands.MIGRATE]: () =>
+    import('./migrate.command.ts').then((module) => module.runMigrateCommand),
   [VulcanCommands.CLEAN]: () =>
     import('./clean.command.ts').then((module) => module.runCleanCommand),
   [VulcanCommands.COMMIT_CHECK]: () =>

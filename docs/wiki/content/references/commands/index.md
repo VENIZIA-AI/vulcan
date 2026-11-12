@@ -67,6 +67,10 @@ Usage: bun x vulcan <command>
                                   takes the latest tag, --nightly the newest of latest and next
   changelog check                 Check the changelog entries' `migration` blocks: a Breaking Change entry
                                   dated on or after knowledge.migrationFrom must carry one, and every block must be valid
+  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json]
+                                  What an app must change to move a package between two releases, newer or
+                                  older: the steps in order, the places in your code they touch (file:line),
+                                  codemods and data warnings; read only
   x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas
   help · version
 ```
@@ -92,6 +96,7 @@ The following table lists each command, its purpose, its exit codes, and its ref
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |
 | `upgrade` | Bump the pinned `@venizia/vulcan` dependency and run sync | `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync` | [upgrade](#upgrade) |
 | `changelog` | `changelog check`: check the `migration` blocks of the changelog entries | `0` when every entry conforms; `1` when an entry does not, the tool is missing or the configuration is invalid; `2` for a subcommand other than `check` | [changelog](#changelog) |
+| `migrate` | `migrate plan`: what an app must change to move a package between two releases, newer or older | `0` when a plan is printed; `1` when the plan cannot be made or the tool is missing; `2` for a subcommand other than `plan` or a missing `--to` | [migrate](#migrate) |
 | `x` | Run a shipped tool (`okf` or `atlas`) at the pinned package version | `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool | [x](#x) |
 | `help` | Print usage information and available command options (`--help` and `-h` are aliases) | `0` | - |
 | `version` | Print the installed VULCAN package version (`--version` and `-v` are aliases) | `0` | - |
@@ -173,6 +178,12 @@ Otherwise, the command returns the exit code of `bun add` or of the child `vulca
 An entry with a `migration:` block in its frontmatter must have a valid one: every item has an `id` (unique in the folder), `symbols`, an `upgrade` and a `downgrade`, each either `before` and `after` or `steps`.
 An entry with a Breaking Change badge, dated on or after `knowledge.migrationFrom`, must carry a block; an earlier entry is never read.
 Each problem prints as `<file>: <message>` on stderr.
+
+## migrate
+
+`vulcan migrate plan --to <version|latest|next>` is [`vulcan x atlas migrate plan`](/references/atlas/tools#migrate) at the pinned version: the same plan the atlas `migrate` tool answers, printed as Markdown, or as JSON with `--format json`.
+It asks the sources the project serves, so a package from a remote source is planned too. `--package`, `--from` and `--app` default as the tool's do.
+It never edits the app.
 
 ## x
 

@@ -13,9 +13,9 @@ import type { IAtlasSource } from './sources/index';
 import { runApiCommand } from './api/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
-import { runChangelogsCommand } from './migrations/index';
+import { MigrateCommand, runChangelogsCommand } from './migrations/index';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|api|symbols|releases|changelogs check> | help`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|api|symbols|releases|changelogs check> | migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] | help`;
 
 const usageError = (message: string): never => {
   console.error(`${AtlasConstants.SERVER_NAME}: ${message}\n${USAGE}`);
@@ -308,6 +308,22 @@ const main = async (): Promise<void> => {
     await listTools();
 
     return;
+  }
+
+  if (subcommand === AtlasCommands.MIGRATE) {
+    const { server, boot } = await readServer();
+
+    // Every source indexed first: the plan needs the whole release table, not the sources ready so far.
+    await boot.settled;
+
+    const code = await MigrateCommand.run({
+      args: argv.slice(1),
+      send: (line) => server.handleLine({ line }),
+      out: (text) => process.stdout.write(text),
+      err: (text) => process.stderr.write(text),
+    });
+
+    process.exit(code);
   }
 
   const { server, boot } = await readServer();
