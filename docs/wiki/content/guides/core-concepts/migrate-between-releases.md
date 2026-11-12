@@ -84,6 +84,12 @@ bun x --no-install vulcan migrate apply --package @venizia/ignis --to 1.1.0
 
 `apply` rewrites nothing itself. Review the diff, run your tests, then work through the manual steps.
 
+## When the plan holds nothing
+
+`N changelog entries in the window; 0 structured steps` means the window has entries but none carries a `migration` block: read the breaking ones it lists. `No changelog entry falls between A and B` means the release table holds no entry between the two versions; it proves nothing about the move. A `Warning:` at the top means a source in `atlas.sources` could not be served, so the plan covers only the rest: fix the source (`vulcan x atlas pull` shows why) and plan again.
+
+Run the command from any folder of the project. A folder with no VULCAN config uses the nearest enclosing project, and the folder you ran it in is the app.
+
 ## What the scan finds
 
 The plan finds places by reading the app's source files (`.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`; not `node_modules`, `dist`, `build`, `coverage` or folders that start with a dot). It follows static imports of the package: named, aliased, namespace and default imports, re-exports, `export *` and a string `import()` of a module path.

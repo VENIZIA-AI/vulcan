@@ -1,4 +1,5 @@
 import { existsSync, statSync } from 'node:fs';
+import type { ISourceNotice } from '@/server/notice';
 import { RpcError } from '@/protocol/common';
 import { InstalledVersions, ToolErrors } from '@/tools/common';
 import type { IChangelogRecord, IReleaseIndex } from '@/releases';
@@ -50,6 +51,8 @@ export interface IMigrationPlan {
   direction: string;
   /** Where `to` came from: the release table (`latest`, `next`) or the version as given. */
   target: string;
+  /** How many changelog entries of the package fall in the window, with a migration block or not: 0 means the release table holds none between the two versions. */
+  entries: number;
   /** The command that runs the codemods the steps link; absent when no step links one. */
   apply?: string;
   /** A warning about how to read the plan, e.g. `latest` is older than the installed version; absent otherwise. */
@@ -68,6 +71,8 @@ export interface ISkippedPackage {
 
 export interface IMigrationResult {
   app: string;
+  /** Added by the server when a declared source was still indexing or could not be served: the plans cover only the rest. */
+  notServed?: ISourceNotice;
   plans: IMigrationPlan[];
   skipped: ISkippedPackage[];
 }
@@ -120,10 +125,11 @@ export class MigratePlan {
       );
     }
 
-    const served = Object.entries(installed).flatMap(([name, version]) =>
-      version !== null && opts.releases.versionsOf({ package: name }).length > 0
-        ? [{ name: opts.releases.packageOf({ package: name }), version }]
-        : [],
+    const present = Object.entries(installed).flatMap(([name, version]) =>
+      version === null ? [] : [{ name, version }],
+    );
+    const served = present.filter(
+      ({ name }) => opts.releases.versionsOf({ package: name }).length > 0,
     );
 
     if (served.length === 0) {
@@ -133,6 +139,10 @@ export class MigratePlan {
     }
 
     const result: IMigrationResult = { app: opts.app, plans: [], skipped: [] };
+
+    for (const { name } of present.filter((entry) => !served.includes(entry))) {
+      result.skipped.push({ package: name, reason: MigratePlan.notServedReason({ name }) });
+    }
 
     for (const { name, version } of served) {
       try {
@@ -156,6 +166,11 @@ export class MigratePlan {
     }
 
     return result;
+  }
+
+  /** Why a package has no release: no source declares it - one may have failed (the server's notice says which) or was never pulled. */
+  private static notServedReason(opts: { name: string }): string {
+    return `${opts.name} is not served by any atlas source: check atlas.sources in the config and run \`vulcan x atlas pull\`, or see which source failed`;
   }
 
   private static installedOf(opts: {
@@ -188,7 +203,9 @@ export class MigratePlan {
     const versions = releases.versionsOf({ package: opts.package });
 
     if (versions.length === 0) {
-      throw ToolErrors.unknownPackage({ name: opts.package, known: releases.declaredPackages() });
+      throw ToolErrors.invalidParams(
+        `${MigratePlan.notServedReason({ name: opts.package })}; known packages: ${releases.declaredPackages().slice(0, 10).join(', ')}`,
+      );
     }
 
     const isAlias = opts.to === LATEST || opts.to === NEXT;
@@ -206,6 +223,7 @@ export class MigratePlan {
       from: opts.from,
       to,
       target,
+      entries: 0,
       steps: [],
       unstructured: [],
       unreadable: [],
@@ -259,6 +277,7 @@ export class MigratePlan {
     const plan: IMigrationPlan = {
       ...base,
       direction: isUpgrade ? MigrateDirections.UPGRADE : MigrateDirections.DOWNGRADE,
+      entries: window.length,
       unreadable: scanned.unreadable,
       steps,
       unstructured: ordered

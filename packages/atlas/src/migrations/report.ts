@@ -55,6 +55,9 @@ const stepOf = (opts: { step: IMigrationStep }): string[] => {
   return lines;
 };
 
+const countOf = (opts: { count: number; one: string; many: string }): string =>
+  `${opts.count} ${opts.count === 1 ? opts.one : opts.many}`;
+
 const planOf = (opts: { plan: IMigrationPlan }): string[] => {
   const { plan } = opts;
   const heading = `## ${plan.package}: ${plan.from} to ${plan.to}`;
@@ -79,11 +82,26 @@ const planOf = (opts: { plan: IMigrationPlan }): string[] => {
     lines.push(`Run the codemods: \`${plan.apply}\``, '');
   }
 
-  lines.push(
-    `${plan.direction === MigrateDirections.UPGRADE ? 'An' : 'A'} ${plan.direction}: ${touched.length} of ${plan.steps.length} changes found in your code.${source}`,
-    '',
-    ...touched.flatMap((step) => stepOf({ step })),
-  );
+  const article = plan.direction === MigrateDirections.UPGRADE ? 'An' : 'A';
+
+  if (plan.entries === 0) {
+    // An empty window is the one answer that must not read as a clean one.
+    lines.push(
+      `${article} ${plan.direction}: No changelog entry falls between ${plan.from} and ${plan.to} in the release table. That proves nothing about the move: check that the package's source was indexed with its changelog (\`vulcan x atlas releases\`).${source}`,
+      '',
+    );
+  } else {
+    const unchecked =
+      plan.unstructured.length === 0
+        ? ''
+        : `; ${countOf({ count: plan.unstructured.length, one: 'breaking entry has', many: 'breaking entries have' })} no structured steps, so the scan could not check ${plan.unstructured.length === 1 ? 'it' : 'them'}`;
+
+    lines.push(
+      `${article} ${plan.direction}: ${countOf({ count: plan.entries, one: 'changelog entry', many: 'changelog entries' })} in the window; ${countOf({ count: plan.steps.length, one: 'structured step', many: 'structured steps' })}, ${touched.length} found in your code${unchecked}.${source}`,
+      '',
+      ...touched.flatMap((step) => stepOf({ step })),
+    );
+  }
 
   if (rest.length > 0) {
     lines.push('### No static import found', '', ...rest.flatMap((step) => stepOf({ step })));
@@ -107,6 +125,10 @@ const planOf = (opts: { plan: IMigrationPlan }): string[] => {
   return lines;
 };
 
+/** What the server said about a source it could not serve: first, so a plan from the other sources never reads as complete. */
+const warningOf = (opts: { result: IMigrationResult }): string[] =>
+  opts.result.notServed === undefined ? [] : [`Warning: ${opts.result.notServed.message}`, ''];
+
 export class MigrateReport {
   /** One direction of an item as Markdown lines: numbered steps, or the before and after code. */
   static changeLines(opts: { change: TMigrationDirection }): string[] {
@@ -118,6 +140,7 @@ export class MigrateReport {
     const lines = [
       `# Migration plan for ${opts.result.app}`,
       '',
+      ...warningOf({ result: opts.result }),
       'Places are found by static imports of the package in `.ts`, `.tsx`, `.js` and similar files; `require()` calls and destructured namespaces are not scanned.',
       '',
       ...opts.result.plans.flatMap((plan) => planOf({ plan })),

@@ -188,6 +188,15 @@ export class MigrateApply {
   }): number {
     const { result } = opts;
     const outcomes: Record<string, ICodemodOutcome[]> = {};
+    // A source that was not served may hold steps this plan lacks: the rewrite waits for the whole plan, or for --force.
+    if (result.notServed !== undefined && !opts.force) {
+      opts.err(
+        `vulcan migrate apply: ${result.notServed.message}; the plan may be incomplete, so nothing was run - serve the source and plan again, or pass --force\n`,
+      );
+
+      return 1;
+    }
+
     const planned = result.plans.map((plan) => ({ plan, codemods: codemodsOf({ plan }) }));
 
     if (planned.every((entry) => entry.codemods.length === 0)) {

@@ -186,7 +186,9 @@ Each problem prints as `<file>: <message>` on stderr.
 ## migrate
 
 `vulcan migrate plan --to <version|latest|next>` is [`vulcan x atlas migrate plan`](/references/atlas/tools#migrate) at the pinned version: the same plan the atlas `migrate` tool answers, printed as Markdown, or as JSON with `--format json`.
-It asks the sources the project serves, so a package from a remote source is planned too. `--package`, `--from` and `--app` default as the tool's do.
+It asks the sources the project serves, so a package from a remote source is planned too: like `mcp`, it fetches and indexes a source that is not cached yet, and waits for it. A source that cannot be served is a `Warning:` at the top of the plan, and `apply` refuses to run on such a plan unless you pass `--force`. A package no source serves is an error that names `atlas.sources` and `vulcan x atlas pull`. `--package`, `--from` and `--app` default as the tool's do.
+
+Run from a folder with no VULCAN config, the command runs in the nearest enclosing folder that has one (never above the git work tree root) and scans the folder you ran it in; a relative `--app` is read from that folder too.
 `vulcan migrate plan` never edits the app.
 
 `vulcan migrate apply` runs the codemods the plan links, each once and in plan order, as `devz codemod <name> . --write` in the app (`--reverse` for a rollback), using the `devz` of `@venizia/dev-configs` found in `node_modules/.bin` of the app or a parent folder up to the root of its git work tree (outside git, only the app folder). A codemod name that is not lower-case words joined by `-` is refused. It then prints the steps that stay manual: a step with no codemod, and a step whose codemod is not reversible (it exits `2` and says `not reversible`). A codemod that fails stops the run with exit `1`. It rewrites nothing itself, and it refuses an app with uncommitted changes, or outside a git work tree, unless you pass `--force`: the app's own diff is the undo. A plan that links no codemod needs neither `devz` nor a clean tree.

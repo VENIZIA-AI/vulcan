@@ -290,6 +290,14 @@ describe('MigratePlan.plans', () => {
     ]);
   });
 
+  test('the plan counts every entry of the window, structured or not, and an empty window counts 0', () => {
+    const app = appWith({});
+
+    expect(plan({ app, from: '1.1.0', to: '1.2.0' }).plans[0].entries).toBe(3);
+    expect(plan({ app, from: '1.2.1', to: '1.3.0-0' }).plans[0].entries).toBe(0);
+    expect(plan({ app, from: '1.1.0', to: '1.1.0' }).plans[0].entries).toBe(0);
+  });
+
   test('C12.1: `from` is the version the app installs', () => {
     const app = appWith({ dependencies: { '@venizia/kernel': '1.1.0' } });
     const [result] = plan({ app, to: '1.2.0' }).plans;
@@ -404,6 +412,20 @@ describe('MigratePlan.plans', () => {
     expect(result.skipped).toHaveLength(1);
     expect(result.skipped[0].package).toBe('@venizia/kernel');
     expect(result.skipped[0].reason).toContain("unknown version '1.1.0+local'");
+  });
+
+  test('a package no source serves is named as not served, with the way out, and listed as skipped in a run over every package', () => {
+    const app = appWith({
+      dependencies: { '@venizia/kernel': '1.0.0', '@venizia/ghost': '3.0.0' },
+    });
+    const result = MigratePlan.plans({ releases, app, to: 'latest' });
+
+    expect(result.plans.map((entryOf) => entryOf.package)).toEqual(['@venizia/kernel']);
+    expect(result.skipped.map((entryOf) => entryOf.package)).toEqual(['@venizia/ghost']);
+    expect(result.skipped[0].reason).toContain('not served by any atlas source');
+    expect(() => plan({ app, package: '@venizia/ghost', to: 'latest' })).toThrow(
+      /@venizia\/ghost is not served by any atlas source.*atlas\.sources.*vulcan x atlas pull/s,
+    );
   });
 
   test('a package named by the caller keeps the hard error', () => {
