@@ -98,7 +98,7 @@ The blocks can make `AGENTS.md` pass 100 lines. When it is one of `okf.contents.
 
 ## The event hooks
 
-When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `SubagentStop`, `Notification` and `PostToolUse` (only the `SendMessage` tool, so no process starts for any other tool call) to `.claude/settings.json`; a `Stop` hook and a `PostToolUse` hook for every tool, which an earlier release installed, are removed by the next `sync`. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.
+When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `SubagentStop`, `Notification` and `PostToolUse` (only the `SendMessage` tool, so no process starts for any other tool call) to `.claude/settings.json`; a `Stop` hook and a `PostToolUse` hook for every tool are not installed, and `sync` removes one it finds. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.
 
 ## The commit-msg hook
 
@@ -346,7 +346,7 @@ The committed manifest records resolved project metadata:
 }
 ```
 
-The sample shows 3 of the 39 base rule entries.
+The sample shows 3 of the base rule entries: 35, and 40 in a project that follows the `venizia` pack.
 The `rules.base` section stores one short hash per base rule, so a rule change is visible in review.
 
 After the actions, `vulcan sync` prints one line per base-rule change.
@@ -357,10 +357,13 @@ The manifest also includes optional fields when configured:
 
 - `knowledge.wiki`: Path to wiki documentation, present when set.
 - `knowledge.changelogs`: Path to changelogs, present when set.
+- `knowledge.migrationFrom`: The first day (`YYYY-MM-DD`) whose Breaking Change changelog entries must carry a `migration:` block, present when set.
 - `layout`: The folders of backend apps, frontend apps and shared packages (`backend`, `frontend`, `shared`), present when set; `init --preset` and `add` write it.
 - `presets`: The presets the project's apps came from, each `{ spec, side, summary }` and `lib` when the preset also makes libraries. atlas's `presets` tool answers from it.
-- `kind`: `"lib"` on a package entry that `add --lib` made (apps carry no `kind`).
+- `kind`: `"lib"` on a package entry that `add --lib` made (apps carry no `kind`), and `presetKind` (`lib` or `shared`) on a library or shared package that `add` made.
 - `sources`: External repository sources for atlas, present when `atlas.sources` contains entries.
+- `atlas`: The keys a prebuilt index is checked with and the switch that turns its download off, present when `atlas.index` or `atlas.prebuilt` is set.
+- `guard`: The commands and push targets the guards ask about beyond their own list, present when `guard.writes.commands` or `guard.git.askPush` is set.
 
 ## See also
 

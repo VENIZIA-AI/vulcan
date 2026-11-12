@@ -342,6 +342,12 @@ export class ReleaseCompute {
             ? {}
             : { order: placed?.order ?? countOf(added.get(file) ?? UNCOMMITTED_POSITION) }),
         };
+        const badges: unknown[] = Array.isArray(data.badges) ? data.badges : [];
+
+        if (BreakingBadge.isIn({ text, badges })) {
+          record.breaking = true;
+        }
+
         const migration = MigrationSchema.safeParse(data.migration);
 
         // An invalid block is left out: `changelogs check` is where it fails, never the table.

@@ -9,7 +9,7 @@ Use `vulcan` to scaffold a project or create a monorepo from a preset, write the
 Run `bun x --no-install vulcan` or pass `--help` to inspect available commands:
 
 ```text
-vulcan 0.4.10-2 - one setup, one workflow for every project
+vulcan 0.4.10-12 - one setup, one workflow for every project
 
 Usage: bun x vulcan <command>
 
@@ -95,12 +95,12 @@ The following table lists each command, its purpose, its exit codes, and its ref
 | `profile` | Tell VULCAN how you like to work (language, how to address you, tone, habits); `show` prints it, `reset` deletes it | `0` on success; `1` when cancelled, unreadable, not gitignored or on an unknown argument | [vulcan profile](/references/commands/profile) |
 | `clean` | List what an agent left under `.agents/local/` and remove it with `--yes` | `0` on a dry run, a removal or nothing to remove; `1` when an item cannot be removed or on an unknown flag | [vulcan clean](/references/commands/clean) |
 | `commit-check` | Check a commit message for an agent signature and the project's subject shape, as the `commit-msg` hook that `sync` installs does; nothing is checked until `commit.message` turns a check on | `0` when clean or when no check is configured; `1` on a problem; `2` on bad input | [vulcan commit-check](/references/commands/commit-check) |
-| `board` | Fold the event log, and GitHub or GitLab pull requests when `gh` or `glab` can read them, into flows and write one read-only HTML page, by default `.agents/local/reports/board.html` | `0` written; `1` the file cannot be written; `2` on bad input | [vulcan board](/references/commands/board) |
+| `board` | Fold the event log, and GitHub or GitLab pull requests when `gh` or `glab` can read them, into flows and write one read-only HTML page, by default `.agents/local/reports/board.html` | `0` written; `1` the file cannot be written, or `board serve` cannot start; `2` on bad input | [vulcan board](/references/commands/board) |
 | `event` | `event add` writes a line to the agent event log, `event tail` reads it; with `events.log` on, `sync` installs the Claude Code hooks that write it | `0` on success; `1` when the log cannot be written; `2` on bad input | [vulcan event](/references/commands/event) |
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |
 | `upgrade` | Bump the pinned `@venizia/vulcan` dependency and run sync | `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync` | [upgrade](#upgrade) |
 | `changelog` | `changelog check`: check the `migration` blocks of the changelog entries | `0` when every entry conforms; `1` when an entry does not, the tool is missing or the configuration is invalid; `2` for a subcommand other than `check` | [changelog](#changelog) |
-| `migrate` | `migrate plan`: what an app must change to move a package between two releases, newer or older; `migrate apply`: run the codemods the plan links | `0` when a plan is printed or apply ran; `1` when the plan cannot be made, apply is refused or a codemod fails, or the tool is missing; `2` for a subcommand other than `plan` or `apply`, or a missing `--to` | [migrate](#migrate) |
+| `migrate` | `migrate plan`: what an app must change to move a package between two releases, newer or older; `migrate apply`: run the codemods the plan links | `0` when a plan is printed or apply ran; `1` when the plan cannot be made, apply is refused or a codemod fails, or the tool is missing; `2` for a subcommand other than `plan` or `apply`, a missing `--to`, an unknown flag, a flag with no value or a `--format` other than `md` or `json` | [migrate](#migrate) |
 | `x` | Run a shipped tool (`okf` or `atlas`) at the pinned package version | `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool | [x](#x) |
 | `help` | Print usage information and available command options (`--help` and `-h` are aliases) | `0` | - |
 | `version` | Print the installed VULCAN package version (`--version` and `-v` are aliases) | `0` | - |

@@ -172,7 +172,7 @@ A start from a source whose index was downloaded says so, and keeps saying so fr
 - <name>: <origin> at <sha> - index: prebuilt, built by atlas <version>
 ```
 
-`pull --force` downloads the pair again. `--no-prebuilt` turns the download off for `mcp`, `tools` and `pull`.
+`pull` downloads the pair again unless you pass `--warm`, which fetches only what the cache lacks. `--no-prebuilt` turns the download off for `mcp`, `tools` and `pull`.
 A source without keys, and a source reached by a git URL or by tarball, is built here as before.
 
 For a private repository, the token must be able to read the repository's releases. A classic token with the `repo` scope, which is what `gh auth token` gives, was checked against a private repository: it lists the release, downloads the asset and gets 404 without the token. A fine-grained token was not checked.
@@ -262,7 +262,10 @@ none of its packages is installed here or on npm
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` |
+| `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>`, `<issue>` and `<date>` |
+| `legacyTagPatterns` | `string[]` | `undefined` | Templates of an earlier tag layout, read after `tagPattern`; a tag one of them reads is a release too |
+| `index.keys` | `string[]` | `undefined` | The public keys (base64, 32 raw bytes) whose signature a prebuilt index of this project must carry |
+| `prebuilt` | `boolean` | `true` | `false` turns off the download of a prebuilt index for this project's sources |
 | `ignoreTags` | `string[]` | `undefined` | Globs of tags to ignore. Read by `vulcan doctor` (`[tags]`) and by atlas when it computes releases |
 
 ### Template placeholders
@@ -271,6 +274,8 @@ Release tag templates support the following placeholders:
 
 - `<version>`: Release version string. Every tag template must include `<version>`.
 - `<dir>`: Package directory key from the `packages` list. Omit `<dir>` for release trains that tag once (`v<version>`).
+- `<issue>`: The issue number of the release commit, when the template names it.
+- `<date>`: The release date, when the template names it.
 
 ## See also
 

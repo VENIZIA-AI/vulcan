@@ -41,6 +41,14 @@ $ bun x --no-install vulcan agents add pi
   unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
+  unchanged .claude/skills/fix-a-bug
+  unchanged .claude/skills/plan-a-change
+  unchanged .claude/skills/report-back
+  unchanged .claude/skills/research
+  unchanged .claude/skills/retro
+  unchanged .claude/skills/review-a-change
+  unchanged .claude/skills/ship
+  unchanged .claude/skills/visualize-work
   unchanged .mcp.json
   created   .agents/skills/build-a-feature
   created   .agents/skills/docs-update
@@ -66,6 +74,14 @@ $ bun x --no-install vulcan agents remove pi
   unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
+  unchanged .claude/skills/fix-a-bug
+  unchanged .claude/skills/plan-a-change
+  unchanged .claude/skills/report-back
+  unchanged .claude/skills/research
+  unchanged .claude/skills/retro
+  unchanged .claude/skills/review-a-change
+  unchanged .claude/skills/ship
+  unchanged .claude/skills/visualize-work
   unchanged .mcp.json
   unchanged .agents/vulcan.manifest.json
   unchanged AGENTS.md

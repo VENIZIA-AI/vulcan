@@ -11,19 +11,21 @@ Use atlas to search documentation, read sections, look up exported symbols, and 
 
 ```text
 $ bun x --no-install vulcan x atlas help
-usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | index --out <dir> | index keygen | pull [--source <name>] | tools [--root <dir>] | <surface|api|symbols|releases> | help
+usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|api|symbols|releases|changelogs check> | migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] | migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] | help
 ```
 
 | Command | What it does |
 |---|---|
-| `mcp` | Serves the project over stdio (default when started by a client) |
+| `mcp` | Serves the project over stdio (default when started by a client); `--cache-dir <dir>` says where atlas keeps what it fetches |
 | `tools` | Prints the tools the server offers, one per line |
-| `pull` | Fetches every external source, or one named source |
+| `pull` | Fetches every external source, or one named source; `--warm` fetches and indexes only what the cache lacks, `--no-prebuilt` builds every source here instead of downloading its prebuilt index |
 | `index --out <dir>` | Builds and signs the index of HEAD into `<dir>`; `index keygen` writes the key pair for it; `index publish` is what the CI action runs |
 | `surface gen\|check` | Writes or checks `.agents/knowledge/reference/public-surface.md` from built `.d.ts` files |
 | `api gen\|check` | Writes or checks one API reference page for each package entry under the wiki, from the built `.d.ts` files |
 | `symbols` | Prints what the `symbol` tool reads from built `.d.ts` declaration files |
 | `releases` | Prints what the `version` and `changes` tools read from git tags |
+| `changelogs check` | Checks the `migration:` blocks of the changelog entries ([Changelogs](#changelogs)) |
+| `migrate plan\|apply` | Plans what an app must change to move a package between two releases, or runs the codemods the plan links ([`migrate`](/references/atlas/tools#migrate)) |
 | `help` | Prints the usage line and exits with code 0 |
 
 ## Starting the server
@@ -127,6 +129,8 @@ get      After `search`, read the hit here before you rely on it
 symbol   Before you import or call an export of my-product and ignis, get its real signature, import path and source line here instead of recalling it
 version  When a version, an upgrade or an installed @venizia/* package comes up in my-product and ignis, check here
 changes  When the user asks what changed, what a release added or what breaks on upgrade in my-product and ignis, list the entries here
+migrate  When the user asks what to change to upgrade or roll back a @venizia/* package, or how to move an app between two versions of my-product and ignis, plan it here before you answer
+presets  When you are asked to create a new app or package in my-product and ignis, ask here which preset and which exact command to use before you write any file
 ```
 
 `symbol` answers with the record and, for an export of a project, its `declaration`: the TSDoc and the members as the built `.d.ts` has them, then the declarations of the exported types it uses (nearest and smallest first, three steps out), up to about 10 000 characters. `truncated: true` says something was left out. An internal type that is not exported but appears in the declaration (the shape an argument must have) is part of it. A name exported by two packages with the same shape gives the declaration once and `declarationOf` on the other.

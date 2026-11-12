@@ -40,7 +40,7 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 | `ts` | ISO 8601, UTC |
 | `flowId` | `VULZ-<key>-<number>` (or the older `F-<number>`), when the line belongs to a flow; absent otherwise |
 | `actor` | The session that wrote it, as other sessions address it |
-| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow`, `deploy`, `tool-tick`; the hooks no longer write `session-stop` and `tool-tick`, which stay valid so an older log is read |
+| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow`, `deploy`, `tool-tick`; the hooks do not write `session-stop` and `tool-tick`; they stay valid so a log that holds them is read |
 | `status` | Only on a `decision`: `approve`, `park` or `reject` |
 | `summary` | One line, at most 200 characters. On a `flow` line it is the flow's title |
 | `notification` | Only on a `needs-owner` the Claude Code hook wrote: the notification type that raised it (`permission_prompt`, `idle_prompt` or `elicitation_dialog`). A board uses it to tell the harness waiting from a question someone wrote, whatever the `summary` says; anything else is not written and is dropped on read |
@@ -89,7 +89,7 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 | `--kind` | One of the twelve kinds. `deploy` says something went live (`--summary "block 10" --flow <id>`); a board shows it as a milestone of its flow and, like a merge, counts it as Done until later work reopens the flow |
 | `--summary` | A short label (not on a `flow` line: it takes `--title`). It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]` |
 | `--flow` | The id of a flow that the log already has: `VULZ-<key>-<number>`, as the command printed it when the flow was made, or an older `F-<number>`. An id no line carries is refused, with the recent flows listed. Without it, the flow is read from the branch, when its name has a flow id segment such as `feature/VULZ-ACME-12-events-log`; a `flow` line with no `--flow` and no open flow on its branch makes a new flow (a flow the board would show as Done or Parked is over: the command asks the board's own rules, so the two agree; a merge only GitHub knows of is not in the log, and is not seen here) |
-| `--ref` | A commit, a PR number, a recipient; on a `flow` line, the id of the flow in a tracker (`PLANE-3054`). On a `pr` line, `merged:12` says pull request 12 was merged |
+| `--ref` | A commit, a PR number, a recipient; on a `flow` line, the id of the flow in a tracker (`TICKET-12`). On a `pr` line, `merged:12` says pull request 12 was merged |
 | `--status` | `approve`, `park` or `reject`. Required on a `decision`, refused on any other kind. The owner's answer to a flow, written by whoever relays it |
 | `--title` | Only for `--kind flow`, where it is required: the title of the flow, in the language of the owner. Same limits as `--summary` |
 | `--why` | Only for `--kind flow`, optional: one line on why the flow exists. Same limits and the same secret removal |
@@ -125,7 +125,7 @@ It prints the events at or after `--since`, oldest first. `--since` takes anythi
 | `Notification` | `needs-owner`, for `permission_prompt`, `idle_prompt` and `elicitation_dialog` | the notification `title`, else its type; the type is also stored in `notification` | `notification_type`, `title` |
 | `PostToolUse` of `SendMessage` | `msg-sent` | the sender's own `summary` label, else the fixed text `message sent`. The text of the message is never used | `tool_input.to`, `tool_input.summary`; the first line of `tool_input.message` only to look for `Flow: F-n` |
 
-A turn that ends (`Stop`) and a tool that is used (`PostToolUse` of any tool but `SendMessage`) are not logged: an earlier release wrote a `session-stop` line of the fixed text `turn ended` and a `tool-tick` line at most every 30 seconds, and together they were over half of the lines of a busy log (8,600 of 16,400 in the one project that kept one). Neither carried anything but the fact itself. The board still reads them in a log written before, until the age limit removes them.
+A turn that ends (`Stop`) and a tool that is used (`PostToolUse` of any tool but `SendMessage`) are not logged: a `session-stop` line of the fixed text `turn ended` and a `tool-tick` line at most every 30 seconds would be over half of the lines of a busy log, and neither carries anything but the fact itself. The board still reads such lines in a log that holds them, until the age limit removes them.
 
 `msg-received` has no hook: Claude Code runs none when a message arrives, and VULCAN does not read transcripts to find out. A reader gets it from the sender's `msg-sent`, or an agent writes it with `event add`. `commit` and `pr` are written with `event add` too.
 
@@ -153,7 +153,7 @@ Give what is to be done and what must hold as lists, so a board can show them as
 $ bun x --no-install vulcan event add --kind flow --flow VULZ-ACME-12 --title "Sign in with the shared hook" \
     --step-done "The socket takes the token" --step "Refresh in the network service" \
     --check "Sign in, and the token renews on its own" --check-done "Sign out leaves no old session" \
-    --app web-sale --app admin --due 2026-11-08 --ref PLANE-3054
+    --app shop --app admin --due 2026-11-08 --ref TICKET-12
 ```
 
 The newest `flow` line of a flow wins as a whole, with all its fields: write a new one when the title, the reason, the context or the next step changes materially, and repeat the fields that still hold, because a new line that leaves one out drops the old one (no stale text outlives the line that wrote it). A flow with no `flow` line keeps the old heading (the words of its pull request, else of its first line). A `flow` line only names the flow: it does not change its state, stage, holder or last line. The rule for agents, which applies only to a project that has `events.log` on, is `V-P-13` in the [rules reference](/references/rules#process-p).

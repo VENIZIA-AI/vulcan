@@ -146,6 +146,15 @@ When exactly one match exists, `symbol` returns a flat record:
 ```
 
 The `docs` array carries up to five chunk IDs documenting the symbol.
+A record can also carry these fields:
+
+| Field | Meaning |
+|---|---|
+| `source` | The source the record came from, when atlas serves more than one |
+| `external` | `true` when the export re-exports a third-party declaration: `file` then points inside `node_modules`, an install detail and not repository source |
+| `declaration` | The declaration as the built `.d.ts` has it: its TSDoc, its members, and the declarations of the exported symbols it uses, nearest first, within 10,000 characters |
+| `truncated` | `true` when something was left out of `declaration` to stay within that budget |
+| `declarationOf` | The specifier of an earlier match that has the same declaration, which is then not repeated |
 When multiple packages export the same name, `symbol` returns a `matches` array containing those records.
 
 An unknown symbol name is not an error.
@@ -225,6 +234,7 @@ The window excludes entries dated on `from` and includes entries on `to`.
 For a date window across all packages, `package` is `null`.
 `from` can be `null` when no earlier boundary exists.
 Each entry carries `id`, `date`, `title`, `kind`, and `packages`.
+`kind` is the text of the entry's first badge, and the short `Breaking` badge is reported as `Breaking Change`, so one value names a breaking entry.
 `packages` lists npm package names, never directory names:
 
 ```json
@@ -301,8 +311,8 @@ The reply holds `app`, `plans` (one for each package) and `skipped`: an installe
 | `target` | `release table` when `to` was `latest` or `next`, else `version`: the registry is never read |
 | `apply` | The `vulcan migrate apply` command that runs the codemods the steps link; absent when no step links one. The tool never runs it |
 | `note` | Present when the plan needs a warning, for example `latest` is older than the installed prerelease, so the plan is a downgrade; use `next` to stay on the newest release |
-| `steps` | The window's migration items in the order they apply (newest first for a downgrade): `id`, `entry`, `symbols`, `change` (the `upgrade` or `downgrade` of the item), `data`, `codemod`, and `touches`, the `file`, `line` and `symbol` where the app's code reaches it (empty when no static import of it was found) |
-| `unstructured` | Breaking entries of the window with no `migration` block: read each with `get` |
+| `steps` | The window's migration items in the order they apply (newest first for a downgrade): `id`, `entry`, `title`, `date`, `symbols`, `change` (the `upgrade` or `downgrade` of the item), `data`, `codemod`, and `touches`, the `file`, `line` and `symbol` where the app's code reaches it (empty when no static import of it was found) |
+| `unstructured` | Entries of the window with any Breaking or Breaking Change badge and no `migration` block: read each with `get` |
 | `unreadable` | Files of the app that could not be read; the scan covered the rest |
 
 The scan reads static imports in `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs` and `.cjs` files, skipping `node_modules`, `dist`, `build`, `coverage` and folders that start with a dot: named, aliased, namespace and default imports, re-exports and `export *`, and a string `import()` of a module-specifier symbol. It does not scan `require()` calls or destructured namespaces, so an empty `touches` means no static import was found, not that the code is safe. It matches by name, without types, so a local that shadows an import is counted. A missing `app` directory is an error naming it.
@@ -389,12 +399,16 @@ To inspect tool declarations without an MCP client, run `vulcan x atlas tools`:
 
 ```text
 $ bun x --no-install vulcan x atlas tools
-search   Search the wiki, changelogs and knowledge bundle for chunks matching a keyword query, ranked by relevance
-get      Read one chunk's body by the id a search hit returned, or a whole document by the same id with its `#anchor` dropped, paging a long body with a cursor.
-symbol   Locate one exported symbol by name: which package and import specifier it comes from, its kind, its one-line signature, the source `file` and `line` it is declared on, and the chunk ids that document it
-version  Compare the @venizia/* packages installed in a directory against the newest versions this build knows about - the versions its generated release table carries, not the registry.
-changes  List the changelog entries between two releases: a package with two of its versions, or no package with two `YYYY-MM-DD` dates
+search   When the user asks how something works in demo-app, how to build something in it, or about this project's conventions, search here before you answer from memory
+get      After `search`, read the hit here before you rely on it
+symbol   Before you import or call an export of demo-app, get its real signature, import path and source line here instead of recalling it
+version  When a version, an upgrade or an installed @venizia/* package comes up in demo-app, check here
+changes  When the user asks what changed, what a release added or what breaks on upgrade in demo-app, list the entries here
+migrate  When the user asks what to change to upgrade or roll back a @venizia/* package, or how to move an app between two versions of demo-app, plan it here before you answer
+presets  When you are asked to create a new app or package in demo-app, ask here which preset and which exact command to use before you write any file
 ```
+
+Each line is the first sentence of the tool's description; the description goes on to say what the tool returns.
 
 ## See also
 
