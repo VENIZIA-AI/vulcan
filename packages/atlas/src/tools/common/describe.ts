@@ -26,6 +26,10 @@ export class ToolTriggers {
     return `When a version, an upgrade or an installed @venizia/* package comes up in ${opts.projects ?? FALLBACK_PROJECTS}, check here.`;
   }
 
+  static migrate(opts: { projects?: string }): string {
+    return `When the user asks what to change to upgrade or roll back a @venizia/* package, or how to move an app between two versions of ${opts.projects ?? FALLBACK_PROJECTS}, plan it here before you answer.`;
+  }
+
   static changes(opts: { projects?: string }): string {
     return `When the user asks what changed, what a release added or what breaks on upgrade in ${opts.projects ?? FALLBACK_PROJECTS}, list the entries here.`;
   }

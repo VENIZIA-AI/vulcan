@@ -66,6 +66,7 @@ export class AtlasCommands {
   static readonly SYMBOLS = 'symbols';
   static readonly RELEASES = 'releases';
   static readonly CHANGELOGS = 'changelogs';
+  static readonly MIGRATE = 'migrate';
   static readonly PULL = 'pull';
   static readonly INDEX = 'index';
   static readonly TOOLS = 'tools';
@@ -77,6 +78,7 @@ export class AtlasCommands {
     this.SYMBOLS,
     this.RELEASES,
     this.CHANGELOGS,
+    this.MIGRATE,
     this.PULL,
     this.INDEX,
     this.TOOLS,

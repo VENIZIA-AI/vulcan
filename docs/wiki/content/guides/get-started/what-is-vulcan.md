@@ -45,7 +45,7 @@ bun x --no-install vulcan doctor
 | [The owner and the reply shape](/guides/core-concepts/owner-and-replies) | The agent answers its owner in a fixed shape, in the owner's language, and another agent in the plain format it asked for | `owner` in the config, `vulcan profile` |
 | [Work items](/guides/core-concepts/work-items) | A template for a unit of work a person can read and a fresh agent can do | `base/references/work-item.md` |
 | [Knowledge bundle](/guides/core-concepts/knowledge-bundle) | Markdown facts about your project, checked in Open Knowledge Format v0.2 | `vulcan x okf` |
-| [atlas](/guides/core-concepts/atlas) | An MCP server with 6 tools that searches your docs, changelogs and symbols, and those of other projects | `vulcan x atlas mcp` |
+| [atlas](/guides/core-concepts/atlas) | An MCP server with 7 tools that searches your docs, changelogs and symbols, and those of other projects | `vulcan x atlas mcp` |
 | [doctor](/references/commands/doctor) | Checks that the repository follows the contract | `vulcan doctor` |
 
 Also in the box: `vulcan add` makes an app or a library other apps import from a framework preset, `vulcan preset diff` shows where an app drifted from its preset, `vulcan clean` removes what agents left under `.agents/local/`, and `vulcan visualize` makes a small HTML page from a JSON spec ([commands](/references/commands/)).

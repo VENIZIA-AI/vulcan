@@ -1,6 +1,5 @@
 import { AtlasConstants } from '@/common';
-import { RpcError } from '@/protocol/common';
-import type { IToolHandler } from '@/protocol/common';
+import type { IToolHandler, RpcError } from '@/protocol/common';
 import type { IChangelogRecord, IReleaseIndex } from '@/releases';
 import { z } from 'zod';
 import { ChangesInputSchema, ToolErrors, ToolInput, ToolTriggers } from './common';

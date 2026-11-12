@@ -31,6 +31,17 @@ export const VersionInputSchema = z.object({
   cwd: z.string().min(1).optional(),
 });
 
+export const MigrateInputSchema = z.object({
+  /** The package to move; absent, every installed package the sources know (then `to` is `latest` or `next`). */
+  package: z.string().min(1).optional(),
+  /** The version the app runs now; absent, the installed one. */
+  from: z.string().min(1).optional(),
+  /** A version, `latest` or `next`. */
+  to: z.string().min(1),
+  /** The app's directory; absent, the server's working directory. */
+  app: z.string().min(1).optional(),
+});
+
 export const ChangesInputSchema = z.object({
   package: z.string().min(1).optional(),
   from: z.string().min(1).optional(),

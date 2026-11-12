@@ -2,3 +2,7 @@ export * from './badges';
 export * from './check';
 export * from './command';
 export * from './schema';
+export * from './scan';
+export * from './plan';
+export * from './report';
+export * from './migrate-command';
