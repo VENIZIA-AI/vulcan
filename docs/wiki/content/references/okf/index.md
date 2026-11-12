@@ -178,11 +178,13 @@ House style rules run over every markdown file in the bundle, index and log incl
 
 8. Code in the wiki: The fenced `ts`, `tsx`, `js`, `jsx`, `mts` and `mjs` blocks of every page under `knowledge.wiki`, changelogs excluded, follow the code rules, because a reader copies them:
    - `docs-code: <file>:<line>: an explicit cast (<as ...>) - parse or narrow the value instead (V-C-10)`
-   - `docs-code: <file>:<line>: \`any\` as a type - type it, or take unknown and narrow it`
+   - `docs-code: <file>:<line>: any or AnyType as a type - type it, or take unknown and narrow it`
    - `docs-code: <file>:<line>: a conditional spread - build the object, then assign the optional key`
    - `docs-code: <file>:<line>: a string-literal union - a const class and its value type (V-C-08)`
 
-   `as const`, `import { A as B }`, `export { A as B }` and `import * as ns` are not casts. An `as` in a comment, in a string or outside a fence is not read.
+   `as const`, `import { A as B }`, `export { A as B }` and `import * as ns` are not casts. Strings, template literals and comments are taken out before the rules run, so an `as` in a SQL template, a JSDoc comment or prose is not read, and neither is anything outside a fence. The check scans the code rather than parsing it, because an example is often a fragment; code inside a `${}` of a template is still code.
+
+   Two kinds of content are left out: a page that carries the note a generator writes (a blockquote that starts `Generated` and ends `do not edit.`, as `vulcan x atlas api gen` writes), and everything between `<!-- okf:generated:<id> start -->` and `end` markers. For a signature a page quotes from the source, wrap it in `<!-- docs-code: off -->` and `<!-- docs-code: on -->`.
 
    The same run prints warnings, which never fail it, about the shape of the tables of the wiki:
    - `docs-table: <file>:<line>: a cell of <n> characters (over 120) - a heading and a short table, or a list`
