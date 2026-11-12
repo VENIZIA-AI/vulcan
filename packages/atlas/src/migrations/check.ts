@@ -8,9 +8,6 @@ import { BreakingBadge } from './badges';
 import { MigrationSchema } from './schema';
 
 const DATED_ENTRY = /^(\d{4}-\d{2}-\d{2})-.*\.md$/;
-/** Both spellings the repositories use mean a breaking change; only the long one is canonical. */
-const BREAKING_BADGE = /<Badge[^>]*\stext="Breaking(?: Change)?"/;
-const SHORT_BADGE = /<Badge[^>]*\stext="Breaking"/;
 const BREAKING = BreakingBadge.CANONICAL;
 const BREAKING_SHORT = BreakingBadge.SHORT;
 const DEVZ_TIMEOUT_MS = 30_000;
@@ -60,9 +57,8 @@ export class ChangelogCheck {
       }
 
       const badges: unknown[] = Array.isArray(data.badges) ? data.badges : [];
-      const isBreaking =
-        BREAKING_BADGE.test(text) || badges.includes(BREAKING) || badges.includes(BREAKING_SHORT);
-      const isShort = SHORT_BADGE.test(text) || badges.includes(BREAKING_SHORT);
+      const isBreaking = BreakingBadge.isIn({ text, badges });
+      const isShort = BreakingBadge.SHORT_PATTERN.test(text) || badges.includes(BREAKING_SHORT);
 
       if (cutover !== undefined && isShort) {
         problems.push({

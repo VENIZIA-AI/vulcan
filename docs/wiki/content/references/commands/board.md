@@ -143,7 +143,7 @@ export default {
 
 **Unanswered.** On an agent's card, the messages sent to it after the last one it sent, each counted once. It is not the count of every message it ever got.
 
-**Working or idle.** An agent is working from a session start or any line of work it writes. A half hour with no line makes it idle, whatever its record says; the card says since when. The hooks no longer log a turn that ends or a tool that is used, so a session that works for more than half an hour without a message or a line of work shows as idle.
+**Working or idle.** An agent is working from a session start or any line of work it writes. A half hour with no line makes it idle, whatever its record says; the card says since when. The hooks do not log a turn that ends or a tool that is used, so a session that works for more than half an hour without a message or a line of work shows as idle.
 
 Each agent also has a solid colour, taken from a hash of its name out of a fixed palette of six, so it is the same on every load. Its mascot is that colour with a thick outline: at work it digs with a hoe, waiting on you it waves under a "?" bubble, idle it sleeps in grey, and stuck it sweats. The motion is plain CSS and stops for `prefers-reduced-motion`. A logo or a name the page cannot use is left out, with a note on stderr.
 

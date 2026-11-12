@@ -414,6 +414,43 @@ describe('ReleaseCompute.compute carries the migration block', () => {
   });
 });
 
+describe('ReleaseCompute.compute marks an entry breaking by any of its badges', () => {
+  const { root, git, write } = scratch();
+
+  git(['commit', '-q', '--allow-empty', '-m', 'init']);
+  write(
+    'changes/2026-02-01-second.md',
+    changelog({ title: 'Second' }).replace(
+      '\nA change.',
+      '<Badge text="New Feature" /> <Badge text="Breaking Change" />\n',
+    ),
+  );
+  write(
+    'changes/2026-02-02-short.md',
+    changelog({ title: 'Short', extra: 'badges: [Enhancement, Breaking]\n' }),
+  );
+  write(
+    'changes/2026-02-03-plain.md',
+    changelog({ title: 'Plain' }).replace('\nA change.', '<Badge text="Bug Fix" />\n'),
+  );
+  git(['add', '-A']);
+  git(['commit', '-q', '-m', 'docs']);
+
+  const table = ReleaseCompute.compute({ project: projectAt({ root }) });
+  const entry = (opts: { file: string }) =>
+    table.changelogs.find((record) => record.file === opts.file);
+
+  test('a Breaking badge that is not the first sets breaking, whichever spelling', () => {
+    expect(entry({ file: '2026-02-01-second.md' })?.kind).toBe('New Feature');
+    expect(entry({ file: '2026-02-01-second.md' })?.breaking).toBe(true);
+    expect(entry({ file: '2026-02-02-short.md' })?.breaking).toBe(true);
+  });
+
+  test('an entry with no Breaking badge carries no breaking field', () => {
+    expect(entry({ file: '2026-02-03-plain.md' })).not.toHaveProperty('breaking');
+  });
+});
+
 describe('ReleaseCompute.kindOfChangelog', () => {
   test('reports the first badge, and the short Breaking as Breaking Change', () => {
     const kind = (opts: { text: string }): string | null => ReleaseCompute.kindOfChangelog(opts);

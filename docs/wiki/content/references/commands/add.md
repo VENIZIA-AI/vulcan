@@ -63,6 +63,14 @@ bun install v1.4.3 (c6da4a4d3)
   unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
+  unchanged .claude/skills/fix-a-bug
+  unchanged .claude/skills/plan-a-change
+  unchanged .claude/skills/report-back
+  unchanged .claude/skills/research
+  unchanged .claude/skills/retro
+  unchanged .claude/skills/review-a-change
+  unchanged .claude/skills/ship
+  unchanged .claude/skills/visualize-work
   unchanged .mcp.json
   replaced  .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)
@@ -129,6 +137,14 @@ Checked 239 installs across 278 packages (no changes) [18.00ms]
   unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
+  unchanged .claude/skills/fix-a-bug
+  unchanged .claude/skills/plan-a-change
+  unchanged .claude/skills/report-back
+  unchanged .claude/skills/research
+  unchanged .claude/skills/retro
+  unchanged .claude/skills/review-a-change
+  unchanged .claude/skills/ship
+  unchanged .claude/skills/visualize-work
   unchanged .mcp.json
   replaced  .agents/vulcan.manifest.json
   unchanged AGENTS.md
@@ -179,6 +195,14 @@ Checked 240 installs across 279 packages (no changes) [19.00ms]
   unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
+  unchanged .claude/skills/fix-a-bug
+  unchanged .claude/skills/plan-a-change
+  unchanged .claude/skills/report-back
+  unchanged .claude/skills/research
+  unchanged .claude/skills/retro
+  unchanged .claude/skills/review-a-change
+  unchanged .claude/skills/ship
+  unchanged .claude/skills/visualize-work
   unchanged .mcp.json
   replaced  .agents/vulcan.manifest.json
   unchanged AGENTS.md

@@ -265,8 +265,10 @@ export class MigratePlan {
         .filter(
           (entry) =>
             entry.migration === undefined &&
-            entry.kind !== null &&
-            BreakingBadge.canonical({ text: entry.kind }) === BreakingBadge.CANONICAL,
+            // `breaking` sees every badge; a table written without it still has the first badge in `kind`.
+            (entry.breaking === true ||
+              (entry.kind !== null &&
+                BreakingBadge.canonical({ text: entry.kind }) === BreakingBadge.CANONICAL)),
         )
         .map((entry) => ({ id: entry.id, title: entry.title, date: entry.date })),
     };

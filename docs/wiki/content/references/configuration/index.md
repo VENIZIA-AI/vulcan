@@ -18,8 +18,6 @@ The table below lists all loader errors:
 
 The configuration file must provide a default export. Type the configuration using `satisfies VulcanConfig` or the `defineConfig` helper:
 
-`writes.trustedScripts` was removed: guard-writes no longer reads scripts, so a config that still sets it is refused with a message that says to delete the key.
-
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
@@ -96,7 +94,7 @@ export default {
 
 ## agents
 
-An optional list of agents the project suggests. Each developer's own choice lives in `.agents/vulcan.local.json` (see [`vulcan sync`](/references/commands/sync#choosing-your-agents)); this list is used only when a machine has not chosen yet. `vulcan init` no longer writes it. Accepted ids: `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity`, `pi`.
+An optional list of agents the project suggests. Each developer's own choice lives in `.agents/vulcan.local.json` (see [`vulcan sync`](/references/commands/sync#choosing-your-agents)); this list is used only when a machine has not chosen yet. `vulcan init` does not write it. Accepted ids: `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity`, `pi`.
 
 When `claude` is chosen, `vulcan sync` writes `CLAUDE.md`, `.claude/settings.json`, and links skills in `.claude/skills/`. The `vulcan doctor` command checks these generated files with the `[adapters]` label.
 
@@ -223,7 +221,7 @@ export default {
 | `lib` | `string` | no | The summary of the preset's lib kind, present when the preset can make a library |
 | `shared` | `string` | no | The summary of the preset's shared kind, present when the preset can make a shared package. The shared kind has no side of its own: `side` stays the app kind's |
 
-A record without `lib` or `shared` is read as before.
+A record without `lib` or `shared` is valid.
 
 The entries live in the `vulcan:apps` block that `init` and `add` rewrite, and the config reads them with `presets: apps.presets`. `add` refuses a block that does not hold the `presets` list, because it is not the JSON `vulcan` wrote. `vulcan sync` renders `layout` and `presets` into `.agents/vulcan.manifest.json`, which is what atlas reads. A project whose apps were not made from a preset records none.
 
@@ -250,7 +248,7 @@ The `packages` array defines monorepo packages in release order. Manifest render
 | `kind` | `app` or `lib` | unset | `lib` for a package `vulcan add --lib` or `--shared` made, so `doctor` does not ask it to live in a backend or frontend folder. Unset for an app or a plain package |
 | `presetKind` | `lib` or `shared` | unset | Which preset kind made a package whose `kind` is `lib`. `vulcan add --shared` writes `shared`; `--lib` writes nothing, and an unset value means `lib`. `vulcan preset diff` reads it |
 
-`vulcan add` writes `kind` and `presetKind`; you do not set them by hand. The schema is strict. A VULCAN that predates `presetKind` and the `shared` summary cannot read a config that holds them. Upgrade the project's VULCAN before you record a shared package. Remove both keys if you go back.
+`vulcan add` writes `kind` and `presetKind`; you do not set them by hand. The schema is strict. A VULCAN that does not know `presetKind` and the `shared` summary cannot read a config that holds them. Upgrade the project's VULCAN before you record a shared package.
 
 `vulcan sync` copies `presetKind` into the manifest, so atlas reads it too.
 
@@ -283,6 +281,7 @@ The `knowledge` object configures paths for knowledge bundles and documentation.
 | `bundle` | `string` | `'.agents/knowledge'` | Location of the Open Knowledge Format bundle |
 | `wiki` | `string` | `undefined` | Location of the documentation wiki content |
 | `changelogs` | `string` | `undefined` | Location of changelog files |
+| `migrationFrom` | `string` (`YYYY-MM-DD`) | `undefined` | The first day whose Breaking Change changelog entries must carry a `migration:` block; `vulcan changelog check` never reads an earlier entry |
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -530,7 +529,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-`theme: { accent: '#8a5a20', accentDark: '#dead6a' }` still works and means the `venizia` preset.
+`theme: { accent: '#8a5a20', accentDark: '#dead6a' }` means the `venizia` preset.
 
 ## owner
 

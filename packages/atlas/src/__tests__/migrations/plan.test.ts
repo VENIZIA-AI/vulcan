@@ -264,6 +264,32 @@ describe('MigratePlan.plans', () => {
     ]);
   });
 
+  test('C20: a breaking entry whose first badge is another one is listed as unstructured, as is an old table with only kind', () => {
+    const second = new ReleaseStore({
+      table: {
+        ...TABLE,
+        changelogs: [
+          {
+            ...entry({ slug: 'badge-second', date: '2026-02-05', order: 3, kind: 'New Feature' }),
+            breaking: true,
+          },
+          entry({ slug: 'plain', date: '2026-02-06', order: 3, kind: 'New Feature' }),
+        ],
+      },
+    });
+    const [result] = MigratePlan.plans({
+      releases: second,
+      app: appWith({}),
+      package: '@venizia/kernel',
+      from: '1.1.0',
+      to: '1.2.0',
+    }).plans;
+
+    expect(result.unstructured.map((entryOf) => entryOf.id)).toEqual([
+      'changelog:2026-02-05-badge-second',
+    ]);
+  });
+
   test('C12.1: `from` is the version the app installs', () => {
     const app = appWith({ dependencies: { '@venizia/kernel': '1.1.0' } });
     const [result] = plan({ app, to: '1.2.0' }).plans;

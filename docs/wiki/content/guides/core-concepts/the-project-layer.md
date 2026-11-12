@@ -68,7 +68,7 @@ The manifest carries the following fields:
 | `packages` | Workspace package entries with `name`, `dir`, `path`, `aliases`, `retired`, and `presetKind`; `kind: "lib"` on a library other apps import, made by `vulcan add --lib` |
 | `layout` | The `backend`, `frontend`, `shared` and `other` folders, when the project has them (`other` holds folders the layout does not manage, such as docs) |
 | `presets` | The presets the project's apps came from, for the atlas `presets` tool |
-| `knowledge` | Paths for the knowledge bundle, wiki, changelogs, and sync areas |
+| `knowledge` | Paths for the knowledge bundle, wiki and changelogs, and the day (`migrationFrom`) from which breaking changelog entries carry a migration block |
 | `release` | Release `tagPattern`, `ignoreTags`, and `legacyTagPatterns` (only when it lists something) |
 | `rules` | Path to project rules and short 8-character hashes of each base rule row |
 | `sources` | External knowledge sources from `atlas.sources` when configured |
