@@ -23,7 +23,7 @@ usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cac
 | `surface gen\|check` | Writes or checks `.agents/knowledge/reference/public-surface.md` from built `.d.ts` files |
 | `api gen\|check` | Writes or checks one API reference page for each package entry under the wiki, from the built `.d.ts` files |
 | `symbols` | Prints what the `symbol` tool reads from built `.d.ts` declaration files |
-| `releases` | Prints what the `version` and `changes` tools read from git tags |
+| `releases` | Prints what the `version` and `changes` tools read from the git tags of this project; the sources in `atlas.sources` are not included |
 | `changelogs check` | Checks the `migration:` blocks of the changelog entries ([Changelogs](#changelogs)) |
 | `migrate plan\|apply` | Plans what an app must change to move a package between two releases, or runs the codemods the plan links ([`migrate`](/references/atlas/tools#migrate)) |
 | `help` | Prints the usage line and exits with code 0 |

@@ -177,6 +177,115 @@ describe('vulcan migrate', () => {
     expect(runCli({ args: ['migrate', 'apply'], cwd: framework }).code).toBe(2);
   });
 
+  test.skipIf(!built)(
+    'from a sub-folder with no config it runs in the enclosing project and scans that folder',
+    () => {
+      const { framework } = world();
+      const web = join(framework, 'apps', 'web');
+
+      mkdirSync(join(web, 'src'), { recursive: true });
+      writeFileSync(
+        join(web, 'package.json'),
+        JSON.stringify({ dependencies: { '@venizia/kernel': '1.0.0' } }),
+      );
+      writeFileSync(
+        join(web, 'src', 'a.ts'),
+        "import { Thing } from '@venizia/kernel';\n\nThing.make();\n",
+      );
+
+      const here = runCli({
+        args: ['migrate', 'plan', '--package', '@venizia/kernel', '--to', 'latest'],
+        cwd: web,
+      });
+
+      expect(here.stderr).toBe('');
+      expect(here.code).toBe(0);
+      expect(here.stdout).toContain('## @venizia/kernel: 1.0.0 to 1.1.0');
+      expect(here.stdout).toContain('src/a.ts:3 (Thing.make)');
+
+      // A relative --app is read from the folder the command was run in, not from the project root.
+      const above = runCli({
+        args: ['migrate', 'plan', '--package', '@venizia/kernel', '--to', 'latest', '--app', 'web'],
+        cwd: join(framework, 'apps'),
+      });
+
+      expect(above.code).toBe(0);
+      expect(above.stdout).toContain('src/a.ts:3 (Thing.make)');
+    },
+  );
+
+  test.skipIf(!built)(
+    'a configured source that cannot be served is a Warning in the plan and a reason in the error',
+    () => {
+      const framework = createProject({
+        files: {
+          '.configs/vulcan.config.mts': `export default {
+  packages: [{ dir: 'kernel', name: '@venizia/kernel' }],
+  knowledge: { bundle: '.agents/knowledge' },
+  atlas: {
+    tagPattern: '<dir>-v<version>',
+    sources: [{ name: 'ghost', repo: '/nonexistent/ghost.git', ref: 'v1' }],
+  },
+};
+`,
+          '.agents/knowledge/index.md': '# Probe\n',
+        },
+      });
+
+      initRepo({ cwd: framework });
+      git({ cwd: framework, args: ['tag', 'kernel-v1.0.0'] });
+
+      const { app } = world();
+      const plan = runCli({
+        args: [
+          'migrate',
+          'plan',
+          '--package',
+          '@venizia/kernel',
+          '--from',
+          '1.0.0',
+          '--to',
+          '1.0.0',
+          '--app',
+          app,
+        ],
+        cwd: framework,
+      });
+      const missing = runCli({
+        args: [
+          'migrate',
+          'plan',
+          '--package',
+          '@venizia/ignis',
+          '--from',
+          '1.0.0',
+          '--to',
+          '2.0.0',
+          '--app',
+          app,
+        ],
+        cwd: framework,
+      });
+
+      expect(plan.code).toBe(0);
+      expect(plan.stdout).toContain('Warning: ghost could not be indexed');
+      expect(missing.code).toBe(1);
+      expect(missing.stderr).toContain('not served by any atlas source');
+      expect(missing.stderr).toContain('ghost could not be indexed');
+    },
+  );
+
+  test('outside any project the old message stays', () => {
+    const { app } = world();
+    const result = runCli({
+      args: ['migrate', 'plan', '--package', '@venizia/kernel', '--to', 'latest'],
+      cwd: app,
+    });
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain('nothing to serve');
+  });
+
   test.skipIf(!built)('an unknown version exits 1 with the message on stderr', () => {
     const { framework, app } = world();
     const result = runCli({

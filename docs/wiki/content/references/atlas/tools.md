@@ -302,7 +302,7 @@ to must be a YYYY-MM-DD date when no package is given; got '0.2.0-16'
 | `from` | String | The installed version | The version the app runs now |
 | `app` | String | The server's working directory | The app directory to scan |
 
-The reply holds `app`, `plans` (one for each package) and `skipped`: an installed package the release table cannot place (a local build, a version that was never released) is listed there with the reason while the other packages are planned. Naming that package with `package` is an error instead. A plan holds:
+The reply holds `app`, `plans` (one for each package), `skipped` and, when a source atlas serves could not be served, `notServed`: the sources still indexing or failed, with the reason, and what the answer covers. A plan that holds no entry or no structured step is not a clean result when `notServed` is present. `skipped`: an installed package the release table cannot place (a local build, a version that was never released) is listed there with the reason while the other packages are planned, and so is an installed package no atlas source serves (check `atlas.sources` and run `vulcan x atlas pull`). Naming that package with `package` is an error instead. A plan holds:
 
 | Field | Meaning |
 |---|---|
@@ -310,6 +310,7 @@ The reply holds `app`, `plans` (one for each package) and `skipped`: an installe
 | `direction` | `upgrade`, `downgrade`, or `none` when both versions are the same |
 | `target` | `release table` when `to` was `latest` or `next`, else `version`: the registry is never read |
 | `apply` | The `vulcan migrate apply` command that runs the codemods the steps link; absent when no step links one. The tool never runs it |
+| `entries` | How many changelog entries of the package fall in the window, with a `migration` block or not. `0` means the release table holds none between the two versions, which proves nothing about the move |
 | `note` | Present when the plan needs a warning, for example `latest` is older than the installed prerelease, so the plan is a downgrade; use `next` to stay on the newest release |
 | `steps` | The window's migration items in the order they apply (newest first for a downgrade): `id`, `entry`, `title`, `date`, `symbols`, `change` (the `upgrade` or `downgrade` of the item), `data`, `codemod`, and `touches`, the `file`, `line` and `symbol` where the app's code reaches it (empty when no static import of it was found) |
 | `unstructured` | Entries of the window with any Breaking or Breaking Change badge and no `migration` block: read each with `get` |
