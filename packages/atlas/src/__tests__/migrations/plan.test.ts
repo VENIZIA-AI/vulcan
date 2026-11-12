@@ -414,15 +414,16 @@ describe('MigratePlan.plans', () => {
     expect(result.skipped[0].reason).toContain("unknown version '1.1.0+local'");
   });
 
-  test('a package no source serves is named as not served, with the way out, and listed as skipped in a run over every package', () => {
+  test('a package no source serves is named as not served, with the way out, and listed as unserved in a run over every package', () => {
     const app = appWith({
       dependencies: { '@venizia/kernel': '1.0.0', '@venizia/ghost': '3.0.0' },
     });
     const result = MigratePlan.plans({ releases, app, to: 'latest' });
 
     expect(result.plans.map((entryOf) => entryOf.package)).toEqual(['@venizia/kernel']);
-    expect(result.skipped.map((entryOf) => entryOf.package)).toEqual(['@venizia/ghost']);
-    expect(result.skipped[0].reason).toContain('not served by any atlas source');
+    // An installed package no source serves is one short line, not an error-like skip: every project installs VULCAN itself.
+    expect(result.unserved).toEqual(['@venizia/ghost']);
+    expect(result.skipped).toEqual([]);
     expect(() => plan({ app, package: '@venizia/ghost', to: 'latest' })).toThrow(
       /@venizia\/ghost is not served by any atlas source.*atlas\.sources.*vulcan x atlas pull/s,
     );

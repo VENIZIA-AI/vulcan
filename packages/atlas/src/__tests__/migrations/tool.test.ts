@@ -143,6 +143,7 @@ describe('MigrateReport.markdown', () => {
       result: {
         app: '/app',
         skipped: [],
+        unserved: [],
         plans: [],
         notServed: {
           answeredFrom: ['app'],
@@ -163,6 +164,7 @@ describe('MigrateReport.markdown', () => {
       result: {
         app: '/app',
         skipped: [{ package: '@venizia/x', reason: "unknown version '1.0.0+local'" }],
+        unserved: ['@venizia/vulcan', '@venizia/dev-configs'],
         plans: [
           {
             package: '@venizia/kernel',
@@ -196,6 +198,11 @@ describe('MigrateReport.markdown', () => {
 
     expect(text).toContain('Note: latest is older than the installed 1.3.0-0');
     expect(text).toContain('Skipped @venizia/x: unknown version');
+    // Packages no source serves: one short line, never the long error.
+    expect(text).toContain(
+      'Not served by any atlas source: @venizia/vulcan, @venizia/dev-configs.',
+    );
+    expect(text).not.toContain('Skipped @venizia/vulcan');
     expect(text).toContain('Not read (1): src/locked.ts');
     // Entries and no structured step: the headline says so and does not read as clean.
     expect(text).toContain(
