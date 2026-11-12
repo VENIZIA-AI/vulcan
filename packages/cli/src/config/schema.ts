@@ -277,6 +277,11 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       wiki: z.string().optional(),
       /** Folder of the changelog files; absent means the project has none. */
       changelogs: z.string().optional(),
+      /** `YYYY-MM-DD`: an entry dated on or after it owes a `migration` block when it is a Breaking Change; earlier entries are never checked. */
+      migrationFrom: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
       /** A map of code areas to concepts; no shipped skill reads it. */
     })
     .default({ bundle: ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE }),

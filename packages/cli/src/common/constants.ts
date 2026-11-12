@@ -15,6 +15,7 @@ export class VulcanCommands {
   static readonly COMMIT_CHECK = 'commit-check';
   static readonly BOARD = 'board';
   static readonly EVENT = 'event';
+  static readonly CHANGELOG = 'changelog';
   static readonly X = 'x';
   static readonly HELP = 'help';
   static readonly VERSION = 'version';

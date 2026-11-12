@@ -114,6 +114,7 @@ atlas reads the following fields from `.agents/vulcan.manifest.json`. The file i
 | `knowledge.bundle` | String | `.agents/knowledge` | Path to the knowledge bundle directory |
 | `knowledge.wiki` | String | None | Path to the wiki documentation directory |
 | `knowledge.changelogs` | String | None | Path to the dated changelog directory |
+| `knowledge.migrationFrom` | String (`YYYY-MM-DD`) | None | The first day whose Breaking Change entries must carry a `migration:` block; `changelogs check` never reads an earlier entry |
 
 ## Tools
 
@@ -352,6 +353,20 @@ To populate the `releases` map, tag releases matching `release.tagPattern`.
 By default, the template is `<dir>-v<version>`, such as `api-v1.0.0`.
 atlas computes releases directly from git tags and commit history when it reads a source.
 Without a git root or commits, atlas finds zero releases and returns the "no releases" message.
+
+A changelog entry can also carry a `migration:` block in its frontmatter, and the table holds it for the entry (`changelogs[].migration`): how an app upgrades and downgrades across the entry. An entry whose block is invalid carries none.
+
+## Changelogs
+
+`vulcan x atlas changelogs check` (or `vulcan changelog check`) validates the `migration:` blocks of the entries in `knowledge.changelogs`.
+It exits `0` when every entry conforms and `1` when one does not, printing `<file>: <message>` for each problem on stderr; any other subcommand exits `2`.
+
+| Rule | Detail |
+|---|---|
+| Shape | Each item has `id` (lower-case words joined by `-`, unique across the folder), `symbols` (at least one export name, `Name.member` or module specifier), `upgrade` and `downgrade` (each `before` and `after`, or `steps`, never both), and optionally `data` and `codemod` |
+| Who owes a block | An entry with a Breaking Change badge dated on or after `knowledge.migrationFrom`; with no `migrationFrom` nothing is owed, but a block that is present is still checked |
+| Who is skipped | An entry dated before `knowledge.migrationFrom` |
+| `codemod` | Must be a name `devz codemod --list` prints; when `devz` is not installed or cannot list, the names are not checked and the command says so |
 
 ## Why a result is empty
 

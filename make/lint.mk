@@ -77,10 +77,13 @@ public-api-check:
 	@echo "lint: every cli and okf export has a doc comment"
 	@bun x --no-install vulcan x atlas api undocumented --package cli --package okf
 
-# A changelog entry never carries the template placeholder X.Y.Z (a title is a plain sentence).
+# A changelog entry never carries the template placeholder X.Y.Z (a title is a plain sentence), and its `migration` block is valid:
+# a Breaking Change entry dated on or after knowledge.migrationFrom carries one. Needs atlas and the cli built.
 changelog-check:
 	@echo "lint: no X.Y.Z placeholder in the changelogs"
 	@bun scripts/checks/check-changelog-placeholder.ts
+	@echo "lint: every changelog migration block is valid"
+	@bun x --no-install vulcan changelog check
 
 # W-00: no commit of the branch signs itself as an agent (`commit.message.agent.signature: 'deny'` in the config). RANGE is the
 # branch, `origin/develop..HEAD` by default; a clone also gets the check at commit time from `make setup-hooks` (the commit-msg
