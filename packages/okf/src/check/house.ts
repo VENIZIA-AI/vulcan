@@ -8,6 +8,7 @@ import type { IBundleFile } from '../spec/index.ts';
 import { CoverageAxes } from '../coverage-report/axes.ts';
 import { ContentsFiles } from '../generate/contents-files.ts';
 import { ChangelogCheck } from './changelogs.ts';
+import { DocsCodeCheck } from './docs-code.ts';
 import { GeneratedPages, ManagedRegion } from '../generate/index.ts';
 import type { ILoadedRegion, ILoadedRenderer } from '../generate/index.ts';
 import { SourceCollector, SourceScanner } from '../source/index.ts';
@@ -152,6 +153,9 @@ export class HouseCheck {
 
     // C3: every dated changelog entry declares its packages by npm name.
     problems.push(...ChangelogCheck.collectProblems());
+
+    // The code the wiki shows follows the code rules: no cast, no any, no conditional spread, no literal union.
+    problems.push(...DocsCodeCheck.collectProblems());
 
     // A long agent-read file opens with its contents - an agent may read its first lines only.
     problems.push(
