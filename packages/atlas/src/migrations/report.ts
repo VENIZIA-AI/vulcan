@@ -146,6 +146,10 @@ export class MigrateReport {
       ...opts.result.plans.flatMap((plan) => planOf({ plan })),
     ];
 
+    if (opts.result.unserved.length > 0) {
+      lines.push(`Not served by any atlas source: ${opts.result.unserved.join(', ')}.`, '');
+    }
+
     for (const skipped of opts.result.skipped) {
       lines.push(`Skipped ${skipped.package}: ${skipped.reason}`, '');
     }

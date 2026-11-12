@@ -75,6 +75,8 @@ export interface IMigrationResult {
   notServed?: ISourceNotice;
   plans: IMigrationPlan[];
   skipped: ISkippedPackage[];
+  /** Installed packages no atlas source serves, in a run over every installed package: VULCAN itself is one in every project. */
+  unserved: string[];
 }
 
 const LATEST = 'latest';
@@ -116,6 +118,7 @@ export class MigratePlan {
         app: opts.app,
         plans: [MigratePlan.build({ ...opts, package: name, from })],
         skipped: [],
+        unserved: [],
       };
     }
 
@@ -138,10 +141,10 @@ export class MigratePlan {
       );
     }
 
-    const result: IMigrationResult = { app: opts.app, plans: [], skipped: [] };
+    const result: IMigrationResult = { app: opts.app, plans: [], skipped: [], unserved: [] };
 
     for (const { name } of present.filter((entry) => !served.includes(entry))) {
-      result.skipped.push({ package: name, reason: MigratePlan.notServedReason({ name }) });
+      result.unserved.push(name);
     }
 
     for (const { name, version } of served) {
