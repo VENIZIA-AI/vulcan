@@ -15,10 +15,31 @@ export const IGNIS_ROOT = process.env.IGNIS_ROOT ?? join(__dirname, '../../../..
 export const IGNIS_IS_PRESENT = existsSync(join(IGNIS_ROOT, '.agents', 'knowledge'));
 
 /**
- * Installed and built: the generators read every package's dist `.d.ts`, and some symbols resolve
- * into IGNIS's node_modules. A bare clone (VULCAN's release CI) has neither, so those tests skip there.
+ * Whether tracked files of the checkout differ from its commit: another session is editing it. The tests that
+ * compare atlas with IGNIS's built declarations and its source lines read a state that is neither the commit nor
+ * the build then, so they skip, with a note, instead of failing on edits that are not theirs to judge.
+ * `IGNIS_ALLOW_DIRTY=1` reads the working tree as it is.
+ */
+export const IGNIS_HAS_UNCOMMITTED_EDITS =
+  process.env.IGNIS_ALLOW_DIRTY !== '1' &&
+  existsSync(join(IGNIS_ROOT, '.git')) &&
+  spawnSync('git', ['status', '--porcelain', '--untracked-files=no'], {
+    cwd: IGNIS_ROOT,
+    encoding: 'utf8',
+  }).stdout.trim().length > 0;
+
+if (IGNIS_HAS_UNCOMMITTED_EDITS) {
+  process.stderr.write(
+    `atlas tests: ${IGNIS_ROOT} has uncommitted edits, so the tests that compare atlas with its built declarations are skipped (IGNIS_ALLOW_DIRTY=1 reads it as it is)\n`,
+  );
+}
+
+/**
+ * Installed and built, and not being edited: the generators read every package's dist `.d.ts`, and some symbols
+ * resolve into IGNIS's node_modules. A bare clone (VULCAN's release CI) has neither, so those tests skip there.
  */
 export const IGNIS_IS_BUILT =
+  !IGNIS_HAS_UNCOMMITTED_EDITS &&
   existsSync(join(IGNIS_ROOT, 'node_modules')) &&
   existsSync(join(IGNIS_ROOT, 'packages', 'core-server', 'dist'));
 
