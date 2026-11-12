@@ -75,6 +75,10 @@ const planOf = (opts: { plan: IMigrationPlan }): string[] => {
     lines.push(`Note: ${plan.note}`, '');
   }
 
+  if (plan.apply !== undefined) {
+    lines.push(`Run the codemods: \`${plan.apply}\``, '');
+  }
+
   lines.push(
     `A ${plan.direction}: ${touched.length} of ${plan.steps.length} changes found in your code.${source}`,
     '',
@@ -104,6 +108,11 @@ const planOf = (opts: { plan: IMigrationPlan }): string[] => {
 };
 
 export class MigrateReport {
+  /** One direction of an item as Markdown lines: numbered steps, or the before and after code. */
+  static changeLines(opts: { change: TMigrationDirection }): string[] {
+    return changeOf(opts);
+  }
+
   /** The plans as Markdown: what reaches the app first, the rest after, then the entries with no structured steps. */
   static markdown(opts: { result: IMigrationResult }): string {
     const lines = [
