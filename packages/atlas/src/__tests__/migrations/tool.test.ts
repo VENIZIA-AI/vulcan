@@ -176,6 +176,7 @@ describe('MigrateReport.markdown', () => {
     const text = MigrateReport.markdown({ result });
 
     expect(text).toContain('## @venizia/kernel: 1.0.0 to 2.0.0');
+    expect(text).toContain('An upgrade: 1 of 1 changes found in your code.');
     expect(text).toContain('src/a.ts:3 (Thing.make)');
     expect(text).toContain('ThingFactory.build()');
     expect(text).toContain('Data: Stored values change.');

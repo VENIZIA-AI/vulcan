@@ -29,6 +29,7 @@ const guidesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Hooks and guards', link: '/guides/core-concepts/hooks-and-guards' },
       { text: 'The owner and the reply shape', link: '/guides/core-concepts/owner-and-replies' },
       { text: 'Work items', link: '/guides/core-concepts/work-items' },
+      { text: 'Migrate between releases', link: '/guides/core-concepts/migrate-between-releases' },
       { text: 'The knowledge bundle', link: '/guides/core-concepts/knowledge-bundle' },
       { text: 'Atlas', link: '/guides/core-concepts/atlas' },
     ],
