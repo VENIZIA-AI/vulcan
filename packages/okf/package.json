@@ -1,6 +1,6 @@
 {
   "name": "@venizia/vulcan-okf",
-  "version": "0.4.10-13",
+  "version": "0.4.10-14",
   "description": "VULCAN knowledge tooling: OKF v0.2 conformance check (plus --strict house rules), gen, and coverage for a project's .agents/knowledge bundle. Bun-only.",
   "homepage": "https://github.com/VENIZIA-AI/vulcan/tree/main/packages/okf",
   "bugs": {
