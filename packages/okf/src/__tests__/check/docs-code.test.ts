@@ -275,3 +275,63 @@ test('AnyType, the alias of any, is any: in a type position it is a problem, in 
     problems({ code: "const AnyTypeOf = 1;\nconst s = 'AnyType';\nconst x: AnyTypeValue = y;" }),
   ).toEqual([]);
 });
+
+const offPage = (opts: { code: string }): string =>
+  `<!-- docs-code: off -->\n\`\`\`ts\n${opts.code}\n\`\`\`\n<!-- docs-code: on -->\n`;
+
+test('an off region is counted per page, with its line', () => {
+  wikiWith({
+    pages: {
+      'a.md': `${offPage({ code: 'declare function f(value: any): never;' })}\n${offPage({ code: 'interface IX { run(input: any): void }' })}`,
+      'b.md': offPage({ code: 'type T = Record<string, any>;' }),
+      'c.md': '# none\n',
+    },
+  });
+
+  expect(DocsCodeCheck.offRegions()).toEqual([
+    { file: 'wiki/a.md', lines: [1, 7] },
+    { file: 'wiki/b.md', lines: [1] },
+  ]);
+  expect(DocsCodeCheck.collectWarnings()).toEqual([]);
+});
+
+test('an off region that holds a function body, a call or a statement is a warning: off is for a quoted signature', () => {
+  for (const [code, word] of [
+    ['function f(value: any) {\n  return value;\n}', 'function body'],
+    ['const run = (value: any) => {\n  work(value);\n};', 'function body'],
+    ['const result = await load(url);', 'statement'],
+    ['const x = build(options);', 'statement'],
+    ['return value;', 'statement'],
+  ]) {
+    wikiWith({ pages: { 'a.md': offPage({ code }) } });
+
+    const found = DocsCodeCheck.collectWarnings();
+
+    expect(found.length, code).toBeGreaterThan(0);
+    expect(found[0], code).toStartWith('docs-code: wiki/a.md:');
+    expect(found[0], code).toContain('docs-code off');
+    expect(found[0], code).toContain(word);
+  }
+});
+
+test('signatures in an off region are not warned about: declarations, interface members, type aliases, overloads', () => {
+  wikiWith({
+    pages: {
+      'a.md': offPage({
+        code: [
+          'declare function f(value: any, options?: IOptions): Promise<void>;',
+          'interface IService {',
+          '  find(filter: any): Promise<IRow[]>;',
+          '  readonly name: string;',
+          '}',
+          'type Handler = (input: any) => void;',
+          'class Base {',
+          '  run(input: any): void;',
+          '}',
+        ].join('\n'),
+      }),
+    },
+  });
+
+  expect(DocsCodeCheck.collectWarnings()).toEqual([]);
+});
