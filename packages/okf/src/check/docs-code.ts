@@ -33,6 +33,12 @@ const CONDITIONAL_SPREAD = /\.\.\.\(.*(?:\?.*:\s*(?:\{\}|\[\])|&&\s*[{[])/;
 const LITERAL_UNION = /\btype\s+\w+(?:<[^>]*>)?\s*=\s*(?:\|\s*)?''\s*\|/;
 
 const TABLE_CELL_MAX = 120;
+const OFF_MARKER = /<!--\s*docs-code:\s*off\s*-->/;
+const ON_MARKER = /<!--\s*docs-code:\s*on\s*-->/;
+/** What a quoted signature never holds: a statement, a call assigned or awaited, a function or arrow body. */
+const OFF_STATEMENT =
+  /^\s*(?:const|let|var|return|await|if|for|while|throw)\b|=\s*(?:await\s+|new\s+)?[\w$.]+\(/;
+const OFF_BODY = /=>\s*\{|\)\s*(?::\s*[\w$.<>[\] |]+)?\s*\{/;
 
 interface IFence {
   character: string;
@@ -61,12 +67,26 @@ export class DocsCodeCheck {
     return DocsCodeCheck.pagesOf().flatMap((page) => DocsCodeCheck.codeProblemsOf({ page }));
   }
 
-  /** `docs-table: <file>:<line>: <what>` for every table row that is crowded. */
+  /** `docs-table: <file>:<line>: <what>` for every crowded table row, and `docs-code: <file>:<line>: <what>` for an off region that holds more than a signature. */
   static collectWarnings(): string[] {
-    return DocsCodeCheck.pagesOf().flatMap((page) => DocsCodeCheck.tableWarningsOf({ page }));
+    return DocsCodeCheck.pagesOf().flatMap((page) => [
+      ...DocsCodeCheck.tableWarningsOf({ page }),
+      ...DocsCodeCheck.offWarningsOf({ page }),
+    ]);
   }
 
-  private static pagesOf(): { file: string; lines: string[] }[] {
+  /** Every page that holds a `docs-code: off` region, with the line of each: a reviewer sees every use. */
+  static offRegions(): { file: string; lines: number[] }[] {
+    return DocsCodeCheck.pagesOf().flatMap((page) => {
+      const lines = DocsCodeCheck.offRegionsIn({ lines: page.rawLines }).map(
+        (region) => region.start,
+      );
+
+      return lines.length === 0 ? [] : [{ file: page.file, lines }];
+    });
+  }
+
+  private static pagesOf(): { file: string; lines: string[]; rawLines: string[] }[] {
     const { wiki, changelogs } = OkfProject.read();
 
     if (wiki === undefined) {
@@ -81,7 +101,62 @@ export class DocsCodeCheck {
       .map(({ file, text }) => ({
         file: SourceScanner.repoRelative({ path: file }),
         lines: DocsCodeCheck.withoutGeneratedRegions({ lines: text.split('\n') }),
+        rawLines: text.split('\n'),
       }));
+  }
+
+  /** Each `docs-code: off` region: the line of its marker and the code lines inside it with their numbers. */
+  private static offRegionsIn(opts: {
+    lines: string[];
+  }): { start: number; body: { text: string; number: number }[] }[] {
+    const regions: { start: number; body: { text: string; number: number }[] }[] = [];
+    let open: { start: number; body: { text: string; number: number }[] } | undefined;
+
+    opts.lines.forEach((text, index) => {
+      if (OFF_MARKER.test(text)) {
+        open = { start: index + 1, body: [] };
+
+        return;
+      }
+
+      if (ON_MARKER.test(text) && open !== undefined) {
+        regions.push(open);
+        open = undefined;
+
+        return;
+      }
+
+      if (open !== undefined && !FENCE_OPEN.test(text)) {
+        open.body.push({ text, number: index + 1 });
+      }
+    });
+
+    return regions;
+  }
+
+  private static offWarningsOf(opts: { page: { file: string; rawLines: string[] } }): string[] {
+    return DocsCodeCheck.offRegionsIn({ lines: opts.page.rawLines }).flatMap((region) => {
+      const masked = CodeMask.of({ text: region.body.map((line) => line.text).join('\n') }).split(
+        '\n',
+      );
+      const found: string[] = [];
+
+      masked.forEach((line, at) => {
+        const what = OFF_BODY.test(line)
+          ? 'a function body'
+          : OFF_STATEMENT.test(line)
+            ? 'a statement'
+            : undefined;
+
+        if (what !== undefined) {
+          found.push(
+            `docs-code: ${opts.page.file}:${region.body[at].number}: a docs-code off region holds ${what} - off is for a quoted source signature, never an example`,
+          );
+        }
+      });
+
+      return found;
+    });
   }
 
   /** The lines with what sits between okf generated markers, or `docs-code: off` and `on`, blanked, so line numbers hold. */

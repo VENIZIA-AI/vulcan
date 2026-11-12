@@ -63,5 +63,15 @@ export const check = async (opts: { strict: boolean }): Promise<void> => {
     ? `OKF v${OkfVersions.LATEST} + house rules`
     : `OKF v${OkfVersions.LATEST}`;
 
+  const off = opts.strict ? DocsCodeCheck.offRegions() : [];
+
+  if (off.length > 0) {
+    const total = off.reduce((sum, page) => sum + page.lines.length, 0);
+
+    console.log(
+      `check: docs-code off - ${total} region(s) in ${off.length} page(s): ${off.map((page) => `${page.file} (${page.lines.length})`).join(', ')}`,
+    );
+  }
+
   console.log(`check: OK - ${scope} - ${files.length} files, ${conceptCount} concepts`);
 };
