@@ -21,6 +21,7 @@ const ITEM = `migration:
 `;
 
 const BREAKING = '<Badge type="warning" text="Breaking Change" />';
+const SHORT_BREAKING = '<Badge type="danger" text="Breaking" />';
 const FEATURE = '<Badge type="tip" text="New Feature" />';
 
 /** A project whose changelog folder holds `files`; `migrationFrom` is the cutover, absent for none. */
@@ -80,6 +81,52 @@ describe('ChangelogCheck.scan', () => {
     });
 
     expect(ChangelogCheck.scan({ project })).toHaveLength(1);
+  });
+
+  test('the short spelling `Breaking` is breaking too: it owes a block, and is reported as non-canonical', () => {
+    const missing = projectWith({
+      files: { '2026-11-20-short.md': entry({ badge: SHORT_BREAKING }) },
+      migrationFrom: '2026-11-13',
+    });
+    const present = projectWith({
+      files: { '2026-11-20-short.md': entry({ badge: SHORT_BREAKING, extra: ITEM }) },
+      migrationFrom: '2026-11-13',
+    });
+    const owed = ChangelogCheck.scan({ project: missing.project });
+    const spelling = ChangelogCheck.scan({ project: present.project });
+
+    expect(owed.map((problem) => problem.message).join('\n')).toContain('`migration:`');
+    expect(owed).toHaveLength(2);
+    expect(spelling).toHaveLength(1);
+    expect(spelling[0].message).toContain('use "Breaking Change"');
+    expect(spelling[0].file).toBe('2026-11-20-short.md');
+  });
+
+  test('the short spelling in the badges field is breaking and non-canonical too', () => {
+    const { project } = projectWith({
+      files: {
+        '2026-11-20-short.md': entry({ badge: '', extra: `badges: [Breaking]\n${ITEM}` }),
+      },
+      migrationFrom: '2026-11-13',
+    });
+
+    const problems = ChangelogCheck.scan({ project });
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0].message).toContain('use "Breaking Change"');
+  });
+
+  test('the spelling is not reported without a cutover, nor on an entry before it', () => {
+    const none = projectWith({
+      files: { '2026-11-20-short.md': entry({ badge: SHORT_BREAKING }) },
+    });
+    const before = projectWith({
+      files: { '2026-11-01-short.md': entry({ badge: SHORT_BREAKING }) },
+      migrationFrom: '2026-11-13',
+    });
+
+    expect(ChangelogCheck.scan({ project: none.project })).toEqual([]);
+    expect(ChangelogCheck.scan({ project: before.project })).toEqual([]);
   });
 
   test('a conforming Breaking Change entry passes', () => {

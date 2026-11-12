@@ -7,8 +7,11 @@ import { TextValue } from '@/common/text';
 import { MigrationSchema } from './schema';
 
 const DATED_ENTRY = /^(\d{4}-\d{2}-\d{2})-.*\.md$/;
-const BREAKING_BADGE = /<Badge[^>]*\stext="Breaking Change"/;
+/** Both spellings the repositories use mean a breaking change; only the long one is canonical. */
+const BREAKING_BADGE = /<Badge[^>]*\stext="Breaking(?: Change)?"/;
+const SHORT_BADGE = /<Badge[^>]*\stext="Breaking"/;
 const BREAKING = 'Breaking Change';
+const BREAKING_SHORT = 'Breaking';
 const DEVZ_TIMEOUT_MS = 30_000;
 
 /** One reason an entry fails the check; `file` is the entry's name in the changelog folder. */
@@ -56,7 +59,16 @@ export class ChangelogCheck {
       }
 
       const badges: unknown[] = Array.isArray(data.badges) ? data.badges : [];
-      const isBreaking = BREAKING_BADGE.test(text) || badges.includes(BREAKING);
+      const isBreaking =
+        BREAKING_BADGE.test(text) || badges.includes(BREAKING) || badges.includes(BREAKING_SHORT);
+      const isShort = SHORT_BADGE.test(text) || badges.includes(BREAKING_SHORT);
+
+      if (cutover !== undefined && isShort) {
+        problems.push({
+          file,
+          message: `the badge \`${BREAKING_SHORT}\` is not the canonical spelling: use "${BREAKING}"`,
+        });
+      }
 
       if (data.migration === undefined) {
         if (isBreaking && cutover !== undefined) {

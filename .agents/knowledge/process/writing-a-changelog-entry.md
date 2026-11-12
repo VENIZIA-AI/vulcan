@@ -62,7 +62,7 @@ The title and the description (one plain sentence) are the entry's card on the i
 
 ## The migration block
 
-A Breaking Change entry dated on or after `knowledge.migrationFrom` carries `migration:` in its frontmatter: how an app moves across the change, in both directions. `vulcan changelog check` (part of `make changelog-check`) fails when it is missing or invalid; entries before the cutover are never read.
+A Breaking Change entry (badge text `Breaking Change`; `Breaking` is read as breaking too but reported on entries after the cutover) dated on or after `knowledge.migrationFrom` carries `migration:` in its frontmatter: how an app moves across the change, in both directions. `vulcan changelog check` (part of `make changelog-check`) fails when it is missing or invalid; entries before the cutover are never read.
 
 ```yaml
 migration:
