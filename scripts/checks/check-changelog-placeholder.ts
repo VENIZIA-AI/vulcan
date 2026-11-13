@@ -37,12 +37,12 @@ export class ChangelogPlaceholder {
       .sort();
 
     return files.flatMap((file) =>
-        readFileSync(join(directory, file), 'utf8')
-          .split('\n')
-          .flatMap((text, index) =>
-            PLACEHOLDER.test(text) ? [`${CHANGELOGS}/${file}:${index + 1}: ${text.trim()}`] : [],
-          ),
-      );
+      readFileSync(join(directory, file), 'utf8')
+        .split('\n')
+        .flatMap((text, index) =>
+          PLACEHOLDER.test(text) ? [`${CHANGELOGS}/${file}:${index + 1}: ${text.trim()}`] : [],
+        ),
+    );
   }
 
   static run(opts: { argv: string[] }): number {
