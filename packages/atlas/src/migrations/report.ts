@@ -1,10 +1,10 @@
 import { MigrateDirections, MigrateTargets } from './plan';
 import type { IMigrationPlan, IMigrationResult, IMigrationStep } from './plan';
 import { TouchKinds } from './scan';
-import type { IMigrationTouch } from './scan';
+import type { IMigrationTouch, TTouchKind } from './scan';
 import type { TMigrationDirection } from './schema';
 
-const ofKind = (opts: { touches: IMigrationTouch[]; kind: string }): IMigrationTouch[] =>
+const ofKind = (opts: { touches: IMigrationTouch[]; kind: TTouchKind }): IMigrationTouch[] =>
   opts.touches.filter((touch) => touch.kind === opts.kind);
 
 /** Places the app's own code reaches: a name used, or a module imported. A re-export is not one. */

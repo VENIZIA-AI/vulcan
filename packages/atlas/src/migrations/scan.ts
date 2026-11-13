@@ -3,6 +3,7 @@ import type { Dirent } from 'node:fs';
 import { join, relative } from 'node:path';
 import type TypeScript from 'typescript';
 import { TypeScriptCompiler } from '@/common/compiler';
+import type { TConstValue } from '@/common/types';
 
 /** How a place reaches a symbol: the plan words each kind differently. */
 export class TouchKinds {
@@ -14,7 +15,7 @@ export class TouchKinds {
   static readonly MODULE = 'module';
 }
 
-export type TTouchKind = (typeof TouchKinds)[keyof typeof TouchKinds];
+export type TTouchKind = TConstValue<typeof TouchKinds>;
 
 /** One place in the app's code a migration item reaches. */
 export interface IMigrationTouch {
@@ -170,7 +171,11 @@ export class AppScan {
           ? node.importClause?.namedBindings
           : node.exportClause;
 
-        if (compiler.isExportDeclaration(node) && node.exportClause === undefined) {
+        // `export * from` and `export * as ns from` both pass the whole module on.
+        if (
+          compiler.isExportDeclaration(node) &&
+          (node.exportClause === undefined || compiler.isNamespaceExport(node.exportClause))
+        ) {
           facts.stars.push({ specifier, line: lineOf(node) });
         }
 
