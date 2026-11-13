@@ -268,10 +268,12 @@ export class CommandTable {
                                   on or after a date cutover carries one. --history also fails a released folder that
                                   changed since the base, a stable with no folder, and a dated file added or edited`,
       flags: {
-        '--history': 'Also run the checks that read git: frozen released folders, stables without a folder, new dated files',
+        '--history':
+          'Also run the checks that read git: frozen released folders, stables without a folder, new dated files',
       },
       values: {
-        '--base': 'With --history: the commit or branch the change is measured from, e.g. origin/develop',
+        '--base':
+          'With --history: the commit or branch the change is measured from, e.g. origin/develop',
       },
       positionals: 1,
       unknownExit: ExitCodes.USAGE,

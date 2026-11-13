@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { basename, dirname, join, relative } from 'node:path';
 import { Resolve } from '@/changelogs/resolve';
 import { VersionFolders } from '@/changelogs/version-folder';
 import { AtlasGit, AtlasTimeouts } from '@/common/constants';
@@ -53,9 +53,10 @@ export class ChangelogHistory {
     }
 
     problems.push(...ChangelogHistory.frozenProblems({ project, base: opts.base, at }));
-    problems.push(...ChangelogHistory.datedProblems({ project, base: opts.base, at }));
 
+    // Dual mode: until a project adopts the folders (a version cutover) its dated files stay the changelog.
     if (migrationFrom !== undefined && VERSION_CUTOVER.test(migrationFrom)) {
+      problems.push(...ChangelogHistory.datedProblems({ project, base: opts.base, at }));
       problems.push(
         ...ChangelogHistory.stableProblems({ project, directory, from: migrationFrom }),
       );
@@ -81,7 +82,7 @@ export class ChangelogHistory {
     return names.flatMap((name) => {
       const log = git({ root, args: ['show', `${opts.base}:${opts.at}/${name}/log.md`] });
 
-      if (log === undefined || Resolve.splitFrontmatter(log).data.released === undefined) {
+      if (log === undefined || !ChangelogHistory.isReleased({ log })) {
         return [];
       }
 
@@ -105,6 +106,17 @@ export class ChangelogHistory {
     });
   }
 
+  /** Whether a `log.md` carries a `released:` date; one that cannot be read is not released (the default check reports it). */
+  private static isReleased(opts: { log: string }): boolean {
+    try {
+      const released = Resolve.splitFrontmatter(opts.log).data.released;
+
+      return typeof released === 'string' && released !== '';
+    } catch {
+      return false;
+    }
+  }
+
   /** A dated file added or edited since the base: the changelog is the version folders now. */
   private static datedProblems(opts: {
     project: IAtlasProject;
@@ -115,14 +127,16 @@ export class ChangelogHistory {
     const changed = git({ root, args: ['diff', '--name-status', opts.base, '--', opts.at] }) ?? '';
     const untracked =
       git({ root, args: ['ls-files', '--others', '--exclude-standard', '--', opts.at] }) ?? '';
+    // A, M, and the new path of a rename or copy (R100\told\tnew): the last column.
     const added = changed
       .split('\n')
       .map((line) => line.split('\t'))
-      .filter(([status]) => status === 'A' || status === 'M')
-      .map(([, file]) => file);
+      .filter(([status]) => /^[AMRC]/.test(status ?? ''))
+      .map((columns) => columns.at(-1));
     const files = [...added, ...untracked.split('\n')]
-      .filter((file) => file !== undefined && file !== '')
-      .map((file) => file.split('/').at(-1) ?? '')
+      .filter((file): file is string => file !== undefined && file !== '')
+      .filter((file) => dirname(file) === opts.at)
+      .map((file) => basename(file))
       .filter((name) => DATED_NAME.test(name));
 
     return [...new Set(files)].map((file) => ({
@@ -138,9 +152,13 @@ export class ChangelogHistory {
     from: string;
   }): IChangelogProblem[] {
     const table = ReleaseCompute.compute({ project: opts.project });
+    const live = new Set(
+      opts.project.packages.filter((entry) => !entry.retired).map((entry) => entry.dir),
+    );
     const stables = new Set(
-      Object.values(table.releases)
-        .flat()
+      Object.entries(table.releases)
+        .filter(([dir]) => live.has(dir))
+        .flatMap(([, records]) => records)
         .map((release) => release.version)
         .filter((version) => VERSION_CUTOVER.test(version))
         .filter((version) => Bun.semver.order(version, opts.from) >= 0),

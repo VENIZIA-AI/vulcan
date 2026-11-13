@@ -3,9 +3,11 @@ import { join } from 'node:path';
 import { VersionFolders, VersionSections } from '@/changelogs/version-folder';
 import type { IVersionFolder } from '@/changelogs/version-folder';
 import type { IAtlasProject } from '@/common/project-config';
+import { TextValue } from '@/common/text';
 import type { IChangelogProblem } from './check';
 
 const PRERELEASE_PART = /-.+$/;
+const VERSION_CUTOVER = /^\d+\.\d+\.\d+$/;
 
 /**
  * The gate over the version folders `changelogs/<X.Y.Z>/{log.md, migration.yaml}`, from the files alone (no git):
@@ -35,7 +37,7 @@ export class VersionCheck {
   }): IChangelogProblem[] {
     const { folder } = opts;
     const problems: IChangelogProblem[] = [...folder.problems];
-    const fail = (file: string, message: string): void => {
+    const fail = ({ file, message }: { file: string; message: string }): void => {
       problems.push({ file: `${folder.name}/${file}`, message });
     };
     const owing = folder.items.filter((item) => VersionSections.OWING.includes(item.section));
@@ -43,18 +45,21 @@ export class VersionCheck {
 
     for (const item of owing) {
       if (folder.blocks[item.id] === undefined) {
-        fail(
-          'migration.yaml',
-          `'${item.id}' is a ${item.section} item (log.md line ${item.line}) and needs a block: how an app upgrades and downgrades across it`,
-        );
+        fail({
+          file: 'migration.yaml',
+          message: `'${item.id}' is a ${item.section} item (log.md line ${item.line}) and needs a block: how an app upgrades and downgrades across it`,
+        });
       }
     }
 
     for (const id of Object.keys(folder.blocks)) {
       if (!known.has(id)) {
-        fail('migration.yaml', `'${id}' has a block but no item in log.md`);
+        fail({ file: 'migration.yaml', message: `'${id}' has a block but no item in log.md` });
       } else if (!owing.some((item) => item.id === id)) {
-        fail('migration.yaml', `'${id}' is not a Breaking or Deprecated item: it carries no block`);
+        fail({
+          file: 'migration.yaml',
+          message: `'${id}' is not a Breaking or Deprecated item: it carries no block`,
+        });
       }
     }
 
@@ -66,7 +71,7 @@ export class VersionCheck {
   private static codemodProblems(opts: {
     folder: IVersionFolder;
     codemods?: string[];
-    fail: (file: string, message: string) => void;
+    fail: (opts: { file: string; message: string }) => void;
   }): void {
     if (opts.codemods === undefined) {
       return;
@@ -79,10 +84,10 @@ export class VersionCheck {
           : undefined;
 
       if (typeof codemod === 'string' && !opts.codemods.includes(codemod)) {
-        opts.fail(
-          'migration.yaml',
-          `'${id}' names codemod '${codemod}', which \`devz codemod --list\` does not offer`,
-        );
+        opts.fail({
+          file: 'migration.yaml',
+          message: `'${id}' names codemod '${codemod}', which \`devz codemod --list\` does not offer`,
+        });
       }
     }
   }
@@ -115,9 +120,15 @@ export class VersionCheck {
       }
     }
 
-    const heading = VersionCheck.installableStable({ project: opts.project });
+    const { found: heading, problem } = VersionCheck.installableStable({ project: opts.project });
+    const isAdopted = VERSION_CUTOVER.test(opts.project.knowledge.migrationFrom ?? '');
 
-    if (heading === undefined || opts.folders.length === 0) {
+    if (problem !== undefined && (opts.folders.length > 0 || isAdopted)) {
+      problems.push(problem);
+    }
+
+    // A project that has not adopted the folders and has none owes nothing.
+    if (heading === undefined || (opts.folders.length === 0 && !isAdopted)) {
       return problems;
     }
 
@@ -138,21 +149,24 @@ export class VersionCheck {
     return problems;
   }
 
-  /** The last live package of the project is the one users install; its `package.json` version says which stable the line heads to. */
-  private static installableStable(opts: {
-    project: IAtlasProject;
-  }): { name: string; version: string; stable: string } | undefined {
-    const live = opts.project.packages.filter((entry) => !entry.retired);
-    const installable = live.at(-1);
+  /**
+   * The last live package of the project is the one users install; its `package.json` version says which stable the line
+   * heads to. A file that cannot be read is a problem, not silence: the rule it feeds would otherwise pass.
+   */
+  private static installableStable(opts: { project: IAtlasProject }): {
+    found?: { name: string; version: string; stable: string };
+    problem?: IChangelogProblem;
+  } {
+    const installable = opts.project.packages.filter((entry) => !entry.retired).at(-1);
 
     if (installable === undefined) {
-      return undefined;
+      return {};
     }
 
     const file = join(opts.project.root, installable.path, 'package.json');
 
     if (!existsSync(file)) {
-      return undefined;
+      return {};
     }
 
     try {
@@ -163,10 +177,21 @@ export class VersionCheck {
           : undefined;
 
       return typeof version === 'string'
-        ? { name: installable.name, version, stable: version.replace(PRERELEASE_PART, '') }
-        : undefined;
-    } catch {
-      return undefined;
+        ? {
+            found: {
+              name: installable.name,
+              version,
+              stable: version.replace(PRERELEASE_PART, ''),
+            },
+          }
+        : {};
+    } catch (error) {
+      return {
+        problem: {
+          file: join(installable.path, 'package.json'),
+          message: `cannot read the version of ${installable.name}: ${TextValue.messageOf({ error })}`,
+        },
+      };
     }
   }
 }

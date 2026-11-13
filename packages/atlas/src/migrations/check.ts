@@ -132,14 +132,15 @@ export class ChangelogCheck {
   }
 
   /** The codemod names the project's `devz` offers, or `undefined` when it is not installed or cannot list them. */
-  static codemodsOf(opts: { root: string }): string[] | undefined {
-    const bin = join(opts.root, 'node_modules', '.bin', 'devz');
+  static codemodsOf(opts: { root: string; command?: string[] }): string[] | undefined {
+    const [name, ...words] = opts.command ?? ['devz', 'codemod'];
+    const bin = join(opts.root, 'node_modules', '.bin', name);
 
     if (!existsSync(bin)) {
       return undefined;
     }
 
-    const result = spawnSync(bin, ['codemod', '--list'], {
+    const result = spawnSync(bin, [...words, '--list'], {
       cwd: opts.root,
       encoding: 'utf8',
       timeout: DEVZ_TIMEOUT_MS,
@@ -158,7 +159,10 @@ export class ChangelogCheck {
 
   /** Prints the problems, one `file: message` line each, through `write`; the exit code is 0 when there are none. */
   static run(opts: { project: IAtlasProject; write: (text: string) => void }): number {
-    const codemods = ChangelogCheck.codemodsOf({ root: opts.project.root });
+    const codemods = ChangelogCheck.codemodsOf({
+      root: opts.project.root,
+      command: opts.project.knowledge.codemodCommand,
+    });
     const problems = ChangelogCheck.scan({ project: opts.project, codemods });
 
     if (codemods === undefined) {

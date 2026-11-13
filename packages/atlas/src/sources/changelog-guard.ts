@@ -18,7 +18,10 @@ export class ChangelogGuard {
    * The entries among `names`: a dated entry file, or a version folder `X.Y.Z` counted once. `holdsLog`
    * says whether a version folder holds its `log.md`; without it every version-named name counts.
    */
-  static datedIn(opts: { names: string[]; holdsLog?: (folder: string) => boolean }): number {
+  static datedIn(opts: {
+    names: string[];
+    holdsLog?: (opts: { folder: string }) => boolean;
+  }): number {
     return opts.names.filter((name) => {
       const last = name.split('/').pop() ?? name;
 
@@ -26,7 +29,7 @@ export class ChangelogGuard {
         return true;
       }
 
-      return VERSION_FOLDER.test(last) && (opts.holdsLog?.(name) ?? true);
+      return VERSION_FOLDER.test(last) && (opts.holdsLog?.({ folder: name }) ?? true);
     }).length;
   }
 
@@ -47,7 +50,7 @@ export class ChangelogGuard {
     const onDisk = existsSync(directory)
       ? ChangelogGuard.datedIn({
           names: readdirSync(directory),
-          holdsLog: (folder) => existsSync(join(directory, folder, 'log.md')),
+          holdsLog: ({ folder }) => existsSync(join(directory, folder, 'log.md')),
         })
       : 0;
 

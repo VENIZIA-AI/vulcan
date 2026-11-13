@@ -197,7 +197,7 @@ const committedEntriesOf = (opts: {
 
   return ChangelogGuard.datedIn({
     names: listed.split('\n').filter((line) => line.length > 0),
-    holdsLog: (folder) =>
+    holdsLog: ({ folder }) =>
       GitRepository.run({
         cwd: opts.checkout,
         args: ['ls-tree', '--name-only', 'HEAD', '--', `${folder}/log.md`],

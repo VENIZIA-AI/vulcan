@@ -273,9 +273,13 @@ describe('dated files in dual mode (C16)', () => {
     '---\ntitle: T\npackages: [\'@a/kernel\']\n---\n\n# Changelog - 2026-11-20\n\n<Badge type="warning" text="Breaking Change" />\n';
 
   test('a version cutover retires the dated files: a Breaking one without a block is history', () => {
-    expect(problemsOf({ dated: { '2026-11-20-break.md': dated }, migrationFrom: '0.4.5' })).toEqual(
-      [],
-    );
+    expect(
+      problemsOf({
+        dated: { '2026-11-20-break.md': dated },
+        migrationFrom: '0.4.5',
+        version: '0.4.4',
+      }),
+    ).toEqual([]);
     expect(
       problemsOf({ dated: { '2026-11-20-break.md': dated }, migrationFrom: '2026-11-13' }),
     ).toHaveLength(1);
@@ -286,6 +290,7 @@ describe('dated files in dual mode (C16)', () => {
       dated: { '2026-11-20-break.md': dated },
       migrationFrom: '0.4.5',
       datedUntil: '2026-11-14',
+      version: '0.4.4',
     });
 
     expect(found).toHaveLength(1);
@@ -295,6 +300,7 @@ describe('dated files in dual mode (C16)', () => {
         dated: { '2026-11-20-break.md': dated },
         migrationFrom: '0.4.5',
         datedUntil: '2026-11-20',
+        version: '0.4.4',
       }),
     ).toEqual([]);
   });
@@ -382,5 +388,117 @@ describe('the history gate (C4)', () => {
     const found = ChangelogHistory.scan({ project: made.project, base: 'no-such-ref' });
 
     expect(found[0].message).toContain('not a commit');
+  });
+});
+
+describe('findings of the review of the gate', () => {
+  test('a bullet with no id, in any section, is a problem naming its line in the file', () => {
+    const text = log({
+      version: '0.4.2',
+      body: '\n## Breaking\n- **Removed Foo**: Foo is gone.\n',
+    });
+    const found = problemsOf({ folders: { '0.4.2': { log: text } } });
+
+    expect(found.some((line) => line.includes('line 8: an item reads'))).toBe(true);
+  });
+
+  test('a project that adopted the folders and is on a prerelease with none is told its line needs one', () => {
+    const found = problemsOf({ migrationFrom: '0.4.5', version: '0.4.5-0' });
+
+    expect(found.some((line) => line.includes('its line 0.4.5 needs a version folder'))).toBe(true);
+    expect(problemsOf({ version: '0.4.5-0' })).toEqual([]);
+  });
+
+  test('a quoted key repeats a bare one in migration.yaml', () => {
+    const body = '\n## Breaking\n- **X** `thing-factory`: x.\n';
+    const found = problemsOf({
+      folders: {
+        '0.4.2': {
+          log: log({ version: '0.4.2', body }),
+          migration: `thing-factory:\n${BLOCK}"thing-factory":\n${BLOCK}`,
+        },
+      },
+    });
+
+    expect(found.some((line) => line.includes("'thing-factory' is used 2 times"))).toBe(true);
+  });
+
+  test('an unreadable package.json is a problem, not a silent pass', () => {
+    const made = projectWith({
+      folders: { '0.4.2': { log: BREAKING_LOG, migration: `thing-factory:\n${BLOCK}` } },
+    });
+
+    writeFileSync(join(made.root, 'packages', 'kernel', 'package.json'), '{ not json');
+
+    const found = ChangelogCheck.scan({ project: made.project });
+
+    expect(found.some((problem) => problem.message.includes('cannot read the version'))).toBe(true);
+  });
+});
+
+describe('the history gate: dual mode and edge cases', () => {
+  const dated = '---\ntitle: T\npackages: []\n---\n';
+
+  test('a project on a date cutover may add dated files: --history does not refuse them', () => {
+    const made = projectWith({ migrationFrom: '2026-11-13' });
+
+    for (const args of [
+      ['init', '-q', '-b', 'main'],
+      ['config', 'user.email', 't@t.t'],
+      ['config', 'user.name', 't'],
+      ['add', '-A'],
+      ['commit', '-q', '-m', 'base'],
+    ]) {
+      run({ root: made.root, args });
+    }
+
+    writeFileSync(join(made.root, 'changes', '2026-11-14-feat.md'), dated);
+
+    expect(ChangelogHistory.scan({ project: made.project, base: 'HEAD' })).toEqual([]);
+  });
+
+  test('a renamed-in dated file fails, a dated file in a nested folder does not', () => {
+    const made = projectWith({ migrationFrom: '0.4.5', version: '0.4.4' });
+
+    writeFileSync(join(made.root, 'changes', 'notes.md'), dated);
+
+    for (const args of [
+      ['init', '-q', '-b', 'main'],
+      ['config', 'user.email', 't@t.t'],
+      ['config', 'user.name', 't'],
+      ['add', '-A'],
+      ['commit', '-q', '-m', 'base'],
+      ['mv', 'changes/notes.md', 'changes/2026-11-20-new.md'],
+    ]) {
+      run({ root: made.root, args });
+    }
+
+    mkdirSync(join(made.root, 'changes', 'archive'));
+    writeFileSync(join(made.root, 'changes', 'archive', '2026-11-20-old.md'), dated);
+
+    const found = ChangelogHistory.scan({ project: made.project, base: 'HEAD' }).map(
+      (problem) => problem.file,
+    );
+
+    expect(found).toEqual(['2026-11-20-new.md']);
+  });
+});
+
+describe('the codemod runner of the project', () => {
+  test('a project that declares its own runner has its names listed by it, never by devz', () => {
+    const made = projectWith({});
+
+    mkdirSync(join(made.root, 'node_modules', '.bin'), { recursive: true });
+    writeFileSync(
+      join(made.root, 'node_modules', '.bin', 'ardor'),
+      '#!/bin/sh\n[ "$1" = codemod ] && [ "$2" = --list ] && echo namespace && echo rename\n',
+      { mode: 0o755 },
+    );
+
+    expect(ChangelogCheck.codemodsOf({ root: made.root, command: ['ardor', 'codemod'] })).toEqual([
+      'namespace',
+      'rename',
+    ]);
+    expect(ChangelogCheck.codemodsOf({ root: made.root })).toBeUndefined();
   });
 });

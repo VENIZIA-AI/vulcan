@@ -138,7 +138,7 @@ describe('ChangelogGuard version folders', () => {
     expect(
       ChangelogGuard.datedIn({
         names: ['changes/0.4.8', 'changes/0.4.9'],
-        holdsLog: (folder) => folder.endsWith('0.4.9'),
+        holdsLog: ({ folder }) => folder.endsWith('0.4.9'),
       }),
     ).toBe(1);
   });
