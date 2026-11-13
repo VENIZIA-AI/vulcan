@@ -26,7 +26,7 @@ bun x --no-install vulcan migrate plan --package @venizia/ignis --to latest
 
 Run the codemods: `vulcan migrate apply --package @venizia/ignis --from 1.0.0 --to 1.1.0 --app .`
 
-An upgrade: 1 of 2 changes found in your code. The target version comes from the atlas release table, not the registry.
+An upgrade: 1 changelog entry in the window; 2 structured steps, 1 found in your code. The target version comes from the atlas release table, not the registry.
 
 ### thing-factory
 
@@ -51,6 +51,8 @@ Data: Tokens issued before the change keep the old prefix and stop verifying.
 ```
 
 The output above is shortened. Each step names the changelog entry it comes from, the symbols it is about, and the steps or the before and after code. A step with a `Data:` line warns about stored data, tokens or formats that do not cross the version boundary: your code does not show those, so read them even when the step says no import was found.
+
+A step that is about a whole module (its symbol is a package specifier such as `@venizia/ignis-inversion`) does not list every importer: it prints how many places import it and says that the import itself is not what breaks. Add `--verbose` to list the places. Code that only passes a module on with `export * from '<package>'` is listed apart as "Re-exported by your code" and counts as "only re-exported", not as found: your consumers may be hit, your own code needs no change.
 
 Leave out `--package` to plan every installed package the atlas sources know. Then `--to` must be `latest` or `next`. A package whose installed version atlas cannot place (a local build, a version that was never released) is listed as skipped with the reason, and the others are still planned.
 

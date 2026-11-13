@@ -243,7 +243,9 @@ describe('MigratePlan.plans', () => {
     const [result] = plan({ app, from: '1.0.0', to: '1.2.0' }).plans;
     const [renamed, dropped] = result.steps;
 
-    expect(renamed.touches).toEqual([{ file: 'src/a.ts', line: 3, symbol: 'Thing.make' }]);
+    expect(renamed.touches).toEqual([
+      { file: 'src/a.ts', line: 3, symbol: 'Thing.make', kind: 'name' },
+    ]);
     expect(dropped.touches).toEqual([]);
     expect(dropped.data).toBe('Stored ids change.');
   });

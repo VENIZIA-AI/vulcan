@@ -67,7 +67,7 @@ Usage: bun x vulcan <command>
                                   takes the latest tag, --nightly the newest of latest and next
   changelog check                 Check the changelog entries' `migration` blocks: a Breaking Change entry
                                   dated on or after knowledge.migrationFrom must carry one, and every block must be valid
-  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json]
+  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]
                                   What an app must change to move a package between two releases, newer or
                                   older: the steps in order, the places in your code they touch (file:line),
                                   codemods and data warnings; read only
@@ -201,7 +201,7 @@ Each problem prints as `<file>: <message>` on stderr.
 
 ## migrate
 
-`vulcan migrate plan --to <version|latest|next>` is [`vulcan x atlas migrate plan`](/references/atlas/tools#migrate) at the pinned version: the same plan the atlas `migrate` tool answers, printed as Markdown, or as JSON with `--format json`.
+`vulcan migrate plan --to <version|latest|next>` is [`vulcan x atlas migrate plan`](/references/atlas/tools#migrate) at the pinned version: the same plan the atlas `migrate` tool answers, printed as Markdown, or as JSON with `--format json`. A step about a whole module prints a count of the places that import it; `--verbose` lists them.
 It asks the sources the project serves, so a package from a remote source is planned too: like `mcp`, it fetches and indexes a source that is not cached yet, and waits for it. A source that cannot be served is a `Warning:` at the top of the plan, and `apply` refuses to run on such a plan unless you pass `--force`. A package no source serves is an error that names `atlas.sources` and `vulcan x atlas pull`. `--package`, `--from` and `--app` default as the tool's do.
 
 Run from a folder with no VULCAN config, the command runs in the nearest enclosing folder that has one (never above the git work tree root) and scans the folder you ran it in; a relative `--app` is read from that folder too.

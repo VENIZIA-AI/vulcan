@@ -3,7 +3,7 @@ import { MigrateReport } from './report';
 import type { IMigrationResult } from './plan';
 
 const USAGE = [
-  'usage: vulcan x atlas migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json]',
+  'usage: vulcan x atlas migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]',
   '       vulcan x atlas migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]',
 ].join('\n');
 
@@ -25,12 +25,14 @@ interface IParsed {
   subcommand: string;
   values: Record<string, string>;
   force: boolean;
+  verbose: boolean;
 }
 
 const parse = (opts: { args: string[] }): IParsed | undefined => {
   const [subcommand, ...rest] = opts.args;
   const values: Record<string, string> = {};
   let force = false;
+  let verbose = false;
 
   if (subcommand !== 'plan' && subcommand !== 'apply') {
     return undefined;
@@ -42,6 +44,12 @@ const parse = (opts: { args: string[] }): IParsed | undefined => {
 
     if (flag === '--force' && joined === undefined && subcommand === 'apply') {
       force = true;
+
+      continue;
+    }
+
+    if (flag === '--verbose' && joined === undefined && subcommand === 'plan') {
+      verbose = true;
 
       continue;
     }
@@ -72,7 +80,7 @@ const parse = (opts: { args: string[] }): IParsed | undefined => {
     return undefined;
   }
 
-  return { subcommand, values, force };
+  return { subcommand, values, force, verbose };
 };
 
 interface IReply {
@@ -101,7 +109,7 @@ export class MigrateCommand {
       return 2;
     }
 
-    const { values, subcommand, force } = parsed;
+    const { values, subcommand, force, verbose } = parsed;
     const line = JSON.stringify({
       jsonrpc: '2.0',
       id: 1,
@@ -136,7 +144,7 @@ export class MigrateCommand {
     opts.out(
       values['--format'] === 'json'
         ? `${JSON.stringify(result, null, 2)}\n`
-        : MigrateReport.markdown({ result }),
+        : MigrateReport.markdown({ result, verbose }),
     );
 
     return 0;

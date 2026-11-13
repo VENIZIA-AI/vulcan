@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MigrateReport, MigratePlan } from '@/migrations';
-import type { IMigrationResult } from '@/migrations';
+import type { IMigrationResult, IMigrationTouch } from '@/migrations';
 import { Transport } from '@/protocol';
 import { ReleaseStore } from '@/releases';
 import type { IReleaseTable } from '@/releases';
@@ -137,7 +137,89 @@ describe('the migrate tool', () => {
   });
 });
 
+const stepWith = (opts: { id: string; symbols: string[]; touches: IMigrationTouch[] }) => ({
+  id: opts.id,
+  entry: 'changelog:2026-02-01-x',
+  title: 'X',
+  date: '2026-02-01',
+  symbols: opts.symbols,
+  change: { steps: ['Do it'] },
+  touches: opts.touches,
+});
+
+const planWith = (opts: { steps: ReturnType<typeof stepWith>[] }): IMigrationResult => ({
+  app: '/app',
+  skipped: [],
+  unserved: [],
+  plans: [
+    {
+      package: '@venizia/kernel',
+      from: '1.0.0',
+      to: '2.0.0',
+      direction: 'upgrade',
+      target: 'version',
+      entries: 1,
+      steps: opts.steps,
+      unstructured: [],
+      unreadable: [],
+    },
+  ],
+});
+
 describe('MigrateReport.markdown', () => {
+  test('an `export *` hit is listed as re-exported, one line per export, and the step is not "found"', () => {
+    const text = MigrateReport.markdown({
+      result: planWith({
+        steps: [
+          stepWith({
+            id: 'only-reexported',
+            symbols: ['Alpha', 'Beta'],
+            touches: [
+              { file: 'src/index.ts', line: 4, symbol: 'Alpha', kind: 're-export' },
+              { file: 'src/index.ts', line: 4, symbol: 'Beta', kind: 're-export' },
+            ],
+          }),
+          stepWith({
+            id: 'used',
+            symbols: ['Gamma'],
+            touches: [{ file: 'src/a.ts', line: 2, symbol: 'Gamma', kind: 'name' }],
+          }),
+        ],
+      }),
+    });
+
+    expect(text).toContain('2 structured steps, 1 found in your code, 1 only re-exported.');
+    expect(text).toContain(
+      'Re-exported by your code (your consumers may be hit; your own code needs no change):\n- src/index.ts:4 (Alpha, Beta)',
+    );
+    expect(text).not.toContain('Found in your code:\n- src/index.ts');
+    expect(text.indexOf('### used')).toBeLessThan(text.indexOf('### only-reexported'));
+  });
+
+  test('a module symbol is a count and a hint; --verbose lists the places', () => {
+    const result = planWith({
+      steps: [
+        stepWith({
+          id: 'entry-import',
+          symbols: ['@venizia/kernel'],
+          touches: [
+            { file: 'src/a.ts', line: 1, symbol: '@venizia/kernel', kind: 'module' },
+            { file: 'src/b.ts', line: 3, symbol: '@venizia/kernel', kind: 'module' },
+          ],
+        }),
+      ],
+    });
+    const short = MigrateReport.markdown({ result });
+    const long = MigrateReport.markdown({ result, verbose: true });
+
+    expect(short).toContain(
+      '2 places import `@venizia/kernel`. The import itself is not what breaks',
+    );
+    expect(short).toContain('--verbose');
+    expect(short).not.toContain('src/a.ts');
+    expect(long).toContain('2 places import `@venizia/kernel`:\n- src/a.ts:1\n- src/b.ts:3');
+  });
+
   test('a source atlas could not serve is a Warning at the top, so an answer from the rest never reads as complete', () => {
     const text = MigrateReport.markdown({
       result: {

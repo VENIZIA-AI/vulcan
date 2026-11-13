@@ -161,6 +161,29 @@ describe('AppScan.scan', () => {
     expect(lines({ app, symbols: ['Thing.make'] })).toEqual([]);
   });
 
+  test('each touch says how it reaches: a name, an `export *`, or a module specifier', () => {
+    const app = appWith({
+      files: {
+        'a.ts': "import { Thing } from '@a/kernel';\n",
+        'b.ts': "export * from '@a/kernel';\n",
+        'c.ts': "import { X } from '@a/kernel/helpers';\n",
+      },
+    });
+    const found = AppScan.scan({
+      app,
+      targets: [
+        { id: 'name', packages: ['@a/kernel'], symbols: ['Thing'] },
+        { id: 'module', packages: ['@a/kernel'], symbols: ['@a/kernel/helpers'] },
+      ],
+    });
+
+    expect(found.touches.name.map((touch) => `${touch.file}:${touch.kind}`).sort()).toEqual([
+      'a.ts:name',
+      'b.ts:re-export',
+    ]);
+    expect(found.touches.module.map((touch) => touch.kind)).toEqual(['module']);
+  });
+
   test('an unreadable file is skipped and reported, the rest is still scanned', () => {
     const app = appWith({
       files: {

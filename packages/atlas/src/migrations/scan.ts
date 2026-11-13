@@ -4,12 +4,25 @@ import { join, relative } from 'node:path';
 import type TypeScript from 'typescript';
 import { TypeScriptCompiler } from '@/common/compiler';
 
+/** How a place reaches a symbol: the plan words each kind differently. */
+export class TouchKinds {
+  /** The app's code imports or uses the name. */
+  static readonly NAME = 'name';
+  /** `export * from '<package>'`: the app passes the whole module on, so the name is reached only by its consumers. */
+  static readonly REEXPORT = 're-export';
+  /** The symbol is a module specifier and this line imports it: the import alone is not what a change breaks. */
+  static readonly MODULE = 'module';
+}
+
+export type TTouchKind = (typeof TouchKinds)[keyof typeof TouchKinds];
+
 /** One place in the app's code a migration item reaches. */
 export interface IMigrationTouch {
   /** Relative to the app directory. */
   file: string;
   line: number;
   symbol: string;
+  kind: TTouchKind;
 }
 
 /** What to look for: the symbols of one migration item, as imported from the packages it names. */
@@ -115,8 +128,8 @@ export class AppScan {
 
       for (const target of opts.targets) {
         for (const symbol of target.symbols) {
-          for (const line of AppScan.linesOf({ facts, target, symbol })) {
-            found[target.id].push({ file, line, symbol });
+          for (const { line, kind } of AppScan.linesOf({ facts, target, symbol })) {
+            found[target.id].push({ file, line, symbol, kind });
           }
         }
       }
@@ -241,21 +254,21 @@ export class AppScan {
     return facts;
   }
 
-  /** The lines of one file where `symbol` is reached through the target's packages, each once. */
+  /** The lines of one file where `symbol` is reached through the target's packages, each once, with how. */
   private static linesOf(opts: {
     facts: IFileFacts;
     target: IScanTarget;
     symbol: string;
-  }): number[] {
+  }): { line: number; kind: TTouchKind }[] {
     const { facts, target, symbol } = opts;
-    const lines = new Set<number>();
+    const lines = new Map<number, TTouchKind>();
 
     if (symbol.startsWith('@')) {
       for (const module of facts.modules.filter((entry) => entry.specifier === symbol)) {
-        lines.add(module.line);
+        lines.set(module.line, TouchKinds.MODULE);
       }
 
-      return [...lines];
+      return AppScan.sorted({ lines });
     }
 
     const [head, member] = symbol.split('.');
@@ -265,13 +278,13 @@ export class AppScan {
     // The import (or re-export) of the bare name is itself a place the migration reaches.
     if (member === undefined) {
       for (const star of facts.stars.filter((candidate) => ours(candidate.specifier))) {
-        lines.add(star.line);
+        lines.set(star.line, TouchKinds.REEXPORT);
       }
 
       for (const entry of facts.named.filter(
         (candidate) => candidate.imported === head && ours(candidate.specifier),
       )) {
-        lines.add(entry.line);
+        lines.set(entry.line, TouchKinds.NAME);
       }
     }
 
@@ -289,10 +302,18 @@ export class AppScan {
       const reachedMember = binding.isNamespace ? use.deeper : use.member;
 
       if (reached === head && (member === undefined || reachedMember === member)) {
-        lines.add(use.line);
+        lines.set(use.line, TouchKinds.NAME);
       }
     }
 
-    return [...lines].sort((left, right) => left - right);
+    return AppScan.sorted({ lines });
+  }
+
+  private static sorted(opts: {
+    lines: Map<number, TTouchKind>;
+  }): { line: number; kind: TTouchKind }[] {
+    return [...opts.lines.entries()]
+      .map(([line, kind]) => ({ line, kind }))
+      .sort((left, right) => left.line - right.line);
   }
 }
