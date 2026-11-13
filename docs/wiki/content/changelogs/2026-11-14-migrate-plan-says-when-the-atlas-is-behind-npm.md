@@ -1,12 +1,12 @@
 ---
-title: migrate plan says when the atlas ref is behind npm, and which release shipped each step
-description: A plan to next or latest names the gap when npm publishes a newer version than the atlas source knows, and each step shows the release that first shipped its changelog entry.
+title: migrate plan says when the atlas ref is behind npm
+description: A plan to next or latest names the gap when npm publishes a newer version than the atlas source knows.
 packages: ['@venizia/vulcan', '@venizia/vulcan-atlas']
 ---
 
 # Changelog - 2026-11-14
 
-## migrate plan says when the atlas ref is behind npm, and which release shipped each step
+## migrate plan says when the atlas ref is behind npm
 
 <Badge type="info" text="Bug Fix" />
 
@@ -16,7 +16,6 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas']
 
 - **A warning when the atlas is behind npm.** For `--to next` or `--to latest`, `migrate` asks npm for the dist-tag of each planned package. When npm's version is one the atlas does not know, the plan opens with `Warning: the atlas source's ref is behind npm next <version>` and says to move the ref in `atlas.sources` and run `vulcan x atlas pull`. In the JSON it is `behind` on the plan. `vulcan migrate apply` refuses such a plan unless you pass `--force`.
 - **A clearer error for a version.** `--to <version>` that npm publishes and the atlas does not know says so instead of "unknown version".
-- **Each step shows its release.** `From <entry> (<date>, shipped in <version>)`, and `shippedIn` in the JSON: the release that first shipped the entry, from the release commits before the commit that added it. An entry with no order (a source without git history) says nothing, and the window falls back to dates.
 - **One request, and only for that.** The version is still taken from the atlas release table. npm is asked only for its dist-tags and versions, once per package, with a bound; offline, or with a private package, nothing is claimed. `VULCAN_NPM_REGISTRY` points at another registry.
 
 ## Who is affected

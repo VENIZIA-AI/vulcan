@@ -19,7 +19,7 @@ description: Ask what your app must change to move a @venizia/* package to anoth
 bun x --no-install vulcan migrate plan --package @venizia/ignis --to latest
 ```
 
-`--from` defaults to the version the app has installed. `--to` takes a version, `latest` (the newest stable release) or `next` (the newest release of any kind). `latest` and `next` come from atlas's release table, not from the registry, so they are as new as your atlas. When npm publishes a newer `latest` or `next` than your atlas source knows, the plan opens with a warning to move the source ref; each step also says which release first shipped its entry.
+`--from` defaults to the version the app has installed. `--to` takes a version, `latest` (the newest stable release) or `next` (the newest release of any kind). `latest` and `next` come from atlas's release table, not from the registry, so they are as new as your atlas. When npm publishes a newer `latest` or `next` than your atlas source knows, the plan opens with a warning to move the source ref.
 
 ```text
 ## @venizia/ignis: 1.0.0 to 1.1.0

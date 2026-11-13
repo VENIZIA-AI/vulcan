@@ -176,7 +176,7 @@ const planWith = (opts: { steps: ReturnType<typeof stepWith>[] }): IMigrationRes
   ],
 });
 
-describe('the registry check and the shipped-in release', () => {
+describe('the registry check', () => {
   const args = (opts: { to: string }) => ({
     package: '@venizia/kernel',
     to: opts.to,
@@ -311,39 +311,6 @@ describe('the registry check and the shipped-in release', () => {
       process.env.VULCAN_NPM_REGISTRY = before;
       await server.stop(true);
     }
-  });
-
-  test('a step says which release first shipped its entry; an entry with no order says nothing', () => {
-    const app = appWith({ dependencies: { '@venizia/kernel': '1.0.0' } });
-    const result = MigratePlan.plans({
-      releases: KERNEL,
-      app,
-      package: '@venizia/kernel',
-      to: '2.0.0',
-    });
-
-    expect(result.plans[0].steps[0].shippedIn).toBe('2.0.0');
-    expect(MigrateReport.markdown({ result })).toContain('(2026-02-01, shipped in 2.0.0)');
-
-    const undated = new ReleaseStore({
-      table: {
-        ...table({ dir: 'kernel', name: '@venizia/kernel', id: 'x' }),
-        changelogs: table({ dir: 'kernel', name: '@venizia/kernel', id: 'x' }).changelogs.map(
-          (entry) => ({
-            ...entry,
-            order: undefined,
-          }),
-        ),
-      },
-    });
-    const dated = MigratePlan.plans({
-      releases: undated,
-      app,
-      package: '@venizia/kernel',
-      to: '2.0.0',
-    });
-
-    expect(dated.plans[0].steps[0].shippedIn).toBeUndefined();
   });
 });
 

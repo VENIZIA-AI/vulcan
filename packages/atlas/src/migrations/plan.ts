@@ -32,8 +32,6 @@ export interface IMigrationStep {
   entry: string;
   title: string;
   date: string;
-  /** The release of the package that first shipped the entry, by the release commits before the commit that added it; absent when the table has no order for it or it is unreleased. */
-  shippedIn?: string;
   symbols: string[];
   /** The item's `upgrade` for an upgrade, its `downgrade` for a downgrade. */
   change: TMigrationDirection;
@@ -273,12 +271,6 @@ export class MigratePlan {
           touches: touches[MigratePlan.keyOf({ entry, migration })] ?? [],
         };
 
-        const shipped = MigratePlan.shippedIn({ releases, package: opts.package, entry });
-
-        if (shipped !== undefined) {
-          step.shippedIn = shipped;
-        }
-
         if (migration.data !== undefined) {
           step.data = migration.data;
         }
@@ -318,31 +310,6 @@ export class MigratePlan {
     }
 
     return plan;
-  }
-
-  /** The release of `package` with the fewest release commits that is not before the entry: the first that shipped it. */
-  private static shippedIn(opts: {
-    releases: IReleaseIndex;
-    package: string;
-    entry: IChangelogRecord;
-  }): string | undefined {
-    const { order } = opts.entry;
-
-    if (order === undefined) {
-      return undefined;
-    }
-
-    let first: { version: string; order: number } | undefined;
-
-    for (const version of opts.releases.versionsOf({ package: opts.package })) {
-      const at = opts.releases.releaseOrderOf({ package: opts.package, version });
-
-      if (at !== undefined && at >= order && (first === undefined || at < first.order)) {
-        first = { version, order: at };
-      }
-    }
-
-    return first?.version;
   }
 
   private static keyOf(opts: { entry: IChangelogRecord; migration: TMigrationItem }): string {

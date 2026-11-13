@@ -68,7 +68,7 @@ const stepOf = (opts: { step: IMigrationStep; verbose: boolean }): string[] => {
   const lines = [
     `### ${step.id}`,
     '',
-    `From \`${step.entry}\` (${step.date}${step.shippedIn === undefined ? '' : `, shipped in ${step.shippedIn}`}). Symbols: ${step.symbols.map((symbol) => `\`${symbol}\``).join(', ')}.`,
+    `From \`${step.entry}\` (${step.date}). Symbols: ${step.symbols.map((symbol) => `\`${symbol}\``).join(', ')}.`,
     '',
   ];
 
