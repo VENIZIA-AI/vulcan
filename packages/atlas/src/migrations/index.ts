@@ -7,3 +7,4 @@ export * from './plan';
 export * from './report';
 export * from './migrate-command';
 export * from './apply';
+export * from './registry';

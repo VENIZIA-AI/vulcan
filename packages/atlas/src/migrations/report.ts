@@ -117,6 +117,9 @@ const stepOf = (opts: { step: IMigrationStep; verbose: boolean }): string[] => {
   return lines;
 };
 
+const behindOf = (opts: { plan: IMigrationPlan }): string[] =>
+  opts.plan.behind === undefined ? [] : [`Warning: ${opts.plan.behind}`, ''];
+
 const countOf = (opts: { count: number; one: string; many: string }): string =>
   `${opts.count} ${opts.count === 1 ? opts.one : opts.many}`;
 
@@ -125,7 +128,13 @@ const planOf = (opts: { plan: IMigrationPlan; verbose: boolean }): string[] => {
   const heading = `## ${plan.package}: ${plan.from} to ${plan.to}`;
 
   if (plan.direction === MigrateDirections.NONE) {
-    return [heading, '', `The app already runs ${plan.to}: nothing to migrate.`, ''];
+    return [
+      heading,
+      '',
+      ...behindOf({ plan }),
+      `The app already runs ${plan.to}: nothing to migrate.`,
+      '',
+    ];
   }
 
   const touched = plan.steps.filter((step) => isReached({ step }));
@@ -136,6 +145,8 @@ const planOf = (opts: { plan: IMigrationPlan; verbose: boolean }): string[] => {
       ? ' The target version comes from the atlas release table, not the registry.'
       : '';
   const lines = [heading, ''];
+
+  lines.push(...behindOf({ plan }));
 
   if (plan.note !== undefined) {
     lines.push(`Note: ${plan.note}`, '');

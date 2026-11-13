@@ -17,7 +17,7 @@ export class MigrateDirections {
 }
 
 export class MigrateTargets {
-  /** `to` was `latest` or `next`: read from the release table, never from a registry. */
+  /** `to` was `latest` or `next`: read from the release table; npm is asked only to say whether the table is behind it. */
   static readonly RELEASE_TABLE = 'release table';
   static readonly VERSION = 'version';
 }
@@ -61,6 +61,8 @@ export interface IMigrationPlan {
   apply?: string;
   /** A warning about how to read the plan, e.g. `latest` is older than the installed version; absent otherwise. */
   note?: string;
+  /** Set when npm is ahead of the atlas source's ref: the plan stops short of what npm publishes. */
+  behind?: string;
   steps: IMigrationStep[];
   unstructured: IUnstructuredEntry[];
   /** Files of the app that could not be read; the scan covered the rest. */

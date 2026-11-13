@@ -197,6 +197,16 @@ export class MigrateApply {
       return 1;
     }
 
+    const behind = result.plans.find((plan) => plan.behind !== undefined);
+
+    if (behind?.behind !== undefined && !opts.force) {
+      opts.err(
+        `vulcan migrate apply: ${behind.package}: ${behind.behind}; nothing was run - or pass --force\n`,
+      );
+
+      return 1;
+    }
+
     const planned = result.plans.map((plan) => ({ plan, codemods: codemodsOf({ plan }) }));
 
     if (planned.every((entry) => entry.codemods.length === 0)) {
