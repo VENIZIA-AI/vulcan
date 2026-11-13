@@ -21,13 +21,18 @@ const GENERATED_NOTE = /^>\s*Generated\b.*\bdo not edit\.?\s*$/m;
 /** What okf generated, and what a page marks `docs-code: off` (a signature quoted from the source) until `docs-code: on`. */
 const REGION_START = /<!--\s*(?:okf:generated:\S+\s+start|docs-code:\s*off)\s*-->/;
 const REGION_END = /<!--\s*(?:okf:generated:\S+\s+end|docs-code:\s*on)\s*-->/;
-const IMPORT_OR_EXPORT = /^\s*(?:import|export)\b/;
+/** A list of names that can rename: `import {`, `import type {`, `import A, {`, `export {`, `export type {`. `export class A {` is code, not a list. */
+const NAME_LIST = /^\s*(?:import|export)\s+(?:type\s+)?(?:[\w$]+\s*,\s*)?\{/;
+/** An import, or `export * as ns from`: it names modules and renames, it holds no cast. */
+const MODULE_STATEMENT = /^\s*(?:import\b|export\s+(?:type\s+)?\*)/;
+/** `AnyType` named in an import or export list, with or without `type`. */
+const ANY_TYPE_NAME = /\bAnyType\b/;
 
 /** `value as User`, `as unknown as`, `as any`, `as never`: every `as` that is not `as const`. */
 const CAST = /\bas\s+(?!const\b)(?:unknown|any|never|[A-Za-z_$][\w$.]*|[{([])/;
-/** `: any`, `<any>`, `, any>`, `| any`, `any[]`, and the same for `AnyType`, the Venizia alias of `any`. */
+/** `: any`, `<any>`, `, any>`, `| any`, `= any>`, `extends any`, `any[]`, and the same for `AnyType`, the Venizia alias of `any`. */
 const ANY_TYPE =
-  /(?::\s*|<\s*|,\s*|\|\s*|&\s*|\bkeyof\s+)(?:any|AnyType)\b(?!\s*:)|\b(?:any|AnyType)\[\]/;
+  /(?::\s*|<\s*|,\s*|\|\s*|&\s*|=\s*|\b(?:keyof|extends|satisfies|is|asserts)\s+)(?:any|AnyType)\b(?!\s*:)|\b(?:any|AnyType)\[\]/;
 const CONDITIONAL_SPREAD = /\.\.\.\(.*(?:\?.*:\s*(?:\{\}|\[\])|&&\s*[{[])/;
 /** `type Mode = 'on' | 'off'`: strings are masked to `''` before this runs. */
 const LITERAL_UNION = /\btype\s+\w+(?:<[^>]*>)?\s*=\s*(?:\|\s*)?''\s*\|/;
@@ -270,14 +275,22 @@ export class DocsCodeCheck {
       }
 
       const syntax = masked[at];
-      const isImportLine = IMPORT_OR_EXPORT.test(syntax);
+      const isListStart = NAME_LIST.test(syntax);
+      const isModuleLine = MODULE_STATEMENT.test(syntax);
       const where = `docs-code: ${opts.page.file}:${number}: `;
 
-      if (isImportLine || inImportBraces) {
+      if (isListStart || isModuleLine || inImportBraces) {
         // `import { A as B }` and `export { A as B }` rename, they do not cast; a list can span lines.
-        inImportBraces = isImportLine
-          ? syntax.includes('{') && !syntax.includes('}')
-          : !syntax.includes('}');
+        inImportBraces =
+          isListStart || isModuleLine
+            ? syntax.includes('{') && !syntax.includes('}')
+            : !syntax.includes('}');
+
+        if (ANY_TYPE_NAME.test(syntax)) {
+          problems.push(
+            `${where}\`AnyType\` is imported or exported - type the value, or take unknown and narrow it`,
+          );
+        }
 
         continue;
       }
