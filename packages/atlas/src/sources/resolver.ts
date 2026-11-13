@@ -195,7 +195,14 @@ const committedEntriesOf = (opts: {
     args: ['ls-tree', '--name-only', 'HEAD', '--', `${relative(opts.checkout, directory)}/`],
   });
 
-  return ChangelogGuard.datedIn({ names: listed.split('\n').filter((line) => line.length > 0) });
+  return ChangelogGuard.datedIn({
+    names: listed.split('\n').filter((line) => line.length > 0),
+    holdsLog: (folder) =>
+      GitRepository.run({
+        cwd: opts.checkout,
+        args: ['ls-tree', '--name-only', 'HEAD', '--', `${folder}/log.md`],
+      }).trim().length > 0,
+  });
 };
 
 /**

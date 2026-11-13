@@ -65,8 +65,11 @@ Usage: bun x vulcan <command>
   upgrade [--stable | --nightly] [<version|tag>]
                                   Bump the pinned @venizia/vulcan, then sync; --stable (default)
                                   takes the latest tag, --nightly the newest of latest and next
-  changelog check                 Check the changelog entries' `migration` blocks: a Breaking Change entry
-                                  dated on or after knowledge.migrationFrom must carry one, and every block must be valid
+  changelog check [--history --base <ref>]
+                                  Check the changelog: a version folder changelogs/<X.Y.Z>/{log.md, migration.yaml}
+                                  has a block for every Breaking and Deprecated item; a dated Breaking Change entry
+                                  on or after a date cutover carries one. --history also fails a released folder that
+                                  changed since the base, a stable with no folder, and a dated file added or edited
   migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]
                                   What an app must change to move a package between two releases, newer or
                                   older: the steps in order, the places in your code they touch (file:line),
@@ -110,7 +113,7 @@ The following list gives each command, its purpose, its exit codes, and its refe
   Exit codes: `0` when conformant; `1` on any contract violation or unknown argument.
 - `upgrade` ([upgrade](#upgrade)): Bump the pinned `@venizia/vulcan` dependency and run sync.
   Exit codes: `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync`.
-- `changelog` ([changelog](#changelog)): `changelog check`: check the `migration` blocks of the changelog entries.
+- `changelog` ([changelog](#changelog)): `changelog check`: check the version folders and the `migration` blocks of the changelog.
   Exit codes: `0` when every entry conforms; `1` when an entry does not, the tool is missing or the configuration is invalid; `2` for a subcommand other than `check`.
 - `migrate` ([migrate](#migrate)): `migrate plan`: what an app must change to move a package between two releases, newer or older; `migrate apply`: run the codemods the plan links.
   Exit codes: `0` when a plan is printed or apply ran; `1` when the plan cannot be made, apply is refused or a codemod fails, or the tool is missing; `2` for a subcommand other than `plan` or `apply`, a missing `--to`, an unknown flag, a flag with no value or a `--format` other than `md` or `json`.
@@ -198,6 +201,10 @@ Otherwise, the command returns the exit code of `bun add` or of the child `vulca
 An entry with a `migration:` block in its frontmatter must have a valid one: every item has an `id` (unique in the folder), `symbols`, an `upgrade` and a `downgrade`, each either `before` and `after` or `steps`.
 An entry with a Breaking Change badge, dated on or after `knowledge.migrationFrom`, must carry a block; an earlier entry is never read.
 Each problem prints as `<file>: <message>` on stderr.
+
+A version folder `changelogs/<X.Y.Z>/` is valid when every Breaking and Deprecated item of its `log.md` has a block in `migration.yaml` and the file holds no block without an item, ids are unique, the sections are in the order Breaking, Deprecated, Added, Changed, Fixed, Security, at most one folder lacks `released:` (the line in progress: above every released one, and the stable the installable package heads to). With `knowledge.migrationFrom` set to a version, dated files are history and are not checked; `knowledge.datedUntil` is the last date a dated file may carry.
+
+`vulcan changelog check --history --base <ref>` also reads git: a folder whose `log.md` has `released:` at `<ref>` may not change, a stable release at or above `migrationFrom` needs its folder, and a dated file added or edited since `<ref>` fails. CI runs it on a pull request with `--base origin/develop`; the default check runs no git.
 
 ## migrate
 

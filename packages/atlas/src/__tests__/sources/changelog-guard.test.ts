@@ -14,7 +14,12 @@ afterAll(() => {
   }
 });
 
-const projectIn = (opts: { files?: string[]; declared?: boolean; folder?: boolean }) => {
+const projectIn = (opts: {
+  files?: string[];
+  folders?: Record<string, string | undefined>;
+  declared?: boolean;
+  folder?: boolean;
+}) => {
   const root = mkdtempSync(join(tmpdir(), 'atlas-guard-'));
 
   roots.push(root);
@@ -25,6 +30,14 @@ const projectIn = (opts: { files?: string[]; declared?: boolean; folder?: boolea
 
   for (const file of opts.files ?? []) {
     writeFileSync(join(root, 'changes', file), '---\ntitle: x\n---\n');
+  }
+
+  for (const [folder, log] of Object.entries(opts.folders ?? {})) {
+    mkdirSync(join(root, 'changes', folder));
+
+    if (log !== undefined) {
+      writeFileSync(join(root, 'changes', folder, 'log.md'), log);
+    }
   }
 
   return ProjectConfig.toAtlasProject({
@@ -109,5 +122,32 @@ describe('ChangelogGuard.check', () => {
         label: 's',
       }),
     ).not.toThrow();
+  });
+});
+
+describe('ChangelogGuard version folders', () => {
+  test('datedIn counts dated files and a version folder once, never a plain name', () => {
+    expect(
+      ChangelogGuard.datedIn({
+        names: ['changes/2026-01-01-a.md', 'changes/0.4.8', 'changes/index.md', 'changes/v1'],
+      }),
+    ).toBe(2);
+  });
+
+  test('datedIn skips a version folder that holds no log.md', () => {
+    expect(
+      ChangelogGuard.datedIn({
+        names: ['changes/0.4.8', 'changes/0.4.9'],
+        holdsLog: (folder) => folder.endsWith('0.4.9'),
+      }),
+    ).toBe(1);
+  });
+
+  test('a source with only version folders is refused when the table holds none', () => {
+    const project = projectIn({ folders: { '0.4.8': '---\ntitle: x\n---\n', '0.4.9': undefined } });
+
+    expect(() =>
+      ChangelogGuard.check({ project, releases: table({ entries: 0 }), label: 's' }),
+    ).toThrow(/1 dated entries.*release table holds none/s);
   });
 });

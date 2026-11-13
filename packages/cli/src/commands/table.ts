@@ -262,8 +262,17 @@ export class CommandTable {
         '0 on success; 1 when --stable and --nightly are both given, the dist-tags cannot be read, or the install or sync fails.',
     },
     [VulcanCommands.CHANGELOG]: {
-      help: `  changelog check                 Check the changelog entries' \`migration\` blocks: a Breaking Change entry
-                                  dated on or after knowledge.migrationFrom must carry one, and every block must be valid`,
+      help: `  changelog check [--history --base <ref>]
+                                  Check the changelog: a version folder changelogs/<X.Y.Z>/{log.md, migration.yaml}
+                                  has a block for every Breaking and Deprecated item; a dated Breaking Change entry
+                                  on or after a date cutover carries one. --history also fails a released folder that
+                                  changed since the base, a stable with no folder, and a dated file added or edited`,
+      flags: {
+        '--history': 'Also run the checks that read git: frozen released folders, stables without a folder, new dated files',
+      },
+      values: {
+        '--base': 'With --history: the commit or branch the change is measured from, e.g. origin/develop',
+      },
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
       exits:
