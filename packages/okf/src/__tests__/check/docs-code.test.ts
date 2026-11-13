@@ -276,6 +276,51 @@ test('AnyType, the alias of any, is any: in a type position it is a problem, in 
   ).toEqual([]);
 });
 
+test('AnyType in a generic default, a bound, a type alias and a satisfies is a problem', () => {
+  for (const code of [
+    'function f<RecordType extends RaRecord = AnyType>(value: RecordType) {}',
+    'function f<T extends AnyType>(value: T) {}',
+    'type Loose = AnyType;',
+    'type Loose = any;',
+    'const x = value satisfies AnyType;',
+  ]) {
+    const found = problems({ code });
+
+    expect(found, code).toHaveLength(1);
+    expect(found[0], code).toContain('any');
+  }
+});
+
+test('AnyType named in an import or export list is a problem, on one line or across several', () => {
+  const single = problems({ code: "import { type AnyType, Provider } from '@venizia/ardor';" });
+  const several = problems({
+    code: "import {\n  type AnyType,\n  Provider,\n} from '@venizia/ardor';\n\nconst x = 1;",
+  });
+  const reexport = problems({ code: "export { AnyType } from '@venizia/ardor';" });
+
+  expect(single).toHaveLength(1);
+  expect(single[0]).toContain('wiki/a.md:6');
+  expect(several).toHaveLength(1);
+  expect(several[0]).toContain('wiki/a.md:7');
+  expect(reexport).toHaveLength(1);
+  expect(problems({ code: "import { A as B, Provider } from '@venizia/ardor';" })).toEqual([]);
+});
+
+test('an export class or function line does not open an import list: the lines after it are still read', () => {
+  for (const code of [
+    'export class Provider extends Base {\n  run(opts: { params: AnyType }) {}\n}',
+    'export function run(opts: {\n  user: AnyType;\n}): void {}',
+    'export const make = (opts: { value: any }) => opts;',
+    'export default class Provider {\n  value: AnyType;\n}',
+  ]) {
+    const found = problems({ code });
+
+    expect(found, code).toHaveLength(1);
+  }
+
+  expect(problems({ code: 'export const n = value as Item;' })).toHaveLength(1);
+});
+
 const offPage = (opts: { code: string }): string =>
   `<!-- docs-code: off -->\n\`\`\`ts\n${opts.code}\n\`\`\`\n<!-- docs-code: on -->\n`;
 
