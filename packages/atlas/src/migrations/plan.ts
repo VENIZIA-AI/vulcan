@@ -3,6 +3,7 @@ import type { ISourceNotice } from '@/server/notice';
 import { RpcError } from '@/protocol/common';
 import { InstalledVersions, ToolErrors } from '@/tools/common';
 import type { IChangelogRecord, IReleaseIndex } from '@/releases';
+import type { TConstValue } from '@/common/types';
 import { AppScan } from './scan';
 import type { IMigrationTouch } from './scan';
 import { BreakingBadge } from './badges';
@@ -20,6 +21,9 @@ export class MigrateTargets {
   static readonly RELEASE_TABLE = 'release table';
   static readonly VERSION = 'version';
 }
+
+export type TMigrateDirection = TConstValue<typeof MigrateDirections>;
+export type TMigrateTarget = TConstValue<typeof MigrateTargets>;
 
 /** One migration item of the window, in the direction the plan runs. */
 export interface IMigrationStep {
@@ -48,9 +52,9 @@ export interface IMigrationPlan {
   package: string;
   from: string;
   to: string;
-  direction: string;
+  direction: TMigrateDirection;
   /** Where `to` came from: the release table (`latest`, `next`) or the version as given. */
-  target: string;
+  target: TMigrateTarget;
   /** How many changelog entries of the package fall in the window, with a migration block or not: 0 means the release table holds none between the two versions. */
   entries: number;
   /** The command that runs the codemods the steps link; absent when no step links one. */
@@ -220,7 +224,7 @@ export class MigratePlan {
       }
     }
 
-    const target = isAlias ? MigrateTargets.RELEASE_TABLE : MigrateTargets.VERSION;
+    const target: TMigrateTarget = isAlias ? MigrateTargets.RELEASE_TABLE : MigrateTargets.VERSION;
     const base = {
       package: opts.package,
       from: opts.from,

@@ -270,7 +270,7 @@ export class CommandTable {
         '0 when every entry conforms; 1 when an entry does not, the tool is missing or the configuration is invalid; 2 for a subcommand other than check.',
     },
     [VulcanCommands.MIGRATE]: {
-      help: `  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json]
+      help: `  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]
                                   What an app must change to move a package between two releases, newer or
                                   older: the steps in order, the places in your code they touch (file:line),
                                   codemods and data warnings; read only
@@ -288,6 +288,7 @@ export class CommandTable {
       },
       flags: {
         '--force': 'apply: run on an app with uncommitted changes, or outside git',
+        '--verbose': 'plan: list every place that imports a module a step is about, not a count',
       },
       positionals: 1,
       unknownExit: ExitCodes.USAGE,

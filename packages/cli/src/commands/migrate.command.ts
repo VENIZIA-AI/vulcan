@@ -52,7 +52,7 @@ const withApp = (opts: { args: string[]; cwd: string }): string[] => {
 export const runMigrateCommand = (opts: ICommandContext): Promise<number> => {
   if (!SUBCOMMANDS.has(opts.args[0] ?? '')) {
     process.stderr.write(
-      'usage: vulcan migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json]\n       vulcan migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]\n',
+      'usage: vulcan migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]\n       vulcan migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]\n',
     );
 
     return Promise.resolve(ExitCodes.USAGE);

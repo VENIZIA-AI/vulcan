@@ -161,6 +161,74 @@ describe('AppScan.scan', () => {
     expect(lines({ app, symbols: ['Thing.make'] })).toEqual([]);
   });
 
+  test('each touch says how it reaches: a name, an `export *`, or a module specifier', () => {
+    const app = appWith({
+      files: {
+        'a.ts': "import { Thing } from '@a/kernel';\n",
+        'b.ts': "export * from '@a/kernel';\n",
+        'c.ts': "import { X } from '@a/kernel/helpers';\n",
+      },
+    });
+    const found = AppScan.scan({
+      app,
+      targets: [
+        { id: 'name', packages: ['@a/kernel'], symbols: ['Thing'] },
+        { id: 'module', packages: ['@a/kernel'], symbols: ['@a/kernel/helpers'] },
+      ],
+    });
+
+    expect(found.touches.name.map((touch) => `${touch.file}:${touch.kind}`).sort()).toEqual([
+      'a.ts:name',
+      'b.ts:re-export',
+    ]);
+    expect(found.touches.module.map((touch) => touch.kind)).toEqual(['module']);
+  });
+
+  test('`export * as ns from` passes the whole module on: a re-export, like `export *`', () => {
+    const app = appWith({ files: { 'a.ts': "export * as kernel from '@a/kernel';\n" } });
+    const found = AppScan.scan({
+      app,
+      targets: [{ id: 't', packages: ['@a/kernel'], symbols: ['Thing'] }],
+    });
+
+    expect(found.touches.t).toEqual([
+      { file: 'a.ts', line: 1, symbol: 'Thing', kind: 're-export' },
+    ]);
+  });
+
+  test('a named `export { X } from` is a name touch, not a re-export of everything', () => {
+    const app = appWith({ files: { 'a.ts': "export { Thing } from '@a/kernel';\n" } });
+    const found = AppScan.scan({
+      app,
+      targets: [
+        { id: 'named', packages: ['@a/kernel'], symbols: ['Thing'] },
+        { id: 'other', packages: ['@a/kernel'], symbols: ['Else'] },
+      ],
+    });
+
+    expect(found.touches.named).toEqual([{ file: 'a.ts', line: 1, symbol: 'Thing', kind: 'name' }]);
+    expect(found.touches.other).toEqual([]);
+  });
+
+  test('one file with a real use and an `export *` reports both, each by its kind and line', () => {
+    const app = appWith({
+      files: {
+        'a.ts':
+          "import { Thing } from '@a/kernel';\n\nexport * from '@a/kernel/sub';\n\nThing.make();\n",
+      },
+    });
+    const found = AppScan.scan({
+      app,
+      targets: [{ id: 't', packages: ['@a/kernel'], symbols: ['Thing'] }],
+    });
+
+    expect(found.touches.t.map((touch) => `${touch.line}:${touch.kind}`).sort()).toEqual([
+      '1:name',
+      '3:re-export',
+      '5:name',
+    ]);
+  });
+
   test('an unreadable file is skipped and reported, the rest is still scanned', () => {
     const app = appWith({
       files: {

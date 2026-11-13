@@ -162,6 +162,7 @@ describe('MigrateCommand.run', () => {
       ['apply'],
       ['plan', '--to', '2.0.0', '--force'],
       ['apply', '--to', '2.0.0', '--format', 'json'],
+      ['apply', '--to', '2.0.0', '--verbose'],
     ]) {
       const result = await run({ args });
 
