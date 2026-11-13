@@ -2,7 +2,7 @@ import { afterAll, afterEach, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { ChangelogCheck } from '../../check/changelogs.ts';
 import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
 
@@ -33,6 +33,7 @@ const project = (opts: {
   mkdirSync(join(root, 'changes'));
 
   for (const [file, text] of Object.entries(opts.entries)) {
+    mkdirSync(dirname(join(root, 'changes', file)), { recursive: true });
     writeFileSync(join(root, 'changes', file), text);
   }
 
@@ -195,5 +196,22 @@ test('a release override is satisfied by a tag of a legacy template, and the mes
 
   expect(ChangelogCheck.collectProblems()).toEqual([
     "changelog: changes/2026-01-03-c.md: release '@acme/kernel@9.9.9' names no tag (acme-v9.9.9)",
+  ]);
+});
+
+test('a version folder log.md is checked like a dated entry, named as <X.Y.Z>/log.md', () => {
+  project({
+    entries: {
+      '0.4.8/log.md': entry({ frontmatter: "packages: ['@acme/kernel']" }),
+      '0.4.9/log.md': entry({ frontmatter: 'kind: fix' }),
+      '0.4.10/log.md': entry({ frontmatter: "packages: ['kernel']" }),
+      '0.4.11/migration.yaml': 'steps: []\n',
+      'notes/log.md': entry({ frontmatter: 'kind: fix' }),
+    },
+  });
+
+  expect(ChangelogCheck.collectProblems()).toEqual([
+    "changelog: changes/0.4.10/log.md names 'kernel', not a declared package's npm name",
+    'changelog: changes/0.4.9/log.md declares no packages - add `packages: [<npm name>, ...]` to its frontmatter (`packages: []` for an entry about no package)',
   ]);
 });

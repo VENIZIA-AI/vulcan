@@ -277,8 +277,25 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       wiki: z.string().optional(),
       /** Folder of the changelog files; absent means the project has none. */
       changelogs: z.string().optional(),
-      /** `YYYY-MM-DD`: an entry dated on or after it owes a `migration` block when it is a Breaking Change; earlier entries are never checked. */
+      /**
+       * The cutover of the migration gate. `YYYY-MM-DD`: a dated entry on or after it owes a `migration` block when it is a
+       * Breaking Change. `X.Y.Z`: version folders from that version on are the changelog and dated files are history.
+       */
       migrationFrom: z
+        .string()
+        .regex(/^(?:\d{4}-\d{2}-\d{2}|\d+\.\d+\.\d+)$/)
+        .optional(),
+      /**
+       * The command that runs the codemods of this project's migrations: a bare binary name found in the app's
+       * `node_modules/.bin`, then fixed words (`['tool', 'codemod']`); default `['devz', 'codemod']`. A migration names
+       * a codemod, never a command: the runner is the source project's, so a changelog cannot run anything.
+       */
+      codemodCommand: z
+        .array(z.string().regex(/^[a-z0-9][a-z0-9._-]*$/i))
+        .min(1)
+        .optional(),
+      /** `YYYY-MM-DD`: the last date a dated changelog file may carry; a later one fails the changelog check. */
+      datedUntil: z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/)
         .optional(),

@@ -1,7 +1,7 @@
 import { afterAll, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { ChangelogPlaceholder } from '../check-changelog-placeholder.ts';
 
@@ -22,7 +22,10 @@ const plant = (opts: { files: Record<string, string> }): string => {
   mkdirSync(join(root, 'docs', 'wiki', 'content', 'changelogs'), { recursive: true });
 
   for (const [name, text] of Object.entries(opts.files)) {
-    writeFileSync(join(root, 'docs', 'wiki', 'content', 'changelogs', name), text);
+    const file = join(root, 'docs', 'wiki', 'content', 'changelogs', name);
+
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, text);
   }
 
   return root;
@@ -84,4 +87,20 @@ test('a real version, a plain title and the index page pass', () => {
 
   expect(ChangelogPlaceholder.scan({ root })).toEqual([]);
   expect(run({ root }).code).toBe(0);
+});
+
+test('a version folder is scanned in log.md and migration.yaml, its name is not a placeholder', () => {
+  const root = plant({
+    files: {
+      '0.4.8/log.md': '---\ntitle: Plain\n---\n\nUpgrade to X.Y.Z.\n',
+      '0.4.8/migration.yaml': 'version: X.Y.Z\n',
+      '0.4.9/log.md': '---\ntitle: Plain\n---\n',
+      '0.4.9/notes.md': 'X.Y.Z\n',
+    },
+  });
+
+  expect(ChangelogPlaceholder.scan({ root })).toEqual([
+    'docs/wiki/content/changelogs/0.4.8/log.md:5: Upgrade to X.Y.Z.',
+    'docs/wiki/content/changelogs/0.4.8/migration.yaml:1: version: X.Y.Z',
+  ]);
 });

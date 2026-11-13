@@ -5,6 +5,7 @@ import { RecordValue } from '../common/record.ts';
 import { OkfProject } from '../project/index.ts';
 
 const DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
+const VERSION_FOLDER = /^\d+\.\d+\.\d+$/;
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
 /** `'<npm name>@<version>'` - the name may be scoped, so the version is after the LAST `@`. */
 const RELEASE_OVERRIDE = /^(.+)@([^@]+)$/;
@@ -57,9 +58,19 @@ export class ChangelogCheck {
     const problems: string[] = [];
     let tags: string[] | undefined;
 
-    for (const file of readdirSync(directory)
-      .filter((name) => DATED_ENTRY.test(name))
-      .sort()) {
+    const entries = readdirSync(directory, { withFileTypes: true })
+      .flatMap((dirent) => {
+        if (dirent.isDirectory() && VERSION_FOLDER.test(dirent.name)) {
+          return existsSync(join(directory, dirent.name, 'log.md'))
+            ? [`${dirent.name}/log.md`]
+            : [];
+        }
+
+        return DATED_ENTRY.test(dirent.name) ? [dirent.name] : [];
+      })
+      .sort();
+
+    for (const file of entries) {
       const path = relative(project.root, join(directory, file));
       let frontmatter: TRecord;
 

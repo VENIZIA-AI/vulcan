@@ -6,8 +6,10 @@ import type { IAtlasProject } from '@/common/project-config';
 import { TextValue } from '@/common/text';
 import { BreakingBadge } from './badges';
 import { MigrationSchema } from './schema';
+import { VersionCheck } from './version-check';
 
 const DATED_ENTRY = /^(\d{4}-\d{2}-\d{2})-.*\.md$/;
+const VERSION_CUTOVER = /^\d+\.\d+\.\d+$/;
 const BREAKING = BreakingBadge.CANONICAL;
 const BREAKING_SHORT = BreakingBadge.SHORT;
 const DEVZ_TIMEOUT_MS = 30_000;
@@ -26,12 +28,18 @@ export class ChangelogCheck {
    * absent, a codemod name is not checked.
    */
   static scan(opts: { project: IAtlasProject; codemods?: string[] }): IChangelogProblem[] {
-    const { changelogs: directory, migrationFrom: cutover } = opts.project.knowledge;
+    const { changelogs: directory, migrationFrom, datedUntil } = opts.project.knowledge;
 
     if (directory === undefined || !existsSync(directory)) {
       return [];
     }
 
+    // A version cutover (`0.4.5`) retires the dated files: they are history and no longer owe a block.
+    const cutover =
+      migrationFrom !== undefined && VERSION_CUTOVER.test(migrationFrom)
+        ? undefined
+        : migrationFrom;
+    const isVersioned = migrationFrom !== undefined && cutover === undefined;
     const problems: IChangelogProblem[] = [];
     const idOwners = new Map<string, string>();
     const files = readdirSync(directory)
@@ -41,7 +49,14 @@ export class ChangelogCheck {
     for (const file of files) {
       const date = DATED_ENTRY.exec(file)?.[1] ?? '';
 
-      if (cutover !== undefined && date < cutover) {
+      if (datedUntil !== undefined && date > datedUntil) {
+        problems.push({
+          file,
+          message: `a dated entry after ${datedUntil}: write the item in changelogs/<X.Y.Z>/log.md of its version`,
+        });
+      }
+
+      if (isVersioned || (cutover !== undefined && date < cutover)) {
         continue;
       }
 
@@ -113,18 +128,19 @@ export class ChangelogCheck {
       }
     }
 
-    return problems;
+    return [...problems, ...VersionCheck.scan({ project: opts.project, codemods: opts.codemods })];
   }
 
   /** The codemod names the project's `devz` offers, or `undefined` when it is not installed or cannot list them. */
-  static codemodsOf(opts: { root: string }): string[] | undefined {
-    const bin = join(opts.root, 'node_modules', '.bin', 'devz');
+  static codemodsOf(opts: { root: string; command?: string[] }): string[] | undefined {
+    const [name, ...words] = opts.command ?? ['devz', 'codemod'];
+    const bin = join(opts.root, 'node_modules', '.bin', name);
 
     if (!existsSync(bin)) {
       return undefined;
     }
 
-    const result = spawnSync(bin, ['codemod', '--list'], {
+    const result = spawnSync(bin, [...words, '--list'], {
       cwd: opts.root,
       encoding: 'utf8',
       timeout: DEVZ_TIMEOUT_MS,
@@ -143,7 +159,10 @@ export class ChangelogCheck {
 
   /** Prints the problems, one `file: message` line each, through `write`; the exit code is 0 when there are none. */
   static run(opts: { project: IAtlasProject; write: (text: string) => void }): number {
-    const codemods = ChangelogCheck.codemodsOf({ root: opts.project.root });
+    const codemods = ChangelogCheck.codemodsOf({
+      root: opts.project.root,
+      command: opts.project.knowledge.codemodCommand,
+    });
     const problems = ChangelogCheck.scan({ project: opts.project, codemods });
 
     if (codemods === undefined) {

@@ -1,9 +1,10 @@
 import { existsSync, readdirSync } from 'node:fs';
-import { relative } from 'node:path';
+import { join, relative } from 'node:path';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases';
 
 const DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
+const VERSION_FOLDER = /^\d+\.\d+\.\d+$/;
 
 /**
  * A fetched source is not served with a release table that lost its changelog: the table is built from
@@ -13,9 +14,23 @@ const DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
  * before it holds an entry is fine: only entries that exist - in the folder, or in the commit - count.
  */
 export class ChangelogGuard {
-  /** The dated entry files among `names`. */
-  static datedIn(opts: { names: string[] }): number {
-    return opts.names.filter((name) => DATED_ENTRY.test(name.split('/').pop() ?? name)).length;
+  /**
+   * The entries among `names`: a dated entry file, or a version folder `X.Y.Z` counted once. `holdsLog`
+   * says whether a version folder holds its `log.md`; without it every version-named name counts.
+   */
+  static datedIn(opts: {
+    names: string[];
+    holdsLog?: (opts: { folder: string }) => boolean;
+  }): number {
+    return opts.names.filter((name) => {
+      const last = name.split('/').pop() ?? name;
+
+      if (DATED_ENTRY.test(last)) {
+        return true;
+      }
+
+      return VERSION_FOLDER.test(last) && (opts.holdsLog?.({ folder: name }) ?? true);
+    }).length;
   }
 
   /** `committed` is how many dated entries the fetched commit holds in the folder, when git can say. */
@@ -33,7 +48,10 @@ export class ChangelogGuard {
 
     const shown = relative(opts.project.root, directory);
     const onDisk = existsSync(directory)
-      ? ChangelogGuard.datedIn({ names: readdirSync(directory) })
+      ? ChangelogGuard.datedIn({
+          names: readdirSync(directory),
+          holdsLog: ({ folder }) => existsSync(join(directory, folder, 'log.md')),
+        })
       : 0;
 
     if (onDisk === 0 && (opts.committed ?? 0) > 0) {

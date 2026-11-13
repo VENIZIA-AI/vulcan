@@ -67,7 +67,17 @@ export interface IAtlasProject {
   /** Absolute: where the project's `typescript` resolves from. */
   typescriptFrom: string;
   /** Absolute paths. */
-  knowledge: { bundle: string; wiki?: string; changelogs?: string; migrationFrom?: string };
+  knowledge: {
+    bundle: string;
+    wiki?: string;
+    changelogs?: string;
+    /** A date (dated files) or a version `X.Y.Z` (version folders from it on). */
+    migrationFrom?: string;
+    /** The last date a dated changelog file may carry. */
+    datedUntil?: string;
+    /** The runner of the migrations' codemods: a bare binary name, then fixed words; absent means `devz codemod`. */
+    codemodCommand?: string[];
+  };
   /** The sources this project reads knowledge from (git mode): `atlas.sources` of its config. */
   sources: { name: string; repo: string; ref: string; pin?: TSourcePin }[];
   /** The ed25519 public keys (base64, 32 raw bytes) whose signature a prebuilt index of this project must carry; absent when it publishes none. */
@@ -218,6 +228,13 @@ export class ProjectConfig {
     const wiki = WireValue.stringOf({ value: knowledge.wiki });
     const changelogs = WireValue.stringOf({ value: knowledge.changelogs });
     const migrationFrom = WireValue.stringOf({ value: knowledge.migrationFrom });
+    const datedUntil = WireValue.stringOf({ value: knowledge.datedUntil });
+    const codemodCommand = Array.isArray(knowledge.codemodCommand)
+      ? knowledge.codemodCommand.filter(
+          (word): word is string =>
+            typeof word === 'string' && /^[a-z0-9][a-z0-9._-]*$/i.test(word),
+        )
+      : [];
 
     if (manifest.schemaVersion !== MANIFEST_SCHEMA_VERSION) {
       throw new Error(
@@ -281,6 +298,8 @@ export class ProjectConfig {
         ...(wiki === undefined ? {} : { wiki: resolve(opts.root, wiki) }),
         ...(changelogs === undefined ? {} : { changelogs: resolve(opts.root, changelogs) }),
         migrationFrom,
+        ...(datedUntil === undefined ? {} : { datedUntil }),
+        ...(codemodCommand.length === 0 ? {} : { codemodCommand }),
       },
     };
   }

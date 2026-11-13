@@ -3,7 +3,7 @@
  *
  * An entry title is a plain sentence with no product or version prefix, so a literal `X.Y.Z` in a file of
  * `docs/wiki/content/changelogs/` is a placeholder that was never filled: it reaches the wiki, the feed and
- * the GitHub Release notes as nonsense. The gate fails on it in any line of a dated entry and names the file and line.
+ * the GitHub Release notes as nonsense. The gate fails on it in any line of a dated entry or a version folder file and names the file and line.
  *
  *   bun scripts/checks/check-changelog-placeholder.ts [--root <repository root>]
  */
@@ -12,6 +12,7 @@ import { join } from 'node:path';
 
 const CHANGELOGS = join('docs', 'wiki', 'content', 'changelogs');
 const DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
+const VERSION_FOLDER = /^\d+\.\d+\.\d+$/;
 const PLACEHOLDER = /\bX\.Y\.Z\b/;
 
 export class ChangelogPlaceholder {
@@ -23,16 +24,25 @@ export class ChangelogPlaceholder {
       throw new Error(`changelog-placeholder: ${CHANGELOGS} not found under ${opts.root}`);
     }
 
-    return readdirSync(directory)
-      .filter((file) => DATED_ENTRY.test(file))
-      .sort()
-      .flatMap((file) =>
-        readFileSync(join(directory, file), 'utf8')
-          .split('\n')
-          .flatMap((text, index) =>
-            PLACEHOLDER.test(text) ? [`${CHANGELOGS}/${file}:${index + 1}: ${text.trim()}`] : [],
-          ),
-      );
+    const files = readdirSync(directory, { withFileTypes: true })
+      .flatMap((dirent) => {
+        if (dirent.isDirectory() && VERSION_FOLDER.test(dirent.name)) {
+          return [`${dirent.name}/log.md`, `${dirent.name}/migration.yaml`].filter((file) =>
+            existsSync(join(directory, file)),
+          );
+        }
+
+        return DATED_ENTRY.test(dirent.name) ? [dirent.name] : [];
+      })
+      .sort();
+
+    return files.flatMap((file) =>
+      readFileSync(join(directory, file), 'utf8')
+        .split('\n')
+        .flatMap((text, index) =>
+          PLACEHOLDER.test(text) ? [`${CHANGELOGS}/${file}:${index + 1}: ${text.trim()}`] : [],
+        ),
+    );
   }
 
   static run(opts: { argv: string[] }): number {

@@ -77,7 +77,9 @@ Details:
 
 - `packages` entries carry `name`, `dir`, `path`, `aliases`, `retired`, and `presetKind`; `kind: "lib"` marks a library other apps import, made by `vulcan add --lib`.
 - `other` holds folders the layout does not manage, such as docs.
-- `migrationFrom` is the day from which breaking changelog entries carry a migration block.
+- `migrationFrom` is the cutover of the migration gate: a date (`2026-11-13`) from which dated Breaking Change entries carry a migration block, or a version (`0.4.5`) from which version folders `changelogs/<X.Y.Z>/` are the changelog and dated files are history.
+- `codemodCommand` is the runner of the project's migration codemods: a bare binary name found in the app's `node_modules/.bin`, then fixed words, such as `['tool', 'codemod']`; the default is `['devz', 'codemod']`. A migration names a codemod and never a command, so a changelog cannot run anything.
+- `datedUntil` is the last date (`YYYY-MM-DD`) a dated changelog file may carry; a later one fails `vulcan changelog check`.
 
 To update the manifest, run `vulcan sync` after changing configuration or updating base rules. Running `vulcan doctor` compares the manifest against the resolved configuration. If the manifest is missing or stale, `vulcan doctor` fails with exit code 1.
 
