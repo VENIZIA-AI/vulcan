@@ -1,6 +1,8 @@
 import type { IToolHandler } from '@/protocol/common';
 import type { IReleaseIndex } from '@/releases';
 import { MigratePlan } from '@/migrations/plan';
+import { MigrateRegistry } from '@/migrations/registry';
+import type { TPublishedLookup } from '@/migrations/registry';
 import { z } from 'zod';
 import { MigrateInputSchema, ToolInput, ToolTriggers } from './common';
 
@@ -15,7 +17,14 @@ const DESCRIPTION =
 const INPUT_JSON_SCHEMA = z.toJSONSchema(MigrateInputSchema);
 
 export class MigrateTool {
-  static build(opts: { releases: IReleaseIndex; projects?: string }): IToolHandler {
+  /** `published` asks npm what a package has published; tests pass their own, and `undefined` from it means no claim. */
+  static build(opts: {
+    releases: IReleaseIndex;
+    projects?: string;
+    published?: TPublishedLookup;
+  }): IToolHandler {
+    const lookup = opts.published ?? MigrateRegistry.published;
+
     return {
       definition: {
         name: 'migrate',
@@ -25,13 +34,24 @@ export class MigrateTool {
       call: async ({ args }) => {
         const input = ToolInput.parse({ schema: MigrateInputSchema, args });
 
-        return MigratePlan.plans({
+        await MigrateRegistry.refuseBehindVersion({
+          releases: opts.releases,
+          package: input.package,
+          to: input.to,
+          lookup,
+        });
+
+        const result = MigratePlan.plans({
           releases: opts.releases,
           app: input.app ?? process.cwd(),
           package: input.package,
           from: input.from,
           to: input.to,
         });
+
+        await MigrateRegistry.markBehind({ releases: opts.releases, result, to: input.to, lookup });
+
+        return result;
       },
     };
   }

@@ -3,7 +3,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MigrateReport, MigratePlan } from '@/migrations';
-import type { IMigrationResult, IMigrationTouch } from '@/migrations';
+import { MigrateApply, MigrateRegistry } from '@/migrations';
+import type { IMigrationResult, IMigrationTouch, TPublishedLookup } from '@/migrations';
 import { Transport } from '@/protocol';
 import { ReleaseStore } from '@/releases';
 import type { IReleaseTable } from '@/releases';
@@ -68,8 +69,17 @@ const KERNEL = new ReleaseStore({
   table: table({ dir: 'kernel', name: '@venizia/kernel', id: 'kernel-item' }),
 });
 
-const call = async (opts: { releases: ReleaseStore | SourceReleases; args: unknown }) =>
-  MigrateTool.build({ releases: opts.releases }).call({ args: opts.args });
+/** npm cannot be asked: no claim, and no network in a test. */
+const NOT_ASKED: TPublishedLookup = async () => undefined;
+
+const call = async (opts: {
+  releases: ReleaseStore | SourceReleases;
+  args: unknown;
+  published?: TPublishedLookup;
+}) =>
+  MigrateTool.build({ releases: opts.releases, published: opts.published ?? NOT_ASKED }).call({
+    args: opts.args,
+  });
 
 describe('the migrate tool', () => {
   test('C15.1: it answers the plan the engine builds, as JSON-able data', async () => {
@@ -118,7 +128,7 @@ describe('the migrate tool', () => {
 
   test('a call without `to` is -32602 naming the field', async () => {
     const transport = new Transport({
-      tools: [MigrateTool.build({ releases: KERNEL })],
+      tools: [MigrateTool.build({ releases: KERNEL, published: NOT_ASKED })],
       serverName: 'test',
       serverVersion: '0',
     });
@@ -164,6 +174,177 @@ const planWith = (opts: { steps: ReturnType<typeof stepWith>[] }): IMigrationRes
       unreadable: [],
     },
   ],
+});
+
+describe('the registry check and the shipped-in release', () => {
+  const args = (opts: { to: string }) => ({
+    package: '@venizia/kernel',
+    to: opts.to,
+    app: appWith({ dependencies: { '@venizia/kernel': '1.0.0' } }),
+  });
+
+  test('next ahead of the atlas: the plan carries a warning that names both versions, and the report prints it', async () => {
+    const raw = await call({
+      releases: KERNEL,
+      args: args({ to: 'next' }),
+      published: async () => ({ tags: { next: '2.1.0' }, versions: ['1.0.0', '2.0.0', '2.1.0'] }),
+    });
+    const answer: IMigrationResult = JSON.parse(JSON.stringify(raw));
+
+    expect(answer.plans[0].behind).toContain('behind npm next 2.1.0');
+    expect(answer.plans[0].behind).toContain('resolves next to 2.0.0');
+    expect(MigrateReport.markdown({ result: answer })).toContain('Warning: the atlas source');
+  });
+
+  test('a tag the atlas knows, an npm that cannot be asked, or a version given: no warning', async () => {
+    const known = await call({
+      releases: KERNEL,
+      args: args({ to: 'latest' }),
+      published: async () => ({ tags: { latest: '2.0.0' }, versions: ['2.0.0'] }),
+    });
+    const silent = await call({ releases: KERNEL, args: args({ to: 'next' }) });
+    const given = await call({
+      releases: KERNEL,
+      args: args({ to: '2.0.0' }),
+      published: async () => ({ tags: { next: '9.9.9' }, versions: ['9.9.9'] }),
+    });
+
+    for (const answer of [known, silent, given]) {
+      expect(JSON.parse(JSON.stringify(answer)).plans[0].behind).toBeUndefined();
+    }
+  });
+
+  test('a version the atlas does not know but npm publishes says the ref is behind; one npm lacks keeps the unknown-version error', async () => {
+    const published: TPublishedLookup = async () => ({
+      tags: {},
+      versions: ['1.0.0', '2.0.0', '3.0.0'],
+    });
+    const transport = (opts: { published: TPublishedLookup }) =>
+      new Transport({
+        tools: [MigrateTool.build({ releases: KERNEL, published: opts.published })],
+        serverName: 'test',
+        serverVersion: '0',
+      });
+    const ask = async (opts: { to: string; published: TPublishedLookup }) => {
+      const line = await transport({ published: opts.published }).handleLine({
+        line: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'migrate', arguments: args({ to: opts.to }) },
+        }),
+      });
+
+      return JSON.parse(line ?? 'null').error.message;
+    };
+
+    const behind = await ask({ to: '3.0.0', published });
+    const missing = await ask({ to: '4.0.0', published });
+    const unasked = await ask({ to: '3.0.0', published: NOT_ASKED });
+
+    expect(behind).toContain('published to npm but the atlas does not know it');
+    expect(behind).toContain('newest the atlas knows is 2.0.0');
+    expect(missing).toContain("unknown version '4.0.0'");
+    expect(unasked).toContain("unknown version '3.0.0'");
+  });
+
+  test('apply refuses a plan that stops short of npm, and --force runs it', () => {
+    const result: IMigrationResult = {
+      app: '/app',
+      skipped: [],
+      unserved: [],
+      plans: [
+        {
+          package: '@venizia/kernel',
+          from: '1.0.0',
+          to: '2.0.0',
+          direction: 'upgrade',
+          target: 'release table',
+          entries: 0,
+          steps: [],
+          unstructured: [],
+          unreadable: [],
+          behind: 'the ref is behind npm next 2.1.0',
+        },
+      ],
+    };
+    const errors: string[] = [];
+    const refused = MigrateApply.run({
+      result,
+      force: false,
+      out: () => undefined,
+      err: (text) => errors.push(text),
+    });
+
+    expect(refused).toBe(1);
+    expect(errors.join('')).toContain('behind npm next 2.1.0');
+    expect(
+      MigrateApply.run({ result, force: true, out: () => undefined, err: () => undefined }),
+    ).toBe(0);
+  });
+
+  test('MigrateRegistry.published reads the dist-tags and versions of the registry, and nothing when it fails', async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch: (request) =>
+        new URL(request.url).pathname === '/@venizia%2fkernel'
+          ? Response.json({
+              'dist-tags': { next: '2.1.0', latest: '2.0.0' },
+              versions: { '2.0.0': {}, '2.1.0': {} },
+            })
+          : new Response('no', { status: 404 }),
+    });
+    const before = process.env.VULCAN_NPM_REGISTRY;
+
+    process.env.VULCAN_NPM_REGISTRY = `http://127.0.0.1:${server.port}`;
+
+    try {
+      const found = await MigrateRegistry.published({ name: '@venizia/kernel' });
+      const absent = await MigrateRegistry.published({ name: '@venizia/other' });
+
+      expect(found).toEqual({
+        tags: { next: '2.1.0', latest: '2.0.0' },
+        versions: ['2.0.0', '2.1.0'],
+      });
+      expect(absent).toBeUndefined();
+    } finally {
+      process.env.VULCAN_NPM_REGISTRY = before;
+      await server.stop(true);
+    }
+  });
+
+  test('a step says which release first shipped its entry; an entry with no order says nothing', () => {
+    const app = appWith({ dependencies: { '@venizia/kernel': '1.0.0' } });
+    const result = MigratePlan.plans({
+      releases: KERNEL,
+      app,
+      package: '@venizia/kernel',
+      to: '2.0.0',
+    });
+
+    expect(result.plans[0].steps[0].shippedIn).toBe('2.0.0');
+    expect(MigrateReport.markdown({ result })).toContain('(2026-02-01, shipped in 2.0.0)');
+
+    const undated = new ReleaseStore({
+      table: {
+        ...table({ dir: 'kernel', name: '@venizia/kernel', id: 'x' }),
+        changelogs: table({ dir: 'kernel', name: '@venizia/kernel', id: 'x' }).changelogs.map(
+          (entry) => ({
+            ...entry,
+            order: undefined,
+          }),
+        ),
+      },
+    });
+    const dated = MigratePlan.plans({
+      releases: undated,
+      app,
+      package: '@venizia/kernel',
+      to: '2.0.0',
+    });
+
+    expect(dated.plans[0].steps[0].shippedIn).toBeUndefined();
+  });
 });
 
 describe('MigrateReport.markdown', () => {

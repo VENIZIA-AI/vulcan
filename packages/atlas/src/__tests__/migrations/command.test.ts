@@ -48,7 +48,7 @@ const releases = new ReleaseStore({
 });
 
 const transport = new Transport({
-  tools: [MigrateTool.build({ releases })],
+  tools: [MigrateTool.build({ releases, published: async () => undefined })],
   serverName: 'test',
   serverVersion: '0',
 });
@@ -111,7 +111,7 @@ describe('MigrateCommand.run', () => {
         'json',
       ],
     });
-    const direct = await MigrateTool.build({ releases }).call({
+    const direct = await MigrateTool.build({ releases, published: async () => undefined }).call({
       args: { to: '2.0.0', package: '@venizia/kernel', app },
     });
 
