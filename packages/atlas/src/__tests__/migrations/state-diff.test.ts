@@ -150,11 +150,11 @@ const repo = () => {
     codemodPackages: ['@a/kernel'],
   });
 
-  return { app, releases };
+  return { app, releases, project };
 };
 
 const planOf = (opts: {
-  made: ReturnType<typeof repo>;
+  made: { app: string; releases: ReleaseStore };
   package?: string;
   from: string;
   to: string;
@@ -168,7 +168,7 @@ const planOf = (opts: {
   }).plans[0];
 
 const stepsOf = (opts: {
-  made: ReturnType<typeof repo>;
+  made: { app: string; releases: ReleaseStore };
   package?: string;
   from: string;
   to: string;
@@ -655,5 +655,64 @@ describe('FolderHistory in a project below the top of its repository', () => {
     });
 
     expect(found.status).toBe(FolderAtStatuses.FOLDER);
+  });
+});
+
+describe('migrate points at the upgrade guide', () => {
+  const made = repo();
+  const withSite = (opts: { siteUrl?: string }) => ({
+    ...made,
+    releases: new ReleaseStore({
+      table: ReleaseCompute.compute({ project: made.project }),
+      folderHistory: new FolderHistory({ project: made.project }),
+      codemodPackages: ['@a/kernel'],
+      siteUrl: opts.siteUrl,
+    }),
+  });
+
+  test('with knowledge.siteUrl each folder step names its guide, and the report prints it', () => {
+    const site = withSite({ siteUrl: 'https://wiki.example.test' });
+    const plan = planOf({ made: site, from: '0.4.5-14', to: '0.4.5-16' });
+    const step = plan.steps.find((entry) => entry.id === 'new-api');
+
+    expect(step?.guide).toBe('https://wiki.example.test/changelogs/0.4.5/upgrade#new-api');
+    expect(
+      plan.steps.every(
+        (entry) => entry.guide === `https://wiki.example.test/changelogs/0.4.5/upgrade#${entry.id}`,
+      ),
+    ).toBe(true);
+    expect(
+      MigrateReport.markdown({
+        result: { app: site.app, plans: [plan], skipped: [], unserved: [] },
+      }),
+    ).toContain('Guide: https://wiki.example.test/changelogs/0.4.5/upgrade#new-api');
+  });
+
+  test('without it a step has no guide and the report prints no Guide line', () => {
+    const plain = withSite({});
+    const plan = planOf({ made: plain, from: '0.4.5-14', to: '0.4.5-16' });
+
+    expect(plan.steps.some((entry) => entry.guide !== undefined)).toBe(false);
+    expect(
+      MigrateReport.markdown({
+        result: { app: plain.app, plans: [plan], skipped: [], unserved: [] },
+      }),
+    ).not.toContain('Guide:');
+  });
+
+  test('an upgrade with steps and a before and after prints both: the code, then the numbered steps', () => {
+    const lines = MigrateReport.changeLines({
+      change: { before: 'a()', after: 'b()', steps: ['Rename a to b', 'Run bun check'] },
+    });
+
+    expect(lines).toContain('Before:');
+    expect(lines).toContain('After:');
+    expect(lines).toContain('a()');
+    expect(lines).toContain('b()');
+    expect(lines.indexOf('1. Rename a to b')).toBeGreaterThan(lines.indexOf('b()'));
+    expect(lines).toContain('2. Run bun check');
+    expect(MigrateReport.changeLines({ change: { steps: ['Only steps'] } })).toEqual([
+      '1. Only steps',
+    ]);
   });
 });

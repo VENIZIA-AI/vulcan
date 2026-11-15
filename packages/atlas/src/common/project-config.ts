@@ -3,6 +3,7 @@ import { basename, join, resolve } from 'node:path';
 import { CodemodRunner } from './codemod-runner';
 import { GitArgument } from './git-argument';
 import { AtlasLimits } from './limits';
+import { SiteUrl } from './site-url';
 import { WireValue } from './wire';
 import { LibraryKinds, PackageKinds, SourcePins } from './constants';
 import type { TAppSide, TLibraryKind, TPackageKind, TSourcePin } from './types';
@@ -76,6 +77,8 @@ export interface IAtlasProject {
     migrationFrom?: string;
     /** The last date a dated changelog file may carry. */
     datedUntil?: string;
+    /** The address of the project's wiki, without a trailing slash: `migrate plan` builds the link to a step's upgrade guide on it. */
+    siteUrl?: string;
     /** The runner of the migrations' codemods: a bare binary name, then fixed words; absent means `devz codemod`. */
     codemodCommand?: string[];
   };
@@ -237,6 +240,19 @@ export class ProjectConfig {
         `atlas: ${opts.source ?? `project '${projectName}'`} - knowledge.datedUntil '${datedUntil}' is not a date (YYYY-MM-DD)`,
       );
     }
+    const rawSiteUrl = WireValue.stringOf({ value: knowledge.siteUrl });
+    // a fetched manifest is data from elsewhere: only a plain web address becomes a link, normalized here once
+    const parsedSiteUrl =
+      rawSiteUrl === undefined ? undefined : SiteUrl.parse({ value: rawSiteUrl });
+
+    if (parsedSiteUrl !== undefined && 'problem' in parsedSiteUrl) {
+      throw new Error(
+        `atlas: ${opts.source ?? `project '${projectName}'`} - knowledge.siteUrl ${parsedSiteUrl.problem}`,
+      );
+    }
+
+    const siteUrl = parsedSiteUrl?.href;
+
     const codemodCommand = CodemodRunner.wordsOf({
       value: knowledge.codemodCommand,
       label: opts.source ?? `project '${projectName}'`,
@@ -305,6 +321,7 @@ export class ProjectConfig {
         ...(changelogs === undefined ? {} : { changelogs: resolve(opts.root, changelogs) }),
         migrationFrom,
         ...(datedUntil === undefined ? {} : { datedUntil }),
+        ...(siteUrl === undefined ? {} : { siteUrl }),
         ...(codemodCommand.length === 0 ? {} : { codemodCommand }),
       },
     };

@@ -219,3 +219,17 @@ atlas-source-cache-keeps-five-refs:
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan-atlas`, whose source cache keeps the commits of every ref it served.'
+
+changelog-reading-keys-required:
+  symbols:
+    - ChangelogCheck.scan
+  upgrade:
+    steps:
+      - 'Add `summary: <one sentence>` and `highlights:` (a list of one to five one-line points) to the front matter of the `log.md` of the version in progress.'
+      - 'Add `steps:` (an ordered list of what an app does) to the `upgrade` of every block of its `migration.yaml`. `before` and `after` may stay beside it.'
+      - 'Take the sentence that names `migration.yaml` out of the opening paragraph: the version page links its upgrade guide itself.'
+      - 'Run `vulcan changelog check`; it names every missing key and block.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan` and `@venizia/vulcan-atlas`, which do not read `summary` and `highlights`.'
+      - 'Where an upgrade holds `steps` with `before` and `after`, keep one of the two: the earlier gate refuses a block that holds both.'

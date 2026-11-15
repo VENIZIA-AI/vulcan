@@ -83,6 +83,12 @@ export interface IVersionFolder {
   items: IVersionItem[];
   /** The text between the frontmatter and the first heading: what the release is. */
   intro: string;
+  /** `summary:` of the frontmatter: one sentence saying what the release is; absent when the log has none. */
+  summary?: string;
+  /** `highlights:` of the frontmatter: the lines a version box shows; absent when the log has none. */
+  highlights?: string[];
+  /** What of the frontmatter could not be read: `frontmatter` (it does not parse), `summary` or `highlights` (the wrong type). The gate does not ask again for what is already reported. */
+  unreadable: ('frontmatter' | 'summary' | 'highlights')[];
   /** The blocks of `migration.yaml` by item id; empty when the file is absent or `{}`. */
   blocks: Record<string, TMigrationBlock>;
   /** Everything wrong with the folder that parsing can see; the gate adds the rules that need the project. */
@@ -102,6 +108,9 @@ const BULLET_LINE = /^[-*] /;
 const SECTION_LINE = /^## (.+?)\s*$/;
 const RELEASED_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const YAML_TOP_KEY = /^(?!\s|#|-)(?:"([^"]+)"|'([^']+)'|([^:\n]+?))\s*:/gm;
+
+const isStrings = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === 'string');
 
 const stringsOf = (opts: { value: unknown }): string[] =>
   Array.isArray(opts.value)
@@ -186,6 +195,7 @@ export class VersionFolders {
       sections: [],
       items: [],
       intro: '',
+      unreadable: [],
       blocks: {},
       problems: [],
       hasLog: opts.log !== undefined,
@@ -223,6 +233,7 @@ export class VersionFolders {
     try {
       ({ data, body } = Resolve.splitFrontmatter(opts.text));
     } catch (error) {
+      folder.unreadable.push('frontmatter');
       fail({ file: 'log.md', message: `invalid frontmatter: ${TextValue.messageOf({ error })}` });
 
       return;
@@ -240,6 +251,32 @@ export class VersionFolders {
     }
 
     folder.packages = stringsOf({ value: data.packages });
+
+    if (data.summary !== undefined) {
+      if (typeof data.summary === 'string') {
+        folder.summary = data.summary.trim();
+      } else {
+        folder.unreadable.push('summary');
+        fail({
+          file: 'log.md',
+          message:
+            'summary: must be a sentence (quote it when it holds ": " or starts with a backtick)',
+        });
+      }
+    }
+
+    if (data.highlights !== undefined) {
+      if (isStrings(data.highlights)) {
+        folder.highlights = data.highlights.map((line) => line.trim());
+      } else {
+        folder.unreadable.push('highlights');
+        fail({
+          file: 'log.md',
+          message:
+            'highlights: must be a list of lines (quote a line that holds ": " or starts with a backtick)',
+        });
+      }
+    }
 
     if (data.released !== undefined) {
       const released = typeof data.released === 'string' ? data.released : '';

@@ -15,6 +15,7 @@ export class ReleaseStore extends BaseHelper {
   private readonly changelogs: IChangelogRecord[];
   private readonly live: string[];
   private readonly codemod: string[] | undefined;
+  private readonly siteUrl: string | undefined;
   private readonly codemodPackages: string[];
   private readonly history: IFolderHistory | undefined;
   private readonly packageMap: IPackageMapEntry[];
@@ -29,6 +30,8 @@ export class ReleaseStore extends BaseHelper {
     noEntriesReason?: string;
     /** The source project's `knowledge.codemodCommand`: what runs the codemods its migrations name. */
     codemodCommand?: string[];
+    /** The source project's `knowledge.siteUrl`: where its wiki is, so a step can name its upgrade guide. */
+    siteUrl?: string;
     /** The npm names of the source project's packages, from its validated manifest: where its codemod runner may be installed. */
     codemodPackages?: string[];
     /** The source's version folders at HEAD and at its tags: what `migrate` diffs. */
@@ -37,6 +40,7 @@ export class ReleaseStore extends BaseHelper {
     super({ scope: ReleaseStore.name });
 
     this.codemod = opts.codemodCommand;
+    this.siteUrl = opts.siteUrl;
     this.codemodPackages = opts.codemodPackages ?? [];
     this.history = opts.folderHistory;
     this.packageMap = opts.table.packageMap;
@@ -229,6 +233,11 @@ export class ReleaseStore extends BaseHelper {
   /** The source project's codemod runner words, or `undefined` for the default. */
   codemodCommandOf(): string[] | undefined {
     return this.codemod;
+  }
+
+  /** The address of the source project's wiki, or `undefined` when it names none. */
+  siteUrlOf(): string | undefined {
+    return this.siteUrl;
   }
 
   /** The recorded commit position of one release, or `undefined` when the table carries none. */

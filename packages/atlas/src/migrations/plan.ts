@@ -41,6 +41,8 @@ export interface IMigrationStep {
   changed?: true;
   data?: string;
   codemod?: string;
+  /** Where the item's upgrade guide is on the source's wiki; set for a version-folder item when the source names its wiki. */
+  guide?: string;
   /** Where the app's code reaches the item's symbols; empty when it does not. */
   touches: IMigrationTouch[];
 }
@@ -332,6 +334,7 @@ export class MigratePlan {
             return step;
           });
         });
+    const siteUrl = releases.siteUrlOf({ package: opts.package });
     const stateStep = (move: IStateMove): IMigrationStep | undefined => {
       const { block } = move.item;
 
@@ -360,6 +363,10 @@ export class MigratePlan {
 
       if (block.codemod !== undefined) {
         step.codemod = block.codemod;
+      }
+
+      if (siteUrl !== undefined) {
+        step.guide = `${siteUrl}/changelogs/${move.item.line}/upgrade#${move.item.id}`;
       }
 
       return step;

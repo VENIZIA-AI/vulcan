@@ -212,7 +212,8 @@ export class ProjectManifest {
    */
   static render(opts: { root: string; config: TResolvedConfig }): string {
     const { config } = opts;
-    const { wiki, changelogs, migrationFrom, datedUntil, codemodCommand } = config.knowledge;
+    const { wiki, changelogs, migrationFrom, datedUntil, siteUrl, codemodCommand } =
+      config.knowledge;
 
     const manifest = {
       [ManifestConstants.GENERATED_KEY]: ManifestConstants.GENERATED_NOTE,
@@ -236,6 +237,7 @@ export class ProjectManifest {
         ...(changelogs === undefined ? {} : { changelogs }),
         migrationFrom,
         ...(datedUntil === undefined ? {} : { datedUntil }),
+        ...(siteUrl === undefined ? {} : { siteUrl }),
         ...(codemodCommand === undefined ? {} : { codemodCommand }),
       },
       release: {

@@ -16,12 +16,28 @@ afterAll(() => {
 });
 
 const BLOCK = `  symbols: [Thing.make]
-  upgrade: { before: "Thing.make()", after: "ThingFactory.build()" }
+  upgrade: { before: "Thing.make()", after: "ThingFactory.build()", steps: ["Replace Thing.make with ThingFactory.build"] }
   downgrade: { steps: ["Use Thing.make() again"] }
 `;
 
-const log = (opts: { version: string; released?: string; body: string }): string =>
-  `---\ntitle: ${opts.version}\nversion: ${opts.version}\npackages: ['@a/kernel']\n${opts.released === undefined ? '' : `released: ${opts.released}\n`}---\n${opts.body}`;
+/**
+ * A `log.md`. A folder without `released:` owes a summary and highlights: they are written unless `null` says not to
+ * (a released folder owes neither, and gets none).
+ */
+const log = (opts: {
+  version: string;
+  released?: string;
+  body: string;
+  summary?: string | null;
+  highlights?: string[] | null;
+}): string => {
+  const owes = opts.released === undefined;
+  const summary = opts.summary === undefined ? (owes ? 'A release.' : null) : opts.summary;
+  const highlights =
+    opts.highlights === undefined ? (owes ? ['One thing changed'] : null) : opts.highlights;
+
+  return `---\ntitle: ${opts.version}\nversion: ${opts.version}\npackages: ['@a/kernel']\n${summary === null ? '' : `summary: ${summary}\n`}${highlights === null ? '' : `highlights:\n${highlights.map((line) => `  - ${line}`).join('\n')}\n`}${opts.released === undefined ? '' : `released: ${opts.released}\n`}---\n${opts.body}`;
+};
 
 interface IFolderFiles {
   log: string;
@@ -363,6 +379,165 @@ describe('the history gate (C4)', () => {
     expect(found[0]).toContain('0.4.1 was released at HEAD and is frozen');
   });
 
+  describe('a replacement pattern in the frontmatter is text', () => {
+    const fm = (opts: { title: string; extra?: string }): string =>
+      `---\ntitle: ${opts.title}\nversion: 0.4.1\npackages: ['@a/kernel']\n${opts.extra ?? ''}released: 2026-11-01\n---\n\n## Added\n- **A** \`a-item\`: a.\n`;
+    const edit = (opts: { before: string; after: string }): string[] => {
+      const root = mkdtempSync(join(tmpdir(), 'atlas-dollar-'));
+
+      roots.push(root);
+      mkdirSync(join(root, 'changes', '0.4.1'), { recursive: true });
+      writeFileSync(join(root, 'changes', '0.4.1', 'log.md'), opts.before);
+
+      for (const args of [
+        ['init', '-q', '-b', 'main'],
+        ['config', 'user.email', 't@t.t'],
+        ['config', 'user.name', 't'],
+        ['add', '-A'],
+        ['commit', '-q', '-m', 'base'],
+      ]) {
+        run({ root, args });
+      }
+
+      writeFileSync(join(root, 'changes', '0.4.1', 'log.md'), opts.after);
+
+      return ChangelogHistory.scan({
+        project: ProjectConfig.toAtlasProject({
+          root,
+          manifest: {
+            schemaVersion: 1,
+            packages: [{ name: '@a/kernel', dir: 'kernel', aliases: [], retired: false }],
+            knowledge: { changelogs: 'changes', migrationFrom: '0.4.1' },
+            release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+          },
+        }),
+        base: 'HEAD',
+      }).map((problem) => problem.message);
+    };
+
+    test('a title edited from $$ to $ is a change; a $-pattern in a title does not stop a backfill', () => {
+      expect(edit({ before: fm({ title: 'a$$b' }), after: fm({ title: 'a$b' }) }).join()).toContain(
+        'frozen',
+      );
+
+      for (const title of ['a$&b', "a$'b", 'a$`b', 'a$$b']) {
+        expect(
+          edit({ before: fm({ title }), after: fm({ title, extra: 'summary: S.\n' }) }),
+        ).toEqual([]);
+      }
+    });
+  });
+
+  describe('a project below the repository top', () => {
+    test('a released folder that changed is frozen, one that gained a summary is not', () => {
+      const top = mkdtempSync(join(tmpdir(), 'atlas-subdir-'));
+      const root = join(top, 'proj');
+      const frozenLog = log({
+        version: '0.4.1',
+        released: '2026-11-01',
+        body: '\n## Added\n- **A** `a-item`: a.\n',
+      });
+
+      roots.push(top);
+      mkdirSync(join(root, 'changes', '0.4.1'), { recursive: true });
+      writeFileSync(join(root, 'changes', '0.4.1', 'log.md'), frozenLog);
+
+      for (const args of [
+        ['init', '-q', '-b', 'main'],
+        ['config', 'user.email', 't@t.t'],
+        ['config', 'user.name', 't'],
+        ['add', '-A'],
+        ['commit', '-q', '-m', 'base'],
+      ]) {
+        run({ root: top, args });
+      }
+
+      const project = ProjectConfig.toAtlasProject({
+        root,
+        manifest: {
+          schemaVersion: 1,
+          packages: [{ name: '@a/kernel', dir: 'kernel', aliases: [], retired: false }],
+          knowledge: { changelogs: 'changes', migrationFrom: '0.4.1' },
+          release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+        },
+      });
+      const scan = (): string[] =>
+        ChangelogHistory.scan({ project, base: 'HEAD' }).map((problem) => problem.message);
+
+      writeFileSync(
+        join(root, 'changes', '0.4.1', 'log.md'),
+        frozenLog.replace('released: 2026-11-01', 'summary: S.\nreleased: 2026-11-01'),
+      );
+      expect(scan()).toEqual([]);
+
+      writeFileSync(join(root, 'changes', '0.4.1', 'log.md'), `${frozenLog}\nmore\n`);
+      expect(scan().join()).toContain('frozen');
+    });
+  });
+
+  describe('the display keys of a released folder', () => {
+    const logPath = (made: ReturnType<typeof repo>): string =>
+      join(made.root, 'changes', '0.4.1', 'log.md');
+
+    test('adding or editing summary and highlights is not a change of the release', () => {
+      const made = repo();
+
+      writeFileSync(
+        logPath(made),
+        released.replace(
+          'released: 2026-11-01',
+          'summary: What it is.\nhighlights:\n  - One\n  - Two\nreleased: 2026-11-01',
+        ),
+      );
+      expect(history({ made })).toEqual([]);
+
+      writeFileSync(
+        logPath(made),
+        released.replace(
+          'released: 2026-11-01',
+          'highlights:\n  - Three\nsummary: Another sentence.\nreleased: 2026-11-01',
+        ),
+      );
+      expect(history({ made })).toEqual([]);
+    });
+
+    test('an item, the released date, the body or migration.yaml still freeze the folder', () => {
+      for (const change of [
+        (made: ReturnType<typeof repo>) =>
+          writeFileSync(logPath(made), released.replace('a.', 'changed.')),
+        (made: ReturnType<typeof repo>) =>
+          writeFileSync(logPath(made), released.replace('2026-11-01', '2026-11-02')),
+        (made: ReturnType<typeof repo>) =>
+          writeFileSync(
+            logPath(made),
+            released
+              .replace('released: 2026-11-01', 'summary: S.\nreleased: 2026-11-01')
+              .replace('a-item', 'b-item'),
+          ),
+        (made: ReturnType<typeof repo>) =>
+          writeFileSync(
+            join(made.root, 'changes', '0.4.1', 'migration.yaml'),
+            'x:\n  symbols: [A]\n',
+          ),
+      ]) {
+        const made = repo();
+
+        change(made);
+        expect(history({ made }).join('\n')).toContain('0.4.1 was released at HEAD and is frozen');
+      }
+    });
+
+    test('a summary edit plus a body edit is still a change', () => {
+      const made = repo();
+
+      writeFileSync(
+        logPath(made),
+        `${released.replace('released: 2026-11-01', 'summary: S.\nreleased: 2026-11-01')}\nmore\n`,
+      );
+      expect(history({ made }).join('\n')).toContain('is frozen');
+    });
+  });
+
   test('C4: a dated file added after the base fails', () => {
     const made = repo();
 
@@ -431,7 +606,7 @@ describe('findings of the review of the gate', () => {
     });
     const found = problemsOf({ folders: { '0.4.2': { log: text } } });
 
-    expect(found.some((line) => line.includes('line 8: an item reads'))).toBe(true);
+    expect(found.some((line) => line.includes('line 11: an item reads'))).toBe(true);
   });
 
   test('a project that adopted the folders and is on a prerelease with none is told its line needs one', () => {
@@ -806,5 +981,202 @@ describe('review round 3: the parser', () => {
 
     expect(folder.items.map((item) => item.title)).toEqual(['One']);
     expect(folder.problems).toHaveLength(1);
+  });
+});
+
+describe('the version folder gate: summary, highlights and upgrade.steps (changelog reading)', () => {
+  const ADDED = '\n## Added\n- **A** `a-item`: a.\n';
+  const FIVE = ['One', 'Two', 'Three', 'Four', 'Five'];
+  const found = (opts: { log: string; migration?: string; version?: string }): string[] =>
+    problemsOf({
+      folders: { '0.4.2': { log: opts.log, migration: opts.migration } },
+      // a package on a stable has no line in progress: its released folder stands alone
+      version: opts.version ?? (opts.log.includes('released:') ? '0.4.2' : '0.4.2-3'),
+    });
+
+  test('an in-progress folder with a summary and one to five highlights is valid', () => {
+    expect(found({ log: log({ version: '0.4.2', body: ADDED }) })).toEqual([]);
+    expect(found({ log: log({ version: '0.4.2', body: ADDED, highlights: FIVE }) })).toEqual([]);
+  });
+
+  test('a summary is required, one line, at most 200 characters', () => {
+    for (const summary of [null, 'x'.repeat(201), '"two\\nlines"']) {
+      const problems = found({ log: log({ version: '0.4.2', body: ADDED, summary }) });
+
+      expect(
+        problems.some((line) => line.startsWith('0.4.2/log.md:') && line.includes('summary')),
+      ).toBe(true);
+    }
+
+    expect(
+      found({ log: log({ version: '0.4.2', body: ADDED, summary: 'x'.repeat(200) }) }),
+    ).toEqual([]);
+  });
+
+  test('highlights are required, five at most, one line of at most 110 characters each', () => {
+    for (const highlights of [null, [], [...FIVE, 'Six'], ['y'.repeat(111)]]) {
+      const problems = found({ log: log({ version: '0.4.2', body: ADDED, highlights }) });
+
+      expect(
+        problems.some((line) => line.startsWith('0.4.2/log.md:') && line.includes('highlights')),
+      ).toBe(true);
+    }
+
+    expect(
+      found({ log: log({ version: '0.4.2', body: ADDED, highlights: ['y'.repeat(110)] }) }),
+    ).toEqual([]);
+  });
+
+  test('a folder of three or more items needs at least three highlights', () => {
+    const three = '\n## Added\n- **A** `a-item`: a.\n- **B** `b-item`: b.\n- **C** `c-item`: c.\n';
+
+    expect(
+      found({ log: log({ version: '0.4.2', body: three, highlights: ['One', 'Two'] }) }).some(
+        (line) => line.includes('highlights'),
+      ),
+    ).toBe(true);
+    expect(
+      found({ log: log({ version: '0.4.2', body: three, highlights: ['One', 'Two', 'Three'] }) }),
+    ).toEqual([]);
+  });
+
+  test('a released folder owes none of it, and a malformed one is still reported', () => {
+    const released = log({ version: '0.4.2', released: '2026-11-01', body: ADDED });
+
+    expect(found({ log: released })).toEqual([]);
+    expect(
+      found({ log: released.replace('released:', 'highlights: not-a-list\nreleased:') }).some(
+        (line) => line.includes('highlights'),
+      ),
+    ).toBe(true);
+  });
+
+  test('every block of an in-progress folder needs upgrade.steps; a released folder does not', () => {
+    const body = '\n## Breaking\n- **Thing** `thing-factory`: renamed.\n';
+    const withoutSteps = `thing-factory:\n  symbols: [Thing.make]\n  upgrade: { before: "a", after: "b" }\n  downgrade: { steps: ["back"] }\n`;
+    const problems = found({ log: log({ version: '0.4.2', body }), migration: withoutSteps });
+
+    expect(
+      problems.some(
+        (line) =>
+          line.startsWith('0.4.2/migration.yaml:') &&
+          line.includes('thing-factory') &&
+          line.includes('upgrade.steps'),
+      ),
+    ).toBe(true);
+    expect(
+      found({
+        log: log({ version: '0.4.2', released: '2026-11-01', body }),
+        migration: withoutSteps,
+      }),
+    ).toEqual([]);
+    expect(
+      found({ log: log({ version: '0.4.2', body }), migration: `thing-factory:\n${BLOCK}` }),
+    ).toEqual([]);
+  });
+
+  test('upgrade: steps alone, steps with before and after, and before and after alone all parse; before alone does not', () => {
+    const body = '\n## Breaking\n- **Thing** `thing-factory`: renamed.\n';
+    const block = (upgrade: string): string =>
+      `thing-factory:\n  symbols: [Thing.make]\n  upgrade: ${upgrade}\n  downgrade: { steps: ["back"] }\n`;
+    const released = log({ version: '0.4.2', released: '2026-11-01', body });
+
+    for (const upgrade of [
+      '{ steps: ["a"] }',
+      '{ steps: ["a"], before: "b", after: "c" }',
+      '{ before: "b", after: "c" }',
+    ]) {
+      expect(found({ log: released, migration: block(upgrade) })).toEqual([]);
+    }
+
+    expect(found({ log: released, migration: block('{ steps: ["a"], before: "b" }') })).not.toEqual(
+      [],
+    );
+  });
+
+  test('the opening paragraph of an in-progress folder does not name migration.yaml: the page links the guide itself', () => {
+    const body = '\n## Added\n- **A** `a-item`: a.\n';
+    const named = log({ version: '0.4.2', body }).replace(
+      '---\n\n## Added',
+      '---\nRead migration.yaml for the before and after.\n\n## Added',
+    );
+
+    expect(
+      found({ log: named }).some(
+        (line) => line.startsWith('0.4.2/log.md:') && line.includes('migration.yaml'),
+      ),
+    ).toBe(true);
+    expect(
+      found({
+        log: log({
+          version: '0.4.2',
+          body: '\n## Added\n- **A** `a-item`: a, and `migration.yaml` holds the blocks.\n',
+        }),
+      }),
+    ).toEqual([]);
+    expect(
+      found({
+        log: log({
+          version: '0.4.2',
+          released: '2026-11-01',
+          body: `Read migration.yaml.\n${body}`,
+        }),
+      }),
+    ).toEqual([]);
+  });
+
+  test('an empty highlight is refused', () => {
+    expect(
+      found({ log: log({ version: '0.4.2', body: ADDED, highlights: ['One', '""'] }) }).some(
+        (line) => line.includes('highlights'),
+      ),
+    ).toBe(true);
+  });
+
+  test('each fault is reported once: a wrong type, and a frontmatter that does not parse', () => {
+    const bad = (opts: { extra: string; released?: boolean }): string[] =>
+      found({
+        log: `---\ntitle: 0.4.2\nversion: 0.4.2\npackages: ['@a/kernel']\n${opts.extra}${opts.released === true ? 'released: 2026-11-01\n' : ''}---\n${ADDED}`,
+      });
+
+    for (const extra of [
+      'summary: 5\nhighlights:\n  - One\n',
+      'summary: S.\nhighlights: just text\n',
+      'summary: S.\nhighlights:\n  - foo: bar\n',
+    ]) {
+      const problems = bad({ extra });
+
+      expect(
+        problems.filter((line) => line.includes('summary') || line.includes('highlights')),
+      ).toHaveLength(1);
+    }
+
+    // a YAML error is one problem, in a folder in progress and in a released one
+    for (const released of [false, true]) {
+      expect(bad({ extra: 'summary: "unclosed\n', released })).toHaveLength(1);
+    }
+
+    expect(bad({ extra: 'summary: 5\n' }).join()).toContain('quote');
+  });
+
+  test('VersionFolders.parse exposes the summary and the highlights', () => {
+    const folder = VersionFolders.parse({
+      name: '0.4.2',
+      log: log({
+        version: '0.4.2',
+        body: ADDED,
+        summary: 'What it is.',
+        highlights: ['One', 'Two'],
+      }),
+    });
+
+    expect(folder.summary).toBe('What it is.');
+    expect(folder.highlights).toEqual(['One', 'Two']);
+    expect(
+      VersionFolders.parse({
+        name: '0.4.2',
+        log: log({ version: '0.4.2', released: '2026-11-01', body: ADDED }),
+      }).highlights,
+    ).toBeUndefined();
   });
 });
