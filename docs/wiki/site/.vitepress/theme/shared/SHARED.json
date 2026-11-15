@@ -1,5 +1,5 @@
 {
-  "fingerprint": "fd543a17acd01479dab790f168493222aaa838a46a07e535c09537540ba63cbe",
+  "fingerprint": "fbd53c51ae1eb6c6fbebefa9bb283ca2729efc49750555ac3e5a68c0efef5603",
   "files": {
     "AtAGlance.vue": "82a497e03e3214a0aabca18d2dcf581bd2e9379c4d13594d0df48ce74f398991",
     "ChangelogEntryHead.vue": "471d6abfd278f6b3213293b65588b19f40791f0bc4f78fa2a895269ddfe5560b",
@@ -21,7 +21,7 @@
     "base.css": "4928454f81f5489982fd9badc1b63ebf2a0d15731db1c846c8f543dfe3e3faea",
     "build-check.ts": "29c241d293bb497e111dbe5cd49df0784968f6bb8f91d3e695edd112bdf7e5ec",
     "changelog-entries.ts": "36e5867629dbffbe89a4c0ce34717103d9e902f57885864120d0995940c36983",
-    "changelog-feed.ts": "fe9e0536faf2c4bafe8401a2a4ef91a9df14941ec82643cfabbead9bc8c45d74",
+    "changelog-feed.ts": "37bd83b5ff1d622c72e44d488868ea388a4eacb4edb1228e4ffe7ce812f38831",
     "changelog-loader.ts": "8c0ca3f478b0859aeedfa012bdabe5aca73da65d22c79d2227f78a291643d822",
     "changelog-versions.data.ts": "c853b291bac60765f49f18f8fa374d76b7d63371388f733b40f0007c87bf89ca",
     "changelog.css": "7c926cef55888900bb5425712205e8052c7188ce3e3e795b7d945b5abcfb79c4",

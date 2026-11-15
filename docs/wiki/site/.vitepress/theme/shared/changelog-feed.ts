@@ -22,14 +22,14 @@ export const changelogFeed = (opts: {
   versions?: TVersionEntry[];
 }): string => {
   const base = opts.site.siteUrl.replace(/\/$/, '');
-  const item = (item: {
+  const feedItem = (fields: {
     title: string;
     url: string;
     date: string;
     summary: string;
     kinds: string[];
   }) =>
-    `<item><title>${escapeXml(item.title)}</title><link>${base}${item.url}</link><guid isPermaLink="true">${base}${item.url}</guid><pubDate>${new Date(`${item.date}T12:00:00Z`).toUTCString()}</pubDate><description>${escapeXml(item.summary || formatDate(item.date))}</description>${item.kinds.map((kind) => `<category>${escapeXml(kind)}</category>`).join('')}</item>`;
+    `<item><title>${escapeXml(fields.title)}</title><link>${base}${fields.url}</link><guid isPermaLink="true">${base}${fields.url}</guid><pubDate>${new Date(`${fields.date}T12:00:00Z`).toUTCString()}</pubDate><description>${escapeXml(fields.summary || formatDate(fields.date))}</description>${fields.kinds.map((kind) => `<category>${escapeXml(kind)}</category>`).join('')}</item>`;
   const releases = (opts.versions ?? []).flatMap((version) =>
     version.released === null
       ? []
@@ -37,7 +37,7 @@ export const changelogFeed = (opts: {
           {
             date: version.released,
             isRelease: true,
-            xml: item({
+            xml: feedItem({
               title: version.title,
               url: version.url,
               date: version.released,
@@ -50,7 +50,7 @@ export const changelogFeed = (opts: {
   const entries = opts.entries.map((entry) => ({
     date: entry.date,
     isRelease: false,
-    xml: item({
+    xml: feedItem({
       title: entry.title,
       url: entry.url,
       date: entry.date,
