@@ -150,7 +150,7 @@ theme-contrast-check:
   upgrade:
     steps:
       - 'Run `bun x --no-install vulcan sync` or `vulcan doctor`; a theme that fails prints the pair, the colours and the ratio.'
-      - "A plain `theme.accent` usually fails: the preset's muted text is below 4.5:1 on the soft ground the accent derives, and a darker accent makes that ground darker, so it does not help. Set `theme.tokens.muted: { light: '#5a5a5a' }` (the pair is light mode only; a single value for both modes fails on dark), or the token the error names, until text is 4.5:1 and marks are 3:1 on every ground."
+      - "Run `bun x --no-install vulcan sync` and read the error: it names the pair, the colours and the ratio. When it names the accent as text on a ground (a light accent such as #3366ff), set `theme.accentText` to a darker colour of the same hue (for example #1d4ed8). When it names `muted` on the soft accent ground, set `theme.tokens.muted: { light: '#5a5a5a' }` (the pair is light mode only; a single value for both modes fails on dark). A darker `accent` does not help: it makes the soft ground darker. Repeat until text is 4.5:1 and marks are 3:1 on every ground."
       - 'Run `bun x vulcan sync` and commit the manifest.'
   downgrade:
     steps:
@@ -178,6 +178,7 @@ atlas-config-values-refused:
       - 'Change every `atlas.sources` `repo` over `http://`, `git://` or `ext::` to `https://` or `ssh://`, and one that starts with `-` to a real URL or path.'
       - 'Rename an `atlas.sources` `name` that holds a space or another character outside letters, digits, `.`, `_` and `-`, or that does not start with a letter or digit.'
       - 'In `atlas.tagPattern` and `atlas.legacyTagPatterns` replace `<package>` with `<dir>`; only `<dir>`, `<version>`, `<issue>` and `<date>` are allowed.'
+      - 'A source that relied on a credential prompt now fails, because git never prompts: before upgrading set up a credential helper, an ssh key or a token for it, and check with `git ls-remote <repo>` in a terminal.'
       - "If a source's tarball is larger than 128 MiB, set `atlas.limits.download` (1 MiB to 1 GiB) after upgrading: an earlier release refuses that key. Run `vulcan doctor` to confirm the config loads."
   downgrade:
     steps:
@@ -193,3 +194,36 @@ guard-writes-reads-no-scripts:
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, which reads a script and asks about the deploy or write inside it; delete the entries you added to `guard.writes.commands` only if you do not want them there.'
+
+wiki-links-check-reads-the-layout:
+  symbols:
+    - vulcan.mk
+  upgrade:
+    steps:
+      - 'Run `make wiki-links-check` after upgrading. With a `layout` it now also checks the layout folders (`layout.backend`, `layout.frontend`, `layout.shared`) plus `docs/`, `scripts/` and `.agents/`, and no longer checks `packages/` and `examples/` unless they are in `layout.other`.'
+      - 'Fix every wiki or knowledge page that names a source path git does not track in a layout folder that was not checked before, or add the folder to `layout.other` to keep it checked.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`; the check reads the earlier folder list again.'
+
+clean-keeps-items-in-use:
+  symbols:
+    - clean
+  upgrade:
+    steps:
+      - 'A script that emptied `tmp/` or `clones/` with `vulcan clean --yes` adds `--include-fresh`: without it items younger than a day (`tmp/`) or two weeks (`clones/`) are kept and listed.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`, whose `vulcan clean --yes` takes fresh items too; drop `--include-fresh` if the earlier release refuses it.'
+
+atlas-changes-pages-and-cache-cap:
+  symbols:
+    - changes
+    - nextOffset
+  upgrade:
+    steps:
+      - 'A client of the atlas `changes` tool that read every entry of a window from one call must follow the paging: while the answer has `truncated: true`, call again with `offset` set to its `nextOffset`, until `nextOffset` is absent.'
+      - 'Offline, an atlas start for a ref other than the newest of a remote source needs the remote: each remote source keeps only the commits of the five refs it served last. Run `vulcan x atlas pull` online for a ref you need offline.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan-atlas`; `changes` answers a long window whole.'
