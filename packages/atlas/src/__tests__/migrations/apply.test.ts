@@ -479,7 +479,7 @@ describe("MigrateApply.run: the runner is the source project's own", () => {
     writeFileSync(join(app, 'node_modules', '.bin', 'ardor'), STUB({ log }));
     chmodSync(join(app, 'node_modules', '.bin', 'ardor'), 0o755);
 
-    const { code, result } = runWith({
+    const { code, result, out } = runWith({
       store: withRunner({ codemodCommand: ['ardor', 'codemod'] }),
       app,
     });
@@ -487,6 +487,7 @@ describe("MigrateApply.run: the runner is the source project's own", () => {
     expect(result.plans[0].codemodCommand).toEqual(['ardor', 'codemod']);
     expect(code).toBe(0);
     expect(calls({ log })).toEqual(['codemod cm-a . --write']);
+    expect(out).toContain('Command: `ardor codemod cm-a . --write`');
     expect(MigrateReport.markdown({ result })).toContain(
       'it runs `ardor codemod <name> . --write`',
     );

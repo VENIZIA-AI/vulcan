@@ -25,6 +25,8 @@ interface ICodemodOutcome {
   steps: IMigrationStep[];
   status: string;
   output: string;
+  /** What was run, as the source's runner words and the arguments: `ardor codemod <name> . --write`. */
+  command: string;
 }
 
 /**
@@ -134,6 +136,10 @@ const reportOf = (opts: {
       lines.push(
         `${outcome.status === CodemodStatuses.RAN ? 'Ran' : `Did not run (${outcome.status}):`} \`${outcome.codemod}\` for ${outcome.steps.map((step) => step.id).join(', ')}.`,
       );
+
+      if (outcome.command.length > 0) {
+        lines.push('', `Command: \`${outcome.command}\``);
+      }
 
       if (outcome.output.length > 0) {
         lines.push('', '```text', trimmed({ text: outcome.output }), '```');
@@ -250,7 +256,7 @@ export class MigrateApply {
       return 1;
     }
 
-    const runners = new Map<IMigrationPlan, { bin: string; words: string[] }>();
+    const runners = new Map<IMigrationPlan, { bin: string; name: string; words: string[] }>();
     const missing: string[] = [];
 
     for (const { plan, codemods } of planned) {
@@ -275,7 +281,7 @@ export class MigrateApply {
       if (bin === undefined) {
         missing.push(words[0]);
       } else {
-        runners.set(plan, { bin, words: words.slice(1) });
+        runners.set(plan, { bin, name: words[0], words: words.slice(1) });
       }
     }
 
@@ -301,6 +307,7 @@ export class MigrateApply {
           steps,
           status: CodemodStatuses.NOT_RUN,
           output: '',
+          command: '',
         };
 
         outcomes[plan.package].push(outcome);
@@ -319,7 +326,7 @@ export class MigrateApply {
           args.push('--reverse');
         }
 
-        opts.err(`vulcan migrate apply: running ${[runner.bin, ...args].join(' ')}\n`);
+        outcome.command = [runner.name, ...args].join(' ');
 
         const ran = spawnSync(runner.bin, args, {
           cwd: result.app,
