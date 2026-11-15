@@ -3,6 +3,7 @@ import type { IMigrationPlan, IMigrationResult, IMigrationStep } from './plan';
 import { TouchKinds } from './scan';
 import type { IMigrationTouch, TTouchKind } from './scan';
 import type { TMigrationDirection } from './schema';
+import { StepDirections } from './states';
 
 const ofKind = (opts: { touches: IMigrationTouch[]; kind: TTouchKind }): IMigrationTouch[] =>
   opts.touches.filter((touch) => touch.kind === opts.kind);
@@ -63,12 +64,17 @@ const changeOf = (opts: { change: TMigrationDirection }): string[] => {
   ];
 };
 
-const stepOf = (opts: { step: IMigrationStep; verbose: boolean }): string[] => {
+const stepOf = (opts: { step: IMigrationStep; verbose: boolean; isMixed: boolean }): string[] => {
   const { step } = opts;
+  // A plan that undoes some items and applies others says which each step is; a changed item is both, in two steps.
+  const label =
+    opts.isMixed || step.changed === true
+      ? `${step.direction === StepDirections.DOWNGRADE ? 'Undo' : 'Apply'}${step.changed === true ? ' (the item changed between the two versions)' : ''}. `
+      : '';
   const lines = [
-    `### ${step.id}`,
+    `### ${step.id}${label === '' ? '' : ` (${step.direction})`}`,
     '',
-    `From \`${step.entry}\` (${step.date}). Symbols: ${step.symbols.map((symbol) => `\`${symbol}\``).join(', ')}.`,
+    `${label}From \`${step.entry}\` (${step.date}). Symbols: ${step.symbols.map((symbol) => `\`${symbol}\``).join(', ')}.`,
     '',
   ];
 
@@ -137,6 +143,7 @@ const planOf = (opts: { plan: IMigrationPlan; verbose: boolean }): string[] => {
     ];
   }
 
+  const isMixed = new Set(plan.steps.map((step) => step.direction)).size > 1;
   const touched = plan.steps.filter((step) => isReached({ step }));
   const rest = plan.steps.filter((step) => !isReached({ step }));
   const reexported = rest.filter((step) => isReexportOnly({ step })).length;
@@ -178,7 +185,7 @@ const planOf = (opts: { plan: IMigrationPlan; verbose: boolean }): string[] => {
     lines.push(
       `${article} ${plan.direction}: ${countOf({ count: plan.entries, one: 'changelog entry', many: 'changelog entries' })} in the window; ${countOf({ count: plan.steps.length, one: 'structured step', many: 'structured steps' })}, ${touched.length} found in your code${reexported === 0 ? '' : `, ${reexported} only re-exported`}${unchecked}.${source}`,
       '',
-      ...touched.flatMap((step) => stepOf({ step, verbose: opts.verbose })),
+      ...touched.flatMap((step) => stepOf({ step, verbose: opts.verbose, isMixed })),
     );
   }
 
@@ -186,7 +193,7 @@ const planOf = (opts: { plan: IMigrationPlan; verbose: boolean }): string[] => {
     lines.push(
       '### No static import found',
       '',
-      ...rest.flatMap((step) => stepOf({ step, verbose: opts.verbose })),
+      ...rest.flatMap((step) => stepOf({ step, verbose: opts.verbose, isMixed })),
     );
   }
 

@@ -1,5 +1,5 @@
 import type { IPackageMapEntry } from '@/common/package-map';
-import type { TVersionSection } from '@/changelogs/version-folder';
+import type { IVersionFolder, TVersionSection } from '@/changelogs/version-folder';
 import type { TConstValue } from '@/common/types';
 import type { TMigrationItem } from '@/migrations/schema';
 
@@ -12,6 +12,29 @@ export class ChangelogLayouts {
 }
 
 export type TChangelogLayout = TConstValue<typeof ChangelogLayouts>;
+
+/** What reading the folder of a line at a release tag found. */
+export class FolderAtKinds {
+  /** The folder, as the tag held it. */
+  static readonly FOLDER = 'folder';
+  /** The tag holds no folder of that line: the line was folded in after the release. */
+  static readonly ABSENT = 'absent';
+  /** Git cannot say (no such tag here, a blob a partial clone lacks): the reader degrades and says so. */
+  static readonly UNREADABLE = 'unreadable';
+}
+
+export type TFolderAt =
+  | { kind: typeof FolderAtKinds.FOLDER; tag: string; folder: IVersionFolder }
+  | { kind: typeof FolderAtKinds.ABSENT; tag: string }
+  | { kind: typeof FolderAtKinds.UNREADABLE; tag?: string; reason: string };
+
+/** The version folders of one source: at HEAD, and as a release tag of a package held them. */
+export interface IFolderHistory {
+  /** Every version folder at HEAD (the final folders), oldest first. */
+  folders(): IVersionFolder[];
+  /** The folder of `line` at the tag of `package` `version` (npm name). */
+  at(opts: { package: string; version: string; line: string }): TFolderAt;
+}
 
 /** One published version of one package, as `vulcan x atlas releases` reads it off a release commit. */
 export interface IReleaseRecord {
@@ -87,12 +110,19 @@ export interface IReleaseIndex {
   codemodCommandOf(opts: { package: string }): string[] | undefined;
   /** The npm names of every package the source that serves `package` declares: the only places its codemod runner may be installed from. */
   codemodPackagesOf(opts: { package: string }): string[];
-  /** `includeFolded` keeps the dated files a version folder covers; by default only the folder's items stand for that range. */
+  /** The version folders of the source that serves `package`, at HEAD and at its tags; absent when the source keeps none. */
+  folderHistoryOf(opts: { package: string }): IFolderHistory | undefined;
+  /**
+   * `includeFolded` keeps the dated files a version folder covers; by default the folder's items stand for them when the
+   * window holds those items. `datedOnly` leaves the folder items out - `migrate` reads them as states - and then drops
+   * every dated file a folder covers unless `includeFolded` keeps it.
+   */
   entriesBetween(opts: {
     package?: string;
     fromDate: string;
     toDate: string;
     includeFolded?: boolean;
+    datedOnly?: boolean;
   }): IChangelogRecord[];
   entriesBetweenOrders(opts: {
     package?: string;
@@ -101,5 +131,6 @@ export interface IReleaseIndex {
     fromDate: string;
     toDate: string;
     includeFolded?: boolean;
+    datedOnly?: boolean;
   }): IChangelogRecord[];
 }

@@ -2,13 +2,15 @@ import { existsSync, statSync } from 'node:fs';
 import type { ISourceNotice } from '@/server/notice';
 import { RpcError } from '@/protocol/common';
 import { InstalledVersions, ToolErrors } from '@/tools/common';
-import type { IChangelogRecord, IReleaseIndex } from '@/releases';
+import type { IChangelogRecord, IFolderHistory, IReleaseIndex } from '@/releases';
 import type { TConstValue } from '@/common/types';
 import { AppScan } from './scan';
 import type { IMigrationTouch } from './scan';
 import { CodemodRunner } from '@/common/codemod-runner';
 import { BreakingBadge } from './badges';
 import type { TMigrationDirection, TMigrationItem } from './schema';
+import { FolderStates, StepDirections } from './states';
+import type { IStateMove, TStepDirection } from './states';
 
 export class MigrateDirections {
   static readonly UPGRADE = 'upgrade';
@@ -34,8 +36,12 @@ export interface IMigrationStep {
   title: string;
   date: string;
   symbols: string[];
-  /** The item's `upgrade` for an upgrade, its `downgrade` for a downgrade. */
+  /** Which way this step moves the app: `downgrade` undoes the item, `upgrade` applies it. A plan can hold both. */
+  direction: TStepDirection;
+  /** The item's `upgrade` for an upgrade step, its `downgrade` for a downgrade step. */
   change: TMigrationDirection;
+  /** The item is in both versions and changed in between: it is undone as it was, then applied as it is. */
+  changed?: true;
   data?: string;
   codemod?: string;
   /** Where the app's code reaches the item's symbols; empty when it does not. */
@@ -250,19 +256,49 @@ export class MigratePlan {
 
     const isUpgrade = sign > 0;
     const [older, newer] = isUpgrade ? [opts.from, to] : [to, opts.from];
-    const window = MigratePlan.window({ releases, package: opts.package, older, newer });
+    const history = releases.folderHistoryOf({ package: opts.package });
+    const hasFolders = history !== undefined && history.folders().length > 0;
+    const read =
+      history !== undefined && hasFolders
+        ? MigratePlan.foldedRead({
+            releases,
+            history,
+            package: opts.package,
+            older,
+            newer,
+            versions,
+            isUpgrade,
+          })
+        : {
+            entries: MigratePlan.window({ releases, package: opts.package, older, newer }),
+            moves: [],
+            notes: [],
+            considered: 0,
+          };
+    const window = read.entries;
     const ordered = isUpgrade ? [...window].reverse() : window;
+    const direction = isUpgrade ? StepDirections.UPGRADE : StepDirections.DOWNGRADE;
     const withBlock = ordered.filter((entry) => entry.migration !== undefined);
-    const targets = withBlock.flatMap((entry) =>
-      (entry.migration ?? []).map((migration) => ({
-        id: MigratePlan.keyOf({ entry, migration }),
-        packages: [...new Set([opts.package, ...entry.packages])],
-        symbols: migration.symbols,
+    const stateKey = (move: IStateMove): string =>
+      `${move.item.entry}#${move.item.id}#${move.direction}`;
+    const moves = read.moves.filter((move) => move.item.block !== undefined);
+    const targets = [
+      ...withBlock.flatMap((entry) =>
+        (entry.migration ?? []).map((migration) => ({
+          id: MigratePlan.keyOf({ entry, migration }),
+          packages: [...new Set([opts.package, ...entry.packages])],
+          symbols: migration.symbols,
+        })),
+      ),
+      ...moves.map((move) => ({
+        id: stateKey(move),
+        packages: [opts.package],
+        symbols: move.item.block?.symbols ?? [],
       })),
-    );
+    ];
     const scanned = AppScan.scan({ app: opts.app, targets });
     const { touches } = scanned;
-    const steps = withBlock.flatMap((entry) => {
+    const legacySteps = withBlock.flatMap((entry) => {
       const items = isUpgrade ? (entry.migration ?? []) : [...(entry.migration ?? [])].reverse();
 
       return items.map((migration): IMigrationStep => {
@@ -272,6 +308,7 @@ export class MigratePlan {
           title: entry.title,
           date: entry.date,
           symbols: migration.symbols,
+          direction,
           change: isUpgrade ? migration.upgrade : migration.downgrade,
           touches: touches[MigratePlan.keyOf({ entry, migration })] ?? [],
         };
@@ -287,23 +324,72 @@ export class MigratePlan {
         return step;
       });
     });
+    const stateStep = (move: IStateMove): IMigrationStep | undefined => {
+      const { block } = move.item;
+
+      if (block === undefined) {
+        return undefined;
+      }
+
+      const step: IMigrationStep = {
+        id: move.item.id,
+        entry: move.item.entry,
+        title: move.item.title,
+        date: move.item.date,
+        symbols: block.symbols,
+        direction: move.direction,
+        change: move.direction === StepDirections.UPGRADE ? block.upgrade : block.downgrade,
+        touches: touches[stateKey(move)] ?? [],
+      };
+
+      if (move.changed) {
+        step.changed = true;
+      }
+
+      if (block.data !== undefined) {
+        step.data = block.data;
+      }
+
+      if (block.codemod !== undefined) {
+        step.codemod = block.codemod;
+      }
+
+      return step;
+    };
+    const stateSteps = (which: TStepDirection): IMigrationStep[] =>
+      read.moves
+        .filter((move) => move.direction === which)
+        .map((move) => stateStep(move))
+        .filter((step): step is IMigrationStep => step !== undefined);
+    // Everything an app undoes comes first, newest first; then everything it applies, oldest first.
+    const steps = [
+      ...stateSteps(StepDirections.DOWNGRADE),
+      ...legacySteps,
+      ...stateSteps(StepDirections.UPGRADE),
+    ];
+    const unstructuredStates = read.moves
+      .filter((move) => move.item.block === undefined && FolderStates.isOwing({ item: move.item }))
+      .map((move) => ({ id: move.item.entry, title: move.item.title, date: move.item.date }));
 
     const plan: IMigrationPlan = {
       ...base,
       direction: isUpgrade ? MigrateDirections.UPGRADE : MigrateDirections.DOWNGRADE,
-      entries: window.length,
+      entries: window.length + read.considered,
       unreadable: scanned.unreadable,
       steps,
-      unstructured: ordered
-        .filter(
-          (entry) =>
-            entry.migration === undefined &&
-            // `breaking` sees every badge; a table written without it still has the first badge in `kind`.
-            (entry.breaking === true ||
-              (entry.kind !== null &&
-                BreakingBadge.canonical({ text: entry.kind }) === BreakingBadge.CANONICAL)),
-        )
-        .map((entry) => ({ id: entry.id, title: entry.title, date: entry.date })),
+      unstructured: [
+        ...ordered
+          .filter(
+            (entry) =>
+              entry.migration === undefined &&
+              // `breaking` sees every badge; a table written without it still has the first badge in `kind`.
+              (entry.breaking === true ||
+                (entry.kind !== null &&
+                  BreakingBadge.canonical({ text: entry.kind }) === BreakingBadge.CANONICAL)),
+          )
+          .map((entry) => ({ id: entry.id, title: entry.title, date: entry.date })),
+        ...unstructuredStates,
+      ],
     };
 
     if (steps.some((step) => step.codemod !== undefined)) {
@@ -314,11 +400,114 @@ export class MigratePlan {
       plan.codemodPackages = releases.codemodPackagesOf({ package: opts.package });
     }
 
+    const notes = [...read.notes];
+
     if (isAlias && !isUpgrade) {
-      plan.note = `${opts.to} is ${to}, older than the installed ${opts.from}: this plan is a downgrade; use next to stay on the newest release`;
+      notes.push(
+        `${opts.to} is ${to}, older than the installed ${opts.from}: this plan is a downgrade; use next to stay on the newest release`,
+      );
+    }
+
+    if (notes.length > 0) {
+      plan.note = notes.join('; ');
     }
 
     return plan;
+  }
+
+  /**
+   * The folder part of a window over a package that has version folders: the dated entries no folder covers, and the
+   * moves between the states at the two ends. A prerelease of a line that was folded in after its release has no folder
+   * at its tag, so the plan splits at that line's stable: the dated files inside the line are read as they are, and the
+   * states count from (or up to) the stable.
+   */
+  private static foldedRead(opts: {
+    releases: IReleaseIndex;
+    history: IFolderHistory;
+    package: string;
+    older: string;
+    newer: string;
+    versions: string[];
+    isUpgrade: boolean;
+  }): { entries: IChangelogRecord[]; moves: IStateMove[]; notes: string[]; considered: number } {
+    const { releases, history, versions } = opts;
+    const stateOf = (version: string) =>
+      FolderStates.stateOf({ history, package: opts.package, version, versions });
+    const olderState = stateOf(opts.older);
+    const newerState = stateOf(opts.newer);
+    const notes = [...olderState.notes, ...newerState.notes];
+    const entries: IChangelogRecord[] = [];
+    let olderItems = olderState.items;
+    const newerItems = newerState.items;
+    let lower: string | undefined = opts.older;
+    let upper: string | undefined = opts.newer;
+    const windowOf = (bounds: { older?: string; newer?: string; includeFolded: boolean }) =>
+      MigratePlan.window({
+        releases,
+        package: opts.package,
+        older: bounds.older,
+        newer: bounds.newer,
+        datedOnly: true,
+        includeFolded: bounds.includeFolded,
+      });
+
+    if (olderState.folded !== undefined && olderState.folded === newerState.folded) {
+      notes.push(MigratePlan.foldedNote({ version: opts.older, line: olderState.folded }));
+
+      return {
+        entries: windowOf({ older: opts.older, newer: opts.newer, includeFolded: true }),
+        moves: [],
+        notes,
+        considered: 0,
+      };
+    }
+
+    if (newerState.folded !== undefined) {
+      const before = versions.find(
+        (version) =>
+          isStable({ version }) && Bun.semver.order(version, newerState.folded ?? '') < 0,
+      );
+
+      notes.push(MigratePlan.foldedNote({ version: opts.newer, line: newerState.folded }));
+      entries.push(...windowOf({ older: before, newer: opts.newer, includeFolded: true }));
+      upper = before;
+    }
+
+    if (olderState.folded !== undefined) {
+      const stable = versions.includes(olderState.folded) ? olderState.folded : undefined;
+
+      notes.push(MigratePlan.foldedNote({ version: opts.older, line: olderState.folded }));
+
+      if (stable === undefined) {
+        entries.push(...windowOf({ older: opts.older, newer: upper, includeFolded: true }));
+        lower = undefined;
+      } else {
+        entries.push(...windowOf({ older: opts.older, newer: stable, includeFolded: true }));
+        lower = stable;
+        olderItems = stateOf(stable).items;
+      }
+    }
+
+    if (lower !== undefined && upper !== undefined && Bun.semver.order(upper, lower) > 0) {
+      entries.push(...windowOf({ older: lower, newer: upper, includeFolded: false }));
+    }
+
+    const [fromItems, toItems] = opts.isUpgrade
+      ? [olderItems, newerItems]
+      : [newerItems, olderItems];
+    const moves = FolderStates.diff({ from: fromItems, to: toItems });
+
+    return {
+      entries: [...new Map(entries.map((entry) => [entry.id, entry])).values()],
+      moves,
+      notes,
+      considered: new Set([...olderItems, ...newerItems].map((item) => `${item.line}#${item.id}`))
+        .size,
+    };
+  }
+
+  private static foldedNote(opts: { version: string; line: string }): string {
+    return `${opts.version} is a prerelease of ${opts.line}, which was folded into a version folder after its release: the part of the line on the far side of ${opts.version} is read from the dated entries, and changelogs/${opts.line}/log.md holds the line's net change - read it`;
   }
 
   private static keyOf(opts: { entry: IChangelogRecord; migration: TMigrationItem }): string {
@@ -364,20 +553,29 @@ export class MigratePlan {
       : Bun.semver.order(opts.to, opts.from);
   }
 
-  /** The entries of `package` in (older, newer], newest first, by commit order when the table has it. */
+  /**
+   * The entries of `package` in (older, newer], newest first, by commit order when the table has it. A missing `older` opens the
+   * window before the first release; a missing `newer` closes it after the last (what is not yet released).
+   */
   private static window(opts: {
     releases: IReleaseIndex;
     package: string;
-    older: string;
-    newer: string;
+    older?: string;
+    newer?: string;
+    includeFolded?: boolean;
+    datedOnly?: boolean;
   }): IChangelogRecord[] {
     const { releases } = opts;
-    const at = (version: string) => ({
-      order: releases.releaseOrderOf({ package: opts.package, version }),
-      date: releases.releaseDateOf({ package: opts.package, version }) ?? '',
-    });
-    const lower = at(opts.older);
-    const upper = at(opts.newer);
+    const at = (version: string | undefined, open: { order: number; date: string }) =>
+      version === undefined
+        ? open
+        : {
+            order: releases.releaseOrderOf({ package: opts.package, version }),
+            date: releases.releaseDateOf({ package: opts.package, version }) ?? '',
+          };
+    const lower = at(opts.older, { order: -1, date: '' });
+    const upper = at(opts.newer, { order: Number.MAX_SAFE_INTEGER, date: '\uffff' });
+    const flags = { includeFolded: opts.includeFolded, datedOnly: opts.datedOnly };
 
     return lower.order !== undefined && upper.order !== undefined
       ? releases.entriesBetweenOrders({
@@ -386,11 +584,13 @@ export class MigratePlan {
           toOrder: upper.order,
           fromDate: lower.date,
           toDate: upper.date,
+          ...flags,
         })
       : releases.entriesBetween({
           package: opts.package,
           fromDate: lower.date,
           toDate: upper.date,
+          ...flags,
         });
   }
 }

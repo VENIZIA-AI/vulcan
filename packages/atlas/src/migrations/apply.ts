@@ -3,7 +3,8 @@ import { existsSync, realpathSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { CodemodRunner } from '@/common/codemod-runner';
 import { AtlasGit } from '@/common/constants';
-import { MigrateDirections } from './plan';
+import { StepDirections } from './states';
+import type { TStepDirection } from './states';
 import { MIGRATION_NAME_PATTERN } from './schema';
 import type { IMigrationPlan, IMigrationResult, IMigrationStep } from './plan';
 import { MigrateReport } from './report';
@@ -20,8 +21,13 @@ class CodemodStatuses {
   static readonly NOT_RUN = 'not run';
 }
 
+/** A step of a plan is told apart by its item and its direction: a changed item is undone as it was, then applied as it is. */
+const stepKeyOf = (opts: { step: IMigrationStep }): string =>
+  `${opts.step.entry}#${opts.step.id}#${opts.step.direction}`;
+
 interface ICodemodOutcome {
   codemod: string;
+  direction: TStepDirection;
   steps: IMigrationStep[];
   status: string;
   output: string;
@@ -86,21 +92,23 @@ const trimmed = (opts: { text: string }): string => {
       ].join('\n');
 };
 
-/** The codemods of a plan, each once, in the order their first step applies. */
+/** The codemods of a plan, each once per direction, in the order their first step applies: a rollback of a name is not its rewrite. */
 const codemodsOf = (opts: {
   plan: IMigrationPlan;
-}): { codemod: string; steps: IMigrationStep[] }[] => {
-  const found: { codemod: string; steps: IMigrationStep[] }[] = [];
+}): { codemod: string; direction: TStepDirection; steps: IMigrationStep[] }[] => {
+  const found: { codemod: string; direction: TStepDirection; steps: IMigrationStep[] }[] = [];
 
   for (const step of opts.plan.steps) {
     if (step.codemod === undefined) {
       continue;
     }
 
-    const known = found.find((entry) => entry.codemod === step.codemod);
+    const known = found.find(
+      (entry) => entry.codemod === step.codemod && entry.direction === step.direction,
+    );
 
     if (known === undefined) {
-      found.push({ codemod: step.codemod, steps: [step] });
+      found.push({ codemod: step.codemod, direction: step.direction, steps: [step] });
     } else {
       known.steps.push(step);
     }
@@ -120,9 +128,9 @@ const reportOf = (opts: {
     const done = new Set(
       outcomes
         .filter((outcome) => outcome.status === CodemodStatuses.RAN)
-        .flatMap((outcome) => outcome.steps.map((step) => step.id)),
+        .flatMap((outcome) => outcome.steps.map((step) => stepKeyOf({ step }))),
     );
-    const manual = plan.steps.filter((step) => !done.has(step.id));
+    const manual = plan.steps.filter((step) => !done.has(stepKeyOf({ step })));
 
     lines.push(`## ${plan.package}: ${plan.from} to ${plan.to} (${plan.direction})`, '');
 
@@ -132,7 +140,7 @@ const reportOf = (opts: {
 
     for (const outcome of outcomes) {
       lines.push(
-        `${outcome.status === CodemodStatuses.RAN ? 'Ran' : `Did not run (${outcome.status}):`} \`${outcome.codemod}\` for ${outcome.steps.map((step) => step.id).join(', ')}.`,
+        `${outcome.status === CodemodStatuses.RAN ? 'Ran' : `Did not run (${outcome.status}):`} \`${outcome.codemod}\`${outcome.direction === StepDirections.DOWNGRADE ? ' in reverse' : ''} for ${outcome.steps.map((step) => step.id).join(', ')}.`,
       );
 
       if (outcome.command.length > 0) {
@@ -147,7 +155,7 @@ const reportOf = (opts: {
     }
 
     for (const step of plan.steps.filter(
-      (entry) => done.has(entry.id) && entry.data !== undefined,
+      (entry) => done.has(stepKeyOf({ step: entry })) && entry.data !== undefined,
     )) {
       lines.push(`Check after the codemod, \`${step.id}\`: ${step.data}`, '');
     }
@@ -323,9 +331,10 @@ export class MigrateApply {
 
       const runner = runners.get(plan);
 
-      for (const { codemod, steps } of codemods) {
+      for (const { codemod, direction, steps } of codemods) {
         const outcome: ICodemodOutcome = {
           codemod,
+          direction,
           steps,
           status: CodemodStatuses.NOT_RUN,
           output: '',
@@ -344,7 +353,7 @@ export class MigrateApply {
 
         const args = [...runner.words, codemod, '.', '--write'];
 
-        if (plan.direction === MigrateDirections.DOWNGRADE) {
+        if (direction === StepDirections.DOWNGRADE) {
           args.push('--reverse');
         }
 
