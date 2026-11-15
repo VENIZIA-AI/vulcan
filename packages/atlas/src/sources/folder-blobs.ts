@@ -37,6 +37,28 @@ export class FolderBlobs {
       .filter((path) => VersionFolders.isName({ name: basename(path) }));
   }
 
+  /** The same listing as `directoriesAt`, but a git failure is an error: a prefetch that cannot list what it fetches has done nothing. */
+  private static directoriesOf(opts: { gitDir: string; sha: string; folder: string }): string[] {
+    return FolderBlobs.must({
+      cwd: opts.gitDir,
+      args: ['ls-tree', '-d', '--name-only', '--end-of-options', opts.sha, '--', `${opts.folder}/`],
+    })
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((path) => VersionFolders.isName({ name: basename(path) }));
+  }
+
+  /** The output of a local git read; a failure throws, naming git's own reason. */
+  private static must(opts: { cwd: string; args: string[] }): string {
+    const read = GitLocal.read(opts);
+
+    if (read.stdout === undefined) {
+      throw new Error(read.error ?? `git ${opts.args[0]} failed`);
+    }
+
+    return read.stdout;
+  }
+
   /** Fetches the missing blobs of the folders of `project`. Never throws; the outcome says what happened. */
   static prefetch(opts: {
     project: IAtlasProject;
@@ -108,7 +130,7 @@ export class FolderBlobs {
 
     const folder = relative(project.root, directory);
     const lines = new Set(
-      FolderBlobs.directoriesAt({ gitDir: opts.gitDir, sha: opts.sha, folder }).map((path) =>
+      FolderBlobs.directoriesOf({ gitDir: opts.gitDir, sha: opts.sha, folder }).map((path) =>
         basename(path),
       ),
     );
@@ -125,7 +147,7 @@ export class FolderBlobs {
     const oids = new Set<string>();
 
     for (const { ref, line } of reads) {
-      const listed = GitLocal.read({
+      const listed = FolderBlobs.must({
         cwd: opts.gitDir,
         args: [
           'ls-tree',
@@ -135,9 +157,9 @@ export class FolderBlobs {
           `${folder}/${line}/log.md`,
           `${folder}/${line}/migration.yaml`,
         ],
-      }).stdout;
+      });
 
-      for (const entry of (listed ?? '').split('\n')) {
+      for (const entry of listed.split('\n')) {
         const oid = BLOB_LINE.exec(entry)?.[1];
 
         if (oid !== undefined) {
@@ -158,12 +180,12 @@ export class FolderBlobs {
     const patterns = [opts.project.tagPattern, ...(opts.project.legacyTagPatterns ?? [])].map(
       (template) => ReleaseTemplate.compile({ template }),
     );
-    const tags = GitLocal.read({
+    const tags = FolderBlobs.must({
       cwd: opts.gitDir,
       args: ['for-each-ref', 'refs/tags', '--format=%(refname:strip=2)'],
-    }).stdout;
+    });
 
-    return (tags ?? '')
+    return tags
       .split('\n')
       .filter((tag) => tag !== '')
       .flatMap((tag) => {
