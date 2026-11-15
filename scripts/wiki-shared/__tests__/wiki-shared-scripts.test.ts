@@ -158,6 +158,115 @@ describe('SharedCheck.compare', () => {
   });
 });
 
+describe('BuildCheck.scanVersionPages', () => {
+  const site = (opts: { served: string[] }) => {
+    const root = mkdtempSync(join(tmpdir(), 'wiki-versions-'));
+
+    roots.push(root);
+    mkdirSync(join(root, 'content', 'changelogs', '0.4.7'), { recursive: true });
+    mkdirSync(join(root, 'content', 'changelogs', 'drafts'), { recursive: true });
+    writeFileSync(
+      join(root, 'content', 'changelogs', '0.4.7', 'log.md'),
+      '---\ntitle: 0.4.7\n---\n',
+    );
+    mkdirSync(join(root, 'dist', 'changelogs'), { recursive: true });
+
+    for (const name of opts.served) {
+      writeFileSync(join(root, 'dist', 'changelogs', name), '<html></html>');
+    }
+
+    return { changelogs: join(root, 'content', 'changelogs'), dist: join(root, 'dist') };
+  };
+
+  test('a wiki that serves its version folders passes', () => {
+    expect(BuildCheck.scanVersionPages(site({ served: ['0.4.7.html'] }))).toEqual([]);
+  });
+
+  test('a wiki with no rewrite for them is told the line to add, naming the folder', () => {
+    const problems = BuildCheck.scanVersionPages(site({ served: [] }));
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('changelogs/0.4.7');
+    expect(problems[0]).toContain(
+      "rewrites: { 'changelogs/:version/log.md': 'changelogs/:version.md' }",
+    );
+  });
+
+  test('a wiki with no version folder is not asked for anything', () => {
+    expect(BuildCheck.scanVersionPages({ changelogs: '/nowhere', dist: '/nowhere' })).toEqual([]);
+  });
+});
+
+describe('BuildCheck.scanChangelogIndex', () => {
+  const dist = (html: string | null) => {
+    const root = mkdtempSync(join(tmpdir(), 'wiki-index-'));
+
+    roots.push(root);
+    mkdirSync(join(root, 'dist', 'changelogs'), { recursive: true });
+
+    if (html !== null) {
+      writeFileSync(join(root, 'dist', 'changelogs', 'index.html'), html);
+    }
+
+    return { dist: join(root, 'dist') };
+  };
+
+  test('an index that rendered the component passes', () => {
+    expect(BuildCheck.scanChangelogIndex(dist('<div class="cl"><h1>Changelog</h1></div>'))).toEqual(
+      [],
+    );
+  });
+
+  test('an index that built empty is told to mount the component with a local import', () => {
+    const problems = BuildCheck.scanChangelogIndex(dist('<div class="vp-doc"></div>'));
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain(
+      'mount ChangelogIndex with a local import in changelogs/index.md',
+    );
+  });
+
+  test('a wiki with no built index is not asked for anything', () => {
+    expect(BuildCheck.scanChangelogIndex(dist(null))).toEqual([]);
+  });
+});
+
+describe('BuildCheck.scanThemeChunk', () => {
+  const site = (opts: { theme: string }) => {
+    const root = mkdtempSync(join(tmpdir(), 'wiki-theme-'));
+
+    roots.push(root);
+    mkdirSync(join(root, 'content', 'changelogs', '0.4.7'), { recursive: true });
+    writeFileSync(
+      join(root, 'content', 'changelogs', '0.4.7', 'log.md'),
+      '---\ntitle: 0.4.7\n---\nA line.\n\n## Breaking\n- x\n\n## Fixed\n- y\n',
+    );
+    mkdirSync(join(root, 'dist', 'assets', 'chunks'), { recursive: true });
+    writeFileSync(join(root, 'dist', 'assets', 'chunks', 'theme.AbC123.js'), opts.theme);
+    writeFileSync(join(root, 'dist', 'assets', 'chunks', 'other.js'), '"<h3>Breaking</h3>"');
+
+    return { changelogs: join(root, 'content', 'changelogs'), dist: join(root, 'dist') };
+  };
+
+  test('a theme chunk with the sections of a version page is told to mount the index page-locally, once per version', () => {
+    const problems = BuildCheck.scanThemeChunk(
+      site({ theme: 'const v=[{html:"<h3>Breaking</h3><ul></ul><h3>Fixed</h3>"}]' }),
+    );
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('changelogs/0.4.7');
+    expect(problems[0]).toContain('local import');
+  });
+
+  test('a theme chunk with no page text passes, and a chunk that is not the theme is not read', () => {
+    expect(BuildCheck.scanThemeChunk(site({ theme: 'const v=["0.4.7"]' }))).toEqual([]);
+  });
+
+  test('a wiki with no version folder or no build is not asked for anything', () => {
+    expect(BuildCheck.scanThemeChunk({ changelogs: '/nowhere', dist: '/nowhere' })).toEqual([]);
+  });
+});
+
 describe('BuildCheck', () => {
   const bar = '<div class="site-brand"></div><a class="venizia-link"></a>';
   const home = `${bar}<section class="vh hero"><canvas class="dust"></canvas><a class="btn btn--primary" href="/a"></a><a class="btn btn--ghost" href="/b"></a></section><footer class="vh site-footer"><canvas class="dust"></canvas><a class="btn" href="/c"></a></footer>`;
