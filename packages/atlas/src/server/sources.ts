@@ -8,12 +8,10 @@ import type { IToolHandler } from '@/protocol/common';
 import { ReleaseCompute } from '@/releases';
 import type { ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
-import { InstalledPackages } from '@/sources/installed';
 import { SourceResolver } from '@/sources/resolver';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
 import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
 import { SymbolCompute, SymbolStore } from '@/symbols';
-import type { ISymbolRecord } from '@/symbols';
 import {
   ChangesTool,
   GetTool,
@@ -29,6 +27,7 @@ import { ServerGuidance } from './guidance';
 import { SourceBoot } from './boot';
 import { SourceNotice } from './notice';
 import { Refresher } from './refresh';
+import { RemoteSymbols } from './remote-symbols';
 import { ServedReleases } from './served-releases';
 import type { IRefreshTarget } from './refresh';
 
@@ -38,41 +37,6 @@ const packageMapOf = (opts: { source: IResolvedSource }) =>
     name: entry.name,
     aliases: entry.aliases,
   }));
-
-/**
- * A remote source's symbols, D2: what the consumer installed of each package - the exact version it
- * runs - else the newest release npm published, which the pull cached.
- */
-const remoteSymbolsOf = (opts: {
-  source: IResolvedSource;
-  cwd: string;
-  releases: ReleaseStore;
-}): ISymbolRecord[] => {
-  const { cacheBase } = opts.source;
-
-  if (cacheBase === undefined) {
-    throw new Error(`atlas: remote source '${opts.source.name}' was resolved without a cache base`);
-  }
-
-  return opts.source.project.packages
-    .filter((entry) => !entry.retired)
-    .flatMap((entry) => {
-      const [installed] = InstalledPackages.installedDirectoriesOf({
-        roots: InstalledPackages.installRootsOf({ cwd: opts.cwd }),
-        name: entry.name,
-      });
-
-      if (installed !== undefined) {
-        return SymbolCompute.symbolsOfInstalled({ directory: installed, cacheBase });
-      }
-
-      const version = opts.releases.newestOf({ package: entry.name })?.version;
-
-      return version === undefined
-        ? []
-        : (SymbolCompute.cached({ name: entry.name, version, cacheBase }) ?? []);
-    });
-};
 
 const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   const { source } = opts;
@@ -101,6 +65,12 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
     };
   }
 
+  const { cacheBase } = source;
+
+  if (cacheBase === undefined) {
+    throw new Error(`atlas: remote source '${source.name}' was resolved without a cache base`);
+  }
+
   const index = new ChunkStore({ serialized: readFileSync(source.indexFile ?? '') });
   const releases = ServedReleases.storeOf({
     source,
@@ -111,9 +81,12 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
     name: source.name,
     chunks: () => index,
     releases,
-    symbols: new SymbolStore({
-      load: () => ({ symbols: remoteSymbolsOf({ ...opts, releases }), packageMap }),
-      emptyReason: 'none of its packages is installed here or on npm',
+    symbols: RemoteSymbols.storeOf({
+      project: source.project,
+      cwd: opts.cwd,
+      cacheBase,
+      releases,
+      packageMap,
     }),
   };
 };

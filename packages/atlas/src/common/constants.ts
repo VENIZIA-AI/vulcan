@@ -70,6 +70,7 @@ export class AtlasCommands {
   static readonly PULL = 'pull';
   static readonly INDEX = 'index';
   static readonly TOOLS = 'tools';
+  static readonly STATUS = 'status';
   static readonly HELP = 'help';
   static readonly SCHEME_SET = new Set<string>([
     this.MCP,
@@ -82,6 +83,7 @@ export class AtlasCommands {
     this.PULL,
     this.INDEX,
     this.TOOLS,
+    this.STATUS,
     this.HELP,
   ]);
   static isValid(value: string): boolean {
