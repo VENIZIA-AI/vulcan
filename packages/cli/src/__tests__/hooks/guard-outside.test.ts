@@ -596,6 +596,28 @@ describe('OutsideGuard.inspect on a path that names the hook process', () => {
   });
 });
 
+describe('a redirect to a name with a [...] in it', () => {
+  test.each([
+    'echo x > content/changelogs/upgrade/[version].md',
+    'echo x >> docs/[id].md',
+    'cat a > pages/[...slug].md',
+    'echo x > [id].md',
+  ])('%s names a file inside the project and stays quiet', (command) => {
+    expect(bash({ command })).toEqual([]);
+  });
+
+  test.each([
+    'echo x > /etc/[version].md',
+    'echo x > ../outside/[version].md',
+    'echo x > [a]/x.md',
+    'echo x > [version]*.md',
+    'echo x > $NOPE_UNSET/[version].md',
+    'echo x > ~root/[version].md',
+  ])('%s still asks: the folder, an expansion or a glob decides', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+});
+
 describe('OutsideGuard.inspect asks about a redirect to a word it cannot work out', () => {
   test.each([
     'f=/etc/x; echo x > $f',

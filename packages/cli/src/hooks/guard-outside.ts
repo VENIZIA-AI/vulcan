@@ -71,6 +71,8 @@ const realOf = (opts: { path: string }): string | undefined => {
   return current;
 };
 /** The files that name a process by number or as `self`: their target depends on who opens them. */
+/** A word whose only unknown part is a `[...]` in its last name: no `$`, backtick, `*`, `?` or `~`, and no `[` in a folder. */
+const BRACKET_NAME = /^[^[\]$`*?~]*\/?[^/[\]$`*?]*\[[^/\]]+\][^/[\]$`*?]*$/;
 const PROCESS_FILES = /^\/(?:proc(?:\/|$)|dev\/fd(?:\/|$))/;
 
 const isInside = (opts: { path: string; root: string }): boolean =>
@@ -220,8 +222,14 @@ export class OutsideGuard {
         });
       }
 
+      // A redirect to `dir/[version].md` (a VitePress route file) names a file in `dir`: a `[...]` in the last name cannot move
+      // it out of that folder, so the name is taken as written and the folder in front of it decides.
+      const word =
+        target.isRedirect === true && BRACKET_NAME.test(target.word)
+          ? target.word.replace(/[[\]]/g, '_')
+          : target.word;
       const expanded = ShellFolders.expandPath({
-        word: target.word,
+        word,
         home,
         env: { ...env, ...target.vars },
         cwd: target.pwd,
