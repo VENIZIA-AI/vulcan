@@ -1,7 +1,15 @@
 import { Glob } from 'bun';
 import { spawnSync } from 'node:child_process';
-import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import {
+  accessSync,
+  constants,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+} from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
 import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
 import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
@@ -396,12 +404,27 @@ export class ProjectContract {
       readdirSync(directory).some(
         (name) => VersionFolders.isName({ name }) && existsSync(join(directory, name, 'log.md')),
       );
-    const installed = readJsonObject({
-      file: join(opts.root, 'node_modules', '@venizia', 'vulcan', 'package.json'),
-    })?.['version'];
+    const installedAt = join(opts.root, 'node_modules', '@venizia', 'vulcan');
+    const installed = readJsonObject({ file: join(installedAt, 'package.json') })?.['version'];
 
     if (!hasFolder || typeof installed !== 'string') {
       return [];
+    }
+
+    // VULCAN's own repository links its workspace package there: that is the source of this project, not an older release.
+    try {
+      const real = realpathSync(installedAt);
+      const fromRoot = relative(realpathSync(opts.root), real);
+
+      if (
+        !isAbsolute(fromRoot) &&
+        !fromRoot.startsWith('..') &&
+        !fromRoot.split(sep).includes('node_modules')
+      ) {
+        return [];
+      }
+    } catch {
+      // A link that does not resolve is judged by the version it names.
     }
 
     return Bun.semver.order(installed, DoctorConstants.CHANGELOG_FOLDERS_FROM) >= 0
