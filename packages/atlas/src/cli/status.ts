@@ -4,9 +4,10 @@ import { InstalledPackages } from '@/sources/installed';
 import { InstalledVersions } from '@/tools/common/installed-versions';
 
 /**
- * What `vulcan x atlas status` prints: the sources the project reads, and for each `@venizia/*` package the app declares the
- * copy atlas reads its symbols from (the first one `InstalledPackages.copiesOf` finds, nearest the root: the same one
- * `symbol` reads) and every other copy on disk, so a stale install is seen at a glance. It reads the disk only; the pin of a source's docs is in the answer of the `version` tool.
+ * What `vulcan x atlas status` prints: the sources the project reads, and for each `@venizia/*` package the app declares
+ * the copy atlas reads its symbols from (the first one `InstalledPackages.copiesOf` finds, nearest the root; `symbol`
+ * takes the first copy that has a version) and every other copy on disk, so a stale install is seen at a glance. It reads
+ * the disk only; the pin of a source's docs is in the answer of the `version` tool.
  */
 export class AtlasStatus {
   static report(opts: { root: string }): string {

@@ -2,6 +2,7 @@ import { isAbsolute, relative } from 'node:path';
 import type { IPackageMapEntry } from '@/common/package-map';
 import type { IAtlasProject } from '@/common/project-config';
 import { InstalledPackages } from '@/sources/installed';
+import type { IInstalledCopy } from '@/sources/installed';
 import { SymbolCompute, SymbolStore } from '@/symbols';
 import type { ISymbolOrigin, ISymbolRecord } from '@/symbols';
 
@@ -19,23 +20,17 @@ interface IRemoteSymbolsOptions {
   releases: INewestRelease;
 }
 
-/** The first installed copy of a package, nearest the root: its folder and its version. */
-interface IInstalledCopy {
-  directory: string;
-  version: string;
-}
-
 /**
  * The symbols of a remote source (D2): what the app installed of each package, the exact version it runs, else the
  * newest release npm published, which the pull cached. Resolved against the disk on every question's fingerprint, not
  * once: an install that moves while the server runs (a bump, a `bun install`) is read on the next question.
  */
 export class RemoteSymbols {
-  /**
-   * The first copy at a root, by the real `node_modules/<name>` path: never the package store, never a throwaway tree.
-   * `roots` is read once per call of `symbolsOf` or `fingerprintOf`, not once per package.
-   */
-  private static installedOf(opts: { roots: string[]; name: string }): IInstalledCopy | undefined {
+  /** The first copy at a root, by the real `node_modules/<name>` path: never the package store, never a throwaway tree. */
+  private static installedOf(opts: {
+    roots: string[];
+    name: string;
+  }): Required<IInstalledCopy> | undefined {
     const [first] = InstalledPackages.copiesOf(opts);
 
     return first?.version === undefined

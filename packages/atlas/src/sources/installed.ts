@@ -33,27 +33,23 @@ export class InstalledPackages {
   }
 
   /**
-   * Every installed copy of `name` under `roots` with its version, nearest the root first. The first is the one atlas
-   * reads symbols from and `vulcan x atlas status` names, so the two always agree on which copy that is.
+   * Every installed copy of `name` under `roots` with its version, nearest the root first. `vulcan x atlas status` names the
+   * first copy; `symbol` reads the first copy that has a version, and falls back to npm for a package none of whose copies has one.
    */
   static copiesOf(opts: { roots: string[]; name: string }): IInstalledCopy[] {
-    return InstalledPackages.installedDirectoriesOf(opts).map((directory) => {
-      try {
-        const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
-
-        return typeof manifest.version === 'string'
-          ? { directory, version: manifest.version }
-          : { directory };
-      } catch {
-        return { directory };
-      }
-    });
-  }
-
-  /** Every installed copy of `name` under those roots, nearest the project root first. */
-  static installedDirectoriesOf(opts: { roots: string[]; name: string }): string[] {
     return opts.roots
       .map((root) => join(root, 'node_modules', opts.name))
-      .filter((directory) => existsSync(join(directory, 'package.json')));
+      .filter((directory) => existsSync(join(directory, 'package.json')))
+      .map((directory) => {
+        try {
+          const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
+
+          return typeof manifest.version === 'string'
+            ? { directory, version: manifest.version }
+            : { directory };
+        } catch {
+          return { directory };
+        }
+      });
   }
 }
