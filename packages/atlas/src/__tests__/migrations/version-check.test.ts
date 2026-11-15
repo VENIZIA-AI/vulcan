@@ -317,8 +317,12 @@ describe('the history gate (C4)', () => {
     body: '\n## Added\n- **A** `a-item`: a.\n',
   });
 
-  const repo = () => {
-    const made = projectWith({ folders: { '0.4.1': { log: released } }, migrationFrom: '0.4.1' });
+  const repo = (opts: { datedUntil?: string } = {}) => {
+    const made = projectWith({
+      folders: { '0.4.1': { log: released } },
+      migrationFrom: '0.4.1',
+      datedUntil: opts.datedUntil,
+    });
 
     for (const args of [
       ['init', '-q', '-b', 'main'],
@@ -370,6 +374,33 @@ describe('the history gate (C4)', () => {
     expect(history({ made }).some((line) => line.includes('a dated entry added or edited'))).toBe(
       true,
     );
+  });
+
+  test('C4: a dated file on or before datedUntil is the old changelog, not a new entry; a later one still fails', () => {
+    const made = repo({ datedUntil: '2026-11-14' });
+
+    for (const name of ['2026-11-13-old.md', '2026-11-14-last.md', '2026-11-20-new.md']) {
+      writeFileSync(join(made.root, 'changes', name), '---\ntitle: T\npackages: []\n---\n');
+    }
+
+    const found = history({ made }).filter((line) =>
+      line.includes('a dated entry added or edited'),
+    );
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toStartWith('2026-11-20-new.md');
+  });
+
+  test('C4: with no datedUntil every dated file added since the base fails', () => {
+    const made = repo();
+
+    for (const name of ['2026-11-13-old.md', '2026-11-20-new.md']) {
+      writeFileSync(join(made.root, 'changes', name), '---\ntitle: T\npackages: []\n---\n');
+    }
+
+    expect(
+      history({ made }).filter((line) => line.includes('a dated entry added or edited')),
+    ).toHaveLength(2);
   });
 
   test('C4: a stable tag at or above the cutover with no folder fails', () => {
