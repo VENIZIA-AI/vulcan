@@ -267,6 +267,8 @@ describe('ReleasePlan.main', () => {
     const code = ReleasePlan.main({
       args: ['--bump', 'patch', '--ref', MAIN_REF, '--package', manifest],
       env,
+      // Not the repository the tests run in: its tags and manifest are not what the plan reads here.
+      cwd: scratch(),
     });
 
     expect(code).toBe(0);
