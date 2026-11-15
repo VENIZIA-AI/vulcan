@@ -1,7 +1,7 @@
 ---
 type: Playbook
 title: Writing a changelog entry
-description: The shape of a wiki changelog entry, the parts every entry needs, and the template to copy.
+description: How a change is recorded in the changelog, as an item in the version folder in progress, and the older dated entry the folders replace.
 tags: [process, changelog, docs]
 ---
 
@@ -10,16 +10,59 @@ tags: [process, changelog, docs]
 <!-- okf:generated:contents start -->
 **Contents**
 
+- [Where a change is written](#where-a-change-is-written)
+- [A version folder](#a-version-folder)
 - [What goes in the changelog](#what-goes-in-the-changelog)
-- [What every entry needs](#what-every-entry-needs)
+- [What every dated entry needs](#what-every-dated-entry-needs)
 - [Optional frontmatter](#optional-frontmatter)
 - [The migration block](#the-migration-block)
 - [Template](#template)
 <!-- okf:generated:contents end -->
 
-An entry is a file in `docs/wiki/content/changelogs/` named `YYYY-MM-DD-<slug>.md`. The changelog index
-(`/changelogs/`) is built from the entries themselves: add the file and it appears, grouped by year, with
-no table to edit. Copy the template below.
+## Where a change is written
+
+Once `knowledge.migrationFrom` is a version, the changelog is one folder per version line,
+`docs/wiki/content/changelogs/<X.Y.Z>/`, and a change is an **item of the folder in progress**: the one with no
+`released:` line, named for the stable the packages are heading to (`vulcan changelog check` says which). A new
+dated file is refused. Dated files `YYYY-MM-DD-<slug>.md` are history: never edit or move one. The sections after
+[A version folder](#a-version-folder) say what an item may contain; the dated template at the end is for a project that
+has not adopted the folders.
+
+## A version folder
+
+`log.md` holds the frontmatter (`title`, `version`, `packages`, and `released: YYYY-MM-DD` once the stable is out), one
+paragraph on what the release is, then the sections in this order, leaving out an empty one: Breaking, Deprecated, Added,
+Changed, Fixed, Security. An item is one line, optionally continued:
+
+```markdown
+- **A plain sentence naming the change** `item-id` (`@venizia/vulcan`): what changed, who is affected, what to do.
+```
+
+The id is lower-case words joined by `-`, unique in the folder, chosen once and kept for the whole cycle: renaming it after a
+prerelease shipped is a removal and an addition. The package list is optional; without it the item belongs to the file's
+`packages`. A removal of public API is Breaking: there is no Removed section.
+
+`migration.yaml` holds one entry for every Breaking and Deprecated item, keyed by the item id, and none for any other item:
+
+```yaml
+redis-factory-per-topology:
+  symbols: [RedisHelperFactory.create]
+  upgrade: { before: "RedisHelper.new()", after: "RedisHelperFactory.create()" }
+  downgrade: { steps: ["Call RedisHelper.new() again"] }
+  data: "Stored tokens keep the old prefix."   # optional
+  codemod: namespace-functions                 # optional: a name the project's codemod runner lists
+```
+
+A line with nothing breaking has no `migration.yaml`, or `{}`. The fields mean what they mean in
+[the migration block](#the-migration-block) below. A prerelease edits the folder, so it always states the net change from the
+previous stable: merge a refined item into one, and delete what a later prerelease reverted. The folder is frozen the day its
+stable is released (the release step writes `released:`).
+
+Write the page text the way the wiki builds it: no raw `<tag>` outside a code span or fence (it breaks the build), and no
+backtick inside an inline code span.
+
+`vulcan changelog check` is the gate (`--history --base <ref>` also reads git); `vulcan changelog notes --version <X.Y.Z>` prints
+what the GitHub Release will show.
 
 ## What goes in the changelog
 
@@ -38,7 +81,9 @@ A pull request that holds only internal work gets no entry, and a stable release
 GitHub Release says there is no change for users. When several changes of one release say one thing, write one
 entry, not one per change.
 
-## What every entry needs
+## What every dated entry needs
+
+Only a project that keeps dated entries writes these; a project with version folders writes the items above.
 
 | Part | Where | Rule |
 |---|---|---|
