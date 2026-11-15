@@ -1,0 +1,19 @@
+guard-outside-scratchpad-denied:
+  symbols: [guard.toolOwnedPaths]
+  upgrade:
+    steps:
+      - 'An agent, script or hook that writes into the scratchpad folder its tool offers (`/tmp/claude-<uid>/<project>/<session>/scratchpad`) is refused now, where it was asked and approved. Write under `.agents/local/tmp/<task>/` instead.'
+      - 'To keep allowing the folder, list it in `guard.toolOwnedPaths` in `.configs/vulcan.config.mts` and run `vulcan sync`.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`, where a write into that folder is asked about again.'
+guard-git-pr-base:
+  symbols: [guard.git]
+  upgrade:
+    steps:
+      - 'Every `gh pr create` (and `gh pr new`) with no base asks, with or without `--fill`, `--web`, `--title` or `--head`, and with a leading option as in `gh -R org/repo pr create`. It passes with `--base <branch>`, `--base=<branch>`, `-B <branch>`, `-B<branch>`, `--help` or `-h`.'
+      - 'An agent that cannot answer an ask is refused: Codex prints the ask as a deny (so does Cursor where `CURSOR_PROJECT_DIR` is set), and omp and pi block it when no UI can answer, as in a headless run. Claude Code and Antigravity show the ask.'
+      - 'Pass `--base <branch>` in every script, make target and agent skill that runs `gh pr create`.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`, which does not ask about a missing base.'
