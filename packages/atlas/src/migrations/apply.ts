@@ -21,9 +21,23 @@ class CodemodStatuses {
   static readonly NOT_RUN = 'not run';
 }
 
+/**
+ * The direction of a step. The plan is JSON from the running server, which may be older than this command and send no
+ * direction on a step: then the step goes the way the plan does, as it always did.
+ */
+const directionOf = (opts: { step: IMigrationStep; plan: IMigrationPlan }): TStepDirection => {
+  const given: TStepDirection | undefined = opts.step.direction;
+
+  if (given !== undefined) {
+    return given;
+  }
+
+  return opts.plan.direction === 'downgrade' ? StepDirections.DOWNGRADE : StepDirections.UPGRADE;
+};
+
 /** A step of a plan is told apart by its item and its direction: a changed item is undone as it was, then applied as it is. */
-const stepKeyOf = (opts: { step: IMigrationStep }): string =>
-  `${opts.step.entry}#${opts.step.id}#${opts.step.direction}`;
+const stepKeyOf = (opts: { step: IMigrationStep; plan: IMigrationPlan }): string =>
+  `${opts.step.entry}#${opts.step.id}#${directionOf(opts)}`;
 
 interface ICodemodOutcome {
   codemod: string;
@@ -103,12 +117,13 @@ const codemodsOf = (opts: {
       continue;
     }
 
+    const direction = directionOf({ step, plan: opts.plan });
     const known = found.find(
-      (entry) => entry.codemod === step.codemod && entry.direction === step.direction,
+      (entry) => entry.codemod === step.codemod && entry.direction === direction,
     );
 
     if (known === undefined) {
-      found.push({ codemod: step.codemod, direction: step.direction, steps: [step] });
+      found.push({ codemod: step.codemod, direction, steps: [step] });
     } else {
       known.steps.push(step);
     }
@@ -128,9 +143,9 @@ const reportOf = (opts: {
     const done = new Set(
       outcomes
         .filter((outcome) => outcome.status === CodemodStatuses.RAN)
-        .flatMap((outcome) => outcome.steps.map((step) => stepKeyOf({ step }))),
+        .flatMap((outcome) => outcome.steps.map((step) => stepKeyOf({ step, plan }))),
     );
-    const manual = plan.steps.filter((step) => !done.has(stepKeyOf({ step })));
+    const manual = plan.steps.filter((step) => !done.has(stepKeyOf({ step, plan })));
 
     lines.push(`## ${plan.package}: ${plan.from} to ${plan.to} (${plan.direction})`, '');
 
@@ -155,7 +170,7 @@ const reportOf = (opts: {
     }
 
     for (const step of plan.steps.filter(
-      (entry) => done.has(stepKeyOf({ step: entry })) && entry.data !== undefined,
+      (entry) => done.has(stepKeyOf({ step: entry, plan })) && entry.data !== undefined,
     )) {
       lines.push(`Check after the codemod, \`${step.id}\`: ${step.data}`, '');
     }

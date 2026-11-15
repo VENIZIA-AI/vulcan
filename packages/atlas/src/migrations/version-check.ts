@@ -26,6 +26,7 @@ export class VersionCheck {
     return [
       ...folders.flatMap((folder) =>
         VersionCheck.folderProblems({
+          names: opts.project.packages.map((entry) => entry.name),
           folder,
           codemods: opts.codemods,
           listLabel: CodemodRunner.listLabel({ command: opts.project.knowledge.codemodCommand }),
@@ -39,12 +40,22 @@ export class VersionCheck {
     folder: IVersionFolder;
     codemods?: string[];
     listLabel: string;
+    names: readonly string[];
   }): IChangelogProblem[] {
     const { folder } = opts;
     const problems: IChangelogProblem[] = [...folder.problems];
     const fail = ({ file, message }: { file: string; message: string }): void => {
       problems.push({ file: `${folder.name}/${file}`, message });
     };
+    for (const item of folder.items) {
+      for (const name of item.packages.filter((entry) => !opts.names.includes(entry))) {
+        fail({
+          file: 'log.md',
+          message: `'${item.id}' (line ${item.line}) names the package '${name}', which is not a package of this project: write its npm name`,
+        });
+      }
+    }
+
     const owing = folder.items.filter((item) => VersionSections.OWING.includes(item.section));
     const known = new Set(folder.items.map((item) => item.id));
 

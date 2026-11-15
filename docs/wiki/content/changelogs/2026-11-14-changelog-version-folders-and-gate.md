@@ -14,7 +14,7 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
 
 ## What changed
 
-- **A version folder** holds `log.md` (Keep a Changelog sections in the order Breaking, Deprecated, Added, Changed, Fixed, Security; each item is `- **Title** \`item-id\`: prose`) and `migration.yaml` (the `migration:` blocks, keyed by item id). `vulcan changelog check` fails a Breaking or Deprecated item with no block, a block with no item, a repeated id, sections out of order, and more than one line in progress.
+- **A version folder** holds `log.md` (Keep a Changelog sections in the order Breaking, Deprecated, Added, Changed, Fixed, Security; each item is `- **Title** \`item-id\`: prose`) and `migration.yaml` (the `migration:` blocks, keyed by item id). `vulcan changelog check` fails a Breaking or Deprecated item with no block, an item that names a package the project does not declare, a block with no item, a repeated id, sections out of order, and more than one line in progress.
 - **`vulcan changelog check --history --base <ref>`** also fails a released folder that changed since the base, a stable with no folder, and a dated file added or edited.
 - **Two config keys:** `knowledge.migrationFrom` accepts a version (`0.4.5`) as well as a date, and `knowledge.datedUntil` is the last date a dated file may carry.
 - **The atlas reads the folders:** `search` and `get` cite an item as `changelog:<version>#<item-id>`, with its migration block under it; `changes` lists the items of a version window with their block; a dated file that a folder covers is left out of a window that holds the folder's items, so no change is listed twice, and kept in a window that does not, so none is lost.

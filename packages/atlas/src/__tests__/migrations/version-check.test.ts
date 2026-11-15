@@ -734,6 +734,23 @@ describe('review round 2: a moved base, a strict runner, parser edges', () => {
 });
 
 describe('review round 3: the parser', () => {
+  test('an item that names a package the project does not declare fails, naming it', () => {
+    const found = problemsOf({
+      folders: {
+        '0.4.2': {
+          log: log({
+            version: '0.4.2',
+            body: '\n## Added\n- **One** `one` (`@a/nope`): first.\n',
+          }),
+        },
+      },
+      version: '0.4.2-3',
+    });
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain("'@a/nope'");
+  });
+
   test('a longer fence is closed only by a fence of its own kind and length', () => {
     const folder = VersionFolders.parse({
       name: '0.4.2',

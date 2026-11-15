@@ -270,13 +270,16 @@ export class MigratePlan {
             isUpgrade,
           })
         : {
-            entries: MigratePlan.window({ releases, package: opts.package, older, newer }),
+            older: MigratePlan.window({ releases, package: opts.package, older, newer }),
+            newer: [],
             moves: [],
             notes: [],
             considered: 0,
           };
-    const window = read.entries;
-    const ordered = isUpgrade ? [...window].reverse() : window;
+    const window = [...read.newer, ...read.older];
+    const orderedOf = (entries: IChangelogRecord[]): IChangelogRecord[] =>
+      isUpgrade ? [...entries].reverse() : entries;
+    const ordered = orderedOf(window);
     const direction = isUpgrade ? StepDirections.UPGRADE : StepDirections.DOWNGRADE;
     const withBlock = ordered.filter((entry) => entry.migration !== undefined);
     const stateKey = (move: IStateMove): string =>
@@ -298,32 +301,37 @@ export class MigratePlan {
     ];
     const scanned = AppScan.scan({ app: opts.app, targets });
     const { touches } = scanned;
-    const legacySteps = withBlock.flatMap((entry) => {
-      const items = isUpgrade ? (entry.migration ?? []) : [...(entry.migration ?? [])].reverse();
+    const legacyStepsOf = (entries: IChangelogRecord[]): IMigrationStep[] =>
+      orderedOf(entries)
+        .filter((entry) => entry.migration !== undefined)
+        .flatMap((entry) => {
+          const items = isUpgrade
+            ? (entry.migration ?? [])
+            : [...(entry.migration ?? [])].reverse();
 
-      return items.map((migration): IMigrationStep => {
-        const step: IMigrationStep = {
-          id: migration.id,
-          entry: entry.id,
-          title: entry.title,
-          date: entry.date,
-          symbols: migration.symbols,
-          direction,
-          change: isUpgrade ? migration.upgrade : migration.downgrade,
-          touches: touches[MigratePlan.keyOf({ entry, migration })] ?? [],
-        };
+          return items.map((migration): IMigrationStep => {
+            const step: IMigrationStep = {
+              id: migration.id,
+              entry: entry.id,
+              title: entry.title,
+              date: entry.date,
+              symbols: migration.symbols,
+              direction,
+              change: isUpgrade ? migration.upgrade : migration.downgrade,
+              touches: touches[MigratePlan.keyOf({ entry, migration })] ?? [],
+            };
 
-        if (migration.data !== undefined) {
-          step.data = migration.data;
-        }
+            if (migration.data !== undefined) {
+              step.data = migration.data;
+            }
 
-        if (migration.codemod !== undefined) {
-          step.codemod = migration.codemod;
-        }
+            if (migration.codemod !== undefined) {
+              step.codemod = migration.codemod;
+            }
 
-        return step;
-      });
-    });
+            return step;
+          });
+        });
     const stateStep = (move: IStateMove): IMigrationStep | undefined => {
       const { block } = move.item;
 
@@ -361,15 +369,36 @@ export class MigratePlan {
         .filter((move) => move.direction === which)
         .map((move) => stateStep(move))
         .filter((step): step is IMigrationStep => step !== undefined);
-    // Everything an app undoes comes first, newest first; then everything it applies, oldest first.
-    const steps = [
-      ...stateSteps(StepDirections.DOWNGRADE),
-      ...legacySteps,
-      ...stateSteps(StepDirections.UPGRADE),
+    // Everything an app undoes comes first, newest first; then everything it applies, oldest first. The dated entries
+    // before the folders are the oldest part; the ones inside a folded line the plan ends in are the newest.
+    const olderLegacy = legacyStepsOf(read.older);
+    const newerLegacy = legacyStepsOf(read.newer);
+    const steps = isUpgrade
+      ? [
+          ...stateSteps(StepDirections.DOWNGRADE),
+          ...olderLegacy,
+          ...stateSteps(StepDirections.UPGRADE),
+          ...newerLegacy,
+        ]
+      : [
+          ...newerLegacy,
+          ...stateSteps(StepDirections.DOWNGRADE),
+          ...olderLegacy,
+          ...stateSteps(StepDirections.UPGRADE),
+        ];
+    // An item with no block that changes section is in two moves: it is listed once.
+    const unstructuredStates = [
+      ...new Map(
+        read.moves
+          .filter(
+            (move) => move.item.block === undefined && FolderStates.isOwing({ item: move.item }),
+          )
+          .map((move) => [
+            move.item.entry,
+            { id: move.item.entry, title: move.item.title, date: move.item.date },
+          ]),
+      ).values(),
     ];
-    const unstructuredStates = read.moves
-      .filter((move) => move.item.block === undefined && FolderStates.isOwing({ item: move.item }))
-      .map((move) => ({ id: move.item.entry, title: move.item.title, date: move.item.date }));
 
     const plan: IMigrationPlan = {
       ...base,
@@ -429,14 +458,21 @@ export class MigratePlan {
     newer: string;
     versions: string[];
     isUpgrade: boolean;
-  }): { entries: IChangelogRecord[]; moves: IStateMove[]; notes: string[]; considered: number } {
+  }): {
+    older: IChangelogRecord[];
+    newer: IChangelogRecord[];
+    moves: IStateMove[];
+    notes: string[];
+    considered: number;
+  } {
     const { releases, history, versions } = opts;
     const stateOf = (version: string) =>
       FolderStates.stateOf({ history, package: opts.package, version, versions });
     const olderState = stateOf(opts.older);
     const newerState = stateOf(opts.newer);
     const notes = [...olderState.notes, ...newerState.notes];
-    const entries: IChangelogRecord[] = [];
+    const olderEntries: IChangelogRecord[] = [];
+    const newerEntries: IChangelogRecord[] = [];
     let olderItems = olderState.items;
     const newerItems = newerState.items;
     let lower: string | undefined = opts.older;
@@ -455,7 +491,8 @@ export class MigratePlan {
       notes.push(MigratePlan.foldedNote({ version: opts.older, line: olderState.folded }));
 
       return {
-        entries: windowOf({ older: opts.older, newer: opts.newer, includeFolded: true }),
+        older: windowOf({ older: opts.older, newer: opts.newer, includeFolded: true }),
+        newer: [],
         moves: [],
         notes,
         considered: 0,
@@ -469,40 +506,48 @@ export class MigratePlan {
       );
 
       notes.push(MigratePlan.foldedNote({ version: opts.newer, line: newerState.folded }));
-      entries.push(...windowOf({ older: before, newer: opts.newer, includeFolded: true }));
+      newerEntries.push(...windowOf({ older: before, newer: opts.newer, includeFolded: true }));
       upper = before;
     }
 
     if (olderState.folded !== undefined) {
-      const stable = versions.includes(olderState.folded) ? olderState.folded : undefined;
+      const line = olderState.folded;
+      // Folded after its release: its stable is out and the plan reaches it. Otherwise the folder came into the line
+      // after this prerelease, so this version only predates it, and the folder at the other end counts as new.
+      const isFolded = versions.includes(line) && Bun.semver.order(opts.newer, line) >= 0;
 
-      notes.push(MigratePlan.foldedNote({ version: opts.older, line: olderState.folded }));
-
-      if (stable === undefined) {
-        entries.push(...windowOf({ older: opts.older, newer: upper, includeFolded: true }));
-        lower = undefined;
+      if (isFolded) {
+        notes.push(MigratePlan.foldedNote({ version: opts.older, line }));
+        olderEntries.push(...windowOf({ older: opts.older, newer: line, includeFolded: true }));
+        lower = line;
+        olderItems = stateOf(line).items;
       } else {
-        entries.push(...windowOf({ older: opts.older, newer: stable, includeFolded: true }));
-        lower = stable;
-        olderItems = stateOf(stable).items;
+        notes.push(
+          `${opts.older} was tagged before the folder of ${line} existed: everything in that folder at the other end counts as new`,
+        );
       }
     }
 
     if (lower !== undefined && upper !== undefined && Bun.semver.order(upper, lower) > 0) {
-      entries.push(...windowOf({ older: lower, newer: upper, includeFolded: false }));
+      olderEntries.unshift(...windowOf({ older: lower, newer: upper, includeFolded: false }));
     }
 
     const [fromItems, toItems] = opts.isUpgrade
       ? [olderItems, newerItems]
       : [newerItems, olderItems];
     const moves = FolderStates.diff({ from: fromItems, to: toItems });
+    // The lines the two ends touch: what lies before the older end's line is history the plan does not compare.
+    const floor = FolderStates.lineOf({ version: opts.older });
+    const touched = [...olderItems, ...newerItems].filter(
+      (item) => Bun.semver.order(item.line, floor) >= 0,
+    );
 
     return {
-      entries: [...new Map(entries.map((entry) => [entry.id, entry])).values()],
+      older: [...new Map(olderEntries.map((entry) => [entry.id, entry])).values()],
+      newer: [...new Map(newerEntries.map((entry) => [entry.id, entry])).values()],
       moves,
       notes,
-      considered: new Set([...olderItems, ...newerItems].map((item) => `${item.line}#${item.id}`))
-        .size,
+      considered: new Set(touched.map((item) => `${item.line}#${item.id}`)).size,
     };
   }
 

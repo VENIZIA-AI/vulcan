@@ -327,6 +327,13 @@ const foldedRepo = () => {
   git(['add', '-A']);
   git(['commit', '-q', '-m', 'docs: six']);
   release('kernel-v0.4.6');
+  writeFileSync(
+    join(root, 'changes', '2026-11-04-dated-seven.md'),
+    '---\ntitle: Dated seven\npackages: [\'@a/kernel\']\nmigration:\n  - id: dated-seven\n    symbols: [Thing.make]\n    upgrade: { steps: [up dated] }\n    downgrade: { steps: [down dated] }\n---\n\n<Badge type="danger" text="Breaking Change" />\n\nSeven changed.\n',
+  );
+  git(['add', '-A']);
+  git(['commit', '-q', '-m', 'docs: dated seven']);
+  release('kernel-v0.4.7-1');
   release('kernel-v0.4.7');
 
   for (const [version, items] of [
@@ -401,5 +408,205 @@ describe('folded lines (C9, C10)', () => {
 
     expect(plan.steps).toEqual([]);
     expect(plan.note).toContain('folded');
+  });
+});
+
+describe('review findings of the state diff', () => {
+  const made = foldedRepo();
+
+  test('a plan that ends in a folded prerelease puts its dated steps after the folder items; the rollback puts them first', () => {
+    expect(stepsOf({ made, from: '0.4.5', to: '0.4.7-1' })).toEqual([
+      'upgrade:six-break',
+      'upgrade:dated-seven',
+    ]);
+    expect(stepsOf({ made, from: '0.4.7-1', to: '0.4.5' })).toEqual([
+      'downgrade:dated-seven',
+      'downgrade:six-break',
+    ]);
+  });
+
+  test('the entries of a plan count the lines it touches, not the whole history', () => {
+    expect(planOf({ made, from: '0.4.6', to: '0.4.7' }).entries).toBe(2);
+  });
+});
+
+describe('a folder that came into a line mid-cycle', () => {
+  const lineRepo = (opts: { stable: boolean }) => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-state-mid-'));
+    const app = mkdtempSync(join(tmpdir(), 'atlas-state-mid-app-'));
+
+    roots.push(root, app);
+    mkdirSync(join(root, 'changes', '0.4.5'), { recursive: true });
+
+    const git = (args: string[]): void => {
+      execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+        cwd: root,
+        stdio: 'ignore',
+      });
+    };
+    const item = (id: string, n: number): IItem => ({
+      section: 'Breaking',
+      id,
+      packages: '@a/kernel',
+      block: block({ n }),
+    });
+    const tagged = (tag: string, items?: IItem[]): void => {
+      if (items !== undefined) {
+        const files = folderOf({ version: '0.4.5', items });
+
+        writeFileSync(join(root, 'changes', '0.4.5', 'log.md'), files.log);
+        writeFileSync(join(root, 'changes', '0.4.5', 'migration.yaml'), files.migration);
+      }
+
+      git(['add', '-A']);
+      git(['commit', '-q', '--allow-empty', '-m', tag]);
+      git(['tag', '-a', tag, '-m', tag]);
+    };
+
+    git(['init', '-q', '-b', 'develop']);
+    git(['commit', '-q', '--allow-empty', '-m', 'init']);
+    tagged('kernel-v0.4.5-1');
+    tagged('kernel-v0.4.5-2', [item('aa', 1)]);
+    tagged('kernel-v0.4.5-3', [item('aa', 1), item('bb', 2)]);
+
+    if (opts.stable) {
+      tagged('kernel-v0.4.5', [item('aa', 1), item('bb', 2), item('cc', 3)]);
+    } else {
+      writeFileSync(
+        join(root, 'changes', '0.4.5', 'log.md'),
+        folderOf({ version: '0.4.5', items: [item('aa', 1), item('bb', 2), item('cc', 3)] }).log,
+      );
+      writeFileSync(
+        join(root, 'changes', '0.4.5', 'migration.yaml'),
+        folderOf({ version: '0.4.5', items: [item('aa', 1), item('bb', 2), item('cc', 3)] })
+          .migration,
+      );
+    }
+
+    const project = ProjectConfig.toAtlasProject({
+      root,
+      manifest: {
+        schemaVersion: 1,
+        packages: PACKAGES,
+        knowledge: { changelogs: 'changes' },
+        release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+      },
+    });
+
+    return {
+      app,
+      releases: new ReleaseStore({
+        table: ReleaseCompute.compute({ project }),
+        folderHistory: new FolderHistory({ project }),
+        codemodPackages: ['@a/kernel'],
+      }),
+    };
+  };
+
+  test('a prerelease tagged before the folder existed counts the folder at the other end as new, and never reads the final one', () => {
+    for (const stable of [true, false]) {
+      const made = lineRepo({ stable });
+      const plan = planOf({ made, from: '0.4.5-1', to: '0.4.5-3' });
+
+      expect(plan.steps.map((step) => `${step.direction}:${step.id}`)).toEqual([
+        'upgrade:aa',
+        'upgrade:bb',
+      ]);
+      expect(plan.note).toContain('before the folder of 0.4.5 existed');
+    }
+  });
+});
+
+describe('the state of an item', () => {
+  const folderWith = (opts: { packages: string[]; section?: string; id?: string }) =>
+    VersionFolders.parse({
+      name: '0.4.5',
+      log: `---\ntitle: x\nversion: 0.4.5\npackages: [${opts.packages.map((name) => `'${name}'`).join(', ')}]\n---\n\n## ${opts.section ?? 'Added'}\n- **X** \`${opts.id ?? 'xx'}\`: text.\n`,
+    });
+  const historyOf = (opts: {
+    at: IFolderHistory['at'];
+    head: ReturnType<typeof folderWith>;
+  }): IFolderHistory => ({
+    folders: () => [opts.head],
+    at: opts.at,
+  });
+
+  test('a package joining the folder does not make the items it inherits look changed', () => {
+    const history = historyOf({
+      head: folderWith({ packages: ['@a/kernel', '@a/web'] }),
+      at: ({ version }) => ({
+        kind: FolderAtKinds.FOLDER,
+        tag: `kernel-v${version}`,
+        folder: folderWith({
+          packages: version === '0.4.5-2' ? ['@a/kernel'] : ['@a/kernel', '@a/web'],
+        }),
+      }),
+    });
+    const versions = ['0.4.5-3', '0.4.5-2'];
+    const state = (version: string) =>
+      FolderStates.stateOf({ history, package: '@a/kernel', version, versions }).items;
+
+    expect(FolderStates.diff({ from: state('0.4.5-2'), to: state('0.4.5-3') })).toEqual([]);
+  });
+
+  test('an item with no block that changes section is listed once among the breaking changes without steps', () => {
+    const history = historyOf({
+      head: folderWith({ packages: ['@a/kernel'], section: 'Breaking' }),
+      at: ({ version }) => ({
+        kind: FolderAtKinds.FOLDER,
+        tag: `kernel-v${version}`,
+        folder: folderWith({
+          packages: ['@a/kernel'],
+          section: version === '0.4.5-2' ? 'Deprecated' : 'Breaking',
+        }),
+      }),
+    });
+    const versions = ['0.4.5-3', '0.4.5-2'];
+    const state = (version: string) =>
+      FolderStates.stateOf({ history, package: '@a/kernel', version, versions }).items;
+    const moves = FolderStates.diff({ from: state('0.4.5-2'), to: state('0.4.5-3') });
+    const releases = new ReleaseStore({
+      table: {
+        livePackages: ['kernel'],
+        packageMap: [{ dir: 'kernel', name: '@a/kernel', aliases: [] }],
+        releases: {
+          kernel: [
+            { version: '0.4.5-3', date: '2026-11-02', sha: 'b', order: 1 },
+            { version: '0.4.5-2', date: '2026-11-01', sha: 'a', order: 0 },
+          ],
+        },
+        changelogs: [],
+      },
+      folderHistory: history,
+    });
+    const plan = MigratePlan.plans({
+      releases,
+      app: mkdtempSync(join(tmpdir(), 'atlas-state-once-')),
+      package: '@a/kernel',
+      from: '0.4.5-2',
+      to: '0.4.5-3',
+    }).plans[0];
+
+    expect(moves.map((move) => move.direction)).toEqual(['downgrade', 'upgrade']);
+    expect(plan.unstructured.map((entry) => entry.id)).toEqual(['changelog:0.4.5#xx']);
+  });
+
+  test('a tag that cannot be read before one with no folder is said, not folded silently', () => {
+    const history = historyOf({
+      head: folderWith({ packages: ['@a/kernel'] }),
+      at: ({ version }) =>
+        version === '0.4.5-3'
+          ? { kind: FolderAtKinds.UNREADABLE, reason: 'no blob' }
+          : { kind: FolderAtKinds.ABSENT, tag: `kernel-v${version}` },
+    });
+    const state = FolderStates.stateOf({
+      history,
+      package: '@a/kernel',
+      version: '0.4.5-3',
+      versions: ['0.4.5-3', '0.4.5-2'],
+    });
+
+    expect(state.folded).toBe('0.4.5');
+    expect(state.notes[0]).toContain('no blob');
   });
 });

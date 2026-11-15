@@ -75,9 +75,9 @@ const itemsOf = (opts: { folder: IVersionFolder; package: string }): IStateItem[
     )
     .map((item): IStateItem => {
       const block = opts.folder.blocks[item.id];
-      const packages = [
-        ...(item.packages.length === 0 ? opts.folder.packages : item.packages),
-      ].sort();
+      // Only what the item itself says: the folder's own list decides who sees the item (above), and a package joining it
+      // must not make every item that inherits it look changed.
+      const packages = [...item.packages].sort();
       const state: IStateItem = {
         line: opts.folder.name,
         id: item.id,
@@ -165,6 +165,12 @@ export class FolderStates {
 
       if (found.kind === FolderAtKinds.ABSENT) {
         state.folded = line;
+
+        if (failures.length > 0) {
+          state.notes.push(
+            `${opts.package} ${opts.version} could not be read (${failures.join('; ')}); the nearest readable tag ${found.tag} holds no folder of ${line}, so the line is treated as folded`,
+          );
+        }
 
         return state;
       }

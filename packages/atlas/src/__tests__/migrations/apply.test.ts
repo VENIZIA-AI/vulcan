@@ -707,6 +707,53 @@ describe('MigrateApply.run: the allow-list is the validated project, never the t
   });
 });
 
+describe('MigrateApply.run: a plan from a server that sends no step direction (C7)', () => {
+  test('a step with none goes the way its plan does: a rollback is reversed', () => {
+    const { app, log } = appWith();
+    const text = JSON.stringify({
+      app,
+      plans: [
+        {
+          package: '@venizia/kernel',
+          from: '1.1.0',
+          to: '1.0.0',
+          direction: 'downgrade',
+          target: 'version',
+          entries: 1,
+          apply: 'vulcan migrate apply',
+          codemodCommand: ['devz', 'codemod'],
+          codemodPackages: PROJECT_PACKAGES,
+          steps: [
+            {
+              id: 'a-item',
+              entry: 'changelog:2026-02-01-x',
+              title: 'a',
+              date: '2026-02-01',
+              symbols: ['Thing'],
+              change: { steps: ['down'] },
+              codemod: 'cm-a',
+              touches: [],
+            },
+          ],
+          unstructured: [],
+          unreadable: [],
+        },
+      ],
+      skipped: [],
+      unserved: [],
+    });
+    const code = MigrateApply.run({
+      result: JSON.parse(text),
+      force: false,
+      out: () => undefined,
+      err: () => undefined,
+    });
+
+    expect(code).toBe(0);
+    expect(calls({ log })).toEqual(['codemod cm-a . --write --reverse']);
+  });
+});
+
 describe('MigrateApply.run: each step runs in its own direction (C7)', () => {
   const step = (opts: { id: string; direction: 'upgrade' | 'downgrade'; codemod?: string }) => ({
     id: opts.id,
