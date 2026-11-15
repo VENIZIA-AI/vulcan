@@ -91,7 +91,11 @@ export class VersionCheck {
     });
 
     // A released folder is frozen: it owes none of what the version page reads, and keeps what it has.
-    if (folder.released === undefined && !folder.hasInvalidRelease) {
+    if (
+      folder.released === undefined &&
+      !folder.hasInvalidRelease &&
+      !folder.unreadable.includes('frontmatter')
+    ) {
       VersionCheck.readingProblems({ folder, fail });
     }
 
@@ -109,10 +113,12 @@ export class VersionCheck {
     const { folder, fail } = opts;
     const { summary, highlights } = folder;
 
-    if (summary === undefined || summary === '') {
+    if (folder.unreadable.includes('summary')) {
+      // reported once, when it was read
+    } else if (summary === undefined || summary === '') {
       fail({
         file: 'log.md',
-        message: 'summary: write one sentence, at most 200 characters, saying what the release is',
+        message: `summary: write one sentence, at most ${VersionCheck.SUMMARY_MAX} characters, saying what the release is`,
       });
     } else if (summary.includes('\n')) {
       fail({ file: 'log.md', message: 'summary: must be one line' });
@@ -123,10 +129,12 @@ export class VersionCheck {
       });
     }
 
-    if (highlights === undefined || highlights.length === 0) {
+    if (folder.unreadable.includes('highlights')) {
+      // reported once, when it was read
+    } else if (highlights === undefined || highlights.length === 0) {
       fail({
         file: 'log.md',
-        message: 'highlights: write one to five one-line highlights of the release',
+        message: `highlights: write one to ${VersionCheck.HIGHLIGHTS_MAX} one-line highlights of the release`,
       });
     } else {
       if (highlights.length > VersionCheck.HIGHLIGHTS_MAX) {
@@ -147,10 +155,10 @@ export class VersionCheck {
       }
 
       highlights.forEach((line, index) => {
-        if (line.includes('\n') || line.length > VersionCheck.HIGHLIGHT_MAX) {
+        if (line === '' || line.includes('\n') || line.length > VersionCheck.HIGHLIGHT_MAX) {
           fail({
             file: 'log.md',
-            message: `highlights: line ${index + 1} must be one line of at most ${VersionCheck.HIGHLIGHT_MAX} characters`,
+            message: `highlights: line ${index + 1} must be one non-empty line of at most ${VersionCheck.HIGHLIGHT_MAX} characters`,
           });
         }
       });
@@ -165,7 +173,7 @@ export class VersionCheck {
       }
     }
 
-    if (folder.namesMigrationFile) {
+    if (folder.intro.includes('migration.yaml')) {
       fail({
         file: 'log.md',
         message:

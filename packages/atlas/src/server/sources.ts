@@ -1,12 +1,12 @@
 import { spawnSync } from 'node:child_process';
 import { AtlasGit } from '@/common/constants';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { relative } from 'node:path';
 import { AtlasConstants } from '@/common';
 import { RepositoryRoots } from '@/corpus';
 import { RpcError, Transport } from '@/protocol';
 import type { IToolHandler } from '@/protocol/common';
-import { FolderHistory, ReleaseCompute, ReleaseStore } from '@/releases';
+import { ReleaseCompute } from '@/releases';
+import type { ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
 import { InstalledPackages } from '@/sources/installed';
 import { SourceResolver } from '@/sources/resolver';
@@ -29,6 +29,7 @@ import { ServerGuidance } from './guidance';
 import { SourceBoot } from './boot';
 import { SourceNotice } from './notice';
 import { Refresher } from './refresh';
+import { ServedReleases } from './served-releases';
 import type { IRefreshTarget } from './refresh';
 
 const packageMapOf = (opts: { source: IResolvedSource }) =>
@@ -73,24 +74,6 @@ const remoteSymbolsOf = (opts: {
     });
 };
 
-/** D1: a source fetched without git has no history; anything else has none of the tags it declares. */
-const emptyReleasesReasonOf = (opts: { source: IResolvedSource }): string =>
-  opts.source.history === false
-    ? `no release history: ${opts.source.name} was fetched without git`
-    : `no releases: no tag matches ${opts.source.project.tagPattern} in this ref's history`;
-
-const CHANGELOG_LAYOUT =
-  'atlas reads files named YYYY-MM-DD-<slug>.md from it, each with `packages: [<npm name>, ...]` frontmatter';
-
-/** Where a date window looked for dated entries - the directory the manifest declares, or that it declares none. */
-const noEntriesReasonOf = (opts: { source: IResolvedSource }): string => {
-  const { root, knowledge } = opts.source.project;
-
-  return knowledge.changelogs === undefined
-    ? `no dated changelog entries: the manifest declares no changelog directory - set knowledge.changelogs; ${CHANGELOG_LAYOUT}`
-    : `no dated changelog entries in ${relative(root, knowledge.changelogs)} - ${CHANGELOG_LAYOUT}`;
-};
-
 const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   const { source } = opts;
   const packageMap = packageMapOf({ source });
@@ -103,14 +86,9 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
     return {
       name: source.name,
       chunks: () => guard.getStore(),
-      releases: new ReleaseStore({
+      releases: ServedReleases.storeOf({
+        source,
         table: ReleaseCompute.compute({ project: source.project }),
-        emptyReason: emptyReleasesReasonOf({ source }),
-        noEntriesReason: noEntriesReasonOf({ source }),
-        codemodCommand: source.project.knowledge.codemodCommand,
-        siteUrl: source.project.knowledge.siteUrl,
-        codemodPackages: source.project.packages.map((entry) => entry.name),
-        folderHistory: new FolderHistory({ project: source.project }),
       }),
       symbols: new SymbolStore({
         load: () => ({
@@ -124,13 +102,9 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   }
 
   const index = new ChunkStore({ serialized: readFileSync(source.indexFile ?? '') });
-  const releases = new ReleaseStore({
+  const releases = ServedReleases.storeOf({
+    source,
     table: JSON.parse(readFileSync(source.releasesFile ?? '', 'utf8')),
-    emptyReason: emptyReleasesReasonOf({ source }),
-    noEntriesReason: noEntriesReasonOf({ source }),
-    codemodCommand: source.project.knowledge.codemodCommand,
-    codemodPackages: source.project.packages.map((entry) => entry.name),
-    folderHistory: new FolderHistory({ project: source.project }),
   });
 
   return {
@@ -237,13 +211,9 @@ const repositoryTarget = (opts: { entry: TLiveEntry; source: IResolvedSource }):
       }
 
       opts.entry.replaceReleases(
-        new ReleaseStore({
+        ServedReleases.storeOf({
+          source: opts.source,
           table: ReleaseCompute.compute({ project: opts.source.project }),
-          emptyReason: emptyReleasesReasonOf({ source: opts.source }),
-          noEntriesReason: noEntriesReasonOf({ source: opts.source }),
-          codemodCommand: opts.source.project.knowledge.codemodCommand,
-          codemodPackages: opts.source.project.packages.map((entry) => entry.name),
-          folderHistory: new FolderHistory({ project: opts.source.project }),
         }),
       );
       seen = now;

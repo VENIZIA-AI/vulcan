@@ -80,7 +80,7 @@ Details:
 - `migrationFrom` is the cutover of the migration gate: a date (`2026-11-13`) from which dated Breaking Change entries carry a migration block, or a version (`0.4.5`) from which version folders `changelogs/<X.Y.Z>/` are the changelog and dated files are history.
 - `codemodCommand` is the runner of the project's migration codemods: a bare binary name found in the app's `node_modules/.bin`, then fixed words, such as `['tool', 'codemod']`; the default is `['devz', 'codemod']`. A migration names a codemod and never a command, so a changelog cannot run anything. A word that is not allowed (a path, a flag, a space) fails with the word named; it is never dropped.
 - `datedUntil` is the last date (`YYYY-MM-DD`) a dated changelog file may carry; a later one fails `vulcan changelog check`.
-- `siteUrl` is the address of the project's wiki (`https://wiki.example.com`, http or https, no credentials). With it, `vulcan migrate plan` prints `Guide: <siteUrl>/changelogs/<version>/upgrade#<id>` under each step of a version folder; without it the plan prints no link.
+- `siteUrl` is the address of the project's wiki (`https://wiki.example.com`): https, or http on localhost; no credentials, query, fragment, space or control character. It is stored without its trailing slash. With it, `vulcan migrate plan` prints `Guide: <siteUrl>/changelogs/<version>/upgrade#<id>` under each step of a version folder; without it the plan prints no link.
 
 To update the manifest, run `vulcan sync` after changing configuration or updating base rules. Running `vulcan doctor` compares the manifest against the resolved configuration. If the manifest is missing or stale, `vulcan doctor` fails with exit code 1.
 

@@ -140,19 +140,40 @@ describe('ProjectConfig.readAtlasProject', () => {
     'https://user:pw@acme.example.test',
     'https://acme.example.test/a b',
     'javascript:alert(1)',
-  ])(
-    'a siteUrl that is not an http or https address (%s) stops the read, naming the project and the value',
-    (value) => {
-      useAtlasProject({
-        root: ROOT,
-        manifest: { name: 'acme', knowledge: { siteUrl: value }, packages: [] },
-      });
+  ])('a siteUrl that is not a usable address (%s) stops the read, naming the project', (value) => {
+    useAtlasProject({
+      root: ROOT,
+      manifest: { name: 'acme', knowledge: { siteUrl: value }, packages: [] },
+    });
 
-      expect(() => ProjectConfig.readAtlasProject()).toThrow(
-        `atlas: project 'acme' - knowledge.siteUrl '${value}' is not an http or https address`,
-      );
-    },
-  );
+    expect(() => ProjectConfig.readAtlasProject()).toThrow(
+      "atlas: project 'acme' - knowledge.siteUrl ",
+    );
+  });
+
+  test('a siteUrl with an escape sequence is refused and never echoed raw', () => {
+    useAtlasProject({
+      root: ROOT,
+      manifest: {
+        name: 'acme',
+        knowledge: { siteUrl: 'https://acme.example.test/\u001b[2J\u202e' },
+        packages: [],
+      },
+    });
+
+    let message = '';
+
+    try {
+      ProjectConfig.readAtlasProject();
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+
+    expect(message).toContain('knowledge.siteUrl');
+    expect(message).toContain('\\u001b');
+    expect(message).not.toContain('\u001b');
+    expect(message).not.toContain('\u202e');
+  });
 
   test('a package without a name takes its directory, which must be an npm name too', () => {
     useAtlasProject({ root: ROOT, manifest: { name: 'acme', packages: [{ dir: 'a b' }] } });

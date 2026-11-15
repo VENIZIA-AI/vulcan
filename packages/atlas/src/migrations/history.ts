@@ -98,7 +98,7 @@ export class ChangelogHistory {
       .filter((name) => VersionFolders.isName({ name }));
 
     return names.flatMap((name) => {
-      const log = git({ root, args: ['show', `${opts.since}:${opts.at}/${name}/log.md`] });
+      const log = git({ root, args: ['show', `${opts.since}:./${opts.at}/${name}/log.md`] });
 
       if (log === undefined || !ChangelogHistory.isReleased({ log })) {
         return [];
@@ -133,7 +133,15 @@ export class ChangelogHistory {
     const listed =
       git({
         root: opts.root,
-        args: ['diff', '--name-status', '--end-of-options', opts.since, '--', opts.folder],
+        args: [
+          'diff',
+          '--name-status',
+          '--relative',
+          '--end-of-options',
+          opts.since,
+          '--',
+          opts.folder,
+        ],
       })
         ?.trim()
         .split('\n')
@@ -146,7 +154,7 @@ export class ChangelogHistory {
         return true;
       }
 
-      const before = git({ root: opts.root, args: ['show', `${opts.since}:${path}`] });
+      const before = git({ root: opts.root, args: ['show', `${opts.since}:./${path}`] });
 
       try {
         const after = readFileSync(join(opts.root, path), 'utf8');
@@ -163,7 +171,7 @@ export class ChangelogHistory {
   }
 
   /** `text` without the `summary:` and `highlights:` keys of its frontmatter, each with the lines that belong to it. */
-  static withoutDisplayKeys(opts: { text: string }): string {
+  private static withoutDisplayKeys(opts: { text: string }): string {
     const matched = opts.text.match(FRONTMATTER_PATTERN);
 
     if (matched === null) {
@@ -188,7 +196,10 @@ export class ChangelogHistory {
       return true;
     });
 
-    return opts.text.replace(matched[1], kept.join('\n'));
+    // by position: a replacement pattern in the frontmatter (`$&`, `$$`) is text, never a pattern
+    const start = matched[0].indexOf('\n') + 1;
+
+    return `${opts.text.slice(0, start)}${kept.join('\n')}${opts.text.slice(start + matched[1].length)}`;
   }
 
   /** Whether a `log.md` carries a `released:` date; one that cannot be read is not released (the default check reports it). */
@@ -217,7 +228,15 @@ export class ChangelogHistory {
     const changed =
       git({
         root,
-        args: ['diff', '--name-status', '--end-of-options', opts.since, '--', opts.at],
+        args: [
+          'diff',
+          '--name-status',
+          '--relative',
+          '--end-of-options',
+          opts.since,
+          '--',
+          opts.at,
+        ],
       }) ?? '';
     const untracked =
       git({ root, args: ['ls-files', '--others', '--exclude-standard', '--', opts.at] }) ?? '';

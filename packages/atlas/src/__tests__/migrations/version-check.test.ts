@@ -379,6 +379,102 @@ describe('the history gate (C4)', () => {
     expect(found[0]).toContain('0.4.1 was released at HEAD and is frozen');
   });
 
+  describe('a replacement pattern in the frontmatter is text', () => {
+    const fm = (opts: { title: string; extra?: string }): string =>
+      `---\ntitle: ${opts.title}\nversion: 0.4.1\npackages: ['@a/kernel']\n${opts.extra ?? ''}released: 2026-11-01\n---\n\n## Added\n- **A** \`a-item\`: a.\n`;
+    const edit = (opts: { before: string; after: string }): string[] => {
+      const root = mkdtempSync(join(tmpdir(), 'atlas-dollar-'));
+
+      roots.push(root);
+      mkdirSync(join(root, 'changes', '0.4.1'), { recursive: true });
+      writeFileSync(join(root, 'changes', '0.4.1', 'log.md'), opts.before);
+
+      for (const args of [
+        ['init', '-q', '-b', 'main'],
+        ['config', 'user.email', 't@t.t'],
+        ['config', 'user.name', 't'],
+        ['add', '-A'],
+        ['commit', '-q', '-m', 'base'],
+      ]) {
+        run({ root, args });
+      }
+
+      writeFileSync(join(root, 'changes', '0.4.1', 'log.md'), opts.after);
+
+      return ChangelogHistory.scan({
+        project: ProjectConfig.toAtlasProject({
+          root,
+          manifest: {
+            schemaVersion: 1,
+            packages: [{ name: '@a/kernel', dir: 'kernel', aliases: [], retired: false }],
+            knowledge: { changelogs: 'changes', migrationFrom: '0.4.1' },
+            release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+          },
+        }),
+        base: 'HEAD',
+      }).map((problem) => problem.message);
+    };
+
+    test('a title edited from $$ to $ is a change; a $-pattern in a title does not stop a backfill', () => {
+      expect(edit({ before: fm({ title: 'a$$b' }), after: fm({ title: 'a$b' }) }).join()).toContain(
+        'frozen',
+      );
+
+      for (const title of ['a$&b', "a$'b", 'a$`b', 'a$$b']) {
+        expect(
+          edit({ before: fm({ title }), after: fm({ title, extra: 'summary: S.\n' }) }),
+        ).toEqual([]);
+      }
+    });
+  });
+
+  describe('a project below the repository top', () => {
+    test('a released folder that changed is frozen, one that gained a summary is not', () => {
+      const top = mkdtempSync(join(tmpdir(), 'atlas-subdir-'));
+      const root = join(top, 'proj');
+      const frozenLog = log({
+        version: '0.4.1',
+        released: '2026-11-01',
+        body: '\n## Added\n- **A** `a-item`: a.\n',
+      });
+
+      roots.push(top);
+      mkdirSync(join(root, 'changes', '0.4.1'), { recursive: true });
+      writeFileSync(join(root, 'changes', '0.4.1', 'log.md'), frozenLog);
+
+      for (const args of [
+        ['init', '-q', '-b', 'main'],
+        ['config', 'user.email', 't@t.t'],
+        ['config', 'user.name', 't'],
+        ['add', '-A'],
+        ['commit', '-q', '-m', 'base'],
+      ]) {
+        run({ root: top, args });
+      }
+
+      const project = ProjectConfig.toAtlasProject({
+        root,
+        manifest: {
+          schemaVersion: 1,
+          packages: [{ name: '@a/kernel', dir: 'kernel', aliases: [], retired: false }],
+          knowledge: { changelogs: 'changes', migrationFrom: '0.4.1' },
+          release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+        },
+      });
+      const scan = (): string[] =>
+        ChangelogHistory.scan({ project, base: 'HEAD' }).map((problem) => problem.message);
+
+      writeFileSync(
+        join(root, 'changes', '0.4.1', 'log.md'),
+        frozenLog.replace('released: 2026-11-01', 'summary: S.\nreleased: 2026-11-01'),
+      );
+      expect(scan()).toEqual([]);
+
+      writeFileSync(join(root, 'changes', '0.4.1', 'log.md'), `${frozenLog}\nmore\n`);
+      expect(scan().join()).toContain('frozen');
+    });
+  });
+
   describe('the display keys of a released folder', () => {
     const logPath = (made: ReturnType<typeof repo>): string =>
       join(made.root, 'changes', '0.4.1', 'log.md');
@@ -1027,6 +1123,40 @@ describe('the version folder gate: summary, highlights and upgrade.steps (change
         }),
       }),
     ).toEqual([]);
+  });
+
+  test('an empty highlight is refused', () => {
+    expect(
+      found({ log: log({ version: '0.4.2', body: ADDED, highlights: ['One', '""'] }) }).some(
+        (line) => line.includes('highlights'),
+      ),
+    ).toBe(true);
+  });
+
+  test('each fault is reported once: a wrong type, and a frontmatter that does not parse', () => {
+    const bad = (opts: { extra: string; released?: boolean }): string[] =>
+      found({
+        log: `---\ntitle: 0.4.2\nversion: 0.4.2\npackages: ['@a/kernel']\n${opts.extra}${opts.released === true ? 'released: 2026-11-01\n' : ''}---\n${ADDED}`,
+      });
+
+    for (const extra of [
+      'summary: 5\nhighlights:\n  - One\n',
+      'summary: S.\nhighlights: just text\n',
+      'summary: S.\nhighlights:\n  - foo: bar\n',
+    ]) {
+      const problems = bad({ extra });
+
+      expect(
+        problems.filter((line) => line.includes('summary') || line.includes('highlights')),
+      ).toHaveLength(1);
+    }
+
+    // a YAML error is one problem, in a folder in progress and in a released one
+    for (const released of [false, true]) {
+      expect(bad({ extra: 'summary: "unclosed\n', released })).toHaveLength(1);
+    }
+
+    expect(bad({ extra: 'summary: 5\n' }).join()).toContain('quote');
   });
 
   test('VersionFolders.parse exposes the summary and the highlights', () => {

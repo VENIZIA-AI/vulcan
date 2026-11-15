@@ -87,8 +87,8 @@ export interface IVersionFolder {
   summary?: string;
   /** `highlights:` of the frontmatter: the lines a version box shows; absent when the log has none. */
   highlights?: string[];
-  /** The opening paragraph names `migration.yaml`; the version page links its upgrade guide itself. */
-  namesMigrationFile: boolean;
+  /** What of the frontmatter could not be read: `frontmatter` (it does not parse), `summary` or `highlights` (the wrong type). The gate does not ask again for what is already reported. */
+  unreadable: ('frontmatter' | 'summary' | 'highlights')[];
   /** The blocks of `migration.yaml` by item id; empty when the file is absent or `{}`. */
   blocks: Record<string, TMigrationBlock>;
   /** Everything wrong with the folder that parsing can see; the gate adds the rules that need the project. */
@@ -108,6 +108,9 @@ const BULLET_LINE = /^[-*] /;
 const SECTION_LINE = /^## (.+?)\s*$/;
 const RELEASED_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const YAML_TOP_KEY = /^(?!\s|#|-)(?:"([^"]+)"|'([^']+)'|([^:\n]+?))\s*:/gm;
+
+const isStrings = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === 'string');
 
 const stringsOf = (opts: { value: unknown }): string[] =>
   Array.isArray(opts.value)
@@ -192,7 +195,7 @@ export class VersionFolders {
       sections: [],
       items: [],
       intro: '',
-      namesMigrationFile: false,
+      unreadable: [],
       blocks: {},
       problems: [],
       hasLog: opts.log !== undefined,
@@ -230,6 +233,7 @@ export class VersionFolders {
     try {
       ({ data, body } = Resolve.splitFrontmatter(opts.text));
     } catch (error) {
+      folder.unreadable.push('frontmatter');
       fail({ file: 'log.md', message: `invalid frontmatter: ${TextValue.messageOf({ error })}` });
 
       return;
@@ -252,18 +256,25 @@ export class VersionFolders {
       if (typeof data.summary === 'string') {
         folder.summary = data.summary.trim();
       } else {
-        fail({ file: 'log.md', message: 'summary: must be a sentence' });
+        folder.unreadable.push('summary');
+        fail({
+          file: 'log.md',
+          message:
+            'summary: must be a sentence (quote it when it holds ": " or starts with a backtick)',
+        });
       }
     }
 
     if (data.highlights !== undefined) {
-      if (
-        Array.isArray(data.highlights) &&
-        data.highlights.every((line) => typeof line === 'string')
-      ) {
-        folder.highlights = data.highlights.map((line: string) => line.trim());
+      if (isStrings(data.highlights)) {
+        folder.highlights = data.highlights.map((line) => line.trim());
       } else {
-        fail({ file: 'log.md', message: 'highlights: must be a list of lines' });
+        folder.unreadable.push('highlights');
+        fail({
+          file: 'log.md',
+          message:
+            'highlights: must be a list of lines (quote a line that holds ": " or starts with a backtick)',
+        });
       }
     }
 
@@ -409,7 +420,6 @@ export class VersionFolders {
 
     closeItem();
     folder.intro = introLines.join('\n').trim();
-    folder.namesMigrationFile = folder.intro.includes('migration.yaml');
   }
 
   private static openSection(opts: {

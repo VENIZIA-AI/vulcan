@@ -334,7 +334,7 @@ export class MigratePlan {
             return step;
           });
         });
-    const siteUrl = releases.siteUrlOf({ package: opts.package })?.replace(/\/+$/, '');
+    const siteUrl = releases.siteUrlOf({ package: opts.package });
     const stateStep = (move: IStateMove): IMigrationStep | undefined => {
       const { block } = move.item;
 

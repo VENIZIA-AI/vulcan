@@ -671,7 +671,7 @@ describe('migrate points at the upgrade guide', () => {
   });
 
   test('with knowledge.siteUrl each folder step names its guide, and the report prints it', () => {
-    const site = withSite({ siteUrl: 'https://wiki.example.test/' });
+    const site = withSite({ siteUrl: 'https://wiki.example.test' });
     const plan = planOf({ made: site, from: '0.4.5-14', to: '0.4.5-16' });
     const step = plan.steps.find((entry) => entry.id === 'new-api');
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SiteUrl } from '@venizia/vulcan-atlas';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { DOCTOR_SCHEMA } from '../doctor/schema.ts';
 import { GuardDecisions } from '../hooks/common/constants.ts';
@@ -301,12 +302,23 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .optional(),
       /**
        * The address of the project's wiki (`https://wiki.example.com`): `vulcan migrate plan` prints a link to the
-       * upgrade guide of each step on it, `<siteUrl>/changelogs/<version>/upgrade#<id>`. An http or https address with
-       * no credentials, query or fragment; omit it and the plan prints no link.
+       * upgrade guide of each step on it, `<siteUrl>/changelogs/<version>/upgrade#<id>`. An https address (http only on
+       * localhost) with no credentials, query, fragment or control character, kept without its trailing slash; omit it
+       * and the plan prints no link.
        */
       siteUrl: z
         .string()
-        .regex(/^https?:\/\/[^\s/@?#]+(?:\/[^\s?#]*)?$/)
+        .transform((value, context) => {
+          const parsed = SiteUrl.parse({ value });
+
+          if ('problem' in parsed) {
+            context.addIssue({ code: 'custom', message: parsed.problem });
+
+            return z.NEVER;
+          }
+
+          return parsed.href;
+        })
         .optional(),
       /** A map of code areas to concepts; no shipped skill reads it. */
     })
