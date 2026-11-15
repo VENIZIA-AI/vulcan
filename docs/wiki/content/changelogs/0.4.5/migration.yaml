@@ -3,7 +3,7 @@ guards-ask-on-failure:
   upgrade:
     steps:
       - 'Run `vulcan sync` to get the new hook wrappers in `.claude/settings.json`; `vulcan doctor` reports the old ones as stale.'
-      - 'A `guard-git` or `guard-outside` hook that crashes, is killed or times out now asks where it let the call through. Claude Code, Antigravity, omp and pi show the ask (Antigravity: `agy --dangerously-skip-permissions` approves it); omp and pi block it when no UI can answer. Codex cannot ask, so there the guard prints a deny and the call is refused. Cursor does not enforce an ask on a tool call.'
+      - 'A `guard-git` or `guard-outside` hook that crashes, is killed or times out now asks where it let the call through. Claude Code, Antigravity, omp and pi show the ask (Antigravity: `agy --dangerously-skip-permissions` approves it); omp and pi block it when no UI can answer (in omp and pi a `guard-git` crash asks about any bash command, not only one that names `git` or `gh`). Codex cannot ask, so there the guard prints a deny and the call is refused. Cursor does not enforce an ask on a tool call.'
       - 'Fix the cause: run `bun install` when the hook cannot load, or set `VULCAN_GUARDS=off` for the session.'
   downgrade:
     steps:
@@ -13,7 +13,7 @@ guards-run-in-listed-agents:
   upgrade:
     steps:
       - 'Before you run `vulcan sync` on 0.4.5, decide which of omp, pi, Antigravity and Codex keep the guards. Pi loads the extension only after you trust the project, and Codex runs the hook only after you review it in `/hooks`.'
-      - 'To opt an agent out, run `vulcan agents remove <agent>` or `vulcan sync --agents <your list without it>`: sync deletes its guard file (or only the VULCAN entry of `.agents/hooks.json` or `.codex/hooks.json`) unless git tracks it or you wrote it. Deleting the agent from `agents` in the config and running a plain `vulcan sync` does not remove the file; it stays and is no longer rewritten.'
+      - 'To opt an agent out, run `vulcan agents remove <agent>` or `vulcan sync --agents <your list without it>`: sync deletes its guard file (or only the VULCAN entry of `.agents/hooks.json` or `.codex/hooks.json`) unless git tracks it or you wrote it. Deleting the agent from `agents` in the config does not opt this machine out while `.agents/vulcan.local.json` lists it: a plain `vulcan sync` reads that stored choice first, keeps writing the file and stores the config list on a machine that has none. Use `vulcan agents remove` or `--agents`.'
       - 'To switch the guards off for one session, set `VULCAN_GUARDS=off`: it switches off `guard-git` and `guard-outside` in all four agents, but in omp and pi the write guards (`guard-writes`, `guard-manifest`, `guard-package`) keep running.'
   downgrade:
     steps:
