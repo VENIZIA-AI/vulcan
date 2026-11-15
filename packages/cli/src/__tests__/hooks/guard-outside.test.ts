@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, symlinkSync } from 'node:fs';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { OutsideGuard } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -593,6 +593,67 @@ describe('OutsideGuard.inspect on a path that names the hook process', () => {
     } finally {
       process.chdir(before);
     }
+  });
+});
+
+describe('a redirect to a name with a [...] in it', () => {
+  // the pattern is a glob: a match is written through, so only a pattern that matches nothing names the file as written
+  const outside = join(HOME, 'bracket-outside');
+
+  mkdirSync(outside, { recursive: true });
+
+  for (const folder of ['content/changelogs/upgrade', 'docs', 'pages']) {
+    mkdirSync(join(PROJECT, folder), { recursive: true });
+  }
+
+  writeFileSync(join(outside, 'target.md'), 'x');
+  symlinkSync(join(outside, 'target.md'), join(PROJECT, 'v.md'));
+  symlinkSync(outside, join(PROJECT, 'linked'));
+  symlinkSync(join(outside, 'target.md'), join(PROJECT, 'docs', 'w.md'));
+  mkdirSync(join(PROJECT, 'case'), { recursive: true });
+  symlinkSync(join(outside, 'target.md'), join(PROJECT, 'case', 'V.md'));
+
+  test.each([
+    'echo x > content/changelogs/upgrade/[version].md',
+    'echo x >> docs/[id].md',
+    'cat a > pages/[...slug].md',
+    'echo x > [id].md',
+    'echo x > ./[id].md',
+  ])('%s names a file inside the project and stays quiet', (command) => {
+    expect(bash({ command })).toEqual([]);
+  });
+
+  test.each([
+    // a match is written through a symlink to a file outside the project
+    'echo x > [v].md',
+    'echo x >| [v].md',
+    'echo x &> [v].md',
+    'echo x 2> [v].md',
+    'cat <<< x > [v].md',
+    'echo x > ./[v].md',
+    'echo x > docs/[w].md',
+    // bash nocaseglob matches V.md for [v].md
+    'shopt -s nocaseglob; echo x > case/[v].md',
+    'echo x > case/[v].md',
+    'echo x > [v].md > b.md',
+    // a negated class, and a zsh glob qualifier, are not a plain name
+    'echo x > [!a].md',
+    "echo x > [a](e:'cd;REPLY=x':)",
+    'echo x > [a](:a:h:h:s:x:y:)',
+    'echo x > [a](:h)',
+    // a link to a folder outside the project, a missing folder, an absolute path, a `..`
+    'echo x > linked/[id].md',
+    'echo x > nowhere/[id].md',
+    'echo x > /etc/[version].md',
+    'echo x > ../outside/[version].md',
+    'echo x > content/../[v].md',
+    // the folder, an expansion or a second glob decides
+    'echo x > [a]/x.md',
+    'echo x > [version]*.md',
+    'echo x > $NOPE_UNSET/[version].md',
+    'echo x > ~root/[version].md',
+  ])('%s still asks', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
   });
 });
 
