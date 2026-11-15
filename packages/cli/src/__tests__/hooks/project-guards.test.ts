@@ -11,6 +11,7 @@ const EMPTY_POLICY = {
   askPush: [],
   outside: 'ask',
   toolOwnedPaths: [],
+  runnersAllow: [],
 };
 
 afterAll(removeProjects);
@@ -276,6 +277,17 @@ describe('ProjectGuards.readPolicy', () => {
 
     expect(policy.outside).toBe('deny');
     expect(policy.toolOwnedPaths).toEqual(['/srv/store/**']);
+  });
+
+  test('reads the runners a project allows: names, nothing else', () => {
+    const policy = ProjectGuards.readPolicy({
+      root: manifestWith({ guard: { runners: { allow: ['shadcn', 7, '', 'turbo'] } } }),
+    });
+
+    expect(policy.runnersAllow).toEqual(['shadcn', 'turbo']);
+    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: {} }) }).runnersAllow).toEqual(
+      [],
+    );
   });
 
   test('anything but deny reads as ask', () => {

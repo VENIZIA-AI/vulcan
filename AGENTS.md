@@ -4,7 +4,7 @@ How to work in the VULCAN repository. **This file is routing** - it holds no fac
 `vulcan:rules` block, no rules: it points to where both live.
 
 This is the **only tracked instruction file**. Tool files are gitignored adapters that point at it -
-`CLAUDE.md` holds only `@AGENTS.md` - written by `bun x --no-install vulcan sync`.
+`CLAUDE.md` holds only `@AGENTS.md` - written by `bun run vulcan sync`.
 
 ## Must read first
 

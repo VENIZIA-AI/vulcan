@@ -20,9 +20,9 @@ Coding agents start every session with no memory of your rules and facts, and ev
 
 ```bash
 bun add -d --exact @venizia/vulcan
-bun x --no-install vulcan init
-bun x --no-install vulcan sync
-bun x --no-install vulcan doctor
+bun run vulcan init
+bun run vulcan sync
+bun run vulcan doctor
 ```
 
 `doctor` fails with `[scaffold]` until you describe the project in `.agents/knowledge/index.md` and delete the `vulcan:scaffold` line; it is the first item `init` lists under `left to do`.
@@ -39,7 +39,7 @@ bun x --no-install vulcan doctor
 
 | Part | What it does | Where to read more |
 |---|---|---|
-| [Base rules](/guides/core-concepts/rules-and-slots) | 35 rules in five groups that the agent reads at session start | `node_modules/@venizia/vulcan/base/rules.md`, `.agents/rules.md` |
+| [Base rules](/guides/core-concepts/rules-and-slots) | 36 rules in five groups that the agent reads at session start | `node_modules/@venizia/vulcan/base/rules.md`, `.agents/rules.md` |
 | [Guards](/guides/core-concepts/hooks-and-guards) | Hooks that ask or refuse before a risky command | `vulcan sync` and `guard` in the config |
 | [Skills](/references/skills) | 11 workflows an agent loads when the task matches | `vulcan sync` links them |
 | [The owner and the reply shape](/guides/core-concepts/owner-and-replies) | The agent answers its owner in a fixed shape, in the owner's language | `owner` in the config, `vulcan profile` |
@@ -115,8 +115,8 @@ A monorepo keeps the lint configs in each app instead of the root. Each agent yo
 
 ```bash
 # edit .configs/vulcan.config.mts
-bun x --no-install vulcan sync
-bun x --no-install vulcan doctor
+bun run vulcan sync
+bun run vulcan doctor
 ```
 
 ## What VULCAN does not do

@@ -27,7 +27,7 @@ VULCAN configures coding agents; it is not a sandbox.
   recognise runs. Keep real credentials out of reach of the agent.
 - **The `V-W-01` deny list** (`read-only`) blocks git writes through the agent's own permission
   system. Where an agent has no such system, the rule is instruction-only (`vulcan doctor` says so).
-- **`bun x --no-install vulcan`.** Everything VULCAN writes into a project runs the installed
+- **`bun run vulcan`.** Everything VULCAN writes into a project runs the installed
   `@venizia/vulcan` and never downloads: the unscoped npm name `vulcan` belongs to an unrelated package.
 - **Atlas reads, never writes.** The MCP server serves the wiki, changelogs and knowledge bundle of
   the checkout it is pointed at; the table generators write only into the project they run in.

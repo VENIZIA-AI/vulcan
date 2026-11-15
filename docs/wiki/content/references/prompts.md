@@ -42,7 +42,7 @@ printf 'my-product
 services
 core-api
 libs
-' | TERM=dumb script -qec 'bun x --no-install vulcan init --preset ignis' /dev/null
+' | TERM=dumb script -qec 'bun run vulcan init --preset ignis' /dev/null
 ```
 
 To press keys in a test, send CR for Enter (`

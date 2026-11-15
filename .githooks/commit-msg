@@ -10,4 +10,4 @@ set -e
 
 cd "$(git rev-parse --show-toplevel)"
 
-exec bun x --no-install vulcan commit-check "$1"
+exec bun run vulcan commit-check "$1"

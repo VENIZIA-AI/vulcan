@@ -20,14 +20,14 @@ Running an invalid command or omitting the command prints usage and exits with c
 To run the basic conformance check:
 
 ```text
-$ bun x --no-install vulcan x okf check
+$ bun run vulcan x okf check
 check: OK - OKF v0.2 - 2 files, 1 concepts
 ```
 
 To run conformance checks with house rules:
 
 ```text
-$ bun x --no-install vulcan x okf check --strict
+$ bun run vulcan x okf check --strict
 check: OK - OKF v0.2 + house rules - 2 files, 1 concepts
 ```
 
@@ -198,7 +198,7 @@ Contents lists are written last.
 If a renderer fails, `gen` stops before writing any files.
 
 ```text
-$ bun x --no-install vulcan x okf gen
+$ bun run vulcan x okf gen
 gen: wrote .agents/knowledge/reference/makefile-targets.md
 ```
 
@@ -236,7 +236,7 @@ To configure built-in or custom renderers, see [okf renderers](/references/okf/r
 Run `vulcan x okf coverage` to report bundle documentation coverage against project source code.
 
 ```text
-$ bun x --no-install vulcan x okf coverage
+$ bun run vulcan x okf coverage
 
 COVERAGE - 2 curated concepts
 

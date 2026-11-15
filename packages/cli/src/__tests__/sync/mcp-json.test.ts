@@ -12,6 +12,11 @@ const PROJECT = {
 };
 const CANONICAL = {
   command: 'bun',
+  args: ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+};
+/** What an earlier sync wrote: it runs a copy bunx cached when the bin is not linked where the editor starts it. */
+const LEGACY = {
+  command: 'bun',
   args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
 };
 
@@ -37,6 +42,39 @@ const mcp = (opts: { root: string }) =>
 
 const exclude = (opts: { root: string }): string =>
   readFileSync(join(opts.root, '.git/info/exclude'), 'utf8');
+
+describe('an .mcp.json an earlier sync wrote', () => {
+  test('the old line (bun x --no-install vulcan) is rewritten to the linked bin, and the user keys stay', () => {
+    const root = repo({
+      files: {
+        '.mcp.json': JSON.stringify({
+          mcpServers: { atlas: LEGACY, mine: { command: 'x' } },
+          other: 1,
+        }),
+      },
+    });
+    const result = sync({ root, agents: 'claude' });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain('replaced  .mcp.json');
+    expect(mcp({ root })).toEqual({
+      mcpServers: { atlas: CANONICAL, mine: { command: 'x' } },
+      other: 1,
+    });
+  });
+
+  test('an atlas entry the user wrote is still left alone', () => {
+    const own = {
+      command: 'bun',
+      args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '../ignis'],
+    };
+    const root = repo({ files: { '.mcp.json': JSON.stringify({ mcpServers: { atlas: own } }) } });
+
+    sync({ root, agents: 'claude' });
+
+    expect(mcp({ root })).toEqual({ mcpServers: { atlas: own } });
+  });
+});
 
 describe('sync writes the root .mcp.json for the agents that read it', () => {
   for (const agent of ['claude', 'omp', 'copilot-cli']) {

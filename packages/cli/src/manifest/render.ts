@@ -25,11 +25,12 @@ const HASH_LENGTH = 8;
 /**
  * The manifest's `guard` block: what the project sets for the guards, as data a hook reads without the config, so a
  * config this VULCAN cannot parse never changes a guard: `outside` (when it is not the default), `toolOwnedPaths`,
- * the commands of guard-writes, the push targets of guard-git.
+ * the commands of guard-writes, the push targets of guard-git, the runners the runner guard accepts.
  */
 const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<string, unknown> } => {
   const { commands } = opts.config.guard.writes;
   const { askPush } = opts.config.guard.git;
+  const { allow } = opts.config.guard.runners;
   const { outside, toolOwnedPaths } = opts.config.guard;
   const writes = {
     ...(commands.length === 0
@@ -48,6 +49,7 @@ const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<strin
     ...(toolOwnedPaths.length === 0 ? {} : { toolOwnedPaths }),
     ...(Object.keys(writes).length === 0 ? {} : { writes }),
     ...(askPush.length === 0 ? {} : { git: { askPush } }),
+    ...(allow.length === 0 ? {} : { runners: { allow } }),
   };
 
   return Object.keys(block).length === 0 ? {} : { guard: block };

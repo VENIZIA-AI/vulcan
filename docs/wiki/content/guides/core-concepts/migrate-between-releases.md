@@ -16,7 +16,7 @@ description: Ask what your app must change to move a @venizia/* package to anoth
 ## Plan an upgrade
 
 ```bash
-bun x --no-install vulcan migrate plan --package @venizia/ignis --to latest
+bun run vulcan migrate plan --package @venizia/ignis --to latest
 ```
 
 `--from` defaults to the version the app has installed. `--to` takes a version, `latest` (the newest stable release) or `next` (the newest release of any kind). `latest` and `next` come from atlas's release table, not from the registry, so they are as new as your atlas. When npm publishes a newer `latest` or `next` than your atlas source knows, the plan opens with a warning to move the source ref.
@@ -63,7 +63,7 @@ Leave out `--package` to plan every installed package the atlas sources know. Th
 Give the version you run as `--from` and an older one as `--to`:
 
 ```bash
-bun x --no-install vulcan migrate plan --package @venizia/ignis --from 1.1.0 --to 1.0.0
+bun run vulcan migrate plan --package @venizia/ignis --from 1.1.0 --to 1.0.0
 ```
 
 The plan lists the same changes newest first, each with the steps that undo it. A rollback is not always possible. When a change cannot be undone, its entry says so in its steps, and `Data:` lines tell you what to restore.
@@ -88,7 +88,7 @@ Two limits. The folder at a prerelease tag is read from the project's git histor
 ## Run the codemods
 
 ```bash
-bun x --no-install vulcan migrate apply --package @venizia/ignis --to 1.1.0
+bun run vulcan migrate apply --package @venizia/ignis --to 1.1.0
 ```
 
 `apply` builds the same plan, then runs each linked codemod once, in plan order, as `<runner> <name> . --write` in the app. The runner is the setting `knowledge.codemodCommand` of the project that serves the package (default `devz codemod`; a project can set `['ardor', 'codemod']`), so a plan over two projects runs each codemod with its own project's command. The runner is a binary in the app's `node_modules/.bin` that resolves, every link followed, to a file inside an installed package of the project that serves the package (`devz` lives in `@venizia/dev-configs`, for example). A binary of any other package, or a link that leaves the package, is refused; and when the app does not have the runner, nothing runs and the steps stay manual. Each step runs in its own direction: `--reverse` is added to the codemod of a step that undoes an item, never because the plan as a whole is an upgrade or a downgrade. It then prints what is still manual: a step with no codemod, a step whose codemod does not reverse, and the `Data:` lines of the steps it rewrote.

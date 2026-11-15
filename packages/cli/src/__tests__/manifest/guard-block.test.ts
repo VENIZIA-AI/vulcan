@@ -61,6 +61,20 @@ describe('the guard block of the manifest', () => {
     ).toEqual({ writes: { commands: [GUARD.writes.commands[0]] } });
   });
 
+  test('guard.runners.allow is written when it lists a name, and a name that is not one is refused', () => {
+    expect(JSON.parse(render({ guard: { runners: { allow: ['shadcn'] } } })).guard).toEqual({
+      runners: { allow: ['shadcn'] },
+    });
+    expect(JSON.parse(render({ guard: { runners: { allow: [] } } }))).not.toHaveProperty('guard');
+    expect(JSON.parse(render({ guard: { runners: { allow: ['@acme/tool'] } } })).guard).toEqual({
+      runners: { allow: ['@acme/tool'] },
+    });
+
+    for (const name of ['@venizia', '@/x', '@a/b/c', 'a b', '--yes', '*', '']) {
+      expect(() => render({ guard: { runners: { allow: [name] } } })).toThrow();
+    }
+  });
+
   test('sits after the atlas block and before the theme block', () => {
     const keys = Object.keys(
       JSON.parse(
