@@ -182,6 +182,8 @@ For tool arguments and reply schemas, see the [atlas tools reference](/reference
 
 ## Pull
 
+To see what atlas reads, run `vulcan x atlas status` (`--root <dir>` for another project). It lists the sources the project declares and, for each `@venizia/*` package the app declares, the copy atlas reads its symbols from (the first one found, nearest the root) with its version and folder, then every other copy found, and says when the versions differ. It reads the disk only; whether a source's docs are pinned to the installed version or follow their ref is in the answer of the `version` tool.
+
 To fetch external sources, run `vulcan x atlas pull`.
 Inside a project, it fetches sources declared in the manifest plus any `--source` arguments.
 Sources come only from the manifest and `--source`; no user-level file is read.

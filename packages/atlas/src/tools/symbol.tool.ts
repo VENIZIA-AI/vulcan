@@ -47,6 +47,7 @@ const matchOf = (opts: { record: ISymbolRecord; docs: string[] }): ISymbolMatch 
 
   return {
     source: record.source,
+    origin: record.origin,
     name: record.name,
     package: record.package,
     subpath: record.subpath,

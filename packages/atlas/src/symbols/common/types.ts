@@ -1,5 +1,13 @@
 import type { IPackageMapEntry } from '@/common/package-map';
 
+/** Where the symbols of a package were read from, in a remote source. */
+export interface ISymbolOrigin {
+  /** The version of the package whose declarations these are. */
+  version: string;
+  /** The folder of the installed copy, relative to the project when inside it; absent when the newest published release answered because none is installed. */
+  installedAt?: string;
+}
+
 /**
  * One exported symbol as `vulcan x atlas symbols` records it. `file`/`line` name the source
  * declaration, not the `dist` file the generator read - an alias export points at what it aliases.
@@ -7,6 +15,8 @@ import type { IPackageMapEntry } from '@/common/package-map';
 export interface ISymbolRecord {
   /** The source it came from, when atlas serves more than one. */
   source?: string;
+  /** The version and the folder these declarations were read from; set for a remote source, never cached. */
+  origin?: ISymbolOrigin;
   name: string;
   package: string;
   subpath: string;
