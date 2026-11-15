@@ -61,6 +61,7 @@ describe('SiteUrl.parse', () => {
       expect(result.problem).not.toContain(RLO);
       expect(result.problem).toContain('\\u001b');
       expect(result.problem).toContain('\\u202e');
+      expect(result.problem).not.toContain('\\\\u');
     }
   });
 });

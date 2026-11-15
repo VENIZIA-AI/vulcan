@@ -1,7 +1,6 @@
 /** Characters that never belong in an address a terminal will print: controls, whitespace, soft hyphen, zero-width and bidirectional marks. */
-// eslint-disable-next-line no-control-regex -- the control range is what this refuses
 const UNPRINTABLE =
-  // eslint-disable-next-line no-control-regex
+  // eslint-disable-next-line no-control-regex -- the control range is what this refuses
   /[\u0000-\u0020\u007f-\u00a0\u00ad\u200b-\u200f\u2028-\u202f\u205f-\u206f\u3000\ufeff]/;
 const NOT_ASCII_PRINTABLE = /[^\u0021-\u007e]/g;
 
@@ -18,12 +17,14 @@ export class SiteUrl {
 
   /** `value` for a message: every character outside printable ASCII shown as its escape, never itself. */
   private static shown(opts: { value: string }): string {
-    return JSON.stringify(
-      opts.value.replace(
+    const escaped = opts.value
+      .replace(/[\\"]/g, (char) => `\\${char}`)
+      .replace(
         NOT_ASCII_PRINTABLE,
         (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`,
-      ),
-    );
+      );
+
+    return `"${escaped}"`;
   }
 
   /**
