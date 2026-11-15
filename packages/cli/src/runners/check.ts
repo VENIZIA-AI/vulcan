@@ -106,7 +106,7 @@ export class RunnersCheck {
       }
 
       for (const use of RunnerScan.find({ text, isMarkdown: MARKDOWN.test(file) })) {
-        const name = RunnerScan.refusedName({ use, allow: runnersAllow });
+        const name = RunnerScan.refusedName({ use, allow: runnersAllow, isFile: true });
 
         if (name === undefined) {
           continue;

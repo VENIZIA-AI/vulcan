@@ -15,6 +15,8 @@ export interface IRunnerUse {
   flags: string[];
   /** The line the command starts on, from 1 (a continuation joins the lines that follow it). */
   line: number;
+  /** The command runs a command string in a shell (`npx -c`), and no package is named: nothing is fetched by name. */
+  runsCommand: boolean;
   /** The line is marked as an example (`<!-- runners: example -->`) in a Markdown file. */
   isExample: boolean;
 }
@@ -36,7 +38,12 @@ const FENCE = /^\s*(`{3,}|~{3,})/;
 /** A version, a tag or a range: no `:` (so no `npm:` or `github:` alias), no `/`. */
 const VERSION = '[\\w.^~*<>=+-]+';
 /** `@scope/name`, any scope, with a version, or a shell placeholder for one (the pinned form of a workflow). */
-const SCOPED = new RegExp(`^@[a-z0-9][\\w.-]*/[\\w.-]+(?:@(?:${VERSION}|\\$.*))?$`, 'i');
+const SCOPED = new RegExp(`^@[a-z0-9][\\w.-]*/[\\w.-]+(?:@${VERSION})?$`, 'i');
+/** The same, with the pinned form of a workflow: `$(...)` or `${...}` after the `@`. A file may carry it, a typed command may not (a variable could print `npm:<name>`). */
+const SCOPED_PINNED = new RegExp(
+  `^@[a-z0-9][\\w.-]*/[\\w.-]+(?:@(?:${VERSION}|\\$\\(.*|\\$\\{.*))?$`,
+  'i',
+);
 const SPEC_VERSION = new RegExp(`^${VERSION}$`);
 
 /**
@@ -96,7 +103,12 @@ export class RunnerScan {
         end += 1;
       }
 
-      for (let at = next; at <= Math.min(end, lines.length - 1); at += 1) {
+      // a fence that never closes would cover the rest of the file: it counts as no marker
+      if (end >= lines.length) {
+        continue;
+      }
+
+      for (let at = next; at <= end; at += 1) {
         marked.add(at + 1);
       }
     }
@@ -133,6 +145,7 @@ export class RunnerScan {
       ...(target.packageName === undefined ? {} : { packageName: target.packageName }),
       hasNoInstall: target.hasNoInstall,
       flags: [...opts.call.leading, ...target.flags],
+      runsCommand: target.isCommandString && PackageRunners.COMMAND_RUNNERS.has(opts.call.runner),
       line: opts.line,
       isExample: opts.isExample,
     };
@@ -179,7 +192,10 @@ export class RunnerScan {
           use = call === undefined ? use : RunnerScan.useOf({ call, line, isExample });
         }
 
-        if (use.name !== '' || use.packageName !== undefined) {
+        if (
+          (use.name !== '' || use.packageName !== undefined) &&
+          !RunnerScan.isCommandString({ use })
+        ) {
           uses.push(use);
         }
       }
@@ -191,13 +207,22 @@ export class RunnerScan {
         const call = PackageRunners.find({ program: program ?? '', args });
         const use = call === undefined ? undefined : RunnerScan.useOf({ call, line, isExample });
 
-        if (use !== undefined && (use.name !== '' || use.packageName !== undefined)) {
+        if (
+          use !== undefined &&
+          (use.name !== '' || use.packageName !== undefined) &&
+          !RunnerScan.isCommandString({ use })
+        ) {
           uses.push(use);
         }
       }
     }
 
     return uses;
+  }
+
+  /** Whether the command runs a command string and names no package: `-c` takes that string, so the word after it is no name. */
+  static isCommandString(opts: { use: IRunnerUse }): boolean {
+    return opts.use.runsCommand && opts.use.packageName === undefined;
   }
 
   /** `shadcn@latest` is `shadcn`; a scoped name keeps its scope. */
@@ -211,10 +236,15 @@ export class RunnerScan {
    * it and nothing else: `shadcn@npm:tool` and `shadcn@github:owner/repo` are other packages. A `-p` package decides when
    * there is one: the command runs a bin of that package. A command with no name at all is refused (the empty name).
    */
-  static refusedName(opts: { use: IRunnerUse; allow: string[] }): string | undefined {
+  static refusedName(opts: {
+    use: IRunnerUse;
+    allow: string[];
+    /** True for a tracked file: it may pin a scoped package with `$(...)` or `${...}`. */
+    isFile?: boolean;
+  }): string | undefined {
     const name = opts.use.packageName ?? opts.use.name;
 
-    if (SCOPED.test(name)) {
+    if ((opts.isFile === true ? SCOPED_PINNED : SCOPED).test(name)) {
       return undefined;
     }
 

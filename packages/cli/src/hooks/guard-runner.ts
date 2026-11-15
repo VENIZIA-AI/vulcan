@@ -46,6 +46,31 @@ export class RunnerGuard {
     return undefined;
   }
 
+  /**
+   * Whether a command of the line moves the shell's folder in a way `ShellFolders` does not follow: `env -C <dir>`,
+   * `env --chdir=<dir>`, and `eval`, `source` or `.`, whose text is a line of its own. Then no folder is known.
+   */
+  private static movesFolder(opts: { command: ISimpleCommand }): boolean {
+    const names = opts.command.words.map((word) => ShellParser.basenameOf({ word }));
+    const program = ShellParser.basenameOf({
+      word: ShellParser.programOf({ command: opts.command }).name,
+    });
+
+    if (
+      ['eval', 'source', '.'].includes(program) ||
+      names.some((name) => ['eval', 'source'].includes(name))
+    ) {
+      return true;
+    }
+
+    const at = names.indexOf('env');
+
+    return (
+      at !== -1 &&
+      opts.command.words.slice(at + 1).some((word) => /^(?:--chdir(?:=|$)|-[A-Za-z]*C)/.test(word))
+    );
+  }
+
   /** Whether `node_modules/.bin/<name>` exists in `cwd` or a folder above it: bun resolves a linked bin up the tree. */
   private static isLinked(opts: { name: string; cwd: string }): boolean {
     if (!/^[a-z0-9][a-z0-9._-]*$/.test(opts.name)) {
@@ -94,6 +119,7 @@ export class RunnerGuard {
     const commands = [...parsed.commands, ...parsed.unterminatedHeredocCommands];
     const env = opts.env ?? process.env;
     const start = resolve(opts.cwd ?? process.cwd());
+    const isFolderUnknown = commands.some((command) => RunnerGuard.movesFolder({ command }));
     const folders = ShellFolders.foldersOf({
       commands,
       cwd: start,
@@ -112,7 +138,7 @@ export class RunnerGuard {
       const use = RunnerScan.useOf({ call, line: 0, isExample: false });
       const name = RunnerScan.refusedName({ use, allow: opts.allow });
 
-      if (name === undefined) {
+      if (name === undefined || RunnerScan.isCommandString({ use })) {
         continue;
       }
 
@@ -121,6 +147,7 @@ export class RunnerGuard {
         use.hasNoInstall &&
         use.packageName === undefined &&
         use.flags.every((flag) => PackageRunners.HARMLESS.has(flag)) &&
+        !isFolderUnknown &&
         folder?.isKnown === true &&
         RunnerGuard.isLinked({ name, cwd: folder.base });
 

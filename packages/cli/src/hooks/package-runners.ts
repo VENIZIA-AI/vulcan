@@ -20,6 +20,8 @@ export interface IRunnerTarget {
   flags: string[];
   /** The words after the name: the arguments of the program the package runs. */
   rest: string[];
+  /** A `-c` or `--call` flag stood before the name: the program runs a command string, not a package. */
+  isCommandString: boolean;
 }
 
 const bare = (opts: { word: string }): string => opts.word.replace(/^["'`]+|["'`,;:.)\]}]+$/g, '');
@@ -28,7 +30,7 @@ const unquoted = (opts: { word: string }): string => opts.word.replace(/^["']+|[
 
 /**
  * The one table of the programs that fetch a package by name and run it, read by the runner guard, by `vulcan runners
- * check` and by the script guard that follows `npx tsx x.ts`. A flag is read the way that fails closed: the switches
+ * check` and by the script guard that follows the program `npx` runs. A flag is read the way that fails closed: the switches
  * below take no value, and any other flag without `=` takes the next word, so a flag this table does not know can hide
  * neither the package (the last word it took is read as the name) nor a second runner.
  */
@@ -49,7 +51,7 @@ export class PackageRunners {
     return Object.hasOwn(PackageRunners.PROGRAMS, opts.name);
   }
 
-  /** Programs that run the program named after their own flags: `corepack pnpm dlx x`. */
+  /** Programs that run the program named after their own flags (`corepack` then `pnpm`). */
   static readonly WRAPPERS: ReadonlySet<string> = new Set(['corepack']);
 
   /** Flags that take no value, in any of the programs: every other flag without `=` takes the next word. */
@@ -88,13 +90,24 @@ export class PackageRunners {
   /** The flags whose value is a package to run, and the bin is then one of its own. */
   static readonly PACKAGE_FLAGS: ReadonlySet<string> = new Set(['-p', '--package']);
 
+  /** The flags that make `npx`, `npm exec` and `pnpm dlx` run a command string in a shell instead of a package. */
+  static readonly COMMAND_FLAGS: ReadonlySet<string> = new Set(['-c', '--call', '--shell-mode']);
+
+  /** The runners whose `COMMAND_FLAGS` run a string: for `bunx` and `bun x`, `-c` is a config file. */
+  static readonly COMMAND_RUNNERS: ReadonlySet<string> = new Set([
+    'npx',
+    'npm exec',
+    'npm x',
+    'pnpm dlx',
+  ]);
+
   /** The flags the `--no-install` form may carry: none of them moves the folder, the registry or the cache. */
   static readonly HARMLESS: ReadonlySet<string> = new Set(['--bun', '--silent', '--no-install']);
 
   /**
-   * The runner a command is and the words after it, or `undefined` when it runs no package by name. `bun --cwd other x`,
-   * `npm --yes exec x` and `corepack pnpm dlx x` are found: the flags before the subcommand are skipped, and a word after
-   * a flag may be that flag's value or the subcommand, so it is read as either.
+   * The runner a command is and the words after it, or `undefined` when it runs no package by name. A flag of the program before
+   * its subcommand (`bun` with `--cwd`, `npm` with `--yes`) and a `corepack` in front are found: the flags before the subcommand are
+   * skipped, and a word after a flag may be that flag's value or the subcommand, so it is read as either.
    */
   static find(opts: { program: string; args: string[] }): IRunnerCall | undefined {
     const name = opts.program.split('/').pop() ?? opts.program;
@@ -153,7 +166,7 @@ export class PackageRunners {
 
   /**
    * The package a runner's words run. The last word a flag this table does not know took is read as the name when no
-   * word follows it, so `bunx --some-switch tool` is `tool`, not nothing.
+   * word follows it, so a switch the table lacks does not turn the package into a value.
    */
   static targetOf(opts: { words: string[] }): IRunnerTarget {
     const flags: string[] = [];
@@ -180,6 +193,9 @@ export class PackageRunners {
           hasNoInstall,
           flags,
           rest: opts.words.slice(index + 1),
+          isCommandString: flags.some((flag) =>
+            PackageRunners.COMMAND_FLAGS.has(flag.split('=')[0] ?? flag),
+          ),
         };
       }
 
@@ -225,6 +241,9 @@ export class PackageRunners {
       hasNoInstall,
       flags,
       rest: [],
+      isCommandString: flags.some((flag) =>
+        PackageRunners.COMMAND_FLAGS.has(flag.split('=')[0] ?? flag),
+      ),
     };
   }
 }

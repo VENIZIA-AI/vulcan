@@ -4,7 +4,7 @@ import { RunnerScan } from '../../hooks/runner-scan.ts';
 /** The names the scan would refuse in `text`, `allow` being the names a project permits. */
 const refused = (opts: { text: string; allow?: string[] }): string[] =>
   RunnerScan.find({ text: opts.text })
-    .map((use) => RunnerScan.refusedName({ use, allow: opts.allow ?? [] }))
+    .map((use) => RunnerScan.refusedName({ use, allow: opts.allow ?? [], isFile: true }))
     .filter((name): name is string => name !== undefined);
 
 describe('RunnerScan: a command that runs an unscoped package', () => {
@@ -79,6 +79,13 @@ describe('RunnerScan: a command that runs an unscoped package', () => {
       'vulcan',
     ],
     ['an allow-listed name with a foreign spec', 'bunx shadcn@npm:ardor add', 'shadcn@npm:ardor'],
+    [
+      'a scoped name pinned by a bare variable, which may hold an npm: spec',
+      'bunx @venizia/vulcan@$X init',
+      '@venizia/vulcan@$X',
+    ],
+    ['a command string with a package', "npx -p foo -c 'echo hi'", 'foo'],
+    ['bunx, where -c is a config file', 'bunx -c bunfig.toml ardor', 'ardor'],
     ['a bare @venizia', 'bunx @venizia', '@venizia'],
   ])('%s', (_label, text, name) => {
     expect(refused({ text })).toEqual([name]);
@@ -103,6 +110,9 @@ describe('RunnerScan: what is allowed', () => {
       'bun x @venizia/vulcan@$(cat VERSION) init',
     ],
     ['a scoped package pinned by a variable', 'bunx @venizia/vulcan@${VULCAN_VERSION} init'],
+    ['npx with a command string', "npx -c 'echo hi'"],
+    ['npm exec with a command string', "npm exec --call 'echo hi'"],
+    ['pnpm dlx with a shell command', "pnpm dlx -c 'echo hi'"],
     ['--package of a scoped package, then its bin', 'bun x --package @venizia/ardor ardor codemod'],
     ['-p of a scoped package', 'bun x -p @venizia/ardor ardor'],
     ['no name at all', 'bunx'],
@@ -196,6 +206,15 @@ describe('RunnerScan: an example marked in Markdown', () => {
     });
 
     expect(uses.map((use) => use.isExample)).toEqual([true, false]);
+  });
+
+  test('a marker before a fence that never closes sets nothing apart', () => {
+    const uses = RunnerScan.find({
+      text: '<!-- runners: example -->\n```sh\nbunx ardor\n\nbunx devz\n',
+      isMarkdown: true,
+    });
+
+    expect(uses.map((use) => use.isExample)).toEqual([false, false]);
   });
 
   test('a file that is not Markdown has no marker', () => {
