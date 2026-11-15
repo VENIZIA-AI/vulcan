@@ -170,6 +170,7 @@ describe('FolderBlobs.prefetch does not throw and does not run on an old git', (
     });
 
     expect(outcome.fetched).toBe(0);
+    expect(outcome.error).toContain('git ls-tree');
   });
 
   test('a git older than 2.44 fetches nothing: its cat-file would fetch a missing blob by itself', () => {
