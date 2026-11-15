@@ -504,3 +504,47 @@ describe.skipIf(!hasRepositoryRoots)('the P3 acceptance gate, over the real rele
     }
   });
 });
+
+describe('changes tool: version folder items carry their block', () => {
+  const block = {
+    id: 'thing-factory',
+    symbols: ['Thing.make'],
+    upgrade: { before: 'Thing.make()', after: 'ThingFactory.build()' },
+    downgrade: { steps: ['Use Thing.make() again'] },
+  };
+  const folderTable: IReleaseTable = {
+    ...TABLE,
+    changelogs: [
+      {
+        ...entry({ date: '2026-09-05', slug: 'x', packages: ['kernel'] }),
+        id: 'changelog:0.2.0#thing-factory',
+        layout: 'folder',
+        version: '0.2.0',
+        section: 'Breaking',
+        order: 4,
+        migration: [block],
+      },
+      {
+        ...entry({ date: '2026-09-05', slug: 'dated', packages: ['kernel'] }),
+        order: 4,
+        migration: [block],
+      },
+    ],
+  };
+
+  test('the folder item answers with its block; a dated entry keeps its shape', async () => {
+    const reply = await callChanges({
+      releases: new ReleaseStore({ table: folderTable }),
+      args: { package: '@venizia/ignis-kernel', from: '0.2.0-14', to: '0.2.0-16' },
+    });
+    const entries: { id: string; migration?: unknown }[] = payloadOf(reply).entries;
+
+    expect(entries.find((item) => item.id === 'changelog:0.2.0#thing-factory')?.migration).toEqual([
+      block,
+    ]);
+    expect(entries.find((item) => item.id === 'changelog:2026-09-05-dated')).toBeDefined();
+    expect(
+      entries.find((item) => item.id === 'changelog:2026-09-05-dated')?.migration,
+    ).toBeUndefined();
+  });
+});

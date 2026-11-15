@@ -133,11 +133,19 @@ export class ChangelogCheck {
   }
 
   /** The codemod names the project's codemod runner offers, or `undefined` when it is not installed or cannot list them. */
-  static codemodsOf(opts: { root: string; command?: string[] }): string[] | undefined {
+  static codemodsOf(opts: {
+    root: string;
+    command?: string[];
+    /** The npm names of the project's packages: the runner's binary must be installed inside one of them. */
+    packages: readonly string[];
+  }): string[] | undefined {
     const [name, ...words] = opts.command ?? CodemodRunner.DEFAULT;
-    const bin = join(opts.root, 'node_modules', '.bin', name);
+    const bin = CodemodRunner.binaryIn({ directory: opts.root, name });
 
-    if (!existsSync(bin)) {
+    if (
+      !existsSync(bin) ||
+      CodemodRunner.refusalOf({ directory: opts.root, name, packages: opts.packages }) !== undefined
+    ) {
       return undefined;
     }
 
@@ -163,14 +171,23 @@ export class ChangelogCheck {
     const codemods = ChangelogCheck.codemodsOf({
       root: opts.project.root,
       command: opts.project.knowledge.codemodCommand,
+      packages: opts.project.packages.map((entry) => entry.name),
     });
     const problems = ChangelogCheck.scan({ project: opts.project, codemods });
 
     if (codemods === undefined) {
       const listing = CodemodRunner.listLabel({ command: opts.project.knowledge.codemodCommand });
+      const [name] = opts.project.knowledge.codemodCommand ?? CodemodRunner.DEFAULT;
+      const refusal = existsSync(CodemodRunner.binaryIn({ directory: opts.project.root, name }))
+        ? CodemodRunner.refusalOf({
+            directory: opts.project.root,
+            name,
+            packages: opts.project.packages.map((entry) => entry.name),
+          })
+        : undefined;
 
       opts.write(
-        `changelog check: \`${listing}\` is not available; codemod names were not checked\n`,
+        `changelog check: \`${listing}\` is not available${refusal === undefined ? '' : ` (${refusal})`}; codemod names were not checked\n`,
       );
     }
 

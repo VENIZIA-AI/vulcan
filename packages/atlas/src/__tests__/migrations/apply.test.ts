@@ -1,9 +1,17 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { MigrateApply, MigratePlan } from '@/migrations';
+import { dirname, join, relative } from 'node:path';
+import { MigrateApply, MigratePlan, MigrateReport } from '@/migrations';
 import type { TMigrationItem } from '@/migrations';
 import { ReleaseStore } from '@/releases';
 import type { IChangelogRecord, IReleaseTable } from '@/releases';
@@ -41,7 +49,11 @@ const entry = (opts: {
 
 const TABLE: IReleaseTable = {
   livePackages: ['kernel'],
-  packageMap: [{ dir: 'kernel', name: '@venizia/kernel', aliases: [] }],
+  packageMap: [
+    { dir: 'kernel', name: '@venizia/kernel', aliases: [] },
+    { dir: 'dev-configs', name: '@venizia/dev-configs', aliases: [] },
+    { dir: 'ardor', name: '@venizia/ardor', aliases: [] },
+  ],
   releases: {
     kernel: [
       { version: '1.2.0', date: '2026-03-01', sha: 'c', order: 4 },
@@ -67,7 +79,10 @@ const TABLE: IReleaseTable = {
   ],
 };
 
-const releases = new ReleaseStore({ table: TABLE });
+/** The npm names of the source project's own packages: where its codemod runner may be installed from. */
+const PROJECT_PACKAGES = ['@venizia/dev-configs', '@venizia/ardor'];
+
+const releases = new ReleaseStore({ codemodPackages: PROJECT_PACKAGES, table: TABLE });
 
 const STUB = (opts: { log: string }): string => `#!/bin/sh
 echo "$@" >> "${opts.log}"
@@ -78,6 +93,26 @@ esac
 echo "rewrote $2"
 exit 0
 `;
+
+/**
+ * A codemod runner installed the way a package manager does: the binary inside the package `pkg`, a link to it in
+ * `.bin`. A runner is only run from inside a package of the source that serves it.
+ */
+const installRunner = (opts: {
+  nodeModules: string;
+  name: string;
+  pkg?: string;
+  script: string;
+}): void => {
+  const target = join(opts.nodeModules, opts.pkg ?? '@venizia/dev-configs', 'bin', opts.name);
+  const link = join(opts.nodeModules, '.bin', opts.name);
+
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, opts.script);
+  chmodSync(target, 0o755);
+  mkdirSync(dirname(link), { recursive: true });
+  symlinkSync(relative(dirname(link), target), link);
+};
 
 /** An app in a clean git repository with a stub `devz` that logs every call; `log` is read back by the tests. */
 const appWith = (opts: { git?: boolean; devz?: boolean } = {}): { app: string; log: string } => {
@@ -96,8 +131,7 @@ const appWith = (opts: { git?: boolean; devz?: boolean } = {}): { app: string; l
   writeFileSync(log, '');
 
   if (opts.devz !== false) {
-    writeFileSync(join(app, 'node_modules', '.bin', 'devz'), STUB({ log }));
-    chmodSync(join(app, 'node_modules', '.bin', 'devz'), 0o755);
+    installRunner({ nodeModules: join(app, 'node_modules'), name: 'devz', script: STUB({ log }) });
   }
 
   if (opts.git !== false) {
@@ -195,6 +229,7 @@ describe('MigrateApply.run', () => {
 
   test('a codemod that fails stops the run, exits 1 and names it; later codemods do not run', () => {
     const failing = new ReleaseStore({
+      codemodPackages: PROJECT_PACKAGES,
       table: {
         ...TABLE,
         changelogs: [
@@ -270,6 +305,7 @@ describe('MigrateApply.run', () => {
     writeFileSync(join(app, 'src', 'a.ts'), '// edited\n');
 
     const none = new ReleaseStore({
+      codemodPackages: PROJECT_PACKAGES,
       table: {
         ...TABLE,
         changelogs: [entry({ slug: 'p', order: 1, items: [item({ id: 'plain-only' })] })],
@@ -334,6 +370,7 @@ describe('MigrateApply.run', () => {
     const out: string[] = [];
     const err: string[] = [];
     const bad = new ReleaseStore({
+      codemodPackages: PROJECT_PACKAGES,
       table: {
         ...TABLE,
         changelogs: [
@@ -386,8 +423,7 @@ describe('MigrateApply.run', () => {
     roots.push(root);
     mkdirSync(join(root, 'node_modules', '.bin'), { recursive: true });
     mkdirSync(join(app, 'src'), { recursive: true });
-    writeFileSync(join(root, 'node_modules', '.bin', 'devz'), STUB({ log }));
-    chmodSync(join(root, 'node_modules', '.bin', 'devz'), 0o755);
+    installRunner({ nodeModules: join(root, 'node_modules'), name: 'devz', script: STUB({ log }) });
     writeFileSync(join(root, '.gitignore'), 'node_modules\n');
     writeFileSync(
       join(app, 'package.json'),
@@ -437,5 +473,236 @@ describe('MigrateApply.run', () => {
     expect(plan.apply).toBe(
       `vulcan migrate apply --package @venizia/kernel --from 1.0.0 --to 1.2.0 --app ${app}`,
     );
+  });
+});
+
+describe("MigrateApply.run: the runner is the source project's own", () => {
+  const withRunner = (opts: { codemodCommand?: string[] }) =>
+    new ReleaseStore({
+      codemodPackages: PROJECT_PACKAGES,
+      table: TABLE,
+      codemodCommand: opts.codemodCommand,
+    });
+
+  const runWith = (opts: {
+    store: ReleaseStore;
+    app: string;
+    mutate?: (words: unknown) => void;
+  }) => {
+    const out: string[] = [];
+    const err: string[] = [];
+    const result = MigratePlan.plans({
+      releases: opts.store,
+      app: opts.app,
+      package: '@venizia/kernel',
+      from: '1.0.0',
+      to: '1.1.0',
+    });
+
+    for (const plan of result.plans) {
+      opts.mutate?.(plan);
+    }
+
+    const code = MigrateApply.run({
+      result,
+      force: false,
+      out: (text) => out.push(text),
+      err: (text) => err.push(text),
+    });
+
+    return { code, out: out.join(''), err: err.join(''), result };
+  };
+
+  test('a source that declares its runner has its codemods run by it, never by devz', () => {
+    const { app, log } = appWith({ devz: false });
+
+    installRunner({
+      nodeModules: join(app, 'node_modules'),
+      name: 'ardor',
+      pkg: '@venizia/ardor',
+      script: STUB({ log }),
+    });
+
+    const { code, result, out } = runWith({
+      store: withRunner({ codemodCommand: ['ardor', 'codemod'] }),
+      app,
+    });
+
+    expect(result.plans[0].codemodCommand).toEqual(['ardor', 'codemod']);
+    expect(code).toBe(0);
+    expect(calls({ log })).toEqual(['codemod cm-a . --write']);
+    expect(out).toContain('Command: `ardor codemod cm-a . --write`');
+    expect(MigrateReport.markdown({ result })).toContain(
+      'it runs `ardor codemod <name> . --write`',
+    );
+  });
+
+  test('a source with no setting runs devz codemod, and the plan says so', () => {
+    const { app, log } = appWith();
+    const { result } = runWith({ store: withRunner({}), app });
+
+    expect(result.plans[0].codemodCommand).toEqual(['devz', 'codemod']);
+    expect(calls({ log })).toEqual(['codemod cm-a . --write']);
+  });
+
+  test('a runner the app does not have is named, nothing runs, and the steps stay manual', () => {
+    const { app, log } = appWith();
+    const { code, err, out } = runWith({
+      store: withRunner({ codemodCommand: ['ardor', 'codemod'] }),
+      app,
+    });
+
+    expect(code).toBe(1);
+    expect(err).toContain('ardor is not installed');
+    expect(calls({ log })).toEqual([]);
+    expect(out).toContain('up a-item');
+  });
+
+  test('a plan whose runner words are not allowed is refused before anything runs', () => {
+    const { app, log } = appWith();
+    const { code, err } = runWith({
+      store: withRunner({}),
+      app,
+      mutate: (plan) => {
+        if (typeof plan === 'object' && plan !== null) {
+          Object.assign(plan, { codemodCommand: ['sh', '-c', 'x'] });
+        }
+      },
+    });
+
+    expect(code).toBe(1);
+    expect(err).toContain('"-c"');
+    expect(calls({ log })).toEqual([]);
+  });
+});
+
+describe('MigrateApply.run: a runner is run only from a package of its source', () => {
+  const runFor = (opts: { app: string }) => {
+    const out: string[] = [];
+    const err: string[] = [];
+    const result = MigratePlan.plans({
+      releases: new ReleaseStore({
+        codemodPackages: PROJECT_PACKAGES,
+        table: TABLE,
+        codemodCommand: ['rimraf', 'codemod'],
+      }),
+      app: opts.app,
+      package: '@venizia/kernel',
+      from: '1.0.0',
+      to: '1.1.0',
+    });
+    const code = MigrateApply.run({
+      result,
+      force: false,
+      out: (text) => out.push(text),
+      err: (text) => err.push(text),
+    });
+
+    return { code, out: out.join(''), err: err.join('') };
+  };
+
+  test('a bin of a package the source does not serve is refused; nothing runs and the steps stay manual', () => {
+    const { app, log } = appWith({ devz: false });
+
+    installRunner({
+      nodeModules: join(app, 'node_modules'),
+      name: 'rimraf',
+      pkg: 'rimraf',
+      script: STUB({ log }),
+    });
+
+    const { code, err, out } = runFor({ app });
+
+    expect(code).toBe(1);
+    expect(err).toContain('not inside an installed package of the source');
+    expect(calls({ log })).toEqual([]);
+    expect(out).toContain('up a-item');
+  });
+
+  test('a link that escapes the package is refused, even when the package is the right one', () => {
+    const { app, log } = appWith({ devz: false });
+    const outside = mkdtempSync(join(tmpdir(), 'atlas-apply-outside-'));
+
+    roots.push(outside);
+    writeFileSync(join(outside, 'rimraf'), STUB({ log }));
+    chmodSync(join(outside, 'rimraf'), 0o755);
+    mkdirSync(join(app, 'node_modules', '@venizia', 'dev-configs', 'bin'), { recursive: true });
+    symlinkSync(
+      join(outside, 'rimraf'),
+      join(app, 'node_modules', '@venizia', 'dev-configs', 'bin', 'rimraf'),
+    );
+    mkdirSync(join(app, 'node_modules', '.bin'), { recursive: true });
+    symlinkSync('../@venizia/dev-configs/bin/rimraf', join(app, 'node_modules', '.bin', 'rimraf'));
+
+    const { code, err } = runFor({ app });
+
+    expect(code).toBe(1);
+    expect(err).toContain('not inside an installed package');
+    expect(calls({ log })).toEqual([]);
+  });
+
+  test('the bin of a package the source serves runs', () => {
+    const { app, log } = appWith({ devz: false });
+
+    installRunner({
+      nodeModules: join(app, 'node_modules'),
+      name: 'rimraf',
+      pkg: '@venizia/dev-configs',
+      script: STUB({ log }),
+    });
+
+    const { code } = runFor({ app });
+
+    expect(code).toBe(0);
+    expect(calls({ log })).toEqual(['codemod cm-a . --write']);
+  });
+});
+
+describe('MigrateApply.run: the allow-list is the validated project, never the table', () => {
+  test('a package list of a tampered plan that names `..` or an empty name allows nothing', () => {
+    for (const hostile of [['..'], [''], ['../..'], ['.']]) {
+      const { app, log } = appWith({ devz: false });
+
+      installRunner({
+        nodeModules: join(app, 'node_modules'),
+        name: 'rimraf',
+        pkg: 'rimraf',
+        script: STUB({ log }),
+      });
+
+      const out: string[] = [];
+      const err: string[] = [];
+      const result = MigratePlan.plans({
+        releases: new ReleaseStore({
+          table: TABLE,
+          codemodCommand: ['rimraf', 'codemod'],
+          codemodPackages: ['@venizia/dev-configs'],
+        }),
+        app,
+        package: '@venizia/kernel',
+        from: '1.0.0',
+        to: '1.1.0',
+      });
+
+      result.plans[0].codemodPackages = hostile;
+
+      const code = MigrateApply.run({
+        result,
+        force: false,
+        out: (text) => out.push(text),
+        err: (text) => err.push(text),
+      });
+
+      expect(code).toBe(1);
+      expect(calls({ log })).toEqual([]);
+    }
+  });
+
+  test('a store reads the allow-list from the project it is given, not from the names in its table', () => {
+    const tampered = new ReleaseStore({
+      table: { ...TABLE, packageMap: [{ dir: 'x', name: '..', aliases: [] }] },
+    });
+
+    expect(tampered.codemodPackagesOf()).toEqual([]);
   });
 });

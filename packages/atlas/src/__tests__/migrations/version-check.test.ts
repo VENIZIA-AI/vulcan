@@ -1,9 +1,10 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
+import { VersionFolders } from '@/changelogs/version-folder';
 import { ChangelogCheck, ChangelogHistory } from '@/migrations';
 
 const roots: string[] = [];
@@ -489,17 +490,22 @@ describe('the codemod runner of the project', () => {
     const made = projectWith({});
 
     mkdirSync(join(made.root, 'node_modules', '.bin'), { recursive: true });
+    mkdirSync(join(made.root, 'node_modules', '@a', 'ardor', 'bin'), { recursive: true });
     writeFileSync(
-      join(made.root, 'node_modules', '.bin', 'ardor'),
+      join(made.root, 'node_modules', '@a', 'ardor', 'bin', 'ardor'),
       '#!/bin/sh\n[ "$1" = codemod ] && [ "$2" = --list ] && echo namespace && echo rename\n',
       { mode: 0o755 },
     );
+    symlinkSync('../@a/ardor/bin/ardor', join(made.root, 'node_modules', '.bin', 'ardor'));
 
-    expect(ChangelogCheck.codemodsOf({ root: made.root, command: ['ardor', 'codemod'] })).toEqual([
-      'namespace',
-      'rename',
-    ]);
-    expect(ChangelogCheck.codemodsOf({ root: made.root })).toBeUndefined();
+    expect(
+      ChangelogCheck.codemodsOf({
+        root: made.root,
+        command: ['ardor', 'codemod'],
+        packages: ['@a/ardor'],
+      }),
+    ).toEqual(['namespace', 'rename']);
+    expect(ChangelogCheck.codemodsOf({ root: made.root, packages: ['@a/ardor'] })).toBeUndefined();
   });
 });
 
@@ -724,5 +730,33 @@ describe('review round 2: a moved base, a strict runner, parser edges', () => {
 
     expect(found).toHaveLength(1);
     expect(found[0]).toContain('released: must be a date');
+  });
+});
+
+describe('review round 3: the parser', () => {
+  test('a longer fence is closed only by a fence of its own kind and length', () => {
+    const folder = VersionFolders.parse({
+      name: '0.4.2',
+      log: log({
+        version: '0.4.2',
+        body: '\n## Added\n- **One** `one`: first.\n\n````md\n```\n- **Fake** `fake`: in the example.\n```\n````\n\n- **Two** `two`: second.\n',
+      }),
+    });
+
+    expect(folder.items.map((item) => item.id)).toEqual(['one', 'two']);
+    expect(folder.items[0].body).toContain('- **Fake** `fake`');
+  });
+
+  test('a repeated id is reported once and yields one item', () => {
+    const folder = VersionFolders.parse({
+      name: '0.4.2',
+      log: log({
+        version: '0.4.2',
+        body: '\n## Added\n- **One** `one`: first.\n- **Again** `one`: second.\n',
+      }),
+    });
+
+    expect(folder.items.map((item) => item.title)).toEqual(['One']);
+    expect(folder.problems).toHaveLength(1);
   });
 });

@@ -1,5 +1,17 @@
 import type { IPackageMapEntry } from '@/common/package-map';
+import type { TVersionSection } from '@/changelogs/version-folder';
+import type { TConstValue } from '@/common/types';
 import type { TMigrationItem } from '@/migrations/schema';
+
+/** Where a changelog record was read from. */
+export class ChangelogLayouts {
+  /** A dated file `YYYY-MM-DD-slug.md`: one record per file. */
+  static readonly DATED = 'dated';
+  /** An item of `changelogs/<X.Y.Z>/log.md`: one record per item. */
+  static readonly FOLDER = 'folder';
+}
+
+export type TChangelogLayout = TConstValue<typeof ChangelogLayouts>;
 
 /** One published version of one package, as `vulcan x atlas releases` reads it off a release commit. */
 export interface IReleaseRecord {
@@ -31,6 +43,13 @@ export interface IChangelogRecord {
   migration?: TMigrationItem[];
   /** Release commits before the commit that added the file, all of them while it is uncommitted; absent when the project has no git history. */
   order?: number;
+  /** `folder` for an item of a version folder; absent reads as `dated`. */
+  layout?: TChangelogLayout;
+  /** A folder item: the version folder (the stable the line releases) and the section it sits in. */
+  version?: string;
+  section?: TVersionSection;
+  /** A dated file whose release window a version folder covers: a window that holds the folder's items leaves it out, one that does not keeps it. */
+  foldedInto?: string;
 }
 
 /** The generated `releases.json` payload, whole. Release lists are newest first, per package. */
@@ -39,6 +58,8 @@ export interface IReleaseTable {
   livePackages: string[];
   releases: Record<string, IReleaseRecord[]>;
   changelogs: IChangelogRecord[];
+  /** The version folders the table read, even those whose `log.md` holds no item; absent in a table built before folders. */
+  versionFolders?: string[];
   /** Every package's directory, npm name and other names. */
   packageMap: IPackageMapEntry[];
 }
@@ -62,12 +83,23 @@ export interface IReleaseIndex {
   newestOf(opts: { package: string }): IReleaseRecord | undefined;
   releaseDateOf(opts: { package: string; version: string }): string | undefined;
   releaseOrderOf(opts: { package: string; version: string }): number | undefined;
-  entriesBetween(opts: { package?: string; fromDate: string; toDate: string }): IChangelogRecord[];
+  /** The words of the command that runs the codemods of the source that serves `package`; absent when it sets none (the default runner). */
+  codemodCommandOf(opts: { package: string }): string[] | undefined;
+  /** The npm names of every package the source that serves `package` declares: the only places its codemod runner may be installed from. */
+  codemodPackagesOf(opts: { package: string }): string[];
+  /** `includeFolded` keeps the dated files a version folder covers; by default only the folder's items stand for that range. */
+  entriesBetween(opts: {
+    package?: string;
+    fromDate: string;
+    toDate: string;
+    includeFolded?: boolean;
+  }): IChangelogRecord[];
   entriesBetweenOrders(opts: {
     package?: string;
     fromOrder: number;
     toOrder: number;
     fromDate: string;
     toDate: string;
+    includeFolded?: boolean;
   }): IChangelogRecord[];
 }

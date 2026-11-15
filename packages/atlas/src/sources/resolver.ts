@@ -215,7 +215,8 @@ const hasLostChangelogs = (opts: { cacheRoot: string; sha: string }): boolean =>
       readFileSync(join(SourceCache.artifactsOf(opts), RELEASES), 'utf8'),
     );
 
-    if (table.changelogs.length > 0) {
+    // A folder whose log holds no item is a changelog too: it yields no record, and the table names it.
+    if (table.changelogs.length > 0 || (table.versionFolders?.length ?? 0) > 0) {
       return false;
     }
 

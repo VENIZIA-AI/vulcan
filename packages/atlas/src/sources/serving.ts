@@ -178,7 +178,20 @@ export class SourceReleases {
     return this.ownerOf(opts)?.releases.releaseOrderOf(opts);
   }
 
-  entriesBetween(opts: { package?: string; fromDate: string; toDate: string }): IChangelogRecord[] {
+  codemodCommandOf(opts: { package: string }): string[] | undefined {
+    return this.ownerOf(opts)?.releases.codemodCommandOf();
+  }
+
+  codemodPackagesOf(opts: { package: string }): string[] {
+    return this.ownerOf(opts)?.releases.codemodPackagesOf() ?? [];
+  }
+
+  entriesBetween(opts: {
+    package?: string;
+    fromDate: string;
+    toDate: string;
+    includeFolded?: boolean;
+  }): IChangelogRecord[] {
     return this.tagged({ package: opts.package, read: (store) => store.entriesBetween(opts) });
   }
 
@@ -188,6 +201,7 @@ export class SourceReleases {
     toOrder: number;
     fromDate: string;
     toDate: string;
+    includeFolded?: boolean;
   }): IChangelogRecord[] {
     return this.tagged({
       package: opts.package,

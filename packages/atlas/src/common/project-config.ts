@@ -230,7 +230,10 @@ export class ProjectConfig {
     const changelogs = WireValue.stringOf({ value: knowledge.changelogs });
     const migrationFrom = WireValue.stringOf({ value: knowledge.migrationFrom });
     const datedUntil = WireValue.stringOf({ value: knowledge.datedUntil });
-    const codemodCommand = CodemodRunner.wordsOf({ value: knowledge.codemodCommand });
+    const codemodCommand = CodemodRunner.wordsOf({
+      value: knowledge.codemodCommand,
+      label: opts.source ?? `project '${projectName}'`,
+    });
 
     if (manifest.schemaVersion !== MANIFEST_SCHEMA_VERSION) {
       throw new Error(

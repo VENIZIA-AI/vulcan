@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
+import { CodemodRunner } from '@/common/codemod-runner';
 import { AtlasGit } from '@/common/constants';
 import { MigrateDirections } from './plan';
 import { MIGRATION_NAME_PATTERN } from './schema';
@@ -24,14 +25,16 @@ interface ICodemodOutcome {
   steps: IMigrationStep[];
   status: string;
   output: string;
+  /** What was run, as the source's runner words and the arguments: `<runner> <name> . --write`. */
+  command: string;
 }
 
 /**
- * The first `node_modules/.bin/devz` from `directory` up to the app's git work tree root (a workspace
+ * The first directory from `directory` whose `node_modules/.bin` holds `name` up to the app's git work tree root (a workspace
  * installs it at the root, not beside each app). Outside git only `directory` itself is searched: a
- * `devz` of an unrelated parent folder is never run.
+ * binary of an unrelated parent folder is never run.
  */
-const devzFrom = (opts: { directory: string }): string | undefined => {
+const holderOf = (opts: { directory: string; name: string }): string | undefined => {
   const toplevel = spawnSync('git', ['rev-parse', '--show-toplevel'], {
     cwd: opts.directory,
     encoding: 'utf8',
@@ -41,10 +44,8 @@ const devzFrom = (opts: { directory: string }): string | undefined => {
   let directory = realpathSync(opts.directory);
 
   for (;;) {
-    const candidate = join(directory, 'node_modules', '.bin', 'devz');
-
-    if (existsSync(candidate)) {
-      return candidate;
+    if (existsSync(CodemodRunner.binaryIn({ directory, name: opts.name }))) {
+      return directory;
     }
 
     const parent = dirname(directory);
@@ -134,6 +135,10 @@ const reportOf = (opts: {
         `${outcome.status === CodemodStatuses.RAN ? 'Ran' : `Did not run (${outcome.status}):`} \`${outcome.codemod}\` for ${outcome.steps.map((step) => step.id).join(', ')}.`,
       );
 
+      if (outcome.command.length > 0) {
+        lines.push('', `Command: \`${outcome.command}\``);
+      }
+
       if (outcome.output.length > 0) {
         lines.push('', '```text', trimmed({ text: outcome.output }), '```');
       }
@@ -175,8 +180,21 @@ const reportOf = (opts: {
 };
 
 /**
- * Runs the codemods a plan links, in plan order and once each, as `devz codemod <name> . --write`
- * (`--reverse` for a rollback), then prints the steps that stay manual. It rewrites nothing itself,
+ * The words that run a plan's codemods: the `knowledge.codemodCommand` of the source that serves its package, checked again
+ * here (the plan reaches this process as JSON), else the default. A word that is not allowed throws.
+ */
+const runnerOf = (opts: { plan: IMigrationPlan }): string[] => {
+  const words = CodemodRunner.wordsOf({
+    value: opts.plan.codemodCommand,
+    label: `the plan for ${opts.plan.package}`,
+  });
+
+  return words.length === 0 ? [...CodemodRunner.DEFAULT] : words;
+};
+
+/**
+ * Runs the codemods a plan links, in plan order and once each, as `<runner> <name> . --write`
+ * (`--reverse` for a rollback), the runner being the source project's `knowledge.codemodCommand` (default `devz codemod`), then prints the steps that stay manual. It rewrites nothing itself,
  * and it refuses an app git cannot undo unless `force`.
  */
 export class MigrateApply {
@@ -236,11 +254,62 @@ export class MigrateApply {
       return 1;
     }
 
-    const devz = devzFrom({ directory: result.app });
+    const runners = new Map<IMigrationPlan, { bin: string; name: string; words: string[] }>();
+    const missing: string[] = [];
+    const refused: string[] = [];
 
-    if (devz === undefined) {
+    for (const { plan, codemods } of planned) {
+      if (codemods.length === 0) {
+        continue;
+      }
+
+      let words: string[];
+
+      try {
+        words = runnerOf({ plan });
+      } catch (error) {
+        opts.err(
+          `vulcan migrate apply: ${error instanceof Error ? error.message : String(error)}; refusing to run it\n`,
+        );
+
+        return 1;
+      }
+
+      const holder = holderOf({ directory: result.app, name: words[0] });
+
+      if (holder === undefined) {
+        missing.push(words[0]);
+
+        continue;
+      }
+
+      const notRunnable = CodemodRunner.refusalOf({
+        directory: holder,
+        name: words[0],
+        packages: plan.codemodPackages ?? [],
+      });
+
+      if (notRunnable === undefined) {
+        runners.set(plan, {
+          bin: CodemodRunner.binaryIn({ directory: holder, name: words[0] }),
+          name: words[0],
+          words: words.slice(1),
+        });
+      } else {
+        refused.push(notRunnable);
+      }
+    }
+
+    if (refused.length > 0) {
+      opts.err(`vulcan migrate apply: ${refused.join('; ')}; the steps below stay manual\n`);
+      opts.out(reportOf({ result, outcomes }));
+
+      return 1;
+    }
+
+    if (missing.length > 0) {
       opts.err(
-        `vulcan migrate apply: devz is not installed in ${result.app} or above it (@venizia/dev-configs); the steps below stay manual\n`,
+        `vulcan migrate apply: ${[...new Set(missing)].join(', ')} is not installed in ${result.app} or above it (the codemod runner of the source); the steps below stay manual\n`,
       );
       opts.out(reportOf({ result, outcomes }));
 
@@ -252,12 +321,15 @@ export class MigrateApply {
     for (const { plan, codemods } of planned) {
       outcomes[plan.package] = [];
 
+      const runner = runners.get(plan);
+
       for (const { codemod, steps } of codemods) {
         const outcome: ICodemodOutcome = {
           codemod,
           steps,
           status: CodemodStatuses.NOT_RUN,
           output: '',
+          command: '',
         };
 
         outcomes[plan.package].push(outcome);
@@ -266,13 +338,19 @@ export class MigrateApply {
           continue;
         }
 
-        const args = ['codemod', codemod, '.', '--write'];
+        if (runner === undefined) {
+          continue;
+        }
+
+        const args = [...runner.words, codemod, '.', '--write'];
 
         if (plan.direction === MigrateDirections.DOWNGRADE) {
           args.push('--reverse');
         }
 
-        const ran = spawnSync(devz, args, {
+        outcome.command = [runner.name, ...args].join(' ');
+
+        const ran = spawnSync(runner.bin, args, {
           cwd: result.app,
           encoding: 'utf8',
           timeout: DEVZ_TIMEOUT_MS,

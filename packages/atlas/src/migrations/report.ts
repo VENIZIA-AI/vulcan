@@ -153,7 +153,12 @@ const planOf = (opts: { plan: IMigrationPlan; verbose: boolean }): string[] => {
   }
 
   if (plan.apply !== undefined) {
-    lines.push(`Run the codemods: \`${plan.apply}\``, '');
+    const runner =
+      plan.codemodCommand === undefined
+        ? ''
+        : ` (it runs \`${plan.codemodCommand.join(' ')} <name> . --write\`)`;
+
+    lines.push(`Run the codemods: \`${plan.apply}\`${runner}`, '');
   }
 
   const article = plan.direction === MigrateDirections.UPGRADE ? 'An' : 'A';

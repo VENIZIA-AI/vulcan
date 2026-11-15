@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { z } from 'zod';
 import type { TConstValue } from '@/common/types';
+import { DirectoryPath } from '@/common/paths';
 import { RecordValue } from '@/common/record';
 import { TextValue } from '@/common/text';
 import { MIGRATION_NAME_PATTERN, MigrationItemSchema } from '@/migrations/schema';
@@ -56,6 +57,8 @@ export interface IVersionItem {
   packages: string[];
   /** The line of the item in the file, frontmatter included. */
   line: number;
+  /** The item's text without its bullet: the line, and the lines under it (a code block included) up to the next item or heading. */
+  body: string;
 }
 
 /** A reason a version folder is not valid; `file` is relative to the changelog folder. */
@@ -71,13 +74,17 @@ export interface IVersionFolder {
   packages: string[];
   /** `YYYY-MM-DD`, set when the stable was released; absent while the line is in progress. */
   released?: string;
+  /** The folder holds a readable `log.md` of its own: a directory, an unreadable file or a link out of the checkout is not one. */
+  hasLog: boolean;
   /** `released:` is there but is not a date: the folder is neither released nor in progress. */
   hasInvalidRelease: boolean;
   /** Sections in the order they appear. */
   sections: TVersionSection[];
   items: IVersionItem[];
+  /** The text between the frontmatter and the first heading: what the release is. */
+  intro: string;
   /** The blocks of `migration.yaml` by item id; empty when the file is absent or `{}`. */
-  blocks: Record<string, unknown>;
+  blocks: Record<string, TMigrationBlock>;
   /** Everything wrong with the folder that parsing can see; the gate adds the rules that need the project. */
   problems: IVersionProblem[];
 }
@@ -86,7 +93,8 @@ type TFail = (opts: { file: string; message: string }) => void;
 
 /** A stable version: the name of a version folder and the form of a version cutover. */
 export const STABLE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
-const FENCE_LINE = /^ {0,3}(?:```|~~~)/;
+/** Up to three spaces of indent, a run of three or more backticks or tildes, then the rest of the line. */
+const FENCE_LINE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 const ITEM_LINE = /^- \*\*(.+?)\*\* `([^`]+)`(?: \(([^)]*)\))?/;
 const BULLET_LINE = /^[-*] /;
 const SECTION_LINE = /^## (.+?)\s*$/;
@@ -104,8 +112,11 @@ export class VersionFolders {
     return STABLE_VERSION_PATTERN.test(opts.name);
   }
 
-  /** The version folders of `directory`, oldest first; a directory that is not there has none. */
-  static read(opts: { directory: string }): IVersionFolder[] {
+  /**
+   * The version folders of `directory`, oldest first; a directory that is not there has none. `within`: a fetched
+   * checkout - a folder or file whose real path leaves it is not read.
+   */
+  static read(opts: { directory: string; within?: string }): IVersionFolder[] {
     if (!existsSync(opts.directory)) {
       return [];
     }
@@ -113,43 +124,85 @@ export class VersionFolders {
     return readdirSync(opts.directory)
       .filter(
         (name) =>
-          STABLE_VERSION_PATTERN.test(name) && statSync(join(opts.directory, name)).isDirectory(),
+          STABLE_VERSION_PATTERN.test(name) &&
+          VersionFolders.isDirectory({ path: join(opts.directory, name), within: opts.within }),
       )
       .sort((left, right) => Bun.semver.order(left, right))
-      .map((name) => VersionFolders.readOne({ directory: opts.directory, name }));
+      .map((name) =>
+        VersionFolders.readOne({ directory: opts.directory, name, within: opts.within }),
+      );
   }
 
-  static readOne(opts: { directory: string; name: string }): IVersionFolder {
+  static readOne(opts: { directory: string; name: string; within?: string }): IVersionFolder {
+    const folder = join(opts.directory, opts.name);
+
+    return VersionFolders.parse({
+      name: opts.name,
+      log: VersionFolders.textOf({ file: join(folder, 'log.md'), within: opts.within }),
+      migration: VersionFolders.textOf({
+        file: join(folder, 'migration.yaml'),
+        within: opts.within,
+      }),
+    });
+  }
+
+  /** A path that cannot be statted (a dangling link) is not a directory. */
+  private static isDirectory(opts: { path: string; within?: string }): boolean {
+    try {
+      return (
+        statSync(opts.path).isDirectory() &&
+        (opts.within === undefined ||
+          DirectoryPath.isWithin({ path: opts.path, directory: opts.within }))
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /** The text of a file that is a regular file inside `within`; `undefined` for anything else, so the folder reports it. */
+  private static textOf(opts: { file: string; within?: string }): string | undefined {
+    try {
+      if (
+        !statSync(opts.file).isFile() ||
+        (opts.within !== undefined &&
+          !DirectoryPath.isWithin({ path: opts.file, directory: opts.within }))
+      ) {
+        return undefined;
+      }
+
+      return readFileSync(opts.file, 'utf8');
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** A folder from the text of its two files, wherever they came from (disk, a git blob, the corpus). */
+  static parse(opts: { name: string; log?: string; migration?: string }): IVersionFolder {
     const folder: IVersionFolder = {
       name: opts.name,
       packages: [],
       sections: [],
       items: [],
+      intro: '',
       blocks: {},
       problems: [],
+      hasLog: opts.log !== undefined,
       hasInvalidRelease: false,
     };
     // Ids of items the log already reported and dropped: the migration file does not report them again.
     const rejected = new Set<string>();
-    const logFile = join(opts.directory, opts.name, 'log.md');
-    const migrationFile = join(opts.directory, opts.name, 'migration.yaml');
     const fail: TFail = ({ file, message }) => {
       folder.problems.push({ file: `${opts.name}/${file}`, message });
     };
 
-    if (existsSync(logFile)) {
-      VersionFolders.readLog({ folder, text: readFileSync(logFile, 'utf8'), fail, rejected });
-    } else {
+    if (opts.log === undefined) {
       fail({ file: 'log.md', message: 'a version folder needs a log.md' });
+    } else {
+      VersionFolders.readLog({ folder, text: opts.log, fail, rejected });
     }
 
-    if (existsSync(migrationFile)) {
-      VersionFolders.readMigration({
-        folder,
-        text: readFileSync(migrationFile, 'utf8'),
-        fail,
-        rejected,
-      });
+    if (opts.migration !== undefined) {
+      VersionFolders.readMigration({ folder, text: opts.migration, fail, rejected });
     }
 
     return folder;
@@ -202,25 +255,62 @@ export class VersionFolders {
     let section: TVersionSection | undefined;
     let previous = -1;
     const seen = new Set<string>();
-    let inFence = false;
+    let fence = '';
+    let isBeforeSections = true;
+    const introLines: string[] = [];
+    let current: IVersionItem | undefined;
+    let currentLines: string[] = [];
+    const closeItem = (): void => {
+      if (current !== undefined) {
+        current.body = currentLines.join('\n').trim();
+      }
+
+      current = undefined;
+      currentLines = [];
+    };
+    const keep = (text: string): void => {
+      if (current !== undefined) {
+        currentLines.push(text);
+      } else if (isBeforeSections) {
+        introLines.push(text);
+      }
+    };
 
     body.split('\n').forEach((text, index) => {
       const line = index + 1 + offset;
 
-      // A code block shows an example: its bullets and `## ` lines are not items and sections.
-      if (FENCE_LINE.test(text)) {
-        inFence = !inFence;
+      // A code block shows an example: its bullets and `## ` lines are not items and sections. A fence closes only on
+      // a run of the same character, at least as long, with nothing after it.
+      const marker = FENCE_LINE.exec(text);
+
+      if (fence !== '') {
+        if (
+          marker !== null &&
+          marker[1][0] === fence[0] &&
+          marker[1].length >= fence.length &&
+          marker[2].trim() === ''
+        ) {
+          fence = '';
+        }
+
+        keep(text);
 
         return;
       }
 
-      if (inFence) {
+      if (marker !== null && !(marker[1][0] === '`' && marker[2].includes('`'))) {
+        fence = marker[1];
+        keep(text);
+
         return;
       }
 
       const heading = SECTION_LINE.exec(text);
 
       if (heading !== null) {
+        closeItem();
+        isBeforeSections = false;
+
         const known = VersionSections.of({ name: heading[1] });
 
         VersionFolders.openSection({ folder, name: heading[1], previous, fail });
@@ -231,8 +321,12 @@ export class VersionFolders {
       }
 
       if (!BULLET_LINE.test(text)) {
+        keep(text);
+
         return;
       }
+
+      closeItem();
 
       const item = ITEM_LINE.exec(text);
 
@@ -262,12 +356,15 @@ export class VersionFolders {
         return;
       }
 
+      // The first of a repeated id stands: a second one would be a second chunk and record under the same id.
       if (seen.has(item[2])) {
         fail({ file: 'log.md', message: `item id '${item[2]}' is used twice (line ${line})` });
+
+        return;
       }
 
       seen.add(item[2]);
-      folder.items.push({
+      current = {
         id: item[2],
         title: item[1],
         section,
@@ -276,8 +373,14 @@ export class VersionFolders {
           .map((name) => name.replaceAll('`', '').trim())
           .filter((name) => name.length > 0),
         line,
-      });
+        body: '',
+      };
+      currentLines = [text.replace(BULLET_LINE, '')];
+      folder.items.push(current);
     });
+
+    closeItem();
+    folder.intro = introLines.join('\n').trim();
   }
 
   private static openSection(opts: {

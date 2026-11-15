@@ -107,6 +107,8 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
         table: ReleaseCompute.compute({ project: source.project }),
         emptyReason: emptyReleasesReasonOf({ source }),
         noEntriesReason: noEntriesReasonOf({ source }),
+        codemodCommand: source.project.knowledge.codemodCommand,
+        codemodPackages: source.project.packages.map((entry) => entry.name),
       }),
       symbols: new SymbolStore({
         load: () => ({
@@ -124,6 +126,8 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
     table: JSON.parse(readFileSync(source.releasesFile ?? '', 'utf8')),
     emptyReason: emptyReleasesReasonOf({ source }),
     noEntriesReason: noEntriesReasonOf({ source }),
+    codemodCommand: source.project.knowledge.codemodCommand,
+    codemodPackages: source.project.packages.map((entry) => entry.name),
   });
 
   return {
@@ -234,6 +238,8 @@ const repositoryTarget = (opts: { entry: TLiveEntry; source: IResolvedSource }):
           table: ReleaseCompute.compute({ project: opts.source.project }),
           emptyReason: emptyReleasesReasonOf({ source: opts.source }),
           noEntriesReason: noEntriesReasonOf({ source: opts.source }),
+          codemodCommand: opts.source.project.knowledge.codemodCommand,
+          codemodPackages: opts.source.project.packages.map((entry) => entry.name),
         }),
       );
       seen = now;

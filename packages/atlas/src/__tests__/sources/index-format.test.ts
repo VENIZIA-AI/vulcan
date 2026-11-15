@@ -22,8 +22,8 @@ afterAll(() => {
  * What it does not lock: query-time ranking (the weights and the planner are not stored in the index).
  */
 const LOCKED = {
-  format: 1,
-  digest: '1671fe0b5a66b59820f2c610b96fe5603f06ca2af5e9c23dd86655dedc5807d0',
+  format: 2,
+  digest: 'fe4d84dceeb22aedd3be8a9dd5eff9069d6c460e5e800e0d410a7de06efb55e7',
 };
 
 const LONG_SECTION = Array.from(
@@ -88,6 +88,26 @@ packages: ['@acme/kernel']
 Everything is new.
 `;
 
+const VERSION_LOG = `---
+title: 0.4.8
+version: 0.4.8
+packages: ['@acme/kernel']
+---
+The 0.4.8 line.
+
+## Breaking
+- **Factory only** \`thing-factory\` (\`@acme/kernel\`): call \`ThingFactory.build\`.
+
+## Added
+- **A flag** \`a-flag\`: new.
+`;
+
+const VERSION_MIGRATION = `thing-factory:
+  symbols: [Thing.make]
+  upgrade: { before: "Thing.make()", after: "ThingFactory.build()" }
+  downgrade: { steps: ["Use Thing.make() again"] }
+`;
+
 /** The rows of the index the fixture corpus builds, in the order the table stores them. */
 const rowsOfFixtureIndex = (): unknown[] => {
   const work = makeTempDirectory({ prefix: 'atlas-format-lock-' });
@@ -95,6 +115,8 @@ const rowsOfFixtureIndex = (): unknown[] => {
   writeSourceFile({ work, path: 'wiki/guide.md', text: WIKI_GUIDE });
   writeSourceFile({ work, path: 'knowledge/overview/lighthouse.md', text: KNOWLEDGE_CONCEPT });
   writeSourceFile({ work, path: 'changelogs/2026-01-01-first.md', text: CHANGELOG_ENTRY });
+  writeSourceFile({ work, path: 'changelogs/0.4.8/log.md', text: VERSION_LOG });
+  writeSourceFile({ work, path: 'changelogs/0.4.8/migration.yaml', text: VERSION_MIGRATION });
 
   const documents = CorpusLoader.getInstance().load({
     roots: [

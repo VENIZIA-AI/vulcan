@@ -26,7 +26,7 @@ import { BrowserSocket, LocalFormat, LocalScan, LocalStates } from '../local/ind
 import { CLAUDE_LAUNCH_FILE } from '../sync/claude-launch.ts';
 import { PrivateValues } from './private-values.ts';
 import { ReplySwitch, OwnerConstants, OwnerReplySwitch, OwnerProfile } from '../owner/index.ts';
-import { SkillCatalog } from '@venizia/vulcan-atlas';
+import { SkillCatalog, VersionFolders } from '@venizia/vulcan-atlas';
 import { HookConstants, ProjectTmp } from '../hooks/index.ts';
 import { DoctorChecks, DoctorConstants, PrivateValueKinds } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -375,6 +375,44 @@ export class ProjectContract {
             : `stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and ${fix}`,
       }),
     ];
+  }
+
+  /**
+   * The changelog folders `changelogs/<X.Y.Z>/` are read by the atlas of VULCAN `CHANGELOG_FOLDERS_FROM` and later;
+   * an older one ignores them and answers with no changelog at all. A project that holds a folder with a `log.md`
+   * and has an older vulcan installed is told which to install. The version is compared whole: a prerelease of
+   * the line before the one that carries the reader still ignores the folders.
+   */
+  static checkChangelogFolders(opts: ICheckContext): IViolation[] {
+    const { changelogs } = opts.config.knowledge;
+
+    if (changelogs === undefined) {
+      return [];
+    }
+
+    const directory = resolve(opts.root, changelogs);
+    const hasFolder =
+      existsSync(directory) &&
+      readdirSync(directory).some(
+        (name) => VersionFolders.isName({ name }) && existsSync(join(directory, name, 'log.md')),
+      );
+    const installed = readJsonObject({
+      file: join(opts.root, 'node_modules', '@venizia', 'vulcan', 'package.json'),
+    })?.['version'];
+
+    if (!hasFolder || typeof installed !== 'string') {
+      return [];
+    }
+
+    return Bun.semver.order(installed, DoctorConstants.CHANGELOG_FOLDERS_FROM) >= 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.CHANGELOG_FOLDERS,
+            file: changelogs,
+            message: `holds version folders, but the installed @venizia/vulcan is ${installed}: its atlas ignores them. Install ${DoctorConstants.CHANGELOG_FOLDERS_FROM} or later`,
+          }),
+        ];
   }
 
   /**

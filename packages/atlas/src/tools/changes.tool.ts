@@ -1,6 +1,8 @@
 import { AtlasConstants } from '@/common';
 import type { IToolHandler, RpcError } from '@/protocol/common';
+import { ChangelogLayouts } from '@/releases';
 import type { IChangelogRecord, IReleaseIndex } from '@/releases';
+import type { TMigrationItem } from '@/migrations/schema';
 import { z } from 'zod';
 import { ChangesInputSchema, ToolErrors, ToolInput, ToolTriggers } from './common';
 
@@ -29,6 +31,8 @@ interface IChangesEntry {
   title: string;
   kind: string | null;
   packages: string[];
+  /** A version folder item with a block: how an app upgrades and downgrades across it. */
+  migration?: TMigrationItem[];
 }
 
 interface IChangesResponse {
@@ -68,6 +72,9 @@ const entryOf = (record: IChangelogRecord): IChangesEntry => ({
   title: record.title,
   kind: record.kind,
   packages: record.packages,
+  ...(record.layout === ChangelogLayouts.FOLDER && record.migration !== undefined
+    ? { migration: record.migration }
+    : {}),
 });
 
 /**

@@ -143,11 +143,23 @@ describe('ChangelogGuard version folders', () => {
     ).toBe(1);
   });
 
-  test('a source with only version folders is refused when the table holds none', () => {
+  test('a source with only version folders is refused when the table read none of them', () => {
     const project = projectIn({ folders: { '0.4.8': '---\ntitle: x\n---\n', '0.4.9': undefined } });
 
     expect(() =>
       ChangelogGuard.check({ project, releases: table({ entries: 0 }), label: 's' }),
     ).toThrow(/1 dated entries.*release table holds none/s);
+  });
+
+  test('a source whose only folder has a log with no item passes: the table read the folder', () => {
+    const project = projectIn({ folders: { '0.4.8': '---\ntitle: x\n---\nNo change.\n' } });
+
+    expect(() =>
+      ChangelogGuard.check({
+        project,
+        releases: { ...table({ entries: 0 }), versionFolders: ['0.4.8'] },
+        label: 's',
+      }),
+    ).not.toThrow();
   });
 });

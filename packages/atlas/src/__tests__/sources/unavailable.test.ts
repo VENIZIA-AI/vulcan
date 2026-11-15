@@ -117,3 +117,34 @@ test('a project served with a reachable source keeps its own name', async () => 
   expect(resolved.map((entry) => entry.name)).toEqual(['own', 'src']);
   expect(initialized.result.serverInfo.name).toBe('own-atlas');
 });
+
+test('a fetched source whose codemodCommand is not allowed is the one source not served, naming the word', async () => {
+  const cwd = makeConsumer();
+  const good = makeSourceRepository();
+  const bad = makeSourceRepository();
+
+  writeSourceFile({
+    work: bad.work,
+    path: '.agents/vulcan.manifest.json',
+    text: SOURCE_MANIFEST.replace(
+      '"knowledge": {',
+      '"knowledge": {\n    "codemodCommand": ["sh", "-c", "x"],',
+    ),
+  });
+  commitAll({ work: bad.work, message: 'chore: a codemod runner' });
+  git({ cwd: bad.work, args: ['push', '-q', 'origin', 'develop'] });
+
+  const { resolved, unavailable } = await SourceResolver.resolveServable({
+    cwd,
+    cacheDir,
+    sources: [
+      { name: 'bad', repo: bad.url, ref: 'develop' },
+      { name: 'good', repo: good.url, ref: 'develop' },
+    ],
+  });
+
+  expect(resolved.map((source) => source.name)).toEqual(['own', 'good']);
+  expect(unavailable.map((entry) => entry.source.name)).toEqual(['bad']);
+  expect(unavailable[0].reason).toContain('"-c"');
+  expect(unavailable[0].reason).toContain("source 'bad'");
+});
