@@ -21,7 +21,8 @@
  *     hidden below 400 px);
  *   - a built inner page has a footer (inner pages have none) or lacks the top bar;
  *   - a version folder of the changelog is not served at `/changelogs/<X.Y.Z>`, or the text of its page is in the
- *     script every page loads (`chunks/theme.*.js`: the changelog index must be mounted by its own page).
+ *     script every page loads (`chunks/theme.*.js`: the changelog index must be mounted by its own page);
+ *   - the built changelog index has no `class="cl"` root: the page did not render `ChangelogIndex`.
  *
  * A hydration warning itself appears only in a browser; the server HTML checked here is its cause.
  * It reads only the built site and, when given one, the log of its build, so it runs the same in each wiki:
@@ -51,6 +52,8 @@ const LOG_PATTERNS: [RegExp, string][] = [
   [/\[Vue warn\]/, 'a Vue warning'],
   [/hydration/i, 'a hydration message'],
 ];
+/** The root element of the changelog index component. */
+const INDEX_ROOT = /class="cl"/;
 /** A version folder of the changelog: `changelogs/<X.Y.Z>/log.md`. */
 const VERSION_FOLDER = /^\d+\.\d+\.\d+$/;
 /** Inner pages to look at, the first that was built: the wikis' own sections. */
@@ -233,6 +236,20 @@ export class BuildCheck {
   }
 
   /**
+   * The index page mounts `ChangelogIndex` with a local import in a `<script setup>`. A wiki that copies the theme and misses that
+   * import builds an empty page, and the build still exits 0: the built index must hold the component's root.
+   */
+  static scanChangelogIndex(opts: { dist: string }): string[] {
+    const index = join(opts.dist, 'changelogs', 'index.html');
+
+    return existsSync(index) && !INDEX_ROOT.test(readFileSync(index, 'utf8'))
+      ? [
+          'the built changelogs/index.html did not render the changelog index: mount ChangelogIndex with a local import in changelogs/index.md',
+        ]
+      : [];
+  }
+
+  /**
    * The index of the changelog carries the HTML of the pages it shows in full. Registered as a global component it lands in
    * the theme chunk, which every page of the wiki loads. A section heading of a version folder, as the index renders it
    * (`<h3>Breaking</h3>`), is in no other data of the theme: finding one there means the text of a page reached that script.
@@ -286,6 +303,7 @@ export class BuildCheck {
       problems.push(
         ...BuildCheck.scanVersionPages({ changelogs: opts.changelogs, dist: opts.dist }),
         ...BuildCheck.scanThemeChunk({ changelogs: opts.changelogs, dist: opts.dist }),
+        ...BuildCheck.scanChangelogIndex({ dist: opts.dist }),
       );
     }
 

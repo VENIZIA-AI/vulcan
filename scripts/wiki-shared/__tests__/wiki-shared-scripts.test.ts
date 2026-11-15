@@ -197,6 +197,40 @@ describe('BuildCheck.scanVersionPages', () => {
   });
 });
 
+describe('BuildCheck.scanChangelogIndex', () => {
+  const dist = (html: string | null) => {
+    const root = mkdtempSync(join(tmpdir(), 'wiki-index-'));
+
+    roots.push(root);
+    mkdirSync(join(root, 'dist', 'changelogs'), { recursive: true });
+
+    if (html !== null) {
+      writeFileSync(join(root, 'dist', 'changelogs', 'index.html'), html);
+    }
+
+    return { dist: join(root, 'dist') };
+  };
+
+  test('an index that rendered the component passes', () => {
+    expect(BuildCheck.scanChangelogIndex(dist('<div class="cl"><h1>Changelog</h1></div>'))).toEqual(
+      [],
+    );
+  });
+
+  test('an index that built empty is told to mount the component with a local import', () => {
+    const problems = BuildCheck.scanChangelogIndex(dist('<div class="vp-doc"></div>'));
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain(
+      'mount ChangelogIndex with a local import in changelogs/index.md',
+    );
+  });
+
+  test('a wiki with no built index is not asked for anything', () => {
+    expect(BuildCheck.scanChangelogIndex(dist(null))).toEqual([]);
+  });
+});
+
 describe('BuildCheck.scanThemeChunk', () => {
   const site = (opts: { theme: string }) => {
     const root = mkdtempSync(join(tmpdir(), 'wiki-theme-'));
