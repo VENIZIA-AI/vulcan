@@ -4,6 +4,9 @@ import {
   formatDate,
   matchesFilter,
   parseEntry,
+  parseVersion,
+  shownVersions,
+  sortVersions,
   sortEntries,
 } from '../../../docs/wiki/site/.vitepress/theme/shared/changelog-entries.ts';
 import { changelogFeed } from '../../../docs/wiki/site/.vitepress/theme/shared/changelog-feed.ts';
@@ -145,5 +148,85 @@ describe('changelogFeed', () => {
     expect(xml).toContain('<link>https://example.test/changelogs/2026-10-26-x</link>');
     expect(xml).toContain('<pubDate>Mon, 26 Oct 2026 12:00:00 GMT</pubDate>');
     expect(xml).toContain('<category>Security</category>');
+  });
+});
+
+describe('the version folders on the changelog index (A6, C15)', () => {
+  const version = (opts: { url?: string; released?: unknown; src?: string; packages?: string[] }) =>
+    parseVersion({
+      url: opts.url ?? '/changelogs/0.4.8/log',
+      frontmatter: {
+        title: '0.4.8',
+        packages: opts.packages ?? ['@x/core'],
+        ...(opts.released === undefined ? {} : { released: opts.released }),
+      },
+      src: opts.src ?? '---\ntitle: 0.4.8\n---\nThe line.\n\n## Added\n- **A** `a`: a.\n',
+    });
+
+  test('a version folder is read from its frontmatter and its first paragraph, whichever url the loader names it by', () => {
+    for (const url of ['/changelogs/0.4.8/log', '/changelogs/0.4.8', '/changelogs/0.4.8.html']) {
+      expect(version({ url, released: '2026-11-20' })).toMatchObject({
+        url: '/changelogs/0.4.8',
+        version: '0.4.8',
+        title: '0.4.8',
+        released: '2026-11-20',
+        summary: 'The line.',
+        packages: ['@x/core'],
+        hasBreaking: false,
+      });
+    }
+  });
+
+  test('an unquoted released: date, which the frontmatter parser reads as a Date, is the same day', () => {
+    expect(version({ released: new Date('2026-11-20T00:00:00Z') })?.released).toBe('2026-11-20');
+  });
+
+  test('no released: (or one that is not a date) is a line in progress', () => {
+    expect(version({})?.released).toBeNull();
+    expect(version({ released: 'soon' })?.released).toBeNull();
+  });
+
+  test('a Breaking section is noted, and a page that is not a version folder is not one', () => {
+    expect(
+      version({ src: '---\ntitle: x\n---\nIntro.\n\n## Breaking\n- **A** `a`: a.\n' })?.hasBreaking,
+    ).toBe(true);
+    expect(version({ url: '/changelogs/2026-10-26-thing' })).toBeNull();
+    expect(version({ url: '/changelogs/index' })).toBeNull();
+  });
+
+  test('sortVersions orders by number, and the index shows the latest release, the line in progress, then the older ones', () => {
+    const entries = ['0.4.10', '0.4.6', '0.4.9', '0.4.8'].flatMap((name) => {
+      const entry = version({
+        url: `/changelogs/${name}/log`,
+        released: name === '0.4.10' ? undefined : '2026-11-01',
+      });
+
+      return entry === null ? [] : [entry];
+    });
+    const shown = shownVersions(entries);
+
+    expect(sortVersions(entries).map((entry) => entry.version)).toEqual([
+      '0.4.10',
+      '0.4.9',
+      '0.4.8',
+      '0.4.6',
+    ]);
+    expect(shown.latest?.version).toBe('0.4.9');
+    expect(shown.inProgress?.version).toBe('0.4.10');
+    expect(shown.older.map((entry) => entry.version)).toEqual(['0.4.8', '0.4.6']);
+  });
+
+  test('the feed lists a released version with its released: date and leaves out the line in progress', () => {
+    const released = version({ url: '/changelogs/0.4.7/log', released: '2026-11-10' });
+    const open = version({ url: '/changelogs/0.4.8/log' });
+    const feed = changelogFeed({
+      site: { title: 'T', description: 'D', siteUrl: 'https://x.test' },
+      entries: [],
+      versions: [released, open].flatMap((entry) => (entry === null ? [] : [entry])),
+    });
+
+    expect(feed).toContain('<link>https://x.test/changelogs/0.4.7</link>');
+    expect(feed).toContain('Tue, 10 Nov 2026 12:00:00 GMT');
+    expect(feed).not.toContain('changelogs/0.4.8');
   });
 });

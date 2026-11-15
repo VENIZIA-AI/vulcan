@@ -99,6 +99,8 @@ export default defineConfig({
     theme: venziaCodeTheme({ accent: THEME.dark.accent ?? '' }),
   },
   srcDir: '../content',
+  // A version folder keeps its page as changelogs/<X.Y.Z>/log.md; the site serves it at /changelogs/<X.Y.Z>.
+  rewrites: { 'changelogs/:version/log.md': 'changelogs/:version.md' },
   outDir: './.vitepress/dist',
   title: 'VULCAN',
   description: 'The agentic-coding toolkit for VENIZIA projects',
@@ -166,6 +168,8 @@ export default defineConfig({
   ],
   lastUpdated: true,
   themeConfig: {
+    // The page a Breaking item of a version points to; the changelog page of a version shows the link.
+    migrateGuide: '/guides/core-concepts/migrate-between-releases',
     logo: '/logo.svg',
     nav: [
       { text: 'Guide', link: '/guides/', activeMatch: '/guides/' },

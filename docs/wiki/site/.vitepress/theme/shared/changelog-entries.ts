@@ -35,6 +35,8 @@ export type TChangelogEntry = {
   version: string | null;
 };
 
+/** A version folder's page: the loader names it by its source (`/changelogs/0.4.8/log`); the wiki serves it at `/changelogs/0.4.8`. */
+const VERSION_URL = /\/changelogs\/(\d+\.\d+\.\d+)(?:\/log)?$/;
 const DATED = /^(\d{4}-\d{2}-\d{2})-(.+)$/;
 const BADGE = /<Badge\b[^>]*?\btext="([^"]+)"/g;
 const VERSION = /\b(\d+\.\d+\.\d+)\b/;
@@ -66,6 +68,97 @@ const typeOfBadge = (text: string): TChangelogType => {
 };
 
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+
+/**
+ * One version folder (`changelogs/<X.Y.Z>/log.md`) as the index and the feed know it. Only the frontmatter and the
+ * first paragraph are read: no git, no manifest, so the file is the same in every wiki.
+ */
+export type TVersionEntry = {
+  url: string;
+  /** The stable the line releases: the folder name. */
+  version: string;
+  title: string;
+  /** `YYYY-MM-DD` once the stable is out; null while the line is in progress. */
+  released: string | null;
+  /** The paragraph above the sections: what the release is. */
+  summary: string;
+  packages: string[];
+  /** The line has a Breaking section: its page points to the migrate guide. */
+  hasBreaking: boolean;
+  /** The page as HTML; set only for the two the index shows in full. */
+  html?: string;
+};
+
+const SECTION = /^## (.+?)\s*$/gm;
+const RELEASED = /^\d{4}-\d{2}-\d{2}$/;
+
+/** The text between the frontmatter and the first heading, as one line. */
+const introOf = (src: string): string => {
+  const body = src.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
+  const first = body.search(/^## /m);
+
+  return (first === -1 ? body : body.slice(0, first)).replace(/\s+/g, ' ').trim();
+};
+
+/** A version folder's page as an entry; null for any other page. */
+export const parseVersion = (opts: {
+  url: string;
+  frontmatter: Record<string, unknown>;
+  src: string;
+}): TVersionEntry | null => {
+  const version = VERSION_URL.exec(opts.url.replace(/\.html$/, ''))?.[1];
+
+  if (version === undefined) {
+    return null;
+  }
+
+  // The frontmatter parser reads an unquoted `released: 2026-11-10` as a Date (UTC midnight); a quoted one is text.
+  const date = opts.frontmatter.released;
+  const released =
+    date instanceof Date && !Number.isNaN(date.getTime())
+      ? date.toISOString().slice(0, 10)
+      : text(date);
+  const packages = Array.isArray(opts.frontmatter.packages)
+    ? opts.frontmatter.packages.filter((entry): entry is string => typeof entry === 'string')
+    : [];
+
+  return {
+    url: `/changelogs/${version}`,
+    version,
+    title: text(opts.frontmatter.title) || version,
+    released: RELEASED.test(released) ? released : null,
+    summary: introOf(opts.src),
+    packages,
+    hasBreaking: [...opts.src.matchAll(SECTION)].some((match) => match[1] === 'Breaking'),
+  };
+};
+
+const numbers = (version: string): number[] => version.split('.').map(Number);
+
+/** Newest first, by version number. */
+export const sortVersions = (versions: TVersionEntry[]): TVersionEntry[] =>
+  [...versions].sort((a, b) => {
+    const [left, right] = [numbers(a.version), numbers(b.version)];
+
+    return right[0] - left[0] || right[1] - left[1] || right[2] - left[2];
+  });
+
+/**
+ * What the index shows of the version folders, in the order it shows them: the latest released line in full, then
+ * the line in progress, then the older released lines as a list of titles.
+ */
+export const shownVersions = (
+  versions: TVersionEntry[],
+): { latest?: TVersionEntry; inProgress?: TVersionEntry; older: TVersionEntry[] } => {
+  const sorted = sortVersions(versions);
+  const released = sorted.filter((entry) => entry.released !== null);
+
+  return {
+    latest: released[0],
+    inProgress: sorted.find((entry) => entry.released === null),
+    older: released.slice(1),
+  };
+};
 
 export const parseEntry = (opts: {
   url: string;
