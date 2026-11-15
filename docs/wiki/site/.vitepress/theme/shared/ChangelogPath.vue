@@ -13,7 +13,7 @@ import { computed } from 'vue';
 const props = defineProps<{
   version: string;
   packages: number;
-  guide: { ids: string[]; codemods: string[] } | undefined;
+  guide: { ids: string[]; covered: string[]; codemods: string[] } | undefined;
   guideUrl: string;
   /** Set on the guide page: how many steps the reader has marked done. */
   done?: number;
@@ -27,6 +27,7 @@ const migrateGuide = computed<string | undefined>(() =>
 const onGuide = computed(() => props.done !== undefined);
 const blocks = computed(() => props.guide?.ids.length ?? 0);
 const codemods = computed(() => props.guide?.codemods ?? []);
+const byHand = computed(() => blocks.value - (props.guide?.covered.length ?? 0));
 const percent = computed(() =>
   blocks.value === 0 ? 0 : Math.round(((props.done ?? 0) / blocks.value) * 100),
 );
@@ -51,6 +52,10 @@ const percent = computed(() =>
           <div>
             <dt>Codemods</dt>
             <dd>{{ codemods.length }}</dd>
+          </div>
+          <div>
+            <dt>By hand</dt>
+            <dd>{{ byHand }}</dd>
           </div>
         </dl>
         <ol>

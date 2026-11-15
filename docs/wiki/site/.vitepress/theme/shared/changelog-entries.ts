@@ -9,6 +9,8 @@
  * is a release overview when its frontmatter says `type: release`, its file name has `batch-overview`,
  * or its title ends in "(Overview)". This file is pure (no VitePress import) so a test can run it.
  */
+import { countSections, firstSentence, parseItems, type TSectionName } from './changelog-items';
+
 export type TChangelogGroup =
   | 'releases'
   | 'features'
@@ -68,8 +70,6 @@ const typeOfBadge = (text: string): TChangelogType => {
 };
 
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
-
-import { countSections, firstSentence, parseItems, type TSectionName } from './changelog-items';
 
 /**
  * One version folder (`changelogs/<X.Y.Z>/log.md`) as the index and the feed know it. Only the frontmatter, the

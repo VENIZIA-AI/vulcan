@@ -9,15 +9,11 @@
   async component, so the items stay out of the script every page loads.
 -->
 <script setup lang="ts">
-import { useData } from 'vitepress';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ChangelogCounts from './ChangelogCounts.vue';
 import ChangelogItem from './ChangelogItem.vue';
 import ChangelogPath from './ChangelogPath.vue';
-import { data as guideCounts } from './changelog-guide-counts.data';
-import { data as itemSets } from './changelog-items.data';
-import { data as versions } from './changelog-versions.data';
-import { formatDate } from './changelog-entries';
+import { useChangelogVersion, usePackageFilter } from './useChangelogPage';
 import {
   SECTION_NAMES,
   renderInline,
@@ -28,21 +24,13 @@ import {
 
 /** Above this many Breaking items the section is grouped by package. */
 const GROUP_FROM = 12;
-const { page } = useData();
 
-const version = computed(
-  () => /^changelogs\/(\d+\.\d+\.\d+)/.exec(page.value.relativePath)?.[1] ?? '',
-);
-const entry = computed(() => versions.find((candidate) => candidate.version === version.value));
-const items = computed<TVersionItem[]>(
-  () => itemSets.find((candidate) => candidate.version === version.value)?.items ?? [],
-);
-const guide = computed(() => guideCounts.find((candidate) => candidate.version === version.value));
-const guideUrl = computed(() => `/changelogs/${version.value}/upgrade`);
-const prerelease = computed(() => entry.value !== undefined && entry.value.released === null);
+const { version, entry, items, guide, guideUrl, prerelease, dateLine } = useChangelogVersion();
+const shortNames = (item: TVersionItem): string[] =>
+  item.packages.map((name) => shortPackage({ name }));
+const filter = usePackageFilter({ lists: () => items.value.map(shortNames) });
 
 const query = ref('');
-const selected = ref<Set<string>>(new Set());
 
 const haystack = computed(
   () =>
@@ -60,8 +48,7 @@ const visible = computed(() => {
   return items.value.filter(
     (item) =>
       (needle === '' || (haystack.value.get(item.id) ?? '').includes(needle)) &&
-      (selected.value.size === 0 ||
-        item.packages.some((name) => selected.value.has(shortPackage({ name })))),
+      filter.matches(shortNames(item)),
   );
 });
 
@@ -87,51 +74,6 @@ const sections = computed<TSection[]>(() =>
     return [{ name, items: own, groups: grouped ? [...groups] : [] }];
   }),
 );
-
-const navigation = computed(() =>
-  SECTION_NAMES.flatMap((name): [TSectionName, number][] => {
-    const count = items.value.filter((item) => item.section === name).length;
-
-    return count === 0 ? [] : [[name, count]];
-  }),
-);
-
-const packages = computed(() => {
-  const counts = new Map<string, number>();
-
-  for (const item of items.value) {
-    for (const name of new Set(
-      item.packages.map((entryName) => shortPackage({ name: entryName })),
-    )) {
-      counts.set(name, (counts.get(name) ?? 0) + 1);
-    }
-  }
-
-  const list = [...counts].sort(
-    (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
-  );
-  const max = list[0]?.[1] ?? 1;
-
-  return list.map(([name, count]) => ({ name, count, width: Math.round((count / max) * 100) }));
-});
-
-const toggle = (name: string): void => {
-  const next = new Set(selected.value);
-
-  if (!next.delete(name)) {
-    next.add(name);
-  }
-
-  selected.value = next;
-};
-
-const dateLine = computed(() => {
-  const released = entry.value?.released;
-
-  return released === null || released === undefined
-    ? 'In progress, on the next tag'
-    : `Released ${formatDate(released)}`;
-});
 
 const summaryHtml = computed(() => renderInline({ text: entry.value?.summary ?? '' }));
 const overviewWords = computed(
@@ -167,10 +109,10 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', openHash));
 <template>
   <div v-if="entry" class="cx-detail">
     <aside class="cx-rail cx-rail--left" aria-label="Find in this release">
-      <div v-if="navigation.length">
+      <div v-if="entry.counts.length">
         <h2 class="cx-label">On this page</h2>
         <nav>
-          <a v-for="[name, count] in navigation" :key="name" :href="`#${name.toLowerCase()}`"
+          <a v-for="[name, count] in entry.counts" :key="name" :href="`#${name.toLowerCase()}`"
             >{{ name }}<span>{{ count }}</span></a
           >
         </nav>
@@ -182,16 +124,16 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', openHash));
         :placeholder="`Search ${items.length} items`"
         aria-label="Search the items"
       />
-      <div v-if="packages.length > 1">
+      <div v-if="filter.packages.value.length > 1">
         <h2 class="cx-label">Packages</h2>
         <div class="cx-pf">
           <button
-            v-for="pkg in packages"
+            v-for="pkg in filter.packages.value"
             :key="pkg.name"
             type="button"
-            :aria-pressed="selected.has(pkg.name)"
+            :aria-pressed="filter.selected.value.has(pkg.name)"
             :style="{ '--w': `${pkg.width}%` }"
-            @click="toggle(pkg.name)"
+            @click="filter.toggle(pkg.name)"
           >
             {{ pkg.name }}<span>{{ pkg.count }}</span>
           </button>
@@ -200,79 +142,85 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', openHash));
     </aside>
 
     <div class="cx-main">
-      <div class="cx-crumb"><a href="/changelogs/">Changelog</a> / {{ version }}</div>
-      <div class="cx-title">
-        <h1>{{ version }}</h1>
-        <span :class="['cx-chip', prerelease ? 'cx-chip--pre' : 'cx-chip--stable']">{{
-          prerelease ? 'Prerelease' : 'Stable'
-        }}</span>
-        <span class="cx-chip">{{ dateLine }}</span>
-      </div>
-      <p v-if="entry.summary" class="cx-sum" v-html="summaryHtml"></p>
-      <div class="cx-overview">
-        <div v-if="entry.highlights.length">
-          <h2 class="cx-label">In this release</h2>
-          <ul class="cx-hl">
-            <li
-              v-for="(line, index) in entry.highlights"
-              :key="index"
-              v-html="renderInline({ text: line })"
-            ></li>
-          </ul>
+      <div class="cx-head">
+        <div class="cx-crumb"><a href="/changelogs/">Changelog</a> / {{ version }}</div>
+        <div class="cx-title">
+          <h1>{{ version }}</h1>
+          <span :class="['cx-chip', prerelease ? 'cx-chip--pre' : 'cx-chip--stable']">{{
+            prerelease ? 'Prerelease' : 'Stable'
+          }}</span>
+          <span class="cx-chip">{{ dateLine }}</span>
         </div>
-        <ChangelogCounts :counts="entry.counts" />
+        <p v-if="entry.summary" class="cx-sum" v-html="summaryHtml"></p>
+        <div class="cx-overview">
+          <div v-if="entry.highlights.length">
+            <h2 class="cx-label">In this release</h2>
+            <ul class="cx-hl">
+              <li
+                v-for="(line, index) in entry.highlights"
+                :key="index"
+                v-html="renderInline({ text: line })"
+              ></li>
+            </ul>
+          </div>
+          <ChangelogCounts :counts="entry.counts" />
+        </div>
+        <details v-if="showOverview" class="cx-readmore">
+          <summary>Read the full overview ({{ overviewWords }} words)</summary>
+          <p v-html="renderInline({ text: entry.overview })"></p>
+        </details>
+
+        <nav class="cx-tabs" :aria-label="version">
+          <a :href="`/changelogs/${version}`" aria-current="page"
+            >Changes <span>{{ items.length }}</span></a
+          >
+          <a v-if="guide" :href="guideUrl"
+            >Upgrade guide <span>{{ guide.ids.length }}</span></a
+          >
+        </nav>
       </div>
-      <details v-if="showOverview" class="cx-readmore">
-        <summary>Read the full overview ({{ overviewWords }} words)</summary>
-        <p v-html="renderInline({ text: entry.overview })"></p>
-      </details>
 
-      <nav class="cx-tabs" :aria-label="version">
-        <a :href="`/changelogs/${version}`" aria-current="page"
-          >Changes <span>{{ items.length }}</span></a
+      <div class="cx-body">
+        <section
+          v-for="section in sections"
+          :key="section.name"
+          :class="['cx-sec', `t-${section.name.toLowerCase()}`]"
         >
-        <a v-if="guide" :href="guideUrl"
-          >Upgrade guide <span>{{ guide.ids.length }}</span></a
-        >
-      </nav>
-
-      <section
-        v-for="section in sections"
-        :key="section.name"
-        :class="['cx-sec', `t-${section.name.toLowerCase()}`]"
-      >
-        <h2 :id="section.name.toLowerCase()">
-          {{ section.name }} <span>{{ section.items.length }}</span>
-        </h2>
-        <template v-if="section.groups.length">
-          <div v-for="[group, list] in section.groups" :key="group" class="cx-grp">
-            <h3>
-              <span>{{ group }}</span
-              ><span>{{ list.length }}</span>
-            </h3>
+          <h2 :id="section.name.toLowerCase()">
+            {{ section.name }} <span>{{ section.items.length }}</span>
+          </h2>
+          <template v-if="section.groups.length">
+            <div v-for="[group, list] in section.groups" :key="group" class="cx-grp">
+              <h3>
+                <span>{{ group }}</span
+                ><span>{{ list.length }}</span>
+              </h3>
+              <ChangelogItem
+                v-for="item in list"
+                :key="item.id"
+                :item="item"
+                :step-url="hasStep(item.id) ? guideUrl : undefined"
+                :covered="isCovered(item.id)"
+              />
+            </div>
+          </template>
+          <template v-else>
             <ChangelogItem
-              v-for="item in list"
+              v-for="item in section.items"
               :key="item.id"
               :item="item"
               :step-url="hasStep(item.id) ? guideUrl : undefined"
               :covered="isCovered(item.id)"
             />
-          </div>
-        </template>
-        <template v-else>
-          <ChangelogItem
-            v-for="item in section.items"
-            :key="item.id"
-            :item="item"
-            :step-url="hasStep(item.id) ? guideUrl : undefined"
-            :covered="isCovered(item.id)"
-          />
-        </template>
-      </section>
-      <p v-if="items.length && sections.length === 0" class="cx-empty">
-        No item matches the search and the filter.
-      </p>
-      <p v-if="items.length === 0" class="cx-empty">This version's log has no itemised changes.</p>
+          </template>
+        </section>
+        <p v-if="items.length && sections.length === 0" class="cx-empty">
+          No item matches the search and the filter.
+        </p>
+        <p v-if="items.length === 0" class="cx-empty">
+          This version's log has no itemised changes.
+        </p>
+      </div>
     </div>
 
     <ChangelogPath

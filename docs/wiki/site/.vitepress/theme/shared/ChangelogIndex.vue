@@ -147,7 +147,9 @@ const meta = (entry: TChangelogEntry): string =>
       <span class="cl-arrow" aria-hidden="true"></span>
     </a>
 
-    <h2 v-if="hasVersions && entries.length" id="history" class="cl-history-title">History</h2>
+    <h2 v-if="hasVersions && entries.length" id="history" class="cl-history-title">
+      Earlier entries
+    </h2>
 
     <div class="cl-bar" v-if="entries.length">
       <div class="cl-tabs" role="group" aria-label="Filter the changelog">

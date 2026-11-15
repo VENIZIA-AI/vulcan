@@ -36,12 +36,11 @@ const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 const SECTION_LINE = /^## (.+?)\s*$/;
 const LINK = /\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g;
 /** The targets a link may have: a web address, a path of the site, or an anchor. Anything else is text. */
-const SAFE_TARGET = /^(?:https?:\/\/|\/|#)/;
+const SAFE_TARGET = /^(?:https?:\/\/|\/(?!\/)|#)/;
 
-const escapeHtml = (value: string): string =>
+/** Text as HTML: `&`, `<` and `>` escaped. */
+export const escapeHtml = (value: string): string =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-const escapeAttribute = (value: string): string => escapeHtml(value).replace(/"/g, '&quot;');
 
 /** Inline markdown as HTML: code spans, bold and links; every other character is text. */
 export const renderInline = (opts: { text: string }): string =>
@@ -57,7 +56,10 @@ export const renderInline = (opts: { text: string }): string =>
       return escapeHtml(part)
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
         .replace(LINK, (_match, label: string, target: string) =>
-          SAFE_TARGET.test(target) ? `<a href="${escapeAttribute(target)}">${label}</a>` : label,
+          // the text is escaped already, so the target is too: only the quote that would end the attribute is left
+          SAFE_TARGET.test(target)
+            ? `<a href="${target.replace(/"/g, '&quot;')}">${label}</a>`
+            : label,
         );
     })
     .join('');

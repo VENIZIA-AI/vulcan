@@ -11,7 +11,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { parse } from 'yaml';
-import { renderParagraphs } from './changelog-items';
+import { escapeHtml, renderParagraphs } from './changelog-items';
 
 export type TGuideDirection = {
   steps: string[];
@@ -49,9 +49,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const strings = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
 
-const escapeHtml = (value: string): string =>
-  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 /** Code as HTML: escaped, with a `//` comment line in a span the stylesheet colours. */
 export const codeHtml = (opts: { code: string }): string =>
   opts.code
@@ -70,13 +67,10 @@ const directionOf = (value: unknown): TGuideDirection => {
 
   return {
     steps: strings(direction.steps),
-    ...(codeOf(direction.before) === undefined ? {} : { beforeHtml: codeOf(direction.before) }),
-    ...(codeOf(direction.after) === undefined ? {} : { afterHtml: codeOf(direction.after) }),
+    beforeHtml: codeOf(direction.before),
+    afterHtml: codeOf(direction.after),
   };
 };
-
-/** The steps of a block as the guide numbers them. */
-export const guideSteps = (opts: { block: { steps: string[] } }): string[] => opts.block.steps;
 
 /** The blocks of a `migration.yaml`, in file order; none for a text that is not a map of blocks. */
 export const parseGuide = (opts: { text: string }): TGuideBlock[] => {
@@ -106,10 +100,10 @@ export const parseGuide = (opts: { text: string }): TGuideBlock[] => {
         id,
         symbols: strings(raw.symbols),
         steps: upgrade.steps,
-        ...(upgrade.beforeHtml === undefined ? {} : { beforeHtml: upgrade.beforeHtml }),
-        ...(upgrade.afterHtml === undefined ? {} : { afterHtml: upgrade.afterHtml }),
-        ...(data === undefined ? {} : { dataHtml: renderParagraphs({ text: data }) }),
-        ...(typeof raw.codemod === 'string' ? { codemod: raw.codemod } : {}),
+        beforeHtml: upgrade.beforeHtml,
+        afterHtml: upgrade.afterHtml,
+        dataHtml: data === undefined ? undefined : renderParagraphs({ text: data }),
+        codemod: typeof raw.codemod === 'string' ? raw.codemod : undefined,
         downgrade: directionOf(raw.downgrade),
       },
     ];

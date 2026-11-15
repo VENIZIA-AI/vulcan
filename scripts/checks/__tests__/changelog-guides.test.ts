@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   codeHtml,
-  guideSteps,
   guidePaths,
   guidesFromFiles,
   orderBlocks,
@@ -64,7 +63,6 @@ describe('parseGuide', () => {
   test('a block with no steps (an older upgrade of code only) has an empty list; the way back may be code', () => {
     expect(blocks[1].steps).toEqual(['Edit it.']);
     expect(blocks[1].downgrade).toEqual({ steps: [], beforeHtml: 'b', afterHtml: 'a' });
-    expect(guideSteps({ block: { steps: [] } })).toEqual([]);
   });
 
   test('a text that is not a map of blocks gives none, and never throws', () => {

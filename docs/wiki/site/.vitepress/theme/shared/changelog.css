@@ -704,7 +704,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: auto;
 }
 
 /* the whole card opens the details; the guide button sits above that link */
@@ -797,6 +796,7 @@
   cursor: pointer;
   text-align: left;
   overflow: hidden;
+  isolation: isolate;
 }
 
 .cx-pf button::before {
@@ -806,10 +806,6 @@
   width: var(--w);
   background: var(--accent-soft);
   z-index: -1;
-}
-
-.cx-pf button {
-  isolation: isolate;
 }
 
 .cx-pf button[aria-pressed='true'] {
@@ -865,6 +861,10 @@
 .cx-main .cx-sum {
   font-size: 20px;
   max-width: 60ch;
+}
+
+.cx-overview > .cx-make {
+  align-content: start;
 }
 
 .cx-overview {
@@ -1350,6 +1350,9 @@
 }
 
 .cx-affected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin: 0 16px 12px;
   padding: 10px 12px;
   border-radius: var(--radius);
@@ -1359,18 +1362,20 @@
 }
 
 .cx-affected b {
+  flex: 0 0 100%;
   font-weight: 600;
   color: var(--text-title);
 }
 
 .cx-affected code {
-  margin-right: 4px;
+  max-width: 100%;
   padding: 1px 5px;
   border: 1px solid var(--stroke);
   border-radius: var(--radius);
   background: var(--bg);
   font-size: 12px;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow-x: auto;
 }
 
 .cx-ba {
@@ -1378,6 +1383,10 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin: 0 16px 12px;
+}
+
+.cx-ba--one {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .cx-win {
@@ -1431,6 +1440,7 @@
 }
 
 .cx-steps {
+  grid-template-columns: minmax(0, 1fr);
   margin: 0 16px 14px;
   padding: 0;
   display: grid;
@@ -1440,6 +1450,8 @@
 }
 
 .cx-step {
+  min-width: 0;
+  overflow-wrap: anywhere;
   position: relative;
   padding-left: 28px;
   counter-increment: st;
@@ -1562,18 +1574,27 @@
     padding: var(--space-4);
   }
 
-  .cx-rail--left {
-    position: static;
-    max-height: none;
-    order: 2;
+  /* the path first, then the title and what it says, then the search, filter and Hide box, then the cards */
+  .cx-main {
+    display: contents;
   }
 
   .cx-rail--right {
     order: 0;
   }
 
-  .cx-main {
+  .cx-head {
     order: 1;
+  }
+
+  .cx-rail--left {
+    position: static;
+    max-height: none;
+    order: 2;
+  }
+
+  .cx-body {
+    order: 3;
   }
 
   .cx-vcard {

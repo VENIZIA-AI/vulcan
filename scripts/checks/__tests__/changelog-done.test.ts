@@ -41,34 +41,38 @@ describe('the steps a reader has done', () => {
   test("are kept per version in the reader's storage and read back as a set", () => {
     const storage = memory();
 
-    writeDone({ storage, version: '0.4.8', ids: new Set(['a', 'b']) });
-    writeDone({ storage, version: '0.4.7', ids: new Set(['z']) });
+    writeDone({ storage, project: 'VULCAN', version: '0.4.8', ids: new Set(['a', 'b']) });
+    writeDone({ storage, project: 'VULCAN', version: '0.4.7', ids: new Set(['z']) });
 
-    expect(readDone({ storage, version: '0.4.8' })).toEqual(new Set(['a', 'b']));
-    expect(readDone({ storage, version: '0.4.7' })).toEqual(new Set(['z']));
-    expect(storage.getItem(doneKey({ version: '0.4.8' }))).toBe('["a","b"]');
+    expect(readDone({ storage, project: 'VULCAN', version: '0.4.8' })).toEqual(new Set(['a', 'b']));
+    expect(readDone({ storage, project: 'VULCAN', version: '0.4.7' })).toEqual(new Set(['z']));
+    expect(storage.getItem(doneKey({ project: 'VULCAN', version: '0.4.8' }))).toBe('["a","b"]');
   });
 
   test('read nothing when there is no storage, it is blocked, or it holds something else', () => {
-    expect(readDone({ storage: undefined, version: '0.4.8' })).toEqual(new Set());
-    expect(readDone({ storage: throwing(), version: '0.4.8' })).toEqual(new Set());
+    expect(readDone({ storage: undefined, project: 'VULCAN', version: '0.4.8' })).toEqual(
+      new Set(),
+    );
+    expect(readDone({ storage: throwing(), project: 'VULCAN', version: '0.4.8' })).toEqual(
+      new Set(),
+    );
 
     const storage = memory();
 
-    storage.setItem(doneKey({ version: '0.4.8' }), '{"not":"a list"}');
-    expect(readDone({ storage, version: '0.4.8' })).toEqual(new Set());
-    storage.setItem(doneKey({ version: '0.4.8' }), 'not json');
-    expect(readDone({ storage, version: '0.4.8' })).toEqual(new Set());
-    storage.setItem(doneKey({ version: '0.4.8' }), '["a", 3, null]');
-    expect(readDone({ storage, version: '0.4.8' })).toEqual(new Set(['a']));
+    storage.setItem(doneKey({ project: 'VULCAN', version: '0.4.8' }), '{"not":"a list"}');
+    expect(readDone({ storage, project: 'VULCAN', version: '0.4.8' })).toEqual(new Set());
+    storage.setItem(doneKey({ project: 'VULCAN', version: '0.4.8' }), 'not json');
+    expect(readDone({ storage, project: 'VULCAN', version: '0.4.8' })).toEqual(new Set());
+    storage.setItem(doneKey({ project: 'VULCAN', version: '0.4.8' }), '["a", 3, null]');
+    expect(readDone({ storage, project: 'VULCAN', version: '0.4.8' })).toEqual(new Set(['a']));
   });
 
   test('writing never throws: a blocked storage keeps nothing and the page goes on', () => {
     expect(() =>
-      writeDone({ storage: throwing(), version: '0.4.8', ids: new Set(['a']) }),
+      writeDone({ storage: throwing(), project: 'VULCAN', version: '0.4.8', ids: new Set(['a']) }),
     ).not.toThrow();
     expect(() =>
-      writeDone({ storage: undefined, version: '0.4.8', ids: new Set(['a']) }),
+      writeDone({ storage: undefined, project: 'VULCAN', version: '0.4.8', ids: new Set(['a']) }),
     ).not.toThrow();
   });
 });

@@ -90,6 +90,20 @@ describe('renderInline', () => {
     );
   });
 
+  test('an id shown as a title is text, never markup', () => {
+    expect(renderInline({ text: '<img src=x onerror=alert(8)>' })).toBe(
+      '&lt;img src=x onerror=alert(8)&gt;',
+    );
+  });
+
+  test('a link target is escaped once, and a protocol-relative one is text', () => {
+    expect(renderInline({ text: '[x](https://e.test/?a=1&b=2)' })).toBe(
+      '<a href="https://e.test/?a=1&amp;b=2">x</a>',
+    );
+    expect(renderInline({ text: '[x](//evil.example/a)' })).toBe('x');
+    expect(renderInline({ text: '[x](/a?b=1&c=2)' })).toBe('<a href="/a?b=1&amp;c=2">x</a>');
+  });
+
   test('a link that is not http, https, a path or an anchor is text, never an href', () => {
     expect(renderInline({ text: '[x](javascript:alert(1))' })).toBe('x');
     expect(renderInline({ text: '[x](/a#b)' })).toBe('<a href="/a#b">x</a>');

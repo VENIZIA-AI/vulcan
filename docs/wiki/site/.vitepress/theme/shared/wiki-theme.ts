@@ -35,6 +35,7 @@ const VARIABLES: [string, string, string][] = [
   ['accent', 'accent', 'accent'],
   ['accent-ink', 'accent-ink', 'accent-ink'],
   ['accent-text', 'accent-text', 'accent-text'],
+  ['accent-soft', 'accent-soft', 'accent-soft'],
   ['ok', 'ok', 'ok'],
   ['ok-soft', 'ok-soft', 'ok-soft'],
   ['wait', 'wait', 'wait'],
