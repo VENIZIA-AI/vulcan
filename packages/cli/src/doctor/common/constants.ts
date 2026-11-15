@@ -95,8 +95,8 @@ export class PrivateValueScan {
 }
 
 export class DoctorConstants {
-  /** The first VULCAN line whose atlas reads version folders (stable part); an older installed vulcan ignores them. */
-  static readonly CHANGELOG_FOLDERS_FROM = '0.4.10';
+  /** The first VULCAN version whose atlas reads version folders (the first prerelease of the line to carry the reader); an older installed vulcan ignores them. */
+  static readonly CHANGELOG_FOLDERS_FROM = '0.4.10-16';
   static readonly MAKE_INCLUDE_PATTERN =
     /^-?include\s+\S*@venizia\/vulcan\/base\/make\/vulcan\.mk\s*$/m;
   /** The `[fmt]` table header of a `bunfig.toml`, on a line of its own, a trailing comment allowed. */

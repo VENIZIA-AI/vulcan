@@ -79,7 +79,10 @@ const TABLE: IReleaseTable = {
   ],
 };
 
-const releases = new ReleaseStore({ table: TABLE });
+/** The npm names of the source project's own packages: where its codemod runner may be installed from. */
+const PROJECT_PACKAGES = ['@venizia/dev-configs', '@venizia/ardor'];
+
+const releases = new ReleaseStore({ codemodPackages: PROJECT_PACKAGES, table: TABLE });
 
 const STUB = (opts: { log: string }): string => `#!/bin/sh
 echo "$@" >> "${opts.log}"
@@ -226,6 +229,7 @@ describe('MigrateApply.run', () => {
 
   test('a codemod that fails stops the run, exits 1 and names it; later codemods do not run', () => {
     const failing = new ReleaseStore({
+      codemodPackages: PROJECT_PACKAGES,
       table: {
         ...TABLE,
         changelogs: [
@@ -301,6 +305,7 @@ describe('MigrateApply.run', () => {
     writeFileSync(join(app, 'src', 'a.ts'), '// edited\n');
 
     const none = new ReleaseStore({
+      codemodPackages: PROJECT_PACKAGES,
       table: {
         ...TABLE,
         changelogs: [entry({ slug: 'p', order: 1, items: [item({ id: 'plain-only' })] })],
@@ -365,6 +370,7 @@ describe('MigrateApply.run', () => {
     const out: string[] = [];
     const err: string[] = [];
     const bad = new ReleaseStore({
+      codemodPackages: PROJECT_PACKAGES,
       table: {
         ...TABLE,
         changelogs: [
@@ -472,7 +478,11 @@ describe('MigrateApply.run', () => {
 
 describe("MigrateApply.run: the runner is the source project's own", () => {
   const withRunner = (opts: { codemodCommand?: string[] }) =>
-    new ReleaseStore({ table: TABLE, codemodCommand: opts.codemodCommand });
+    new ReleaseStore({
+      codemodPackages: PROJECT_PACKAGES,
+      table: TABLE,
+      codemodCommand: opts.codemodCommand,
+    });
 
   const runWith = (opts: {
     store: ReleaseStore;
@@ -571,7 +581,11 @@ describe('MigrateApply.run: a runner is run only from a package of its source', 
     const out: string[] = [];
     const err: string[] = [];
     const result = MigratePlan.plans({
-      releases: new ReleaseStore({ table: TABLE, codemodCommand: ['rimraf', 'codemod'] }),
+      releases: new ReleaseStore({
+        codemodPackages: PROJECT_PACKAGES,
+        table: TABLE,
+        codemodCommand: ['rimraf', 'codemod'],
+      }),
       app: opts.app,
       package: '@venizia/kernel',
       from: '1.0.0',
@@ -641,5 +655,54 @@ describe('MigrateApply.run: a runner is run only from a package of its source', 
 
     expect(code).toBe(0);
     expect(calls({ log })).toEqual(['codemod cm-a . --write']);
+  });
+});
+
+describe('MigrateApply.run: the allow-list is the validated project, never the table', () => {
+  test('a package list of a tampered plan that names `..` or an empty name allows nothing', () => {
+    for (const hostile of [['..'], [''], ['../..'], ['.']]) {
+      const { app, log } = appWith({ devz: false });
+
+      installRunner({
+        nodeModules: join(app, 'node_modules'),
+        name: 'rimraf',
+        pkg: 'rimraf',
+        script: STUB({ log }),
+      });
+
+      const out: string[] = [];
+      const err: string[] = [];
+      const result = MigratePlan.plans({
+        releases: new ReleaseStore({
+          table: TABLE,
+          codemodCommand: ['rimraf', 'codemod'],
+          codemodPackages: ['@venizia/dev-configs'],
+        }),
+        app,
+        package: '@venizia/kernel',
+        from: '1.0.0',
+        to: '1.1.0',
+      });
+
+      result.plans[0].codemodPackages = hostile;
+
+      const code = MigrateApply.run({
+        result,
+        force: false,
+        out: (text) => out.push(text),
+        err: (text) => err.push(text),
+      });
+
+      expect(code).toBe(1);
+      expect(calls({ log })).toEqual([]);
+    }
+  });
+
+  test('a store reads the allow-list from the project it is given, not from the names in its table', () => {
+    const tampered = new ReleaseStore({
+      table: { ...TABLE, packageMap: [{ dir: 'x', name: '..', aliases: [] }] },
+    });
+
+    expect(tampered.codemodPackagesOf()).toEqual([]);
   });
 });

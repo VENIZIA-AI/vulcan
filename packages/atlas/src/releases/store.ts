@@ -15,6 +15,7 @@ export class ReleaseStore extends BaseHelper {
   private readonly changelogs: IChangelogRecord[];
   private readonly live: string[];
   private readonly codemod: string[] | undefined;
+  private readonly codemodPackages: string[];
   private readonly packageMap: IPackageMapEntry[];
   /** What `version` and `changes` say when the table holds no release. */
   readonly emptyReason: string;
@@ -27,10 +28,13 @@ export class ReleaseStore extends BaseHelper {
     noEntriesReason?: string;
     /** The source project's `knowledge.codemodCommand`: what runs the codemods its migrations name. */
     codemodCommand?: string[];
+    /** The npm names of the source project's packages, from its validated manifest: where its codemod runner may be installed. */
+    codemodPackages?: string[];
   }) {
     super({ scope: ReleaseStore.name });
 
     this.codemod = opts.codemodCommand;
+    this.codemodPackages = opts.codemodPackages ?? [];
     this.packageMap = opts.table.packageMap;
     this.emptyReason = opts.emptyReason ?? 'no releases';
     this.noEntriesReason = opts.noEntriesReason ?? 'no dated changelog entries';
@@ -195,9 +199,9 @@ export class ReleaseStore extends BaseHelper {
     });
   }
 
-  /** The npm names of the packages the source declares, retired ones too. */
+  /** The npm names of the source project's own packages; never read from the table, which a pair of files carries. */
   codemodPackagesOf(): string[] {
-    return this.packageMap.map((entry) => entry.name);
+    return this.codemodPackages;
   }
 
   /** The source project's codemod runner words, or `undefined` for the default. */

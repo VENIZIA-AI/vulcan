@@ -26,7 +26,7 @@ import { BrowserSocket, LocalFormat, LocalScan, LocalStates } from '../local/ind
 import { CLAUDE_LAUNCH_FILE } from '../sync/claude-launch.ts';
 import { PrivateValues } from './private-values.ts';
 import { ReplySwitch, OwnerConstants, OwnerReplySwitch, OwnerProfile } from '../owner/index.ts';
-import { SkillCatalog } from '@venizia/vulcan-atlas';
+import { SkillCatalog, VersionFolders } from '@venizia/vulcan-atlas';
 import { HookConstants, ProjectTmp } from '../hooks/index.ts';
 import { DoctorChecks, DoctorConstants, PrivateValueKinds } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -380,8 +380,8 @@ export class ProjectContract {
   /**
    * The changelog folders `changelogs/<X.Y.Z>/` are read by the atlas of VULCAN `CHANGELOG_FOLDERS_FROM` and later;
    * an older one ignores them and answers with no changelog at all. A project that holds a folder with a `log.md`
-   * and has an older vulcan installed is told which to install. The version is the stable part: a prerelease of
-   * that line may still predate the folders, so a project on one reads the line's release notes.
+   * and has an older vulcan installed is told which to install. The version is compared whole: a prerelease of
+   * the line before the one that carries the reader still ignores the folders.
    */
   static checkChangelogFolders(opts: ICheckContext): IViolation[] {
     const { changelogs } = opts.config.knowledge;
@@ -394,7 +394,7 @@ export class ProjectContract {
     const hasFolder =
       existsSync(directory) &&
       readdirSync(directory).some(
-        (name) => /^\d+\.\d+\.\d+$/.test(name) && existsSync(join(directory, name, 'log.md')),
+        (name) => VersionFolders.isName({ name }) && existsSync(join(directory, name, 'log.md')),
       );
     const installed = readJsonObject({
       file: join(opts.root, 'node_modules', '@venizia', 'vulcan', 'package.json'),
@@ -404,9 +404,7 @@ export class ProjectContract {
       return [];
     }
 
-    const stable = installed.replace(/-.+$/, '');
-
-    return Bun.semver.order(stable, DoctorConstants.CHANGELOG_FOLDERS_FROM) >= 0
+    return Bun.semver.order(installed, DoctorConstants.CHANGELOG_FOLDERS_FROM) >= 0
       ? []
       : [
           createViolation({

@@ -39,11 +39,11 @@ test('version folders with an installed vulcan older than the atlas that reads t
 
   expect(found).toHaveLength(1);
   expect(found[0].message).toContain('0.4.9');
-  expect(found[0].message).toContain('0.4.10');
+  expect(found[0].message).toContain('0.4.10-16');
 });
 
 test('the line itself, a later one, a prerelease of the line, and a project with no folder pass', async () => {
-  for (const vulcan of ['0.4.10', '0.4.11', '0.4.10-3']) {
+  for (const vulcan of ['0.4.10-16', '0.4.10-20', '0.4.10', '0.4.11']) {
     const found = await violationsOf({ root: projectWith({ vulcan }) });
 
     expect(found).toEqual([]);
@@ -60,4 +60,12 @@ test('a project whose vulcan is not installed is not told anything', async () =>
   const found = await violationsOf({ root: projectWith({}) });
 
   expect(found).toEqual([]);
+});
+
+test('a prerelease of the line before the one that carries the reader is told to install a newer one', async () => {
+  for (const vulcan of ['0.4.10-15', '0.4.10-3', '0.4.9-6']) {
+    const found = await violationsOf({ root: projectWith({ vulcan }) });
+
+    expect(found).toHaveLength(1);
+  }
 });

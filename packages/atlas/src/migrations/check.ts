@@ -140,9 +140,12 @@ export class ChangelogCheck {
     packages: readonly string[];
   }): string[] | undefined {
     const [name, ...words] = opts.command ?? CodemodRunner.DEFAULT;
-    const bin = join(opts.root, 'node_modules', '.bin', name);
+    const bin = CodemodRunner.binaryIn({ directory: opts.root, name });
 
-    if (!existsSync(bin) || ChangelogCheck.refusalOf({ ...opts, bin }) !== undefined) {
+    if (
+      !existsSync(bin) ||
+      CodemodRunner.refusalOf({ directory: opts.root, name, packages: opts.packages }) !== undefined
+    ) {
       return undefined;
     }
 
@@ -163,19 +166,6 @@ export class ChangelogCheck {
       .filter((line) => line.length > 0);
   }
 
-  /** Why the runner's binary is not run, or `undefined`: see `CodemodRunner.refusalOf`. */
-  private static refusalOf(opts: {
-    root: string;
-    bin: string;
-    packages: readonly string[];
-  }): string | undefined {
-    return CodemodRunner.refusalOf({
-      binary: opts.bin,
-      nodeModules: join(opts.root, 'node_modules'),
-      packages: opts.packages,
-    });
-  }
-
   /** Prints the problems, one `file: message` line each, through `write`; the exit code is 0 when there are none. */
   static run(opts: { project: IAtlasProject; write: (text: string) => void }): number {
     const codemods = ChangelogCheck.codemodsOf({
@@ -187,16 +177,11 @@ export class ChangelogCheck {
 
     if (codemods === undefined) {
       const listing = CodemodRunner.listLabel({ command: opts.project.knowledge.codemodCommand });
-      const bin = join(
-        opts.project.root,
-        'node_modules',
-        '.bin',
-        (opts.project.knowledge.codemodCommand ?? CodemodRunner.DEFAULT)[0],
-      );
-      const refusal = existsSync(bin)
-        ? ChangelogCheck.refusalOf({
-            root: opts.project.root,
-            bin,
+      const [name] = opts.project.knowledge.codemodCommand ?? CodemodRunner.DEFAULT;
+      const refusal = existsSync(CodemodRunner.binaryIn({ directory: opts.project.root, name }))
+        ? CodemodRunner.refusalOf({
+            directory: opts.project.root,
+            name,
             packages: opts.project.packages.map((entry) => entry.name),
           })
         : undefined;

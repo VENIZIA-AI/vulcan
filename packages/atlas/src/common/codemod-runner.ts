@@ -1,6 +1,9 @@
 import { realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, sep } from 'node:path';
 
+/** An npm package name, lower case: the same shape `ProjectConfig` validates a manifest's package names with. */
+const NPM_NAME_PATTERN = /^(?:@[a-z0-9~-][a-z0-9._~-]*\/)?[a-z0-9~-][a-z0-9._~-]*$/;
+
 /** The command that runs a project's codemods: a bare binary name, then fixed words. */
 export class CodemodRunner {
   static readonly DEFAULT: readonly string[] = ['devz', 'codemod'];
@@ -33,30 +36,38 @@ export class CodemodRunner {
     });
   }
 
+  /** Where `directory` installs the bin `name`: `<directory>/node_modules/.bin/<name>`. */
+  static binaryIn(opts: { directory: string; name: string }): string {
+    return join(opts.directory, 'node_modules', '.bin', opts.name);
+  }
+
   /**
-   * Why `binary` (a `node_modules/.bin/<name>`) may not run as a source's codemod runner, or `undefined` when it may: its
+   * Why the bin `name` installed under `directory` may not run as a source's codemod runner, or `undefined` when it may: its
    * real path, every link resolved, must lie inside the installed directory of one of `packages` - the packages the source
    * serves. A runner is code the app runs with its own rights: a bin of another package (`rimraf`), or a link that leaves
-   * the package, is never one, whatever a manifest or an index says.
+   * the package, is never one, whatever a manifest or an index says. A name that is not an npm package name is never an
+   * allowed package: `..` or an empty name would name the app itself.
    */
   static refusalOf(opts: {
-    binary: string;
-    nodeModules: string;
+    directory: string;
+    name: string;
     packages: readonly string[];
   }): string | undefined {
+    const binary = CodemodRunner.binaryIn(opts);
+    const nodeModules = join(opts.directory, 'node_modules');
     let real: string;
 
     try {
-      real = realpathSync(opts.binary);
+      real = realpathSync(binary);
     } catch {
-      return `${opts.binary} does not resolve to a file`;
+      return `${binary} does not resolve to a file`;
     }
 
-    for (const name of opts.packages) {
+    for (const name of opts.packages.filter((entry) => NPM_NAME_PATTERN.test(entry))) {
       let installed: string;
 
       try {
-        installed = realpathSync(join(opts.nodeModules, name));
+        installed = realpathSync(join(nodeModules, name));
       } catch {
         continue;
       }
@@ -68,7 +79,7 @@ export class CodemodRunner {
       }
     }
 
-    return `${opts.binary} resolves to ${real}, which is not inside an installed package of the source that serves it (${opts.packages.length} declared); it is not run`;
+    return `${binary} resolves to ${real}, which is not inside an installed package of the source that serves it (${opts.packages.length} declared); it is not run`;
   }
 
   /** What a message names as the listing command, for example `devz codemod --list`. */

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import { CodemodRunner } from '@/common/codemod-runner';
 import { AtlasGit } from '@/common/constants';
 import { MigrateDirections } from './plan';
@@ -30,11 +30,11 @@ interface ICodemodOutcome {
 }
 
 /**
- * The first `node_modules/.bin/<name>` from `directory` up to the app's git work tree root (a workspace
+ * The first directory from `directory` whose `node_modules/.bin` holds `name` up to the app's git work tree root (a workspace
  * installs it at the root, not beside each app). Outside git only `directory` itself is searched: a
  * binary of an unrelated parent folder is never run.
  */
-const binFrom = (opts: { directory: string; name: string }): string | undefined => {
+const holderOf = (opts: { directory: string; name: string }): string | undefined => {
   const toplevel = spawnSync('git', ['rev-parse', '--show-toplevel'], {
     cwd: opts.directory,
     encoding: 'utf8',
@@ -44,10 +44,8 @@ const binFrom = (opts: { directory: string; name: string }): string | undefined 
   let directory = realpathSync(opts.directory);
 
   for (;;) {
-    const candidate = join(directory, 'node_modules', '.bin', opts.name);
-
-    if (existsSync(candidate)) {
-      return candidate;
+    if (existsSync(CodemodRunner.binaryIn({ directory, name: opts.name }))) {
+      return directory;
     }
 
     const parent = dirname(directory);
@@ -277,22 +275,26 @@ export class MigrateApply {
         return 1;
       }
 
-      const bin = binFrom({ directory: result.app, name: words[0] });
+      const holder = holderOf({ directory: result.app, name: words[0] });
 
-      if (bin === undefined) {
+      if (holder === undefined) {
         missing.push(words[0]);
 
         continue;
       }
 
       const notRunnable = CodemodRunner.refusalOf({
-        binary: bin,
-        nodeModules: dirname(dirname(bin)),
+        directory: holder,
+        name: words[0],
         packages: plan.codemodPackages ?? [],
       });
 
       if (notRunnable === undefined) {
-        runners.set(plan, { bin, name: words[0], words: words.slice(1) });
+        runners.set(plan, {
+          bin: CodemodRunner.binaryIn({ directory: holder, name: words[0] }),
+          name: words[0],
+          words: words.slice(1),
+        });
       } else {
         refused.push(notRunnable);
       }
