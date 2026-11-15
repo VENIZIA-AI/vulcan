@@ -12,8 +12,9 @@ guard-git-pr-base:
   symbols: [guard.git]
   upgrade:
     steps:
-      - '`gh pr create` with no `--base` asks first. Codex and Cursor cannot ask on a tool call, so there it is refused where it passed, and so is a run that no one can answer.'
-      - 'Pass `--base <branch>` (or `--base=<branch>`, `-B <branch>`) to every `gh pr create` in scripts and agent skills.'
+      - 'Every `gh pr create` (and `gh pr new`) with no base asks, with or without `--fill`, `--web`, `--title` or `--head`, and with a leading option as in `gh -R org/repo pr create`. It passes with `--base <branch>`, `--base=<branch>`, `-B <branch>`, `-B<branch>`, `--help` or `-h`.'
+      - 'An agent that cannot answer an ask is refused: Codex prints the ask as a deny (so does Cursor where `CURSOR_PROJECT_DIR` is set), and omp and pi block it when no UI can answer, as in a headless run. Claude Code and Antigravity show the ask.'
+      - 'Pass `--base <branch>` in every script, make target and agent skill that runs `gh pr create`.'
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, which does not ask about a missing base.'
