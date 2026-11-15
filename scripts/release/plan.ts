@@ -330,7 +330,7 @@ export class ReleasePlan {
       return [];
     }
 
-    const log = join(opts.cwd, folder, opts.version, 'log.md');
+    const log = join(opts.cwd, folder, opts.version, MergeBackConstants.LOG_FILE);
 
     if (!existsSync(log)) {
       return [
@@ -505,13 +505,17 @@ export class ReleasePlan {
         main: opts.env['GITHUB_SHA'] ?? MergeBackConstants.DEFAULT_MAIN,
         develop: MergeBackConstants.DEFAULT_DEVELOP,
         scratchRoot,
-        // The release writes the day into the version folder: the trial makes the same commit.
-        stamp: ({ tree }) =>
-          ReleaseStamp.stampFolder({
-            cwd: tree,
-            version,
-            date: new Date().toISOString().slice(0, 10),
-          }),
+        // The release writes the day into the version folder: the trial makes the same commit. A bump of none
+        // writes nothing (the workflow skips its stamp step): the folder may already carry the first run's day.
+        stamp:
+          bump === ReleaseBumps.NONE
+            ? undefined
+            : ({ tree }) =>
+                ReleaseStamp.stampFolder({
+                  cwd: tree,
+                  version,
+                  date: new Date().toISOString().slice(0, 10),
+                }),
       });
 
       developSha = trial.developHead;

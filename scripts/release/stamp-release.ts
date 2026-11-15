@@ -15,8 +15,6 @@ import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
 export class ReleaseStampConstants {
   static readonly VERSION = /^\d+\.\d+\.\d+$/;
   static readonly DATE = /^\d{4}-\d{2}-\d{2}$/;
-  static readonly FRONT_MATTER = MergeBackConstants.FRONT_MATTER;
-  static readonly RELEASED = MergeBackConstants.RELEASED_LINE;
   static readonly USAGE = 'stamp-release: --version <X.Y.Z> --date <YYYY-MM-DD>';
 }
 
@@ -26,13 +24,11 @@ export class ReleaseStamp {
    * (nothing to write); an error when it says another, or has no frontmatter to put the line in.
    */
   static stamped(opts: { text: string; date: string }): string | undefined {
-    const matched = ReleaseStampConstants.FRONT_MATTER.exec(opts.text);
-
-    if (matched === null) {
+    if (!MergeBackConstants.FRONT_MATTER.test(opts.text)) {
       throw new Error('log.md has no frontmatter to write released: into');
     }
 
-    const existing = ReleaseStampConstants.RELEASED.exec(matched[2])?.[1];
+    const existing = ReleaseMergeBack.releasedOf({ text: opts.text });
 
     if (existing !== undefined) {
       if (existing === opts.date) {
@@ -68,7 +64,7 @@ export class ReleaseStamp {
   /** The log.md of the version's folder, from the manifest's changelog folder; `undefined` when the project has none. */
   static logOf(opts: { cwd: string; version: string }): string | undefined {
     const { changelogs } = GithubRelease.manifestOf({ cwd: opts.cwd });
-    const file = join(opts.cwd, changelogs, opts.version, 'log.md');
+    const file = join(opts.cwd, changelogs, opts.version, MergeBackConstants.LOG_FILE);
 
     return existsSync(file) ? file : undefined;
   }

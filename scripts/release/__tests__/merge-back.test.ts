@@ -366,15 +366,16 @@ const STAMPED_LOG =
   "---\ntitle: 0.4.9\nversion: 0.4.9\npackages: ['@fixture/a']\nreleased: 2026-11-20\n---\nThe line.\n";
 
 /** `main` and `develop` share a version folder; `develop` then edits the last line of its frontmatter. */
-const withVersionFolder = (opts: { developLog: string }): string => {
+const withVersionFolder = (opts: { developLog: string; path?: string }): string => {
   const root = fixture({ developVersion: '0.4.9-3' });
+  const path = opts.path ?? LOG_PATH;
 
-  write({ root, path: LOG_PATH, text: LOG });
+  write({ root, path, text: LOG });
   run({ cwd: root, args: ['add', '-A'] });
   run({ cwd: root, args: ['commit', '-q', '-m', 'main gets the folder'] });
   run({ cwd: root, args: ['checkout', '-q', 'develop'] });
   run({ cwd: root, args: ['merge', '-q', '--no-edit', 'main'] });
-  write({ root, path: LOG_PATH, text: opts.developLog });
+  write({ root, path, text: opts.developLog });
   run({ cwd: root, args: ['commit', '-q', '-am', 'develop edits the log'] });
   run({ cwd: root, args: ['checkout', '-q', 'main'] });
 
@@ -427,11 +428,11 @@ describe('ReleaseMergeBack.resolveStampConflict', () => {
 });
 
 describe('ReleaseMergeBack.mergeInto: the released: stamp', () => {
-  const stamped = (opts: { developLog: string }): string => {
+  const stamped = (opts: { developLog: string; path?: string }): string => {
     const root = withVersionFolder(opts);
 
     run({ cwd: root, args: ['checkout', '-q', '-b', 'release', 'main'] });
-    write({ root, path: LOG_PATH, text: STAMPED_LOG });
+    write({ root, path: opts.path ?? LOG_PATH, text: STAMPED_LOG });
     release({ root, version: '0.4.9', message: 'chore(release): v0.4.9' });
     run({ cwd: root, args: ['checkout', '-q', 'develop'] });
 
@@ -453,6 +454,19 @@ describe('ReleaseMergeBack.mergeInto: the released: stamp', () => {
       "---\ntitle: 0.4.9\nversion: 0.4.9\npackages: ['@fixture/a', '@fixture/b']\nreleased: 2026-11-20\n---\nThe line.\n",
     );
     expect(run({ cwd: root, args: ['status', '--porcelain'] })).toBe('');
+  });
+
+  test('a log.md outside a version folder is not resolved, whatever it says', () => {
+    const root = stamped({ developLog: DEVELOP_LOG, path: 'notes/log.md' });
+    const result = ReleaseMergeBack.mergeInto({
+      cwd: root,
+      from: 'release',
+      scratchRoot: scratch(),
+      commit: { message: 'Merge main into develop' },
+    });
+
+    expect(result.problems.join('\n')).toContain('notes/log.md');
+    expect(result.head).toBeUndefined();
   });
 
   test('a log.md that develop changed in the body too still stops the merge', () => {
@@ -478,24 +492,21 @@ describe('ReleaseMergeBack.mergeInto: the released: stamp', () => {
 });
 
 describe('ReleaseMergeBack.trial: the released: stamp', () => {
-  const trialOf = (opts: { root: string; withStamp: boolean }) =>
+  const stampLog = ({ tree }: { tree: string }): void =>
+    write({ root: tree, path: LOG_PATH, text: STAMPED_LOG });
+  const trialOf = (opts: { root: string; stamp?: (opts: { tree: string }) => void }) =>
     ReleaseMergeBack.trial({
       cwd: opts.root,
       version: '0.4.9',
       main: 'main',
       develop: 'develop',
       scratchRoot: scratch(),
-      ...(opts.withStamp
-        ? {
-            stamp: ({ tree }: { tree: string }) =>
-              write({ root: tree, path: LOG_PATH, text: STAMPED_LOG }),
-          }
-        : {}),
+      stamp: opts.stamp,
     });
 
   test('the stamp is part of the release commit the trial merges, so a conflict it causes shows before the approval', () => {
     const root = withVersionFolder({ developLog: DEVELOP_LOG });
-    const result = trialOf({ root, withStamp: true });
+    const result = trialOf({ root, stamp: stampLog });
 
     expect(result.problems).toEqual([]);
     expect(result.resolved).toContain(LOG_PATH);
@@ -504,7 +515,7 @@ describe('ReleaseMergeBack.trial: the released: stamp', () => {
   test('without the stamp the trial cannot see it, as before', () => {
     const root = withVersionFolder({ developLog: DEVELOP_LOG });
 
-    expect(trialOf({ root, withStamp: false }).resolved).not.toContain(LOG_PATH);
+    expect(trialOf({ root }).resolved).not.toContain(LOG_PATH);
   });
 });
 

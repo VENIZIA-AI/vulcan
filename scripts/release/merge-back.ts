@@ -44,6 +44,9 @@ export class MergeBackConstants {
 
   static readonly LOG_FILE = 'log.md';
 
+  /** The `log.md` of a version folder, `<X.Y.Z>/log.md`, at the end of a repository-relative path. */
+  static readonly VERSION_LOG = /(^|\/)\d+\.\d+\.\d+\/log\.md$/;
+
   /** A line of `bun.lock` that may change when only workspace versions did. */
   static readonly LOCK_VERSION_LINE = /^\s*"version": "[^"]+",?$/;
 
@@ -167,6 +170,11 @@ export class ReleaseMergeBack {
     }
   }
 
+  /** The line ending a frontmatter uses, read from its opening fence. */
+  static eolOf(opts: { fence: string }): string {
+    return opts.fence.endsWith('\r\n') ? '\r\n' : '\n';
+  }
+
   /** The day a `log.md` says it was released, `undefined` when its frontmatter has no `released:` line. */
   static releasedOf(opts: { text: string }): string | undefined {
     const matched = MergeBackConstants.FRONT_MATTER.exec(opts.text);
@@ -182,8 +190,10 @@ export class ReleaseMergeBack {
       return opts.text;
     }
 
-    const lines = matched[2].split(/\r?\n/).filter((line) => !/^released:/.test(line));
-    const eol = matched[1].endsWith('\r\n') ? '\r\n' : '\n';
+    const lines = matched[2]
+      .split(/\r?\n/)
+      .filter((line) => !MergeBackConstants.RELEASED_LINE.test(line));
+    const eol = ReleaseMergeBack.eolOf({ fence: matched[1] });
 
     return `${matched[1]}${lines.join(eol)}${matched[3]}${opts.text.slice(matched[0].length)}`;
   }
@@ -196,7 +206,7 @@ export class ReleaseMergeBack {
       return undefined;
     }
 
-    const eol = matched[1].endsWith('\r\n') ? '\r\n' : '\n';
+    const eol = ReleaseMergeBack.eolOf({ fence: matched[1] });
 
     return `${matched[1]}${matched[2]}${eol}released: ${opts.date}${matched[3]}${opts.text.slice(matched[0].length)}`;
   }
@@ -324,9 +334,9 @@ export class ReleaseMergeBack {
           continue;
         }
 
-        const name = file.split('/').pop();
+        const isLog = MergeBackConstants.VERSION_LOG.test(file);
 
-        if (name !== MergeBackConstants.PACKAGE_FILE && name !== MergeBackConstants.LOG_FILE) {
+        if (file.split('/').pop() !== MergeBackConstants.PACKAGE_FILE && !isLog) {
           result.problems.push(
             `${file}: a conflict that is not the version of a package.json or the released: line of a log.md`,
           );
@@ -350,9 +360,7 @@ export class ReleaseMergeBack {
         }
 
         const resolution = (
-          name === MergeBackConstants.LOG_FILE
-            ? ReleaseMergeBack.resolveStampConflict
-            : ReleaseMergeBack.resolveVersionConflict
+          isLog ? ReleaseMergeBack.resolveStampConflict : ReleaseMergeBack.resolveVersionConflict
         )({ base, ours, theirs, scratchRoot: opts.scratchRoot });
 
         if (resolution.text === undefined) {
@@ -597,7 +605,7 @@ export class ReleaseMergeBack {
       result.problems.length > 0
         ? `- Stops, before any approval: ${result.problems.join('; ')}`
         : `- Goes through for **${opts.version}**`,
-      `- Version-only conflicts resolved: ${result.resolved.length === 0 ? 'none' : result.resolved.join(', ')}`,
+      `- Conflicts resolved (a version, a released: line): ${result.resolved.length === 0 ? 'none' : result.resolved.join(', ')}`,
       `- bun.lock regenerated: ${result.lockRegenerated ? 'yes' : 'no (it did not conflict)'}`,
       '',
     ].join('\n');
