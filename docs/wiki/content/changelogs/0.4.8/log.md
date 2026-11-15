@@ -13,7 +13,5 @@ This release adds one config key for projects that rename their release tags, ma
 ## Added
 - **A project that renames its release tags keeps its earlier releases** `legacy-tag-patterns` (`@venizia/vulcan`, `@venizia/vulcan-atlas`): `atlas.legacyTagPatterns` lists the tag templates of an earlier layout. Atlas and the changelog check read a tag through `tagPattern` first and then through each legacy template, so a `release:` override in a changelog entry and a source pinned to an older release still name a tag that exists. A tag the current template reads is never read again by a legacy one, and a legacy template reads only a tag whose version starts with a digit. `vulcan sync` writes the list to the manifest as `release.legacyTagPatterns`, only when it lists something. The key is optional and no project has to change. An older atlas does not know it and reads only the tags of the current template. `vulcan doctor` reads only `tagPattern`, so a legacy template does not count in its tag check.
 
-## Changed
-
 ## Security
 - **`guard-git` reads `gh` past its leading options** `guard-git-gh-leading-options` (`@venizia/vulcan`): `gh -R <repo> pr merge --delete-branch` and `gh --repo <repo> ...` were not inspected, because the option was read as the command group, so the deny for deleting the head branch of a pull request from `develop` or `main` never fired. They now get the same deny or ask as the form without options, and the `gh pr create --base` question reads past them too. To run such a command on purpose, a person runs it, or drops `--delete-branch`.

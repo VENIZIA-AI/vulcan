@@ -7,7 +7,6 @@ guard-outside-scratchpad-denied:
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, where a write into that folder is asked about again.'
-
 guard-git-pr-base:
   symbols: [guard.git]
   upgrade:
