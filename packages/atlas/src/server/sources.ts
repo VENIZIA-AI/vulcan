@@ -6,7 +6,7 @@ import { AtlasConstants } from '@/common';
 import { RepositoryRoots } from '@/corpus';
 import { RpcError, Transport } from '@/protocol';
 import type { IToolHandler } from '@/protocol/common';
-import { ReleaseCompute, ReleaseStore } from '@/releases';
+import { FolderHistory, ReleaseCompute, ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
 import { InstalledPackages } from '@/sources/installed';
 import { SourceResolver } from '@/sources/resolver';
@@ -109,6 +109,7 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
         noEntriesReason: noEntriesReasonOf({ source }),
         codemodCommand: source.project.knowledge.codemodCommand,
         codemodPackages: source.project.packages.map((entry) => entry.name),
+        folderHistory: new FolderHistory({ project: source.project }),
       }),
       symbols: new SymbolStore({
         load: () => ({
@@ -128,6 +129,7 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
     noEntriesReason: noEntriesReasonOf({ source }),
     codemodCommand: source.project.knowledge.codemodCommand,
     codemodPackages: source.project.packages.map((entry) => entry.name),
+    folderHistory: new FolderHistory({ project: source.project }),
   });
 
   return {
@@ -240,6 +242,7 @@ const repositoryTarget = (opts: { entry: TLiveEntry; source: IResolvedSource }):
           noEntriesReason: noEntriesReasonOf({ source: opts.source }),
           codemodCommand: opts.source.project.knowledge.codemodCommand,
           codemodPackages: opts.source.project.packages.map((entry) => entry.name),
+          folderHistory: new FolderHistory({ project: opts.source.project }),
         }),
       );
       seen = now;

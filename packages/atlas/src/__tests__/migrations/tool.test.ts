@@ -153,6 +153,7 @@ const stepWith = (opts: { id: string; symbols: string[]; touches: IMigrationTouc
   title: 'X',
   date: '2026-02-01',
   symbols: opts.symbols,
+  direction: 'upgrade' as const,
   change: { steps: ['Do it'] },
   touches: opts.touches,
 });

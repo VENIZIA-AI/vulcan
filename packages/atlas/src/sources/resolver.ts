@@ -31,6 +31,7 @@ import type {
 import { SourceModes } from './common';
 import { GithubCredentials } from './credentials';
 import { IndexBuild } from './index-build';
+import { FolderBlobs } from './folder-blobs';
 import { GitRepository } from './git';
 import { PullLock } from './lock';
 import { InstalledPackages } from './installed';
@@ -445,8 +446,19 @@ const pullByGit = async (opts: {
       ? hit.payload.releases
       : undefined;
 
+  const changelogs = project.knowledge.changelogs;
+
+  // `migrate` reads the version folders at a package's tags with git told never to fetch: their blobs come now.
+  FolderBlobs.prefetch({
+    project,
+    gitDir,
+    url: SourceCache.urlOf(opts.source),
+    sha: opts.sha,
+  });
+
   // A local build reads every declared path; a downloaded index needs the changelogs alone, to compute
-  // the release table here, and nothing at all when the pair's table is still current.
+  // the release table here, and nothing at all when the pair's table is still current - but the version folders,
+  // which `migrate` reads from disk.
   GitRepository.setSparsePaths({
     directory: checkout,
     paths:
@@ -454,9 +466,16 @@ const pullByGit = async (opts: {
         ? declaredPathsOf({ project, checkout })
         : [
             '.agents',
-            ...(releases !== undefined || project.knowledge.changelogs === undefined
+            ...(releases !== undefined || changelogs === undefined
               ? []
-              : [relative(checkout, project.knowledge.changelogs)]),
+              : [relative(checkout, changelogs)]),
+            ...(changelogs === undefined
+              ? []
+              : FolderBlobs.directoriesAt({
+                  gitDir,
+                  sha: opts.sha,
+                  folder: relative(checkout, changelogs),
+                })),
           ],
   });
   await buildArtifacts({

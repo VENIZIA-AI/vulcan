@@ -3,7 +3,8 @@ import { existsSync, realpathSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { CodemodRunner } from '@/common/codemod-runner';
 import { AtlasGit } from '@/common/constants';
-import { MigrateDirections } from './plan';
+import { MigrateDirections } from './directions';
+import type { TStepDirection } from './directions';
 import { MIGRATION_NAME_PATTERN } from './schema';
 import type { IMigrationPlan, IMigrationResult, IMigrationStep } from './plan';
 import { MigrateReport } from './report';
@@ -20,8 +21,29 @@ class CodemodStatuses {
   static readonly NOT_RUN = 'not run';
 }
 
+/**
+ * The direction of a step. The plan is JSON from the running server, which may be older than this command and send no
+ * direction on a step: then the step goes the way the plan does, as it always did.
+ */
+const directionOf = (opts: { step: IMigrationStep; plan: IMigrationPlan }): TStepDirection => {
+  const given: TStepDirection | undefined = opts.step.direction;
+
+  if (given !== undefined) {
+    return given;
+  }
+
+  return opts.plan.direction === MigrateDirections.DOWNGRADE
+    ? MigrateDirections.DOWNGRADE
+    : MigrateDirections.UPGRADE;
+};
+
+/** A step of a plan is told apart by its item and its direction: a changed item is undone as it was, then applied as it is. */
+const stepKeyOf = (opts: { step: IMigrationStep; plan: IMigrationPlan }): string =>
+  `${opts.step.entry}#${opts.step.id}#${directionOf(opts)}`;
+
 interface ICodemodOutcome {
   codemod: string;
+  direction: TStepDirection;
   steps: IMigrationStep[];
   status: string;
   output: string;
@@ -86,21 +108,24 @@ const trimmed = (opts: { text: string }): string => {
       ].join('\n');
 };
 
-/** The codemods of a plan, each once, in the order their first step applies. */
+/** The codemods of a plan, each once per direction, in the order their first step applies: a rollback of a name is not its rewrite. */
 const codemodsOf = (opts: {
   plan: IMigrationPlan;
-}): { codemod: string; steps: IMigrationStep[] }[] => {
-  const found: { codemod: string; steps: IMigrationStep[] }[] = [];
+}): { codemod: string; direction: TStepDirection; steps: IMigrationStep[] }[] => {
+  const found: { codemod: string; direction: TStepDirection; steps: IMigrationStep[] }[] = [];
 
   for (const step of opts.plan.steps) {
     if (step.codemod === undefined) {
       continue;
     }
 
-    const known = found.find((entry) => entry.codemod === step.codemod);
+    const direction = directionOf({ step, plan: opts.plan });
+    const known = found.find(
+      (entry) => entry.codemod === step.codemod && entry.direction === direction,
+    );
 
     if (known === undefined) {
-      found.push({ codemod: step.codemod, steps: [step] });
+      found.push({ codemod: step.codemod, direction, steps: [step] });
     } else {
       known.steps.push(step);
     }
@@ -120,9 +145,9 @@ const reportOf = (opts: {
     const done = new Set(
       outcomes
         .filter((outcome) => outcome.status === CodemodStatuses.RAN)
-        .flatMap((outcome) => outcome.steps.map((step) => step.id)),
+        .flatMap((outcome) => outcome.steps.map((step) => stepKeyOf({ step, plan }))),
     );
-    const manual = plan.steps.filter((step) => !done.has(step.id));
+    const manual = plan.steps.filter((step) => !done.has(stepKeyOf({ step, plan })));
 
     lines.push(`## ${plan.package}: ${plan.from} to ${plan.to} (${plan.direction})`, '');
 
@@ -132,7 +157,7 @@ const reportOf = (opts: {
 
     for (const outcome of outcomes) {
       lines.push(
-        `${outcome.status === CodemodStatuses.RAN ? 'Ran' : `Did not run (${outcome.status}):`} \`${outcome.codemod}\` for ${outcome.steps.map((step) => step.id).join(', ')}.`,
+        `${outcome.status === CodemodStatuses.RAN ? 'Ran' : `Did not run (${outcome.status}):`} \`${outcome.codemod}\`${outcome.direction === MigrateDirections.DOWNGRADE ? ' in reverse' : ''} for ${outcome.steps.map((step) => step.id).join(', ')}.`,
       );
 
       if (outcome.command.length > 0) {
@@ -147,7 +172,7 @@ const reportOf = (opts: {
     }
 
     for (const step of plan.steps.filter(
-      (entry) => done.has(entry.id) && entry.data !== undefined,
+      (entry) => done.has(stepKeyOf({ step: entry, plan })) && entry.data !== undefined,
     )) {
       lines.push(`Check after the codemod, \`${step.id}\`: ${step.data}`, '');
     }
@@ -220,6 +245,17 @@ export class MigrateApply {
     if (behind?.behind !== undefined && !opts.force) {
       opts.err(
         `vulcan migrate apply: ${behind.package}: ${behind.behind}; nothing was run - or pass --force\n`,
+      );
+
+      return 1;
+    }
+
+    // A plan whose folder state could not be read exactly may name the wrong steps, and a codemod rewrites the app.
+    const degraded = result.plans.find((plan) => plan.degraded === true);
+
+    if (degraded !== undefined && !opts.force) {
+      opts.err(
+        `vulcan migrate apply: ${degraded.package}: the folder state could not be read exactly (${degraded.note ?? 'see the plan'}); the steps may be wrong, so nothing was run - or pass --force\n`,
       );
 
       return 1;
@@ -323,9 +359,10 @@ export class MigrateApply {
 
       const runner = runners.get(plan);
 
-      for (const { codemod, steps } of codemods) {
+      for (const { codemod, direction, steps } of codemods) {
         const outcome: ICodemodOutcome = {
           codemod,
+          direction,
           steps,
           status: CodemodStatuses.NOT_RUN,
           output: '',
@@ -344,7 +381,7 @@ export class MigrateApply {
 
         const args = [...runner.words, codemod, '.', '--write'];
 
-        if (plan.direction === MigrateDirections.DOWNGRADE) {
+        if (direction === MigrateDirections.DOWNGRADE) {
           args.push('--reverse');
         }
 
