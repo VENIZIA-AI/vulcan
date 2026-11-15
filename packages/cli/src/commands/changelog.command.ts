@@ -6,11 +6,15 @@ const SUBCOMMAND = 'check';
 
 /** `vulcan changelog check`: atlas's `changelogs check` run at the pinned version, over this project's entries. */
 export const runChangelogCommand = (opts: ICommandContext): Promise<number> => {
-  if (opts.args[0] !== SUBCOMMAND || opts.args.length > 1) {
-    process.stderr.write(`usage: vulcan changelog ${SUBCOMMAND}\n`);
+  const rest = opts.args.slice(1);
+  const isShape =
+    rest.length === 0 || (rest.length === 3 && rest[0] === '--history' && rest[1] === '--base');
+
+  if (opts.args[0] !== SUBCOMMAND || !isShape) {
+    process.stderr.write(`usage: vulcan changelog ${SUBCOMMAND} [--history --base <ref>]\n`);
 
     return Promise.resolve(ExitCodes.USAGE);
   }
 
-  return runXCommand({ ...opts, args: ['atlas', 'changelogs', SUBCOMMAND] });
+  return runXCommand({ ...opts, args: ['atlas', 'changelogs', SUBCOMMAND, ...rest] });
 };

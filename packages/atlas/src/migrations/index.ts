@@ -1,5 +1,7 @@
 export * from './badges';
 export * from './check';
+export * from './history';
+export * from './version-check';
 export * from './command';
 export * from './schema';
 export * from './scan';
