@@ -74,3 +74,47 @@ describe('vulcan changelog check', () => {
     expect(runCli({ args: ['changelog'], cwd: root }).code).toBe(2);
   });
 });
+
+describe('vulcan changelog notes', () => {
+  const folderProject = (): string =>
+    createProject({
+      files: {
+        '.configs/vulcan.config.mts': CONFIG.replace(
+          "migrationFrom: '2026-11-13'",
+          "migrationFrom: '0.4.5'",
+        ),
+        '.agents/knowledge/index.md': '# Probe\n',
+        'changes/0.4.8/log.md':
+          "---\ntitle: 0.4.8\nversion: 0.4.8\npackages: ['@a/kernel']\n---\nThe 0.4.8 line.\n",
+        'changes/0.4.8/migration.yaml': '{}\n',
+      },
+    });
+
+  test.skipIf(atlasBin === undefined || !existsSync(atlasBin))(
+    'prints the notes of a version folder, and nothing for --migration when there is no block',
+    () => {
+      const root = folderProject();
+      const notes = runCli({ args: ['changelog', 'notes', '--version', '0.4.8'], cwd: root });
+      const migration = runCli({
+        args: ['changelog', 'notes', '--version', '0.4.8', '--migration'],
+        cwd: root,
+      });
+
+      expect(notes.code).toBe(0);
+      expect(notes.stdout).toContain('The 0.4.8 line.');
+      expect(notes.stdout).toContain('[@a/kernel@0.4.8]');
+      expect(migration.code).toBe(0);
+      expect(migration.stdout).toBe('');
+    },
+  );
+
+  test('a request that is not --version <X.Y.Z> [--migration] exits 2 with the usage', () => {
+    const root = folderProject();
+
+    expect(runCli({ args: ['changelog', 'notes'], cwd: root }).code).toBe(2);
+    expect(runCli({ args: ['changelog', 'notes', '--version'], cwd: root }).code).toBe(2);
+    expect(
+      runCli({ args: ['changelog', 'notes', '--version', '0.4.8', '--all'], cwd: root }).code,
+    ).toBe(2);
+  });
+});

@@ -80,14 +80,15 @@ A prerelease goes through `develop`, `next` and the downstream project first. Th
 
 ## GitHub Releases
 
-Every publish makes one GitHub Release on its tag (`scripts/release/github-release.ts create`, the step "Create the GitHub Release", after the tag).
+A stable makes one GitHub Release on its tag (`scripts/release/github-release.ts create`, the step "Create the GitHub Release", after the tag). A prerelease makes none: the script says so and exits 0.
 
 | Kind | Marked | Title | Notes |
 |---|---|---|---|
-| Stable | Latest, when no higher stable tag exists | `VULCAN <version>` | The changelog entries added since the previous stable tag, without front matter or date heading, and without the `VULCAN <version>:` prefix an older entry heading carries (a heading with no prefix is left as written), then the three packages with their npm links |
-| Prerelease | Pre-release, never Latest | `VULCAN <version>` | The install line with `@next`, the `[#N]` commit subjects since the previous tag (at most 30, with a line that counts the rest), then the packages |
+| Stable with a version folder | Latest, when no higher stable tag exists | `VULCAN <version>` | The body of `changelogs/<version>/log.md` (what `vulcan changelog notes --version <version>` prints), then the packages with their npm links; `migration.yaml` is attached as `migration-<version>.yaml` when it holds a block, and nothing is attached when it is absent or `{}` |
+| Stable of dated entries | Latest, when no higher stable tag exists | `VULCAN <version>` | The changelog entries added since the previous stable tag, without front matter or date heading, and without the `VULCAN <version>:` prefix an older entry heading carries (a heading with no prefix is left as written), then the packages with their npm links |
 
 - **A stable needs no changelog entry.** The changelog records only what affects users of the packages, so a stable made of internal work has none: its Release says "No change for users of the packages in this release." The previous stable is read through `tagPattern` and `legacyTagPatterns`, so the first stable after the rename looks back to `v0.4.7`.
+- **A stable of a project with version folders needs its folder.** The plan job refuses a stable whose `changelogs/<version>/log.md` is missing or already carries `released:` (once `knowledge.migrationFrom` is a version). It writes `changelog_base`, the previous stable tag, and the gates job runs `vulcan changelog check --history --base <that tag>`: no released folder changed since, and no dated entry was added or edited. The publish job then writes `released: <today>` into the folder (`scripts/release/stamp-release.ts`) and the release commit adds it: a folder with that line is frozen.
 - **A repeat makes nothing twice.** A tag that has a Release is skipped. A dispatch with bump `none` makes a missing one.
 - **A failure never fails a publish.** The step continues on error and reports in the run summary.
 - **To make a missing Release,** dispatch `make release ARGS="--bump none"` (add `--branch main` for a stable). It releases the version at the head of that branch, so do it before the next release lands.

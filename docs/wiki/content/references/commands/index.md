@@ -70,6 +70,10 @@ Usage: bun x vulcan <command>
                                   has a block for every Breaking and Deprecated item; a dated Breaking Change entry
                                   on or after a date cutover carries one. --history also fails a released folder that
                                   changed since the base, a stable with no folder, and a dated file added or edited
+  changelog notes --version <X.Y.Z> [--migration]
+                                  The release notes of a version folder: the body of its log.md, then the packages.
+                                  --migration prints the path of its migration.yaml when that file holds a block,
+                                  and nothing when it does not (what a workflow attaches to the Release)
   migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]
                                   What an app must change to move a package between two releases, newer or
                                   older: the steps in order, the places in your code they touch (file:line),
@@ -205,6 +209,8 @@ Each problem prints as `<file>: <message>` on stderr.
 A version folder `changelogs/<X.Y.Z>/` is valid when every Breaking and Deprecated item of its `log.md` has a block in `migration.yaml` and the file holds no block without an item, ids are unique, the sections are in the order Breaking, Deprecated, Added, Changed, Fixed, Security, at most one folder lacks `released:` (the line in progress: above every released one, and the stable the installable package heads to). With `knowledge.migrationFrom` set to a version, dated files are history and are not checked; `knowledge.datedUntil` is the last date a dated file may carry.
 
 `vulcan changelog check --history --base <ref>` also reads git: a folder whose `log.md` has `released:` at `<ref>` may not change, a stable release at or above `migrationFrom` needs its folder, and a dated file added or edited since `<ref>` fails. CI runs it on a pull request with `--base origin/develop`; the default check runs no git.
+
+`vulcan changelog notes --version <X.Y.Z>` prints what a GitHub Release of that version shows: the body of `changelogs/<X.Y.Z>/log.md` without its frontmatter (a line saying there is no change for users when it has no body), then `## Packages` with a link to each live package at that version. With `--migration` it prints instead the path of the folder's `migration.yaml` when that file holds a block, and nothing when it is absent, empty or `{}`: a workflow attaches that path to the Release as `migration-<X.Y.Z>.yaml`. It exits `1` when the project has no folder for the version and `2` for a request it cannot read.
 
 ## migrate
 

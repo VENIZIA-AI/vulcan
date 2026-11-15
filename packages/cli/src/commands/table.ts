@@ -266,19 +266,26 @@ export class CommandTable {
                                   Check the changelog: a version folder changelogs/<X.Y.Z>/{log.md, migration.yaml}
                                   has a block for every Breaking and Deprecated item; a dated Breaking Change entry
                                   on or after a date cutover carries one. --history also fails a released folder that
-                                  changed since the base, a stable with no folder, and a dated file added or edited`,
+                                  changed since the base, a stable with no folder, and a dated file added or edited
+  changelog notes --version <X.Y.Z> [--migration]
+                                  The release notes of a version folder: the body of its log.md, then the packages.
+                                  --migration prints the path of its migration.yaml when that file holds a block,
+                                  and nothing when it does not (what a workflow attaches to the Release)`,
       flags: {
         '--history':
           'Also run the checks that read git: frozen released folders, stables without a folder, new dated files',
+        '--migration':
+          'With notes: print the path of migration.yaml when it holds a block, not the notes',
       },
       values: {
         '--base':
           'With --history: the commit or branch the change is measured from, e.g. origin/develop',
+        '--version': 'With notes: the version folder to read, e.g. 0.4.8',
       },
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
       exits:
-        '0 when every entry conforms; 1 when an entry does not, the tool is missing or the configuration is invalid; 2 for a subcommand other than check.',
+        '0 when every entry conforms (notes: printed); 1 when an entry does not, a folder is missing, the tool is missing or the configuration is invalid; 2 for a subcommand other than check or notes.',
     },
     [VulcanCommands.MIGRATE]: {
       help: `  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]

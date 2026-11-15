@@ -82,6 +82,8 @@ jobs:
       npm_tag: ${{ steps.plan.outputs.npm_tag }}
       # The head of develop the merge trial read (empty for a prerelease): the publish job stops if develop moved.
       develop_sha: ${{ steps.plan.outputs.develop_sha }}
+      # The previous stable tag (empty for a prerelease, or with none): the history check of the gates measures from it.
+      changelog_base: ${{ steps.plan.outputs.changelog_base }}
 
     steps:
       # Full history: the merge trial of a stable needs the branches and their common ancestor.
@@ -145,6 +147,14 @@ jobs:
 
       - name: Lint
         run: make lint-all
+
+      # A stable releases a version folder: no released folder changed since the previous stable, and no dated entry
+      # was added or edited. The default check already ran in the lint above.
+      - name: Changelog history (a stable)
+        if: ${{ needs.plan.outputs.kind == 'stable' && needs.plan.outputs.changelog_base != '' }}
+        env:
+          CHANGELOG_BASE: ${{ needs.plan.outputs.changelog_base }}
+        run: bun x --no-install vulcan changelog check --history --base "$CHANGELOG_BASE"
 
       # The shared wiki theme is the same in the three wikis (C-21): a release goes out with them in step.
       - name: Shared wiki theme
@@ -433,6 +443,15 @@ jobs:
           NAMES=$(for directory in $PUBLISH_ORDER; do jq -r .name "packages/$directory/package.json"; done)
           bun scripts/release/next-tag.ts --published "$NEW_VERSION" --tag "$NPM_TAG" $NAMES
 
+      # A stable writes the day it is released into its version folder (`released:` in changelogs/<version>/log.md),
+      # in the same commit as the version: a folder with that line is frozen. A project with no folder for the version
+      # writes nothing. A bump of none heals a run that already did.
+      - name: Date the version folder
+        if: ${{ needs.plan.outputs.kind == 'stable' && env.BUMP != 'none' }}
+        run: |
+          STAMPED_LOG=$(bun scripts/release/stamp-release.ts --version "$NEW_VERSION" --date "$(date -u +%F)")
+          echo "STAMPED_LOG=$STAMPED_LOG" >> "$GITHUB_ENV"
+
       # -------------------------------------------------------------------------
       # RECORD IN GIT
       # -------------------------------------------------------------------------
@@ -440,6 +459,11 @@ jobs:
         if: env.BUMP != 'none'
         run: |
           git add packages/*/package.json bun.lock
+
+          if [ -n "${STAMPED_LOG:-}" ]; then
+            git add -- "$STAMPED_LOG"
+          fi
+
           SUBJECT="chore(release): v$NEW_VERSION [$BUMP]"
 
           if [ -n "$RELEASE_ISSUE" ]; then
@@ -517,10 +541,10 @@ jobs:
       # -------------------------------------------------------------------------
       # GITHUB RELEASE
       # -------------------------------------------------------------------------
-      # One Release on the tag of the run: a stable is marked Latest with the changelog entries since the previous
-      # stable (or a line saying there is no change for users, when there is none), a prerelease is marked
-      # Pre-release and never Latest. A tag that has a Release is skipped, so a
-      # dispatch with bump none makes a missing one. A failure is reported in the run summary and never fails or
+      # One Release on the tag of a stable run, marked Latest when it is the newest stable: the notes of its version
+      # folder (`log.md`, and `migration.yaml` attached when it holds a block) or, for a project of dated entries, the
+      # entries since the previous stable. A prerelease has no Release: the script says so and succeeds. A tag that has a
+      # Release is skipped, so a dispatch with bump none makes a missing one. A failure is reported in the run summary and never fails or
       # undoes a publish. The script refuses the tag of the atlas index, whose release is not a publish's.
       - name: Create the GitHub Release
         continue-on-error: true

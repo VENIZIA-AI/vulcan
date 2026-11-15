@@ -257,7 +257,7 @@ describe('ReleasePlan.main', () => {
 
     expect(code).toBe(0);
     expect(readFileSync(output, 'utf8')).toBe(
-      'version=0.4.8-0\nkind=prerelease\nnpm_tag=next\ndevelop_sha=\n',
+      'version=0.4.8-0\nkind=prerelease\nnpm_tag=next\ndevelop_sha=\nchangelog_base=\n',
     );
     expect(readFileSync(summary, 'utf8')).toContain('Approval: none');
   });
@@ -271,7 +271,7 @@ describe('ReleasePlan.main', () => {
 
     expect(code).toBe(0);
     expect(readFileSync(output, 'utf8')).toBe(
-      'version=0.4.9\nkind=stable\nnpm_tag=latest\ndevelop_sha=\n',
+      'version=0.4.9\nkind=stable\nnpm_tag=latest\ndevelop_sha=\nchangelog_base=\n',
     );
     expect(readFileSync(summary, 'utf8')).toContain('one approval');
   });
@@ -616,7 +616,7 @@ describe('ReleasePlan.main: --merge-trial', () => {
 
     expect(run({ root, mainSha })).toEqual({
       code: 0,
-      output: `version=0.1.0\nkind=stable\nnpm_tag=latest\ndevelop_sha=${developSha}\n`,
+      output: `version=0.1.0\nkind=stable\nnpm_tag=latest\ndevelop_sha=${developSha}\nchangelog_base=\n`,
     });
   });
 
@@ -698,5 +698,83 @@ describe('ReleasePlan.main: a stable and the changelog', () => {
     git({ cwd: root, args: ['commit', '-q', '-m', 'an entry'] });
 
     expect(stable({ root })).toBe(0);
+  });
+});
+
+describe('ReleasePlan: the changelog of a stable (C3, A5)', () => {
+  const project = (opts: { migrationFrom?: string; log?: string; tags?: string[] }): string => {
+    const root = scratch();
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents', 'vulcan.manifest.json'),
+      JSON.stringify({
+        release: { tagPattern: 'vulcan-v<version>' },
+        knowledge: {
+          changelogs: 'docs/changelogs',
+          ...(opts.migrationFrom === undefined ? {} : { migrationFrom: opts.migrationFrom }),
+        },
+        packages: [{ name: '@x/cli' }],
+      }),
+    );
+
+    if (opts.log !== undefined) {
+      mkdirSync(join(root, 'docs', 'changelogs', '0.4.9'), { recursive: true });
+      writeFileSync(join(root, 'docs', 'changelogs', '0.4.9', 'log.md'), opts.log);
+    }
+
+    git({ cwd: root, args: ['init', '-q', '-b', 'main'] });
+    git({ cwd: root, args: ['add', '-A'] });
+    git({ cwd: root, args: ['commit', '-q', '--allow-empty', '-m', 'init'] });
+
+    for (const name of opts.tags ?? []) {
+      git({ cwd: root, args: ['tag', '-a', name, '-m', name] });
+    }
+
+    return root;
+  };
+
+  test('a project that has adopted the folders needs the folder of its stable, not yet released', () => {
+    expect(
+      ReleasePlan.changelogProblems({
+        cwd: project({ migrationFrom: '0.4.5' }),
+        version: '0.4.9',
+      })[0],
+    ).toContain('has no version folder');
+    expect(
+      ReleasePlan.changelogProblems({
+        cwd: project({
+          migrationFrom: '0.4.5',
+          log: '---\ntitle: 0.4.9\nreleased: 2026-11-01\n---\n',
+        }),
+        version: '0.4.9',
+      })[0],
+    ).toContain('already says released');
+    expect(
+      ReleasePlan.changelogProblems({
+        cwd: project({ migrationFrom: '0.4.5', log: '---\ntitle: 0.4.9\n---\n' }),
+        version: '0.4.9',
+      }),
+    ).toEqual([]);
+  });
+
+  test('a project that keeps dated entries, or has no manifest, needs nothing', () => {
+    expect(ReleasePlan.changelogProblems({ cwd: project({}), version: '0.4.9' })).toEqual([]);
+    expect(
+      ReleasePlan.changelogProblems({
+        cwd: project({ migrationFrom: '2026-11-13' }),
+        version: '0.4.9',
+      }),
+    ).toEqual([]);
+    expect(ReleasePlan.changelogProblems({ cwd: scratch(), version: '0.4.9' })).toEqual([]);
+  });
+
+  test('the history base is the highest stable tag below the version, and empty when there is none', () => {
+    const cwd = project({
+      tags: ['vulcan-v0.4.7', 'vulcan-v0.4.8-3', 'vulcan-v0.4.8', 'vulcan-v0.4.9-1'],
+    });
+
+    expect(ReleasePlan.changelogBase({ cwd, version: '0.4.9' })).toBe('vulcan-v0.4.8');
+    expect(ReleasePlan.changelogBase({ cwd: project({}), version: '0.4.9' })).toBe('');
   });
 });
