@@ -46,7 +46,7 @@ export class FolderRecords {
       const before = stables
         .filter((record) => Bun.semver.order(record.version, folder.name) < 0)
         .map((record) => record.order);
-      const from = previous ?? (before.length === 0 ? -1 : Math.max(...before));
+      const from = Math.max(previous ?? -1, ...before);
       const own = stableOf({ releases: opts.releases, version: folder.name }).map(
         (entry) => entry.record.order,
       );
@@ -86,7 +86,7 @@ export class FolderRecords {
       return folder.items.map((item) => {
         const named = item.packages.length === 0 ? folder.packages : item.packages;
         const packages = Resolve.resolveAll({ values: named, packages: opts.project.packages });
-        const order = FolderRecords.orderOf({ folder, packages, ...opts });
+        const order = FolderRecords.orderOf({ ...opts, folder, packages });
         const block = folder.blocks[item.id];
         const isBreaking = item.section === VersionSectionNames.BREAKING;
         const record: IChangelogRecord = {
@@ -132,24 +132,36 @@ export class FolderRecords {
       undefined,
     );
 
-    return newest?.date ?? '';
+    // No release, no tag of the line: it is in progress now.
+    return newest?.date ?? new Date().toISOString().slice(0, 10);
   }
 
   /**
-   * A released item sits at the earliest stable release of the packages it names (a package of its own line
-   * releases at its own commit, the earliest is inside every package's window); the line in progress sits past every release.
+   * An item sits just after the newest stable release before its line, of the packages it names: a window that reaches any
+   * release of the line - a prerelease included - then holds it, and a window that starts inside the line does not (the
+   * state diff of `migrate` reads those from the tags). With several packages it sits after the latest of their prior stables, so
+   * it is inside the window of each. Without git history there is no order.
    */
   private static orderOf(
     opts: IBuildOptions & { folder: IVersionFolder; packages: string[] },
   ): number | undefined {
-    if (opts.folder.released === undefined) {
-      return opts.openOrder;
+    if (opts.openOrder === undefined) {
+      return undefined;
     }
 
-    const stables = stableOf({ releases: opts.releases, version: opts.folder.name });
-    const own = stables.filter((entry) => opts.packages.includes(entry.dir));
-    const orders = (own.length > 0 ? own : stables).map((entry) => entry.record.order);
+    const dirs = opts.packages.length > 0 ? opts.packages : Object.keys(opts.releases);
+    const priors = dirs.map((dir) => {
+      const stables = (opts.releases[dir] ?? [])
+        .filter(
+          (record) =>
+            VersionFolders.isName({ name: record.version }) &&
+            Bun.semver.order(record.version, opts.folder.name) < 0,
+        )
+        .map((record) => record.order);
 
-    return orders.length === 0 ? undefined : Math.min(...orders);
+      return Math.max(-1, ...stables) + 1;
+    });
+
+    return Math.max(0, ...priors);
   }
 }

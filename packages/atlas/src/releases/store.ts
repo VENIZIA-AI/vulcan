@@ -2,6 +2,7 @@ import { BaseHelper } from '@/common/helper';
 import { PackageMap } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
 import { TextValue } from '@/common/text';
+import { ChangelogLayouts } from './common';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
 
 /**
@@ -126,17 +127,39 @@ export class ReleaseStore extends BaseHelper {
     const wanted =
       opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
-    return this.changelogs.filter((entry) => {
-      if (entry.foldedInto !== undefined && opts.includeFolded !== true) {
-        return false;
-      }
+    return ReleaseStore.standIn({
+      includeFolded: opts.includeFolded,
+      hits: this.changelogs.filter((entry) => {
+        if (entry.date <= opts.fromDate || entry.date > opts.toDate) {
+          return false;
+        }
 
-      if (entry.date <= opts.fromDate || entry.date > opts.toDate) {
-        return false;
-      }
-
-      return wanted === undefined || entry.packages.includes(wanted);
+        return wanted === undefined || entry.packages.includes(wanted);
+      }),
     });
+  }
+
+  /**
+   * A dated file a version folder covers is left out of a window only when that folder's items are in it: the folder is
+   * then the final form of the change. A window that does not reach them keeps the dated file, so nothing is lost.
+   */
+  private static standIn(opts: {
+    hits: IChangelogRecord[];
+    includeFolded?: boolean;
+  }): IChangelogRecord[] {
+    if (opts.includeFolded === true) {
+      return opts.hits;
+    }
+
+    const folders = new Set(
+      opts.hits
+        .filter((entry) => entry.layout === ChangelogLayouts.FOLDER)
+        .map((entry) => entry.version),
+    );
+
+    return opts.hits.filter(
+      (entry) => entry.foldedInto === undefined || !folders.has(entry.foldedInto),
+    );
   }
 
   /**
@@ -155,21 +178,20 @@ export class ReleaseStore extends BaseHelper {
     const wanted =
       opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
-    return this.changelogs.filter((entry) => {
-      if (entry.foldedInto !== undefined && opts.includeFolded !== true) {
-        return false;
-      }
+    return ReleaseStore.standIn({
+      includeFolded: opts.includeFolded,
+      hits: this.changelogs.filter((entry) => {
+        const inside =
+          entry.order === undefined
+            ? entry.date > opts.fromDate && entry.date <= opts.toDate
+            : entry.order > opts.fromOrder && entry.order <= opts.toOrder;
 
-      const inside =
-        entry.order === undefined
-          ? entry.date > opts.fromDate && entry.date <= opts.toDate
-          : entry.order > opts.fromOrder && entry.order <= opts.toOrder;
+        if (!inside) {
+          return false;
+        }
 
-      if (!inside) {
-        return false;
-      }
-
-      return wanted === undefined || entry.packages.includes(wanted);
+        return wanted === undefined || entry.packages.includes(wanted);
+      }),
     });
   }
 

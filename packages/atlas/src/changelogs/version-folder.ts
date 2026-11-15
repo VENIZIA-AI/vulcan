@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { z } from 'zod';
 import type { TConstValue } from '@/common/types';
+import { DirectoryPath } from '@/common/paths';
 import { RecordValue } from '@/common/record';
 import { TextValue } from '@/common/text';
 import { MIGRATION_NAME_PATTERN, MigrationItemSchema } from '@/migrations/schema';
@@ -73,6 +74,8 @@ export interface IVersionFolder {
   packages: string[];
   /** `YYYY-MM-DD`, set when the stable was released; absent while the line is in progress. */
   released?: string;
+  /** The folder holds a readable `log.md` of its own: a directory, an unreadable file or a link out of the checkout is not one. */
+  hasLog: boolean;
   /** `released:` is there but is not a date: the folder is neither released nor in progress. */
   hasInvalidRelease: boolean;
   /** Sections in the order they appear. */
@@ -90,7 +93,8 @@ type TFail = (opts: { file: string; message: string }) => void;
 
 /** A stable version: the name of a version folder and the form of a version cutover. */
 export const STABLE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
-const FENCE_LINE = /^ {0,3}(?:```|~~~)/;
+/** Up to three spaces of indent, a run of three or more backticks or tildes, then the rest of the line. */
+const FENCE_LINE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 const ITEM_LINE = /^- \*\*(.+?)\*\* `([^`]+)`(?: \(([^)]*)\))?/;
 const BULLET_LINE = /^[-*] /;
 const SECTION_LINE = /^## (.+?)\s*$/;
@@ -108,8 +112,11 @@ export class VersionFolders {
     return STABLE_VERSION_PATTERN.test(opts.name);
   }
 
-  /** The version folders of `directory`, oldest first; a directory that is not there has none. */
-  static read(opts: { directory: string }): IVersionFolder[] {
+  /**
+   * The version folders of `directory`, oldest first; a directory that is not there has none. `within`: a fetched
+   * checkout - a folder or file whose real path leaves it is not read.
+   */
+  static read(opts: { directory: string; within?: string }): IVersionFolder[] {
     if (!existsSync(opts.directory)) {
       return [];
     }
@@ -117,21 +124,56 @@ export class VersionFolders {
     return readdirSync(opts.directory)
       .filter(
         (name) =>
-          STABLE_VERSION_PATTERN.test(name) && statSync(join(opts.directory, name)).isDirectory(),
+          STABLE_VERSION_PATTERN.test(name) &&
+          VersionFolders.isDirectory({ path: join(opts.directory, name), within: opts.within }),
       )
       .sort((left, right) => Bun.semver.order(left, right))
-      .map((name) => VersionFolders.readOne({ directory: opts.directory, name }));
+      .map((name) =>
+        VersionFolders.readOne({ directory: opts.directory, name, within: opts.within }),
+      );
   }
 
-  static readOne(opts: { directory: string; name: string }): IVersionFolder {
-    const logFile = join(opts.directory, opts.name, 'log.md');
-    const migrationFile = join(opts.directory, opts.name, 'migration.yaml');
+  static readOne(opts: { directory: string; name: string; within?: string }): IVersionFolder {
+    const folder = join(opts.directory, opts.name);
 
     return VersionFolders.parse({
       name: opts.name,
-      log: existsSync(logFile) ? readFileSync(logFile, 'utf8') : undefined,
-      migration: existsSync(migrationFile) ? readFileSync(migrationFile, 'utf8') : undefined,
+      log: VersionFolders.textOf({ file: join(folder, 'log.md'), within: opts.within }),
+      migration: VersionFolders.textOf({
+        file: join(folder, 'migration.yaml'),
+        within: opts.within,
+      }),
     });
+  }
+
+  /** A path that cannot be statted (a dangling link) is not a directory. */
+  private static isDirectory(opts: { path: string; within?: string }): boolean {
+    try {
+      return (
+        statSync(opts.path).isDirectory() &&
+        (opts.within === undefined ||
+          DirectoryPath.isWithin({ path: opts.path, directory: opts.within }))
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /** The text of a file that is a regular file inside `within`; `undefined` for anything else, so the folder reports it. */
+  private static textOf(opts: { file: string; within?: string }): string | undefined {
+    try {
+      if (
+        !statSync(opts.file).isFile() ||
+        (opts.within !== undefined &&
+          !DirectoryPath.isWithin({ path: opts.file, directory: opts.within }))
+      ) {
+        return undefined;
+      }
+
+      return readFileSync(opts.file, 'utf8');
+    } catch {
+      return undefined;
+    }
   }
 
   /** A folder from the text of its two files, wherever they came from (disk, a git blob, the corpus). */
@@ -144,6 +186,7 @@ export class VersionFolders {
       intro: '',
       blocks: {},
       problems: [],
+      hasLog: opts.log !== undefined,
       hasInvalidRelease: false,
     };
     // Ids of items the log already reported and dropped: the migration file does not report them again.
@@ -212,7 +255,7 @@ export class VersionFolders {
     let section: TVersionSection | undefined;
     let previous = -1;
     const seen = new Set<string>();
-    let inFence = false;
+    let fence = '';
     let isBeforeSections = true;
     const introLines: string[] = [];
     let current: IVersionItem | undefined;
@@ -236,15 +279,27 @@ export class VersionFolders {
     body.split('\n').forEach((text, index) => {
       const line = index + 1 + offset;
 
-      // A code block shows an example: its bullets and `## ` lines are not items and sections.
-      if (FENCE_LINE.test(text)) {
-        inFence = !inFence;
+      // A code block shows an example: its bullets and `## ` lines are not items and sections. A fence closes only on
+      // a run of the same character, at least as long, with nothing after it.
+      const marker = FENCE_LINE.exec(text);
+
+      if (fence !== '') {
+        if (
+          marker !== null &&
+          marker[1][0] === fence[0] &&
+          marker[1].length >= fence.length &&
+          marker[2].trim() === ''
+        ) {
+          fence = '';
+        }
+
         keep(text);
 
         return;
       }
 
-      if (inFence) {
+      if (marker !== null && !(marker[1][0] === '`' && marker[2].includes('`'))) {
+        fence = marker[1];
         keep(text);
 
         return;
@@ -301,8 +356,11 @@ export class VersionFolders {
         return;
       }
 
+      // The first of a repeated id stands: a second one would be a second chunk and record under the same id.
       if (seen.has(item[2])) {
         fail({ file: 'log.md', message: `item id '${item[2]}' is used twice (line ${line})` });
+
+        return;
       }
 
       seen.add(item[2]);

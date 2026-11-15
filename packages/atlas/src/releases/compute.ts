@@ -361,8 +361,8 @@ export class ReleaseCompute {
         changelogs.push(record);
       }
 
-      const folders = VersionFolders.read({ directory }).filter((folder) =>
-        existsSync(join(directory, folder.name, 'log.md')),
+      const folders = VersionFolders.read({ directory, within: project.root }).filter(
+        (folder) => folder.hasLog,
       );
       const openOrder = hasHistory ? countOf(UNCOMMITTED_POSITION) : undefined;
       const lines = FolderRecords.linesOf({ folders, releases, openOrder });

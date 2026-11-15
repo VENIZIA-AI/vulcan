@@ -32,7 +32,7 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   with no new pull. Starts racing on one cold cache take
   turns under a lock (`<cache>/pull.lock`); a SHA's artifacts appear whole or not at all. Every set
   carries a `format` file with `AtlasConstants.INDEX_FORMAT`: an online start rebuilds a set of another
-  format or with no `format` file, and an offline start does not serve it (the source is unavailable). Version folders `changelogs/<X.Y.Z>/` enter the table as one record per `log.md` item (`layout: folder`, id `changelog:<v>#<id>`, the block as `migration`) and the chunker cuts them the same way; a dated file inside a folder's release window carries `foldedInto` and is left out of default windows. Raise the constant with
+  format or with no `format` file, and an offline start does not serve it (the source is unavailable). Version folders `changelogs/<X.Y.Z>/` enter the table as one record per `log.md` item (`layout: folder`, id `changelog:<v>#<id>`, the block as `migration`) and the chunker cuts them the same way; a dated file inside a folder's release window carries `foldedInto` and is left out of a window that holds its folder's items. Raise the constant with
   any change to the chunker output, the table or the stored authority; `index-format.test.ts` fails
   until its locked digest moves with it. Symlinks
   check out as plain files, and a corpus root or file whose real path leaves the checkout is skipped.

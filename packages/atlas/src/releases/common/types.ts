@@ -48,7 +48,7 @@ export interface IChangelogRecord {
   /** A folder item: the version folder (the stable the line releases) and the section it sits in. */
   version?: string;
   section?: TVersionSection;
-  /** A dated file whose release window a version folder covers: the folder's items are its final form, so a stable-to-stable window leaves it out. */
+  /** A dated file whose release window a version folder covers: a window that holds the folder's items leaves it out, one that does not keeps it. */
   foldedInto?: string;
 }
 

@@ -319,6 +319,8 @@ export class MigrateApply {
           args.push('--reverse');
         }
 
+        opts.err(`vulcan migrate apply: running ${[runner.bin, ...args].join(' ')}\n`);
+
         const ran = spawnSync(runner.bin, args, {
           cwd: result.app,
           encoding: 'utf8',
