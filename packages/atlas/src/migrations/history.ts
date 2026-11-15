@@ -134,7 +134,11 @@ export class ChangelogHistory {
     }
   }
 
-  /** A dated file added or edited since the base: the changelog is the version folders now. */
+  /**
+   * A dated file added or edited since the base: the changelog is the version folders now. A file dated on or before
+   * `knowledge.datedUntil` is the old changelog the folders were folded from, so it is not a new entry; the default
+   * check refuses a later one.
+   */
   private static datedProblems(opts: {
     project: IAtlasProject;
     base: string;
@@ -159,7 +163,12 @@ export class ChangelogHistory {
       .filter((file): file is string => file !== undefined && file !== '')
       .filter((file) => dirname(file) === opts.at)
       .map((file) => basename(file))
-      .filter((name) => DATED_NAME.test(name));
+      .filter((name) => DATED_NAME.test(name))
+      .filter(
+        (name) =>
+          opts.project.knowledge.datedUntil === undefined ||
+          name.slice(0, 10) > opts.project.knowledge.datedUntil,
+      );
 
     return [...new Set(files)].map((file) => ({
       file,
