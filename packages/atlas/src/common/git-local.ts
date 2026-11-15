@@ -53,7 +53,7 @@ export class GitLocal {
     return result.status === 0
       ? { stdout: result.stdout }
       : {
-          error: `git ${opts.args[0]} exited ${result.status ?? 'on a timeout'}: ${(result.stderr ?? '').trim()}`,
+          error: `git ${opts.args[0]} ${result.error?.message ?? `exited ${result.status}`}: ${(result.stderr ?? '').trim()}`,
         };
   }
 }
