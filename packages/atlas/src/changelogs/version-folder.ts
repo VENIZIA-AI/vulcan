@@ -71,6 +71,8 @@ export interface IVersionFolder {
   packages: string[];
   /** `YYYY-MM-DD`, set when the stable was released; absent while the line is in progress. */
   released?: string;
+  /** `released:` is there but is not a date: the folder is neither released nor in progress. */
+  hasInvalidRelease: boolean;
   /** Sections in the order they appear. */
   sections: TVersionSection[];
   items: IVersionItem[];
@@ -82,7 +84,9 @@ export interface IVersionFolder {
 
 type TFail = (opts: { file: string; message: string }) => void;
 
-const FOLDER_NAME = /^\d+\.\d+\.\d+$/;
+/** A stable version: the name of a version folder and the form of a version cutover. */
+export const STABLE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+const FENCE_LINE = /^ {0,3}(?:```|~~~)/;
 const ITEM_LINE = /^- \*\*(.+?)\*\* `([^`]+)`(?: \(([^)]*)\))?/;
 const BULLET_LINE = /^[-*] /;
 const SECTION_LINE = /^## (.+?)\s*$/;
@@ -97,7 +101,7 @@ const stringsOf = (opts: { value: unknown }): string[] =>
 /** Reads `changelogs/<X.Y.Z>/{log.md, migration.yaml}`: what the version folder says, and what is wrong with its shape. */
 export class VersionFolders {
   static isName(opts: { name: string }): boolean {
-    return FOLDER_NAME.test(opts.name);
+    return STABLE_VERSION_PATTERN.test(opts.name);
   }
 
   /** The version folders of `directory`, oldest first; a directory that is not there has none. */
@@ -108,7 +112,8 @@ export class VersionFolders {
 
     return readdirSync(opts.directory)
       .filter(
-        (name) => FOLDER_NAME.test(name) && statSync(join(opts.directory, name)).isDirectory(),
+        (name) =>
+          STABLE_VERSION_PATTERN.test(name) && statSync(join(opts.directory, name)).isDirectory(),
       )
       .sort((left, right) => Bun.semver.order(left, right))
       .map((name) => VersionFolders.readOne({ directory: opts.directory, name }));
@@ -122,7 +127,10 @@ export class VersionFolders {
       items: [],
       blocks: {},
       problems: [],
+      hasInvalidRelease: false,
     };
+    // Ids of items the log already reported and dropped: the migration file does not report them again.
+    const rejected = new Set<string>();
     const logFile = join(opts.directory, opts.name, 'log.md');
     const migrationFile = join(opts.directory, opts.name, 'migration.yaml');
     const fail: TFail = ({ file, message }) => {
@@ -130,20 +138,30 @@ export class VersionFolders {
     };
 
     if (existsSync(logFile)) {
-      VersionFolders.readLog({ folder, text: readFileSync(logFile, 'utf8'), fail });
+      VersionFolders.readLog({ folder, text: readFileSync(logFile, 'utf8'), fail, rejected });
     } else {
       fail({ file: 'log.md', message: 'a version folder needs a log.md' });
     }
 
     if (existsSync(migrationFile)) {
-      VersionFolders.readMigration({ folder, text: readFileSync(migrationFile, 'utf8'), fail });
+      VersionFolders.readMigration({
+        folder,
+        text: readFileSync(migrationFile, 'utf8'),
+        fail,
+        rejected,
+      });
     }
 
     return folder;
   }
 
-  private static readLog(opts: { folder: IVersionFolder; text: string; fail: TFail }): void {
-    const { folder, fail } = opts;
+  private static readLog(opts: {
+    folder: IVersionFolder;
+    text: string;
+    fail: TFail;
+    rejected: Set<string>;
+  }): void {
+    const { folder, fail, rejected } = opts;
     let data: Record<string, unknown>;
     let body: string;
 
@@ -174,6 +192,7 @@ export class VersionFolders {
       if (RELEASED_DATE.test(released)) {
         folder.released = released;
       } else {
+        folder.hasInvalidRelease = true;
         fail({ file: 'log.md', message: 'released: must be a date, YYYY-MM-DD' });
       }
     }
@@ -183,9 +202,22 @@ export class VersionFolders {
     let section: TVersionSection | undefined;
     let previous = -1;
     const seen = new Set<string>();
+    let inFence = false;
 
     body.split('\n').forEach((text, index) => {
       const line = index + 1 + offset;
+
+      // A code block shows an example: its bullets and `## ` lines are not items and sections.
+      if (FENCE_LINE.test(text)) {
+        inFence = !inFence;
+
+        return;
+      }
+
+      if (inFence) {
+        return;
+      }
+
       const heading = SECTION_LINE.exec(text);
 
       if (heading !== null) {
@@ -214,12 +246,14 @@ export class VersionFolders {
       }
 
       if (section === undefined) {
+        rejected.add(item[2]);
         fail({ file: 'log.md', message: `line ${line}: an item outside a known section` });
 
         return;
       }
 
       if (!MIGRATION_NAME_PATTERN.test(item[2])) {
+        rejected.add(item[2]);
         fail({
           file: 'log.md',
           message: `line ${line}: item id '${item[2]}' must be lower-case words joined by '-'`,
@@ -279,7 +313,12 @@ export class VersionFolders {
     opts.folder.sections.push(name);
   }
 
-  private static readMigration(opts: { folder: IVersionFolder; text: string; fail: TFail }): void {
+  private static readMigration(opts: {
+    folder: IVersionFolder;
+    text: string;
+    fail: TFail;
+    rejected: Set<string>;
+  }): void {
     let parsed: unknown;
 
     try {
@@ -318,6 +357,10 @@ export class VersionFolders {
     }
 
     for (const [id, value] of Object.entries(RecordValue.orEmpty({ value: parsed }))) {
+      if (opts.rejected.has(id)) {
+        continue;
+      }
+
       if (!MIGRATION_NAME_PATTERN.test(id)) {
         opts.fail({
           file: 'migration.yaml',

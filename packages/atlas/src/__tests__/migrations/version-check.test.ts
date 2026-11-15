@@ -502,3 +502,227 @@ describe('the codemod runner of the project', () => {
     expect(ChangelogCheck.codemodsOf({ root: made.root })).toBeUndefined();
   });
 });
+
+describe('review round 2: a moved base, a strict runner, parser edges', () => {
+  const dated = '---\ntitle: T\npackages: []\n---\n';
+  const releasedLog = (opts: { released?: string }): string =>
+    log({
+      version: '0.4.1',
+      released: opts.released,
+      body: '\n## Added\n- **A** `a-item`: a.\n',
+    });
+
+  const git = (opts: { root: string; args: string[] }): void => {
+    for (const args of [opts.args]) {
+      run({ root: opts.root, args });
+    }
+  };
+
+  const initRepo = (opts: { root: string }): void => {
+    for (const args of [
+      ['init', '-q', '-b', 'main'],
+      ['config', 'user.email', 't@t.t'],
+      ['config', 'user.name', 't'],
+      ['add', '-A'],
+      ['commit', '-q', '-m', 'base'],
+    ]) {
+      git({ root: opts.root, args });
+    }
+  };
+
+  test('a base that moved ahead: a release the base gained since the branch point is not the branch', () => {
+    const made = projectWith({
+      folders: { '0.4.1': { log: releasedLog({}) } },
+      migrationFrom: '0.4.1',
+      version: '0.4.1',
+    });
+
+    initRepo({ root: made.root });
+    git({ root: made.root, args: ['checkout', '-q', '-b', 'feature'] });
+    writeFileSync(join(made.root, 'packages', 'kernel', 'note.txt'), 'work\n');
+    git({ root: made.root, args: ['add', '-A'] });
+    git({ root: made.root, args: ['commit', '-q', '-m', 'feature work'] });
+    git({ root: made.root, args: ['checkout', '-q', 'main'] });
+    writeFileSync(
+      join(made.root, 'changes', '0.4.1', 'log.md'),
+      releasedLog({ released: '2026-11-10' }),
+    );
+    git({ root: made.root, args: ['commit', '-q', '-am', 'promote 0.4.1'] });
+    git({ root: made.root, args: ['checkout', '-q', 'feature'] });
+
+    expect(ChangelogHistory.scan({ project: made.project, base: 'main' })).toEqual([]);
+  });
+
+  test('a released folder the branch edits is frozen, and one it deletes too', () => {
+    const made = projectWith({
+      folders: { '0.4.1': { log: releasedLog({ released: '2026-11-10' }) } },
+      migrationFrom: '0.4.1',
+      version: '0.4.1',
+    });
+
+    initRepo({ root: made.root });
+    rmSync(join(made.root, 'changes', '0.4.1'), { recursive: true });
+
+    const found = ChangelogHistory.scan({ project: made.project, base: 'HEAD' });
+
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toContain('0.4.1 was released');
+  });
+
+  test('a dated file deleted after the cutover is allowed', () => {
+    const made = projectWith({
+      dated: { '2026-11-01-old.md': dated },
+      migrationFrom: '0.4.5',
+      version: '0.4.4',
+    });
+
+    initRepo({ root: made.root });
+    rmSync(join(made.root, 'changes', '2026-11-01-old.md'));
+
+    expect(ChangelogHistory.scan({ project: made.project, base: 'HEAD' })).toEqual([]);
+  });
+
+  test('a base that looks like an option is a ref, never a flag', () => {
+    const made = projectWith({ migrationFrom: '0.4.5', version: '0.4.4' });
+
+    initRepo({ root: made.root });
+
+    const found = ChangelogHistory.scan({ project: made.project, base: '--output=oops' });
+
+    expect(found[0].message).toContain('not a commit');
+  });
+
+  test('a codemodCommand word that is not allowed throws and names the word', () => {
+    const manifest = (command: unknown) => ({
+      schemaVersion: 1,
+      packages: [],
+      knowledge: { changelogs: 'changes', codemodCommand: command },
+      release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+    });
+
+    const cases: Array<[unknown[], string]> = [
+      [['./x'], './x'],
+      [['sh', '-c', 'x y'], '-c'],
+      [['ardor', ''], '""'],
+      [['devz', 7], '7'],
+    ];
+
+    for (const [command, word] of cases) {
+      expect(() =>
+        ProjectConfig.toAtlasProject({ root: '/tmp/x', manifest: manifest(command) }),
+      ).toThrow(word);
+    }
+
+    expect(() => ProjectConfig.toAtlasProject({ root: '/tmp/x', manifest: manifest([]) })).toThrow(
+      'non-empty',
+    );
+    expect(
+      ProjectConfig.toAtlasProject({ root: '/tmp/x', manifest: manifest(['ardor', 'codemod']) })
+        .knowledge.codemodCommand,
+    ).toEqual(['ardor', 'codemod']);
+  });
+
+  test('the messages name the configured runner, not devz', () => {
+    const made = projectWith({
+      folders: {
+        '0.4.2': {
+          log: BREAKING_LOG,
+          migration: `thing-factory:\n${BLOCK}  codemod: missing-one\n`,
+        },
+      },
+    });
+    const project = ProjectConfig.toAtlasProject({
+      root: made.root,
+      manifest: {
+        schemaVersion: 1,
+        packages: [{ name: '@a/kernel', dir: 'kernel', aliases: [], retired: false }],
+        knowledge: { changelogs: 'changes', codemodCommand: ['ardor', 'codemod'] },
+        release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+      },
+    });
+    const found = ChangelogCheck.scan({ project, codemods: ['namespace'] }).map(
+      (problem) => problem.message,
+    );
+
+    expect(found.some((message) => message.includes('`ardor codemod --list`'))).toBe(true);
+    expect(found.some((message) => message.includes('devz'))).toBe(false);
+  });
+
+  test('a codemod name the runner does not list fails in the folder gate', () => {
+    const found = ChangelogCheck.scan({
+      project: projectWith({
+        folders: {
+          '0.4.2': {
+            log: BREAKING_LOG,
+            migration: `thing-factory:\n${BLOCK}  codemod: missing-one\n`,
+          },
+        },
+      }).project,
+      codemods: ['namespace'],
+    });
+
+    expect(
+      found.some(
+        (problem) =>
+          problem.file === '0.4.2/migration.yaml' && problem.message.includes('missing-one'),
+      ),
+    ).toBe(true);
+  });
+
+  test('a Deprecated item with no block fails; with one it passes', () => {
+    const text = log({
+      version: '0.4.2',
+      body: '\n## Deprecated\n- **Old call** `old-call`: use the new one.\n',
+    });
+
+    expect(problemsOf({ folders: { '0.4.2': { log: text } } })).toHaveLength(1);
+    expect(
+      problemsOf({
+        folders: { '0.4.2': { log: text, migration: `old-call:\n${BLOCK}` } },
+        version: '0.4.2-3',
+      }),
+    ).toEqual([]);
+  });
+
+  test('a fenced block shows an example: its bullets and headings are not items or sections', () => {
+    const text = log({
+      version: '0.4.2',
+      body: '\n## Added\n- **A flag** `a-flag`: new.\n\n```md\n## Breaking\n- **Shown** `shown-item`: an example.\n```\n',
+    });
+
+    expect(problemsOf({ folders: { '0.4.2': { log: text } }, version: '0.4.2-3' })).toEqual([]);
+  });
+
+  test('a malformed id or an unknown section is reported once, not again as a block with no item', () => {
+    const badId = log({
+      version: '0.4.2',
+      body: '\n## Breaking\n- **Bad** `Bad_Id`: x.\n',
+    });
+    const badSection = log({
+      version: '0.4.2',
+      body: '\n## Breaking changes\n- **Odd** `odd-item`: x.\n',
+    });
+
+    expect(
+      problemsOf({ folders: { '0.4.2': { log: badId, migration: `Bad_Id:\n${BLOCK}` } } }),
+    ).toHaveLength(1);
+    expect(
+      problemsOf({ folders: { '0.4.2': { log: badSection, migration: `odd-item:\n${BLOCK}` } } }),
+    ).toHaveLength(2);
+  });
+
+  test('an invalid released date is reported once and the folder is not counted as in progress', () => {
+    const found = problemsOf({
+      folders: {
+        '0.4.1': { log: releasedLog({ released: 'yesterday' }) },
+        '0.4.2': {
+          log: log({ version: '0.4.2', body: '\n## Added\n- **B** `b-item`: b.\n' }),
+        },
+      },
+      version: '0.4.2-3',
+    });
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain('released: must be a date');
+  });
+});

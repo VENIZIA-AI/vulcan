@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { CodemodRunner } from './codemod-runner';
 import { GitArgument } from './git-argument';
 import { AtlasLimits } from './limits';
 import { WireValue } from './wire';
@@ -229,12 +230,7 @@ export class ProjectConfig {
     const changelogs = WireValue.stringOf({ value: knowledge.changelogs });
     const migrationFrom = WireValue.stringOf({ value: knowledge.migrationFrom });
     const datedUntil = WireValue.stringOf({ value: knowledge.datedUntil });
-    const codemodCommand = Array.isArray(knowledge.codemodCommand)
-      ? knowledge.codemodCommand.filter(
-          (word): word is string =>
-            typeof word === 'string' && /^[a-z0-9][a-z0-9._-]*$/i.test(word),
-        )
-      : [];
+    const codemodCommand = CodemodRunner.wordsOf({ value: knowledge.codemodCommand });
 
     if (manifest.schemaVersion !== MANIFEST_SCHEMA_VERSION) {
       throw new Error(

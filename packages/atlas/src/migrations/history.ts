@@ -9,7 +9,6 @@ import { ReleaseCompute } from '@/releases/compute';
 import type { IChangelogProblem } from './check';
 
 const DATED_NAME = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
-const VERSION_CUTOVER = /^\d+\.\d+\.\d+$/;
 
 /** A git answer from the project root; `undefined` when the command fails (a ref that is not there, no repository). */
 const git = (opts: { root: string; args: string[] }): string | undefined => {
@@ -44,7 +43,7 @@ export class ChangelogHistory {
     if (
       git({
         root: project.root,
-        args: ['rev-parse', '--verify', '--quiet', `${opts.base}^{commit}`],
+        args: ['rev-parse', '--verify', '--quiet', '--end-of-options', `${opts.base}^{commit}`],
       }) === undefined
     ) {
       return [
@@ -52,11 +51,28 @@ export class ChangelogHistory {
       ];
     }
 
-    problems.push(...ChangelogHistory.frozenProblems({ project, base: opts.base, at }));
+    // The branch's own changes are measured from where it left the base: what landed on the base since (a release
+    // commit that writes `released:`) is not the branch's doing.
+    const since = git({
+      root: project.root,
+      args: ['merge-base', '--end-of-options', opts.base, 'HEAD'],
+    })?.trim();
+
+    if (since === undefined || since === '') {
+      return [
+        {
+          file: opts.base,
+          message:
+            'the base and HEAD share no commit (fetch more history, or the base is unrelated)',
+        },
+      ];
+    }
+
+    problems.push(...ChangelogHistory.frozenProblems({ project, base: opts.base, since, at }));
 
     // Dual mode: until a project adopts the folders (a version cutover) its dated files stay the changelog.
-    if (migrationFrom !== undefined && VERSION_CUTOVER.test(migrationFrom)) {
-      problems.push(...ChangelogHistory.datedProblems({ project, base: opts.base, at }));
+    if (migrationFrom !== undefined && VersionFolders.isName({ name: migrationFrom })) {
+      problems.push(...ChangelogHistory.datedProblems({ project, base: opts.base, since, at }));
       problems.push(
         ...ChangelogHistory.stableProblems({ project, directory, from: migrationFrom }),
       );
@@ -65,22 +81,23 @@ export class ChangelogHistory {
     return problems;
   }
 
-  /** A folder whose `log.md` carries `released:` at the base may not change, nor be deleted. */
+  /** A folder whose `log.md` carries `released:` where the branch left the base may not change, nor be deleted. */
   private static frozenProblems(opts: {
     project: IAtlasProject;
     base: string;
+    since: string;
     at: string;
   }): IChangelogProblem[] {
     const { root } = opts.project;
     const listed =
-      git({ root, args: ['ls-tree', '-d', '--name-only', opts.base, `${opts.at}/`] }) ?? '';
+      git({ root, args: ['ls-tree', '-d', '--name-only', opts.since, `${opts.at}/`] }) ?? '';
     const names = listed
       .split('\n')
       .map((line) => line.trim().split('/').at(-1) ?? '')
       .filter((name) => VersionFolders.isName({ name }));
 
     return names.flatMap((name) => {
-      const log = git({ root, args: ['show', `${opts.base}:${opts.at}/${name}/log.md`] });
+      const log = git({ root, args: ['show', `${opts.since}:${opts.at}/${name}/log.md`] });
 
       if (log === undefined || !ChangelogHistory.isReleased({ log })) {
         return [];
@@ -88,7 +105,7 @@ export class ChangelogHistory {
 
       const changed = git({
         root,
-        args: ['diff', '--name-status', opts.base, '--', `${opts.at}/${name}`],
+        args: ['diff', '--name-status', '--end-of-options', opts.since, '--', `${opts.at}/${name}`],
       })?.trim();
       const untracked = git({
         root,
@@ -121,10 +138,15 @@ export class ChangelogHistory {
   private static datedProblems(opts: {
     project: IAtlasProject;
     base: string;
+    since: string;
     at: string;
   }): IChangelogProblem[] {
     const { root } = opts.project;
-    const changed = git({ root, args: ['diff', '--name-status', opts.base, '--', opts.at] }) ?? '';
+    const changed =
+      git({
+        root,
+        args: ['diff', '--name-status', '--end-of-options', opts.since, '--', opts.at],
+      }) ?? '';
     const untracked =
       git({ root, args: ['ls-files', '--others', '--exclude-standard', '--', opts.at] }) ?? '';
     // A, M, and the new path of a rename or copy (R100\told\tnew): the last column.
@@ -160,7 +182,7 @@ export class ChangelogHistory {
         .filter(([dir]) => live.has(dir))
         .flatMap(([, records]) => records)
         .map((release) => release.version)
-        .filter((version) => VERSION_CUTOVER.test(version))
+        .filter((version) => VersionFolders.isName({ name: version }))
         .filter((version) => Bun.semver.order(version, opts.from) >= 0),
     );
 

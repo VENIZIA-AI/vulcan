@@ -1,10 +1,10 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { VersionFolders } from '@/changelogs/version-folder';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases';
 
 const DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
-const VERSION_FOLDER = /^\d+\.\d+\.\d+$/;
 
 /**
  * A fetched source is not served with a release table that lost its changelog: the table is built from
@@ -29,7 +29,7 @@ export class ChangelogGuard {
         return true;
       }
 
-      return VERSION_FOLDER.test(last) && (opts.holdsLog?.({ folder: name }) ?? true);
+      return VersionFolders.isName({ name: last }) && (opts.holdsLog?.({ folder: name }) ?? true);
     }).length;
   }
 

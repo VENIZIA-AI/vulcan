@@ -2,14 +2,15 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Resolve } from '@/changelogs/resolve';
+import { VersionFolders } from '@/changelogs/version-folder';
 import type { IAtlasProject } from '@/common/project-config';
+import { CodemodRunner } from '@/common/codemod-runner';
 import { TextValue } from '@/common/text';
 import { BreakingBadge } from './badges';
 import { MigrationSchema } from './schema';
 import { VersionCheck } from './version-check';
 
 const DATED_ENTRY = /^(\d{4}-\d{2}-\d{2})-.*\.md$/;
-const VERSION_CUTOVER = /^\d+\.\d+\.\d+$/;
 const BREAKING = BreakingBadge.CANONICAL;
 const BREAKING_SHORT = BreakingBadge.SHORT;
 const DEVZ_TIMEOUT_MS = 30_000;
@@ -36,7 +37,7 @@ export class ChangelogCheck {
 
     // A version cutover (`0.4.5`) retires the dated files: they are history and no longer owe a block.
     const cutover =
-      migrationFrom !== undefined && VERSION_CUTOVER.test(migrationFrom)
+      migrationFrom !== undefined && VersionFolders.isName({ name: migrationFrom })
         ? undefined
         : migrationFrom;
     const isVersioned = migrationFrom !== undefined && cutover === undefined;
@@ -122,7 +123,7 @@ export class ChangelogCheck {
         ) {
           problems.push({
             file,
-            message: `migration '${item.id}' names codemod '${item.codemod}', which \`devz codemod --list\` does not offer`,
+            message: `migration '${item.id}' names codemod '${item.codemod}', which \`${CodemodRunner.listLabel({ command: opts.project.knowledge.codemodCommand })}\` does not offer`,
           });
         }
       }
@@ -131,9 +132,9 @@ export class ChangelogCheck {
     return [...problems, ...VersionCheck.scan({ project: opts.project, codemods: opts.codemods })];
   }
 
-  /** The codemod names the project's `devz` offers, or `undefined` when it is not installed or cannot list them. */
+  /** The codemod names the project's codemod runner offers, or `undefined` when it is not installed or cannot list them. */
   static codemodsOf(opts: { root: string; command?: string[] }): string[] | undefined {
-    const [name, ...words] = opts.command ?? ['devz', 'codemod'];
+    const [name, ...words] = opts.command ?? CodemodRunner.DEFAULT;
     const bin = join(opts.root, 'node_modules', '.bin', name);
 
     if (!existsSync(bin)) {
@@ -166,8 +167,10 @@ export class ChangelogCheck {
     const problems = ChangelogCheck.scan({ project: opts.project, codemods });
 
     if (codemods === undefined) {
+      const listing = CodemodRunner.listLabel({ command: opts.project.knowledge.codemodCommand });
+
       opts.write(
-        'changelog check: `devz codemod --list` is not available; codemod names were not checked\n',
+        `changelog check: \`${listing}\` is not available; codemod names were not checked\n`,
       );
     }
 

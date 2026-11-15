@@ -2,12 +2,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { VersionFolders, VersionSections } from '@/changelogs/version-folder';
 import type { IVersionFolder } from '@/changelogs/version-folder';
+import { CodemodRunner } from '@/common/codemod-runner';
 import type { IAtlasProject } from '@/common/project-config';
 import { TextValue } from '@/common/text';
 import type { IChangelogProblem } from './check';
 
 const PRERELEASE_PART = /-.+$/;
-const VERSION_CUTOVER = /^\d+\.\d+\.\d+$/;
 
 /**
  * The gate over the version folders `changelogs/<X.Y.Z>/{log.md, migration.yaml}`, from the files alone (no git):
@@ -25,7 +25,11 @@ export class VersionCheck {
 
     return [
       ...folders.flatMap((folder) =>
-        VersionCheck.folderProblems({ folder, codemods: opts.codemods }),
+        VersionCheck.folderProblems({
+          folder,
+          codemods: opts.codemods,
+          listLabel: CodemodRunner.listLabel({ command: opts.project.knowledge.codemodCommand }),
+        }),
       ),
       ...VersionCheck.progressProblems({ project: opts.project, folders }),
     ];
@@ -34,6 +38,7 @@ export class VersionCheck {
   private static folderProblems(opts: {
     folder: IVersionFolder;
     codemods?: string[];
+    listLabel: string;
   }): IChangelogProblem[] {
     const { folder } = opts;
     const problems: IChangelogProblem[] = [...folder.problems];
@@ -63,7 +68,12 @@ export class VersionCheck {
       }
     }
 
-    VersionCheck.codemodProblems({ folder, codemods: opts.codemods, fail });
+    VersionCheck.codemodProblems({
+      folder,
+      codemods: opts.codemods,
+      listLabel: opts.listLabel,
+      fail,
+    });
 
     return problems;
   }
@@ -71,6 +81,7 @@ export class VersionCheck {
   private static codemodProblems(opts: {
     folder: IVersionFolder;
     codemods?: string[];
+    listLabel: string;
     fail: (opts: { file: string; message: string }) => void;
   }): void {
     if (opts.codemods === undefined) {
@@ -86,7 +97,7 @@ export class VersionCheck {
       if (typeof codemod === 'string' && !opts.codemods.includes(codemod)) {
         opts.fail({
           file: 'migration.yaml',
-          message: `'${id}' names codemod '${codemod}', which \`devz codemod --list\` does not offer`,
+          message: `'${id}' names codemod '${codemod}', which \`${opts.listLabel}\` does not offer`,
         });
       }
     }
@@ -98,7 +109,10 @@ export class VersionCheck {
     folders: IVersionFolder[];
   }): IChangelogProblem[] {
     const problems: IChangelogProblem[] = [];
-    const open = opts.folders.filter((folder) => folder.released === undefined);
+    // A folder whose `released:` is not a date is already reported: it is neither released nor in progress.
+    const open = opts.folders.filter(
+      (folder) => folder.released === undefined && !folder.hasInvalidRelease,
+    );
     const released = opts.folders.filter((folder) => folder.released !== undefined);
 
     if (open.length > 1) {
@@ -121,7 +135,7 @@ export class VersionCheck {
     }
 
     const { found: heading, problem } = VersionCheck.installableStable({ project: opts.project });
-    const isAdopted = VERSION_CUTOVER.test(opts.project.knowledge.migrationFrom ?? '');
+    const isAdopted = VersionFolders.isName({ name: opts.project.knowledge.migrationFrom ?? '' });
 
     if (problem !== undefined && (opts.folders.length > 0 || isAdopted)) {
       problems.push(problem);
