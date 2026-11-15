@@ -1,0 +1,10 @@
+guards-ask-on-failure:
+  symbols: [guard.git, guard.outside]
+  upgrade:
+    steps:
+      - 'Run `vulcan sync` to get the new hook wrappers in `.claude/settings.json`; `vulcan doctor` reports the old ones as stale.'
+      - 'Codex and Cursor cannot ask on a tool call, so there the ask is printed as a deny: a `git` or `gh` command (and a `guard-outside` call) whose hook crashes, is killed, times out or cannot load is now refused where it passed. Claude Code, omp, pi and Antigravity ask and let you approve (Antigravity: `agy --dangerously-skip-permissions` approves an ask).'
+      - 'Fix the cause: run `bun install` when the hook cannot load, or set `VULCAN_GUARDS=off` for the session.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan` and run `vulcan sync`: a hook that crashes lets the call through again.'
