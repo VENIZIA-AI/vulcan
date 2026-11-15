@@ -36,6 +36,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GithubRelease, GithubReleaseConstants } from './github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
+import { ReleaseStamp } from './stamp-release.ts';
 import { ReleaseBumps, ReleaseKinds } from './release-args.ts';
 import type { TReleaseKind } from './release-args.ts';
 
@@ -497,12 +498,20 @@ export class ReleasePlan {
     // The merge back of a stable is tried here, before anyone is asked to approve: a stop after the click would
     // need a second click on the re-run.
     if (result.plan.kind === ReleaseKinds.STABLE && args.includes('--merge-trial')) {
+      const { version } = result.plan;
       const trial = ReleaseMergeBack.trial({
         cwd,
-        version: result.plan.version,
+        version,
         main: opts.env['GITHUB_SHA'] ?? MergeBackConstants.DEFAULT_MAIN,
         develop: MergeBackConstants.DEFAULT_DEVELOP,
         scratchRoot,
+        // The release writes the day into the version folder: the trial makes the same commit.
+        stamp: ({ tree }) =>
+          ReleaseStamp.stampFolder({
+            cwd: tree,
+            version,
+            date: new Date().toISOString().slice(0, 10),
+          }),
       });
 
       developSha = trial.developHead;

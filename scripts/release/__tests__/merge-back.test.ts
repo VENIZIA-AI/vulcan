@@ -358,6 +358,156 @@ describe('ReleaseMergeBack.mergeInto', () => {
   });
 });
 
+const LOG_PATH = 'docs/changelogs/0.4.9/log.md';
+const LOG = "---\ntitle: 0.4.9\nversion: 0.4.9\npackages: ['@fixture/a']\n---\nThe line.\n";
+const DEVELOP_LOG =
+  "---\ntitle: 0.4.9\nversion: 0.4.9\npackages: ['@fixture/a', '@fixture/b']\n---\nThe line.\n";
+const STAMPED_LOG =
+  "---\ntitle: 0.4.9\nversion: 0.4.9\npackages: ['@fixture/a']\nreleased: 2026-11-20\n---\nThe line.\n";
+
+/** `main` and `develop` share a version folder; `develop` then edits the last line of its frontmatter. */
+const withVersionFolder = (opts: { developLog: string }): string => {
+  const root = fixture({ developVersion: '0.4.9-3' });
+
+  write({ root, path: LOG_PATH, text: LOG });
+  run({ cwd: root, args: ['add', '-A'] });
+  run({ cwd: root, args: ['commit', '-q', '-m', 'main gets the folder'] });
+  run({ cwd: root, args: ['checkout', '-q', 'develop'] });
+  run({ cwd: root, args: ['merge', '-q', '--no-edit', 'main'] });
+  write({ root, path: LOG_PATH, text: opts.developLog });
+  run({ cwd: root, args: ['commit', '-q', '-am', 'develop edits the log'] });
+  run({ cwd: root, args: ['checkout', '-q', 'main'] });
+
+  return root;
+};
+
+describe('ReleaseMergeBack.resolveStampConflict', () => {
+  const resolve = (opts: { ours: string; theirs: string }) =>
+    ReleaseMergeBack.resolveStampConflict({
+      base: LOG,
+      ours: opts.ours,
+      theirs: opts.theirs,
+      scratchRoot: scratch(),
+    });
+
+  test('keeps develop`s edit of the last frontmatter line and the released: line after it', () => {
+    expect(resolve({ ours: DEVELOP_LOG, theirs: STAMPED_LOG })).toEqual({
+      text: "---\ntitle: 0.4.9\nversion: 0.4.9\npackages: ['@fixture/a', '@fixture/b']\nreleased: 2026-11-20\n---\nThe line.\n",
+    });
+  });
+
+  test('keeps a change the release made to the body, which develop did not touch', () => {
+    expect(
+      resolve({ ours: DEVELOP_LOG, theirs: STAMPED_LOG.replace('The line.', 'Main line.') }).text,
+    ).toContain('Main line.');
+  });
+
+  test('stops when develop and the release changed the same body line', () => {
+    const result = resolve({
+      ours: DEVELOP_LOG.replace('The line.', 'Develop line.'),
+      theirs: STAMPED_LOG.replace('The line.', 'Main line.'),
+    });
+
+    expect(result.text).toBeUndefined();
+    expect(result.problem).toContain('other lines');
+  });
+
+  test('stops when the release carries no released: line', () => {
+    expect(resolve({ ours: DEVELOP_LOG, theirs: LOG }).text).toBeUndefined();
+  });
+
+  test('stops when develop already says another day', () => {
+    const result = resolve({
+      ours: DEVELOP_LOG.replace('---\nThe', 'released: 2026-11-19\n---\nThe'),
+      theirs: STAMPED_LOG,
+    });
+
+    expect(result.text).toBeUndefined();
+  });
+});
+
+describe('ReleaseMergeBack.mergeInto: the released: stamp', () => {
+  const stamped = (opts: { developLog: string }): string => {
+    const root = withVersionFolder(opts);
+
+    run({ cwd: root, args: ['checkout', '-q', '-b', 'release', 'main'] });
+    write({ root, path: LOG_PATH, text: STAMPED_LOG });
+    release({ root, version: '0.4.9', message: 'chore(release): v0.4.9' });
+    run({ cwd: root, args: ['checkout', '-q', 'develop'] });
+
+    return root;
+  };
+
+  test('a log.md that differs only by the released: line merges, keeping what develop edited', () => {
+    const root = stamped({ developLog: DEVELOP_LOG });
+    const result = ReleaseMergeBack.mergeInto({
+      cwd: root,
+      from: 'release',
+      scratchRoot: scratch(),
+      commit: { message: 'Merge main into develop' },
+    });
+
+    expect(result.problems).toEqual([]);
+    expect(result.resolved).toContain(LOG_PATH);
+    expect(readFileSync(join(root, LOG_PATH), 'utf8')).toBe(
+      "---\ntitle: 0.4.9\nversion: 0.4.9\npackages: ['@fixture/a', '@fixture/b']\nreleased: 2026-11-20\n---\nThe line.\n",
+    );
+    expect(run({ cwd: root, args: ['status', '--porcelain'] })).toBe('');
+  });
+
+  test('a log.md that develop changed in the body too still stops the merge', () => {
+    const root = stamped({ developLog: DEVELOP_LOG.replace('The line.', 'Develop line.') });
+    const head = run({ cwd: root, args: ['rev-parse', 'HEAD'] });
+
+    run({ cwd: root, args: ['checkout', '-q', 'release'] });
+    write({ root, path: LOG_PATH, text: STAMPED_LOG.replace('The line.', 'Main line.') });
+    run({ cwd: root, args: ['commit', '-q', '-am', 'main edits the body'] });
+    run({ cwd: root, args: ['checkout', '-q', 'develop'] });
+
+    const result = ReleaseMergeBack.mergeInto({
+      cwd: root,
+      from: 'release',
+      scratchRoot: scratch(),
+      commit: { message: 'Merge main into develop' },
+    });
+
+    expect(result.problems.join('\n')).toContain(LOG_PATH);
+    expect(run({ cwd: root, args: ['rev-parse', 'HEAD'] })).toBe(head);
+    expect(existsSync(join(root, '.git', 'MERGE_HEAD'))).toBe(false);
+  });
+});
+
+describe('ReleaseMergeBack.trial: the released: stamp', () => {
+  const trialOf = (opts: { root: string; withStamp: boolean }) =>
+    ReleaseMergeBack.trial({
+      cwd: opts.root,
+      version: '0.4.9',
+      main: 'main',
+      develop: 'develop',
+      scratchRoot: scratch(),
+      ...(opts.withStamp
+        ? {
+            stamp: ({ tree }: { tree: string }) =>
+              write({ root: tree, path: LOG_PATH, text: STAMPED_LOG }),
+          }
+        : {}),
+    });
+
+  test('the stamp is part of the release commit the trial merges, so a conflict it causes shows before the approval', () => {
+    const root = withVersionFolder({ developLog: DEVELOP_LOG });
+    const result = trialOf({ root, withStamp: true });
+
+    expect(result.problems).toEqual([]);
+    expect(result.resolved).toContain(LOG_PATH);
+  });
+
+  test('without the stamp the trial cannot see it, as before', () => {
+    const root = withVersionFolder({ developLog: DEVELOP_LOG });
+
+    expect(trialOf({ root, withStamp: false }).resolved).not.toContain(LOG_PATH);
+  });
+});
+
 describe('ReleaseMergeBack.flagValue', () => {
   test('a value is the next argument, and a flag followed by a flag has none', () => {
     expect(ReleaseMergeBack.flagValue({ args: ['--bump', 'patch'], flag: '--bump' })).toBe('patch');
