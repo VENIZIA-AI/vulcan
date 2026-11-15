@@ -7,3 +7,13 @@ guard-outside-scratchpad-denied:
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, where a write into that folder is asked about again.'
+
+guard-git-pr-base:
+  symbols: [guard.git]
+  upgrade:
+    steps:
+      - '`gh pr create` with no `--base` asks first. Codex and Cursor cannot ask on a tool call, so there it is refused where it passed, and so is a run that no one can answer.'
+      - 'Pass `--base <branch>` (or `--base=<branch>`, `-B <branch>`) to every `gh pr create` in scripts and agent skills.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`, which does not ask about a missing base.'
