@@ -25,7 +25,7 @@ interface ICodemodOutcome {
   steps: IMigrationStep[];
   status: string;
   output: string;
-  /** What was run, as the source's runner words and the arguments: `ardor codemod <name> . --write`. */
+  /** What was run, as the source's runner words and the arguments: `<runner> <name> . --write`. */
   command: string;
 }
 
