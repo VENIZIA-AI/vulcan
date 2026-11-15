@@ -1,5 +1,5 @@
 {
-  "fingerprint": "60cbe1501804e718242cd452cb4e272bce5a875def568233808789f2b4e66521",
+  "fingerprint": "0659a3c96a7e3272379d5e37c374f5d6639435971977c847186c90edc8e9c1fb",
   "files": {
     "AtAGlance.vue": "82a497e03e3214a0aabca18d2dcf581bd2e9379c4d13594d0df48ce74f398991",
     "ChangelogEntryHead.vue": "2d59c51e0183a07361945ae2fb0240337697314d1a7a44d9152c44dd76f1297a",
@@ -33,7 +33,7 @@
     "docs-shell.css": "afb5801b6fc0499d46bc3edfee4e1671d8a7c30984b26992b3160a993a50ad43",
     "ecosystem.ts": "072782398fa9c89e4345065cb33ae86e0cfd5b8f37921e8a1fdbe4d273460b7f",
     "fonts.css": "f4517f0df6869816b9718412bd6023ce6cbadf6f58b4895f1f5909ec91e3cc94",
-    "fonts/README.md": "fb4e1a4304b62b25288dfea80c0e55cb8cef87d62e46f1f2201a285eefe48cab",
+    "fonts/README.md": "0ff8ea763291ab3e998d46408b866f0fc1aee11a1660e848cd9dfc670ebc72bc",
     "fonts/inter-display-400.woff2": "811cda14ee18345f50f3a2b7fcadd6a3302dea1d051847a77f7edf16220a70d2",
     "fonts/inter-display-500.woff2": "d8f2981f48ac1eb0d44f806f6d243e80d68d7c45a64e4756760d688538e4382b",
     "fonts/inter-display-600.woff2": "b6e4012cc00e32a71ad323ca4da67186a36915450d09670824ec98e50a51175f",
