@@ -136,6 +136,7 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
     const bare = bareFolder();
 
     expect(refusedBy({ command: 'bun x --no-install zzbin sync', cwd: linked })).toEqual([]);
+    expect(refusedBy({ command: "npx -c 'bun x --no-install zzbin'", cwd: linked })).toEqual([]);
     expect(refusedBy({ command: `cd ${linked} && bun x --no-install zzbin`, cwd: bare })).toEqual(
       [],
     );
@@ -156,6 +157,10 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
       `eval 'cd ${bare}; bun x --no-install zzbin'`,
       `source ./enter.sh; bun x --no-install zzbin`,
       `. ./enter.sh && bun x --no-install zzbin`,
+      `env -C ${bare} npx -c 'bun x --no-install zzbin'`,
+      'cd "$X" && npx -c \'bun x --no-install zzbin\'',
+      `eval "cd ${bare}"; npx -c 'bun x --no-install zzbin'`,
+      `sudo -D ${bare} npx -c 'bun x --no-install zzbin'`,
       `sudo --chdir=${bare} bun x --no-install zzbin`,
       `sudo -D ${bare} bun x --no-install zzbin`,
       `nsenter --wd=${bare} bun x --no-install zzbin`,

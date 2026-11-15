@@ -131,17 +131,21 @@ export class RunnerGuard {
     cwd: string | undefined;
     allow: string[];
     env?: Record<string, string | undefined>;
+    /** False when `cwd` is only where the session started and not where the line runs (the string of an `npx -c` inside a folder change). */
+    isKnown?: boolean;
   }): IRunnerHit[] {
     const hits: IRunnerHit[] = [];
     const parsed = ShellParser.parseChecked({ command: opts.command });
     const commands = [...parsed.commands, ...parsed.unterminatedHeredocCommands];
     const env = opts.env ?? process.env;
     const start = resolve(opts.cwd ?? process.cwd());
-    const isFolderUnknown = commands.some((command) => RunnerGuard.movesFolder({ command }));
+    const isFolderUnknown =
+      opts.isKnown === false || commands.some((command) => RunnerGuard.movesFolder({ command }));
     const folders = ShellFolders.foldersOf({
       commands,
       cwd: start,
       pwd: start,
+      isKnown: opts.isKnown,
       home: env.HOME ?? '',
       env,
     });
@@ -169,6 +173,7 @@ export class RunnerGuard {
               cwd: folder?.isKnown === true ? folder.base : start,
               allow: opts.allow,
               env,
+              isKnown: folder?.isKnown === true && !isFolderUnknown,
             }),
           );
         }
