@@ -91,7 +91,7 @@ export class WriteGuard {
     return [...fixed, ...project];
   }
 
-  /** The program a simple command runs, past wrappers (`sudo`, `env`) and launchers (`npx tsx`, `uv run`). */
+  /** The program a simple command runs, past wrappers (`sudo`, `env`) and launchers (`npx` then a program, `uv run`). */
   private static callOf(opts: { command: ISimpleCommand }): { program: string; args: string[] } {
     const launched = ScriptRunners.launchedOf(ShellParser.programOf({ command: opts.command }));
 

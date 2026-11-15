@@ -9,7 +9,7 @@
 import pkg from '../../../../../packages/cli/package.json';
 import type { THomeContent, TSiteInfo } from './shared/home-types';
 
-export const COUNTS = { rules: 35, skills: 11, agents: 7, tools: 7 };
+export const COUNTS = { rules: 36, skills: 11, agents: 7, tools: 7 };
 
 export const SITE: TSiteInfo = {
   id: 'vulcan',
@@ -37,7 +37,7 @@ export const HOME: THomeContent = {
     'Guards are checked in Claude Code, omp, pi and Antigravity; Codex, Cursor and Copilot are not verified yet.',
   install: {
     label: 'Install',
-    lines: ['bun add -d --exact @venizia/vulcan', 'bun x --no-install vulcan init'],
+    lines: ['bun add -d --exact @venizia/vulcan', 'bun run vulcan init'],
   },
   cta: [
     ['Get started', '/guides/get-started/what-is-vulcan'],
@@ -79,7 +79,7 @@ export default {
       file: 'vulcan sync',
       kind: 'term',
       body: [
-        ['cmd', 'bun x --no-install vulcan sync --agents claude'],
+        ['cmd', 'bun run vulcan sync --agents claude'],
         ['ok', '  created   CLAUDE.md'],
         [
           'ok',
@@ -179,7 +179,7 @@ export default {
       title: 'Init',
       text: 'Writes the project layer: rules, knowledge index, config, Makefile. It never overwrites.',
       lines: [
-        ['cmd', 'bun x --no-install vulcan init'],
+        ['cmd', 'bun run vulcan init'],
         ['ok', '  created  AGENTS.md'],
         ['ok', '  created  .agents/rules.md'],
         ['ok', '  created  .configs/vulcan.config.mts'],
@@ -190,7 +190,7 @@ export default {
       title: 'Sync',
       text: 'Writes what your agents read: adapters, skills, hooks, the atlas entry, the manifest.',
       lines: [
-        ['cmd', 'bun x --no-install vulcan sync'],
+        ['cmd', 'bun run vulcan sync'],
         ['ok', '  created   .claude/settings.json'],
         ['ok', '  created   .mcp.json'],
         ['ok', '  created   .agents/vulcan.manifest.json'],
@@ -201,7 +201,7 @@ export default {
       title: 'Doctor',
       text: 'Checks the result. Exit code 1 on any violation, so it also runs in CI.',
       lines: [
-        ['cmd', 'bun x --no-install vulcan doctor'],
+        ['cmd', 'bun run vulcan doctor'],
         ['ok', 'vulcan doctor: OK'],
       ],
     },

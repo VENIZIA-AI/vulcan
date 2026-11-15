@@ -2,6 +2,7 @@ export * from './common/index.ts';
 export * from './decision.ts';
 export * from './git-queries.ts';
 export * from './guard-git.ts';
+export * from './guard-runner.ts';
 export * from './hook-input.ts';
 export * from './guard-outside.ts';
 export * from './guard-writes.ts';

@@ -601,12 +601,21 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .default({ commands: [] }),
       /** Git guard settings; `askPush` lists the branches a plain `git push` asks about, `*` for any run of characters. Default `[]`. */
       git: z.strictObject({ askPush: z.array(PUSH_TARGET).default([]) }).default({ askPush: [] }),
+      /**
+       * The package names `vulcan runners check` and the runner guard accept beyond `@venizia/*`, such as `shadcn`
+       * (a name is lower-case words, dots and dashes, with no scope). Anything else that `bunx`, `bun x`, `npx` or
+       * `pnpm dlx` would fetch by name is refused. Default `[]`.
+       */
+      runners: z
+        .strictObject({ allow: z.array(z.string().regex(/^[a-z0-9][a-z0-9._-]*$/)).default([]) })
+        .default({ allow: [] }),
     })
     .default({
       toolOwnedPaths: [],
       outside: GuardDecisions.ASK,
       writes: { commands: [] },
       git: { askPush: [] },
+      runners: { allow: [] },
     }),
   /**
    * What `vulcan commit-check` looks for in a commit message, and what `vulcan sync` installs the

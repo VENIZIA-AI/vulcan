@@ -18,7 +18,7 @@ A line that starts with `info` is a note, not a violation: it never changes the 
 When all checks pass, the command reports an OK status:
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
 vulcan doctor: OK
 ```
 
@@ -31,13 +31,13 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | Check | What it verifies | Typical fix |
 |---|---|---|
 | `config` | The configuration file exists and conforms to the VULCAN schema | Correct invalid syntax or remove unrecognized keys in `.configs/vulcan.config.mts` |
-| `layout` | Required files `AGENTS.md`, `.agents/rules.md` and the knowledge bundle root exist | Run `bun x --no-install vulcan init` to create missing files |
+| `layout` | Required files `AGENTS.md`, `.agents/rules.md` and the knowledge bundle root exist | Run `bun run vulcan init` to create missing files |
 | `rule-ids` | Project rule references in `.agents/rules.md` point to base rules the base carries | Drop references to rules the base does not carry or assign bare IDs to project extensions |
 | `rule-slots` | Every base rule slot receives a valid choice option in configuration | Provide an allowed choice in `.configs/vulcan.config.mts` under `rules` |
 | `skills` (shipped names) | Project skills avoid names reserved by shipped skills | Rename the colliding skill directory under `.agents/skills/` |
 | `make` | The project `Makefile` includes `vulcan.mk` and avoids shipped target names | Add the `-include` line or rename conflicting project make targets |
-| `adapters` | Generated files, settings and links match configuration; the `AGENTS.md` blocks are present and current | Run `bun x --no-install vulcan sync` |
-| `manifest` | Committed `.agents/vulcan.manifest.json` matches project configuration | Run `bun x --no-install vulcan sync` and commit the manifest |
+| `adapters` | Generated files, settings and links match configuration; the `AGENTS.md` blocks are present and current | Run `bun run vulcan sync` |
+| `manifest` | Committed `.agents/vulcan.manifest.json` matches project configuration | Run `bun run vulcan sync` and commit the manifest |
 | `changelog-folders` | A project with version folders under its changelog directory has a vulcan installed whose atlas reads them | Install the vulcan version the message names |
 | `tags` | Git tags matching `atlas.tagPattern` resolve to declared packages | Declare the package, add an alias, or add the tag to `atlas.ignoreTags` |
 | `skills` (warning) | A skill's description has no "Use when" part, so atlas cannot tell an agent when to load it; never a failure | Start the description with when to use the skill |
@@ -47,7 +47,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `apps` | Each `backend`, `frontend`, `shared` folder of `layout` is a workspace; each package is in a listed folder (`other` too) | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
 | `format` (warning) | Root `bunfig.toml` has `[fmt]` with `flavor = "oxfmt"`; no `package.json` defines `fmt`; no oxfmt config is left | Add the section, rename the script, delete the config or the copy |
-| `commit-hook` (warning) | `commit.message` has a check on and this clone's `commit-msg` hook is missing, stale or skips `vulcan commit-check` | Run `bun x --no-install vulcan sync`; for your own hook, add the line the warning shows |
+| `commit-hook` (warning) | `commit.message` has a check on and this clone's `commit-msg` hook is missing, stale or skips `vulcan commit-check` | Run `bun run vulcan sync`; for your own hook, add the line the warning shows |
 | `events-size` (warning) | Today's event file alone is over `events.maxSize` | Raise `maxSize` or write fewer events |
 | `events-dir` (warning) | `events.dir` names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
 | `profile` (warning) | `.agents/local/profile.json` cannot be read, is not ignored by git, or is tracked by git | Fix or delete the file and run the profile form again; ignore `.agents/local/` or untrack the file |
@@ -60,7 +60,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `local` (warning) | Stray entries directly under `.agents/local/` | Move them to `tmp/`, `reports/` or `agents/<name>/` |
 | `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor` | Unset it in a shell the owner works in |
 | `local` (warning) | `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env` | Remove it from `env` |
-| `local` (warning) | `.agents/local/` is incomplete, not gitignored, or holds leftovers | Run `bun x --no-install vulcan sync`; for leftovers, run the `vulcan clean` command it names |
+| `local` (warning) | `.agents/local/` is incomplete, not gitignored, or holds leftovers | Run `bun run vulcan sync`; for leftovers, run the `vulcan clean` command it names |
 
 The `adapters` check reads the Atlas block and the rules block of `AGENTS.md`. The `skills` lint rule for contents accepts `**Contents**`, `## Contents`, `### Contents` or an okf generated-contents comment. The `mcp` check looks at `.mcp.json` only when a chosen agent reads it, and a release refuses when git lists the file as untracked and not ignored. A `commit-hook` fix for a hook in the `core.hooksPath` folder is the same line. The `profile` fix for a tracked file is `git rm --cached .agents/local/profile.json`. The `local` checks are described in [local](#local).
 
@@ -69,7 +69,7 @@ The `adapters` check reads the Atlas block and the rules block of `AGENTS.md`. T
 An invalid configuration file or an unrecognized configuration key triggers this check.
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [config] .configs/vulcan.config.mts: .configs/vulcan.config.mts: invalid config
   bogus: Unrecognized key: "bogus"
 vulcan doctor: 1 violation(s)
@@ -77,7 +77,7 @@ vulcan doctor: 1 violation(s)
 
 The check also reports a missing file, load failures, or missing default exports:
 
-- If no configuration exists, it reports `no .configs/vulcan.config.mts found in <root>` for file `.configs/`. Run `bun x --no-install vulcan init` to create one. A config under another extension (`.ts`, `.mjs`, `.js`) is not read.
+- If no configuration exists, it reports `no .configs/vulcan.config.mts found in <root>` for file `.configs/`. Run `bun run vulcan init` to create one. A config under another extension (`.ts`, `.mjs`, `.js`) is not read.
 - If import fails, it reports `<file>: failed to load - ...`. Fix syntax or runtime errors in the file.
 - If the default export is absent, it reports `<file>: no default export - write 'export default { ... }'`. Export the configuration object as default.
 
@@ -86,8 +86,8 @@ The check also reports a missing file, load failures, or missing default exports
 A missing `AGENTS.md`, `.agents/rules.md` or knowledge bundle directory triggers this check.
 
 ```text
-$ bun x --no-install vulcan doctor
-  [layout] AGENTS.md: missing - run 'bun x --no-install vulcan init'
+$ bun run vulcan doctor
+  [layout] AGENTS.md: missing - run 'bun run vulcan init'
 vulcan doctor: 1 violation(s)
 ```
 
@@ -96,7 +96,7 @@ vulcan doctor: 1 violation(s)
 A rule reference in `.agents/rules.md` using `V-` for a base rule the base does not carry triggers this check.
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [rule-ids] .agents/rules.md: V-Z-99 is not a base rule - give the extension a bare ID
 vulcan doctor: 1 violation(s)
 ```
@@ -106,7 +106,7 @@ vulcan doctor: 1 violation(s)
 A missing slot choice, an invalid option value, or a non-slot rule key in configuration triggers this check.
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
 vulcan doctor: 1 violation(s)
 ```
@@ -121,7 +121,7 @@ A project skill reusing a shipped skill name or violating skill authoring lint r
 The following output drops one line that belongs to the `adapters` check:
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [skills] .agents/skills/docs-writing: 'docs-writing' is a shipped skill - rename the project skill, for example to 'demo-app-docs-writing'
 vulcan doctor: 2 violation(s)
 ```
@@ -130,7 +130,7 @@ When a skill breaks authoring rules, doctor reports the lint failure.
 The following output drops one line that belongs to the `adapters` check:
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [skills] .agents/skills/my-skill: SKILL.md: name 'My Skill' - at most 64 characters of a-z, 0-9 and hyphens, never 'claude' or 'anthropic'
 vulcan doctor: 2 violation(s)
 ```
@@ -154,7 +154,7 @@ A missing include directive or a target name that conflicts with shipped make ta
 Doctor scans `Makefile` and any file it includes recursively, ignoring includes under `node_modules`.
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [make] Makefile: 'okf-check' is a shipped target - give the project target another name
 vulcan doctor: 1 violation(s)
 ```
@@ -166,13 +166,13 @@ If the include line is missing, the check reports `add: -include node_modules/@v
 Missing, modified, or out-of-sync agent adapter files trigger this check.
 
 ```text
-$ bun x --no-install vulcan doctor
-  [adapters] CLAUDE.md: not synced yet - run 'bun x --no-install vulcan sync' (make vulcan-sync) first
+$ bun run vulcan doctor
+  [adapters] CLAUDE.md: not synced yet - run 'bun run vulcan sync' (make vulcan-sync) first
 vulcan doctor: 1 violation(s)
 ```
 
 When files are missing, doctor prints `not synced yet` once rather than repeating per file.
-For modified files, the check reports `stale (<status>) - run 'bun x --no-install vulcan sync'`.
+For modified files, the check reports `stale (<status>) - run 'bun run vulcan sync'`.
 When sync skips a file, it reports the reason or `shadows a shipped skill - rename it ('vulcan doctor' reports it)`.
 
 ### manifest
@@ -180,19 +180,19 @@ When sync skips a file, it reports the reason or `shadows a shipped skill - rena
 A missing or outdated `.agents/vulcan.manifest.json` file triggers this check.
 
 ```text
-$ bun x --no-install vulcan doctor
-  [manifest] .agents/vulcan.manifest.json: stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and run 'bun x --no-install vulcan sync' and commit it
+$ bun run vulcan doctor
+  [manifest] .agents/vulcan.manifest.json: stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and run 'bun run vulcan sync' and commit it
 vulcan doctor: 1 violation(s)
 ```
 
-When the file is absent, the check reports `missing - run 'bun x --no-install vulcan sync' and commit it`.
+When the file is absent, the check reports `missing - run 'bun run vulcan sync' and commit it`.
 
 ### tags
 
 A git tag matching `atlas.tagPattern` that names an undeclared package directory triggers this check.
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [tags] git tags: tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)
 vulcan doctor: 1 violation(s)
 ```
@@ -209,7 +209,7 @@ A missing `@venizia/dev-configs` dependency or a lint configuration file not imp
 Doctor examines `oxlint|eslint.config.(mts|ts|mjs|js|cjs)` in `.configs/lints/` of the root, `packages/*`, and configured package paths.
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [style] package.json: add @venizia/dev-configs as a devDependency - here, or at the root
 vulcan doctor: 1 violation(s)
 ```
@@ -222,7 +222,7 @@ When no lint configuration files exist at all, the check reports `add @venizia/d
 A workspaces project without declared packages or an unedited scaffold marker in knowledge triggers this check.
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [scaffold] .agents/knowledge/index.md: still the scaffold - describe the project, then delete the vulcan:scaffold line
 vulcan doctor: 1 violation(s)
 ```
@@ -235,7 +235,7 @@ The check reports `package.json declares workspaces but the config lists no pack
 `.agents/vulcan.local.json`, the file where `sync` stores your agents, must be valid JSON and name only known agents. A broken file is a violation instead of a silent default. Delete it and run `vulcan sync --agents <list>`. The `adapters` check looks at the adapters of the agents you chose, so a machine that chose `omp` is not asked for `CLAUDE.md`.
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [agents] .agents/vulcan.local.json: .agents/vulcan.local.json is not valid JSON - delete it and run: vulcan sync --agents <list>
 vulcan doctor: 1 violation(s)
 ```
@@ -247,7 +247,7 @@ A `backend`, `frontend` or `shared` folder of `layout` missing from `package.jso
 The following output drops the lines that belong to other checks:
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [apps] package.json: layout.frontend 'web' is not in package.json workspaces - add 'web/*'
   [apps] .configs/vulcan.config.mts: package core-api lives at apps/core-api, outside every layout folder (services, web)
 ```
@@ -258,7 +258,7 @@ Retired packages are not checked.
 
 Warnings (the same level as [format](#format): exit code `0`, `vulcan doctor: OK with N warning(s)`). Claude Code, omp and Copilot CLI read the root `.mcp.json`, which `vulcan sync` writes on each machine, and Claude enables a project server on its own only under the name the managed settings list. The check looks at the file only when one of those agents is chosen on this machine, and a missing file is the `adapters` check's (not synced yet). It expects:
 
-- `.mcp.json` holds the entry `sync` writes, a server named `atlas` that runs `bun x --no-install vulcan x atlas mcp --root .`;
+- `.mcp.json` holds the entry `sync` writes, a server named `atlas` that runs `bun run vulcan x atlas mcp --root .`;
 - git does not list it as untracked and not ignored: a clone where nothing hides it gets `untracked and not ignored, so a clean-tree check (a release) refuses to run. Add `/.mcp.json` to .gitignore, or run `vulcan sync` at the top level of the repository, which lists it in .git/info/exclude.`;
 - `.claude/settings.json` (written by `vulcan sync`, when it exists) lists `atlas` in `enabledMcpjsonServers`.
 
@@ -276,14 +276,14 @@ To serve another project's knowledge too, declare it as an `atlas.sources` entry
 A warning, not a violation: a hook belongs to one clone, and a fresh CI checkout has none. It appears only when `commit.message` turns a check on ([vulcan commit-check](/references/commands/commit-check)), the folder is a git repository, and the clone's `commit-msg` hook is not in order.
 
 ```text
-  warning [commit-hook] .git/hooks/commit-msg: the commit-msg hook is not installed, so commit messages are not checked - run 'bun x --no-install vulcan sync' (make vulcan-sync)
+  warning [commit-hook] .git/hooks/commit-msg: the commit-msg hook is not installed, so commit messages are not checked - run 'bun run vulcan sync' (make vulcan-sync)
 ```
 
 | Message | Cause | Fix |
 |---|---|---|
 | `is not installed` | No `commit-msg` hook in the clone | Run `vulcan sync` |
 | `is out of date` | A hook that `sync` wrote from an older template, or one that lost its execute bit | Run `vulcan sync` |
-| `does not run the commit check` | A hook of yours, or the hook in the `core.hooksPath` folder, does not call the command | Add `bun x --no-install vulcan commit-check "$1"` to it |
+| `does not run the commit check` | A hook of yours, or the hook in the `core.hooksPath` folder, does not call the command | Add `bun run vulcan commit-check "$1"` to it |
 | `this project's commit check is not installed: ...` | The repository's one `commit-msg` hook was written by another project of it; `sync` does not touch it | Let that project own it, or remove the hook and run `vulcan sync` here |
 
 The last message reads `this project's commit check is not installed: the hook belongs to ...`; the other project is the top level or a folder below it.
@@ -319,7 +319,7 @@ Six results share the name `local`.
 - **stray entries (warning):** one or more entries directly under `.agents/local/` are not a folder of the layout, a file VULCAN writes or a browser's scratch folder. The warning counts them, gives their size and names the first ten. Nothing removes them. Fix: put scratch in `tmp/`, what you keep in `reports/`, what one agent keeps for itself in `agents/<name>/`, and a script the team relies on in the tracked tree.
 - **owner reply off in the shell (note):** `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor`, so sessions started from it get no owner shape card and no profile card. Fix: unset it in a shell the owner works in; a started session gets it on its own command line only.
 - **owner reply off in the settings (warning):** `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env`, so every session of the project gets no owner shape card and no profile card. Fix: remove it from `env`.
-- **layout and leftovers (warning):** `.agents/local/` must exist with its subdirectories, be gitignored and hold the Claude Code launch file (`claude.launch.settings.json`, written by `sync` for the project's temp folder). Nothing under it may have outlived its use: `tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch, a release candidate whose version is tagged, a browser's `com.google.Chrome.*` folder an hour old. Nothing may sit directly under `.agents/local/` that is neither a folder of [the layout](/guides/core-concepts/the-agents-folder), a file VULCAN writes, nor a browser's folder (one warning lists them with their sizes; nothing removes them). The leftovers are one warning too: how many, in which state and scope, and the one `vulcan clean` command that clears them (without `--yes` it lists each one). Fix: run `bun x --no-install vulcan sync`; for leftovers, run the `vulcan clean` command it names.
+- **layout and leftovers (warning):** `.agents/local/` must exist with its subdirectories, be gitignored and hold the Claude Code launch file (`claude.launch.settings.json`, written by `sync` for the project's temp folder). Nothing under it may have outlived its use: `tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch, a release candidate whose version is tagged, a browser's `com.google.Chrome.*` folder an hour old. Nothing may sit directly under `.agents/local/` that is neither a folder of [the layout](/guides/core-concepts/the-agents-folder), a file VULCAN writes, nor a browser's folder (one warning lists them with their sizes; nothing removes them). The leftovers are one warning too: how many, in which state and scope, and the one `vulcan clean` command that clears them (without `--yes` it lists each one). Fix: run `bun run vulcan sync`; for leftovers, run the `vulcan clean` command it names.
 
 ### private-values
 
@@ -376,7 +376,7 @@ Output goes to stderr.
 In CI pipelines, use `2>&1` to capture diagnostic output:
 
 ```bash
-bun x --no-install vulcan doctor 2>&1
+bun run vulcan doctor 2>&1
 ```
 
 Alternatively, run the make target defined in `vulcan.mk`:
@@ -390,8 +390,8 @@ Until `vulcan sync` runs, `vulcan doctor` reports one `not synced yet` line for 
 To prevent failure on clean checkouts, run `vulcan sync` before `vulcan doctor` in CI jobs:
 
 ```bash
-bun x --no-install vulcan sync
-bun x --no-install vulcan doctor 2>&1
+bun run vulcan sync
+bun run vulcan doctor 2>&1
 ```
 
 ## See also

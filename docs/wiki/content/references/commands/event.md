@@ -8,9 +8,9 @@ description: Write a line to the agent event log, or read it. With events.log on
 The agent event log is an append-only record of what the coding agents of a project did: a session started, a message went out, an agent waits for the owner. A board or a coordinator reads it instead of asking each agent. It holds short labels, never message bodies.
 
 ```text
-$ bun x --no-install vulcan event add --kind commit --summary "fixed the lock age" --ref 28592dd
+$ bun run vulcan event add --kind commit --summary "fixed the lock age" --ref 28592dd
 0y4k2m9xa1b2c3d4
-$ bun x --no-install vulcan event tail --since 2026-11-03
+$ bun run vulcan event tail --since 2026-11-03
 2026-11-03T09:30:12.431Z commit        pnt-vulcan-1 VULZ-ACME-12 fixed the lock age
 ```
 
@@ -130,7 +130,7 @@ A turn that ends (`Stop`) and a tool that is used (`PostToolUse` of any tool but
 A board lists flows by their id (`VULZ-ACME-12`) and needs a heading for each. Without help it takes the first line it found, which is often a message label such as `status`. An agent that starts work on a flow makes the flow first, in the language of the owner. The command gives the flow its id and prints it (`VULZ-<project.key>-<next number>`); the agent never types or invents an id:
 
 ```text
-$ bun x --no-install vulcan event add --kind flow --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh"
+$ bun run vulcan event add --kind flow --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh"
 VULZ-ACME-12
 ```
 
@@ -139,14 +139,14 @@ A number is claimed by creating a small file for it, `.flow-ids/<key>-<number>`,
 Add `--context` and `--next` so that the detail pane can be read at once:
 
 ```text
-$ bun x --no-install vulcan event add --kind flow --flow VULZ-ACME-12 --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh" \
+$ bun run vulcan event add --kind flow --flow VULZ-ACME-12 --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh" \
     --context "Bảng chỉ hiện tên luồng. Phần fold đã xong; còn trang và tài liệu." --next "pnt-vulcan-1 mở pull request"
 ```
 
 Give what is to be done and what must hold as lists, so a board can show them as checklists with a count, not as prose:
 
 ```text
-$ bun x --no-install vulcan event add --kind flow --flow VULZ-ACME-12 --title "Sign in with the shared hook" \
+$ bun run vulcan event add --kind flow --flow VULZ-ACME-12 --title "Sign in with the shared hook" \
     --step-done "The socket takes the token" --step "Refresh in the network service" \
     --check "Sign in, and the token renews on its own" --check-done "Sign out leaves no old session" \
     --app shop --app admin --due 2026-11-08 --ref TICKET-12

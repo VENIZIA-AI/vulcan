@@ -11,13 +11,13 @@ assignees: ''
 The command you ran and what it printed (stderr included).
 
 ```
-bun x --no-install vulcan ...
+bun run vulcan ...
 ```
 
 **What you expected**
 
 **Versions**
-- `bun x --no-install vulcan version`:
+- `bun run vulcan version`:
 - `bun --version`:
 - OS:
 - Coding agent (claude, agy, omp, ...):

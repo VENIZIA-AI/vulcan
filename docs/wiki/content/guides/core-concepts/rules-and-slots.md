@@ -41,7 +41,7 @@ With `read-only`, every git verb that writes the index, the history, a ref, the 
 If you omit the slot choice, `vulcan doctor` reports a violation and exits with code 1:
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
 vulcan doctor: 1 violation(s)
 ```
@@ -61,7 +61,7 @@ Add a project rule as a row in the markdown table:
 A `V-` ID is allowed in your rules only when it points at a base rule (`Extends V-W-01`). If a project rule uses an unassigned `V-` ID, `vulcan doctor` reports a violation and exits with code 1:
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun run vulcan doctor
   [rule-ids] .agents/rules.md: V-Z-99 is not a base rule - give the extension a bare ID
 vulcan doctor: 1 violation(s)
 ```

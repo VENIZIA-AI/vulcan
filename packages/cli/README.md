@@ -4,9 +4,9 @@ One setup, one workflow and one coding style for every VENIZIA project. Bun-only
 
 ```bash
 bun add -d --exact @venizia/vulcan @venizia/dev-configs
-bun x --no-install vulcan init
-bun x --no-install vulcan sync
-bun x --no-install vulcan doctor
+bun run vulcan init
+bun run vulcan sync
+bun run vulcan doctor
 ```
 
 `doctor` fails with `[scaffold]` until you describe the project in `.agents/knowledge/index.md` and delete the `vulcan:scaffold` line; it is the first item `init` lists under `left to do`.
@@ -63,7 +63,7 @@ An unknown key is an error; every error names the file and the field. The exampl
 
 ## What ships (`base/`)
 
-- `rules.md` - the base rules: write boundaries, security, process, build, and the coding style V-C-* (35 rules).
+- `rules.md` - the base rules: write boundaries, security, process, build, and the coding style V-C-* (36 rules).
 - `slots.json` - rules a project picks a wording for (V-W-01 today).
 - `skills/` - 11 project-neutral skills, described in `docs/wiki/content/references/skills.md` (a project-specific skill stays in its project).
 - `hooks/` - 16 hook files, described in `docs/wiki/content/references/hooks/index.md`.

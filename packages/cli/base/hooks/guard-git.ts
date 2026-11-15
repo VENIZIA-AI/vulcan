@@ -27,16 +27,17 @@ try {
   const { GuardDecisions } = await import('../../src/hooks/common/index.ts');
   const { HookDecision } = await import('../../src/hooks/decision.ts');
   const { GitGuard } = await import('../../src/hooks/guard-git.ts');
+  const { RunnerGuard } = await import('../../src/hooks/guard-runner.ts');
   const { WriteGuard } = await import('../../src/hooks/guard-writes.ts');
   const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
   const hookCommand = WriteGuard.parseHookCommand({ text });
   const cwd = hookCommand?.cwd ?? process.cwd();
+  const policy = ProjectGuards.readPolicy({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd });
   const hits = hookCommand
-    ? GitGuard.inspect({
-        command: hookCommand.command,
-        cwd,
-        askPush: ProjectGuards.readPolicy({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd }).askPush,
-      })
+    ? [
+        ...GitGuard.inspect({ command: hookCommand.command, cwd, askPush: policy.askPush }),
+        ...RunnerGuard.inspect({ command: hookCommand.command, cwd, allow: policy.runnersAllow }),
+      ]
     : [
         {
           rule: 'V-W-01',

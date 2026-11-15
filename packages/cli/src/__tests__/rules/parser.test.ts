@@ -17,12 +17,12 @@ describe('RuleParser.parseIds', () => {
     expect(RuleParser.parseIds({ markdown })).toEqual(['V-W-01', 'V-C-04', 'W-06']);
   });
 
-  test('the shipped base: W4 S6 P10 B6 + the C group, 35 rules, every ID unique', () => {
+  test('the shipped base: W4 S7 P10 B6 + the C group, 36 rules, every ID unique', () => {
     const ids = RuleParser.parseIds({
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
 
-    expect(ids).toHaveLength(35);
+    expect(ids).toHaveLength(36);
     expect(ids.every((id) => id.startsWith('V-'))).toBe(true);
     expect(ids).toContain('V-W-01');
     expect(ids.filter((id) => id.startsWith('V-C-'))).toHaveLength(10);
@@ -115,7 +115,7 @@ describe('BaseRules.read', () => {
   test('every base rule ID maps to its row', () => {
     const rules = BaseRules.read();
 
-    expect(Object.keys(rules)).toHaveLength(35);
+    expect(Object.keys(rules)).toHaveLength(36);
     expect(rules['V-W-02']).toStartWith('| V-W-02 | Never write to a database.');
   });
 

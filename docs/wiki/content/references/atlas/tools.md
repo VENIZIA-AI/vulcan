@@ -351,7 +351,7 @@ For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `com
       "side": "backend",
       "summary": "An IGNIS API on Bun.",
       "folder": "services",
-      "command": "bun x --no-install vulcan add --preset ignis --app web2",
+      "command": "bun run vulcan add --preset ignis --app web2",
       "inProject": true
     },
     {
@@ -359,7 +359,7 @@ For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `com
       "side": "frontend",
       "summary": "ARDOR: a frontend app on Vite and React (official; not yet in this project)",
       "folder": null,
-      "command": "bun x --no-install vulcan add --preset ardor --app web2 --frontend-dir <folder> --api <backend app> | --no-api",
+      "command": "bun run vulcan add --preset ardor --app web2 --frontend-dir <folder> --api <backend app> | --no-api",
       "inProject": false
     }
   ]
@@ -405,7 +405,7 @@ The server returns tool definitions containing `name`, `description`, and `input
 To inspect tool declarations without an MCP client, run `vulcan x atlas tools`:
 
 ```text
-$ bun x --no-install vulcan x atlas tools
+$ bun run vulcan x atlas tools
 search   When the user asks how something works in demo-app, how to build something in it, or about this project's conventions, search here before you answer from memory
 get      After `search`, read the hit here before you rely on it
 symbol   Before you import or call an export of demo-app, get its real signature, import path and source line here instead of recalling it

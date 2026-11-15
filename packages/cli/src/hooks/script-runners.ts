@@ -11,9 +11,9 @@ interface IRunnerTable {
 }
 
 /**
- * A program that runs another program named by its first plain word: `npx tsx x.ts`, `uv run x.py`. `values`
- * take the next word; `ends` run no program the guard can name (`npx -c`, `uv run -m`); `subcommand` is the
- * word that must come first (`uv run`). `isPackage`: the word names a package (`npx @scope/tool`), not a file.
+ * A program that runs another program named by its first plain word: `npx` then `tsx x.ts`, `uv run x.py`. `values`
+ * take the next word; `ends` run no program the guard can name (`npx` with `-c`, `uv run -m`); `subcommand` is the
+ * word that must come first (`uv run`). `isPackage`: the word names a package (a scoped name after `npx`), not a file.
  */
 interface ILauncherTable {
   values: ReadonlySet<string>;
@@ -197,7 +197,7 @@ export class ScriptRunners {
   static readonly PYTHON_FILE = /\.pyw?$/;
 
   /**
-   * The program a launcher runs, and its words: `npx tsx x.ts` runs `tsx x.ts`, `uv run x.py` runs
+   * The program a launcher runs, and its words: `npx` then `tsx x.ts` runs `tsx x.ts`, `uv run x.py` runs
    * `python x.py`. The call as given when `name` is no launcher or names no program the guard can follow.
    */
   static launchedOf(opts: { name: string; args: string[] }): ILaunched {

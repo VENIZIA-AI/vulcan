@@ -12,7 +12,7 @@ TYPECHECK_PKG_TARGETS := $(addprefix typecheck-,$(PACKAGES))
 lint: lint-packages
 	@echo "lint: done"
 
-lint-all: lint-packages lint-wiki lint-scripts lint-files project-names-check public-api-check changelog-check
+lint-all: lint-packages lint-wiki lint-scripts lint-files project-names-check public-api-check changelog-check runners-check
 	@echo "lint: all packages done"
 
 lint-packages: $(LINT_PKG_TARGETS)
@@ -75,7 +75,7 @@ project-names-check:
 # Every export of cli and okf has a doc comment (the generated reference reads it): atlas api undocumented lists the ones without. Needs atlas and the packages built.
 public-api-check:
 	@echo "lint: every cli and okf export has a doc comment"
-	@bun x --no-install vulcan x atlas api undocumented --package cli --package okf
+	@bun run vulcan x atlas api undocumented --package cli --package okf
 
 # A changelog entry never carries the template placeholder X.Y.Z (a title is a plain sentence), and its `migration` block is valid:
 # a Breaking Change entry dated on or after knowledge.migrationFrom carries one. Needs atlas and the cli built.
@@ -83,14 +83,14 @@ changelog-check:
 	@echo "lint: no X.Y.Z placeholder in the changelogs"
 	@bun scripts/checks/check-changelog-placeholder.ts
 	@echo "lint: every changelog migration block is valid"
-	@bun x --no-install vulcan changelog check
+	@bun run vulcan changelog check
 
 # W-00: no commit of the branch signs itself as an agent (`commit.message.agent.signature: 'deny'` in the config). RANGE is the
 # branch, `origin/develop..HEAD` by default; a clone also gets the check at commit time from `make setup-hooks` (the commit-msg
 # hook runs the same command).
 agent-signature-check:
 	@echo "lint: no agent signature in the branch commits"
-	@bun x --no-install vulcan commit-check --range $(or $(RANGE),origin/develop..HEAD)
+	@bun run vulcan commit-check --range $(or $(RANGE),origin/develop..HEAD)
 
 # C-21: the shared wiki theme is the same in the three wikis. It reads the SHARED.json that IGNIS and ARDOR publish on develop
 # (a public file, over the network) and fails when a copy differs; ARGS='../ignis ../ardor' compares local checkouts instead.

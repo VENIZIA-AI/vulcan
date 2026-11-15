@@ -29,7 +29,7 @@ runs:
         ATLAS_REF: ${{ inputs.ref }}
       run: |
         if [ -n "$ATLAS_REF" ]; then
-          bun x --no-install vulcan x atlas index publish --key-env "$ATLAS_KEY_ENV" --ref "$ATLAS_REF"
+          bun run vulcan x atlas index publish --key-env "$ATLAS_KEY_ENV" --ref "$ATLAS_REF"
         else
-          bun x --no-install vulcan x atlas index publish --key-env "$ATLAS_KEY_ENV"
+          bun run vulcan x atlas index publish --key-env "$ATLAS_KEY_ENV"
         fi

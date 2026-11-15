@@ -26,7 +26,7 @@ const CONFORMANT: Record<string, string> = {
   '.agents/knowledge/index.md': '# k\n',
   Makefile: `${MAKE_INCLUDE}\nbuild:\n\t@echo build\n`,
   '.mcp.json':
-    '{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] } } }\n',
+    '{ "mcpServers": { "atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "."] } } }\n',
   'bunfig.toml': Bunfig.render(),
   ...LINT_CONFIGS,
 };
@@ -433,7 +433,7 @@ describe('doctor on a clean checkout', () => {
 
     expect(adapters).toHaveLength(1);
     expect(adapters[0]?.message).toBe(
-      "not synced yet - run 'bun x --no-install vulcan sync' (make vulcan-sync) first",
+      "not synced yet - run 'bun run vulcan sync' (make vulcan-sync) first",
     );
     expect(adapters[0]?.message).not.toContain('stale');
   });
@@ -819,13 +819,13 @@ describe('doctor: bun fmt (warnings)', () => {
 
 describe('doctor: the atlas server is registered the canonical way (warnings)', () => {
   const ENTRY =
-    '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
+    '"atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "."] }';
   const MCP = (opts: { name?: string; root?: string }): string =>
     JSON.stringify({
       mcpServers: {
         [opts.name ?? 'atlas']: {
           command: 'bun',
-          args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', opts.root ?? '.'],
+          args: ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', opts.root ?? '.'],
         },
       },
     });
@@ -887,12 +887,29 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
     ]);
   });
 
+  test('the line an earlier sync wrote is reported as out of date, with the command that rewrites it', async () => {
+    const legacy = JSON.stringify({
+      mcpServers: {
+        atlas: {
+          command: 'bun',
+          args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+        },
+      },
+    });
+    const warnings = await mcpWarnings({ root: project({ mcp: legacy }) });
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain('out of date');
+    expect(warnings[0].message).toContain('bunx');
+    expect(warnings[0].message).toContain('vulcan sync');
+  });
+
   test('an atlas entry that serves another root', async () => {
     const warnings = await mcpWarnings({ root: project({ mcp: MCP({ root: '../ignis' }) }) });
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0].message).toBe(
-      `the atlas entry is { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected ${ENTRY}`,
+      `the atlas entry is { "command": "bun", "args": ["node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected ${ENTRY}`,
     );
   });
 

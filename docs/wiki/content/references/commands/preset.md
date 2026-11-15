@@ -8,7 +8,7 @@ description: Set each file a preset makes now for an app, a library or a shared 
 `vulcan add` copies a preset's files into a package once. When the preset improves later (a new nginx header, a script), the package cannot see it. `vulcan preset diff <package>` renders the files the package's preset makes now, with the package's own names, and sets each against the file the package has. It works on an app, a library and a shared package. It reads and reports; it writes nothing to the project.
 
 ```text
-$ bun x --no-install vulcan preset diff core-api
+$ bun run vulcan preset diff core-api
 vulcan preset diff: services/core-api against @acme/api@1.4.0 (installed in node_modules)
   same     .configs/builders/Dockerfile
   differs  deploy/nginx.conf  (+12 -3)
@@ -22,7 +22,7 @@ Run it at the monorepo root. `<package>` is the `dir` (or the `path`) of the pac
 A library or a shared package takes the same command. This run compares a shared package, with the preset named because two recorded presets ship a shared kind:
 
 ```bash
-bun x --no-install vulcan preset diff common --preset @acme/kit
+bun run vulcan preset diff common --preset @acme/kit
 ```
 
 The output for an app names the folder "the app": `missing in the app`, `(the app)` in a `--full` diff. For a library or a shared package it says "the package" in the same places: `4 files: 2 same, 1 differ, 1 missing in the package`.

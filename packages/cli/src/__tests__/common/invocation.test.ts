@@ -3,20 +3,20 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../../common/index.ts';
 
-test('the unattended invocation never downloads: bun x --no-install vulcan', () => {
-  expect(ProjectLayout.VULCAN_COMMAND).toBe('bun x --no-install vulcan');
+test('the invocation VULCAN prints runs the linked bin and never fetches a package: bun run vulcan', () => {
+  expect(ProjectLayout.VULCAN_COMMAND).toBe('bun run vulcan');
 });
 
-test('the shipped make module runs vulcan without installing anything', () => {
+test('the shipped make module runs the linked bin', () => {
   const makefile = readFileSync(join(BASE_DIRECTORY, 'make', 'vulcan.mk'), 'utf8');
 
   expect(makefile).toContain(`VULCAN ?= ${ProjectLayout.VULCAN_COMMAND}`);
 });
 
-test('the AGENTS.md template tells agents the no-install form', () => {
+test('the AGENTS.md template tells agents the linked-bin form, never a bunx form', () => {
   const template = readFileSync(join(BASE_DIRECTORY, 'templates', 'AGENTS.md'), 'utf8');
 
-  expect(template).not.toMatch(/bun x vulcan /);
+  expect(template).not.toMatch(/\bbun x |\bbunx |\bnpx /);
   expect(template).toContain(ProjectLayout.VULCAN_COMMAND);
 });
 

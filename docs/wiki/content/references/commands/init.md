@@ -17,7 +17,7 @@ It also appends the agent entries to `.gitignore`, installs the lint tools with 
 To scaffold a project, run `vulcan init` at the repository root:
 
 ```text
-$ bun x --no-install vulcan init
+$ bun run vulcan init
   created  AGENTS.md
   created  .agents/rules.md
   created  .agents/knowledge/index.md
@@ -30,7 +30,7 @@ $ bun x --no-install vulcan init
   updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans .agents/vulcan.local.json .agents/local/ **/.env **/.env.* !**/.env.example
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
-  2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
+  2. bun run vulcan sync && bun run vulcan doctor
 ```
 
 When a package needs installing, `installing <packages>` appears between the file lines and `left to do:`, followed by the output of `bun add -d`.
@@ -39,7 +39,7 @@ Run `vulcan init` in a directory that holds a `package.json` (`bun init` writes 
 Without it, `vulcan init` writes nothing and exits with code 1, because `bun add` would otherwise install into the nearest parent project:
 
 ```text
-$ bun x --no-install vulcan init
+$ bun run vulcan init
 vulcan init: no package.json in ~/work/demo - run 'bun init' first, or use --preset to create a new project
 ```
 
@@ -95,7 +95,7 @@ For each file and hint, `vulcan init` prints one line with an eight-column statu
 When you run `vulcan init` again on an initialized project, existing files receive the `kept` status:
 
 ```text
-$ bun x --no-install vulcan init
+$ bun run vulcan init
   kept     AGENTS.md
   kept     .agents/rules.md
   kept     .agents/knowledge/index.md
@@ -107,8 +107,8 @@ $ bun x --no-install vulcan init
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
   2. .gitignore has .env rules of its own and was left as it is: check that they ignore **/.env **/.env.* !**/.env.example the way you want
-  3. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
-tell VULCAN how you like to work (language, how to address you, tone): run 'bun x --no-install vulcan profile'
+  3. bun run vulcan sync && bun run vulcan doctor
+tell VULCAN how you like to work (language, how to address you, tone): run 'bun run vulcan profile'
 ```
 
 In this second run, `Makefile` produces no line because the include line already exists, and no install runs because the dependencies are declared. Item 3 appears because the `.gitignore` already holds `.env` rules of its own, which `init` does not change. The last line appears until you have a profile.
