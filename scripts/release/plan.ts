@@ -34,14 +34,10 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GithubRelease } from './github-release.ts';
+import { GithubRelease, GithubReleaseConstants } from './github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
 import { ReleaseBumps, ReleaseKinds } from './release-args.ts';
 import type { TReleaseKind } from './release-args.ts';
-
-class GithubReleaseManifest {
-  static readonly FILE = '.agents/vulcan.manifest.json';
-}
 
 class ReleaseNpmTags {
   static readonly NEXT = 'next';
@@ -318,33 +314,18 @@ export class ReleasePlan {
       : [`the packages are one train at ${opts.version}, but ${apart.join(', ')} differ`];
   }
 
-  /** What the run page shows about the plan: the target, and who has to approve it. */
   /**
    * What a stable of a project with version folders needs that it lacks: its folder, and a folder that is not yet released.
    * A project with no manifest, or that has not adopted the folders, needs nothing.
    */
-  static changelogProblems(opts: { cwd: string; version: string }): string[] {
-    const file = join(opts.cwd, GithubReleaseManifest.FILE);
-
-    if (!existsSync(file)) {
+  static changelogProblems(opts: { cwd: string; version: string; bump: string }): string[] {
+    if (!existsSync(join(opts.cwd, GithubReleaseConstants.MANIFEST))) {
       return [];
     }
 
-    const manifest: unknown = JSON.parse(readFileSync(file, 'utf8'));
-    const knowledge =
-      typeof manifest === 'object' && manifest !== null && 'knowledge' in manifest
-        ? manifest.knowledge
-        : undefined;
-    const folder =
-      typeof knowledge === 'object' && knowledge !== null && 'changelogs' in knowledge
-        ? knowledge.changelogs
-        : undefined;
-    const from =
-      typeof knowledge === 'object' && knowledge !== null && 'migrationFrom' in knowledge
-        ? knowledge.migrationFrom
-        : undefined;
+    const { changelogs: folder, migrationFrom: from } = GithubRelease.manifestOf({ cwd: opts.cwd });
 
-    if (typeof folder !== 'string' || typeof from !== 'string' || !/^\d+\.\d+\.\d+$/.test(from)) {
+    if (from === undefined || !/^\d+\.\d+\.\d+$/.test(from)) {
       return [];
     }
 
@@ -356,16 +337,15 @@ export class ReleasePlan {
       ];
     }
 
-    return /^released:/m.test(readFileSync(log, 'utf8'))
+    // A dispatch of bump none releases what is there: the folder it names was dated by the run that made the release commit.
+    return opts.bump !== ReleaseBumps.NONE && /^released:/m.test(readFileSync(log, 'utf8'))
       ? [`${folder}/${opts.version}/log.md already says released: a stable is released once`]
       : [];
   }
 
   /** The highest stable tag below `version`: where the history check of the gates job measures from; empty when there is none. */
   static changelogBase(opts: { cwd: string; version: string }): string {
-    const file = join(opts.cwd, GithubReleaseManifest.FILE);
-
-    if (!existsSync(file)) {
+    if (!existsSync(join(opts.cwd, GithubReleaseConstants.MANIFEST))) {
       return '';
     }
 
@@ -376,7 +356,6 @@ export class ReleasePlan {
         tags: GithubRelease.tagsOf({ cwd: opts.cwd }),
         templates: manifest.templates,
         version: opts.version,
-        stableOnly: true,
       }) ?? ''
     );
   }
@@ -489,7 +468,9 @@ export class ReleasePlan {
     const cwd = opts.cwd ?? process.cwd();
 
     if (result.plan !== undefined && result.plan.kind === ReleaseKinds.STABLE) {
-      result.problems.push(...ReleasePlan.changelogProblems({ cwd, version: result.plan.version }));
+      result.problems.push(
+        ...ReleasePlan.changelogProblems({ cwd, version: result.plan.version, bump }),
+      );
     }
 
     if (result.plan !== undefined) {

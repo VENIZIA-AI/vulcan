@@ -544,8 +544,9 @@ jobs:
       # One Release on the tag of a stable run, marked Latest when it is the newest stable: the notes of its version
       # folder (`log.md`, and `migration.yaml` attached when it holds a block) or, for a project of dated entries, the
       # entries since the previous stable. A prerelease has no Release: the script says so and succeeds. A tag that has a
-      # Release is skipped, so a dispatch with bump none makes a missing one. A failure is reported in the run summary and never fails or
-      # undoes a publish. The script refuses the tag of the atlas index, whose release is not a publish's.
+      # Release is skipped, so a dispatch with bump none makes a missing one. A failure is reported in the run summary
+      # and never fails or undoes a publish. The script refuses the tag of the atlas index, whose release is not a
+      # publish's.
       - name: Create the GitHub Release
         continue-on-error: true
         timeout-minutes: 5

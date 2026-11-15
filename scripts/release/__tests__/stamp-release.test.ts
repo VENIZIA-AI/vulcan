@@ -21,7 +21,11 @@ const project = (opts: { log?: string; folders?: boolean }): string => {
   mkdirSync(join(root, '.agents'), { recursive: true });
   writeFileSync(
     join(root, '.agents', 'vulcan.manifest.json'),
-    JSON.stringify({ knowledge: { changelogs: 'docs/changelogs' } }),
+    JSON.stringify({
+      release: { tagPattern: 'vulcan-v<version>' },
+      knowledge: { changelogs: 'docs/changelogs' },
+      packages: [],
+    }),
   );
 
   if (opts.log !== undefined) {

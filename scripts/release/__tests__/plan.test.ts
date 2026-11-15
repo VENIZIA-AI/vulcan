@@ -741,6 +741,7 @@ describe('ReleasePlan: the changelog of a stable (C3, A5)', () => {
       ReleasePlan.changelogProblems({
         cwd: project({ migrationFrom: '0.4.5' }),
         version: '0.4.9',
+        bump: 'patch',
       })[0],
     ).toContain('has no version folder');
     expect(
@@ -750,25 +751,50 @@ describe('ReleasePlan: the changelog of a stable (C3, A5)', () => {
           log: '---\ntitle: 0.4.9\nreleased: 2026-11-01\n---\n',
         }),
         version: '0.4.9',
+        bump: 'patch',
       })[0],
     ).toContain('already says released');
     expect(
       ReleasePlan.changelogProblems({
         cwd: project({ migrationFrom: '0.4.5', log: '---\ntitle: 0.4.9\n---\n' }),
         version: '0.4.9',
+        bump: 'patch',
       }),
     ).toEqual([]);
   });
 
+  test('a dispatch of bump none heals a release: its folder may already say released, but must exist', () => {
+    const released = project({
+      migrationFrom: '0.4.5',
+      log: '---\ntitle: 0.4.9\nreleased: 2026-11-01\n---\n',
+    });
+
+    expect(
+      ReleasePlan.changelogProblems({ cwd: released, version: '0.4.9', bump: 'none' }),
+    ).toEqual([]);
+    expect(
+      ReleasePlan.changelogProblems({
+        cwd: project({ migrationFrom: '0.4.5' }),
+        version: '0.4.9',
+        bump: 'none',
+      })[0],
+    ).toContain('has no version folder');
+  });
+
   test('a project that keeps dated entries, or has no manifest, needs nothing', () => {
-    expect(ReleasePlan.changelogProblems({ cwd: project({}), version: '0.4.9' })).toEqual([]);
+    expect(
+      ReleasePlan.changelogProblems({ cwd: project({}), version: '0.4.9', bump: 'patch' }),
+    ).toEqual([]);
     expect(
       ReleasePlan.changelogProblems({
         cwd: project({ migrationFrom: '2026-11-13' }),
         version: '0.4.9',
+        bump: 'patch',
       }),
     ).toEqual([]);
-    expect(ReleasePlan.changelogProblems({ cwd: scratch(), version: '0.4.9' })).toEqual([]);
+    expect(
+      ReleasePlan.changelogProblems({ cwd: scratch(), version: '0.4.9', bump: 'patch' }),
+    ).toEqual([]);
   });
 
   test('the history base is the highest stable tag below the version, and empty when there is none', () => {

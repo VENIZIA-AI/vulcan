@@ -2,8 +2,9 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { VersionNotes } from '../../../packages/atlas/src/changelogs/notes.ts';
 import type { TGh } from '../github-release.ts';
-import { GithubRelease, GithubReleaseConstants } from '../github-release.ts';
+import { GithubRelease } from '../github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from '../merge-back.ts';
 
 const roots: string[] = [];
@@ -167,20 +168,15 @@ describe('GithubRelease.previousTag and isNewestStable', () => {
     'vulcan-v0.4.8',
     'atlas-index',
   ];
-  const previous = (opts: { version: string; stableOnly: boolean }) =>
+  const previous = (opts: { version: string }) =>
     GithubRelease.previousTag({ tags, templates: TEMPLATES, ...opts });
   const isNewest = (opts: { version: string }) =>
     GithubRelease.isNewestStable({ tags, templates: TEMPLATES, ...opts });
 
   test('a stable looks back to the highest stable below it, over the legacy name too', () => {
-    expect(previous({ version: '0.4.8', stableOnly: true })).toBe('v0.4.7');
-    expect(previous({ version: '0.4.9', stableOnly: true })).toBe('vulcan-v0.4.8');
-  });
-
-  test('a prerelease looks back to the highest tag of any kind below it, and numbers compare as numbers', () => {
-    expect(previous({ version: '0.4.8-1', stableOnly: false })).toBe('vulcan-v0.4.8-0');
-    expect(previous({ version: '0.4.8-10', stableOnly: false })).toBe('vulcan-v0.4.8-1');
-    expect(previous({ version: '0.4.6', stableOnly: false })).toBeUndefined();
+    expect(previous({ version: '0.4.8' })).toBe('v0.4.7');
+    expect(previous({ version: '0.4.9' })).toBe('vulcan-v0.4.8');
+    expect(previous({ version: '0.4.6' })).toBeUndefined();
   });
 
   test('a stable is the newest only when no stable tag is above it, whatever prereleases there are', () => {
@@ -366,7 +362,7 @@ describe('GithubRelease.create', () => {
     expect(make({ root, tag: 'vulcan-v0.4.9', kind: 'stable', version: '0.4.9', stub }).state).toBe(
       'created',
     );
-    expect(stub.notes()).toContain(GithubReleaseConstants.NO_USER_CHANGES);
+    expect(stub.notes()).toContain(VersionNotes.NO_USER_CHANGES);
     expect(stub.notes()).not.toContain('a change with no entry');
   });
 
@@ -437,6 +433,26 @@ describe('GithubRelease.manifestOf', () => {
 
     expect(() => GithubRelease.manifestOf({ cwd: root })).toThrow('release.tagPattern');
     expect(GithubRelease.manifestOf({ cwd: fixture() }).packages).toEqual(['@x/okf', '@x/cli']);
+  });
+
+  test('a retired package is not listed, and migrationFrom is read when the manifest sets it', () => {
+    const root = scratch();
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents', 'vulcan.manifest.json'),
+      JSON.stringify({
+        release: { tagPattern: 'vulcan-v<version>' },
+        knowledge: { changelogs: 'docs/changelogs', migrationFrom: '0.4.5' },
+        packages: [{ name: '@x/old', retired: true }, { name: '@x/cli' }],
+      }),
+    );
+
+    const manifest = GithubRelease.manifestOf({ cwd: root });
+
+    expect(manifest.packages).toEqual(['@x/cli']);
+    expect(manifest.migrationFrom).toBe('0.4.5');
+    expect(GithubRelease.manifestOf({ cwd: fixture() }).migrationFrom).toBeUndefined();
   });
 });
 

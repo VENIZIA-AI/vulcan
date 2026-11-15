@@ -21,15 +21,12 @@ export class GithubReleaseConstants {
   static readonly ATLAS_INDEX_TAG = 'atlas-index';
   static readonly MANIFEST = '.agents/vulcan.manifest.json';
   static readonly DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
-  static readonly FRONT_MATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
   static readonly DATE_HEADING = /^# Changelog - \d{4}-\d{2}-\d{2}\s*$/m;
   /** `## VULCAN X.Y.Z: title` or `## VULCAN 0.2.0-0: title`: the product and version prefix an older entry's heading carries; a heading with no prefix does not match and is left as written. */
   static readonly VERSION_HEADING = /^(##\s+)VULCAN\s+(?:X\.Y\.Z|\d[^:\n]*):\s*(\S)/m;
   /** The unspaced run of `[#N]` tokens a subject opens with: `[#42][#44] ...` serves two issues (sync-pr.ts reads it). */
   static readonly ISSUE_TOKENS = /^(?:\[#\d+\])+/;
   static readonly TITLE_PREFIX = 'VULCAN';
-  /** The notes of a stable with no changelog entry: the changelog records what affects users, and nothing did. */
-  static readonly NO_USER_CHANGES = 'No change for users of the packages in this release.';
   static readonly USAGE =
     'github-release: create --tag <tag> --version <v> --kind stable|prerelease';
 }
@@ -37,6 +34,8 @@ export class GithubReleaseConstants {
 interface IGithubReleaseManifest {
   templates: string[];
   changelogs: string;
+  /** `knowledge.migrationFrom`: a version once the project keeps a folder per version, a date or absent before. */
+  migrationFrom?: string;
   /** The npm names of the packages, in release order: the last is the one users install. */
   packages: string[];
 }
@@ -95,6 +94,9 @@ export class GithubRelease {
     const changelogs = GithubRelease.isRecord(knowledge)
       ? knowledge.value['changelogs']
       : undefined;
+    const migrationFrom = GithubRelease.isRecord(knowledge)
+      ? knowledge.value['migrationFrom']
+      : undefined;
 
     if (typeof pattern !== 'string' || typeof changelogs !== 'string' || !Array.isArray(packages)) {
       throw new Error(
@@ -108,6 +110,7 @@ export class GithubRelease {
         ...(Array.isArray(legacy) ? legacy.filter((entry) => typeof entry === 'string') : []),
       ],
       changelogs,
+      ...(typeof migrationFrom === 'string' ? { migrationFrom } : {}),
       // A retired package is not released any more: it is not listed.
       packages: packages.flatMap((entry) => {
         const holder = { value: entry };
@@ -137,12 +140,11 @@ export class GithubRelease {
     return undefined;
   }
 
-  /** The highest tag below `version`: of stables only when `stableOnly`, of every kind otherwise. */
+  /** The highest stable tag below `version`. */
   static previousTag(opts: {
     tags: string[];
     templates: string[];
     version: string;
-    stableOnly: boolean;
   }): string | undefined {
     let best: { tag: string; version: string } | undefined;
 
@@ -152,7 +154,7 @@ export class GithubRelease {
       if (
         version === undefined ||
         Bun.semver.order(version, opts.version) >= 0 ||
-        (opts.stableOnly && version.includes('-')) ||
+        version.includes('-') ||
         (best !== undefined && Bun.semver.order(version, best.version) <= 0)
       ) {
         continue;
@@ -214,7 +216,7 @@ export class GithubRelease {
    */
   static stripEntry(opts: { text: string }): string {
     return opts.text
-      .replace(GithubReleaseConstants.FRONT_MATTER, '')
+      .replace(VersionNotes.FRONT_MATTER, '')
       .replace(GithubReleaseConstants.DATE_HEADING, '')
       .replace(
         GithubReleaseConstants.VERSION_HEADING,
@@ -240,23 +242,12 @@ export class GithubRelease {
     return ['```text', ...opts.lines.map((line) => line.replaceAll('```', "'''")), '```'];
   }
 
-  static packagesOf(opts: { names: string[]; version: string }): string[] {
-    return [
-      '## Packages',
-      '',
-      ...opts.names.map(
-        (name) =>
-          `- [${name}@${opts.version}](https://www.npmjs.com/package/${name}/v/${opts.version})`,
-      ),
-    ];
-  }
-
   /** The body of a stable's Release: its notes, then the packages. */
   static bodyOf(opts: { notes: string; version: string; packages: string[] }): string {
     return [
       opts.notes,
       '',
-      ...GithubRelease.packagesOf({ names: opts.packages, version: opts.version }),
+      VersionNotes.packagesOf({ names: opts.packages, version: opts.version }),
       '',
     ].join('\n');
   }
@@ -359,7 +350,6 @@ export class GithubRelease {
         tags,
         templates: manifest.templates,
         version: opts.version,
-        stableOnly: true,
       });
       const notes = GithubRelease.stableNotes({
         cwd: opts.cwd,
@@ -370,7 +360,7 @@ export class GithubRelease {
 
       // No entry since the previous stable is no fault: the changelog records only what affects users.
       body = GithubRelease.bodyOf({
-        notes: notes === '' ? GithubReleaseConstants.NO_USER_CHANGES : notes,
+        notes: notes === '' ? VersionNotes.NO_USER_CHANGES : notes,
         version: opts.version,
         packages: manifest.packages,
       });

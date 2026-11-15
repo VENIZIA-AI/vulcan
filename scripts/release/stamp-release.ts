@@ -9,10 +9,10 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { GithubRelease } from './github-release.ts';
 import { ReleaseMergeBack } from './merge-back.ts';
 
 export class ReleaseStampConstants {
-  static readonly MANIFEST = '.agents/vulcan.manifest.json';
   static readonly VERSION = /^\d+\.\d+\.\d+$/;
   static readonly DATE = /^\d{4}-\d{2}-\d{2}$/;
   static readonly FRONT_MATTER = /^(---\r?\n)([\s\S]*?)(\r?\n---\r?\n)/;
@@ -22,7 +22,7 @@ export class ReleaseStampConstants {
 
 export class ReleaseStamp {
   /**
-   * \`text\` with \`released: <date>\` as the last line of its frontmatter. \`undefined\` when it already says that date
+   * `text` with `released: <date>` as the last line of its frontmatter. `undefined` when it already says that date
    * (nothing to write); an error when it says another, or has no frontmatter to put the line in.
    */
   static stamped(opts: { text: string; date: string }): string | undefined {
@@ -49,23 +49,8 @@ export class ReleaseStamp {
 
   /** The log.md of the version's folder, from the manifest's changelog folder; `undefined` when the project has none. */
   static logOf(opts: { cwd: string; version: string }): string | undefined {
-    const manifest: unknown = JSON.parse(
-      readFileSync(join(opts.cwd, ReleaseStampConstants.MANIFEST), 'utf8'),
-    );
-    const knowledge =
-      typeof manifest === 'object' && manifest !== null && 'knowledge' in manifest
-        ? manifest.knowledge
-        : undefined;
-    const folder =
-      typeof knowledge === 'object' && knowledge !== null && 'changelogs' in knowledge
-        ? knowledge.changelogs
-        : undefined;
-
-    if (typeof folder !== 'string') {
-      return undefined;
-    }
-
-    const file = join(opts.cwd, folder, opts.version, 'log.md');
+    const { changelogs } = GithubRelease.manifestOf({ cwd: opts.cwd });
+    const file = join(opts.cwd, changelogs, opts.version, 'log.md');
 
     return existsSync(file) ? file : undefined;
   }

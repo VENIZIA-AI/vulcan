@@ -1,17 +1,19 @@
 /**
  * The release notes of a version folder, from the text of its two files. It imports nothing: the publish job of a
- * release runs it from the repository with no install, and `vulcan changelog notes` runs the same file, so the notes of
- * a release and the notes the command prints cannot differ.
+ * release runs it straight from the repository - that job installs the dependencies but builds no package, so there is
+ * no `vulcan` binary there to call - and `vulcan changelog notes` runs the same file, so the notes of a release and the
+ * notes the command prints cannot differ.
  */
-const FRONT_MATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
-
 export class VersionNotes {
+  /** The frontmatter block at the top of a markdown file. */
+  static readonly FRONT_MATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
+
   /** The notes of a version whose `log.md` says nothing: the changelog records what affects users, and nothing did. */
   static readonly NO_USER_CHANGES = 'No change for users of the packages in this release.';
 
   /** `log.md` without its front matter; empty when nothing else is in it. */
   static bodyOf(opts: { log: string }): string {
-    return opts.log.replace(FRONT_MATTER, '').trim();
+    return opts.log.replace(VersionNotes.FRONT_MATTER, '').trim();
   }
 
   /** Whether `migration.yaml` holds a block: an absent file, an empty one and `{}` hold none. */
