@@ -113,55 +113,56 @@ export class VersionCheck {
     const { folder, fail } = opts;
     const { summary, highlights } = folder;
 
-    if (folder.unreadable.includes('summary')) {
-      // reported once, when it was read
-    } else if (summary === undefined || summary === '') {
-      fail({
-        file: 'log.md',
-        message: `summary: write one sentence, at most ${VersionCheck.SUMMARY_MAX} characters, saying what the release is`,
-      });
-    } else if (summary.includes('\n')) {
-      fail({ file: 'log.md', message: 'summary: must be one line' });
-    } else if (summary.length > VersionCheck.SUMMARY_MAX) {
-      fail({
-        file: 'log.md',
-        message: `summary: is ${summary.length} characters, at most ${VersionCheck.SUMMARY_MAX}`,
-      });
+    // A key that could not be read was reported once, when it was read.
+    if (!folder.unreadable.includes('summary')) {
+      if (summary === undefined || summary === '') {
+        fail({
+          file: 'log.md',
+          message: `summary: write one sentence, at most ${VersionCheck.SUMMARY_MAX} characters, saying what the release is`,
+        });
+      } else if (summary.includes('\n')) {
+        fail({ file: 'log.md', message: 'summary: must be one line' });
+      } else if (summary.length > VersionCheck.SUMMARY_MAX) {
+        fail({
+          file: 'log.md',
+          message: `summary: is ${summary.length} characters, at most ${VersionCheck.SUMMARY_MAX}`,
+        });
+      }
     }
 
-    if (folder.unreadable.includes('highlights')) {
-      // reported once, when it was read
-    } else if (highlights === undefined || highlights.length === 0) {
-      fail({
-        file: 'log.md',
-        message: `highlights: write one to ${VersionCheck.HIGHLIGHTS_MAX} one-line highlights of the release`,
-      });
-    } else {
-      if (highlights.length > VersionCheck.HIGHLIGHTS_MAX) {
+    if (!folder.unreadable.includes('highlights')) {
+      if (highlights === undefined || highlights.length === 0) {
         fail({
           file: 'log.md',
-          message: `highlights: ${highlights.length} lines, at most ${VersionCheck.HIGHLIGHTS_MAX}`,
+          message: `highlights: write between 1 and ${VersionCheck.HIGHLIGHTS_MAX} one-line highlights of the release`,
         });
-      }
-
-      if (
-        folder.items.length >= VersionCheck.HIGHLIGHTS_MIN &&
-        highlights.length < VersionCheck.HIGHLIGHTS_MIN
-      ) {
-        fail({
-          file: 'log.md',
-          message: `highlights: the folder holds ${folder.items.length} items, so at least ${VersionCheck.HIGHLIGHTS_MIN} highlights`,
-        });
-      }
-
-      highlights.forEach((line, index) => {
-        if (line === '' || line.includes('\n') || line.length > VersionCheck.HIGHLIGHT_MAX) {
+      } else {
+        if (highlights.length > VersionCheck.HIGHLIGHTS_MAX) {
           fail({
             file: 'log.md',
-            message: `highlights: line ${index + 1} must be one non-empty line of at most ${VersionCheck.HIGHLIGHT_MAX} characters`,
+            message: `highlights: ${highlights.length} lines, at most ${VersionCheck.HIGHLIGHTS_MAX}`,
           });
         }
-      });
+
+        if (
+          folder.items.length >= VersionCheck.HIGHLIGHTS_MIN &&
+          highlights.length < VersionCheck.HIGHLIGHTS_MIN
+        ) {
+          fail({
+            file: 'log.md',
+            message: `highlights: the folder holds ${folder.items.length} items, so at least ${VersionCheck.HIGHLIGHTS_MIN} highlights`,
+          });
+        }
+
+        highlights.forEach((line, index) => {
+          if (line === '' || line.includes('\n') || line.length > VersionCheck.HIGHLIGHT_MAX) {
+            fail({
+              file: 'log.md',
+              message: `highlights: line ${index + 1} must be one non-empty line of at most ${VersionCheck.HIGHLIGHT_MAX} characters`,
+            });
+          }
+        });
+      }
     }
 
     for (const [id, block] of Object.entries(folder.blocks)) {
