@@ -23,7 +23,10 @@ export class McpConfig {
       return false;
     }
 
-    if (JSON.stringify(entry) === JSON.stringify(McpConfig.canonicalAtlasEntry())) {
+    if (
+      JSON.stringify(entry) === JSON.stringify(McpConfig.canonicalAtlasEntry()) ||
+      JSON.stringify(entry) === JSON.stringify(McpConfig.legacyAtlasEntry())
+    ) {
       return true;
     }
 
@@ -74,9 +77,19 @@ export class McpConfig {
 
   /**
    * The atlas server as the root `.mcp.json` starts it: the same for every developer, so it is relative.
-   * Claude Code, omp and Copilot CLI launch a project server from the project root.
+   * Claude Code, omp and Copilot CLI launch a project server from the project root. `bun run vulcan` runs the bin
+   * the project links and never fetches a package: `bun x vulcan` runs a copy an earlier bunx saved when the bin is
+   * not linked where the editor starts it, and npm gives the name `vulcan` to an unrelated package (V-S-07).
    */
   static canonicalAtlasEntry(): { command: string; args: string[] } {
+    return {
+      command: 'bun',
+      args: ['run', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+    };
+  }
+
+  /** The entry earlier versions wrote: recognised as sync's own, so a sync rewrites it, and named stale by `vulcan doctor`. */
+  static legacyAtlasEntry(): { command: string; args: string[] } {
     return {
       command: 'bun',
       args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],

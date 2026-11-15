@@ -88,6 +88,16 @@ describe('the Codex hook command runs the real guards', () => {
     );
   });
 
+  test('a package run by name is denied with V-S-07 (the git guard script runs the runner check too); bun run is not', () => {
+    const root = installedProject();
+    const bunx = run({ root, stdin: eventOf({ root, tool: 'Bash', command: 'bunx ardor codemod' }) });
+
+    expect(decisionOf(bunx.output)).toBe('deny');
+    expect(bunx.text).toContain('V-S-07');
+    expect(bunx.text).toContain('bun run ardor');
+    expect(run({ root, stdin: eventOf({ root, tool: 'Bash', command: 'bun run ardor' }) }).text).toBe('');
+  });
+
   test('Codex cannot ask, so an ask is printed as a deny that says a human must confirm', () => {
     const root = installedProject();
     const deploy = run({

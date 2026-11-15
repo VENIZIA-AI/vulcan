@@ -130,7 +130,9 @@ const readScriptNames = (opts: { file: string }): string[] | undefined => {
   }
 };
 
-const CANONICAL_ATLAS_ARGS = ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
+const CANONICAL_ATLAS_ARGS = ['run', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
+/** What sync wrote before V-S-07: it can run a copy bunx cached, so it is stale and not merely different. */
+const LEGACY_ATLAS_ARGS = ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
 
 const MCP_FILE = '.mcp.json';
 
@@ -817,6 +819,17 @@ export class ProjectContract {
             mcpWarning({
               file: MCP_FILE,
               message: `no server named atlas (found: ${Object.keys(servers).join(', ') || 'none'}): a differently named server is not enabled automatically - use ${MCP_SERVER_HINT}`,
+            }),
+          );
+        } else if (
+          Array.isArray(args) &&
+          args.length === LEGACY_ATLAS_ARGS.length &&
+          args.every((arg, index) => arg === LEGACY_ATLAS_ARGS[index])
+        ) {
+          warnings.push(
+            mcpWarning({
+              file: MCP_FILE,
+              message: `the atlas entry is out of date: it runs 'bun x --no-install vulcan', which can run a copy bunx cached when the bin is not linked there - run '${ProjectLayout.VULCAN_COMMAND} sync' to rewrite it as ${MCP_SERVER_HINT}`,
             }),
           );
         } else if (!isCanonical) {

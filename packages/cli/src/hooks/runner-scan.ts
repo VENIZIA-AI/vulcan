@@ -80,6 +80,11 @@ export class RunnerScan {
     return trimmed === '' || COMMAND_START.test(trimmed) || COMMAND_WORDS.test(trimmed);
   }
 
+  /** The command a runner makes of the words after it (already unquoted, as a parsed line has them); `undefined` when it names no package. */
+  static fromWords(opts: { runner: string; words: string[]; line?: number }): IRunnerUse | undefined {
+    return RunnerScan.useOf({ runner: opts.runner, words: opts.words, line: opts.line ?? 0 });
+  }
+
   private static useOf(opts: { runner: string; words: string[]; line: number }): IRunnerUse | undefined {
     let hasNoInstall = false;
     let packageName: string | undefined;

@@ -10,7 +10,7 @@ import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
 /** The atlas entry of the root `.mcp.json`, as `sync` writes it and `doctor` shows it. */
 export const MCP_SERVER_HINT =
-  '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
+  '"atlas": { "command": "bun", "args": ["run", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
 
 /** The files every project gets, apart from the config. */
 const SCAFFOLD_FILES: IScaffoldFile[] = [
