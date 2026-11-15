@@ -2,8 +2,9 @@ blanket-stage-asks:
   symbols: [guard.git]
   upgrade:
     steps:
-      - '`git add -A`, `git add .`, `git add -u` and `git commit -a` over 50 changed paths ask first. Codex and Cursor cannot ask on a tool call, so there the command is refused where it passed; Claude Code, omp, pi and Antigravity ask and let you approve.'
-      - 'Name the files instead: `git add <files>`, `git add -A <path>` and `git add -p` pass. `git add -u` and `git commit -a` count every tracked change in the repository even when a path is named. The limit is not configurable.'
+      - 'These ask when more than 50 paths would be staged: `git add -A`, `git add --all`, `git add .`, `git add -u`, `git add --update`, `git commit -a` and `git commit --all`. `-A`, `--all` and `.` count every change including untracked files; `-u`, `--update` and `-a` count the tracked ones, and `-u` counts the whole repository even when you name a path. Exactly 50 passes, and the limit is not configurable.'
+      - 'An agent that cannot answer an ask is refused: Codex prints the ask as a deny (so does Cursor where `CURSOR_PROJECT_DIR` is set), and omp and pi block it when no UI can answer, as in a headless run. Claude Code and Antigravity show the ask (Antigravity: `agy --dangerously-skip-permissions` approves it).'
+      - 'Name the files instead: `git add <files>` and `git add -p` pass, and so does `git add -A <path>`.'
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, which stages any number of paths without asking.'
