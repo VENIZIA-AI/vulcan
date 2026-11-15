@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { VersionFolders } from '@/changelogs/version-folder';
 import { ProjectConfig } from '@/common/project-config';
 import { FolderStates, MigratePlan, MigrateReport } from '@/migrations';
-import { FolderAtKinds, FolderHistory, ReleaseCompute, ReleaseStore } from '@/releases';
+import { FolderAtStatuses, FolderHistory, ReleaseCompute, ReleaseStore } from '@/releases';
 import type { IFolderHistory } from '@/releases';
 
 const roots: string[] = [];
@@ -266,8 +266,12 @@ describe('FolderStates over a history that cannot read a tag (C11)', () => {
     folders: () => [folder({ items: S16 })],
     at: ({ version }) =>
       opts.unreadable.includes(version)
-        ? { kind: FolderAtKinds.UNREADABLE, reason: `no blob at ${version}` }
-        : { kind: FolderAtKinds.FOLDER, tag: `kernel-v${version}`, folder: folder({ items: S15 }) },
+        ? { status: FolderAtStatuses.UNREADABLE, reason: `no blob at ${version}` }
+        : {
+            status: FolderAtStatuses.FOLDER,
+            tag: `kernel-v${version}`,
+            folder: folder({ items: S15 }),
+          },
   });
   const versions = ['0.4.5-16', '0.4.5-15', '0.4.5-14', '0.4.4'];
 
@@ -400,7 +404,7 @@ describe('folded lines (C9, C10)', () => {
     ]);
     expect(plan.unstructured.map((entry) => entry.id)).toEqual(['changelog:2026-11-02-six']);
     expect(plan.note).toContain('prerelease of 0.4.6');
-    expect(plan.note).toContain('changelogs/0.4.6/log.md');
+    expect(plan.note).toContain('changelog:0.4.6');
   });
 
   test('a prerelease of a folded line as the target is split the same way', () => {
@@ -411,7 +415,7 @@ describe('folded lines (C9, C10)', () => {
   });
 });
 
-describe('review findings of the state diff', () => {
+describe('plans that end in a folded prerelease, and states without a block', () => {
   const made = foldedRepo();
 
   test('a plan that ends in a folded prerelease puts its dated steps after the folder items; the rollback puts them first', () => {
@@ -535,7 +539,7 @@ describe('the state of an item', () => {
     const history = historyOf({
       head: folderWith({ packages: ['@a/kernel', '@a/web'] }),
       at: ({ version }) => ({
-        kind: FolderAtKinds.FOLDER,
+        status: FolderAtStatuses.FOLDER,
         tag: `kernel-v${version}`,
         folder: folderWith({
           packages: version === '0.4.5-2' ? ['@a/kernel'] : ['@a/kernel', '@a/web'],
@@ -553,7 +557,7 @@ describe('the state of an item', () => {
     const history = historyOf({
       head: folderWith({ packages: ['@a/kernel'], section: 'Breaking' }),
       at: ({ version }) => ({
-        kind: FolderAtKinds.FOLDER,
+        status: FolderAtStatuses.FOLDER,
         tag: `kernel-v${version}`,
         folder: folderWith({
           packages: ['@a/kernel'],
@@ -596,8 +600,8 @@ describe('the state of an item', () => {
       head: folderWith({ packages: ['@a/kernel'] }),
       at: ({ version }) =>
         version === '0.4.5-3'
-          ? { kind: FolderAtKinds.UNREADABLE, reason: 'no blob' }
-          : { kind: FolderAtKinds.ABSENT, tag: `kernel-v${version}` },
+          ? { status: FolderAtStatuses.UNREADABLE, reason: 'no blob' }
+          : { status: FolderAtStatuses.ABSENT, tag: `kernel-v${version}` },
     });
     const state = FolderStates.stateOf({
       history,
@@ -608,5 +612,48 @@ describe('the state of an item', () => {
 
     expect(state.folded).toBe('0.4.5');
     expect(state.notes[0]).toContain('no blob');
+  });
+});
+
+describe('FolderHistory in a project below the top of its repository', () => {
+  test('reads the folder at a tag from the project root, not from the top of the repository', () => {
+    const top = mkdtempSync(join(tmpdir(), 'atlas-state-sub-'));
+
+    roots.push(top);
+    mkdirSync(join(top, 'sub', 'changes', '0.4.5'), { recursive: true });
+
+    const files = folderOf({ version: '0.4.5', items: S13 });
+
+    writeFileSync(join(top, 'sub', 'changes', '0.4.5', 'log.md'), files.log);
+    writeFileSync(join(top, 'sub', 'changes', '0.4.5', 'migration.yaml'), files.migration);
+
+    for (const args of [
+      ['init', '-q', '-b', 'develop'],
+      ['add', '-A'],
+      ['commit', '-q', '-m', 'state'],
+      ['tag', '-a', 'kernel-v0.4.5-1', '-m', 'k'],
+    ]) {
+      execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+        cwd: top,
+        stdio: 'ignore',
+      });
+    }
+
+    const project = ProjectConfig.toAtlasProject({
+      root: join(top, 'sub'),
+      manifest: {
+        schemaVersion: 1,
+        packages: PACKAGES,
+        knowledge: { changelogs: 'changes' },
+        release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+      },
+    });
+    const found = new FolderHistory({ project }).at({
+      package: '@a/kernel',
+      version: '0.4.5-1',
+      line: '0.4.5',
+    });
+
+    expect(found.status).toBe(FolderAtStatuses.FOLDER);
   });
 });

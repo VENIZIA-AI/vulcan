@@ -1,9 +1,9 @@
-import { MigrateDirections, MigrateTargets } from './plan';
+import { MigrateDirections } from './directions';
+import { MigrateTargets } from './plan';
 import type { IMigrationPlan, IMigrationResult, IMigrationStep } from './plan';
 import { TouchKinds } from './scan';
 import type { IMigrationTouch, TTouchKind } from './scan';
 import type { TMigrationDirection } from './schema';
-import { StepDirections } from './states';
 
 const ofKind = (opts: { touches: IMigrationTouch[]; kind: TTouchKind }): IMigrationTouch[] =>
   opts.touches.filter((touch) => touch.kind === opts.kind);
@@ -69,7 +69,7 @@ const stepOf = (opts: { step: IMigrationStep; verbose: boolean; isMixed: boolean
   // A plan that undoes some items and applies others says which each step is; a changed item is both, in two steps.
   const label =
     opts.isMixed || step.changed === true
-      ? `${step.direction === StepDirections.DOWNGRADE ? 'Undo' : 'Apply'}${step.changed === true ? ' (the item changed between the two versions)' : ''}. `
+      ? `${step.direction === MigrateDirections.DOWNGRADE ? 'Undo' : 'Apply'}${step.changed === true ? ' (the item changed between the two versions)' : ''}. `
       : '';
   const lines = [
     `### ${step.id}${label === '' ? '' : ` (${step.direction})`}`,
@@ -154,6 +154,13 @@ const planOf = (opts: { plan: IMigrationPlan; verbose: boolean }): string[] => {
   const lines = [heading, ''];
 
   lines.push(...behindOf({ plan }));
+
+  if (plan.degraded === true) {
+    lines.push(
+      'Warning: the folder state of this plan could not be read exactly, so its steps may be wrong; `apply` runs none of them without --force.',
+      '',
+    );
+  }
 
   if (plan.note !== undefined) {
     lines.push(`Note: ${plan.note}`, '');

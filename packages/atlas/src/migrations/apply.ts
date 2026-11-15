@@ -3,8 +3,8 @@ import { existsSync, realpathSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { CodemodRunner } from '@/common/codemod-runner';
 import { AtlasGit } from '@/common/constants';
-import { StepDirections } from './states';
-import type { TStepDirection } from './states';
+import { MigrateDirections } from './directions';
+import type { TStepDirection } from './directions';
 import { MIGRATION_NAME_PATTERN } from './schema';
 import type { IMigrationPlan, IMigrationResult, IMigrationStep } from './plan';
 import { MigrateReport } from './report';
@@ -32,7 +32,9 @@ const directionOf = (opts: { step: IMigrationStep; plan: IMigrationPlan }): TSte
     return given;
   }
 
-  return opts.plan.direction === 'downgrade' ? StepDirections.DOWNGRADE : StepDirections.UPGRADE;
+  return opts.plan.direction === MigrateDirections.DOWNGRADE
+    ? MigrateDirections.DOWNGRADE
+    : MigrateDirections.UPGRADE;
 };
 
 /** A step of a plan is told apart by its item and its direction: a changed item is undone as it was, then applied as it is. */
@@ -155,7 +157,7 @@ const reportOf = (opts: {
 
     for (const outcome of outcomes) {
       lines.push(
-        `${outcome.status === CodemodStatuses.RAN ? 'Ran' : `Did not run (${outcome.status}):`} \`${outcome.codemod}\`${outcome.direction === StepDirections.DOWNGRADE ? ' in reverse' : ''} for ${outcome.steps.map((step) => step.id).join(', ')}.`,
+        `${outcome.status === CodemodStatuses.RAN ? 'Ran' : `Did not run (${outcome.status}):`} \`${outcome.codemod}\`${outcome.direction === MigrateDirections.DOWNGRADE ? ' in reverse' : ''} for ${outcome.steps.map((step) => step.id).join(', ')}.`,
       );
 
       if (outcome.command.length > 0) {
@@ -243,6 +245,17 @@ export class MigrateApply {
     if (behind?.behind !== undefined && !opts.force) {
       opts.err(
         `vulcan migrate apply: ${behind.package}: ${behind.behind}; nothing was run - or pass --force\n`,
+      );
+
+      return 1;
+    }
+
+    // A plan whose folder state could not be read exactly may name the wrong steps, and a codemod rewrites the app.
+    const degraded = result.plans.find((plan) => plan.degraded === true);
+
+    if (degraded !== undefined && !opts.force) {
+      opts.err(
+        `vulcan migrate apply: ${degraded.package}: the folder state could not be read exactly (${degraded.note ?? 'see the plan'}); the steps may be wrong, so nothing was run - or pass --force\n`,
       );
 
       return 1;
@@ -368,7 +381,7 @@ export class MigrateApply {
 
         const args = [...runner.words, codemod, '.', '--write'];
 
-        if (direction === StepDirections.DOWNGRADE) {
+        if (direction === MigrateDirections.DOWNGRADE) {
           args.push('--reverse');
         }
 

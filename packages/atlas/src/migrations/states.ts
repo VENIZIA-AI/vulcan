@@ -1,8 +1,9 @@
-import { VersionSectionNames } from '@/changelogs/version-folder';
+import { PRERELEASE_PART, VersionSections } from '@/changelogs/version-folder';
+import { MigrateDirections } from './directions';
+import type { TStepDirection } from './directions';
 import type { IVersionFolder, TVersionSection } from '@/changelogs/version-folder';
 import type { TMigrationBlock } from '@/changelogs/version-folder';
-import type { TConstValue } from '@/common/types';
-import { FolderAtKinds } from '@/releases/common';
+import { FolderAtStatuses } from '@/releases/common';
 import type { IFolderHistory } from '@/releases/common';
 
 /** One item of a version folder as a package sees it at a version: what the plan diffs. */
@@ -24,18 +25,13 @@ export interface IPackageState {
   items: IStateItem[];
   /** What was degraded or could not be read, one sentence each; empty for an exact state. */
   notes: string[];
+  /** The folder of the version's line could not be read at its tag: the state is an approximation (an earlier tag, or none). */
+  degraded?: true;
   /** Set when the version is a prerelease of a line that was folded in after its release: its tag holds no folder, so the state is only the lines before it. */
   folded?: string;
 }
 
 /** Which way a step moves the app: undo what an item was, or apply what it is. */
-export class StepDirections {
-  static readonly UPGRADE = 'upgrade';
-  static readonly DOWNGRADE = 'downgrade';
-}
-
-export type TStepDirection = TConstValue<typeof StepDirections>;
-
 /** An item that moves between two states, in the direction the app must follow. */
 export interface IStateMove {
   item: IStateItem;
@@ -44,13 +40,6 @@ export interface IStateMove {
   /** The item is in both states and its block, section or packages differ: it is undone, then applied again. */
   changed: boolean;
 }
-
-const OWING = new Set<TVersionSection>([
-  VersionSectionNames.BREAKING,
-  VersionSectionNames.DEPRECATED,
-]);
-
-const PRERELEASE_PART = /-.+$/;
 
 /** The same text for the same value, whatever order its keys were written in. */
 const canonical = (value: unknown): string => {
@@ -108,7 +97,7 @@ export class FolderStates {
   }
 
   static isOwing(opts: { item: IStateItem }): boolean {
-    return OWING.has(opts.item.section);
+    return VersionSections.OWING.includes(opts.item.section);
   }
 
   static stateOf(opts: {
@@ -151,10 +140,11 @@ export class FolderStates {
     for (const version of candidates) {
       const found = opts.history.at({ package: opts.package, version, line });
 
-      if (found.kind === FolderAtKinds.FOLDER) {
+      if (found.status === FolderAtStatuses.FOLDER) {
         state.items.push(...itemsOf({ folder: found.folder, package: opts.package }));
 
         if (version !== opts.version) {
+          state.degraded = true;
           state.notes.push(
             `${opts.package} ${opts.version} could not be read (${failures.join('; ')}): its folder ${line} is read at ${found.tag}, the nearest earlier tag of the line, so a change made since may be missing`,
           );
@@ -163,10 +153,11 @@ export class FolderStates {
         return state;
       }
 
-      if (found.kind === FolderAtKinds.ABSENT) {
+      if (found.status === FolderAtStatuses.ABSENT) {
         state.folded = line;
 
         if (failures.length > 0) {
+          state.degraded = true;
           state.notes.push(
             `${opts.package} ${opts.version} could not be read (${failures.join('; ')}); the nearest readable tag ${found.tag} holds no folder of ${line}, so the line is treated as folded`,
           );
@@ -178,6 +169,7 @@ export class FolderStates {
       failures.push(found.reason);
     }
 
+    state.degraded = true;
     state.notes.push(
       `${opts.package} ${opts.version}: its folder ${line} could not be read at any tag of the line (${failures.join('; ')}); only the lines before ${line} are counted`,
     );
@@ -198,14 +190,14 @@ export class FolderStates {
       .filter((item) => toByKey.get(key(item))?.hash !== item.hash)
       .map((item): IStateMove => ({
         item,
-        direction: StepDirections.DOWNGRADE,
+        direction: MigrateDirections.DOWNGRADE,
         changed: toByKey.has(key(item)),
       }));
     const upgrades = opts.to
       .filter((item) => fromByKey.get(key(item))?.hash !== item.hash)
       .map((item): IStateMove => ({
         item,
-        direction: StepDirections.UPGRADE,
+        direction: MigrateDirections.UPGRADE,
         changed: fromByKey.has(key(item)),
       }));
 

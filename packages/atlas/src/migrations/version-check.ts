@@ -1,13 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { VersionFolders, VersionSections } from '@/changelogs/version-folder';
+import { PRERELEASE_PART, VersionFolders, VersionSections } from '@/changelogs/version-folder';
 import type { IVersionFolder } from '@/changelogs/version-folder';
 import { CodemodRunner } from '@/common/codemod-runner';
 import type { IAtlasProject } from '@/common/project-config';
 import { TextValue } from '@/common/text';
 import type { IChangelogProblem } from './check';
-
-const PRERELEASE_PART = /-.+$/;
 
 /**
  * The gate over the version folders `changelogs/<X.Y.Z>/{log.md, migration.yaml}`, from the files alone (no git):

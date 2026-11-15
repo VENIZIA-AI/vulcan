@@ -14,7 +14,7 @@ export class ChangelogLayouts {
 export type TChangelogLayout = TConstValue<typeof ChangelogLayouts>;
 
 /** What reading the folder of a line at a release tag found. */
-export class FolderAtKinds {
+export class FolderAtStatuses {
   /** The folder, as the tag held it. */
   static readonly FOLDER = 'folder';
   /** The tag holds no folder of that line: the line was folded in after the release. */
@@ -24,9 +24,9 @@ export class FolderAtKinds {
 }
 
 export type TFolderAt =
-  | { kind: typeof FolderAtKinds.FOLDER; tag: string; folder: IVersionFolder }
-  | { kind: typeof FolderAtKinds.ABSENT; tag: string }
-  | { kind: typeof FolderAtKinds.UNREADABLE; tag?: string; reason: string };
+  | { status: typeof FolderAtStatuses.FOLDER; tag: string; folder: IVersionFolder }
+  | { status: typeof FolderAtStatuses.ABSENT; tag: string }
+  | { status: typeof FolderAtStatuses.UNREADABLE; tag?: string; reason: string };
 
 /** The version folders of one source: at HEAD, and as a release tag of a package held them. */
 export interface IFolderHistory {

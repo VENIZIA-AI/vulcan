@@ -4,20 +4,18 @@ import { RpcError } from '@/protocol/common';
 import { InstalledVersions, ToolErrors } from '@/tools/common';
 import type { IChangelogRecord, IFolderHistory, IReleaseIndex } from '@/releases';
 import type { TConstValue } from '@/common/types';
+import { VersionFolders } from '@/changelogs/version-folder';
 import { AppScan } from './scan';
 import type { IMigrationTouch } from './scan';
 import { CodemodRunner } from '@/common/codemod-runner';
 import { BreakingBadge } from './badges';
 import type { TMigrationDirection, TMigrationItem } from './schema';
-import { FolderStates, StepDirections } from './states';
-import type { IStateMove, TStepDirection } from './states';
+import { MigrateDirections } from './directions';
+import type { TMigrateDirection, TStepDirection } from './directions';
+import { FolderStates } from './states';
+import type { IStateMove } from './states';
 
-export class MigrateDirections {
-  static readonly UPGRADE = 'upgrade';
-  static readonly DOWNGRADE = 'downgrade';
-  /** The two versions are the same: nothing to do. */
-  static readonly NONE = 'none';
-}
+export * from './directions';
 
 export class MigrateTargets {
   /** `to` was `latest` or `next`: read from the release table; npm is asked only to say whether the table is behind it. */
@@ -25,7 +23,6 @@ export class MigrateTargets {
   static readonly VERSION = 'version';
 }
 
-export type TMigrateDirection = TConstValue<typeof MigrateDirections>;
 export type TMigrateTarget = TConstValue<typeof MigrateTargets>;
 
 /** One migration item of the window, in the direction the plan runs. */
@@ -72,6 +69,8 @@ export interface IMigrationPlan {
   codemodPackages?: string[];
   /** A warning about how to read the plan, e.g. `latest` is older than the installed version; absent otherwise. */
   note?: string;
+  /** Set when the folder state of an end of the plan could not be read exactly (a tag git could not show): the steps may be wrong, so `apply` runs none of them without `--force`. */
+  degraded?: true;
   /** Set when npm is ahead of the atlas source's ref: the plan stops short of what npm publishes. */
   behind?: string;
   steps: IMigrationStep[];
@@ -275,12 +274,13 @@ export class MigratePlan {
             moves: [],
             notes: [],
             considered: 0,
+            degraded: false,
           };
     const window = [...read.newer, ...read.older];
     const orderedOf = (entries: IChangelogRecord[]): IChangelogRecord[] =>
       isUpgrade ? [...entries].reverse() : entries;
     const ordered = orderedOf(window);
-    const direction = isUpgrade ? StepDirections.UPGRADE : StepDirections.DOWNGRADE;
+    const direction = isUpgrade ? MigrateDirections.UPGRADE : MigrateDirections.DOWNGRADE;
     const withBlock = ordered.filter((entry) => entry.migration !== undefined);
     const stateKey = (move: IStateMove): string =>
       `${move.item.entry}#${move.item.id}#${move.direction}`;
@@ -346,7 +346,7 @@ export class MigratePlan {
         date: move.item.date,
         symbols: block.symbols,
         direction: move.direction,
-        change: move.direction === StepDirections.UPGRADE ? block.upgrade : block.downgrade,
+        change: move.direction === MigrateDirections.UPGRADE ? block.upgrade : block.downgrade,
         touches: touches[stateKey(move)] ?? [],
       };
 
@@ -375,16 +375,16 @@ export class MigratePlan {
     const newerLegacy = legacyStepsOf(read.newer);
     const steps = isUpgrade
       ? [
-          ...stateSteps(StepDirections.DOWNGRADE),
+          ...stateSteps(MigrateDirections.DOWNGRADE),
           ...olderLegacy,
-          ...stateSteps(StepDirections.UPGRADE),
+          ...stateSteps(MigrateDirections.UPGRADE),
           ...newerLegacy,
         ]
       : [
           ...newerLegacy,
-          ...stateSteps(StepDirections.DOWNGRADE),
+          ...stateSteps(MigrateDirections.DOWNGRADE),
           ...olderLegacy,
-          ...stateSteps(StepDirections.UPGRADE),
+          ...stateSteps(MigrateDirections.UPGRADE),
         ];
     // An item with no block that changes section is in two moves: it is listed once.
     const unstructuredStates = [
@@ -441,6 +441,10 @@ export class MigratePlan {
       plan.note = notes.join('; ');
     }
 
+    if (read.degraded) {
+      plan.degraded = true;
+    }
+
     return plan;
   }
 
@@ -464,6 +468,7 @@ export class MigratePlan {
     moves: IStateMove[];
     notes: string[];
     considered: number;
+    degraded: boolean;
   } {
     const { releases, history, versions } = opts;
     const stateOf = (version: string) =>
@@ -471,6 +476,7 @@ export class MigratePlan {
     const olderState = stateOf(opts.older);
     const newerState = stateOf(opts.newer);
     const notes = [...olderState.notes, ...newerState.notes];
+    const degraded = olderState.degraded === true || newerState.degraded === true;
     const olderEntries: IChangelogRecord[] = [];
     const newerEntries: IChangelogRecord[] = [];
     let olderItems = olderState.items;
@@ -496,13 +502,15 @@ export class MigratePlan {
         moves: [],
         notes,
         considered: 0,
+        degraded,
       };
     }
 
     if (newerState.folded !== undefined) {
       const before = versions.find(
         (version) =>
-          isStable({ version }) && Bun.semver.order(version, newerState.folded ?? '') < 0,
+          VersionFolders.isName({ name: version }) &&
+          Bun.semver.order(version, newerState.folded ?? '') < 0,
       );
 
       notes.push(MigratePlan.foldedNote({ version: opts.newer, line: newerState.folded }));
@@ -547,12 +555,13 @@ export class MigratePlan {
       newer: [...new Map(newerEntries.map((entry) => [entry.id, entry])).values()],
       moves,
       notes,
+      degraded,
       considered: new Set(touched.map((item) => `${item.line}#${item.id}`)).size,
     };
   }
 
   private static foldedNote(opts: { version: string; line: string }): string {
-    return `${opts.version} is a prerelease of ${opts.line}, which was folded into a version folder after its release: the part of the line on the far side of ${opts.version} is read from the dated entries, and changelogs/${opts.line}/log.md holds the line's net change - read it`;
+    return `${opts.version} is a prerelease of ${opts.line}, which was folded into a version folder after its release: the part of the line on the far side of ${opts.version} is read from the dated entries, and \`changelog:${opts.line}\` (the atlas \`get\` tool) holds the line's net change - read it`;
   }
 
   private static keyOf(opts: { entry: IChangelogRecord; migration: TMigrationItem }): string {
