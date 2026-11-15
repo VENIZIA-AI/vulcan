@@ -70,6 +70,9 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
     'echo ardor | xargs bunx',
     'echo ardor | xargs -n 1 bunx',
     'echo ardor | xargs bun x',
+    'nsenter --wd=/x bunx ardor',
+    'chroot /x bunx ardor',
+    'setsid bunx ardor',
     'bunx --some-switch ardor',
     'bunx shadcn@npm:ardor add',
     'bunx',
@@ -78,6 +81,12 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
     'bunx @venizia/vulcan@${VULCAN_VERSION} init',
     "npx -p foo -c 'echo hi'",
     'bunx -c bunfig.toml ardor',
+    "npx -c 'bunx ardor'",
+    "npx --call='bunx ardor'",
+    "npx --call 'echo hi; bunx ardor'",
+    "npm exec -c 'bunx ardor'",
+    'pnpm dlx --shell-mode ardor',
+    "pnpm dlx -c 'ardor hi'",
   ])('denies %s', (command) => {
     expect(refusedBy({ command, cwd: root })).toEqual(['V-S-08:deny']);
   });
@@ -94,7 +103,6 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
     "npx -c 'echo hi'",
     "npm exec -c 'echo hi'",
     "npm exec --call 'echo hi'",
-    "pnpm dlx -c 'echo hi'",
     'bun x --package @venizia/ardor ardor codemod',
     'npx @venizia/vulcan init',
     'bun add -d @venizia/vulcan',
@@ -148,6 +156,10 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
       `eval 'cd ${bare}; bun x --no-install zzbin'`,
       `source ./enter.sh; bun x --no-install zzbin`,
       `. ./enter.sh && bun x --no-install zzbin`,
+      `sudo --chdir=${bare} bun x --no-install zzbin`,
+      `sudo -D ${bare} bun x --no-install zzbin`,
+      `nsenter --wd=${bare} bun x --no-install zzbin`,
+      `find . -execdir bun x --no-install zzbin ';'`,
     ]) {
       expect(refusedBy({ command, cwd: linked })).toEqual(['V-S-08:deny']);
     }

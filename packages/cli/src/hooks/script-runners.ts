@@ -200,7 +200,7 @@ export class ScriptRunners {
       call.leading.length === 0 &&
       call.runner === opts.name.split('/').pop()
     ) {
-      const target = PackageRunners.targetOf({ words: call.words });
+      const target = PackageRunners.targetOf({ words: call.words, runner: call.runner });
       const isCommandString = target.flags.some((flag) => flag === '-c' || flag === '--call');
 
       return target.name === '' || isCommandString

@@ -90,16 +90,34 @@ export class PackageRunners {
   /** The flags whose value is a package to run, and the bin is then one of its own. */
   static readonly PACKAGE_FLAGS: ReadonlySet<string> = new Set(['-p', '--package']);
 
-  /** The flags that make `npx`, `npm exec` and `pnpm dlx` run a command string in a shell instead of a package. */
-  static readonly COMMAND_FLAGS: ReadonlySet<string> = new Set(['-c', '--call', '--shell-mode']);
+  /** The flags that make `npx` and `npm exec` run a command string in a shell instead of a package. */
+  static readonly COMMAND_FLAGS: ReadonlySet<string> = new Set(['-c', '--call']);
 
-  /** The runners whose `COMMAND_FLAGS` run a string: for `bunx` and `bun x`, `-c` is a config file. */
-  static readonly COMMAND_RUNNERS: ReadonlySet<string> = new Set([
-    'npx',
-    'npm exec',
-    'npm x',
-    'pnpm dlx',
+  /**
+   * The runners whose `COMMAND_FLAGS` run a string, which the guard then reads as a command line of its own. For `bunx` and
+   * `bun x`, `-c` is a config file; for pnpm, `-c` and `--shell-mode` are switches and the first word is still fetched.
+   */
+  static readonly COMMAND_RUNNERS: ReadonlySet<string> = new Set('npx,npm exec,npm x'.split(','));
+
+  /** Switches that only one runner has: they take no value there, and are unknown flags (which take one) elsewhere. */
+  static readonly RUNNER_SWITCHES: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+    ['pnpm dlx', new Set(['-c', '--shell-mode'])],
   ]);
+
+  /** The string a `-c` or `--call` flag among `words` gives, or `undefined` when there is none. */
+  static commandStringOf(opts: { words: string[] }): string | undefined {
+    for (const [index, word] of opts.words.entries()) {
+      if (word === '-c' || word === '--call') {
+        return opts.words[index + 1];
+      }
+
+      if (word.startsWith('--call=')) {
+        return word.slice('--call='.length);
+      }
+    }
+
+    return undefined;
+  }
 
   /** The flags the `--no-install` form may carry: none of them moves the folder, the registry or the cache. */
   static readonly HARMLESS: ReadonlySet<string> = new Set(['--bun', '--silent', '--no-install']);
@@ -168,7 +186,8 @@ export class PackageRunners {
    * The package a runner's words run. The last word a flag this table does not know took is read as the name when no
    * word follows it, so a switch the table lacks does not turn the package into a value.
    */
-  static targetOf(opts: { words: string[] }): IRunnerTarget {
+  static targetOf(opts: { words: string[]; runner?: string }): IRunnerTarget {
+    const own = PackageRunners.RUNNER_SWITCHES.get(opts.runner ?? '');
     const flags: string[] = [];
     let hasNoInstall = false;
     let packageName: string | undefined;
@@ -216,7 +235,7 @@ export class PackageRunners {
         continue;
       }
 
-      if (PackageRunners.SWITCHES.has(flag)) {
+      if (PackageRunners.SWITCHES.has(flag) || own?.has(flag) === true) {
         continue;
       }
 

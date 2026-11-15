@@ -25,16 +25,25 @@ export interface IRunnerHit {
  * cannot reach the cache. It reads the commands the parser found, so a word in a message, a grep or a heredoc is data.
  */
 export class RunnerGuard {
+  /** Programs that run the command after their own options, which the shell parser does not unwrap. */
+  private static readonly LAUNCHERS: ReadonlySet<string> = new Set([
+    'xargs',
+    'nsenter',
+    'chroot',
+    'setsid',
+    'unshare',
+  ]);
+
   /** The runner a simple command is and the words after it, or `undefined` when it runs no package by name. */
   private static runnerOf(opts: { command: ISimpleCommand }): IRunnerCall | undefined {
     const program = ShellParser.programOf({ command: opts.command });
     const name = ShellParser.basenameOf({ word: program.name });
 
-    if (name !== 'xargs') {
+    if (!RunnerGuard.LAUNCHERS.has(name)) {
       return PackageRunners.find({ program: name, args: program.args });
     }
 
-    // `xargs bunx` runs the program with a name from its input: read the words after xargs's own options as a command
+    // `xargs bunx` runs the program with a name from its input: read the words after the launcher's own options as a command
     for (let index = 0; index < program.args.length; index += 1) {
       const word = ShellParser.basenameOf({ word: program.args[index] ?? '' });
 
@@ -64,10 +73,19 @@ export class RunnerGuard {
     }
 
     const at = names.indexOf('env');
+    const isChdir = (word: string): boolean => /^--chdir(?:=|$)/.test(word);
 
     return (
-      at !== -1 &&
-      opts.command.words.slice(at + 1).some((word) => /^(?:--chdir(?:=|$)|-[A-Za-z]*C)/.test(word))
+      (at !== -1 &&
+        opts.command.words
+          .slice(at + 1)
+          .some((word) => isChdir(word) || /^-[A-Za-z]*C/.test(word))) ||
+      (names.includes('sudo') &&
+        opts.command.words.some((word) => isChdir(word) || /^-[A-Za-z]*D/.test(word))) ||
+      names.includes('chroot') ||
+      (names.includes('nsenter') && opts.command.words.some((word) => /^(?:--wd|-w)/.test(word))) ||
+      (names.includes('find') &&
+        opts.command.words.some((word) => /^-(?:execdir|okdir)$/.test(word)))
     );
   }
 
@@ -138,11 +156,30 @@ export class RunnerGuard {
       const use = RunnerScan.useOf({ call, line: 0, isExample: false });
       const name = RunnerScan.refusedName({ use, allow: opts.allow });
 
-      if (name === undefined || RunnerScan.isCommandString({ use })) {
+      const folder = folders[index];
+
+      // `npx -c '<line>'` runs the line in a shell: it is read as a command line of its own, and passes when that has no runner
+      if (RunnerScan.isCommandString({ use })) {
+        const line = PackageRunners.commandStringOf({ words: call.words });
+
+        if (line !== undefined) {
+          hits.push(
+            ...RunnerGuard.inspect({
+              command: line,
+              cwd: folder?.isKnown === true ? folder.base : start,
+              allow: opts.allow,
+              env,
+            }),
+          );
+        }
+
         continue;
       }
 
-      const folder = folders[index];
+      if (name === undefined) {
+        continue;
+      }
+
       const isLinked =
         use.hasNoInstall &&
         use.packageName === undefined &&

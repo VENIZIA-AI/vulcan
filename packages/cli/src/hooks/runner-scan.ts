@@ -137,7 +137,7 @@ export class RunnerScan {
 
   /** The command a runner call makes: the package it runs and the flags on the way to it. */
   static useOf(opts: { call: IRunnerCall; line: number; isExample: boolean }): IRunnerUse {
-    const target = PackageRunners.targetOf({ words: opts.call.words });
+    const target = PackageRunners.targetOf({ words: opts.call.words, runner: opts.call.runner });
 
     return {
       runner: opts.call.runner,

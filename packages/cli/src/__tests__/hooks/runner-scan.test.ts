@@ -85,6 +85,13 @@ describe('RunnerScan: a command that runs an unscoped package', () => {
       '@venizia/vulcan@$X',
     ],
     ['a command string with a package', "npx -p foo -c 'echo hi'", 'foo'],
+    ['a runner inside the command string of npx', "npx -c 'bunx ardor'", 'ardor'],
+    [
+      '--shell-mode is a switch of pnpm dlx, the first word is fetched',
+      'pnpm dlx --shell-mode ardor',
+      'ardor',
+    ],
+    ['-c is a switch of pnpm dlx', "pnpm dlx -c 'ardor hi'", 'ardor'],
     ['bunx, where -c is a config file', 'bunx -c bunfig.toml ardor', 'ardor'],
     ['a bare @venizia', 'bunx @venizia', '@venizia'],
   ])('%s', (_label, text, name) => {
@@ -112,7 +119,6 @@ describe('RunnerScan: what is allowed', () => {
     ['a scoped package pinned by a variable', 'bunx @venizia/vulcan@${VULCAN_VERSION} init'],
     ['npx with a command string', "npx -c 'echo hi'"],
     ['npm exec with a command string', "npm exec --call 'echo hi'"],
-    ['pnpm dlx with a shell command', "pnpm dlx -c 'echo hi'"],
     ['--package of a scoped package, then its bin', 'bun x --package @venizia/ardor ardor codemod'],
     ['-p of a scoped package', 'bun x -p @venizia/ardor ardor'],
     ['no name at all', 'bunx'],
