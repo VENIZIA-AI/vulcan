@@ -1,4 +1,5 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, spyOn, test } from 'bun:test';
+import { GitLocal } from '@/common/git-local';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MigrateApply, MigratePlan } from '@/migrations';
@@ -154,5 +155,35 @@ describe('a source cloned without blobs', () => {
     });
 
     expect(outcome.error).toBeDefined();
+  });
+});
+
+describe('FolderBlobs.prefetch does not throw and does not run on an old git', () => {
+  test('a clone that is not there is an outcome, never an exception', () => {
+    const source = remote();
+    const { project } = pulled(source);
+    const outcome = FolderBlobs.prefetch({
+      project,
+      gitDir: join(makeTempDirectory({ prefix: 'atlas-blobs-none-' }), 'absent'),
+      url: source.url,
+      sha: source.sha,
+    });
+
+    expect(outcome.fetched).toBe(0);
+  });
+
+  test('a git older than 2.44 fetches nothing: its cat-file would fetch a missing blob by itself', () => {
+    const source = remote();
+    const { gitDir, project } = pulled(source);
+    const spy = spyOn(GitLocal, 'refusesLazyFetch').mockReturnValue(false);
+
+    try {
+      const outcome = FolderBlobs.prefetch({ project, gitDir, url: source.url, sha: source.sha });
+
+      expect(outcome.fetched).toBe(0);
+      expect(outcome.error).toContain('older than 2.44');
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

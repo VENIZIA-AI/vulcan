@@ -1,29 +1,35 @@
-import { spawnSync } from 'node:child_process';
 import { basename, relative } from 'node:path';
-import { VersionFolders } from '@/changelogs/version-folder';
-import { PRERELEASE_PART } from '@/changelogs/version-folder';
-import { AtlasGit, AtlasTimeouts } from '@/common/constants';
-import type { IAtlasProject } from '@/common/project-config';
+import { PRERELEASE_PART, VersionFolders } from '@/changelogs/version-folder';
+import { GitLocal } from '@/common/git-local';
 import { StderrLogger } from '@/common/logger';
+import type { IAtlasProject } from '@/common/project-config';
 import { ReleaseTemplate } from '@/releases/template';
 import { GitRepository } from './git';
 
 const FETCH_CHUNK = 100;
 const BLOB_LINE = /^\d+ blob ([0-9a-f]{40,64})\t/;
 
+interface IPrefetchOutcome {
+  wanted: number;
+  fetched: number;
+  /** Why the blobs were not all fetched; absent when they were. */
+  error?: string;
+}
+
 /**
  * The version folders of a fetched source, as its release tags held them. A source is cloned without blobs and read with
  * git told never to fetch one (a `migrate` call must not wait on the network), so the blobs `migrate` reads at the tags
  * of a prerelease are fetched here, when a source is pulled and the network is allowed: the two files of every line that
- * has a folder, at HEAD and at every tag of that line. A failure is a log line: the plan then says it read an earlier tag.
+ * has a folder, at HEAD and at every tag of that line. A failure is a log line and a result, never an exception: the plan
+ * then says it read an earlier tag.
  */
 export class FolderBlobs {
   /** The version folders at `sha`, as paths from the repository root; trees come with a partial clone, so this reads no blob. */
   static directoriesAt(opts: { gitDir: string; sha: string; folder: string }): string[] {
-    const listed = FolderBlobs.git({
+    const listed = GitLocal.read({
       cwd: opts.gitDir,
-      args: ['ls-tree', '-d', '--name-only', opts.sha, `${opts.folder}/`],
-    });
+      args: ['ls-tree', '-d', '--name-only', '--end-of-options', opts.sha, '--', `${opts.folder}/`],
+    }).stdout;
 
     return (listed ?? '')
       .split('\n')
@@ -32,60 +38,29 @@ export class FolderBlobs {
   }
 
   /** Fetches the missing blobs of the folders of `project`. Never throws; the outcome says what happened. */
-  static prefetch(opts: { project: IAtlasProject; gitDir: string; url: string; sha: string }): {
-    wanted: number;
-    fetched: number;
-    error?: string;
-  } {
-    const { project } = opts;
-    const directory = project.knowledge.changelogs;
-
-    if (directory === undefined) {
-      return { wanted: 0, fetched: 0 };
+  static prefetch(opts: {
+    project: IAtlasProject;
+    gitDir: string;
+    url: string;
+    sha: string;
+  }): IPrefetchOutcome {
+    // An older git cannot be told not to fetch inside the checks below, and a plan could not read the blobs anyway.
+    if (!GitLocal.refusesLazyFetch()) {
+      return FolderBlobs.failed({
+        wanted: 0,
+        fetched: 0,
+        message: 'this git is older than 2.44, so the blobs are not prefetched',
+      });
     }
 
-    const folder = relative(project.root, directory);
-    const lines = new Set(
-      FolderBlobs.directoriesAt({ gitDir: opts.gitDir, sha: opts.sha, folder }).map((path) =>
-        basename(path),
-      ),
-    );
-
-    if (lines.size === 0) {
-      return { wanted: 0, fetched: 0 };
-    }
-
-    const refs = [opts.sha, ...FolderBlobs.tagsOfLines({ project, gitDir: opts.gitDir, lines })];
-    const oids = new Set<string>();
-
-    for (const ref of refs) {
-      for (const line of lines) {
-        const listed = FolderBlobs.git({
-          cwd: opts.gitDir,
-          args: [
-            'ls-tree',
-            '--end-of-options',
-            ref,
-            '--',
-            `${folder}/${line}/log.md`,
-            `${folder}/${line}/migration.yaml`,
-          ],
-        });
-
-        for (const entry of (listed ?? '').split('\n')) {
-          const oid = BLOB_LINE.exec(entry)?.[1];
-
-          if (oid !== undefined) {
-            oids.add(oid);
-          }
-        }
-      }
-    }
-
-    const missing = FolderBlobs.missingOf({ gitDir: opts.gitDir, oids: [...oids] });
+    let wanted = 0;
     let fetched = 0;
 
     try {
+      const missing = FolderBlobs.missingBlobs(opts);
+
+      wanted = missing.length;
+
       for (let index = 0; index < missing.length; index += FETCH_CHUNK) {
         const chunk = missing.slice(index, index + FETCH_CHUNK);
 
@@ -96,73 +71,131 @@ export class FolderBlobs {
         fetched += chunk.length;
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
-      StderrLogger.get('FolderBlobs').warn(
-        `the changelog blobs of the release tags were not fetched, so migrate reads earlier tags | error: ${message}`,
-      );
-
-      return { wanted: missing.length, fetched, error: message };
+      return FolderBlobs.failed({
+        wanted,
+        fetched,
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
 
-    return { wanted: missing.length, fetched };
+    return { wanted, fetched };
   }
 
-  /** The tags a release template reads whose version is in a line that has a folder. */
+  private static failed(opts: {
+    wanted: number;
+    fetched: number;
+    message: string;
+  }): IPrefetchOutcome {
+    StderrLogger.get('FolderBlobs').warn(
+      `the changelog blobs of the release tags were not fetched, so migrate reads earlier tags | error: ${opts.message}`,
+    );
+
+    return { wanted: opts.wanted, fetched: opts.fetched, error: opts.message };
+  }
+
+  /** The blobs of the two files of every line that has a folder, at HEAD and at the tags of that line, that this clone lacks. */
+  private static missingBlobs(opts: {
+    project: IAtlasProject;
+    gitDir: string;
+    sha: string;
+  }): string[] {
+    const { project } = opts;
+    const directory = project.knowledge.changelogs;
+
+    if (directory === undefined) {
+      return [];
+    }
+
+    const folder = relative(project.root, directory);
+    const lines = new Set(
+      FolderBlobs.directoriesAt({ gitDir: opts.gitDir, sha: opts.sha, folder }).map((path) =>
+        basename(path),
+      ),
+    );
+
+    if (lines.size === 0) {
+      return [];
+    }
+
+    // A tag is read for its own line only: a tag of 0.4.8-3 holds no reason to list the folder of 0.4.5.
+    const reads = [
+      ...[...lines].map((line) => ({ ref: opts.sha, line })),
+      ...FolderBlobs.tagsOfLines({ project, gitDir: opts.gitDir, lines }),
+    ];
+    const oids = new Set<string>();
+
+    for (const { ref, line } of reads) {
+      const listed = GitLocal.read({
+        cwd: opts.gitDir,
+        args: [
+          'ls-tree',
+          '--end-of-options',
+          ref,
+          '--',
+          `${folder}/${line}/log.md`,
+          `${folder}/${line}/migration.yaml`,
+        ],
+      }).stdout;
+
+      for (const entry of (listed ?? '').split('\n')) {
+        const oid = BLOB_LINE.exec(entry)?.[1];
+
+        if (oid !== undefined) {
+          oids.add(oid);
+        }
+      }
+    }
+
+    return FolderBlobs.missingOf({ gitDir: opts.gitDir, oids: [...oids] });
+  }
+
+  /** The tags a release template reads whose version is in a line that has a folder, each with its line. */
   private static tagsOfLines(opts: {
     project: IAtlasProject;
     gitDir: string;
     lines: Set<string>;
-  }): string[] {
+  }): { ref: string; line: string }[] {
     const patterns = [opts.project.tagPattern, ...(opts.project.legacyTagPatterns ?? [])].map(
       (template) => ReleaseTemplate.compile({ template }),
     );
-    const tags = FolderBlobs.git({
+    const tags = GitLocal.read({
       cwd: opts.gitDir,
       args: ['for-each-ref', 'refs/tags', '--format=%(refname:strip=2)'],
-    });
+    }).stdout;
 
     return (tags ?? '')
       .split('\n')
       .filter((tag) => tag !== '')
-      .filter((tag) => {
+      .flatMap((tag) => {
         const version = patterns.map((pattern) => pattern.exec(tag)?.groups?.version).find(Boolean);
+        const line = version?.replace(PRERELEASE_PART, '');
 
-        return version !== undefined && opts.lines.has(version.replace(PRERELEASE_PART, ''));
-      })
-      .map((tag) => `refs/tags/${tag}`);
+        return line !== undefined && opts.lines.has(line)
+          ? [{ ref: `refs/tags/${tag}`, line }]
+          : [];
+      });
   }
 
-  /** Which of `oids` this repository does not hold: `cat-file` told not to fetch answers `missing`. */
+  /** Which of `oids` this repository does not hold: `cat-file` told not to fetch answers `missing`. A failed check is an error. */
   private static missingOf(opts: { gitDir: string; oids: string[] }): string[] {
     if (opts.oids.length === 0) {
       return [];
     }
 
-    const result = spawnSync('git', ['cat-file', '--batch-check'], {
+    const checked = GitLocal.read({
       cwd: opts.gitDir,
+      args: ['cat-file', '--batch-check'],
       input: `${opts.oids.join('\n')}\n`,
-      encoding: 'utf8',
-      timeout: AtlasTimeouts.LOCAL_GIT_MS,
-      killSignal: 'SIGKILL',
-      env: { ...AtlasGit.buildEnvironment(), GIT_NO_LAZY_FETCH: '1' },
+      noLazyFetch: true,
     });
 
-    return (result.stdout ?? '')
+    if (checked.stdout === undefined) {
+      throw new Error(checked.error ?? 'git cat-file failed');
+    }
+
+    return checked.stdout
       .split('\n')
       .filter((line) => line.endsWith(' missing'))
       .map((line) => line.split(' ')[0]);
-  }
-
-  private static git(opts: { cwd: string; args: string[] }): string | undefined {
-    const result = spawnSync('git', opts.args, {
-      cwd: opts.cwd,
-      encoding: 'utf8',
-      timeout: AtlasTimeouts.LOCAL_GIT_MS,
-      killSignal: 'SIGKILL',
-      env: AtlasGit.buildEnvironment(),
-    });
-
-    return result.status === 0 ? result.stdout : undefined;
   }
 }
