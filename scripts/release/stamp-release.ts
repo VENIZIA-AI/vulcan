@@ -10,13 +10,11 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { GithubRelease } from './github-release.ts';
-import { ReleaseMergeBack } from './merge-back.ts';
+import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
 
 export class ReleaseStampConstants {
   static readonly VERSION = /^\d+\.\d+\.\d+$/;
   static readonly DATE = /^\d{4}-\d{2}-\d{2}$/;
-  static readonly FRONT_MATTER = /^(---\r?\n)([\s\S]*?)(\r?\n---\r?\n)/;
-  static readonly RELEASED = /^released:\s*(.*?)\s*$/m;
   static readonly USAGE = 'stamp-release: --version <X.Y.Z> --date <YYYY-MM-DD>';
 }
 
@@ -26,13 +24,11 @@ export class ReleaseStamp {
    * (nothing to write); an error when it says another, or has no frontmatter to put the line in.
    */
   static stamped(opts: { text: string; date: string }): string | undefined {
-    const matched = ReleaseStampConstants.FRONT_MATTER.exec(opts.text);
-
-    if (matched === null) {
+    if (!MergeBackConstants.FRONT_MATTER.test(opts.text)) {
       throw new Error('log.md has no frontmatter to write released: into');
     }
 
-    const existing = ReleaseStampConstants.RELEASED.exec(matched[2])?.[1];
+    const existing = ReleaseMergeBack.releasedOf({ text: opts.text });
 
     if (existing !== undefined) {
       if (existing === opts.date) {
@@ -42,15 +38,33 @@ export class ReleaseStamp {
       throw new Error(`log.md already says released: ${existing}; a released folder is frozen`);
     }
 
-    const eol = matched[1].endsWith('\r\n') ? '\r\n' : '\n';
+    return ReleaseMergeBack.withReleased({ text: opts.text, date: opts.date });
+  }
 
-    return `${matched[1]}${matched[2]}${eol}released: ${opts.date}${matched[3]}${opts.text.slice(matched[0].length)}`;
+  /**
+   * Writes the stamp into the version folder of `version` under `cwd` and returns the file it wrote, or `undefined`
+   * when the project keeps no folder for that version. The merge-back trial calls it on its copy of main.
+   */
+  static stampFolder(opts: { cwd: string; version: string; date: string }): string | undefined {
+    const file = ReleaseStamp.logOf({ cwd: opts.cwd, version: opts.version });
+
+    if (file === undefined) {
+      return undefined;
+    }
+
+    const next = ReleaseStamp.stamped({ text: readFileSync(file, 'utf8'), date: opts.date });
+
+    if (next !== undefined) {
+      writeFileSync(file, next);
+    }
+
+    return file;
   }
 
   /** The log.md of the version's folder, from the manifest's changelog folder; `undefined` when the project has none. */
   static logOf(opts: { cwd: string; version: string }): string | undefined {
     const { changelogs } = GithubRelease.manifestOf({ cwd: opts.cwd });
-    const file = join(opts.cwd, changelogs, opts.version, 'log.md');
+    const file = join(opts.cwd, changelogs, opts.version, MergeBackConstants.LOG_FILE);
 
     return existsSync(file) ? file : undefined;
   }
@@ -72,19 +86,11 @@ export class ReleaseStamp {
     }
 
     try {
-      const file = ReleaseStamp.logOf({ cwd, version });
+      const file = ReleaseStamp.stampFolder({ cwd, version, date });
 
-      if (file === undefined) {
-        return 0;
+      if (file !== undefined) {
+        console.log(file);
       }
-
-      const next = ReleaseStamp.stamped({ text: readFileSync(file, 'utf8'), date });
-
-      if (next !== undefined) {
-        writeFileSync(file, next);
-      }
-
-      console.log(file);
 
       return 0;
     } catch (error) {

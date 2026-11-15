@@ -564,7 +564,10 @@ describe('ReleasePlan: the run title the dispatcher sends', () => {
 
 describe('ReleasePlan.main: --merge-trial', () => {
   /** A repository where main is at 0.1.0-0 and develop one prerelease ahead, with the refs a clone has. */
-  const repository = (): { root: string; mainSha: string; developSha: string } => {
+  const LOG = "---\ntitle: 0.1.0\nversion: 0.1.0\npackages: ['@x/cli']\n---\nThe line.\n";
+  const repository = (
+    opts: { folder?: boolean; dated?: boolean; mainVersion?: string } = {},
+  ): { root: string; mainSha: string; developSha: string } => {
     const root = scratch();
     const manifest = (version: string): string =>
       `${JSON.stringify({ name: '@x/cli', version }, null, 2)}\n`;
@@ -575,8 +578,29 @@ describe('ReleasePlan.main: --merge-trial', () => {
       join(root, 'package.json'),
       `${JSON.stringify({ name: 'x', private: true, workspaces: ['packages/*'] }, null, 2)}\n`,
     );
-    writeFileSync(join(root, 'packages', 'cli', 'package.json'), manifest('0.1.0-0'));
+    writeFileSync(
+      join(root, 'packages', 'cli', 'package.json'),
+      manifest(opts.mainVersion ?? '0.1.0-0'),
+    );
     writeFileSync(join(root, 'shared.txt'), 'one\n');
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents', 'vulcan.manifest.json'),
+      `${JSON.stringify({
+        release: { tagPattern: 'vulcan-v<version>' },
+        knowledge: { changelogs: 'docs/changelogs' },
+        packages: [{ name: '@x/cli' }],
+      })}\n`,
+    );
+
+    if (opts.folder === true) {
+      mkdirSync(join(root, 'docs', 'changelogs', '0.1.0'), { recursive: true });
+      writeFileSync(
+        join(root, 'docs', 'changelogs', '0.1.0', 'log.md'),
+        opts.dated === true ? LOG.replace('---\nThe', 'released: 2026-11-01\n---\nThe') : LOG,
+      );
+    }
+
     git({ cwd: root, args: ['add', '-A'] });
     git({ cwd: root, args: ['commit', '-q', '-m', 'sync'] });
 
@@ -584,6 +608,14 @@ describe('ReleasePlan.main: --merge-trial', () => {
 
     git({ cwd: root, args: ['checkout', '-q', '-b', 'develop'] });
     writeFileSync(join(root, 'packages', 'cli', 'package.json'), manifest('0.1.0-1'));
+
+    if (opts.folder === true) {
+      writeFileSync(
+        join(root, 'docs', 'changelogs', '0.1.0', 'log.md'),
+        LOG.replace("['@x/cli']", "['@x/cli', '@x/core']"),
+      );
+    }
+
     git({ cwd: root, args: ['commit', '-q', '-am', 'chore(release): v0.1.0-1'] });
     git({ cwd: root, args: ['update-ref', 'refs/remotes/origin/develop', 'develop'] });
     git({ cwd: root, args: ['checkout', '-q', 'main'] });
@@ -591,7 +623,7 @@ describe('ReleasePlan.main: --merge-trial', () => {
     return { root, mainSha, developSha: git({ cwd: root, args: ['rev-parse', 'develop'] }) };
   };
 
-  const run = (opts: { root: string; mainSha: string }) => {
+  const run = (opts: { root: string; mainSha: string; summary?: string; bump?: string }) => {
     const output = join(opts.root, '..', `output-${Date.now()}`);
 
     writeFileSync(output, '');
@@ -599,19 +631,50 @@ describe('ReleasePlan.main: --merge-trial', () => {
     const code = ReleasePlan.main({
       args: [
         '--bump',
-        'patch',
+        opts.bump ?? 'patch',
         '--ref',
         MAIN_REF,
         '--package',
         join(opts.root, 'packages', 'cli', 'package.json'),
         '--merge-trial',
       ],
-      env: { RUNNER_TEMP: scratch(), GITHUB_OUTPUT: output, GITHUB_SHA: opts.mainSha },
+      env: {
+        RUNNER_TEMP: scratch(),
+        GITHUB_OUTPUT: output,
+        GITHUB_SHA: opts.mainSha,
+        ...(opts.summary === undefined ? {} : { GITHUB_STEP_SUMMARY: opts.summary }),
+      },
       cwd: opts.root,
     });
 
     return { code, output: readFileSync(output, 'utf8') };
   };
+
+  test('the trial makes the release commit with the released: stamp, so a version folder develop edited is merged before the approval', () => {
+    const { root, mainSha, developSha } = repository({ folder: true });
+    const summary = join(root, '..', `summary-${Date.now()}`);
+
+    writeFileSync(summary, '');
+
+    expect(run({ root, mainSha, summary })).toEqual({
+      code: 0,
+      output: `version=0.1.0\nkind=stable\nnpm_tag=latest\ndevelop_sha=${developSha}\nchangelog_base=\n`,
+    });
+    expect(readFileSync(summary, 'utf8')).toContain('docs/changelogs/0.1.0/log.md');
+  });
+
+  test("a repair run (bump none) over a folder that already says released: plans, the stamp is the first run's", () => {
+    const { root, mainSha, developSha } = repository({
+      folder: true,
+      dated: true,
+      mainVersion: '0.1.0',
+    });
+
+    expect(run({ root, mainSha, bump: 'none' })).toEqual({
+      code: 0,
+      output: `version=0.1.0\nkind=stable\nnpm_tag=latest\ndevelop_sha=${developSha}\nchangelog_base=\n`,
+    });
+  });
 
   test('a stable whose merge back goes through hands develop_sha on', () => {
     const { root, mainSha, developSha } = repository();

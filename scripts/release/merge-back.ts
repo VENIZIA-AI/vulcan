@@ -13,9 +13,10 @@
  * checkout of the release, so no file of `develop` (a bunfig.toml, a .env) configures it.
  *
  * A conflict is resolved only when it is the `version` field of a `package.json` (the greater version wins, so a
- * stable `0.4.9` beats `0.4.9-3` and `0.4.10-0` beats `0.4.9`) or `bun.lock` (regenerated, never merged by hand,
- * and checked to differ from `develop`'s only in workspace versions). Anything else stops the merge, with the
- * checkout back as it was, and the reason is printed.
+ * stable `0.4.9` beats `0.4.9-3` and `0.4.10-0` beats `0.4.9`), the `released:` line the release wrote into the
+ * frontmatter of a version folder's `log.md` (it is added after whatever `develop` edited around it), or `bun.lock`
+ * (regenerated, never merged by hand, and checked to differ from `develop`'s only in workspace versions). Anything
+ * else stops the merge, with the checkout back as it was, and the reason is printed.
  */
 import {
   appendFileSync,
@@ -34,6 +35,17 @@ export class MergeBackConstants {
 
   /** The top-level `version` of a `package.json`, as the repository formats it (two-space indent). */
   static readonly VERSION_LINE = /^( {2}"version": ")([^"]+)(")/m;
+
+  /** The frontmatter of a `log.md`: the opening fence, the lines, the closing fence. */
+  static readonly FRONT_MATTER = /^(---\r?\n)([\s\S]*?)(\r?\n---\r?\n)/;
+
+  /** The `released:` line of a frontmatter. */
+  static readonly RELEASED_LINE = /^released:\s*(.*?)\s*$/m;
+
+  static readonly LOG_FILE = 'log.md';
+
+  /** The `log.md` of a version folder, `<X.Y.Z>/log.md`, at the end of a repository-relative path. */
+  static readonly VERSION_LOG = /(^|\/)\d+\.\d+\.\d+\/log\.md$/;
 
   /** A line of `bun.lock` that may change when only workspace versions did. */
   static readonly LOCK_VERSION_LINE = /^\s*"version": "[^"]+",?$/;
@@ -59,7 +71,7 @@ interface IGitResult {
 }
 
 interface IMergeBackResult {
-  /** `package.json` files whose conflict was only the version. */
+  /** `package.json` files whose conflict was only the version, and `log.md` files whose conflict was only `released:`. */
   resolved: string[];
   lockRegenerated: boolean;
   /** Why the merge stopped; empty when it went through. */
@@ -158,6 +170,103 @@ export class ReleaseMergeBack {
     }
   }
 
+  /** The line ending a frontmatter uses, read from its opening fence. */
+  static eolOf(opts: { fence: string }): string {
+    return opts.fence.endsWith('\r\n') ? '\r\n' : '\n';
+  }
+
+  /** The day a `log.md` says it was released, `undefined` when its frontmatter has no `released:` line. */
+  static releasedOf(opts: { text: string }): string | undefined {
+    const matched = MergeBackConstants.FRONT_MATTER.exec(opts.text);
+
+    return matched === null ? undefined : MergeBackConstants.RELEASED_LINE.exec(matched[2])?.[1];
+  }
+
+  /** `text` without the `released:` line of its frontmatter. */
+  static withoutReleased(opts: { text: string }): string {
+    const matched = MergeBackConstants.FRONT_MATTER.exec(opts.text);
+
+    if (matched === null) {
+      return opts.text;
+    }
+
+    const lines = matched[2]
+      .split(/\r?\n/)
+      .filter((line) => !MergeBackConstants.RELEASED_LINE.test(line));
+    const eol = ReleaseMergeBack.eolOf({ fence: matched[1] });
+
+    return `${matched[1]}${lines.join(eol)}${matched[3]}${opts.text.slice(matched[0].length)}`;
+  }
+
+  /** `text` with `released: <date>` as the last line of its frontmatter; `undefined` when it has no frontmatter. */
+  static withReleased(opts: { text: string; date: string }): string | undefined {
+    const matched = MergeBackConstants.FRONT_MATTER.exec(opts.text);
+
+    if (matched === null) {
+      return undefined;
+    }
+
+    const eol = ReleaseMergeBack.eolOf({ fence: matched[1] });
+
+    return `${matched[1]}${matched[2]}${eol}released: ${opts.date}${matched[3]}${opts.text.slice(matched[0].length)}`;
+  }
+
+  /**
+   * The text a conflicted `log.md` resolves to, or the reason it cannot. The release added `released: <day>` right
+   * after the last frontmatter line, which `develop` may have edited: that is a conflict to git and no disagreement.
+   * The line is taken off every side, the rest is merged by `git merge-file`, and the line is put back last.
+   */
+  static resolveStampConflict(opts: {
+    base: string;
+    ours: string;
+    theirs: string;
+    scratchRoot: string;
+  }): { text?: string; problem?: string } {
+    const day = ReleaseMergeBack.releasedOf({ text: opts.theirs });
+    const developDay = ReleaseMergeBack.releasedOf({ text: opts.ours });
+
+    if (day === undefined) {
+      return { problem: 'the release did not write a released: line in its frontmatter' };
+    }
+
+    if (ReleaseMergeBack.releasedOf({ text: opts.base }) !== undefined) {
+      return { problem: 'the common ancestor already says released:, a frozen folder was edited' };
+    }
+
+    if (developDay !== undefined && developDay !== day) {
+      return { problem: `develop already says released: ${developDay}, the release says ${day}` };
+    }
+
+    const directory = mkdtempSync(join(opts.scratchRoot, 'merge-back-'));
+
+    try {
+      for (const [name, text] of Object.entries({
+        ours: opts.ours,
+        base: opts.base,
+        theirs: opts.theirs,
+      })) {
+        writeFileSync(join(directory, name), ReleaseMergeBack.withoutReleased({ text }));
+      }
+
+      const merged = ReleaseMergeBack.git({
+        cwd: directory,
+        args: ['merge-file', '-p', 'ours', 'base', 'theirs'],
+      });
+
+      if (merged.status !== 0) {
+        return { problem: 'its other lines conflict too, not only the released: line' };
+      }
+
+      const text = ReleaseMergeBack.withReleased({ text: merged.stdout, date: day });
+
+      return text === undefined
+        ? { problem: 'the merged file has no frontmatter to put released: in' }
+        : { text };
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }
+
   /** Why a regenerated lockfile may not replace `develop`'s: a line other than a workspace version moved. */
   static lockProblems(opts: { before: string; after: string }): string[] {
     const before = opts.before.split('\n');
@@ -225,8 +334,12 @@ export class ReleaseMergeBack {
           continue;
         }
 
-        if (file.split('/').pop() !== MergeBackConstants.PACKAGE_FILE) {
-          result.problems.push(`${file}: a conflict that is not the version of a package.json`);
+        const isLog = MergeBackConstants.VERSION_LOG.test(file);
+
+        if (file.split('/').pop() !== MergeBackConstants.PACKAGE_FILE && !isLog) {
+          result.problems.push(
+            `${file}: a conflict that is not the version of a package.json or the released: line of a log.md`,
+          );
           continue;
         }
 
@@ -246,12 +359,9 @@ export class ReleaseMergeBack {
           continue;
         }
 
-        const resolution = ReleaseMergeBack.resolveVersionConflict({
-          base,
-          ours,
-          theirs,
-          scratchRoot: opts.scratchRoot,
-        });
+        const resolution = (
+          isLog ? ReleaseMergeBack.resolveStampConflict : ReleaseMergeBack.resolveVersionConflict
+        )({ base, ours, theirs, scratchRoot: opts.scratchRoot });
 
         if (resolution.text === undefined) {
           result.problems.push(`${file}: ${resolution.problem}`);
@@ -354,6 +464,8 @@ export class ReleaseMergeBack {
     scratchRoot: string;
     /** `keep` leaves bun.lock out of the release commit, for a repository whose release never touches it. */
     lock?: 'keep' | 'regenerate';
+    /** Writes into `tree`, the worktree of `main`, what the real release writes besides the versions (the `released:` stamp). */
+    stamp?: (opts: { tree: string }) => void;
   }): IMergeBackResult & { developHead: string } {
     if (opts.version === undefined && opts.versions === undefined) {
       throw new Error('trial needs version or versions');
@@ -423,6 +535,8 @@ export class ReleaseMergeBack {
         };
       }
 
+      opts.stamp?.({ tree: releaseTree });
+
       const install =
         (opts.lock ?? 'regenerate') === 'regenerate'
           ? Bun.spawnSync(['bun', 'install', '--lockfile-only'], {
@@ -491,7 +605,7 @@ export class ReleaseMergeBack {
       result.problems.length > 0
         ? `- Stops, before any approval: ${result.problems.join('; ')}`
         : `- Goes through for **${opts.version}**`,
-      `- Version-only conflicts resolved: ${result.resolved.length === 0 ? 'none' : result.resolved.join(', ')}`,
+      `- Conflicts resolved (a version, a released: line): ${result.resolved.length === 0 ? 'none' : result.resolved.join(', ')}`,
       `- bun.lock regenerated: ${result.lockRegenerated ? 'yes' : 'no (it did not conflict)'}`,
       '',
     ].join('\n');
