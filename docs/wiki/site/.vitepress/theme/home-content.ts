@@ -46,7 +46,7 @@ export const HOME: THomeContent = {
   tabs: [
     {
       file: 'an agent pushes',
-      kind: 'term',
+      type: 'term',
       body: [
         ['cmd', 'git push --force origin main'],
         ['c', '# guard-git, a PreToolUse hook, answers before git runs'],
@@ -63,7 +63,7 @@ export const HOME: THomeContent = {
     },
     {
       file: '.configs/vulcan.config.mts',
-      kind: 'code',
+      type: 'code',
       body: `import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
@@ -77,7 +77,7 @@ export default {
     },
     {
       file: 'vulcan sync',
-      kind: 'term',
+      type: 'term',
       body: [
         ['cmd', 'bun x --no-install vulcan sync --agents claude'],
         ['ok', '  created   CLAUDE.md'],
