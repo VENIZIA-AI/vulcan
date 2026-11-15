@@ -17,6 +17,8 @@ interface IGuardPolicy {
   outside: string;
   /** `guard.toolOwnedPaths`: stores a tool manages itself, which guard-outside lets through. */
   toolOwnedPaths: string[];
+  /** `guard.runners.allow`: the package names bunx, `bun x`, npx and `pnpm dlx` may run beyond `@venizia/*`. */
+  runnersAllow: string[];
 }
 
 /** Spelt out: the blocking hooks import nothing that reads the package. */
@@ -83,6 +85,7 @@ export class ProjectGuards {
       askPush: [],
       outside: GuardDecisions.ASK,
       toolOwnedPaths: [],
+      runnersAllow: [],
     };
 
     if (!existsSync(path)) {
@@ -113,6 +116,7 @@ export class ProjectGuards {
     const listed = isRecord(writes) ? writes.value['commands'] : undefined;
     const targets = isRecord(git) ? git.value['askPush'] : undefined;
     const owned = guard.value['toolOwnedPaths'];
+    const runners = { value: guard.value['runners'] };
     const words = (value: unknown): string[] =>
       (Array.isArray(value) ? value : []).filter(
         (item): item is string => typeof item === 'string' && item !== '',
@@ -128,6 +132,7 @@ export class ProjectGuards {
       outside:
         guard.value['outside'] === GuardDecisions.DENY ? GuardDecisions.DENY : GuardDecisions.ASK,
       toolOwnedPaths: words(owned),
+      runnersAllow: isRecord(runners) ? words(runners.value['allow']) : [],
     };
   }
 
