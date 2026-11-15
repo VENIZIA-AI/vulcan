@@ -8,12 +8,10 @@ import type { IToolHandler } from '@/protocol/common';
 import { ReleaseCompute } from '@/releases';
 import type { ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
-import { InstalledPackages } from '@/sources/installed';
 import { SourceResolver } from '@/sources/resolver';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
 import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
 import { SymbolCompute, SymbolStore } from '@/symbols';
-import type { ISymbolRecord } from '@/symbols';
 import {
   ChangesTool,
   GetTool,
