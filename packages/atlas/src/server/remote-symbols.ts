@@ -1,5 +1,4 @@
-import { readFileSync } from 'node:fs';
-import { isAbsolute, join, relative } from 'node:path';
+import { isAbsolute, relative } from 'node:path';
 import type { IPackageMapEntry } from '@/common/package-map';
 import type { IAtlasProject } from '@/common/project-config';
 import { InstalledPackages } from '@/sources/installed';
@@ -32,26 +31,16 @@ interface IInstalledCopy {
  * once: an install that moves while the server runs (a bump, a `bun install`) is read on the next question.
  */
 export class RemoteSymbols {
-  /** The first copy at a root, by the real `node_modules/<name>` path: never the package store, never a throwaway tree. */
-  private static installedOf(opts: { cwd: string; name: string }): IInstalledCopy | undefined {
-    const [directory] = InstalledPackages.installedDirectoriesOf({
-      roots: InstalledPackages.installRootsOf({ cwd: opts.cwd }),
-      name: opts.name,
-    });
+  /**
+   * The first copy at a root, by the real `node_modules/<name>` path: never the package store, never a throwaway tree.
+   * `roots` is read once per call of `symbolsOf` or `fingerprintOf`, not once per package.
+   */
+  private static installedOf(opts: { roots: string[]; name: string }): IInstalledCopy | undefined {
+    const [first] = InstalledPackages.copiesOf(opts);
 
-    if (directory === undefined) {
-      return undefined;
-    }
-
-    try {
-      const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
-
-      return typeof manifest.version === 'string'
-        ? { directory, version: manifest.version }
-        : undefined;
-    } catch {
-      return undefined;
-    }
+    return first?.version === undefined
+      ? undefined
+      : { directory: first.directory, version: first.version };
   }
 
   private static pathOf(opts: { cwd: string; directory: string }): string {
@@ -61,10 +50,12 @@ export class RemoteSymbols {
   }
 
   static symbolsOf(opts: IRemoteSymbolsOptions): ISymbolRecord[] {
+    const roots = InstalledPackages.installRootsOf({ cwd: opts.cwd });
+
     return opts.project.packages
       .filter((entry) => !entry.retired)
       .flatMap((entry) => {
-        const installed = RemoteSymbols.installedOf({ cwd: opts.cwd, name: entry.name });
+        const installed = RemoteSymbols.installedOf({ roots, name: entry.name });
 
         if (installed !== undefined) {
           const origin: ISymbolOrigin = {
@@ -90,10 +81,12 @@ export class RemoteSymbols {
 
   /** What the symbols were read from: the copy and version each package resolves to now. A new value loads them again. */
   static fingerprintOf(opts: IRemoteSymbolsOptions): string {
+    const roots = InstalledPackages.installRootsOf({ cwd: opts.cwd });
+
     return opts.project.packages
       .filter((entry) => !entry.retired)
       .map((entry) => {
-        const installed = RemoteSymbols.installedOf({ cwd: opts.cwd, name: entry.name });
+        const installed = RemoteSymbols.installedOf({ roots, name: entry.name });
 
         return installed === undefined
           ? `${entry.name}: npm ${opts.releases.newestOf({ package: entry.name })?.version ?? 'none'}`

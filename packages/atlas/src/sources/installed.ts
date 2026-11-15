@@ -1,6 +1,12 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
+
+/** One installed copy of a package: its folder, and its version when its package.json gives one. */
+export interface IInstalledCopy {
+  directory: string;
+  version?: string;
+}
 
 export class InstalledPackages {
   /**
@@ -24,6 +30,24 @@ export class InstalledPackages {
     }
 
     return roots;
+  }
+
+  /**
+   * Every installed copy of `name` under `roots` with its version, nearest the root first. The first is the one atlas
+   * reads symbols from and `vulcan x atlas status` names, so the two always agree on which copy that is.
+   */
+  static copiesOf(opts: { roots: string[]; name: string }): IInstalledCopy[] {
+    return InstalledPackages.installedDirectoriesOf(opts).map((directory) => {
+      try {
+        const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
+
+        return typeof manifest.version === 'string'
+          ? { directory, version: manifest.version }
+          : { directory };
+      } catch {
+        return { directory };
+      }
+    });
   }
 
   /** Every installed copy of `name` under those roots, nearest the project root first. */

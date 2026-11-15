@@ -47,7 +47,9 @@ const dedupe = (values: string[]): string[] => [...new Set(values)];
 
 /**
  * The generated symbol table in memory: exact lookup by name, and a suggestion list for a name
- * that is not in it. One instance per server; a loaded table never changes while the process runs.
+ * that is not in it. One instance per source of a server. A store built with a `fingerprint` reads its table again
+ * when the fingerprint moves (a repository's built declarations, a remote source's installed packages); one built
+ * without keeps what it loaded.
  */
 export class SymbolStore extends BaseHelper {
   private readonly byExactName = new Map<string, ISymbolRecord[]>();
