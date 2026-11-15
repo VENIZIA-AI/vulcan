@@ -1,0 +1,9 @@
+blanket-stage-asks:
+  symbols: [guard.git]
+  upgrade:
+    steps:
+      - '`git add -A`, `git add .`, `git add -u` and `git commit -a` over 50 changed paths ask first. Codex and Cursor cannot ask on a tool call, so there the command is refused where it passed; Claude Code, omp, pi and Antigravity ask and let you approve.'
+      - 'Name the files instead: `git add <files>`, `git add -A <path>` and `git add -p` pass. `git add -u` and `git commit -a` count every tracked change in the repository even when a path is named. The limit is not configurable.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`, which stages any number of paths without asking.'
