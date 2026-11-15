@@ -27,9 +27,9 @@ export const changelogFeed = (opts: {
     url: string;
     date: string;
     summary: string;
-    kinds: string[];
+    categories: string[];
   }) =>
-    `<item><title>${escapeXml(fields.title)}</title><link>${base}${fields.url}</link><guid isPermaLink="true">${base}${fields.url}</guid><pubDate>${new Date(`${fields.date}T12:00:00Z`).toUTCString()}</pubDate><description>${escapeXml(fields.summary || formatDate(fields.date))}</description>${fields.kinds.map((kind) => `<category>${escapeXml(kind)}</category>`).join('')}</item>`;
+    `<item><title>${escapeXml(fields.title)}</title><link>${base}${fields.url}</link><guid isPermaLink="true">${base}${fields.url}</guid><pubDate>${new Date(`${fields.date}T12:00:00Z`).toUTCString()}</pubDate><description>${escapeXml(fields.summary || formatDate(fields.date))}</description>${fields.categories.map((category) => `<category>${escapeXml(category)}</category>`).join('')}</item>`;
   const releases = (opts.versions ?? []).flatMap((version) =>
     version.released === null
       ? []
@@ -42,7 +42,7 @@ export const changelogFeed = (opts: {
               url: version.url,
               date: version.released,
               summary: version.summary,
-              kinds: ['Release'],
+              categories: ['Release'],
             }),
           },
         ],
@@ -55,7 +55,7 @@ export const changelogFeed = (opts: {
       url: entry.url,
       date: entry.date,
       summary: entry.summary,
-      kinds: entry.types.map((type) => type.label),
+      categories: entry.types.map((type) => type.label),
     }),
   }));
   // One list, newest day first; on one day a released version comes before the dated entries.

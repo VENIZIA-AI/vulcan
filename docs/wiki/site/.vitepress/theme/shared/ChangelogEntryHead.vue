@@ -7,12 +7,14 @@
   h1, the title repeated as an h2 and the badge line), which changelog.css hides. For a version folder
   (changelogs/<X.Y.Z>/log.md, which has no heading of its own) it shows the release date, or "In progress", and - when
   the page has a Breaking section and the wiki names its migrate guide in `themeConfig.migrateGuide` - a link to it.
-  A version page reads only its own frontmatter and headings: the loader data of the index, which carries the pages'
-  HTML, is not imported here, so it does not reach the script every page loads.
+  A version page reads only its own frontmatter and the list of versions that have a Breaking section
+  (changelog-breaking.data.ts, version numbers only): the loader data of the index, which carries the pages' HTML, is
+  not imported here, so it does not reach the script every page loads.
 -->
 <script setup lang="ts">
 import { useData } from 'vitepress';
 import { computed } from 'vue';
+import { data as breaking } from './changelog-breaking.data';
 import { data } from './changelog.data';
 import { formatDate, releasedOf } from './changelog-entries';
 
@@ -29,9 +31,9 @@ const packages = computed<string[]>(() =>
     ? frontmatter.value.packages.filter((entry): entry is string => typeof entry === 'string')
     : [],
 );
-const hasBreaking = computed(() =>
-  page.value.headers.some((header) => header.level === 2 && header.title === 'Breaking'),
-);
+/** The version this page is, from its path (changelogs/<X.Y.Z>.md or changelogs/<X.Y.Z>/log.md). */
+const version = computed(() => /^changelogs\/(\d+\.\d+\.\d+)/.exec(page.value.relativePath)?.[1]);
+const hasBreaking = computed(() => version.value !== undefined && breaking.includes(version.value));
 
 /** The last segment of a dated entry's path. */
 const slug = computed(() => page.value.relativePath.replace(/\.md$/, '').split('/').pop());

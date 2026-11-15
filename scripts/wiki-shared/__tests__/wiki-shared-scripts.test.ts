@@ -197,6 +197,42 @@ describe('BuildCheck.scanVersionPages', () => {
   });
 });
 
+describe('BuildCheck.scanThemeChunk', () => {
+  const site = (opts: { theme: string }) => {
+    const root = mkdtempSync(join(tmpdir(), 'wiki-theme-'));
+
+    roots.push(root);
+    mkdirSync(join(root, 'content', 'changelogs', '0.4.7'), { recursive: true });
+    writeFileSync(
+      join(root, 'content', 'changelogs', '0.4.7', 'log.md'),
+      '---\ntitle: 0.4.7\n---\nA line.\n\n## Breaking\n- x\n\n## Fixed\n- y\n',
+    );
+    mkdirSync(join(root, 'dist', 'assets', 'chunks'), { recursive: true });
+    writeFileSync(join(root, 'dist', 'assets', 'chunks', 'theme.AbC123.js'), opts.theme);
+    writeFileSync(join(root, 'dist', 'assets', 'chunks', 'other.js'), '"<h3>Breaking</h3>"');
+
+    return { changelogs: join(root, 'content', 'changelogs'), dist: join(root, 'dist') };
+  };
+
+  test('a theme chunk with the sections of a version page is told to mount the index page-locally, once per version', () => {
+    const problems = BuildCheck.scanThemeChunk(
+      site({ theme: 'const v=[{html:"<h3>Breaking</h3><ul></ul><h3>Fixed</h3>"}]' }),
+    );
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('changelogs/0.4.7');
+    expect(problems[0]).toContain('local import');
+  });
+
+  test('a theme chunk with no page text passes, and a chunk that is not the theme is not read', () => {
+    expect(BuildCheck.scanThemeChunk(site({ theme: 'const v=["0.4.7"]' }))).toEqual([]);
+  });
+
+  test('a wiki with no version folder or no build is not asked for anything', () => {
+    expect(BuildCheck.scanThemeChunk({ changelogs: '/nowhere', dist: '/nowhere' })).toEqual([]);
+  });
+});
+
 describe('BuildCheck', () => {
   const bar = '<div class="site-brand"></div><a class="venizia-link"></a>';
   const home = `${bar}<section class="vh hero"><canvas class="dust"></canvas><a class="btn btn--primary" href="/a"></a><a class="btn btn--ghost" href="/b"></a></section><footer class="vh site-footer"><canvas class="dust"></canvas><a class="btn" href="/c"></a></footer>`;

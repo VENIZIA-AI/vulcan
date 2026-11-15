@@ -83,25 +83,41 @@ export type TVersionEntry = {
   /** The paragraph above the sections: what the release is, as plain text. */
   summary: string;
   packages: string[];
+  /** Whether the page has a `## Breaking` section (outside a code fence). */
+  hasBreaking: boolean;
   /** The page as HTML; set only for the two the index shows in full. */
   html?: string;
 };
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** A plain day, or the ISO string the page data carries for the Date an unquoted `released:` is read as (UTC midnight). */
+const DAY = /^(\d{4}-\d{2}-\d{2})(?:T00:00:00(?:\.000)?Z)?$/;
 
 /**
  * The day of a `released:` value: `undefined` when there is none (a line in progress), `null` when it is not a date (the gate
  * reports it; the wiki shows the page as neither released nor in progress). The frontmatter parser reads an unquoted date as a
- * Date (UTC midnight), which the page data carries as an ISO string; a quoted one is text.
+ * Date (UTC midnight), which the page data carries as an ISO string; a quoted one is text. Only the plain day is accepted: a day
+ * with anything after it, or a day the calendar does not have, is not a date.
  */
 export const releasedOf = (value: unknown): string | null | undefined => {
   if (value === undefined) {
     return undefined;
   }
 
-  const day = value instanceof Date ? value.toISOString().slice(0, 10) : text(value).slice(0, 10);
+  const isDate = value instanceof Date;
 
-  return DAY.test(day) && (value instanceof Date || text(value).length >= 10) ? day : null;
+  if (isDate && Number.isNaN(value.getTime())) {
+    return null;
+  }
+
+  const day = DAY.exec(isDate ? value.toISOString() : text(value))?.[1];
+  const moment = day === undefined ? Number.NaN : Date.parse(`${day}T00:00:00Z`);
+
+  // the day must come back as written: a day the calendar does not have is not a date
+  return day !== undefined &&
+    !Number.isNaN(moment) &&
+    new Date(moment).toISOString().slice(0, 10) === day
+    ? day
+    : null;
 };
 
 /** Markdown as one line of plain text: no code marks, link targets, emphasis or tags. */
@@ -113,6 +129,23 @@ export const plainText = (markdown: string): string =>
     .replace(/(\*\*|__|\*|_)(.+?)\1/g, '$2')
     .replace(/\s+/g, ' ')
     .trim();
+
+/** Whether the page has a `## Breaking` heading outside a code fence. */
+const hasBreakingSection = (src: string): boolean => {
+  let fence: string | null = null;
+
+  for (const line of src.split(/\r?\n/)) {
+    const mark = /^\s{0,3}(`{3,}|~{3,})/.exec(line)?.[1];
+
+    if (mark !== undefined) {
+      fence = fence === null ? mark[0] : mark[0] === fence ? null : fence;
+    } else if (fence === null && /^##\s+Breaking\s*$/.test(line)) {
+      return true;
+    }
+  }
+
+  return false;
+};
 
 /** The text between the frontmatter and the first heading, as plain text. */
 const introOf = (src: string): string => {
@@ -156,6 +189,7 @@ export const parseVersion = (opts: {
     released: released ?? null,
     summary: introOf(opts.src),
     packages,
+    hasBreaking: hasBreakingSection(opts.src),
   };
 };
 

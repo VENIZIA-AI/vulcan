@@ -197,6 +197,24 @@ describe('the version folders on the changelog index (A6, C15)', () => {
     expect(releasedOf('20 Nov')).toBeNull();
   });
 
+  test('released: is the plain day and nothing else: text after it, a day the calendar lacks or an invalid Date is not a date', () => {
+    expect(releasedOf('2026-11-03junk')).toBeNull();
+    expect(releasedOf('2026-11-03T10:00:00Z')).toBeNull();
+    expect(releasedOf('2026-02-31')).toBeNull();
+    expect(releasedOf('2026-13-01')).toBeNull();
+    expect(releasedOf(new Date('nope'))).toBeNull();
+    expect(releasedOf(' 2026-11-03 ')).toBe('2026-11-03');
+  });
+
+  test('hasBreaking is true for a Breaking section and not for the word in a code fence or another heading', () => {
+    const src = (body: string) => `---\ntitle: x\n---\nThe line.\n\n${body}`;
+
+    expect(version({ src: src('## Breaking\n- **A** `a`: a.\n') })?.hasBreaking).toBe(true);
+    expect(version({ src: src('## Added\n- **A** `a`: a.\n') })?.hasBreaking).toBe(false);
+    expect(version({ src: src('## Added\n```md\n## Breaking\n```\n') })?.hasBreaking).toBe(false);
+    expect(version({ src: src('## Breaking changes later\n- x\n') })?.hasBreaking).toBe(false);
+  });
+
   test('the summary is plain text, and a file with CRLF line ends reads the same', () => {
     const crlf = version({
       src: '---\r\ntitle: x\r\n---\r\nThe **line** has `code` and a [link](https://x.test).\r\n\r\n## Added\r\n- **A** `a`: a.\r\n',

@@ -19,7 +19,9 @@
  *     `.btn`), hold the static dot pattern that the dust replaced, or lack what keeps the page from
  *     scrolling sideways at 320 px (the body without the default 320 px minimum width, the brand name
  *     hidden below 400 px);
- *   - a built inner page has a footer (inner pages have none) or lacks the top bar.
+ *   - a built inner page has a footer (inner pages have none) or lacks the top bar;
+ *   - a version folder of the changelog is not served at `/changelogs/<X.Y.Z>`, or the text of its page is in the
+ *     script every page loads (`chunks/theme.*.js`: the changelog index must be mounted by its own page).
  *
  * A hydration warning itself appears only in a browser; the server HTML checked here is its cause.
  * It reads only the built site and, when given one, the log of its build, so it runs the same in each wiki:
@@ -230,6 +232,44 @@ export class BuildCheck {
       );
   }
 
+  /**
+   * The index of the changelog carries the HTML of the pages it shows in full. Registered as a global component it lands in
+   * the theme chunk, which every page of the wiki loads. A section heading of a version folder, as the index renders it
+   * (`<h3>Breaking</h3>`), is in no other data of the theme: finding one there means the text of a page reached that script.
+   */
+  static scanThemeChunk(opts: { changelogs: string; dist: string }): string[] {
+    const chunks = join(opts.dist, 'assets', 'chunks');
+
+    if (!existsSync(opts.changelogs) || !existsSync(chunks)) {
+      return [];
+    }
+
+    const theme = readdirSync(chunks)
+      .filter((file) => /^theme\..*\.js$/.test(file))
+      .map((file) => readFileSync(join(chunks, file), 'utf8'))
+      .join('\n');
+
+    return readdirSync(opts.changelogs)
+      .filter(
+        (name) => VERSION_FOLDER.test(name) && existsSync(join(opts.changelogs, name, 'log.md')),
+      )
+      .flatMap((name) => {
+        const heading = [
+          ...readFileSync(join(opts.changelogs, name, 'log.md'), 'utf8').matchAll(
+            /^## (.+?)\s*$/gm,
+          ),
+        ]
+          .map((match) => match[1])
+          .find((title) => theme.includes(`<h3>${title}</h3>`));
+
+        return heading === undefined
+          ? []
+          : [
+              `the text of the version page changelogs/${name} (its "${heading}" section) is in the script every page loads (assets/chunks/theme.*.js): mount ChangelogIndex from changelogs/index.md with a local import, not as a global component`,
+            ];
+      });
+  }
+
   /** The checks over a built site and the log of its build (empty when there is none); the problems, none when sound. */
   static check(opts: { dist: string; log: string; changelogs?: string }): string[] {
     const problems = BuildCheck.scanLog({ log: opts.log });
@@ -245,6 +285,7 @@ export class BuildCheck {
     if (opts.changelogs !== undefined) {
       problems.push(
         ...BuildCheck.scanVersionPages({ changelogs: opts.changelogs, dist: opts.dist }),
+        ...BuildCheck.scanThemeChunk({ changelogs: opts.changelogs, dist: opts.dist }),
       );
     }
 

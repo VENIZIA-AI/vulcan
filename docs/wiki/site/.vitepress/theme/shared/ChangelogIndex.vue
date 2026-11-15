@@ -6,8 +6,10 @@
   version in progress, then the older versions as a list of titles, then the dated entries as its history. A wiki
   with no version folder shows the newest dated entry set apart as "Latest", filter tabs with the count, and the rest
   of the entries grouped by year. Every entry is in the HTML (the tabs only hide rows), so the page reads
-  without script. The entries come from the build-time loader (changelog.data.ts); a wiki mounts this
-  from changelogs/index.md.
+  without script. The entries come from the build-time loaders (changelog.data.ts, changelog-versions.data.ts). A wiki
+  mounts this from changelogs/index.md with a local import in a `<script setup>`, never as a global component: the
+  version data carries the HTML of two pages, and a global registration would put it into the script every page loads
+  (the build check fails when it is there).
 -->
 <script setup lang="ts">
 import { computed, ref } from 'vue';

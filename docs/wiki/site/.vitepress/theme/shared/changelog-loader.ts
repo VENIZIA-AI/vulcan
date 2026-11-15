@@ -68,6 +68,25 @@ export const createVersionsLoader = () =>
     },
   });
 
+/**
+ * The versions whose page has a Breaking section, as a list of version numbers and nothing else: no page text, no HTML. The
+ * title block of every page imports it, so it must stay small (the full loader above is mounted by the index page only).
+ */
+export const createBreakingLoader = () =>
+  createContentLoader('changelogs/*/log.md', {
+    includeSrc: true,
+    transform: (raw): string[] =>
+      raw.flatMap((page) => {
+        const entry = parseVersion({
+          url: page.url,
+          frontmatter: page.frontmatter,
+          src: page.src ?? '',
+        });
+
+        return entry?.hasBreaking === true ? [entry.version] : [];
+      }),
+  });
+
 /** Writes `changelog.xml` into the output folder; a wiki's config calls it from its `buildEnd` hook. */
 export const writeChangelogFeed = async (opts: {
   outDir: string;
