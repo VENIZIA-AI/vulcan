@@ -133,3 +133,26 @@ atlas-protocol-version-fixed:
   downgrade:
     steps:
       - 'Pin `@venizia/vulcan-atlas` to 0.4.8, which answers `2025-03-26` or `2024-11-05` when a client asks for one of them.'
+
+local-folder-auto-clean:
+  symbols: [local.autoClean]
+  upgrade:
+    steps:
+      - 'Before the first session on 0.4.9, move anything you want to keep out of `.agents/local/tmp/` into `.agents/local/reports/`: entries there older than a day are removed by the session-start clean, as are old browser leftovers, event files past the limits and the release-candidate folders of a tagged version.'
+      - 'To turn the clean off, set `local: { autoClean: false }` in `.configs/vulcan.config.mts` and run `vulcan sync`, or export `VULCAN_AUTO_CLEAN=off` for one shell.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`, which removes nothing by itself.'
+  data: 'What the clean removed is not restored by pinning back.'
+
+old-state-not-repaired:
+  symbols: [doctor, atlas.cache]
+  upgrade:
+    steps:
+      - 'If `vulcan doctor` reports the manifest as stale because it was written before `$generated` existed, run `vulcan sync`.'
+      - 'A preset package in the 0.3.9 shape is refused with `ships no VULCAN preset`: move to a release of the preset that ships one.'
+      - 'If an atlas source is reported unavailable offline, delete `.agents/local/cache/atlas` while you are online so atlas rebuilds the cache set; a set with no `format` file is not served any more.'
+      - 'Delete by hand what doctor and okf no longer repair or skip: a git-tracked `.mcp.json`, a lint config left directly in `.configs/`, a `.agents/local/last-reply.json` and a `.turbo` folder okf should not scan.'
+  downgrade:
+    steps:
+      - 'Nothing has to change: 0.4.8 repairs those states again and reads what 0.4.9 reads.'
