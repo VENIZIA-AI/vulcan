@@ -130,8 +130,8 @@ const readScriptNames = (opts: { file: string }): string[] | undefined => {
   }
 };
 
-const CANONICAL_ATLAS_ARGS = ['run', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
-/** What sync wrote before V-S-07: it can run a copy bunx cached, so it is stale and not merely different. */
+const CANONICAL_ATLAS_ARGS = ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
+/** What sync wrote before V-S-08: it can run a copy bunx cached, so it is stale and not merely different. */
 const LEGACY_ATLAS_ARGS = ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
 
 const MCP_FILE = '.mcp.json';
@@ -829,7 +829,7 @@ export class ProjectContract {
           warnings.push(
             mcpWarning({
               file: MCP_FILE,
-              message: `the atlas entry is out of date: it runs 'bun x --no-install vulcan', which can run a copy bunx cached when the bin is not linked there - run '${ProjectLayout.VULCAN_COMMAND} sync' to rewrite it as ${MCP_SERVER_HINT}`,
+              message: `the atlas entry is out of date: it starts the server through bunx, which can run a copy it cached when the bin is not linked there - run '${ProjectLayout.VULCAN_COMMAND} sync' to rewrite it as ${MCP_SERVER_HINT}`,
             }),
           );
         } else if (!isCanonical) {
@@ -1008,7 +1008,7 @@ export class ProjectContract {
         createViolation({
           check: DoctorChecks.LOCAL,
           file: relative(opts.root, action.path) || '.',
-          message: `${action.note ?? 'out of date'} - run 'bun x --no-install vulcan sync'`,
+          message: `${action.note ?? 'out of date'} - run 'bun run vulcan sync'`,
         }),
       );
   }

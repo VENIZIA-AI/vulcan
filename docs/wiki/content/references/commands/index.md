@@ -6,12 +6,12 @@ description: Find available VULCAN commands, arguments, tools, make targets, and
 # vulcan commands
 
 Use `vulcan` to scaffold a project or create a monorepo from a preset, write the agent adapters, check conformance, upgrade, and run okf and atlas.
-Run `bun x --no-install vulcan` or pass `--help` to inspect available commands:
+Run `bun run vulcan` or pass `--help` to inspect available commands:
 
 ```text
 vulcan 0.4.10-12 - one setup, one workflow for every project
 
-Usage: bun x vulcan <command>
+Usage: bun run vulcan <command>
 
   init [--key <KEY>]              Scaffold the project layer (never overwrites); --key is the project's flow key
                                   (2 to 8 uppercase letters or digits; a terminal asks, else it is made from the name)
@@ -65,6 +65,11 @@ Usage: bun x vulcan <command>
   upgrade [--stable | --nightly] [<version|tag>]
                                   Bump the pinned @venizia/vulcan, then sync; --stable (default)
                                   takes the latest tag, --nightly the newest of latest and next
+  runners check                   List every tracked file that runs an unscoped package through bunx,
+                                  bun x, npx, pnpm dlx or yarn dlx, whether or not it says no-install (a name
+                                  npm gives to someone else would be fetched and run). @venizia/* and the names
+                                  of guard.runners.allow pass; tests, lockfiles, build output and frozen
+                                  history (dated entries, released version folders) are not read
   changelog check [--history --base <ref>]
                                   Check the changelog: a version folder changelogs/<X.Y.Z>/{log.md, migration.yaml}
                                   has a block for every Breaking and Deprecated item; a dated Breaking Change entry
@@ -89,7 +94,7 @@ Usage: bun x vulcan <command>
 
 The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a library other apps import and `--shared` for a side-neutral package other apps import (both with `--dir`); `--scope` names the package for any of them; see [vulcan add](/references/commands/add).
 
-If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun x vulcan help'` and exits with code 1.
+If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun run vulcan help'` and exits with code 1.
 The following list gives each command, its purpose, its exit codes, and its reference page:
 
 - `init` ([vulcan init](/references/commands/init)): Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app.
@@ -145,9 +150,9 @@ Upgrade before you use a new config key. The config schema is strict, so a key f
 
 | Syntax | Installs | Behavior |
 |---|---|---|
-| `bun x --no-install vulcan upgrade` | `latest` | The stable release; never a prerelease. Same as `--stable` |
-| `bun x --no-install vulcan upgrade --nightly` | The higher of `latest` and `next` | The newest published version, by semver. Never older than the stable release |
-| `bun x --no-install vulcan upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
+| `bun run vulcan upgrade` | `latest` | The stable release; never a prerelease. Same as `--stable` |
+| `bun run vulcan upgrade --nightly` | The higher of `latest` and `next` | The newest published version, by semver. Never older than the stable release |
+| `bun run vulcan upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
 
 `--nightly` reads the dist-tags of `@venizia/vulcan` with `bun pm view`, so it uses the registry your project is configured for.
 If `latest` is `0.4.8` and `next` is `0.4.8`, `--nightly` installs `0.4.8`. If `next` is `0.4.9-2`, it installs `0.4.9-2`.
@@ -163,7 +168,7 @@ When the installed `@venizia/vulcan` is a prerelease and you run `upgrade` or `u
 The following run pins `@venizia/vulcan` to version `0.4.8`, the version already installed, so `sync` changes nothing:
 
 ```text
-$ bun x --no-install vulcan upgrade 0.4.8
+$ bun run vulcan upgrade 0.4.8
 bun add v1.4.3 (c6da4a4d3)
 
 installed @venizia/vulcan@0.4.8 with binaries:
@@ -215,6 +220,16 @@ A version folder without `released:` (the line in progress) must also carry what
 
 `vulcan changelog notes --version <X.Y.Z>` prints what a GitHub Release of that version shows: the body of `changelogs/<X.Y.Z>/log.md` without its frontmatter (a line saying there is no change for users when it has no body), then `## Packages` with a link to each live package at that version. With `--migration` it prints instead the path of the folder's `migration.yaml` when that file holds a block, and nothing when it is absent, empty or `{}`: a workflow attaches that path to the Release as `migration-<X.Y.Z>.yaml`. It exits `1` when the project has no folder for the version and `2` for a request it cannot read.
 
+## runners
+
+`vulcan runners check` lists every file git tracks that runs a package fetched by name: `bunx`, `bun x`, `npx`, `npm exec`, `pnpm dlx` or `yarn dlx` followed by an unscoped name, with or without `--no-install`. Each finding prints as `<file>:<line>: <command>` on stderr and the exit code is 1; with none it exits 0. A `@venizia/*` package passes (`bun x @venizia/vulcan@<version> init`), and so does a name in [`guard.runners.allow`](/references/configuration/#guard-runners-allow). Tests, lockfiles, build output, binary files, dated changelog entries and the files of a released version folder are not read: they are not instructions, or they are frozen history.
+
+Why: npm gives the names `vulcan`, `devz`, `ardor` and `ignis` to unrelated packages, and `vulcan-atlas` to nobody. A bunx command fetches and runs the package of that name wherever the bin is not linked, and bun also runs a copy an earlier bare bunx saved (in `~/.bun/install/cache/.bunx-<uid>/<name>@latest/`, which never expires) even under `--no-install`. Write `bun run <bin>` in the package that depends on it, or the path `node_modules/.bin/<bin>`. `bun run <name>` falls back to `$PATH` when no linked bin matches, so a command that must not (a hook, an editor's server entry) names the path.
+
+The same check as an agent's rule: `guard-git` denies the command in Claude Code, Codex, Antigravity, omp and pi (rule `V-S-08`); another agent has the rule text only. Run it in CI with `vulcan runners check`.
+
+If a bunx of a Venizia name ever ran on a machine, look for `~/.bun/install/cache/.bunx-*/`: an entry named `vulcan`, `devz`, `ardor`, `ignis` or `vulcan-atlas@latest` is a foreign package. Delete the entry.
+
 ## migrate
 
 `vulcan migrate plan --to <version|latest|next>` is [`vulcan x atlas migrate plan`](/references/atlas/tools#migrate) at the pinned version: the same plan the atlas `migrate` tool answers, printed as Markdown, or as JSON with `--format json`. A step about a whole module prints a count of the places that import it; `--verbose` lists them.
@@ -235,14 +250,14 @@ The known tools are [`okf`](/references/okf/) and [`atlas`](/references/atlas/).
 If you run `vulcan x` without a tool argument, the command exits with code 1:
 
 ```text
-$ bun x --no-install vulcan x
+$ bun run vulcan x
 vulcan x: no tool given - known tools: okf, atlas
 ```
 
 If you run `vulcan x` with an unknown tool name, the command exits with code 1:
 
 ```text
-$ bun x --no-install vulcan x nope
+$ bun run vulcan x nope
 vulcan x: unknown tool 'nope' - known tools: okf, atlas
 ```
 
@@ -262,7 +277,7 @@ This behavior allows atlas to inspect external sources without a local project c
 
 ## Running vulcan
 
-Every example invokes VULCAN as `bun x --no-install vulcan` to run the `@venizia/vulcan` package pinned in your project dependencies.
+Every example invokes VULCAN as `bun run vulcan` to run the `@venizia/vulcan` package pinned in your project dependencies.
 The `--no-install` flag prevents Bun from downloading packages, running pinned code instead of the unrelated npm package named `vulcan`.
 
 `vulcan.mk` wraps these commands in `make` targets.

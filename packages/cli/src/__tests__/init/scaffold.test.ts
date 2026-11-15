@@ -289,9 +289,7 @@ describe('vulcan init', () => {
     expect(result.stderr).toContain(
       '1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line',
     );
-    expect(result.stderr).toContain(
-      'bun x --no-install vulcan sync && bun x --no-install vulcan doctor',
-    );
+    expect(result.stderr).toContain('bun run vulcan sync && bun run vulcan doctor');
   });
 
   test('init never scaffolds .mcp.json: sync writes it per machine, for the agents that read it', () => {

@@ -108,3 +108,9 @@ describe('RunnerScan: --no-install', () => {
     expect(noInstall('bun x vulcan')).toBe(false);
   });
 });
+
+describe('RunnerScan: a placeholder version in a scoped name', () => {
+  test('@venizia/vulcan@<version> is a scoped package, not an unscoped name', () => {
+    expect(refused({ text: 'bun x @venizia/vulcan@<version> init' })).toEqual([]);
+  });
+});

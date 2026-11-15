@@ -77,14 +77,14 @@ export class McpConfig {
 
   /**
    * The atlas server as the root `.mcp.json` starts it: the same for every developer, so it is relative.
-   * Claude Code, omp and Copilot CLI launch a project server from the project root. `bun run vulcan` runs the bin
-   * the project links and never fetches a package: `bun x vulcan` runs a copy an earlier bunx saved when the bin is
-   * not linked where the editor starts it, and npm gives the name `vulcan` to an unrelated package (V-S-07).
+   * Claude Code, omp and Copilot CLI launch a project server from the project root. It runs the bin the project
+   * links by its path: no package is fetched and no `$PATH` is searched (a bunx command would run a copy an earlier bunx
+   * saved when the bin is not linked, and npm gives the name `vulcan` to an unrelated package, V-S-08).
    */
   static canonicalAtlasEntry(): { command: string; args: string[] } {
     return {
       command: 'bun',
-      args: ['run', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+      args: ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
     };
   }
 

@@ -263,13 +263,14 @@ export class CommandTable {
     },
     [VulcanCommands.RUNNERS]: {
       help: `  runners check                   List every tracked file that runs an unscoped package through bunx,
-                                  bun x, npx, pnpm dlx or yarn dlx, with or without --no-install (a name npm
-                                  gives to someone else would be fetched and run). @venizia/* and the names of
-                                  guard.runners.allow pass; tests, lockfiles, build output and frozen
+                                  bun x, npx, pnpm dlx or yarn dlx, whether or not it says no-install (a name
+                                  npm gives to someone else would be fetched and run). @venizia/* and the names
+                                  of guard.runners.allow pass; tests, lockfiles, build output and frozen
                                   history (dated entries, released version folders) are not read`,
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
-      exits: '0 when no file runs one; 1 when one does (file:line, the command and the safe forms); 2 for any other argument or a folder git cannot list.',
+      exits:
+        '0 when no file runs one; 1 when one does (file:line, the command and the safe forms); 2 for any other argument or a folder git cannot list.',
     },
     [VulcanCommands.CHANGELOG]: {
       help: `  changelog check [--history --base <ref>]
@@ -356,6 +357,6 @@ export class CommandTable {
       spec.help === '' ? [] : [spec.help],
     );
 
-    return `vulcan ${VULCAN_VERSION} - one setup, one workflow for every project\n\nUsage: bun x vulcan <command>\n\n${blocks.join('\n')}\n  help · version\n`;
+    return `vulcan ${VULCAN_VERSION} - one setup, one workflow for every project\n\nUsage: bun run vulcan <command>\n\n${blocks.join('\n')}\n  help · version\n`;
   }
 }

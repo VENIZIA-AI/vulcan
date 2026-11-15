@@ -36,7 +36,7 @@ A worktree is removed with `git worktree remove`, then `git worktree prune`. A s
 The dry run lists each item with its size and age, then what it would remove:
 
 ```text
-$ bun x --no-install vulcan clean
+$ bun run vulcan clean
 vulcan clean: dry run, nothing is removed (add --yes)
   tmp/job-2  2.9 MB  3d  stale
   kept tmp/job-1  fresh (0m): may be in use; --include-fresh removes it
@@ -46,7 +46,7 @@ would remove 1 item(s), 2.9 MB
 With `--yes` it removes the stale ones and keeps the rest:
 
 ```text
-$ bun x --no-install vulcan clean --yes
+$ bun run vulcan clean --yes
 vulcan clean: removing
   tmp/job-2  2.9 MB  3d  stale
   kept tmp/job-1  fresh (0m): may be in use; --include-fresh removes it

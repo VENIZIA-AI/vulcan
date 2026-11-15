@@ -13,14 +13,16 @@ export interface IRunnerUse {
 }
 
 /** What may stand before a runner for the text to be a command and not a sentence about one. */
-const COMMAND_START = /(?:^|[\s&|;(`"':>$])$|(?:^|\s)[@+-]+$/;
-const COMMAND_WORDS = /(?:^|\s)(?:sudo|time|exec|env|command|nohup|then|do|else|RUN|CMD|ENTRYPOINT)$/;
+const COMMAND_START = /(?:^|[\s&|;(`"':>$=])$|(?:^|\s)[@+-]+$/;
+const COMMAND_WORDS =
+  /(?:^|\s)(?:sudo|time|exec|env|command|nohup|then|do|else|RUN|CMD|ENTRYPOINT)$/;
 const ENVIRONMENT = /(?:^|\s)[A-Za-z_][A-Za-z0-9_]*=\S*\s+$/;
 /** Every runner, then a name or nothing: `bun` may carry flags of its own before `x`. */
 const RUNNER =
   /(?<![\w./-])(bunx|bun(?:\s+--?[\w-]+(?:=\S+)?)*\s+x|npx|npm\s+(?:exec|x)|pnpm\s+dlx|yarn\s+dlx)(?![\w.-])/g;
-/** `['bun', 'x', 'name']`, the form a script or a test spells a command in. */
-const ARRAY_FORM = /\[\s*['"](bunx|npx)['"]\s*,\s*['"]([^'"]+)['"]|\[\s*['"]bun['"]\s*,\s*['"]x['"]\s*,\s*['"]([^'"]+)['"]/g;
+/** The array form (bun, x, then the name), the form a script or a test spells a command in. */
+const ARRAY_FORM =
+  /\[\s*['"](bunx|npx)['"]\s*,\s*['"]([^'"]+)['"]|\[\s*['"]bun['"]\s*,\s*['"]x['"]\s*,\s*['"]([^'"]+)['"]/g;
 /** Flags that take the next word as their value, and so never name the package. */
 const VALUE_FLAGS = new Set([
   '-p',
@@ -38,7 +40,7 @@ const VALUE_FLAGS = new Set([
 ]);
 const PACKAGE_FLAGS = new Set(['-p', '--package']);
 /** A `@venizia/<name>` package, with a version or a tag after it, if any. */
-const SCOPED = /^@venizia\/[\w.-]+(?:@[\w.^~*-]+)?$/;
+const SCOPED = /^@venizia\/[\w.-]+(?:@[\w.^~*<>-]+)?$/;
 
 const bare = (opts: { word: string }): string => opts.word.replace(/^["'`]+|["'`,;:.)\]}]+$/g, '');
 
@@ -81,11 +83,19 @@ export class RunnerScan {
   }
 
   /** The command a runner makes of the words after it (already unquoted, as a parsed line has them); `undefined` when it names no package. */
-  static fromWords(opts: { runner: string; words: string[]; line?: number }): IRunnerUse | undefined {
+  static fromWords(opts: {
+    runner: string;
+    words: string[];
+    line?: number;
+  }): IRunnerUse | undefined {
     return RunnerScan.useOf({ runner: opts.runner, words: opts.words, line: opts.line ?? 0 });
   }
 
-  private static useOf(opts: { runner: string; words: string[]; line: number }): IRunnerUse | undefined {
+  private static useOf(opts: {
+    runner: string;
+    words: string[];
+    line: number;
+  }): IRunnerUse | undefined {
     let hasNoInstall = false;
     let packageName: string | undefined;
 
@@ -179,6 +189,8 @@ export class RunnerScan {
   static refusedName(opts: { use: IRunnerUse; allow: string[] }): string | undefined {
     const name = opts.use.packageName ?? opts.use.name;
 
-    return SCOPED.test(name) || opts.allow.includes(RunnerScan.bareName({ name })) ? undefined : name;
+    return SCOPED.test(name) || opts.allow.includes(RunnerScan.bareName({ name }))
+      ? undefined
+      : name;
   }
 }

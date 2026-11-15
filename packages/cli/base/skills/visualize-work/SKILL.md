@@ -52,7 +52,7 @@ Done when you can say the question in one sentence and name the kind.
 ## 2. Write the spec
 
 Put it in `.agents/local/tmp/<name>.json`. The fields, their limits and a worked spec are in
-[references/spec.md](references/spec.md); `bun x --no-install vulcan visualize --schema` prints the schema.
+[references/spec.md](references/spec.md); `bun run vulcan visualize --schema` prints the schema.
 The rules that make a page worth opening:
 
 - **The title states the takeaway**, not the topic: "The form saves only inside the project", not "Profile
@@ -92,7 +92,7 @@ Done when each arrow has a verb and each evidence row has a label you can defend
 ## 3. Render
 
 ```
-bun x --no-install vulcan visualize .agents/local/tmp/<name>.json --out <name>
+bun run vulcan visualize .agents/local/tmp/<name>.json --out <name>
 ```
 
 It validates the spec (shape, limits, unique ids, every arrow and step pointing at a box, one box per cell),

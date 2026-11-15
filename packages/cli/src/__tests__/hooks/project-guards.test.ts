@@ -285,7 +285,9 @@ describe('ProjectGuards.readPolicy', () => {
     });
 
     expect(policy.runnersAllow).toEqual(['shadcn', 'turbo']);
-    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: {} }) }).runnersAllow).toEqual([]);
+    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: {} }) }).runnersAllow).toEqual(
+      [],
+    );
   });
 
   test('anything but deny reads as ask', () => {

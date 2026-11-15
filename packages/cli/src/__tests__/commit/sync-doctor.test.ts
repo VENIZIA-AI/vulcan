@@ -40,7 +40,9 @@ describe('vulcan sync and the commit-msg hook', () => {
 
     expect(result.code, result.stderr).toBe(0);
     expect(result.stderr).toMatch(/created\s+\.git\/hooks\/commit-msg/);
-    expect(readFileSync(hook({ root }), 'utf8')).toContain('vulcan commit-check');
+    expect(readFileSync(hook({ root }), 'utf8')).toContain(
+      'node_modules/.bin/vulcan" commit-check',
+    );
     expect(
       JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8')).commit,
     ).toEqual({
@@ -75,7 +77,7 @@ describe('vulcan sync and the commit-msg hook', () => {
     const result = sync({ root });
 
     expect(result.stderr).toMatch(/skipped\s+\.git\/hooks\/commit-msg/);
-    expect(result.stderr).toContain('bun x --no-install vulcan commit-check "$1"');
+    expect(result.stderr).toContain('bun node_modules/.bin/vulcan commit-check "$1"');
     expect(readFileSync(hook({ root }), 'utf8')).toBe('#!/bin/sh\necho mine\n');
   });
 
@@ -123,7 +125,7 @@ describe('vulcan doctor and the commit-msg hook', () => {
 
     const [message] = await warningsOf({ root });
 
-    expect(message).toContain('bun x --no-install vulcan commit-check "$1"');
+    expect(message).toContain('bun node_modules/.bin/vulcan commit-check "$1"');
   });
 
   test('a hook that belongs to another project does not read as one that skips the check', async () => {

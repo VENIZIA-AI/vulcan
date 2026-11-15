@@ -20,14 +20,16 @@ export const runRunnersCommand = (opts: ICommandContext): Promise<number> => {
   try {
     findings = RunnersCheck.scan({ root: opts.cwd });
   } catch (error) {
-    process.stderr.write(`vulcan runners: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.stderr.write(
+      `vulcan runners: ${error instanceof Error ? error.message : String(error)}\n`,
+    );
 
     return Promise.resolve(ExitCodes.USAGE);
   }
 
   for (const finding of findings) {
     process.stderr.write(
-      `${finding.file}:${finding.line}: ${finding.runner} ${finding.name} fetches a package by name; use \`bun run <bin>\` in the package that depends on it, or node_modules/.bin/<bin> (V-S-07)\n`,
+      `${finding.file}:${finding.line}: ${finding.runner} ${finding.name} fetches a package by name; use \`bun run <bin>\` in the package that depends on it, or node_modules/.bin/<bin> (V-S-08)\n`,
     );
   }
 

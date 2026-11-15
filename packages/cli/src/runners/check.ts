@@ -32,7 +32,11 @@ const BINARY_EXTENSION = /\.(png|jpe?g|gif|webp|ico|pdf|woff2?|ttf|eot|zip|gz|tg
  */
 export class RunnersCheck {
   private static trackedFiles(opts: { root: string }): string[] {
-    const listed = Bun.spawnSync(['git', 'ls-files', '-z'], { cwd: opts.root, stdout: 'pipe', stderr: 'pipe' });
+    const listed = Bun.spawnSync(['git', 'ls-files', '-z'], {
+      cwd: opts.root,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
 
     if (listed.exitCode !== 0) {
       throw new Error(`git ls-files failed in ${opts.root}: ${listed.stderr.toString().trim()}`);
@@ -57,7 +61,9 @@ export class RunnersCheck {
     }
 
     try {
-      return /^released:/m.test(readFileSync(join(opts.root, `${version[1] ?? ''}${version[2]}`, 'log.md'), 'utf8'));
+      return /^released:/m.test(
+        readFileSync(join(opts.root, `${version[1] ?? ''}${version[2]}`, 'log.md'), 'utf8'),
+      );
     } catch {
       return false;
     }

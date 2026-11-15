@@ -8,7 +8,7 @@ import type { ISimpleCommand } from './shell.ts';
 
 /** One reason a command is refused: a package run by name. */
 export interface IRunnerHit {
-  rule: 'V-S-07';
+  rule: 'V-S-08';
   message: string;
   decision: typeof GuardDecisions.DENY;
 }
@@ -23,22 +23,26 @@ const RUNNERS: Record<string, string[]> = {
 };
 
 /**
- * V-S-07 for an agent: a command that runs a package by name (`bunx`, `bun x`, `npx`, `npm exec`, `pnpm dlx`,
+ * V-S-08 for an agent: a command that runs a package by name (`bunx`, `bun x`, `npx`, `npm exec`, `pnpm dlx`,
  * `yarn dlx`) is denied. The name may belong to somebody else on npm, and bun runs a copy an earlier bunx saved
  * even under `--no-install`. A scoped `@venizia/*` package and the names of `guard.runners.allow` pass, and so does
- * `bun x --no-install <bin>` when `node_modules/.bin/<bin>` exists here or above: that is the one case that cannot
+ * the `--no-install` form of `bun x` when `node_modules/.bin/<bin>` exists here or above: that is the one case that cannot
  * reach the cache. It reads the commands the parser found, so a word in a message, a grep or a heredoc is data.
  */
 export class RunnerGuard {
   /** The runner a simple command is and the words after it, or `undefined` when it runs no package by name. */
-  private static runnerOf(opts: { command: ISimpleCommand }): { runner: string; words: string[] } | undefined {
+  private static runnerOf(opts: {
+    command: ISimpleCommand;
+  }): { runner: string; words: string[] } | undefined {
     const program = ShellParser.programOf({ command: opts.command });
     const name = ShellParser.basenameOf({ word: program.name });
 
     if (name === 'bun') {
       const x = program.args.findIndex((word) => !word.startsWith('-'));
 
-      return program.args[x] === 'x' ? { runner: 'bun x', words: program.args.slice(x + 1) } : undefined;
+      return program.args[x] === 'x'
+        ? { runner: 'bun x', words: program.args.slice(x + 1) }
+        : undefined;
     }
 
     const subcommands = RUNNERS[name];
@@ -83,13 +87,17 @@ export class RunnerGuard {
     const bin = RunnerScan.bareName({ name: opts.name });
 
     return {
-      rule: 'V-S-07',
+      rule: 'V-S-08',
       decision: GuardDecisions.DENY,
-      message: `\`${opts.use.runner} ${opts.name}\` fetches a package by name, and npm may give that name to someone else (bun also runs a copy an earlier bunx saved, even with --no-install). Use \`bun run ${bin}\` in the package that depends on it, or node_modules/.bin/${bin}; \`bun x --no-install ${bin}\` is accepted only when node_modules/.bin/${bin} exists.`,
+      message: `\`${opts.use.runner} ${opts.name}\` fetches a package by name, and npm may give that name to someone else (bun also runs a copy an earlier bunx saved, even with --no-install). Use \`bun run ${bin}\` in the package that depends on it, or node_modules/.bin/${bin}; \the --no-install form is accepted only when node_modules/.bin/${bin} exists.`,
     };
   }
 
-  static inspect(opts: { command: string; cwd: string | undefined; allow: string[] }): IRunnerHit[] {
+  static inspect(opts: {
+    command: string;
+    cwd: string | undefined;
+    allow: string[];
+  }): IRunnerHit[] {
     const hits: IRunnerHit[] = [];
     const parsed = ShellParser.parseChecked({ command: opts.command });
 

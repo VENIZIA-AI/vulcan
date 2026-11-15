@@ -10,13 +10,17 @@ const HOOK_NAME = 'commit-msg';
 const MARKER = '# vulcan:commit-msg';
 /** The marker line, then the folder of the project that wrote it in brackets; a hook of an earlier release has no brackets. */
 const OWNER = new RegExp(`^${MARKER}(?: \\[([^\\]]*)\\])?`);
-const CALL = /vulcan\s+commit-check/;
+/** A hook that calls the check: the old text (`vulcan commit-check`) and the one sync writes now (`vulcan" commit-check`). */
+const CALL = /vulcan["']?\s+commit-check/;
 /** A line break, or any other control character: a folder name that holds one cannot be written into the hook text. */
 const CONTROL_CHARACTER = /\p{Cc}/u;
 const CONTROL_CHARACTERS = /\p{Cc}/gu;
 /** The escapes the marker line holds: `%` and `]`, and a control character as two hex digits. */
 const ESCAPE = /%(25|5D|[01][0-9A-F]|7F|[89][0-9A-F])/g;
-const COMMAND = 'bun x --no-install vulcan commit-check "$1"';
+/** The linked bin of the folder the loop above found, by path: nothing is fetched and no `$PATH` is searched (V-S-08). */
+const COMMAND = 'bun "$dir/node_modules/.bin/vulcan" commit-check "$1"';
+/** What a developer adds to a hook of their own, run from the project folder. */
+const ADVICE_COMMAND = 'bun node_modules/.bin/vulcan commit-check "$1"';
 
 const git = (opts: { root: string; args: string[] }): string | undefined => {
   try {
@@ -161,7 +165,7 @@ exit "$status"
       return { state: isOurs ? CommitHookStates.LEFTOVER : CommitHookStates.OFF, path };
     }
 
-    const addLine = `add '${COMMAND}' to its ${HOOK_NAME} hook`;
+    const addLine = `add '${ADVICE_COMMAND}' to its ${HOOK_NAME} hook`;
 
     if (hooksPath !== undefined) {
       return text !== undefined && CALL.test(text)

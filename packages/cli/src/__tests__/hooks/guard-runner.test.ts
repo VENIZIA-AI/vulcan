@@ -53,7 +53,7 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
     'bunx "ardor"',
     "bunx 'ardor'",
   ])('denies %s', (command) => {
-    expect(refusedBy({ command, cwd: root })).toEqual(['V-S-07:deny']);
+    expect(refusedBy({ command, cwd: root })).toEqual(['V-S-08:deny']);
   });
 
   test.each([
@@ -86,13 +86,17 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
     expect(refusedBy({ command: 'bun x --no-install vulcan sync', cwd: nested })).toEqual([]);
     // a bin no folder above holds (the test folder lives inside a checkout that has vulcan and devz linked)
     expect(refusedBy({ command: 'bun x --no-install no-such-bin-xyz sync', cwd: root })).toEqual([
-      'V-S-07:deny',
+      'V-S-08:deny',
     ]);
   });
 
   test('a name on the allow-list passes, with a version too', () => {
-    expect(refusedBy({ command: 'bunx shadcn@latest add button', cwd: root, allow: ['shadcn'] })).toEqual([]);
-    expect(refusedBy({ command: 'bunx shadcn add button', cwd: root, allow: [] })).toEqual(['V-S-07:deny']);
+    expect(
+      refusedBy({ command: 'bunx shadcn@latest add button', cwd: root, allow: ['shadcn'] }),
+    ).toEqual([]);
+    expect(refusedBy({ command: 'bunx shadcn add button', cwd: root, allow: [] })).toEqual([
+      'V-S-08:deny',
+    ]);
   });
 
   test('the message names the command and the safe forms', () => {
@@ -125,12 +129,12 @@ describe('the guard-git hook runs it, for every agent that runs that script', ()
     return { stdout: child.stdout.toString(), stderr: child.stderr.toString() };
   };
 
-  test('denies a bare bunx with V-S-07 and the way out', () => {
+  test('denies a bare bunx with V-S-08 and the way out', () => {
     const root = projectWithBins({ bins: [] });
     const out = JSON.parse(run({ root, command: 'bunx ardor codemod' }).stdout);
 
     expect(out.hookSpecificOutput.permissionDecision).toBe('deny');
-    expect(out.hookSpecificOutput.permissionDecisionReason).toContain('V-S-07');
+    expect(out.hookSpecificOutput.permissionDecisionReason).toContain('V-S-08');
     expect(out.hookSpecificOutput.permissionDecisionReason).toContain('bun run ardor');
   });
 
