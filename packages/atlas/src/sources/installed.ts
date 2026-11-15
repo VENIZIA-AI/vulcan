@@ -33,9 +33,9 @@ export class InstalledPackages {
   }
 
   /**
-   * Every installed copy of `name` under `roots` with its version, nearest the root first. `vulcan x atlas status` names
-   * the first copy; `symbol` reads it when it has a version, else the newest release npm published (a later copy that has
-   * a version is not used).
+   * Every installed copy of `name` under `roots` with its version, nearest the root first. `vulcan x atlas status`
+   * names the first copy; `symbol` reads it when it has a version, else the newest release npm published (a later
+   * copy that has a version is not used).
    */
   static copiesOf(opts: { roots: string[]; name: string }): IInstalledCopy[] {
     return opts.roots
