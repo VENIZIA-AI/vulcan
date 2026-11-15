@@ -622,7 +622,7 @@ The `guard` object configures the write guards.
 | `outside` | `'ask'` or `'deny'` | `'ask'` | What `guard-outside` does with a write outside the project (`V-B-08`) |
 | `writes.commands` | `Array<{ rule, what, pattern, ignoreCase? }>` | `[]` | Commands of this project that `guard-writes` asks about |
 | `git.askPush` | `string[]` | `[]` | Branches that a plain `git push` asks about in `guard-git` |
-| `runners.allow` | `string[]` | `[]` | Package names `vulcan runners check` and the runner guard accept beyond `@venizia/*`, such as `shadcn` |
+| `runners.allow` | `string[]` | `[]` | Package names `vulcan runners check` and the runner guard accept besides scoped packages, such as `shadcn` |
 
 `writes.trustedScripts` was removed: guard-writes no longer reads scripts, so it had nothing left to skip. A config that still sets it is refused, and the message says to delete the key.
 
@@ -652,7 +652,7 @@ These are commands of this project that `guard-writes` asks about beside its fix
 
 ### guard.runners.allow
 
-Unscoped package names that `bunx`, `bun x`, `npx` or `pnpm dlx` may run in this project, such as `shadcn`. A name is lower-case letters, digits, `.`, `_` and `-`. `@venizia/*` needs no entry. Everything else is refused by `vulcan runners check` and, for an agent, by `guard-git` (rule `V-S-08`). `vulcan sync` writes it to the manifest.
+Unscoped package names that `bunx`, `bun x`, `npx` or `pnpm dlx` may run in this project, such as `shadcn`. A name is lower-case letters, digits, `.`, `_` and `-`, or a scoped name. A scoped package (`@scope/name`) needs no entry. The name may be followed by a version or a tag (`shadcn@latest`), never by another package (`shadcn@npm:ardor`). Everything else is refused by `vulcan runners check` and, for an agent, by `guard-git` (rule `V-S-08`). `vulcan sync` writes it to the manifest.
 
 ### guard.git.askPush
 

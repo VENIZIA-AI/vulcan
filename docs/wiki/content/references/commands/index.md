@@ -65,11 +65,11 @@ Usage: bun run vulcan <command>
   upgrade [--stable | --nightly] [<version|tag>]
                                   Bump the pinned @venizia/vulcan, then sync; --stable (default)
                                   takes the latest tag, --nightly the newest of latest and next
-  runners check                   List every tracked file that runs an unscoped package through bunx,
-                                  bun x, npx, pnpm dlx or yarn dlx, whether or not it says no-install (a name
-                                  npm gives to someone else would be fetched and run). @venizia/* and the names
-                                  of guard.runners.allow pass; tests, lockfiles, build output and frozen
-                                  history (dated entries, released version folders) are not read
+  runners check                   List every tracked file that runs an unscoped package through bunx, pnpx,
+                                  bun x, npx, npm exec, pnpm dlx or yarn dlx, whether or not it says no-install
+                                  (a name npm gives to someone else would be fetched and run). A scoped package
+                                  and the names of guard.runners.allow pass; tests, lockfiles, build output and
+                                  frozen history (dated entries, released version folders) are not read
   changelog check [--history --base <ref>]
                                   Check the changelog: a version folder changelogs/<X.Y.Z>/{log.md, migration.yaml}
                                   has a block for every Breaking and Deprecated item; a dated Breaking Change entry
@@ -222,13 +222,15 @@ A version folder without `released:` (the line in progress) must also carry what
 
 ## runners
 
-`vulcan runners check` lists every file git tracks that runs a package fetched by name: `bunx`, `bun x`, `npx`, `npm exec`, `pnpm dlx` or `yarn dlx` followed by an unscoped name, with or without `--no-install`. Each finding prints as `<file>:<line>: <command>` on stderr and the exit code is 1; with none it exits 0. A `@venizia/*` package passes (`bun x @venizia/vulcan@<version> init`), and so does a name in [`guard.runners.allow`](/references/configuration/#guard-runners-allow). Tests, lockfiles, build output, binary files, dated changelog entries and the files of a released version folder are not read: they are not instructions, or they are frozen history.
+`vulcan runners check` lists every file git tracks that runs a package fetched by name: `bunx`, `pnpx`, `bun x`, `npx`, `npm exec`, `pnpm dlx` or `yarn dlx` (also behind `corepack`) followed by an unscoped name, with or without `--no-install`. Each finding prints as `<file>:<line>: <command>` on stderr and the exit code is 1; with none it exits 0. A scoped package passes (`bun x @venizia/vulcan@<version> init`, `npx @acme/tool`), whatever its scope: a scope has an owner, so nobody can register a name in it. A name in [`guard.runners.allow`](/references/configuration/#guard-runners-allow) passes too, with a version or a tag after it and nothing else (`shadcn@npm:ardor` is another package). The check reads a flag it does not know as taking the next word, so an unknown flag cannot hide the name.
 
-Why: npm gives the names `vulcan`, `devz`, `ardor` and `ignis` to unrelated packages, and `vulcan-atlas` to nobody. A bunx command fetches and runs the package of that name wherever the bin is not linked, and bun also runs a copy an earlier bare bunx saved (in `~/.bun/install/cache/.bunx-<uid>/<name>@latest/`, which never expires) even under `--no-install`. Write `bun run <bin>` in the package that depends on it, or the path `node_modules/.bin/<bin>`. `bun run <name>` falls back to `$PATH` when no linked bin matches, so a command that must not (a hook, an editor's server entry) names the path.
+A line in a Markdown file can show a refused command on purpose, such as a page that warns against it. Put `<!-- runners: example -->` on the line before the line, or before the fenced block, and the check does not count it; the check prints how many it set apart. A script, a workflow or a Makefile has no such marker. Tests, lockfiles, build output, binary files, dated changelog entries and the files of a released version folder are not read: they are not instructions, or they are frozen history.
+
+Why: npm gives the names `vulcan`, `devz`, `ardor` and `ignis` to unrelated packages, and `vulcan-atlas` to nobody. A bunx command fetches and runs the package of that name wherever the bin is not linked, and bun also runs a copy an earlier bare bunx saved (in `~/.bun/install/cache/.bunx-<uid>/<name>@latest/`, which never expires) even under `--no-install`. Write `bun run <bin>` in the package that depends on it, or the path `node_modules/.bin/<bin>`. `bun run <name>` falls back to `$PATH`, and to a program bun cached, when no linked bin matches, so a command that must not (a hook, an editor's server entry, the shipped `make` module) names the path.
 
 The same check as an agent's rule: `guard-git` denies the command in Claude Code, Codex, Antigravity, omp and pi (rule `V-S-08`); another agent has the rule text only. Run it in CI with `vulcan runners check`.
 
-If a bunx of a Venizia name ever ran on a machine, look for `~/.bun/install/cache/.bunx-*/`: an entry named `vulcan`, `devz`, `ardor`, `ignis` or `vulcan-atlas@latest` is a foreign package. Delete the entry.
+If a bunx of a Venizia name ever ran on a machine, look for `~/.bun/install/cache/.bunx-*/`: an entry named `<name>@<version>` where the name is `vulcan`, `devz`, `ardor`, `ignis` or `vulcan-atlas` is a foreign package. Delete the entry.
 
 ## migrate
 
