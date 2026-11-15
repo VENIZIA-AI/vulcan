@@ -1,4 +1,6 @@
 import { afterAll, expect, test } from 'bun:test';
+import { mkdirSync, symlinkSync } from 'node:fs';
+import { join } from 'node:path';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -68,4 +70,21 @@ test('a prerelease of the line before the one that carries the reader is told to
 
     expect(found).toHaveLength(1);
   }
+});
+
+test('the workspace package of the project itself is not an older release: the repository of vulcan passes', async () => {
+  const root = createProject({
+    files: {
+      '.configs/vulcan.config.mts': CONFIG,
+      'docs/changelogs/0.4.9/log.md': LOG,
+      'packages/cli/package.json': JSON.stringify({ name: '@venizia/vulcan', version: '0.4.9' }),
+    },
+  });
+
+  mkdirSync(join(root, 'node_modules', '@venizia'), { recursive: true });
+  symlinkSync(join(root, 'packages', 'cli'), join(root, 'node_modules', '@venizia', 'vulcan'));
+
+  const found = await violationsOf({ root });
+
+  expect(found).toEqual([]);
 });
