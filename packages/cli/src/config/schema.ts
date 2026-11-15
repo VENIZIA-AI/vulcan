@@ -299,6 +299,15 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/)
         .optional(),
+      /**
+       * The address of the project's wiki (`https://wiki.example.com`): `vulcan migrate plan` prints a link to the
+       * upgrade guide of each step on it, `<siteUrl>/changelogs/<version>/upgrade#<id>`. An http or https address with
+       * no credentials, query or fragment; omit it and the plan prints no link.
+       */
+      siteUrl: z
+        .string()
+        .regex(/^https?:\/\/[^\s/@?#]+(?:\/[^\s?#]*)?$/)
+        .optional(),
       /** A map of code areas to concepts; no shipped skill reads it. */
     })
     .default({ bundle: ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE }),

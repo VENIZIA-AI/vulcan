@@ -182,6 +182,10 @@ export class SourceReleases {
     return this.ownerOf(opts)?.releases.codemodCommandOf();
   }
 
+  siteUrlOf(opts: { package: string }): string | undefined {
+    return this.ownerOf(opts)?.releases.siteUrlOf();
+  }
+
   folderHistoryOf(opts: { package: string }): IFolderHistory | undefined {
     return this.ownerOf(opts)?.releases.folderHistoryOf();
   }

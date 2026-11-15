@@ -119,6 +119,41 @@ describe('ProjectConfig.readAtlasProject', () => {
     expect(ProjectConfig.readAtlasProject().knowledge.datedUntil).toBe('2026-11-14');
   });
 
+  test('a siteUrl is read without its trailing slash', () => {
+    useAtlasProject({
+      root: ROOT,
+      manifest: {
+        name: 'acme',
+        knowledge: { siteUrl: 'https://acme.example.test/wiki/' },
+        packages: [],
+      },
+    });
+
+    expect(ProjectConfig.readAtlasProject().knowledge.siteUrl).toBe(
+      'https://acme.example.test/wiki',
+    );
+  });
+
+  test.each([
+    'acme.example.test',
+    'ftp://acme.example.test',
+    'https://user:pw@acme.example.test',
+    'https://acme.example.test/a b',
+    'javascript:alert(1)',
+  ])(
+    'a siteUrl that is not an http or https address (%s) stops the read, naming the project and the value',
+    (value) => {
+      useAtlasProject({
+        root: ROOT,
+        manifest: { name: 'acme', knowledge: { siteUrl: value }, packages: [] },
+      });
+
+      expect(() => ProjectConfig.readAtlasProject()).toThrow(
+        `atlas: project 'acme' - knowledge.siteUrl '${value}' is not an http or https address`,
+      );
+    },
+  );
+
   test('a package without a name takes its directory, which must be an npm name too', () => {
     useAtlasProject({ root: ROOT, manifest: { name: 'acme', packages: [{ dir: 'a b' }] } });
 

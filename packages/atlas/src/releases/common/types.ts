@@ -108,6 +108,8 @@ export interface IReleaseIndex {
   releaseOrderOf(opts: { package: string; version: string }): number | undefined;
   /** The words of the command that runs the codemods of the source that serves `package`; absent when it sets none (the default runner). */
   codemodCommandOf(opts: { package: string }): string[] | undefined;
+  /** The address of the wiki of the source that serves `package` (`knowledge.siteUrl`); absent when it names none. */
+  siteUrlOf(opts: { package: string }): string | undefined;
   /** The npm names of every package the source that serves `package` declares: the only places its codemod runner may be installed from. */
   codemodPackagesOf(opts: { package: string }): string[];
   /** The version folders of the source that serves `package`, at HEAD and at its tags; absent when the source keeps none. */

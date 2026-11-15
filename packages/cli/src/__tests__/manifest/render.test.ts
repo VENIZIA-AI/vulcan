@@ -73,6 +73,32 @@ describe('ProjectManifest.render', () => {
     expect(manifest.rules.project).toBe('.agents/rules.md');
   });
 
+  test('knowledge.siteUrl is written into the manifest, and an address that is not http or https is refused', () => {
+    const root = createProject({ files: {} });
+    const manifest = JSON.parse(
+      render({
+        root,
+        config: {
+          ...CONFIG,
+          knowledge: { ...CONFIG.knowledge, siteUrl: 'https://acme.example.test' },
+        },
+      }),
+    );
+
+    expect(manifest.knowledge.siteUrl).toBe('https://acme.example.test');
+    expect(JSON.parse(render({ root, config: CONFIG })).knowledge.siteUrl).toBeUndefined();
+
+    for (const siteUrl of [
+      'acme.example.test',
+      'ftp://acme.example.test',
+      'https://u:p@acme.example.test',
+    ]) {
+      expect(() =>
+        render({ root, config: { ...CONFIG, knowledge: { ...CONFIG.knowledge, siteUrl } } }),
+      ).toThrow();
+    }
+  });
+
   test('legacy tag templates are written after the current one, and only when the config lists some', () => {
     const root = createProject({ files: {} });
     const withLegacy = JSON.parse(

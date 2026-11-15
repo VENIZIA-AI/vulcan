@@ -169,7 +169,7 @@ export class VersionCheck {
       fail({
         file: 'log.md',
         message:
-          'the log names migration.yaml: the version page links its upgrade guide itself, so say nothing of the file',
+          'the opening paragraph names migration.yaml: the version page links its upgrade guide itself, so say nothing of the file',
       });
     }
   }

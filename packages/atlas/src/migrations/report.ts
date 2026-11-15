@@ -45,22 +45,26 @@ const moduleLines = (opts: { touches: IMigrationTouch[]; verbose: boolean }): st
 };
 
 const changeOf = (opts: { change: TMigrationDirection }): string[] => {
-  if ('steps' in opts.change) {
-    return opts.change.steps.map((step, index) => `${index + 1}. ${step}`);
+  const { change } = opts;
+  const steps = 'steps' in change ? change.steps.map((step, index) => `${index + 1}. ${step}`) : [];
+
+  if (!('before' in change)) {
+    return steps;
   }
 
   return [
     'Before:',
     '',
     '```ts',
-    opts.change.before,
+    change.before,
     '```',
     '',
     'After:',
     '',
     '```ts',
-    opts.change.after,
+    change.after,
     '```',
+    ...(steps.length === 0 ? [] : ['', ...steps]),
   ];
 };
 
@@ -106,6 +110,10 @@ const stepOf = (opts: { step: IMigrationStep; verbose: boolean; isMixed: boolean
       'Re-exported by your code (your consumers may be hit; your own code needs no change):',
       ...reexportLines({ touches: reexports }),
     );
+  }
+
+  if (step.guide !== undefined) {
+    lines.push('', `Guide: ${step.guide}`);
   }
 
   lines.push('', ...changeOf({ change: step.change }));

@@ -87,7 +87,7 @@ export interface IVersionFolder {
   summary?: string;
   /** `highlights:` of the frontmatter: the lines a version box shows; absent when the log has none. */
   highlights?: string[];
-  /** The text of `log.md` names `migration.yaml`; the version page links its upgrade guide itself. */
+  /** The opening paragraph names `migration.yaml`; the version page links its upgrade guide itself. */
   namesMigrationFile: boolean;
   /** The blocks of `migration.yaml` by item id; empty when the file is absent or `{}`. */
   blocks: Record<string, TMigrationBlock>;
@@ -247,7 +247,6 @@ export class VersionFolders {
     }
 
     folder.packages = stringsOf({ value: data.packages });
-    folder.namesMigrationFile = body.includes('migration.yaml');
 
     if (data.summary !== undefined) {
       if (typeof data.summary === 'string') {
@@ -410,6 +409,7 @@ export class VersionFolders {
 
     closeItem();
     folder.intro = introLines.join('\n').trim();
+    folder.namesMigrationFile = folder.intro.includes('migration.yaml');
   }
 
   private static openSection(opts: {

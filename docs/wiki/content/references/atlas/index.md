@@ -379,7 +379,7 @@ A changelog entry can also carry a `migration:` block in its frontmatter, and th
 `vulcan x atlas changelogs check` (or `vulcan changelog check`) validates the `migration:` blocks of the entries in `knowledge.changelogs`.
 It exits `0` when every entry conforms and `1` when one does not, printing `<file>: <message>` for each problem on stderr; any other subcommand exits `2`.
 
-- **Shape**: each item has `id` (lower-case words joined by `-`, unique across the folder), `symbols` (at least one export name, `Name.member` or module specifier), `upgrade` and `downgrade` (each `before` and `after`, or `steps`, never both), and optionally `data` and `codemod`.
+- **Shape**: each item has `id` (lower-case words joined by `-`, unique across the folder), `symbols` (at least one export name, `Name.member` or module specifier), `upgrade` and `downgrade` (each `before` and `after`, or `steps`; only an `upgrade` may hold `steps` together with `before` and `after`), and optionally `data` and `codemod`.
 - **Who owes a block**: an entry with a `Breaking Change` or `Breaking` badge (the badge line or `badges:`) dated on or after `knowledge.migrationFrom`; the short spelling is also reported there: use `Breaking Change`. With no `migrationFrom` nothing is owed, but a block that is present is still checked.
 - **Who is skipped**: an entry dated before `knowledge.migrationFrom`.
 - **`codemod`**: lower-case words joined by `-` (it reaches a command line, so never starts with `-`), and a name the project's runner prints with `--list` (`devz codemod --list` unless `knowledge.codemodCommand` sets another). When the runner is not installed, is not inside a package of the project, or cannot list, the names are not checked and the command says so.

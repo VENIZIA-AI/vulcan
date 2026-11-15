@@ -998,7 +998,7 @@ describe('the version folder gate: summary, highlights and upgrade.steps (change
     );
   });
 
-  test('the log of an in-progress folder does not name migration.yaml: the page links the guide itself', () => {
+  test('the opening paragraph of an in-progress folder does not name migration.yaml: the page links the guide itself', () => {
     const body = '\n## Added\n- **A** `a-item`: a.\n';
     const named = log({ version: '0.4.2', body }).replace(
       '---\n\n## Added',
@@ -1010,6 +1010,14 @@ describe('the version folder gate: summary, highlights and upgrade.steps (change
         (line) => line.startsWith('0.4.2/log.md:') && line.includes('migration.yaml'),
       ),
     ).toBe(true);
+    expect(
+      found({
+        log: log({
+          version: '0.4.2',
+          body: '\n## Added\n- **A** `a-item`: a, and `migration.yaml` holds the blocks.\n',
+        }),
+      }),
+    ).toEqual([]);
     expect(
       found({
         log: log({

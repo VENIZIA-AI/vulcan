@@ -30,8 +30,8 @@ has not adopted the folders.
 
 ## A version folder
 
-`log.md` holds the frontmatter (`title`, `version`, `packages`, and `released: YYYY-MM-DD` once the stable is out), one
-paragraph on what the release is, then the sections in this order, leaving out an empty one: Breaking, Deprecated, Added,
+`log.md` holds the frontmatter (`title`, `version`, `packages`, `summary`, `highlights`, and `released: YYYY-MM-DD` once the
+stable is out), one paragraph on what the release is, then the sections in this order, leaving out an empty one: Breaking, Deprecated, Added,
 Changed, Fixed, Security. An item is one line, optionally continued:
 
 ```markdown
@@ -42,12 +42,32 @@ The id is lower-case words joined by `-`, unique in the folder, chosen once and 
 prerelease shipped is a removal and an addition. The package list is optional; without it the item belongs to the file's
 `packages`. A removal of public API is Breaking: there is no Removed section.
 
+`summary` is one sentence of at most 200 characters, `highlights` is one to five one-line points of at most 110 characters
+(at least three when the folder holds three or more items): they are what the version box on the changelog index shows. Quote
+each value in YAML (a line that starts with a backtick, or holds `: `, does not parse unquoted):
+
+```yaml
+summary: "Closes request and token gaps and replaces `any` in the public types."
+highlights:
+  - "A child model can take its row scope from its parent"
+  - "JWT needs an issuer and a 32 byte secret"
+```
+
+A folder in progress owes both, and `steps` on every block (below); the opening paragraph must not name `migration.yaml`,
+because the version page links its upgrade guide itself. A released folder owes none of it, and may gain a `summary` and
+`highlights` later: `--history` does not count them as a change.
+
 `migration.yaml` holds one entry for every Breaking and Deprecated item, keyed by the item id, and none for any other item:
 
 ```yaml
 redis-factory-per-topology:
   symbols: [RedisHelperFactory.create]
-  upgrade: { before: "RedisHelper.new()", after: "RedisHelperFactory.create()" }
+  upgrade:
+    steps:                                       # required in a folder in progress: what an app does, in order
+      - Replace each RedisHelper.new() with RedisHelperFactory.create().
+      - Run bun check.
+    before: "RedisHelper.new()"                  # optional, with after: the code the steps change
+    after: "RedisHelperFactory.create()"
   downgrade: { steps: ["Call RedisHelper.new() again"] }
   data: "Stored tokens keep the old prefix."   # optional
   codemod: namespace-functions                 # optional: a name the project's codemod runner lists

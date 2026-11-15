@@ -108,6 +108,7 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
         emptyReason: emptyReleasesReasonOf({ source }),
         noEntriesReason: noEntriesReasonOf({ source }),
         codemodCommand: source.project.knowledge.codemodCommand,
+        siteUrl: source.project.knowledge.siteUrl,
         codemodPackages: source.project.packages.map((entry) => entry.name),
         folderHistory: new FolderHistory({ project: source.project }),
       }),

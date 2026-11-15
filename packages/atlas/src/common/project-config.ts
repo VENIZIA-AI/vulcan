@@ -76,6 +76,8 @@ export interface IAtlasProject {
     migrationFrom?: string;
     /** The last date a dated changelog file may carry. */
     datedUntil?: string;
+    /** The address of the project's wiki, without a trailing slash: `migrate plan` builds the link to a step's upgrade guide on it. */
+    siteUrl?: string;
     /** The runner of the migrations' codemods: a bare binary name, then fixed words; absent means `devz codemod`. */
     codemodCommand?: string[];
   };
@@ -237,6 +239,15 @@ export class ProjectConfig {
         `atlas: ${opts.source ?? `project '${projectName}'`} - knowledge.datedUntil '${datedUntil}' is not a date (YYYY-MM-DD)`,
       );
     }
+    const siteUrl = WireValue.stringOf({ value: knowledge.siteUrl });
+
+    // a fetched manifest is data from elsewhere: only an http or https address with no credentials becomes a link
+    if (siteUrl !== undefined && !/^https?:\/\/[^\s/@?#]+(?:\/[^\s?#]*)?$/.test(siteUrl)) {
+      throw new Error(
+        `atlas: ${opts.source ?? `project '${projectName}'`} - knowledge.siteUrl '${siteUrl}' is not an http or https address`,
+      );
+    }
+
     const codemodCommand = CodemodRunner.wordsOf({
       value: knowledge.codemodCommand,
       label: opts.source ?? `project '${projectName}'`,
@@ -305,6 +316,7 @@ export class ProjectConfig {
         ...(changelogs === undefined ? {} : { changelogs: resolve(opts.root, changelogs) }),
         migrationFrom,
         ...(datedUntil === undefined ? {} : { datedUntil }),
+        ...(siteUrl === undefined ? {} : { siteUrl: siteUrl.replace(/\/+$/, '') }),
         ...(codemodCommand.length === 0 ? {} : { codemodCommand }),
       },
     };

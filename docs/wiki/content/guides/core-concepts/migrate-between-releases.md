@@ -39,6 +39,8 @@ After:    ThingFactory.build({ name })
 
 Codemod: `thing-factory`
 
+Guide: https://wiki.example.com/changelogs/1.1.0/upgrade#thing-factory
+
 ### No static import found
 
 ### token-prefix
