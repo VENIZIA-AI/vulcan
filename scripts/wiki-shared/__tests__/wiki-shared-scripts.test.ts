@@ -172,7 +172,7 @@ describe('BuildCheck.scanVersionPages', () => {
     mkdirSync(join(root, 'dist', 'changelogs'), { recursive: true });
 
     for (const name of opts.served) {
-      writeFileSync(join(root, 'dist', 'changelogs', name), '<html></html>');
+      writeFileSync(join(root, 'dist', 'changelogs', name), '<div class="cx-detail"></div>');
     }
 
     return { changelogs: join(root, 'content', 'changelogs'), dist: join(root, 'dist') };
@@ -192,8 +192,69 @@ describe('BuildCheck.scanVersionPages', () => {
     );
   });
 
+  test('a page that built without the details component is told the config hook to add', () => {
+    const built = site({ served: [] });
+
+    writeFileSync(join(built.dist, 'changelogs', '0.4.7.html'), '<div class="vp-doc"></div>');
+
+    const problems = BuildCheck.scanVersionPages(built);
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('changelogPageData');
+  });
+
   test('a wiki with no version folder is not asked for anything', () => {
     expect(BuildCheck.scanVersionPages({ changelogs: '/nowhere', dist: '/nowhere' })).toEqual([]);
+  });
+});
+
+describe('BuildCheck.scanUpgradePages', () => {
+  const site = (opts: { upgrade: string | null; yaml?: string }) => {
+    const root = mkdtempSync(join(tmpdir(), 'wiki-upgrade-'));
+
+    roots.push(root);
+    mkdirSync(join(root, 'content', 'changelogs', '0.4.7'), { recursive: true });
+    mkdirSync(join(root, 'content', 'changelogs', '0.4.6'), { recursive: true });
+    writeFileSync(
+      join(root, 'content', 'changelogs', '0.4.7', 'migration.yaml'),
+      opts.yaml ?? 'a:\n  symbols: [A]\n  upgrade: { steps: [x] }\n  downgrade: { steps: [y] }\n',
+    );
+    writeFileSync(join(root, 'content', 'changelogs', '0.4.6', 'migration.yaml'), '{}');
+    mkdirSync(join(root, 'dist', 'changelogs', '0.4.7'), { recursive: true });
+
+    if (opts.upgrade !== null) {
+      writeFileSync(join(root, 'dist', 'changelogs', '0.4.7', 'upgrade.html'), opts.upgrade);
+    }
+
+    return { changelogs: join(root, 'content', 'changelogs'), dist: join(root, 'dist') };
+  };
+
+  test('a folder with a block and a rendered upgrade page passes, and a folder with none needs no page', () => {
+    expect(BuildCheck.scanUpgradePages(site({ upgrade: '<div class="cx-detail"></div>' }))).toEqual(
+      [],
+    );
+  });
+
+  test('a folder with a block and no upgrade page is told the route and the rewrite to add', () => {
+    const problems = BuildCheck.scanUpgradePages(site({ upgrade: null }));
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('changelogs/0.4.7');
+    expect(problems[0]).toContain('[version].paths.ts');
+    expect(problems[0]).toContain(
+      "'changelogs/upgrade/:version.md': 'changelogs/:version/upgrade.md'",
+    );
+  });
+
+  test('an upgrade page that built empty is told the config hook to add', () => {
+    const problems = BuildCheck.scanUpgradePages(site({ upgrade: '<div class="vp-doc"></div>' }));
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('changelogPageData');
+  });
+
+  test('a wiki with no version folder is not asked for anything', () => {
+    expect(BuildCheck.scanUpgradePages({ changelogs: '/nowhere', dist: '/nowhere' })).toEqual([]);
   });
 });
 
@@ -239,23 +300,23 @@ describe('BuildCheck.scanThemeChunk', () => {
     mkdirSync(join(root, 'content', 'changelogs', '0.4.7'), { recursive: true });
     writeFileSync(
       join(root, 'content', 'changelogs', '0.4.7', 'log.md'),
-      '---\ntitle: 0.4.7\n---\nA line.\n\n## Breaking\n- x\n\n## Fixed\n- y\n',
+      '---\ntitle: 0.4.7\n---\nA line.\n\n## Breaking\n- **X** `item-x`: x.\n\n## Fixed\n- **Y** `item-y`: y.\n',
     );
     mkdirSync(join(root, 'dist', 'assets', 'chunks'), { recursive: true });
     writeFileSync(join(root, 'dist', 'assets', 'chunks', 'theme.AbC123.js'), opts.theme);
-    writeFileSync(join(root, 'dist', 'assets', 'chunks', 'other.js'), '"<h3>Breaking</h3>"');
+    writeFileSync(join(root, 'dist', 'assets', 'chunks', 'other.js'), '"item-x"');
 
     return { changelogs: join(root, 'content', 'changelogs'), dist: join(root, 'dist') };
   };
 
-  test('a theme chunk with the sections of a version page is told to mount the index page-locally, once per version', () => {
+  test('a theme chunk with an item of a version page is told to mount the pages as async components, once per version', () => {
     const problems = BuildCheck.scanThemeChunk(
-      site({ theme: 'const v=[{html:"<h3>Breaking</h3><ul></ul><h3>Fixed</h3>"}]' }),
+      site({ theme: 'const v=[{id:"item-x"},{id:"item-y"}]' }),
     );
 
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain('changelogs/0.4.7');
-    expect(problems[0]).toContain('local import');
+    expect(problems[0]).toContain('async components');
   });
 
   test('a theme chunk with no page text passes, and a chunk that is not the theme is not read', () => {

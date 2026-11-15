@@ -4,11 +4,10 @@ import {
   formatDate,
   matchesFilter,
   parseEntry,
-  demoteHeadings,
+  changelogPageData,
   parseVersion,
   plainText,
   releasedOf,
-  shownVersions,
   sortVersions,
   sortEntries,
 } from '../../../docs/wiki/site/.vitepress/theme/shared/changelog-entries.ts';
@@ -226,14 +225,21 @@ describe('the version folders on the changelog index (A6, C15)', () => {
     );
   });
 
-  test('the sections of a page on the index are h3 with no id or permalink, so two pages share no id', () => {
-    const html =
-      '<h2 id="added" tabindex="-1">Added <a class="header-anchor" href="#added" aria-label="Permalink to “Added”">&#8203;</a></h2><ul><li>x</li></ul>';
+  test('changelogPageData lays out the two pages of a version as plain pages and touches no other', () => {
+    const data = (relativePath: string) =>
+      changelogPageData({ pageData: { relativePath, frontmatter: { title: 'x' } } });
 
-    expect(demoteHeadings(html)).toBe('<h3>Added</h3><ul><li>x</li></ul>');
+    expect(data('changelogs/0.4.8.md')).toEqual({ frontmatter: { title: 'x', layout: 'page' } });
+    expect(data('changelogs/0.4.8/log.md')?.frontmatter.layout).toBe('page');
+    expect(data('changelogs/0.4.8/upgrade.md')).toEqual({
+      frontmatter: { title: 'x', layout: 'page' },
+      title: 'Upgrade to 0.4.8',
+    });
+    expect(data('changelogs/2026-11-01-a-thing.md')).toBeUndefined();
+    expect(data('guides/index.md')).toBeUndefined();
   });
 
-  test('sortVersions orders by number, and the index shows the latest release, the line in progress, then the older ones', () => {
+  test('sortVersions orders by number, newest first', () => {
     const entries = ['0.4.10', '0.4.6', '0.4.9', '0.4.8'].flatMap((name) => {
       const entry = version({
         url: `/changelogs/${name}/log`,
@@ -242,7 +248,6 @@ describe('the version folders on the changelog index (A6, C15)', () => {
 
       return entry === null ? [] : [entry];
     });
-    const shown = shownVersions(entries);
 
     expect(sortVersions(entries).map((entry) => entry.version)).toEqual([
       '0.4.10',
@@ -250,9 +255,6 @@ describe('the version folders on the changelog index (A6, C15)', () => {
       '0.4.8',
       '0.4.6',
     ]);
-    expect(shown.latest?.version).toBe('0.4.9');
-    expect(shown.inProgress?.version).toBe('0.4.10');
-    expect(shown.older.map((entry) => entry.version)).toEqual(['0.4.8', '0.4.6']);
   });
 
   test('the feed is one list by date: a released version and the dated entries are merged, a version first on its own day', () => {
@@ -287,5 +289,41 @@ describe('the version folders on the changelog index (A6, C15)', () => {
     expect(order).toEqual([...order].sort((left, right) => left - right));
     expect(feed).toContain('Tue, 10 Nov 2026 12:00:00 GMT');
     expect(feed).not.toContain('changelogs/0.4.8');
+  });
+});
+
+describe('parseVersion: what a version box shows', () => {
+  const version = (opts: { frontmatter?: Record<string, unknown>; src: string }) =>
+    parseVersion({
+      url: '/changelogs/0.4.8/log',
+      frontmatter: { title: '0.4.8', packages: ['@a/kernel'], ...opts.frontmatter },
+      src: opts.src,
+    });
+  const SRC =
+    '---\ntitle: 0.4.8\n---\nThis release does things. It also does others.\n\n## Breaking\n- **A** `a-item` (`@a/kernel`): a.\n- **B** `b-item`: b.\n\n## Added\n- **C** `c-item`: c.\n';
+
+  test('the summary and the highlights are the frontmatter ones; the overview stays the opening paragraph', () => {
+    const parsed = version({
+      frontmatter: { summary: ' One sentence. ', highlights: ['First', ' Second ', '', 3] },
+      src: SRC,
+    });
+
+    expect(parsed?.summary).toBe('One sentence.');
+    expect(parsed?.highlights).toEqual(['First', 'Second']);
+    expect(parsed?.overview).toBe('This release does things. It also does others.');
+  });
+
+  test('without them the summary is the first sentence of the opening paragraph and there are no highlights', () => {
+    const parsed = version({ src: SRC });
+
+    expect(parsed?.summary).toBe('This release does things.');
+    expect(parsed?.highlights).toEqual([]);
+  });
+
+  test('the counts are per section, in the order of the sections', () => {
+    expect(version({ src: SRC })?.counts).toEqual([
+      ['Breaking', 2],
+      ['Added', 1],
+    ]);
   });
 });
