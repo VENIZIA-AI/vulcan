@@ -1,12 +1,11 @@
 make-agent-setup-target-removed:
-  symbols: [vulcan.mk]
+  symbols: ['@venizia/vulcan/base/make/vulcan.mk']
   upgrade:
     before: 'make agent-setup'
     after: 'make vulcan-sync'
   downgrade:
     steps:
       - 'Nothing has to change: `make vulcan-sync` exists in 0.4.8 too, and `make agent-setup` works there again if you want the old name.'
-
 atlas-exports-in-classes:
   symbols:
     [
@@ -19,13 +18,12 @@ atlas-exports-in-classes:
     ]
   upgrade:
     steps:
-      - 'No codemod covers this: the `namespace-functions` codemod of `@venizia/dev-configs` reads a fixed table of names, and none of the six moved names is in it, so the change is made by hand.'
+      - 'No codemod covers this: the `namespace-functions` codemod of `@venizia/dev-configs` reads a fixed table of names, and none of the three moved names is in it, so the change is made by hand.'
       - 'Search your code for imports of `officialIdOf`, `triggerOf` and `skillCatalogOf` from `@venizia/vulcan-atlas`.'
       - 'Import `OfficialPresets` and `SkillCatalog` instead, and call `OfficialPresets.idOf({ spec })`, `SkillCatalog.triggerOf({ description })` and `SkillCatalog.catalogOf({ root })`. Options and results are the same.'
   downgrade:
     steps:
       - 'Pin `@venizia/vulcan-atlas` to 0.4.8 and change the imports back: `OfficialPresets.idOf({ spec })` to `officialIdOf({ spec })`, `SkillCatalog.triggerOf({ description })` to `triggerOf({ description })`, `SkillCatalog.catalogOf({ root })` to `skillCatalogOf({ root })`.'
-
 okf-exports-in-classes:
   symbols:
     [
@@ -38,13 +36,12 @@ okf-exports-in-classes:
     ]
   upgrade:
     steps:
-      - 'No codemod covers this: the `namespace-functions` codemod of `@venizia/dev-configs` reads a fixed table of names, and none of the six moved names is in it, so the change is made by hand.'
+      - 'No codemod covers this: the `namespace-functions` codemod of `@venizia/dev-configs` reads a fixed table of names, and none of the three moved names is in it, so the change is made by hand.'
       - 'Search your code for imports of `checkBundle`, `splitFrontmatter` and `parseYamlMapping` from `@venizia/vulcan-okf`.'
       - 'Import `BundleConformance` and `OkfFrontmatter` instead, and call `BundleConformance.check({ files })`, `OkfFrontmatter.split({ text })` and `OkfFrontmatter.parseMapping({ yaml })`. Options and results are the same.'
   downgrade:
     steps:
       - 'Pin `@venizia/vulcan-okf` to 0.4.8 and change the imports back: `BundleConformance.check({ files })` to `checkBundle({ files })`, `OkfFrontmatter.split({ text })` to `splitFrontmatter({ text })`, `OkfFrontmatter.parseMapping({ yaml })` to `parseYamlMapping({ yaml })`.'
-
 unused-version-and-mode-exports-removed:
   symbols:
     [
@@ -64,7 +61,6 @@ unused-version-and-mode-exports-removed:
   downgrade:
     steps:
       - 'Pin `@venizia/vulcan-atlas` and `@venizia/vulcan-okf` to 0.4.8; the removed names exist there again. Nothing in your code has to change.'
-
 config-file-must-be-mts:
   symbols: [vulcan.config, init.config]
   upgrade:
@@ -75,7 +71,6 @@ config-file-must-be-mts:
   downgrade:
     steps:
       - 'Nothing has to change: 0.4.8 reads `.configs/vulcan.config.mts` too. `vulcan init --config <ts|mjs|js>` and the other spellings work there again if you want them.'
-
 tag-template-package-placeholder-removed:
   symbols: [atlas.tagPattern, atlas.legacyTagPatterns]
   upgrade:
@@ -84,7 +79,6 @@ tag-template-package-placeholder-removed:
   downgrade:
     steps:
       - 'Nothing has to change: 0.4.8 reads `<dir>` as well as `<package>`.'
-
 package-names-must-be-lower-case:
   symbols: [packages.name]
   upgrade:
@@ -94,7 +88,6 @@ package-names-must-be-lower-case:
   downgrade:
     steps:
       - 'Nothing has to change: 0.4.8 reads a lower-case name too.'
-
 add-needs-presets-list-in-apps-block:
   symbols: [apps.presets, apps.packages]
   upgrade:
@@ -104,7 +97,6 @@ add-needs-presets-list-in-apps-block:
   downgrade:
     steps:
       - 'Nothing has to change: 0.4.8 reads a block that has a `presets` list.'
-
 sync-prune-removed:
   symbols: [sync.prune]
   upgrade:
@@ -114,9 +106,9 @@ sync-prune-removed:
   downgrade:
     steps:
       - 'Nothing has to change: `vulcan sync --prune` works again in 0.4.8, and a script without the flag still runs.'
-
 atlas-old-subcommands-and-make-targets-removed:
-  symbols: [changelogs.migrate, concepts.stamp, concepts.check, vulcan.mk]
+  symbols:
+    [changelogs.migrate, concepts.stamp, concepts.check, '@venizia/vulcan/base/make/vulcan.mk']
   upgrade:
     steps:
       - 'Remove every call to `vulcan x atlas changelogs migrate`, `vulcan x atlas concepts stamp` and `vulcan x atlas concepts check`; they exit 2 with `unknown subcommand`. Add `packages:` to a changelog entry by hand.'
@@ -126,7 +118,6 @@ atlas-old-subcommands-and-make-targets-removed:
     steps:
       - 'Nothing has to change: pin 0.4.8 and `changelogs migrate`, `concepts stamp|check` and the two make targets work again.'
   data: 'A `symbols:` key in a concept and a `.symbols.lock.json` file are not read in 0.4.9, so a symbol check that relied on them no longer runs.'
-
 atlas-protocol-version-fixed:
   symbols: [AtlasConstants.PROTOCOL_VERSION]
   upgrade:
@@ -135,7 +126,6 @@ atlas-protocol-version-fixed:
   downgrade:
     steps:
       - 'Pin `@venizia/vulcan-atlas` to 0.4.8, which answers `2025-03-26` or `2024-11-05` when a client asks for one of them.'
-
 local-folder-auto-clean:
   symbols: [local.autoClean]
   upgrade:
@@ -146,7 +136,6 @@ local-folder-auto-clean:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, which removes nothing by itself.'
   data: 'What the clean removed is not restored by pinning back.'
-
 old-state-not-repaired:
   symbols: [doctor, atlas.cache]
   upgrade:
@@ -158,7 +147,6 @@ old-state-not-repaired:
   downgrade:
     steps:
       - 'Nothing has to change: 0.4.8 repairs those states again and reads what 0.4.9 reads.'
-
 visualize-language-follows-profile:
   symbols:
     - visualize.language
