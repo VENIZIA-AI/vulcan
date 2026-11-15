@@ -14,7 +14,5 @@ This release lets a project guard GitHub writes, makes a large blanket `git add`
 - **The plan card has a `Runs by` section** `plan-card-runs-by` (`@venizia/vulcan`): each outward action a plan needs (a release dispatch, creating or deleting a repository, closing an issue, a push to a shared ref, writing a setting) is listed with who runs it, the agent or the owner. The skill text changes on the next `vulcan sync`.
 - **`atlas index publish` takes a manual run and a `ref`** `atlas-index-manual-run-ref` (`@venizia/vulcan-atlas`): `atlas index publish --ref <tag-or-branch>` (the CI action's `ref` input) publishes the pair of that commit, so the pair of a release commit and tag exists even when a push made with the Actions token started no workflow. The ref must be the plain name of a tag or branch whose commit is on the default branch or `develop`. A project that publishes its own index from a job that pushes a tag can add the `ref` input after the push; nothing is required of any other project.
 
-## Changed
-
 ## Security
 - **Every package is published with an npm provenance statement** `packages-carry-npm-provenance` (`@venizia/vulcan`, `@venizia/vulcan-atlas`, `@venizia/vulcan-okf`): the packages are published through npm trusted publishing instead of a stored token, so each version shows "Built and signed on GitHub Actions" on npmjs.com and carries a SLSA provenance attestation you can verify. No action is needed.
