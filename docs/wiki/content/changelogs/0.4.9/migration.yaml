@@ -19,6 +19,7 @@ atlas-exports-in-classes:
     ]
   upgrade:
     steps:
+      - 'No codemod covers this: the `namespace-functions` codemod of `@venizia/dev-configs` reads a fixed table of names, and none of the six moved names is in it, so the change is made by hand.'
       - 'Search your code for imports of `officialIdOf`, `triggerOf` and `skillCatalogOf` from `@venizia/vulcan-atlas`.'
       - 'Import `OfficialPresets` and `SkillCatalog` instead, and call `OfficialPresets.idOf({ spec })`, `SkillCatalog.triggerOf({ description })` and `SkillCatalog.catalogOf({ root })`. Options and results are the same.'
   downgrade:
@@ -37,6 +38,7 @@ okf-exports-in-classes:
     ]
   upgrade:
     steps:
+      - 'No codemod covers this: the `namespace-functions` codemod of `@venizia/dev-configs` reads a fixed table of names, and none of the six moved names is in it, so the change is made by hand.'
       - 'Search your code for imports of `checkBundle`, `splitFrontmatter` and `parseYamlMapping` from `@venizia/vulcan-okf`.'
       - 'Import `BundleConformance` and `OkfFrontmatter` instead, and call `BundleConformance.check({ files })`, `OkfFrontmatter.split({ text })` and `OkfFrontmatter.parseMapping({ yaml })`. Options and results are the same.'
   downgrade:
@@ -156,3 +158,14 @@ old-state-not-repaired:
   downgrade:
     steps:
       - 'Nothing has to change: 0.4.8 repairs those states again and reads what 0.4.9 reads.'
+
+visualize-language-follows-profile:
+  symbols:
+    - visualize.language
+  upgrade:
+    steps:
+      - "A spec with no `language` is rendered in the reply language of your profile (`profile.language`). To keep English, set `language: 'en'` in the spec, or build it with a profile that names no other language."
+      - 'A test or script that compares the text of a built page builds it with the same profile, or sets `language` in the spec.'
+  downgrade:
+    steps:
+      - 'Nothing has to change: 0.4.8 renders a spec with no `language` in English, and a spec that sets `language` is valid there.'
