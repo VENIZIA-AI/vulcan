@@ -2,7 +2,9 @@
 #   -include node_modules/@venizia/vulcan/base/make/vulcan.mk
 # A project adds its own targets after the include; redefining one of these fails `vulcan doctor`.
 
-VULCAN ?= bun run vulcan
+# The linked bin by path, not `bun run vulcan`: `bun run` falls back to a program on $PATH, or to one bun cached, when the bin is not linked
+# here, and the include above needs this same node_modules. A missing bin fails the target instead of running another program.
+VULCAN ?= bun $(CURDIR)/node_modules/.bin/vulcan
 VULCAN_BASE ?= node_modules/@venizia/vulcan/base
 # The GitHub repository the wiki links point into, owner/name; the link gate checks only links into it.
 WIKI_REPO ?=

@@ -12,6 +12,8 @@ const MARKER = '# vulcan:commit-msg';
 const OWNER = new RegExp(`^${MARKER}(?: \\[([^\\]]*)\\])?`);
 /** A hook that calls the check: the old text (`vulcan commit-check`) and the one sync writes now (`vulcan" commit-check`). */
 const CALL = /vulcan["']?\s+commit-check/;
+/** The call sync wrote before V-S-08, and the `bunx` forms of it: they can run a copy bunx cached, so a hook that has one is stale. */
+const LEGACY_CALL = /\bbun(?:x|\s+x)\s+(?:--?[\w-]+\s+)*vulcan\s+commit-check/;
 /** A line break, or any other control character: a folder name that holds one cannot be written into the hook text. */
 const CONTROL_CHARACTER = /\p{Cc}/u;
 const CONTROL_CHARACTERS = /\p{Cc}/gu;
@@ -167,7 +169,17 @@ exit "$status"
 
     const addLine = `add '${ADVICE_COMMAND}' to its ${HOOK_NAME} hook`;
 
+    const legacyNote = `it runs vulcan by name through bunx or \`bun x\`, which can run a copy bunx cached: change the line to '${ADVICE_COMMAND}'`;
+
     if (hooksPath !== undefined) {
+      if (text !== undefined && LEGACY_CALL.test(text)) {
+        return {
+          state: CommitHookStates.LEGACY,
+          path,
+          note: `core.hooksPath is ${hooksPath}: ${legacyNote}`,
+        };
+      }
+
       return text !== undefined && CALL.test(text)
         ? { state: CommitHookStates.WIRED, path }
         : {
@@ -206,6 +218,14 @@ exit "$status"
       const isCurrent = text === CommitHook.template({ prefix }) && (entry.mode & 0o111) !== 0;
 
       return { state: isCurrent ? CommitHookStates.WIRED : CommitHookStates.STALE, path };
+    }
+
+    if (LEGACY_CALL.test(text)) {
+      return {
+        state: CommitHookStates.LEGACY,
+        path,
+        note: `a hook of yours is there, not touched: ${legacyNote}`,
+      };
     }
 
     return CALL.test(text)
@@ -247,6 +267,7 @@ export class CommitHookPlan {
       }
 
       case CommitHookStates.UNWIRED:
+      case CommitHookStates.LEGACY:
       case CommitHookStates.OTHER_PROJECT: {
         return [{ path, status: SyncStatuses.SKIPPED, note: status.note, apply: () => {} }];
       }

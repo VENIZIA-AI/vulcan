@@ -7,10 +7,11 @@ test('the invocation VULCAN prints runs the linked bin and never fetches a packa
   expect(ProjectLayout.VULCAN_COMMAND).toBe('bun run vulcan');
 });
 
-test('the shipped make module runs the linked bin', () => {
+test('the shipped make module runs the linked bin by path, which never falls back to $PATH', () => {
   const makefile = readFileSync(join(BASE_DIRECTORY, 'make', 'vulcan.mk'), 'utf8');
 
-  expect(makefile).toContain(`VULCAN ?= ${ProjectLayout.VULCAN_COMMAND}`);
+  expect(makefile).toContain('VULCAN ?= bun $(CURDIR)/node_modules/.bin/vulcan');
+  expect(makefile).not.toContain('VULCAN ?= bun run');
 });
 
 test('the AGENTS.md template tells agents the linked-bin form, never a bunx form', () => {

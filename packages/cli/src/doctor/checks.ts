@@ -663,6 +663,16 @@ export class ProjectContract {
         ];
       }
 
+      case CommitHookStates.LEGACY: {
+        return [
+          createViolation({
+            check: DoctorChecks.COMMIT_HOOK,
+            file,
+            message: `the commit-msg hook is out of date: ${status.note ?? fix}`,
+          }),
+        ];
+      }
+
       case CommitHookStates.UNWIRED: {
         return [
           createViolation({

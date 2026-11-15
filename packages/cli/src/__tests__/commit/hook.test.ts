@@ -257,6 +257,20 @@ describe('CommitHookPlan: a project that sets core.hooksPath owns its hooks', ()
     expect(existsSync(hookFile({ root }))).toBe(false);
   });
 
+  test('a hook there that still runs vulcan by name is stale, whatever its flags', () => {
+    for (const line of [
+      'bun x --no-install vulcan commit-check "$1"',
+      'bunx vulcan commit-check "$1"',
+      'bun x vulcan commit-check "$1"',
+    ]) {
+      const root = withHooksPath({ hook: `#!/bin/sh\nexec ${line}\n` });
+      const status = CommitHook.stateOf({ root, config: DENY });
+
+      expect(status.state).toBe(CommitHookStates.LEGACY);
+      expect(status.note).toContain('bun node_modules/.bin/vulcan commit-check "$1"');
+    }
+  });
+
   test('a hook there that calls the command is wired', () => {
     const root = withHooksPath({
       hook: '#!/bin/sh\nexec bun run vulcan commit-check "$1"\n',
