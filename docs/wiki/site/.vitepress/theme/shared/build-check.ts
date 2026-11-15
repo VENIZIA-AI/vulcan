@@ -49,6 +49,8 @@ const LOG_PATTERNS: [RegExp, string][] = [
   [/\[Vue warn\]/, 'a Vue warning'],
   [/hydration/i, 'a hydration message'],
 ];
+/** A version folder of the changelog: `changelogs/<X.Y.Z>/log.md`. */
+const VERSION_FOLDER = /^\d+\.\d+\.\d+$/;
 /** Inner pages to look at, the first that was built: the wikis' own sections. */
 const INNER_PAGES = ['references/index.html', 'guides/index.html', 'changelogs/index.html'];
 const FOOTER = /class="[^"]*\bsite-footer\b/;
@@ -207,8 +209,29 @@ export class BuildCheck {
       : '';
   }
 
+  /**
+   * Every version folder of the changelog is served at `/changelogs/<X.Y.Z>`, which is where the index and the feed link to it:
+   * a wiki serves `changelogs/<X.Y.Z>/log.md` there through `rewrites: { 'changelogs/:version/log.md': 'changelogs/:version.md' }`
+   * in its VitePress config. Without that line the links 404.
+   */
+  static scanVersionPages(opts: { changelogs: string; dist: string }): string[] {
+    if (!existsSync(opts.changelogs)) {
+      return [];
+    }
+
+    return readdirSync(opts.changelogs)
+      .filter(
+        (name) => VERSION_FOLDER.test(name) && existsSync(join(opts.changelogs, name, 'log.md')),
+      )
+      .filter((name) => !existsSync(join(opts.dist, 'changelogs', `${name}.html`)))
+      .map(
+        (name) =>
+          `the version folder changelogs/${name} is not served at /changelogs/${name}: add rewrites: { 'changelogs/:version/log.md': 'changelogs/:version.md' } to the VitePress config`,
+      );
+  }
+
   /** The checks over a built site and the log of its build (empty when there is none); the problems, none when sound. */
-  static check(opts: { dist: string; log: string }): string[] {
+  static check(opts: { dist: string; log: string; changelogs?: string }): string[] {
     const problems = BuildCheck.scanLog({ log: opts.log });
     const home = join(opts.dist, 'index.html');
 
@@ -218,6 +241,12 @@ export class BuildCheck {
 
     problems.push(...BuildCheck.scanHome({ html: readFileSync(home, 'utf8') }));
     problems.push(...BuildCheck.scanStyles({ css: BuildCheck.stylesOf({ dist: opts.dist }) }));
+
+    if (opts.changelogs !== undefined) {
+      problems.push(
+        ...BuildCheck.scanVersionPages({ changelogs: opts.changelogs, dist: opts.dist }),
+      );
+    }
 
     const inner = INNER_PAGES.find((page) => existsSync(join(opts.dist, page)));
 
@@ -279,7 +308,11 @@ export class BuildCheck {
       }
     }
 
-    const problems = BuildCheck.check({ dist: join(opts.root, DIST), log });
+    const problems = BuildCheck.check({
+      dist: join(opts.root, DIST),
+      log,
+      changelogs: join(opts.root, WIKI, 'content', 'changelogs'),
+    });
 
     for (const problem of problems) {
       console.error(`wiki build: ${problem}`);

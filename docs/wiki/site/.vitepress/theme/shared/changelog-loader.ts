@@ -12,6 +12,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createContentLoader } from 'vitepress';
 import {
+  demoteHeadings,
   parseEntry,
   parseVersion,
   shownVersions,
@@ -60,7 +61,9 @@ export const createVersionsLoader = () =>
       const full = new Set([shown.latest?.version, shown.inProgress?.version]);
 
       return versions.map(({ html, ...entry }) =>
-        full.has(entry.version) && html !== undefined ? { ...entry, html } : entry,
+        full.has(entry.version) && html !== undefined
+          ? { ...entry, html: demoteHeadings(html) }
+          : entry,
       );
     },
   });

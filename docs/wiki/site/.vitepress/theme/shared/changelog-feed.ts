@@ -22,22 +22,47 @@ export const changelogFeed = (opts: {
   versions?: TVersionEntry[];
 }): string => {
   const base = opts.site.siteUrl.replace(/\/$/, '');
-  const releases = (opts.versions ?? [])
-    .filter((version): version is TVersionEntry & { released: string } => version.released !== null)
-    .map(
-      (version) =>
-        `<item><title>${escapeXml(version.title)}</title><link>${base}${version.url}</link><guid isPermaLink="true">${base}${version.url}</guid><pubDate>${new Date(`${version.released}T12:00:00Z`).toUTCString()}</pubDate><description>${escapeXml(version.summary || formatDate(version.released))}</description><category>Release</category></item>`,
-    )
+  const item = (item: {
+    title: string;
+    url: string;
+    date: string;
+    summary: string;
+    kinds: string[];
+  }) =>
+    `<item><title>${escapeXml(item.title)}</title><link>${base}${item.url}</link><guid isPermaLink="true">${base}${item.url}</guid><pubDate>${new Date(`${item.date}T12:00:00Z`).toUTCString()}</pubDate><description>${escapeXml(item.summary || formatDate(item.date))}</description>${item.kinds.map((kind) => `<category>${escapeXml(kind)}</category>`).join('')}</item>`;
+  const releases = (opts.versions ?? []).flatMap((version) =>
+    version.released === null
+      ? []
+      : [
+          {
+            date: version.released,
+            isRelease: true,
+            xml: item({
+              title: version.title,
+              url: version.url,
+              date: version.released,
+              summary: version.summary,
+              kinds: ['Release'],
+            }),
+          },
+        ],
+  );
+  const entries = opts.entries.map((entry) => ({
+    date: entry.date,
+    isRelease: false,
+    xml: item({
+      title: entry.title,
+      url: entry.url,
+      date: entry.date,
+      summary: entry.summary,
+      kinds: entry.types.map((type) => type.label),
+    }),
+  }));
+  // One list, newest day first; on one day a released version comes before the dated entries.
+  const items = [...releases, ...entries]
+    .sort((a, b) => b.date.localeCompare(a.date) || Number(b.isRelease) - Number(a.isRelease))
+    .map((entry) => entry.xml)
     .join('');
-  const items = opts.entries
-    .map((entry) => {
-      const kinds = entry.types
-        .map((type) => `<category>${escapeXml(type.label)}</category>`)
-        .join('');
 
-      return `<item><title>${escapeXml(entry.title)}</title><link>${base}${entry.url}</link><guid isPermaLink="true">${base}${entry.url}</guid><pubDate>${new Date(`${entry.date}T12:00:00Z`).toUTCString()}</pubDate><description>${escapeXml(entry.summary || formatDate(entry.date))}</description>${kinds}</item>`;
-    })
-    .join('');
-
-  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${escapeXml(opts.site.title)}</title><link>${base}/changelogs/</link><description>${escapeXml(opts.site.description)}</description>${releases}${items}</channel></rss>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${escapeXml(opts.site.title)}</title><link>${base}/changelogs/</link><description>${escapeXml(opts.site.description)}</description>${items}</channel></rss>\n`;
 };

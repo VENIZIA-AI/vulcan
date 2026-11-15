@@ -416,6 +416,13 @@
   }
 }
 
+/* the link to the migrate guide in a version page's title block: not colour alone */
+.ce-head .cl-meta a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* ---- an entry page: the title block, and the heading the entry carries itself is hidden ---------- */
 .ce-head {
   margin: 0 0 var(--space-5);

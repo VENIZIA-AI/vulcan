@@ -4,7 +4,10 @@ import {
   formatDate,
   matchesFilter,
   parseEntry,
+  demoteHeadings,
   parseVersion,
+  plainText,
+  releasedOf,
   shownVersions,
   sortVersions,
   sortEntries,
@@ -172,7 +175,6 @@ describe('the version folders on the changelog index (A6, C15)', () => {
         released: '2026-11-20',
         summary: 'The line.',
         packages: ['@x/core'],
-        hasBreaking: false,
       });
     }
   });
@@ -181,17 +183,36 @@ describe('the version folders on the changelog index (A6, C15)', () => {
     expect(version({ released: new Date('2026-11-20T00:00:00Z') })?.released).toBe('2026-11-20');
   });
 
-  test('no released: (or one that is not a date) is a line in progress', () => {
+  test('no released: is a line in progress; one that is not a date is neither, and the page is not an entry', () => {
     expect(version({})?.released).toBeNull();
-    expect(version({ released: 'soon' })?.released).toBeNull();
+    expect(version({ released: 'soon' })).toBeNull();
+    expect(releasedOf(undefined)).toBeUndefined();
+    expect(releasedOf('soon')).toBeNull();
   });
 
-  test('a Breaking section is noted, and a page that is not a version folder is not one', () => {
-    expect(
-      version({ src: '---\ntitle: x\n---\nIntro.\n\n## Breaking\n- **A** `a`: a.\n' })?.hasBreaking,
-    ).toBe(true);
-    expect(version({ url: '/changelogs/2026-10-26-thing' })).toBeNull();
-    expect(version({ url: '/changelogs/index' })).toBeNull();
+  test('released: arrives as a Date, an ISO string from the page data, or a plain day: all the same day', () => {
+    expect(releasedOf(new Date('2026-11-20T00:00:00Z'))).toBe('2026-11-20');
+    expect(releasedOf('2026-11-20T00:00:00.000Z')).toBe('2026-11-20');
+    expect(releasedOf('2026-11-20')).toBe('2026-11-20');
+    expect(releasedOf('20 Nov')).toBeNull();
+  });
+
+  test('the summary is plain text, and a file with CRLF line ends reads the same', () => {
+    const crlf = version({
+      src: '---\r\ntitle: x\r\n---\r\nThe **line** has `code` and a [link](https://x.test).\r\n\r\n## Added\r\n- **A** `a`: a.\r\n',
+    });
+
+    expect(crlf?.summary).toBe('The line has code and a link.');
+    expect(plainText('A <b>tag</b> and _emphasis_ and **bold**')).toBe(
+      'A tag and emphasis and bold',
+    );
+  });
+
+  test('the sections of a page on the index are h3 with no id or permalink, so two pages share no id', () => {
+    const html =
+      '<h2 id="added" tabindex="-1">Added <a class="header-anchor" href="#added" aria-label="Permalink to “Added”">&#8203;</a></h2><ul><li>x</li></ul>';
+
+    expect(demoteHeadings(html)).toBe('<h3>Added</h3><ul><li>x</li></ul>');
   });
 
   test('sortVersions orders by number, and the index shows the latest release, the line in progress, then the older ones', () => {
@@ -216,16 +237,36 @@ describe('the version folders on the changelog index (A6, C15)', () => {
     expect(shown.older.map((entry) => entry.version)).toEqual(['0.4.8', '0.4.6']);
   });
 
-  test('the feed lists a released version with its released: date and leaves out the line in progress', () => {
+  test('the feed is one list by date: a released version and the dated entries are merged, a version first on its own day', () => {
+    const dated = (slug: string) =>
+      parseEntry({
+        url: `/changelogs/${slug}`,
+        frontmatter: { title: slug, description: 'D.', packages: [] },
+        src: '',
+      });
     const released = version({ url: '/changelogs/0.4.7/log', released: '2026-11-10' });
     const open = version({ url: '/changelogs/0.4.8/log' });
+    const entries = ['2026-11-12-newer', '2026-11-10-same-day', '2026-11-01-older'].flatMap(
+      (slug) => {
+        const entry = dated(slug);
+
+        return entry === null ? [] : [entry];
+      },
+    );
     const feed = changelogFeed({
       site: { title: 'T', description: 'D', siteUrl: 'https://x.test' },
-      entries: [],
+      entries,
       versions: [released, open].flatMap((entry) => (entry === null ? [] : [entry])),
     });
+    const order = [
+      '2026-11-12-newer',
+      'changelogs/0.4.7<',
+      '2026-11-10-same-day',
+      '2026-11-01-older',
+    ].map((needle) => feed.indexOf(needle));
 
-    expect(feed).toContain('<link>https://x.test/changelogs/0.4.7</link>');
+    expect(order.every((index) => index > 0)).toBe(true);
+    expect(order).toEqual([...order].sort((left, right) => left - right));
     expect(feed).toContain('Tue, 10 Nov 2026 12:00:00 GMT');
     expect(feed).not.toContain('changelogs/0.4.8');
   });

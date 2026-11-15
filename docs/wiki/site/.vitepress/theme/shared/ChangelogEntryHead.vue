@@ -7,27 +7,34 @@
   h1, the title repeated as an h2 and the badge line), which changelog.css hides. For a version folder
   (changelogs/<X.Y.Z>/log.md, which has no heading of its own) it shows the release date, or "In progress", and - when
   the page has a Breaking section and the wiki names its migrate guide in `themeConfig.migrateGuide` - a link to it.
+  A version page reads only its own frontmatter and headings: the loader data of the index, which carries the pages'
+  HTML, is not imported here, so it does not reach the script every page loads.
 -->
 <script setup lang="ts">
 import { useData } from 'vitepress';
 import { computed } from 'vue';
 import { data } from './changelog.data';
-import { data as versions } from './changelog-versions.data';
-import { formatDate } from './changelog-entries';
+import { formatDate, releasedOf } from './changelog-entries';
 
 const { page, theme } = useData();
 
-/** The last segment of a dated entry's path, or the folder of a version page. */
+/** A wiki serves changelogs/<X.Y.Z>/log.md at changelogs/<X.Y.Z> (a rewrite): the page knows itself by either path. */
+const isVersionPage = computed(() =>
+  /^changelogs\/\d+\.\d+\.\d+(?:\/log)?\.md$/.test(page.value.relativePath),
+);
+const frontmatter = computed(() => page.value.frontmatter);
+const released = computed(() => releasedOf(frontmatter.value.released));
+const packages = computed<string[]>(() =>
+  Array.isArray(frontmatter.value.packages)
+    ? frontmatter.value.packages.filter((entry): entry is string => typeof entry === 'string')
+    : [],
+);
+const hasBreaking = computed(() =>
+  page.value.headers.some((header) => header.level === 2 && header.title === 'Breaking'),
+);
+
+/** The last segment of a dated entry's path. */
 const slug = computed(() => page.value.relativePath.replace(/\.md$/, '').split('/').pop());
-const versionOfPage = computed(() => {
-  // A wiki serves changelogs/<X.Y.Z>/log.md at changelogs/<X.Y.Z> (a rewrite): the page knows itself by either path.
-  const matched = /^changelogs\/(\d+\.\d+\.\d+)(?:\/log)?\.md$/.exec(page.value.relativePath);
-
-  return matched === null
-    ? undefined
-    : versions.find((candidate) => candidate.version === matched[1]);
-});
-
 const entry = computed(() => data.find((candidate) => candidate.slug === slug.value));
 
 const meta = computed(() =>
@@ -44,19 +51,15 @@ const migrateGuide = computed<string | undefined>(() =>
 </script>
 
 <template>
-  <div v-if="versionOfPage" class="ce-head ce-head--version">
+  <div v-if="isVersionPage" class="ce-head ce-head--version">
     <a class="ce-back" href="/changelogs/">All changes</a>
     <p class="ce-line">
-      <time v-if="versionOfPage.released" :datetime="versionOfPage.released">{{
-        formatDate(versionOfPage.released)
-      }}</time>
-      <span v-else class="cl-chip">In progress</span>
+      <time v-if="released" :datetime="released">{{ formatDate(released) }}</time>
+      <span v-else-if="released === undefined" class="cl-chip">In progress</span>
     </p>
-    <h1 class="ce-title">{{ versionOfPage.title }}</h1>
-    <p v-if="versionOfPage.packages.length" class="cl-meta">
-      {{ versionOfPage.packages.join(', ') }}
-    </p>
-    <p v-if="versionOfPage.hasBreaking && migrateGuide" class="cl-meta">
+    <h1 class="ce-title">{{ frontmatter.title }}</h1>
+    <p v-if="packages.length" class="cl-meta">{{ packages.join(', ') }}</p>
+    <p v-if="hasBreaking && migrateGuide" class="cl-meta">
       Upgrading across breaking changes: <a :href="migrateGuide">migrate between releases</a>
     </p>
   </div>

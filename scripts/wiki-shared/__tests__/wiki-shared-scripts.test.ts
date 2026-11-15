@@ -158,6 +158,45 @@ describe('SharedCheck.compare', () => {
   });
 });
 
+describe('BuildCheck.scanVersionPages', () => {
+  const site = (opts: { served: string[] }) => {
+    const root = mkdtempSync(join(tmpdir(), 'wiki-versions-'));
+
+    roots.push(root);
+    mkdirSync(join(root, 'content', 'changelogs', '0.4.7'), { recursive: true });
+    mkdirSync(join(root, 'content', 'changelogs', 'drafts'), { recursive: true });
+    writeFileSync(
+      join(root, 'content', 'changelogs', '0.4.7', 'log.md'),
+      '---\ntitle: 0.4.7\n---\n',
+    );
+    mkdirSync(join(root, 'dist', 'changelogs'), { recursive: true });
+
+    for (const name of opts.served) {
+      writeFileSync(join(root, 'dist', 'changelogs', name), '<html></html>');
+    }
+
+    return { changelogs: join(root, 'content', 'changelogs'), dist: join(root, 'dist') };
+  };
+
+  test('a wiki that serves its version folders passes', () => {
+    expect(BuildCheck.scanVersionPages(site({ served: ['0.4.7.html'] }))).toEqual([]);
+  });
+
+  test('a wiki with no rewrite for them is told the line to add, naming the folder', () => {
+    const problems = BuildCheck.scanVersionPages(site({ served: [] }));
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('changelogs/0.4.7');
+    expect(problems[0]).toContain(
+      "rewrites: { 'changelogs/:version/log.md': 'changelogs/:version.md' }",
+    );
+  });
+
+  test('a wiki with no version folder is not asked for anything', () => {
+    expect(BuildCheck.scanVersionPages({ changelogs: '/nowhere', dist: '/nowhere' })).toEqual([]);
+  });
+});
+
 describe('BuildCheck', () => {
   const bar = '<div class="site-brand"></div><a class="venizia-link"></a>';
   const home = `${bar}<section class="vh hero"><canvas class="dust"></canvas><a class="btn btn--primary" href="/a"></a><a class="btn btn--ghost" href="/b"></a></section><footer class="vh site-footer"><canvas class="dust"></canvas><a class="btn" href="/c"></a></footer>`;

@@ -80,44 +80,71 @@ export type TVersionEntry = {
   title: string;
   /** `YYYY-MM-DD` once the stable is out; null while the line is in progress. */
   released: string | null;
-  /** The paragraph above the sections: what the release is. */
+  /** The paragraph above the sections: what the release is, as plain text. */
   summary: string;
   packages: string[];
-  /** The line has a Breaking section: its page points to the migrate guide. */
-  hasBreaking: boolean;
   /** The page as HTML; set only for the two the index shows in full. */
   html?: string;
 };
 
-const SECTION = /^## (.+?)\s*$/gm;
-const RELEASED = /^\d{4}-\d{2}-\d{2}$/;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-/** The text between the frontmatter and the first heading, as one line. */
+/**
+ * The day of a `released:` value: `undefined` when there is none (a line in progress), `null` when it is not a date (the gate
+ * reports it; the wiki shows the page as neither released nor in progress). The frontmatter parser reads an unquoted date as a
+ * Date (UTC midnight), which the page data carries as an ISO string; a quoted one is text.
+ */
+export const releasedOf = (value: unknown): string | null | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const day = value instanceof Date ? value.toISOString().slice(0, 10) : text(value).slice(0, 10);
+
+  return DAY.test(day) && (value instanceof Date || text(value).length >= 10) ? day : null;
+};
+
+/** Markdown as one line of plain text: no code marks, link targets, emphasis or tags. */
+export const plainText = (markdown: string): string =>
+  markdown
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/(\*\*|__|\*|_)(.+?)\1/g, '$2')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** The text between the frontmatter and the first heading, as plain text. */
 const introOf = (src: string): string => {
   const body = src.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
   const first = body.search(/^## /m);
 
-  return (first === -1 ? body : body.slice(0, first)).replace(/\s+/g, ' ').trim();
+  return plainText(first === -1 ? body : body.slice(0, first));
 };
 
-/** A version folder's page as an entry; null for any other page. */
+/**
+ * A page of the index shows its sections under the card's own heading: the `<h2>` a section brings, with an id and a
+ * permalink anchor, becomes a plain `<h3>`, so two pages on one index never share an id.
+ */
+export const demoteHeadings = (html: string): string =>
+  html.replace(
+    /<h2\b[^>]*>([\s\S]*?)\s*<a class="header-anchor"[^>]*>[^<]*<\/a><\/h2>/g,
+    (_match, title: string) => `<h3>${title.trim()}</h3>`,
+  );
+
+/** A version folder's page as an entry; null for any other page, and for one whose `released:` is not a date. */
 export const parseVersion = (opts: {
   url: string;
   frontmatter: Record<string, unknown>;
   src: string;
 }): TVersionEntry | null => {
   const version = VERSION_URL.exec(opts.url.replace(/\.html$/, ''))?.[1];
+  const released = releasedOf(opts.frontmatter.released);
 
-  if (version === undefined) {
+  if (version === undefined || released === null) {
     return null;
   }
 
-  // The frontmatter parser reads an unquoted `released: 2026-11-10` as a Date (UTC midnight); a quoted one is text.
-  const date = opts.frontmatter.released;
-  const released =
-    date instanceof Date && !Number.isNaN(date.getTime())
-      ? date.toISOString().slice(0, 10)
-      : text(date);
   const packages = Array.isArray(opts.frontmatter.packages)
     ? opts.frontmatter.packages.filter((entry): entry is string => typeof entry === 'string')
     : [];
@@ -126,10 +153,9 @@ export const parseVersion = (opts: {
     url: `/changelogs/${version}`,
     version,
     title: text(opts.frontmatter.title) || version,
-    released: RELEASED.test(released) ? released : null,
+    released: released ?? null,
     summary: introOf(opts.src),
     packages,
-    hasBreaking: [...opts.src.matchAll(SECTION)].some((match) => match[1] === 'Breaking'),
   };
 };
 
