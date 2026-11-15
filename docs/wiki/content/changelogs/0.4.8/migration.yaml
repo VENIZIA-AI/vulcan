@@ -1,0 +1,9 @@
+guard-outside-scratchpad-denied:
+  symbols: [guard.toolOwnedPaths]
+  upgrade:
+    steps:
+      - 'An agent, script or hook that writes into the scratchpad folder its tool offers (`/tmp/claude-<uid>/<project>/<session>/scratchpad`) is refused now, where it was asked and approved. Write under `.agents/local/tmp/<task>/` instead.'
+      - 'To keep allowing the folder, list it in `guard.toolOwnedPaths` in `.configs/vulcan.config.mts` and run `vulcan sync`.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`, where a write into that folder is asked about again.'
