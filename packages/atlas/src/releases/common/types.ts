@@ -85,6 +85,8 @@ export interface IReleaseIndex {
   releaseOrderOf(opts: { package: string; version: string }): number | undefined;
   /** The words of the command that runs the codemods of the source that serves `package`; absent when it sets none (the default runner). */
   codemodCommandOf(opts: { package: string }): string[] | undefined;
+  /** The npm names of every package the source that serves `package` declares: the only places its codemod runner may be installed from. */
+  codemodPackagesOf(opts: { package: string }): string[];
   /** `includeFolded` keeps the dated files a version folder covers; by default only the folder's items stand for that range. */
   entriesBetween(opts: {
     package?: string;

@@ -62,6 +62,8 @@ export interface IMigrationPlan {
   apply?: string;
   /** What `apply` runs the linked codemods with: the `knowledge.codemodCommand` of the source that serves the package (default `devz codemod`); set with `apply`. */
   codemodCommand?: string[];
+  /** The packages of that source: the runner's binary must be installed inside one of them; set with `apply`. */
+  codemodPackages?: string[];
   /** A warning about how to read the plan, e.g. `latest` is older than the installed version; absent otherwise. */
   note?: string;
   /** Set when npm is ahead of the atlas source's ref: the plan stops short of what npm publishes. */
@@ -309,6 +311,7 @@ export class MigratePlan {
       plan.codemodCommand = releases.codemodCommandOf({ package: opts.package }) ?? [
         ...CodemodRunner.DEFAULT,
       ];
+      plan.codemodPackages = releases.codemodPackagesOf({ package: opts.package });
     }
 
     if (isAlias && !isUpgrade) {

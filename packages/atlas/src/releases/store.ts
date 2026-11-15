@@ -195,6 +195,11 @@ export class ReleaseStore extends BaseHelper {
     });
   }
 
+  /** The npm names of the packages the source declares, retired ones too. */
+  codemodPackagesOf(): string[] {
+    return this.packageMap.map((entry) => entry.name);
+  }
+
   /** The source project's codemod runner words, or `undefined` for the default. */
   codemodCommandOf(): string[] | undefined {
     return this.codemod;

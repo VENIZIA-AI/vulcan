@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
@@ -356,8 +356,10 @@ describe('ChangelogCheck.codemodsOf', () => {
 
     roots.push(root);
     mkdirSync(join(root, 'node_modules', '.bin'), { recursive: true });
-    writeFileSync(join(root, 'node_modules', '.bin', 'devz'), opts.script);
-    chmodSync(join(root, 'node_modules', '.bin', 'devz'), 0o755);
+    mkdirSync(join(root, 'node_modules', '@a', 'tools', 'bin'), { recursive: true });
+    writeFileSync(join(root, 'node_modules', '@a', 'tools', 'bin', 'devz'), opts.script);
+    chmodSync(join(root, 'node_modules', '@a', 'tools', 'bin', 'devz'), 0o755);
+    symlinkSync('../@a/tools/bin/devz', join(root, 'node_modules', '.bin', 'devz'));
 
     return root;
   };
@@ -367,7 +369,7 @@ describe('ChangelogCheck.codemodsOf', () => {
       script: '#!/bin/sh\nprintf "namespace-functions\\nconnector-imports\\n"\n',
     });
 
-    expect(ChangelogCheck.codemodsOf({ root })).toEqual([
+    expect(ChangelogCheck.codemodsOf({ root, packages: ['@a/tools'] })).toEqual([
       'namespace-functions',
       'connector-imports',
     ]);
@@ -378,10 +380,20 @@ describe('ChangelogCheck.codemodsOf', () => {
 
     roots.push(empty);
 
-    expect(ChangelogCheck.codemodsOf({ root: empty })).toBeUndefined();
+    expect(ChangelogCheck.codemodsOf({ root: empty, packages: ['@a/tools'] })).toBeUndefined();
     expect(
-      ChangelogCheck.codemodsOf({ root: withDevz({ script: '#!/bin/sh\nexit 2\n' }) }),
+      ChangelogCheck.codemodsOf({
+        root: withDevz({ script: '#!/bin/sh\nexit 2\n' }),
+        packages: ['@a/tools'],
+      }),
     ).toBeUndefined();
+  });
+
+  test('is undefined, and runs nothing, when the binary is not inside a package the project declares', () => {
+    const root = withDevz({ script: '#!/bin/sh\nprintf "namespace-functions\\n"\n' });
+
+    expect(ChangelogCheck.codemodsOf({ root, packages: ['@a/other'] })).toBeUndefined();
+    expect(ChangelogCheck.codemodsOf({ root, packages: [] })).toBeUndefined();
   });
 });
 

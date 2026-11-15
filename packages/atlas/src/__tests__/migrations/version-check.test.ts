@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
@@ -490,17 +490,22 @@ describe('the codemod runner of the project', () => {
     const made = projectWith({});
 
     mkdirSync(join(made.root, 'node_modules', '.bin'), { recursive: true });
+    mkdirSync(join(made.root, 'node_modules', '@a', 'ardor', 'bin'), { recursive: true });
     writeFileSync(
-      join(made.root, 'node_modules', '.bin', 'ardor'),
+      join(made.root, 'node_modules', '@a', 'ardor', 'bin', 'ardor'),
       '#!/bin/sh\n[ "$1" = codemod ] && [ "$2" = --list ] && echo namespace && echo rename\n',
       { mode: 0o755 },
     );
+    symlinkSync('../@a/ardor/bin/ardor', join(made.root, 'node_modules', '.bin', 'ardor'));
 
-    expect(ChangelogCheck.codemodsOf({ root: made.root, command: ['ardor', 'codemod'] })).toEqual([
-      'namespace',
-      'rename',
-    ]);
-    expect(ChangelogCheck.codemodsOf({ root: made.root })).toBeUndefined();
+    expect(
+      ChangelogCheck.codemodsOf({
+        root: made.root,
+        command: ['ardor', 'codemod'],
+        packages: ['@a/ardor'],
+      }),
+    ).toEqual(['namespace', 'rename']);
+    expect(ChangelogCheck.codemodsOf({ root: made.root, packages: ['@a/ardor'] })).toBeUndefined();
   });
 });
 

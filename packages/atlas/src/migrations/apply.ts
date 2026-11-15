@@ -258,6 +258,7 @@ export class MigrateApply {
 
     const runners = new Map<IMigrationPlan, { bin: string; name: string; words: string[] }>();
     const missing: string[] = [];
+    const refused: string[] = [];
 
     for (const { plan, codemods } of planned) {
       if (codemods.length === 0) {
@@ -280,9 +281,28 @@ export class MigrateApply {
 
       if (bin === undefined) {
         missing.push(words[0]);
-      } else {
-        runners.set(plan, { bin, name: words[0], words: words.slice(1) });
+
+        continue;
       }
+
+      const notRunnable = CodemodRunner.refusalOf({
+        binary: bin,
+        nodeModules: dirname(dirname(bin)),
+        packages: plan.codemodPackages ?? [],
+      });
+
+      if (notRunnable === undefined) {
+        runners.set(plan, { bin, name: words[0], words: words.slice(1) });
+      } else {
+        refused.push(notRunnable);
+      }
+    }
+
+    if (refused.length > 0) {
+      opts.err(`vulcan migrate apply: ${refused.join('; ')}; the steps below stay manual\n`);
+      opts.out(reportOf({ result, outcomes }));
+
+      return 1;
     }
 
     if (missing.length > 0) {

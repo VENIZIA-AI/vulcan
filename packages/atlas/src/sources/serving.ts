@@ -182,6 +182,10 @@ export class SourceReleases {
     return this.ownerOf(opts)?.releases.codemodCommandOf();
   }
 
+  codemodPackagesOf(opts: { package: string }): string[] {
+    return this.ownerOf(opts)?.releases.codemodPackagesOf() ?? [];
+  }
+
   entriesBetween(opts: {
     package?: string;
     fromDate: string;

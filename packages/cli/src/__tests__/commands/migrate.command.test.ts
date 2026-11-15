@@ -1,6 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, join } from 'node:path';
 import { ToolRunner } from '../../commands/x.command.ts';
 import { VulcanTools } from '../../common/index.ts';
 import { commitAll, git, initRepo } from '../git-repo.helper.ts';
@@ -33,7 +40,10 @@ const world = (): { framework: string; app: string } => {
   const framework = createProject({
     files: {
       '.configs/vulcan.config.mts': `export default {
-  packages: [{ dir: 'kernel', name: '@venizia/kernel' }],
+  packages: [
+    { dir: 'kernel', name: '@venizia/kernel' },
+    { dir: 'dev-configs', name: '@venizia/dev-configs' },
+  ],
   knowledge: { bundle: '.agents/knowledge', changelogs: 'changes' },
   atlas: { tagPattern: '<dir>-v<version>' },
 };
@@ -133,12 +143,14 @@ describe('vulcan migrate', () => {
       const { framework, app } = world();
       const log = join(framework, 'devz.log');
 
+      // Installed as a package manager does: the binary inside the package that carries it, a link in .bin.
+      const installed = join(app, 'node_modules', '@venizia', 'dev-configs', 'bin', 'devz');
+
+      mkdirSync(dirname(installed), { recursive: true });
       mkdirSync(join(app, 'node_modules', '.bin'), { recursive: true });
-      writeFileSync(
-        join(app, 'node_modules', '.bin', 'devz'),
-        `#!/bin/sh\necho "$@" >> "${log}"\n`,
-      );
-      chmodSync(join(app, 'node_modules', '.bin', 'devz'), 0o755);
+      writeFileSync(installed, `#!/bin/sh\necho "$@" >> "${log}"\n`);
+      chmodSync(installed, 0o755);
+      symlinkSync('../@venizia/dev-configs/bin/devz', join(app, 'node_modules', '.bin', 'devz'));
       writeFileSync(join(app, '.gitignore'), 'node_modules\n');
       initRepo({ cwd: app });
 
