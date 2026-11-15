@@ -1,7 +1,7 @@
 import type { IChunk } from '@/corpus';
 import { PackageMap } from '@/common/package-map';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
-import type { IChangelogRecord, IReleaseRecord, ReleaseStore } from '@/releases';
+import type { IChangelogRecord, IFolderHistory, IReleaseRecord, ReleaseStore } from '@/releases';
 import type { IHit } from '@/search/common';
 import type { ChunkStore } from '@/search/store';
 import type { ISymbolRecord, SymbolStore } from '@/symbols';
@@ -182,6 +182,10 @@ export class SourceReleases {
     return this.ownerOf(opts)?.releases.codemodCommandOf();
   }
 
+  folderHistoryOf(opts: { package: string }): IFolderHistory | undefined {
+    return this.ownerOf(opts)?.releases.folderHistoryOf();
+  }
+
   codemodPackagesOf(opts: { package: string }): string[] {
     return this.ownerOf(opts)?.releases.codemodPackagesOf() ?? [];
   }
@@ -191,6 +195,7 @@ export class SourceReleases {
     fromDate: string;
     toDate: string;
     includeFolded?: boolean;
+    datedOnly?: boolean;
   }): IChangelogRecord[] {
     return this.tagged({ package: opts.package, read: (store) => store.entriesBetween(opts) });
   }
@@ -202,6 +207,7 @@ export class SourceReleases {
     fromDate: string;
     toDate: string;
     includeFolded?: boolean;
+    datedOnly?: boolean;
   }): IChangelogRecord[] {
     return this.tagged({
       package: opts.package,

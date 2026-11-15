@@ -646,7 +646,31 @@ describe('package-release.yml: the job graph', () => {
       'kind',
       'npm_tag',
       'develop_sha',
+      'changelog_base',
     ]);
+  });
+
+  test('a stable dates its version folder before the release commit, and the commit adds that file', () => {
+    const text = readFileSync(
+      join(import.meta.dir, '..', '..', '..', '.github', 'workflows', 'package-release.yml'),
+      'utf8',
+    );
+    const stamp = text.indexOf('stamp-release.ts');
+    const commit = text.indexOf('git commit -m "$SUBJECT"');
+
+    expect(stamp).toBeGreaterThan(0);
+    expect(commit).toBeGreaterThan(stamp);
+    expect(text).toContain('git add -- "$STAMPED_LOG"');
+    expect(text).toContain("needs.plan.outputs.kind == 'stable' && env.BUMP != 'none'");
+  });
+
+  test('the gates job runs the history check of a stable against the previous stable tag', () => {
+    const text = readFileSync(
+      join(import.meta.dir, '..', '..', '..', '.github', 'workflows', 'package-release.yml'),
+      'utf8',
+    );
+
+    expect(text).toContain('vulcan changelog check --history --base "$CHANGELOG_BASE"');
   });
 
   test('the environments: the stable approval is release-approval, the publish identity is npm-release, the rest have none', () => {

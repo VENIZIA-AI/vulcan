@@ -3,7 +3,7 @@ import { PackageMap } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
 import { TextValue } from '@/common/text';
 import { ChangelogLayouts } from './common';
-import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
+import type { IChangelogRecord, IFolderHistory, IReleaseRecord, IReleaseTable } from './common';
 
 /**
  * The generated release table in memory: which versions of a package exist, when each shipped, and
@@ -16,6 +16,7 @@ export class ReleaseStore extends BaseHelper {
   private readonly live: string[];
   private readonly codemod: string[] | undefined;
   private readonly codemodPackages: string[];
+  private readonly history: IFolderHistory | undefined;
   private readonly packageMap: IPackageMapEntry[];
   /** What `version` and `changes` say when the table holds no release. */
   readonly emptyReason: string;
@@ -30,11 +31,14 @@ export class ReleaseStore extends BaseHelper {
     codemodCommand?: string[];
     /** The npm names of the source project's packages, from its validated manifest: where its codemod runner may be installed. */
     codemodPackages?: string[];
+    /** The source's version folders at HEAD and at its tags: what `migrate` diffs. */
+    folderHistory?: IFolderHistory;
   }) {
     super({ scope: ReleaseStore.name });
 
     this.codemod = opts.codemodCommand;
     this.codemodPackages = opts.codemodPackages ?? [];
+    this.history = opts.folderHistory;
     this.packageMap = opts.table.packageMap;
     this.emptyReason = opts.emptyReason ?? 'no releases';
     this.noEntriesReason = opts.noEntriesReason ?? 'no dated changelog entries';
@@ -127,12 +131,14 @@ export class ReleaseStore extends BaseHelper {
     fromDate: string;
     toDate: string;
     includeFolded?: boolean;
+    datedOnly?: boolean;
   }): IChangelogRecord[] {
     const wanted =
       opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
     return ReleaseStore.standIn({
       includeFolded: opts.includeFolded,
+      datedOnly: opts.datedOnly,
       hits: this.changelogs.filter((entry) => {
         if (entry.date <= opts.fromDate || entry.date > opts.toDate) {
           return false;
@@ -150,7 +156,16 @@ export class ReleaseStore extends BaseHelper {
   private static standIn(opts: {
     hits: IChangelogRecord[];
     includeFolded?: boolean;
+    datedOnly?: boolean;
   }): IChangelogRecord[] {
+    if (opts.datedOnly === true) {
+      return opts.hits.filter(
+        (entry) =>
+          entry.layout !== ChangelogLayouts.FOLDER &&
+          (opts.includeFolded === true || entry.foldedInto === undefined),
+      );
+    }
+
     if (opts.includeFolded === true) {
       return opts.hits;
     }
@@ -178,12 +193,14 @@ export class ReleaseStore extends BaseHelper {
     fromDate: string;
     toDate: string;
     includeFolded?: boolean;
+    datedOnly?: boolean;
   }): IChangelogRecord[] {
     const wanted =
       opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
     return ReleaseStore.standIn({
       includeFolded: opts.includeFolded,
+      datedOnly: opts.datedOnly,
       hits: this.changelogs.filter((entry) => {
         const inside =
           entry.order === undefined
@@ -197,6 +214,11 @@ export class ReleaseStore extends BaseHelper {
         return wanted === undefined || entry.packages.includes(wanted);
       }),
     });
+  }
+
+  /** The source's version folders over time, or `undefined` when it keeps none. */
+  folderHistoryOf(): IFolderHistory | undefined {
+    return this.history;
   }
 
   /** The npm names of the source project's own packages; never read from the table, which a pair of files carries. */

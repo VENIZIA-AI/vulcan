@@ -94,6 +94,8 @@ type TFail = (opts: { file: string; message: string }) => void;
 /** A stable version: the name of a version folder and the form of a version cutover. */
 export const STABLE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 /** Up to three spaces of indent, a run of three or more backticks or tildes, then the rest of the line. */
+/** The part of a version after its stable: `-3` of `0.4.8-3`. */
+export const PRERELEASE_PART = /-.+$/;
 const FENCE_LINE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 const ITEM_LINE = /^- \*\*(.+?)\*\* `([^`]+)`(?: \(([^)]*)\))?/;
 const BULLET_LINE = /^[-*] /;

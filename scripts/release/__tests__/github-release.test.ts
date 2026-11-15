@@ -2,8 +2,9 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { VersionNotes } from '../../../packages/atlas/src/changelogs/notes.ts';
 import type { TGh } from '../github-release.ts';
-import { GithubRelease, GithubReleaseConstants } from '../github-release.ts';
+import { GithubRelease } from '../github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from '../merge-back.ts';
 
 const roots: string[] = [];
@@ -99,16 +100,20 @@ interface IStubGh {
   /** The notes file of the last create, read while it still existed. */
   notes: () => string;
   created: () => string[];
+  /** The files attached by the last create, by name, read while they still existed. */
+  assets: () => Record<string, string>;
 }
 
 /** A stand-in for `gh`: records every call, and reads the notes file while it still exists. */
 const stubGh = (opts: { existing?: boolean; createFails?: boolean }): IStubGh => {
   const calls: string[][] = [];
   let notes = '';
+  const assets: Record<string, string> = {};
 
   return {
     calls,
     notes: () => notes,
+    assets: () => assets,
     created: () => calls.find((call) => call[1] === 'create') ?? [],
     gh: ({ args }) => {
       calls.push(args);
@@ -118,6 +123,10 @@ const stubGh = (opts: { existing?: boolean; createFails?: boolean }): IStubGh =>
       }
 
       notes = readFileSync(args[args.indexOf('--notes-file') + 1], 'utf8');
+
+      for (const asset of args.slice(3, args.indexOf('--title'))) {
+        assets[asset.split('/').pop() ?? asset] = readFileSync(asset, 'utf8');
+      }
 
       return opts.createFails === true
         ? { status: 1, stdout: '', stderr: 'HTTP 422: tag does not exist' }
@@ -159,20 +168,15 @@ describe('GithubRelease.previousTag and isNewestStable', () => {
     'vulcan-v0.4.8',
     'atlas-index',
   ];
-  const previous = (opts: { version: string; stableOnly: boolean }) =>
+  const previous = (opts: { version: string }) =>
     GithubRelease.previousTag({ tags, templates: TEMPLATES, ...opts });
   const isNewest = (opts: { version: string }) =>
     GithubRelease.isNewestStable({ tags, templates: TEMPLATES, ...opts });
 
   test('a stable looks back to the highest stable below it, over the legacy name too', () => {
-    expect(previous({ version: '0.4.8', stableOnly: true })).toBe('v0.4.7');
-    expect(previous({ version: '0.4.9', stableOnly: true })).toBe('vulcan-v0.4.8');
-  });
-
-  test('a prerelease looks back to the highest tag of any kind below it, and numbers compare as numbers', () => {
-    expect(previous({ version: '0.4.8-1', stableOnly: false })).toBe('vulcan-v0.4.8-0');
-    expect(previous({ version: '0.4.8-10', stableOnly: false })).toBe('vulcan-v0.4.8-1');
-    expect(previous({ version: '0.4.6', stableOnly: false })).toBeUndefined();
+    expect(previous({ version: '0.4.8' })).toBe('v0.4.7');
+    expect(previous({ version: '0.4.9' })).toBe('vulcan-v0.4.8');
+    expect(previous({ version: '0.4.6' })).toBeUndefined();
   });
 
   test('a stable is the newest only when no stable tag is above it, whatever prereleases there are', () => {
@@ -284,7 +288,7 @@ describe('GithubRelease.create', () => {
     expect(stub.created()).not.toContain('--latest');
   });
 
-  test('a prerelease is marked Pre-release and never Latest, with the install line and the issue subjects only', () => {
+  test('a prerelease has no GitHub Release: nothing is created and gh is not asked', () => {
     const stub = stubGh({});
     const outcome = make({
       root: fixture(),
@@ -294,22 +298,9 @@ describe('GithubRelease.create', () => {
       stub,
     });
 
-    expect(outcome.state).toBe('created');
-    expect(stub.created()).toContain('--prerelease');
-    expect(stub.created()).not.toContain('--latest');
-    expect(stub.notes()).toContain('npm install @x/cli@next');
-    expect(stub.notes()).toContain('[#11] fix(c): third change');
-    expect(stub.notes()).not.toContain('housekeeping');
-    expect(stub.notes()).not.toContain('[#10]');
-  });
-
-  test('more subjects than the cap are cut, and the notes say how many were left out', () => {
-    const subjects = Array.from({ length: 33 }, (_, index) => `[#${index}] change ${index}`);
-    const capped = GithubRelease.cappedSubjects({ subjects });
-
-    expect(capped).toHaveLength(31);
-    expect(capped.at(-1)).toBe('... and 3 more');
-    expect(GithubRelease.cappedSubjects({ subjects: subjects.slice(0, 30) })).toHaveLength(30);
+    expect(outcome.state).toBe('skipped');
+    expect(outcome.message).toContain('only a stable has a GitHub Release');
+    expect(stub.calls).toEqual([]);
   });
 
   test('a tag that has a Release is skipped, and nothing is created', () => {
@@ -371,20 +362,65 @@ describe('GithubRelease.create', () => {
     expect(make({ root, tag: 'vulcan-v0.4.9', kind: 'stable', version: '0.4.9', stub }).state).toBe(
       'created',
     );
-    expect(stub.notes()).toContain(GithubReleaseConstants.NO_USER_CHANGES);
+    expect(stub.notes()).toContain(VersionNotes.NO_USER_CHANGES);
     expect(stub.notes()).not.toContain('a change with no entry');
   });
 
-  test('a subject cannot ping anyone or close an issue through the notes', () => {
-    const body = GithubRelease.bodyOf({
-      kind: 'prerelease',
-      version: '0.4.8-1',
-      notes: '',
-      subjects: ['[#9] fixes #3, thanks @someone', 'closes```'],
-      packages: ['@x/cli'],
+  test('a subject cannot ping anyone or close an issue through a fenced list', () => {
+    const lines = GithubRelease.fencedLines({
+      lines: ['[#9] fixes #3, thanks @someone', 'closes```'],
     });
 
-    expect(body).toContain("```text\n[#9] fixes #3, thanks @someone\ncloses'''\n```");
+    expect(lines.join('\n')).toBe("```text\n[#9] fixes #3, thanks @someone\ncloses'''\n```");
+  });
+
+  test('a stable whose version has a folder is released with the notes of its log.md and its migration.yaml attached (C12)', () => {
+    const root = fixture();
+
+    commit({
+      root,
+      message: '[#13] chore(release): fold 0.4.9',
+      files: {
+        'docs/changelogs/0.4.9/log.md': `---\ntitle: 0.4.9\nversion: 0.4.9\npackages: ['@x/cli']\nreleased: 2026-11-20\n---\nThe 0.4.9 line.\n\n## Breaking\n- **Factory only** \`thing-factory\`: call it.\n`,
+        'docs/changelogs/0.4.9/migration.yaml':
+          'thing-factory:\n  symbols: [Thing.make]\n  upgrade: { steps: [up] }\n  downgrade: { steps: [down] }\n',
+      },
+    });
+    tag({ root, name: 'vulcan-v0.4.9' });
+
+    const stub = stubGh({});
+    const outcome = make({ root, tag: 'vulcan-v0.4.9', kind: 'stable', version: '0.4.9', stub });
+
+    expect(outcome.state).toBe('created');
+    expect(stub.notes()).toContain('The 0.4.9 line.');
+    expect(stub.notes()).toContain('[@x/cli@0.4.9](https://www.npmjs.com/package/@x/cli/v/0.4.9)');
+    expect(stub.notes()).not.toContain('B body line.');
+    expect(Object.keys(stub.assets())).toEqual(['migration-0.4.9.yaml']);
+    expect(stub.assets()['migration-0.4.9.yaml']).toContain('thing-factory:');
+  });
+
+  test('C13: a folder whose migration.yaml is {} or absent attaches nothing', () => {
+    for (const migration of ['{}\n', undefined]) {
+      const root = fixture();
+
+      commit({
+        root,
+        message: '[#13] chore(release): fold 0.4.9',
+        files: {
+          'docs/changelogs/0.4.9/log.md':
+            '---\ntitle: 0.4.9\nversion: 0.4.9\npackages: []\n---\nNo change.\n',
+          ...(migration === undefined ? {} : { 'docs/changelogs/0.4.9/migration.yaml': migration }),
+        },
+      });
+      tag({ root, name: 'vulcan-v0.4.9' });
+
+      const stub = stubGh({});
+
+      make({ root, tag: 'vulcan-v0.4.9', kind: 'stable', version: '0.4.9', stub });
+
+      expect(stub.assets()).toEqual({});
+      expect(stub.notes()).toContain('No change.');
+    }
   });
 });
 
@@ -397,6 +433,26 @@ describe('GithubRelease.manifestOf', () => {
 
     expect(() => GithubRelease.manifestOf({ cwd: root })).toThrow('release.tagPattern');
     expect(GithubRelease.manifestOf({ cwd: fixture() }).packages).toEqual(['@x/okf', '@x/cli']);
+  });
+
+  test('a retired package is not listed, and migrationFrom is read when the manifest sets it', () => {
+    const root = scratch();
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents', 'vulcan.manifest.json'),
+      JSON.stringify({
+        release: { tagPattern: 'vulcan-v<version>' },
+        knowledge: { changelogs: 'docs/changelogs', migrationFrom: '0.4.5' },
+        packages: [{ name: '@x/old', retired: true }, { name: '@x/cli' }],
+      }),
+    );
+
+    const manifest = GithubRelease.manifestOf({ cwd: root });
+
+    expect(manifest.packages).toEqual(['@x/cli']);
+    expect(manifest.migrationFrom).toBe('0.4.5');
+    expect(GithubRelease.manifestOf({ cwd: fixture() }).migrationFrom).toBeUndefined();
   });
 });
 
