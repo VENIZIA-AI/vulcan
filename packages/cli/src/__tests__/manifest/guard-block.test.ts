@@ -66,8 +66,11 @@ describe('the guard block of the manifest', () => {
       runners: { allow: ['shadcn'] },
     });
     expect(JSON.parse(render({ guard: { runners: { allow: [] } } }))).not.toHaveProperty('guard');
+    expect(JSON.parse(render({ guard: { runners: { allow: ['@acme/tool'] } } })).guard).toEqual({
+      runners: { allow: ['@acme/tool'] },
+    });
 
-    for (const name of ['@venizia/vulcan', 'a b', '--yes', '*', '']) {
+    for (const name of ['@venizia', '@/x', '@a/b/c', 'a b', '--yes', '*', '']) {
       expect(() => render({ guard: { runners: { allow: [name] } } })).toThrow();
     }
   });

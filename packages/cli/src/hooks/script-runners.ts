@@ -1,3 +1,5 @@
+import { PackageRunners } from './package-runners.ts';
+
 /**
  * How a program that runs a script file reads its own options: `values` take the next word (or the rest of a
  * cluster), `evals` take code to run instead of a file, `ends` run something that is no file (`python -m`),
@@ -149,20 +151,6 @@ export class ScriptRunners {
   static readonly TSX_RUNS = new Set(['watch']);
 
   static readonly LAUNCHERS: Readonly<Record<string, ILauncherTable>> = {
-    npx: {
-      values: new Set([
-        '-p',
-        '--package',
-        '-w',
-        '--workspace',
-        '--cache',
-        '--registry',
-        '--userconfig',
-      ]),
-      ends: new Set(['-c', '--call']),
-      isPackage: true,
-    },
-    bunx: { values: new Set(['-p', '--package']), ends: new Set(), isPackage: true },
     uv: {
       values: new Set([
         '--with',
@@ -203,6 +191,26 @@ export class ScriptRunners {
   static launchedOf(opts: { name: string; args: string[] }): ILaunched {
     const launcher = ScriptRunners.LAUNCHERS[opts.name.split('/').pop() ?? opts.name];
     const given: ILaunched = { ...opts, isPackage: false };
+    const call = PackageRunners.find({ program: opts.name, args: opts.args });
+
+    // `npx`, `bunx` and `pnpx` run the package their first word names, read by the table the runner guard reads
+    if (
+      call !== undefined &&
+      launcher === undefined &&
+      call.leading.length === 0 &&
+      call.runner === opts.name.split('/').pop()
+    ) {
+      const target = PackageRunners.targetOf({ words: call.words });
+      const isCommandString = target.flags.some((flag) => flag === '-c' || flag === '--call');
+
+      return target.name === '' || isCommandString
+        ? given
+        : ScriptRunners.launchedWordOf({
+            word: target.name,
+            args: target.rest,
+            isPackage: !/^\.{0,2}\//.test(target.name),
+          });
+    }
 
     if (launcher === undefined) {
       return given;

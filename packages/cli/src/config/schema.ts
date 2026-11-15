@@ -602,12 +602,17 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       /** Git guard settings; `askPush` lists the branches a plain `git push` asks about, `*` for any run of characters. Default `[]`. */
       git: z.strictObject({ askPush: z.array(PUSH_TARGET).default([]) }).default({ askPush: [] }),
       /**
-       * The package names `vulcan runners check` and the runner guard accept beyond `@venizia/*`, such as `shadcn`
-       * (a name is lower-case words, dots and dashes, with no scope). Anything else that `bunx`, `bun x`, `npx` or
-       * `pnpm dlx` would fetch by name is refused. Default `[]`.
+       * The package names `vulcan runners check` and the runner guard accept besides the scoped packages (`@scope/name`,
+       * which always pass), such as `shadcn`: lower-case words, dots and dashes, or a scoped name. Anything else that
+       * `bunx`, `bun x`, `npx`, `pnpx` or `pnpm dlx` would fetch by name is refused. Default `[]`.
        */
       runners: z
-        .strictObject({ allow: z.array(z.string().regex(/^[a-z0-9][a-z0-9._-]*$/)).default([]) })
+        .strictObject({
+          /** The unscoped names a project may run by name, with a version or a tag after them. */
+          allow: z
+            .array(z.string().regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/))
+            .default([]),
+        })
         .default({ allow: [] }),
     })
     .default({

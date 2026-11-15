@@ -22,6 +22,9 @@ const projectWithBins = (opts: { bins: string[]; files?: Record<string, string> 
   return root;
 };
 
+/** The folder, apart from the project's, in which `zzbin` is not linked. */
+const bareFolder = (): string => projectWithBins({ bins: [] });
+
 const refusedBy = (opts: { command: string; cwd: string; allow?: string[] }): string[] =>
   RunnerGuard.inspect({ command: opts.command, cwd: opts.cwd, allow: opts.allow ?? [] }).map(
     (hit) => `${hit.rule}:${hit.decision}`,
@@ -52,6 +55,24 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
     'x=$(bunx ardor)',
     'bunx "ardor"',
     "bunx 'ardor'",
+    'pnpx ardor',
+    'npm --yes exec ardor',
+    'npm --loglevel=silent exec ardor',
+    'pnpm --silent dlx ardor',
+    'yarn --silent dlx ardor',
+    'corepack pnpm dlx ardor',
+    'bunx --ca @venizia/vulcan ardor',
+    'bunx --cafile ca.pem ardor',
+    'npx --cache ./c ardor',
+    'npx -w web ardor',
+    'npm exec --loglevel info ardor',
+    'pnpm dlx --reporter silent ardor',
+    'echo ardor | xargs bunx',
+    'echo ardor | xargs -n 1 bunx',
+    'echo ardor | xargs bun x',
+    'bunx --some-switch ardor',
+    'bunx shadcn@npm:ardor add',
+    'bunx',
   ])('denies %s', (command) => {
     expect(refusedBy({ command, cwd: root })).toEqual(['V-S-08:deny']);
   });
@@ -64,11 +85,16 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
     'bun x --bun --no-install vulcan sync',
     'bun x @venizia/vulcan@0.4.10 init',
     'bunx @venizia/vulcan init',
+    'npx @acme/tool run',
+    'bun x @venizia/vulcan@$(cat VERSION) init',
+    'bunx @venizia/vulcan@${VULCAN_VERSION} init',
     'bun x --package @venizia/ardor ardor codemod',
     'npx @venizia/vulcan init',
     'bun add -d @venizia/vulcan',
     'bun test',
     'git status',
+    'echo ok | xargs constructor',
+    'corepack toString',
     'echo "never run bunx ardor"',
     'grep -rn "bunx ardor" docs',
     'cat <<EOF\nbunx ardor\nEOF',
@@ -90,6 +116,30 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
     ]);
   });
 
+  test('--no-install does not pass when the line moves to a folder where the bin is not linked', () => {
+    const linked = projectWithBins({ bins: ['zzbin'] });
+    const bare = bareFolder();
+
+    expect(refusedBy({ command: 'bun x --no-install zzbin sync', cwd: linked })).toEqual([]);
+    expect(refusedBy({ command: `cd ${linked} && bun x --no-install zzbin`, cwd: bare })).toEqual(
+      [],
+    );
+
+    for (const command of [
+      `cd ${bare} && bun x --no-install zzbin`,
+      `(cd ${bare}; bun x --no-install zzbin)`,
+      `pushd ${bare} && bun x --no-install zzbin`,
+      'cd "$SOME_FOLDER" && bun x --no-install zzbin',
+      `bun x --no-install --cwd=${bare} zzbin`,
+      `bun x --no-install --cwd ${bare} zzbin`,
+      `bun --cwd=${bare} x --no-install zzbin`,
+      `bun --cwd ${bare} x --no-install zzbin`,
+      'bun x --no-install --registry https://r.example.test zzbin',
+    ]) {
+      expect(refusedBy({ command, cwd: linked })).toEqual(['V-S-08:deny']);
+    }
+  });
+
   test('a name on the allow-list passes, with a version too', () => {
     expect(
       refusedBy({ command: 'bunx shadcn@latest add button', cwd: root, allow: ['shadcn'] }),
@@ -97,6 +147,9 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
     expect(refusedBy({ command: 'bunx shadcn add button', cwd: root, allow: [] })).toEqual([
       'V-S-08:deny',
     ]);
+    expect(
+      refusedBy({ command: 'bunx shadcn@npm:ardor add button', cwd: root, allow: ['shadcn'] }),
+    ).toEqual(['V-S-08:deny']);
   });
 
   test('the message names the command and the safe forms', () => {

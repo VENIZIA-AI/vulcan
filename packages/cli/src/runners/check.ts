@@ -14,6 +14,12 @@ export interface IRunnerFinding {
   runner: string;
 }
 
+/** What a scan found: the commands to fix, and how many refused commands a Markdown file marked as examples. */
+export interface IRunnersScan {
+  findings: IRunnerFinding[];
+  examples: number;
+}
+
 const MAX_BYTES = 1024 * 1024;
 /** Not instructions: a lockfile, a build output, a vendored folder, a test, a fixture. */
 const SKIPPED_PATH =
@@ -22,11 +28,13 @@ const SKIPPED_PATH =
 const DATED_ENTRY = /(^|\/)changelogs?\/\d{4}-\d{2}-\d{2}-[^/]*\.md$/;
 /** A file of a version folder, whose `log.md` says `released:` once the stable is out. */
 const VERSION_FILE = /^(.*\/)?(\d+\.\d+\.\d+)\/(log\.md|migration\.yaml)$/;
+/** The only files that may set a command apart as an example: prose. A script, a workflow or a Makefile never can. */
+const MARKDOWN = /\.mdx?$/i;
 const BINARY_EXTENSION = /\.(png|jpe?g|gif|webp|ico|pdf|woff2?|ttf|eot|zip|gz|tgz|wasm|mp4|mov)$/i;
 
 /**
  * `vulcan runners check`: no tracked file of the project may run an unscoped package through `bunx`, `bun x`, `npx`,
- * `pnpm dlx` or `yarn dlx`, with or without `--no-install`. A name npm owns for somebody else would be fetched and run
+ * `pnpm dlx`, `pnpx` or `yarn dlx`, with or without `--no-install`. A scoped package (`@scope/name`) passes. A name npm owns for somebody else would be fetched and run
  * wherever the bin is not linked, and bun runs a copy an earlier bare bunx saved even under `--no-install`. The safe
  * forms are `bun run <bin>` in the package that depends on it, and the `node_modules/.bin` path.
  */
@@ -69,9 +77,10 @@ export class RunnersCheck {
     }
   }
 
-  static scan(opts: { root: string }): IRunnerFinding[] {
+  static scan(opts: { root: string }): IRunnersScan {
     const { runnersAllow } = ProjectGuards.readPolicy({ root: opts.root });
     const findings: IRunnerFinding[] = [];
+    let examples = 0;
 
     for (const file of RunnersCheck.trackedFiles({ root: opts.root })) {
       if (
@@ -96,15 +105,26 @@ export class RunnersCheck {
         continue;
       }
 
-      for (const use of RunnerScan.find({ text })) {
+      for (const use of RunnerScan.find({ text, isMarkdown: MARKDOWN.test(file) })) {
         const name = RunnerScan.refusedName({ use, allow: runnersAllow });
 
-        if (name !== undefined) {
-          findings.push({ file, line: use.line, name, runner: use.runner });
+        if (name === undefined) {
+          continue;
+        }
+
+        if (use.isExample) {
+          examples += 1;
+        } else {
+          findings.push({
+            file,
+            line: use.line,
+            name,
+            runner: `${use.runner}${use.hasNoInstall ? ' --no-install' : ''}`,
+          });
         }
       }
     }
 
-    return findings;
+    return { findings, examples };
   }
 }

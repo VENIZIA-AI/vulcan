@@ -262,11 +262,11 @@ export class CommandTable {
         '0 on success; 1 when --stable and --nightly are both given, the dist-tags cannot be read, or the install or sync fails.',
     },
     [VulcanCommands.RUNNERS]: {
-      help: `  runners check                   List every tracked file that runs an unscoped package through bunx,
-                                  bun x, npx, pnpm dlx or yarn dlx, whether or not it says no-install (a name
-                                  npm gives to someone else would be fetched and run). @venizia/* and the names
-                                  of guard.runners.allow pass; tests, lockfiles, build output and frozen
-                                  history (dated entries, released version folders) are not read`,
+      help: `  runners check                   List every tracked file that runs an unscoped package through bunx, pnpx,
+                                  bun x, npx, npm exec, pnpm dlx or yarn dlx, whether or not it says no-install
+                                  (a name npm gives to someone else would be fetched and run). A scoped package
+                                  and the names of guard.runners.allow pass; tests, lockfiles, build output and
+                                  frozen history (dated entries, released version folders) are not read`,
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
       exits:

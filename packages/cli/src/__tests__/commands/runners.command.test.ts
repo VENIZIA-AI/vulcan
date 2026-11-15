@@ -34,7 +34,7 @@ const repository = (opts: {
 };
 
 const findings = (opts: { root: string }): string[] =>
-  RunnersCheck.scan({ root: opts.root }).map(
+  RunnersCheck.scan({ root: opts.root }).findings.map(
     (finding) => `${finding.file}:${finding.line}: ${finding.name}`,
   );
 
