@@ -90,9 +90,10 @@ const matchesNothing = (opts: { word: string; base: string }): boolean => {
     : join(opts.base, opts.word.slice(0, at + 1));
 
   try {
-    const glob = new Bun.Glob(opts.word.slice(at + 1));
+    // both sides in lower case: bash `nocaseglob` matches without regard to case, so this can only ask more often
+    const glob = new Bun.Glob(opts.word.slice(at + 1).toLowerCase());
 
-    return !readdirSync(folder).some((entry) => glob.match(entry));
+    return !readdirSync(folder).some((entry) => glob.match(entry.toLowerCase()));
   } catch {
     return false;
   }

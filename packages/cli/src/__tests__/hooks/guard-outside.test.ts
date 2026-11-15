@@ -610,6 +610,8 @@ describe('a redirect to a name with a [...] in it', () => {
   symlinkSync(join(outside, 'target.md'), join(PROJECT, 'v.md'));
   symlinkSync(outside, join(PROJECT, 'linked'));
   symlinkSync(join(outside, 'target.md'), join(PROJECT, 'docs', 'w.md'));
+  mkdirSync(join(PROJECT, 'case'), { recursive: true });
+  symlinkSync(join(outside, 'target.md'), join(PROJECT, 'case', 'V.md'));
 
   test.each([
     'echo x > content/changelogs/upgrade/[version].md',
@@ -630,6 +632,9 @@ describe('a redirect to a name with a [...] in it', () => {
     'cat <<< x > [v].md',
     'echo x > ./[v].md',
     'echo x > docs/[w].md',
+    // bash nocaseglob matches V.md for [v].md
+    'shopt -s nocaseglob; echo x > case/[v].md',
+    'echo x > case/[v].md',
     'echo x > [v].md > b.md',
     // a negated class, and a zsh glob qualifier, are not a plain name
     'echo x > [!a].md',
