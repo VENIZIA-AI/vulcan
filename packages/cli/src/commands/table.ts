@@ -266,7 +266,8 @@ export class CommandTable {
                                   Check the changelog: a version folder changelogs/<X.Y.Z>/{log.md, migration.yaml}
                                   has a block for every Breaking and Deprecated item; a dated Breaking Change entry
                                   on or after a date cutover carries one. --history also fails a released folder that
-                                  changed since the base, a stable with no folder, and a dated file added or edited
+                                  changed since the base, a stable with no folder, and a dated file, dated after
+                                  knowledge.datedUntil, that was added or edited.
   changelog notes --version <X.Y.Z> [--migration]
                                   The release notes of a version folder: the body of its log.md, then the packages.
                                   --migration prints the path of its migration.yaml when that file holds a block,

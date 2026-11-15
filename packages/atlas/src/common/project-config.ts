@@ -230,6 +230,13 @@ export class ProjectConfig {
     const changelogs = WireValue.stringOf({ value: knowledge.changelogs });
     const migrationFrom = WireValue.stringOf({ value: knowledge.migrationFrom });
     const datedUntil = WireValue.stringOf({ value: knowledge.datedUntil });
+
+    // compared as text with the date of a dated file: anything but a plain day would silently decide wrong
+    if (datedUntil !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(datedUntil)) {
+      throw new Error(
+        `atlas: ${opts.source ?? `project '${projectName}'`} - knowledge.datedUntil '${datedUntil}' is not a date (YYYY-MM-DD)`,
+      );
+    }
     const codemodCommand = CodemodRunner.wordsOf({
       value: knowledge.codemodCommand,
       label: opts.source ?? `project '${projectName}'`,

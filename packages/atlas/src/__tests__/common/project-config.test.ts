@@ -96,6 +96,29 @@ describe('ProjectConfig.readAtlasProject', () => {
     );
   });
 
+  test.each(['2026-11-1', 'soon', '2026-11-14T00:00'])(
+    'a datedUntil that is not a plain day (%s) stops the read, naming the project and the value',
+    (value) => {
+      useAtlasProject({
+        root: ROOT,
+        manifest: { name: 'acme', knowledge: { datedUntil: value }, packages: [] },
+      });
+
+      expect(() => ProjectConfig.readAtlasProject()).toThrow(
+        `atlas: project 'acme' - knowledge.datedUntil '${value}' is not a date (YYYY-MM-DD)`,
+      );
+    },
+  );
+
+  test('a plain day in datedUntil is read', () => {
+    useAtlasProject({
+      root: ROOT,
+      manifest: { name: 'acme', knowledge: { datedUntil: '2026-11-14' }, packages: [] },
+    });
+
+    expect(ProjectConfig.readAtlasProject().knowledge.datedUntil).toBe('2026-11-14');
+  });
+
   test('a package without a name takes its directory, which must be an npm name too', () => {
     useAtlasProject({ root: ROOT, manifest: { name: 'acme', packages: [{ dir: 'a b' }] } });
 

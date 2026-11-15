@@ -25,7 +25,7 @@ const git = (opts: { root: string; args: string[] }): string | undefined => {
 
 /**
  * The checks of `vulcan changelog check --history --base <ref>` that need git: a released version folder
- * is frozen, a stable tag has its folder, and no dated file is added or edited. Run by CI on a pull request
+ * is frozen, a stable tag has its folder, and no dated file, dated after `knowledge.datedUntil`, is added or edited. Run by CI on a pull request
  * and by the stable release gate; the default check never runs git.
  */
 export class ChangelogHistory {
