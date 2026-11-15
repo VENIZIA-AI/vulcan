@@ -1,8 +1,7 @@
-import { spawnSync } from 'node:child_process';
 import { relative } from 'node:path';
 import { VersionFolders } from '@/changelogs/version-folder';
 import type { IVersionFolder } from '@/changelogs/version-folder';
-import { AtlasGit, AtlasTimeouts } from '@/common/constants';
+import { GitLocal } from '@/common/git-local';
 import type { IAtlasProject } from '@/common/project-config';
 import type { TConstValue } from '@/common/types';
 import { FolderAtStatuses } from './common';
@@ -58,25 +57,8 @@ export class FolderHistory implements IFolderHistory {
     return found;
   }
 
-  /** `GIT_NO_LAZY_FETCH` is git 2.44 and later: an older git would fetch a missing blob from the remote, so it reads nothing. */
-  private static canRefuseLazyFetch(): boolean {
-    FolderHistory.refusesLazyFetch ??= (() => {
-      const result = spawnSync('git', ['--version'], {
-        encoding: 'utf8',
-        env: AtlasGit.buildEnvironment(),
-      });
-      const [major, minor] = (/(\d+)\.(\d+)/.exec(result.stdout ?? '') ?? []).slice(1).map(Number);
-
-      return major > 2 || (major === 2 && minor >= 44);
-    })();
-
-    return FolderHistory.refusesLazyFetch;
-  }
-
-  private static refusesLazyFetch: boolean | undefined;
-
   private read(opts: { package: string; version: string; line: string }): TFolderAt {
-    if (!FolderHistory.canRefuseLazyFetch()) {
+    if (!GitLocal.refusesLazyFetch()) {
       return {
         status: FolderAtStatuses.UNREADABLE,
         reason:
@@ -197,14 +179,7 @@ export class FolderHistory implements IFolderHistory {
 
   /** A git answer from the project root; `undefined` when it fails. A blob the clone lacks fails fast: git never fetches it from the remote. */
   private git(opts: { args: string[] }): string | undefined {
-    const result = spawnSync('git', opts.args, {
-      cwd: this.opts.project.root,
-      encoding: 'utf8',
-      timeout: AtlasTimeouts.LOCAL_GIT_MS,
-      killSignal: 'SIGKILL',
-      env: { ...AtlasGit.buildEnvironment(), GIT_NO_LAZY_FETCH: '1' },
-    });
-
-    return result.status === 0 ? result.stdout : undefined;
+    return GitLocal.read({ cwd: this.opts.project.root, args: opts.args, noLazyFetch: true })
+      .stdout;
   }
 }
