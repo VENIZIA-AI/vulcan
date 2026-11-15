@@ -155,7 +155,6 @@ theme-contrast-check:
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, delete `theme.preset`, `theme.tokens`, `theme.font`, `theme.mono` and `theme.radius` (the earlier release refuses them), and set `theme.accent`, which it requires, if you had none.'
-
 event-add-flow-must-exist:
   symbols:
     - event.add
@@ -167,7 +166,6 @@ event-add-flow-must-exist:
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`; it accepts any `F-<n>` id. Delete `project.key` from the config first if your earlier release refuses the key.'
-
 atlas-config-values-refused:
   symbols:
     - atlas.sources
@@ -183,7 +181,6 @@ atlas-config-values-refused:
   downgrade:
     steps:
       - 'Nothing has to change: an earlier release accepts the values you rewrote. Delete `atlas.limits` first, which an earlier release refuses.'
-
 guard-writes-reads-no-scripts:
   symbols:
     - guard.writes
@@ -194,10 +191,9 @@ guard-writes-reads-no-scripts:
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, which reads a script and asks about the deploy or write inside it; delete the entries you added to `guard.writes.commands` only if you do not want them there.'
-
 wiki-links-check-reads-the-layout:
   symbols:
-    - vulcan.mk
+    - '@venizia/vulcan/base/make/vulcan.mk'
   upgrade:
     steps:
       - 'Run `make wiki-links-check` after upgrading. With a `layout` it now also checks the layout folders (`layout.backend`, `layout.frontend`, `layout.shared`) plus `docs/`, `scripts/` and `.agents/`, and no longer checks `packages/` and `examples/` unless they are in `layout.other`.'
@@ -205,7 +201,6 @@ wiki-links-check-reads-the-layout:
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`; the check reads the earlier folder list again.'
-
 clean-keeps-items-in-use:
   symbols:
     - clean
@@ -214,16 +209,13 @@ clean-keeps-items-in-use:
       - 'A script that emptied `tmp/` or `clones/` with `vulcan clean --yes` adds `--include-fresh`: without it items younger than a day (`tmp/`) or two weeks (`clones/`) are kept and listed.'
   downgrade:
     steps:
-      - 'Pin the earlier `@venizia/vulcan`, whose `vulcan clean --yes` takes fresh items too; drop `--include-fresh` if the earlier release refuses it.'
-
-atlas-changes-pages-and-cache-cap:
+      - 'Pin the earlier `@venizia/vulcan`. Its `vulcan clean --yes` takes fresh items too, and it refuses `--include-fresh` with `unknown argument`, so remove that flag from the scripts you changed.'
+atlas-source-cache-keeps-five-refs:
   symbols:
-    - changes
-    - nextOffset
+    - atlas.sources
   upgrade:
     steps:
-      - 'A client of the atlas `changes` tool that read every entry of a window from one call must follow the paging: while the answer has `truncated: true`, call again with `offset` set to its `nextOffset`, until `nextOffset` is absent.'
-      - 'Offline, an atlas start for a ref other than the newest of a remote source needs the remote: each remote source keeps only the commits of the five refs it served last. Run `vulcan x atlas pull` online for a ref you need offline.'
+      - 'Offline, an atlas start for a ref that is not among the last five the source served needs the remote: each remote source keeps only the commits of the five refs it served last. Run `vulcan x atlas pull` online for a ref you need offline.'
   downgrade:
     steps:
-      - 'Pin the earlier `@venizia/vulcan-atlas`; `changes` answers a long window whole.'
+      - 'Pin the earlier `@venizia/vulcan-atlas`, whose source cache keeps the commits of every ref it served.'

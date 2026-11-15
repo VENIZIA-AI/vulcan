@@ -53,6 +53,15 @@ redis-factory-per-topology:
   codemod: namespace-functions                 # optional: a name the project's codemod runner lists
 ```
 
+Which section an item goes in is decided by the user it can hurt, not by the size of the change. It is Breaking when something
+that worked before refuses, fails or gives a different result now, for any agent VULCAN serves: a removed or renamed name,
+key, flag or file; a config that is refused; a call that was allowed and is now asked or denied (an ask prints as a deny in
+Codex and Cursor, which cannot ask on a tool call); data the tool now deletes or no longer repairs. It is Changed when the
+item only adds a prompt or a note nobody has to answer for a script to keep working, and Security when it closes a bypass
+that was never a supported workflow (a spelling a guard did not read, a leading option it skipped): say in one sentence what
+now asks or is denied and how to proceed legitimately, and write no migration block. A new way to do something is Added, even
+when it sits next to a Breaking item that mentions it.
+
 A line with nothing breaking has no `migration.yaml`, or `{}`. The fields mean what they mean in
 [the migration block](#the-migration-block) below. A prerelease edits the folder, so it always states the net change from the
 previous stable: merge a refined item into one, and delete what a later prerelease reverted. The folder is frozen the day its
