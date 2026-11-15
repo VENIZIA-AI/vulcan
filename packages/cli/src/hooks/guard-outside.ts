@@ -1,4 +1,4 @@
-import { lstatSync, readlinkSync } from 'node:fs';
+import { lstatSync, readdirSync, readlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { ShellParser, ShellUnread } from './shell.ts';
@@ -70,10 +70,33 @@ const realOf = (opts: { path: string }): string | undefined => {
 
   return current;
 };
+/**
+ * A path of plain folders (no `..`) whose last name holds one `[...]` of plain characters: a VitePress route file such as
+ * `content/[version].md`. Nothing else in it is a pattern, an expansion or a shell metacharacter (a zsh glob qualifier
+ * needs one), and the only glob is in the last name.
+ */
+const BRACKET_NAME = /^\/?(?:(?!\.\.\/)[\w.-]+\/)*[\w.-]*\[[\w.-]+\][\w.-]*$/;
 /** The files that name a process by number or as `self`: their target depends on who opens them. */
-/** A word whose only unknown part is a `[...]` in its last name: no `$`, backtick, `*`, `?` or `~`, and no `[` in a folder. */
-const BRACKET_NAME = /^[^[\]$`*?~]*\/?[^/[\]$`*?]*\[[^/\]]+\][^/[\]$`*?]*$/;
 const PROCESS_FILES = /^\/(?:proc(?:\/|$)|dev\/fd(?:\/|$))/;
+
+/**
+ * Whether the `[...]` name of `word` (a `BRACKET_NAME`) matches no entry of its folder, so the shell takes it as written:
+ * a match is written through, symlink and all, and is the existing file's business. An unreadable folder is not a miss.
+ */
+const matchesNothing = (opts: { word: string; base: string }): boolean => {
+  const at = opts.word.lastIndexOf('/');
+  const folder = opts.word.startsWith('/')
+    ? opts.word.slice(0, at + 1)
+    : join(opts.base, opts.word.slice(0, at + 1));
+
+  try {
+    const glob = new Bun.Glob(opts.word.slice(at + 1));
+
+    return !readdirSync(folder).some((entry) => glob.match(entry));
+  } catch {
+    return false;
+  }
+};
 
 const isInside = (opts: { path: string; root: string }): boolean =>
   opts.path === opts.root || opts.path.startsWith(`${opts.root}${sep}`);
@@ -222,18 +245,21 @@ export class OutsideGuard {
         });
       }
 
-      // A redirect to `dir/[version].md` (a VitePress route file) names a file in `dir`: a `[...]` in the last name cannot move
-      // it out of that folder, so the name is taken as written and the folder in front of it decides.
-      const word =
-        target.isRedirect === true && BRACKET_NAME.test(target.word)
-          ? target.word.replace(/[[\]]/g, '_')
-          : target.word;
-      const expanded = ShellFolders.expandPath({
-        word,
-        home,
-        env: { ...env, ...target.vars },
-        cwd: target.pwd,
-      });
+      // A redirect to `dir/[version].md` (a VitePress route file) names that file when the pattern matches nothing in `dir`:
+      // the shell takes the word as written, and the written path is checked as it is. A match is written through, so it asks.
+      const isLiteralBracket =
+        target.isRedirect === true &&
+        target.isKnown !== false &&
+        BRACKET_NAME.test(target.word) &&
+        matchesNothing({ word: target.word, base: target.base });
+      const expanded = isLiteralBracket
+        ? target.word
+        : ShellFolders.expandPath({
+            word: target.word,
+            home,
+            env: { ...env, ...target.vars },
+            cwd: target.pwd,
+          });
 
       if (expanded === undefined) {
         // Part of the word is unknown, but the folder in front of it may not be: that folder decides.
