@@ -1,6 +1,7 @@
 import { Corpora } from '@/common';
 import type { TCorpus } from '@/common';
 import { Authorities, Stopwords } from '@/search/common';
+import { VersionFolders } from '@/changelogs/version-folder';
 import { BaseHelper } from '@/common/helper';
 import type { IChunk, IDocument } from './common';
 
@@ -327,9 +328,23 @@ const citationPrefixOf = (corpus: TCorpus): string => {
   }
 };
 
-/** Changelogs cite by file stem (`2026-01-01-thing`); wiki and knowledge cite by their full path. */
+/** Changelogs cite by file stem (`2026-01-01-thing`) or, for a version folder's `log.md`, by the folder (`0.4.8`); wiki and knowledge cite by their full path. */
 const citationDocumentOf = (opts: { corpus: TCorpus; path: string }): string =>
-  opts.corpus === Corpora.CHANGELOG ? opts.path.replace(/\.md$/, '') : opts.path;
+  opts.corpus === Corpora.CHANGELOG
+    ? opts.path.replace(/\/log\.md$/, '').replace(/\.md$/, '')
+    : opts.path;
+
+/** The folder name of a version folder's `log.md` (`0.4.8/log.md`), or `undefined` for any other document. */
+const versionLogOf = (opts: { corpus: TCorpus; path: string }): string | undefined => {
+  const [folder, file, ...rest] = opts.path.split('/');
+
+  return opts.corpus === Corpora.CHANGELOG &&
+    file === 'log.md' &&
+    rest.length === 0 &&
+    VersionFolders.isName({ name: folder })
+    ? folder
+    : undefined;
+};
 
 const buildId = (opts: { corpus: TCorpus; path: string; anchor: string }): string =>
   `${citationPrefixOf(opts.corpus)}:${citationDocumentOf(opts)}#${opts.anchor}`;
@@ -393,6 +408,12 @@ export class Chunker extends BaseHelper {
 
   chunk(opts: { document: IDocument }): IChunk[] {
     const { document } = opts;
+    const version = versionLogOf({ corpus: document.corpus, path: document.path });
+
+    if (version !== undefined) {
+      return Chunker.versionLogChunks({ document, version });
+    }
+
     const sections = splitIntoSections({ document });
     const anchors = anchorsOf({ sections });
     const metadata = metadataOf({ frontmatter: document.frontmatter });
@@ -437,6 +458,70 @@ export class Chunker extends BaseHelper {
         });
       });
     });
+
+    return chunks;
+  }
+
+  /**
+   * A version folder's `log.md` is one chunk per item, cited `changelog:<version>#<item-id>` - the id the item
+   * carries in the file, never a slug of its title - with the item's migration block under its text, and the
+   * paragraph above the sections as the intro chunk.
+   */
+  private static versionLogChunks(opts: { document: IDocument; version: string }): IChunk[] {
+    const { document } = opts;
+    // The body is parsed without its frontmatter; the problems it reports are the gate's, not the index's.
+    const folder = VersionFolders.parse({
+      name: opts.version,
+      log: document.body,
+      migration: document.migration,
+    });
+    const metadata = metadataOf({ frontmatter: document.frontmatter });
+    const authority = authorityOf({ corpus: document.corpus, path: document.path });
+    const chunk = (opts2: {
+      anchor: string;
+      headingPath: string;
+      title: string;
+      body: string;
+    }) => ({
+      id: buildId({ corpus: document.corpus, path: document.path, anchor: opts2.anchor }),
+      corpus: document.corpus,
+      document: document.path,
+      anchor: opts2.anchor,
+      headingPath: opts2.headingPath,
+      title: opts2.title,
+      body: opts2.body,
+      symbols: symbolsOf({ body: opts2.body }),
+      metadata,
+      authority,
+    });
+    const chunks: IChunk[] =
+      folder.intro === ''
+        ? []
+        : [
+            chunk({
+              anchor: '',
+              headingPath: document.title,
+              title: document.title,
+              body: folder.intro,
+            }),
+          ];
+
+    for (const item of folder.items) {
+      const block = folder.blocks[item.id];
+      const migration =
+        block === undefined
+          ? ''
+          : `\n\nMigration:\n\n\`\`\`yaml\n${Bun.YAML.stringify(block, null, 2).trimEnd()}\n\`\`\``;
+
+      chunks.push(
+        chunk({
+          anchor: item.id,
+          headingPath: `${document.title} > ${item.section} > ${item.title}`,
+          title: item.title,
+          body: `${item.body}${migration}`,
+        }),
+      );
+    }
 
     return chunks;
   }

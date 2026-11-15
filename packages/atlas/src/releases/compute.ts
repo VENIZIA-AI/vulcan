@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 import { Resolve } from '@/changelogs/resolve';
+import { VersionFolders } from '@/changelogs/version-folder';
 import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { PackageMap } from '@/common/package-map';
 import { DirectoryPath } from '@/common/paths';
@@ -10,6 +11,7 @@ import { TextValue } from '@/common/text';
 import { BreakingBadge } from '@/migrations/badges';
 import { MigrationSchema } from '@/migrations/schema';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
+import { FolderRecords } from './folder-records';
 import { ReleaseTemplate } from './template';
 
 const SHORT_SHA_LENGTH = 8;
@@ -299,6 +301,7 @@ export class ReleaseCompute {
 
     const directory = project.knowledge.changelogs;
     const changelogs: IChangelogRecord[] = [];
+    const versionFolders: string[] = [];
 
     // A changelog directory, or entry, that is a symlink out of the repository is not its history.
     if (
@@ -357,8 +360,25 @@ export class ReleaseCompute {
 
         changelogs.push(record);
       }
+
+      const folders = VersionFolders.read({ directory }).filter((folder) =>
+        existsSync(join(directory, folder.name, 'log.md')),
+      );
+      const openOrder = hasHistory ? countOf(UNCOMMITTED_POSITION) : undefined;
+      const lines = FolderRecords.linesOf({ folders, releases, openOrder });
+
+      for (const record of changelogs) {
+        const into = FolderRecords.foldedInto({ lines, order: record.order });
+
+        if (into !== undefined) {
+          record.foldedInto = into;
+        }
+      }
+
+      versionFolders.push(...folders.map((folder) => folder.name));
+      changelogs.push(...FolderRecords.build({ project, folders, releases, openOrder }));
     }
 
-    return { livePackages: live, releases, changelogs, packageMap };
+    return { livePackages: live, releases, changelogs, versionFolders, packageMap };
   }
 }

@@ -6,6 +6,7 @@ import type { IChangelogRecord, IReleaseIndex } from '@/releases';
 import type { TConstValue } from '@/common/types';
 import { AppScan } from './scan';
 import type { IMigrationTouch } from './scan';
+import { CodemodRunner } from '@/common/codemod-runner';
 import { BreakingBadge } from './badges';
 import type { TMigrationDirection, TMigrationItem } from './schema';
 
@@ -59,6 +60,8 @@ export interface IMigrationPlan {
   entries: number;
   /** The command that runs the codemods the steps link; absent when no step links one. */
   apply?: string;
+  /** What `apply` runs the linked codemods with: the `knowledge.codemodCommand` of the source that serves the package (default `devz codemod`); set with `apply`. */
+  codemodCommand?: string[];
   /** A warning about how to read the plan, e.g. `latest` is older than the installed version; absent otherwise. */
   note?: string;
   /** Set when npm is ahead of the atlas source's ref: the plan stops short of what npm publishes. */
@@ -303,6 +306,9 @@ export class MigratePlan {
 
     if (steps.some((step) => step.codemod !== undefined)) {
       plan.apply = `vulcan migrate apply --package ${opts.package} --from ${opts.from} --to ${to} --app ${opts.app}`;
+      plan.codemodCommand = releases.codemodCommandOf({ package: opts.package }) ?? [
+        ...CodemodRunner.DEFAULT,
+      ];
     }
 
     if (isAlias && !isUpgrade) {

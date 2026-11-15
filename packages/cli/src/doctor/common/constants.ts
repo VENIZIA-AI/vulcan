@@ -18,6 +18,8 @@ export class DoctorChecks {
   static readonly STYLE = 'style';
   /** The committed .agents/vulcan.manifest.json against the config; a missing or outdated one is an error. */
   static readonly MANIFEST = 'manifest';
+  /** Version folders under the changelog directory while the installed vulcan predates the atlas that reads them; an error. */
+  static readonly CHANGELOG_FOLDERS = 'changelog-folders';
   /** Git tags matching atlas.tagPattern that name no declared package, alias or ignored tag; an error. */
   static readonly TAGS = 'tags';
   /** Workspaces declare packages and the knowledge index no longer holds scaffold text; a miss is an error. */
@@ -93,6 +95,8 @@ export class PrivateValueScan {
 }
 
 export class DoctorConstants {
+  /** The first VULCAN line whose atlas reads version folders (stable part); an older installed vulcan ignores them. */
+  static readonly CHANGELOG_FOLDERS_FROM = '0.4.10';
   static readonly MAKE_INCLUDE_PATTERN =
     /^-?include\s+\S*@venizia\/vulcan\/base\/make\/vulcan\.mk\s*$/m;
   /** The `[fmt]` table header of a `bunfig.toml`, on a line of its own, a trailing comment allowed. */

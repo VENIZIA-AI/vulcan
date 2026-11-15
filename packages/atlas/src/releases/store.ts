@@ -13,15 +13,23 @@ export class ReleaseStore extends BaseHelper {
   private readonly releases = new Map<string, IReleaseRecord[]>();
   private readonly changelogs: IChangelogRecord[];
   private readonly live: string[];
+  private readonly codemod: string[] | undefined;
   private readonly packageMap: IPackageMapEntry[];
   /** What `version` and `changes` say when the table holds no release. */
   readonly emptyReason: string;
   /** What `changes` says when the table holds no dated changelog entry. */
   readonly noEntriesReason: string;
 
-  constructor(opts: { table: IReleaseTable; emptyReason?: string; noEntriesReason?: string }) {
+  constructor(opts: {
+    table: IReleaseTable;
+    emptyReason?: string;
+    noEntriesReason?: string;
+    /** The source project's `knowledge.codemodCommand`: what runs the codemods its migrations name. */
+    codemodCommand?: string[];
+  }) {
     super({ scope: ReleaseStore.name });
 
+    this.codemod = opts.codemodCommand;
     this.packageMap = opts.table.packageMap;
     this.emptyReason = opts.emptyReason ?? 'no releases';
     this.noEntriesReason = opts.noEntriesReason ?? 'no dated changelog entries';
@@ -109,11 +117,20 @@ export class ReleaseStore extends BaseHelper {
    * the release that opens a window is not counted twice; the upper bound is closed so the release
    * that closes it carries its own entries.
    */
-  entriesBetween(opts: { package?: string; fromDate: string; toDate: string }): IChangelogRecord[] {
+  entriesBetween(opts: {
+    package?: string;
+    fromDate: string;
+    toDate: string;
+    includeFolded?: boolean;
+  }): IChangelogRecord[] {
     const wanted =
       opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
     return this.changelogs.filter((entry) => {
+      if (entry.foldedInto !== undefined && opts.includeFolded !== true) {
+        return false;
+      }
+
       if (entry.date <= opts.fromDate || entry.date > opts.toDate) {
         return false;
       }
@@ -133,11 +150,16 @@ export class ReleaseStore extends BaseHelper {
     toOrder: number;
     fromDate: string;
     toDate: string;
+    includeFolded?: boolean;
   }): IChangelogRecord[] {
     const wanted =
       opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
     return this.changelogs.filter((entry) => {
+      if (entry.foldedInto !== undefined && opts.includeFolded !== true) {
+        return false;
+      }
+
       const inside =
         entry.order === undefined
           ? entry.date > opts.fromDate && entry.date <= opts.toDate
@@ -149,6 +171,11 @@ export class ReleaseStore extends BaseHelper {
 
       return wanted === undefined || entry.packages.includes(wanted);
     });
+  }
+
+  /** The source project's codemod runner words, or `undefined` for the default. */
+  codemodCommandOf(): string[] | undefined {
+    return this.codemod;
   }
 
   /** The recorded commit position of one release, or `undefined` when the table carries none. */

@@ -221,6 +221,7 @@ describe('ReleaseCompute.compute on the edges of a repository', () => {
       livePackages: ['kernel', 'web'],
       releases: {},
       changelogs: [],
+      versionFolders: [],
       packageMap: PACKAGES.map((entry) => ({
         dir: entry.dir,
         name: entry.name,

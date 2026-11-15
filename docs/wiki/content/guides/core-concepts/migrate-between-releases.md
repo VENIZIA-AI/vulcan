@@ -74,7 +74,7 @@ The plan lists the same changes newest first, each with the steps that undo it. 
 bun x --no-install vulcan migrate apply --package @venizia/ignis --to 1.1.0
 ```
 
-`apply` builds the same plan, then runs each linked codemod once, in plan order, as `devz codemod <name> . --write` in the app. For a rollback it adds `--reverse`. It then prints what is still manual: a step with no codemod, a step whose codemod does not reverse, and the `Data:` lines of the steps it rewrote.
+`apply` builds the same plan, then runs each linked codemod once, in plan order, as `<runner> <name> . --write` in the app. The runner is the setting `knowledge.codemodCommand` of the project that serves the package (default `devz codemod`; a project can set `['ardor', 'codemod']`), so a plan over two projects runs each codemod with its own project's command. The runner is a binary in the app's `node_modules/.bin`; when the app does not have it, nothing runs and the steps stay manual. For a rollback it adds `--reverse`. It then prints what is still manual: a step with no codemod, a step whose codemod does not reverse, and the `Data:` lines of the steps it rewrote.
 
 | Situation | What `apply` does |
 |---|---|
@@ -119,7 +119,7 @@ migration:
     codemod: thing-factory
 ```
 
-`codemod` names a `devz codemod` the app can run. A codemod that has a mapping table can run in both directions with `--reverse`.
+`codemod` names a codemod the source project's runner (`devz codemod` unless the project sets `knowledge.codemodCommand`) can run. A codemod that has a mapping table can run in both directions with `--reverse`.
 
 ## See also
 

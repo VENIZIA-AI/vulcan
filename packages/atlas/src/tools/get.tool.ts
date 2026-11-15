@@ -1,5 +1,6 @@
 import { AtlasConstants, Corpora } from '@/common';
 import type { TCorpus } from '@/common';
+import { VersionFolders } from '@/changelogs/version-folder';
 import type { IChunk } from '@/corpus';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
@@ -64,7 +65,12 @@ const documentPathOf = (opts: { id: string }): string | undefined => {
     return undefined;
   }
 
-  return corpus === Corpora.CHANGELOG ? `${path}.md` : path;
+  if (corpus !== Corpora.CHANGELOG) {
+    return path;
+  }
+
+  // A version folder is cited by its name (`changelog:0.4.8`); its text is the folder's `log.md`.
+  return VersionFolders.isName({ name: path }) ? `${path}/log.md` : `${path}.md`;
 };
 
 /**

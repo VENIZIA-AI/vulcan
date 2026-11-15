@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { MigrateApply, MigratePlan } from '@/migrations';
+import { MigrateApply, MigratePlan, MigrateReport } from '@/migrations';
 import type { TMigrationItem } from '@/migrations';
 import { ReleaseStore } from '@/releases';
 import type { IChangelogRecord, IReleaseTable } from '@/releases';
@@ -437,5 +437,96 @@ describe('MigrateApply.run', () => {
     expect(plan.apply).toBe(
       `vulcan migrate apply --package @venizia/kernel --from 1.0.0 --to 1.2.0 --app ${app}`,
     );
+  });
+});
+
+describe("MigrateApply.run: the runner is the source project's own", () => {
+  const withRunner = (opts: { codemodCommand?: string[] }) =>
+    new ReleaseStore({ table: TABLE, codemodCommand: opts.codemodCommand });
+
+  const runWith = (opts: {
+    store: ReleaseStore;
+    app: string;
+    mutate?: (words: unknown) => void;
+  }) => {
+    const out: string[] = [];
+    const err: string[] = [];
+    const result = MigratePlan.plans({
+      releases: opts.store,
+      app: opts.app,
+      package: '@venizia/kernel',
+      from: '1.0.0',
+      to: '1.1.0',
+    });
+
+    for (const plan of result.plans) {
+      opts.mutate?.(plan);
+    }
+
+    const code = MigrateApply.run({
+      result,
+      force: false,
+      out: (text) => out.push(text),
+      err: (text) => err.push(text),
+    });
+
+    return { code, out: out.join(''), err: err.join(''), result };
+  };
+
+  test('a source that declares its runner has its codemods run by it, never by devz', () => {
+    const { app, log } = appWith({ devz: false });
+
+    writeFileSync(join(app, 'node_modules', '.bin', 'ardor'), STUB({ log }));
+    chmodSync(join(app, 'node_modules', '.bin', 'ardor'), 0o755);
+
+    const { code, result } = runWith({
+      store: withRunner({ codemodCommand: ['ardor', 'codemod'] }),
+      app,
+    });
+
+    expect(result.plans[0].codemodCommand).toEqual(['ardor', 'codemod']);
+    expect(code).toBe(0);
+    expect(calls({ log })).toEqual(['codemod cm-a . --write']);
+    expect(MigrateReport.markdown({ result })).toContain(
+      'it runs `ardor codemod <name> . --write`',
+    );
+  });
+
+  test('a source with no setting runs devz codemod, and the plan says so', () => {
+    const { app, log } = appWith();
+    const { result } = runWith({ store: withRunner({}), app });
+
+    expect(result.plans[0].codemodCommand).toEqual(['devz', 'codemod']);
+    expect(calls({ log })).toEqual(['codemod cm-a . --write']);
+  });
+
+  test('a runner the app does not have is named, nothing runs, and the steps stay manual', () => {
+    const { app, log } = appWith();
+    const { code, err, out } = runWith({
+      store: withRunner({ codemodCommand: ['ardor', 'codemod'] }),
+      app,
+    });
+
+    expect(code).toBe(1);
+    expect(err).toContain('ardor is not installed');
+    expect(calls({ log })).toEqual([]);
+    expect(out).toContain('up a-item');
+  });
+
+  test('a plan whose runner words are not allowed is refused before anything runs', () => {
+    const { app, log } = appWith();
+    const { code, err } = runWith({
+      store: withRunner({}),
+      app,
+      mutate: (plan) => {
+        if (typeof plan === 'object' && plan !== null) {
+          Object.assign(plan, { codemodCommand: ['sh', '-c', 'x'] });
+        }
+      },
+    });
+
+    expect(code).toBe(1);
+    expect(err).toContain('"-c"');
+    expect(calls({ log })).toEqual([]);
   });
 });

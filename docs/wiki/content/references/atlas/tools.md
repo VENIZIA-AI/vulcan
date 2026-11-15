@@ -31,7 +31,7 @@ The corpus segment identifies the source collection.
 Three corpus prefixes exist in chunk citations:
 
 - `wiki`: full path in the wiki documentation directory
-- `changelog`: dated markdown file stem without the `.md` extension
+- `changelog`: dated markdown file stem without the `.md` extension, or the version of a version folder (`0.4.8`)
 - `okf`: full path in the knowledge bundle directory
 
 In chunk citations, the knowledge bundle prefix is `okf`.
@@ -43,6 +43,7 @@ Pass `all` to search across every corpus without filtering.
 | `wiki:guides/core-concepts/components-guide.md#step-4-create-the-controller` | One step of a wiki guide |
 | `okf:overview/design-decisions.md#decorator-based-dependency-injection` | One section of a knowledge concept |
 | `changelog:2026-09-02-bundle-safe-helpers#what-changed` | One section of a changelog entry |
+| `changelog:<version>#<item-id>` | One item of a version folder's `log.md`, with its migration block when it has one |
 | `okf:process/release-publish.md#steps` | One section of a process page |
 
 When you drop the anchor and hash from an identifier, `get` reads the entire document.

@@ -2,7 +2,9 @@ import { BaseHelper } from '@/common/helper';
 import { DirectoryPath } from '@/common/paths';
 import { TextValue } from '@/common/text';
 import { existsSync, readFileSync, statSync } from 'node:fs';
+import { Corpora } from '@/common';
 import { join } from 'node:path';
+import { VersionFolders } from '@/changelogs/version-folder';
 import { CorpusFrontmatter } from './frontmatter';
 import { CorpusExclusion } from './common';
 import type { ICorpusRoot, IDocument, ISkippedDocument } from './common';
@@ -88,6 +90,26 @@ export class CorpusLoader extends BaseHelper {
     return documents;
   }
 
+  /** A version folder's `log.md` carries the `migration.yaml` beside it: the chunker attaches each item's block. */
+  private static migrationOf(opts: { root: ICorpusRoot; relativePath: string }): {
+    migration?: string;
+  } {
+    const [folder, file, ...rest] = opts.relativePath.split('/');
+
+    if (
+      opts.root.corpus !== Corpora.CHANGELOG ||
+      file !== 'log.md' ||
+      rest.length > 0 ||
+      !VersionFolders.isName({ name: folder })
+    ) {
+      return {};
+    }
+
+    const sibling = join(opts.root.directory, folder, 'migration.yaml');
+
+    return existsSync(sibling) ? { migration: readFileSync(sibling, 'utf8') } : {};
+  }
+
   private loadDocument(opts: { root: ICorpusRoot; relativePath: string }): IDocument | undefined {
     const { root, relativePath } = opts;
     const text = readFileSync(join(root.directory, relativePath), 'utf8');
@@ -103,6 +125,7 @@ export class CorpusLoader extends BaseHelper {
         body,
         // The body is the tail of the text: every line break before it is a frontmatter line.
         bodyLine: text.slice(0, text.length - body.length).split('\n').length,
+        ...CorpusLoader.migrationOf({ root, relativePath }),
       };
     } catch (error) {
       const message = TextValue.messageOf({ error });

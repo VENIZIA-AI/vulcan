@@ -11,7 +11,7 @@ export class AtlasConstants {
    * Bump it with any change to either: the format-lock test fails until you do. A cached or
    * downloaded index of another format is never read as if it were current.
    */
-  static readonly INDEX_FORMAT = 1;
+  static readonly INDEX_FORMAT = 2;
 }
 
 /** How atlas runs git: every call, local or remote, takes this environment. */

@@ -8,19 +8,21 @@ export class CodemodRunner {
    * The words of `knowledge.codemodCommand` from the manifest; empty when the key is absent. A word that is not
    * allowed throws: dropping it would run another command than the one the project wrote.
    */
-  static wordsOf(opts: { value: unknown }): string[] {
+  static wordsOf(opts: { value: unknown; label: string }): string[] {
     if (opts.value === undefined) {
       return [];
     }
 
     if (!Array.isArray(opts.value) || opts.value.length === 0) {
-      throw new Error('atlas: knowledge.codemodCommand must be a non-empty list of words');
+      throw new Error(
+        `atlas: ${opts.label}: knowledge.codemodCommand must be a non-empty list of words`,
+      );
     }
 
     return opts.value.map((word: unknown) => {
       if (typeof word !== 'string' || !CodemodRunner.WORD_PATTERN.test(word)) {
         throw new Error(
-          `atlas: knowledge.codemodCommand word ${JSON.stringify(word)} is not allowed: a word is letters, digits, '.', '_' and '-', and starts with a letter or digit`,
+          `atlas: ${opts.label}: knowledge.codemodCommand word ${JSON.stringify(word)} is not allowed: a word is letters, digits, '.', '_' and '-', and starts with a letter or digit`,
         );
       }
 

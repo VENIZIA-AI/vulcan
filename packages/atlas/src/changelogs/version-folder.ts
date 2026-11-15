@@ -56,6 +56,8 @@ export interface IVersionItem {
   packages: string[];
   /** The line of the item in the file, frontmatter included. */
   line: number;
+  /** The item's text without its bullet: the line, and the lines under it (a code block included) up to the next item or heading. */
+  body: string;
 }
 
 /** A reason a version folder is not valid; `file` is relative to the changelog folder. */
@@ -76,8 +78,10 @@ export interface IVersionFolder {
   /** Sections in the order they appear. */
   sections: TVersionSection[];
   items: IVersionItem[];
+  /** The text between the frontmatter and the first heading: what the release is. */
+  intro: string;
   /** The blocks of `migration.yaml` by item id; empty when the file is absent or `{}`. */
-  blocks: Record<string, unknown>;
+  blocks: Record<string, TMigrationBlock>;
   /** Everything wrong with the folder that parsing can see; the gate adds the rules that need the project. */
   problems: IVersionProblem[];
 }
@@ -120,36 +124,42 @@ export class VersionFolders {
   }
 
   static readOne(opts: { directory: string; name: string }): IVersionFolder {
+    const logFile = join(opts.directory, opts.name, 'log.md');
+    const migrationFile = join(opts.directory, opts.name, 'migration.yaml');
+
+    return VersionFolders.parse({
+      name: opts.name,
+      log: existsSync(logFile) ? readFileSync(logFile, 'utf8') : undefined,
+      migration: existsSync(migrationFile) ? readFileSync(migrationFile, 'utf8') : undefined,
+    });
+  }
+
+  /** A folder from the text of its two files, wherever they came from (disk, a git blob, the corpus). */
+  static parse(opts: { name: string; log?: string; migration?: string }): IVersionFolder {
     const folder: IVersionFolder = {
       name: opts.name,
       packages: [],
       sections: [],
       items: [],
+      intro: '',
       blocks: {},
       problems: [],
       hasInvalidRelease: false,
     };
     // Ids of items the log already reported and dropped: the migration file does not report them again.
     const rejected = new Set<string>();
-    const logFile = join(opts.directory, opts.name, 'log.md');
-    const migrationFile = join(opts.directory, opts.name, 'migration.yaml');
     const fail: TFail = ({ file, message }) => {
       folder.problems.push({ file: `${opts.name}/${file}`, message });
     };
 
-    if (existsSync(logFile)) {
-      VersionFolders.readLog({ folder, text: readFileSync(logFile, 'utf8'), fail, rejected });
-    } else {
+    if (opts.log === undefined) {
       fail({ file: 'log.md', message: 'a version folder needs a log.md' });
+    } else {
+      VersionFolders.readLog({ folder, text: opts.log, fail, rejected });
     }
 
-    if (existsSync(migrationFile)) {
-      VersionFolders.readMigration({
-        folder,
-        text: readFileSync(migrationFile, 'utf8'),
-        fail,
-        rejected,
-      });
+    if (opts.migration !== undefined) {
+      VersionFolders.readMigration({ folder, text: opts.migration, fail, rejected });
     }
 
     return folder;
@@ -203,6 +213,25 @@ export class VersionFolders {
     let previous = -1;
     const seen = new Set<string>();
     let inFence = false;
+    let isBeforeSections = true;
+    const introLines: string[] = [];
+    let current: IVersionItem | undefined;
+    let currentLines: string[] = [];
+    const closeItem = (): void => {
+      if (current !== undefined) {
+        current.body = currentLines.join('\n').trim();
+      }
+
+      current = undefined;
+      currentLines = [];
+    };
+    const keep = (text: string): void => {
+      if (current !== undefined) {
+        currentLines.push(text);
+      } else if (isBeforeSections) {
+        introLines.push(text);
+      }
+    };
 
     body.split('\n').forEach((text, index) => {
       const line = index + 1 + offset;
@@ -210,17 +239,23 @@ export class VersionFolders {
       // A code block shows an example: its bullets and `## ` lines are not items and sections.
       if (FENCE_LINE.test(text)) {
         inFence = !inFence;
+        keep(text);
 
         return;
       }
 
       if (inFence) {
+        keep(text);
+
         return;
       }
 
       const heading = SECTION_LINE.exec(text);
 
       if (heading !== null) {
+        closeItem();
+        isBeforeSections = false;
+
         const known = VersionSections.of({ name: heading[1] });
 
         VersionFolders.openSection({ folder, name: heading[1], previous, fail });
@@ -231,8 +266,12 @@ export class VersionFolders {
       }
 
       if (!BULLET_LINE.test(text)) {
+        keep(text);
+
         return;
       }
+
+      closeItem();
 
       const item = ITEM_LINE.exec(text);
 
@@ -267,7 +306,7 @@ export class VersionFolders {
       }
 
       seen.add(item[2]);
-      folder.items.push({
+      current = {
         id: item[2],
         title: item[1],
         section,
@@ -276,8 +315,14 @@ export class VersionFolders {
           .map((name) => name.replaceAll('`', '').trim())
           .filter((name) => name.length > 0),
         line,
-      });
+        body: '',
+      };
+      currentLines = [text.replace(BULLET_LINE, '')];
+      folder.items.push(current);
     });
+
+    closeItem();
+    folder.intro = introLines.join('\n').trim();
   }
 
   private static openSection(opts: {

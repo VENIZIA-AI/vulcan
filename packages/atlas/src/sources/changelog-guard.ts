@@ -42,7 +42,12 @@ export class ChangelogGuard {
   }): void {
     const directory = opts.project.knowledge.changelogs;
 
-    if (directory === undefined || opts.releases.changelogs.length > 0) {
+    // A folder whose log holds no item is a valid changelog (it yields no record), so the folders the table read count too.
+    if (
+      directory === undefined ||
+      opts.releases.changelogs.length > 0 ||
+      (opts.releases.versionFolders?.length ?? 0) > 0
+    ) {
       return;
     }
 

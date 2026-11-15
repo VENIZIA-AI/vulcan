@@ -378,6 +378,46 @@ export class ProjectContract {
   }
 
   /**
+   * The changelog folders `changelogs/<X.Y.Z>/` are read by the atlas of VULCAN `CHANGELOG_FOLDERS_FROM` and later;
+   * an older one ignores them and answers with no changelog at all. A project that holds a folder with a `log.md`
+   * and has an older vulcan installed is told which to install. The version is the stable part: a prerelease of
+   * that line may still predate the folders, so a project on one reads the line's release notes.
+   */
+  static checkChangelogFolders(opts: ICheckContext): IViolation[] {
+    const { changelogs } = opts.config.knowledge;
+
+    if (changelogs === undefined) {
+      return [];
+    }
+
+    const directory = resolve(opts.root, changelogs);
+    const hasFolder =
+      existsSync(directory) &&
+      readdirSync(directory).some(
+        (name) => /^\d+\.\d+\.\d+$/.test(name) && existsSync(join(directory, name, 'log.md')),
+      );
+    const installed = readJsonObject({
+      file: join(opts.root, 'node_modules', '@venizia', 'vulcan', 'package.json'),
+    })?.['version'];
+
+    if (!hasFolder || typeof installed !== 'string') {
+      return [];
+    }
+
+    const stable = installed.replace(/-.+$/, '');
+
+    return Bun.semver.order(stable, DoctorConstants.CHANGELOG_FOLDERS_FROM) >= 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.CHANGELOG_FOLDERS,
+            file: changelogs,
+            message: `holds version folders, but the installed @venizia/vulcan is ${installed}: its atlas ignores them. Install ${DoctorConstants.CHANGELOG_FOLDERS_FROM} or later`,
+          }),
+        ];
+  }
+
+  /**
    * D9: the shared coding style - every lint config builds on it, and the package whose `.configs/`
    * holds the config declares it, or the root does. A project with no lint config declares it at the
    * root. Owners are `packages/*` and every configured package's `path`, such as `backends/kit`.
