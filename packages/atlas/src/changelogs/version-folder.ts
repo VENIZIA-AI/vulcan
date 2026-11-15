@@ -83,6 +83,12 @@ export interface IVersionFolder {
   items: IVersionItem[];
   /** The text between the frontmatter and the first heading: what the release is. */
   intro: string;
+  /** `summary:` of the frontmatter: one sentence saying what the release is; absent when the log has none. */
+  summary?: string;
+  /** `highlights:` of the frontmatter: the lines a version box shows; absent when the log has none. */
+  highlights?: string[];
+  /** The text of `log.md` names `migration.yaml`; the version page links its upgrade guide itself. */
+  namesMigrationFile: boolean;
   /** The blocks of `migration.yaml` by item id; empty when the file is absent or `{}`. */
   blocks: Record<string, TMigrationBlock>;
   /** Everything wrong with the folder that parsing can see; the gate adds the rules that need the project. */
@@ -186,6 +192,7 @@ export class VersionFolders {
       sections: [],
       items: [],
       intro: '',
+      namesMigrationFile: false,
       blocks: {},
       problems: [],
       hasLog: opts.log !== undefined,
@@ -240,6 +247,26 @@ export class VersionFolders {
     }
 
     folder.packages = stringsOf({ value: data.packages });
+    folder.namesMigrationFile = body.includes('migration.yaml');
+
+    if (data.summary !== undefined) {
+      if (typeof data.summary === 'string') {
+        folder.summary = data.summary.trim();
+      } else {
+        fail({ file: 'log.md', message: 'summary: must be a sentence' });
+      }
+    }
+
+    if (data.highlights !== undefined) {
+      if (
+        Array.isArray(data.highlights) &&
+        data.highlights.every((line) => typeof line === 'string')
+      ) {
+        folder.highlights = data.highlights.map((line: string) => line.trim());
+      } else {
+        fail({ file: 'log.md', message: 'highlights: must be a list of lines' });
+      }
+    }
 
     if (data.released !== undefined) {
       const released = typeof data.released === 'string' ? data.released : '';

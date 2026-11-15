@@ -15,12 +15,24 @@ export const MigrationDirectionSchema = z.union([
   z.strictObject({ steps: z.array(TEXT).min(1) }),
 ]);
 
+const STEPS = z.array(TEXT).min(1);
+
+/**
+ * How an app upgrades across an item: ordered steps, a before and after pair, or both (the pair shows the code, the
+ * steps say what to do). A folder in progress owes the steps (`VersionCheck`); a released one keeps what it had.
+ */
+export const MigrationUpgradeSchema = z.union([
+  z.strictObject({ steps: STEPS, before: TEXT, after: TEXT }),
+  z.strictObject({ before: TEXT, after: TEXT }),
+  z.strictObject({ steps: STEPS }),
+]);
+
 /** One thing an app must change across the release the entry ships in. */
 export const MigrationItemSchema = z.strictObject({
   /** Unique across the project's changelog folder. */
   id: z.string().regex(MIGRATION_NAME_PATTERN),
   symbols: z.array(z.string().regex(SYMBOL_PATTERN)).min(1),
-  upgrade: MigrationDirectionSchema,
+  upgrade: MigrationUpgradeSchema,
   downgrade: MigrationDirectionSchema,
   /** Stored data, tokens or formats that do not cross the boundary. */
   data: TEXT.optional(),
@@ -30,5 +42,7 @@ export const MigrationItemSchema = z.strictObject({
 
 export const MigrationSchema = z.array(MigrationItemSchema).min(1);
 
-export type TMigrationDirection = z.infer<typeof MigrationDirectionSchema>;
+export type TMigrationDirection =
+  | z.infer<typeof MigrationDirectionSchema>
+  | z.infer<typeof MigrationUpgradeSchema>;
 export type TMigrationItem = z.infer<typeof MigrationItemSchema>;

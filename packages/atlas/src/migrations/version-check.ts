@@ -12,6 +12,12 @@ import type { IChangelogProblem } from './check';
  * what makes one valid, and the one-in-progress rule. The rules that need history are `ChangelogHistory`'s.
  */
 export class VersionCheck {
+  static readonly SUMMARY_MAX = 200;
+  static readonly HIGHLIGHTS_MAX = 5;
+  /** A folder of this many items or more needs at least this many highlights. */
+  static readonly HIGHLIGHTS_MIN = 3;
+  static readonly HIGHLIGHT_MAX = 110;
+
   static scan(opts: { project: IAtlasProject; codemods?: string[] }): IChangelogProblem[] {
     const { changelogs: directory } = opts.project.knowledge;
 
@@ -84,7 +90,88 @@ export class VersionCheck {
       fail,
     });
 
+    // A released folder is frozen: it owes none of what the version page reads, and keeps what it has.
+    if (folder.released === undefined && !folder.hasInvalidRelease) {
+      VersionCheck.readingProblems({ folder, fail });
+    }
+
     return problems;
+  }
+
+  /**
+   * What the version page of a folder in progress needs: a summary and highlights for its box, the steps of every
+   * block for its upgrade guide, and a log that leaves the link to the guide to the page.
+   */
+  private static readingProblems(opts: {
+    folder: IVersionFolder;
+    fail: (opts: { file: string; message: string }) => void;
+  }): void {
+    const { folder, fail } = opts;
+    const { summary, highlights } = folder;
+
+    if (summary === undefined || summary === '') {
+      fail({
+        file: 'log.md',
+        message: 'summary: write one sentence, at most 200 characters, saying what the release is',
+      });
+    } else if (summary.includes('\n')) {
+      fail({ file: 'log.md', message: 'summary: must be one line' });
+    } else if (summary.length > VersionCheck.SUMMARY_MAX) {
+      fail({
+        file: 'log.md',
+        message: `summary: is ${summary.length} characters, at most ${VersionCheck.SUMMARY_MAX}`,
+      });
+    }
+
+    if (highlights === undefined || highlights.length === 0) {
+      fail({
+        file: 'log.md',
+        message: 'highlights: write one to five one-line highlights of the release',
+      });
+    } else {
+      if (highlights.length > VersionCheck.HIGHLIGHTS_MAX) {
+        fail({
+          file: 'log.md',
+          message: `highlights: ${highlights.length} lines, at most ${VersionCheck.HIGHLIGHTS_MAX}`,
+        });
+      }
+
+      if (
+        folder.items.length >= VersionCheck.HIGHLIGHTS_MIN &&
+        highlights.length < VersionCheck.HIGHLIGHTS_MIN
+      ) {
+        fail({
+          file: 'log.md',
+          message: `highlights: the folder holds ${folder.items.length} items, so at least ${VersionCheck.HIGHLIGHTS_MIN} highlights`,
+        });
+      }
+
+      highlights.forEach((line, index) => {
+        if (line.includes('\n') || line.length > VersionCheck.HIGHLIGHT_MAX) {
+          fail({
+            file: 'log.md',
+            message: `highlights: line ${index + 1} must be one line of at most ${VersionCheck.HIGHLIGHT_MAX} characters`,
+          });
+        }
+      });
+    }
+
+    for (const [id, block] of Object.entries(folder.blocks)) {
+      if (!('steps' in block.upgrade)) {
+        fail({
+          file: 'migration.yaml',
+          message: `'${id}' needs upgrade.steps: the ordered steps an app takes to upgrade`,
+        });
+      }
+    }
+
+    if (folder.namesMigrationFile) {
+      fail({
+        file: 'log.md',
+        message:
+          'the log names migration.yaml: the version page links its upgrade guide itself, so say nothing of the file',
+      });
+    }
   }
 
   private static codemodProblems(opts: {

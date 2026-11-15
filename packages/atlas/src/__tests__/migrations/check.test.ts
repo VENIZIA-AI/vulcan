@@ -214,23 +214,35 @@ describe('ChangelogCheck.scan', () => {
     expect(problems[0].message).toContain('downgrade');
   });
 
-  test('C3.2: an upgrade with both shapes fails', () => {
-    const { project } = projectWith({
-      files: {
-        '2026-11-20-a.md': entry({
-          badge: BREAKING,
-          extra: `migration:
+  test('C3.2: a downgrade with both shapes fails; an upgrade may hold the steps with the code', () => {
+    const check = (opts: { upgrade: string; downgrade: string }) =>
+      ChangelogCheck.scan({
+        project: projectWith({
+          files: {
+            '2026-11-20-a.md': entry({
+              badge: BREAKING,
+              extra: `migration:
   - id: x
     symbols: [A]
-    upgrade: { before: "a", after: "b", steps: ["c"] }
-    downgrade: { steps: ["d"] }
+    upgrade: ${opts.upgrade}
+    downgrade: ${opts.downgrade}
 `,
-        }),
-      },
-      migrationFrom: '2026-11-13',
-    });
+            }),
+          },
+          migrationFrom: '2026-11-13',
+        }).project,
+      });
 
-    expect(ChangelogCheck.scan({ project }).length).toBeGreaterThan(0);
+    expect(
+      check({ upgrade: '{ steps: ["c"] }', downgrade: '{ before: "a", after: "b", steps: ["d"] }' })
+        .length,
+    ).toBeGreaterThan(0);
+    expect(
+      check({
+        upgrade: '{ before: "a", after: "b", steps: ["c"] }',
+        downgrade: '{ steps: ["d"] }',
+      }),
+    ).toEqual([]);
   });
 
   test('an item with no symbols, or a symbol that is not an identifier, fails', () => {
