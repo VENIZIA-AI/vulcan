@@ -1,0 +1,210 @@
+import { spawnSync } from 'node:child_process';
+import { relative } from 'node:path';
+import { VersionFolders } from '@/changelogs/version-folder';
+import type { IVersionFolder } from '@/changelogs/version-folder';
+import { AtlasGit, AtlasTimeouts } from '@/common/constants';
+import type { IAtlasProject } from '@/common/project-config';
+import type { TConstValue } from '@/common/types';
+import { FolderAtStatuses } from './common';
+import type { IFolderHistory, TFolderAt } from './common';
+
+const PLACEHOLDER = /<(dir|version)>|<[a-z]+>/g;
+
+/** What git says about a path of a tag: three trees, never a blob, so it answers offline. */
+class PathStates {
+  static readonly PRESENT = 'present';
+  static readonly ABSENT = 'absent';
+  static readonly UNKNOWN = 'unknown';
+}
+
+type TPathState = TConstValue<typeof PathStates>;
+
+/**
+ * The version folders of a project as they were at its release tags: what a prerelease of a package said about its
+ * line, which the final folders at HEAD no longer say. Read on demand from git, per tag and line, and cached.
+ * A missing blob (a partial clone, offline) is an answer - `unreadable` - and never a network fetch.
+ */
+export class FolderHistory implements IFolderHistory {
+  private head?: IVersionFolder[];
+  private readonly cache = new Map<string, TFolderAt>();
+
+  constructor(private readonly opts: { project: IAtlasProject }) {}
+
+  folders(): IVersionFolder[] {
+    const { changelogs } = this.opts.project.knowledge;
+
+    this.head ??=
+      changelogs === undefined
+        ? []
+        : VersionFolders.read({ directory: changelogs, within: this.opts.project.root }).filter(
+            (folder) => folder.hasLog,
+          );
+
+    return this.head;
+  }
+
+  at(opts: { package: string; version: string; line: string }): TFolderAt {
+    const key = `${opts.package}@${opts.version}#${opts.line}`;
+    const known = this.cache.get(key);
+
+    if (known !== undefined) {
+      return known;
+    }
+
+    const found = this.read(opts);
+
+    this.cache.set(key, found);
+
+    return found;
+  }
+
+  /** `GIT_NO_LAZY_FETCH` is git 2.44 and later: an older git would fetch a missing blob from the remote, so it reads nothing. */
+  private static canRefuseLazyFetch(): boolean {
+    FolderHistory.refusesLazyFetch ??= (() => {
+      const result = spawnSync('git', ['--version'], {
+        encoding: 'utf8',
+        env: AtlasGit.buildEnvironment(),
+      });
+      const [major, minor] = (/(\d+)\.(\d+)/.exec(result.stdout ?? '') ?? []).slice(1).map(Number);
+
+      return major > 2 || (major === 2 && minor >= 44);
+    })();
+
+    return FolderHistory.refusesLazyFetch;
+  }
+
+  private static refusesLazyFetch: boolean | undefined;
+
+  private read(opts: { package: string; version: string; line: string }): TFolderAt {
+    if (!FolderHistory.canRefuseLazyFetch()) {
+      return {
+        status: FolderAtStatuses.UNREADABLE,
+        reason:
+          'this git is older than 2.44 and cannot be told not to fetch a missing blob from the remote',
+      };
+    }
+
+    const { project } = this.opts;
+    const directory = project.knowledge.changelogs;
+    const dir = project.packages.find((entry) => entry.name === opts.package)?.dir;
+    const tag = dir === undefined ? undefined : this.tagOf({ dir, version: opts.version });
+
+    if (directory === undefined || tag === undefined) {
+      return {
+        status: FolderAtStatuses.UNREADABLE,
+        reason: `no tag of ${opts.package} ${opts.version} is in this checkout`,
+      };
+    }
+
+    const folder = `${relative(project.root, directory)}/${opts.line}`;
+    const log = this.pathState({ tag, path: `${folder}/log.md` });
+
+    if (log === PathStates.ABSENT) {
+      return { status: FolderAtStatuses.ABSENT, tag };
+    }
+
+    const migration = this.pathState({ tag, path: `${folder}/migration.yaml` });
+    const logText =
+      log === PathStates.PRESENT ? this.blob({ tag, path: `${folder}/log.md` }) : undefined;
+    const migrationText =
+      migration === PathStates.PRESENT
+        ? this.blob({ tag, path: `${folder}/migration.yaml` })
+        : undefined;
+
+    if (
+      logText === undefined ||
+      migration === PathStates.UNKNOWN ||
+      (migration === PathStates.PRESENT && migrationText === undefined)
+    ) {
+      return {
+        status: FolderAtStatuses.UNREADABLE,
+        tag,
+        reason: `git cannot read ${folder} at ${tag} here (a partial clone does not hold it, or the tag is not fetched)`,
+      };
+    }
+
+    return {
+      status: FolderAtStatuses.FOLDER,
+      tag,
+      folder: VersionFolders.parse({ name: opts.line, log: logText, migration: migrationText }),
+    };
+  }
+
+  /** The tag of `dir` at `version`: the first template of the project that renders to a tag this repository has. */
+  private tagOf(opts: { dir: string; version: string }): string | undefined {
+    const { project } = this.opts;
+
+    for (const template of [project.tagPattern, ...(project.legacyTagPatterns ?? [])]) {
+      let usable = true;
+      const tag = template.replace(PLACEHOLDER, (match, name: string | undefined) => {
+        if (name === 'dir') {
+          return opts.dir;
+        }
+
+        if (name === 'version') {
+          return opts.version;
+        }
+
+        usable = false;
+
+        return match;
+      });
+
+      if (
+        usable &&
+        this.git({
+          args: [
+            'rev-parse',
+            '--verify',
+            '--quiet',
+            '--end-of-options',
+            `refs/tags/${tag}^{commit}`,
+          ],
+        }) !== undefined
+      ) {
+        return tag;
+      }
+    }
+
+    return undefined;
+  }
+
+  private pathState(opts: { tag: string; path: string }): TPathState {
+    const listed = this.git({
+      args: [
+        'ls-tree',
+        '--name-only',
+        '--end-of-options',
+        `refs/tags/${opts.tag}`,
+        '--',
+        opts.path,
+      ],
+    });
+
+    if (listed === undefined) {
+      return PathStates.UNKNOWN;
+    }
+
+    return listed.trim() === '' ? PathStates.ABSENT : PathStates.PRESENT;
+  }
+
+  private blob(opts: { tag: string; path: string }): string | undefined {
+    // `./` reads the path from the project root, where `ls-tree` reads it from; without it `show` reads from the top of the repository.
+    return this.git({
+      args: ['show', '--end-of-options', `refs/tags/${opts.tag}:./${opts.path}`],
+    });
+  }
+
+  /** A git answer from the project root; `undefined` when it fails. A blob the clone lacks fails fast: git never fetches it from the remote. */
+  private git(opts: { args: string[] }): string | undefined {
+    const result = spawnSync('git', opts.args, {
+      cwd: this.opts.project.root,
+      encoding: 'utf8',
+      timeout: AtlasTimeouts.LOCAL_GIT_MS,
+      killSignal: 'SIGKILL',
+      env: { ...AtlasGit.buildEnvironment(), GIT_NO_LAZY_FETCH: '1' },
+    });
+
+    return result.status === 0 ? result.stdout : undefined;
+  }
+}

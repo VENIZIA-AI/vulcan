@@ -706,3 +706,153 @@ describe('MigrateApply.run: the allow-list is the validated project, never the t
     expect(tampered.codemodPackagesOf()).toEqual([]);
   });
 });
+
+describe('MigrateApply.run: a plan from a server that sends no step direction (C7)', () => {
+  test('a step with none goes the way its plan does: a rollback is reversed', () => {
+    const { app, log } = appWith();
+    const text = JSON.stringify({
+      app,
+      plans: [
+        {
+          package: '@venizia/kernel',
+          from: '1.1.0',
+          to: '1.0.0',
+          direction: 'downgrade',
+          target: 'version',
+          entries: 1,
+          apply: 'vulcan migrate apply',
+          codemodCommand: ['devz', 'codemod'],
+          codemodPackages: PROJECT_PACKAGES,
+          steps: [
+            {
+              id: 'a-item',
+              entry: 'changelog:2026-02-01-x',
+              title: 'a',
+              date: '2026-02-01',
+              symbols: ['Thing'],
+              change: { steps: ['down'] },
+              codemod: 'cm-a',
+              touches: [],
+            },
+          ],
+          unstructured: [],
+          unreadable: [],
+        },
+      ],
+      skipped: [],
+      unserved: [],
+    });
+    const code = MigrateApply.run({
+      result: JSON.parse(text),
+      force: false,
+      out: () => undefined,
+      err: () => undefined,
+    });
+
+    expect(code).toBe(0);
+    expect(calls({ log })).toEqual(['codemod cm-a . --write --reverse']);
+  });
+});
+
+describe('MigrateApply.run: each step runs in its own direction (C7)', () => {
+  const step = (opts: { id: string; direction: 'upgrade' | 'downgrade'; codemod?: string }) => ({
+    id: opts.id,
+    entry: `changelog:0.4.5#${opts.id}`,
+    title: opts.id,
+    date: 'in progress',
+    symbols: ['Thing'],
+    direction: opts.direction,
+    change: { steps: [`${opts.direction} ${opts.id}`] },
+    codemod: opts.codemod,
+    touches: [],
+  });
+
+  test('--reverse only on a downgrade step; the same codemod on both sides runs once each way', () => {
+    const { app, log } = appWith();
+    const out: string[] = [];
+    const err: string[] = [];
+    const code = MigrateApply.run({
+      result: {
+        app,
+        plans: [
+          {
+            package: '@venizia/kernel',
+            from: '1.0.0',
+            to: '1.1.0',
+            direction: 'upgrade',
+            target: 'version',
+            entries: 3,
+            apply: 'vulcan migrate apply',
+            codemodCommand: ['devz', 'codemod'],
+            codemodPackages: PROJECT_PACKAGES,
+            steps: [
+              step({ id: 'gone-item', direction: 'downgrade', codemod: 'cm-a' }),
+              step({ id: 'gone-item', direction: 'upgrade', codemod: 'cm-a' }),
+              step({ id: 'new-item', direction: 'upgrade', codemod: 'cm-b' }),
+            ],
+            unstructured: [],
+            unreadable: [],
+          },
+        ],
+        skipped: [],
+        unserved: [],
+      },
+      force: false,
+      out: (text) => out.push(text),
+      err: (text) => err.push(text),
+    });
+
+    expect(code).toBe(0);
+    expect(calls({ log })).toEqual([
+      'codemod cm-a . --write --reverse',
+      'codemod cm-a . --write',
+      'codemod cm-b . --write',
+    ]);
+    // Both steps of the changed item are done: neither is left manual because its twin ran.
+    expect(out.join('')).not.toContain('Still manual');
+    expect(out.join('')).toContain('in reverse');
+  });
+
+  test('a downgrade step whose codemod is not reversible stays manual while its upgrade twin is applied', () => {
+    const { app, log } = appWith();
+    const out: string[] = [];
+    const code = MigrateApply.run({
+      result: {
+        app,
+        plans: [
+          {
+            package: '@venizia/kernel',
+            from: '1.0.0',
+            to: '1.1.0',
+            direction: 'upgrade',
+            target: 'version',
+            entries: 2,
+            apply: 'vulcan migrate apply',
+            codemodCommand: ['devz', 'codemod'],
+            codemodPackages: PROJECT_PACKAGES,
+            steps: [
+              step({ id: 'irr-item', direction: 'downgrade', codemod: 'irreversible' }),
+              step({ id: 'irr-item', direction: 'upgrade', codemod: 'irreversible' }),
+            ],
+            unstructured: [],
+            unreadable: [],
+          },
+        ],
+        skipped: [],
+        unserved: [],
+      },
+      force: false,
+      out: (text) => out.push(text),
+      err: () => undefined,
+    });
+
+    expect(code).toBe(0);
+    expect(calls({ log })).toEqual([
+      'codemod irreversible . --write --reverse',
+      'codemod irreversible . --write',
+    ]);
+    expect(out.join('')).toContain('not reversible');
+    expect(out.join('')).toContain('downgrade irr-item');
+    expect(out.join('')).not.toContain('upgrade irr-item');
+  });
+});

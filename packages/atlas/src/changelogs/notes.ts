@@ -1,7 +1,6 @@
 /**
- * The release notes of a version folder, from the text of its two files. It imports nothing: the publish job of a
- * release runs it straight from the repository - that job installs the dependencies but builds no package, so there is
- * no `vulcan` binary there to call - and `vulcan changelog notes` runs the same file, so the notes of a release and the
+ * The release notes of a version folder, from the text of its two files. It imports nothing, so the release scripts load
+ * it straight from the repository, and `vulcan changelog notes` runs the same file: the notes of a release and the
  * notes the command prints cannot differ.
  */
 export class VersionNotes {

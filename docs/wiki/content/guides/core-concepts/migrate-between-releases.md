@@ -68,13 +68,28 @@ The plan lists the same changes newest first, each with the steps that undo it. 
 
 `--to latest` from a prerelease newer than the newest stable release is a downgrade. The plan says so in a `Note:` line; use `--to next` to stay on the newest release.
 
+## Prereleases and version folders
+
+A project that keeps its changelog as one folder per version (`changelogs/<version>/`) lets the plan compare what your app is on with what it is going to, and list only the difference. For one package, the state at a version is the items of every earlier line, plus the items of the version's own line: as the folder stands today for a stable, as the package's tag held it for a prerelease. The plan moves from one state to the other:
+
+| Item | Step |
+|---|---|
+| In your version only (added after it, or taken out again) | Undo it, with its `downgrade` steps |
+| In the target only | Apply it, with its `upgrade` steps |
+| In both, and its block, section or packages changed | Undo it as it was, then apply it as it is; both steps say the item changed |
+| In both, only its prose changed | Nothing |
+
+So an item added in one prerelease and taken out in the next shows nothing from the first to the third, and a plan can hold both kinds of step. It lists everything to undo first, newest first, then everything to apply, oldest first, and each step names its direction.
+
+Two limits. The folder at a prerelease tag is read from the project's git history, and never from the network while you plan: a source atlas fetches has those files fetched when it is pulled (`vulcan x atlas pull`). When a tag still cannot be read, the plan falls back to the nearest earlier tag of the line it can read, or counts only the earlier lines when it can read none; it says so in its `Note:` and `Warning:` lines and is marked degraded, and `apply` runs nothing from it unless you pass `--force`. And a prerelease of a line that was folded into a folder after its release has no folder at its tag: the plan splits at the line's stable, lists the dated entries inside the line as breaking changes without steps, and tells you to read `changelog:<version>` with the atlas `get` tool.
+
 ## Run the codemods
 
 ```bash
 bun x --no-install vulcan migrate apply --package @venizia/ignis --to 1.1.0
 ```
 
-`apply` builds the same plan, then runs each linked codemod once, in plan order, as `<runner> <name> . --write` in the app. The runner is the setting `knowledge.codemodCommand` of the project that serves the package (default `devz codemod`; a project can set `['ardor', 'codemod']`), so a plan over two projects runs each codemod with its own project's command. The runner is a binary in the app's `node_modules/.bin` that resolves, every link followed, to a file inside an installed package of the project that serves the package (`devz` lives in `@venizia/dev-configs`, for example). A binary of any other package, or a link that leaves the package, is refused; and when the app does not have the runner, nothing runs and the steps stay manual. For a rollback it adds `--reverse`. It then prints what is still manual: a step with no codemod, a step whose codemod does not reverse, and the `Data:` lines of the steps it rewrote.
+`apply` builds the same plan, then runs each linked codemod once, in plan order, as `<runner> <name> . --write` in the app. The runner is the setting `knowledge.codemodCommand` of the project that serves the package (default `devz codemod`; a project can set `['ardor', 'codemod']`), so a plan over two projects runs each codemod with its own project's command. The runner is a binary in the app's `node_modules/.bin` that resolves, every link followed, to a file inside an installed package of the project that serves the package (`devz` lives in `@venizia/dev-configs`, for example). A binary of any other package, or a link that leaves the package, is refused; and when the app does not have the runner, nothing runs and the steps stay manual. Each step runs in its own direction: `--reverse` is added to the codemod of a step that undoes an item, never because the plan as a whole is an upgrade or a downgrade. It then prints what is still manual: a step with no codemod, a step whose codemod does not reverse, and the `Data:` lines of the steps it rewrote.
 
 | Situation | What `apply` does |
 |---|---|

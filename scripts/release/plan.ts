@@ -337,7 +337,7 @@ export class ReleasePlan {
       ];
     }
 
-    // A dispatch of bump none releases what is there: the folder it names was dated by the run that made the release commit.
+    // A dispatch of bump none releases what is there: the folder it names may already be dated by the run that made the release commit.
     return opts.bump !== ReleaseBumps.NONE && /^released:/m.test(readFileSync(log, 'utf8'))
       ? [`${folder}/${opts.version}/log.md already says released: a stable is released once`]
       : [];
@@ -360,6 +360,7 @@ export class ReleasePlan {
     );
   }
 
+  /** What the run page shows about the plan: the target, and who has to approve it. */
   static summaryOf(opts: {
     plan: IReleasePlan;
     bump: string;
