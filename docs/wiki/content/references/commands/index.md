@@ -6,12 +6,12 @@ description: Find available VULCAN commands, arguments, tools, make targets, and
 # vulcan commands
 
 Use `vulcan` to scaffold a project or create a monorepo from a preset, write the agent adapters, check conformance, upgrade, and run okf and atlas.
-Run `bun run vulcan` or pass `--help` to inspect available commands:
+Run `bun node_modules/.bin/vulcan` or pass `--help` to inspect available commands:
 
 ```text
 vulcan 0.4.10-12 - one setup, one workflow for every project
 
-Usage: bun run vulcan <command>
+Usage: bun node_modules/.bin/vulcan <command>
 
   init [--key <KEY>]              Scaffold the project layer (never overwrites); --key is the project's flow key
                                   (2 to 8 uppercase letters or digits; a terminal asks, else it is made from the name)
@@ -94,7 +94,7 @@ Usage: bun run vulcan <command>
 
 The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a library other apps import and `--shared` for a side-neutral package other apps import (both with `--dir`); `--scope` names the package for any of them; see [vulcan add](/references/commands/add).
 
-If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun run vulcan help'` and exits with code 1.
+If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun node_modules/.bin/vulcan help'` and exits with code 1.
 The following list gives each command, its purpose, its exit codes, and its reference page:
 
 - `init` ([vulcan init](/references/commands/init)): Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app.
@@ -150,9 +150,9 @@ Upgrade before you use a new config key. The config schema is strict, so a key f
 
 | Syntax | Installs | Behavior |
 |---|---|---|
-| `bun run vulcan upgrade` | `latest` | The stable release; never a prerelease. Same as `--stable` |
-| `bun run vulcan upgrade --nightly` | The higher of `latest` and `next` | The newest published version, by semver. Never older than the stable release |
-| `bun run vulcan upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
+| `bun node_modules/.bin/vulcan upgrade` | `latest` | The stable release; never a prerelease. Same as `--stable` |
+| `bun node_modules/.bin/vulcan upgrade --nightly` | The higher of `latest` and `next` | The newest published version, by semver. Never older than the stable release |
+| `bun node_modules/.bin/vulcan upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
 
 `--nightly` reads the dist-tags of `@venizia/vulcan` with `bun pm view`, so it uses the registry your project is configured for.
 If `latest` is `0.4.8` and `next` is `0.4.8`, `--nightly` installs `0.4.8`. If `next` is `0.4.9-2`, it installs `0.4.9-2`.
@@ -168,7 +168,7 @@ When the installed `@venizia/vulcan` is a prerelease and you run `upgrade` or `u
 The following run pins `@venizia/vulcan` to version `0.4.8`, the version already installed, so `sync` changes nothing:
 
 ```text
-$ bun run vulcan upgrade 0.4.8
+$ bun node_modules/.bin/vulcan upgrade 0.4.8
 bun add v1.4.3 (c6da4a4d3)
 
 installed @venizia/vulcan@0.4.8 with binaries:
@@ -252,14 +252,14 @@ The known tools are [`okf`](/references/okf/) and [`atlas`](/references/atlas/).
 If you run `vulcan x` without a tool argument, the command exits with code 1:
 
 ```text
-$ bun run vulcan x
+$ bun node_modules/.bin/vulcan x
 vulcan x: no tool given - known tools: okf, atlas
 ```
 
 If you run `vulcan x` with an unknown tool name, the command exits with code 1:
 
 ```text
-$ bun run vulcan x nope
+$ bun node_modules/.bin/vulcan x nope
 vulcan x: unknown tool 'nope' - known tools: okf, atlas
 ```
 
@@ -279,7 +279,7 @@ This behavior allows atlas to inspect external sources without a local project c
 
 ## Running vulcan
 
-Every example invokes VULCAN as `bun run vulcan` to run the `@venizia/vulcan` package pinned in your project dependencies.
+Every example invokes VULCAN as `bun node_modules/.bin/vulcan` to run the `@venizia/vulcan` package pinned in your project dependencies.
 The `--no-install` flag prevents Bun from downloading packages, running pinned code instead of the unrelated npm package named `vulcan`.
 
 `vulcan.mk` wraps these commands in `make` targets.

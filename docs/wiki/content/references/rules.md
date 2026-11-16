@@ -235,7 +235,7 @@ export default {
 When a slot has no choice, `vulcan doctor` reports a violation during the `rule-slots` check:
 
 ```text
-$ bun run vulcan doctor
+$ bun node_modules/.bin/vulcan doctor
   [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
 vulcan doctor: 1 violation(s)
 ```
@@ -260,7 +260,7 @@ Every `V-` reference in `.agents/rules.md` must point to an active base rule.
 When `.agents/rules.md` references an unknown base rule identifier, `vulcan doctor` reports a violation:
 
 ```text
-$ bun run vulcan doctor
+$ bun node_modules/.bin/vulcan doctor
   [rule-ids] .agents/rules.md: V-Z-99 is not a base rule - give the extension a bare ID
 vulcan doctor: 1 violation(s)
 ```

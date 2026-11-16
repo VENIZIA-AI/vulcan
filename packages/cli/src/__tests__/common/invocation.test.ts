@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../../common/index.ts';
 
-test('the invocation VULCAN prints runs the linked bin and never fetches a package: bun run vulcan', () => {
-  expect(ProjectLayout.VULCAN_COMMAND).toBe('bun run vulcan');
+test('the invocation VULCAN prints runs the linked bin and never fetches a package: bun node_modules/.bin/vulcan', () => {
+  expect(ProjectLayout.VULCAN_COMMAND).toBe('bun node_modules/.bin/vulcan');
 });
 
 test('the shipped make module runs the linked bin by path, which never falls back to $PATH', () => {

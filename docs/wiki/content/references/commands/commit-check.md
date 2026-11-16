@@ -8,7 +8,7 @@ description: Check a commit message for an agent signature and, when the project
 `vulcan commit-check` rejects a commit message that signs the commit as an agent, and checks the one-line subject shape when your project gives one. Nothing is checked until the project turns a check on.
 
 ```text
-$ bun run vulcan commit-check .git/COMMIT_EDITMSG
+$ bun node_modules/.bin/vulcan commit-check .git/COMMIT_EDITMSG
 commit-check: 1 problem(s) in the commit message:
   commit message, line 3: "Co-Authored-By: Claude <noreply@anthropic.com>" signs the commit as an agent; remove the line
 ```
@@ -99,7 +99,7 @@ commit: {
 | No `commit-msg` hook | Writes `.git/hooks/commit-msg` (a linked worktree shares the hooks of its repository) |
 | A hook written by sync | Updates it when the template changed; removes it when you turn every check off |
 | A hook written by sync for another project of the same repository | Leaves it. The repository's one `commit-msg` hook belongs to its writer: `sync` prints `skipped` and whose it is |
-| A hook of yours | Leaves it. `sync` prints `skipped` and the line to add: `bun run vulcan commit-check "$1"` |
+| A hook of yours | Leaves it. `sync` prints `skipped` and the line to add: `bun node_modules/.bin/vulcan commit-check "$1"` |
 | `core.hooksPath` set (for example `.githooks`) | Writes nothing there. `sync` prints the same line for that folder's `commit-msg` hook |
 | A symbolic link in the hook's place | Leaves it and says so |
 | A project folder whose name holds a line break or another control character | Writes nothing. `sync` prints `skipped` with the reason, and `vulcan doctor` reports the hook as not running the check |

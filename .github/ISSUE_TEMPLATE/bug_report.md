@@ -11,13 +11,13 @@ assignees: ''
 The command you ran and what it printed (stderr included).
 
 ```
-bun run vulcan ...
+bun node_modules/.bin/vulcan ...
 ```
 
 **What you expected**
 
 **Versions**
-- `bun run vulcan version`:
+- `bun node_modules/.bin/vulcan version`:
 - `bun --version`:
 - OS:
 - Coding agent (claude, agy, omp, ...):

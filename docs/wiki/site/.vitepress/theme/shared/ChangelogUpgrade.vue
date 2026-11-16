@@ -84,11 +84,11 @@ const install = computed(
 );
 const planCommand = computed(
   () =>
-    `bun run vulcan migrate plan --package ${packageName.value} --from ${from.value} --to ${version.value}`,
+    `bun node_modules/.bin/vulcan migrate plan --package ${packageName.value} --from ${from.value} --to ${version.value}`,
 );
 const applyCommand = computed(
   () =>
-    `bun run vulcan migrate apply --package ${packageName.value} --from ${from.value} --to ${version.value} --app .`,
+    `bun node_modules/.bin/vulcan migrate apply --package ${packageName.value} --from ${from.value} --to ${version.value} --app .`,
 );
 
 const source = computed(() => sourceUrl(`changelogs/${version.value}/migration.yaml`));

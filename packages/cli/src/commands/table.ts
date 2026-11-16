@@ -357,6 +357,6 @@ export class CommandTable {
       spec.help === '' ? [] : [spec.help],
     );
 
-    return `vulcan ${VULCAN_VERSION} - one setup, one workflow for every project\n\nUsage: bun run vulcan <command>\n\n${blocks.join('\n')}\n  help · version\n`;
+    return `vulcan ${VULCAN_VERSION} - one setup, one workflow for every project\n\nUsage: bun node_modules/.bin/vulcan <command>\n\n${blocks.join('\n')}\n  help · version\n`;
   }
 }

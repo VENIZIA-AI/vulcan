@@ -41,7 +41,7 @@ Copy it into your reply and tick it off, in order:
 
 ## 1. Paths
 
-1. `bun run vulcan doctor` passes, so the manifest is fresh. Fix what it names first.
+1. `bun node_modules/.bin/vulcan doctor` passes, so the manifest is fresh. Fix what it names first.
 2. Read `.agents/vulcan.manifest.json`. Every path comes from it, never from a layout you expect:
 
 | Key | What it gives you |
@@ -100,8 +100,8 @@ and says so.
 
 ## 6. Gates - validate, fix, repeat
 
-1. `bun run vulcan doctor`
-2. `bun run vulcan x okf check --strict` - the bundle, the house rules, every changelog
+1. `bun node_modules/.bin/vulcan doctor`
+2. `bun node_modules/.bin/vulcan x okf check --strict` - the bundle, the house rules, every changelog
    entry's `packages:` list.
 3. The project's own docs build, when it has one. Discover it, never assume a target name: the
    targets `.agents/rules.md` names, `make help`, the Makefile and its `*.mk` files (`grep -n '<the

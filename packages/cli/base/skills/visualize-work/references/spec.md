@@ -1,7 +1,7 @@
 # The spec of a page
 
 One JSON file. It is strict: an unknown key is an error, and every text is a plain line that is escaped,
-never markup. `bun run vulcan visualize --schema` prints the full JSON Schema.
+never markup. `bun node_modules/.bin/vulcan visualize --schema` prints the full JSON Schema.
 
 **Contents**: [The kinds](#the-kinds) · [Fields](#fields) · [The other kinds](#the-other-kinds) · [Limits](#limits) · [Two worked specs](#two-worked-specs)
 

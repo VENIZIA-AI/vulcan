@@ -107,7 +107,8 @@ const ADD_KIND_ORDER: TAddKind[] = [PackageKinds.APP, LibraryKinds.LIB, LibraryK
 /** The commands a project can run for this preset: what `add` prints when it is not told what to create. */
 const kindCommands = (opts: { presetValue: string }): string[] =>
   ADD_KIND_ORDER.map(
-    (kind) => `bun run vulcan add --preset ${opts.presetValue} ${ADD_KINDS[kind].flag} <name>`,
+    (kind) =>
+      `bun node_modules/.bin/vulcan add --preset ${opts.presetValue} ${ADD_KINDS[kind].flag} <name>`,
   );
 
 const NO_BACKEND = ':none';
@@ -152,7 +153,7 @@ const noSharedKindMessage = (opts: {
   ];
   const commands = known.map(
     (spec) =>
-      `bun run vulcan add --preset ${spec} ${ADD_KINDS[LibraryKinds.SHARED].flag} ${opts.name}`,
+      `bun node_modules/.bin/vulcan add --preset ${spec} ${ADD_KINDS[LibraryKinds.SHARED].flag} ${opts.name}`,
   );
 
   return `preset ${opts.located.packageName} has no shared kind (it makes: ${kindsOffered({ located: opts.located }).join(' and ')}); ${

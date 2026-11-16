@@ -497,7 +497,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(`[${DoctorChecks.MANIFEST}]`);
     expect(result.stderr).toContain('generated');
-    expect(result.stderr).toContain("run 'bun run vulcan sync'");
+    expect(result.stderr).toContain("run 'bun node_modules/.bin/vulcan sync'");
   });
 
   test('vulcan x hands the tool the manifest, rendered fresh', async () => {

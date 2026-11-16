@@ -15,7 +15,7 @@ tags: [gotchas]
 | 2026-10-16 | `*-gen` targets write into the project they run in | Run them only inside the project they belong to - never from VULCAN against IGNIS (W-06) |
 | 2026-10-16 | Bun 1.4.2 ignores a tsconfig `extends` that names a package | Restate the flags in every tsconfig Bun runs; keep `useDefineForClassFields: false` (no decorator in src) (reported by the IGNIS session) |
 | 2026-10-16 | Bun 1.4.2 `toMatchObject` with an asymmetric matcher overwrites the checked object's property | Compare `error.message` as a string (IGNIS PR #175, reported by the IGNIS session) |
-| 2026-10-17 | Bun's isolated linker does not link workspace packages at the root, so `bun run vulcan` found nothing | The root `package.json` depends on `@venizia/vulcan` through `workspace:*` |
+| 2026-10-17 | Bun's isolated linker does not link workspace packages at the root, so `bun node_modules/.bin/vulcan` found nothing | The root `package.json` depends on `@venizia/vulcan` through `workspace:*` |
 | 2026-10-17 | `pkill -f <pattern>` also matches the shell running it when the pattern is on its own command line, killing the command | Kill a background job by its id, or use a pattern the shell line does not contain |
 | 2026-10-17 | The ESLint naming convention flags a quoted snake_case property too | Map wire objects at the boundary with string-literal access (`payload['tool_input']`), never declare snake_case keys |
 | 2026-10-17 | `vulcan sync` merges settings arrays without duplicates, so an entry sync did not write survives | remove such an entry by hand, or delete a `.claude/settings.json` that holds no personal keys and re-sync |

@@ -134,14 +134,14 @@ For every file and message, see the [init reference](/references/commands/init#c
 Run `vulcan add` at the monorepo root. `--app` adds another backend, or a frontend that proxies `/api` to a backend; `--lib` adds a library other apps import:
 
 ```bash
-bun run vulcan add --preset ignis --app api2
-bun run vulcan add --preset ignis --lib billing
+bun node_modules/.bin/vulcan add --preset ignis --app api2
+bun node_modules/.bin/vulcan add --preset ignis --lib billing
 ```
 
 In a terminal `add` asks what to create. Without one, give `--app` or `--lib`. A frontend also needs `--api <backend app>` or `--no-api` when there is no terminal, for example:
 
 ```bash
-bun run vulcan add --preset ardor --app web --frontend-dir apps --api core-api
+bun node_modules/.bin/vulcan add --preset ardor --app web --frontend-dir apps --api core-api
 ```
 
 See the [add reference](/references/commands/add).
@@ -166,7 +166,7 @@ The `style` check in `vulcan doctor` requires `@venizia/dev-configs` in `package
 ## 2. Scaffold with init
 
 ```bash
-bun run vulcan init
+bun node_modules/.bin/vulcan init
 ```
 
 `init` writes `AGENTS.md`, `.agents/rules.md`, `.agents/knowledge/index.md`, `.configs/vulcan.config.mts`, the lint configs under `.configs/lints/`, `.dockerignore`, `bunfig.toml` and a `Makefile` (with a hint instead when you already have one). It also appends the agent entries (including `.agents/local/`) to `.gitignore`, installs the lint tools with `bun add -d`, and ends with a numbered list of what is left to do.
@@ -198,11 +198,11 @@ For all configuration options, see the [configuration reference](/references/con
 ## 4. Synchronize adapters
 
 ```bash
-bun run vulcan sync
+bun node_modules/.bin/vulcan sync
 ```
 
 ```text
-$ bun run vulcan sync
+$ bun node_modules/.bin/vulcan sync
   created   CLAUDE.md
   created   .claude/settings.json (shipped, slot and claude.settings over personal keys)
   created   .claude/skills/build-a-feature
@@ -237,14 +237,14 @@ For details on adapter generation, see the [sync reference](/references/commands
 ## 5. Verify with doctor
 
 ```bash
-bun run vulcan doctor
+bun node_modules/.bin/vulcan doctor
 ```
 
 To check your setup, run `vulcan doctor` until all violations resolve.
 If you skipped editing `.agents/knowledge/index.md`, the command reports a scaffold violation:
 
 ```text
-$ bun run vulcan doctor
+$ bun node_modules/.bin/vulcan doctor
   [scaffold] .agents/knowledge/index.md: still the scaffold - describe the project, then delete the vulcan:scaffold line
 vulcan doctor: 1 violation(s)
 ```
@@ -254,7 +254,7 @@ Running `vulcan doctor` before `vulcan sync` also reports not-synced lines for a
 Once all violations resolve, doctor reports OK:
 
 ```text
-$ bun run vulcan doctor
+$ bun node_modules/.bin/vulcan doctor
 vulcan doctor: OK
 ```
 
@@ -287,8 +287,8 @@ On a clean checkout in CI, run install, sync, and doctor in order:
 
 ```bash
 bun install --frozen-lockfile
-bun run vulcan sync
-bun run vulcan doctor
+bun node_modules/.bin/vulcan sync
+bun node_modules/.bin/vulcan doctor
 ```
 
 Running `vulcan doctor` before `vulcan sync` fails because gitignored adapters do not exist yet.
@@ -301,13 +301,13 @@ For CI details and output capture, see the [doctor reference](/references/comman
 Pass the target version to `vulcan upgrade`:
 
 ```bash
-bun run vulcan upgrade 0.4.5
+bun node_modules/.bin/vulcan upgrade 0.4.5
 ```
 
 Without a version argument, `vulcan upgrade` installs the stable `latest` release. Add `--nightly` to take the newest of `latest` and `next`, which can be a prerelease:
 
 ```bash
-bun run vulcan upgrade --nightly
+bun node_modules/.bin/vulcan upgrade --nightly
 ```
 
 From an installed prerelease, `latest` can be an older version, so a plain `upgrade` prints a note first; `--stable` is the name of that default, and `--nightly` keeps the prerelease line.

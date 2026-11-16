@@ -54,7 +54,9 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
   const load = COMMAND_LOADERS[name];
 
   if (load === undefined) {
-    process.stderr.write(`vulcan: unknown command '${name}' - run 'bun run vulcan help'\n`);
+    process.stderr.write(
+      `vulcan: unknown command '${name}' - run 'bun node_modules/.bin/vulcan help'\n`,
+    );
 
     return ExitCodes.FAILURE;
   }
@@ -75,7 +77,7 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
 
     if (unknown !== undefined) {
       process.stderr.write(
-        `vulcan ${name}: unknown argument '${unknown}' - run 'bun run vulcan help'\n`,
+        `vulcan ${name}: unknown argument '${unknown}' - run 'bun node_modules/.bin/vulcan help'\n`,
       );
 
       return accepted.unknownExit ?? ExitCodes.FAILURE;

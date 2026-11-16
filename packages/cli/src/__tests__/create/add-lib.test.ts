@@ -410,9 +410,15 @@ describe('add asks which kind when neither flag is given', () => {
     expect(result.stderr).toContain(
       'vulcan add: say what to create - `--app <name>` (a runnable app), `--lib <name>` (a library other apps import) or `--shared <name>` (a side-neutral package other apps import)',
     );
-    expect(result.stderr).toContain(`bun run vulcan add --preset ${WITH_LIB} --shared <name>`);
-    expect(result.stderr).toContain(`bun run vulcan add --preset ${WITH_LIB} --app <name>`);
-    expect(result.stderr).toContain(`bun run vulcan add --preset ${WITH_LIB} --lib <name>`);
+    expect(result.stderr).toContain(
+      `bun node_modules/.bin/vulcan add --preset ${WITH_LIB} --shared <name>`,
+    );
+    expect(result.stderr).toContain(
+      `bun node_modules/.bin/vulcan add --preset ${WITH_LIB} --app <name>`,
+    );
+    expect(result.stderr).toContain(
+      `bun node_modules/.bin/vulcan add --preset ${WITH_LIB} --lib <name>`,
+    );
     expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).not.toContain('billing');
   });
 

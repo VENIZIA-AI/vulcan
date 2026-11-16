@@ -39,7 +39,7 @@ export default defineConfig({
 The schema is strict. An unknown key causes an error during `vulcan doctor`:
 
 ```text
-$ bun run vulcan doctor
+$ bun node_modules/.bin/vulcan doctor
   [config] .configs/vulcan.config.mts: .configs/vulcan.config.mts: invalid config
   bogus: Unrecognized key: "bogus"
 vulcan doctor: 1 violation(s)
@@ -47,7 +47,7 @@ vulcan doctor: 1 violation(s)
 
 The command exits with code 1.
 
-**Upgrading.** The schema is strict, so a key that a newer release added is an unknown key to an older `vulcan`. Upgrade first: run `bun run vulcan upgrade`, commit the lockfile, make sure every machine and CI job has installed that version, and only then add the new key to the config. While the installed `vulcan` cannot read the config, `vulcan sync` fails, but the guards keep working: `guard-outside` and `guard-writes` read what the project set (`guard.outside`, `guard.toolOwnedPaths`, `guard.writes.commands`) from the manifest of the last `sync`, so a `deny` stays a `deny`. The session digest names the unreadable key, and so does `vulcan doctor`, so run it after you pull a change to the config.
+**Upgrading.** The schema is strict, so a key that a newer release added is an unknown key to an older `vulcan`. Upgrade first: run `bun node_modules/.bin/vulcan upgrade`, commit the lockfile, make sure every machine and CI job has installed that version, and only then add the new key to the config. While the installed `vulcan` cannot read the config, `vulcan sync` fails, but the guards keep working: `guard-outside` and `guard-writes` read what the project set (`guard.outside`, `guard.toolOwnedPaths`, `guard.writes.commands`) from the manifest of the last `sync`, so a `deny` stays a `deny`. The session digest names the unreadable key, and so does `vulcan doctor`, so run it after you pull a change to the config.
 
 The table below lists the top-level configuration keys:
 
@@ -151,7 +151,7 @@ V-W-01: 'invalid' is not an option (on-user-word | read-only)
 It also reports when a slot has no choice configured:
 
 ```text
-$ bun run vulcan doctor
+$ bun node_modules/.bin/vulcan doctor
   [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
 vulcan doctor: 1 violation(s)
 ```
@@ -429,7 +429,7 @@ The `tagPattern` template must contain `<version>`. The `<dir>` placeholder is o
 The `[tags]` doctor check does not require every tag to match `tagPattern`. It parses tags using the template. It reports any tag that names a package no `packages` entry declares by `dir` or alias. Glob patterns in `ignoreTags` skip tags:
 
 ```text
-$ bun run vulcan doctor
+$ bun node_modules/.bin/vulcan doctor
   [tags] git tags: tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)
 vulcan doctor: 1 violation(s)
 ```

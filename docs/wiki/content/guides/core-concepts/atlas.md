@@ -88,7 +88,7 @@ A project with no documentation of its own finds nothing until you declare a sou
 To view the tools atlas provides, run `vulcan x atlas tools`:
 
 ```text
-$ bun run vulcan x atlas tools
+$ bun node_modules/.bin/vulcan x atlas tools
 search   When the user asks how something works in demo-app, how to build something in it, or about this project's conventions, search here before you answer from memory
 get      After `search`, read the hit here before you rely on it
 symbol   Before you import or call an export of demo-app, get its real signature, import path and source line here instead of recalling it
@@ -106,7 +106,7 @@ For a real check, restart the agent session and ask it to search.
 
 A repository that others read as a source can publish a signed copy of its index, one per commit. A project that lists it as a source then downloads that copy, checks it, and skips building it; a miss or a failed check builds it as before. Set it up once:
 
-1. **Make a key pair.** `bun run vulcan x atlas index keygen` writes the private key to `.agents/local/atlas-index.key` (mode 0600, only while `.agents/local/` is gitignored) and prints the public key.
+1. **Make a key pair.** `bun node_modules/.bin/vulcan x atlas index keygen` writes the private key to `.agents/local/atlas-index.key` (mode 0600, only while `.agents/local/` is gitignored) and prints the public key.
 2. **Store the private key as an Actions secret, then delete the file.** `gh secret set ATLAS_INDEX_KEY < .agents/local/atlas-index.key`, then `rm .agents/local/atlas-index.key`. The key lives nowhere else. Protect the default branch and `develop` (a pull request to change them): the workflow that holds the key runs from those branches.
 3. **List the public key in the config.** `atlas: { index: { keys: ['<the public key>'] } }` in `.configs/vulcan.config.mts`, then `vulcan sync` and commit the manifest.
 4. **Add the workflow.** The workflow of [the atlas reference](/references/atlas/#publishing-from-ci): a push to the default branch or `develop`, `contents: write`, a checkout with `fetch-depth: 0`, and the action `VENIZIA-AI/vulcan/.github/actions/atlas-index`, pinned to a commit.

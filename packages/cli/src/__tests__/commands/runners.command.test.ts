@@ -67,7 +67,7 @@ describe('RunnersCheck.scan', () => {
           guard: { runners: { allow: ['shadcn'] } },
         }),
         'README.md':
-          'bun x @venizia/vulcan@0.4.10 init\nbunx shadcn@latest add button\nbun run vulcan sync\nnode_modules/.bin/ardor codemod\n',
+          'bun x @venizia/vulcan@0.4.10 init\nbunx shadcn@latest add button\nbun node_modules/.bin/vulcan sync\nnode_modules/.bin/ardor codemod\n',
       },
     });
 
