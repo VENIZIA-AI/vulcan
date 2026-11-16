@@ -528,7 +528,7 @@ export class GitGuard {
         decision: GuardDecisions.DENY,
         rule: 'V-W-06',
         message: unread,
-        fix: 'write the line again with literal program names and paths, and quotes and substitutions that close; or put the commands in a file under .agents/local/tmp/<task>/ and run it by that literal path',
+        fix: 'write the line again with literal program names and paths, and quotes and substitutions that close',
       });
     }
 

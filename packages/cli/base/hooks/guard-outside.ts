@@ -94,7 +94,7 @@ try {
               ]
             : []),
           '',
-          `Nothing was run. Write it again so the guard can read it: a literal path in every redirect (no $VAR or $(...) in a target), the folder assigned on the same line (S=${tmpFolder}/x; ... > "$S/a") or named by a for loop over literal words; or put the script in a file under ${tmpFolder}/<task>/ and run it by that literal path (bun ${tmpFolder}/<task>/step.ts). ${places}`,
+          `Nothing was run. Write it again so the guard can read it: a literal path in every redirect (no $VAR or $(...) in a target), the folder assigned on the same line (S=${tmpFolder}/x; ... > "$S/a") or named by a for loop over literal words; or put the script in a file under ${tmpFolder}/<task>/ and run it by that literal path (bun ${tmpFolder}/<task>/step.ts), with literal paths inside the project in its own redirects too: the guard does not read the script. ${places}`,
           owned,
         ];
       } else if (isScratchpad) {

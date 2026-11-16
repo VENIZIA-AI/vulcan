@@ -32,6 +32,9 @@ interface IFolderState extends Omit<IShellFolder, 'loops'> {
 /** A value the guard may hold as written: no expansion, quote, glob or tilde in it. */
 const PLAIN_VALUE = /^[\w@%+=:,./-]+$/;
 
+/** A variable as the shell takes it with no operator: `$NAME` or `${NAME}`. */
+const VARIABLE = /\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})/g;
+
 /** The most values one `for` list may hold before the guard stops following it. */
 const MAX_LOOP_VALUES = 16;
 
@@ -67,15 +70,19 @@ const commandWordsOf = (opts: { words: string[] }): string[] => {
 /** The value of an assignment with the variables the line already holds put in; `undefined` when it is not plain. */
 const literalOf = (opts: { value: string; vars: Record<string, string> }): string | undefined => {
   let unresolved = false;
-  const value = opts.value.replace(/\$\{?([A-Za-z_]\w*)\}?/g, (_, name: string) => {
-    const known = Object.hasOwn(opts.vars, name) ? opts.vars[name] : undefined;
+  const value = opts.value.replace(
+    VARIABLE,
+    (_, bare: string | undefined, braced: string | undefined) => {
+      const name = bare ?? braced ?? '';
+      const known = Object.hasOwn(opts.vars, name) ? opts.vars[name] : undefined;
 
-    if (known === undefined) {
-      unresolved = true;
-    }
+      if (known === undefined) {
+        unresolved = true;
+      }
 
-    return known ?? '';
-  });
+      return known ?? '';
+    },
+  );
 
   return unresolved || !PLAIN_VALUE.test(value) ? undefined : value;
 };
@@ -133,17 +140,23 @@ export class ShellFolders {
       tilde === null || home === undefined
         ? opts.word
         : `${home}${opts.word.slice(tilde[0].length)}`;
-    const expanded = withHome.replace(/\$\{?(\w+)\}?/g, (_, name: string) => {
-      const value = name === 'PWD' && opts.cwd !== undefined ? opts.cwd : opts.env[name];
+    const expanded = withHome.replace(
+      VARIABLE,
+      (_, bare: string | undefined, braced: string | undefined) => {
+        const name = bare ?? braced ?? '';
+        const value = name === 'PWD' && opts.cwd !== undefined ? opts.cwd : opts.env[name];
 
-      if (value === undefined || value === '') {
-        unresolved = true;
-      }
+        if (value === undefined || value === '') {
+          unresolved = true;
+        }
 
-      return value ?? '';
-    });
+        return value ?? '';
+      },
+    );
 
-    return unresolved ? undefined : expanded;
+    // A `$` left over is an expansion with an operator (`${S/a/..}`, `${S#x}`, `${!S}`) or a special parameter (`$$`, `$?`):
+    // the value is not the plain text of a variable, so the word is not worked out.
+    return unresolved || expanded.includes('$') ? undefined : expanded;
   }
 
   /**
@@ -379,7 +392,8 @@ export class ShellFolders {
             words[2] === 'in' &&
             values.length > 0 &&
             values.length <= MAX_LOOP_VALUES &&
-            values.every((value) => PLAIN_VALUE.test(value));
+            values.every((value) => PLAIN_VALUE.test(value)) &&
+            !values.some((value) => command.literalDollars?.includes(value));
 
           loops.push(isBound ? { bound: { name, values } } : {});
         }
@@ -401,7 +415,12 @@ export class ShellFolders {
           const name = assignment.slice(0, at);
           const value = literalOf({ value: assignment.slice(at + 1), vars: state.vars });
 
-          if (at > 0 && !rebound.has(name) && value !== undefined) {
+          if (
+            at > 0 &&
+            !rebound.has(name) &&
+            value !== undefined &&
+            !command.literalDollars?.includes(assignment)
+          ) {
             state.vars[name] = value;
           }
         }
@@ -421,7 +440,13 @@ export class ShellFolders {
         return folder;
       }
 
-      ShellFolders.move({ ...opts, state, name, args: program.args });
+      ShellFolders.move({
+        ...opts,
+        state,
+        name,
+        args: program.args,
+        literalDollars: command.literalDollars ?? [],
+      });
 
       return folder;
     });
@@ -432,6 +457,8 @@ export class ShellFolders {
     state: IFolderState;
     name: string;
     args: string[];
+    /** Words of the command that hold a quoted or escaped `$`. */
+    literalDollars: string[];
     home: string;
     env: TEnvironment;
   }): void {
@@ -450,7 +477,7 @@ export class ShellFolders {
     const target = destination ?? (opts.name === 'cd' && opts.home !== '' ? '~' : undefined);
     // `cd -` and `pushd +N` name a folder from the shell's own history.
     const expanded =
-      target === undefined || /^[-+]/.test(target)
+      target === undefined || /^[-+]/.test(target) || opts.literalDollars.includes(target)
         ? undefined
         : ShellFolders.expandPath({ word: target, home: opts.home, env: opts.env, cwd: state.pwd });
 

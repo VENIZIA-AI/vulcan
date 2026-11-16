@@ -1018,3 +1018,58 @@ describe('OutsideGuard.inspect marks what it could not read', () => {
     expect(hits.map((hit) => hit.isUnread)).toContain(true);
   });
 });
+
+// A `$` the line quotes or escapes is a character to the shell, and the word's text reads it as a variable: a value built from
+// it names a folder the guard does not see. Each of these wrote ../pwn in real bash while the first form of the guard passed it.
+describe('OutsideGuard.inspect does not follow a quoted or escaped $, or a variable with an operator', () => {
+  const inFolder = join(PROJECT, 'a', 'b');
+  const hitsAt = (opts: { command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: inFolder },
+      projectRoot: PROJECT,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    ['a single-quoted $ in an assignment', "S=a/b/c; T='$S'/../..; mkdir -p '$S'; echo x > $T/pwn"],
+    ['an escaped $ in an assignment', 'S=a/b/c; T=\\$S/../..; mkdir -p \\$S; echo x > $T/pwn'],
+    ['an escaped $ in double quotes in an assignment', 'S=a/b/c; T="\\$S"/../..; echo x > $T/pwn'],
+    [
+      'a single-quoted $ in an exported assignment',
+      "S=a/b/c; export T='$S'/../..; echo x > $T/pwn",
+    ],
+    ['a single-quoted $ in a loop list', "for i in '$S'/../..; do echo x > $i/pwn; done"],
+    [
+      'a single-quoted $ in a loop target',
+      "for i in a/b/c; do mkdir -p '$i'; echo x > '$i'/../../pwn; done",
+    ],
+    ['a single-quoted $ in a target', "S=a/b/c; mkdir -p '$S'; echo x > '$S'/../../pwn"],
+    ['an escaped $ in a target', 'S=a/b/c; echo x > \\$S/../../pwn'],
+    ['an ANSI-C quoted $ in a target', "S=a/b/c; echo x > $'$S'/../../pwn"],
+    ['a substitution in a loop value', 'for i in a; do echo x > ${i/a/..}/pwn; done'],
+    ['a :+ operator on a loop variable', 'for i in a; do echo x > ${i:+..}/pwn; done'],
+    ['a substring of a loop variable', 'for i in a; do echo x > ${i:0:0}../pwn; done'],
+    ['a # operator on a loop variable', 'for i in x; do echo x > ${i#x}../pwn; done'],
+    ['a substitution in a plain variable', 'S=a; echo x > ${S/a/..}/y'],
+    ['a # operator on a plain variable', 'S=x; echo x > ${S#x}../y'],
+    ['an indirect expansion', 'i=a; a=..; echo x > ${!i}/y'],
+    ['an indirect expansion of a loop variable', 'for i in a; do a=..; echo x > ${!i}/y; done'],
+    ['a ^ operator', 'S=a; echo x > ${S^^}/y'],
+    ['an @ operator', 'S=a; echo x > ${S@Q}/y'],
+    ['a chained value with an operator', 'S=a/b; T=${S%/b}; echo x > $T/../../pwn'],
+  ])('%s is not allowed', (_name, command) => {
+    expect(hitsAt({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'S=a/b/c; echo x > ${S}/ok',
+    'S=a/b/c; echo x > "$S"/ok',
+    'S=a/b/c; echo x > "${S}/ok"',
+    "for f in a b; do bun -e 'console.log(`${f}`)' > out/$f.log; done",
+    "echo 'costs $5' > notes.txt",
+    "S=a/b/c; echo '$HOME' > $S/ok",
+  ])('%s still passes: no $ of the target or the assignment is quoted', (command) => {
+    expect(hitsAt({ command })).toEqual([]);
+  });
+});

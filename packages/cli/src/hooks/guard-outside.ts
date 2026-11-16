@@ -111,7 +111,11 @@ const loopCombinations = (opts: {
   loops: Record<string, string[]>;
 }): Record<string, string>[] => {
   const named = [
-    ...new Set([...opts.word.matchAll(/\$\{?([A-Za-z_]\w*)\}?/g)].map((match) => match[1] ?? '')),
+    ...new Set(
+      [...opts.word.matchAll(/\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})/g)].map(
+        (match) => match[1] ?? match[2] ?? '',
+      ),
+    ),
   ].filter((name) => Object.hasOwn(opts.loops, name));
   let combinations: Record<string, string>[] = [{}];
 
@@ -251,6 +255,12 @@ export class OutsideGuard {
               pwd: folder.pwd,
               vars: { ...folder.vars, ...vars },
               isKnown: folder.isKnown,
+              // The text of a word reads `'$S'` as a live `$S`; the shell takes the `$` as a character.
+              hasLiteralDollar:
+                target.word.includes('$') &&
+                (command.literalDollars ?? []).some(
+                  (literal) => literal.includes(target.word) || target.word.includes(literal),
+                ),
             });
           }
         }
@@ -278,6 +288,16 @@ export class OutsideGuard {
           isAgentToolScratchpad: false,
           isUnread: true,
         });
+      }
+
+      if (target.hasLiteralDollar === true) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: the word has a quoted or escaped $, which this check does not follow`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+        continue;
       }
 
       // A redirect to `dir/[version].md` (a VitePress route file) names that file when the pattern matches nothing in `dir`:
