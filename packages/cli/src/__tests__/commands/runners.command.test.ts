@@ -115,7 +115,7 @@ describe('vulcan runners check', () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('README.md:3');
-    expect(result.stderr).toContain('bun run');
+    expect(result.stderr).toContain('bun node_modules/.bin/');
 
     const clean = repository({ files: { 'README.md': 'bun run ardor\n' } });
 

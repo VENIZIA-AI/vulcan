@@ -61,7 +61,7 @@ Security rules safeguard credentials, validate boundary inputs, protect telemetr
   - Enforced by: SOFT
 - `V-S-06` - Never send repository content to external services outside the system.
   - Enforced by: SOFT
-- `V-S-08` - Never run an unscoped package by name: no bunx, bun x, npx or pnpm dlx of a name the project does not own, with or without --no-install. Use `bun run <bin>` in the package that depends on it. `@venizia/*` and `guard.runners.allow` are fine.
+- `V-S-08` - Never run an unscoped package by name: no bunx, bun x, npx or pnpm dlx of a name the project does not own, with or without --no-install. Run the bin as `bun node_modules/.bin/<bin>` from the project root, or through a make target; `bun run <bin>` only as a fallback. `@venizia/*` and `guard.runners.allow` are fine.
   - Enforced by: HARD in Claude Code, Codex, Antigravity, omp and pi: `guard-git` denies the command (the `--no-install` form passes only for a linked bin); `vulcan runners check` reads the tracked files. Any other agent has this rule only
 
 ## Process (P)

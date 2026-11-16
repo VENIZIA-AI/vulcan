@@ -124,8 +124,8 @@ export class RunnerGuard {
     return {
       rule: 'V-S-08',
       decision: GuardDecisions.DENY,
-      fix: `use bun run ${bin === '' ? '<bin>' : bin} in the package that depends on it, or node_modules/.bin/${bin === '' ? '<bin>' : bin}`,
-      message: `${what}, and npm may give that name to someone else (bun also runs a copy an earlier bunx saved, even with --no-install). Use \`bun run ${bin === '' ? '<bin>' : bin}\` in the package that depends on it, or node_modules/.bin/${bin === '' ? '<bin>' : bin}; the --no-install form is accepted only when node_modules/.bin/${bin === '' ? '<bin>' : bin} exists in the folder the command runs in and it has no other flag than --bun and --silent.`,
+      fix: `run bun node_modules/.bin/${bin === '' ? '<bin>' : bin} from the project root, or through a make target`,
+      message: `${what}, and npm may give that name to someone else (bun also runs a copy an earlier bunx saved, even with --no-install). Run \`bun node_modules/.bin/${bin === '' ? '<bin>' : bin}\` from the project root (the folder where the bin is linked), or through a make target; \`bun run ${bin === '' ? '<bin>' : bin}\` only as a fallback, because it falls back to $PATH and to a bun cache when the bin is not linked; the --no-install form is accepted only when node_modules/.bin/${bin === '' ? '<bin>' : bin} exists in the folder the command runs in and it has no other flag than --bun and --silent.`,
     };
   }
 
