@@ -88,7 +88,10 @@ const CP: IMakerTable = {
   hard: 'link',
 };
 
-const TABLES: Readonly<Record<string, IMakerTable>> = { ln: LN, cp: CP };
+/** Coreutils `link FILE1 FILE2`: one hard link, with no options. */
+const LINK: IMakerTable = { valued: '', longs: {}, shorts: {}, symbolic: 'symbolic' };
+
+const TABLES: Readonly<Record<string, IMakerTable>> = { ln: LN, cp: CP, link: LINK };
 
 /** The options set, the other words and the target folder (`-t`, `--target-directory`) of a command line, read left to right. */
 const read = (opts: {

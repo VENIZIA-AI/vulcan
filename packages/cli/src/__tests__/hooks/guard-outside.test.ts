@@ -1293,3 +1293,81 @@ describe('OutsideGuard.inspect and the links a line makes', () => {
     },
   );
 });
+
+// A link made by an EARLIER call is on disk, and may point at a name this line makes: the dangling link `b -> a` reads as a folder
+// of the project until the line makes `a` a link to outside. Each of the first forms wrote outside the project in real bash.
+describe('OutsideGuard.inspect follows the links already on disk to the links of the line', () => {
+  const projectWith = (opts: { links: Record<string, string>; folders?: string[] }): string => {
+    const root = createProject({ files: { 'package.json': '{}', 'src.txt': 'x' } });
+
+    for (const folder of opts.folders ?? []) {
+      mkdirSync(join(root, folder), { recursive: true });
+    }
+
+    for (const [name, target] of Object.entries(opts.links)) {
+      symlinkSync(target, join(root, name));
+    }
+
+    return root;
+  };
+  const hitsIn = (opts: { root: string; command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: opts.root },
+      projectRoot: opts.root,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    ['a write', 'ln -s .. a; echo x > b/victim'],
+    ['a cp', 'ln -s .. a; cp src.txt b/victim'],
+    ['a mkdir', 'ln -s .. a; mkdir b/newdir'],
+    ['a write at the link itself', 'ln -s ../victim a; cat > b'],
+    ['a cd', 'ln -s ../vdir a; cd b; echo x > f'],
+    ['a hard link of a path through it', 'ln -s .. a; ln b/victim h'],
+    ['a cp -l of a path through it', 'ln -s .. a; cp -l b/victim h'],
+    ['a name made by a move the line does', 'ln -s ../vdir c; mv c a; echo x > b/f'],
+    ['a name made by a copy of a link', 'ln -s ../vdir c; cp -P c a; echo x > b/f'],
+  ])('b -> a, then %s is not allowed', (_name, command) => {
+    const root = projectWith({ links: { b: 'a' } });
+
+    expect(hitsIn({ root, command }).length).toBeGreaterThan(0);
+  });
+
+  test('b -> m/a, then a link made at m/a, is not allowed', () => {
+    const root = projectWith({ links: { b: 'm/a' }, folders: ['m'] });
+
+    expect(hitsIn({ root, command: 'ln -s ../../vdir m/a; echo x > b/f' }).length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  test('a link on disk that points at a folder that exists is followed and passes', () => {
+    const root = projectWith({ links: { b: 'sub' }, folders: ['sub'] });
+
+    expect(hitsIn({ root, command: 'echo x > b/f' })).toEqual([]);
+    expect(hitsIn({ root, command: 'cd b; echo x > f' })).toEqual([]);
+  });
+
+  test('a link on disk that goes around in a circle is not followed', () => {
+    const root = projectWith({ links: { c: 'd', d: 'c' } });
+
+    expect(hitsIn({ root, command: 'echo x > c/f' }).length).toBeGreaterThan(0);
+  });
+
+  test.each(['link ../victim h', 'busybox ln ../victim h', 'link ../victim h; echo x > h'])(
+    '%s is not allowed: a hard link made by link or by busybox',
+    (command) => {
+      const root = projectWith({ links: {} });
+
+      expect(hitsIn({ root, command }).length).toBeGreaterThan(0);
+    },
+  );
+
+  test('link and busybox ln inside the project pass', () => {
+    const root = projectWith({ links: {} });
+
+    expect(hitsIn({ root, command: 'link src.txt h' })).toEqual([]);
+    expect(hitsIn({ root, command: 'busybox ln src.txt h2' })).toEqual([]);
+  });
+});

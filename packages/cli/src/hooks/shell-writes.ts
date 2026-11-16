@@ -461,7 +461,7 @@ export class ShellWrites {
       for (const word of positional({ args })) {
         add(word, `${name} creates ${word}`);
       }
-    } else if (['cp', 'mv', 'install', 'ln', 'rsync'].includes(name)) {
+    } else if (['cp', 'mv', 'install', 'ln', 'rsync', 'link'].includes(name)) {
       // `-t` names the destination of `cp`, `mv`, `install` and `ln`; in `rsync` it is `--times`.
       const directory =
         name === 'rsync'

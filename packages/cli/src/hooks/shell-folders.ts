@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { ShellParser } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
@@ -96,6 +96,9 @@ const RUNNERS_OF_COMMANDS = new Set([
   'nsenter',
   'unshare',
 ]);
+
+/** The links one path may pass through before it is taken for a loop, as the system counts them. */
+const MAX_LINK_HOPS = 40;
 
 /** The most values one `for` list may hold before the guard stops following it. */
 const MAX_LOOP_VALUES = 16;
@@ -232,15 +235,33 @@ export class ShellFolders {
     links: string[];
     isLastCounted: boolean;
   }): boolean {
-    if (opts.links.length === 0) {
-      return false;
+    interface IStep {
+      part: string;
+      /** A link of the line at this name counts. */
+      counts: boolean;
+      /** The last name of the path being read. */
+      isEnd: boolean;
     }
 
     const parts = opts.path.split('/').filter((part) => part !== '' && part !== '.');
+    const pending: IStep[] = parts
+      .map((part, index) => ({
+        part,
+        counts: index < parts.length - 1 || opts.isLastCounted,
+        isEnd: index === parts.length - 1,
+      }))
+      .reverse();
     let current = isAbsolute(opts.path) ? '/' : opts.base;
+    let hops = 0;
 
-    for (const [index, part] of parts.entries()) {
-      if (part === '..') {
+    for (;;) {
+      const step = pending.pop();
+
+      if (step === undefined) {
+        return false;
+      }
+
+      if (step.part === '..') {
         if (opts.links.includes(current)) {
           return true;
         }
@@ -249,14 +270,46 @@ export class ShellFolders {
         continue;
       }
 
-      current = join(current, part);
+      current = join(current, step.part);
 
-      if (opts.links.includes(current) && (index < parts.length - 1 || opts.isLastCounted)) {
+      if (step.counts && opts.links.includes(current)) {
         return true;
       }
-    }
 
-    return false;
+      // A link already on disk is followed where it points: it may lead to a link this line makes, and a link that points at
+      // nothing yet, in the middle of a path, is where this line may make the folder it needs.
+      let target: string | undefined;
+
+      try {
+        target = lstatSync(current).isSymbolicLink() ? readlinkSync(current) : undefined;
+      } catch {
+        target = undefined;
+      }
+
+      if (target === undefined) {
+        continue;
+      }
+
+      hops += 1;
+
+      if (hops > MAX_LINK_HOPS || (!step.isEnd && !existsSync(current))) {
+        return true;
+      }
+
+      current = isAbsolute(target) ? '/' : dirname(current);
+
+      const followed = target.split('/').filter((part) => part !== '' && part !== '.');
+
+      pending.push(
+        ...followed
+          .map((part, index) => ({
+            part,
+            counts: true,
+            isEnd: step.isEnd && index === followed.length - 1,
+          }))
+          .reverse(),
+      );
+    }
   }
 
   /**
