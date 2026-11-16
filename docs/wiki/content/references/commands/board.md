@@ -8,7 +8,7 @@ description: Fold the agent event log, and GitHub or GitLab when gh or glab can 
 `vulcan board` shows what your coding agents are doing as one HTML file: each flow, whose turn it is, how far it got, and what waits for you. It reads the [event log](/references/commands/event) of the project. When `gh` can read the repository it adds the pull requests, their checks and their reviews; a project on GitLab sets [`provider`](/references/configuration/#provider) and gets merge requests, approvals, pipelines and commits through `glab`. It writes the file and prints its path. Nothing is posted or changed anywhere else.
 
 ```text
-$ bun run vulcan board --open
+$ bun node_modules/.bin/vulcan board --open
 board: event log: 142 line(s) in /path/to/project/.agents/local/events
 board: github: VENIZIA-AI/vulcan 18 pull request(s) since the date (the newest 30 are asked for)
 /path/to/project/.agents/local/reports/board.html
@@ -40,7 +40,7 @@ Run in a subfolder, it uses the project of that folder, as [vulcan event](/refer
 `vulcan board serve` serves the same page on your own machine (it listens on `127.0.0.1`) and sends the open page a new snapshot when the event log changes, so it updates with no reload. The selected flow, the scroll position and the open groups stay. The static `vulcan board` file works as before.
 
 ```text
-$ bun run vulcan board serve --open
+$ bun node_modules/.bin/vulcan board serve --open
 board: serving; press Ctrl+C to stop. If your browser does not open vulz-board.venizia.ai.localhost, use http://127.0.0.1:4317/?t=4f0c2a9e8b7d41c6a5e3f1d2b0a98c77
 http://vulz-board.venizia.ai.localhost:4317/?t=4f0c2a9e8b7d41c6a5e3f1d2b0a98c77
 ```

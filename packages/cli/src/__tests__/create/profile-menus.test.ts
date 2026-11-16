@@ -122,7 +122,7 @@ describe.skipIf(!hasScript)('init offers the profile in a terminal', () => {
       },
     );
 
-    expect(child.stderr.toString()).toContain("run 'bun run vulcan profile'");
+    expect(child.stderr.toString()).toContain("run 'bun node_modules/.bin/vulcan profile'");
     expect(existsSync(join(root, FILE))).toBe(false);
   });
 });

@@ -10,14 +10,14 @@ shipped-hooks-removed:
   upgrade:
     steps:
       - 'First edit `.configs/vulcan.config.*` for every other Breaking item of this release that names a key you set (`remoteHosts`, `hooks`, `ci`, `knowledge.syncAreas`, `okf.viz`, `okf.sections`, `owner.report.claimWords`, `owner.report.shortReplyWords`, `guard.writes.trustedScripts`) and fix a theme that fails the contrast check: `vulcan sync` refuses an invalid config and writes nothing, and until it runs the stale guard entries block every call. Do this in a terminal, not through the agent.'
-      - 'Run `bun install`, then `bun run vulcan sync` in a terminal, not through the agent. Until sync runs, the `.claude/settings.json` entries of guard-manifest, guard-package and guard-remote-hosts exit 2 on every Bash and write call because their files are gone (only a bare `bun install` passes). If a `prepare` script already runs `vulcan sync`, `bun install` does both.'
+      - 'Run `bun install`, then `bun node_modules/.bin/vulcan sync` in a terminal, not through the agent. Until sync runs, the `.claude/settings.json` entries of guard-manifest, guard-package and guard-remote-hosts exit 2 on every Bash and write call because their files are gone (only a bare `bun install` passes). If a `prepare` script already runs `vulcan sync`, `bun install` does both.'
       - 'In a project that uses omp or pi, sync copies `base/extensions/vulcan-guards.ts` into the project and leaves a copy that git tracks alone, so the old copy keeps blocking: copy `node_modules/@venizia/vulcan/base/extensions/vulcan-guards.ts` over it.'
       - 'Commit the rewritten `.agents/vulcan.manifest.json`. Sync removes the entries of the seven hooks and keeps a hook of your own on the same event.'
       - 'Replace what a removed hook did if you relied on it: read the manifest check in `vulcan doctor` (run it in CI or your own pre-commit hook) instead of the manifest guard, create packages with `vulcan add`, put host rules in `claude.settings.permissions.ask`, and expect no reply-shape check, per-prompt line or per-tool note.'
       - 'Delete the leftovers `.agents/local/violations.jsonl`, `.agents/local/cache/signals.jsonl` and `.agents/local/cache/replies/` (`vulcan clean --cache --yes` removes the cache ones).'
   downgrade:
     steps:
-      - 'Pin the earlier `@venizia/vulcan`, run `bun install`, then `bun run vulcan sync`: sync writes the hook entries and the shipped files back.'
+      - 'Pin the earlier `@venizia/vulcan`, run `bun install`, then `bun node_modules/.bin/vulcan sync`: sync writes the hook entries and the shipped files back.'
   data: '`.agents/local/violations.jsonl` and the per-session reply notes are not written any more and are not restored on a downgrade.'
 remote-hosts-key-removed:
   symbols:
@@ -26,11 +26,11 @@ remote-hosts-key-removed:
     steps:
       - 'Delete the `remoteHosts` key (`trusted`, `readOnly`, `localFile`) from `.configs/vulcan.config.*`.'
       - 'Delete `.agents/hooks/trusted-hosts.local` and `.agents/hooks/trusted-hosts.local.example` if they exist; the personal file is no longer read.'
-      - 'Run `bun run vulcan sync`; it removes the guard entry from `.claude/settings.json` and the `remoteHosts` block from the manifest.'
+      - 'Run `bun node_modules/.bin/vulcan sync`; it removes the guard entry from `.claude/settings.json` and the `remoteHosts` block from the manifest.'
       - "To keep a question before a command reaches a host, set `claude: { settings: { permissions: { ask: ['Bash(ssh:*)', 'Bash(scp:*)'] } } }` in the config."
   downgrade:
     steps:
-      - 'Pin the earlier `@venizia/vulcan`, restore the `remoteHosts` key and the personal hosts file from your history, and run `bun run vulcan sync`.'
+      - 'Pin the earlier `@venizia/vulcan`, restore the `remoteHosts` key and the personal hosts file from your history, and run `bun node_modules/.bin/vulcan sync`.'
   data: 'The personal host list is not read, so the hosts it trusted are no longer trusted by any shipped hook.'
 owner-report-keys-removed:
   symbols:
@@ -52,10 +52,10 @@ guard-writes-trusted-scripts-removed:
     steps:
       - 'Delete `guard.writes.trustedScripts` from `.configs/vulcan.config.*`, string entries and `{ script, readOnly }` entries alike; the config is refused until it is gone.'
       - "If you relied on the guard to see inside your own deploy or migrate script, add the command that starts it to `guard.writes.commands` (`{ rule, what, pattern }`), or to Claude Code's `permissions.ask`."
-      - 'Run `bun run vulcan sync`.'
+      - 'Run `bun node_modules/.bin/vulcan sync`.'
   downgrade:
     steps:
-      - 'Pin the earlier `@venizia/vulcan`, restore the `trustedScripts` list in `guard.writes`, and run `bun run vulcan sync`.'
+      - 'Pin the earlier `@venizia/vulcan`, restore the `trustedScripts` list in `guard.writes`, and run `bun node_modules/.bin/vulcan sync`.'
 hooks-config-key-removed:
   symbols:
     - hooks
@@ -63,21 +63,21 @@ hooks-config-key-removed:
   upgrade:
     steps:
       - "For each `{ event, matcher, command }` of the `hooks` array in `.configs/vulcan.config.*`, add `claude: { settings: { hooks: { <event>: [{ matcher, hooks: [{ type: 'command', command }] }] } } }` (omit `matcher` when the entry had none), then delete the `hooks` array."
-      - 'Run `bun run vulcan sync`; it writes the hook next to the shipped hooks of the same event.'
+      - 'Run `bun node_modules/.bin/vulcan sync`; it writes the hook next to the shipped hooks of the same event.'
   downgrade:
     steps:
-      - 'Pin the earlier `@venizia/vulcan`, move each hook back into a `hooks` array of `{ event, matcher, command }`, delete its `claude.settings.hooks` entry, and run `bun run vulcan sync`.'
+      - 'Pin the earlier `@venizia/vulcan`, move each hook back into a `hooks` array of `{ event, matcher, command }`, delete its `claude.settings.hooks` entry, and run `bun node_modules/.bin/vulcan sync`.'
 knowledge-sync-areas-removed:
   symbols:
     - knowledge.syncAreas
   upgrade:
     steps:
       - 'Delete `knowledge.syncAreas` from `.configs/vulcan.config.*` and the map file it pointed to (for example `.agents/knowledge/process/knowledge-sync-areas.md`).'
-      - 'Run `bun run vulcan sync`; the manifest loses its `syncAreas` line and the `knowledge-sync` skill links are taken back.'
+      - 'Run `bun node_modules/.bin/vulcan sync`; the manifest loses its `syncAreas` line and the `knowledge-sync` skill links are taken back.'
       - 'Ask the `docs-update` skill to audit the knowledge bundle where you asked for `knowledge-sync`.'
   downgrade:
     steps:
-      - 'Pin the earlier `@venizia/vulcan`, restore the key and the map file, and run `bun run vulcan sync` to link the `knowledge-sync` skill again.'
+      - 'Pin the earlier `@venizia/vulcan`, restore the key and the map file, and run `bun node_modules/.bin/vulcan sync` to link the `knowledge-sync` skill again.'
   data: 'A project that committed its own link or a copy of the `knowledge-sync` skill keeps it, and it no longer matches the package.'
 ci-command-removed:
   symbols:
@@ -87,10 +87,10 @@ ci-command-removed:
     steps:
       - 'Delete the `ci` block (`ci.affected.global`) from `.configs/vulcan.config.*`; the config is refused while it is there.'
       - 'Replace every call of `vulcan ci affected` or `vulcan ci template` in your pipelines with your own change detection.'
-      - 'Run `bun run vulcan sync`; the manifest loses its `ci` block.'
+      - 'Run `bun node_modules/.bin/vulcan sync`; the manifest loses its `ci` block.'
   downgrade:
     steps:
-      - 'Pin the earlier `@venizia/vulcan`, restore the `ci` block, and run `bun run vulcan sync`.'
+      - 'Pin the earlier `@venizia/vulcan`, restore the `ci` block, and run `bun node_modules/.bin/vulcan sync`.'
 okf-viz-removed:
   symbols:
     - okf.viz
@@ -128,30 +128,30 @@ base-rules-trimmed:
       - 'For `V-P-01`, `V-C-15` and `V-C-17`, which have no successor, drop the `Extends` and keep your rule as a bare id (`P-01`).'
       - 'Search your rules and knowledge pages for the twelve ids: a `V-` id in prose, a bullet or a later table cell is not checked and goes stale without failing.'
       - 'Replace a removed id listed in `digest.oftenDropped` by the rule that took its place: an unknown id is dropped from the `AGENTS.md` block without a message.'
-      - 'Run `bun run vulcan sync`, commit the rewritten `AGENTS.md` and manifest, then run `vulcan doctor`; its `rule-ids` check must pass.'
+      - 'Run `bun node_modules/.bin/vulcan sync`, commit the rewritten `AGENTS.md` and manifest, then run `vulcan doctor`; its `rule-ids` check must pass.'
   downgrade:
     steps:
-      - 'Pin the earlier `@venizia/vulcan`, restore the `Extends` lines of the removed ids in `.agents/rules.md`, and run `bun run vulcan sync`.'
+      - 'Pin the earlier `@venizia/vulcan`, restore the `Extends` lines of the removed ids in `.agents/rules.md`, and run `bun node_modules/.bin/vulcan sync`.'
 venizia-rules-in-a-pack:
   symbols:
     - packs
   upgrade:
     steps:
       - "In a project that follows the Venizia stack (`devz` scripts, bun scripting, verb-first names, const classes, the instance declared before it is awaited), add `packs: ['venizia']` to `.configs/vulcan.config.*`."
-      - "Run `bun run vulcan sync` and commit `AGENTS.md` and the manifest; the pack's rules are reported: `V-C-20` as added and `V-B-05`, `V-B-09`, `V-C-07` and `V-C-08` as changed."
+      - "Run `bun node_modules/.bin/vulcan sync` and commit `AGENTS.md` and the manifest; the pack's rules are reported: `V-C-20` as added and `V-B-05`, `V-B-09`, `V-C-07` and `V-C-08` as changed."
       - 'A project that does not follow the stack needs nothing: it has these rules no longer, and a project rule that cites one of them is told which pack holds it.'
   downgrade:
     steps:
-      - 'Delete `packs` from the config first (an earlier release refuses the key), then pin the earlier `@venizia/vulcan` and run `bun run vulcan sync`; the five rules are in the base rules again.'
+      - 'Delete `packs` from the config first (an earlier release refuses the key), then pin the earlier `@venizia/vulcan` and run `bun node_modules/.bin/vulcan sync`; the five rules are in the base rules again.'
 theme-contrast-check:
   symbols:
     - theme.accent
     - theme.tokens
   upgrade:
     steps:
-      - 'Run `bun run vulcan sync` or `vulcan doctor`; a theme that fails prints the pair, the colours and the ratio.'
-      - "Run `bun run vulcan sync` and read the error: it names the pair, the colours and the ratio. When it names the accent as text on a ground (a light accent such as #3366ff), set `theme.accentText` to a darker colour of the same hue (for example #1d4ed8). When it names `muted` on the soft accent ground, set `theme.tokens.muted: { light: '#5a5a5a' }` (the pair is light mode only; a single value for both modes fails on dark). A darker `accent` does not help: it makes the soft ground darker. Repeat until text is 4.5:1 and marks are 3:1 on every ground."
-      - 'Run `bun run vulcan sync` and commit the manifest.'
+      - 'Run `bun node_modules/.bin/vulcan sync` or `vulcan doctor`; a theme that fails prints the pair, the colours and the ratio.'
+      - "Run `bun node_modules/.bin/vulcan sync` and read the error: it names the pair, the colours and the ratio. When it names the accent as text on a ground (a light accent such as #3366ff), set `theme.accentText` to a darker colour of the same hue (for example #1d4ed8). When it names `muted` on the soft accent ground, set `theme.tokens.muted: { light: '#5a5a5a' }` (the pair is light mode only; a single value for both modes fails on dark). A darker `accent` does not help: it makes the soft ground darker. Repeat until text is 4.5:1 and marks are 3:1 on every ground."
+      - 'Run `bun node_modules/.bin/vulcan sync` and commit the manifest.'
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, delete `theme.preset`, `theme.tokens`, `theme.font`, `theme.mono` and `theme.radius` (the earlier release refuses them), and set `theme.accent`, which it requires, if you had none.'
@@ -161,7 +161,7 @@ event-add-flow-must-exist:
     - project.key
   upgrade:
     steps:
-      - "Set `project: { key: 'KEY' }` (2 to 8 upper-case letters or digits) in `.configs/vulcan.config.*`, then run `bun run vulcan sync`."
+      - "Set `project: { key: 'KEY' }` (2 to 8 upper-case letters or digits) in `.configs/vulcan.config.*`, then run `bun node_modules/.bin/vulcan sync`."
       - 'Start a flow with `vulcan event add --kind flow --title <title>` and pass the id it prints (`VULZ-<KEY>-<number>`) to `--flow` in every script, hook or agent rule that wrote `--flow F-<n>`. An `F-<n>` id that a line of the log already carries still works.'
   downgrade:
     steps:
@@ -186,7 +186,7 @@ guard-writes-reads-no-scripts:
     - guard.writes
   upgrade:
     steps:
-      - "List the command that starts each of your own deploy or migrate scripts (`bun scripts/deploy.ts`, `bash deploy.sh`, a package script) in `guard.writes.commands` as `{ rule: 'V-W-02', what, pattern }`, or in `claude.settings.permissions.ask`, then run `bun run vulcan sync` and commit the manifest."
+      - "List the command that starts each of your own deploy or migrate scripts (`bun scripts/deploy.ts`, `bash deploy.sh`, a package script) in `guard.writes.commands` as `{ rule: 'V-W-02', what, pattern }`, or in `claude.settings.permissions.ask`, then run `bun node_modules/.bin/vulcan sync` and commit the manifest."
       - 'Expect no question for what is inside a script: `guard-writes` no longer opens `bun x.ts`, `node x.js`, `bash x.sh` or a package script.'
   downgrade:
     steps:

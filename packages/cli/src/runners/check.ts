@@ -36,7 +36,7 @@ const BINARY_EXTENSION = /\.(png|jpe?g|gif|webp|ico|pdf|woff2?|ttf|eot|zip|gz|tg
  * `vulcan runners check`: no tracked file of the project may run an unscoped package through `bunx`, `bun x`, `npx`,
  * `pnpm dlx`, `pnpx` or `yarn dlx`, with or without `--no-install`. A scoped package (`@scope/name`) passes. A name npm owns for somebody else would be fetched and run
  * wherever the bin is not linked, and bun runs a copy an earlier bare bunx saved even under `--no-install`. The safe
- * forms are `bun run <bin>` in the package that depends on it, and the `node_modules/.bin` path.
+ * form is `bun node_modules/.bin/<bin>` from the project root (or a make target); `bun run <bin>` is a fallback.
  */
 export class RunnersCheck {
   private static trackedFiles(opts: { root: string }): string[] {

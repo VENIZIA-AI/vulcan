@@ -4,9 +4,9 @@ One setup, one workflow and one coding style for every VENIZIA project. Bun-only
 
 ```bash
 bun add -d --exact @venizia/vulcan @venizia/dev-configs
-bun run vulcan init
-bun run vulcan sync
-bun run vulcan doctor
+bun node_modules/.bin/vulcan init
+bun node_modules/.bin/vulcan sync
+bun node_modules/.bin/vulcan doctor
 ```
 
 `doctor` fails with `[scaffold]` until you describe the project in `.agents/knowledge/index.md` and delete the `vulcan:scaffold` line; it is the first item `init` lists under `left to do`.

@@ -66,7 +66,7 @@ describe('the guard-git hook', () => {
 
   test.each([
     ['a pull request with no base', 'gh pr create --title x --body y', '--base'],
-    ['a package run by name', 'bunx ardor codemod', 'bun run ardor'],
+    ['a package run by name', 'bunx ardor codemod', 'bun node_modules/.bin/ardor'],
     ['a program named by a variable', 'tool=git; $tool status', 'literal'],
   ])(
     'denies %s with the way to write it again, and does not hand it to the owner',

@@ -67,7 +67,7 @@ describe('RunnersCheck.scan', () => {
           guard: { runners: { allow: ['shadcn'] } },
         }),
         'README.md':
-          'bun x @venizia/vulcan@0.4.10 init\nbunx shadcn@latest add button\nbun run vulcan sync\nnode_modules/.bin/ardor codemod\n',
+          'bun x @venizia/vulcan@0.4.10 init\nbunx shadcn@latest add button\nbun node_modules/.bin/vulcan sync\nnode_modules/.bin/ardor codemod\n',
       },
     });
 
@@ -115,7 +115,7 @@ describe('vulcan runners check', () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('README.md:3');
-    expect(result.stderr).toContain('bun run');
+    expect(result.stderr).toContain('bun node_modules/.bin/');
 
     const clean = repository({ files: { 'README.md': 'bun run ardor\n' } });
 

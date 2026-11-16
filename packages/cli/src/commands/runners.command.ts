@@ -29,7 +29,7 @@ export const runRunnersCommand = (opts: ICommandContext): Promise<number> => {
 
   for (const finding of scan.findings) {
     process.stderr.write(
-      `${finding.file}:${finding.line}: ${finding.runner} ${finding.name === '' ? '(no name)' : finding.name} fetches a package by name; use \`bun run <bin>\` in the package that depends on it, or node_modules/.bin/<bin> (V-S-08)\n`,
+      `${finding.file}:${finding.line}: ${finding.runner} ${finding.name === '' ? '(no name)' : finding.name} fetches a package by name; run \`bun node_modules/.bin/<bin>\` from the project root, or through a make target (V-S-08)\n`,
     );
   }
 

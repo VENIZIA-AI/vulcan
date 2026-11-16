@@ -23,7 +23,7 @@ export default {
 To update the project manifest, run `vulcan sync`:
 
 ```bash
-bun run vulcan sync
+bun node_modules/.bin/vulcan sync
 ```
 
 | Field | Type | Default | Meaning |
@@ -185,13 +185,13 @@ For a private repository, the token must be able to read the repository's releas
 To pre-fetch all external sources, run `vulcan x atlas pull`:
 
 ```bash
-bun run vulcan x atlas pull
+bun node_modules/.bin/vulcan x atlas pull
 ```
 
 To fetch a single source, pass `--source <name>`:
 
 ```bash
-bun run vulcan x atlas pull --source ignis
+bun node_modules/.bin/vulcan x atlas pull --source ignis
 ```
 
 `pull` always forces a fresh fetch and rebuild.

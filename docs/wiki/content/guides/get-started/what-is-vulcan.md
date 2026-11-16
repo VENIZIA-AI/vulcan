@@ -20,9 +20,9 @@ Coding agents start every session with no memory of your rules and facts, and ev
 
 ```bash
 bun add -d --exact @venizia/vulcan
-bun run vulcan init
-bun run vulcan sync
-bun run vulcan doctor
+bun node_modules/.bin/vulcan init
+bun node_modules/.bin/vulcan sync
+bun node_modules/.bin/vulcan doctor
 ```
 
 `doctor` fails with `[scaffold]` until you describe the project in `.agents/knowledge/index.md` and delete the `vulcan:scaffold` line; it is the first item `init` lists under `left to do`.
@@ -115,8 +115,8 @@ A monorepo keeps the lint configs in each app instead of the root. Each agent yo
 
 ```bash
 # edit .configs/vulcan.config.mts
-bun run vulcan sync
-bun run vulcan doctor
+bun node_modules/.bin/vulcan sync
+bun node_modules/.bin/vulcan doctor
 ```
 
 ## What VULCAN does not do

@@ -26,12 +26,14 @@ describe('vulcan router', () => {
       expect(result.stdout).toContain(command);
     }
 
-    expect(result.stdout).toContain('bun run vulcan');
+    expect(result.stdout).toContain('bun node_modules/.bin/vulcan');
     expect(result.stdout).not.toMatch(/\bbunx vulcan/);
   });
 
   test('no command prints the help', () => {
-    expect(runCli({ args: [], cwd: tmpdir() }).stdout).toContain('Usage: bun run vulcan');
+    expect(runCli({ args: [], cwd: tmpdir() }).stdout).toContain(
+      'Usage: bun node_modules/.bin/vulcan',
+    );
   });
 
   test('version prints the package version', () => {
@@ -61,7 +63,9 @@ describe('vulcan router', () => {
       const result = runCli({ args, cwd });
 
       expect(result.code, args.join(' ')).toBe(0);
-      expect(result.stdout, args.join(' ')).toContain('Usage: bun run vulcan <command>');
+      expect(result.stdout, args.join(' ')).toContain(
+        'Usage: bun node_modules/.bin/vulcan <command>',
+      );
     }
 
     expect(existsSync(join(cwd, 'CLAUDE.md'))).toBe(false);

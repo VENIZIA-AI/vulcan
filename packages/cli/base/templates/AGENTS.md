@@ -4,7 +4,7 @@ How to work in {{name}}. **This file is routing** - it holds no facts and, apart
 `vulcan:rules` block, no rules: it points to where both live.
 
 Tool files (`CLAUDE.md`, ...) are per-developer pointers to this one, written by
-`bun run vulcan sync` for the agents you chose.
+`bun node_modules/.bin/vulcan sync` for the agents you chose.
 
 ## Must read first
 
@@ -16,9 +16,11 @@ Tool files (`CLAUDE.md`, ...) are per-developer pointers to this one, written by
 
 ## Commands
 
+Run them from the project root: the bin is linked there only.
+
 | Command | What it does |
 |---|---|
-| `bun run vulcan sync` | Write the adapters of the agents you chose (`--agents list` shows them) |
-| `bun run vulcan agents add\|remove <ids>` | Change the agents you use on this machine |
-| `bun run vulcan doctor` | Check this project follows VULCAN |
-| `bun run vulcan x okf check` | Check the knowledge bundle against OKF v0.2 |
+| `bun node_modules/.bin/vulcan sync` | Write the adapters of the agents you chose (`--agents list` shows them) |
+| `bun node_modules/.bin/vulcan agents add\|remove <ids>` | Change the agents you use on this machine |
+| `bun node_modules/.bin/vulcan doctor` | Check this project follows VULCAN |
+| `bun node_modules/.bin/vulcan x okf check` | Check the knowledge bundle against OKF v0.2 |

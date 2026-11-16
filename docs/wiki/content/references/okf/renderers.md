@@ -147,7 +147,7 @@ If you provide an explicit `seeAlso` string, okf prints your text as given.
 To run generation, run `vulcan x okf gen`:
 
 ```text
-$ bun run vulcan x okf gen
+$ bun node_modules/.bin/vulcan x okf gen
 gen: wrote .agents/knowledge/reference/makefile-targets.md
 ```
 
@@ -298,7 +298,7 @@ coverage: axis '<name>' (<path>) has no directory left after exclude/denylist
 To inspect coverage, run `vulcan x okf coverage`:
 
 ```text
-$ bun run vulcan x okf coverage
+$ bun node_modules/.bin/vulcan x okf coverage
 
 COVERAGE - 2 curated concepts
 

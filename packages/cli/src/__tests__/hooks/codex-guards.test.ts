@@ -97,7 +97,7 @@ describe('the Codex hook command runs the real guards', () => {
 
     expect(decisionOf(bunx.output)).toBe('deny');
     expect(bunx.text).toContain('V-S-08');
-    expect(bunx.text).toContain('bun run ardor');
+    expect(bunx.text).toContain('bun node_modules/.bin/ardor');
     expect(
       run({ root, stdin: eventOf({ root, tool: 'Bash', command: 'bun run ardor' }) }).text,
     ).toBe('');

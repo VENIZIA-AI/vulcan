@@ -186,7 +186,7 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
     const [hit] = RunnerGuard.inspect({ command: 'bunx ardor codemod', cwd: root, allow: [] });
 
     expect(hit.message).toContain('bunx ardor');
-    expect(hit.message).toContain('bun run ardor');
+    expect(hit.message).toContain('bun node_modules/.bin/ardor');
     expect(hit.message).toContain('--no-install');
   });
 });
@@ -218,7 +218,9 @@ describe('the guard-git hook runs it, for every agent that runs that script', ()
 
     expect(out.hookSpecificOutput.permissionDecision).toBe('deny');
     expect(out.hookSpecificOutput.permissionDecisionReason).toContain('V-S-08');
-    expect(out.hookSpecificOutput.permissionDecisionReason).toContain('bun run ardor');
+    expect(out.hookSpecificOutput.permissionDecisionReason).toContain(
+      'bun node_modules/.bin/ardor',
+    );
   });
 
   test('says nothing for bun run, and nothing when the guards are off', () => {
