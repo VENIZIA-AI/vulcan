@@ -340,38 +340,62 @@ describe('package-release.yml: the next dist-tag', () => {
 });
 
 describe('package-release.yml: the wiki is rebuilt after a release', () => {
-  const STEP = 'Rebuild the wiki';
+  const docs = (): Record<string, unknown> => readJob({ name: 'docs' });
+  const stepsOfDocs = (): Record<string, unknown>[] => {
+    const { steps } = docs();
 
-  test('the last step before the reports starts the docs run on develop', () => {
-    const names = readSteps().flatMap((step) => (step.name === undefined ? [] : [step.name]));
+    return Array.isArray(steps)
+      ? steps.flatMap((value) => {
+          const step = { value };
 
-    expect(findStep({ name: STEP }).run).toBe('gh workflow run deploy-docs.yml --ref develop');
-    expect(names.indexOf(STEP)).toBeGreaterThan(names.indexOf('Create tag'));
-    expect(names.indexOf(STEP)).toBeGreaterThan(
-      names.indexOf('Publish the atlas index of the release'),
-    );
-    expect(names.indexOf(STEP)).toBeLessThan(
-      names.indexOf('Report - published, release branch not updated'),
-    );
+          return isRecord(step) ? [step.value] : [];
+        })
+      : [];
+  };
+
+  test('a job of its own starts the docs run on develop, after publish', () => {
+    const [step] = stepsOfDocs();
+
+    expect(stepsOfDocs()).toHaveLength(1);
+    expect(toText({ value: step?.run })).toBe('gh workflow run deploy-docs.yml --ref develop');
+    expect(docs().needs).toEqual(['plan', 'publish']);
   });
 
-  test('it runs once the tag is pushed (and a stable once main is merged back), and cannot fail a release', () => {
-    const step = findStep({ name: STEP });
+  test('it runs once the tag is pushed (a stable also once main is merged back) and cannot fail a release', () => {
+    const condition = toText({ value: docs().if }) ?? '';
 
-    expect(step.if).toContain("env.IS_TAGGED == 'true'");
-    expect(step.if).toContain("env.IS_MERGED_BACK == 'true'");
-    expect(step.continueOnError).toBe(true);
+    expect(condition).toContain("needs.publish.outputs.tagged == 'true'");
+    expect(condition).toContain("needs.plan.outputs.kind == 'prerelease'");
+    expect(condition).toContain("needs.publish.outputs.merged_back == 'true'");
+    expect(docs()['continue-on-error']).toBe(true);
+    expect(typeof docs()['timeout-minutes']).toBe('number');
   });
 
-  test('it holds no secret: the Actions token and the repository only', () => {
-    const step = findStep({ name: STEP });
+  test('it has no checkout, no install, no secret and no environment: the Actions token and the repository only', () => {
+    const [step] = stepsOfDocs();
+    const env = { value: step?.env };
 
-    expect(Object.keys(step.env ?? {}).sort()).toEqual(['GH_REPO', 'GH_TOKEN']);
-    expect(step.run).not.toContain('secrets.');
+    expect(JSON.stringify(stepsOfDocs())).not.toContain('checkout');
+    expect(JSON.stringify(stepsOfDocs())).not.toContain('secrets.');
+    expect(Object.keys(isRecord(env) ? env.value : {}).sort()).toEqual(['GH_REPO', 'GH_TOKEN']);
+    expect(docs().environment).toBeUndefined();
   });
 
-  test('only the publish job asks for actions: write', () => {
-    for (const name of ['plan', 'test', 'approve']) {
+  test('publish says whether the tag is pushed and the merge back done, and holds no actions permission', () => {
+    const outputs = { value: readJob({ name: 'publish' }).outputs };
+
+    expect(isRecord(outputs) ? Object.keys(outputs.value).sort() : []).toEqual([
+      'merged_back',
+      'tagged',
+    ]);
+    const permissions = { value: readJob({ name: 'publish' }).permissions };
+
+    expect(isRecord(permissions) ? permissions.value.actions : undefined).toBeUndefined();
+    expect(findStep({ name: 'Record what was pushed' }).if).toBe('always()');
+  });
+
+  test('actions: write is on the docs job only', () => {
+    for (const name of ['plan', 'test', 'approve', 'publish']) {
       const permissions = { value: readJob({ name }).permissions };
 
       expect(isRecord(permissions) ? permissions.value.actions : undefined).toBeUndefined();
@@ -655,7 +679,7 @@ describe('package-release.yml: the job graph', () => {
     return isRecord(permissions) ? permissions.value : undefined;
   };
 
-  test('four jobs: plan, then the gates, then the approval of a stable, then the publish', () => {
+  test('five jobs: plan, then the gates, then the approval of a stable, then the publish, then the docs run', () => {
     const workflow = { value: Bun.YAML.parse(readFileSync(WORKFLOW, 'utf8')) };
     const jobs = { value: isRecord(workflow) ? workflow.value.jobs : undefined };
 
@@ -664,10 +688,12 @@ describe('package-release.yml: the job graph', () => {
       'test',
       'approve',
       'publish',
+      'docs',
     ]);
     expect(needsOf({ name: 'test' })).toEqual(['plan']);
     expect(needsOf({ name: 'approve' })).toEqual(['plan', 'test']);
     expect(needsOf({ name: 'publish' })).toEqual(['plan', 'test', 'approve']);
+    expect(needsOf({ name: 'docs' })).toEqual(['plan', 'publish']);
   });
 
   test('no job is skipped by a ref guard of its own: the plan refuses a wrong ref loudly instead', () => {
@@ -721,11 +747,8 @@ describe('package-release.yml: the job graph', () => {
   });
 
   test('only publish can write and only publish holds id-token', () => {
-    expect(permissionsOf({ name: 'publish' })).toEqual({
-      contents: 'write',
-      'id-token': 'write',
-      actions: 'write',
-    });
+    expect(permissionsOf({ name: 'publish' })).toEqual({ contents: 'write', 'id-token': 'write' });
+    expect(permissionsOf({ name: 'docs' })).toEqual({ actions: 'write' });
     expect(permissionsOf({ name: 'approve' })).toEqual({});
     expect(permissionsOf({ name: 'plan' })).toEqual({ contents: 'read' });
     expect(permissionsOf({ name: 'test' })).toBeUndefined();
