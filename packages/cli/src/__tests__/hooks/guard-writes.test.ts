@@ -831,3 +831,55 @@ describe('a program name is matched exactly, so an identifier that spells one is
     },
   );
 });
+
+// An interpreter that reads its script from stdin gets a body the patterns cannot tell from the text it holds. A script that edits a
+// local file with `kubectl apply`, `curl -X POST` or `vulcan migrate apply` in its strings is not a call of them; one that runs a
+// command is judged by the words it runs. (An agent edited a handoff note this way and the hook asked about "an endpoint that mutates data".)
+describe('the body of a script an interpreter reads from stdin is data until it calls something that runs a command', () => {
+  const python = (body: string) => `python3 - <<'PY'\n${body}\nPY`;
+
+  test.each([
+    [
+      'an edit of a markdown note, with commands in its strings',
+      "cd .agents/local/tmp/handoff && python3 - <<'EOF'\np='ignis.md'\ns=open(p).read()\ns=s.replace(\"`vulcan migrate plan --package @venizia/ignis-kernel --from 0.4.8-18 --to 0.4.8-19`\", \"`vulcan migrate apply --package @venizia/ignis --to 0.4.8-19`\")\nopen(p,'w').write(s)\nEOF",
+    ],
+    [
+      'a multi-line string with a curl line',
+      python("s = '''\ncurl -X POST https://api.example.dev/v1/x -d name=x\n'''\nprint(s)"),
+    ],
+    [
+      'a multi-line string with a kubectl line',
+      python("s = '''\nkubectl apply -f deploy.yaml\n'''\nprint(s)"),
+    ],
+    [
+      'a line that starts with a URL',
+      python(
+        "s = '''\nhttps://github.com/x/y/pull/1\nhttps PUT example.dev/v1/x name=x\n'''\nprint(s)",
+      ),
+    ],
+    ['a prose line about the system', python("print('the system (prod) is down')")],
+    [
+      'a node script that prints a command',
+      "node - <<'JS'\nconsole.log('psql -c \"drop table x\"')\nJS",
+    ],
+    ['a command printed into python through a pipe', "printf '%s' 'curl -X POST x' | python3 -"],
+  ])('%s stays quiet', (_name, command) => {
+    expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+  });
+
+  test.each([
+    ['os.system', python("import os\nos.system('kubectl apply -f x')")],
+    [
+      'subprocess.run',
+      python('import subprocess\nsubprocess.run("kubectl apply -f x", shell=True)'),
+    ],
+    ['child_process', "node - <<'JS'\nrequire('child_process').execSync('kubectl apply -f x')\nJS"],
+    ['Bun.spawn', "bun - <<'TS'\nBun.spawn(['sh', '-c', 'kubectl apply -f x'])\nTS"],
+    [
+      'a pipe into python that runs it',
+      'echo "import os; os.system(\'kubectl apply -f x\')" | python3 -',
+    ],
+  ])('a script that calls %s with a deploy still asks', (_name, command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+});

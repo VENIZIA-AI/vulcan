@@ -42,7 +42,7 @@ const GH_REPOSITORY_FLAGS = new Set(['-R', '--repo']);
 /** `find` runs a command only with these; without them it only lists. */
 const FIND_RUNS = new Set([...ShellPrograms.FIND_RUN_OPTIONS, '-delete']);
 
-/** Programs that read their heredoc as a query or a script: the body is part of what they run. */
+/** Programs that read their heredoc as a query or a command: the body is part of what they run. */
 const HEREDOC_READERS = new Set([
   'ssh',
   'psql',
@@ -52,17 +52,28 @@ const HEREDOC_READERS = new Set([
   'mongo',
   'sqlite3',
   'redis-cli',
-  'python',
-  'python3',
-  'node',
-  'bun',
-  'deno',
-  'ruby',
-  'perl',
-  'php',
 ]);
 
-/** Programs that run what a pipe feeds them: `echo "kubectl apply -f x" | sh`. */
+/**
+ * Interpreters that read a script from stdin (`python3 - <<EOF`, `echo ... | node`). The body is code the patterns cannot tell
+ * from the text it holds: a markdown line, a string with `kubectl apply` in it, a command quoted in a note. It counts as a
+ * command line only where it calls something that runs one (`os.system`, `subprocess`, `child_process`, `Bun.spawn`...);
+ * a script that only edits a file passes, and one that runs a program is judged by the words it runs.
+ */
+const INTERPRETERS = new Set(['python', 'python3', 'node', 'bun', 'deno', 'ruby', 'perl', 'php']);
+
+/** What an interpreter calls to run a command line. */
+const RUNS_A_COMMAND = new RegExp(
+  [
+    // a module that runs commands, named
+    String.raw`\b(?:child_process|Open3|IO\.popen|pty\.spawn)\b`,
+    // a call: the name and its bracket, with nothing between, so prose that says "the system (prod)" is not one
+    String.raw`\b(?:os\.(?:system|popen|exec\w*|spawn\w*)|subprocess\.\w+|execSync|execFile\w*|spawnSync|shell_exec|passthru|proc_open|popen|system|exec|spawn|qx)\(`,
+    String.raw`\bBun\.(?:spawn|spawnSync|\$)|\bDeno\.(?:run|Command)\b|%x[{(\[]`,
+  ].join('|'),
+);
+
+/** Programs that run what a pipe feeds them as commands or a query: `echo "kubectl apply -f x" | sh`. */
 const PIPE_RUNNERS = new Set([
   ...ShellPrograms.SHELL_NAMES,
   'psql',
@@ -71,10 +82,6 @@ const PIPE_RUNNERS = new Set([
   'mongosh',
   'mongo',
   'sqlite3',
-  'python',
-  'python3',
-  'node',
-  'bun',
   'ssh',
 ]);
 
@@ -117,8 +124,10 @@ export class CommandView {
       return name;
     }
 
-    const body =
-      command.heredoc !== undefined && HEREDOC_READERS.has(name) ? `\n${command.heredoc}` : '';
+    const isReader =
+      HEREDOC_READERS.has(name) ||
+      (INTERPRETERS.has(name) && RUNS_A_COMMAND.test(command.heredoc ?? ''));
+    const body = command.heredoc !== undefined && isReader ? `\n${command.heredoc}` : '';
 
     return `${command.words.join(' ')}${body}`;
   }
@@ -162,11 +171,14 @@ export class CommandView {
       (command) => !CommandView.isDataOnly({ command, withMessages: opts.withMessages }),
     );
     // Read from the commands, not the text, so a `| sh` in a comment or in quotes feeds nothing.
-    const isWholeLine = parsed.commands.some(
-      (command) =>
+    const isWholeLine = parsed.commands.some((command) => {
+      const name = ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name });
+
+      return (
         command.input?.pipedFrom !== undefined &&
-        PIPE_RUNNERS.has(ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name })),
-    );
+        (PIPE_RUNNERS.has(name) || (INTERPRETERS.has(name) && RUNS_A_COMMAND.test(text)))
+      );
+    });
     const texts = isWholeLine
       ? [text]
       : parsed.commands.map((command) =>
