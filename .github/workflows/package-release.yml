@@ -52,7 +52,7 @@ concurrency:
 # approval. `test` runs the gates. `approve` is the one human stop and exists for a stable only: environment
 # release-approval, whose reviewer is the owner. `publish` is the only job with the publish identity (environment
 # npm-release, which waits for nobody); it runs after `approve` succeeded, or after `approve` was skipped because the
-# plan says prerelease.
+# plan says prerelease. A fifth job, `docs`, runs last with no checkout and the one permission to start the docs run (see it below).
 #
 # A prerelease commits its release to develop. A stable commits its release to main, tags it there, and then merges
 # main back into develop (scripts/release/merge-back.ts); nothing waits for a second approval after the click.
@@ -207,6 +207,10 @@ jobs:
     # reach it. It has no reviewers: the owner's approval is the `approve` job's, and only a stable has one. Its
     # settings are GitHub's, not this file's; this line is what makes the job subject to them.
     environment: npm-release
+    # What the `docs` job below needs to know: the tag is pushed, and, for a stable, main is merged back into develop.
+    outputs:
+      tagged: ${{ steps.record.outputs.tagged }}
+      merged_back: ${{ steps.record.outputs.merged_back }}
     env:
       # The branch the release commit goes to: main for a stable, develop for a prerelease.
       TARGET_BRANCH: ${{ needs.plan.outputs.kind == 'stable' && 'main' || 'develop' }}
@@ -625,3 +629,35 @@ jobs:
           echo "  the usual cause is a conflict that is more than a version or the lockfile; read the merge step above"
           echo "  finish it: git checkout develop && git merge ${RELEASE_SHA:-main}, resolve, commit, push"
           echo "  or, once develop is ready, dispatch bump 'none' on main: it publishes nothing, tags nothing, and merges back"
+
+      # What happened, for the job after this one. It runs even when a step failed: the tag may be pushed all the same.
+      - name: Record what was pushed
+        id: record
+        if: always()
+        run: |
+          echo "tagged=${IS_TAGGED:-false}" >> "$GITHUB_OUTPUT"
+          echo "merged_back=${IS_MERGED_BACK:-false}" >> "$GITHUB_OUTPUT"
+
+  # The pushes of the job above are made with the Actions token, so GitHub starts no docs run from them, and a release
+  # changes no page: the version box of the changelog names the newest prerelease (read from the release tags) and would
+  # stay on the old one. A manual run does start from the Actions token. It runs on develop, which holds the release commit
+  # (a prerelease) or the merge back of it (a stable), and it checks out every tag, the new one included. This job has no
+  # checkout, no install and no secret, and the one permission it needs; the job that publishes does not hold it, so code
+  # that runs there cannot start a workflow. It never fails a release that has published.
+  docs:
+    name: Rebuild the wiki
+    needs: [plan, publish]
+    if: >-
+      ${{ always() && needs.publish.outputs.tagged == 'true'
+      && (needs.plan.outputs.kind == 'prerelease' || needs.publish.outputs.merged_back == 'true') }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 2
+    continue-on-error: true
+    permissions:
+      actions: write
+    steps:
+      - name: Start the docs run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run deploy-docs.yml --ref develop
