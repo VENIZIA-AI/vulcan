@@ -61,7 +61,7 @@ Security rules safeguard credentials, validate boundary inputs, protect telemetr
   - Enforced by: SOFT
 - `V-S-06` - Never send repository content to external services outside the system.
   - Enforced by: SOFT
-- `V-S-08` - Never run an unscoped package by name: no bunx, bun x, npx or pnpm dlx of a name the project does not own, with or without --no-install. Use `bun run <bin>` in the package that depends on it. `@venizia/*` and `guard.runners.allow` are fine.
+- `V-S-08` - Never run an unscoped package by name: no bunx, bun x, npx or pnpm dlx of a name the project does not own, with or without --no-install. Run the bin as `bun node_modules/.bin/<bin>` from the project root, or through a make target; `bun run <bin>` only as a fallback. `@venizia/*` and `guard.runners.allow` are fine.
   - Enforced by: HARD in Claude Code, Codex, Antigravity, omp and pi: `guard-git` denies the command (the `--no-install` form passes only for a linked bin); `vulcan runners check` reads the tracked files. Any other agent has this rule only
 
 ## Process (P)
@@ -235,7 +235,7 @@ export default {
 When a slot has no choice, `vulcan doctor` reports a violation during the `rule-slots` check:
 
 ```text
-$ bun run vulcan doctor
+$ bun node_modules/.bin/vulcan doctor
   [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
 vulcan doctor: 1 violation(s)
 ```
@@ -260,7 +260,7 @@ Every `V-` reference in `.agents/rules.md` must point to an active base rule.
 When `.agents/rules.md` references an unknown base rule identifier, `vulcan doctor` reports a violation:
 
 ```text
-$ bun run vulcan doctor
+$ bun node_modules/.bin/vulcan doctor
   [rule-ids] .agents/rules.md: V-Z-99 is not a base rule - give the extension a bare ID
 vulcan doctor: 1 violation(s)
 ```

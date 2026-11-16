@@ -119,7 +119,7 @@ Done when every slice went red, then green.
 
 ## 6. Check
 
-Run the app's `typecheck`, `lint` and `test`, then `bun run vulcan doctor`, and read each
+Run the app's `typecheck`, `lint` and `test`, then `bun node_modules/.bin/vulcan doctor` from the project root, and read each
 output. Then show the real behaviour: start the app and call the endpoint, or open the page, and
 paste what came back.
 

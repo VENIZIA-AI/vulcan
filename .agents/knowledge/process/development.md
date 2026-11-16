@@ -26,10 +26,10 @@ make test              # every package suite (--parallel), then scripts/
 make catalog-check
 make docs wiki-links-check wiki-anchors-check
 make smoke-atlas smoke-cli
-bun run vulcan sync
+bun node_modules/.bin/vulcan sync
 git diff --exit-code -- .agents/vulcan.manifest.json
-bun run vulcan doctor
-bun run vulcan x okf check
+bun node_modules/.bin/vulcan doctor
+bun node_modules/.bin/vulcan x okf check
 ```
 
 - `make test` and the smokes make their temp folders under `.agents/local/tmp/tests/` (`TMPDIR`, gitignored): nothing is written to the system temp directory. A bare `bun test` does the same: the `[test] preload` of the root and package `bunfig.toml` (`@venizia/dev-configs/testing/tmpdir-preload`, the logic in `@venizia/dev-configs/testing`) points `TMPDIR` at that folder when it is not already inside it and makes `Bun.spawn` children inherit it, and the pack smokes call the same `useRepoTmp()`. `make` also sets `NODE_COMPILE_CACHE` to `.agents/local/cache/node-compile`, so the Node tools (ESLint, the type checker) do not write `/tmp/node-compile-cache`. `scripts/checks/__tests__/test-tmp-hygiene.test.ts` runs sample test files bare, once with a fake system temp (it must stay empty and `/tmp` must gain no `vulcan-*`, `atlas-*`, `ignore.<pid>` entry) and once with a private `TMPDIR` inside the test folder (it must be empty afterwards); a new helper that needs a temp folder uses `os.tmpdir()` and nothing else. `GIT_CEILING_DIRECTORIES` keeps git from reading this repository, and an empty `.git` marker there is where bun's own ignore lookup stops (it would otherwise read this repository's `.gitignore` and `bun fmt` in a test project would see no files). Because that folder sits inside the repository, `zod` resolves from the repository's `node_modules`: a test or smoke that needs it unavailable replaces it with a stub that throws, never just removes it. A smoke sandbox needs its own `package.json` before `bun add`, or bun edits the nearest one above it.

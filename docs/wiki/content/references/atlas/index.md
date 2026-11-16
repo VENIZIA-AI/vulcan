@@ -10,7 +10,7 @@ It runs as `vulcan x atlas <command>`.
 Use atlas to search documentation, read sections, look up exported symbols, and inspect releases.
 
 ```text
-$ bun run vulcan x atlas help
+$ bun node_modules/.bin/vulcan x atlas help
 usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|api|symbols|releases|changelogs check> | migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose] | migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] | help
 ```
 
@@ -92,7 +92,7 @@ If you start atlas outside a VULCAN project without `--source`, it exits with co
 The example below was run outside any project:
 
 ```text
-$ bun run vulcan x atlas tools
+$ bun node_modules/.bin/vulcan x atlas tools
 vulcan-atlas: nothing to serve at /tmp/wiki-empty - run in a project (`vulcan sync` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>
 usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | index --out <dir> | index keygen | pull [--source <name>] [--cache-dir <dir>] | tools [--root <dir>] | <surface|api|symbols|releases> | help
 ```
@@ -137,7 +137,7 @@ Notes on the fields:
 To inspect the tools the server offers without an MCP client, run `vulcan x atlas tools`:
 
 ```text
-$ bun run vulcan x atlas tools
+$ bun node_modules/.bin/vulcan x atlas tools
 search   When the user asks how something works in my-product and ignis, or about this project's conventions, search here before you answer from memory
 get      After `search`, read the hit here before you rely on it
 symbol   Before you import or call an export of my-product and ignis, get its real signature, import path and source line here instead of recalling it
@@ -246,7 +246,7 @@ jobs:
 ```
 
 The job needs `contents: write`, the whole history (`fetch-depth: 0`: a shallow checkout is refused, because its release table would come from part of the history), and the private key as the secret `ATLAS_INDEX_KEY`.
-It uses the project's own installed atlas, so `bun run vulcan` must resolve.
+It uses the project's own installed atlas, so `bun node_modules/.bin/vulcan` must resolve.
 
 It publishes only when all of these hold; otherwise it uploads nothing, says why and succeeds:
 
@@ -288,7 +288,7 @@ An MCP server lives as long as the agent session that started it, often for days
 To manage the public API surface snapshot, use `vulcan x atlas surface`:
 
 ```text
-$ bun run vulcan x atlas surface
+$ bun node_modules/.bin/vulcan x atlas surface
 usage: vulcan x atlas surface gen|check
 ```
 
@@ -306,7 +306,7 @@ It finds them from each package's `exports` field, not a fixed `dist/`.
 To write the API reference of the project's packages, run `vulcan x atlas api`:
 
 ```text
-$ bun run vulcan x atlas api
+$ bun node_modules/.bin/vulcan x atlas api
 usage: vulcan x atlas api gen|check | undocumented [--package <dir, name or path>]...
 ```
 
@@ -323,7 +323,7 @@ The text on a page comes from the comment as written. Markup the comment did not
 To inspect what the `symbol` tool reads, run `vulcan x atlas symbols`:
 
 ```text
-$ bun run vulcan x atlas symbols
+$ bun node_modules/.bin/vulcan x atlas symbols
 {
   "generatedFrom": "dist",
   "packages": [
@@ -351,7 +351,7 @@ When no live package exists, `symbols`, `surface gen` and a `surface check` of a
 To inspect what the `version` and `changes` tools read, run `vulcan x atlas releases`:
 
 ```text
-$ bun run vulcan x atlas releases
+$ bun node_modules/.bin/vulcan x atlas releases
 {
   "livePackages": [
     "api"

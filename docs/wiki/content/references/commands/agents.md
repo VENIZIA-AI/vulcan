@@ -22,7 +22,7 @@ Which coding agents you use is your choice on your machine, stored in `.agents/v
 `vulcan agents` shows what is chosen and what exists. The `detected` line lists what this machine has, so yours differs:
 
 ```text
-$ bun run vulcan agents
+$ bun node_modules/.bin/vulcan agents
 chosen on this machine: claude
 detected: claude, omp, codex, copilot-vscode
 claude          Claude Code          MCP .mcp.json                  skills .claude/skills
@@ -38,7 +38,7 @@ pi              Pi                   MCP .pi/mcp.json               skills .agen
 Adding an agent writes its adapters and prints one line per file (a file that did not change is `unchanged`):
 
 ```text
-$ bun run vulcan agents add pi
+$ bun node_modules/.bin/vulcan agents add pi
   unchanged CLAUDE.md
   unchanged .claude/settings.json
   unchanged .claude/skills/build-a-feature
@@ -67,7 +67,7 @@ $ bun run vulcan agents add pi
 Removing it takes back what `sync` made for it:
 
 ```text
-$ bun run vulcan agents remove pi
+$ bun node_modules/.bin/vulcan agents remove pi
   removed   .pi/mcp.json
   removed   .agents/skills/docs-writing
   removed   .agents/skills/build-a-feature
@@ -95,7 +95,7 @@ $ bun run vulcan agents remove pi
 An agent that is already chosen (`add`) or not chosen (`remove`) is named on stderr, nothing else happens and the exit code is `0`: `vulcan agents: already chosen: pi`. An id that does not exist exits `1`:
 
 ```text
-$ bun run vulcan agents add nope
+$ bun node_modules/.bin/vulcan agents add nope
 vulcan agents: unknown agent 'nope' - one of: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
 ```
 

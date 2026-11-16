@@ -1018,7 +1018,7 @@ export class ProjectContract {
         createViolation({
           check: DoctorChecks.LOCAL,
           file: relative(opts.root, action.path) || '.',
-          message: `${action.note ?? 'out of date'} - run 'bun run vulcan sync'`,
+          message: `${action.note ?? 'out of date'} - run 'bun node_modules/.bin/vulcan sync'`,
         }),
       );
   }

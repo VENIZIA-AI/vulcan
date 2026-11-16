@@ -192,7 +192,7 @@ describe('the Atlas and rules blocks in AGENTS.md', () => {
 
     expect(before.map((note) => note.file)).toContain('AGENTS.md');
     expect(before.find((note) => note.file === 'AGENTS.md')?.message).toBe(
-      "the Atlas or rules block of AGENTS.md is missing or out of date - run 'bun run vulcan sync'",
+      "the Atlas or rules block of AGENTS.md is missing or out of date - run 'bun node_modules/.bin/vulcan sync'",
     );
 
     sync({ root });

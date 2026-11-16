@@ -36,7 +36,7 @@ The manifest is always written.
 The first `sync` in a terminal detects the agents on the machine (a binary on `PATH`, a folder in your home or in the project) and asks you to confirm:
 
 ```text
-$ bun run vulcan sync
+$ bun node_modules/.bin/vulcan sync
 Which coding agents do you use in this project? (comma-separated; Enter accepts the detected list: claude, omp)
   detected: claude, omp
   available: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
@@ -107,7 +107,7 @@ When `events.log` is `true`, `sync` adds one Claude Code hook for each of `Sessi
 When `commit.message` turns a commit check on, `sync` installs a `commit-msg` git hook in your clone, so every commit message is checked, whoever or whatever makes the commit. Nothing is installed for a project that sets no check.
 
 - With no `core.hooksPath`, it writes `.git/hooks/commit-msg`, and a linked worktree shares it.
-- A hook that `sync` did not write is never touched: `sync` prints `skipped` and the line to add, `bun run vulcan commit-check "$1"`.
+- A hook that `sync` did not write is never touched: `sync` prints `skipped` and the line to add, `bun node_modules/.bin/vulcan commit-check "$1"`.
 - With `core.hooksPath` set, `sync` writes nothing there and prints the same line for that folder's `commit-msg` hook.
 - When you turn every check off, `sync` removes a hook it wrote.
 
@@ -149,7 +149,7 @@ The list holds the Claude files (`/CLAUDE.md`, `/.claude/`) when `claude` is cho
 To generate missing adapters and the manifest, run `vulcan sync`:
 
 ```text
-$ bun run vulcan sync
+$ bun node_modules/.bin/vulcan sync
   created   CLAUDE.md
   created   .claude/settings.json (shipped, slot and claude.settings over personal keys)
   created   .claude/skills/build-a-feature
@@ -177,7 +177,7 @@ The last five lines are the Atlas block in `AGENTS.md`, the file that stores you
 Running `vulcan sync` again on an up-to-date repository makes no changes:
 
 ```text
-$ bun run vulcan sync
+$ bun node_modules/.bin/vulcan sync
   unchanged CLAUDE.md
   unchanged .claude/settings.json
   unchanged .claude/skills/build-a-feature
@@ -246,7 +246,7 @@ Original key ordering from `.claude/settings.json` is preserved to keep diffs st
 The settings and the manifest are what change; the skill lines and the lines that did not change are dropped from the output below:
 
 ```text
-$ bun run vulcan sync
+$ bun node_modules/.bin/vulcan sync
   replaced  .claude/settings.json (shipped, slot and claude.settings over personal keys)
   replaced  .agents/vulcan.manifest.json
 ```
@@ -256,7 +256,7 @@ $ bun run vulcan sync
 To preview filesystem operations without making changes, pass `--dry-run`:
 
 ```text
-$ bun run vulcan sync --dry-run
+$ bun node_modules/.bin/vulcan sync --dry-run
   would create  CLAUDE.md
   would create  .claude/settings.json (shipped, slot and claude.settings over personal keys)
   would create  .claude/skills/build-a-feature
@@ -287,7 +287,7 @@ Run `vulcan sync` whenever the project environment or configuration changes:
 - After modifying configuration: Changes to `.configs/vulcan.config.mts` affect settings, hooks, skill links and the manifest.
 - After updating dependencies: Upgrading packages or VULCAN may introduce new shipped skills, hooks or base rules.
 
-`vulcan doctor` reports contract violations when adapters drift, such as `stale (<status>) - run 'bun run vulcan sync'`.
+`vulcan doctor` reports contract violations when adapters drift, such as `stale (<status>) - run 'bun node_modules/.bin/vulcan sync'`.
 To review adapter verification rules, see the [doctor reference](/references/commands/doctor#adapters).
 
 ## The project manifest

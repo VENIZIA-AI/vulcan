@@ -132,7 +132,7 @@ describe('RulesBlock.render', () => {
       slotLines: RulesBlock.slotLinesOf({
         slots: RuleSlots.read(),
         choices: { 'V-W-01': 'on-user-word' },
-        command: 'bun run vulcan',
+        command: 'bun node_modules/.bin/vulcan',
       }),
       tmp: '.agents/local/tmp',
       oftenDropped: [...ConfigConstants.DEFAULT_OFTEN_DROPPED],
@@ -153,7 +153,7 @@ describe('RulesBlock.render', () => {
 
 describe('RulesBlock.slotLinesOf', () => {
   const slots = RuleSlots.read();
-  const command = 'bun run vulcan';
+  const command = 'bun node_modules/.bin/vulcan';
 
   test('names the chosen option with its text, or says the project has not chosen, or that the option is unknown', () => {
     const chosen = RulesBlock.slotLinesOf({ slots, choices: { 'V-W-01': 'read-only' }, command });

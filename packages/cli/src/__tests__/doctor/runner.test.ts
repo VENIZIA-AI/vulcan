@@ -433,7 +433,7 @@ describe('doctor on a clean checkout', () => {
 
     expect(adapters).toHaveLength(1);
     expect(adapters[0]?.message).toBe(
-      "not synced yet - run 'bun run vulcan sync' (make vulcan-sync) first",
+      "not synced yet - run 'bun node_modules/.bin/vulcan sync' (make vulcan-sync) first",
     );
     expect(adapters[0]?.message).not.toContain('stale');
   });

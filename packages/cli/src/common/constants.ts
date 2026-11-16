@@ -51,7 +51,7 @@ export class VulcanTools {
 /** What a VULCAN project carries; shared by `init`, which writes it, and `doctor`, which checks it. */
 export class ProjectLayout {
   /** How everything unattended runs vulcan: the linked bin of this project, never a package fetched by the name `vulcan` (V-S-08). */
-  static readonly VULCAN_COMMAND = 'bun run vulcan';
+  static readonly VULCAN_COMMAND = 'bun node_modules/.bin/vulcan';
 
   /** `vulcan x` hands the resolved project config to the tool in these variables; the tools read nothing else. */
   static readonly CONFIG_ENV = EnvVariables.VULCAN_CONFIG;
