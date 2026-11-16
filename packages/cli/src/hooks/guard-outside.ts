@@ -221,6 +221,7 @@ export class OutsideGuard {
               vars: { ...folder.vars, ...vars },
               isKnown: folder.isKnown,
               links: folder.links,
+              carried: folder.carried,
               hasUnknownLink: folder.hasUnknownLink,
               // The text of a word reads `'$S'` as a live `$S`; the shell takes the `$` as a character.
               hasLiteralDollar:
@@ -345,6 +346,7 @@ export class OutsideGuard {
         path: expanded,
         base: target.base,
         links: target.links ?? [],
+        carried: target.carried ?? [],
         isLastCounted: target.isLinkName !== true,
       });
 
@@ -354,7 +356,9 @@ export class OutsideGuard {
           message:
             through === 'dangling'
               ? `${target.message}: the path is, or goes through, a dangling link, which may lead where this line makes a link`
-              : `${target.message}: the path is, or goes through, a link this line made, which this check does not follow`,
+              : through === 'carried'
+                ? `${target.message}: the path is, or goes through, a name a mv, cp, rsync or tar of this line put there, which may be a link this check cannot see`
+                : `${target.message}: the path is, or goes through, a link this line made, which this check does not follow`,
           isAgentToolScratchpad: false,
           isUnread: true,
         });

@@ -23,13 +23,18 @@ export interface IShellFolder {
   loops: Record<string, string[]>;
   /** The absolute names of the symbolic links the line made (`ln -s`) before this command: the system reads them when the command runs. */
   links: string[];
+  /** The absolute names a `mv`, `cp`, `rsync` or `tar` of the line put things at: any of them may be a link this check cannot see. */
+  carried: string[];
   /** Whether the line made a symbolic link whose name this check could not work out, or ran `ln` where it cannot read it: any path after it may go through one. */
   hasUnknownLink: boolean;
 }
 
-interface IFolderState extends Omit<IShellFolder, 'loops' | 'links' | 'hasUnknownLink'> {
+interface IFolderState extends Omit<
+  IShellFolder,
+  'loops' | 'links' | 'carried' | 'hasUnknownLink'
+> {
   /** The folders `pushd` saved, for `popd`. */
-  stack: Omit<IShellFolder, 'vars' | 'loops' | 'links' | 'hasUnknownLink'>[];
+  stack: Omit<IShellFolder, 'vars' | 'loops' | 'links' | 'carried' | 'hasUnknownLink'>[];
   /** A `cd`, `pushd` or `popd` ran in this scope. */
   hasMoved: boolean;
 }
@@ -224,6 +229,17 @@ export class ShellFolders {
     return unresolved || expanded.includes('$') ? undefined : expanded;
   }
 
+  /** Whether the path is a folder that is there and not a link: what is inside it keeps its names. */
+  static isRealFolder(opts: { path: string }): boolean {
+    try {
+      const stat = lstatSync(opts.path);
+
+      return stat.isDirectory() && !stat.isSymbolicLink();
+    } catch {
+      return false;
+    }
+  }
+
   /** The name as the system sees it: the real path of the part that exists, then the rest as written. */
   static physicalOf(opts: { path: string }): string {
     const rest: string[] = [];
@@ -250,8 +266,10 @@ export class ShellFolders {
     path: string;
     base: string;
     links: string[];
+    /** The names a move, a copy or an extraction of the line put things at. */
+    carried?: string[];
     isLastCounted: boolean;
-  }): 'made' | 'dangling' | undefined {
+  }): 'made' | 'carried' | 'dangling' | undefined {
     interface IStep {
       part: string;
       /** A link of the line at this name counts. */
@@ -283,6 +301,10 @@ export class ShellFolders {
           return 'made';
         }
 
+        if (opts.carried?.includes(current) === true) {
+          return 'carried';
+        }
+
         current = dirname(current);
         continue;
       }
@@ -291,6 +313,10 @@ export class ShellFolders {
 
       if (step.counts && opts.links.includes(current)) {
         return 'made';
+      }
+
+      if (step.counts && opts.carried?.includes(current) === true) {
+        return 'carried';
       }
 
       // A link already on disk is followed where it points: it may lead to a link this line makes, and a link that points at
@@ -495,6 +521,7 @@ export class ShellFolders {
     );
     const loops: IOpenLoop[] = [];
     const links: string[] = [];
+    const carriedNames: string[] = [];
     // A command line a word carries (`sh -c`, `$(...)`) is listed after the commands of the line, so its links are not seen in order.
     let hasUnknownLink = opts.commands.some(
       (command) =>
@@ -567,6 +594,7 @@ export class ShellFolders {
               ),
             ),
         links: [...links],
+        carried: [...carriedNames],
         hasUnknownLink,
       };
 
@@ -584,7 +612,35 @@ export class ShellFolders {
         args: made.args,
       });
 
-      for (const name of [...(maker?.names ?? []), ...carried]) {
+      // Where it goes is a folder that is there, a name only inside it can be a link the command put: the rest of the folder is as it was.
+      for (const word of carried === undefined ? [] : [carried.destination]) {
+        for (const vars of loopCombinations({ word, loops: folder.loops })) {
+          const env = { ...opts.env, ...state.vars, ...vars };
+          const expanded = ShellFolders.expandPath({ word, home: opts.home, env, cwd: state.pwd });
+
+          if (expanded === undefined) {
+            hasUnknownLink = true;
+            continue;
+          }
+
+          const lexical = isAbsolute(expanded) ? expanded : resolve(state.base, expanded);
+          const inside = (carried?.sources ?? []).map((source) =>
+            ShellFolders.expandPath({ word: source, home: opts.home, env, cwd: state.pwd }),
+          );
+          const names =
+            ShellFolders.isRealFolder({ path: lexical }) &&
+            inside.length > 0 &&
+            inside.every((source) => source !== undefined)
+              ? inside.map((source) => join(lexical, basename(source ?? '')))
+              : [lexical];
+
+          for (const name of names) {
+            carriedNames.push(name, ShellFolders.physicalOf({ path: name }));
+          }
+        }
+      }
+
+      for (const name of maker?.names ?? []) {
         // A name that holds a loop variable stands for each of its values.
         for (const vars of loopCombinations({ word: name, loops: folder.loops })) {
           const expanded = ShellFolders.expandPath({
@@ -685,6 +741,7 @@ export class ShellFolders {
         literalDollars: command.literalDollars ?? [],
         hasCdpath,
         links: folder.links,
+        carried: folder.carried,
       });
 
       return folder;
@@ -702,6 +759,8 @@ export class ShellFolders {
     hasCdpath: boolean;
     /** The symbolic links the line made before this `cd`. */
     links: string[];
+    /** The names a move, a copy or an extraction of the line put things at before this `cd`. */
+    carried: string[];
     home: string;
     env: TEnvironment;
   }): void {
@@ -742,6 +801,7 @@ export class ShellFolders {
         path: expanded,
         base: state.base,
         links: opts.links,
+        carried: opts.carried,
         isLastCounted: true,
       }) !== undefined;
 

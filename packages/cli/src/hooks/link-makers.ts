@@ -245,17 +245,21 @@ export class LinkMakers {
    * `-d`, `-r`, `-R`), an `rsync` that does (`-l`, `-a`), a `tar` that extracts into a folder. The new name is one a later path
    * may go through, and the guard does not know whether the thing moved was a link, so the name counts as a link of the line.
    */
-  static carriedTo(opts: { name: string; args: string[] }): string[] {
+  static carriedTo(opts: {
+    name: string;
+    args: string[];
+  }): { destination: string; sources: string[] } | undefined {
     if (opts.name === 'tar') {
       const destination = tarDestination({ args: opts.args });
 
-      return destination === undefined ? [] : [destination];
+      // What an archive holds is not known: the folder itself is the name.
+      return destination === undefined ? undefined : { destination, sources: [] };
     }
 
     const table = CARRIERS[opts.name];
 
     if (table === undefined) {
-      return [];
+      return undefined;
     }
 
     const { flags, words, directory } = read({ args: opts.args, table });
@@ -265,8 +269,9 @@ export class LinkMakers {
         ['archive', 'no-dereference', 'recursive'].some((key) => flags.has(key))) ||
       (opts.name === 'rsync' && ['links', 'archive'].some((key) => flags.has(key)));
     const destination = directory ?? (words.length > 1 ? words.at(-1) : undefined);
+    const sources = directory !== undefined ? words : words.slice(0, -1);
 
-    return isCarrying && destination !== undefined ? [destination] : [];
+    return isCarrying && destination !== undefined ? { destination, sources } : undefined;
   }
 
   /**

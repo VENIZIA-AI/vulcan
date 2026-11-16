@@ -1458,3 +1458,56 @@ describe('OutsideGuard.inspect keeps the names of the links of the line as the s
     expect(hitsIn({ root, command })).toEqual([]);
   });
 });
+
+// A move or a copy into a folder that is there puts one new name in it, `dir/<name of the source>`: the rest of the folder is as it was.
+describe('OutsideGuard.inspect and what a move or a copy puts into an existing folder', () => {
+  const projectWith = (opts: { folders: string[] }): string => {
+    const root = createProject({ files: { 'package.json': '{}', 'src.txt': 'x' } });
+
+    for (const folder of opts.folders) {
+      mkdirSync(join(root, folder), { recursive: true });
+    }
+
+    return root;
+  };
+  const hitsIn = (opts: { root: string; command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: opts.root },
+      projectRoot: opts.root,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    'mv src.txt pkg/; echo x > pkg/other.txt',
+    'mv src.txt pkg; echo x > pkg/other.txt',
+    'cp -r src.txt pkg/; echo x > pkg/other.txt',
+    'mv -t pkg src.txt; echo x > pkg/other.txt',
+    'mv src.txt pkg/; echo x > other.txt',
+  ])("%s passes: only the new name is the line's", (command) => {
+    const root = projectWith({ folders: ['pkg'] });
+
+    expect(hitsIn({ root, command })).toEqual([]);
+  });
+
+  test.each([
+    'mv src.txt pkg/; echo x > pkg/src.txt',
+    'mv src.txt pkg/; echo x > pkg/src.txt/f',
+    'cp -r z pkg/; echo x > pkg/z/f',
+    'mv src.txt newname; echo x > newname',
+  ])('%s is not allowed: the name the move or the copy put there may be a link', (command) => {
+    const root = projectWith({ folders: ['pkg', 'z'] });
+
+    expect(hitsIn({ root, command }).length).toBeGreaterThan(0);
+  });
+
+  test('the reason names a move or a copy, not a link made on the line', () => {
+    const root = projectWith({ folders: ['pkg'] });
+    const reason = hitsIn({ root, command: 'mv src.txt pkg/; echo x > pkg/src.txt' })
+      .map((hit) => hit.message)
+      .join(' ');
+
+    expect(reason).toContain('mv, cp, rsync or tar');
+    expect(reason).not.toContain('a link this line made');
+  });
+});

@@ -29,6 +29,8 @@ export interface IWriteTarget {
   isLinkName?: boolean;
   /** The absolute names of the symbolic links the line made before this command. */
   links?: string[];
+  /** The absolute names a move, a copy or an extraction of the line put things at before this command. */
+  carried?: string[];
   /** The line made a symbolic link this check could not name, so any path after it may go through one. */
   hasUnknownLink?: boolean;
   /** A `$` of the word was quoted or escaped: it is a character, and the word's text reads it as a variable. */
