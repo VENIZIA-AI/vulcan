@@ -33,6 +33,11 @@ export interface IWriteTarget {
   hasUnknownLink?: boolean;
   /** A `$` of the word was quoted or escaped: it is a character, and the word's text reads it as a variable. */
   hasLiteralDollar?: boolean;
+  /**
+   * A removal or an in-place edit (`rm`, `sed -i`, `mv` of a source...): it creates nothing, so only a file the guards read
+   * their policy from counts. Every other path of such a word is left to the owner.
+   */
+  isProtectedOnly?: boolean;
 }
 
 /** The most words one word may make of its brace lists before the guard stops expanding it. */
@@ -414,6 +419,68 @@ export class ShellWrites {
       ],
     },
   };
+  /** The programs that remove or empty the files they are given. */
+  private static readonly REMOVERS = new Set(['rm', 'unlink', 'rmdir', 'shred', 'truncate']);
+  /** The `git` subcommands that remove, move or restore the files they are given. */
+  private static readonly GIT_FILE_COMMANDS = new Set(['rm', 'mv', 'restore', 'checkout']);
+
+  /**
+   * The words of a command that removes, moves away or edits in place the files it names: `rm`, `unlink`, `rmdir`, `shred`,
+   * `truncate`, `sed -i`, `perl -i`, the sources of `mv`, and `git rm`, `git mv`, `git restore` and `git checkout`. Each non-option
+   * word is a candidate; the guard keeps only those that are a file it protects.
+   */
+  private static protectedWordsOf(opts: {
+    name: string;
+    args: string[];
+    values?: IOptionValues;
+  }): { word: string; message: string }[] {
+    const { name, args } = opts;
+    const words = (list: string[]): string[] => list.filter((word) => !word.startsWith('-'));
+    const named = (list: string[], what: string): { word: string; message: string }[] =>
+      words(list).map((word) => ({ word, message: `${what} ${word}` }));
+
+    if (ShellWrites.REMOVERS.has(name)) {
+      return named(args, `${name} removes or empties`);
+    }
+
+    if (
+      name === 'sed' &&
+      args.some(
+        (word) =>
+          word === '--in-place' || word.startsWith('--in-place=') || /^-[a-zA-Z]*i/.test(word),
+      )
+    ) {
+      return named(args, 'sed edits in place');
+    }
+
+    if (name === 'perl' && args.some((word) => /^-[a-zA-Z]*i/.test(word))) {
+      return named(args, 'perl edits in place');
+    }
+
+    if (name === 'mv') {
+      const directory = valueOf({
+        args,
+        long: ['--target-directory'],
+        short: ['t'],
+        valued: opts.values?.shorts,
+      });
+      const sources = positional({ args, values: opts.values });
+
+      return named(directory === undefined ? sources.slice(0, -1) : sources, 'mv moves away');
+    }
+
+    if (name === 'git') {
+      const { rest } = gitArguments({ args });
+      const [sub, ...after] = rest;
+
+      return sub !== undefined && ShellWrites.GIT_FILE_COMMANDS.has(sub)
+        ? named(after, `git ${sub} changes`)
+        : [];
+    }
+
+    return [];
+  }
+
   /** The words a simple command would create or write, with a name for what writes them. */
   static targetsOf(opts: { command: ISimpleCommand; base: string; tmp: string }): IWriteTarget[] {
     const program = ShellParser.programOf({ command: opts.command });
@@ -556,6 +623,11 @@ export class ShellWrites {
       if (dir !== undefined) {
         targets.push({ word: dir, base, message: `git runs in ${dir}`, isLinkRead: true });
       }
+    }
+
+    // A removal or an in-place edit makes nothing outside the project, but it is how an agent loosens a guard.
+    for (const { word, message } of ShellWrites.protectedWordsOf({ name, args, values })) {
+      targets.push({ word, base, message, isProtectedOnly: true });
     }
 
     const own = maker !== undefined && maker.names.length > 0 ? maker.destination : undefined;

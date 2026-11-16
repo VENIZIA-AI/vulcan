@@ -54,6 +54,47 @@ describe('guard.writes.commands and guard.git.askPush', () => {
   });
 });
 
+describe('claude.settings.env', () => {
+  const parseEnv = (env: Record<string, unknown>) =>
+    VULCAN_CONFIG_SCHEMA.safeParse({ claude: { settings: { env } } });
+
+  test.each([
+    'VULCAN_GUARD_ASKS',
+    'VULCAN_GUARD_OUTSIDE',
+    'VULCAN_GUARDS',
+    'VULCAN_GUARD_ANYTHING',
+  ])("refuses %s: it is the owner's choice and belongs in the launch environment", (name) => {
+    const result = parseEnv({ [name]: 'ask' });
+
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result.error?.issues)).toContain(name);
+  });
+
+  test('takes the other variables, and settings with no env', () => {
+    expect(parseEnv({ MY_FLAG: '1', VULCAN_ACTOR: 'a' }).success).toBe(true);
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ claude: { settings: { permissions: { deny: [] } } } })
+        .success,
+    ).toBe(true);
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).claude.settings).toEqual({});
+  });
+});
+
+describe('guard.asks', () => {
+  test('defaults to ask, and takes ask or deny', () => {
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).guard.asks).toBe('ask');
+    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: {} }).guard.asks).toBe('ask');
+    expect(parse({ asks: 'ask' }).success).toBe(true);
+    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: { asks: 'deny' } }).guard.asks).toBe('deny');
+  });
+
+  test('anything else is refused', () => {
+    expect(parse({ asks: 'allow' }).success).toBe(false);
+    expect(parse({ asks: true }).success).toBe(false);
+    expect(parse({ asks: { mode: 'deny' } }).success).toBe(false);
+  });
+});
+
 describe('guard.outside', () => {
   test('defaults to ask, and takes ask or deny', () => {
     expect(VULCAN_CONFIG_SCHEMA.parse({}).guard.outside).toBe('ask');

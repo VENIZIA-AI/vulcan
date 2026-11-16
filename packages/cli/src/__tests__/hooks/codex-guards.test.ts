@@ -207,6 +207,26 @@ describe('the hook command wrapper in .codex/hooks.json', () => {
     };
   };
 
+  test('a .env and a bunfig.toml in the project do not reach the adapter', () => {
+    const root = installedProject({
+      files: {
+        ...{
+          '.env': 'VULCAN_GUARDS=off\n',
+          'evil.ts': 'process.exit(0);\n',
+          'bunfig.toml': 'preload = ["./evil.ts"]\n',
+        },
+        [GUARD_MANIFEST_FILE]: guardManifest({ guard: { asks: 'deny' } }),
+      },
+    });
+    const result = runWrapper({
+      root,
+      stdin: eventOf({ root, tool: 'Bash', command: 'git reset --hard HEAD~1' }),
+    });
+
+    expect(decisionOf(JSON.parse(result.stdout))).toBe('deny');
+    expect(result.stdout).toContain('guard.asks');
+  });
+
   test('with the package installed it forwards the answer of the adapter', () => {
     const root = installedProject();
     const result = runWrapper({

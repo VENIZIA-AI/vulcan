@@ -33,6 +33,35 @@ describe('forHost', () => {
     expect(denied.permissionDecisionReason).toBe('confirm this');
   });
 
+  test('with asks set to deny, an ask is a deny that says why; a deny stays one and asks set to ask changes nothing', () => {
+    const held = HookDecision.forHost({ output: ASK, env: {}, asks: 'deny' });
+    const kept = HookDecision.forHost({ output: ASK, env: {}, asks: 'ask' });
+    const denied = HookDecision.forHost({
+      output: { hookSpecificOutput: { ...ASK.hookSpecificOutput, permissionDecision: 'deny' } },
+      env: {},
+      asks: 'deny',
+    });
+
+    expect(held.permissionDecision).toBe('deny');
+    expect(held.hookSpecificOutput.permissionDecision).toBe('deny');
+    expect(held.permissionDecisionReason).toContain('confirm this');
+    expect(held.permissionDecisionReason).toContain('guard.asks: deny');
+    expect(kept.permissionDecision).toBe('ask');
+    expect(kept.permissionDecisionReason).toBe('confirm this');
+    expect(denied.permissionDecisionReason).toBe('confirm this');
+  });
+
+  test('the line added to a held ask is the one the project gave', () => {
+    const held = HookDecision.forHost({
+      output: ASK,
+      env: {},
+      asks: 'deny',
+      asksNote: 'held by the environment',
+    });
+
+    expect(held.permissionDecisionReason).toBe('confirm this\n\nheld by the environment');
+  });
+
   test('every builder of a PreToolUse decision goes through it', () => {
     const outputs = [
       HookDecision.buildTool({ decision: 'ask', reason: ['x'] }),
@@ -43,6 +72,15 @@ describe('forHost', () => {
       expect(output).toHaveProperty('permissionDecision');
       expect(output).toHaveProperty('permissionDecisionReason');
     }
+
+    // and both builders hold an ask when the project says so
+    expect(
+      HookDecision.buildTool({ decision: 'ask', reason: ['x'], asks: 'deny' }).permissionDecision,
+    ).toBe('deny');
+    expect(
+      WriteGuard.buildDecision({ hits: [{ rule: 'V-W-03', message: 'deploy' }], asks: 'deny' })
+        .permissionDecision,
+    ).toBe('deny');
   });
 });
 

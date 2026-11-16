@@ -13,16 +13,35 @@ const ASK_ON_CRASH = JSON.stringify({
     'The VULCAN guard crashed, so this call was not checked. Confirm only if the owner asked for exactly this; VULCAN_GUARDS=off switches the guards off for a session.',
 });
 
+/** The answer of a crashed adapter where every ask is a deny: `VULCAN_GUARD_ASKS=deny`, `guard.asks: 'deny'` or a manifest that cannot be read. */
+const DENY_ON_CRASH = JSON.stringify({
+  decision: 'deny',
+  reason:
+    'The VULCAN guard crashed, so this call was not checked, and every call that would need a human to confirm it is denied here (VULCAN_GUARD_ASKS=deny, guard.asks: deny, or a manifest that cannot be read). Nothing was run: hand this to the owner.',
+});
+
+/**
+ * Succeeds when the environment or the manifest (the hooks file's folder is `.agents`) holds every ask: `VULCAN_GUARD_ASKS=deny`,
+ * `guard.asks: 'deny'`, or a manifest that exists and does not parse as an object.
+ */
+const IS_HELD = [
+  'm="$PWD/vulcan.manifest.json";',
+  '[ "$VULCAN_GUARD_ASKS" = deny ]',
+  `|| { [ -f "$m" ] && ! M="$m" bun --no-env-file --config=/dev/null -e 'const v = JSON.parse(require("node:fs").readFileSync(process.env.M, "utf8")); if (typeof v !== "object" || v === null || Array.isArray(v)) process.exit(1)' >/dev/null 2>&1; }`,
+  `|| grep -Eq '"asks" *: *"deny"' "$m" 2>/dev/null;`,
+].join(' ');
+
 /**
  * The hook command. Antigravity runs it from the folder of the hooks file (`.agents`), so the install is
- * `../node_modules`. A missing package or bun passes with a note; a script that started and crashed asks.
+ * `../node_modules`. A missing package or bun passes with a note (unlike the Claude wrappers, which block); a script that started
+ * and crashed asks, or denies where every ask is held.
  */
 const GUARD_COMMAND = [
   'f="$PWD/../node_modules/@venizia/vulcan/base/hooks/antigravity-guards.ts";',
   'if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then',
-  'in=$(cat); out=$(printf \'%s\' "$in" | bun "$f"); s=$?;',
+  'in=$(cat); out=$(printf \'%s\' "$in" | bun --no-env-file --config=/dev/null "$f"); s=$?;',
   `if [ "$s" -eq 0 ]; then printf '%s' "$out"; exit 0; fi;`,
-  `printf '%s\\n' '${ASK_ON_CRASH}'; exit 0; fi;`,
+  `${IS_HELD} if [ $? -eq 0 ]; then printf '%s\\n' '${DENY_ON_CRASH}'; else printf '%s\\n' '${ASK_ON_CRASH}'; fi; exit 0; fi;`,
   'cat >/dev/null; echo "vulcan: the guards cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes" >&2;',
   `printf '%s\\n' '{"decision":"allow"}'`,
 ].join(' ');

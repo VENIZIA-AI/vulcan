@@ -66,7 +66,7 @@ The table below lists the top-level configuration keys:
 | `atlas` | `object` | `{ tagPattern: '...', sources: [] }` | Release tags and external knowledge sources |
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `digest` | `object` | `{ oftenDropped: [...] }` | The rules the rules block of `AGENTS.md` names |
-| `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask', writes: { commands: [] }, git: { askPush: [] }, runners: { allow: [] } }` | Tool-owned stores, and the commands and push targets the guards ask about ([guard](#guard)) |
+| `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask', asks: 'ask', writes: { commands: [] }, git: { askPush: [] }, runners: { allow: [] } }` | Tool-owned stores, and the commands and push targets the guards ask about ([guard](#guard)) |
 | `doctor` | `object` | `{ privateValues: { acknowledged: [] } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)) |
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 | `theme` | `object` | `undefined` | The colour the project's `vulcan visualize` pages use |
@@ -620,11 +620,16 @@ The `guard` object configures the write guards.
 |---|---|---|---|
 | `toolOwnedPaths` | `string[]` | `[]` | Stores a tool in this project manages itself |
 | `outside` | `'ask'` or `'deny'` | `'ask'` | What `guard-outside` does with a write outside the project (`V-B-08`) |
+| `asks` | `'ask'` or `'deny'` | `'ask'` | What every guard does with a call that would ask a person: ask, or refuse |
 | `writes.commands` | `Array<{ rule, what, pattern, ignoreCase? }>` | `[]` | Commands of this project that `guard-writes` asks about |
 | `git.askPush` | `string[]` | `[]` | Branches that a plain `git push` asks about in `guard-git` |
 | `runners.allow` | `string[]` | `[]` | Package names `vulcan runners check` and the runner guard accept besides scoped packages, such as `shadcn` |
 
 `writes.trustedScripts` was removed: guard-writes no longer reads scripts, so it had nothing left to skip. A config that still sets it is refused, and the message says to delete the key.
+
+### claude.settings.env
+
+`claude.settings` is merged into `.claude/settings.json`. An `env` there that names a `VULCAN_GUARD*` variable (`VULCAN_GUARD_ASKS`, `VULCAN_GUARD_OUTSIDE`, `VULCAN_GUARDS`) is refused, and so is the sync: those variables are the owner's choice and belong in the environment that launches the agent, not in a project file. Other variables are not affected.
 
 ### guard.toolOwnedPaths
 
@@ -636,9 +641,20 @@ Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manage
 - `deny` refuses the write and nothing is written; the answer names the path and `.agents/local/tmp/`.
 - A line the guard cannot read (a program or a redirect target named by a variable it cannot work out) is denied in both modes, never asked, with the way to write it again: a literal path, or the script in a file under `.agents/local/tmp/<task>/` run by its literal path, with literal paths in its own redirects. Literal assignments of the same line (`S=dir; ... > $S/a`, `export X=dir`, `for i in 1 2`) are worked out first.
 - Set `deny` where the agent runs in an auto mode, because an ask can be approved there without the owner seeing it.
-- A path in `toolOwnedPaths` still passes in both modes.
+- `VULCAN_GUARD_OUTSIDE=deny` in the launch environment holds it too, and the manifest cannot loosen it.
+- A path in `toolOwnedPaths` still passes in both modes, except a file the guards read their policy from, which is always denied.
 
 It is a drift guard, not a boundary: an agent that can edit `.configs/vulcan.config.*` can change it, as it can `toolOwnedPaths`. An invalid key anywhere in the config, not only here, fails the load and the hook then asks.
+
+### guard.asks
+
+- `ask` leaves the call to the owner, as each guard does by default.
+- `deny` refuses every call that would ask, with the same reason and one line that says the project denies asks. It covers the commands of `guard-writes` (`V-W-02`, `V-W-03`) and of `guard.writes.commands`, a push to a branch of `git.askPush`, `git push --mirror`, `git reset --hard`, a force-push to a branch that is not protected, a force-delete of an unmerged branch, a write outside the project, a hook input that could not be read, and a hook that crashed or timed out. Nothing runs.
+- Set `deny` where the agent runs in an auto mode, because an ask was approved there with no person answering.
+- `outside` stays the narrower key for `guard-outside` alone. `vulcan sync` writes both to the manifest, which the hooks read, so run it after a change.
+- The owner's choice belongs in the launch environment: `VULCAN_GUARD_ASKS=deny` and `VULCAN_GUARD_OUTSIDE=deny`, set in the shell that starts the agent (`VULCAN_GUARD_ASKS=deny claude`, `codex`, `omp`, `pi`), never in the project's `.claude/settings*.json`. The strictest of the environment and the manifest holds, so the manifest can tighten and never loosen; where the environment holds `deny`, the manifest's `toolOwnedPaths` and `runners.allow` are ignored as well, and every hook runs with `bun --no-env-file --config=/dev/null` so a `.env` or `bunfig.toml` in the project cannot switch a guard off.
+- A manifest that exists and cannot be read holds every ask until it is repaired or `vulcan sync` writes it again.
+- It is a drift guard, not a boundary. `guard-outside` denies an agent's write to the manifest, `.configs/vulcan.config.*`, `.claude/settings.json`, `.claude/settings.local.json` and `node_modules/@venizia/vulcan`, so the config is changed by the owner. See [the files the guards protect](/references/hooks/#the-files-the-guards-protect).
 
 ### guard.writes.commands
 
