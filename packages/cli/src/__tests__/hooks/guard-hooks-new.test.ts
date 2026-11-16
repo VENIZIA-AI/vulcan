@@ -255,6 +255,38 @@ describe('the guard-outside hook', () => {
     expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test');
   });
 
+  test.each([
+    'ln -s ../victim s; echo pwned > s',
+    'ln ../victim h',
+    'ln -s .. lnk; cd lnk; echo x > pwn',
+  ])(
+    'denies a link to a path outside the project, and says how to link inside: %s',
+    async (command) => {
+      const result = await runHook({
+        hook: 'guard-outside',
+        root,
+        stdin: bash({ command, cwd: root }),
+      });
+      const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+      expect(result.code).toBe(0);
+      expect(decision.permissionDecision).toBe('deny');
+      expect(decision.permissionDecisionReason).toContain('V-B-08');
+      expect(decision.permissionDecisionReason).toMatch(/link|cannot be checked/);
+      expect(decision.permissionDecisionReason).toContain('Nothing was run');
+    },
+  );
+
+  test('a link to a path inside the project is silent', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root,
+      stdin: bash({ command: 'ln -s node_modules/.bin/vulcan .agents/local/tmp/v', cwd: root }),
+    });
+
+    expect(result).toEqual({ code: 0, stdout: '' });
+  });
+
   test('is silent inside the project, and with the kill switch on', async () => {
     const result = await runHook({
       hook: 'guard-outside',

@@ -76,8 +76,11 @@ try {
               'Part of this call could not be read, so it was not checked for files outside the project (V-B-08):',
               ...linesOf(unreadHits),
             ];
+      // A link to a path outside the project is a way to write there with a name inside it: denied, as the agent can copy or link inside.
+      const linkHits = read.filter((hit) => hit.isLink === true);
       const isDeny =
         isScratchpad ||
+        linkHits.length > 0 ||
         unreadHits.length > 0 ||
         (outside === GuardDecisions.DENY && read.length > 0);
       let reason: string[];
@@ -104,6 +107,21 @@ try {
           ...unread,
           '',
           `That folder is under /tmp, and V-B-08 overrides the tool line that says to use it. Nothing was written. ${places} Read a fetched file through a pipe (for example gh api ... | grep) rather than saving it.`,
+        ];
+      } else if (linkHits.length > 0) {
+        reason = [
+          'This would hard-link a path outside the project (V-B-08); a hard link cannot be told from the file, so a write through it changes that path later too:',
+          ...linesOf(linkHits),
+          ...(read.length > linkHits.length
+            ? [
+                '',
+                'It would also create files outside the project:',
+                ...linesOf(read.filter((hit) => hit.isLink !== true)),
+              ]
+            : []),
+          '',
+          `Nothing was run. Copy the file into the project (cp) instead of linking it, link a path inside the project, or make a symbolic link (ln -s), which is read once it exists. ${places}`,
+          owned,
         ];
       } else if (isDeny) {
         reason = [

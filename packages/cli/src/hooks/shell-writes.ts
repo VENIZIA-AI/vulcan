@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { LinkMakers } from './link-makers.ts';
 import { ShellParser } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 
@@ -20,6 +21,16 @@ export interface IWriteTarget {
   isRedirect?: boolean;
   /** The word has a brace the guard cannot expand into its branches, so where it writes is not known. */
   hasUnreadBrace?: boolean;
+  /** What a hard link of the line (`ln`, `cp -l`) links to, not a file it writes: the same file, so outside the project is outside. */
+  isLinkSource?: boolean;
+  /** What `cp`, `mv`, `rsync`, `install` or `ln` reads: not a write, but a link made on the line would be copied or moved by it. */
+  isLinkRead?: boolean;
+  /** The name a link is made at (or the folder it is made in): it is the command's own, so it is not a path through an earlier link. */
+  isLinkName?: boolean;
+  /** The absolute names of the symbolic links the line made before this command. */
+  links?: string[];
+  /** The line made a symbolic link this check could not name, so any path after it may go through one. */
+  hasUnknownLink?: boolean;
   /** A `$` of the word was quoted or escaped: it is a character, and the word's text reads it as a variable. */
   hasLiteralDollar?: boolean;
 }
@@ -442,6 +453,7 @@ export class ShellWrites {
     }
 
     const values = ShellWrites.VALUES[name];
+    const maker = LinkMakers.of({ name, args });
     const last = positional({ args, values }).at(-1);
     const add = (word: string, message: string): number => targets.push({ word, base, message });
 
@@ -449,7 +461,7 @@ export class ShellWrites {
       for (const word of positional({ args })) {
         add(word, `${name} creates ${word}`);
       }
-    } else if (['cp', 'mv', 'install', 'ln', 'rsync'].includes(name)) {
+    } else if (['cp', 'mv', 'install', 'ln', 'rsync', 'link'].includes(name)) {
       // `-t` names the destination of `cp`, `mv`, `install` and `ln`; in `rsync` it is `--times`.
       const directory =
         name === 'rsync'
@@ -469,6 +481,23 @@ export class ShellWrites {
             `${name} may write ${word}: an option it does not know could take what follows`,
           );
         }
+      }
+      for (const word of maker?.hardSources ?? []) {
+        targets.push({
+          word,
+          base,
+          message: `${name} links to ${word}`,
+          isLinkSource: true,
+          isAmbiguous: true,
+        });
+      }
+
+      // What the command reads may be a link the line made: a copy or a move carries a relative link somewhere else.
+      const words = positional({ args, values });
+      const readFrom = directory !== undefined || words.length < 2 ? words : words.slice(0, -1);
+
+      for (const word of readFrom) {
+        targets.push({ word, base, message: `${name} reads ${word}`, isLinkRead: true });
       }
     } else if (name === 'tee') {
       for (const word of positional({ args })) {
@@ -522,10 +551,24 @@ export class ShellWrites {
       const { rest, dir } = gitArguments({ args });
 
       targets.push(...gitTargets({ rest, base, dir }));
+
+      // `git -C <dir>` runs in that folder, which may be reached through a link the line made.
+      if (dir !== undefined) {
+        targets.push({ word: dir, base, message: `git runs in ${dir}`, isLinkRead: true });
+      }
     }
 
-    return [...assigned, ...targets].map((target) =>
-      isUnread ? { ...target, hasUnreadBrace: true } : target,
-    );
+    const own = maker !== undefined && maker.names.length > 0 ? maker.destination : undefined;
+
+    return [...assigned, ...targets]
+      .map((target) =>
+        own !== undefined &&
+        target.word === own &&
+        target.isLinkSource !== true &&
+        target.isLinkRead !== true
+          ? { ...target, isLinkName: true }
+          : target,
+      )
+      .map((target) => (isUnread ? { ...target, hasUnreadBrace: true } : target));
   }
 }

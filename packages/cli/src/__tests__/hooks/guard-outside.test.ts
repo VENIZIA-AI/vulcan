@@ -1188,3 +1188,273 @@ describe('OutsideGuard.inspect denies a relative path after a cd it cannot work 
     expect(hitsAtRoot({ command })).toEqual([]);
   });
 });
+
+// A link is a name inside the project for a file outside it: a write through the name changes the file. The guard reads the folder
+// tree as it is when the line starts, so a link made earlier on the same line is not there to be followed. A hard link cannot be seen
+// on a later call at all, so the file it points at is judged. A symbolic link can: once it exists, a path through it is followed, so on
+// the line only a path at or through its name is not followed. Each of the first forms wrote outside the project in real bash while
+// the guard passed it (#989).
+describe('OutsideGuard.inspect and the links a line makes', () => {
+  const hitsAtRoot = (opts: { command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: PROJECT },
+      projectRoot: PROJECT,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    ['a hard link to a file outside, then a write', 'ln ../victim h; echo pwned > h'],
+    ['a hard link with -t', 'mkdir -p d; ln -t d ../victim'],
+    [
+      'a hard link with -t and the folder attached',
+      'mkdir -p sub; ln -tsub ../victim; echo x > sub/victim',
+    ],
+    ['cp -l', 'cp -l ../victim h; echo pwned > h'],
+    ['cp --link by a prefix', 'cp --li ../victim h; echo pwned > h'],
+    [
+      'a hard link to a link of the line, climbing out',
+      'ln -s . a; ln a/../victim h; echo pwn > h',
+    ],
+    ['a hard link through a link of the line, into it', 'ln -s . a; ln ../victim a/h'],
+    [
+      'a hard link to a relative link copied by ln',
+      'mkdir -p x/y; ln -s .. x/y/up; ln x/y/up h; echo x > h/victim',
+    ],
+  ])('%s is not allowed: the file a hard link points at is judged', (_name, command) => {
+    expect(hitsAtRoot({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    ['a symbolic link, then a write at it', 'ln -s ../victim s; echo pwned > s'],
+    ['a cd into a link', 'ln -s .. lnk; cd lnk; echo x > pwn'],
+    ['a cd through a link made in a folder', 'mkdir -p d; ln -s ../.. d/up; cd d/up; echo x > pwn'],
+    ['a write through a link made after a cd', 'mkdir -p d; cd d; ln -s ../.. up; echo x > up/pwn'],
+    ['a link whose source climbs out of a link', 'ln -s . a; ln -s a/../victim s; echo pwn > s'],
+    [
+      'a link made with -t, then a write at it',
+      'ln -s . a; ln -s a/../victim -t .; echo x > victim',
+    ],
+    ['a link made in a subshell', '(ln -s . a); ln -s a/../victim s; echo x > s'],
+    ['a suffix option read as -r', 'mkdir -p d; cd d; ln -sSr ../victim ../s; echo x > ../s'],
+    ['cp -s', 'cp -s ../victim h; echo pwned > h'],
+    ['cp -as', 'cp -as ../victim h; echo pwned > h'],
+    ['cp --symbolic-link', 'cp --symbolic-link ../victim h; echo pwned > h'],
+    ['cp --sym by a prefix', 'cp --sym ../victim h; echo pwned > h'],
+    ['ln --sym by a prefix', 'ln --sym . a; echo x > a/../victim'],
+    ['ln --sym by a prefix, in a folder', 'mkdir d; cd d; ln --sym ../victim ../s; echo x > ../s'],
+    ['ln -s with --rel by a prefix', 'ln -s --rel ../victim d/e/l; echo x > d/e/l'],
+    ['a link name made by a loop', 'for n in a; do ln -s . $n; done; echo x > a/../victim'],
+    ['a link made in another shell', "bash -c 'ln -s . a'; echo x > a/../victim"],
+    ['a link made through xargs', 'echo a | xargs ln -s .; echo x > a/../victim'],
+    ['git -C through a link', 'ln -s . a; git -C a/.. init -q'],
+    ['a move of a link of the line', 'mkdir -p x; ln -s ../victim x/l; mv x/l .; echo x > l'],
+    [
+      'a move of a link, then a write through the new name',
+      'mkdir -p x/y; ln -s .. x/y/up; mv x/y/up h; echo x > h/victim',
+    ],
+    ['a cp -P of a link', 'mkdir -p x/y; ln -s .. x/y/up; cp -P x/y/up h; echo x > h/victim'],
+    ['a cp -a of a link', 'mkdir -p x/y; ln -s .. x/y/up; cp -a x/y/up h; echo x > h/victim'],
+    [
+      'an rsync -l of a link',
+      'mkdir -p x/y; ln -s .. x/y/up; rsync -l x/y/up h; echo x > h/victim',
+    ],
+    ['a mv -t of a link', 'mkdir -p x/y; ln -s .. x/y/up; mv -t . x/y/up; echo x > up/victim'],
+    ['a write through a link of the line', 'mkdir -p sub; ln -s sub lnk; echo x > lnk/pwn'],
+    ['a cd into a link of the line', 'mkdir -p sub; ln -s sub lnk; cd lnk; echo x > ok'],
+  ])('%s is not followed, so it is not allowed', (_name, command) => {
+    expect(hitsAtRoot({ command }).length).toBeGreaterThan(0);
+  });
+
+  test('a hard link to a path outside is marked, so the hook denies it and says how to link inside', () => {
+    const hits = hitsAtRoot({ command: 'ln ../victim h' });
+
+    expect(hits.some((hit) => hit.isLink === true && !hit.isUnread)).toBe(true);
+  });
+
+  test.each([
+    'ln -s /usr/bin/env x',
+    'ln -s ~/.cache x',
+    'ln -s $(pwd)/pkg pl',
+    'ln -s node_modules/.bin/vulcan v',
+    'mkdir -p sub; cd sub; ln -s ../node_modules nm',
+    'ln -sf a b; ln -sf c b',
+    'ln -s a b; echo hi > c',
+    'ln -s a b c d',
+    'ln pkg/a.txt h',
+    'cp -s a b',
+    'cp -r a b; echo x > c',
+    'mv a b',
+    'ln -sf .agents/local/tmp/x fresh-name; echo y > .agents/local/tmp/z',
+  ])(
+    '%s passes: a symbolic link is read once it exists, and nothing goes through the new name',
+    (command) => {
+      expect(hitsAtRoot({ command })).toEqual([]);
+    },
+  );
+});
+
+// A link made by an EARLIER call is on disk, and may point at a name this line makes: the dangling link `b -> a` reads as a folder
+// of the project until the line makes `a` a link to outside. Each of the first forms wrote outside the project in real bash.
+describe('OutsideGuard.inspect follows the links already on disk to the links of the line', () => {
+  const projectWith = (opts: { links: Record<string, string>; folders?: string[] }): string => {
+    const root = createProject({ files: { 'package.json': '{}', 'src.txt': 'x' } });
+
+    for (const folder of opts.folders ?? []) {
+      mkdirSync(join(root, folder), { recursive: true });
+    }
+
+    for (const [name, target] of Object.entries(opts.links)) {
+      symlinkSync(target, join(root, name));
+    }
+
+    return root;
+  };
+  const hitsIn = (opts: { root: string; command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: opts.root },
+      projectRoot: opts.root,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    ['a write', 'ln -s .. a; echo x > b/victim'],
+    ['a cp', 'ln -s .. a; cp src.txt b/victim'],
+    ['a mkdir', 'ln -s .. a; mkdir b/newdir'],
+    ['a write at the link itself', 'ln -s ../victim a; cat > b'],
+    ['a cd', 'ln -s ../vdir a; cd b; echo x > f'],
+    ['a hard link of a path through it', 'ln -s .. a; ln b/victim h'],
+    ['a cp -l of a path through it', 'ln -s .. a; cp -l b/victim h'],
+    ['a name made by a move the line does', 'ln -s ../vdir c; mv c a; echo x > b/f'],
+    ['a name made by a copy of a link', 'ln -s ../vdir c; cp -P c a; echo x > b/f'],
+  ])('b -> a, then %s is not allowed', (_name, command) => {
+    const root = projectWith({ links: { b: 'a' } });
+
+    expect(hitsIn({ root, command }).length).toBeGreaterThan(0);
+  });
+
+  test('b -> m/a, then a link made at m/a, is not allowed', () => {
+    const root = projectWith({ links: { b: 'm/a' }, folders: ['m'] });
+
+    expect(hitsIn({ root, command: 'ln -s ../../vdir m/a; echo x > b/f' }).length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  test('a link on disk that points at a folder that exists is followed and passes', () => {
+    const root = projectWith({ links: { b: 'sub' }, folders: ['sub'] });
+
+    expect(hitsIn({ root, command: 'echo x > b/f' })).toEqual([]);
+    expect(hitsIn({ root, command: 'cd b; echo x > f' })).toEqual([]);
+  });
+
+  test('a link on disk that goes around in a circle is not followed', () => {
+    const root = projectWith({ links: { c: 'd', d: 'c' } });
+
+    expect(hitsIn({ root, command: 'echo x > c/f' }).length).toBeGreaterThan(0);
+  });
+
+  test.each(['link ../victim h', 'busybox ln ../victim h', 'link ../victim h; echo x > h'])(
+    '%s is not allowed: a hard link made by link or by busybox',
+    (command) => {
+      const root = projectWith({ links: {} });
+
+      expect(hitsIn({ root, command }).length).toBeGreaterThan(0);
+    },
+  );
+
+  test('link and busybox ln inside the project pass', () => {
+    const root = projectWith({ links: {} });
+
+    expect(hitsIn({ root, command: 'link src.txt h' })).toEqual([]);
+    expect(hitsIn({ root, command: 'busybox ln src.txt h2' })).toEqual([]);
+  });
+});
+
+// A link the line makes is recorded by the name the system sees, not by the words that were typed, and what a move, a copy or an
+// extraction puts at a new name may be a link: a path at or through that name is not followed (the guard cannot tell).
+describe('OutsideGuard.inspect keeps the names of the links of the line as the system sees them', () => {
+  const projectWith = (opts: { links?: Record<string, string>; folders?: string[] }): string => {
+    const root = createProject({ files: { 'package.json': '{}', 'src.txt': 'x' } });
+
+    for (const folder of opts.folders ?? []) {
+      mkdirSync(join(root, folder), { recursive: true });
+    }
+
+    for (const [name, target] of Object.entries(opts.links ?? {})) {
+      symlinkSync(target, join(root, name));
+    }
+
+    return root;
+  };
+  const hitsIn = (opts: { root: string; command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: opts.root },
+      projectRoot: opts.root,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    ['a link made through a link on disk, then a write', 'ln -s ../.. w/up; echo x > w/up/victim'],
+    ['a link made through a link on disk, then a cd', 'ln -s ../.. w/up; cd w/up; echo x > victim'],
+  ])('w -> pkg, then %s is not allowed', (_name, command) => {
+    const root = projectWith({ links: { w: 'pkg' }, folders: ['pkg'] });
+
+    expect(hitsIn({ root, command }).length).toBeGreaterThan(0);
+  });
+
+  test('w -> d1/d2, then a link made through w and a write by the real name, is not allowed', () => {
+    const root = projectWith({ links: { w: 'd1/d2' }, folders: ['d1/d2'] });
+
+    expect(
+      hitsIn({ root, command: 'ln -s ../../.. w/up; echo x > d1/d2/up/victim' }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test.each([
+    ['a move to a new name, then a write through it', 'mv c d; echo x > d/f'],
+    ['a move to a new name, then a write at it', 'mv c d; echo x > d'],
+    ['a recursive copy, then a write through a link inside it', 'cp -r z z2; echo x > z2/c/f'],
+    ['an archive copy', 'cp -a c d; echo x > d/f'],
+    ['a copy of the link itself', 'cp -P c d; echo x > d/f'],
+    ['an rsync that copies links', 'rsync -a z/ z2/; echo x > z2/c/f'],
+    ['a tar extraction into a folder', 'tar xf z.tar -C q; echo x > q/f'],
+    ['a tar extraction with the folder attached', 'tar -xf z.tar -Cq; echo x > q/f'],
+  ])('with an outside link on disk, %s is not allowed', (_name, command) => {
+    const root = projectWith({ links: { c: '../vdir' }, folders: ['z', 'q'] });
+
+    symlinkSync('../vdir', join(root, 'z', 'c'));
+
+    expect(hitsIn({ root, command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    ['a move then a copy into the dangling name', 'mv c a; cp src.txt b/'],
+    ['a move then a write at the dangling name', 'mv c a; echo x > b'],
+  ])('b -> a dangling, then %s is not allowed', (_name, command) => {
+    const root = projectWith({ links: { b: 'a', c: '../vdir' } });
+
+    expect(hitsIn({ root, command }).length).toBeGreaterThan(0);
+  });
+
+  test('a dangling link on disk is named as one, not as a link of the line', () => {
+    const root = projectWith({ links: { b: 'a' } });
+    const hits = hitsIn({ root, command: 'echo x > b/f' });
+
+    expect(hits.map((hit) => hit.message).join(' ')).toContain('dangling link');
+    expect(hits.map((hit) => hit.message).join(' ')).not.toContain('a link this line made');
+  });
+
+  test.each([
+    'cp a b; echo hi > c',
+    'mv a b',
+    'cp src.txt copy.txt',
+    'mv src.txt moved.txt; echo hi > other.txt',
+  ])('%s passes: no link is carried to a name the line then goes through', (command) => {
+    const root = projectWith({});
+
+    expect(hitsIn({ root, command })).toEqual([]);
+  });
+});
