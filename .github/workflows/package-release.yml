@@ -217,6 +217,8 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      # Only for the last step: it starts the docs run (a workflow_dispatch of deploy-docs.yml) once the tag is pushed.
+      actions: write
 
     steps:
       # -------------------------------------------------------------------------
@@ -597,6 +599,23 @@ jobs:
           ref: ${{ env.TAG_NAME }}
         env:
           ATLAS_INDEX_KEY: ${{ secrets.ATLAS_INDEX_KEY }}
+
+      # -------------------------------------------------------------------------
+      # THE WIKI
+      # -------------------------------------------------------------------------
+      # The pushes above are made with the Actions token, so GitHub starts no docs run from them, and a release changes no
+      # page: the version box of the changelog names the newest prerelease (read from the release tags) and would stay on
+      # the old one. A manual run does start from the Actions token. It runs on develop, which holds the release commit
+      # (a prerelease) or the merge back of it (a stable), and it checks out every tag, the new one included. It never
+      # fails a release that has published.
+      - name: Rebuild the wiki
+        if: ${{ always() && env.IS_TAGGED == 'true' && (needs.plan.outputs.kind == 'prerelease' || env.IS_MERGED_BACK == 'true') }}
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run deploy-docs.yml --ref develop
 
       # -------------------------------------------------------------------------
       # FAILURE REPORTS

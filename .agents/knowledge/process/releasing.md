@@ -110,7 +110,7 @@ The owner makes the entries on the release day, right before the release that pr
 
 ## Publishing the wiki
 
-The wiki site deploys with the `docs` job of the workflow `Docs` (`deploy-docs.yml`) on a push to `develop` that touches `docs/wiki/`, or on a manual dispatch (`gh workflow run deploy-docs.yml --ref develop`). Merging a pull request into `develop` publishes it; `main` receives `develop` by an ordinary merge and does not deploy.
+The wiki site deploys with the `docs` job of the workflow `Docs` (`deploy-docs.yml`) on a push to `develop` that touches `docs/wiki/`, or on a manual dispatch (`gh workflow run deploy-docs.yml --ref develop`). A release starts the docs run itself: the last step of the `publish` job (`Rebuild the wiki`, the only step with `actions: write`) runs `gh workflow run deploy-docs.yml --ref develop` once the tag is pushed (and, for a stable, once main is merged back), because the release workflow pushes with the Actions token and GitHub starts no workflow from that push. The version box of the changelog names the newest prerelease from the release tags, so it follows the release. Merging a pull request into `develop` publishes it; `main` receives `develop` by an ordinary merge and does not deploy.
 
 ## Who does what on the release path
 

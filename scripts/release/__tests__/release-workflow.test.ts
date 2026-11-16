@@ -339,6 +339,46 @@ describe('package-release.yml: the next dist-tag', () => {
   });
 });
 
+describe('package-release.yml: the wiki is rebuilt after a release', () => {
+  const STEP = 'Rebuild the wiki';
+
+  test('the last step before the reports starts the docs run on develop', () => {
+    const names = readSteps().flatMap((step) => (step.name === undefined ? [] : [step.name]));
+
+    expect(findStep({ name: STEP }).run).toBe('gh workflow run deploy-docs.yml --ref develop');
+    expect(names.indexOf(STEP)).toBeGreaterThan(names.indexOf('Create tag'));
+    expect(names.indexOf(STEP)).toBeGreaterThan(
+      names.indexOf('Publish the atlas index of the release'),
+    );
+    expect(names.indexOf(STEP)).toBeLessThan(
+      names.indexOf('Report - published, release branch not updated'),
+    );
+  });
+
+  test('it runs once the tag is pushed (and a stable once main is merged back), and cannot fail a release', () => {
+    const step = findStep({ name: STEP });
+
+    expect(step.if).toContain("env.IS_TAGGED == 'true'");
+    expect(step.if).toContain("env.IS_MERGED_BACK == 'true'");
+    expect(step.continueOnError).toBe(true);
+  });
+
+  test('it holds no secret: the Actions token and the repository only', () => {
+    const step = findStep({ name: STEP });
+
+    expect(Object.keys(step.env ?? {}).sort()).toEqual(['GH_REPO', 'GH_TOKEN']);
+    expect(step.run).not.toContain('secrets.');
+  });
+
+  test('only the publish job asks for actions: write', () => {
+    for (const name of ['plan', 'test', 'approve']) {
+      const permissions = { value: readJob({ name }).permissions };
+
+      expect(isRecord(permissions) ? permissions.value.actions : undefined).toBeUndefined();
+    }
+  });
+});
+
 describe('package-release.yml: the atlas index of the release', () => {
   const STEP = 'Publish the atlas index of the release';
   const stepNames = (): string[] =>
@@ -681,7 +721,11 @@ describe('package-release.yml: the job graph', () => {
   });
 
   test('only publish can write and only publish holds id-token', () => {
-    expect(permissionsOf({ name: 'publish' })).toEqual({ contents: 'write', 'id-token': 'write' });
+    expect(permissionsOf({ name: 'publish' })).toEqual({
+      contents: 'write',
+      'id-token': 'write',
+      actions: 'write',
+    });
     expect(permissionsOf({ name: 'approve' })).toEqual({});
     expect(permissionsOf({ name: 'plan' })).toEqual({ contents: 'read' });
     expect(permissionsOf({ name: 'test' })).toBeUndefined();
