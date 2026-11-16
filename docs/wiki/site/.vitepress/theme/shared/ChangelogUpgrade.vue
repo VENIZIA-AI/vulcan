@@ -88,7 +88,7 @@ const planCommand = computed(
 );
 const applyCommand = computed(
   () =>
-    `bun node_modules/.bin/vulcan migrate apply --package ${packageName.value} --from ${from.value} --to ${version.value} --app .`,
+    `bun node_modules/.bin/vulcan migrate apply --package ${packageName.value} --from ${from.value} --to ${version.value} --app <app folder>`,
 );
 
 const source = computed(() => sourceUrl(`changelogs/${version.value}/migration.yaml`));
@@ -179,7 +179,8 @@ const hasDowngrade = (block: TGuideBlock): boolean =>
                 <h3>See what your code touches</h3>
                 <p>
                   The plan lists the files and lines of your app that use a changed name, with the
-                  step id of each: open the step below by that id.
+                  step id of each: open the step below by that id. Run the commands from the project
+                  root; in a workspace add <code>--app &lt;app folder&gt;</code> to the plan too.
                 </p>
                 <CopyCommand :command="planCommand" />
               </div>

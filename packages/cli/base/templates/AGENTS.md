@@ -16,6 +16,8 @@ Tool files (`CLAUDE.md`, ...) are per-developer pointers to this one, written by
 
 ## Commands
 
+Run them from the project root: the bin is linked there only.
+
 | Command | What it does |
 |---|---|
 | `bun node_modules/.bin/vulcan sync` | Write the adapters of the agents you chose (`--agents list` shows them) |

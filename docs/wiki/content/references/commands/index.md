@@ -6,7 +6,7 @@ description: Find available VULCAN commands, arguments, tools, make targets, and
 # vulcan commands
 
 Use `vulcan` to scaffold a project or create a monorepo from a preset, write the agent adapters, check conformance, upgrade, and run okf and atlas.
-Run `bun node_modules/.bin/vulcan` or pass `--help` to inspect available commands:
+Run `bun node_modules/.bin/vulcan` or pass `--help` to inspect available commands. The bin is linked at the project root only, so run it from there (in a workspace, pass `--app <app folder>` where a command takes one):
 
 ```text
 vulcan 0.4.10-12 - one setup, one workflow for every project

@@ -79,7 +79,7 @@ const meta = (entry: TChangelogEntry): string =>
     </header>
 
     <p v-if="hasVersions && packageName" class="cx-tip">
-      <span class="cx-label">Upgrading across several versions</span>
+      <span class="cx-label">Upgrading across several versions, from the project root</span>
       <code>bun node_modules/.bin/vulcan migrate plan --package {{ packageName }} --to latest</code>
     </p>
 

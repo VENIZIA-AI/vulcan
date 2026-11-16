@@ -19,12 +19,14 @@ description: Ask what your app must change to move a @venizia/* package to anoth
 bun node_modules/.bin/vulcan migrate plan --package @venizia/ignis --to latest
 ```
 
+Run every `bun node_modules/.bin/vulcan` command from the project root: the bin is linked there only, and from an app folder of a workspace bun does not find it. The app the plan reads is the folder you run in; in a workspace pass `--app <app folder>` (a path from the root) to plan and apply for one app.
+
 `--from` defaults to the version the app has installed. `--to` takes a version, `latest` (the newest stable release) or `next` (the newest release of any kind). `latest` and `next` come from atlas's release table, not from the registry, so they are as new as your atlas. When npm publishes a newer `latest` or `next` than your atlas source knows, the plan opens with a warning to move the source ref.
 
 ```text
 ## @venizia/ignis: 1.0.0 to 1.1.0
 
-Run the codemods: `vulcan migrate apply --package @venizia/ignis --from 1.0.0 --to 1.1.0 --app .`
+Run the codemods: `vulcan migrate apply --package @venizia/ignis --from 1.0.0 --to 1.1.0 --app /work/app`
 
 An upgrade: 1 changelog entry in the window; 2 structured steps, 1 found in your code. The target version comes from the atlas release table, not the registry.
 

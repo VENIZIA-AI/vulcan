@@ -52,7 +52,7 @@ Done when you can say the question in one sentence and name the kind.
 ## 2. Write the spec
 
 Put it in `.agents/local/tmp/<name>.json`. The fields, their limits and a worked spec are in
-[references/spec.md](references/spec.md); `bun node_modules/.bin/vulcan visualize --schema` prints the schema.
+[references/spec.md](references/spec.md); `bun node_modules/.bin/vulcan visualize --schema` (from the project root) prints the schema.
 The rules that make a page worth opening:
 
 - **The title states the takeaway**, not the topic: "The form saves only inside the project", not "Profile
