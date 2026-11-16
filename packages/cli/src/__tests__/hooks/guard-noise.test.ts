@@ -185,7 +185,7 @@ describe('every guard reads the command after a line that only looks like a here
   test('a line the parser cannot follow to its end asks in the git and remote-host guards', () => {
     const command = 'echo "never closed\ngit status';
 
-    expect(gitDecisions(command)).toContain('ask');
+    expect(gitDecisions(command)).toContain('deny');
     expect(gitDecisions('echo "closed\nhere"')).toEqual([]);
     expect(asksOf('echo "closed\nhere"')).toEqual([]);
   });
@@ -193,13 +193,13 @@ describe('every guard reads the command after a line that only looks like a here
   test('a body whose delimiter never comes is data, and the git guard still asks about a push in it', () => {
     expect(gitDecisions('cat > notes.md <<STOP\ngit push --force origin main')).toContain('ask');
     // The guard asks about any body whose delimiter never comes, even one that holds nothing risky.
-    expect(gitDecisions('cat > notes.md <<STOP\ngit status')).toEqual(['ask']);
+    expect(gitDecisions('cat > notes.md <<STOP\ngit status')).toEqual(['deny']);
   });
 });
 
 describe('a program the line does not name', () => {
   test('a variable or a substitution as the program asks in the git guard', () => {
-    expect(gitDecisions('tool=git; $tool push --force origin main')).toContain('ask');
+    expect(gitDecisions('tool=git; $tool push --force origin main')).toContain('deny');
   });
 
   test('a variable or a substitution as an argument stays quiet', () => {

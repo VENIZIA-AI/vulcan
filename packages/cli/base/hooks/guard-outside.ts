@@ -3,14 +3,16 @@
  * created outside the project (V-B-08). Stores a package manager, runtime or the agent tool manage
  * themselves are allowed - a default list, extended by `guard.toolOwnedPaths` in the project config.
  * `TMPDIR` or `mktemp` pointed at the system temp directory is not allowed.
- * It asks by default; `guard.outside: 'deny'` in the project config refuses instead, for agents where an ask can be
- * approved unseen. A write into the agent tool scratchpad is always denied. A part of the call it cannot read (a
- * program or a target named by a variable, a line it cannot follow to its end) is asked about even under `deny`: it
- * does not know that anything is outside.
+ * A write outside the project asks by default; `guard.outside: 'deny'` in the project config refuses instead, for agents
+ * where an ask can be approved unseen. A write into the agent tool scratchpad is always denied. A part of the call it
+ * cannot read (a program or a target named by a variable it cannot resolve, a line it cannot follow to its end) is always
+ * DENIED, never asked: the agent can write the call again with a literal path, so a person is not stopped for it, and the
+ * reason says how. Literal assignments of the same line (`S=dir; ... > $S/a`, `export X=dir`, `for i in 1 2`) are
+ * resolved first, so the usual safe forms are read.
  *
  * It guards against drift, not against an attacker, and a guard that blocks every call when its install
  * is broken costs more than it protects. So a missing package or `bun` passes (the settings wrapper says so on
- * stderr); input it cannot read ASKS, because nothing was checked. A guard that started and then failed - a crash or a
+ * stderr); a hook input it cannot read ASKS, because nothing was checked and the agent cannot repair that. A guard that started and then failed - a crash or a
  * timeout, here an internal error or an unloadable module - ASKS instead of passing the call unchecked; a
  * manifest that cannot be read leaves the default allowlist. `VULCAN_GUARDS=off` switches it off,
  * read before anything is imported. It reads what the project set (`guard.outside`, `guard.toolOwnedPaths`)
@@ -64,23 +66,35 @@ try {
       const owned =
         'A store a tool manages itself can be allowed with guard.toolOwnedPaths in .configs/vulcan.config.*.';
 
-      // A line the check could not read is asked about even where the project denies: it does not know of a path outside.
+      // A line the check could not read is denied, whatever the project sets: the agent can write it again so that it is read.
+      const unreadHits = hits.filter((hit) => hit.isUnread);
       const unread =
-        read.length === hits.length
+        unreadHits.length === 0
           ? []
           : [
               ...(read.length > 0 ? [''] : []),
               'Part of this call could not be read, so it was not checked for files outside the project (V-B-08):',
-              ...linesOf(hits.filter((hit) => hit.isUnread)),
+              ...linesOf(unreadHits),
             ];
-      const isDeny = isScratchpad || (outside === GuardDecisions.DENY && read.length > 0);
+      const isDeny =
+        isScratchpad ||
+        unreadHits.length > 0 ||
+        (outside === GuardDecisions.DENY && read.length > 0);
       let reason: string[];
 
-      if (read.length === 0) {
+      if (unreadHits.length > 0 && !isScratchpad) {
         reason = [
-          ...unread,
+          'Part of this call could not be read, so it cannot be checked for files outside the project (V-B-08):',
+          ...linesOf(unreadHits),
+          ...(read.length > 0
+            ? [
+                '',
+                'The part that was read would also create files outside the project:',
+                ...linesOf(read),
+              ]
+            : []),
           '',
-          `Confirm only if it creates nothing outside the project. ${places} A literal path can be read.`,
+          `Nothing was run. Write it again so the guard can read it: a literal path in every redirect (no $VAR or $(...) in a target), the folder assigned on the same line (S=${tmpFolder}/x; ... > "$S/a") or named by a for loop over literal words; or put the script in a file under ${tmpFolder}/<task>/ and run it by that literal path (bun ${tmpFolder}/<task>/step.ts). ${places}`,
           owned,
         ];
       } else if (isScratchpad) {

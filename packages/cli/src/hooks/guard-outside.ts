@@ -99,6 +99,37 @@ const matchesNothing = (opts: { word: string; base: string }): boolean => {
   }
 };
 
+/** The most values of loop variables one word is checked for; a word with more is left unread. */
+const MAX_COMBINATIONS = 64;
+
+/**
+ * The values the loop variables `word` names take, one set per combination: `[{}]` when it names none. A word that would
+ * need more than `MAX_COMBINATIONS` is checked with no value, so its variable stays unknown and the word is not read.
+ */
+const loopCombinations = (opts: {
+  word: string;
+  loops: Record<string, string[]>;
+}): Record<string, string>[] => {
+  const named = [
+    ...new Set([...opts.word.matchAll(/\$\{?([A-Za-z_]\w*)\}?/g)].map((match) => match[1] ?? '')),
+  ].filter((name) => Object.hasOwn(opts.loops, name));
+  let combinations: Record<string, string>[] = [{}];
+
+  for (const name of named) {
+    const values = opts.loops[name] ?? [];
+
+    combinations = combinations.flatMap((combination) =>
+      values.map((value) => ({ ...combination, [name]: value })),
+    );
+
+    if (combinations.length > MAX_COMBINATIONS) {
+      return [{}];
+    }
+  }
+
+  return combinations;
+};
+
 const isInside = (opts: { path: string; root: string }): boolean =>
   opts.path === opts.root || opts.path.startsWith(`${opts.root}${sep}`);
 
@@ -212,14 +243,17 @@ export class OutsideGuard {
           continue;
         }
 
-        targets.push(
-          ...ShellWrites.targetsOf({ command, base: folder.base, tmp }).map((target) => ({
-            ...target,
-            pwd: folder.pwd,
-            vars: folder.vars,
-            isKnown: folder.isKnown,
-          })),
-        );
+        for (const target of ShellWrites.targetsOf({ command, base: folder.base, tmp })) {
+          // A word that names a `for` variable stands for each of its values in turn.
+          for (const vars of loopCombinations({ word: target.word, loops: folder.loops })) {
+            targets.push({
+              ...target,
+              pwd: folder.pwd,
+              vars: { ...folder.vars, ...vars },
+              isKnown: folder.isKnown,
+            });
+          }
+        }
       }
     }
 
@@ -347,6 +381,11 @@ export class OutsideGuard {
       }
     }
 
-    return hits;
+    // A loop makes one target of a word for each value it takes: a finding is told once.
+    return hits.filter(
+      (hit, index) =>
+        hits.findIndex((other) => other.message === hit.message && other.path === hit.path) ===
+        index,
+    );
   }
 }

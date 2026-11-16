@@ -168,9 +168,10 @@ const inspectStage = (opts: {
   return count > HookConstants.BLANKET_STAGE_PATHS
     ? [
         {
-          decision: GuardDecisions.ASK,
+          decision: GuardDecisions.DENY,
           rule: 'V-W-06',
-          message: `this stages ${count} changed paths at once (more than ${HookConstants.BLANKET_STAGE_PATHS}), a formatter's or a generator's included; name the files you mean`,
+          message: `this stages ${count} changed paths at once (more than ${HookConstants.BLANKET_STAGE_PATHS}), a formatter's or a generator's included`,
+          fix: 'name the files you mean (git add <path> ...), or stage a folder you own',
         },
       ]
     : [];
@@ -403,10 +404,10 @@ const inspectGhCreate = (opts: { args: string[] }): IGitHit[] => {
     ? []
     : [
         {
-          decision: GuardDecisions.ASK,
+          decision: GuardDecisions.DENY,
           rule: 'V-W-06',
-          message:
-            "'gh pr create' names no --base, so the pull request targets the default branch; pass --base <branch>",
+          message: "'gh pr create' names no --base, so the pull request targets the default branch",
+          fix: 'pass --base <branch>, the branch the project takes its changes on',
         },
       ];
 };
@@ -521,16 +522,23 @@ export class GitGuard {
     // Part of the line was not read: never an allow.
     const unread = ShellUnread.reasonOf(parsed);
 
+    // The agent can write either again, so neither stops a person: a denial that says how.
     if (unread !== undefined) {
-      hits.push({ decision: GuardDecisions.ASK, rule: 'V-W-06', message: unread });
+      hits.push({
+        decision: GuardDecisions.DENY,
+        rule: 'V-W-06',
+        message: unread,
+        fix: 'write the line again with literal program names and paths, and quotes and substitutions that close; or put the commands in a file under .agents/local/tmp/<task>/ and run it by that literal path',
+      });
     }
 
     if (isCapped) {
       hits.push({
-        decision: GuardDecisions.ASK,
+        decision: GuardDecisions.DENY,
         rule: 'V-W-06',
         message:
           'this command line needs more git or gh queries than the guard runs, so part of it could not be checked',
+        fix: 'run the git or gh commands in separate calls',
       });
     }
 

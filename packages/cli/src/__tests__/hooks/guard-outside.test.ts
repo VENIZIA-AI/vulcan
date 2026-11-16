@@ -731,7 +731,26 @@ describe('a plain variable set earlier on the same line, in the same shell', () 
     ['a value with an expansion', 'f=$HOME/x; echo x > $f'],
     ['a value with a space', 'f="a b"; echo x > $f'],
     ['set for one command only', 'f=ok cat > $f'],
-    ['copied through another variable', 'f=ok; g=$f; echo x > $g'],
+    ['copied through a variable that is set later', 'g=$f; f=ok; echo x > $g'],
+    ['copied through a variable that is set twice', 'f=ok; f=../x; g=$f; echo x > $g'],
+    ['exported, then set again', 'f=ok; export f; f=../x; echo x > $f'],
+    ['a loop variable set inside the loop', 'for f in a b; do f=../x; echo x > $f; done'],
+    ['a loop variable read into', 'for f in a b; do read f; echo x > $f; done'],
+    ['a loop variable set through eval', 'for f in a b; do eval "f=../x"; echo x > $f; done'],
+    ['a loop variable used after the loop', 'for f in a b; do :; done; echo x > $f'],
+    ['a loop over a glob', 'for f in *.md; do echo x > $f.bak; done'],
+    ['a loop over a substitution', 'for f in $(ls); do echo x > $f; done'],
+    ['a loop over words with an expansion', 'for f in a $HOME; do echo x > $f; done'],
+    ['a loop in another shell', "for f in a b; do sh -c 'echo x > $f'; done"],
+    ['a loop that reads its lines', 'while read f; do echo x > $f; done < list'],
+    [
+      'two loops whose values multiply past what the guard follows',
+      `for i in ${Array.from({ length: 12 }, (_, n) => `a${n}`).join(' ')}; do for j in ${Array.from({ length: 12 }, (_, n) => `b${n}`).join(' ')}; do echo x > $i$j; done; done`,
+    ],
+    [
+      'a loop over more values than the guard follows',
+      `for f in ${Array.from({ length: 20 }, (_, i) => `a${i}`).join(' ')}; do echo x > $f; done`,
+    ],
     ['inside a command substitution', 'f=ok; echo x > $(echo $f)'],
     ['never set', 'echo x > $f'],
   ])('%s: still asks that the target cannot be worked out', (_name, command) => {
@@ -932,5 +951,70 @@ describe('a write target with a brace list is checked branch by branch', () => {
     'TMPDIR={/tmp,x} true',
   ])('%s stays inside the project and stays quiet', (command) => {
     expect(hitsOf({ command })).toEqual([]);
+  });
+});
+
+describe('OutsideGuard.inspect reads the literal assignments of the line before it gives up', () => {
+  test.each([
+    'S=.agents/local/tmp/x; echo hi > $S/a',
+    'S=.agents/local/tmp/x\necho hi > "$S/a"',
+    'export X=.agents/local/tmp/y; echo hi > $X/a',
+    'export X=.agents/local/tmp/y Y=z; echo hi > $X/$Y',
+    'X=.agents/local/tmp/y; export X; echo hi > "$X/a"',
+    'S=.agents/local/tmp; T=$S/x; echo hi > $T/a.log',
+    'S=a; T=${S}/b; echo hi > $T',
+    'for i in 1 2; do echo hi > f$i.log; done',
+    'for i in 1 2; do echo hi > $i.log; done',
+    'for i in a b; do\n  echo hi > .agents/local/tmp/x/$i.log\ndone',
+    'for i in 1 2; do for j in a b; do echo hi > $i$j.log; done; done',
+    'for i in 1 2; do echo hi >> out/$i.log 2>&1; done',
+    'for i in 1 2; do cp a out/$i.txt; done',
+    'for d in a b; do mkdir -p out/$d; touch out/$d/x; done',
+  ])('%s is worked out and passes inside the project', (command) => {
+    expect(bash({ command })).toEqual([]);
+  });
+
+  test.each([
+    ['a variable set to a folder outside', 'S=/etc; echo hi > $S/a'],
+    ['a variable set to the parent folder', 'S=../..; echo hi > $S/a'],
+    ['an exported variable', 'export X=/etc; echo hi > $X/a'],
+    ['a variable copied through another', 'S=/etc; T=$S/x; echo hi > $T'],
+    ['a loop value outside', 'for i in a /etc; do echo hi > $i/a; done'],
+    ['a loop value that climbs out', 'for i in a ../..; do echo hi > $i/a; done'],
+    ['a loop value in the middle of a word', 'for i in ok /etc; do echo hi > $i/x.log; done'],
+    [
+      'two loops, the inner one outside',
+      'for i in a; do for j in b /etc; do echo hi > $j/$i; done; done',
+    ],
+    ['a loop over a folder, a mkdir', 'for d in out /var/tmp/x; do mkdir -p $d; done'],
+  ])('%s is worked out and asked about, naming the folder it lands in', (_name, command) => {
+    const hits = bash({ command });
+
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.join(' ')).not.toContain('cannot work out');
+  });
+
+  test('a value is not followed into a command line another shell reads', () => {
+    expect(bash({ command: "S=/etc; sh -c 'echo hi > $S/a'" }).join(' ')).not.toBe('');
+  });
+});
+
+describe('OutsideGuard.inspect marks what it could not read', () => {
+  test.each([
+    'echo hi > $f',
+    'echo hi > $(date).log',
+    'S=$(pwd); echo hi > $S/a',
+    'S=$HOME; echo hi > $S/a',
+    'echo hi > ${S:-out}/a',
+    'bun run foo > $OUT',
+  ])('%s is unread, which the hook denies', (command) => {
+    const hits = OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command, cwd: PROJECT },
+      projectRoot: PROJECT,
+      home: HOME,
+      env: ENV,
+    });
+
+    expect(hits.map((hit) => hit.isUnread)).toContain(true);
   });
 });

@@ -135,7 +135,7 @@ describe('the omp and pi extension runs the real guards', () => {
     expect(yes?.reason).not.toContain('declined by the owner');
   });
 
-  test('with guard.outside set to deny, a line the guard cannot read is asked about, a path it read stays denied', async () => {
+  test('a line the guard cannot read is denied with the way out, whatever guard.outside says and whoever could confirm', async () => {
     const root = installedProject({
       files: {
         '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG,
@@ -143,21 +143,23 @@ describe('the omp and pi extension runs the real guards', () => {
       },
     });
     const handle = handlerOf();
-    const unread = bash('for f in a b; do echo x > $f.log; done');
+    const unread = bash('echo x > $f');
     const mixed = bash('echo x > $f; echo y > /var/tmp/vulcan-guard-probe-never-created');
     const noUi = await handle(unread, contextOf({ cwd: root }));
     const yes = await handle(unread, contextOf({ cwd: root, hasUI: true, answer: true }));
-    const no = await handle(unread, contextOf({ cwd: root, hasUI: true, answer: false }));
     const both = await handle(mixed, contextOf({ cwd: root, hasUI: true, answer: true }));
 
-    expect(noUi?.block).toBe(true);
-    expect(noUi?.reason).toContain('could not be read');
-    expect(noUi?.reason).toContain('no UI to confirm');
-    expect(noUi?.reason).not.toContain('guard.outside');
-    expect(yes).toBeUndefined();
-    expect(no).toEqual({ block: true, reason: 'declined by the owner' });
+    for (const result of [noUi, yes]) {
+      expect(result?.block).toBe(true);
+      expect(result?.reason).toContain('could not be read');
+      expect(result?.reason).toContain('literal path');
+      expect(result?.reason).not.toContain('no UI to confirm');
+      expect(result?.reason).not.toContain('declined by the owner');
+    }
+
     expect(both?.block).toBe(true);
-    expect(both?.reason).toContain('guard.outside');
+    expect(both?.reason).toContain('Part of this call could not be read');
+    expect(both?.reason).toContain('vulcan-guard-probe-never-created');
   });
 
   test('with guard.outside set to deny, a folder outside the project is denied whatever the file name expands to', async () => {
@@ -181,14 +183,12 @@ describe('the omp and pi extension runs the real guards', () => {
     expect(named?.reason).toContain('guard.outside');
     expect(named?.reason).not.toContain('could not be read');
     expect(mixed?.block).toBe(true);
-    expect(mixed?.reason).toContain('guard.outside');
     expect(mixed?.reason).toContain('Part of this call could not be read');
-    expect(mixed?.reason.indexOf('Part of this call')).toBeGreaterThan(
-      mixed?.reason.indexOf('vulcan-guard-probe-never-created') ?? 0,
-    );
+    expect(mixed?.reason).toContain('would also create files outside the project');
+    expect(mixed?.reason).toContain('vulcan-guard-probe-never-created');
   });
 
-  test('a line the guard cannot read keeps the scratch and tool-owned hints under ask', async () => {
+  test('a line the guard cannot read keeps the scratch and tool-owned hints in its denial', async () => {
     const root = installedProject();
     const handle = handlerOf();
     const result = await handle(bash('echo x > $f'), contextOf({ cwd: root }));

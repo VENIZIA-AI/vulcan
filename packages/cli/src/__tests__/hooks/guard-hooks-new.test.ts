@@ -64,6 +64,39 @@ describe('the guard-git hook', () => {
     expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
   });
 
+  test.each([
+    ['a pull request with no base', 'gh pr create --title x --body y', '--base'],
+    ['a package run by name', 'bunx ardor codemod', 'bun run ardor'],
+    ['a program named by a variable', 'tool=git; $tool status', 'literal'],
+  ])(
+    'denies %s with the way to write it again, and does not hand it to the owner',
+    async (_name, command, hint) => {
+      const result = await runHook({
+        hook: 'guard-git',
+        root,
+        stdin: bash({ command, cwd: root }),
+      });
+      const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+      expect(decision.permissionDecision).toBe('deny');
+      expect(decision.permissionDecisionReason).toContain('Write it again');
+      expect(decision.permissionDecisionReason).toContain(hint);
+      expect(decision.permissionDecisionReason).not.toContain('Hand the exact command');
+    },
+  );
+
+  test('a denial only the owner can lift is still handed to the owner, a fix beside it or not', async () => {
+    const result = await runHook({
+      hook: 'guard-git',
+      root,
+      stdin: bash({ command: 'git push --force origin main; gh pr create --fill', cwd: root }),
+    });
+    const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(decision.permissionDecision).toBe('deny');
+    expect(decision.permissionDecisionReason).toContain('Hand the exact command');
+  });
+
   test('asks, and never blocks, on input it cannot read', async () => {
     for (const stdin of [
       'not json',
@@ -169,6 +202,57 @@ describe('the guard-outside hook', () => {
       expect(decision.permissionDecision).toBe('ask');
       expect(decision.permissionDecisionReason).toContain('hook input could not be read');
     }
+  });
+
+  test.each([
+    'echo x > $f',
+    'for f in $(ls); do echo x > $f.log; done',
+    'bun -e "const a = `$(echo hi)`; console.log(a)"',
+    'echo x > $(mktemp)',
+  ])(
+    'denies, never asks, a call it cannot read, and says how to write it again: %s',
+    async (command) => {
+      const result = await runHook({
+        hook: 'guard-outside',
+        root,
+        stdin: bash({ command, cwd: root }),
+      });
+      const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+      expect(result.code).toBe(0);
+      expect(decision.permissionDecision).toBe('deny');
+      expect(decision.permissionDecisionReason).toContain('V-B-08');
+      expect(decision.permissionDecisionReason).toContain('could not be read');
+      expect(decision.permissionDecisionReason).toContain('literal path');
+      expect(decision.permissionDecisionReason).toContain('.agents/local/tmp/<task>/');
+      expect(decision.permissionDecisionReason).not.toContain('Confirm only if');
+    },
+  );
+
+  test.each([
+    'S=.agents/local/tmp/x; echo x > $S/a',
+    'export X=.agents/local/tmp/y; echo x > $X/a',
+    'for i in 1 2; do echo x > .agents/local/tmp/f$i.log; done',
+  ])('is silent for a variable it can resolve to a folder of the project: %s', async (command) => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root,
+      stdin: bash({ command, cwd: root }),
+    });
+
+    expect(result).toEqual({ code: 0, stdout: '' });
+  });
+
+  test('a resolved variable that points outside the project still asks', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root,
+      stdin: bash({ command: 'S=/var/tmp/vulcan-outside-test; echo x > $S/a', cwd: root }),
+    });
+    const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(decision.permissionDecision).toBe('ask');
+    expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test');
   });
 
   test('is silent inside the project, and with the kill switch on', async () => {

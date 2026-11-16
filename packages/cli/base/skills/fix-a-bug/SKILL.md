@@ -41,6 +41,8 @@ script or a `curl` against the running thing; a replay of a captured request or 
 commits (`git bisect run <the loop>`). A bug in a UI is reproduced in a real browser, at mobile and at
 desktop width, before any code is read.
 
+A script for the loop goes in a file under `.agents/local/tmp/<task>/` and runs by its literal path, with literal paths in its redirects (V-B-08): the guards deny a call they cannot read.
+
 If you cannot build a loop, stop and say what is missing (access, data, an environment). Do not proceed
 on theory.
 
