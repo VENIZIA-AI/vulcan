@@ -2,7 +2,7 @@ import { lstatSync, readdirSync, readlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { ShellParser, ShellUnread } from './shell.ts';
-import { ShellFolders } from './shell-folders.ts';
+import { ShellFolders, loopCombinations } from './shell-folders.ts';
 import type { TEnvironment } from './shell-folders.ts';
 import { ShellWrites } from './shell-writes.ts';
 import type { IWriteTarget } from './shell-writes.ts';
@@ -97,41 +97,6 @@ const matchesNothing = (opts: { word: string; base: string }): boolean => {
   } catch {
     return false;
   }
-};
-
-/** The most values of loop variables one word is checked for; a word with more is left unread. */
-const MAX_COMBINATIONS = 64;
-
-/**
- * The values the loop variables `word` names take, one set per combination: `[{}]` when it names none. A word that would
- * need more than `MAX_COMBINATIONS` is checked with no value, so its variable stays unknown and the word is not read.
- */
-const loopCombinations = (opts: {
-  word: string;
-  loops: Record<string, string[]>;
-}): Record<string, string>[] => {
-  const named = [
-    ...new Set(
-      [...opts.word.matchAll(/\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})/g)].map(
-        (match) => match[1] ?? match[2] ?? '',
-      ),
-    ),
-  ].filter((name) => Object.hasOwn(opts.loops, name));
-  let combinations: Record<string, string>[] = [{}];
-
-  for (const name of named) {
-    const values = opts.loops[name] ?? [];
-
-    combinations = combinations.flatMap((combination) =>
-      values.map((value) => ({ ...combination, [name]: value })),
-    );
-
-    if (combinations.length > MAX_COMBINATIONS) {
-      return [{}];
-    }
-  }
-
-  return combinations;
 };
 
 const isInside = (opts: { path: string; root: string }): boolean =>
@@ -256,6 +221,7 @@ export class OutsideGuard {
               vars: { ...folder.vars, ...vars },
               isKnown: folder.isKnown,
               links: folder.links,
+              hasUnknownLink: folder.hasUnknownLink,
               // The text of a word reads `'$S'` as a live `$S`; the shell takes the `$` as a character.
               hasLiteralDollar:
                 target.word.includes('$') &&
@@ -289,6 +255,17 @@ export class OutsideGuard {
           isAgentToolScratchpad: false,
           isUnread: true,
         });
+      }
+
+      // A link the line made under a name this check could not work out may be on any path that follows.
+      if (target.hasUnknownLink === true && target.isLinkRead !== true) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: the line made a symbolic link under a name this check cannot work out, so the path may go through it`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+        continue;
       }
 
       if (target.hasLiteralDollar === true) {
@@ -362,23 +339,28 @@ export class OutsideGuard {
         continue;
       }
 
-      // A path that goes through a link the line made is where the link points, which is not on disk yet to be followed.
+      // A path at or through a link the line made is where the link points, which is not on disk yet to be followed. The name a
+      // link command makes is its own, so it is the command's destination and not a path through an earlier link.
       if (
-        target.isLinkSource !== true &&
         ShellFolders.passesThrough({
           path: expanded,
           base: target.base,
           links: target.links ?? [],
-          isLastCounted: false,
+          isLastCounted: target.isLinkName !== true,
         })
       ) {
         hits.push({
           path: target.word,
-          message: `${target.message}: the path goes through a link this line made, which this check does not follow`,
+          message: `${target.message}: the path is, or goes through, a link this line made, which this check does not follow`,
           isAgentToolScratchpad: false,
           isUnread: true,
         });
 
+        continue;
+      }
+
+      // What a copy or a move reads is not written, and a link it reads has been looked at above.
+      if (target.isLinkRead === true) {
         continue;
       }
 

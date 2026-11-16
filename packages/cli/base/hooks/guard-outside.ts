@@ -110,7 +110,7 @@ try {
         ];
       } else if (linkHits.length > 0) {
         reason = [
-          'This would link to a path outside the project (V-B-08); a write through the link changes that path:',
+          'This would hard-link a path outside the project (V-B-08); a hard link cannot be told from the file, so a write through it changes that path later too:',
           ...linesOf(linkHits),
           ...(read.length > linkHits.length
             ? [
@@ -120,7 +120,7 @@ try {
               ]
             : []),
           '',
-          `Nothing was run. Copy the file into the project (cp) instead of linking it, or link a path inside the project. ${places}`,
+          `Nothing was run. Copy the file into the project (cp) instead of linking it, link a path inside the project, or make a symbolic link (ln -s), which is read once it exists. ${places}`,
           owned,
         ];
       } else if (isDeny) {

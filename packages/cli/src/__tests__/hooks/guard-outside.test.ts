@@ -1190,9 +1190,11 @@ describe('OutsideGuard.inspect denies a relative path after a cd it cannot work 
 });
 
 // A link is a name inside the project for a file outside it: a write through the name changes the file. The guard reads the folder
-// tree as it is when the line starts, so a link made earlier on the same line must be judged at its source, and a path that goes
-// through it is not followed. Each of the first five wrote outside the project in real bash while the guard passed it (#989).
-describe('OutsideGuard.inspect judges what an ln of the line links to', () => {
+// tree as it is when the line starts, so a link made earlier on the same line is not there to be followed. A hard link cannot be seen
+// on a later call at all, so the file it points at is judged. A symbolic link can: once it exists, a path through it is followed, so on
+// the line only a path at or through its name is not followed. Each of the first forms wrote outside the project in real bash while
+// the guard passed it (#989).
+describe('OutsideGuard.inspect and the links a line makes', () => {
   const hitsAtRoot = (opts: { command: string }) =>
     OutsideGuard.inspect({
       input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: PROJECT },
@@ -1203,49 +1205,89 @@ describe('OutsideGuard.inspect judges what an ln of the line links to', () => {
 
   test.each([
     ['a hard link to a file outside, then a write', 'ln ../victim h; echo pwned > h'],
-    ['a symbolic link to a file outside, then a write', 'ln -s ../victim s; echo pwned > s'],
-    ['a link to the parent folder, then a cd through it', 'ln -s .. lnk; cd lnk; echo x > pwn'],
+    ['a hard link with -t', 'mkdir -p d; ln -t d ../victim'],
     [
-      'a link made in a folder, then a cd through it',
-      'mkdir -p d; ln -s ../.. d/up; cd d/up; echo x > pwn',
+      'a hard link with -t and the folder attached',
+      'mkdir -p sub; ln -tsub ../victim; echo x > sub/victim',
     ],
+    ['cp -l', 'cp -l ../victim h; echo pwned > h'],
+    ['cp --link by a prefix', 'cp --li ../victim h; echo pwned > h'],
     [
-      'a link made after a cd, then a write through it',
-      'mkdir -p d; cd d; ln -s ../.. up; echo x > up/pwn',
+      'a hard link to a link of the line, climbing out',
+      'ln -s . a; ln a/../victim h; echo pwn > h',
     ],
-    ['an absolute source', 'ln -s /etc/passwd p'],
-    ['a source named after -T', 'ln -s ../x/y -T z'],
-    ['a source with -t', 'mkdir -p d; ln -s ../../victim -t d'],
-    ['a source in a folder given with a slash', 'mkdir -p d; ln -s ../../victim d/'],
-    ['the link in a folder, the source climbing out of it', 'mkdir -p d; ln -s ../../victim d/v'],
-    ['a relative symbolic link', 'ln -sr ../victim s'],
-    ['a hard link to a path under a variable it cannot work out', 'ln $SRC h'],
-    ['a link that goes through a link of the same line', 'ln -s . a; ln -s a/.. b; echo x > b/pwn'],
-    ['a write through a link of the same line', 'mkdir -p sub; ln -s sub lnk; echo x > lnk/pwn'],
-    ['a cd into a link of the same line', 'mkdir -p sub; ln -s sub lnk; cd lnk; echo x > ok'],
-    ['a force-link with several sources', 'ln -sf a ../victim b'],
-  ])('%s is not allowed', (_name, command) => {
+    ['a hard link through a link of the line, into it', 'ln -s . a; ln ../victim a/h'],
+    [
+      'a hard link to a relative link copied by ln',
+      'mkdir -p x/y; ln -s .. x/y/up; ln x/y/up h; echo x > h/victim',
+    ],
+  ])('%s is not allowed: the file a hard link points at is judged', (_name, command) => {
     expect(hitsAtRoot({ command }).length).toBeGreaterThan(0);
   });
 
-  test('a link to a path outside is marked, so the hook denies it and says how to link inside', () => {
-    const hits = hitsAtRoot({ command: 'ln -s ../victim s' });
+  test.each([
+    ['a symbolic link, then a write at it', 'ln -s ../victim s; echo pwned > s'],
+    ['a cd into a link', 'ln -s .. lnk; cd lnk; echo x > pwn'],
+    ['a cd through a link made in a folder', 'mkdir -p d; ln -s ../.. d/up; cd d/up; echo x > pwn'],
+    ['a write through a link made after a cd', 'mkdir -p d; cd d; ln -s ../.. up; echo x > up/pwn'],
+    ['a link whose source climbs out of a link', 'ln -s . a; ln -s a/../victim s; echo pwn > s'],
+    [
+      'a link made with -t, then a write at it',
+      'ln -s . a; ln -s a/../victim -t .; echo x > victim',
+    ],
+    ['a link made in a subshell', '(ln -s . a); ln -s a/../victim s; echo x > s'],
+    ['a suffix option read as -r', 'mkdir -p d; cd d; ln -sSr ../victim ../s; echo x > ../s'],
+    ['cp -s', 'cp -s ../victim h; echo pwned > h'],
+    ['cp -as', 'cp -as ../victim h; echo pwned > h'],
+    ['cp --symbolic-link', 'cp --symbolic-link ../victim h; echo pwned > h'],
+    ['cp --sym by a prefix', 'cp --sym ../victim h; echo pwned > h'],
+    ['ln --sym by a prefix', 'ln --sym . a; echo x > a/../victim'],
+    ['ln --sym by a prefix, in a folder', 'mkdir d; cd d; ln --sym ../victim ../s; echo x > ../s'],
+    ['ln -s with --rel by a prefix', 'ln -s --rel ../victim d/e/l; echo x > d/e/l'],
+    ['a link name made by a loop', 'for n in a; do ln -s . $n; done; echo x > a/../victim'],
+    ['a link made in another shell', "bash -c 'ln -s . a'; echo x > a/../victim"],
+    ['a link made through xargs', 'echo a | xargs ln -s .; echo x > a/../victim'],
+    ['git -C through a link', 'ln -s . a; git -C a/.. init -q'],
+    ['a move of a link of the line', 'mkdir -p x; ln -s ../victim x/l; mv x/l .; echo x > l'],
+    [
+      'a move of a link, then a write through the new name',
+      'mkdir -p x/y; ln -s .. x/y/up; mv x/y/up h; echo x > h/victim',
+    ],
+    ['a cp -P of a link', 'mkdir -p x/y; ln -s .. x/y/up; cp -P x/y/up h; echo x > h/victim'],
+    ['a cp -a of a link', 'mkdir -p x/y; ln -s .. x/y/up; cp -a x/y/up h; echo x > h/victim'],
+    [
+      'an rsync -l of a link',
+      'mkdir -p x/y; ln -s .. x/y/up; rsync -l x/y/up h; echo x > h/victim',
+    ],
+    ['a mv -t of a link', 'mkdir -p x/y; ln -s .. x/y/up; mv -t . x/y/up; echo x > up/victim'],
+    ['a write through a link of the line', 'mkdir -p sub; ln -s sub lnk; echo x > lnk/pwn'],
+    ['a cd into a link of the line', 'mkdir -p sub; ln -s sub lnk; cd lnk; echo x > ok'],
+  ])('%s is not followed, so it is not allowed', (_name, command) => {
+    expect(hitsAtRoot({ command }).length).toBeGreaterThan(0);
+  });
+
+  test('a hard link to a path outside is marked, so the hook denies it and says how to link inside', () => {
+    const hits = hitsAtRoot({ command: 'ln ../victim h' });
 
     expect(hits.some((hit) => hit.isLink === true && !hit.isUnread)).toBe(true);
   });
 
   test.each([
+    'ln -s /usr/bin/env x',
+    'ln -s ~/.cache x',
+    'ln -s $(pwd)/pkg pl',
     'ln -s node_modules/.bin/vulcan v',
     'mkdir -p sub; cd sub; ln -s ../node_modules nm',
-    'mkdir -p d; ln -s ../victim -t d',
-    'mkdir -p d; ln -s ../victim d/',
-    'mkdir -p d; ln -s ../node_modules d/nm',
-    'ln pkg/a.txt h',
+    'ln -sf a b; ln -sf c b',
     'ln -s a b; echo hi > c',
     'ln -s a b c d',
+    'ln pkg/a.txt h',
+    'cp -s a b',
+    'cp -r a b; echo x > c',
+    'mv a b',
     'ln -sf .agents/local/tmp/x fresh-name; echo y > .agents/local/tmp/z',
   ])(
-    '%s passes: every source stays inside the project and nothing goes through the new name',
+    '%s passes: a symbolic link is read once it exists, and nothing goes through the new name',
     (command) => {
       expect(hitsAtRoot({ command })).toEqual([]);
     },

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { ShellParser } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
-import { ShellWrites } from './shell-writes.ts';
+import { LinkMakers } from './link-makers.ts';
 
 export type TEnvironment = Record<string, string | undefined>;
 
@@ -23,11 +23,13 @@ export interface IShellFolder {
   loops: Record<string, string[]>;
   /** The absolute names of the symbolic links the line made (`ln -s`) before this command: the system reads them when the command runs. */
   links: string[];
+  /** Whether the line made a symbolic link whose name this check could not work out, or ran `ln` where it cannot read it: any path after it may go through one. */
+  hasUnknownLink: boolean;
 }
 
-interface IFolderState extends Omit<IShellFolder, 'loops' | 'links'> {
+interface IFolderState extends Omit<IShellFolder, 'loops' | 'links' | 'hasUnknownLink'> {
   /** The folders `pushd` saved, for `popd`. */
-  stack: Omit<IShellFolder, 'vars' | 'loops' | 'links'>[];
+  stack: Omit<IShellFolder, 'vars' | 'loops' | 'links' | 'hasUnknownLink'>[];
   /** A `cd`, `pushd` or `popd` ran in this scope. */
   hasMoved: boolean;
 }
@@ -35,8 +37,65 @@ interface IFolderState extends Omit<IShellFolder, 'loops' | 'links'> {
 /** A value the guard may hold as written: no expansion, quote, glob or tilde in it. */
 const PLAIN_VALUE = /^[\w@%+=:,./-]+$/;
 
+/** The most values of loop variables one word is checked for; a word with more is left unread. */
+const MAX_COMBINATIONS = 64;
+
+/**
+ * The values the loop variables `word` names take, one set per combination: `[{}]` when it names none. A word that would
+ * need more than `MAX_COMBINATIONS` is checked with no value, so its variable stays unknown and the word is not read.
+ */
+export const loopCombinations = (opts: {
+  word: string;
+  loops: Record<string, string[]>;
+}): Record<string, string>[] => {
+  const named = [
+    ...new Set(
+      [...opts.word.matchAll(/\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})/g)].map(
+        (match) => match[1] ?? match[2] ?? '',
+      ),
+    ),
+  ].filter((name) => Object.hasOwn(opts.loops, name));
+  let combinations: Record<string, string>[] = [{}];
+
+  for (const name of named) {
+    const values = opts.loops[name] ?? [];
+
+    combinations = combinations.flatMap((combination) =>
+      values.map((value) => ({ ...combination, [name]: value })),
+    );
+
+    if (combinations.length > MAX_COMBINATIONS) {
+      return [{}];
+    }
+  }
+
+  return combinations;
+};
+
 /** A variable as the shell takes it with no operator: `$NAME` or `${NAME}`. */
 const VARIABLE = /\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})/g;
+
+/** Programs that run the command they are given as words: a link made through one is not read where it is made. */
+const RUNNERS_OF_COMMANDS = new Set([
+  'xargs',
+  'find',
+  'parallel',
+  'env',
+  'sudo',
+  'doas',
+  'nohup',
+  'nice',
+  'time',
+  'timeout',
+  'command',
+  'exec',
+  'setsid',
+  'stdbuf',
+  'watch',
+  'chroot',
+  'nsenter',
+  'unshare',
+]);
 
 /** The most values one `for` list may hold before the guard stops following it. */
 const MAX_LOOP_VALUES = 16;
@@ -361,6 +420,15 @@ export class ShellFolders {
     );
     const loops: IOpenLoop[] = [];
     const links: string[] = [];
+    // A command line a word carries (`sh -c`, `$(...)`) is listed after the commands of the line, so its links are not seen in order.
+    let hasUnknownLink = opts.commands.some(
+      (command) =>
+        (command.scope ?? '').includes('>') &&
+        (LinkMakers.of({
+          name: ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name }),
+          args: ShellParser.programOf({ command }).args,
+        })?.names.length ?? 0) > 0,
+    );
     const loopNames = ShellFolders.loopNamesOf({ commands: opts.commands });
     // `cd x` looks for `x` in each folder of CDPATH first: set in the environment of the hook or named anywhere on the line
     // (a prefix assignment, `export`, `declare`), it may put a plain relative name in another folder.
@@ -424,25 +492,42 @@ export class ShellFolders {
               ),
             ),
         links: [...links],
+        hasUnknownLink,
       };
 
       started.set(command, folder);
 
       // A symbolic link the line makes is a name later words may go through: the system follows it when they run.
-      if (ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name }) === 'ln') {
-        for (const name of ShellWrites.linksOf({ args: ShellParser.programOf({ command }).args })
-          .names) {
+      const made = ShellParser.programOf({ command });
+      const maker = LinkMakers.of({
+        name: ShellParser.basenameOf({ word: made.name }),
+        args: made.args,
+      });
+
+      for (const name of maker?.names ?? []) {
+        // A name that holds a loop variable stands for each of its values.
+        for (const vars of loopCombinations({ word: name, loops: folder.loops })) {
           const expanded = ShellFolders.expandPath({
             word: name,
             home: opts.home,
-            env: { ...opts.env, ...state.vars },
+            env: { ...opts.env, ...state.vars, ...vars },
             cwd: state.pwd,
           });
 
-          if (expanded !== undefined) {
+          if (expanded === undefined) {
+            hasUnknownLink = true;
+          } else {
             links.push(isAbsolute(expanded) ? expanded : resolve(state.base, expanded));
           }
         }
+      }
+
+      // A program that runs another one with the words it is given may run `ln` or `cp` where this check does not read it.
+      if (
+        command.words.some((word) => RUNNERS_OF_COMMANDS.has(ShellParser.basenameOf({ word }))) &&
+        command.words.some((word) => ['ln', 'cp'].includes(ShellParser.basenameOf({ word })))
+      ) {
+        hasUnknownLink = true;
       }
 
       if (!isNested) {
