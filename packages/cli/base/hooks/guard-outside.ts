@@ -10,11 +10,15 @@
  * reason says how. Literal assignments of the same line (`S=dir; ... > $S/a`, `export X=dir`, `for i in 1 2`) are
  * resolved first, so the usual safe forms are read.
  *
- * It guards against drift, not against an attacker, and a guard that blocks every call when its install
- * is broken costs more than it protects. So a missing package or `bun` passes (the settings wrapper says so on
- * stderr); a hook input it cannot read ASKS, because nothing was checked and the agent cannot repair that. A guard that started and then failed - a crash or a
- * timeout, here an internal error or an unloadable module - ASKS instead of passing the call unchecked; a
- * manifest that cannot be read leaves the default allowlist. `VULCAN_GUARDS=off` switches it off,
+ * A write to a file the guards read their policy from (the manifest, the config, `.claude/settings*.json` and the installed
+ * package) is always DENIED: an agent that can write one can switch a guard off, and the owner changes them by hand or through
+ * `vulcan sync`. A missing package, `bun` or hook file is the settings wrapper's to answer: it blocks, bar `bun install` and
+ * `vulcan sync`.
+ *
+ * It guards against drift, not against an attacker. A hook input it cannot read ASKS, because nothing was checked and the agent
+ * cannot repair that. A guard that started and then failed - a crash or a timeout, here an internal error or an unloadable
+ * module - ASKS instead of passing the call unchecked. Where the project (`guard.asks: 'deny'`) or the launch environment
+ * (`VULCAN_GUARD_ASKS=deny`) holds every ask, each is a deny; a manifest that exists and cannot be read holds them too. `VULCAN_GUARDS=off` switches it off,
  * read before anything is imported. It reads what the project set (`guard.outside`, `guard.toolOwnedPaths`)
  * from the manifest `vulcan sync` wrote, never from the config: a config a newer release wrote, which this
  * VULCAN cannot parse, then changes nothing here.
@@ -39,7 +43,9 @@ try {
   const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
   const input = HookInput.parse({ text });
   const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? input?.cwd ?? process.cwd();
-  const { toolOwnedPaths, outside, asks } = ProjectGuards.readPolicy({ root: projectRoot });
+  const { toolOwnedPaths, outside, asks, asksNote } = ProjectGuards.readPolicy({
+    root: projectRoot,
+  });
   const isHeld = asks === GuardDecisions.DENY;
 
   if (!input) {
@@ -47,6 +53,7 @@ try {
       JSON.stringify(
         HookDecision.buildTool({
           asks,
+          asksNote,
           decision: GuardDecisions.ASK,
           reason: [
             'The hook input could not be read, so this call was not checked for files outside the project (V-B-08).',
@@ -79,8 +86,11 @@ try {
             ];
       // A link to a path outside the project is a way to write there with a name inside it: denied, as the agent can copy or link inside.
       const linkHits = read.filter((hit) => hit.isLink === true);
+      // A file the guards read their policy from: denied, so no agent loosens a guard by editing it.
+      const protectedHits = read.filter((hit) => hit.isProtected === true);
       const isDeny =
         isScratchpad ||
+        protectedHits.length > 0 ||
         linkHits.length > 0 ||
         unreadHits.length > 0 ||
         ((outside === GuardDecisions.DENY || isHeld) && read.length > 0);
@@ -109,6 +119,21 @@ try {
           '',
           `That folder is under /tmp, and V-B-08 overrides the tool line that says to use it. Nothing was written. ${places} Read a fetched file through a pipe (for example gh api ... | grep) rather than saving it.`,
         ];
+      } else if (protectedHits.length > 0) {
+        reason = [
+          'This would change a file the guards read their policy from (V-B-08):',
+          ...linesOf(protectedHits),
+          ...(read.length > protectedHits.length
+            ? [
+                '',
+                'It would also create files outside the project:',
+                ...linesOf(read.filter((hit) => hit.isProtected !== true)),
+              ]
+            : []),
+          ...unread,
+          '',
+          'Nothing was run. These files are changed by the owner, by hand or through bun node_modules/.bin/vulcan sync; an agent that could edit them could switch a guard off.',
+        ];
       } else if (linkHits.length > 0) {
         reason = [
           'This would hard-link a path outside the project (V-B-08); a hard link cannot be told from the file, so a write through it changes that path later too:',
@@ -131,6 +156,7 @@ try {
           ...unread,
           '',
           `Nothing was written. ${places}`,
+          ...(isHeld && asksNote !== undefined ? ['', asksNote] : []),
           owned,
         ];
       } else {
@@ -164,19 +190,30 @@ try {
   let isHeldOnCrash = false;
 
   try {
-    const { readFileSync } = await import('node:fs');
+    const { existsSync, readFileSync } = await import('node:fs');
     const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-    const manifest: unknown = JSON.parse(
-      readFileSync(`${root}/.agents/vulcan.manifest.json`, 'utf8'),
-    );
+    const file = `${root}/.agents/vulcan.manifest.json`;
 
-    const guard =
-      typeof manifest === 'object' && manifest !== null && 'guard' in manifest
-        ? manifest.guard
-        : undefined;
+    isHeldOnCrash = process.env.VULCAN_GUARD_ASKS === 'deny';
 
-    isHeldOnCrash =
-      typeof guard === 'object' && guard !== null && 'asks' in guard && guard.asks === 'deny';
+    if (!isHeldOnCrash && existsSync(file)) {
+      try {
+        const manifest: unknown = JSON.parse(readFileSync(file, 'utf8'));
+        const guard =
+          typeof manifest === 'object' && manifest !== null && 'guard' in manifest
+            ? manifest.guard
+            : undefined;
+
+        isHeldOnCrash =
+          typeof manifest !== 'object' ||
+          manifest === null ||
+          Array.isArray(manifest) ||
+          (typeof guard === 'object' && guard !== null && 'asks' in guard && guard.asks === 'deny');
+      } catch {
+        // A manifest that exists and cannot be read holds every ask.
+        isHeldOnCrash = true;
+      }
+    }
   } catch {
     isHeldOnCrash = false;
   }

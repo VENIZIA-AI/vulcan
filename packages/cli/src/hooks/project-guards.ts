@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { GuardDecisions } from './common/index.ts';
+import { GuardDecisions, HookConstants } from './common/index.ts';
 
 /** A command the project says is a database write or a deploy: guard-writes asks on a match. */
 export interface IProjectCommandCheck {
@@ -13,10 +13,15 @@ export interface IProjectCommandCheck {
 interface IGuardPolicy {
   commands: IProjectCommandCheck[];
   askPush: string[];
-  /** `guard.outside`: what guard-outside does with a write outside the project; `ask` when the manifest says nothing. */
+  /** `guard.outside`: what guard-outside does with a write outside the project; the strictest of `VULCAN_GUARD_OUTSIDE` and the manifest, `ask` when neither says `deny`. */
   outside: string;
-  /** `guard.asks`: `deny` makes every answer that would ask a human a refusal; `ask` when the manifest says nothing. */
+  /**
+   * `guard.asks`: `deny` makes every answer that would ask a human a refusal. The strictest of the launch environment
+   * (`VULCAN_GUARD_ASKS`), the manifest, and a manifest that exists but cannot be read; `ask` when none says otherwise.
+   */
   asks: string;
+  /** What the answer adds when an ask is held: which of the three held it; `undefined` when asks stay asks. */
+  asksNote?: string;
   /** `guard.toolOwnedPaths`: stores a tool manages itself, which guard-outside lets through. */
   toolOwnedPaths: string[];
   /** `guard.runners.allow`: the package names bunx, `bun x`, npx and `pnpm dlx` may run beyond `@venizia/*`. */
@@ -80,7 +85,29 @@ export class ProjectGuards {
    * manifest, or none of the block, has none; an entry that cannot be used is skipped, said once on
    * stderr, and the others stay.
    */
-  static readPolicy(opts: { root: string }): IGuardPolicy {
+  static readPolicy(opts: {
+    root: string;
+    env?: Record<string, string | undefined>;
+  }): IGuardPolicy {
+    const policy = ProjectGuards.readManifest({ root: opts.root });
+    const env = opts.env ?? process.env;
+    const isEnvAsks = env[HookConstants.ENV_ASKS] === GuardDecisions.DENY;
+    const isEnvOutside = env[HookConstants.ENV_OUTSIDE] === GuardDecisions.DENY;
+    const isAsksDenied = isEnvAsks || policy.asks === GuardDecisions.DENY;
+
+    return {
+      ...policy,
+      asks: isAsksDenied ? GuardDecisions.DENY : GuardDecisions.ASK,
+      asksNote: isEnvAsks ? HookConstants.HELD_ASK_ENV : policy.asksNote,
+      outside:
+        isEnvOutside || policy.outside === GuardDecisions.DENY
+          ? GuardDecisions.DENY
+          : GuardDecisions.ASK,
+    };
+  }
+
+  /** What the manifest sets, before the launch environment tightens it. A manifest that exists and cannot be read holds every ask. */
+  private static readManifest(opts: { root: string }): IGuardPolicy {
     const path = join(opts.root, GUARD_MANIFEST_FILE);
     const empty: IGuardPolicy = {
       commands: [],
@@ -89,6 +116,11 @@ export class ProjectGuards {
       asks: GuardDecisions.ASK,
       toolOwnedPaths: [],
       runnersAllow: [],
+    };
+    const unreadable: IGuardPolicy = {
+      ...empty,
+      asks: GuardDecisions.DENY,
+      asksNote: HookConstants.MANIFEST_UNREADABLE,
     };
 
     if (!existsSync(path)) {
@@ -101,14 +133,21 @@ export class ProjectGuards {
       manifest = JSON.parse(readFileSync(path, 'utf8'));
     } catch (error) {
       note({
-        message: `the manifest could not be read, so the project's own patterns are off (${error instanceof Error ? error.message : String(error)})`,
+        message: `the manifest could not be read, so the project's own patterns are off and every ask is a deny (${error instanceof Error ? error.message : String(error)})`,
       });
 
-      return empty;
+      return unreadable;
     }
 
     const top = { value: manifest };
-    const guard = isRecord(top) ? { value: top.value['guard'] } : { value: undefined };
+
+    if (!isRecord(top)) {
+      note({ message: 'the manifest is not an object, so every ask is a deny' });
+
+      return unreadable;
+    }
+
+    const guard = { value: top.value['guard'] };
 
     if (!isRecord(guard)) {
       return empty;
@@ -135,6 +174,7 @@ export class ProjectGuards {
       outside:
         guard.value['outside'] === GuardDecisions.DENY ? GuardDecisions.DENY : GuardDecisions.ASK,
       asks: guard.value['asks'] === GuardDecisions.DENY ? GuardDecisions.DENY : GuardDecisions.ASK,
+      asksNote: guard.value['asks'] === GuardDecisions.DENY ? HookConstants.HELD_ASK : undefined,
       toolOwnedPaths: words(owned),
       runnersAllow: isRecord(runners) ? words(runners.value['allow']) : [],
     };

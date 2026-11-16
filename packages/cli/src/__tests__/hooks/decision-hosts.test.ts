@@ -51,6 +51,17 @@ describe('forHost', () => {
     expect(denied.permissionDecisionReason).toBe('confirm this');
   });
 
+  test('the line added to a held ask is the one the project gave', () => {
+    const held = HookDecision.forHost({
+      output: ASK,
+      env: {},
+      asks: 'deny',
+      asksNote: 'held by the environment',
+    });
+
+    expect(held.permissionDecisionReason).toBe('confirm this\n\nheld by the environment');
+  });
+
   test('every builder of a PreToolUse decision goes through it', () => {
     const outputs = [
       HookDecision.buildTool({ decision: 'ask', reason: ['x'] }),

@@ -584,6 +584,10 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    * `git reset --hard`, a force-push to a branch that is not protected, a force-delete of an unmerged branch, a write outside the
    * project, a part of a call a guard cannot read, a guard that crashed or timed out) a refusal with the same hint. Where the agent
    * runs in an auto mode an ask can be approved without the owner seeing it, so a project that runs agents there sets `asks: 'deny'`.
+   * Both are a drift guard, not a boundary: the owner's choice belongs in the launch environment (`VULCAN_GUARD_ASKS=deny`,
+   * `VULCAN_GUARD_OUTSIDE=deny`), where the strictest of the environment and the manifest holds and nothing in the project can
+   * loosen it. `guard-outside` denies an agent's write to the manifest, `.configs/vulcan.config.*`, `.claude/settings*.json` and
+   * `node_modules/@venizia/vulcan`.
    */
   guard: z
     .strictObject({
@@ -591,7 +595,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       toolOwnedPaths: z.array(z.string().min(1)).default([]),
       /** What guard-outside does with a write outside the project: `ask` or `deny`; default `ask`. */
       outside: z.enum([GuardDecisions.ASK, GuardDecisions.DENY]).default(GuardDecisions.ASK),
-      /** What every guard does with a call that needs a human to confirm it: `ask` or `deny`; default `ask`. Set `deny` where the agent runs in an auto mode. */
+      /** What every guard does with a call that needs a human to confirm it: `ask` or `deny`; default `ask`. Set `deny` where the agent runs in an auto mode; `VULCAN_GUARD_ASKS=deny` in the launch environment holds it where the project cannot. */
       asks: z.enum([GuardDecisions.ASK, GuardDecisions.DENY]).default(GuardDecisions.ASK),
       /** Write guard list: the project's own deploy and migrate commands; default `[]`. */
       writes: z

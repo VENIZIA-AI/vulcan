@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { toolEvent } from '../hook-event.helper.ts';
 
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const SHIPPED_SETTINGS = join(PACKAGE_ROOT, 'base', 'claude', 'settings.json');
@@ -538,7 +539,6 @@ describe('guard.asks: deny turns the answer of a crashed hook into a deny', () =
     ['no manifest', undefined],
     ['a manifest without the key', '{"guard":{"outside":"deny"}}'],
     ['asks set to ask', '{"guard":{"asks":"ask"}}'],
-    ['a manifest that is not JSON', '{ nope'],
   ])('%s: the answer stays an ask', (_, manifest) => {
     const root = rootWithManifest({ manifest: manifest ?? '{}', script: 'process.exit(3);' });
 
@@ -548,6 +548,150 @@ describe('guard.asks: deny turns the answer of a crashed hook into a deny', () =
     expect(runHook({ command: outside.command, root, stdin: BASH_INPUT('ls') }).stdout).toContain(
       '"permissionDecision":"ask"',
     );
+  });
+});
+
+describe('a crashed hook is held by the launch environment and by a manifest that cannot be read', () => {
+  const DENY = '"permissionDecision":"deny"';
+  const ASK = '"permissionDecision":"ask"';
+  const [git] = askingHooks().filter((hook) => hook.command.includes('guard-git.ts'));
+  const [outside] = askingHooks().filter((hook) => hook.command.includes('guard-outside.ts'));
+
+  /** A project whose guard-git and guard-outside crash (exit 3), with `manifest` as its manifest when it has one. */
+  const crashing = (opts: { manifest?: string }): string => {
+    const root = makeRoot();
+    const target = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+
+    mkdirSync(target, { recursive: true });
+
+    for (const name of ['guard-git', 'guard-outside']) {
+      writeFileSync(join(target, `${name}.ts`), 'process.exit(3);');
+    }
+
+    if (opts.manifest !== undefined) {
+      mkdirSync(join(root, '.agents'), { recursive: true });
+      writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), opts.manifest);
+    }
+
+    return root;
+  };
+
+  const answers = (opts: { root: string; env?: Record<string, string> }) => ({
+    git: runHook({
+      command: git.command,
+      root: opts.root,
+      env: opts.env,
+      stdin: BASH_INPUT('git status'),
+    }).stdout,
+    outside: runHook({
+      command: outside.command,
+      root: opts.root,
+      env: opts.env,
+      stdin: BASH_INPUT('ls'),
+    }).stdout,
+  });
+
+  test('VULCAN_GUARD_ASKS=deny denies a crash with no manifest and with a manifest that says ask', () => {
+    for (const manifest of [undefined, '{"guard":{"asks":"ask"}}', '{}']) {
+      const result = answers({ root: crashing({ manifest }), env: { VULCAN_GUARD_ASKS: 'deny' } });
+
+      expect(result.git, String(manifest)).toContain(DENY);
+      expect(result.outside, String(manifest)).toContain(DENY);
+    }
+  });
+
+  test.each(['ask', 'allow', '1', 'true', 'DENY', ''])(
+    'VULCAN_GUARD_ASKS=%s is not deny: the crash still asks',
+    (value) => {
+      const result = answers({ root: crashing({}), env: { VULCAN_GUARD_ASKS: value } });
+
+      expect(result.git).toContain(ASK);
+      expect(result.outside).toContain(ASK);
+    },
+  );
+
+  test.each([
+    ['not JSON', '{ nope'],
+    ['an empty file', ''],
+    ['merge-conflict markers', '<<<<<<< HEAD\n{}\n=======\n{"guard":{}}\n>>>>>>> topic\n'],
+    ['an array', '[]'],
+    ['a string', '"deny"'],
+    ['null', 'null'],
+  ])('a manifest that is %s denies a crash', (_, manifest) => {
+    const result = answers({ root: crashing({ manifest }) });
+
+    expect(result.git).toContain(DENY);
+    expect(result.outside).toContain(DENY);
+  });
+
+  test('a manifest that parses and says nothing about asks leaves a crash an ask', () => {
+    const result = answers({ root: crashing({ manifest: '{"schemaVersion":1}' }) });
+
+    expect(result.git).toContain(ASK);
+    expect(result.outside).toContain(ASK);
+  });
+
+  test('the answer of a hook whose import fails (its own catch) follows the same rules', () => {
+    for (const [manifest, env, expected] of [
+      ['{ nope', undefined, DENY],
+      ['{"schemaVersion":1}', { VULCAN_GUARD_ASKS: 'deny' }, DENY],
+      ['{"schemaVersion":1}', undefined, ASK],
+    ] as const) {
+      const root = makeRoot();
+      const target = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+
+      mkdirSync(target, { recursive: true });
+      mkdirSync(join(root, '.agents'), { recursive: true });
+      writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), manifest);
+
+      for (const name of ['guard-git', 'guard-outside']) {
+        copyFileSync(join(PACKAGE_ROOT, 'base', 'hooks', `${name}.ts`), join(target, `${name}.ts`));
+      }
+
+      expect(
+        runHook({ command: git.command, root, env, stdin: BASH_INPUT('git status') }).stdout,
+        manifest,
+      ).toContain(expected);
+      expect(
+        runHook({ command: outside.command, root, env, stdin: BASH_INPUT('ls') }).stdout,
+        manifest,
+      ).toContain(expected);
+    }
+  });
+
+  test('a git or gh word after a JSON escape is still a git command: true<newline>git reset --hard is not passed', () => {
+    const root = crashing({});
+
+    for (const command of ['true\ngit reset --hard', 'true\tgit status', 'echo hi;\rgh pr list']) {
+      const result = runHook({ command: git.command, root, stdin: BASH_INPUT(command) });
+
+      expect(result.stdout, command).toContain(ASK);
+    }
+
+    for (const command of ['ls\ndigit', 'echo github', 'bun test\nlegit']) {
+      const result = runHook({ command: git.command, root, stdin: BASH_INPUT(command) });
+
+      expect(result.stdout, command).toBe('');
+    }
+  });
+
+  test('the repair command passes only for a Bash call', () => {
+    const root = makeRoot();
+    const asTool = (tool: string): string =>
+      toolEvent({
+        tool,
+        input: Object.fromEntries([
+          ['command', 'bun install'],
+          ['file_path', 'x'],
+        ]),
+        cwd: '/tmp',
+      });
+
+    expect(runHook({ command: outside.command, root, stdin: asTool('Bash') }).code).toBe(0);
+
+    for (const tool of ['Write', 'Edit', 'MultiEdit', 'NotebookEdit']) {
+      expect(runHook({ command: outside.command, root, stdin: asTool(tool) }).code, tool).toBe(2);
+    }
   });
 });
 

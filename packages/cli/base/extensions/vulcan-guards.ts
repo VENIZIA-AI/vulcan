@@ -82,7 +82,7 @@ const REPAIR =
 const GIT_LINE = /(^|[^A-Za-z0-9_])(git|gh)([^A-Za-z0-9_]|$)/;
 const MANIFEST_FILE = join('.agents', 'vulcan.manifest.json');
 const HELD_ASK =
-  'This project denies every call that would need a human to confirm it (guard.asks: deny). Nothing was run: hand this to the owner.';
+  'Every call that would need a human to confirm it is denied here (guard.asks: deny, VULCAN_GUARD_ASKS=deny, or a manifest that cannot be read). Nothing was run: hand this to the owner.';
 
 /** The guards of `.claude/settings.json`, with the tools each covers and what each does when it cannot answer. */
 const GUARDS: IGuard[] = [
@@ -124,15 +124,28 @@ const rootOf = (opts: { cwd: string }): string => {
   }
 };
 
-/** Whether the manifest of the project at `root` sets `guard.asks` to `deny`; false when it cannot be read. */
+/**
+ * Whether every ask is a deny in the project at `root`: the launch environment says `VULCAN_GUARD_ASKS=deny`, the manifest sets
+ * `guard.asks` to `deny`, or the manifest exists and cannot be read. No manifest means asks stay asks.
+ */
 const isHeldIn = (opts: { root: string }): boolean => {
+  if (process.env.VULCAN_GUARD_ASKS === Answers.DENY) {
+    return true;
+  }
+
+  const file = join(opts.root, MANIFEST_FILE);
+
+  if (!existsSync(file)) {
+    return false;
+  }
+
   try {
-    const manifest: unknown = JSON.parse(readFileSync(join(opts.root, MANIFEST_FILE), 'utf8'));
+    const manifest: unknown = JSON.parse(readFileSync(file, 'utf8'));
     const guard = isRecord(manifest) ? manifest.guard : undefined;
 
-    return isRecord(guard) && guard.asks === Answers.DENY;
+    return !isRecord(manifest) || (isRecord(guard) && guard.asks === Answers.DENY);
   } catch {
-    return false;
+    return true;
   }
 };
 

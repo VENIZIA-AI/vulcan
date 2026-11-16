@@ -31,7 +31,11 @@ try {
       ];
 
   if (hits.length > 0) {
-    console.log(JSON.stringify(WriteGuard.buildDecision({ hits, asks: policy.asks })));
+    console.log(
+      JSON.stringify(
+        WriteGuard.buildDecision({ hits, asks: policy.asks, asksNote: policy.asksNote }),
+      ),
+    );
   }
 } catch (error) {
   console.error(

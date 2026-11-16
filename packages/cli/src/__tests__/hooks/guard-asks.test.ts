@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
+import { fileToolEvent } from '../hook-event.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -99,7 +100,13 @@ const projectOf = (opts: { guard: Record<string, unknown>; isRepository?: boolea
 };
 
 /** What a hook answers to a Bash call (or to whatever `stdin` holds), as the decision and the whole text. */
-const answerOf = (opts: { hook: THook; root: string; command?: string; stdin?: string }) => {
+const answerOf = (opts: {
+  hook: THook;
+  root: string;
+  command?: string;
+  stdin?: string;
+  env?: Record<string, string>;
+}) => {
   const environment: Record<string, string | undefined> = {
     ...process.env,
     CLAUDE_PROJECT_DIR: opts.root,
@@ -109,6 +116,9 @@ const answerOf = (opts: { hook: THook; root: string; command?: string; stdin?: s
   delete environment.XDG_RUNTIME_DIR;
   delete environment.VULCAN_GUARDS;
   delete environment.CURSOR_PROJECT_DIR;
+  delete environment.VULCAN_GUARD_ASKS;
+  delete environment.VULCAN_GUARD_OUTSIDE;
+  Object.assign(environment, opts.env);
 
   const stdin =
     opts.stdin ??
@@ -170,6 +180,144 @@ describe('every ask the hooks have becomes a deny with guard.asks: deny', () => 
     expect(held.code).toBe(0);
     expect(held.decision).toBe('deny');
     expect(held.text).toContain('guard.asks');
+  });
+
+  test.each(SOURCES)(
+    '$name: VULCAN_GUARD_ASKS=deny denies it, whatever the manifest says',
+    (source) => {
+      for (const guard of [{ ...source.guard }, { ...source.guard, asks: 'ask' }]) {
+        const held = answerOf({
+          hook: source.hook,
+          command: source.command,
+          root: projectOf({ guard, isRepository: source.isRepository }),
+          env: { VULCAN_GUARD_ASKS: 'deny' },
+        });
+
+        expect(held.decision).toBe('deny');
+        expect(held.text).toContain('VULCAN_GUARD_ASKS=deny');
+      }
+    },
+  );
+
+  test.each(['ask', 'allow', '1', 'true', 'DENY', ''])(
+    'VULCAN_GUARD_ASKS=%s is not deny: an ask stays an ask',
+    (value) => {
+      const result = answerOf({
+        hook: 'guard-git',
+        command: 'git reset --hard HEAD~1',
+        root: projectOf({ guard: {} }),
+        env: { VULCAN_GUARD_ASKS: value },
+      });
+
+      expect(result.decision).toBe('ask');
+    },
+  );
+
+  test('the manifest can only tighten: the strictest of the environment and the manifest holds', () => {
+    for (const [env, asks, expected] of [
+      [undefined, 'deny', 'deny'],
+      [undefined, 'ask', 'ask'],
+      ['deny', 'ask', 'deny'],
+      ['deny', 'deny', 'deny'],
+      ['ask', 'deny', 'deny'],
+    ] as const) {
+      const result = answerOf({
+        hook: 'guard-git',
+        command: 'git reset --hard HEAD~1',
+        root: projectOf({ guard: { asks } }),
+        env: env === undefined ? undefined : { VULCAN_GUARD_ASKS: env },
+      });
+
+      expect(result.decision, `env ${env} manifest ${asks}`).toBe(expected);
+    }
+  });
+
+  test('VULCAN_GUARD_OUTSIDE=deny denies a write outside the project and leaves the other asks asking', () => {
+    const root = projectOf({ guard: { outside: 'ask' } });
+    const env = { VULCAN_GUARD_OUTSIDE: 'deny' };
+
+    expect(
+      answerOf({
+        hook: 'guard-outside',
+        command: 'echo x > /var/tmp/vulcan-asks-probe.txt',
+        root,
+        env,
+      }).decision,
+    ).toBe('deny');
+    expect(
+      answerOf({ hook: 'guard-git', command: 'git reset --hard HEAD~1', root, env }).decision,
+    ).toBe('ask');
+    expect(
+      answerOf({ hook: 'guard-outside', command: 'echo x > /var/tmp/vulcan-asks-probe.txt', root })
+        .decision,
+    ).toBe('ask');
+  });
+
+  test('an agent cannot loosen a held project by editing the manifest: the edit is denied, and a loosened manifest does not weaken the environment', () => {
+    const root = projectOf({ guard: { asks: 'deny' } });
+    const edits = [
+      "sed -i 's/deny/ask/' .agents/vulcan.manifest.json",
+      'echo "{}" > .agents/vulcan.manifest.json',
+      'rm .agents/vulcan.manifest.json',
+      "perl -pi -e 's/deny/ask/' .agents/vulcan.manifest.json",
+    ];
+
+    for (const command of edits) {
+      expect(answerOf({ hook: 'guard-outside', command, root }).decision, command).toBe('deny');
+    }
+
+    // The same call through the file tools.
+    const written = answerOf({
+      hook: 'guard-outside',
+      root,
+      stdin: fileToolEvent({
+        tool: 'Write',
+        path: join(root, '.agents', 'vulcan.manifest.json'),
+        cwd: root,
+      }),
+    });
+
+    expect(written.decision).toBe('deny');
+
+    // The owner's environment holds even when the manifest is loosened by other means.
+    const loosened = projectOf({ guard: { asks: 'ask' } });
+
+    expect(
+      answerOf({
+        hook: 'guard-git',
+        command: 'git reset --hard HEAD~1',
+        root: loosened,
+        env: { VULCAN_GUARD_ASKS: 'deny' },
+      }).decision,
+    ).toBe('deny');
+    expect(
+      answerOf({
+        hook: 'guard-writes',
+        command: 'kubectl apply -f x.yaml',
+        root: loosened,
+        env: { VULCAN_GUARD_ASKS: 'deny' },
+      }).decision,
+    ).toBe('deny');
+  });
+
+  test('a manifest that exists and cannot be read denies every ask, with the way to repair it', () => {
+    for (const manifest of ['{ nope', '', '<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> topic\n', '[]']) {
+      const root = createProject({
+        files: { 'package.json': '{}', [GUARD_MANIFEST_FILE]: manifest },
+      });
+
+      for (const [hook, command] of [
+        ['guard-writes', 'kubectl apply -f x.yaml'],
+        ['guard-git', 'git reset --hard HEAD~1'],
+        ['guard-outside', 'echo x > /var/tmp/vulcan-asks-probe.txt'],
+      ] as const) {
+        const held = answerOf({ hook, command, root });
+
+        expect(held.decision, `${hook} ${JSON.stringify(manifest)}`).toBe('deny');
+        expect(held.text, hook).toContain('cannot be read');
+        expect(held.text, hook).toContain('vulcan sync');
+      }
+    }
   });
 
   test.each(['guard-writes', 'guard-git', 'guard-outside'] as const)(

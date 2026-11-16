@@ -9,10 +9,6 @@ interface IDecisionOutput {
   };
 }
 
-/** What the answer says when a project makes every ask a refusal (`guard.asks: 'deny'`). */
-const HELD_ASK =
-  'This project denies every call that would need a human to confirm it (guard.asks: deny). Nothing was run: hand this to the owner.';
-
 export class HookDecision {
   /**
    * The decision as every host that reads our hooks understands it. Claude Code and Cursor read
@@ -25,6 +21,8 @@ export class HookDecision {
     output: IDecisionOutput;
     env?: Record<string, string | undefined>;
     asks?: string;
+    /** What the added line says when the ask is held; the project's own wording when it is not given. */
+    asksNote?: string;
   }) {
     const specific = opts.output.hookSpecificOutput;
     const env = opts.env ?? process.env;
@@ -35,7 +33,7 @@ export class HookDecision {
     let reason = specific.permissionDecisionReason;
 
     if (isHeld) {
-      reason = `${reason}\n\n${HELD_ASK}`;
+      reason = `${reason}\n\n${opts.asksNote ?? HookConstants.HELD_ASK}`;
     } else if (isCursorAsk) {
       reason = `${reason}\n(Cursor cannot ask about a tool call: hand this to the owner)`;
     }
@@ -52,9 +50,15 @@ export class HookDecision {
   }
 
   /** The PreToolUse answer Claude Code reads from stdout: the decision and why, shown to the human or to the model. */
-  static buildTool(opts: { decision: TGuardDecision; reason: string[]; asks?: string }) {
+  static buildTool(opts: {
+    decision: TGuardDecision;
+    reason: string[];
+    asks?: string;
+    asksNote?: string;
+  }) {
     return HookDecision.forHost({
       asks: opts.asks,
+      asksNote: opts.asksNote,
       output: {
         hookSpecificOutput: {
           hookEventName: HookConstants.PRE_TOOL_USE,

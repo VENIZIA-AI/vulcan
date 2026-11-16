@@ -301,6 +301,89 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
     expect(asked).toBeUndefined();
   });
 
+  test('VULCAN_GUARD_ASKS=deny in the environment holds a broken drift guard, and only the exact word deny does', async () => {
+    const root = projectWithBrokenGuard({ broken: 'guard-git' });
+    const handle = handlerOf();
+    const before = process.env.VULCAN_GUARD_ASKS;
+
+    try {
+      process.env.VULCAN_GUARD_ASKS = 'deny';
+      const held = await handle(
+        bash('git status'),
+        contextOf({ cwd: root, hasUI: true, answer: true }),
+      );
+
+      process.env.VULCAN_GUARD_ASKS = 'ask';
+      const asked = await handle(
+        bash('git status'),
+        contextOf({ cwd: root, hasUI: true, answer: true }),
+      );
+
+      expect(held?.block).toBe(true);
+      expect(held?.reason).toContain('VULCAN_GUARD_ASKS=deny');
+      expect(asked).toBeUndefined();
+    } finally {
+      if (before === undefined) {
+        delete process.env.VULCAN_GUARD_ASKS;
+      } else {
+        process.env.VULCAN_GUARD_ASKS = before;
+      }
+    }
+  });
+
+  test.each([
+    ['not JSON', '{ nope'],
+    ['empty', ''],
+    ['merge-conflict markers', '<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> topic\n'],
+    ['an array', '[]'],
+  ])('a manifest that is %s holds a broken drift guard', async (_, manifest) => {
+    const root = projectWithBrokenGuard({
+      broken: 'guard-git',
+      files: { [GUARD_MANIFEST_FILE]: manifest },
+    });
+    const handle = handlerOf();
+    const result = await handle(
+      bash('git status'),
+      contextOf({ cwd: root, hasUI: true, answer: true }),
+    );
+
+    expect(result?.block).toBe(true);
+    expect(result?.reason).toContain('guard.asks: deny');
+  });
+
+  test('a write to a file the guards read their policy from is blocked, UI or not, and a file next to it is not', async () => {
+    const root = installedProject();
+    const handle = handlerOf();
+
+    for (const path of [
+      '.agents/vulcan.manifest.json',
+      '.configs/vulcan.config.mts',
+      '.claude/settings.json',
+      '.claude/settings.local.json',
+      'node_modules/@venizia/vulcan/base/hooks/guard-outside.ts',
+    ]) {
+      const written = await handle(
+        { toolName: 'write', input: { path: join(root, path), content: '' } },
+        contextOf({ cwd: root, hasUI: true, answer: true }),
+      );
+
+      expect(written?.block, path).toBe(true);
+      expect(written?.reason, path).toContain('changed by the owner');
+    }
+
+    const viaBash = await handle(
+      bash("sed -i 's/deny/ask/' .agents/vulcan.manifest.json"),
+      contextOf({ cwd: root, hasUI: true, answer: true }),
+    );
+    const next = await handle(
+      { toolName: 'write', input: { path: join(root, '.claude', 'notes.md'), content: '' } },
+      contextOf({ cwd: root }),
+    );
+
+    expect(viaBash?.block).toBe(true);
+    expect(next).toBeUndefined();
+  });
+
   test('a guard-writes that is gone from an installed package passes; guard-outside and guard-git blocks, with no package every guard blocks', async () => {
     const handle = handlerOf();
     const installed = createProject({ files: { 'package.json': '{}' } });

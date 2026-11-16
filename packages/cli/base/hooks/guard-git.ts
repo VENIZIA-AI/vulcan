@@ -5,11 +5,12 @@
  * `reset --hard`, other force-pushes, `branch -D` of an unmerged branch and `gh pr create` with no `--base`
  * (ask: the pull request would land on the default branch).
  *
- * It guards against drift, it is not the last line of defence, and a guard that blocks every command when
- * its install is broken costs more than it protects. So a missing package or `bun` passes (the settings wrapper
- * says so on stderr); input it cannot read ASKS, because nothing was checked. A guard that started and then failed - a crash
- * or a timeout, here an internal error or an unloadable module - ASKS about a command that names `git` or
- * `gh`, instead of passing it unchecked. `VULCAN_GUARDS=off` switches it off, read before anything is
+ * It guards against drift, it is not the last line of defence. A missing package, `bun` or hook file is the settings wrapper's
+ * to answer: it blocks a command that names `git` or `gh`, bar `bun install` and `vulcan sync`. Input it cannot read ASKS,
+ * because nothing was checked. A guard that started and then failed - a crash or a timeout, here an internal error or an
+ * unloadable module - ASKS about a command that names `git` or `gh`, instead of passing it unchecked. Where the project
+ * (`guard.asks: 'deny'`) or the launch environment (`VULCAN_GUARD_ASKS=deny`) holds every ask, each ask is a deny, and so is a
+ * crash when the manifest exists and cannot be read. `VULCAN_GUARDS=off` switches it off, read before anything is
  * imported. It imports only the modules it needs - no config, no zod. The branches the project lists in
  * `guard.git.askPush` are read from the manifest, and a plain push to one of them asks.
  */
@@ -67,12 +68,13 @@ try {
       JSON.stringify(
         HookDecision.buildTool({
           asks: policy.asks,
+          asksNote: policy.asksNote,
           decision: denied || isHeld ? GuardDecisions.DENY : GuardDecisions.ASK,
           reason: [
             denied
               ? 'This command is refused by the base rules:'
               : isHeld
-                ? 'This command needs a human to confirm, and this project denies that (guard.asks):'
+                ? 'This command needs a human to confirm, and every ask is denied here:'
                 : 'This command needs a human to confirm:',
             ...hits.map((hit) => `  - ${hit.rule}: ${hit.message}`),
             '',
@@ -88,7 +90,10 @@ try {
                     : []),
                 ]
               : isHeld
-                ? ['Nothing was run. Hand the exact command to the owner instead (V-W-06).']
+                ? [
+                    'Nothing was run. Hand the exact command to the owner instead (V-W-06).',
+                    ...(policy.asksNote === undefined ? [] : [policy.asksNote]),
+                  ]
                 : ['Confirm only if the owner asked for exactly this.']),
           ],
         }),
@@ -105,18 +110,33 @@ try {
     let isHeldOnCrash = false;
 
     try {
-      const { readFileSync } = await import('node:fs');
+      const { existsSync, readFileSync } = await import('node:fs');
       const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-      const manifest: unknown = JSON.parse(
-        readFileSync(`${root}/.agents/vulcan.manifest.json`, 'utf8'),
-      );
-      const guard =
-        typeof manifest === 'object' && manifest !== null && 'guard' in manifest
-          ? manifest.guard
-          : undefined;
+      const file = `${root}/.agents/vulcan.manifest.json`;
 
-      isHeldOnCrash =
-        typeof guard === 'object' && guard !== null && 'asks' in guard && guard.asks === 'deny';
+      isHeldOnCrash = process.env.VULCAN_GUARD_ASKS === 'deny';
+
+      if (!isHeldOnCrash && existsSync(file)) {
+        try {
+          const manifest: unknown = JSON.parse(readFileSync(file, 'utf8'));
+          const guard =
+            typeof manifest === 'object' && manifest !== null && 'guard' in manifest
+              ? manifest.guard
+              : undefined;
+
+          isHeldOnCrash =
+            typeof manifest !== 'object' ||
+            manifest === null ||
+            Array.isArray(manifest) ||
+            (typeof guard === 'object' &&
+              guard !== null &&
+              'asks' in guard &&
+              guard.asks === 'deny');
+        } catch {
+          // A manifest that exists and cannot be read holds every ask.
+          isHeldOnCrash = true;
+        }
+      }
     } catch {
       isHeldOnCrash = false;
     }

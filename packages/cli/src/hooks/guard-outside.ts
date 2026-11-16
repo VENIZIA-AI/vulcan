@@ -103,6 +103,30 @@ const isInside = (opts: { path: string; root: string }): boolean =>
   opts.path === opts.root || opts.path.startsWith(`${opts.root}${sep}`);
 
 /**
+ * Whether `path` is one of the files the guards read their policy from (`HookConstants.PROTECTED_FILES`), relative to the project
+ * root. A removal or a move also takes a folder that holds one of them (`rm -rf .claude`), bar `node_modules`, whose removal leaves
+ * the guards missing and the call blocked until `bun install`.
+ */
+const isProtectedFile = (opts: { path: string; root: string; isRemoval: boolean }): boolean => {
+  if (!isInside({ path: opts.path, root: opts.root }) || opts.path === opts.root) {
+    return false;
+  }
+
+  const relative = opts.path.slice(opts.root.length + 1);
+  const globs = HookConstants.PROTECTED_FILES;
+
+  if (globs.some((pattern) => new Bun.Glob(pattern).match(relative))) {
+    return true;
+  }
+
+  return (
+    opts.isRemoval &&
+    !relative.startsWith('node_modules') &&
+    globs.some((pattern) => pattern.startsWith(`${relative}/`))
+  );
+};
+
+/**
  * A tool-owned pattern as an absolute glob: `~` and variables expanded, a bare directory taking everything
  * below it. A pattern with an unset variable is dropped - it would otherwise match from the root.
  */
@@ -248,7 +272,7 @@ export class OutsideGuard {
           ];
 
     for (const target of targets) {
-      if (target.hasUnreadBrace === true) {
+      if (target.hasUnreadBrace === true && target.isProtectedOnly !== true) {
         hits.push({
           path: target.word,
           message: `${target.message}: the word has a brace pattern this check cannot expand`,
@@ -293,6 +317,11 @@ export class OutsideGuard {
             env: { ...env, ...target.vars },
             cwd: target.pwd,
           });
+
+      if (expanded === undefined && target.isProtectedOnly === true) {
+        // A removal or an edit in place of a word this check cannot work out: nothing says it is a guard file.
+        continue;
+      }
 
       if (expanded === undefined) {
         // Part of the word is unknown, but the folder in front of it may not be: that folder decides.
@@ -404,6 +433,28 @@ export class OutsideGuard {
           isUnread: true,
         });
 
+        continue;
+      }
+
+      // A write to a file the guards read their policy from switches a guard off: denied whatever the project sets.
+      const isRemoval = target.isProtectedOnly === true;
+
+      if (
+        isProtectedFile({ path, root, isRemoval }) ||
+        isProtectedFile({ path: resolve(written), root, isRemoval })
+      ) {
+        hits.push({
+          path,
+          message: `${target.message}: it is one of the files the guards read their policy from`,
+          isAgentToolScratchpad: false,
+          isUnread: false,
+          isProtected: true,
+        });
+
+        continue;
+      }
+
+      if (isRemoval) {
         continue;
       }
 
