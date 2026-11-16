@@ -55,4 +55,6 @@ export interface IOutsideHit {
   isAgentToolScratchpad: boolean;
   /** Whether the check could not read the line or the target, so it does not know that anything is outside: the hook asks, even where the project denies. */
   isUnread: boolean;
+  /** Whether the path is what an `ln` of the line links to: a write through the link changes it, so the hook denies and says how to link a path inside. */
+  isLink?: boolean;
 }

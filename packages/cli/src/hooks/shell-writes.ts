@@ -1,4 +1,4 @@
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { ShellParser } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 
@@ -20,8 +20,20 @@ export interface IWriteTarget {
   isRedirect?: boolean;
   /** The word has a brace the guard cannot expand into its branches, so where it writes is not known. */
   hasUnreadBrace?: boolean;
+  /** What an `ln` of the line links to, not a file it writes. */
+  isLinkSource?: boolean;
+  /** The absolute names of the symbolic links the line made before this command. */
+  links?: string[];
   /** A `$` of the word was quoted or escaped: it is a character, and the word's text reads it as a variable. */
   hasLiteralDollar?: boolean;
+}
+
+/** What an `ln` links to and, for a symbolic link, the names it makes, as the line writes them. */
+export interface ILinkWords {
+  /** The paths the links point at, each as the system reads it from the folder the command runs in (two candidates when the name may be a folder). */
+  sources: string[];
+  /** The names a symbolic link is made at, as candidates; empty for a hard link. */
+  names: string[];
 }
 
 /** The most words one word may make of its brace lists before the guard stops expanding it. */
@@ -403,6 +415,69 @@ export class ShellWrites {
       ],
     },
   };
+  /**
+   * What `ln` links to. A hard link names the file from the folder the command runs in; a symbolic link keeps the text it is given and
+   * the system reads it from the folder of the link, so the source is joined to the link's folder (both the name's folder and the name
+   * itself as a folder, because the name may be a folder that exists), unless it is absolute, `~`, or made with `-r`.
+   */
+  static linksOf(opts: { args: string[] }): ILinkWords {
+    const { args } = opts;
+    const values = ShellWrites.VALUES['ln'];
+    const words = positional({ args, values });
+    const directory = valueOf({
+      args,
+      long: ['--target-directory'],
+      short: ['t'],
+      valued: values?.shorts,
+    });
+    const isCluster = (word: string, letter: string): boolean =>
+      /^-[a-zA-Z]+$/.test(word) && word.includes(letter);
+    const isSymbolic = args.some((word) => word === '--symbolic' || isCluster(word, 's'));
+    const isRelative = args.some((word) => word === '--relative' || isCluster(word, 'r'));
+    const link = directory === undefined && words.length > 1 ? words.at(-1) : undefined;
+    const sources = directory !== undefined || link === undefined ? words : words.slice(0, -1);
+
+    const sourceWords = sources.flatMap((source) => {
+      if (!isSymbolic || isRelative || source.startsWith('/') || source.startsWith('~')) {
+        return [source];
+      }
+
+      if (directory !== undefined) {
+        return [`${directory}/${source}`];
+      }
+
+      if (link === undefined) {
+        return [source];
+      }
+
+      if (link.endsWith('/')) {
+        return [`${link}${source}`];
+      }
+
+      const folder = link.includes('/') ? link.slice(0, link.lastIndexOf('/') + 1) : '';
+
+      return [`${folder}${source}`, `${link}/${source}`];
+    });
+    const named = (folder: string): string[] =>
+      sources.map((source) => basename(source)).map((name) => `${folder}${name}`);
+    let names: string[] = [];
+
+    if (isSymbolic) {
+      if (directory !== undefined) {
+        names = named(`${directory}/`);
+      } else if (link === undefined) {
+        names = named('');
+      } else {
+        names = link.endsWith('/') ? named(link) : [link, ...named(`${link}/`)];
+      }
+    }
+
+    return {
+      sources: sourceWords,
+      names: names.filter((name) => !/(?:^|\/)\.{1,2}$/.test(name)),
+    };
+  }
+
   /** The words a simple command would create or write, with a name for what writes them. */
   static targetsOf(opts: { command: ISimpleCommand; base: string; tmp: string }): IWriteTarget[] {
     const program = ShellParser.programOf({ command: opts.command });
@@ -468,6 +543,17 @@ export class ShellWrites {
             word,
             `${name} may write ${word}: an option it does not know could take what follows`,
           );
+        }
+      }
+      if (name === 'ln') {
+        for (const word of ShellWrites.linksOf({ args }).sources) {
+          targets.push({
+            word,
+            base,
+            message: `ln links to ${word}`,
+            isLinkSource: true,
+            isAmbiguous: true,
+          });
         }
       }
     } else if (name === 'tee') {

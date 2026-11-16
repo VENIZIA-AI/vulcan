@@ -255,6 +255,7 @@ export class OutsideGuard {
               pwd: folder.pwd,
               vars: { ...folder.vars, ...vars },
               isKnown: folder.isKnown,
+              links: folder.links,
               // The text of a word reads `'$S'` as a live `$S`; the shell takes the `$` as a character.
               hasLiteralDollar:
                 target.word.includes('$') &&
@@ -342,6 +343,7 @@ export class OutsideGuard {
               patterns: HookConstants.AGENT_TOOL_SCRATCHPAD_PATTERNS,
             }),
             isUnread: false,
+            isLink: target.isLinkSource === true,
           });
 
           continue;
@@ -356,6 +358,26 @@ export class OutsideGuard {
             isUnread: true,
           });
         }
+
+        continue;
+      }
+
+      // A path that goes through a link the line made is where the link points, which is not on disk yet to be followed.
+      if (
+        target.isLinkSource !== true &&
+        ShellFolders.passesThrough({
+          path: expanded,
+          base: target.base,
+          links: target.links ?? [],
+          isLastCounted: false,
+        })
+      ) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: the path goes through a link this line made, which this check does not follow`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
 
         continue;
       }
@@ -409,6 +431,7 @@ export class OutsideGuard {
             patterns: HookConstants.AGENT_TOOL_SCRATCHPAD_PATTERNS,
           }),
           isUnread: false,
+          isLink: target.isLinkSource === true,
         });
       }
     }

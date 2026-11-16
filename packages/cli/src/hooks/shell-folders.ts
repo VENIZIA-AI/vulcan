@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { isAbsolute, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { ShellParser } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
+import { ShellWrites } from './shell-writes.ts';
 
 export type TEnvironment = Record<string, string | undefined>;
 
@@ -20,11 +21,13 @@ export interface IShellFolder {
    * command that names one stands for every value in turn.
    */
   loops: Record<string, string[]>;
+  /** The absolute names of the symbolic links the line made (`ln -s`) before this command: the system reads them when the command runs. */
+  links: string[];
 }
 
-interface IFolderState extends Omit<IShellFolder, 'loops'> {
+interface IFolderState extends Omit<IShellFolder, 'loops' | 'links'> {
   /** The folders `pushd` saved, for `popd`. */
-  stack: Omit<IShellFolder, 'vars' | 'loops'>[];
+  stack: Omit<IShellFolder, 'vars' | 'loops' | 'links'>[];
   /** A `cd`, `pushd` or `popd` ran in this scope. */
   hasMoved: boolean;
 }
@@ -157,6 +160,44 @@ export class ShellFolders {
     // A `$` left over is an expansion with an operator (`${S/a/..}`, `${S#x}`, `${!S}`) or a special parameter (`$$`, `$?`):
     // the value is not the plain text of a variable, so the word is not worked out.
     return unresolved || expanded.includes('$') ? undefined : expanded;
+  }
+
+  /**
+   * Whether the path, read name by name from `base`, passes through one of `links` (absolute names): a link is followed where it
+   * points, so what comes after it, a `..` included, is not where the text says. The last name counts only when `isLastCounted` (a
+   * `cd` into the link itself), not for a file written at the link's own name.
+   */
+  static passesThrough(opts: {
+    path: string;
+    base: string;
+    links: string[];
+    isLastCounted: boolean;
+  }): boolean {
+    if (opts.links.length === 0) {
+      return false;
+    }
+
+    const parts = opts.path.split('/').filter((part) => part !== '' && part !== '.');
+    let current = isAbsolute(opts.path) ? '/' : opts.base;
+
+    for (const [index, part] of parts.entries()) {
+      if (part === '..') {
+        if (opts.links.includes(current)) {
+          return true;
+        }
+
+        current = dirname(current);
+        continue;
+      }
+
+      current = join(current, part);
+
+      if (opts.links.includes(current) && (index < parts.length - 1 || opts.isLastCounted)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -319,6 +360,7 @@ export class ShellFolders {
       ),
     );
     const loops: IOpenLoop[] = [];
+    const links: string[] = [];
     const loopNames = ShellFolders.loopNamesOf({ commands: opts.commands });
     // `cd x` looks for `x` in each folder of CDPATH first: set in the environment of the hook or named anywhere on the line
     // (a prefix assignment, `export`, `declare`), it may put a plain relative name in another folder.
@@ -381,9 +423,27 @@ export class ShellFolders {
                 loop.bound === undefined ? [] : [[loop.bound.name, loop.bound.values]],
               ),
             ),
+        links: [...links],
       };
 
       started.set(command, folder);
+
+      // A symbolic link the line makes is a name later words may go through: the system follows it when they run.
+      if (ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name }) === 'ln') {
+        for (const name of ShellWrites.linksOf({ args: ShellParser.programOf({ command }).args })
+          .names) {
+          const expanded = ShellFolders.expandPath({
+            word: name,
+            home: opts.home,
+            env: { ...opts.env, ...state.vars },
+            cwd: state.pwd,
+          });
+
+          if (expanded !== undefined) {
+            links.push(isAbsolute(expanded) ? expanded : resolve(state.base, expanded));
+          }
+        }
+      }
 
       if (!isNested) {
         if (words[0] === 'done') {
@@ -456,6 +516,7 @@ export class ShellFolders {
         args: program.args,
         literalDollars: command.literalDollars ?? [],
         hasCdpath,
+        links: folder.links,
       });
 
       return folder;
@@ -471,6 +532,8 @@ export class ShellFolders {
     literalDollars: string[];
     /** CDPATH is set, in the environment or on the line. */
     hasCdpath: boolean;
+    /** The symbolic links the line made before this `cd`. */
+    links: string[];
     home: string;
     env: TEnvironment;
   }): void {
@@ -504,8 +567,18 @@ export class ShellFolders {
       !isAbsolute(expanded) &&
       !/^\.{1,2}(?:\/|$)/.test(expanded);
 
+    // A `cd` through a link the line just made lands where the link points, which the folder tree on disk does not show yet.
+    const isLinked =
+      expanded !== undefined &&
+      ShellFolders.passesThrough({
+        path: expanded,
+        base: state.base,
+        links: opts.links,
+        isLastCounted: true,
+      });
+
     // A `cd` the guard cannot work out leaves the shell's folder unknown.
-    if (expanded === undefined || isSearched) {
+    if (expanded === undefined || isSearched || isLinked) {
       state.pwd = undefined;
       state.isKnown = false;
 

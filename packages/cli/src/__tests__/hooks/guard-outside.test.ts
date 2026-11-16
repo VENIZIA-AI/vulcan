@@ -1188,3 +1188,66 @@ describe('OutsideGuard.inspect denies a relative path after a cd it cannot work 
     expect(hitsAtRoot({ command })).toEqual([]);
   });
 });
+
+// A link is a name inside the project for a file outside it: a write through the name changes the file. The guard reads the folder
+// tree as it is when the line starts, so a link made earlier on the same line must be judged at its source, and a path that goes
+// through it is not followed. Each of the first five wrote outside the project in real bash while the guard passed it (#989).
+describe('OutsideGuard.inspect judges what an ln of the line links to', () => {
+  const hitsAtRoot = (opts: { command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: PROJECT },
+      projectRoot: PROJECT,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    ['a hard link to a file outside, then a write', 'ln ../victim h; echo pwned > h'],
+    ['a symbolic link to a file outside, then a write', 'ln -s ../victim s; echo pwned > s'],
+    ['a link to the parent folder, then a cd through it', 'ln -s .. lnk; cd lnk; echo x > pwn'],
+    [
+      'a link made in a folder, then a cd through it',
+      'mkdir -p d; ln -s ../.. d/up; cd d/up; echo x > pwn',
+    ],
+    [
+      'a link made after a cd, then a write through it',
+      'mkdir -p d; cd d; ln -s ../.. up; echo x > up/pwn',
+    ],
+    ['an absolute source', 'ln -s /etc/passwd p'],
+    ['a source named after -T', 'ln -s ../x/y -T z'],
+    ['a source with -t', 'mkdir -p d; ln -s ../../victim -t d'],
+    ['a source in a folder given with a slash', 'mkdir -p d; ln -s ../../victim d/'],
+    ['the link in a folder, the source climbing out of it', 'mkdir -p d; ln -s ../../victim d/v'],
+    ['a relative symbolic link', 'ln -sr ../victim s'],
+    ['a hard link to a path under a variable it cannot work out', 'ln $SRC h'],
+    ['a link that goes through a link of the same line', 'ln -s . a; ln -s a/.. b; echo x > b/pwn'],
+    ['a write through a link of the same line', 'mkdir -p sub; ln -s sub lnk; echo x > lnk/pwn'],
+    ['a cd into a link of the same line', 'mkdir -p sub; ln -s sub lnk; cd lnk; echo x > ok'],
+    ['a force-link with several sources', 'ln -sf a ../victim b'],
+  ])('%s is not allowed', (_name, command) => {
+    expect(hitsAtRoot({ command }).length).toBeGreaterThan(0);
+  });
+
+  test('a link to a path outside is marked, so the hook denies it and says how to link inside', () => {
+    const hits = hitsAtRoot({ command: 'ln -s ../victim s' });
+
+    expect(hits.some((hit) => hit.isLink === true && !hit.isUnread)).toBe(true);
+  });
+
+  test.each([
+    'ln -s node_modules/.bin/vulcan v',
+    'mkdir -p sub; cd sub; ln -s ../node_modules nm',
+    'mkdir -p d; ln -s ../victim -t d',
+    'mkdir -p d; ln -s ../victim d/',
+    'mkdir -p d; ln -s ../node_modules d/nm',
+    'ln pkg/a.txt h',
+    'ln -s a b; echo hi > c',
+    'ln -s a b c d',
+    'ln -sf .agents/local/tmp/x fresh-name; echo y > .agents/local/tmp/z',
+  ])(
+    '%s passes: every source stays inside the project and nothing goes through the new name',
+    (command) => {
+      expect(hitsAtRoot({ command })).toEqual([]);
+    },
+  );
+});
