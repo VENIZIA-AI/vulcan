@@ -320,6 +320,13 @@ export class ShellFolders {
     );
     const loops: IOpenLoop[] = [];
     const loopNames = ShellFolders.loopNamesOf({ commands: opts.commands });
+    // `cd x` looks for `x` in each folder of CDPATH first: set in the environment of the hook or named anywhere on the line
+    // (a prefix assignment, `export`, `declare`), it may put a plain relative name in another folder.
+    const hasCdpath =
+      (opts.env.CDPATH ?? '') !== '' ||
+      opts.commands.some((command) =>
+        [...command.words, ...command.assignments].some((word) => word.includes('CDPATH')),
+      );
     // The folder each command started in, for the command lines its words carry.
     const started = new Map<ISimpleCommand, IShellFolder>();
     const stateOf = (scope: string, carrier: ISimpleCommand | undefined): IFolderState => {
@@ -448,6 +455,7 @@ export class ShellFolders {
         name,
         args: program.args,
         literalDollars: command.literalDollars ?? [],
+        hasCdpath,
       });
 
       return folder;
@@ -461,6 +469,8 @@ export class ShellFolders {
     args: string[];
     /** Words of the command that hold a quoted or escaped `$`. */
     literalDollars: string[];
+    /** CDPATH is set, in the environment or on the line. */
+    hasCdpath: boolean;
     home: string;
     env: TEnvironment;
   }): void {
@@ -487,8 +497,15 @@ export class ShellFolders {
       state.stack.push({ base: state.base, pwd: state.pwd, isKnown: state.isKnown });
     }
 
+    // A relative name that does not start with `./` or `../` (and is not `.` or `..`) is searched in the folders of CDPATH first, so it may land in another folder.
+    const isSearched =
+      expanded !== undefined &&
+      opts.hasCdpath &&
+      !isAbsolute(expanded) &&
+      !/^\.{1,2}(?:\/|$)/.test(expanded);
+
     // A `cd` the guard cannot work out leaves the shell's folder unknown.
-    if (expanded === undefined) {
+    if (expanded === undefined || isSearched) {
       state.pwd = undefined;
       state.isKnown = false;
 

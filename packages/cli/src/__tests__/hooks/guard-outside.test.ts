@@ -1146,6 +1146,33 @@ describe('OutsideGuard.inspect denies a relative path after a cd it cannot work 
     expect(hitsAtRoot({ command }).length).toBeGreaterThan(0);
   });
 
+  test.each([
+    'CDPATH=.. cd x; echo x > pwn',
+    'CDPATH=..; cd x; echo x > pwn',
+    'export CDPATH=..; cd x; echo x > pwn',
+    'CDPATH=..: cd x; echo x > pwn',
+    'CDPATH=.. pushd x; echo x > pwn',
+    'declare -x CDPATH=..; cd a/b; echo x > pwn',
+  ])('%s is not allowed: CDPATH may put the name in another folder', (command) => {
+    expect(hitsAtRoot({ command }).length).toBeGreaterThan(0);
+  });
+
+  test('a CDPATH in the environment of the hook does the same, and a name that starts with ./ or ../ does not', () => {
+    const inEnv = (command: string) =>
+      OutsideGuard.inspect({
+        input: { tool: 'Bash', filePath: undefined, command, cwd: PROJECT },
+        projectRoot: PROJECT,
+        home: HOME,
+        env: { ...ENV, CDPATH: '..' },
+      });
+
+    expect(inEnv('cd x; echo x > pwn').length).toBeGreaterThan(0);
+    expect(inEnv('cd ./x; echo x > pwn')).toEqual([]);
+    expect(inEnv('cd ..; echo x > pwn').length).toBeGreaterThan(0);
+    expect(inEnv(`cd ${join(PROJECT, 'x')}; echo x > pwn`)).toEqual([]);
+    expect(hitsAtRoot({ command: 'CDPATH=..; cd ./x; echo x > pwn' })).toEqual([]);
+  });
+
   test('a cd to a variable the line set is worked out, and its folder is judged', () => {
     expect(hitsAtRoot({ command: 'X=..; cd $X; echo x > pwn' }).map((hit) => hit.isUnread)).toEqual(
       [false],
