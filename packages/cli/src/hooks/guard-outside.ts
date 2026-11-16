@@ -112,8 +112,9 @@ const isProtectedFile = (opts: { path: string; root: string; isRemoval: boolean 
     return false;
   }
 
-  const relative = opts.path.slice(opts.root.length + 1);
-  const globs = HookConstants.PROTECTED_FILES;
+  // Without regard to case: on a case-insensitive file system `.claude/Settings.local.json` is the real file.
+  const relative = opts.path.slice(opts.root.length + 1).toLowerCase();
+  const globs = HookConstants.PROTECTED_FILES.map((pattern) => pattern.toLowerCase());
 
   if (globs.some((pattern) => new Bun.Glob(pattern).match(relative))) {
     return true;

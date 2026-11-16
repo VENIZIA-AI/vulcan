@@ -27,7 +27,7 @@ const DENY_ON_CRASH = JSON.stringify({
 const IS_HELD = [
   'm="$PWD/vulcan.manifest.json";',
   '[ "$VULCAN_GUARD_ASKS" = deny ]',
-  `|| { [ -f "$m" ] && ! M="$m" bun -e 'const v = JSON.parse(require("node:fs").readFileSync(process.env.M, "utf8")); if (typeof v !== "object" || v === null || Array.isArray(v)) process.exit(1)' >/dev/null 2>&1; }`,
+  `|| { [ -f "$m" ] && ! M="$m" bun --no-env-file --config=/dev/null -e 'const v = JSON.parse(require("node:fs").readFileSync(process.env.M, "utf8")); if (typeof v !== "object" || v === null || Array.isArray(v)) process.exit(1)' >/dev/null 2>&1; }`,
   `|| grep -Eq '"asks" *: *"deny"' "$m" 2>/dev/null;`,
 ].join(' ');
 
@@ -39,7 +39,7 @@ const IS_HELD = [
 const GUARD_COMMAND = [
   'f="$PWD/../node_modules/@venizia/vulcan/base/hooks/antigravity-guards.ts";',
   'if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then',
-  'in=$(cat); out=$(printf \'%s\' "$in" | bun "$f"); s=$?;',
+  'in=$(cat); out=$(printf \'%s\' "$in" | bun --no-env-file --config=/dev/null "$f"); s=$?;',
   `if [ "$s" -eq 0 ]; then printf '%s' "$out"; exit 0; fi;`,
   `${IS_HELD} if [ $? -eq 0 ]; then printf '%s\\n' '${DENY_ON_CRASH}'; else printf '%s\\n' '${ASK_ON_CRASH}'; fi; exit 0; fi;`,
   'cat >/dev/null; echo "vulcan: the guards cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes" >&2;',

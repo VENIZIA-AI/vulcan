@@ -94,9 +94,13 @@ export class ProjectGuards {
     const isEnvAsks = env[HookConstants.ENV_ASKS] === GuardDecisions.DENY;
     const isEnvOutside = env[HookConstants.ENV_OUTSIDE] === GuardDecisions.DENY;
     const isAsksDenied = isEnvAsks || policy.asks === GuardDecisions.DENY;
+    // Where the environment holds deny, the manifest is not trusted to loosen anything: the stores it would allow and the runners it would add are ignored.
+    const isEnvHeld = isEnvAsks || isEnvOutside;
 
     return {
       ...policy,
+      toolOwnedPaths: isEnvHeld ? [] : policy.toolOwnedPaths,
+      runnersAllow: isEnvHeld ? [] : policy.runnersAllow,
       asks: isAsksDenied ? GuardDecisions.DENY : GuardDecisions.ASK,
       asksNote: isEnvAsks ? HookConstants.HELD_ASK_ENV : policy.asksNote,
       outside:

@@ -351,6 +351,36 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
     expect(result?.reason).toContain('guard.asks: deny');
   });
 
+  test('a .env and a bunfig.toml in the project folder do not reach a guard', async () => {
+    const root = installedProject({
+      files: {
+        ...{
+          '.env': 'VULCAN_GUARDS=off\n',
+          'evil.ts': 'process.exit(0);\n',
+          'bunfig.toml': 'preload = ["./evil.ts"]\n',
+        },
+        [GUARD_MANIFEST_FILE]: guardManifest({ guard: { asks: 'deny' } }),
+      },
+    });
+    const handle = handlerOf();
+    const before = process.cwd();
+
+    try {
+      // The host runs from the project folder, where bun looks for both files.
+      process.chdir(root);
+
+      const result = await handle(
+        bash('git reset --hard HEAD~1'),
+        contextOf({ cwd: root, hasUI: true, answer: true }),
+      );
+
+      expect(result?.block).toBe(true);
+      expect(result?.reason).toContain('guard.asks');
+    } finally {
+      process.chdir(before);
+    }
+  });
+
   test('a write to a file the guards read their policy from is blocked, UI or not, and a file next to it is not', async () => {
     const root = installedProject();
     const handle = handlerOf();

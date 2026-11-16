@@ -627,6 +627,10 @@ The `guard` object configures the write guards.
 
 `writes.trustedScripts` was removed: guard-writes no longer reads scripts, so it had nothing left to skip. A config that still sets it is refused, and the message says to delete the key.
 
+### claude.settings.env
+
+`claude.settings` is merged into `.claude/settings.json`. An `env` there that names a `VULCAN_GUARD*` variable (`VULCAN_GUARD_ASKS`, `VULCAN_GUARD_OUTSIDE`, `VULCAN_GUARDS`) is refused, and so is the sync: those variables are the owner's choice and belong in the environment that launches the agent, not in a project file. Other variables are not affected.
+
 ### guard.toolOwnedPaths
 
 Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manages itself. They extend the built-in list (package manager caches, `$XDG_RUNTIME_DIR`, git config, the agent tool's memory folders). A pattern with an unset variable allows nothing.
@@ -648,7 +652,7 @@ It is a drift guard, not a boundary: an agent that can edit `.configs/vulcan.con
 - `deny` refuses every call that would ask, with the same reason and one line that says the project denies asks. It covers the commands of `guard-writes` (`V-W-02`, `V-W-03`) and of `guard.writes.commands`, a push to a branch of `git.askPush`, `git push --mirror`, `git reset --hard`, a force-push to a branch that is not protected, a force-delete of an unmerged branch, a write outside the project, a hook input that could not be read, and a hook that crashed or timed out. Nothing runs.
 - Set `deny` where the agent runs in an auto mode, because an ask was approved there with no person answering.
 - `outside` stays the narrower key for `guard-outside` alone. `vulcan sync` writes both to the manifest, which the hooks read, so run it after a change.
-- The owner's choice belongs in the launch environment: `VULCAN_GUARD_ASKS=deny` and `VULCAN_GUARD_OUTSIDE=deny`, set in the shell that starts the agent (`VULCAN_GUARD_ASKS=deny claude`, `codex`, `omp`, `pi`), never in the project's `.claude/settings*.json`. The strictest of the environment and the manifest holds, so the manifest can tighten and never loosen.
+- The owner's choice belongs in the launch environment: `VULCAN_GUARD_ASKS=deny` and `VULCAN_GUARD_OUTSIDE=deny`, set in the shell that starts the agent (`VULCAN_GUARD_ASKS=deny claude`, `codex`, `omp`, `pi`), never in the project's `.claude/settings*.json`. The strictest of the environment and the manifest holds, so the manifest can tighten and never loosen; where the environment holds `deny`, the manifest's `toolOwnedPaths` and `runners.allow` are ignored as well, and every hook runs with `bun --no-env-file --config=/dev/null` so a `.env` or `bunfig.toml` in the project cannot switch a guard off.
 - A manifest that exists and cannot be read holds every ask until it is repaired or `vulcan sync` writes it again.
 - It is a drift guard, not a boundary. `guard-outside` denies an agent's write to the manifest, `.configs/vulcan.config.*`, `.claude/settings.json`, `.claude/settings.local.json` and `node_modules/@venizia/vulcan`, so the config is changed by the owner. See [the files the guards protect](/references/hooks/#the-files-the-guards-protect).
 

@@ -363,6 +363,27 @@ describe('ProjectGuards.readPolicy', () => {
     }
   });
 
+  test('where the environment holds deny, the manifest cannot add a tool-owned store or a runner', () => {
+    const root = manifestWith({
+      guard: { toolOwnedPaths: ['/home/**'], runners: { allow: ['shadcn'] } },
+    });
+
+    expect(ProjectGuards.readPolicy({ root, env: {} }).toolOwnedPaths).toEqual(['/home/**']);
+    expect(ProjectGuards.readPolicy({ root, env: {} }).runnersAllow).toEqual(['shadcn']);
+
+    for (const env of [{ VULCAN_GUARD_ASKS: 'deny' }, { VULCAN_GUARD_OUTSIDE: 'deny' }]) {
+      const policy = ProjectGuards.readPolicy({ root, env });
+
+      expect(policy.toolOwnedPaths).toEqual([]);
+      expect(policy.runnersAllow).toEqual([]);
+    }
+
+    // Anything but deny in the environment is not a hold.
+    expect(
+      ProjectGuards.readPolicy({ root, env: { VULCAN_GUARD_ASKS: 'ask' } }).toolOwnedPaths,
+    ).toEqual(['/home/**']);
+  });
+
   test('says which of the three holds an ask: the environment, the manifest, or a manifest that cannot be read', () => {
     const env = ProjectGuards.readPolicy({
       root: manifestWith({ guard: {} }),

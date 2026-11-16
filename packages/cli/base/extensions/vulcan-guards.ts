@@ -245,7 +245,8 @@ const runGuard = (opts: {
     };
   }
 
-  const result = spawnSync('bun', [script], {
+  // bun reads `.env` and `bunfig.toml` from the working directory: a file an agent writes there (a `VULCAN_GUARDS=off`, a preload) must not reach a guard.
+  const result = spawnSync('bun', ['--no-env-file', '--config=/dev/null', script], {
     input: JSON.stringify(opts.claudeEvent),
     encoding: 'utf8',
     timeout: TIMEOUT_MS,

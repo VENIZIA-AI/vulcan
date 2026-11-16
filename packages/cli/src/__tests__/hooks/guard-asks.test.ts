@@ -300,6 +300,22 @@ describe('every ask the hooks have becomes a deny with guard.asks: deny', () => 
     ).toBe('deny');
   });
 
+  test('toolOwnedPaths of the manifest opens a store, until the environment holds deny', () => {
+    const root = projectOf({ guard: { toolOwnedPaths: ['/var/tmp/**'] } });
+    const command = 'echo x > /var/tmp/vulcan-asks-probe.txt';
+
+    expect(answerOf({ hook: 'guard-outside', command, root }).text).toBe('');
+
+    const envs: Record<string, string>[] = [
+      { VULCAN_GUARD_ASKS: 'deny' },
+      { VULCAN_GUARD_OUTSIDE: 'deny' },
+    ];
+
+    for (const env of envs) {
+      expect(answerOf({ hook: 'guard-outside', command, root, env }).decision).toBe('deny');
+    }
+  });
+
   test('a manifest that exists and cannot be read denies every ask, with the way to repair it', () => {
     for (const manifest of ['{ nope', '', '<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> topic\n', '[]']) {
       const root = createProject({

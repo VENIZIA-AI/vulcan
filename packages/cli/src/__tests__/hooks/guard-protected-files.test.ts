@@ -101,6 +101,17 @@ describe('guard-outside denies a write to a file the guards read their policy fr
     },
   );
 
+  test.each([
+    '.claude/Settings.local.json',
+    '.Claude/settings.json',
+    '.AGENTS/Vulcan.Manifest.JSON',
+    '.configs/VULCAN.CONFIG.MTS',
+    'Node_Modules/@Venizia/Vulcan/base/hooks/guard-outside.ts',
+  ])('the path is compared without regard to case: %s', (path) => {
+    expect(protectedHitsOf({ root, command: `echo x > ${path}` }).length).toBeGreaterThan(0);
+    expect(protectedHitsOf({ root, command: `sed -i s/a/b/ ${path}` }).length).toBeGreaterThan(0);
+  });
+
   test('a symbolic link to one of them names it: a write through the link is denied', () => {
     const linked = createProject({
       files: { 'package.json': '{}', '.agents/vulcan.manifest.json': '{}' },

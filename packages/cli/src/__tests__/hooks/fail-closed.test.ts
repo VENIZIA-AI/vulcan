@@ -695,6 +695,88 @@ describe('a crashed hook is held by the launch environment and by a manifest tha
   });
 });
 
+describe('bun does not read the .env or the bunfig.toml of the project into a hook', () => {
+  const DENY = '"permissionDecision":"deny"';
+  const BUN_FILES: Record<string, string> = {
+    '.env': 'VULCAN_GUARDS=off\n',
+    'evil.ts': 'process.exit(0);\n',
+    'bunfig.toml': 'preload = ["./evil.ts"]\n',
+  };
+  const hookOf = (name: string): IShippedHook => {
+    const [hook] = shippedHooks().filter((item) => item.command.includes(`${name}.ts`));
+
+    return hook;
+  };
+
+  /** A project with the real package installed, a manifest that holds every ask, and the two files that would switch a guard off. */
+  const planted = (): string => {
+    const root = makeRoot();
+    const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+
+    mkdirSync(dirname(installed), { recursive: true });
+    symlinkSync(PACKAGE_ROOT, installed);
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{"guard":{"asks":"deny"}}');
+
+    for (const [file, text] of Object.entries(BUN_FILES)) {
+      writeFileSync(join(root, file), text);
+    }
+
+    return root;
+  };
+
+  test('guard-git, guard-outside and guard-writes still decide', () => {
+    const root = planted();
+
+    expect(
+      runHook({
+        command: hookOf('guard-git').command,
+        root,
+        stdin: BASH_INPUT('git reset --hard HEAD~1'),
+      }).stdout,
+    ).toContain(DENY);
+    expect(
+      runHook({
+        command: hookOf('guard-outside').command,
+        root,
+        stdin: BASH_INPUT('echo x > .agents/vulcan.manifest.json'),
+      }).stdout,
+    ).toContain(DENY);
+    expect(
+      runHook({
+        command: hookOf('guard-writes').command,
+        root,
+        stdin: BASH_INPUT('kubectl apply -f x.yaml'),
+      }).stdout,
+    ).toContain(DENY);
+  });
+
+  test('the check of an unreadable manifest in a crash answer is not switched off either', () => {
+    const root = makeRoot();
+    const target = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+
+    mkdirSync(target, { recursive: true });
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{ nope');
+
+    for (const [file, text] of Object.entries(BUN_FILES)) {
+      writeFileSync(join(root, file), text);
+    }
+
+    for (const name of ['guard-git', 'guard-outside']) {
+      writeFileSync(join(target, `${name}.ts`), 'process.exit(3);');
+    }
+
+    expect(
+      runHook({ command: hookOf('guard-git').command, root, stdin: BASH_INPUT('git status') })
+        .stdout,
+    ).toContain(DENY);
+    expect(
+      runHook({ command: hookOf('guard-outside').command, root, stdin: BASH_INPUT('ls') }).stdout,
+    ).toContain(DENY);
+  });
+});
+
 describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
   const nameOf = (hook: IShippedHook): string =>
     /hooks\/([\w-]+)\.ts/.exec(hook.command)?.[1] ?? '';
@@ -899,7 +981,7 @@ describe('shipped hooks fail closed', () => {
     expect(deploy.stdout).toContain('"permissionDecision":"ask"');
   });
 
-  test('bun itself failing before the hook runs (a broken bunfig.toml) still blocks', () => {
+  test('a broken bunfig.toml of the project does not reach the hook: it runs and decides', () => {
     const root = makeRoot();
     const installed = join(root, 'node_modules', '@venizia', 'vulcan');
     const [guard] = shippedHooks().filter((hook) => hook.command.includes('guard-writes.ts'));
@@ -911,6 +993,29 @@ describe('shipped hooks fail closed', () => {
     const result = runHook({
       command: guard.command,
       root,
+      stdin: BASH_INPUT('kubectl apply -f m.yaml'),
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('"permissionDecision":"ask"');
+  });
+
+  test('bun itself failing before the hook runs still blocks', () => {
+    const root = makeRoot();
+    const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+    const fake = join(root, 'fake-bin');
+    const [guard] = shippedHooks().filter((hook) => hook.command.includes('guard-writes.ts'));
+
+    mkdirSync(dirname(installed), { recursive: true });
+    symlinkSync(PACKAGE_ROOT, installed);
+    mkdirSync(fake, { recursive: true });
+    writeFileSync(join(fake, 'bun'), '#!/bin/sh\nexit 1\n');
+    chmodSync(join(fake, 'bun'), 0o755);
+
+    const result = runHook({
+      command: guard.command,
+      root,
+      path: `${fake}:${process.env.PATH ?? ''}`,
       stdin: BASH_INPUT('kubectl apply -f m.yaml'),
     });
 

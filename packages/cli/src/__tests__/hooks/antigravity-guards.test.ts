@@ -216,6 +216,31 @@ describe('the hook command wrapper in .agents/hooks.json', () => {
     expect(result.stderr).toContain('the guards cannot run');
   });
 
+  test('a .env and a bunfig.toml in the folder of the hooks file do not reach the adapter', () => {
+    const root = installedProject({
+      files: {
+        ...Object.fromEntries(
+          Object.entries({
+            '.env': 'VULCAN_GUARDS=off\n',
+            'evil.ts': 'process.exit(0);\n',
+            'bunfig.toml': 'preload = ["./evil.ts"]\n',
+          }).map(([file, text]) => [`.agents/${file}`, text]),
+        ),
+        '.agents/vulcan.manifest.json': '{"guard":{"asks":"deny"}}',
+      },
+    });
+    const result = runWrapper({
+      root,
+      stdin: eventOf({
+        root,
+        name: 'run_command',
+        args: { CommandLine: 'git reset --hard HEAD~1' },
+      }),
+    });
+
+    expect(JSON.parse(result.stdout).decision).toBe('deny');
+  });
+
   test('an adapter that started and crashed denies where every ask is held, and asks otherwise', () => {
     const crashed = (opts: { manifest?: string; env?: Record<string, string> }) => {
       const root = createProject({

@@ -558,7 +558,26 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   doctor: DOCTOR_SCHEMA.default({ privateValues: { acknowledged: [] } }),
   /** Team-shared Claude settings (permissions, env, enabledPlugins...), merged by sync over personal keys. */
   claude: z
-    .strictObject({ settings: z.record(z.string(), z.unknown()).default({}) })
+    .strictObject({
+      /** The Claude settings merged into `.claude/settings.json`; an `env` that sets a `VULCAN_GUARD*` variable is refused. */
+      settings: z
+        .record(z.string(), z.unknown())
+        .superRefine((settings, context) => {
+          const env = settings['env'];
+
+          if (typeof env !== 'object' || env === null || Array.isArray(env)) {
+            return;
+          }
+
+          for (const name of Object.keys(env).filter((key) => /^VULCAN_GUARD/.test(key))) {
+            context.addIssue({
+              code: 'custom',
+              message: `${name} is the owner's choice and belongs in the environment that launches the agent, not in the project's Claude settings, which an agent can edit`,
+            });
+          }
+        })
+        .default({}),
+    })
     .default({ settings: {} }),
   /** The session-start digest: the rule IDs it repeats as "the rules sessions drop most" - base or the project's own. */
   digest: z
@@ -586,7 +605,8 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    * runs in an auto mode an ask can be approved without the owner seeing it, so a project that runs agents there sets `asks: 'deny'`.
    * Both are a drift guard, not a boundary: the owner's choice belongs in the launch environment (`VULCAN_GUARD_ASKS=deny`,
    * `VULCAN_GUARD_OUTSIDE=deny`), where the strictest of the environment and the manifest holds and nothing in the project can
-   * loosen it. `guard-outside` denies an agent's write to the manifest, `.configs/vulcan.config.*`, `.claude/settings*.json` and
+   * loosen it (it also ignores `toolOwnedPaths` and `runners.allow` of the manifest, and every hook runs with `bun --no-env-file
+   * --config=/dev/null`). `guard-outside` denies an agent's write to the manifest, `.configs/vulcan.config.*`, `.claude/settings*.json` and
    * `node_modules/@venizia/vulcan`.
    */
   guard: z
