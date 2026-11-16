@@ -634,7 +634,7 @@ Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manage
 
 - `ask` leaves the call to the owner.
 - `deny` refuses the write and nothing is written; the answer names the path and `.agents/local/tmp/`.
-- A line the guard cannot read (a program or a redirect target named by a variable it cannot work out) is asked about in both modes, never denied.
+- A line the guard cannot read (a program or a redirect target named by a variable it cannot work out) is denied in both modes, never asked, with the way to write it again: a literal path, or the script in a file under `.agents/local/tmp/<task>/` run by its literal path, with literal paths in its own redirects. Literal assignments of the same line (`S=dir; ... > $S/a`, `export X=dir`, `for i in 1 2`) are worked out first.
 - Set `deny` where the agent runs in an auto mode, because an ask can be approved there without the owner seeing it.
 - A path in `toolOwnedPaths` still passes in both modes.
 

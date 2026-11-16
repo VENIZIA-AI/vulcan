@@ -43,11 +43,23 @@ try {
           rule: 'V-W-01',
           message: 'the hook input could not be read, so the command was not checked',
           decision: GuardDecisions.ASK,
+          fix: undefined,
         },
       ];
 
   if (hits.length > 0) {
     const denied = hits.some((hit) => hit.decision === GuardDecisions.DENY);
+    // A denial the agent can repair says how; one that is the owner's to decide is handed to the owner.
+    const fixes = [
+      ...new Set(
+        hits.flatMap((hit) =>
+          hit.decision === GuardDecisions.DENY && hit.fix !== undefined ? [hit.fix] : [],
+        ),
+      ),
+    ];
+    const isOwners = hits.some(
+      (hit) => hit.decision === GuardDecisions.DENY && hit.fix === undefined,
+    );
 
     console.log(
       JSON.stringify(
@@ -59,9 +71,18 @@ try {
               : 'This command needs a human to confirm:',
             ...hits.map((hit) => `  - ${hit.rule}: ${hit.message}`),
             '',
-            denied
-              ? 'Hand the exact command to the owner instead (V-W-06); VULCAN_GUARDS=off switches the guards off for a session.'
-              : 'Confirm only if the owner asked for exactly this.',
+            ...(denied
+              ? [
+                  ...(fixes.length > 0
+                    ? [`Nothing was run. Write it again: ${fixes.join('; ')}.`]
+                    : []),
+                  ...(isOwners || fixes.length === 0
+                    ? [
+                        'Hand the exact command to the owner instead (V-W-06); VULCAN_GUARDS=off switches the guards off for a session.',
+                      ]
+                    : []),
+                ]
+              : ['Confirm only if the owner asked for exactly this.']),
           ],
         }),
       ),

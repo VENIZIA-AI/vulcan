@@ -20,6 +20,12 @@ export interface ISimpleCommand {
   scope?: string;
   /** The command whose word carries this command's line (`$(...)`, `sh -c`): the line starts in its folder. */
   carrier?: ISimpleCommand;
+  /**
+   * The words (and redirect targets, and assignments as `NAME=value`) of this command that hold a `$` the line quoted or
+   * escaped (`'$S'`, `\$S`): their text reads as a live `$S` but the shell takes the `$` as a character. A guard that
+   * expands variables must not expand these.
+   */
+  literalDollars?: string[];
 }
 
 /** The standard input of a simple command, as far as the line shows it. */
@@ -65,7 +71,20 @@ interface IWordRead {
   next: number;
   /** Text of every `$(...)` and backtick substitution met, each parsed as commands of its own. */
   nested: string[];
+  /** A `$` of the word was quoted or escaped, so it is a character and not an expansion. */
+  hasLiteralDollar: boolean;
 }
+
+/** Remembers on `command` that `word` holds a `$` the line quoted or escaped. */
+const markLiteralDollar = (opts: {
+  command: ISimpleCommand;
+  value: string;
+  read: IWordRead;
+}): void => {
+  if (opts.read.hasLiteralDollar) {
+    (opts.command.literalDollars ??= []).push(opts.value);
+  }
+};
 
 /** What a backslash inside double quotes escapes, as the shell reads it. */
 const DOUBLE_QUOTE_ESCAPES = new Set(['$', '`', '"', '\\', '\n']);
@@ -331,6 +350,7 @@ const readWord = (opts: { text: string; from: number; layout: IShellLayout }): I
   let value = '';
   let index = opts.from;
   let quote: string | undefined;
+  let hasLiteralDollar = false;
 
   while (index < text.length) {
     const char = text[index];
@@ -355,6 +375,7 @@ const readWord = (opts: { text: string; from: number; layout: IShellLayout }): I
         continue;
       }
 
+      hasLiteralDollar ||= next === '$';
       value += next;
       index += 2;
       continue;
@@ -364,6 +385,7 @@ const readWord = (opts: { text: string; from: number; layout: IShellLayout }): I
     if (quote === undefined && char === '$' && text[index + 1] === "'") {
       const decoded = readAnsiC({ text, from: index + 2 });
 
+      hasLiteralDollar ||= decoded.value.includes('$');
       value += decoded.value;
       index = decoded.next;
       continue;
@@ -418,11 +440,16 @@ const readWord = (opts: { text: string; from: number; layout: IShellLayout }): I
       continue;
     }
 
+    // A `$` that starts no expansion is a character: one in single quotes, or one before a closing quote, a backslash, a blank or the
+    // end (`"$"S`, `$\S`), where the text after quote removal still reads as `$S`.
+    hasLiteralDollar ||=
+      char === '$' &&
+      (quote === "'" || (text[index - 1] !== '$' && !/[\w{(@*#?$!-]/.test(text[index + 1] ?? '')));
     value += char;
     index += 1;
   }
 
-  return { value, next: index, nested };
+  return { value, next: index, nested, hasLiteralDollar };
 };
 
 /** `NAME=value`: a leading assignment, not a program. */
@@ -1645,6 +1672,7 @@ export class ShellParser {
 
         if (target.value !== '') {
           current.redirects.push(target.value);
+          markLiteralDollar({ command: current, value: target.value, read: target });
 
           if (isAmpersand && /[$`]/.test(target.value)) {
             (current.copies ??= []).push(target.value);
@@ -1703,6 +1731,7 @@ export class ShellParser {
 
         if (source.value !== '') {
           inputOf({ command: current }).files.push(source.value);
+          markLiteralDollar({ command: current, value: source.value, read: source });
 
           if (isReadWrite) {
             current.redirects.push(source.value);
@@ -1739,6 +1768,8 @@ export class ShellParser {
       } else if (isFirst && word.value === 'esac' && groups.includes(CASE_GROUP)) {
         groups.splice(groups.lastIndexOf(CASE_GROUP));
       }
+
+      markLiteralDollar({ command: current, value: word.value, read: word });
 
       if (isFirst && isAssignment({ word: word.value })) {
         current.assignments.push(word.value);

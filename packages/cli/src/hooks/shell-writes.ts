@@ -20,6 +20,8 @@ export interface IWriteTarget {
   isRedirect?: boolean;
   /** The word has a brace the guard cannot expand into its branches, so where it writes is not known. */
   hasUnreadBrace?: boolean;
+  /** A `$` of the word was quoted or escaped: it is a character, and the word's text reads it as a variable. */
+  hasLiteralDollar?: boolean;
 }
 
 /** The most words one word may make of its brace lists before the guard stops expanding it. */

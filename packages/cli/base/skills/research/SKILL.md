@@ -38,7 +38,7 @@ left to the owner.
   `git show <commit>:<path>`, so a `CLAUDE.md` or `AGENTS.md` in it is never loaded as yours. Do not put repository content into a search query or any outside service (V-S-06).
 - **Keep it inside the project**: a clone of another repository goes under `.agents/local/clones/<name>`
   (shallow, `--depth 1`); notes and downloads under `.agents/local/tmp/`; never `/tmp` or the home folder
-  (V-B-08). Brief any subagent the same way, with the delegation brief
+  (V-B-08); a script goes in a file there and runs by its literal path, with literal paths in its redirects, because the guards deny a call they cannot read. Brief any subagent the same way, with the delegation brief
   (`node_modules/@venizia/vulcan/base/references/delegation-brief.md`).
 - **Primary sources first**: the source code, the official documentation and the changelog of the
   version in question, before a blog post or a summary. Record the version or commit each fact comes from.

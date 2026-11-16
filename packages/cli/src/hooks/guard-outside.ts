@@ -99,6 +99,41 @@ const matchesNothing = (opts: { word: string; base: string }): boolean => {
   }
 };
 
+/** The most values of loop variables one word is checked for; a word with more is left unread. */
+const MAX_COMBINATIONS = 64;
+
+/**
+ * The values the loop variables `word` names take, one set per combination: `[{}]` when it names none. A word that would
+ * need more than `MAX_COMBINATIONS` is checked with no value, so its variable stays unknown and the word is not read.
+ */
+const loopCombinations = (opts: {
+  word: string;
+  loops: Record<string, string[]>;
+}): Record<string, string>[] => {
+  const named = [
+    ...new Set(
+      [...opts.word.matchAll(/\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})/g)].map(
+        (match) => match[1] ?? match[2] ?? '',
+      ),
+    ),
+  ].filter((name) => Object.hasOwn(opts.loops, name));
+  let combinations: Record<string, string>[] = [{}];
+
+  for (const name of named) {
+    const values = opts.loops[name] ?? [];
+
+    combinations = combinations.flatMap((combination) =>
+      values.map((value) => ({ ...combination, [name]: value })),
+    );
+
+    if (combinations.length > MAX_COMBINATIONS) {
+      return [{}];
+    }
+  }
+
+  return combinations;
+};
+
 const isInside = (opts: { path: string; root: string }): boolean =>
   opts.path === opts.root || opts.path.startsWith(`${opts.root}${sep}`);
 
@@ -212,14 +247,23 @@ export class OutsideGuard {
           continue;
         }
 
-        targets.push(
-          ...ShellWrites.targetsOf({ command, base: folder.base, tmp }).map((target) => ({
-            ...target,
-            pwd: folder.pwd,
-            vars: folder.vars,
-            isKnown: folder.isKnown,
-          })),
-        );
+        for (const target of ShellWrites.targetsOf({ command, base: folder.base, tmp })) {
+          // A word that names a `for` variable stands for each of its values in turn.
+          for (const vars of loopCombinations({ word: target.word, loops: folder.loops })) {
+            targets.push({
+              ...target,
+              pwd: folder.pwd,
+              vars: { ...folder.vars, ...vars },
+              isKnown: folder.isKnown,
+              // The text of a word reads `'$S'` as a live `$S`; the shell takes the `$` as a character.
+              hasLiteralDollar:
+                target.word.includes('$') &&
+                (command.literalDollars ?? []).some(
+                  (literal) => literal.includes(target.word) || target.word.includes(literal),
+                ),
+            });
+          }
+        }
       }
     }
 
@@ -244,6 +288,16 @@ export class OutsideGuard {
           isAgentToolScratchpad: false,
           isUnread: true,
         });
+      }
+
+      if (target.hasLiteralDollar === true) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: the word has a quoted or escaped $, which this check does not follow`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+        continue;
       }
 
       // A redirect to `dir/[version].md` (a VitePress route file) names that file when the pattern matches nothing in `dir`:
@@ -306,6 +360,18 @@ export class OutsideGuard {
         continue;
       }
 
+      // After a `cd` this check could not work out, `base` is only the last folder it knew: a relative path cannot be placed.
+      if (!isAbsolute(expanded) && target.isKnown === false) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: it is a relative path after a \`cd\` this check cannot work out`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+
+        continue;
+      }
+
       const written = isAbsolute(expanded) ? expanded : `${target.base}/${expanded}`;
 
       // `/proc/self` and `/dev/fd` name the hook's own process, not the shell the command runs in.
@@ -347,6 +413,11 @@ export class OutsideGuard {
       }
     }
 
-    return hits;
+    // A loop makes one target of a word for each value it takes: a finding is told once.
+    return hits.filter(
+      (hit, index) =>
+        hits.findIndex((other) => other.message === hit.message && other.path === hit.path) ===
+        index,
+    );
   }
 }

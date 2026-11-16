@@ -33,6 +33,11 @@ export interface IGitHit {
   decision: TGuardDecision;
   rule: string;
   message: string;
+  /**
+   * What the agent does to get past a `deny` by itself (name the files, pass the base, write a literal path). A denial with
+   * a `fix` is the agent's to repair and is never handed to a person; one without it needs the owner.
+   */
+  fix?: string;
 }
 
 /** Runs a read-only `git` or `gh` query for a guard; `undefined` when it cannot answer. */

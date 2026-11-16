@@ -14,6 +14,8 @@ export interface IRunnerHit {
   rule: 'V-S-08';
   message: string;
   decision: typeof GuardDecisions.DENY;
+  /** What the agent does instead; the denial is the agent's to repair, never handed to a person. */
+  fix: string;
 }
 
 /**
@@ -122,6 +124,7 @@ export class RunnerGuard {
     return {
       rule: 'V-S-08',
       decision: GuardDecisions.DENY,
+      fix: `use bun run ${bin === '' ? '<bin>' : bin} in the package that depends on it, or node_modules/.bin/${bin === '' ? '<bin>' : bin}`,
       message: `${what}, and npm may give that name to someone else (bun also runs a copy an earlier bunx saved, even with --no-install). Use \`bun run ${bin === '' ? '<bin>' : bin}\` in the package that depends on it, or node_modules/.bin/${bin === '' ? '<bin>' : bin}; the --no-install form is accepted only when node_modules/.bin/${bin === '' ? '<bin>' : bin} exists in the folder the command runs in and it has no other flag than --bun and --silent.`,
     };
   }

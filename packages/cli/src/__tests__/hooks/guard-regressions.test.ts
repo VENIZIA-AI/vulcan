@@ -161,7 +161,8 @@ describe('a line the guard cannot read in full asks, and the guard does not cras
     const started = performance.now();
     const result = decisions({ command });
 
-    expect(result).toContain('ask');
+    // over the budget nothing is parsed, so the one answer is the denial of the line it could not read
+    expect(result).toEqual(['deny']);
     expect(performance.now() - started).toBeLessThan(2000);
   });
 
@@ -177,14 +178,14 @@ describe('a line the guard cannot read in full asks, and the guard does not cras
       unterminatedHeredocCommands: [],
     });
     expect(ShellParser.parseChecked({ command: at }).isOverBudget).toBe(false);
-    expect(decisions({ command: over })).toEqual(['ask']);
+    expect(decisions({ command: over })).toEqual(['deny']);
   });
 
   test('a find with thousands of -exec options is read in linear time', () => {
     const command = `find .${' -exec x \\;'.repeat(6500)}`;
     const started = performance.now();
 
-    expect(decisions({ command })).toEqual(['ask']);
+    expect(decisions({ command })).toEqual(['deny']);
     expect(performance.now() - started).toBeLessThan(150);
   });
 
@@ -193,7 +194,7 @@ describe('a line the guard cannot read in full asks, and the guard does not cras
     const command = `env -S "env -S 'eval eval ${word}'"`;
     const started = performance.now();
 
-    expect(decisions({ command })).toContain('ask');
+    expect(decisions({ command })).toContain('deny');
     expect(performance.now() - started).toBeLessThan(1000);
   });
 
@@ -205,8 +206,7 @@ describe('a line the guard cannot read in full asks, and the guard does not cras
     });
 
     expect(calls()).toBe(HookConstants.MAX_QUERIES);
-    expect(result).toContain('ask');
-    expect(result).toContain('deny');
+    expect(result).toEqual(['deny', 'deny']);
   });
 
   test('a line within the query cap is not asked about', () => {

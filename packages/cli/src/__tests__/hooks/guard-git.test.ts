@@ -91,7 +91,7 @@ describe('GitGuard.inspect denies', () => {
     expect(decisions({ command })).toContain('deny');
   });
 
-  test('a line the parser could not read in full asks, never allows', () => {
+  test('a line the parser could not read in full is denied with the way out, never allowed', () => {
     const deep = `env${' -S env'.repeat(110)} git push -f origin main`;
     const wide = Array.from({ length: 2100 }, () => 'ls').join('; ');
     const started = performance.now();
@@ -102,7 +102,12 @@ describe('GitGuard.inspect denies', () => {
       'echo $(echo $(echo $(echo $(echo $(echo ls)))))',
       'eval eval eval eval eval eval ls',
     ]) {
-      expect(decisions({ command })).toContain('ask');
+      expect(decisions({ command })).toContain('deny');
+      expect(
+        GitGuard.inspect({ command, cwd: '/p', run: () => undefined }).find(
+          (hit) => hit.fix !== undefined,
+        )?.fix,
+      ).toContain('literal');
     }
 
     expect(performance.now() - started).toBeLessThan(2000);
@@ -296,19 +301,22 @@ describe('GitGuard.inspect asks before a blanket stage that is large', () => {
     'git commit -am "x"',
     'git commit --all -m "x"',
     'git commit -sam "x"',
-  ])('%s asks when it would stage 161 paths, and says how many', (command) => {
-    const { hits } = answer({ command, tracked: 161 });
+  ])(
+    '%s is denied when it would stage 161 paths, saying how many and how to name the files',
+    (command) => {
+      const { hits } = answer({ command, tracked: 161 });
 
-    expect(hits.map((hit) => hit.decision)).toEqual(['ask']);
-    expect(hits[0].message).toContain('161');
-    expect(hits[0].message).toContain('name the files');
-  });
+      expect(hits.map((hit) => hit.decision)).toEqual(['deny']);
+      expect(hits[0].message).toContain('161');
+      expect(hits[0].fix).toContain('name the files');
+    },
+  );
 
   test.each(['git add -A', 'git add --all', 'git add .', 'git commit -a -m "x"', 'git add -u'])(
-    '%s is quiet at 50 paths and asks at 51',
+    '%s is quiet at 50 paths and denied at 51',
     (command) => {
       expect(answer({ command, tracked: 50 }).hits).toEqual([]);
-      expect(answer({ command, tracked: 51 }).hits.map((hit) => hit.decision)).toEqual(['ask']);
+      expect(answer({ command, tracked: 51 }).hits.map((hit) => hit.decision)).toEqual(['deny']);
     },
   );
 
@@ -341,17 +349,17 @@ describe('GitGuard.inspect asks before a blanket stage that is large', () => {
     expect(GitGuard.inspect({ command: 'git add -A', cwd: '/p', run })).toEqual([]);
   });
 
-  test('inside a compound command: asked once for the add, not for the commit without -a', () => {
+  test('inside a compound command: denied once for the add, not for the commit without -a', () => {
     const { hits } = answer({ command: 'cd /p && git add -A && git commit -m "x"', tracked: 161 });
 
-    expect(hits.map((hit) => hit.decision)).toEqual(['ask']);
+    expect(hits.map((hit) => hit.decision)).toEqual(['deny']);
   });
 
-  test('the ask names the rule of the shared write and never denies', () => {
+  test('the denial names the rule of the shared write and carries the fix, which the hook says instead of handing it to the owner', () => {
     const { hits } = answer({ command: 'git add -A', tracked: 161 });
 
     expect(hits[0].rule).toBe('V-W-06');
-    expect(hits.some((hit) => hit.decision === 'deny')).toBe(false);
+    expect(hits.every((hit) => hit.decision === 'deny' && hit.fix !== undefined)).toBe(true);
   });
 });
 
@@ -393,8 +401,8 @@ describe('a blanket stage is counted file by file on a real repository', () => {
 
     files({ root, folder: 'fresh', count: 60 });
 
-    expect(asks({ root, command: 'git add -A' })).toEqual(['ask']);
-    expect(asks({ root, command: 'git add .' })).toEqual(['ask']);
+    expect(asks({ root, command: 'git add -A' })).toEqual(['deny']);
+    expect(asks({ root, command: 'git add .' })).toEqual(['deny']);
   });
 
   test('50 new files in one new folder are quiet, 51 ask: the threshold counts files, not folders', () => {
@@ -404,7 +412,7 @@ describe('a blanket stage is counted file by file on a real repository', () => {
     expect(asks({ root, command: 'git add -A' })).toEqual([]);
 
     files({ root, folder: 'fresh', count: 51 });
-    expect(asks({ root, command: 'git add -A' })).toEqual(['ask']);
+    expect(asks({ root, command: 'git add -A' })).toEqual(['deny']);
   });
 
   test('files spread over several new folders add up', () => {
@@ -414,7 +422,7 @@ describe('a blanket stage is counted file by file on a real repository', () => {
       files({ root, folder, count: 20 });
     }
 
-    expect(asks({ root, command: 'git add -A' })).toEqual(['ask']);
+    expect(asks({ root, command: 'git add -A' })).toEqual(['deny']);
   });
 
   test('modified tracked files and new files add up for -A', () => {
@@ -426,7 +434,7 @@ describe('a blanket stage is counted file by file on a real repository', () => {
 
     files({ root, folder: 'fresh', count: 30 });
 
-    expect(asks({ root, command: 'git add -A' })).toEqual(['ask']);
+    expect(asks({ root, command: 'git add -A' })).toEqual(['deny']);
     expect(asks({ root, command: 'git add -u' })).toEqual([]);
     expect(asks({ root, command: 'git commit -am x' })).toEqual([]);
   });
@@ -438,8 +446,8 @@ describe('a blanket stage is counted file by file on a real repository', () => {
       writeFileSync(join(root, `tracked/t${index}.txt`), 'formatted');
     }
 
-    expect(asks({ root, command: 'git add -u' })).toEqual(['ask']);
-    expect(asks({ root, command: 'git commit -am x' })).toEqual(['ask']);
+    expect(asks({ root, command: 'git add -u' })).toEqual(['deny']);
+    expect(asks({ root, command: 'git commit -am x' })).toEqual(['deny']);
   });
 
   test('ignored files are not counted', () => {
@@ -465,8 +473,11 @@ describe('GitGuard.inspect and gh pr create', () => {
     'gh pr -R org/repo create --fill',
     'gh pr create --title "-Bug fix" --body x',
     'gh pr create --web',
-  ])('asks when it names no base: %s', (command) => {
-    expect(decisions({ command })).toEqual(['ask']);
+  ])('is denied when it names no base, with the way out: %s', (command) => {
+    expect(decisions({ command })).toEqual(['deny']);
+    expect(GitGuard.inspect({ command, cwd: '/p', run: () => undefined })[0]?.fix).toContain(
+      '--base',
+    );
   });
 
   test.each([
@@ -536,7 +547,7 @@ describe('GitGuard.inspect and a repository configuration that names a program',
     const { root, ran } = repository();
     const hits = GitGuard.inspect({ command: 'git add -A', cwd: root });
 
-    expect(hits.map((hit) => hit.decision)).toEqual(['ask']);
+    expect(hits.map((hit) => hit.decision)).toEqual(['deny']);
     expect(hits[0].message).toContain('stages 60 changed paths');
     expect(existsSync(ran)).toBe(false);
   });
