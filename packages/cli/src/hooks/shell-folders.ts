@@ -1,5 +1,5 @@
-import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { ShellParser } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { LinkMakers } from './link-makers.ts';
@@ -224,6 +224,23 @@ export class ShellFolders {
     return unresolved || expanded.includes('$') ? undefined : expanded;
   }
 
+  /** The name as the system sees it: the real path of the part that exists, then the rest as written. */
+  static physicalOf(opts: { path: string }): string {
+    const rest: string[] = [];
+    let existing = opts.path;
+
+    while (existing !== dirname(existing)) {
+      try {
+        return join(realpathSync(existing), ...rest.reverse());
+      } catch {
+        rest.push(basename(existing));
+        existing = dirname(existing);
+      }
+    }
+
+    return opts.path;
+  }
+
   /**
    * Whether the path, read name by name from `base`, passes through one of `links` (absolute names): a link is followed where it
    * points, so what comes after it, a `..` included, is not where the text says. The last name counts only when `isLastCounted` (a
@@ -234,7 +251,7 @@ export class ShellFolders {
     base: string;
     links: string[];
     isLastCounted: boolean;
-  }): boolean {
+  }): 'made' | 'dangling' | undefined {
     interface IStep {
       part: string;
       /** A link of the line at this name counts. */
@@ -258,12 +275,12 @@ export class ShellFolders {
       const step = pending.pop();
 
       if (step === undefined) {
-        return false;
+        return undefined;
       }
 
       if (step.part === '..') {
         if (opts.links.includes(current)) {
-          return true;
+          return 'made';
         }
 
         current = dirname(current);
@@ -273,7 +290,7 @@ export class ShellFolders {
       current = join(current, step.part);
 
       if (step.counts && opts.links.includes(current)) {
-        return true;
+        return 'made';
       }
 
       // A link already on disk is followed where it points: it may lead to a link this line makes, and a link that points at
@@ -292,8 +309,13 @@ export class ShellFolders {
 
       hops += 1;
 
-      if (hops > MAX_LINK_HOPS || (!step.isEnd && !existsSync(current))) {
-        return true;
+      // A name the command makes itself is not a path through a link of the line, even when it dangles.
+      if (hops > MAX_LINK_HOPS) {
+        return 'made';
+      }
+
+      if ((!step.isEnd || step.counts) && !existsSync(current)) {
+        return 'dangling';
       }
 
       current = isAbsolute(target) ? '/' : dirname(current);
@@ -557,7 +579,12 @@ export class ShellFolders {
         args: made.args,
       });
 
-      for (const name of maker?.names ?? []) {
+      const carried = LinkMakers.carriedTo({
+        name: ShellParser.basenameOf({ word: made.name }),
+        args: made.args,
+      });
+
+      for (const name of [...(maker?.names ?? []), ...carried]) {
         // A name that holds a loop variable stands for each of its values.
         for (const vars of loopCombinations({ word: name, loops: folder.loops })) {
           const expanded = ShellFolders.expandPath({
@@ -570,7 +597,10 @@ export class ShellFolders {
           if (expanded === undefined) {
             hasUnknownLink = true;
           } else {
-            links.push(isAbsolute(expanded) ? expanded : resolve(state.base, expanded));
+            const lexical = isAbsolute(expanded) ? expanded : resolve(state.base, expanded);
+
+            // The walk of a path is physical, through the links already on disk: the name is kept both ways.
+            links.push(lexical, ShellFolders.physicalOf({ path: lexical }));
           }
         }
       }
@@ -713,7 +743,7 @@ export class ShellFolders {
         base: state.base,
         links: opts.links,
         isLastCounted: true,
-      });
+      }) !== undefined;
 
     // A `cd` the guard cannot work out leaves the shell's folder unknown.
     if (expanded === undefined || isSearched || isLinked) {

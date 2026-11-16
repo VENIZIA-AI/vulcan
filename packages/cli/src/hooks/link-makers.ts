@@ -83,13 +83,54 @@ const CP: IMakerTable = {
     help: false,
     version: false,
   },
-  shorts: { s: 'symbolic-link', l: 'link' },
+  shorts: {
+    s: 'symbolic-link',
+    l: 'link',
+    a: 'archive',
+    P: 'no-dereference',
+    d: 'no-dereference',
+    r: 'recursive',
+    R: 'recursive',
+  },
   symbolic: 'symbolic-link',
   hard: 'link',
 };
 
+/** `mv` carries any link it moves; its options are only read to find the destination. */
+const MV: IMakerTable = {
+  valued: 'St',
+  longs: {
+    'target-directory': true,
+    suffix: true,
+    backup: false,
+    force: false,
+    interactive: false,
+    'no-clobber': false,
+    'no-target-directory': false,
+    update: false,
+    verbose: false,
+    'strip-trailing-slashes': false,
+    context: false,
+    debug: false,
+    help: false,
+    version: false,
+  },
+  shorts: {},
+  symbolic: '',
+};
+
+/** `rsync` copies a link as a link with `-l`, `-a` and `--links`; the options it takes a value for are read to find the destination. */
+const RSYNC: IMakerTable = {
+  valued: 'efBMT@',
+  longs: { links: false, archive: false },
+  shorts: { l: 'links', a: 'archive' },
+  symbolic: '',
+};
+
 /** Coreutils `link FILE1 FILE2`: one hard link, with no options. */
 const LINK: IMakerTable = { valued: '', longs: {}, shorts: {}, symbolic: 'symbolic' };
+
+const CARRIERS: Readonly<Record<string, IMakerTable>> = { mv: MV, cp: CP, rsync: RSYNC };
 
 const TABLES: Readonly<Record<string, IMakerTable>> = { ln: LN, cp: CP, link: LINK };
 
@@ -170,7 +211,64 @@ const read = (opts: {
   return { flags, words, directory };
 };
 
+/** The folder `tar` extracts into, when it extracts (`tar xf a.tar -C dir`), as written. */
+const tarDestination = (opts: { args: string[] }): string | undefined => {
+  const first = opts.args[0] ?? '';
+  const isExtract =
+    (/^-?[a-zA-Z]+$/.test(first) && !first.startsWith('--') && first.includes('x')) ||
+    opts.args.some((word) => word === '--extract' || word === '--get');
+
+  if (!isExtract) {
+    return undefined;
+  }
+
+  for (const [index, word] of opts.args.entries()) {
+    if (word === '-C' || word === '--directory') {
+      return opts.args[index + 1];
+    }
+
+    if (word.startsWith('--directory=')) {
+      return word.slice('--directory='.length);
+    }
+
+    if (/^-[a-zA-Z]*C.+/.test(word)) {
+      return word.slice(word.indexOf('C') + 1);
+    }
+  }
+
+  return undefined;
+};
+
 export class LinkMakers {
+  /**
+   * The destination of a command that may carry a link the line made to a new name: `mv`, a `cp` that copies links (`-a`, `-P`,
+   * `-d`, `-r`, `-R`), an `rsync` that does (`-l`, `-a`), a `tar` that extracts into a folder. The new name is one a later path
+   * may go through, and the guard does not know whether the thing moved was a link, so the name counts as a link of the line.
+   */
+  static carriedTo(opts: { name: string; args: string[] }): string[] {
+    if (opts.name === 'tar') {
+      const destination = tarDestination({ args: opts.args });
+
+      return destination === undefined ? [] : [destination];
+    }
+
+    const table = CARRIERS[opts.name];
+
+    if (table === undefined) {
+      return [];
+    }
+
+    const { flags, words, directory } = read({ args: opts.args, table });
+    const isCarrying =
+      opts.name === 'mv' ||
+      (opts.name === 'cp' &&
+        ['archive', 'no-dereference', 'recursive'].some((key) => flags.has(key))) ||
+      (opts.name === 'rsync' && ['links', 'archive'].some((key) => flags.has(key)));
+    const destination = directory ?? (words.length > 1 ? words.at(-1) : undefined);
+
+    return isCarrying && destination !== undefined ? [destination] : [];
+  }
+
   /**
    * What `ln` (and `cp -s`, `cp -l`) links, or `undefined` for a command that makes no link. A hard link keeps nothing of the
    * name it was given: the file is the same one, so what it points at is judged. A symbolic link keeps its text, which the

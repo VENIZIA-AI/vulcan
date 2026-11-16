@@ -341,17 +341,20 @@ export class OutsideGuard {
 
       // A path at or through a link the line made is where the link points, which is not on disk yet to be followed. The name a
       // link command makes is its own, so it is the command's destination and not a path through an earlier link.
-      if (
-        ShellFolders.passesThrough({
-          path: expanded,
-          base: target.base,
-          links: target.links ?? [],
-          isLastCounted: target.isLinkName !== true,
-        })
-      ) {
+      const through = ShellFolders.passesThrough({
+        path: expanded,
+        base: target.base,
+        links: target.links ?? [],
+        isLastCounted: target.isLinkName !== true,
+      });
+
+      if (through !== undefined) {
         hits.push({
           path: target.word,
-          message: `${target.message}: the path is, or goes through, a link this line made, which this check does not follow`,
+          message:
+            through === 'dangling'
+              ? `${target.message}: the path is, or goes through, a dangling link, which may lead where this line makes a link`
+              : `${target.message}: the path is, or goes through, a link this line made, which this check does not follow`,
           isAgentToolScratchpad: false,
           isUnread: true,
         });

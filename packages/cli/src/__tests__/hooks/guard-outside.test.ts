@@ -1371,3 +1371,90 @@ describe('OutsideGuard.inspect follows the links already on disk to the links of
     expect(hitsIn({ root, command: 'busybox ln src.txt h2' })).toEqual([]);
   });
 });
+
+// A link the line makes is recorded by the name the system sees, not by the words that were typed, and what a move, a copy or an
+// extraction puts at a new name may be a link: a path at or through that name is not followed (the guard cannot tell).
+describe('OutsideGuard.inspect keeps the names of the links of the line as the system sees them', () => {
+  const projectWith = (opts: { links?: Record<string, string>; folders?: string[] }): string => {
+    const root = createProject({ files: { 'package.json': '{}', 'src.txt': 'x' } });
+
+    for (const folder of opts.folders ?? []) {
+      mkdirSync(join(root, folder), { recursive: true });
+    }
+
+    for (const [name, target] of Object.entries(opts.links ?? {})) {
+      symlinkSync(target, join(root, name));
+    }
+
+    return root;
+  };
+  const hitsIn = (opts: { root: string; command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: opts.root },
+      projectRoot: opts.root,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    ['a link made through a link on disk, then a write', 'ln -s ../.. w/up; echo x > w/up/victim'],
+    ['a link made through a link on disk, then a cd', 'ln -s ../.. w/up; cd w/up; echo x > victim'],
+  ])('w -> pkg, then %s is not allowed', (_name, command) => {
+    const root = projectWith({ links: { w: 'pkg' }, folders: ['pkg'] });
+
+    expect(hitsIn({ root, command }).length).toBeGreaterThan(0);
+  });
+
+  test('w -> d1/d2, then a link made through w and a write by the real name, is not allowed', () => {
+    const root = projectWith({ links: { w: 'd1/d2' }, folders: ['d1/d2'] });
+
+    expect(
+      hitsIn({ root, command: 'ln -s ../../.. w/up; echo x > d1/d2/up/victim' }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test.each([
+    ['a move to a new name, then a write through it', 'mv c d; echo x > d/f'],
+    ['a move to a new name, then a write at it', 'mv c d; echo x > d'],
+    ['a recursive copy, then a write through a link inside it', 'cp -r z z2; echo x > z2/c/f'],
+    ['an archive copy', 'cp -a c d; echo x > d/f'],
+    ['a copy of the link itself', 'cp -P c d; echo x > d/f'],
+    ['an rsync that copies links', 'rsync -a z/ z2/; echo x > z2/c/f'],
+    ['a tar extraction into a folder', 'tar xf z.tar -C q; echo x > q/f'],
+    ['a tar extraction with the folder attached', 'tar -xf z.tar -Cq; echo x > q/f'],
+  ])('with an outside link on disk, %s is not allowed', (_name, command) => {
+    const root = projectWith({ links: { c: '../vdir' }, folders: ['z', 'q'] });
+
+    symlinkSync('../vdir', join(root, 'z', 'c'));
+
+    expect(hitsIn({ root, command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    ['a move then a copy into the dangling name', 'mv c a; cp src.txt b/'],
+    ['a move then a write at the dangling name', 'mv c a; echo x > b'],
+  ])('b -> a dangling, then %s is not allowed', (_name, command) => {
+    const root = projectWith({ links: { b: 'a', c: '../vdir' } });
+
+    expect(hitsIn({ root, command }).length).toBeGreaterThan(0);
+  });
+
+  test('a dangling link on disk is named as one, not as a link of the line', () => {
+    const root = projectWith({ links: { b: 'a' } });
+    const hits = hitsIn({ root, command: 'echo x > b/f' });
+
+    expect(hits.map((hit) => hit.message).join(' ')).toContain('dangling link');
+    expect(hits.map((hit) => hit.message).join(' ')).not.toContain('a link this line made');
+  });
+
+  test.each([
+    'cp a b; echo hi > c',
+    'mv a b',
+    'cp src.txt copy.txt',
+    'mv src.txt moved.txt; echo hi > other.txt',
+  ])('%s passes: no link is carried to a name the line then goes through', (command) => {
+    const root = projectWith({});
+
+    expect(hitsIn({ root, command })).toEqual([]);
+  });
+});
