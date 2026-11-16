@@ -36,12 +36,17 @@ try {
   const { HookInput } = await import('../../src/hooks/hook-input.ts');
   const { ProjectTmp } = await import('../../src/hooks/project-tmp.ts');
   const { relative } = await import('node:path');
+  const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
   const input = HookInput.parse({ text });
+  const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? input?.cwd ?? process.cwd();
+  const { toolOwnedPaths, outside, asks } = ProjectGuards.readPolicy({ root: projectRoot });
+  const isHeld = asks === GuardDecisions.DENY;
 
   if (!input) {
     console.log(
       JSON.stringify(
         HookDecision.buildTool({
+          asks,
           decision: GuardDecisions.ASK,
           reason: [
             'The hook input could not be read, so this call was not checked for files outside the project (V-B-08).',
@@ -51,10 +56,6 @@ try {
       ),
     );
   } else {
-    const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
-    const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
-    const { toolOwnedPaths, outside } = ProjectGuards.readPolicy({ root: projectRoot });
-
     const hits = OutsideGuard.inspect({ input, projectRoot, toolOwnedPaths });
 
     if (hits.length > 0) {
@@ -82,7 +83,7 @@ try {
         isScratchpad ||
         linkHits.length > 0 ||
         unreadHits.length > 0 ||
-        (outside === GuardDecisions.DENY && read.length > 0);
+        ((outside === GuardDecisions.DENY || isHeld) && read.length > 0);
       let reason: string[];
 
       if (unreadHits.length > 0 && !isScratchpad) {
@@ -125,7 +126,7 @@ try {
         ];
       } else if (isDeny) {
         reason = [
-          'This would create files outside the project (V-B-08), and this project denies it (guard.outside):',
+          `This would create files outside the project (V-B-08), and this project denies it (${isHeld ? 'guard.asks' : 'guard.outside'}):`,
           ...linesOf(read),
           ...unread,
           '',
@@ -146,6 +147,7 @@ try {
       console.log(
         JSON.stringify(
           HookDecision.buildTool({
+            asks,
             decision: isDeny ? GuardDecisions.DENY : GuardDecisions.ASK,
             reason,
           }),
@@ -158,17 +160,39 @@ try {
 
   console.error(`vulcan: the guard-outside hook failed (${message}); run bun install`);
 
-  // The imports may be what failed, so the answer is written by hand: no module is needed to ask.
+  // The imports may be what failed, so the answer is written by hand, and a project that sets guard.asks to deny is read from the manifest by hand too.
+  let isHeldOnCrash = false;
+
+  try {
+    const { readFileSync } = await import('node:fs');
+    const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+    const manifest: unknown = JSON.parse(
+      readFileSync(`${root}/.agents/vulcan.manifest.json`, 'utf8'),
+    );
+
+    const guard =
+      typeof manifest === 'object' && manifest !== null && 'guard' in manifest
+        ? manifest.guard
+        : undefined;
+
+    isHeldOnCrash =
+      typeof guard === 'object' && guard !== null && 'asks' in guard && guard.asks === 'deny';
+  } catch {
+    isHeldOnCrash = false;
+  }
+
   console.log(
     JSON.stringify({
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',
-        permissionDecision: 'ask',
+        permissionDecision: isHeldOnCrash ? 'deny' : 'ask',
         permissionDecisionReason: [
           'The guard-outside hook failed, so this call was not checked for files outside the project (V-B-08):',
           `  - ${message}`,
           '',
-          'Confirm only if the call stays inside the project; run bun install to repair the install, or VULCAN_GUARDS=off to switch the guards off for a session.',
+          isHeldOnCrash
+            ? 'This project denies every call that would need a human to confirm it (guard.asks: deny). Nothing was run: run bun install to repair the install.'
+            : 'Confirm only if the call stays inside the project; run bun install to repair the install, or VULCAN_GUARDS=off to switch the guards off for a session.',
         ].join('\n'),
       },
     }),

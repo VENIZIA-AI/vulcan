@@ -96,6 +96,15 @@ describe('the guard block of the manifest', () => {
     expect(render({ guard: { outside: 'ask', toolOwnedPaths: [] } })).toBe(render({}));
   });
 
+  test('asks is written when it is deny, beside outside, and the default writes nothing', () => {
+    expect(JSON.parse(render({ guard: { asks: 'deny' } })).guard).toEqual({ asks: 'deny' });
+    expect(JSON.parse(render({ guard: { asks: 'deny', outside: 'deny' } })).guard).toEqual({
+      outside: 'deny',
+      asks: 'deny',
+    });
+    expect(render({ guard: { asks: 'ask' } })).toBe(render({}));
+  });
+
   test('a manifest rendered before a pattern was added differs from the one the config renders', () => {
     expect(render({})).not.toBe(render({ guard: GUARD }));
   });

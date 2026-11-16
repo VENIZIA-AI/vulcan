@@ -66,7 +66,7 @@ The table below lists the top-level configuration keys:
 | `atlas` | `object` | `{ tagPattern: '...', sources: [] }` | Release tags and external knowledge sources |
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `digest` | `object` | `{ oftenDropped: [...] }` | The rules the rules block of `AGENTS.md` names |
-| `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask', writes: { commands: [] }, git: { askPush: [] }, runners: { allow: [] } }` | Tool-owned stores, and the commands and push targets the guards ask about ([guard](#guard)) |
+| `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask', asks: 'ask', writes: { commands: [] }, git: { askPush: [] }, runners: { allow: [] } }` | Tool-owned stores, and the commands and push targets the guards ask about ([guard](#guard)) |
 | `doctor` | `object` | `{ privateValues: { acknowledged: [] } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)) |
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 | `theme` | `object` | `undefined` | The colour the project's `vulcan visualize` pages use |
@@ -620,6 +620,7 @@ The `guard` object configures the write guards.
 |---|---|---|---|
 | `toolOwnedPaths` | `string[]` | `[]` | Stores a tool in this project manages itself |
 | `outside` | `'ask'` or `'deny'` | `'ask'` | What `guard-outside` does with a write outside the project (`V-B-08`) |
+| `asks` | `'ask'` or `'deny'` | `'ask'` | What every guard does with a call that would ask a person: ask, or refuse |
 | `writes.commands` | `Array<{ rule, what, pattern, ignoreCase? }>` | `[]` | Commands of this project that `guard-writes` asks about |
 | `git.askPush` | `string[]` | `[]` | Branches that a plain `git push` asks about in `guard-git` |
 | `runners.allow` | `string[]` | `[]` | Package names `vulcan runners check` and the runner guard accept besides scoped packages, such as `shadcn` |
@@ -639,6 +640,13 @@ Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manage
 - A path in `toolOwnedPaths` still passes in both modes.
 
 It is a drift guard, not a boundary: an agent that can edit `.configs/vulcan.config.*` can change it, as it can `toolOwnedPaths`. An invalid key anywhere in the config, not only here, fails the load and the hook then asks.
+
+### guard.asks
+
+- `ask` leaves the call to the owner, as each guard does by default.
+- `deny` refuses every call that would ask, with the same reason and one line that says the project denies asks. It covers the commands of `guard-writes` (`V-W-02`, `V-W-03`) and of `guard.writes.commands`, a push to a branch of `git.askPush`, `git push --mirror`, `git reset --hard`, a force-push to a branch that is not protected, a force-delete of an unmerged branch, a write outside the project, a hook input that could not be read, and a hook that crashed or timed out. Nothing runs.
+- Set `deny` where the agent runs in an auto mode, because an ask was approved there with no person answering.
+- `outside` stays the narrower key for `guard-outside` alone. `vulcan sync` writes both to the manifest, which the hooks read, so run it after a change.
 
 ### guard.writes.commands
 

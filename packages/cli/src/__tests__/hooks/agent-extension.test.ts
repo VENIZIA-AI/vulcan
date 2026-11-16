@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import vulcanGuards from '../../../base/extensions/vulcan-guards.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -64,8 +64,11 @@ const installedProject = (opts: { files?: Record<string, string> } = {}): string
 };
 
 /** A project whose installed guards are the real ones except `broken`, which exits 3. */
-const projectWithBrokenGuard = (opts: { broken: string }): string => {
-  const root = createProject({ files: { 'package.json': '{}' } });
+const projectWithBrokenGuard = (opts: {
+  broken: string;
+  files?: Record<string, string>;
+}): string => {
+  const root = createProject({ files: { 'package.json': '{}', ...opts.files } });
   const installed = join(root, 'node_modules', '@venizia', 'vulcan');
   const hooks = join(installed, 'base', 'hooks');
 
@@ -276,7 +279,29 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
     expect(result?.reason).toContain('guard-writes crashed or timed out');
   });
 
-  test('a guard that is gone from an installed package passes; with no package the safety guard still blocks', async () => {
+  test('with guard.asks set to deny, a broken drift guard blocks even when the owner would confirm', async () => {
+    const root = projectWithBrokenGuard({
+      broken: 'guard-git',
+      files: { [GUARD_MANIFEST_FILE]: guardManifest({ guard: { asks: 'deny' } }) },
+    });
+    const kept = projectWithBrokenGuard({ broken: 'guard-git' });
+    const handle = handlerOf();
+    const held = await handle(
+      bash('git status'),
+      contextOf({ cwd: root, hasUI: true, answer: true }),
+    );
+    const asked = await handle(
+      bash('git status'),
+      contextOf({ cwd: kept, hasUI: true, answer: true }),
+    );
+
+    expect(held?.block).toBe(true);
+    expect(held?.reason).toContain('guard-git crashed or timed out');
+    expect(held?.reason).toContain('guard.asks: deny');
+    expect(asked).toBeUndefined();
+  });
+
+  test('a guard-writes that is gone from an installed package passes; guard-outside and guard-git blocks, with no package every guard blocks', async () => {
     const handle = handlerOf();
     const installed = createProject({ files: { 'package.json': '{}' } });
     const hollow = createProject({ files: { 'package.json': '{}' } });
@@ -290,13 +315,29 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
     });
 
     const gone = await handle(bash('ls'), contextOf({ cwd: installed }));
+    const goneGit = await handle(bash('git status'), contextOf({ cwd: installed }));
     const noPackage = await handle(bash('ls'), contextOf({ cwd: hollow }));
 
-    expect(gone).toBeUndefined();
+    // every guard is gone: guard-writes passes, guard-outside blocks the call
+    expect(gone?.block).toBe(true);
+    expect(gone?.reason).toContain('VULCAN guards unavailable: guard-outside');
+    expect(gone?.reason).toContain('vulcan sync');
+    expect(goneGit?.block).toBe(true);
     expect(noPackage?.block).toBe(true);
+
+    // only guard-writes gone: the call passes
+    const onlyWrites = projectWithBrokenGuard({ broken: 'none' });
+
+    writeFileSync(join(onlyWrites, 'node_modules', '@venizia', 'vulcan', 'package.json'), '{}');
+    rmSync(
+      join(onlyWrites, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks', 'guard-writes.ts'),
+    );
+
+    const result = await handle(bash('ls'), contextOf({ cwd: onlyWrites }));
+    expect(result).toBeUndefined();
   });
 
-  test('with the guard scripts missing, the safety guards block and the rest pass, bar a bare bun install', async () => {
+  test('with the guard scripts missing, every guard blocks (guard-git on a git line), bar the repair commands', async () => {
     // An install with no scripts in it: the folder is found, the scripts are not (a test folder sits under the
     // repository, whose own install would otherwise be found above it).
     const root = createProject({ files: { 'package.json': '{}' } });
@@ -308,12 +349,25 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
 
     const listed = await handle(bash('ls'), contextOf({ cwd: root }));
 
-    expect(listed?.reason).toContain('run bun install');
+    expect(listed?.reason).toContain('finish bun install');
 
     const result = await handle(bash('bun install'), contextOf({ cwd: root }));
     expect(result).toBeUndefined();
     const result2 = await handle(bash('bun install --frozen-lockfile'), contextOf({ cwd: root }));
     expect(result2).toBeUndefined();
+    const result4 = await handle(
+      bash('bun node_modules/.bin/vulcan sync'),
+      contextOf({ cwd: root }),
+    );
+    expect(result4).toBeUndefined();
+    const chainedSync = await handle(
+      bash('bun node_modules/.bin/vulcan sync; git push'),
+      contextOf({ cwd: root }),
+    );
+    const gitLine = await handle(bash('git status'), contextOf({ cwd: root }));
+
+    expect(chainedSync?.block).toBe(true);
+    expect(gitLine?.block).toBe(true);
     const chained = await handle(bash('bun install && ls'), contextOf({ cwd: root }));
 
     expect(chained?.block).toBe(true);
@@ -323,7 +377,8 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
       contextOf({ cwd: root }),
     );
 
-    expect(written).toBeUndefined();
+    // guard-outside covers a file write too, so it blocks while the install is missing
+    expect(written?.block).toBe(true);
     const result3 = await handle(
       { toolName: 'read', input: { path: 'a.txt' } },
       contextOf({ cwd: root }),

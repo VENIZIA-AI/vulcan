@@ -49,6 +49,8 @@ try {
 
   if (hits.length > 0) {
     const denied = hits.some((hit) => hit.decision === GuardDecisions.DENY);
+    // A project that sets guard.asks to deny refuses what would ask a human, with the owner to hand it to.
+    const isHeld = !denied && policy.asks === GuardDecisions.DENY;
     // A denial the agent can repair says how; one that is the owner's to decide is handed to the owner.
     const fixes = [
       ...new Set(
@@ -64,11 +66,14 @@ try {
     console.log(
       JSON.stringify(
         HookDecision.buildTool({
-          decision: denied ? GuardDecisions.DENY : GuardDecisions.ASK,
+          asks: policy.asks,
+          decision: denied || isHeld ? GuardDecisions.DENY : GuardDecisions.ASK,
           reason: [
             denied
               ? 'This command is refused by the base rules:'
-              : 'This command needs a human to confirm:',
+              : isHeld
+                ? 'This command needs a human to confirm, and this project denies that (guard.asks):'
+                : 'This command needs a human to confirm:',
             ...hits.map((hit) => `  - ${hit.rule}: ${hit.message}`),
             '',
             ...(denied
@@ -82,7 +87,9 @@ try {
                       ]
                     : []),
                 ]
-              : ['Confirm only if the owner asked for exactly this.']),
+              : isHeld
+                ? ['Nothing was run. Hand the exact command to the owner instead (V-W-06).']
+                : ['Confirm only if the owner asked for exactly this.']),
           ],
         }),
       ),
@@ -93,18 +100,39 @@ try {
 
   console.error(`vulcan: the guard-git hook failed (${message}); run bun install`);
 
-  // The imports may be what failed, so the answer is written by hand: no module is needed to ask.
+  // The imports may be what failed, so the answer is written by hand, and a project that sets guard.asks to deny is read from the manifest by hand too.
   if (/(^|[^A-Za-z0-9_])(git|gh)([^A-Za-z0-9_]|$)/.test(text)) {
+    let isHeldOnCrash = false;
+
+    try {
+      const { readFileSync } = await import('node:fs');
+      const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+      const manifest: unknown = JSON.parse(
+        readFileSync(`${root}/.agents/vulcan.manifest.json`, 'utf8'),
+      );
+      const guard =
+        typeof manifest === 'object' && manifest !== null && 'guard' in manifest
+          ? manifest.guard
+          : undefined;
+
+      isHeldOnCrash =
+        typeof guard === 'object' && guard !== null && 'asks' in guard && guard.asks === 'deny';
+    } catch {
+      isHeldOnCrash = false;
+    }
+
     console.log(
       JSON.stringify({
         hookSpecificOutput: {
           hookEventName: 'PreToolUse',
-          permissionDecision: 'ask',
+          permissionDecision: isHeldOnCrash ? 'deny' : 'ask',
           permissionDecisionReason: [
             'The guard-git hook failed, so this command was not checked:',
             `  - ${message}`,
             '',
-            'Confirm only if the owner asked for exactly this; run bun install to repair the install, or VULCAN_GUARDS=off to switch the guards off for a session.',
+            isHeldOnCrash
+              ? 'This project denies every call that would need a human to confirm it (guard.asks: deny). Nothing was run: run bun install to repair the install.'
+              : 'Confirm only if the owner asked for exactly this; run bun install to repair the install, or VULCAN_GUARDS=off to switch the guards off for a session.',
           ].join('\n'),
         },
       }),

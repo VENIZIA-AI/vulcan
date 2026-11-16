@@ -15,6 +15,8 @@ interface IGuardPolicy {
   askPush: string[];
   /** `guard.outside`: what guard-outside does with a write outside the project; `ask` when the manifest says nothing. */
   outside: string;
+  /** `guard.asks`: `deny` makes every answer that would ask a human a refusal; `ask` when the manifest says nothing. */
+  asks: string;
   /** `guard.toolOwnedPaths`: stores a tool manages itself, which guard-outside lets through. */
   toolOwnedPaths: string[];
   /** `guard.runners.allow`: the package names bunx, `bun x`, npx and `pnpm dlx` may run beyond `@venizia/*`. */
@@ -84,6 +86,7 @@ export class ProjectGuards {
       commands: [],
       askPush: [],
       outside: GuardDecisions.ASK,
+      asks: GuardDecisions.ASK,
       toolOwnedPaths: [],
       runnersAllow: [],
     };
@@ -131,6 +134,7 @@ export class ProjectGuards {
       askPush: words(targets),
       outside:
         guard.value['outside'] === GuardDecisions.DENY ? GuardDecisions.DENY : GuardDecisions.ASK,
+      asks: guard.value['asks'] === GuardDecisions.DENY ? GuardDecisions.DENY : GuardDecisions.ASK,
       toolOwnedPaths: words(owned),
       runnersAllow: isRecord(runners) ? words(runners.value['allow']) : [],
     };

@@ -10,6 +10,7 @@ const EMPTY_POLICY = {
   commands: [],
   askPush: [],
   outside: 'ask',
+  asks: 'ask',
   toolOwnedPaths: [],
   runnersAllow: [],
 };
@@ -288,6 +289,21 @@ describe('ProjectGuards.readPolicy', () => {
     expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: {} }) }).runnersAllow).toEqual(
       [],
     );
+  });
+
+  test('reads guard.asks: deny, and anything else reads as ask', () => {
+    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: { asks: 'deny' } }) }).asks).toBe(
+      'deny',
+    );
+
+    for (const value of ['allow', 'ask', true, 7, null, { mode: 'deny' }]) {
+      expect(
+        ProjectGuards.readPolicy({ root: manifestWith({ guard: { asks: value } }) }).asks,
+        String(value),
+      ).toBe('ask');
+    }
+
+    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: {} }) }).asks).toBe('ask');
   });
 
   test('anything but deny reads as ask', () => {

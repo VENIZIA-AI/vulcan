@@ -131,11 +131,12 @@ export class WriteGuard {
   /** The hits the reason lists; a line of many commands can find dozens. */
   private static readonly MAX_LISTED_HITS = 20;
 
-  static buildDecision(opts: { hits: IWriteHit[] }) {
+  static buildDecision(opts: { hits: IWriteHit[]; asks?: string }) {
     const listed = opts.hits.slice(0, WriteGuard.MAX_LISTED_HITS);
     const unlisted = opts.hits.length - listed.length;
 
     return HookDecision.forHost({
+      asks: opts.asks,
       output: {
         hookSpecificOutput: {
           hookEventName: HookConstants.PRE_TOOL_USE,

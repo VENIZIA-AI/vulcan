@@ -31,7 +31,7 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 ### guard-outside
 
 - Acts on: a file, worktree, clone or temp file created outside the project.
-- Answer: asks (`V-B-08`), or denies when `guard.outside` is `deny`.
+- Answer: asks (`V-B-08`), or denies when `guard.outside` or `guard.asks` is `deny`.
 - Always denies a write into the scratchpad folder the agent tool offers.
 - Asks, never denies, about what it cannot read.
 

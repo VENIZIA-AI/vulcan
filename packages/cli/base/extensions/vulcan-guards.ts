@@ -4,13 +4,14 @@
 // tool call it runs the same guard scripts Claude Code runs (node_modules/@venizia/vulcan/base/hooks/*.ts),
 // with a Claude-shaped event on stdin, and turns the answer into this agent's: `deny` blocks, `ask` asks
 // the owner (and blocks when there is no UI to ask). A guard that cannot give an answer follows the same
-// policy as the Claude wrappers: the safety guards block, the others ask, and a missing install passes
-// except for the safety guards, which block - bar a bare `bun install`, the way to repair it. A guard that
-// is gone from an installed package passes: there is nothing to run.
+// policy as the Claude wrappers: the safety guards block, the others ask, and a missing install blocks
+// too - bar a bare `bun install` or `vulcan sync`, the way to repair it (guard-git only for a git or gh line).
+// A guard that is gone from an installed package blocks, except guard-writes, which passes: there is nothing
+// to run. A project that sets `guard.asks: 'deny'` has every ask answered as a block.
 // Only node: modules are imported, so any host that loads TypeScript can load it.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 class Tools {
@@ -60,6 +61,10 @@ interface IGuard {
   name: string;
   tools: string[];
   onFailure: string;
+  /** Whether the call is blocked when the package is installed and only this guard is gone from it. */
+  isClosedWhenGone: boolean;
+  /** The lines the guard covers when it is missing: a line that does not match passes. Every line when absent. */
+  onlyLines?: RegExp;
 }
 
 interface IAnswer {
@@ -70,15 +75,31 @@ interface IAnswer {
 const PACKAGE_DIRECTORY = join('node_modules', '@venizia', 'vulcan');
 const HOOKS_DIRECTORY = join(PACKAGE_DIRECTORY, 'base', 'hooks');
 const TIMEOUT_MS = 30_000;
-/** The one command that passes while the install is missing: it is how the install is repaired. */
-const BUN_INSTALL =
-  /^\s*bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*\s*$/;
+/** The commands that pass while the install is missing or out of step: they are how it is repaired (`bun install`, `vulcan sync`). */
+const REPAIR =
+  /^\s*(bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*|bun node_modules\/\.bin\/vulcan sync( --?[a-z][a-z-]*( [\w./@-]+)?)*)\s*$/;
+/** A command line that names git or gh as a word. */
+const GIT_LINE = /(^|[^A-Za-z0-9_])(git|gh)([^A-Za-z0-9_]|$)/;
+const MANIFEST_FILE = join('.agents', 'vulcan.manifest.json');
+const HELD_ASK =
+  'This project denies every call that would need a human to confirm it (guard.asks: deny). Nothing was run: hand this to the owner.';
 
 /** The guards of `.claude/settings.json`, with the tools each covers and what each does when it cannot answer. */
 const GUARDS: IGuard[] = [
-  { name: 'guard-writes', tools: [Tools.BASH], onFailure: Failures.BLOCK },
-  { name: 'guard-git', tools: [Tools.BASH], onFailure: Failures.ASK },
-  { name: 'guard-outside', tools: [Tools.BASH, Tools.WRITE, Tools.EDIT], onFailure: Failures.ASK },
+  { name: 'guard-writes', tools: [Tools.BASH], onFailure: Failures.BLOCK, isClosedWhenGone: false },
+  {
+    name: 'guard-git',
+    tools: [Tools.BASH],
+    onFailure: Failures.ASK,
+    isClosedWhenGone: true,
+    onlyLines: GIT_LINE,
+  },
+  {
+    name: 'guard-outside',
+    tools: [Tools.BASH, Tools.WRITE, Tools.EDIT],
+    onFailure: Failures.ASK,
+    isClosedWhenGone: true,
+  },
 ];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -100,6 +121,18 @@ const rootOf = (opts: { cwd: string }): string => {
     }
 
     directory = parent;
+  }
+};
+
+/** Whether the manifest of the project at `root` sets `guard.asks` to `deny`; false when it cannot be read. */
+const isHeldIn = (opts: { root: string }): boolean => {
+  try {
+    const manifest: unknown = JSON.parse(readFileSync(join(opts.root, MANIFEST_FILE), 'utf8'));
+    const guard = isRecord(manifest) ? manifest.guard : undefined;
+
+    return isRecord(guard) && guard.asks === Answers.DENY;
+  } catch {
+    return false;
   }
 };
 
@@ -183,12 +216,20 @@ const runGuard = (opts: {
   const script = join(opts.root, HOOKS_DIRECTORY, `${opts.guard.name}.ts`);
 
   if (!existsSync(script)) {
-    // The package is installed and only this guard is gone from it: nothing to run, the call passes.
+    // The package is installed and only this guard is gone from it: guard-writes passes (nothing to run), the others block.
     if (existsSync(join(opts.root, PACKAGE_DIRECTORY, 'package.json'))) {
-      return { kind: Answers.ALLOW, reason: '' };
+      return opts.guard.isClosedWhenGone
+        ? {
+            kind: Answers.MISSING,
+            reason: `VULCAN guards unavailable: ${opts.guard.name} is not in the installed package; run bun node_modules/.bin/vulcan sync`,
+          }
+        : { kind: Answers.ALLOW, reason: '' };
     }
 
-    return { kind: Answers.MISSING, reason: `${opts.guard.name} is missing: run bun install` };
+    return {
+      kind: Answers.MISSING,
+      reason: `VULCAN guards unavailable: ${opts.guard.name} is missing; finish bun install`,
+    };
   }
 
   const result = spawnSync('bun', [script], {
@@ -253,10 +294,13 @@ export class GuardVerdict {
       }
 
       if (answer.kind === Answers.MISSING) {
-        const isRepair =
-          opts.toolName === Tools.BASH && BUN_INSTALL.test(String(opts.input.command));
+        const command = String(opts.input.command);
+        const isRepair = opts.toolName === Tools.BASH && REPAIR.test(command);
+        const isCovered =
+          guard.onlyLines === undefined ||
+          (opts.toolName === Tools.BASH && guard.onlyLines.test(command));
 
-        if (guard.onFailure === Failures.BLOCK && !isRepair) {
+        if (!isRepair && isCovered) {
           return { kind: Verdicts.DENY, reason: answer.reason };
         }
       }
@@ -268,6 +312,10 @@ export class GuardVerdict {
 
         asks.push(answer.reason);
       }
+    }
+
+    if (asks.length > 0 && isHeldIn({ root })) {
+      return { kind: Verdicts.DENY, reason: `${asks.join('\n\n')}\n\n${HELD_ASK}` };
     }
 
     return asks.length > 0

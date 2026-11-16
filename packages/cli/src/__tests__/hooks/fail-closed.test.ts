@@ -57,7 +57,7 @@ const hooksOf = (path: string): IShippedHook[] => {
 /** Every hook command the shipped settings register. */
 const shippedHooks = (): IShippedHook[] => hooksOf(SHIPPED_SETTINGS);
 
-/** The deny-class guards: a missing package or bun passes; a hook that started and then failed asks. */
+/** The guards that ask when a hook started and then failed: a missing package, bun or hook blocks them too (guard-git on a git or gh line). */
 const ASKING = ['guard-git.ts', 'guard-outside.ts'];
 const closedHooks = (): IShippedHook[] =>
   shippedHooks().filter((hook) => !ASKING.some((name) => hook.command.includes(name)));
@@ -101,29 +101,119 @@ const runHook = (opts: {
   };
 };
 
+/** A PATH with bun taken out and the tools a wrapper uses (cat, grep, timeout) kept. */
+const pathWithoutBun = (): string => {
+  const directory = join(makeRoot(), 'tools');
+
+  mkdirSync(directory, { recursive: true });
+
+  for (const tool of ['cat', 'grep', 'timeout']) {
+    const found = Bun.which(tool);
+
+    if (found !== null) {
+      symlinkSync(found, join(directory, tool));
+    }
+  }
+
+  return directory;
+};
+
 /** Claude Code's PreToolUse input for a Bash call - its own snake_case keys, as a string. */
 const BASH_INPUT = (command: string): string =>
   `{"tool_name":"Bash","tool_input":{"command":${JSON.stringify(command)}},"cwd":"/tmp"}`;
 
 // Claude Code blocks a PreToolUse call only on exit 2; any other failure lets the call through.
-describe('the deny-class guards fail open', () => {
-  test('with node_modules absent or bun missing, every deny-class guard passes the call and says so', () => {
+describe('the guards that ask on a crash fail closed when the package or bun is missing', () => {
+  const GIT_CALLS = ['git status', 'gh pr list', 'cd x && git push'];
+  const REPAIRS = [
+    'bun install',
+    'bun i --frozen-lockfile',
+    'bun node_modules/.bin/vulcan sync',
+    'bun node_modules/.bin/vulcan sync --app apps/web',
+  ];
+  const NOT_REPAIRS = [
+    'bun install && git push',
+    'bun node_modules/.bin/vulcan sync; git push',
+    'bun node_modules/.bin/vulcan sync $(git push)',
+    'bun node_modules/.bin/vulcan sync | git apply',
+  ];
+
+  const [git] = askingHooks().filter((hook) => hook.command.includes('guard-git.ts'));
+  const [outside] = askingHooks().filter((hook) => hook.command.includes('guard-outside.ts'));
+
+  test.each([
+    ['node_modules absent', undefined],
+    ['bun missing from PATH', 'no-bun'],
+  ])('%s: guard-outside blocks every call, guard-git a git or gh line', (_, mode) => {
     const root = makeRoot();
+    const path = mode === undefined ? undefined : pathWithoutBun();
+
+    // With bun missing the package is there: only bun is what the wrapper cannot find.
+    if (mode !== undefined) {
+      const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+
+      mkdirSync(dirname(installed), { recursive: true });
+      symlinkSync(PACKAGE_ROOT, installed);
+    }
 
     expect(askingHooks().length).toBe(2);
 
-    // A missing package or bun is a broken install, not a failed guard: the deny-class guards pass.
-    for (const hook of askingHooks()) {
-      const absent = runHook({ command: hook.command, root, stdin: BASH_INPUT('ls') });
-      const noBun = runHook({ command: hook.command, root, path: '/nonexistent' });
+    for (const command of ['ls', ...GIT_CALLS]) {
+      const result = runHook({ command: outside.command, root, path, stdin: BASH_INPUT(command) });
 
-      expect(absent.code, hook.command).toBe(0);
-      expect(absent.stderr).toMatch(/the call passes/);
-      expect(noBun.code, hook.command).toBe(0);
+      expect(result.code, command).toBe(2);
+      expect(result.stderr, command).toContain('VULCAN guards unavailable');
+    }
+
+    for (const command of GIT_CALLS) {
+      const result = runHook({ command: git.command, root, path, stdin: BASH_INPUT(command) });
+
+      expect(result.code, command).toBe(2);
+      expect(result.stderr, command).toContain('VULCAN guards unavailable');
+    }
+
+    for (const command of ['ls', 'echo digit', 'bun test']) {
+      const result = runHook({ command: git.command, root, path, stdin: BASH_INPUT(command) });
+
+      expect(result.code, command).toBe(0);
+      expect(result.stderr, command).toContain('names no git or gh');
     }
   });
 
-  test('with the package installed but a module missing, they pass the call; a safety hook blocks', () => {
+  test('a call that names no command at all is blocked by guard-outside and passed by guard-git', () => {
+    const root = makeRoot();
+
+    expect(runHook({ command: outside.command, root, stdin: '' }).code).toBe(2);
+    expect(runHook({ command: git.command, root, stdin: '' }).code).toBe(0);
+  });
+
+  test('the repair commands pass while the install is missing, and nothing that only starts with one does', () => {
+    const root = makeRoot();
+
+    for (const command of REPAIRS) {
+      expect(
+        runHook({ command: outside.command, root, stdin: BASH_INPUT(command) }).code,
+        command,
+      ).toBe(0);
+      expect(
+        runHook({ command: git.command, root, stdin: BASH_INPUT(command) }).code,
+        command,
+      ).toBe(0);
+    }
+
+    for (const command of NOT_REPAIRS) {
+      expect(
+        runHook({ command: outside.command, root, stdin: BASH_INPUT(command) }).code,
+        command,
+      ).toBe(2);
+      expect(
+        runHook({ command: git.command, root, stdin: BASH_INPUT(command) }).code,
+        command,
+      ).toBe(2);
+    }
+  });
+
+  test('with the package installed but a module missing, they ask; a safety hook blocks', () => {
     const root = makeRoot();
     // A copy of each hook with no `src` beside it: its import fails.
     const lonely = join(root, 'lonely');
@@ -138,10 +228,18 @@ describe('the deny-class guards fail open', () => {
       mkdirSync(target, { recursive: true });
       copyFileSync(join(PACKAGE_ROOT, 'base', 'hooks', `${name}.ts`), join(target, `${name}.ts`));
 
-      const result = runHook({ command: hook.command, root: lonely, stdin: BASH_INPUT('ls') });
-      const open = ASKING.includes(`${name}.ts`);
+      const result = runHook({
+        command: hook.command,
+        root: lonely,
+        stdin: BASH_INPUT('git status'),
+      });
+      const asks = ASKING.includes(`${name}.ts`);
 
-      expect(result.code, name).toBe(open ? 0 : 2);
+      expect(result.code, name).toBe(asks ? 0 : 2);
+
+      if (asks) {
+        expect(result.stdout, name).toContain('"permissionDecision":"ask"');
+      }
     }
   });
 });
@@ -180,6 +278,30 @@ describe('a hook that is gone from an installed package', () => {
       }
     },
   );
+
+  test('guard-outside blocks and guard-git blocks a git or gh line when the package is there and the hook is not', () => {
+    const root = rootWithoutHooks({ withPackageJson: true });
+    const [git] = askingHooks().filter((hook) => hook.command.includes('guard-git.ts'));
+    const [outside] = askingHooks().filter((hook) => hook.command.includes('guard-outside.ts'));
+
+    for (const command of ['ls', 'git status']) {
+      const result = runHook({ command: outside.command, root, stdin: BASH_INPUT(command) });
+
+      expect(result.code, command).toBe(2);
+      expect(result.stderr).toContain('VULCAN guards unavailable');
+      expect(result.stderr).toContain('vulcan sync');
+    }
+
+    expect(runHook({ command: git.command, root, stdin: BASH_INPUT('git status') }).code).toBe(2);
+    expect(runHook({ command: git.command, root, stdin: BASH_INPUT('ls') }).code).toBe(0);
+
+    for (const command of ['bun install', 'bun node_modules/.bin/vulcan sync']) {
+      expect(
+        runHook({ command: outside.command, root, stdin: BASH_INPUT(command) }).code,
+        command,
+      ).toBe(0);
+    }
+  });
 
   test.each(closedHooks().map((hook) => ({ name: nameOf(hook), hook })))(
     'still blocks when the package itself is missing: $name',
@@ -356,6 +478,79 @@ describe('the deny-class guards ask when the hook starts and then fails', () => 
 
 // Copilot and Cursor read `.claude/settings.json` too and may not set CLAUDE_PROJECT_DIR: a wrapper that
 // built its path from the bare variable looked in `/node_modules`, found nothing and exited 2.
+describe('guard.asks: deny turns the answer of a crashed hook into a deny', () => {
+  const DENY = '"permissionDecision":"deny"';
+  const [git] = askingHooks().filter((hook) => hook.command.includes('guard-git.ts'));
+  const [outside] = askingHooks().filter((hook) => hook.command.includes('guard-outside.ts'));
+
+  const rootWithManifest = (opts: { manifest: string; script?: string }): string => {
+    const root = makeRoot();
+    const target = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+
+    mkdirSync(target, { recursive: true });
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), opts.manifest);
+
+    for (const name of ['guard-git', 'guard-outside']) {
+      if (opts.script === undefined) {
+        // A hook with no `src` beside it: its own import fails and its catch answers.
+        copyFileSync(join(PACKAGE_ROOT, 'base', 'hooks', `${name}.ts`), join(target, `${name}.ts`));
+      } else {
+        writeFileSync(join(target, `${name}.ts`), opts.script);
+      }
+    }
+
+    return root;
+  };
+
+  test.each([
+    ['the wrapper sees the hook exit non-zero', 'process.exit(3);'],
+    ['the hook throws at load', "throw new Error('boom');"],
+  ])('%s: both guards deny', (_, script) => {
+    const root = rootWithManifest({ manifest: '{"guard":{"asks":"deny"}}', script });
+
+    expect(
+      runHook({ command: git.command, root, stdin: BASH_INPUT('git status') }).stdout,
+    ).toContain(DENY);
+    expect(runHook({ command: outside.command, root, stdin: BASH_INPUT('ls') }).stdout).toContain(
+      DENY,
+    );
+    expect(
+      runHook({ command: git.command, root, stdin: BASH_INPUT('git status') }).stdout,
+    ).toContain('guard.asks');
+  });
+
+  test('a hook whose import fails answers with its own catch, and that answer is a deny too', () => {
+    const root = rootWithManifest({ manifest: '{"guard":{"asks":"deny"}}' });
+
+    for (const [hook, command] of [
+      [git, 'git status'],
+      [outside, 'ls'],
+    ] as const) {
+      const result = runHook({ command: hook.command, root, stdin: BASH_INPUT(command) });
+
+      expect(result.stdout, command).toContain(DENY);
+      expect(result.stdout, command).toContain('guard.asks: deny');
+    }
+  });
+
+  test.each([
+    ['no manifest', undefined],
+    ['a manifest without the key', '{"guard":{"outside":"deny"}}'],
+    ['asks set to ask', '{"guard":{"asks":"ask"}}'],
+    ['a manifest that is not JSON', '{ nope'],
+  ])('%s: the answer stays an ask', (_, manifest) => {
+    const root = rootWithManifest({ manifest: manifest ?? '{}', script: 'process.exit(3);' });
+
+    expect(
+      runHook({ command: git.command, root, stdin: BASH_INPUT('git status') }).stdout,
+    ).toContain('"permissionDecision":"ask"');
+    expect(runHook({ command: outside.command, root, stdin: BASH_INPUT('ls') }).stdout).toContain(
+      '"permissionDecision":"ask"',
+    );
+  });
+});
+
 describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
   const nameOf = (hook: IShippedHook): string =>
     /hooks\/([\w-]+)\.ts/.exec(hook.command)?.[1] ?? '';
@@ -413,7 +608,7 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
     },
   );
 
-  test('with the install missing, an unset variable still exits 2 for a safety hook and 0 for the rest', () => {
+  test('with the install missing, an unset variable still exits 2 for a safety hook, and for guard-git only on a git line', () => {
     const root = makeRoot();
 
     for (const hook of shippedHooks()) {
@@ -423,7 +618,7 @@ describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
         stdin: BASH_INPUT('ls'),
         unsetProjectDir: true,
       });
-      const passes = ASKING.some((name) => hook.command.includes(name));
+      const passes = hook.command.includes('guard-git.ts');
 
       expect(result.code, nameOf(hook)).toBe(passes ? 0 : 2);
     }
