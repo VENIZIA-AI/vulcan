@@ -440,8 +440,10 @@ export class ShellFolders {
         return folder;
       }
 
+      // The variables the line set earlier win over the environment in a folder word, as in any other word.
       ShellFolders.move({
         ...opts,
+        env: { ...opts.env, ...state.vars },
         state,
         name,
         args: program.args,

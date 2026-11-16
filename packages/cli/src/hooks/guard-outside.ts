@@ -360,6 +360,18 @@ export class OutsideGuard {
         continue;
       }
 
+      // After a `cd` this check could not work out, `base` is only the last folder it knew: a relative path cannot be placed.
+      if (!isAbsolute(expanded) && target.isKnown === false) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: it is a relative path after a \`cd\` this check cannot work out`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+
+        continue;
+      }
+
       const written = isAbsolute(expanded) ? expanded : `${target.base}/${expanded}`;
 
       // `/proc/self` and `/dev/fd` name the hook's own process, not the shell the command runs in.

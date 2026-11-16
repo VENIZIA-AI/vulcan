@@ -440,7 +440,11 @@ const readWord = (opts: { text: string; from: number; layout: IShellLayout }): I
       continue;
     }
 
-    hasLiteralDollar ||= quote === "'" && char === '$';
+    // A `$` that starts no expansion is a character: one in single quotes, or one before a closing quote, a backslash, a blank or the
+    // end (`"$"S`, `$\S`), where the text after quote removal still reads as `$S`.
+    hasLiteralDollar ||=
+      char === '$' &&
+      (quote === "'" || (text[index - 1] !== '$' && !/[\w{(@*#?$!-]/.test(text[index + 1] ?? '')));
     value += char;
     index += 1;
   }

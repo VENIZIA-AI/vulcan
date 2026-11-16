@@ -1073,3 +1073,91 @@ describe('OutsideGuard.inspect does not follow a quoted or escaped $, or a varia
     expect(hitsAt({ command })).toEqual([]);
   });
 });
+
+// A `$` that starts no expansion is a character too, because of what follows it: `"$"S` and `$\S` read as `$S` once the quotes are
+// gone, and the shell writes a folder named `$S`. Each of these wrote ../pwn in real bash while the guard passed it.
+describe('OutsideGuard.inspect does not follow a $ that starts no expansion', () => {
+  const hitsAtRoot = (opts: { command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: PROJECT },
+      projectRoot: PROJECT,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    ['a $ before a closing quote, in a target', 'S=a/b/c; mkdir -p "$"S; echo x > "$"S/../../pwn'],
+    ['the same with >>', 'S=a/b/c; mkdir -p "$"S; echo x >> "$"S/../../pwn'],
+    ['the same with tee -a', 'S=a/b/c; mkdir -p "$"S; echo x | tee -a "$"S/../../pwn'],
+    ['the same with cat >', 'S=a/b/c; mkdir -p "$"S; cat > "$"S/../../pwn'],
+    ['a quoted tail', 'S=a/b/c; mkdir -p "$"S; echo x > "$"S"/../../pwn"'],
+    ['a $ before a backslash', 'S=a/b/c; mkdir -p "$"S; echo x > $\\S/../../pwn'],
+    [
+      'a $ before a closing quote, in an assignment',
+      'S=a/b/c; mkdir -p "$"S; T="$"S/../..; echo x > $T/pwn',
+    ],
+    [
+      'a $ before a closing quote, on a loop variable',
+      'for i in a/b/c; do mkdir -p "$"i; echo x > "$"i/../../pwn; done',
+    ],
+    [
+      'a $ before a closing quote, then braces',
+      'S=a/b/c; mkdir -p "$"{S}; echo x > "$"{S}/../../pwn',
+    ],
+    ['a $ at the end of a word', 'S=a/b; echo x > c$/../../pwn'],
+  ])('%s is not allowed', (_name, command) => {
+    expect(hitsAtRoot({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    "S=a/b/c; echo x > 'a'$S",
+    'S=a/b/c; echo x > "$S"/ok',
+    'S=a/b/c; echo x > "$S"\'/ok\'',
+    'S=a/b/c; echo x > $"$S"/ok',
+    'S=a/b/c; echo x > $((1+1))/ok',
+    'echo x > $$.tmp',
+  ])('%s keeps passing or asking as before: the $ starts an expansion', (command) => {
+    expect(
+      hitsAtRoot({ command }).filter((hit) => hit.message.includes('quoted or escaped')),
+    ).toEqual([]);
+  });
+});
+
+// After a `cd` the guard cannot work out, the folder it writes in is only the last one it knew, so a relative path cannot be placed.
+describe('OutsideGuard.inspect denies a relative path after a cd it cannot work out', () => {
+  const hitsAtRoot = (opts: { command: string }) =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: PROJECT },
+      projectRoot: PROJECT,
+      home: HOME,
+      env: ENV,
+    });
+
+  test.each([
+    'cd $UNSET_X; echo x > pwn',
+    'X=$(echo ..); cd $X; echo x > pwn',
+    'cd "$(echo ..)"; echo x > pwn',
+    'cd `echo ..`; echo x > pwn',
+    'mkdir -p d; cd d && cd $(echo ../..) && echo x > pwn',
+    'for d in a b; do cd $d; echo x > pwn; done',
+    'cd - ; echo x > pwn',
+    'echo a | cd ..; echo x > pwn',
+  ])('%s is not allowed', (command) => {
+    expect(hitsAtRoot({ command }).length).toBeGreaterThan(0);
+  });
+
+  test('a cd to a variable the line set is worked out, and its folder is judged', () => {
+    expect(hitsAtRoot({ command: 'X=..; cd $X; echo x > pwn' }).map((hit) => hit.isUnread)).toEqual(
+      [false],
+    );
+    expect(hitsAtRoot({ command: 'X=sub; cd $X; echo x > pwn' })).toEqual([]);
+  });
+
+  test.each([
+    'cd sub && echo x > ok',
+    'mkdir -p sub; cd sub; echo x > ok',
+    `cd $UNSET_X; echo x > ${join(PROJECT, 'ok')}`,
+  ])('%s still passes: the folder is known, or the path is absolute and inside', (command) => {
+    expect(hitsAtRoot({ command })).toEqual([]);
+  });
+});
