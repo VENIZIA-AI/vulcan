@@ -58,7 +58,7 @@ describe('CommitHookPlan: where the hook goes', () => {
 
     expect(text.startsWith('#!/bin/sh\n')).toBe(true);
     expect(text).toContain('# vulcan:commit-msg');
-    expect(text).toContain('vulcan commit-check');
+    expect(text).toContain('node_modules/.bin/vulcan" commit-check');
     expect(lstatSync(hookFile({ root })).mode & 0o111).not.toBe(0);
     expect(planOf({ root, config: DENY }).map((action) => action.status)).toEqual([
       SyncStatuses.UNCHANGED,
@@ -160,7 +160,7 @@ describe('CommitHookPlan: a hook that is not ours is never overwritten', () => {
     const [action] = planOf({ root, config: DENY });
 
     expect(action.status).toBe(SyncStatuses.SKIPPED);
-    expect(action.note).toContain('bun x --no-install vulcan commit-check "$1"');
+    expect(action.note).toContain('bun node_modules/.bin/vulcan commit-check "$1"');
 
     action.apply();
 
@@ -172,7 +172,7 @@ describe('CommitHookPlan: a hook that is not ours is never overwritten', () => {
 
     write({
       path: hookFile({ root }),
-      text: '#!/bin/sh\nexec bun x --no-install vulcan commit-check "$1"\n',
+      text: '#!/bin/sh\nexec bun run vulcan commit-check "$1"\n',
     });
 
     expect(planOf({ root, config: DENY })[0].status).toBe(SyncStatuses.UNCHANGED);
@@ -249,7 +249,7 @@ describe('CommitHookPlan: a project that sets core.hooksPath owns its hooks', ()
 
     expect(action.status).toBe(SyncStatuses.SKIPPED);
     expect(action.note).toContain('core.hooksPath');
-    expect(action.note).toContain('bun x --no-install vulcan commit-check "$1"');
+    expect(action.note).toContain('bun node_modules/.bin/vulcan commit-check "$1"');
 
     action.apply();
 
@@ -257,9 +257,23 @@ describe('CommitHookPlan: a project that sets core.hooksPath owns its hooks', ()
     expect(existsSync(hookFile({ root }))).toBe(false);
   });
 
+  test('a hook there that still runs vulcan by name is stale, whatever its flags', () => {
+    for (const line of [
+      'bun x --no-install vulcan commit-check "$1"',
+      'bunx vulcan commit-check "$1"',
+      'bun x vulcan commit-check "$1"',
+    ]) {
+      const root = withHooksPath({ hook: `#!/bin/sh\nexec ${line}\n` });
+      const status = CommitHook.stateOf({ root, config: DENY });
+
+      expect(status.state).toBe(CommitHookStates.LEGACY);
+      expect(status.note).toContain('bun node_modules/.bin/vulcan commit-check "$1"');
+    }
+  });
+
   test('a hook there that calls the command is wired', () => {
     const root = withHooksPath({
-      hook: '#!/bin/sh\nexec bun x --no-install vulcan commit-check "$1"\n',
+      hook: '#!/bin/sh\nexec bun run vulcan commit-check "$1"\n',
     });
 
     expect(planOf({ root, config: DENY })[0].status).toBe(SyncStatuses.UNCHANGED);
@@ -338,7 +352,7 @@ describe('the hook script', () => {
     const blocked = run({ root: repo(), bun: 'exit 1' });
 
     expect(passed.code).toBe(0);
-    expect(passed.calls).toContain('x --no-install vulcan commit-check');
+    expect(passed.calls).toContain('node_modules/.bin/vulcan commit-check');
     expect(passed.calls).toMatch(/commit-check \/.*\/MSG/);
     expect(blocked.code).toBe(1);
   });
@@ -357,7 +371,7 @@ describe('the hook script', () => {
   test('with a vulcan too old to know the command it lets the commit through and says so', () => {
     const result = run({
       root: repo(),
-      bun: "echo \"vulcan: unknown command 'commit-check' - run 'bun x vulcan help'\"; exit 1",
+      bun: "echo \"vulcan: unknown command 'commit-check' - run 'bun run vulcan help'\"; exit 1",
     });
 
     expect(result.code).toBe(0);
@@ -432,5 +446,185 @@ describe('CommitHook.stateOf, what vulcan doctor reports', () => {
     expect(CommitHook.stateOf({ root: handMade, config: DENY }).state).toBe(
       CommitHookStates.UNWIRED,
     );
+  });
+});
+
+describe('CommitHookPlan: a repository has one hook and it belongs to the project that wrote it', () => {
+  const nested = (): { top: string; sandbox: string } => {
+    const top = repo();
+    const sandbox = join(top, 'sandbox');
+
+    mkdirSync(sandbox, { recursive: true });
+
+    return { top, sandbox };
+  };
+
+  test('a project inside the repository, with the check off, does not remove the hook of the top level', () => {
+    const { top, sandbox } = nested();
+
+    planOf({ root: top, config: DENY })[0].apply();
+
+    const before = readFileSync(hookFile({ root: top }), 'utf8');
+
+    expect(planOf({ root: sandbox, config: OFF })).toEqual([]);
+    expect(readFileSync(hookFile({ root: top }), 'utf8')).toBe(before);
+  });
+
+  test('a project inside the repository, with the check on, does not rewrite the hook of the top level', () => {
+    const { top, sandbox } = nested();
+
+    planOf({ root: top, config: DENY })[0].apply();
+
+    const before = readFileSync(hookFile({ root: top }), 'utf8');
+    const [action] = planOf({ root: sandbox, config: DENY });
+
+    expect(action.status).toBe(SyncStatuses.SKIPPED);
+    expect(action.note).toContain('the project at the top of the repository');
+
+    action.apply();
+
+    expect(readFileSync(hookFile({ root: top }), 'utf8')).toBe(before);
+  });
+
+  test('the top level does not take back or rewrite the hook of a project inside it', () => {
+    const { top, sandbox } = nested();
+
+    planOf({ root: sandbox, config: DENY })[0].apply();
+
+    const before = readFileSync(hookFile({ root: top }), 'utf8');
+    const [action] = planOf({ root: top, config: DENY });
+
+    expect(before).toContain('[sandbox]');
+    expect(action.status).toBe(SyncStatuses.SKIPPED);
+    expect(action.note).toContain('the project in sandbox');
+    expect(planOf({ root: top, config: OFF })).toEqual([]);
+    expect(readFileSync(hookFile({ root: top }), 'utf8')).toBe(before);
+  });
+
+  test('a project keeps its own hook up to date and takes it back when the check goes off', () => {
+    const { top, sandbox } = nested();
+
+    planOf({ root: sandbox, config: DENY })[0].apply();
+
+    expect(planOf({ root: sandbox, config: DENY })[0].status).toBe(SyncStatuses.UNCHANGED);
+
+    const [removal] = planOf({ root: sandbox, config: OFF });
+
+    expect(removal.status).toBe(SyncStatuses.REMOVED);
+
+    removal.apply();
+
+    expect(existsSync(hookFile({ root: top }))).toBe(false);
+  });
+
+  test("a hook of an earlier release has no folder and is the top level's", () => {
+    const { top, sandbox } = nested();
+
+    write({
+      path: hookFile({ root: top }),
+      text: '#!/bin/sh\n# vulcan:commit-msg - old\necho old\n',
+    });
+
+    expect(planOf({ root: sandbox, config: OFF })).toEqual([]);
+    expect(planOf({ root: sandbox, config: DENY })[0].status).toBe(SyncStatuses.SKIPPED);
+    expect(planOf({ root: top, config: DENY })[0].status).toBe(SyncStatuses.REPLACED);
+    expect(planOf({ root: top, config: OFF })[0].status).toBe(SyncStatuses.REMOVED);
+  });
+
+  test('the doctor state of a hook that belongs to another project is unwired, with the reason', () => {
+    const { top, sandbox } = nested();
+
+    planOf({ root: top, config: DENY })[0].apply();
+
+    const state = CommitHook.stateOf({ root: sandbox, config: DENY });
+
+    expect(state.state).toBe(CommitHookStates.OTHER_PROJECT);
+    expect(state.note).toContain('belongs to');
+  });
+});
+
+describe('a folder name that holds a bracket or a percent sign', () => {
+  test.each(['odd]name', 'a]b[c', '100%', 'x%5Dy'])(
+    '%s is read back as it was written',
+    (folder) => {
+      const top = repo();
+      const root = join(top, folder);
+
+      mkdirSync(root, { recursive: true });
+      planOf({ root, config: DENY })[0].apply();
+
+      const text = readFileSync(hookFile({ root: top }), 'utf8');
+
+      expect(CommitHook.ownerOf({ text })).toBe(folder);
+      expect(planOf({ root, config: DENY })[0].status).toBe(SyncStatuses.UNCHANGED);
+      expect(planOf({ root: top, config: DENY })[0].status).toBe(SyncStatuses.SKIPPED);
+    },
+  );
+});
+
+describe('a folder name the hook text cannot hold', () => {
+  test.each(['line\nbreak', 'carriage\rreturn', 'tab\tname', 'bell\u0007name', 'del\u007fname'])(
+    '%j: the hook is not written, and the plan says why',
+    (folder) => {
+      const top = repo();
+      const root = join(top, folder);
+
+      mkdirSync(root, { recursive: true });
+
+      const [action] = planOf({ root, config: DENY });
+
+      expect(action.status).toBe(SyncStatuses.SKIPPED);
+      expect(action.note).toContain('control character');
+
+      action.apply();
+
+      expect(existsSync(hookFile({ root: top }))).toBe(false);
+      expect(CommitHook.stateOf({ root, config: DENY }).state).toBe(CommitHookStates.UNWIRED);
+    },
+  );
+
+  test('the template and the writer refuse such a prefix', () => {
+    const path = join(createProject({ files: {} }), 'hooks/commit-msg');
+
+    expect(() => CommitHook.template({ prefix: 'line\nbreak/' })).toThrow('control character');
+    expect(() => CommitHook.write({ path, prefix: 'line\nbreak/' })).toThrow('control character');
+    expect(existsSync(path)).toBe(false);
+  });
+
+  test('a folder name with spaces and quotes is still written, and entered by the hook', () => {
+    const top = repo();
+    const root = join(top, "my app's folder");
+
+    mkdirSync(root, { recursive: true });
+
+    const [action] = planOf({ root, config: DENY });
+
+    expect(action.status).toBe(SyncStatuses.CREATED);
+
+    action.apply();
+
+    const text = readFileSync(hookFile({ root: top }), 'utf8');
+
+    expect(text).toContain("cd 'my app'\\''s folder' || exit 0\n");
+    expect(CommitHook.ownerOf({ text })).toBe("my app's folder");
+    expect(planOf({ root, config: DENY })[0].status).toBe(SyncStatuses.UNCHANGED);
+  });
+
+  test('a marker line with an escaped control character is read back as written', () => {
+    expect(
+      CommitHook.ownerOf({ text: '#!/bin/sh\n# vulcan:commit-msg [a%0Ab%09c%25] - x\n' }),
+    ).toBe('a\nb\tc%');
+  });
+});
+
+describe('CommitHook.ownerOf', () => {
+  test.each([
+    ['#!/bin/sh\n# vulcan:commit-msg [] - x\n', ''],
+    ['#!/bin/sh\n# vulcan:commit-msg [apps/web] - x\n', 'apps/web'],
+    ['#!/bin/sh\n# vulcan:commit-msg - x\n', ''],
+    ['#!/bin/sh\necho mine\n# vulcan:commit-msg [a]\n', undefined],
+    ['#!/bin/sh\n# something else\n', undefined],
+  ])('%j is owned by %j', (text, owner) => {
+    expect(CommitHook.ownerOf({ text })).toBe(owner);
   });
 });

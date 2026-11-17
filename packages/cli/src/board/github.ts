@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { RecordValue } from '../common/record.ts';
+import { EventConstants } from '../events/common/index.ts';
 import { EventFlow } from '../events/flow.ts';
 import {
   BoardConstants,
@@ -21,10 +22,8 @@ const FAILED = new Set([
   'STARTUP_FAILURE',
   'ERROR',
 ]);
-const BODY_FLOW = /\bFlow:\s*(F-\d+)\b/;
 
-const text = (opts: { value: unknown }): string =>
-  typeof opts.value === 'string' ? opts.value : '';
+const text = RecordValue.textOf;
 
 /** Pull requests, their checks and their reviews, read through `gh`: an extra for projects on GitHub. */
 export class BoardGithub {
@@ -104,9 +103,12 @@ export class BoardGithub {
     return { events, note: `github: ${notes.join(', ')}` };
   }
 
-  /** `Flow: F-n` in the body of a pull request, else an `F-n` segment of its branch, else none. */
+  /** `Flow: <id>` in the body of a pull request, else a flow id as a segment of its branch, else none. */
   static flowOf(opts: { body: string; branch: string }): string | undefined {
-    return BODY_FLOW.exec(opts.body)?.[1] ?? EventFlow.fromBranchName({ branch: opts.branch });
+    return (
+      EventConstants.FLOW_LINE.exec(opts.body)?.[1] ??
+      EventFlow.fromBranchName({ branch: opts.branch })
+    );
   }
 
   /** The lines one pull request stands for: opened, each check, each review, merged or closed. */

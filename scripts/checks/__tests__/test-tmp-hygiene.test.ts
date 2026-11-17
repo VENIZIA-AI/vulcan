@@ -71,7 +71,7 @@ const TARGETS = [
   // createProject, hermeticEnv and a spawned hook.
   { pkg: 'cli', file: 'src/__tests__/sync/planner.test.ts' },
   { pkg: 'cli', file: 'src/__tests__/local/clean.test.ts' },
-  { pkg: 'cli', file: 'src/__tests__/hooks/trusted-scripts.test.ts' },
+  { pkg: 'cli', file: 'src/__tests__/hooks/guard-writes.test.ts' },
 ];
 
 // A test run must leave the system temp as it found it, make or no make: an agent that runs one file

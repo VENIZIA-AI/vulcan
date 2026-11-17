@@ -24,6 +24,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { useRepoTmp } from '@venizia/dev-configs/testing';
+import { SmokeEnv } from './smoke-env.ts';
 
 interface IStepResult {
   ok: boolean;
@@ -118,7 +119,7 @@ const runStep = (opts: {
     cwd: opts.cwd,
     input: opts.input,
     encoding: 'utf8',
-    env: { ...process.env, ...opts.env },
+    env: SmokeEnv.of({ env: process.env, extra: opts.env }),
   });
   const ok = result.status === opts.expectedCode;
 
@@ -147,7 +148,7 @@ const packPackage = (opts: { directory: string }): string | undefined => {
     return undefined;
   }
 
-  const tarball = readdirSync(cwd).find(file => file.endsWith('.tgz'));
+  const tarball = readdirSync(cwd).find((file) => file.endsWith('.tgz'));
 
   return tarball === undefined ? undefined : join(cwd, tarball);
 };
@@ -169,7 +170,7 @@ const findStaleSiblingPins = (opts: { tarball: string }): string[] => {
   });
   const manifest: IManifest = JSON.parse(packed.stdout);
 
-  return ['okf', 'atlas'].flatMap(directory => {
+  return ['okf', 'atlas'].flatMap((directory) => {
     const sibling: IManifest = JSON.parse(
       readFileSync(join(PACKAGES_DIRECTORY, directory, 'package.json'), 'utf8'),
     );
@@ -202,7 +203,7 @@ const buildMcpRequests = (): string =>
       params: { name: 'search', arguments: { query: 'lighthouse keeper' } },
     },
   ]
-    .map(request => JSON.stringify(request))
+    .map((request) => JSON.stringify(request))
     .join('\n')
     .concat('\n');
 
@@ -212,7 +213,7 @@ const buildMcpRequests = (): string =>
  */
 const inspectMcpOutput = (opts: { stdout: string }): string | undefined => {
   const lines = opts.stdout.trim().split('\n').filter(Boolean);
-  const frames = lines.map(line => {
+  const frames = lines.map((line) => {
     try {
       const frame: {
         jsonrpc?: string;
@@ -230,17 +231,17 @@ const inspectMcpOutput = (opts: { stdout: string }): string | undefined => {
     }
   });
 
-  if (frames.some(frame => frame?.jsonrpc !== '2.0')) {
+  if (frames.some((frame) => frame?.jsonrpc !== '2.0')) {
     return 'x atlas: a stdout line is not a JSON-RPC frame';
   }
 
-  const toolCount = frames.find(frame => frame?.id === 2)?.result?.tools?.length ?? 0;
+  const toolCount = frames.find((frame) => frame?.id === 2)?.result?.tools?.length ?? 0;
 
   if (toolCount < MINIMUM_ATLAS_TOOLS) {
     return `x atlas: tools/list returned ${toolCount} tools`;
   }
 
-  const searched = frames.find(frame => frame?.id === 3)?.result?.content?.[0]?.text ?? '';
+  const searched = frames.find((frame) => frame?.id === 3)?.result?.content?.[0]?.text ?? '';
 
   return searched.includes('"source":"remote"')
     ? undefined
@@ -281,7 +282,6 @@ const makeSource = (opts: { sandbox: string }): { url?: string; failure?: string
   return failure === undefined ? { url: `file://${bare}` } : { failure };
 };
 
-
 interface IHookEntry {
   event: string;
   matcher: string;
@@ -311,25 +311,19 @@ const hookNameOf = (opts: { hook: IHookEntry }): string =>
   /hooks\/([\w-]+)\.ts/.exec(opts.hook.command)?.[1] ?? opts.hook.command.slice(0, 40);
 
 /** Every benign call the hook's matcher covers: a Bash `ls`, a Write inside the project, or the event itself. */
-const benignPayloadsOf = (opts: { hook: IHookEntry; sandbox: string; command?: string }): string[] => {
+const benignPayloadsOf = (opts: {
+  hook: IHookEntry;
+  sandbox: string;
+  command?: string;
+}): string[] => {
   if (opts.hook.event === 'SessionStart') {
     return ['{"hook_event_name":"SessionStart","source":"startup"}'];
   }
 
-  if (opts.hook.event === 'Stop') {
-    return ['{"hook_event_name":"Stop","last_assistant_message":"Everything is in order and nothing needs your attention right now, because the work is done and every check ran as expected today.","stop_hook_active":false}'];
-  }
-
-  if (opts.hook.event === 'PostToolUse' || opts.hook.event === 'PostToolUseFailure') {
-    return [`{"hook_event_name":"${opts.hook.event}","tool_name":"Bash","tool_input":{"command":"ls"}}`];
-  }
-
-  if (opts.hook.event === 'UserPromptSubmit') {
-    return ['{"hook_event_name":"UserPromptSubmit","prompt":"hello"}'];
-  }
-
   if (opts.hook.event === 'SubagentStart') {
-    return ['{"hook_event_name":"SubagentStart","agent_type":"general-purpose","agent_id":"smoke"}'];
+    return [
+      '{"hook_event_name":"SubagentStart","agent_type":"general-purpose","agent_id":"smoke"}',
+    ];
   }
 
   const cwd = JSON.stringify(opts.sandbox);
@@ -366,23 +360,15 @@ const runHook = (opts: { hook: IHookEntry; sandbox: string; payload: string }) =
     cwd: opts.sandbox,
     input: opts.payload,
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: opts.sandbox },
+    env: SmokeEnv.of({ env: process.env, extra: { CLAUDE_PROJECT_DIR: opts.sandbox } }),
     timeout: 60_000,
   });
 
   return { code: result.status ?? -1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 };
 
-const BLOCKING = new Set([
-  'guard-writes',
-  'guard-manifest',
-  'guard-package',
-  'guard-remote-hosts',
-  'guard-git',
-  'guard-scripting',
-  'guard-outside',
-]);
-const SAFETY = new Set(['guard-writes', 'guard-manifest', 'guard-package', 'guard-remote-hosts']);
+const BLOCKING = new Set(['guard-writes', 'guard-git', 'guard-outside']);
+const SAFETY = new Set(['guard-writes']);
 
 /** A path of the installed package moved aside while `run` executes, then put back. */
 const withoutFile = <T>(opts: { path: string; run: () => T }): T => {
@@ -414,7 +400,10 @@ const withBrokenPackages = <T>(opts: { paths: string[]; run: () => T }): T => {
     run: () => {
       mkdirSync(first, { recursive: true });
       writeFileSync(join(first, 'package.json'), '{"name":"stub","main":"index.js"}');
-      writeFileSync(join(first, 'index.js'), 'throw new Error("unavailable: broken by the pack smoke");\n');
+      writeFileSync(
+        join(first, 'index.js'),
+        'throw new Error("unavailable: broken by the pack smoke");\n',
+      );
 
       try {
         return withBrokenPackages({ paths: rest, run: opts.run });
@@ -431,7 +420,7 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
   const hooks = hooksOf({ sandbox });
   const blocking = hooks.filter((hook) => BLOCKING.has(hookNameOf({ hook })));
 
-  for (const required of [...BLOCKING, 'session-start', 'subagent-start', 'stop', 'prompt-submit', 'post-tool']) {
+  for (const required of [...BLOCKING, 'session-start', 'subagent-start']) {
     if (!hooks.some((hook) => hookNameOf({ hook }) === required)) {
       return `hooks: nothing registers ${required}`;
     }
@@ -452,26 +441,16 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
       ? undefined
       : runHook({ hook: start, sandbox, payload: startPayload });
 
-  if (!digest?.stdout.includes('VULCAN rules')) {
-    return 'hooks: session-start printed no rules digest';
-  }
-
-  const prompt = hooks.find((hook) => hook.event === 'UserPromptSubmit');
-  const [promptPayload] = prompt === undefined ? [] : benignPayloadsOf({ hook: prompt, sandbox });
-  const contract =
-    prompt === undefined || promptPayload === undefined
-      ? undefined
-      : runHook({ hook: prompt, sandbox, payload: promptPayload });
-
-  if (!contract?.stdout.includes('Owner reply contract')) {
-    return 'hooks: prompt-submit printed no owner reply contract';
+  if (!digest?.stdout.includes('# VULCAN session')) {
+    return 'hooks: session-start printed no session digest';
   }
 
   const installed = join(sandbox, 'node_modules', '@venizia', 'vulcan');
   // Every copy of zod the hooks could resolve: one left behind would make the case below pass for nothing.
-  const zods = [join(sandbox, 'node_modules', 'zod'), join(installed, 'node_modules', 'zod')].filter(
-    (path) => existsSync(path),
-  );
+  const zods = [
+    join(sandbox, 'node_modules', 'zod'),
+    join(installed, 'node_modules', 'zod'),
+  ].filter((path) => existsSync(path));
 
   if (zods.length === 0) {
     return 'hooks: cannot find the installed zod to break - the check would pass for nothing';
@@ -607,30 +586,6 @@ try {
         failure = result.detail;
         break;
       }
-    }
-
-    // The project sets `remoteHosts`, so `sync` registers the remote-host guard too and the manifest
-    // carries the policy it reads: every hook of the product runs below, not only the default ones.
-    if (failure === undefined) {
-      const configFile = join(sandbox, '.configs/vulcan.config.mts');
-      const config = readFileSync(configFile, 'utf8');
-
-      writeFileSync(
-        configFile,
-        config.replace(
-          'export default {',
-          "export default {\n  remoteHosts: { trusted: ['example.test'], readOnly: [] },",
-        ),
-      );
-
-      const synced = runStep({
-        name: 'sync with remoteHosts',
-        command: ['bun', 'x', 'vulcan', 'sync'],
-        cwd: sandbox,
-        expectedCode: 0,
-      });
-
-      failure = synced.ok ? undefined : synced.detail;
     }
 
     // Every registered hook, from the installed tarball (the release-blocking check on the hook path).

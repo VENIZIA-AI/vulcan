@@ -339,6 +339,70 @@ describe('package-release.yml: the next dist-tag', () => {
   });
 });
 
+describe('package-release.yml: the wiki is rebuilt after a release', () => {
+  const docs = (): Record<string, unknown> => readJob({ name: 'docs' });
+  const stepsOfDocs = (): Record<string, unknown>[] => {
+    const { steps } = docs();
+
+    return Array.isArray(steps)
+      ? steps.flatMap((value) => {
+          const step = { value };
+
+          return isRecord(step) ? [step.value] : [];
+        })
+      : [];
+  };
+
+  test('a job of its own starts the docs run on develop, after publish', () => {
+    const [step] = stepsOfDocs();
+
+    expect(stepsOfDocs()).toHaveLength(1);
+    expect(toText({ value: step?.run })).toBe('gh workflow run deploy-docs.yml --ref develop');
+    expect(docs().needs).toEqual(['plan', 'publish']);
+  });
+
+  test('it runs once the tag is pushed (a stable also once main is merged back) and cannot fail a release', () => {
+    const condition = toText({ value: docs().if }) ?? '';
+
+    expect(condition).toContain("needs.publish.outputs.tagged == 'true'");
+    expect(condition).toContain("needs.plan.outputs.kind == 'prerelease'");
+    expect(condition).toContain("needs.publish.outputs.merged_back == 'true'");
+    expect(docs()['continue-on-error']).toBe(true);
+    expect(typeof docs()['timeout-minutes']).toBe('number');
+  });
+
+  test('it has no checkout, no install, no secret and no environment: the Actions token and the repository only', () => {
+    const [step] = stepsOfDocs();
+    const env = { value: step?.env };
+
+    expect(JSON.stringify(stepsOfDocs())).not.toContain('checkout');
+    expect(JSON.stringify(stepsOfDocs())).not.toContain('secrets.');
+    expect(Object.keys(isRecord(env) ? env.value : {}).sort()).toEqual(['GH_REPO', 'GH_TOKEN']);
+    expect(docs().environment).toBeUndefined();
+  });
+
+  test('publish says whether the tag is pushed and the merge back done, and holds no actions permission', () => {
+    const outputs = { value: readJob({ name: 'publish' }).outputs };
+
+    expect(isRecord(outputs) ? Object.keys(outputs.value).sort() : []).toEqual([
+      'merged_back',
+      'tagged',
+    ]);
+    const permissions = { value: readJob({ name: 'publish' }).permissions };
+
+    expect(isRecord(permissions) ? permissions.value.actions : undefined).toBeUndefined();
+    expect(findStep({ name: 'Record what was pushed' }).if).toBe('always()');
+  });
+
+  test('actions: write is on the docs job only', () => {
+    for (const name of ['plan', 'test', 'approve', 'publish']) {
+      const permissions = { value: readJob({ name }).permissions };
+
+      expect(isRecord(permissions) ? permissions.value.actions : undefined).toBeUndefined();
+    }
+  });
+});
+
 describe('package-release.yml: the atlas index of the release', () => {
   const STEP = 'Publish the atlas index of the release';
   const stepNames = (): string[] =>
@@ -615,7 +679,7 @@ describe('package-release.yml: the job graph', () => {
     return isRecord(permissions) ? permissions.value : undefined;
   };
 
-  test('four jobs: plan, then the gates, then the approval of a stable, then the publish', () => {
+  test('five jobs: plan, then the gates, then the approval of a stable, then the publish, then the docs run', () => {
     const workflow = { value: Bun.YAML.parse(readFileSync(WORKFLOW, 'utf8')) };
     const jobs = { value: isRecord(workflow) ? workflow.value.jobs : undefined };
 
@@ -624,10 +688,12 @@ describe('package-release.yml: the job graph', () => {
       'test',
       'approve',
       'publish',
+      'docs',
     ]);
     expect(needsOf({ name: 'test' })).toEqual(['plan']);
     expect(needsOf({ name: 'approve' })).toEqual(['plan', 'test']);
     expect(needsOf({ name: 'publish' })).toEqual(['plan', 'test', 'approve']);
+    expect(needsOf({ name: 'docs' })).toEqual(['plan', 'publish']);
   });
 
   test('no job is skipped by a ref guard of its own: the plan refuses a wrong ref loudly instead', () => {
@@ -646,7 +712,31 @@ describe('package-release.yml: the job graph', () => {
       'kind',
       'npm_tag',
       'develop_sha',
+      'changelog_base',
     ]);
+  });
+
+  test('a stable dates its version folder before the release commit, and the commit adds that file', () => {
+    const text = readFileSync(
+      join(import.meta.dir, '..', '..', '..', '.github', 'workflows', 'package-release.yml'),
+      'utf8',
+    );
+    const stamp = text.indexOf('stamp-release.ts');
+    const commit = text.indexOf('git commit -m "$SUBJECT"');
+
+    expect(stamp).toBeGreaterThan(0);
+    expect(commit).toBeGreaterThan(stamp);
+    expect(text).toContain('git add -- "$STAMPED_LOG"');
+    expect(text).toContain("needs.plan.outputs.kind == 'stable' && env.BUMP != 'none'");
+  });
+
+  test('the gates job runs the history check of a stable against the previous stable tag', () => {
+    const text = readFileSync(
+      join(import.meta.dir, '..', '..', '..', '.github', 'workflows', 'package-release.yml'),
+      'utf8',
+    );
+
+    expect(text).toContain('vulcan changelog check --history --base "$CHANGELOG_BASE"');
   });
 
   test('the environments: the stable approval is release-approval, the publish identity is npm-release, the rest have none', () => {
@@ -658,6 +748,7 @@ describe('package-release.yml: the job graph', () => {
 
   test('only publish can write and only publish holds id-token', () => {
     expect(permissionsOf({ name: 'publish' })).toEqual({ contents: 'write', 'id-token': 'write' });
+    expect(permissionsOf({ name: 'docs' })).toEqual({ actions: 'write' });
     expect(permissionsOf({ name: 'approve' })).toEqual({});
     expect(permissionsOf({ name: 'plan' })).toEqual({ contents: 'read' });
     expect(permissionsOf({ name: 'test' })).toBeUndefined();

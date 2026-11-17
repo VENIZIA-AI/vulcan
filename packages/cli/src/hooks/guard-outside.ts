@@ -1,86 +1,131 @@
-import { lstatSync, readlinkSync, realpathSync } from 'node:fs';
+import { lstatSync, readdirSync, readlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
-import { ShellParser } from './shell.ts';
-import type { ISimpleCommand } from './shell.ts';
+import { ShellParser, ShellUnread } from './shell.ts';
+import { ShellFolders, loopCombinations } from './shell-folders.ts';
+import type { TEnvironment } from './shell-folders.ts';
+import { ShellWrites } from './shell-writes.ts';
+import type { IWriteTarget } from './shell-writes.ts';
 import { HookConstants } from './common/index.ts';
 import { ProjectTmp } from './project-tmp.ts';
 import type { IManifestHookInput, IOutsideHit } from './common/index.ts';
 
 const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
-type TEnvironment = Record<string, string | undefined>;
+/** The links one path may pass through before it is taken for a loop, as the OS counts them. */
+const MAX_LINKS = 40;
+
+/** The components of a path, without the empty and `.` ones, last first, so `pop` takes the next. */
+const partsOf = (opts: { path: string }): string[] =>
+  opts.path
+    .split('/')
+    .filter((part) => part !== '' && part !== '.')
+    .reverse();
 
 /**
- * `~` and `$NAME` / `${NAME}` expanded; `undefined` when a variable is unset or the word is not a plain path.
- * `$PWD` is the folder the command runs in (`cwd`), not the `PWD` of this hook's own process.
+ * The file the OS opens for an absolute path that has not been folded: each component in turn, a symlink
+ * followed where it stands, so a `..` after a link goes to the parent of the link's target and not to the
+ * parent of the link. What does not exist is kept as text, a dangling link followed to where it points. A path
+ * that goes through more links than the OS follows has no file: `undefined`.
  */
-const expandPath = (opts: {
-  word: string;
-  home: string;
-  env: TEnvironment;
-  cwd?: string;
-}): string | undefined => {
-  if (opts.word === '' || /[`*?[]/.test(opts.word) || opts.word.includes('$(')) {
-    return undefined;
-  }
+const realOf = (opts: { path: string }): string | undefined => {
+  const pending = partsOf({ path: opts.path });
+  let current = '/';
+  let links = 0;
 
-  let unresolved = false;
-  const home = opts.word === '~' || opts.word.startsWith('~/') ? opts.home : undefined;
-  const withHome = home === undefined ? opts.word : `${home}${opts.word.slice(1)}`;
-  const expanded = withHome.replace(/\$\{?(\w+)\}?/g, (_, name: string) => {
-    const value = name === 'PWD' && opts.cwd !== undefined ? opts.cwd : opts.env[name];
+  while (pending.length > 0) {
+    const part = pending.pop() ?? '';
 
-    if (value === undefined || value === '') {
-      unresolved = true;
+    if (part === '..') {
+      current = dirname(current);
+      continue;
     }
 
-    return value ?? '';
-  });
+    const next = join(current, part);
+    let target: string | undefined;
 
-  return unresolved ? undefined : expanded;
-};
-
-/**
- * The path with the nearest existing ancestor resolved through symlinks, so a link cannot walk out of the
- * project; a dangling link is followed to where it points.
- */
-const realOf = (opts: { path: string; depth?: number }): string => {
-  const depth = opts.depth ?? 0;
-  let existing = opts.path;
-  const rest: string[] = [];
-
-  while (dirname(existing) !== existing) {
     try {
-      lstatSync(existing);
-      break;
+      target = lstatSync(next).isSymbolicLink() ? readlinkSync(next) : undefined;
     } catch {
-      rest.unshift(existing.slice(dirname(existing).length + 1));
-      existing = dirname(existing);
+      target = undefined;
     }
+
+    if (target === undefined) {
+      current = next;
+      continue;
+    }
+
+    links += 1;
+
+    if (links > MAX_LINKS) {
+      return undefined;
+    }
+
+    if (isAbsolute(target)) {
+      current = '/';
+    }
+
+    pending.push(...partsOf({ path: target }));
   }
 
-  let base: string;
+  return current;
+};
+/**
+ * A path of plain folders (no `..`) whose last name holds one `[...]` of plain characters: a VitePress route file such as
+ * `content/[version].md`. Nothing else in it is a pattern, an expansion or a shell metacharacter (a zsh glob qualifier
+ * needs one), and the only glob is in the last name.
+ */
+const BRACKET_NAME = /^\/?(?:(?!\.\.\/)[\w.-]+\/)*[\w.-]*\[[\w.-]+\][\w.-]*$/;
+/** The files that name a process by number or as `self`: their target depends on who opens them. */
+const PROCESS_FILES = /^\/(?:proc(?:\/|$)|dev\/fd(?:\/|$))/;
+
+/**
+ * Whether the `[...]` name of `word` (a `BRACKET_NAME`) matches no entry of its folder, so the shell takes it as written:
+ * a match is written through, symlink and all, and is the existing file's business. An unreadable folder is not a miss.
+ */
+const matchesNothing = (opts: { word: string; base: string }): boolean => {
+  const at = opts.word.lastIndexOf('/');
+  const folder = opts.word.startsWith('/')
+    ? opts.word.slice(0, at + 1)
+    : join(opts.base, opts.word.slice(0, at + 1));
 
   try {
-    base = realpathSync(existing);
+    // both sides in lower case: bash `nocaseglob` matches without regard to case, so this can only ask more often
+    const glob = new Bun.Glob(opts.word.slice(at + 1).toLowerCase());
+
+    return !readdirSync(folder).some((entry) => glob.match(entry.toLowerCase()));
   } catch {
-    // A dangling link: its target is where a write through it lands; a chain this long is a loop.
-    if (depth >= 8) {
-      return join(existing, ...rest);
-    }
-
-    base = realOf({
-      path: resolve(dirname(existing), readlinkSync(existing)),
-      depth: depth + 1,
-    });
+    return false;
   }
-
-  return join(base, ...rest);
 };
 
 const isInside = (opts: { path: string; root: string }): boolean =>
   opts.path === opts.root || opts.path.startsWith(`${opts.root}${sep}`);
+
+/**
+ * Whether `path` is one of the files the guards read their policy from (`HookConstants.PROTECTED_FILES`), relative to the project
+ * root. A removal or a move also takes a folder that holds one of them (`rm -rf .claude`), bar `node_modules`, whose removal leaves
+ * the guards missing and the call blocked until `bun install`.
+ */
+const isProtectedFile = (opts: { path: string; root: string; isRemoval: boolean }): boolean => {
+  if (!isInside({ path: opts.path, root: opts.root }) || opts.path === opts.root) {
+    return false;
+  }
+
+  // Without regard to case: on a case-insensitive file system `.claude/Settings.local.json` is the real file.
+  const relative = opts.path.slice(opts.root.length + 1).toLowerCase();
+  const globs = HookConstants.PROTECTED_FILES.map((pattern) => pattern.toLowerCase());
+
+  if (globs.some((pattern) => new Bun.Glob(pattern).match(relative))) {
+    return true;
+  }
+
+  return (
+    opts.isRemoval &&
+    !relative.startsWith('node_modules') &&
+    globs.some((pattern) => pattern.startsWith(`${relative}/`))
+  );
+};
 
 /**
  * A tool-owned pattern as an absolute glob: `~` and variables expanded, a bare directory taking everything
@@ -115,230 +160,6 @@ const allowPatterns = (opts: { patterns: string[]; home: string; env: TEnvironme
 const matchesAny = (opts: { path: string; patterns: string[] }): boolean =>
   opts.patterns.some((pattern) => new Bun.Glob(pattern).match(opts.path));
 
-interface ITarget {
-  word: string;
-  message: string;
-  /** The directory a relative `word` is taken from: the hook's, moved by `cd` and `git -C`. */
-  base: string;
-  /** What `$PWD` is in `word`: the shell's folder, moved by `cd` but not by `git -C`; undefined when it is not known. */
-  pwd?: string;
-}
-
-const positional = (opts: { args: string[] }): string[] =>
-  opts.args.filter((word) => !word.startsWith('-'));
-
-/** The value of a flag, long (`--output X`, `--output=X`) or short, alone or last in a cluster (`-sLo X`). */
-const valueOf = (opts: {
-  args: string[];
-  long?: string[];
-  short?: string[];
-}): string | undefined => {
-  for (const [index, word] of opts.args.entries()) {
-    for (const flag of opts.long ?? []) {
-      if (word === flag) {
-        return opts.args[index + 1];
-      }
-
-      if (word.startsWith(`${flag}=`)) {
-        return word.slice(flag.length + 1);
-      }
-    }
-
-    for (const letter of opts.short ?? []) {
-      if (new RegExp(`^-[a-zA-Z]*${letter}$`).test(word)) {
-        return opts.args[index + 1];
-      }
-    }
-  }
-
-  return undefined;
-};
-
-/** Options of `git clone` that take the next word, so it is not the URL or the directory. */
-const CLONE_VALUE_FLAGS = new Set([
-  '-b',
-  '--branch',
-  '--depth',
-  '-c',
-  '--config',
-  '-o',
-  '--origin',
-  '--reference',
-  '--separate-git-dir',
-  '--template',
-  '-j',
-  '--jobs',
-  '-u',
-  '--upload-pack',
-  '--filter',
-  '--shallow-since',
-  '--shallow-exclude',
-]);
-
-/** Words after `git`'s global options (`-C dir`, `-c k=v`, `--no-pager`) and the directory `-C` names. */
-const gitArguments = (opts: { args: string[] }): { rest: string[]; dir: string | undefined } => {
-  let dir: string | undefined;
-  let index = 0;
-
-  while (index < opts.args.length && opts.args[index].startsWith('-')) {
-    const word = opts.args[index];
-
-    if (word === '-C') {
-      dir = opts.args[index + 1];
-      index += 2;
-    } else if (['-c', '--git-dir', '--work-tree', '--namespace'].includes(word)) {
-      index += 2;
-    } else {
-      index += 1;
-    }
-  }
-
-  return { rest: opts.args.slice(index), dir };
-};
-
-const gitTargets = (opts: { rest: string[]; base: string; dir: string | undefined }): ITarget[] => {
-  const base = opts.dir === undefined ? opts.base : resolve(opts.base, opts.dir);
-  const [sub, second] = positional({ args: opts.rest });
-
-  if (sub === 'worktree' && second === 'add') {
-    const afterAdd = opts.rest.slice(opts.rest.indexOf('add') + 1);
-    const skipped = new Set<number>();
-
-    for (const [index, word] of afterAdd.entries()) {
-      if (word === '-b' || word === '-B') {
-        skipped.add(index);
-        skipped.add(index + 1);
-      }
-    }
-
-    const path = afterAdd.find((word, index) => !word.startsWith('-') && !skipped.has(index));
-
-    return path === undefined
-      ? []
-      : [{ word: path, base, message: `git worktree add creates ${path}` }];
-  }
-
-  if (sub === 'clone') {
-    const afterClone = opts.rest.slice(opts.rest.indexOf('clone') + 1);
-    const words: string[] = [];
-
-    for (let index = 0; index < afterClone.length; index += 1) {
-      if (CLONE_VALUE_FLAGS.has(afterClone[index])) {
-        index += 1;
-      } else if (!afterClone[index].startsWith('-')) {
-        words.push(afterClone[index]);
-      }
-    }
-
-    const [, destination] = words;
-
-    return words.length === 0
-      ? []
-      : [
-          {
-            word: destination ?? '.',
-            base,
-            message:
-              destination === undefined
-                ? 'git clone writes into the current directory'
-                : `git clone writes ${destination}`,
-          },
-        ];
-  }
-
-  return [];
-};
-
-/** The words a simple command would create or write, with a name for what writes them. */
-const targetsOf = (opts: { command: ISimpleCommand; base: string; tmp: string }): ITarget[] => {
-  const program = ShellParser.programOf({ command: opts.command });
-  const name = ShellParser.basenameOf({ word: program.name });
-  const { args } = program;
-  const { base } = opts;
-  const targets: ITarget[] = opts.command.redirects.map((word) => ({
-    word,
-    base,
-    message: `a shell redirect writes ${word}`,
-  }));
-  const assignments = [
-    ...opts.command.assignments,
-    ...(['export', 'declare', 'typeset', 'local', 'readonly'].includes(name) ? args : []),
-  ];
-
-  for (const assignment of assignments.filter((word) => word.startsWith('TMPDIR='))) {
-    targets.push({
-      word: assignment.slice('TMPDIR='.length),
-      base,
-      message: 'TMPDIR points outside the project',
-    });
-  }
-
-  const last = positional({ args }).at(-1);
-  const add = (word: string, message: string): number => targets.push({ word, base, message });
-
-  if (['mkdir', 'touch'].includes(name)) {
-    for (const word of positional({ args })) {
-      add(word, `${name} creates ${word}`);
-    }
-  } else if (['cp', 'mv', 'install', 'ln', 'rsync'].includes(name)) {
-    const directory = valueOf({ args, long: ['--target-directory'], short: ['t'] });
-
-    if (directory !== undefined) {
-      add(directory, `${name} writes into ${directory}`);
-    } else if (last !== undefined) {
-      add(last, `${name} writes ${last}`);
-    }
-  } else if (name === 'tee') {
-    for (const word of positional({ args })) {
-      add(word, `tee writes ${word}`);
-    }
-  } else if (name === 'dd') {
-    const output = args.find((word) => word.startsWith('of='));
-
-    if (output !== undefined) {
-      add(output.slice(3), `dd writes ${output.slice(3)}`);
-    }
-  } else if (name === 'curl') {
-    const output = valueOf({ args, long: ['--output'], short: ['o'] });
-    const directory = valueOf({ args, long: ['--output-dir'] });
-
-    if (output !== undefined) {
-      add(output, `curl saves to ${output}`);
-    }
-
-    if (directory !== undefined) {
-      add(directory, `curl saves into ${directory}`);
-    }
-  } else if (name === 'wget') {
-    const output = valueOf({ args, long: ['--output-document'], short: ['O'] });
-    const directory = valueOf({ args, long: ['--directory-prefix'], short: ['P'] });
-
-    for (const word of [output, directory]) {
-      if (word !== undefined) {
-        add(word, `wget saves to ${word}`);
-      }
-    }
-  } else if (name === 'mktemp') {
-    const directory = valueOf({ args, long: ['--tmpdir'], short: ['p'] });
-    const inTmpdir = args.some((word) => /^-[a-zA-Z]*t[a-zA-Z]*$/.test(word));
-    const [template] = positional({ args }).filter((word) => word !== directory);
-
-    if (directory !== undefined) {
-      add(directory, 'mktemp creates a temporary file');
-    } else if (inTmpdir || template === undefined) {
-      add(opts.tmp, 'mktemp creates a file in the system temp directory');
-    } else {
-      add(template, 'mktemp creates a temporary file');
-    }
-  } else if (name === 'git') {
-    const { rest, dir } = gitArguments({ args });
-
-    targets.push(...gitTargets({ rest, base, dir }));
-  }
-
-  return targets;
-};
-
 /**
  * The folder a bare `mktemp` uses in the command: the `TMPDIR` this hook runs with (Claude Code started
  * with the launch file or the variables), else the project's own folder when Claude Code's session-start
@@ -371,7 +192,7 @@ export class OutsideGuard {
   }): IOutsideHit[] {
     const env = opts.env ?? process.env;
     const home = opts.home ?? env.HOME ?? '';
-    const root = realOf({ path: resolve(opts.projectRoot) });
+    const root = realOf({ path: resolve(opts.projectRoot) }) ?? resolve(opts.projectRoot);
     const patterns = allowPatterns({
       patterns: [...HookConstants.TOOL_OWNED_PATHS, ...(opts.toolOwnedPaths ?? [])],
       home,
@@ -381,7 +202,7 @@ export class OutsideGuard {
     // `$PWD` is the call's folder only when the host said which one it is; otherwise the hook's own `PWD` stays the fallback.
     const startPwd = opts.input.cwd === undefined ? undefined : start;
     const tmp = commandTmpdirOf({ env, projectRoot: opts.projectRoot });
-    const targets: ITarget[] = [];
+    const targets: IWriteTarget[] = [];
 
     if (FILE_TOOLS.has(opts.input.tool) && opts.input.filePath !== undefined) {
       targets.push({
@@ -392,56 +213,251 @@ export class OutsideGuard {
       });
     }
 
-    let isUnread = false;
+    let unread: string | undefined;
+    let assigned = new Set<string>();
 
     if (opts.input.command !== undefined) {
-      let base = start;
-      let pwd = startPwd;
-
       const parsed = ShellParser.parseChecked({ command: opts.input.command });
+      const folders = ShellFolders.foldersOf({
+        commands: parsed.commands,
+        cwd: start,
+        pwd: startPwd,
+        home,
+        env,
+      });
 
-      isUnread = parsed.isOverBudget;
+      unread = ShellUnread.reasonOf(parsed);
+      assigned = ShellFolders.assignedNames({ commands: parsed.commands });
 
-      for (const command of parsed.commands) {
-        const program = ShellParser.programOf({ command });
+      // A command's own redirects open in the folder it starts in, a `cd`'s included.
+      for (const [index, command] of parsed.commands.entries()) {
+        const folder = folders[index];
 
-        if (ShellParser.basenameOf({ word: program.name }) === 'cd') {
-          const [destination] = positional({ args: program.args });
-          const expanded =
-            destination === undefined
-              ? undefined
-              : expandPath({ word: destination, home, env, cwd: pwd });
-
-          base = expanded === undefined ? base : resolve(base, expanded);
-          // A `cd` the guard cannot work out leaves the shell's folder unknown.
-          pwd = expanded === undefined ? undefined : base;
+        if (folder === undefined) {
           continue;
         }
 
-        targets.push(...targetsOf({ command, base, tmp }).map((target) => ({ ...target, pwd })));
+        for (const target of ShellWrites.targetsOf({ command, base: folder.base, tmp })) {
+          // A word that names a `for` variable stands for each of its values in turn.
+          for (const vars of loopCombinations({ word: target.word, loops: folder.loops })) {
+            targets.push({
+              ...target,
+              pwd: folder.pwd,
+              vars: { ...folder.vars, ...vars },
+              isKnown: folder.isKnown,
+              links: folder.links,
+              hasUnknownLink: folder.hasUnknownLink,
+              // The text of a word reads `'$S'` as a live `$S`; the shell takes the `$` as a character.
+              hasLiteralDollar:
+                target.word.includes('$') &&
+                (command.literalDollars ?? []).some(
+                  (literal) => literal.includes(target.word) || target.word.includes(literal),
+                ),
+            });
+          }
+        }
       }
     }
 
     // Part of the line was not read: never an allow.
-    const hits: IOutsideHit[] = isUnread
-      ? [
-          {
-            path: '(the command line)',
-            message:
-              'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
-            isAgentToolScratchpad: false,
-          },
-        ]
-      : [];
+    const hits: IOutsideHit[] =
+      unread === undefined
+        ? []
+        : [
+            {
+              path: '(the command line)',
+              message: unread,
+              isAgentToolScratchpad: false,
+              isUnread: true,
+            },
+          ];
 
     for (const target of targets) {
-      const expanded = expandPath({ word: target.word, home, env, cwd: target.pwd });
+      if (target.hasUnreadBrace === true && target.isProtectedOnly !== true) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: the word has a brace pattern this check cannot expand`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+      }
 
-      if (expanded === undefined) {
+      // A link the line made under a name this check could not work out may be on any path that follows.
+      if (target.hasUnknownLink === true && target.isLinkRead !== true) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: the line made a symbolic link under a name this check cannot work out, so the path may go through it`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
         continue;
       }
 
-      const path = realOf({ path: resolve(target.base, expanded) });
+      if (target.hasLiteralDollar === true) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: the word has a quoted or escaped $, which this check does not follow`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+        continue;
+      }
+
+      // A redirect to `dir/[version].md` (a VitePress route file) names that file when the pattern matches nothing in `dir`:
+      // the shell takes the word as written, and the written path is checked as it is. A match is written through, so it asks.
+      const isLiteralBracket =
+        target.isRedirect === true &&
+        target.isKnown !== false &&
+        BRACKET_NAME.test(target.word) &&
+        matchesNothing({ word: target.word, base: target.base });
+      const expanded = isLiteralBracket
+        ? target.word
+        : ShellFolders.expandPath({
+            word: target.word,
+            home,
+            env: { ...env, ...target.vars },
+            cwd: target.pwd,
+          });
+
+      if (expanded === undefined && target.isProtectedOnly === true) {
+        // A removal or an edit in place of a word this check cannot work out: nothing says it is a guard file.
+        continue;
+      }
+
+      if (expanded === undefined) {
+        // Part of the word is unknown, but the folder in front of it may not be: that folder decides.
+        const lands = ShellFolders.folderOfUnknown({
+          word: target.word,
+          home,
+          env: { ...env, ...target.vars },
+          cwd: target.pwd,
+          base: target.base,
+          isKnown: target.isKnown ?? true,
+          assigned,
+        });
+        const folder = lands === undefined ? undefined : realOf({ path: lands });
+
+        if (
+          folder !== undefined &&
+          !isInside({ path: folder, root }) &&
+          !matchesAny({ path: `${folder}/x`, patterns })
+        ) {
+          hits.push({
+            path: folder,
+            message: `${target.message}: it lands in ${folder}, outside the project, whatever the expansion is`,
+            isAgentToolScratchpad: matchesAny({
+              path: folder,
+              patterns: HookConstants.AGENT_TOOL_SCRATCHPAD_PATTERNS,
+            }),
+            isUnread: false,
+            isLink: target.isLinkSource === true,
+          });
+
+          continue;
+        }
+
+        // A redirect to a word that cannot be worked out (`> $f`, `&>$fd`, `>&$fd`) may write a file outside the project.
+        if (target.isAmbiguous === true || target.isRedirect === true) {
+          hits.push({
+            path: target.word,
+            message: `${target.message}: the target has an expansion this check cannot work out`,
+            isAgentToolScratchpad: false,
+            isUnread: true,
+          });
+        }
+
+        continue;
+      }
+
+      // A path at or through a link the line made is where the link points, which is not on disk yet to be followed. The name a
+      // link command makes is its own, so it is the command's destination and not a path through an earlier link.
+      const through = ShellFolders.passesThrough({
+        path: expanded,
+        base: target.base,
+        links: target.links ?? [],
+        isLastCounted: target.isLinkName !== true,
+      });
+
+      if (through !== undefined) {
+        hits.push({
+          path: target.word,
+          message:
+            through === 'dangling'
+              ? `${target.message}: the path is, or goes through, a dangling link, which may lead where this line makes a link`
+              : `${target.message}: the path is, or goes through, a link this line made, which this check does not follow`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+
+        continue;
+      }
+
+      // What a copy or a move reads is not written, and a link it reads has been looked at above.
+      if (target.isLinkRead === true) {
+        continue;
+      }
+
+      // After a `cd` this check could not work out, `base` is only the last folder it knew: a relative path cannot be placed.
+      if (!isAbsolute(expanded) && target.isKnown === false) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: it is a relative path after a \`cd\` this check cannot work out`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+
+        continue;
+      }
+
+      const written = isAbsolute(expanded) ? expanded : `${target.base}/${expanded}`;
+
+      // `/proc/self` and `/dev/fd` name the hook's own process, not the shell the command runs in.
+      if (PROCESS_FILES.test(written)) {
+        hits.push({
+          path: written,
+          message: `${target.message}: a path under /proc or /dev/fd names a process, which this check cannot follow`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+
+        continue;
+      }
+
+      // Not folded here: a `..` after a symlink goes where the link points, which `realOf` follows.
+      const path = realOf({ path: written });
+
+      if (path === undefined) {
+        hits.push({
+          path: written,
+          message: `${target.message}: the path goes through more links than the system follows`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
+
+        continue;
+      }
+
+      // A write to a file the guards read their policy from switches a guard off: denied whatever the project sets.
+      const isRemoval = target.isProtectedOnly === true;
+
+      if (
+        isProtectedFile({ path, root, isRemoval }) ||
+        isProtectedFile({ path: resolve(written), root, isRemoval })
+      ) {
+        hits.push({
+          path,
+          message: `${target.message}: it is one of the files the guards read their policy from`,
+          isAgentToolScratchpad: false,
+          isUnread: false,
+          isProtected: true,
+        });
+
+        continue;
+      }
+
+      if (isRemoval) {
+        continue;
+      }
 
       if (!isInside({ path, root }) && !matchesAny({ path, patterns })) {
         hits.push({
@@ -451,10 +467,17 @@ export class OutsideGuard {
             path,
             patterns: HookConstants.AGENT_TOOL_SCRATCHPAD_PATTERNS,
           }),
+          isUnread: false,
+          isLink: target.isLinkSource === true,
         });
       }
     }
 
-    return hits;
+    // A loop makes one target of a word for each value it takes: a finding is told once.
+    return hits.filter(
+      (hit, index) =>
+        hits.findIndex((other) => other.message === hit.message && other.path === hit.path) ===
+        index,
+    );
   }
 }

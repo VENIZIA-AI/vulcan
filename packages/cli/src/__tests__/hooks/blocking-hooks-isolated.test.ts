@@ -75,44 +75,21 @@ const run = async (opts: { hook: string; payload: string }) => {
       killSignal: 'SIGKILL',
     },
   );
-  const result = await new Response(child.stdout).text();
+  const stdoutResponse = new Response(child.stdout);
+  const result = await stdoutResponse.text();
   const stdout = result.trim();
-  const stderr = await new Response(child.stderr).text();
+  const stderrResponse = new Response(child.stderr);
+  const stderr = await stderrResponse.text();
 
   const result2 = await child.exited;
   return { code: result2, stdout, stderr };
 };
 const bash = (command: string): string =>
   `{"tool_name":"Bash","tool_input":{"command":${JSON.stringify(command)}},"cwd":${JSON.stringify(root)}}`;
-const write = (file: string): string =>
-  `{"tool_name":"Write","tool_input":{"file_path":${JSON.stringify(file)}},"cwd":${JSON.stringify(root)}}`;
 const decisionOf = (stdout: string): string =>
   JSON.parse(stdout).hookSpecificOutput.permissionDecision;
 
 describe('the blocking hooks do not depend on config, rules, the digest or zod', () => {
-  test('guard-remote-hosts asks about an unlisted host and passes a local command', async () => {
-    const manifest = join(root, '.agents', 'vulcan.manifest.json');
-
-    mkdirSync(join(root, '.agents'), { recursive: true });
-    writeFileSync(
-      manifest,
-      JSON.stringify({
-        schemaVersion: 1,
-        remoteHosts: { trusted: ['example.test'], readOnly: [] },
-      }),
-    );
-
-    const remote = await run({
-      hook: 'guard-remote-hosts',
-      payload: bash('curl https://evil.test/x'),
-    });
-    const local = await run({ hook: 'guard-remote-hosts', payload: bash('ls') });
-
-    expect(remote.code).toBe(0);
-    expect(local.code).toBe(0);
-    expect(local.stdout).toBe('');
-  });
-
   test('guard-writes asks for a deploy and passes a read', async () => {
     const deploy = await run({ hook: 'guard-writes', payload: bash('kubectl apply -f m.yaml') });
     const read = await run({ hook: 'guard-writes', payload: bash('ls') });
@@ -120,26 +97,6 @@ describe('the blocking hooks do not depend on config, rules, the digest or zod',
     expect(deploy.code).toBe(0);
     expect(decisionOf(deploy.stdout)).toBe('ask');
     expect(read).toEqual({ code: 0, stdout: '', stderr: '' });
-  });
-
-  test('guard-manifest denies a write to the manifest and passes another file', async () => {
-    const manifest = await run({
-      hook: 'guard-manifest',
-      payload: write(join(root, '.agents/vulcan.manifest.json')),
-    });
-    const other = await run({ hook: 'guard-manifest', payload: write(join(root, 'a.txt')) });
-
-    expect(decisionOf(manifest.stdout)).toBe('deny');
-    expect(other).toEqual({ code: 0, stdout: '', stderr: '' });
-  });
-
-  test('guard-package passes a Write that is not a new package.json', async () => {
-    const result = await run({ hook: 'guard-package', payload: write(join(root, 'a.txt')) });
-    expect(result).toEqual({
-      code: 0,
-      stdout: '',
-      stderr: '',
-    });
   });
 
   test('guard-git denies a force-push to main and passes a status', async () => {
@@ -150,7 +107,7 @@ describe('the blocking hooks do not depend on config, rules, the digest or zod',
     expect(status).toEqual({ code: 0, stdout: '', stderr: '' });
   });
 
-  test('guard-outside asks for a write outside the project, whose config it cannot read, and passes one inside', async () => {
+  test('guard-outside asks for a write outside the project with no config and no manifest to read, and passes one inside', async () => {
     const outside = await run({ hook: 'guard-outside', payload: bash('mkdir /var/tmp/x-vulcan') });
     const inside = await run({
       hook: 'guard-outside',
@@ -158,7 +115,7 @@ describe('the blocking hooks do not depend on config, rules, the digest or zod',
     });
 
     expect(decisionOf(outside.stdout)).toBe('ask');
-    expect(outside.stderr).toContain('could not read the project config');
+    expect(outside.stderr).toBe('');
     expect(inside.stdout).toBe('');
     expect(inside.code).toBe(0);
   });

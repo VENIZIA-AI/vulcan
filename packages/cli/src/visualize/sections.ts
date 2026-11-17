@@ -13,12 +13,17 @@ import { SourceRefs } from './sources.ts';
 export interface ISectionContext {
   spec: TVisualizeSpec;
   chrome: TChrome;
-  fits: Set<number>;
+  fits: Set<string>;
   /** The row spans the page uses (see `GridSpans`). */
   spans: Set<number>;
 }
 
 const escaped = (value: string): string => FigureLayout.escapeText({ value });
+
+/** The numeral column and the gap of an explainer step: space a step diagram does not have beside the text. */
+const EXPLAINER_INSET = 128;
+/** The padding of a figure's frame (`.win`) on both sides: space the figure does not have. */
+const WIN_FRAME = 32;
 
 /** JSON for a `<script type="application/json">`: nothing in it can close the tag or start a comment. */
 const jsonForScript = (opts: { value: unknown }): string =>
@@ -75,6 +80,8 @@ export class SpecSections {
       [spec.explainer !== undefined, 'explainer', chrome.explainer],
       [spec.timeline !== undefined, 'timeline', chrome.timeline],
       [spec.findings !== undefined, 'findings', chrome.findings],
+      [spec.grades !== undefined, 'grades', chrome.grades],
+      [spec.metrics !== undefined, 'metrics', chrome.metrics],
       [spec.beforeAfter !== undefined, 'before-after', `${chrome.before} / ${chrome.after}`],
       [spec.decisionRecord !== undefined, 'decision-record', chrome.decisionRecord],
       [spec.decisions !== undefined, 'decisions', chrome.decisions],
@@ -101,7 +108,7 @@ export class SpecSections {
       return '';
     }
 
-    const width = FigureLayout.figureWidth({ cols: FigureLayout.columnsOf({ flow }) });
+    const width = FigureLayout.widthOf({ nodes: flow.nodes, edges: flow.edges });
     const kinds = [...new Set(flow.nodes.map((node) => node.kind ?? 'step'))];
     const variants = [...new Set(flow.edges.map((edge) => edge.variant ?? 'main'))];
     const states = [
@@ -110,10 +117,16 @@ export class SpecSections {
     const steps = flow.steps;
     const legend = [
       ...states.map((state) => `<li>${SpecSections.chip({ chrome, state })}</li>`),
-      ...(kinds.length > 1 ? kinds.map((kind) => `<li>${escaped(kind)}</li>`) : []),
+      ...(kinds.length > 1
+        ? kinds.map(
+            (kind) =>
+              `<li>${escaped(chrome.nodeKinds[kind as keyof TChrome['nodeKinds']] ?? kind)}</li>`,
+          )
+        : []),
       ...(variants.length > 1
         ? variants.map(
-            (variant) => `<li>${variantSwatch({ variant })}<span>${escaped(variant)}</span></li>`,
+            (variant) =>
+              `<li>${variantSwatch({ variant })}<span>${escaped(chrome.edgeVariants[variant as keyof TChrome['edgeVariants']] ?? variant)}</span></li>`,
           )
         : []),
     ];
@@ -126,7 +139,7 @@ export class SpecSections {
         ? `<button class="btn" id="all" type="button" hidden>${escaped(chrome.allSteps)}</button>`
         : '';
 
-    opts.ctx.fits.add(width);
+    opts.ctx.fits.add(`${width}`);
 
     // A box that has a source says it in its detail line: on hover, and in the phone list.
     const shown = {
@@ -250,7 +263,7 @@ export class SpecSections {
       body: `<ol class="ex">${explainer.steps
         .map(
           (step, index) =>
-            `<li class="estep"><span class="no">${index + 1}</span><div class="sb"><h3>${escaped(step.title)}</h3><p>${escaped(step.text)}</p></div>${step.diagram === undefined ? '' : `<div class="dg">${SpecSections.figure({ ctx: opts.ctx, drawing: SpecDiagrams.render({ diagram: step.diagram }) })}</div>`}</li>`,
+            `<li class="estep"><span class="no">${index + 1}</span><div class="sb"><h3>${escaped(step.title)}</h3><p>${escaped(step.text)}</p></div>${step.diagram === undefined ? '' : `<div class="dg">${SpecSections.figure({ ctx: opts.ctx, drawing: SpecDiagrams.render({ diagram: step.diagram }), inset: EXPLAINER_INSET })}</div>`}</li>`,
         )
         .join('')}</ol>`,
     });
@@ -301,6 +314,60 @@ export class SpecSections {
       id: 'findings',
       title: chrome.findings,
       body: `${findings.numbers === undefined ? '' : SpecSections.tilesHtml({ tiles: findings.numbers, chrome })}${findings.charts === undefined ? '' : `<div class="charts">${findings.charts.map((chart) => SpecCharts.render({ chart, chrome })).join('')}</div>`}${findings.callouts === undefined ? '' : `<ul class="callouts">${findings.callouts.map((callout) => `<li class="callout c-${callout.state === undefined ? 'info' : NodeStates.toneOf(callout.state)}">${SpecCharts.stateIcon({ state: callout.state ?? 'info', size: 22 })}<p>${callout.state === undefined ? '' : `<span class="vh">${escaped(SpecSections.stateWord({ chrome, state: callout.state }))}: </span>`}${escaped(callout.text)}</p></li>`).join('')}</ul>`}`,
+    });
+  }
+
+  /** A grade for each area: a chip whose letter is always shown, so colour is never the only signal. */
+  static grades(opts: { ctx: ISectionContext }): string {
+    const { grades } = opts.ctx.spec;
+    const { chrome } = opts.ctx;
+    const tones: Record<string, string> = { A: 'ok', B: 'info', C: 'bad' };
+    const words: Record<string, string> = { A: chrome.gradeA, B: chrome.gradeB, C: chrome.gradeC };
+
+    if (grades === undefined) {
+      return '';
+    }
+
+    return SpecSections.section({
+      id: 'grades',
+      title: chrome.grades,
+      body: `<ul class="grades">${grades
+        .map(
+          (item) =>
+            `<li><span class="gn">${escaped(item.label)}</span><span class="gr c-${tones[item.grade]}"><b>${item.grade}</b>${escaped(words[item.grade] ?? '')}</span>${item.note === undefined ? '' : `<span class="gt">${escaped(item.note)}</span>`}</li>`,
+        )
+        .join('')}</ul>`,
+    });
+  }
+
+  /** Numbers as cards: the value, what it is of, and a bar split into its parts with a legend that says each. */
+  static metrics(opts: { ctx: ISectionContext }): string {
+    const { metrics } = opts.ctx.spec;
+    const { chrome } = opts.ctx;
+
+    if (metrics === undefined) {
+      return '';
+    }
+
+    const card = (metric: NonNullable<TVisualizeSpec['metrics']>[number]): string => {
+      const total = metric.parts.reduce((sum, part) => sum + part.value, 0);
+      let at = 0;
+      const rects = metric.parts.map((part) => {
+        const width = (part.value / total) * 100;
+        const rect = `<rect class="t-${part.tone}" x="${at.toFixed(2)}" width="${width.toFixed(2)}" height="8"/>`;
+
+        at += width;
+
+        return rect;
+      });
+
+      return `<li class="mc"><p class="mv">${escaped(metric.value)}${metric.of === undefined ? '' : `<small>/ ${escaped(metric.of)}</small>`}</p><p class="ml">${escaped(metric.label)}</p>${metric.note === undefined ? '' : `<p class="mt">${escaped(metric.note)}</p>`}<svg class="mb" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="${escaped(metric.parts.map((part) => `${part.label}: ${part.value}`).join(', '))}">${rects.join('')}</svg><ul class="mlg">${metric.parts.map((part) => `<li><i class="sw t-${part.tone}"></i>${escaped(part.label)}: ${part.value}</li>`).join('')}</ul></li>`;
+    };
+
+    return SpecSections.section({
+      id: 'metrics',
+      title: chrome.metrics,
+      body: `<ul class="metrics">${metrics.map(card).join('')}</ul>`,
     });
   }
 
@@ -452,11 +519,13 @@ export class SpecSections {
   }
 
   /** A drawing in a dark window; below the width where its text would pass 12 px the list takes its place. */
-  static figure(opts: { ctx: ISectionContext; drawing: IDrawing }): string {
+  static figure(opts: { ctx: ISectionContext; drawing: IDrawing; inset?: number }): string {
     const width = Math.round(opts.drawing.width);
+    const inset = opts.inset ?? 0;
+    const key = `${width}:${inset}:${WIN_FRAME}`;
 
-    opts.ctx.fits.add(width);
+    opts.ctx.fits.add(key);
 
-    return `<div class="win"><div class="fig f${width}">${opts.drawing.svg}</div>${opts.drawing.fallback}</div>`;
+    return `<div class="win"><div class="fig ${FigureLayout.fitName({ key })}">${opts.drawing.svg}</div>${opts.drawing.fallback}</div>`;
   }
 }

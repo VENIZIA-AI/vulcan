@@ -2,12 +2,16 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 import { Resolve } from '@/changelogs/resolve';
-import { AtlasTimeouts } from '@/common/constants';
+import { VersionFolders } from '@/changelogs/version-folder';
+import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { PackageMap } from '@/common/package-map';
 import { DirectoryPath } from '@/common/paths';
 import type { IAtlasProject } from '@/common/project-config';
 import { TextValue } from '@/common/text';
+import { BreakingBadge } from '@/migrations/badges';
+import { MigrationSchema } from '@/migrations/schema';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
+import { FolderRecords } from './folder-records';
 import { ReleaseTemplate } from './template';
 
 const SHORT_SHA_LENGTH = 8;
@@ -28,6 +32,7 @@ const git = (opts: { root: string; args: string[] }): string => {
     maxBuffer: GIT_BUFFER,
     timeout: AtlasTimeouts.LOCAL_GIT_MS,
     killSignal: 'SIGKILL',
+    env: AtlasGit.buildEnvironment(),
   });
 
   if (result.status !== 0) {
@@ -46,6 +51,7 @@ const isRepositoryRoot = (opts: { root: string }): boolean => {
     encoding: 'utf8',
     timeout: AtlasTimeouts.LOCAL_GIT_MS,
     killSignal: 'SIGKILL',
+    env: AtlasGit.buildEnvironment(),
   });
 
   return result.status === 0 && realpathSync(result.stdout.trim()) === realpathSync(opts.root);
@@ -57,6 +63,7 @@ const hasCommits = (opts: { root: string }): boolean =>
     cwd: opts.root,
     timeout: AtlasTimeouts.LOCAL_GIT_MS,
     killSignal: 'SIGKILL',
+    env: AtlasGit.buildEnvironment(),
   }).status === 0;
 
 /**
@@ -239,9 +246,11 @@ export class ReleaseCompute {
       : opts.file.replace(/\.md$/, '');
   }
 
-  /** The first `<Badge ... text="X" />` in the file, or `null` when it carries none. */
+  /** The first `<Badge ... text="X" />` in the file, or `null` when it carries none; the short `Breaking` is reported as `Breaking Change`. */
   static kindOfChangelog(opts: { text: string }): string | null {
-    return BADGE_TEXT_PATTERN.exec(opts.text)?.[1] ?? null;
+    const kind = BADGE_TEXT_PATTERN.exec(opts.text)?.[1];
+
+    return kind === undefined ? null : BreakingBadge.canonical({ text: kind });
   }
 
   /**
@@ -292,6 +301,7 @@ export class ReleaseCompute {
 
     const directory = project.knowledge.changelogs;
     const changelogs: IChangelogRecord[] = [];
+    const versionFolders: string[] = [];
 
     // A changelog directory, or entry, that is a symlink out of the repository is not its history.
     if (
@@ -321,7 +331,7 @@ export class ReleaseCompute {
           (record) => record.version === override?.[2],
         );
 
-        changelogs.push({
+        const record: IChangelogRecord = {
           id: `changelog:${file.replace(/\.md$/, '')}`,
           file,
           date: DATE_PREFIX_PATTERN.exec(file)?.[1] ?? '',
@@ -334,10 +344,41 @@ export class ReleaseCompute {
           ...(added === undefined
             ? {}
             : { order: placed?.order ?? countOf(added.get(file) ?? UNCOMMITTED_POSITION) }),
-        });
+        };
+        const badges: unknown[] = Array.isArray(data.badges) ? data.badges : [];
+
+        if (BreakingBadge.isIn({ text, badges })) {
+          record.breaking = true;
+        }
+
+        const migration = MigrationSchema.safeParse(data.migration);
+
+        // An invalid block is left out: `changelogs check` is where it fails, never the table.
+        if (migration.success) {
+          record.migration = migration.data;
+        }
+
+        changelogs.push(record);
       }
+
+      const folders = VersionFolders.read({ directory, within: project.root }).filter(
+        (folder) => folder.hasLog,
+      );
+      const openOrder = hasHistory ? countOf(UNCOMMITTED_POSITION) : undefined;
+      const lines = FolderRecords.linesOf({ folders, releases, openOrder });
+
+      for (const record of changelogs) {
+        const into = FolderRecords.foldedInto({ lines, order: record.order });
+
+        if (into !== undefined) {
+          record.foldedInto = into;
+        }
+      }
+
+      versionFolders.push(...folders.map((folder) => folder.name));
+      changelogs.push(...FolderRecords.build({ project, folders, releases, openOrder }));
     }
 
-    return { livePackages: live, releases, changelogs, packageMap };
+    return { livePackages: live, releases, changelogs, versionFolders, packageMap };
   }
 }

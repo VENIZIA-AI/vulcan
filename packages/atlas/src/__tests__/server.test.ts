@@ -57,7 +57,7 @@ describe('SourcesServer.build for one repository source', () => {
     });
 
     const result = await listToolNames({ transport });
-    expect(result).toEqual(['search', 'get', 'symbol', 'version', 'changes', 'presets']);
+    expect(result).toEqual(['search', 'get', 'symbol', 'version', 'changes', 'migrate', 'presets']);
   });
 
   test('serverInfo.version is whatever version buildServer was given, not a hardcoded string (I6)', async () => {

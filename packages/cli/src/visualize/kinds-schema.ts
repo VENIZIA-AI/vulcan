@@ -135,6 +135,55 @@ export const TREE_SCHEMA = z.strictObject({
   caption: text(VisualizeLimits.MAX_SENTENCE).optional(),
 });
 
+/** The letter of a grade: A is good, B has gaps, C is weak. */
+export class GradeLetters {
+  static readonly A = 'A';
+  static readonly B = 'B';
+  static readonly C = 'C';
+  static readonly SCHEME_SET = new Set<string>([this.A, this.B, this.C]);
+}
+
+/** The colour of a part of a bar: the page's state tones. */
+const PART_TONE = choice({ set: new Set(['ok', 'warn', 'bad', 'info']) });
+
+/** A grade for each area, as a chip that always shows its letter. */
+export const GRADES_SCHEMA = z
+  .array(
+    z.strictObject({
+      label: text(VisualizeLimits.MAX_LABEL),
+      grade: choice({ set: GradeLetters.SCHEME_SET }),
+      note: text(VisualizeLimits.MAX_SENTENCE).optional(),
+    }),
+  )
+  .min(1)
+  .max(12);
+
+/** Numbers as cards: a value, what it is of, and a bar split into its parts. */
+export const METRICS_SCHEMA = z
+  .array(
+    z.strictObject({
+      value: text(16),
+      of: text(16).optional(),
+      label: text(VisualizeLimits.MAX_LABEL),
+      note: text(VisualizeLimits.MAX_SENTENCE).optional(),
+      parts: z
+        .array(
+          z.strictObject({
+            label: text(VisualizeLimits.MAX_LABEL),
+            value: z.number().min(0).max(1_000_000_000),
+            tone: PART_TONE.default('info'),
+          }),
+        )
+        .min(2)
+        .max(6)
+        .refine((parts) => parts.some((part) => part.value > 0), 'at least one part is above zero'),
+    }),
+  )
+  .min(1)
+  .max(6);
+
 export type TSequence = z.output<typeof SEQUENCE_SCHEMA>;
 export type TLifecycle = z.output<typeof LIFECYCLE_SCHEMA>;
 export type TTree = z.output<typeof TREE_SCHEMA>;
+export type TGrades = z.output<typeof GRADES_SCHEMA>;
+export type TMetrics = z.output<typeof METRICS_SCHEMA>;

@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EventLog } from '../../events/log.ts';
 import { hermeticEnv } from '../hermetic.helper.ts';
@@ -189,4 +189,92 @@ describe('vulcan board', () => {
       'board [--out <file>]',
     );
   });
+});
+
+describe('vulcan board with board.agents in the manifest', () => {
+  test('the roster and the lanes reach the page; with nothing listed neither does', () => {
+    const root = projectWithLog();
+    const plain = dataOf(board({ root }).stdout.trim());
+
+    expect(plain.roster).toBeUndefined();
+    expect(plain.lanes).toBeUndefined();
+
+    writeFileSync(
+      join(root, '.agents/vulcan.manifest.json'),
+      JSON.stringify({
+        board: { agents: { 'veni-forge': 'banana', 'pnt-ignis-1': { lane: 'veni-forge' } } },
+      }),
+    );
+
+    const listed = dataOf(board({ root }).stdout.trim());
+
+    expect(listed.roster).toEqual(['veni-forge']);
+    expect(listed.lanes).toEqual({ 'pnt-ignis-1': 'veni-forge' });
+    expect(listed.shapes).toEqual({ 'veni-forge': 'banana' });
+  });
+});
+
+const SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
+
+describe('vulcan board serve', () => {
+  test.each([
+    [['serve', '--out', 'x.html'], 'writes the static file'],
+    [['--port', '4000'], 'belongs to serve'],
+    [['serve', '--port', '70000'], 'must be a number from 0 to 65535'],
+    [['serve', '--port', 'abc'], 'must be a number from 0 to 65535'],
+    [['serve', '--port'], 'needs a value'],
+  ])('%j is a usage error and starts nothing', (args, message) => {
+    const result = runCli({ args: ['board', ...args], cwd: projectWithLog(), env: hermeticEnv() });
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(message);
+  });
+
+  test.each(SIGNALS)(
+    'serves the board, prints only the URL on stdout, and %s stops it with exit 0',
+    async (signal) => {
+      const root = projectWithLog();
+      const child = Bun.spawn(
+        [
+          process.execPath,
+          join(import.meta.dir, '..', '..', 'cli.ts'),
+          'board',
+          'serve',
+          '--no-github',
+          '--since',
+          SINCE,
+          '--port',
+          '0',
+        ],
+        { cwd: root, env: { ...process.env, ...hermeticEnv() }, stdout: 'pipe', stderr: 'pipe' },
+      );
+      const reader = child.stdout.getReader();
+      const first = await reader.read();
+      const url = new TextDecoder().decode(first.value).trim();
+      const errors = await child.stderr.getReader().read();
+      const fallback = /use (http:\/\/127\.0\.0\.1:\d+\/\?t=[0-9a-f]{32})/.exec(
+        new TextDecoder().decode(errors.value),
+      )?.[1];
+      const page = await fetch(fallback ?? url);
+      const html = await page.text();
+
+      expect(url).toMatch(/^http:\/\/vulz-board\.venizia\.ai\.localhost:\d+\/\?t=[0-9a-f]{32}$/);
+      expect(fallback, 'the fallback address is on stderr').toBeDefined();
+      expect(new URL(fallback ?? '').port).toBe(new URL(url).port);
+      expect(page.status).toBe(200);
+      expect(html).toContain('id="board-data"');
+      const result = await fetch((fallback ?? url).split('?')[0]);
+      expect(result.status).toBe(403);
+
+      child.kill(signal);
+
+      const result2 = await child.exited;
+      expect(result2).toBe(0);
+      const result3 = await fetch(fallback ?? url).then(
+        () => true,
+        () => false,
+      );
+      expect(result3).toBe(false);
+    },
+  );
 });

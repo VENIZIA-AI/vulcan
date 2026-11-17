@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { AtlasConstants } from '@/common/constants';
+import { AtlasConstants, AtlasGit } from '@/common/constants';
 import { MANIFEST_FILE, ProjectConfig } from '@/common/project-config';
 import { ReleaseCompute } from '@/releases/compute';
 import { GitRepository } from '@/sources/git';
@@ -45,6 +45,7 @@ const repositoryOf = (opts: { root: string; repo?: string }): string => {
     const result = spawnSync('git', ['remote', 'get-url', 'origin'], {
       cwd: opts.root,
       encoding: 'utf8',
+      env: AtlasGit.buildEnvironment(),
     });
 
     return result.status === 0 ? GITHUB_REMOTE.exec(result.stdout.trim())?.[1] : undefined;
@@ -177,7 +178,7 @@ export class IndexPair {
       return { sha, gz: join(out, names.gz), envelope: join(out, names.envelope) };
     } finally {
       rmSync(scratch, { recursive: true, force: true });
-      spawnSync('git', ['worktree', 'prune'], { cwd: root });
+      spawnSync('git', ['worktree', 'prune'], { cwd: root, env: AtlasGit.buildEnvironment() });
     }
   }
 }

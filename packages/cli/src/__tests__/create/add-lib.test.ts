@@ -27,6 +27,8 @@ const monorepo = (opts: { project?: string; shared?: string } = {}): string => {
       WITH_LIB,
       '--project',
       project,
+      '--key',
+      'TEST',
       '--backend-dir',
       'services',
       '--app',
@@ -169,12 +171,12 @@ describe('vulcan add --lib', () => {
 describe('where it goes', () => {
   test('--dir names the folder, nested or not, and the workspaces learn it', () => {
     const root = monorepo({ shared: '' });
-    const result = addLib({ root, args: ['--lib', 'merchant', '--dir', 'auroras/features'] });
+    const result = addLib({ root, args: ['--lib', 'merchant', '--dir', 'frontends/features'] });
 
     expect(result.code).toBe(0);
-    expect(existsSync(join(root, 'auroras/features/merchant/package.json'))).toBe(true);
+    expect(existsSync(join(root, 'frontends/features/merchant/package.json'))).toBe(true);
     expect(readJson({ root, path: 'package.json' }).workspaces.packages).toContain(
-      'auroras/features/*',
+      'frontends/features/*',
     );
   });
 
@@ -189,11 +191,11 @@ describe('where it goes', () => {
   test('without --dir and without a shared folder, the common folder of the existing libs is used', () => {
     const root = monorepo({ shared: '' });
 
-    addLib({ root, args: ['--lib', 'first', '--dir', 'auroras/features'] });
+    addLib({ root, args: ['--lib', 'first', '--dir', 'frontends/features'] });
     const result = addLib({ root, args: ['--lib', 'second'] });
 
     expect(result.code).toBe(0);
-    expect(existsSync(join(root, 'auroras/features/second/package.json'))).toBe(true);
+    expect(existsSync(join(root, 'frontends/features/second/package.json'))).toBe(true);
   });
 
   test('with nothing to go on it stops and asks for --dir', () => {
@@ -208,8 +210,8 @@ describe('where it goes', () => {
   test('libs in two folders: --dir is required, not guessed', () => {
     const root = monorepo({ shared: '' });
 
-    addLib({ root, args: ['--lib', 'a', '--dir', 'auroras/features'] });
-    addLib({ root, args: ['--lib', 'b', '--dir', 'auroras/tools'] });
+    addLib({ root, args: ['--lib', 'a', '--dir', 'frontends/features'] });
+    addLib({ root, args: ['--lib', 'b', '--dir', 'frontends/tools'] });
 
     const result = addLib({ root, args: ['--lib', 'c'] });
 
@@ -409,13 +411,13 @@ describe('add asks which kind when neither flag is given', () => {
       'vulcan add: say what to create - `--app <name>` (a runnable app), `--lib <name>` (a library other apps import) or `--shared <name>` (a side-neutral package other apps import)',
     );
     expect(result.stderr).toContain(
-      `bun x --no-install vulcan add --preset ${WITH_LIB} --shared <name>`,
+      `bun node_modules/.bin/vulcan add --preset ${WITH_LIB} --shared <name>`,
     );
     expect(result.stderr).toContain(
-      `bun x --no-install vulcan add --preset ${WITH_LIB} --app <name>`,
+      `bun node_modules/.bin/vulcan add --preset ${WITH_LIB} --app <name>`,
     );
     expect(result.stderr).toContain(
-      `bun x --no-install vulcan add --preset ${WITH_LIB} --lib <name>`,
+      `bun node_modules/.bin/vulcan add --preset ${WITH_LIB} --lib <name>`,
     );
     expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).not.toContain('billing');
   });

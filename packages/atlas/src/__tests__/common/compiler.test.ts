@@ -75,7 +75,9 @@ test('a directory without node_modules never makes Bun auto-install typescript',
 
     await child.exited;
 
-    const result = await new Response(child.stdout).text();
+    const stdoutResponse = new Response(child.stdout);
+
+    const result = await stdoutResponse.text();
     expect(result).toBe('function\n');
     expect(requests).toEqual([]);
   } finally {

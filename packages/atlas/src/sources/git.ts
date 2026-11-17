@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, rmSync } from 'node:fs';
-import { AtlasTimeouts } from '@/common/constants';
+import { AtlasGit, AtlasTimeouts } from '@/common/constants';
+import { GitArgument } from '@/common/git-argument';
 import { StderrLogger } from '@/common/logger';
 import type { IRemoteRef } from './common';
 
@@ -12,6 +13,34 @@ const FULL_SHA_LENGTH = 40;
 const TAGS_FINGERPRINT_LENGTH = 16;
 
 export class GitRepository {
+  /**
+   * What is wrong with the transport of a source `repo`, as a phrase for the message; `undefined` when git may use it.
+   * An `owner/repo` path, an scp-like `git@host:path`, an `https://` or `ssh://` URL and a local path pass.
+   */
+  static refusedTransportOf(opts: { repo: string }): string | undefined {
+    const repo = opts.repo.trim();
+
+    if (/^http:\/\//i.test(repo)) {
+      return 'an http:// URL, which is clear text';
+    }
+
+    if (/^git:\/\//i.test(repo)) {
+      return 'a git:// URL, which is clear text with no authentication';
+    }
+
+    if (/^[a-z][a-z0-9+.-]*::/i.test(repo)) {
+      return 'a remote-helper URL (ext::, fd:: ...), which runs a command';
+    }
+
+    return undefined;
+  }
+  /** A repository or a ref that git would read as an option is refused before any git call: it never reaches the command line. */
+  static assertNotOption(opts: { name: string; value: string }): void {
+    if (GitArgument.isOptionLike({ value: opts.value })) {
+      throw new Error(`the ${opts.name} must not start with '-'`);
+    }
+  }
+
   /** A call that hangs must not hang the server's start: past `timeout` it is killed, and fails. */
   static run(opts: { cwd?: string; args: string[]; timeout?: number }): string {
     const result = spawnSync('git', opts.args, {
@@ -20,8 +49,8 @@ export class GitRepository {
       maxBuffer: GIT_BUFFER,
       timeout: opts.timeout ?? AtlasTimeouts.GIT_TRANSFER_MS,
       killSignal: 'SIGKILL',
-      // Never prompt for credentials: a source that needs them uses the machine's, or fails.
-      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+      // No credential prompt and only the allowed transports: a source that needs more fails.
+      env: AtlasGit.buildEnvironment(),
     });
 
     if (result.status !== 0) {
@@ -75,8 +104,11 @@ export class GitRepository {
     let listed: string;
 
     try {
+      GitRepository.assertNotOption({ name: 'repository', value: opts.url });
+      GitRepository.assertNotOption({ name: 'ref', value: opts.ref });
       listed = GitRepository.run({
-        args: ['ls-remote', opts.url, opts.ref, `${opts.ref}^{}`, 'refs/tags/*'],
+        // `--`: the repository is never read as an option.
+        args: ['ls-remote', '--', opts.url, opts.ref, `${opts.ref}^{}`, 'refs/tags/*'],
         timeout: AtlasTimeouts.REF_LOOKUP_MS,
       });
     } catch (error) {
@@ -113,6 +145,7 @@ export class GitRepository {
       encoding: 'utf8',
       timeout: AtlasTimeouts.LOCAL_GIT_MS,
       killSignal: 'SIGKILL',
+      env: AtlasGit.buildEnvironment(),
     });
 
     return result.status === 0 ? result.stdout.trim() : undefined;
@@ -128,6 +161,7 @@ export class GitRepository {
       spawnSync('git', ['--git-dir', opts.gitDir, 'rev-parse', '--git-dir'], {
         timeout: AtlasTimeouts.LOCAL_GIT_MS,
         killSignal: 'SIGKILL',
+        env: AtlasGit.buildEnvironment(),
       }).status === 0
     );
   }
@@ -138,6 +172,8 @@ export class GitRepository {
    * Symlinks check out as plain files: a fetched tree's link can point anywhere on the machine.
    */
   static updateClone(opts: { url: string; gitDir: string; sha?: string }): void {
+    GitRepository.assertNotOption({ name: 'repository', value: opts.url });
+
     const exists = GitRepository.hasClone(opts);
 
     if (!exists && existsSync(opts.gitDir)) {
@@ -156,13 +192,14 @@ export class GitRepository {
           '--filter=blob:none',
           '--tags',
           '--force',
+          '--',
           opts.url,
           '+refs/heads/*:refs/heads/*',
         ],
       });
     } else {
       GitRepository.run({
-        args: ['clone', '-q', '--bare', '--filter=blob:none', opts.url, opts.gitDir],
+        args: ['clone', '-q', '--bare', '--filter=blob:none', '--', opts.url, opts.gitDir],
       });
     }
 
@@ -175,7 +212,7 @@ export class GitRepository {
     ) {
       GitRepository.run({
         cwd: opts.gitDir,
-        args: ['fetch', '-q', '--filter=blob:none', opts.url, opts.sha],
+        args: ['fetch', '-q', '--filter=blob:none', '--', opts.url, opts.sha],
       });
     }
   }
@@ -183,7 +220,7 @@ export class GitRepository {
   static setSparsePaths(opts: { directory: string; paths: string[] }): void {
     GitRepository.run({
       cwd: opts.directory,
-      args: ['sparse-checkout', 'set', '--cone', ...opts.paths],
+      args: ['sparse-checkout', 'set', '--cone', '--', ...opts.paths],
     });
     GitRepository.run({ cwd: opts.directory, args: ['read-tree', '-mu', 'HEAD'] });
   }

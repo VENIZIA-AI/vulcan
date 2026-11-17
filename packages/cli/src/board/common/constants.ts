@@ -25,6 +25,10 @@ export class BoardKinds {
   static readonly RELEASE = 'release';
   static readonly HANDOFF = 'handoff';
   static readonly MSG = 'msg';
+  /** The line that names a flow: its summary is the title. */
+  static readonly FLOW = 'flow';
+  /** What the harness does around the work: a session starting or ending, a subagent stopping, a prompt waiting. */
+  static readonly AGENT = 'agent';
 }
 
 /** The stages of a flow, in the order of the page's strip. */
@@ -60,6 +64,43 @@ export class BoardFlags {
   static readonly REPO = '--repo';
   /** Leave GitHub out, for a project that is not on it. */
   static readonly NO_GITHUB = '--no-github';
+  static readonly PORT = '--port';
+}
+
+/** The two routes `vulcan board serve` answers. */
+export class BoardRoutes {
+  static readonly PAGE = 'page';
+  static readonly STREAM = 'stream';
+}
+
+/** `vulcan board serve`: where it listens and how much it keeps open. */
+export class BoardServe {
+  static readonly COMMAND = 'serve';
+  static readonly HOST = '127.0.0.1';
+  /** The name the address uses: a browser resolves any `.localhost` name to loopback by itself (RFC 6761), so no DNS entry is needed. */
+  static readonly DEFAULT_HOSTNAME = 'vulz-board.venizia.ai.localhost';
+  /** A `board.hostname` must be one the browser resolves itself: a name that only resolves to loopback through DNS is what a rebinding page uses. */
+  static readonly HOSTNAME =
+    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.localhost$/;
+  static readonly DEFAULT_PORT = 4317;
+  static readonly TOKEN_BYTES = 16;
+  static readonly TOKEN_PARAM = 't';
+  static readonly PAGE_PATH = '/';
+  static readonly STREAM_PATH = '/stream';
+  /** `--open` writes its page into a new folder whose name starts with this. */
+  static readonly OPEN_DIRECTORY_PREFIX = 'board-open-';
+  static readonly OPEN_FILE_NAME = 'index.html';
+  /** A folder of that kind this old was left by a run that did not stop, and is removed by the next. */
+  static readonly OPEN_STALE_MS = 60_000;
+  /** The longest the page stays when nothing reads the board. */
+  static readonly OPEN_FILE_TTL_MS = 15_000;
+  static readonly MAX_STREAMS = 8;
+  static readonly MAX_SNAPSHOT_BYTES = 20_000_000;
+  static readonly HEARTBEAT_MS = 15_000;
+  static readonly DEBOUNCE_MS = 250;
+  static readonly POLL_MS = 2000;
+  /** The page gets a fresh snapshot this often even when the log is quiet; GitHub is read at most this often. */
+  static readonly REFRESH_MS = 60_000;
 }
 
 /** The faces the page can draw for an agent. `bun` is the default; the others are chosen by name in `board.agents`. */
@@ -85,22 +126,54 @@ export class BoardShapes {
 
 export class BoardSources {
   static readonly GITHUB = 'github';
+  static readonly GITLAB = 'gitlab';
+  /** The sources that are a code host: their lines carry people and bots that are no agent of the project. */
+  static readonly HOSTS = new Set<string>([this.GITHUB, this.GITLAB]);
+}
+
+/** The code host the board reads pull requests and checks from (`provider.type`). */
+export class ProviderTypes {
+  static readonly GITHUB = 'github';
+  static readonly GITLAB = 'gitlab';
 }
 
 export class BoardConstants {
+  /** The longest role a `board.agents` value may give an agent. */
+  static readonly ROLE_MAX = 60;
+  /** What the Claude Code hook is called on a card. */
+  static readonly HARNESS_CLAUDE = 'Claude Code';
   /** Who an ask waits on when neither `board.owner` nor `git config user.name` says. */
   static readonly DEFAULT_OWNER = 'Owner';
   static readonly LOGO_MAX_BYTES = 100 * 1024;
   static readonly MANIFEST_FILE = '.agents/vulcan.manifest.json';
   static readonly CI_ACTOR = 'CI';
+  /** A quiet spell this long ends a stretch of work: the next line starts a new one. */
+  static readonly ACTIVE_GAP_MS = 30 * 60 * 1000;
   static readonly UNSORTED = 'Unsorted';
   static readonly DEFAULT_OUT = '.agents/local/reports/board.html';
   static readonly DEFAULT_DAYS = 7;
-  static readonly DAY_MS = 24 * 60 * 60 * 1000;
+  static readonly HOUR_MS = 60 * 60 * 1000;
+  static readonly DAY_MS = 24 * BoardConstants.HOUR_MS;
   static readonly TEMPLATE = 'templates/board.html';
   static readonly DATA_MARKER = '<!--BOARD_DATA-->';
+  /** Where the page takes the design tokens of the project (a `style` with the custom properties). */
+  static readonly TOKENS_MARKER = '<!--BOARD_TOKENS-->';
   static readonly GH_TIMEOUT_MS = 15_000;
   static readonly GH_LIMIT = 30;
+  /** `owner/name` on GitHub, `group/sub/name` of any depth on GitLab. */
+  static readonly PROJECT_PATH = /^[\w.-]+(?:\/[\w.-]+)+$/;
+  static readonly GITLAB_DEFAULT_HOST = 'gitlab.com';
+  /** A bare host name with an optional port: no scheme, path or credentials, so it can never carry a token elsewhere. */
+  static readonly GITLAB_HOST =
+    /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*(?::\d{1,5})?$/;
+  /** How many pipelines have their jobs read. */
+  static readonly GITLAB_JOB_PIPELINES = 10;
+  /** A `needs-owner` line whose whole summary is one of these is the harness waiting, not a person asking. */
+  static readonly HARNESS_ASKS = new Set<string>([
+    'idle_prompt',
+    'permission_prompt',
+    'elicitation_dialog',
+  ]);
   /** Kinds that mean someone did work on the flow, for the holder. */
   static readonly WORK_KINDS = [
     BoardKinds.ASSIGN,

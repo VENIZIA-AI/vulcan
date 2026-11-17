@@ -8,7 +8,7 @@ description: Check a commit message for an agent signature and, when the project
 `vulcan commit-check` rejects a commit message that signs the commit as an agent, and checks the one-line subject shape when your project gives one. Nothing is checked until the project turns a check on.
 
 ```text
-$ bun x --no-install vulcan commit-check .git/COMMIT_EDITMSG
+$ bun node_modules/.bin/vulcan commit-check .git/COMMIT_EDITMSG
 commit-check: 1 problem(s) in the commit message:
   commit message, line 3: "Co-Authored-By: Claude <noreply@anthropic.com>" signs the commit as an agent; remove the line
 ```
@@ -59,6 +59,8 @@ Give it one message:
 
 Exit codes: `0` when nothing is wrong, or when no check is configured (it says so on stderr); `1` when a message has a problem; `2` for bad input, checked before it looks at the configuration: no input or more than one, an unknown flag, a file it cannot read, a range git rejects. `--range` takes a revision only; a value that looks like an option is refused.
 
+Run it at the project root. It reads `.agents/vulcan.manifest.json` from the current folder and does not search upward, so from a subfolder it finds no manifest, says that no commit check is configured, and exits `0`. The generated `commit-msg` hook changes to the top of the repository first; a hand run, and `--range` in CI, need the root.
+
 ## What it checks
 
 **An agent signature** (`commit.message.agent.signature: 'deny'`). A line is a signature when it is:
@@ -96,11 +98,13 @@ commit: {
 |---|---|
 | No `commit-msg` hook | Writes `.git/hooks/commit-msg` (a linked worktree shares the hooks of its repository) |
 | A hook written by sync | Updates it when the template changed; removes it when you turn every check off |
-| A hook of yours | Leaves it. `sync` prints `skipped` and the line to add: `bun x --no-install vulcan commit-check "$1"` |
+| A hook written by sync for another project of the same repository | Leaves it. The repository's one `commit-msg` hook belongs to its writer: `sync` prints `skipped` and whose it is |
+| A hook of yours | Leaves it. `sync` prints `skipped` and the line to add: `bun node_modules/.bin/vulcan commit-check "$1"` |
 | `core.hooksPath` set (for example `.githooks`) | Writes nothing there. `sync` prints the same line for that folder's `commit-msg` hook |
 | A symbolic link in the hook's place | Leaves it and says so |
+| A project folder whose name holds a line break or another control character | Writes nothing. `sync` prints `skipped` with the reason, and `vulcan doctor` reports the hook as not running the check |
 
-sync never overwrites a hook it did not write; it knows its own by the marker on the second line. The hook that sync writes lets the commit through, with a note on stderr, when bun is not installed, `node_modules/@venizia/vulcan` is found neither in the project folder nor above it up to the git top level, or the installed vulcan has no `commit-check` command (an older branch). A hook that blocks every commit of a fresh clone does more harm than the gap. That promise covers the hook sync writes: a hook of your own that calls the command, such as VULCAN's own `.githooks/commit-msg`, blocks on any failure unless you write it to pass. `git commit --no-verify` skips it, as it skips any hook, so this is a check against drift, not a sandbox. Run the check in CI with `--range` to catch what a skipped hook let through.
+sync never overwrites a hook it did not write; it knows its own by the marker on the second line, which also names the project folder it was written for (`[]` for the top of the repository, `[apps/web]` for a project below it); a hook with a marker for another folder is another project's and is never rewritten or removed. A hook from an earlier release has no folder and counts as the top level's. The hook that sync writes lets the commit through, with a note on stderr, when bun is not installed, `node_modules/@venizia/vulcan` is found neither in the project folder nor above it up to the git top level, or the installed vulcan has no `commit-check` command (an older branch). A hook that blocks every commit of a fresh clone does more harm than the gap. That promise covers the hook sync writes: a hook of your own that calls the command, such as VULCAN's own `.githooks/commit-msg`, blocks on any failure unless you write it to pass. `git commit --no-verify` skips it, as it skips any hook, so this is a check against drift, not a sandbox. Run the check in CI with `--range` to catch what a skipped hook let through.
 
 `vulcan doctor` warns when a check is on and the hook is missing, out of date, or not calling the command ([commit-hook](/references/commands/doctor#commit-hook)).
 

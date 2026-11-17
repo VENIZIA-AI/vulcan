@@ -108,7 +108,7 @@ const ADD_KIND_ORDER: TAddKind[] = [PackageKinds.APP, LibraryKinds.LIB, LibraryK
 const kindCommands = (opts: { presetValue: string }): string[] =>
   ADD_KIND_ORDER.map(
     (kind) =>
-      `bun x --no-install vulcan add --preset ${opts.presetValue} ${ADD_KINDS[kind].flag} <name>`,
+      `bun node_modules/.bin/vulcan add --preset ${opts.presetValue} ${ADD_KINDS[kind].flag} <name>`,
   );
 
 const NO_BACKEND = ':none';
@@ -153,7 +153,7 @@ const noSharedKindMessage = (opts: {
   ];
   const commands = known.map(
     (spec) =>
-      `bun x --no-install vulcan add --preset ${spec} ${ADD_KINDS[LibraryKinds.SHARED].flag} ${opts.name}`,
+      `bun node_modules/.bin/vulcan add --preset ${spec} ${ADD_KINDS[LibraryKinds.SHARED].flag} ${opts.name}`,
   );
 
   return `preset ${opts.located.packageName} has no shared kind (it makes: ${kindsOffered({ located: opts.located }).join(' and ')}); ${
@@ -236,6 +236,11 @@ const usedPorts = (opts: { root: string; packages: IProjectPackage[] }): number[
 /** A terminal picks one of the presets the project recorded or an official one, or types another; null when cancelled. */
 const askPreset = async (opts: { cwd: string }): Promise<string | null> => {
   const loaded = await ConfigLoader.load({ root: opts.cwd });
+  const note = ConfigLoader.unreadableNote({ loaded });
+
+  if (note !== undefined) {
+    process.stderr.write(`vulcan add: ${note}\n`);
+  }
 
   return PresetMenu.askSpec({ recorded: loaded.ok ? (loaded.config.presets ?? []) : [] });
 };

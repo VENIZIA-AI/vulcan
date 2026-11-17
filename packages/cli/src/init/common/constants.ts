@@ -8,4 +8,5 @@ export class InitStatuses {
 
 export class InitConstants {
   static readonly NAME_TOKEN = '{{name}}';
+  static readonly KEY_TOKEN = '{{key}}';
 }

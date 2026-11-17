@@ -16,12 +16,11 @@ afterAll(removeProjects);
 const CONFIG = {
   packages: [
     { dir: 'kernel', name: '@x/kernel', aliases: ['k'] },
-    { dir: 'old', name: '@x/old', retired: true, path: 'umbras/old' },
+    { dir: 'old', name: '@x/old', retired: true, path: 'backends/old' },
   ],
   knowledge: {
     bundle: '.agents/knowledge',
     changelogs: 'docs/changes',
-    syncAreas: '.agents/knowledge/process/sync-areas.md',
   },
   atlas: { tagPattern: '<dir>-v<version>', ignoreTags: ['*/0.0.1-0'] },
 };
@@ -54,24 +53,50 @@ describe('ProjectManifest.render', () => {
       'knowledge',
       'release',
       'rules',
+      'theme',
     ]);
     expect(manifest.$generated).toBe('by vulcan sync from .configs/vulcan.config.* - do not edit');
     expect(manifest.schemaVersion).toBe(1);
     expect(manifest.name).toBe('acme');
     expect(manifest.packages).toEqual([
       { name: '@x/kernel', dir: 'kernel', path: 'packages/kernel', aliases: ['k'], retired: false },
-      { name: '@x/old', dir: 'old', path: 'umbras/old', aliases: [], retired: true },
+      { name: '@x/old', dir: 'old', path: 'backends/old', aliases: [], retired: true },
     ]);
     expect(manifest.knowledge).toEqual({
       bundle: '.agents/knowledge',
       changelogs: 'docs/changes',
-      syncAreas: '.agents/knowledge/process/sync-areas.md',
     });
     expect(manifest.release).toEqual({
       tagPattern: '<dir>-v<version>',
       ignoreTags: ['*/0.0.1-0'],
     });
     expect(manifest.rules.project).toBe('.agents/rules.md');
+  });
+
+  test('knowledge.siteUrl is written into the manifest, and an address that is not http or https is refused', () => {
+    const root = createProject({ files: {} });
+    const manifest = JSON.parse(
+      render({
+        root,
+        config: {
+          ...CONFIG,
+          knowledge: { ...CONFIG.knowledge, siteUrl: 'https://acme.example.test' },
+        },
+      }),
+    );
+
+    expect(manifest.knowledge.siteUrl).toBe('https://acme.example.test');
+    expect(JSON.parse(render({ root, config: CONFIG })).knowledge.siteUrl).toBeUndefined();
+
+    for (const siteUrl of [
+      'acme.example.test',
+      'ftp://acme.example.test',
+      'https://u:p@acme.example.test',
+    ]) {
+      expect(() =>
+        render({ root, config: { ...CONFIG, knowledge: { ...CONFIG.knowledge, siteUrl } } }),
+      ).toThrow();
+    }
   });
 
   test('legacy tag templates are written after the current one, and only when the config lists some', () => {
@@ -162,12 +187,13 @@ describe('the prebuilt index in the manifest (C27)', () => {
       'release',
       'rules',
       'atlas',
+      'theme',
     ]);
     expect(manifest.atlas).toEqual({ index: { keys: [key] }, prebuilt: false });
     expect(manifest.schemaVersion).toBe(1);
   });
 
-  test('sources come first, then the atlas block, then the remote-host guard', () => {
+  test('sources come first, then the atlas block', () => {
     const manifest = JSON.parse(
       render({
         root,
@@ -176,23 +202,35 @@ describe('the prebuilt index in the manifest (C27)', () => {
             sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }],
             index: { keys: [newPublicKey()] },
           },
-          remoteHosts: { trusted: ['github.com'] },
         },
       }),
     );
     const keys = Object.keys(manifest);
 
     expect(keys.indexOf('sources')).toBeLessThan(keys.indexOf('atlas'));
-    expect(keys.indexOf('atlas')).toBeLessThan(keys.indexOf('remoteHosts'));
   });
 
-  test('the theme is written to the manifest only when the config sets one, and the schema version stays 1', () => {
+  test('the theme block carries the seeds the project gave and the resolved tokens, and the schema version stays 1', () => {
     const theme = { accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' };
     const manifest = JSON.parse(render({ root, config: { theme } }));
 
-    expect(manifest.theme).toEqual(theme);
+    expect(manifest.theme).toMatchObject({ ...theme, preset: 'venizia', radius: '4px' });
+    expect(manifest.theme.tokens.light.accent).toBe('#0277bd');
+    expect(manifest.theme.tokens.dark.accent).toBe('#38bdf8');
+    expect(manifest.theme.tokens.light.ink).toBe('#000000');
     expect(manifest.schemaVersion).toBe(1);
-    expect(JSON.parse(render({ root, config: CONFIG }))).not.toHaveProperty('theme');
+  });
+
+  test('a project with no theme gets the default preset, written as the resolved set with no seeds', () => {
+    const manifest = JSON.parse(render({ root, config: CONFIG }));
+
+    expect(manifest.theme).not.toHaveProperty('accent');
+    expect(manifest.theme.preset).toBe('venizia');
+    expect(manifest.theme.tokens.light).toMatchObject({
+      accent: '#8a5a20',
+      'accent-soft': '#f5ecdf',
+    });
+    expect(manifest.theme.tokens.dark).toMatchObject({ accent: '#dead6a', ground: '#1b1b1f' });
   });
 
   test('a config that sets neither renders the text it always did', () => {
@@ -241,7 +279,7 @@ describe('package kind in the manifest', () => {
             {
               dir: 'merchant',
               name: '@nx/merchant',
-              path: 'auroras/features/merchant',
+              path: 'frontends/features/merchant',
               kind: 'lib',
             },
           ],
@@ -250,7 +288,10 @@ describe('package kind in the manifest', () => {
     );
 
     expect(manifest.packages[0]).not.toHaveProperty('kind');
-    expect(manifest.packages[1]).toMatchObject({ kind: 'lib', path: 'auroras/features/merchant' });
+    expect(manifest.packages[1]).toMatchObject({
+      kind: 'lib',
+      path: 'frontends/features/merchant',
+    });
   });
 });
 
@@ -456,7 +497,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(`[${DoctorChecks.MANIFEST}]`);
     expect(result.stderr).toContain('generated');
-    expect(result.stderr).toContain("run 'bun x --no-install vulcan sync'");
+    expect(result.stderr).toContain("run 'bun node_modules/.bin/vulcan sync'");
   });
 
   test('vulcan x hands the tool the manifest, rendered fresh', async () => {

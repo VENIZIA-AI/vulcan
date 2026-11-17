@@ -28,7 +28,7 @@ The table below is the content of `base/agents.json`, the table `sync` is driven
 
 ## What the other agents lose
 
-The session-start digest, the owner-reply check and the `claude.settings` of the config exist for Claude Code only. The guards reach four more agents, through a file `sync` writes for them: omp loads `.omp/hooks/pre/vulcan-guards.ts`, pi loads `.pi/extensions/vulcan-guards.ts`, Antigravity reads a hook in `.agents/hooks.json` and Codex one in `.codex/hooks.json`; all four run the same guard scripts Claude Code runs (see [omp and pi](/references/hooks/#the-guards-on-omp-and-pi), [Antigravity](/references/hooks/#the-guards-on-antigravity) and [Codex, Cursor and Copilot](/references/hooks/#the-guards-on-codex-cursor-and-copilot); the Codex hook was built from the documentation and not run). Cursor and both Copilots read the Claude hooks of `.claude/settings.json` themselves, so `sync` writes nothing for them; for those the rules in `AGENTS.md` are still written, and the guards run only as far as the section on Cursor and Copilot says. For the other agents the rules in `AGENTS.md` are still written, but nothing enforces `V-W-02`, `V-W-03`, `V-W-06`, the manifest guard or the package guard yet.
+The session-start digest (a config problem, a launch warning, the owner card), the owner-reply check and the `claude.settings` of the config exist for Claude Code only. The rules themselves are the generated block of `AGENTS.md`, which every agent that reads `AGENTS.md` gets: a real run showed it reaching Claude Code and omp. The guards reach four more agents, through a file `sync` writes for them: omp loads `.omp/hooks/pre/vulcan-guards.ts`, pi loads `.pi/extensions/vulcan-guards.ts`, Antigravity reads a hook in `.agents/hooks.json` and Codex one in `.codex/hooks.json`; all four run the same guard scripts Claude Code runs (see [omp and pi](/references/hooks/#the-guards-on-omp-and-pi), [Antigravity](/references/hooks/#the-guards-on-antigravity) and [Codex, Cursor and Copilot](/references/hooks/#the-guards-on-codex-cursor-and-copilot); the Codex hook was built from the documentation and not run). Cursor and both Copilots read the Claude hooks of `.claude/settings.json` themselves, so `sync` writes nothing for them; for those the rules in `AGENTS.md` are still written, and the guards run only as far as the section on Cursor and Copilot says. For the other agents the rules in `AGENTS.md` are still written, but nothing enforces `V-W-02`, `V-W-03`, `V-W-06` or the package guard yet.
 
 ## Things only you can do
 
@@ -40,7 +40,7 @@ The session-start digest, the owner-reply check and the `claude.settings` of the
 
 ## Temporary files
 
-Rule `V-B-08` keeps everything an agent makes inside the project, in `.agents/local/tmp/`. A command that makes a temporary file (`mktemp`, a script, bun, node) uses the folder in `TMPDIR`, so that variable is what moves the files. These routes were run in Claude Code 2.1.311 (a session driven by a stand-in for the model, in a scratch project), not read from its documentation:
+Rule `V-B-08` keeps everything an agent makes inside the project, in `.agents/local/tmp/`, or in the folder `local.tmp` names (read `tmp/` below as that folder). A command that makes a temporary file (`mktemp`, a script, bun, node) uses the folder in `TMPDIR`, so that variable is what moves the files. These routes were run in Claude Code 2.1.311 (a session driven by a stand-in for the model, in a scratch project), not read from its documentation:
 
 | How `TMPDIR` is set | Bash commands | Claude Code's own task-output files | MCP servers |
 |---|---|---|---|
@@ -52,7 +52,7 @@ Rule `V-B-08` keeps everything an agent makes inside the project, in `.agents/lo
 
 What `vulcan sync` sets up, for Claude Code:
 
-- **The session-start hook** appends `export TMPDIR=<project>/.agents/local/tmp` to the file Claude Code sources before each Bash command. Nothing to start differently; from the first command of a session, `mktemp -d` and every script it runs use the project folder, and `guard-outside` no longer asks about a bare `mktemp`.
+- **The session-start hook** appends `export TMPDIR=<project>/.agents/local/tmp` (or the `local.tmp` folder) to the file Claude Code sources before each Bash command. Nothing to start differently; from the first command of a session, `mktemp -d` and every script it runs use the project folder, and `guard-outside` no longer asks about a bare `mktemp`.
 - **The launch file** `.agents/local/claude.launch.settings.json` (gitignored, one checkout, absolute paths) sets `TMPDIR` and `CLAUDE_CODE_TMPDIR`. Start Claude Code with `claude --settings .agents/local/claude.launch.settings.json` (an alias is enough) and its own background-task output files and its MCP servers, Playwright included, use the project folder too.
 
 What still needs the launch file or the launch variables, stated plainly: without them, Claude Code's own task-output files stay in `/tmp/claude-<uid>/` and an MCP server uses the system temp folder; the hook does not reach them. A path an agent writes by hand (`/tmp/x`) still asks, on purpose. Any agent other than Claude Code has no hook of this kind: the rules and the session digest tell it to use `.agents/local/tmp`, and it needs `TMPDIR` in its own launch environment (`export TMPDIR=$PWD/.agents/local/tmp`); VULCAN has not checked whether those agents can set it from their configuration.
@@ -60,6 +60,10 @@ What still needs the launch file or the launch variables, stated plainly: withou
 When Claude Code starts in a project that has the launch file but `CLAUDE_CODE_TMPDIR` is not set, or points outside the project, the session-start digest opens with a "Launch warning" that gives the start command above, and the agent says so in its first reply. A session that uses a folder inside the project gets no warning.
 
 `vulcan doctor` warns when the folder or the launch file is missing or names another checkout, and `vulcan sync` fixes both. The folder is a task scratch folder: remove what you made when the task ends; `vulcan clean` lists what is older than a day.
+
+**A long checkout path.** The launch file always points at `<project>/.agents/local/tmp`. A browser puts a unix socket in that folder (`org.chromium.Chromium.XXXXXX/SingletonSocket` for Chromium, the longest name; 45 characters more), and a socket path is at most 107 characters, so a project path of about 45 characters or more makes the browser, started by Playwright for example, exit with `Socket path too long`. `vulcan doctor` warns about it. Pointing the launch file at a shorter folder by hand does not hold: the next `vulcan sync` writes it back. Set `local.tmp` in the config to a short folder of the project (for example `tmp`) and run `vulcan sync`: the launch file, the hooks, `vulcan clean` and `vulcan add` use it, and `vulcan doctor` fails when even that folder is too deep.
+
+**Worktrees.** A session in `.agents/local/worktrees/<name>` counts as inside when its `CLAUDE_CODE_TMPDIR` is under the `.agents/local` of that worktree or under the `.agents/local` of the checkout the worktree hangs from, and under no other folder above it.
 
 ## Detecting your agents
 

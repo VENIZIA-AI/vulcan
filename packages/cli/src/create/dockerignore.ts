@@ -1,4 +1,5 @@
 import { AgentExclude, AgentTable } from '../agents/index.ts';
+import { ProjectLayout } from '../common/index.ts';
 import { ExcludePlan } from '../sync/exclude.ts';
 
 /** What no image needs: dependencies, build output, git history and the agents' own folders. */
@@ -18,7 +19,6 @@ const BASE_PATTERNS = [
  * would put them in a layer a CI cache can keep. The example file stays: the negation comes after
  * the excludes, or Docker would not apply it.
  */
-const SECRET_PATTERNS = ['**/.env', '**/.env.*', '!**/.env.example'];
 const SECRET_COMMENT =
   '# .env files hold secrets: keep them out of every image layer; the example stays.';
 
@@ -36,12 +36,14 @@ export class Dockerignore {
     })
       .flatMap((group) => group.paths)
       .map((path) => path.replace(/^\//, '').replace(/\/$/, ''));
-    const patterns = [...new Set([...BASE_PATTERNS, ...SECRET_PATTERNS, ...agentPaths])];
+    const patterns = [
+      ...new Set([...BASE_PATTERNS, ...ProjectLayout.SECRET_PATTERNS, ...agentPaths]),
+    ];
 
     return [
       '# Written by vulcan init; edit it freely, vulcan never overwrites it. .git is excluded, so pass the commit: docker build --build-arg APP_BUILD_COMMIT="$(git rev-parse HEAD)" ...',
       ...patterns.flatMap((pattern) =>
-        pattern === SECRET_PATTERNS[0] ? [SECRET_COMMENT, pattern] : [pattern],
+        pattern === ProjectLayout.SECRET_PATTERNS[0] ? [SECRET_COMMENT, pattern] : [pattern],
       ),
       '',
     ].join('\n');

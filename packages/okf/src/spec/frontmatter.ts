@@ -2,10 +2,13 @@ import { RecordValue } from '../common/record.ts';
 
 const FRONTMATTER = /^---\n([\s\S]*?)\n---(?:\n|$)([\s\S]*)$/;
 
+/** A parsed front matter block: a YAML mapping with string keys. */
 export type TYamlMapping = Record<string, unknown>;
 
+/** The result of parsing a front matter block: the mapping, or why it is not one. */
 export type TParsedYaml = { ok: true; data: TYamlMapping } | { ok: false; reason: string };
 
+/** Splits the YAML front matter from the body of a bundle file and parses it as a mapping (OKF v0.2 §4). */
 export class OkfFrontmatter {
   /** §4: the block between the first two `---` lines. Line endings are normalized, so CRLF files parse too. */
   static split(opts: { text: string }): { yaml: string | undefined; body: string } {

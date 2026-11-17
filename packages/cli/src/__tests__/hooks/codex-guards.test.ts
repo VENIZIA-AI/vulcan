@@ -3,6 +3,7 @@ import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { CodexHooks } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
@@ -10,9 +11,14 @@ afterAll(removeProjects);
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const SCRIPT = join(PACKAGE_ROOT, 'base', 'hooks', 'codex-guards.ts');
 
+const DENY_OUTSIDE_CONFIG =
+  "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny' } };\n";
+/** What `vulcan sync` renders from it: the hooks read this, not the config. */
+const DENY_OUTSIDE_MANIFEST = guardManifest({ guard: { outside: 'deny' } });
+
 /** A project with the package installed, so the real guard scripts run. */
-const installedProject = (): string => {
-  const root = createProject({ files: { 'package.json': '{}' } });
+const installedProject = (opts: { files?: Record<string, string> } = {}): string => {
+  const root = createProject({ files: { 'package.json': '{}', ...opts.files } });
   const installed = join(root, 'node_modules', '@venizia', 'vulcan');
 
   mkdirSync(dirname(installed), { recursive: true });
@@ -82,6 +88,21 @@ describe('the Codex hook command runs the real guards', () => {
     );
   });
 
+  test('a package run by name is denied with V-S-08 (the git guard script runs the runner check too); bun run is not', () => {
+    const root = installedProject();
+    const bunx = run({
+      root,
+      stdin: eventOf({ root, tool: 'Bash', command: 'bunx ardor codemod' }),
+    });
+
+    expect(decisionOf(bunx.output)).toBe('deny');
+    expect(bunx.text).toContain('V-S-08');
+    expect(bunx.text).toContain('bun node_modules/.bin/ardor');
+    expect(
+      run({ root, stdin: eventOf({ root, tool: 'Bash', command: 'bun run ardor' }) }).text,
+    ).toBe('');
+  });
+
   test('Codex cannot ask, so an ask is printed as a deny that says a human must confirm', () => {
     const root = installedProject();
     const deploy = run({
@@ -94,18 +115,31 @@ describe('the Codex hook command runs the real guards', () => {
     expect(deploy.text).toContain('Codex cannot ask about a tool call');
   });
 
-  test('an apply_patch is read file by file: the manifest and a path outside the project are refused', () => {
-    const root = installedProject();
-    const patch = (lines: string[]): string =>
-      ['*** Begin Patch', ...lines, '*** End Patch'].join('\n');
-    const manifest = run({
+  test('with guard.outside set to deny, a write outside the project is a real deny, not an ask turned into one', () => {
+    const root = installedProject({
+      files: {
+        '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG,
+        [GUARD_MANIFEST_FILE]: DENY_OUTSIDE_MANIFEST,
+      },
+    });
+    const outside = run({
       root,
       stdin: eventOf({
         root,
-        tool: 'apply_patch',
-        command: patch(['*** Update File: .agents/vulcan.manifest.json', '@@', '-a', '+b']),
+        tool: 'Bash',
+        command: 'echo x > /var/tmp/vulcan-guard-probe-never-created',
       }),
     });
+
+    expect(decisionOf(outside.output)).toBe('deny');
+    expect(outside.text).toContain('guard.outside');
+    expect(outside.text).not.toContain('Codex cannot ask about a tool call');
+  });
+
+  test('an apply_patch is read file by file: a path outside the project is refused', () => {
+    const root = installedProject();
+    const patch = (lines: string[]): string =>
+      ['*** Begin Patch', ...lines, '*** End Patch'].join('\n');
     const outside = run({
       root,
       stdin: eventOf({
@@ -123,7 +157,6 @@ describe('the Codex hook command runs the real guards', () => {
       }),
     });
 
-    expect(decisionOf(manifest.output)).toBe('deny');
     expect(decisionOf(outside.output)).toBe('deny');
     expect(outside.text).toContain('V-B-08');
     expect(inside.text).toBe('');
@@ -173,6 +206,26 @@ describe('the hook command wrapper in .codex/hooks.json', () => {
       stderr: result.stderr.toString(),
     };
   };
+
+  test('a .env and a bunfig.toml in the project do not reach the adapter', () => {
+    const root = installedProject({
+      files: {
+        ...{
+          '.env': 'VULCAN_GUARDS=off\n',
+          'evil.ts': 'process.exit(0);\n',
+          'bunfig.toml': 'preload = ["./evil.ts"]\n',
+        },
+        [GUARD_MANIFEST_FILE]: guardManifest({ guard: { asks: 'deny' } }),
+      },
+    });
+    const result = runWrapper({
+      root,
+      stdin: eventOf({ root, tool: 'Bash', command: 'git reset --hard HEAD~1' }),
+    });
+
+    expect(decisionOf(JSON.parse(result.stdout))).toBe('deny');
+    expect(result.stdout).toContain('guard.asks');
+  });
 
   test('with the package installed it forwards the answer of the adapter', () => {
     const root = installedProject();

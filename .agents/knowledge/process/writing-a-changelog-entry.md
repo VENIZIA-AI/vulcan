@@ -1,7 +1,7 @@
 ---
 type: Playbook
 title: Writing a changelog entry
-description: The shape of a wiki changelog entry, the parts every entry needs, and the template to copy.
+description: How a change is recorded in the changelog, as an item in the version folder in progress, and the older dated entry the folders replace.
 tags: [process, changelog, docs]
 ---
 
@@ -10,15 +10,88 @@ tags: [process, changelog, docs]
 <!-- okf:generated:contents start -->
 **Contents**
 
+- [Where a change is written](#where-a-change-is-written)
+- [A version folder](#a-version-folder)
 - [What goes in the changelog](#what-goes-in-the-changelog)
-- [What every entry needs](#what-every-entry-needs)
+- [What every dated entry needs](#what-every-dated-entry-needs)
 - [Optional frontmatter](#optional-frontmatter)
+- [The migration block](#the-migration-block)
 - [Template](#template)
 <!-- okf:generated:contents end -->
 
-An entry is a file in `docs/wiki/content/changelogs/` named `YYYY-MM-DD-<slug>.md`. The changelog index
-(`/changelogs/`) is built from the entries themselves: add the file and it appears, grouped by year, with
-no table to edit. Copy the template below.
+## Where a change is written
+
+Once `knowledge.migrationFrom` is a version, the changelog is one folder per version line,
+`docs/wiki/content/changelogs/<X.Y.Z>/`, and a change is an **item of the folder in progress**: the one with no
+`released:` line, named for the stable the packages are heading to (`vulcan changelog check` says which). A new
+dated file is refused. Dated files `YYYY-MM-DD-<slug>.md` are history: never edit or move one. The sections after
+[A version folder](#a-version-folder) say what an item may contain; the dated template at the end is for a project that
+has not adopted the folders.
+
+## A version folder
+
+`log.md` holds the frontmatter (`title`, `version`, `packages`, `summary`, `highlights`, and `released: YYYY-MM-DD` once the
+stable is out), one paragraph on what the release is, then the sections in this order, leaving out an empty one: Breaking, Deprecated, Added,
+Changed, Fixed, Security. An item is one line, optionally continued:
+
+```markdown
+- **A plain sentence naming the change** `item-id` (`@venizia/vulcan`): what changed, who is affected, what to do.
+```
+
+The id is lower-case words joined by `-`, unique in the folder, chosen once and kept for the whole cycle: renaming it after a
+prerelease shipped is a removal and an addition. The package list is optional; without it the item belongs to the file's
+`packages`. A removal of public API is Breaking: there is no Removed section.
+
+`summary` is one sentence of at most 200 characters, `highlights` is one to five one-line points of at most 110 characters
+(at least three when the folder holds three or more items): they are what the version box on the changelog index shows. Quote
+each value in YAML (a line that starts with a backtick, or holds `: `, does not parse unquoted):
+
+```yaml
+summary: "Closes request and token gaps and replaces `any` in the public types."
+highlights:
+  - "A child model can take its row scope from its parent"
+  - "JWT needs an issuer and a 32 byte secret"
+```
+
+A folder in progress owes both, and `steps` on every block (below); the opening paragraph must not name `migration.yaml`,
+because the version page links its upgrade guide itself. A released folder owes none of it, and may gain a `summary` and
+`highlights` later: `--history` does not count them as a change.
+
+`migration.yaml` holds one entry for every Breaking and Deprecated item, keyed by the item id, and none for any other item:
+
+```yaml
+redis-factory-per-topology:
+  symbols: [RedisHelperFactory.create]
+  upgrade:
+    steps:                                       # required in a folder in progress: what an app does, in order
+      - Replace each RedisHelper.new() with RedisHelperFactory.create().
+      - Run bun check.
+    before: "RedisHelper.new()"                  # optional, with after: the code the steps change
+    after: "RedisHelperFactory.create()"
+  downgrade: { steps: ["Call RedisHelper.new() again"] }
+  data: "Stored tokens keep the old prefix."   # optional
+  codemod: namespace-functions                 # optional: a name the project's codemod runner lists
+```
+
+Which section an item goes in is decided by the user it can hurt, not by the size of the change. It is Breaking when something
+that worked before refuses, fails or gives a different result now, for any agent VULCAN serves: a removed or renamed name,
+key, flag or file; a config that is refused; a call that was allowed and is now asked or denied (an ask prints as a deny in
+Codex and Cursor, which cannot ask on a tool call); data the tool now deletes or no longer repairs. It is Changed when the
+item only adds a prompt or a note nobody has to answer for a script to keep working, and Security when it closes a bypass
+that was never a supported workflow (a spelling a guard did not read, a leading option it skipped): say in one sentence what
+now asks or is denied and how to proceed legitimately, and write no migration block. A new way to do something is Added, even
+when it sits next to a Breaking item that mentions it.
+
+A line with nothing breaking has no `migration.yaml`, or `{}`. The fields mean what they mean in
+[the migration block](#the-migration-block) below. A prerelease edits the folder, so it always states the net change from the
+previous stable: merge a refined item into one, and delete what a later prerelease reverted. The folder is frozen the day its
+stable is released (the release step writes `released:`).
+
+Write the page text the way the wiki builds it: no raw `<tag>` outside a code span or fence (it breaks the build), and no
+backtick inside an inline code span.
+
+`vulcan changelog check` is the gate (`--history --base <ref>` also reads git); `vulcan changelog notes --version <X.Y.Z>` prints
+what the GitHub Release will show.
 
 ## What goes in the changelog
 
@@ -37,7 +110,9 @@ A pull request that holds only internal work gets no entry, and a stable release
 GitHub Release says there is no change for users. When several changes of one release say one thing, write one
 entry, not one per change.
 
-## What every entry needs
+## What every dated entry needs
+
+Only a project that keeps dated entries writes these; a project with version folders writes the items above.
 
 | Part | Where | Rule |
 |---|---|---|
@@ -58,6 +133,22 @@ The title and the description (one plain sentence) are the entry's card on the i
 | `type: release` | Marks a release overview (the batch page with the upgrade checklist) as its own type. A file name with `batch-overview`, or a title ending "(Overview)", does the same. |
 | `release: '<npm name>@<version>'` | Places an entry git would place wrongly (a backfill); it must name a tag that exists. The index shows this version; a title carries none, so without it the entry shows no version. |
 | `badges: [...]` | Overrides the `<Badge>` line when the types are wanted without the markup. |
+
+## The migration block
+
+A Breaking Change entry (badge text `Breaking Change`; `Breaking` is read as breaking too but reported on entries after the cutover) dated on or after `knowledge.migrationFrom` carries `migration:` in its frontmatter: how an app moves across the change, in both directions. `vulcan changelog check` (part of `make changelog-check`) fails when it is missing or invalid; entries before the cutover are never read.
+
+```yaml
+migration:
+  - id: redis-factory-per-topology       # lower-case words joined by -, unique across the folder
+    symbols: [RedisHelperFactory.create] # the names an app's code uses: Name, Name.member or a module specifier
+    upgrade: { before: "RedisHelper.new()", after: "RedisHelperFactory.create()" }  # or { steps: ["..."] }
+    downgrade: { steps: ["Call RedisHelper.new() again"] }   # required; an irreversible change says so here
+    data: "Stored tokens keep the old prefix."               # optional: stored data that does not cross the boundary
+    codemod: namespace-functions                             # optional: a `devz codemod` name, lower-case words joined by -
+```
+
+List the symbols as the app spells them before the change (a removed or renamed name is not in the new exports, so the check does not look them up). `before`/`after` and `steps` are alternatives, never both. The `## Breaking changes` section stays: it is the human version of the same steps.
 
 ## Template
 

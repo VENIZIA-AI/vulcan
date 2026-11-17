@@ -2,12 +2,14 @@
 #   -include node_modules/@venizia/vulcan/base/make/vulcan.mk
 # A project adds its own targets after the include; redefining one of these fails `vulcan doctor`.
 
-VULCAN ?= bun x --no-install vulcan
+# The linked bin by path, not `bun run vulcan`: `bun run` falls back to a program on $PATH, or to one bun cached, when the bin is not linked
+# here, and the include above needs this same node_modules. A missing bin fails the target instead of running another program.
+VULCAN ?= bun $(CURDIR)/node_modules/.bin/vulcan
 VULCAN_BASE ?= node_modules/@venizia/vulcan/base
 # The GitHub repository the wiki links point into, owner/name; the link gate checks only links into it.
 WIKI_REPO ?=
 
-.PHONY: vulcan-sync vulcan-doctor okf-check okf-check-strict okf-gen okf-coverage okf-viz \
+.PHONY: vulcan-sync vulcan-doctor runners-check okf-check okf-check-strict okf-gen okf-coverage \
         surface-gen surface-check atlas-symbols atlas-releases wiki-links-check wiki-anchors-check
 
 vulcan-sync: ## Write the agent adapters, settings, skill links and manifest from the config
@@ -15,6 +17,10 @@ vulcan-sync: ## Write the agent adapters, settings, skill links and manifest fro
 
 vulcan-doctor: ## Check the project against the VULCAN contract
 	@$(VULCAN) doctor
+
+# V-S-08: no tracked file runs a package by name (bunx, bun x, npx, pnpm dlx). Allow a name with guard.runners.allow.
+runners-check: ## Fail when a tracked file runs an unscoped package by name (bunx, bun x, npx, pnpm dlx)
+	@$(VULCAN) runners check
 
 # OKF v0.2 conformance only; okf-check-strict adds the house rules (links, style, coverage, freshness).
 okf-check: ## Check the knowledge bundle against OKF v0.2
@@ -28,9 +34,6 @@ okf-gen: ## Regenerate the generated pages and regions of the knowledge bundle
 
 okf-coverage: ## Report how much of the code the knowledge bundle covers
 	@$(VULCAN) x okf coverage
-
-okf-viz: ## Build the knowledge graph view
-	@$(VULCAN) x okf viz
 
 # The public surface: an optional API gate a project commits and checks. It reads the built .d.ts -
 # build first.

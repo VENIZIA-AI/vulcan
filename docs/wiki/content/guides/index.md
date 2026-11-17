@@ -42,6 +42,11 @@ VULCAN is the rules and workflow centre for the coding agents in your repository
 <p>Write a unit of work a person can read and a fresh agent can do.</p>
 </a>
 
+<a href="/guides/core-concepts/migrate-between-releases" class="guide-card">
+<h3>Migrate between releases</h3>
+<p>Plan what your app must change to move a package to another version, and run the codemods.</p>
+</a>
+
 <a href="/guides/core-concepts/knowledge-bundle" class="guide-card">
 <h3>The knowledge bundle</h3>
 <p>Structure project facts in Open Knowledge Format and validate links.</p>
@@ -81,7 +86,7 @@ VULCAN is the rules and workflow centre for the coding agents in your repository
 <span class="stage-num">3</span>
 <h4>Know the parts</h4>
 </div>
-<p><a href="/guides/core-concepts/the-project-layer">The project layer</a> - <a href="/guides/core-concepts/rules-and-slots">Rules and slots</a> - <a href="/guides/core-concepts/hooks-and-guards">Hooks and guards</a> - <a href="/guides/core-concepts/owner-and-replies">The owner and the reply shape</a> - <a href="/guides/core-concepts/work-items">Work items</a> - <a href="/guides/core-concepts/knowledge-bundle">The knowledge bundle</a> - <a href="/guides/core-concepts/atlas">atlas</a></p>
+<p><a href="/guides/core-concepts/the-project-layer">The project layer</a> - <a href="/guides/core-concepts/rules-and-slots">Rules and slots</a> - <a href="/guides/core-concepts/hooks-and-guards">Hooks and guards</a> - <a href="/guides/core-concepts/owner-and-replies">The owner and the reply shape</a> - <a href="/guides/core-concepts/work-items">Work items</a> - <a href="/guides/core-concepts/migrate-between-releases">Migrate between releases</a> - <a href="/guides/core-concepts/knowledge-bundle">The knowledge bundle</a> - <a href="/guides/core-concepts/atlas">atlas</a></p>
 <span class="stage-desc">Learn what each part does and which files it touches.</span>
 </div>
 

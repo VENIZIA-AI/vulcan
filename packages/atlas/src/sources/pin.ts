@@ -1,5 +1,5 @@
-import { lstatSync, readFileSync, realpathSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { lstatSync, realpathSync } from 'node:fs';
+import { sep } from 'node:path';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseRecord, IReleaseTable } from '@/releases/common';
 import { ReleaseTemplate } from '@/releases/template';
@@ -22,16 +22,6 @@ const NODE_MODULES = `${sep}node_modules${sep}`;
 const isLinked = (opts: { directory: string }): boolean =>
   lstatSync(opts.directory).isSymbolicLink() &&
   !`${realpathSync(opts.directory)}${sep}`.includes(NODE_MODULES);
-
-const versionAt = (opts: { directory: string }): string | undefined => {
-  try {
-    const manifest = JSON.parse(readFileSync(join(opts.directory, 'package.json'), 'utf8'));
-
-    return typeof manifest.version === 'string' ? manifest.version : undefined;
-  } catch {
-    return undefined;
-  }
-};
 
 /** The tag a release of `dir` at `version` carries, from the project's `tagPattern`; undefined when the template cannot name one. */
 const tagOf = (opts: { template: string; dir: string; version: string }): string | undefined => {
@@ -61,7 +51,7 @@ export class PinPolicy {
     const problems: string[] = [];
 
     for (const entry of opts.project.packages.filter((item) => !item.retired)) {
-      for (const directory of InstalledPackages.installedDirectoriesOf({
+      for (const { directory, version } of InstalledPackages.copiesOf({
         roots: opts.roots,
         name: entry.name,
       })) {
@@ -70,7 +60,6 @@ export class PinPolicy {
           continue;
         }
 
-        const version = versionAt({ directory });
         const record = opts.table.releases[entry.dir]?.find(
           (release) => release.version === version,
         );

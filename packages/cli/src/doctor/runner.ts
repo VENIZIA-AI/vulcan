@@ -1,11 +1,12 @@
 import { relative } from 'node:path';
 import { ConfigLoader } from '../config/index.ts';
-import { ProjectContract, ReadOnlySubcommandChecks } from './checks.ts';
+import { ProjectContract } from './checks.ts';
 import { SkillLint } from './skills.ts';
 import { TagCheck } from './tags.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
 
+/** Runs the doctor checks and sorts their findings into violations, notes and warnings; used by `vulcan doctor`. */
 export class DoctorRunner {
   /** Every violation of the VULCAN contract in the project at `root`; empty means conformant. */
   static async runChecks(opts: { root: string }): Promise<IViolation[]> {
@@ -33,15 +34,16 @@ export class DoctorRunner {
       ...ProjectContract.checkRuleSlots(context),
       ...ProjectContract.checkSkills(context),
       ...ProjectContract.checkMake(context),
-      ...ProjectContract.checkHooks(context),
       ...ProjectContract.checkAdapters(context),
       ...ProjectContract.checkAgents(context),
       ...ProjectContract.checkManifest(context),
+      ...ProjectContract.checkChangelogFolders(context),
       ...TagCheck.check(context),
       ...SkillLint.check(context),
       ...ProjectContract.checkStyle(context),
       ...ProjectContract.checkScaffold(context),
       ...ProjectContract.checkApps(context),
+      ...ProjectContract.checkTmpFolder(context),
     ];
   }
 
@@ -64,14 +66,9 @@ export class DoctorRunner {
     };
 
     return [
-      ...ProjectContract.checkAppScripts(context),
       ...ProjectContract.checkAtlasBlock(context),
-      ...ProjectContract.checkLocalSize(context),
-      ...ProjectContract.checkGuardPatterns(context),
-      ...ProjectContract.checkReplyShape(context),
+      ...ProjectContract.checkAcknowledgedValues(context),
       ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
-      ...ProjectContract.checkTrustedScripts(context),
-      ...ReadOnlySubcommandChecks.check(context),
     ];
   }
 
@@ -94,16 +91,16 @@ export class DoctorRunner {
       ...ProjectContract.checkCommitHook(context),
       ...ProjectContract.checkEventsDir(context),
       ...ProjectContract.checkEventsSize(context),
-      ...ProjectContract.checkDockerignore(context),
+      ...ProjectContract.checkProjectKey(context),
+      ...ProjectContract.checkBrowserSocket({ root: opts.root, tmp: context.config.local.tmp }),
       ...ProjectContract.checkSkillTriggers(context),
       ...ProjectContract.checkFormat(context),
       ...ProjectContract.checkLocalWorkspace(context),
-      ...ProjectContract.checkOutsideWorktrees(context),
       ...ProjectContract.checkProfile(context),
       ...ProjectContract.checkOwnerReplySettings(context),
       ...ProjectContract.checkStaleLocal(context),
       ...ProjectContract.checkUnknownLocal(context),
-      ...ProjectContract.checkStaleTrustedScripts(context),
+      ...ProjectContract.checkPrivateValues(context),
     ];
   }
 }

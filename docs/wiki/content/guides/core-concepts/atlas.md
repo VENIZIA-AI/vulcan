@@ -20,7 +20,7 @@ atlas is an MCP server. It indexes your wiki, changelogs and knowledge bundle. I
 }
 ```
 
-The agent receives six tools: `search`, `get`, `symbol`, `version`, `changes` and `presets`.
+The agent receives seven tools: `search`, `get`, `symbol`, `version`, `changes`, `migrate` and `presets`.
 
 You do not need to tell the agent to use them. The server's instructions and the tool descriptions say when to call each one, and name this project and every source it reads. The session-start digest repeats it, and the base rule `V-P-07` says facts come from atlas, not from memory.
 
@@ -88,16 +88,17 @@ A project with no documentation of its own finds nothing until you declare a sou
 To view the tools atlas provides, run `vulcan x atlas tools`:
 
 ```text
-$ bun x --no-install vulcan x atlas tools
+$ bun node_modules/.bin/vulcan x atlas tools
 search   When the user asks how something works in demo-app, how to build something in it, or about this project's conventions, search here before you answer from memory
 get      After `search`, read the hit here before you rely on it
 symbol   Before you import or call an export of demo-app, get its real signature, import path and source line here instead of recalling it
 version  When a version, an upgrade or an installed @venizia/* package comes up in demo-app, check here
 changes  When the user asks what changed, what a release added or what breaks on upgrade in demo-app, list the entries here
+migrate  When the user asks what to change to upgrade or roll back a @venizia/* package, or how to move an app between two versions of demo-app, plan it here before you answer
 presets  When you are asked to create a new app or package in demo-app, ask here which preset and which exact command to use before you write any file
 ```
 
-`vulcan x atlas tools` lists the six tools, with the descriptions your agent sees. It does not start the server.
+`vulcan x atlas tools` lists the seven tools, with the descriptions your agent sees. It does not start the server.
 The descriptions name your project, here `demo-app`.
 For a real check, restart the agent session and ask it to search.
 
@@ -105,10 +106,10 @@ For a real check, restart the agent session and ask it to search.
 
 A repository that others read as a source can publish a signed copy of its index, one per commit. A project that lists it as a source then downloads that copy, checks it, and skips building it; a miss or a failed check builds it as before. Set it up once:
 
-1. **Make a key pair.** `bun x --no-install vulcan x atlas index keygen` writes the private key to `.agents/local/atlas-index.key` (mode 0600, only while `.agents/local/` is gitignored) and prints the public key.
-2. **Store the private key as an Actions secret, then delete the file.** `gh secret set ATLAS_INDEX_KEY < .agents/local/atlas-index.key`, then `rm .agents/local/atlas-index.key`. The key lives nowhere else.
+1. **Make a key pair.** `bun node_modules/.bin/vulcan x atlas index keygen` writes the private key to `.agents/local/atlas-index.key` (mode 0600, only while `.agents/local/` is gitignored) and prints the public key.
+2. **Store the private key as an Actions secret, then delete the file.** `gh secret set ATLAS_INDEX_KEY < .agents/local/atlas-index.key`, then `rm .agents/local/atlas-index.key`. The key lives nowhere else. Protect the default branch and `develop` (a pull request to change them): the workflow that holds the key runs from those branches.
 3. **List the public key in the config.** `atlas: { index: { keys: ['<the public key>'] } }` in `.configs/vulcan.config.mts`, then `vulcan sync` and commit the manifest.
-4. **Add the workflow.** The workflow of [the atlas reference](/references/atlas/#publishing-from-ci): a push to the default branch, `develop` or a tag, `contents: write`, a checkout with `fetch-depth: 0`, and the action `VENIZIA-AI/vulcan/.github/actions/atlas-index`, pinned to a commit.
+4. **Add the workflow.** The workflow of [the atlas reference](/references/atlas/#publishing-from-ci): a push to the default branch or `develop`, `contents: write`, a checkout with `fetch-depth: 0`, and the action `VENIZIA-AI/vulcan/.github/actions/atlas-index`, pinned to a commit.
 5. **Check the release.** After the first push, the release `atlas-index` of the repository holds `<sha>.atlas.json` and `<sha>.atlas.gz`.
 
 The projects that read yours need nothing but their usual token: for a private repository, `GITHUB_TOKEN` or `gh auth token` (a classic token with the `repo` scope was checked; a fine-grained token was not). They can turn the download off with `atlas.prebuilt: false` or `--no-prebuilt`.

@@ -8,6 +8,7 @@ const parseYaml = (opts: { text: string }): { value?: unknown; error?: string } 
   }
 };
 
+/** Extracts and validates the YAML frontmatter of a skill file; used by the doctor skill checks. */
 export class SkillFrontmatter {
   /**
    * The frontmatter's fields, or why they cannot be read. Bun's YAML error names no line, so the line

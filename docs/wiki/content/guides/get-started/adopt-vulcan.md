@@ -30,13 +30,14 @@ bun x @venizia/vulcan init --preset ignis
 
 ```text
 ? Project name (the monorepo folder) > my-product
+? Project key for flow ids, as VULZ-<key>-<number> (uppercase letters and digits, 2 to 8 of them) (MYPRODUC) > MYPROD
 Fetching preset @venizia/ignis@latest ...
 ? Backend folder (holds every backend app) > services
 ? Name of this backend app > core-api
 ? Shared code folder (empty to skip) > libs
 ```
 
-In a menu terminal `init` also asks for an optional package scope (`--scope @acme` names the packages `@acme/<name>`), then shows the plan and waits for you to confirm it. Then it writes the files and runs, in this order:
+The project key names the project's flows (`VULZ-MYPROD-12`); Enter takes the one made from the project name, shown in brackets. In a menu terminal `init` also asks for an optional package scope (`--scope @acme` names the packages `@acme/<name>`), then shows the plan and waits for you to confirm it. Then it writes the files and runs, in this order:
 
 1. `bun install`
 2. `git init -b develop` (the project is a git repository on `develop`)
@@ -45,7 +46,7 @@ In a menu terminal `init` also asks for an optional package scope (`--scope @acm
 5. `vulcan doctor`
 6. `vulcan x okf check --strict`
 
-It stops at the first failure. The first `vulcan sync` of a project asks which coding agents you use on this machine. The `detected` line shows what it found, so yours differs; press Enter to accept it, or type your list. When you are asked again later, Enter keeps your earlier choice instead:
+It stops at the first failing step. The one exception is `git init`: if git is missing, `init` prints the command to run yourself and goes on. The first `vulcan sync` of a project asks which coding agents you use on this machine. The `detected` line shows what it found, so yours differs; press Enter to accept it, or type your list. When you are asked again later, Enter keeps your earlier choice instead:
 
 ```text
 Which coding agents do you use in this project? (comma-separated; Enter accepts the detected list: claude, omp)
@@ -68,7 +69,10 @@ bun x @venizia/vulcan init --preset ignis --project my-product --backend-dir ser
 | Backend folder (or `Frontend folder`, for a frontend preset) | `--backend-dir services` (or `--frontend-dir`) |
 | Name of this app | `--app core-api` |
 | Shared code folder | `--shared-dir libs` (leave it out to skip) |
+| Project key (flow ids) | `--key MYPROD` (made from the project name when left out) |
 | Package scope (optional) | `--scope @acme` (a plain terminal never asks; leave it out for none) |
+
+A name with fewer than 2 letters or digits is an error that asks for `--key`; otherwise the key is made from the project name, with a note.
 
 A missing flag is an error that names it (`vulcan init: missing --app (Name of the first app) - names are never chosen for you`). Without a terminal there is no agents question either: `sync` writes the Claude files and prints one line saying how to choose (`vulcan sync --agents claude,omp`).
 
@@ -78,6 +82,7 @@ The project it creates (the files `init` and `sync` wrote, without `.git`, `node
 $ cd my-product && find . -type f -not -path './.git/*' -not -path '*/node_modules/*' -not -name bun.lock | LC_ALL=C sort
 ./.agents/knowledge/index.md
 ./.agents/knowledge/packages/core-api.md
+./.agents/local/claude.launch.settings.json
 ./.agents/rules.md
 ./.agents/vulcan.local.json
 ./.agents/vulcan.manifest.json
@@ -108,7 +113,7 @@ $ cd my-product && find . -type f -not -path './.git/*' -not -path '*/node_modul
 ./services/core-api/tsconfig.json
 ```
 
-Everything under `services/core-api/` comes from the preset (the list shows its shape; the exact files come from the preset you pick). The rest is the VULCAN layer. `sync` also creates the empty scratch folder `.agents/local/` (gitignored), which `find -type f` does not list. `.agents/vulcan.local.json` exists only after you chose your agents.
+Everything under `services/core-api/` comes from the preset (the list shows its shape; the exact files come from the preset you pick). The rest is the VULCAN layer. `sync` also creates the scratch folder `.agents/local/` (gitignored), which holds the Claude Code launch file `claude.launch.settings.json`. `.agents/vulcan.local.json` exists only after you chose your agents.
 When every step passes, `init` prints the next step (the lines depend on the preset):
 
 ```text
@@ -129,14 +134,14 @@ For every file and message, see the [init reference](/references/commands/init#c
 Run `vulcan add` at the monorepo root. `--app` adds another backend, or a frontend that proxies `/api` to a backend; `--lib` adds a library other apps import:
 
 ```bash
-bun x --no-install vulcan add --preset ignis --app api2
-bun x --no-install vulcan add --preset ignis --lib billing
+bun node_modules/.bin/vulcan add --preset ignis --app api2
+bun node_modules/.bin/vulcan add --preset ignis --lib billing
 ```
 
 In a terminal `add` asks what to create. Without one, give `--app` or `--lib`. A frontend also needs `--api <backend app>` or `--no-api` when there is no terminal, for example:
 
 ```bash
-bun x --no-install vulcan add --preset ardor --app web --frontend-dir apps --api core-api
+bun node_modules/.bin/vulcan add --preset ardor --app web --frontend-dir apps --api core-api
 ```
 
 See the [add reference](/references/commands/add).
@@ -161,7 +166,7 @@ The `style` check in `vulcan doctor` requires `@venizia/dev-configs` in `package
 ## 2. Scaffold with init
 
 ```bash
-bun x --no-install vulcan init
+bun node_modules/.bin/vulcan init
 ```
 
 `init` writes `AGENTS.md`, `.agents/rules.md`, `.agents/knowledge/index.md`, `.configs/vulcan.config.mts`, the lint configs under `.configs/lints/`, `.dockerignore`, `bunfig.toml` and a `Makefile` (with a hint instead when you already have one). It also appends the agent entries (including `.agents/local/`) to `.gitignore`, installs the lint tools with `bun add -d`, and ends with a numbered list of what is left to do.
@@ -193,18 +198,17 @@ For all configuration options, see the [configuration reference](/references/con
 ## 4. Synchronize adapters
 
 ```bash
-bun x --no-install vulcan sync
+bun node_modules/.bin/vulcan sync
 ```
 
 ```text
-$ bun x --no-install vulcan sync
+$ bun node_modules/.bin/vulcan sync
   created   CLAUDE.md
-  created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  created   .claude/settings.json (shipped, slot and claude.settings over personal keys)
   created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
   created   .claude/skills/fix-a-bug
-  created   .claude/skills/knowledge-sync
   created   .claude/skills/plan-a-change
   created   .claude/skills/report-back
   created   .claude/skills/research
@@ -216,6 +220,7 @@ $ bun x --no-install vulcan sync
   created   .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)
   created   .agents/vulcan.local.json
+  created   .agents/local/claude.launch.settings.json (the Claude Code launch file is missing)
   created   .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
   replaced  .git/info/exclude
 ```
@@ -232,14 +237,14 @@ For details on adapter generation, see the [sync reference](/references/commands
 ## 5. Verify with doctor
 
 ```bash
-bun x --no-install vulcan doctor
+bun node_modules/.bin/vulcan doctor
 ```
 
 To check your setup, run `vulcan doctor` until all violations resolve.
 If you skipped editing `.agents/knowledge/index.md`, the command reports a scaffold violation:
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun node_modules/.bin/vulcan doctor
   [scaffold] .agents/knowledge/index.md: still the scaffold - describe the project, then delete the vulcan:scaffold line
 vulcan doctor: 1 violation(s)
 ```
@@ -249,7 +254,7 @@ Running `vulcan doctor` before `vulcan sync` also reports not-synced lines for a
 Once all violations resolve, doctor reports OK:
 
 ```text
-$ bun x --no-install vulcan doctor
+$ bun node_modules/.bin/vulcan doctor
 vulcan doctor: OK
 ```
 
@@ -264,11 +269,17 @@ The table below lists common findings and how to resolve them:
 
 | You already have | What to do |
 |---|---|
-| An existing Makefile | Add `-include node_modules/@venizia/vulcan/base/make/vulcan.mk`, and do not reuse shipped target names. See the [make check](/references/commands/doctor#make). |
-| A project skill with a shipped name | Rename the directory under `.agents/skills/` to avoid collisions. See the [skills check](/references/commands/doctor#skills). |
-| Project hooks calling shipped hooks | Remove shipped hook paths from `hooks` in `.configs/vulcan.config.mts`. See the [hooks check](/references/commands/doctor#hooks). |
-| Lint configs not built on the shared style | Add `@venizia/dev-configs` as a devDependency and import from it in lint configurations. See the [style check](/references/commands/doctor#style). |
-| Git tags of another layout | Declare the package, add an alias, or add the tags to `atlas.ignoreTags`. See the [tags check](/references/commands/doctor#tags). |
+| An existing Makefile | Include `vulcan.mk` and keep target names apart. See the [make check](/references/commands/doctor#make). |
+| A project skill with a shipped name | Rename its directory. See the [skills check](/references/commands/doctor#skills). |
+| Lint configs not built on the shared style | Build them on `@venizia/dev-configs`. See the [style check](/references/commands/doctor#style). |
+| Git tags of another layout | Declare the package, add an alias, or ignore the tags. See the [tags check](/references/commands/doctor#tags). |
+
+Details:
+
+- For a Makefile, add `-include node_modules/@venizia/vulcan/base/make/vulcan.mk`, and do not reuse shipped target names.
+- For a skill with a shipped name, rename the directory under `.agents/skills/` to avoid collisions.
+- For lint configs, add `@venizia/dev-configs` as a devDependency and import from it in the lint configurations.
+- For git tags, declare the package, add an alias, or add the tags to `atlas.ignoreTags`.
 
 ## Run it in CI
 
@@ -276,11 +287,13 @@ On a clean checkout in CI, run install, sync, and doctor in order:
 
 ```bash
 bun install --frozen-lockfile
-bun x --no-install vulcan sync
-bun x --no-install vulcan doctor
+bun node_modules/.bin/vulcan sync
+bun node_modules/.bin/vulcan doctor
 ```
 
 Running `vulcan doctor` before `vulcan sync` fails because gitignored adapters do not exist yet.
+
+With no terminal and no stored choice, `sync` takes `claude` and says so. The choice of agents lives in the gitignored `.agents/vulcan.local.json`, so a CI checkout never has it: a project whose config lists no `agents` gets only the Claude adapters in CI. Pass `--agents <list>` to `sync` to get others.
 For CI details and output capture, see the [doctor reference](/references/commands/doctor).
 
 ## Upgrade later
@@ -288,14 +301,16 @@ For CI details and output capture, see the [doctor reference](/references/comman
 Pass the target version to `vulcan upgrade`:
 
 ```bash
-bun x --no-install vulcan upgrade 0.4.5
+bun node_modules/.bin/vulcan upgrade 0.4.5
 ```
 
 Without a version argument, `vulcan upgrade` installs the stable `latest` release. Add `--nightly` to take the newest of `latest` and `next`, which can be a prerelease:
 
 ```bash
-bun x --no-install vulcan upgrade --nightly
+bun node_modules/.bin/vulcan upgrade --nightly
 ```
+
+From an installed prerelease, `latest` can be an older version, so a plain `upgrade` prints a note first; `--stable` is the name of that default, and `--nightly` keeps the prerelease line.
 
 The command installs the target release and runs `vulcan sync` with the newly installed CLI.
 Commit `.agents/vulcan.manifest.json` if it changed.

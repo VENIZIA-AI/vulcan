@@ -18,23 +18,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import type TypeScript from 'typescript';
 import { PublicSurface } from '@/surface';
+import type { ISymbolRecord } from './common';
+import { DeclarationText } from './declaration-text';
+import { SourceSignature } from './source-signature';
 
 const SIGNATURE_MAX_CHARS = 300;
 const SHAPE_LENGTH = 12;
-
-/** One exported symbol, located in the source it was written in - never in the `dist` it was read from. */
-interface ISymbolRecord {
-  name: string;
-  package: string;
-  subpath: string;
-  specifier: string;
-  kind: string;
-  file: string;
-  line: number;
-  signature: string;
-  /** Present and true when `file` points inside `node_modules`: the export re-exports a third-party declaration, so the path is an install detail, not repository source. */
-  external?: boolean;
-}
 
 interface ISymbolTable {
   generatedFrom: string;
@@ -319,6 +308,13 @@ export class AtlasSymbols {
         ? AtlasSymbols.locationOf({ repoRoot, declaration })
         : { file: repoRelative({ repoRoot, path: file }), line: 1 };
 
+      const isExternal = location.file.includes('node_modules');
+      const text =
+        declaration !== undefined &&
+        !isExternal &&
+        !TypeScriptCompiler.get().isSourceFile(declaration)
+          ? AtlasSymbols.textOf({ declaration, checker, name: symbol.getName() })
+          : undefined;
       const record: ISymbolRecord = {
         name: symbol.getName(),
         package: packageName,
@@ -328,13 +324,53 @@ export class AtlasSymbols {
         file: location.file,
         line: location.line,
         signature: declaration
-          ? AtlasSymbols.collapseSignature({ text: AtlasSymbols.signatureOf({ declaration }) })
+          ? AtlasSymbols.collapseSignature({
+              text: AtlasSymbols.isValueBearing({ declaration })
+                ? SourceSignature.of({ declaration, name: symbol.getName() })
+                : AtlasSymbols.signatureOf({ declaration }),
+            })
           : '',
         ...(declaration ? { shape: AtlasSymbols.shapeOf({ declaration }) } : {}),
+        ...(text === undefined
+          ? {}
+          : { declaration: text.declaration, doc: text.doc, uses: text.uses }),
       };
 
-      return location.file.includes('node_modules') ? { ...record, external: true } : record;
+      return isExternal ? { ...record, external: true } : record;
     });
+  }
+
+  /**
+   * The text a record keeps of its declaration. In a `.d.ts` it is the declaration itself; in a source file the
+   * statement holds bodies, so a record keeps its signature and the TSDoc above it.
+   */
+  private static textOf(opts: {
+    declaration: TypeScript.Declaration;
+    checker: TypeScript.TypeChecker;
+    name: string;
+  }): { declaration: string; doc: string; uses: string[] } {
+    if (opts.declaration.getSourceFile().isDeclarationFile) {
+      return DeclarationText.of(opts);
+    }
+
+    return {
+      declaration: AtlasSymbols.collapseSignature({
+        text: SourceSignature.of({ declaration: opts.declaration, name: opts.name }),
+      }),
+      doc: DeclarationText.docOf({ declaration: opts.declaration }),
+      uses: [],
+    };
+  }
+
+  /**
+   * Whether the declaration can hold a value that must not be quoted: it is written in a source file, or it is a
+   * whole module (`export * as ns`), whose text is the file.
+   */
+  private static isValueBearing(opts: { declaration: TypeScript.Declaration }): boolean {
+    return (
+      TypeScriptCompiler.get().isSourceFile(opts.declaration) ||
+      !opts.declaration.getSourceFile().isDeclarationFile
+    );
   }
 
   /**

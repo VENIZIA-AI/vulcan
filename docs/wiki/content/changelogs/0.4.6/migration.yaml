@@ -1,0 +1,9 @@
+wiki-link-target-name-taken:
+  symbols: ['@venizia/vulcan/base/make/vulcan.mk']
+  upgrade:
+    steps:
+      - 'If `vulcan doctor` says `wiki-links-check` or `wiki-anchors-check` is a shipped target, rename your own target (for example `wiki-links-check-local`) and update the scripts and CI steps that call it, or delete it and call the shipped target.'
+      - 'Set `WIKI_REPO := <owner>/<name>` before the `vulcan.mk` include if you switch to the shipped targets.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`, which defines neither target; your own target works again.'

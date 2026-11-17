@@ -28,7 +28,7 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     ).toEqual({ accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' });
     expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: 'blue' } }).success).toBe(false);
     expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: '#fff' } }).success).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: {} }).success).toBe(false);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: {} }).success).toBe(true);
     expect(
       VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: '#0277bd', brand: '#000000' } }).success,
     ).toBe(false);
@@ -40,7 +40,22 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     expect(config.okf.renderers).toEqual([]);
     expect(config.okf.regions).toEqual([]);
     expect(config.okf.coverage).toEqual([]);
-    expect(config.okf.viz.outputs).toEqual(['.agents/knowledge/viz.html']);
+    expect(config.okf.brand).toBeUndefined();
+  });
+
+  test('okf.brand is optional; the removed okf.viz and okf.sections are refused with the key and what to do', () => {
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ okf: { brand: 'ACME' } }).success).toBe(true);
+
+    const viz = VULCAN_CONFIG_SCHEMA.safeParse({ okf: { viz: { outputs: ['x.html'] } } });
+    const sections = VULCAN_CONFIG_SCHEMA.safeParse({ okf: { sections: { order: [] } } });
+
+    expect(viz.success).toBe(false);
+    expect(viz.error?.issues[0]?.path).toEqual(['okf', 'viz']);
+    expect(viz.error?.issues[0]?.message).toContain('delete this key');
+    expect(viz.error?.issues[0]?.message).toContain('vulcan x okf viz');
+    expect(viz.error?.issues[0]?.message).toContain('okf.brand');
+    expect(sections.error?.issues[0]?.path).toEqual(['okf', 'sections']);
+    expect(sections.error?.issues[0]?.message).toContain('delete this key');
   });
 
   test('a renderer entry is strict: a misspelled key is an error', () => {
@@ -75,6 +90,59 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     );
   });
 
+  test('a template with a placeholder it does not know is refused, and <package> is told to be <dir>', () => {
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<package>-v<version>' } }),
+    ).toThrow('<package> is not a placeholder of a release template');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<package>-v<version>' } }),
+    ).toThrow('<dir> replaces <package>');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({
+        atlas: { tagPattern: '<dir>-v<version>', legacyTagPatterns: ['<name>-<version>'] },
+      }),
+    ).toThrow('<name> is not a placeholder');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<dir >-<a>-v<version>' } }),
+    ).toThrow('<dir >, <a> are not placeholders');
+
+    for (const template of [
+      '<dir>-v<version>',
+      'v<version>',
+      '[#<issue>] release(<dir>): <version>',
+      '<version>-<date>',
+    ]) {
+      expect(VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: template } }).atlas.tagPattern).toBe(
+        template,
+      );
+    }
+  });
+
+  test("a source's repo and ref are values for git, not options: one that starts with '-' is refused", () => {
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: 'a', repo: '--version' }] } }),
+    ).toThrow("it must not start with '-'");
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({
+        atlas: { sources: [{ name: 'a', repo: 'acme/a', ref: '-x' }] },
+      }),
+    ).toThrow("it must not start with '-'");
+  });
+
+  test('a source name is a plain name: one that could be read as a flag is refused', () => {
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: '--only', repo: 'acme/a' }] } }),
+    ).toThrow('starting with a letter or a digit');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: 'a b', repo: 'acme/a' }] } }),
+    ).toThrow('starting with a letter or a digit');
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({
+        atlas: { sources: [{ name: 'ignis-2.core_x', repo: 'acme/a' }] },
+      }).atlas.sources[0]?.name,
+    ).toBe('ignis-2.core_x');
+  });
+
   test('a source defaults its ref to develop', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }] },
@@ -105,7 +173,7 @@ describe('package kind', () => {
     const base = {
       dir: 'merchant',
       name: '@nx-feature/merchant',
-      path: 'auroras/features/merchant',
+      path: 'frontends/features/merchant',
     };
 
     expect(
@@ -173,7 +241,7 @@ describe('package kind', () => {
         {
           dir: 'merchant',
           name: '@nx-feature/merchant',
-          path: 'auroras/features/merchant',
+          path: 'frontends/features/merchant',
           kind: 'lib',
         },
       ],
@@ -181,7 +249,7 @@ describe('package kind', () => {
 
     expect(ProjectPackages.resolve({ config })[0]).toMatchObject({
       kind: 'lib',
-      path: 'auroras/features/merchant',
+      path: 'frontends/features/merchant',
     });
   });
 });
@@ -259,6 +327,22 @@ describe('ProjectPackages.resolve', () => {
     expect(messages.join('; ')).toContain(`Unrecognized key: "${key}"`);
   });
 
+  test.each([
+    ['ci', { ci: { affected: { global: ['Makefile'] } } }],
+    ['hooks', { hooks: [{ event: 'Stop', command: 'echo done' }] }],
+    ['remoteHosts', { remoteHosts: { trusted: ['example.test'] } }],
+    ['syncAreas', { knowledge: { syncAreas: '.agents/knowledge/process/areas.md' } }],
+  ])(
+    '%s was removed: a config that still sets it is refused, with the key named',
+    (key, config) => {
+      const result = VULCAN_CONFIG_SCHEMA.safeParse(config);
+      const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
+
+      expect(result.success).toBe(false);
+      expect(messages.join('; ')).toContain(`Unrecognized key: "${key}"`);
+    },
+  );
+
   test('without packages the list is empty', () => {
     expect(ProjectPackages.resolve({ config: VULCAN_CONFIG_SCHEMA.parse({}) })).toEqual([]);
   });
@@ -282,22 +366,22 @@ describe('packages are keyed uniquely', () => {
   test('two packages whose directories share a name work when their keys and paths differ', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       packages: [
-        { dir: 'umbras-core', name: '@bana/umbras-core', path: 'umbras/core' },
-        { dir: 'kits-core', name: '@bana/kits-core', path: 'auroras/kits/core' },
+        { dir: 'backends-core', name: '@acme/backends-core', path: 'backends/core' },
+        { dir: 'kits-core', name: '@acme/kits-core', path: 'frontends/kits/core' },
       ],
     });
 
     expect(ProjectPackages.resolve({ config }).map((entry) => entry.path)).toEqual([
-      'umbras/core',
-      'auroras/kits/core',
+      'backends/core',
+      'frontends/kits/core',
     ]);
   });
 
   test('a repeated dir is an error that says dir is a key, not the directory name', () => {
     expect(
       messageOf([
-        { dir: 'core', name: '@bana/umbras-core', path: 'umbras/core' },
-        { dir: 'core', name: '@bana/kits-core', path: 'auroras/kits/core' },
+        { dir: 'core', name: '@acme/backends-core', path: 'backends/core' },
+        { dir: 'core', name: '@acme/kits-core', path: 'frontends/kits/core' },
       ]),
     ).toContain("packages: dir 'core' is used twice - dir is a unique key, not the directory name");
   });

@@ -4,6 +4,11 @@ import {
   formatDate,
   matchesFilter,
   parseEntry,
+  changelogPageData,
+  parseVersion,
+  plainText,
+  releasedOf,
+  sortVersions,
   sortEntries,
 } from '../../../docs/wiki/site/.vitepress/theme/shared/changelog-entries.ts';
 import { changelogFeed } from '../../../docs/wiki/site/.vitepress/theme/shared/changelog-feed.ts';
@@ -145,5 +150,180 @@ describe('changelogFeed', () => {
     expect(xml).toContain('<link>https://example.test/changelogs/2026-10-26-x</link>');
     expect(xml).toContain('<pubDate>Mon, 26 Oct 2026 12:00:00 GMT</pubDate>');
     expect(xml).toContain('<category>Security</category>');
+  });
+});
+
+describe('the version folders on the changelog index (A6, C15)', () => {
+  const version = (opts: { url?: string; released?: unknown; src?: string; packages?: string[] }) =>
+    parseVersion({
+      url: opts.url ?? '/changelogs/0.4.8/log',
+      frontmatter: {
+        title: '0.4.8',
+        packages: opts.packages ?? ['@x/core'],
+        ...(opts.released === undefined ? {} : { released: opts.released }),
+      },
+      src: opts.src ?? '---\ntitle: 0.4.8\n---\nThe line.\n\n## Added\n- **A** `a`: a.\n',
+    });
+
+  test('a version folder is read from its frontmatter and its first paragraph, whichever url the loader names it by', () => {
+    for (const url of ['/changelogs/0.4.8/log', '/changelogs/0.4.8', '/changelogs/0.4.8.html']) {
+      expect(version({ url, released: '2026-11-20' })).toMatchObject({
+        url: '/changelogs/0.4.8',
+        version: '0.4.8',
+        title: '0.4.8',
+        released: '2026-11-20',
+        summary: 'The line.',
+        packages: ['@x/core'],
+      });
+    }
+  });
+
+  test('an unquoted released: date, which the frontmatter parser reads as a Date, is the same day', () => {
+    expect(version({ released: new Date('2026-11-20T00:00:00Z') })?.released).toBe('2026-11-20');
+  });
+
+  test('no released: is a line in progress; one that is not a date is neither, and the page is not an entry', () => {
+    expect(version({})?.released).toBeNull();
+    expect(version({ released: 'soon' })).toBeNull();
+    expect(releasedOf(undefined)).toBeUndefined();
+    expect(releasedOf('soon')).toBeNull();
+  });
+
+  test('released: arrives as a Date, an ISO string from the page data, or a plain day: all the same day', () => {
+    expect(releasedOf(new Date('2026-11-20T00:00:00Z'))).toBe('2026-11-20');
+    expect(releasedOf('2026-11-20T00:00:00.000Z')).toBe('2026-11-20');
+    expect(releasedOf('2026-11-20')).toBe('2026-11-20');
+    expect(releasedOf('20 Nov')).toBeNull();
+  });
+
+  test('released: is the plain day and nothing else: text after it, a day the calendar lacks or an invalid Date is not a date', () => {
+    expect(releasedOf('2026-11-03junk')).toBeNull();
+    expect(releasedOf('2026-11-03T10:00:00Z')).toBeNull();
+    expect(releasedOf('2026-02-31')).toBeNull();
+    expect(releasedOf('2026-13-01')).toBeNull();
+    expect(releasedOf(new Date('nope'))).toBeNull();
+    expect(releasedOf(' 2026-11-03 ')).toBe('2026-11-03');
+  });
+
+  test('hasBreaking is true for a Breaking section and not for the word in a code fence or another heading', () => {
+    const src = (body: string) => `---\ntitle: x\n---\nThe line.\n\n${body}`;
+
+    expect(version({ src: src('## Breaking\n- **A** `a`: a.\n') })?.hasBreaking).toBe(true);
+    expect(version({ src: src('## Added\n- **A** `a`: a.\n') })?.hasBreaking).toBe(false);
+    expect(version({ src: src('## Added\n```md\n## Breaking\n```\n') })?.hasBreaking).toBe(false);
+    expect(version({ src: src('## Breaking changes later\n- x\n') })?.hasBreaking).toBe(false);
+  });
+
+  test('the summary is plain text, and a file with CRLF line ends reads the same', () => {
+    const crlf = version({
+      src: '---\r\ntitle: x\r\n---\r\nThe **line** has `code` and a [link](https://x.test).\r\n\r\n## Added\r\n- **A** `a`: a.\r\n',
+    });
+
+    expect(crlf?.summary).toBe('The line has code and a link.');
+    expect(plainText('A <b>tag</b> and _emphasis_ and **bold**')).toBe(
+      'A tag and emphasis and bold',
+    );
+  });
+
+  test('changelogPageData lays out the two pages of a version as plain pages and touches no other', () => {
+    const data = (relativePath: string) =>
+      changelogPageData({ pageData: { relativePath, frontmatter: { title: 'x' } } });
+
+    expect(data('changelogs/0.4.8.md')).toEqual({ frontmatter: { title: 'x', layout: 'page' } });
+    expect(data('changelogs/0.4.8/log.md')?.frontmatter.layout).toBe('page');
+    expect(data('changelogs/0.4.8/upgrade.md')).toEqual({
+      frontmatter: { title: 'x', layout: 'page' },
+      title: 'Upgrade to 0.4.8',
+    });
+    expect(data('changelogs/2026-11-01-a-thing.md')).toBeUndefined();
+    expect(data('guides/index.md')).toBeUndefined();
+  });
+
+  test('sortVersions orders by number, newest first', () => {
+    const entries = ['0.4.10', '0.4.6', '0.4.9', '0.4.8'].flatMap((name) => {
+      const entry = version({
+        url: `/changelogs/${name}/log`,
+        released: name === '0.4.10' ? undefined : '2026-11-01',
+      });
+
+      return entry === null ? [] : [entry];
+    });
+
+    expect(sortVersions(entries).map((entry) => entry.version)).toEqual([
+      '0.4.10',
+      '0.4.9',
+      '0.4.8',
+      '0.4.6',
+    ]);
+  });
+
+  test('the feed is one list by date: a released version and the dated entries are merged, a version first on its own day', () => {
+    const dated = (slug: string) =>
+      parseEntry({
+        url: `/changelogs/${slug}`,
+        frontmatter: { title: slug, description: 'D.', packages: [] },
+        src: '',
+      });
+    const released = version({ url: '/changelogs/0.4.7/log', released: '2026-11-10' });
+    const open = version({ url: '/changelogs/0.4.8/log' });
+    const entries = ['2026-11-12-newer', '2026-11-10-same-day', '2026-11-01-older'].flatMap(
+      (slug) => {
+        const entry = dated(slug);
+
+        return entry === null ? [] : [entry];
+      },
+    );
+    const feed = changelogFeed({
+      site: { title: 'T', description: 'D', siteUrl: 'https://x.test' },
+      entries,
+      versions: [released, open].flatMap((entry) => (entry === null ? [] : [entry])),
+    });
+    const order = [
+      '2026-11-12-newer',
+      'changelogs/0.4.7<',
+      '2026-11-10-same-day',
+      '2026-11-01-older',
+    ].map((needle) => feed.indexOf(needle));
+
+    expect(order.every((index) => index > 0)).toBe(true);
+    expect(order).toEqual([...order].sort((left, right) => left - right));
+    expect(feed).toContain('Tue, 10 Nov 2026 12:00:00 GMT');
+    expect(feed).not.toContain('changelogs/0.4.8');
+  });
+});
+
+describe('parseVersion: what a version box shows', () => {
+  const version = (opts: { frontmatter?: Record<string, unknown>; src: string }) =>
+    parseVersion({
+      url: '/changelogs/0.4.8/log',
+      frontmatter: { title: '0.4.8', packages: ['@a/kernel'], ...opts.frontmatter },
+      src: opts.src,
+    });
+  const SRC =
+    '---\ntitle: 0.4.8\n---\nThis release does things. It also does others.\n\n## Breaking\n- **A** `a-item` (`@a/kernel`): a.\n- **B** `b-item`: b.\n\n## Added\n- **C** `c-item`: c.\n';
+
+  test('the summary and the highlights are the frontmatter ones; the overview stays the opening paragraph', () => {
+    const parsed = version({
+      frontmatter: { summary: ' One sentence. ', highlights: ['First', ' Second ', '', 3] },
+      src: SRC,
+    });
+
+    expect(parsed?.summary).toBe('One sentence.');
+    expect(parsed?.highlights).toEqual(['First', 'Second']);
+    expect(parsed?.overview).toBe('This release does things. It also does others.');
+  });
+
+  test('without them the summary is the first sentence of the opening paragraph and there are no highlights', () => {
+    const parsed = version({ src: SRC });
+
+    expect(parsed?.summary).toBe('This release does things.');
+    expect(parsed?.highlights).toEqual([]);
+  });
+
+  test('the counts are per section, in the order of the sections', () => {
+    expect(version({ src: SRC })?.counts).toEqual([
+      ['Breaking', 2],
+      ['Added', 1],
+    ]);
   });
 });

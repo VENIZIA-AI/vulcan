@@ -4,4 +4,9 @@ export class RecordValue {
   static isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
+
+  /** The value when it is a string, else the empty string. */
+  static textOf(opts: { value: unknown }): string {
+    return typeof opts.value === 'string' ? opts.value : '';
+  }
 }

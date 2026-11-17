@@ -23,7 +23,7 @@ const DESCRIPTION =
 
 const INPUT_JSON_SCHEMA = z.toJSONSchema(PresetsInputSchema);
 
-const ADD = 'bun x --no-install vulcan add';
+const ADD = 'bun node_modules/.bin/vulcan add';
 const NO_HAND_WRITING = 'do not hand-write package.json, tsconfig or scripts';
 
 interface IPresetEntry {

@@ -427,7 +427,7 @@ export class WorkspaceDocs {
     ].join('\n');
   }
 
-  static renderVulcanConfig(opts: { project: string; block: IAppsBlock }): string {
+  static renderVulcanConfig(opts: { project: string; key: string; block: IAppsBlock }): string {
     return [
       "import type { VulcanConfig } from '@venizia/vulcan';",
       '',
@@ -435,6 +435,7 @@ export class WorkspaceDocs {
       '',
       'export default {',
       `  name: '${opts.project}',`,
+      `  project: { key: '${opts.key}' },`,
       "  rules: { 'V-W-01': 'on-user-word' },",
       '  layout: apps.layout,',
       '  packages: apps.packages,',

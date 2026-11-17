@@ -7,6 +7,7 @@ export const NO_TTY_HINT = `vulcan sync: no agents chosen on this machine - wrot
 
 type TParsed = { ok: true; agents: string[] } | { ok: false; error: string };
 
+/** Parses and resolves the list of agent tools a project targets, from the flag, the config or a prompt; used by `vulcan agents`, `vulcan sync` and `vulcan doctor`. */
 export class AgentSelection {
   private static fromList(opts: {
     value: string;

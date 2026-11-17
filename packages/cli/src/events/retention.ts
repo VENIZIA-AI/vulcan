@@ -4,8 +4,6 @@ import { EventConstants, EventSizeUnits } from './common/index.ts';
 import type { IEventLimits, IEventSettings } from './common/index.ts';
 import { EventLog } from './log.ts';
 
-const DAY_FILE = /^(\d{4}-\d{2}-\d{2})\.jsonl$/;
-
 export interface IRetentionFile {
   name: string;
   bytes: number;
@@ -80,7 +78,7 @@ export class EventRetention {
 
     const files = names
       .flatMap((name) => {
-        const day = DAY_FILE.exec(name)?.[1];
+        const day = EventConstants.DAY_FILE.exec(name)?.[1];
 
         return day === undefined
           ? []
@@ -141,7 +139,7 @@ export class EventRetention {
 
   /** Whether `name` is a day file of the log: `yyyy-mm-dd.jsonl`. */
   static isDayFile(opts: { name: string }): boolean {
-    return DAY_FILE.test(opts.name);
+    return EventConstants.DAY_FILE.test(opts.name);
   }
 
   /** Removes the files of a plan; returns what went. A file that cannot be removed is left and not counted. */

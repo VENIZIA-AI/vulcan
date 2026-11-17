@@ -9,8 +9,9 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { AtlasTimeouts } from '@/common/constants';
+import { AtlasLimits, BoundedBody } from '@/common/limits';
 import { PackageEntries } from '@/common/package-entries';
 import { ProjectConfig } from '@/common/project-config';
 import type { IAtlasProject } from '@/common/project-config';
@@ -18,7 +19,7 @@ import type { ISymbolRecord } from './common';
 import { AtlasSymbols } from './generator';
 
 /** The cache layout this atlas reads and writes (V2); a cache from another layout is never read. */
-const SYMBOLS_SCHEMA_VERSION = 1;
+const SYMBOLS_SCHEMA_VERSION = 2;
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 /** The characters a semver version is spelled with - never a `/`. */
 const CACHEABLE_VERSION = /^[0-9A-Za-z.+-]+$/;
@@ -67,6 +68,8 @@ const writeCache = (opts: {
 };
 
 const DECLARATIONS = new Bun.Glob('**/*.d.{ts,mts,cts}');
+const TYPESCRIPT = new Bun.Glob('**/*.{ts,mts,cts}');
+const DECLARATION_FILE = /\.d\.[cm]?ts$/;
 
 export class SymbolCompute {
   /** The cached symbols of `name@version`, or `undefined` when no pull or install has read them yet. */
@@ -146,8 +149,16 @@ export class SymbolCompute {
     try {
       const tarball = join(work, 'package.tgz');
 
-      const result = await response.arrayBuffer();
-      writeFileSync(tarball, new Uint8Array(result));
+      const cap = AtlasLimits.downloadBytes();
+      const result = await BoundedBody.read({ response, cap });
+
+      if (result === undefined) {
+        throw new Error(
+          `atlas: the npm tarball of ${opts.name}@${opts.version} is over atlas.limits.download (${cap} bytes) - raise it in the vulcan config if the package is meant to be that large`,
+        );
+      }
+
+      writeFileSync(tarball, result);
 
       const unpacked = spawnSync('tar', ['-xzf', tarball, '-C', work], { encoding: 'utf8' });
 
@@ -165,14 +176,32 @@ export class SymbolCompute {
   }
 
   /**
-   * Repo mode's dist fingerprint (D2): how many declaration files the live packages hold, the newest
-   * mtime and the total size. A rebuild moves it - a changed signature changes the size or the mtime -
-   * so the symbol store reads the declarations again instead of serving the last build until a restart.
+   * Repo mode's fingerprint (D2): how many declaration files the live packages hold, and for a package that
+   * publishes its TypeScript source, how many `.ts` files sit below each source entry's folder, with the newest
+   * mtime and the total size of them all. A rebuild or an edit moves it - a changed signature changes the size
+   * or the mtime - so the symbol store reads the exports again instead of serving the last read until a restart.
    */
   static declarationsFingerprintOf(opts: { project: IAtlasProject }): string {
     let count = 0;
     let newestMtimeMs = 0;
     let totalBytes = 0;
+    const scan = (folder: string, glob: Bun.Glob): void => {
+      if (!existsSync(folder)) {
+        return;
+      }
+
+      for (const relativePath of glob.scanSync({ cwd: folder })) {
+        if (relativePath.split('/').includes('node_modules')) {
+          continue;
+        }
+
+        const { mtimeMs, size } = statSync(join(folder, relativePath));
+
+        count += 1;
+        newestMtimeMs = Math.max(newestMtimeMs, mtimeMs);
+        totalBytes += size;
+      }
+    };
 
     for (const entry of opts.project.packages.filter((item) => !item.retired)) {
       const directory = join(opts.project.root, entry.path);
@@ -181,16 +210,15 @@ export class SymbolCompute {
         continue;
       }
 
-      for (const relativePath of DECLARATIONS.scanSync({ cwd: directory })) {
-        if (relativePath.split('/').includes('node_modules')) {
-          continue;
+      scan(directory, DECLARATIONS);
+
+      if (existsSync(join(directory, 'package.json'))) {
+        const { entries } = PackageEntries.readDirectory({ directory, withSource: true });
+        const sources = entries.filter((item) => !DECLARATION_FILE.test(item.file));
+
+        for (const folder of new Set(sources.map((item) => dirname(item.file)))) {
+          scan(folder, TYPESCRIPT);
         }
-
-        const { mtimeMs, size } = statSync(join(directory, relativePath));
-
-        count += 1;
-        newestMtimeMs = Math.max(newestMtimeMs, mtimeMs);
-        totalBytes += size;
       }
     }
 
@@ -198,7 +226,11 @@ export class SymbolCompute {
   }
 
   /** Repo mode: the project's own live packages, read from their built declarations - never cached. */
-  static symbolsOfRepository(opts: { project: IAtlasProject }): ISymbolRecord[] {
+  static symbolsOfRepository(opts: {
+    project: IAtlasProject;
+    /** Read an entry that points at a TypeScript source too: its records have a doc and a signature, no declaration text. */
+    withSource?: boolean;
+  }): ISymbolRecord[] {
     const packages = opts.project.packages
       .filter(
         (entry) =>
@@ -208,6 +240,7 @@ export class SymbolCompute {
         PackageEntries.readDirectory({
           directory: join(opts.project.root, entry.path),
           name: entry.dir,
+          withSource: opts.withSource,
         }),
       );
 

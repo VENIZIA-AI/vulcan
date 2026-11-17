@@ -8,6 +8,8 @@ const OWNER = 'owner.json';
 /** Longer than any pull runs under git's and the downloads' own bounds: past it, a holder is dead. */
 const STALE_AFTER_MS = 10 * 60_000;
 const WAIT_MS = 10 * 60_000;
+/** The folder beside the lock that only one waiter at a time holds while it removes a stale lock. */
+const REAP_SUFFIX = '.reap';
 const POLL_MS = 100;
 
 interface ILockOwner {
@@ -71,7 +73,7 @@ const isStale = (opts: { lock: string }): boolean => {
   return age !== undefined && age > STALE_AFTER_MS;
 };
 
-/** Takes the lock - an exclusive `mkdir` - or says it is held. */
+/** Takes the lock - an exclusive `mkdir` - or says it is held. The reap guard is taken the same way. */
 const tryAcquire = (opts: { lock: string; token: string }): boolean => {
   try {
     mkdirSync(opts.lock);
@@ -88,6 +90,42 @@ const tryAcquire = (opts: { lock: string; token: string }): boolean => {
   writeFileSync(join(opts.lock, OWNER), JSON.stringify(owner));
 
   return true;
+};
+
+/**
+ * Removes a stale lock, and says whether it did. Waiters that judged the same dead holder meet here one at a time:
+ * each judges again under the guard, so a late one finds the lock gone or held by a live pull and removes nothing.
+ * The guard carries its holder's token: a waiter whose guard was taken from it removes nothing, and removes no guard
+ * but its own.
+ */
+const reap = (opts: { lock: string; token: string }): boolean => {
+  const guard = `${opts.lock}${REAP_SUFFIX}`;
+  const holdsGuard = (): boolean => ownerOf({ lock: guard })?.token === opts.token;
+
+  if (!tryAcquire({ lock: guard, token: opts.token })) {
+    if (isStale({ lock: guard })) {
+      // SHORTCUT: a dead holder's guard is removed by path under the lock's own staleness rule (pid gone, or 10 minutes
+      // old), because a second rule costs more than the window it closes; two waiters finding it at once can remove a fresh
+      // one, and an ownerless guard or a reused pid only delays a takeover. Revisit if a lock is removed under a live pull.
+      rmSync(guard, { recursive: true, force: true });
+    }
+
+    return false;
+  }
+
+  try {
+    if (!isStale({ lock: opts.lock }) || !holdsGuard()) {
+      return false;
+    }
+
+    rmSync(opts.lock, { recursive: true, force: true });
+
+    return true;
+  } finally {
+    if (holdsGuard()) {
+      rmSync(guard, { recursive: true, force: true });
+    }
+  }
 };
 
 export class PullLock {
@@ -120,9 +158,8 @@ export class PullLock {
     mkdirSync(opts.cacheRoot, { recursive: true });
 
     while (!tryAcquire({ lock, token })) {
-      if (isStale({ lock })) {
+      if (isStale({ lock }) && reap({ lock, token })) {
         logger.warn(`took over a lock a dead pull left | lock: ${lock}`);
-        rmSync(lock, { recursive: true, force: true });
         continue;
       }
 

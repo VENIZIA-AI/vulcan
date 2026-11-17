@@ -9,17 +9,20 @@ Which coding agents you use is your choice on your machine, stored in `.agents/v
 
 | Command | What it does |
 |---|---|
-| `vulcan agents` or `vulcan agents list` | Prints the agents chosen on this machine, the ones it detected, and the table of every agent with the MCP file and skills folder it reads. Writes nothing |
+| `vulcan agents` or `vulcan agents list` | Prints the chosen and detected agents and a table of every agent. Writes nothing |
 | `vulcan agents add pi,cursor` | Adds to the stored list and writes the adapters of the new agents |
 | `vulcan agents remove cursor` | Removes from the list and takes back what `sync` created for that agent |
-| `vulcan agents setup` | Asks again as a checkbox menu with your earlier choice ticked (`chosen before`); Enter keeps it, space ticks or unticks, nothing ticked is `none`. A plain terminal takes a typed list instead. Needs a terminal |
+| `vulcan agents setup` | Asks again as a checkbox menu. Needs a terminal |
+
+- `vulcan agents list` prints the agents chosen on this machine, the ones it detected, and the table of every agent with the MCP file and skills folder it reads.
+- `vulcan agents setup` shows your earlier choice ticked (`chosen before`). Enter keeps it, space ticks or unticks, nothing ticked is `none`. A plain terminal takes a typed list instead.
 
 `--dry-run` prints what would change and writes nothing. The ids are `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity` and `pi`; an unknown id is refused, and so is `none` for `add` and `remove` (use `sync --agents none` for an empty list).
 
 `vulcan agents` shows what is chosen and what exists. The `detected` line lists what this machine has, so yours differs:
 
 ```text
-$ bun x --no-install vulcan agents
+$ bun node_modules/.bin/vulcan agents
 chosen on this machine: claude
 detected: claude, omp, codex, copilot-vscode
 claude          Claude Code          MCP .mcp.json                  skills .claude/skills
@@ -35,18 +38,24 @@ pi              Pi                   MCP .pi/mcp.json               skills .agen
 Adding an agent writes its adapters and prints one line per file (a file that did not change is `unchanged`):
 
 ```text
-$ bun x --no-install vulcan agents add pi
+$ bun node_modules/.bin/vulcan agents add pi
   unchanged CLAUDE.md
   unchanged .claude/settings.json
   unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
-  unchanged .claude/skills/knowledge-sync
+  unchanged .claude/skills/fix-a-bug
+  unchanged .claude/skills/plan-a-change
+  unchanged .claude/skills/report-back
+  unchanged .claude/skills/research
+  unchanged .claude/skills/retro
+  unchanged .claude/skills/review-a-change
+  unchanged .claude/skills/ship
+  unchanged .claude/skills/visualize-work
   unchanged .mcp.json
   created   .agents/skills/build-a-feature
   created   .agents/skills/docs-update
   created   .agents/skills/docs-writing
-  created   .agents/skills/knowledge-sync
   created   .pi/mcp.json
   unchanged .agents/vulcan.manifest.json
   unchanged AGENTS.md
@@ -58,10 +67,9 @@ $ bun x --no-install vulcan agents add pi
 Removing it takes back what `sync` made for it:
 
 ```text
-$ bun x --no-install vulcan agents remove pi
+$ bun node_modules/.bin/vulcan agents remove pi
   removed   .pi/mcp.json
   removed   .agents/skills/docs-writing
-  removed   .agents/skills/knowledge-sync
   removed   .agents/skills/build-a-feature
   removed   .agents/skills/docs-update
   unchanged CLAUDE.md
@@ -69,7 +77,14 @@ $ bun x --no-install vulcan agents remove pi
   unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
-  unchanged .claude/skills/knowledge-sync
+  unchanged .claude/skills/fix-a-bug
+  unchanged .claude/skills/plan-a-change
+  unchanged .claude/skills/report-back
+  unchanged .claude/skills/research
+  unchanged .claude/skills/retro
+  unchanged .claude/skills/review-a-change
+  unchanged .claude/skills/ship
+  unchanged .claude/skills/visualize-work
   unchanged .mcp.json
   unchanged .agents/vulcan.manifest.json
   unchanged AGENTS.md
@@ -80,7 +95,7 @@ $ bun x --no-install vulcan agents remove pi
 An agent that is already chosen (`add`) or not chosen (`remove`) is named on stderr, nothing else happens and the exit code is `0`: `vulcan agents: already chosen: pi`. An id that does not exist exits `1`:
 
 ```text
-$ bun x --no-install vulcan agents add nope
+$ bun node_modules/.bin/vulcan agents add nope
 vulcan agents: unknown agent 'nope' - one of: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
 ```
 
@@ -90,10 +105,13 @@ Only what `sync` created for that agent, and only while it is still what `sync` 
 
 | Created for the agent | On remove |
 |---|---|
-| A MCP file that holds only the atlas entry (`.cursor/mcp.json`, `.pi/mcp.json`, `.agents/mcp_config.json`, `.vscode/mcp.json`) | Deleted, and its folder when it is left empty |
-| The root `.mcp.json` of Claude Code, omp and Copilot CLI, when no remaining agent reads it | The atlas entry is taken out; the file is deleted if nothing else is in it. A tracked file is left (`skipped   .mcp.json (tracked by git - left alone)`) |
+| A MCP file that holds only the atlas entry (see below) | Deleted, and its folder when it is left empty |
+| The root `.mcp.json` of Claude Code, omp and Copilot CLI, when no remaining agent reads it | The atlas entry is taken out; the file is deleted if nothing else is in it (see below) |
 | The atlas entry merged into a file that has your servers or keys | The atlas key is taken out, the rest stays |
 | The block between `# vulcan:atlas:start` and `# vulcan:atlas:end` in `.codex/config.toml` | The block is taken out; the file is deleted if nothing else is in it |
+
+- MCP files that hold only the atlas entry: `.cursor/mcp.json`, `.pi/mcp.json`, `.agents/mcp_config.json`, `.vscode/mcp.json`.
+- A tracked `.mcp.json` is left: `skipped   .mcp.json (tracked by git - left alone)`.
 | The shipped-skill links in `.agents/skills` | Removed unless another chosen agent reads the same folder; your own skills are never touched |
 | `CLAUDE.md`, the settings `sync` wrote in `.claude/settings.json`, the links in `.claude/skills` | The shim is deleted only if it is the single line `@AGENTS.md`; your own keys in the settings stay |
 | The agent's lines in `.git/info/exclude` | Dropped when the block is rewritten |

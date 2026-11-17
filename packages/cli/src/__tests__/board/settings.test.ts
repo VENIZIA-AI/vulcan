@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, symlinkSync } from 'node:fs';
+import { join } from 'node:path';
 import { BoardSettings } from '../../board/settings.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
@@ -108,7 +109,10 @@ describe('BoardSettings.resolve', () => {
     ]) {
       const settings = BoardSettings.resolve({ manifest, gitUser: undefined, readLogo: none });
 
-      expect(JSON.stringify(settings)).not.toMatch(/venizia|phát|ignis|ardor/i);
+      // The address of `board serve` carries the product's own name (VULCAN's default); what the page says does not.
+      expect(JSON.stringify({ ...settings, hostname: '' })).not.toMatch(
+        /venizia|phát|ignis|ardor/i,
+      );
       expect(settings.logo).toBeUndefined();
     }
   });
@@ -179,6 +183,75 @@ describe('BoardSettings.read', () => {
     }
   });
 
+  test('a path that is absolute or climbs out of the project is no logo, even when the file is an svg', () => {
+    const outside = project({ manifest: {}, files: { 'l.svg': SVG } });
+    const paths = [
+      join(outside, 'l.svg'),
+      `../${outside.split('/').at(-1)}/l.svg`,
+      'a/../../l.svg',
+    ];
+
+    for (const path of paths) {
+      const settings = BoardSettings.read({
+        root: project({ manifest: { board: { logo: path } } }),
+      });
+
+      expect(settings.logo, path).toBeUndefined();
+      expect(settings.notes, path).toHaveLength(1);
+    }
+  });
+
+  test('a path without the .svg suffix is no logo, whatever the file holds', () => {
+    const root = project({
+      manifest: { board: { logo: 'notes.html' } },
+      files: { 'notes.html': SVG },
+    });
+
+    expect(BoardSettings.read({ root }).logo).toBeUndefined();
+  });
+
+  test('a link to a file outside the project is no logo, and a link to a folder outside is none either', () => {
+    const outside = project({ manifest: {}, files: { 'secret.svg': SVG, 'dir/inner.svg': SVG } });
+    const root = project({ manifest: { board: { logo: 'link.svg' } } });
+
+    symlinkSync(join(outside, 'secret.svg'), join(root, 'link.svg'));
+    symlinkSync(join(outside, 'dir'), join(root, 'linked-dir'));
+
+    expect(BoardSettings.read({ root }).logo).toBeUndefined();
+
+    const viaFolder = project({ manifest: { board: { logo: 'linked-dir/inner.svg' } } });
+
+    symlinkSync(join(outside, 'dir'), join(viaFolder, 'linked-dir'));
+
+    expect(BoardSettings.read({ root: viaFolder }).logo).toBeUndefined();
+  });
+
+  test('a link to a file inside the project is read, and so is a project reached through a link', () => {
+    const root = project({
+      manifest: { board: { logo: 'brand/current.svg' } },
+      files: { 'assets/logo.svg': SVG },
+    });
+
+    mkdirSync(join(root, 'brand'), { recursive: true });
+    symlinkSync(join(root, 'assets/logo.svg'), join(root, 'brand/current.svg'));
+
+    const expected = `data:image/svg+xml;base64,${Buffer.from(SVG).toString('base64')}`;
+    const parent = project({ manifest: {} });
+
+    symlinkSync(root, join(parent, 'checkout'));
+
+    expect(BoardSettings.read({ root }).logo).toBe(expected);
+    expect(BoardSettings.read({ root: join(parent, 'checkout') }).logo).toBe(expected);
+  });
+
+  test('a link that points nowhere is no logo, not a crash', () => {
+    const root = project({ manifest: { board: { logo: 'gone.svg' } } });
+
+    symlinkSync(join(root, 'missing.svg'), join(root, 'gone.svg'));
+
+    expect(BoardSettings.read({ root }).logo).toBeUndefined();
+  });
+
   test('the owner is git user.name of the project when the manifest has none', () => {
     const root = project({ manifest: { name: 'Acme' } });
 
@@ -226,5 +299,185 @@ describe('vulcan board uses the settings', () => {
       shapes: { 'pnt-api-1': 'flame' },
     });
     expect(data.logo).toStartWith('data:image/svg+xml;base64,');
+  });
+});
+
+describe('board.agents: a face, or { shape?, lane? }', () => {
+  const agents = (value: unknown) => parse({ agents: value });
+  const messageOf = (result: ReturnType<typeof parse>): string =>
+    result.success ? '' : result.error.message;
+
+  test('a face, an object with a shape, a lane, both, or nothing is accepted', () => {
+    expect(
+      agents({
+        alpha: 'ember',
+        beta: { shape: 'flame' },
+        gamma: {},
+        'pnt-alpha-1': { lane: 'alpha' },
+        'pnt-beta-1': { shape: 'bun', lane: 'beta' },
+      }).success,
+    ).toBe(true);
+  });
+
+  test('a lane must name a listed key', () => {
+    const result = agents({ alpha: 'ember', 'pnt-x-1': { lane: 'nobody' } });
+
+    expect(result.success).toBe(false);
+    expect(messageOf(result)).toContain("lane 'nobody' of 'pnt-x-1' is not a key of board.agents");
+  });
+
+  test('no chain: a lane cannot itself have a lane', () => {
+    const result = agents({ alpha: 'ember', a: { lane: 'alpha' }, b: { lane: 'a' } });
+
+    expect(result.success).toBe(false);
+    expect(messageOf(result)).toContain("lane 'a' of 'b' has a lane of its own");
+  });
+
+  test('no cycle: two keys that name each other, and a key that names itself', () => {
+    expect(messageOf(agents({ a: { lane: 'b' }, b: { lane: 'a' } }))).toContain(
+      'has a lane of its own',
+    );
+    expect(messageOf(agents({ a: 'bun', b: { lane: 'b' } }))).toContain(
+      "'b' cannot be its own lane",
+    );
+  });
+
+  test('a bad face, an empty lane and an unknown key of the object are refused', () => {
+    expect(agents({ a: { shape: 'dragon' } }).success).toBe(false);
+    expect(agents({ a: 'bun', b: { lane: '' } }).success).toBe(false);
+    expect(agents({ a: { colour: 'red' } }).success).toBe(false);
+  });
+
+  test('the manifest carries the values as written', () => {
+    const board = { agents: { alpha: 'ember', 'pnt-alpha-1': { lane: 'alpha' } } };
+    const manifest = JSON.parse(
+      ProjectManifest.render({
+        root: createProject({ files: {} }),
+        config: VULCAN_CONFIG_SCHEMA.parse({ board }),
+      }),
+    );
+
+    expect(manifest.board).toEqual(board);
+  });
+});
+
+describe('BoardSettings.resolve: the roster and the lanes', () => {
+  const resolve = (agents: unknown) =>
+    BoardSettings.resolve({
+      manifest: { name: 'Acme', board: { agents } },
+      gitUser: undefined,
+      readLogo: () => undefined,
+    });
+
+  test('nothing listed: no roster, so everyone shows as before', () => {
+    expect(resolve({})).toMatchObject({ roster: [], lanes: {}, shapes: {} });
+    expect(resolve(undefined)).toMatchObject({ roster: [], lanes: {}, shapes: {} });
+  });
+
+  test('the listed keys without a lane are the roster; a lane maps a helper to its lane', () => {
+    expect(
+      resolve({
+        alpha: 'ember',
+        beta: { shape: 'flame' },
+        gamma: {},
+        'pnt-alpha-1': { lane: 'alpha' },
+        'pnt-beta-1': { shape: 'rock', lane: 'beta' },
+      }),
+    ).toMatchObject({
+      roster: ['alpha', 'beta', 'gamma'],
+      lanes: { 'pnt-alpha-1': 'alpha', 'pnt-beta-1': 'beta' },
+      shapes: { alpha: 'ember', beta: 'flame', 'pnt-beta-1': 'rock' },
+    });
+  });
+
+  test('a lane the manifest cannot honour: no agents are used, and one note says why', () => {
+    const settings = resolve({ alpha: 'ember', a: { lane: 'nobody' } });
+
+    expect(settings).toMatchObject({ roster: [], lanes: {}, shapes: {} });
+    expect(settings.notes).toEqual([
+      "board.agents is not used: lane 'nobody' of 'a' is not a key of board.agents",
+    ]);
+  });
+
+  test('a value that is not a face or an object is skipped; the others are kept', () => {
+    expect(resolve({ a: 'flame', b: 'dragon', c: 3, d: { lane: 'a' } })).toMatchObject({
+      roster: ['a'],
+      lanes: { d: 'a' },
+      shapes: { a: 'flame' },
+    });
+  });
+});
+
+describe('BoardSettings.read: the git user', () => {
+  test('is the one readGitUser gives, asked once per read, and git is not asked', () => {
+    const root = createProject({ files: { '.agents/vulcan.manifest.json': '{}' } });
+    let asked = 0;
+    const settings = BoardSettings.read({
+      root,
+      readGitUser: () => {
+        asked++;
+
+        return 'Ana From Caller';
+      },
+    });
+
+    expect(settings.owner).toBe('Ana From Caller');
+    expect(asked).toBe(1);
+  });
+});
+
+describe('board.hostname: the name of the address of board serve', () => {
+  const hostnameOf = (hostname: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ board: { hostname } });
+
+  test.each(['my-board.localhost', 'board.acme.localhost', 'a.localhost', 'a1-b2.c3.localhost'])(
+    '%s is accepted',
+    (name) => {
+      expect(hostnameOf(name).success).toBe(true);
+    },
+  );
+
+  test.each([
+    'example.com',
+    'localhost',
+    'evil.localhost.com',
+    'localhost.evil.com',
+    'My-Board.localhost',
+    'x.localhost:4000',
+    'x.localhost/path',
+    'user@x.localhost',
+    '-a.localhost',
+    'a-.localhost',
+    'a_b.localhost',
+    'a..localhost',
+    '.localhost',
+    '',
+    5,
+  ])('%p is refused', (name) => {
+    expect(hostnameOf(name).success).toBe(false);
+  });
+
+  test('the manifest carries it only when it is set', () => {
+    const manifestOf = (board: unknown) =>
+      JSON.parse(
+        ProjectManifest.render({
+          root: createProject({ files: {} }),
+          config: VULCAN_CONFIG_SCHEMA.parse({ board }),
+        }),
+      );
+
+    expect(manifestOf({ hostname: 'my-board.localhost' }).board).toEqual({
+      hostname: 'my-board.localhost',
+    });
+    expect(manifestOf({ owner: 'Ana' }).board).toEqual({ owner: 'Ana' });
+  });
+
+  test('the default when nothing valid is set: the product name; a project name when it is', () => {
+    const resolve = (manifest: unknown) =>
+      BoardSettings.resolve({ manifest, gitUser: undefined, readLogo: () => undefined }).hostname;
+
+    expect(resolve({})).toBe('vulz-board.venizia.ai.localhost');
+    expect(resolve({ board: { hostname: 'my-board.localhost' } })).toBe('my-board.localhost');
+    expect(resolve({ board: { hostname: 'example.com' } })).toBe('vulz-board.venizia.ai.localhost');
+    expect(resolve({ board: { hostname: 5 } })).toBe('vulz-board.venizia.ai.localhost');
   });
 });

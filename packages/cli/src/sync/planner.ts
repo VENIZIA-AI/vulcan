@@ -79,15 +79,6 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
     }
   }
 
-  if (opts.config.remoteHosts !== undefined) {
-    overlay = ProjectSettings.merge({
-      base: overlay,
-      overlay: JSON.parse(
-        readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.REMOTE_HOSTS_FILE), 'utf8'),
-      ),
-    });
-  }
-
   if (opts.config.commit.message.agent.signature === AgentSignaturePolicies.DENY) {
     overlay = ProjectSettings.merge({
       base: overlay,
@@ -105,11 +96,6 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
       ),
     });
   }
-
-  overlay = ProjectSettings.merge({
-    base: overlay,
-    overlay: ProjectSettings.buildHook({ hooks: opts.config.hooks }),
-  });
 
   return ProjectSettings.merge({ base: overlay, overlay: opts.config.claude.settings });
 };
@@ -151,7 +137,7 @@ const planSettings = (opts: { root: string; config: TResolvedConfig }): ISyncAct
   return {
     path,
     status: before === undefined ? SyncStatuses.CREATED : SyncStatuses.REPLACED,
-    note: 'shipped, slot, project hooks and claude.settings over personal keys',
+    note: 'shipped, slot and claude.settings over personal keys',
     apply: () => {
       mkdirSync(directory, { recursive: true });
       writeFileSync(path, text);
@@ -287,6 +273,7 @@ const skillDirectoriesOf = (opts: { agents: string[] }): string[] => [
   ),
 ];
 
+/** Plans the files `vulcan sync` writes, as a list of actions, without touching disk; also used by `vulcan doctor` to find drift. */
 export class SyncPlanner {
   /** The committed project manifest (Project Contract v1, C1), rendered from the config. */
   static planManifest(opts: { root: string; config: TResolvedConfig }): ISyncAction {

@@ -14,10 +14,10 @@ const text = (opts: { value: unknown }): string =>
 export class EventHook {
   /**
    * The event a payload stands for, or `undefined` when the payload is not one to log. Only these fields are
-   * read: `source` and `model` of a session start, `stop_hook_active` of a stop, `agent_type` and `agent_id` of a
-   * subagent stop, `notification_type` and `title` of a notification, and `to` and `summary` of a SendMessage
-   * call (its first line, only when the sender gave no summary). `last_assistant_message`, `message`,
-   * `tool_response` and every command stay unread.
+   * read: `source` and `model` of a session start, `agent_type` and `agent_id` of a subagent stop,
+   * `notification_type` and `title` of a notification, and `to` and `summary` of a SendMessage call (the label the
+   * sender gave it, or a fixed one). A turn that ends and a tool that is used are not events.
+   * `last_assistant_message`, the text of a message, `tool_response`, `tool_input` and every command stay unread.
    */
   static map(opts: { input: unknown }): IHookEvent | undefined {
     const { input } = opts;
@@ -28,18 +28,13 @@ export class EventHook {
 
     switch (input.hook_event_name) {
       case ClaudeHookEvents.SESSION_START: {
+        const model = text({ value: input.model });
+
         return {
           kind: EventKinds.SESSION_START,
-          summary: [text({ value: input.source }), text({ value: input.model })]
-            .filter((word) => word !== '')
-            .join(' '),
+          summary: [text({ value: input.source }), model].filter((word) => word !== '').join(' '),
+          ...(model === '' ? {} : { model }),
         };
-      }
-
-      case ClaudeHookEvents.STOP: {
-        return input.stop_hook_active === true
-          ? undefined
-          : { kind: EventKinds.SESSION_STOP, summary: 'turn ended' };
       }
 
       case ClaudeHookEvents.SUBAGENT_STOP: {
@@ -55,7 +50,11 @@ export class EventHook {
         const type = text({ value: input.notification_type });
 
         return ClaudeHookEvents.OWNER_NOTIFICATIONS.has(type)
-          ? { kind: EventKinds.NEEDS_OWNER, summary: text({ value: input.title }) || type }
+          ? {
+              kind: EventKinds.NEEDS_OWNER,
+              summary: text({ value: input.title }) || type,
+              notification: type,
+            }
           : undefined;
       }
 
@@ -153,6 +152,8 @@ export class EventHook {
       source: EventSources.CLAUDE_HOOK,
       ...(flowId === undefined ? {} : { flowId }),
       ...(mapped.ref === undefined ? {} : { ref: mapped.ref }),
+      ...(mapped.notification === undefined ? {} : { notification: mapped.notification }),
+      ...(mapped.model === undefined ? {} : { model: mapped.model }),
       ...(opts.now === undefined ? {} : { now: opts.now }),
     });
 

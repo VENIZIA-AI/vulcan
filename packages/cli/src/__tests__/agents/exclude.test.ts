@@ -6,7 +6,7 @@ const EXCLUDE_BLOCK_START =
 const EXCLUDE_BLOCK_END = '# vulcan:end';
 
 describe('AgentExclude.excludePathsOf', () => {
-  const SKILLS = ['build-a-feature', 'docs-update', 'docs-writing', 'knowledge-sync'];
+  const SKILLS = ['build-a-feature', 'docs-update', 'docs-writing', 'research'];
 
   test('always lists the local choice file', () => {
     expect(
@@ -73,7 +73,7 @@ describe('AgentExclude.excludePathsOf', () => {
       '/.agents/skills/build-a-feature',
       '/.agents/skills/docs-update',
       '/.agents/skills/docs-writing',
-      '/.agents/skills/knowledge-sync',
+      '/.agents/skills/research',
     ]);
   });
 

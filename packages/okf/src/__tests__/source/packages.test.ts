@@ -15,8 +15,8 @@ const useApp = (opts: { okf?: object }): void => {
     config: {
       packages: [
         { dir: 'web', name: '@nx/web', path: 'apps/web', aliases: [], retired: false },
-        { dir: 'kit', name: '@nx/kit', path: 'umbras/kit', aliases: [], retired: false },
-        { dir: 'gone', name: '@nx/gone', path: 'umbras/gone', aliases: [], retired: true },
+        { dir: 'kit', name: '@nx/kit', path: 'backends/kit', aliases: [], retired: false },
+        { dir: 'gone', name: '@nx/gone', path: 'backends/gone', aliases: [], retired: true },
       ],
       knowledge: { bundle: 'docs/knowledge' },
       okf: opts.okf ?? {},
@@ -28,7 +28,7 @@ test('the configured live packages, by directory name, wherever they live', () =
   useApp({});
 
   expect(SourceScanner.listPackages()).toEqual([
-    { dir: 'kit', path: join(APP, 'umbras/kit') },
+    { dir: 'kit', path: join(APP, 'backends/kit') },
     { dir: 'web', path: join(APP, 'apps/web') },
   ]);
 });

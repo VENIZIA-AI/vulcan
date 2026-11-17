@@ -15,7 +15,7 @@ ROOT_DIR="$(git rev-parse --show-toplevel)"
 cd "$ROOT_DIR"
 
 echo "pre-commit: vulcan doctor"
-bun x --no-install vulcan doctor
+bun node_modules/.bin/vulcan doctor
 
 echo "pre-commit: lint all packages"
 make lint-all

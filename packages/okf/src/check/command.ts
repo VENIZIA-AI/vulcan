@@ -5,6 +5,7 @@ import { OkfProject } from '../project/index.ts';
 import { IssueSeverities, OkfVersions, BundleConformance } from '../spec/index.ts';
 import type { IBundleFile, IConformanceIssue } from '../spec/index.ts';
 import { GenerationRegistry } from '../generate/index.ts';
+import { DocsCodeCheck } from './docs-code.ts';
 import { HouseCheck } from './house.ts';
 import { SourceScanner } from '../source/index.ts';
 
@@ -35,10 +36,15 @@ export const check = async (opts: { strict: boolean }): Promise<void> => {
     problems.push(...HouseCheck.collectProblems({ files, ...generation }));
   }
 
-  if (warnings.length) {
+  const notes = warnings.map((issue) => formatIssue({ issue }));
+
+  if (opts.strict) {
+    notes.push(...DocsCodeCheck.collectWarnings());
+  }
+
+  if (notes.length) {
     console.error(
-      `check: ${warnings.length} warning(s):\n` +
-        warnings.map((issue) => '  - ' + formatIssue({ issue })).join('\n'),
+      `check: ${notes.length} warning(s):\n` + notes.map((note) => '  - ' + note).join('\n'),
     );
   }
 
@@ -56,6 +62,16 @@ export const check = async (opts: { strict: boolean }): Promise<void> => {
   const scope = opts.strict
     ? `OKF v${OkfVersions.LATEST} + house rules`
     : `OKF v${OkfVersions.LATEST}`;
+
+  const off = opts.strict ? DocsCodeCheck.offRegions() : [];
+
+  if (off.length > 0) {
+    const total = off.reduce((sum, page) => sum + page.lines.length, 0);
+
+    console.log(
+      `check: docs-code off - ${total} region(s) in ${off.length} page(s): ${off.map((page) => `${page.file} (${page.lines.length})`).join(', ')}`,
+    );
+  }
 
   console.log(`check: OK - ${scope} - ${files.length} files, ${conceptCount} concepts`);
 };

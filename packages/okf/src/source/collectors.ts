@@ -226,7 +226,7 @@ export class SourceCollector {
         description: firstSentence({
           text: SourceCollector.sanitizeProse({
             text: parsed.description ?? '',
-            brand: OkfProject.read().viz.brand,
+            brand: OkfProject.read().brand,
           }),
         }),
       });

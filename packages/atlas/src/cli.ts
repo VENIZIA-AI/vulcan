@@ -1,18 +1,22 @@
 #!/usr/bin/env bun
 import { AtlasCommands, AtlasConstants } from './common';
 import { InteractiveRun, ModeArguments, ModeUsageError, SourceArguments } from './cli/index';
+import { AtlasStatus } from './cli/status';
 import { runReleasesCommand } from './releases/generator';
 import { Refresher, SourceBoot, SourcesServer } from './server/index';
 import type { Transport } from './protocol/index';
+import { AtlasLimits } from './common/limits';
 import { ProjectConfig } from './common/project-config';
 import { TextValue } from './common/text';
 import { runIndexCommand } from './prebuilt/index';
 import { SourceResolver } from './sources/index';
 import type { IAtlasSource } from './sources/index';
+import { runApiCommand } from './api/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
+import { MigrateCommand, runChangelogsCommand } from './migrations/index';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|symbols|releases> | help`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | status [--root <dir>] | <surface|api|symbols|releases|changelogs check|changelogs notes> | migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose] | migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] | help`;
 
 const usageError = (message: string): never => {
   console.error(`${AtlasConstants.SERVER_NAME}: ${message}\n${USAGE}`);
@@ -48,10 +52,15 @@ const packageVersion = (): string => {
   return version;
 };
 
-const GENERATOR_BY_COMMAND: Record<string, (opts: { command?: string }) => number> = {
+const GENERATOR_BY_COMMAND: Record<
+  string,
+  (opts: { command?: string; args?: string[] }) => number
+> = {
   [AtlasCommands.SURFACE]: runSurfaceCommand,
+  [AtlasCommands.API]: runApiCommand,
   [AtlasCommands.SYMBOLS]: runSymbolsCommand,
   [AtlasCommands.RELEASES]: runReleasesCommand,
+  [AtlasCommands.CHANGELOGS]: runChangelogsCommand,
 };
 
 const argv = process.argv.slice(2);
@@ -79,7 +88,7 @@ if (subcommand === AtlasCommands.HELP) {
 const generator = GENERATOR_BY_COMMAND[subcommand];
 
 if (generator) {
-  process.exit(generator({ command: argv[1] }));
+  process.exit(generator({ command: argv[1], args: argv.slice(2) }));
 }
 
 /**
@@ -93,6 +102,13 @@ const sourcesToServe = (opts: {
 }): { project: boolean; sources: IAtlasSource[] } => {
   const project = ProjectConfig.hasAtlasProject({ root: opts.root });
   const declared = project ? ProjectConfig.readAtlasProject({ root: opts.root }).sources : [];
+
+  // What this project allows a download to hold: set once, before any source is fetched.
+  AtlasLimits.configure({
+    download: project
+      ? ProjectConfig.readAtlasProject({ root: opts.root }).downloadLimit
+      : undefined,
+  });
 
   return { project, sources: [...declared, ...SourceArguments.read({ argv: opts.argv })] };
 };
@@ -293,6 +309,28 @@ const main = async (): Promise<void> => {
     await listTools();
 
     return;
+  }
+
+  if (subcommand === AtlasCommands.STATUS) {
+    process.stdout.write(AtlasStatus.report({ root: ModeArguments.readRoot({ argv }).value }));
+
+    return;
+  }
+
+  if (subcommand === AtlasCommands.MIGRATE) {
+    const { server, boot } = await readServer();
+
+    // Every source indexed first: the plan needs the whole release table, not the sources ready so far.
+    await boot.settled;
+
+    const code = await MigrateCommand.run({
+      args: argv.slice(1),
+      send: (line) => server.handleLine({ line }),
+      out: (text) => process.stdout.write(text),
+      err: (text) => process.stderr.write(text),
+    });
+
+    process.exit(code);
   }
 
   const { server, boot } = await readServer();

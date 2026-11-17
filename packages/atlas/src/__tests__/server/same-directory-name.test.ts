@@ -21,16 +21,16 @@ const project = (): string => {
       name: 'shop',
       packages: [
         {
-          name: '@shop/umbras-core',
-          dir: 'umbras-core',
-          path: 'umbras/core',
+          name: '@shop/backends-core',
+          dir: 'backends-core',
+          path: 'backends/core',
           aliases: [],
           retired: false,
         },
         {
           name: '@shop/kits-core',
           dir: 'kits-core',
-          path: 'auroras/kits/core',
+          path: 'frontends/kits/core',
           aliases: [],
           retired: false,
         },
@@ -38,20 +38,20 @@ const project = (): string => {
       knowledge: { bundle: '.agents/knowledge' },
     }),
     '.agents/knowledge/index.md': '# Shop\n',
-    'umbras/core/package.json': JSON.stringify({
-      name: '@shop/umbras-core',
+    'backends/core/package.json': JSON.stringify({
+      name: '@shop/backends-core',
       version: '0.0.1-0',
       private: true,
       exports: { '.': { types: './dist/index.d.ts' } },
     }),
-    'umbras/core/dist/index.d.ts': 'export declare function fromUmbras(): string;\n',
-    'auroras/kits/core/package.json': JSON.stringify({
+    'backends/core/dist/index.d.ts': 'export declare function fromBackends(): string;\n',
+    'frontends/kits/core/package.json': JSON.stringify({
       name: '@shop/kits-core',
       version: '0.0.1-0',
       private: true,
       exports: { '.': { types: './dist/index.d.ts' } },
     }),
-    'auroras/kits/core/dist/index.d.ts': 'export declare function fromKits(): string;\n',
+    'frontends/kits/core/dist/index.d.ts': 'export declare function fromKits(): string;\n',
   };
 
   roots.push(root);
@@ -79,11 +79,11 @@ const callSymbol = async (opts: { root: string; name: string }) => {
 
 test('symbol answers from each of two packages whose directories are both called core', async () => {
   const root = project();
-  const umbras = await callSymbol({ root, name: 'fromUmbras' });
+  const backends = await callSymbol({ root, name: 'fromBackends' });
   const kits = await callSymbol({ root, name: 'fromKits' });
 
-  expect(umbras.result.content[0].text).toContain('@shop/umbras-core');
-  expect(umbras.result.content[0].text).not.toContain('@shop/kits-core');
+  expect(backends.result.content[0].text).toContain('@shop/backends-core');
+  expect(backends.result.content[0].text).not.toContain('@shop/kits-core');
   expect(kits.result.content[0].text).toContain('@shop/kits-core');
-  expect(kits.result.content[0].text).not.toContain('@shop/umbras-core');
+  expect(kits.result.content[0].text).not.toContain('@shop/backends-core');
 });

@@ -257,7 +257,7 @@ describe('ReleasePlan.main', () => {
 
     expect(code).toBe(0);
     expect(readFileSync(output, 'utf8')).toBe(
-      'version=0.4.8-0\nkind=prerelease\nnpm_tag=next\ndevelop_sha=\n',
+      'version=0.4.8-0\nkind=prerelease\nnpm_tag=next\ndevelop_sha=\nchangelog_base=\n',
     );
     expect(readFileSync(summary, 'utf8')).toContain('Approval: none');
   });
@@ -267,11 +267,13 @@ describe('ReleasePlan.main', () => {
     const code = ReleasePlan.main({
       args: ['--bump', 'patch', '--ref', MAIN_REF, '--package', manifest],
       env,
+      // Not the repository the tests run in: its tags and manifest are not what the plan reads here.
+      cwd: scratch(),
     });
 
     expect(code).toBe(0);
     expect(readFileSync(output, 'utf8')).toBe(
-      'version=0.4.9\nkind=stable\nnpm_tag=latest\ndevelop_sha=\n',
+      'version=0.4.9\nkind=stable\nnpm_tag=latest\ndevelop_sha=\nchangelog_base=\n',
     );
     expect(readFileSync(summary, 'utf8')).toContain('one approval');
   });
@@ -562,7 +564,10 @@ describe('ReleasePlan: the run title the dispatcher sends', () => {
 
 describe('ReleasePlan.main: --merge-trial', () => {
   /** A repository where main is at 0.1.0-0 and develop one prerelease ahead, with the refs a clone has. */
-  const repository = (): { root: string; mainSha: string; developSha: string } => {
+  const LOG = "---\ntitle: 0.1.0\nversion: 0.1.0\npackages: ['@x/cli']\n---\nThe line.\n";
+  const repository = (
+    opts: { folder?: boolean; dated?: boolean; mainVersion?: string } = {},
+  ): { root: string; mainSha: string; developSha: string } => {
     const root = scratch();
     const manifest = (version: string): string =>
       `${JSON.stringify({ name: '@x/cli', version }, null, 2)}\n`;
@@ -573,8 +578,29 @@ describe('ReleasePlan.main: --merge-trial', () => {
       join(root, 'package.json'),
       `${JSON.stringify({ name: 'x', private: true, workspaces: ['packages/*'] }, null, 2)}\n`,
     );
-    writeFileSync(join(root, 'packages', 'cli', 'package.json'), manifest('0.1.0-0'));
+    writeFileSync(
+      join(root, 'packages', 'cli', 'package.json'),
+      manifest(opts.mainVersion ?? '0.1.0-0'),
+    );
     writeFileSync(join(root, 'shared.txt'), 'one\n');
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents', 'vulcan.manifest.json'),
+      `${JSON.stringify({
+        release: { tagPattern: 'vulcan-v<version>' },
+        knowledge: { changelogs: 'docs/changelogs' },
+        packages: [{ name: '@x/cli' }],
+      })}\n`,
+    );
+
+    if (opts.folder === true) {
+      mkdirSync(join(root, 'docs', 'changelogs', '0.1.0'), { recursive: true });
+      writeFileSync(
+        join(root, 'docs', 'changelogs', '0.1.0', 'log.md'),
+        opts.dated === true ? LOG.replace('---\nThe', 'released: 2026-11-01\n---\nThe') : LOG,
+      );
+    }
+
     git({ cwd: root, args: ['add', '-A'] });
     git({ cwd: root, args: ['commit', '-q', '-m', 'sync'] });
 
@@ -582,6 +608,14 @@ describe('ReleasePlan.main: --merge-trial', () => {
 
     git({ cwd: root, args: ['checkout', '-q', '-b', 'develop'] });
     writeFileSync(join(root, 'packages', 'cli', 'package.json'), manifest('0.1.0-1'));
+
+    if (opts.folder === true) {
+      writeFileSync(
+        join(root, 'docs', 'changelogs', '0.1.0', 'log.md'),
+        LOG.replace("['@x/cli']", "['@x/cli', '@x/core']"),
+      );
+    }
+
     git({ cwd: root, args: ['commit', '-q', '-am', 'chore(release): v0.1.0-1'] });
     git({ cwd: root, args: ['update-ref', 'refs/remotes/origin/develop', 'develop'] });
     git({ cwd: root, args: ['checkout', '-q', 'main'] });
@@ -589,7 +623,7 @@ describe('ReleasePlan.main: --merge-trial', () => {
     return { root, mainSha, developSha: git({ cwd: root, args: ['rev-parse', 'develop'] }) };
   };
 
-  const run = (opts: { root: string; mainSha: string }) => {
+  const run = (opts: { root: string; mainSha: string; summary?: string; bump?: string }) => {
     const output = join(opts.root, '..', `output-${Date.now()}`);
 
     writeFileSync(output, '');
@@ -597,26 +631,57 @@ describe('ReleasePlan.main: --merge-trial', () => {
     const code = ReleasePlan.main({
       args: [
         '--bump',
-        'patch',
+        opts.bump ?? 'patch',
         '--ref',
         MAIN_REF,
         '--package',
         join(opts.root, 'packages', 'cli', 'package.json'),
         '--merge-trial',
       ],
-      env: { RUNNER_TEMP: scratch(), GITHUB_OUTPUT: output, GITHUB_SHA: opts.mainSha },
+      env: {
+        RUNNER_TEMP: scratch(),
+        GITHUB_OUTPUT: output,
+        GITHUB_SHA: opts.mainSha,
+        ...(opts.summary === undefined ? {} : { GITHUB_STEP_SUMMARY: opts.summary }),
+      },
       cwd: opts.root,
     });
 
     return { code, output: readFileSync(output, 'utf8') };
   };
 
+  test('the trial makes the release commit with the released: stamp, so a version folder develop edited is merged before the approval', () => {
+    const { root, mainSha, developSha } = repository({ folder: true });
+    const summary = join(root, '..', `summary-${Date.now()}`);
+
+    writeFileSync(summary, '');
+
+    expect(run({ root, mainSha, summary })).toEqual({
+      code: 0,
+      output: `version=0.1.0\nkind=stable\nnpm_tag=latest\ndevelop_sha=${developSha}\nchangelog_base=\n`,
+    });
+    expect(readFileSync(summary, 'utf8')).toContain('docs/changelogs/0.1.0/log.md');
+  });
+
+  test("a repair run (bump none) over a folder that already says released: plans, the stamp is the first run's", () => {
+    const { root, mainSha, developSha } = repository({
+      folder: true,
+      dated: true,
+      mainVersion: '0.1.0',
+    });
+
+    expect(run({ root, mainSha, bump: 'none' })).toEqual({
+      code: 0,
+      output: `version=0.1.0\nkind=stable\nnpm_tag=latest\ndevelop_sha=${developSha}\nchangelog_base=\n`,
+    });
+  });
+
   test('a stable whose merge back goes through hands develop_sha on', () => {
     const { root, mainSha, developSha } = repository();
 
     expect(run({ root, mainSha })).toEqual({
       code: 0,
-      output: `version=0.1.0\nkind=stable\nnpm_tag=latest\ndevelop_sha=${developSha}\n`,
+      output: `version=0.1.0\nkind=stable\nnpm_tag=latest\ndevelop_sha=${developSha}\nchangelog_base=\n`,
     });
   });
 
@@ -698,5 +763,109 @@ describe('ReleasePlan.main: a stable and the changelog', () => {
     git({ cwd: root, args: ['commit', '-q', '-m', 'an entry'] });
 
     expect(stable({ root })).toBe(0);
+  });
+});
+
+describe('ReleasePlan: the changelog of a stable (C3, A5)', () => {
+  const project = (opts: { migrationFrom?: string; log?: string; tags?: string[] }): string => {
+    const root = scratch();
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents', 'vulcan.manifest.json'),
+      JSON.stringify({
+        release: { tagPattern: 'vulcan-v<version>' },
+        knowledge: {
+          changelogs: 'docs/changelogs',
+          ...(opts.migrationFrom === undefined ? {} : { migrationFrom: opts.migrationFrom }),
+        },
+        packages: [{ name: '@x/cli' }],
+      }),
+    );
+
+    if (opts.log !== undefined) {
+      mkdirSync(join(root, 'docs', 'changelogs', '0.4.9'), { recursive: true });
+      writeFileSync(join(root, 'docs', 'changelogs', '0.4.9', 'log.md'), opts.log);
+    }
+
+    git({ cwd: root, args: ['init', '-q', '-b', 'main'] });
+    git({ cwd: root, args: ['add', '-A'] });
+    git({ cwd: root, args: ['commit', '-q', '--allow-empty', '-m', 'init'] });
+
+    for (const name of opts.tags ?? []) {
+      git({ cwd: root, args: ['tag', '-a', name, '-m', name] });
+    }
+
+    return root;
+  };
+
+  test('a project that has adopted the folders needs the folder of its stable, not yet released', () => {
+    expect(
+      ReleasePlan.changelogProblems({
+        cwd: project({ migrationFrom: '0.4.5' }),
+        version: '0.4.9',
+        bump: 'patch',
+      })[0],
+    ).toContain('has no version folder');
+    expect(
+      ReleasePlan.changelogProblems({
+        cwd: project({
+          migrationFrom: '0.4.5',
+          log: '---\ntitle: 0.4.9\nreleased: 2026-11-01\n---\n',
+        }),
+        version: '0.4.9',
+        bump: 'patch',
+      })[0],
+    ).toContain('already says released');
+    expect(
+      ReleasePlan.changelogProblems({
+        cwd: project({ migrationFrom: '0.4.5', log: '---\ntitle: 0.4.9\n---\n' }),
+        version: '0.4.9',
+        bump: 'patch',
+      }),
+    ).toEqual([]);
+  });
+
+  test('a dispatch of bump none heals a release: its folder may already say released, but must exist', () => {
+    const released = project({
+      migrationFrom: '0.4.5',
+      log: '---\ntitle: 0.4.9\nreleased: 2026-11-01\n---\n',
+    });
+
+    expect(
+      ReleasePlan.changelogProblems({ cwd: released, version: '0.4.9', bump: 'none' }),
+    ).toEqual([]);
+    expect(
+      ReleasePlan.changelogProblems({
+        cwd: project({ migrationFrom: '0.4.5' }),
+        version: '0.4.9',
+        bump: 'none',
+      })[0],
+    ).toContain('has no version folder');
+  });
+
+  test('a project that keeps dated entries, or has no manifest, needs nothing', () => {
+    expect(
+      ReleasePlan.changelogProblems({ cwd: project({}), version: '0.4.9', bump: 'patch' }),
+    ).toEqual([]);
+    expect(
+      ReleasePlan.changelogProblems({
+        cwd: project({ migrationFrom: '2026-11-13' }),
+        version: '0.4.9',
+        bump: 'patch',
+      }),
+    ).toEqual([]);
+    expect(
+      ReleasePlan.changelogProblems({ cwd: scratch(), version: '0.4.9', bump: 'patch' }),
+    ).toEqual([]);
+  });
+
+  test('the history base is the highest stable tag below the version, and empty when there is none', () => {
+    const cwd = project({
+      tags: ['vulcan-v0.4.7', 'vulcan-v0.4.8-3', 'vulcan-v0.4.8', 'vulcan-v0.4.9-1'],
+    });
+
+    expect(ReleasePlan.changelogBase({ cwd, version: '0.4.9' })).toBe('vulcan-v0.4.8');
+    expect(ReleasePlan.changelogBase({ cwd: project({}), version: '0.4.9' })).toBe('');
   });
 });

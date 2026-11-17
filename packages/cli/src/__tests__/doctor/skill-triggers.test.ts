@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { Bunfig } from '../../create/bunfig.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
+import { SocketWarning } from './socket-warning.helper.ts';
 import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -35,8 +36,11 @@ const project = (opts: { description: string }) => {
 
 describe('doctor warns about a skill with no "Use when" part', () => {
   test('a warning on the skill file, saying atlas cannot tell when to load it', async () => {
-    const warnings = await DoctorRunner.runWarnings({
+    const result = await DoctorRunner.runWarnings({
       root: project({ description: 'Does an odd thing.' }),
+    });
+    const warnings = SocketWarning.without({
+      warnings: result,
     });
 
     expect(warnings).toEqual([
@@ -50,8 +54,11 @@ describe('doctor warns about a skill with no "Use when" part', () => {
   });
 
   test('a skill with one is not named', async () => {
-    const warnings = await DoctorRunner.runWarnings({
+    const result = await DoctorRunner.runWarnings({
       root: project({ description: 'Does an odd thing. Use when the user asks for odd things.' }),
+    });
+    const warnings = SocketWarning.without({
+      warnings: result,
     });
 
     expect(warnings).toEqual([]);

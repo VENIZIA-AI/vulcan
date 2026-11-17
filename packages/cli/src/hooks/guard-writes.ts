@@ -1,207 +1,101 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { isAbsolute, resolve } from 'node:path';
 import { HookConstants } from './common/index.ts';
-import { TrustStates } from './common/index.ts';
-import type { IHookCommand, IReadOnlyScript, IWriteCheck, IWriteHit } from './common/index.ts';
+import type { IHookCommand, IWriteCheck, IWriteHit } from './common/index.ts';
 import { CommandView } from './command-view.ts';
+import type { ICommandView } from './command-view.ts';
 import { HookDecision } from './decision.ts';
 import type { IProjectCommandCheck } from './project-guards.ts';
+import { ScriptRunners } from './script-runners.ts';
+import { WriteCommands } from './write-commands.ts';
 import { ShellParser } from './shell.ts';
-import { ReadOnlyScripts, ScriptPaths, ScriptTrust } from './trusted-scripts.ts';
-
-const MUTATING_VERB = '(?:POST|PUT|PATCH|DELETE)';
-
-/** Ordered by how much damage the action does. */
-const COMMAND_CHECKS: IWriteCheck[] = [
-  {
-    rule: 'V-W-03',
-    what: 'deploying or hot-applying to a cluster',
-    pattern:
-      /\bkubectl\s+(apply|patch|delete|scale|rollout)\b|\bdocker\s+compose\s+(up|down|restart)\b|\.\/kc\s+(apply|patch|delete)\b/,
-  },
-  {
-    rule: 'V-W-02',
-    what: 'running a migration instead of handing it to the human',
-    pattern:
-      /\bdb:migrate\b|\bmigrate:(dev|local|alpha|develop)\b|drizzle-kit\s+(push|migrate)\b|make\s+db-migrate\b/,
-  },
-  {
-    rule: 'V-W-02',
-    what: 'writing to a database',
-    pattern:
-      /\b(psql|mysql|mongosh|sqlite3)\b[^|]*?\b(insert|update|delete|truncate|drop|alter|create|grant|revoke)\s/i,
-  },
-  {
-    rule: 'V-W-02',
-    what: 'writing to a database through a SQL file whose contents this check cannot see',
-    pattern: /\b(psql|mysql)\b[^|]*\s-f\s/,
-  },
-  {
-    rule: 'V-W-02',
-    what: 'calling an endpoint that mutates data',
-    pattern: /\bcurl\b[^|]*(-X\s*(POST|PUT|PATCH|DELETE)|--data|--upload-file|-d\s)/i,
-  },
-];
-
-/** A `bun x.ts` command hides its real work inside the file, so the file is read too. */
-const SCRIPT_CHECKS: IWriteCheck[] = [
-  {
-    rule: 'V-W-02',
-    what: 'calling an endpoint that mutates data',
-    pattern: new RegExp(
-      [
-        `method\\s*:\\s*['"\`]${MUTATING_VERB}['"\`]`,
-        '\\.(?:post|put|patch|delete)\\s*\\(',
-        `['"\`]${MUTATING_VERB}['"\`]\\s*,\\s*['"\`]/`,
-      ].join('|'),
-      'i',
-    ),
-  },
-  {
-    rule: 'V-W-02',
-    what: 'calling an endpoint that mutates data',
-    pattern: new RegExp(`(?=[\\s\\S]*\\bfetch\\s*\\()[\\s\\S]*['"\`]${MUTATING_VERB}['"\`]`, 'i'),
-  },
-  {
-    rule: 'V-W-02',
-    what: 'writing to a database',
-    pattern:
-      /\b(INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|TRUNCATE|DROP\s+TABLE|ALTER\s+TABLE)\b/i,
-  },
-];
-
-const extractScriptTargets = (opts: { command: string }): string[] =>
-  [...opts.command.matchAll(/\bbun\s+(?:run\s+)?(\S+\.ts)\b/g)].map((match) => match[1]);
-
-/**
- * The files a script word can mean. `bun x.ts` opens the path as the OS does, following a link before a `..`;
- * `bun run x.ts` folds the `..` as text first. Both are read, so neither spelling hides the other.
- */
-const scriptPathsOf = (opts: { target: string; cwd: string }): string[] => [
-  ...new Set([ScriptPaths.targetPath(opts), resolve(opts.cwd, opts.target)]),
-];
-
-/** The text of a regular file; a folder, a pipe and a missing path read as nothing, so nothing is opened that can block. */
-const readScript = (opts: { path: string }): string | undefined =>
-  existsSync(opts.path) && statSync(opts.path).isFile()
-    ? readFileSync(opts.path, 'utf8')
-    : undefined;
+import type { ISimpleCommand } from './shell.ts';
 
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
 
+interface IInspectOptions {
+  command: string;
+  /** The project's own commands (`guard.writes.commands`), checked beside the fixed list. */
+  extra?: IProjectCommandCheck[];
+}
+
 export class WriteGuard {
   /**
-   * Every reason `command` looks like a write the base rules reserve for a human (V-W-02, V-W-03).
-   * `trust` lists the scripts the project vouches for (`guard.writes.trustedScripts`, repo-relative, under
-   * `root`): a listed script that is tracked and identical to HEAD skips the script checks only. The checks
-   * on the command line itself always run, and a listed script that git says changed is checked like any other.
-   * `trust.readOnlyScripts` (`guard.writes.trustedScripts` objects, from the manifest) skips them for one call: the
-   * word right after the script is one of the entry's `readOnly` words and the script is tracked and equals HEAD.
+   * Every reason `command` looks like a write the base rules reserve for a human (V-W-02, V-W-03): a command of
+   * the table (`WriteCommands`) or of the project's own list, in each simple command the shell parser finds, and
+   * what a database client is given that the line does not show.
    */
-  static inspectCommand(opts: {
-    command: string;
-    cwd: string;
-    trust?: { root: string; scripts: string[]; readOnlyScripts?: IReadOnlyScript[] };
-    /** The project's own commands (`guard.writes.commands`), checked beside the fixed list. */
-    extra?: IProjectCommandCheck[];
-  }): IWriteHit[] {
+  static inspectCommand(opts: IInspectOptions): IWriteHit[] {
     // The patterns run on what the command runs, not on its text: a heredoc written to a file, the pattern
     // of an `rg` and a commit message are data.
-    const texts = CommandView.commandTextsOf({ command: opts.command, withMessages: true });
-    const checks: IWriteCheck[] = [
-      ...COMMAND_CHECKS,
-      ...(opts.extra ?? []).map((check) => ({
+    const view = CommandView.viewOf({ command: opts.command, withMessages: true });
+    const hits: IWriteHit[] = [
+      ...WriteGuard.commandChecksOf({ view, extra: opts.extra }).map((check) => ({
+        rule: check.rule,
+        message: check.what,
+      })),
+      ...view.commands.flatMap((command) => WriteCommands.inspectClient({ command })),
+    ];
+    const keys = new Set<string>();
+
+    return hits.filter((hit) => {
+      const key = `${hit.rule}\n${hit.message}`;
+
+      if (keys.has(key)) {
+        return false;
+      }
+
+      keys.add(key);
+
+      return true;
+    });
+  }
+
+  /**
+   * The table's checks that match what a command line runs, and the project's own patterns. A check of the
+   * table does not apply to a call of its program that changes nothing (`--help`, `--dry-run`, `curl -G`); a
+   * whole line that pipes into a runner (no command behind it) always counts.
+   */
+  private static commandChecksOf(opts: {
+    view: ICommandView;
+    extra: IProjectCommandCheck[] | undefined;
+  }): IWriteCheck[] {
+    const { texts, sources } = opts.view;
+    const fixed = WriteCommands.CHECKS.filter((check) =>
+      texts.some((text, index) => {
+        const command = sources[index];
+
+        if (command === undefined) {
+          return check.pattern.test(text);
+        }
+
+        const { program, args } = WriteGuard.callOf({ command });
+        const { script } = ScriptRunners.callOf({ program, args });
+        // `python manage.py migrate --plan`: the script is the program the row names.
+        const named = script === undefined ? program : ShellParser.basenameOf({ word: script });
+
+        return (
+          WriteCommands.isLive({ check, program, args }) &&
+          WriteCommands.isLive({ check, program: named, args }) &&
+          check.pattern.test(text)
+        );
+      }),
+    );
+    const project = (opts.extra ?? [])
+      .map((check) => ({
         rule: check.rule,
         what: `${check.what} (this project's pattern)`,
         pattern: check.pattern,
-      })),
-    ];
-    const hits: IWriteHit[] = checks
-      .filter((check) => texts.some((text) => check.pattern.test(text)))
-      .map((check) => ({
-        rule: check.rule,
-        message: check.what,
-      }));
+      }))
+      .filter((check) => texts.some((text) => check.pattern.test(text)));
 
-    const targets = extractScriptTargets({ command: texts.join('\n') });
-    const entries = opts.trust?.readOnlyScripts ?? [];
-    // A subcommand counts only when the shell's own words give the same scripts in the same order as the text
-    // does; any other line (a script named in an argument, a pipe into a runner) is read as a whole.
-    const invocations = ReadOnlyScripts.extractInvocations({ command: opts.command });
-    const isPaired =
-      invocations.length === targets.length &&
-      invocations.every((invocation, index) => invocation.script === targets[index]);
-    const hasMoving = texts.some((text) =>
-      ShellParser.parse({ command: text }).some((command) =>
-        ReadOnlyScripts.MOVING_COMMANDS.has(
-          ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name }),
-        ),
-      ),
-    );
+    return [...fixed, ...project];
+  }
 
-    for (const [index, target] of targets.entries()) {
-      const sources = scriptPathsOf({ target, cwd: opts.cwd })
-        .map((path) => readScript({ path }))
-        .filter((text): text is string => text !== undefined);
+  /** The program a simple command runs, past wrappers (`sudo`, `env`) and launchers (`npx` then a program, `uv run`). */
+  private static callOf(opts: { command: ISimpleCommand }): { program: string; args: string[] } {
+    const launched = ScriptRunners.launchedOf(ShellParser.programOf({ command: opts.command }));
 
-      if (sources.length === 0) {
-        continue;
-      }
-
-      const subcommand = isPaired ? invocations[index]?.subcommand : undefined;
-      // After a `cd` the hook does not know the folder a relative script word is from, so no entry covers it.
-      const isFromUnknownFolder =
-        !isAbsolute(target) && (isPaired ? invocations[index]?.moved === true : hasMoving);
-      // An entry covers the word only when both spellings of it (see `scriptPathsOf`) name that same entry.
-      const covered = (lookup: (spelling: { target: string }) => string | undefined) => {
-        const asWritten = lookup({ target });
-
-        return asWritten === lookup({ target: resolve(opts.cwd, target) }) ? asWritten : undefined;
-      };
-      const trusted = opts.trust;
-      const listed =
-        trusted === undefined || isFromUnknownFolder
-          ? undefined
-          : (covered((spelling) =>
-              ScriptTrust.listedOf({
-                target: spelling.target,
-                cwd: opts.cwd,
-                root: trusted.root,
-                scripts: trusted.scripts,
-              }),
-            ) ??
-            (subcommand === undefined
-              ? undefined
-              : covered((spelling) =>
-                  ReadOnlyScripts.find({
-                    target: spelling.target,
-                    subcommand,
-                    cwd: opts.cwd,
-                    root: trusted.root,
-                    entries,
-                  }),
-                )));
-      const trust =
-        listed === undefined || opts.trust === undefined
-          ? undefined
-          : ScriptTrust.trustOf({ root: opts.trust.root, script: listed });
-
-      if (trust?.state === TrustStates.TRUSTED) {
-        continue;
-      }
-
-      for (const check of SCRIPT_CHECKS.filter((scriptCheck) =>
-        sources.some((text) => scriptCheck.pattern.test(text)),
-      )) {
-        hits.push({
-          rule: check.rule,
-          message: `${target} looks like it is ${check.what}${trust === undefined ? '' : ` (listed in guard.writes.trustedScripts, but not trusted: ${trust.reason})`}`,
-        });
-      }
-    }
-
-    return hits;
+    return { program: ShellParser.basenameOf({ word: launched.name }), args: launched.args };
   }
 
   /** The Bash command and cwd from the hook's JSON; `undefined` when it is not what Claude Code sends. */
@@ -212,7 +106,7 @@ export class WriteGuard {
       payload = JSON.parse(opts.text);
     } catch (error) {
       console.error(
-        `[WriteGuard.parseHookCommand] unreadable hook input - letting the command through | ${error instanceof Error ? error.message : String(error)}`,
+        `[WriteGuard.parseHookCommand] unreadable hook input | ${error instanceof Error ? error.message : String(error)}`,
       );
 
       return undefined;
@@ -234,15 +128,24 @@ export class WriteGuard {
       : undefined;
   }
 
-  static buildDecision(opts: { hits: IWriteHit[] }) {
+  /** The hits the reason lists; a line of many commands can find dozens. */
+  private static readonly MAX_LISTED_HITS = 20;
+
+  static buildDecision(opts: { hits: IWriteHit[]; asks?: string; asksNote?: string }) {
+    const listed = opts.hits.slice(0, WriteGuard.MAX_LISTED_HITS);
+    const unlisted = opts.hits.length - listed.length;
+
     return HookDecision.forHost({
+      asks: opts.asks,
+      asksNote: opts.asksNote,
       output: {
         hookSpecificOutput: {
           hookEventName: HookConstants.PRE_TOOL_USE,
           permissionDecision: HookConstants.GUARD_DECISION,
           permissionDecisionReason: [
             `This command looks like ${opts.hits.length === 1 ? 'an action' : 'actions'} the base rules reserve for a human:`,
-            ...opts.hits.map((hit) => `  - ${hit.rule}: ${hit.message}`),
+            ...listed.map((hit) => `  - ${hit.rule}: ${hit.message}`),
+            ...(unlisted > 0 ? [`  - and ${unlisted} more`] : []),
             '',
             'The rules reject "it is only dev", "it is only a test row" and "it is reversible".',
             'Produce the script, the SQL or the manifest and hand it over instead of running it.',

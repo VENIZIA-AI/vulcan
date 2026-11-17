@@ -1,6 +1,6 @@
 ---
 title: "VULCAN 0.4.4: Layout Folders Can Be Paths, Lists, and a List of Folders Left Alone"
-description: layout.backend, frontend and shared accept a path or a list of paths such as auroras/apps, and layout.other lists folders the layout does not manage.
+description: layout.backend, frontend and shared accept a path or a list of paths such as frontends/apps, and layout.other lists folders the layout does not manage.
 packages: ['@venizia/vulcan']
 ---
 
@@ -10,14 +10,14 @@ packages: ['@venizia/vulcan']
 
 <Badge type="tip" text="New Feature" />
 
-**In one line.** A monorepo whose apps are grouped (`auroras/apps`, `auroras/guests`) can now declare its layout, and `vulcan add`, `doctor` and `guard-package` work with each group.
+**In one line.** A monorepo whose apps are grouped (`frontends/apps`, `frontends/guests`) can now declare its layout, and `vulcan add`, `doctor` and `guard-package` work with each group.
 
 ## What changed
 
 - **Paths and lists.** `layout.backend`, `layout.frontend` and `layout.shared` accept a folder path or a list; a plain string stays valid. A folder is 1 to 4 segments of lowercase letters, digits and `-`, with no `..`, slash at either end, backslash or `node_modules`; none is inside another. A folder that is another key's, or nested in a listed one, is refused.
-- **`layout.other`** lists folders the layout does not manage (docs, third-party code, tests). `doctor` allows packages there, `add` never targets them and they are not guarded; a package under no listed folder is still reported. Before, `layout: { backend: 'umbras' }` made `doctor` report every package outside `umbras`.
+- **`layout.other`** lists folders the layout does not manage (docs, third-party code, tests). `doctor` allows packages there, `add` never targets them and they are not guarded; a package under no listed folder is still reported. Before, `layout: { backend: 'backends' }` made `doctor` report every package outside `backends`.
 - **`add` and `init --preset`.** `--backend-dir` and `--frontend-dir` take a path, listed or new (new is added to the list). Without a terminal the flag is required when several folders are listed. `add --lib --dir` adds a valid unlisted folder to `layout.shared`; an invalid or nesting `--dir` is still accepted as before and is not recorded.
-- **Also.** `guard-package`, atlas `presets` and `preset diff` understand the folders, and a workspace glob such as `auroras/*/*` counts as covering `auroras/apps`.
+- **Also.** `guard-package`, atlas `presets` and `preset diff` understand the folders, and a workspace glob such as `frontends/*/*` counts as covering `frontends/apps`.
 
 ## Who is affected
 

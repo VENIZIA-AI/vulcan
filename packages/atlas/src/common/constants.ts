@@ -11,7 +11,27 @@ export class AtlasConstants {
    * Bump it with any change to either: the format-lock test fails until you do. A cached or
    * downloaded index of another format is never read as if it were current.
    */
-  static readonly INDEX_FORMAT = 1;
+  static readonly INDEX_FORMAT = 2;
+}
+
+/** How atlas runs git: every call, local or remote, takes this environment. */
+export class AtlasGit {
+  /**
+   * The transports git may use for a source: `https` and `ssh` carry the repository authenticated and
+   * encrypted, `file` is a repository on this machine. `http` and `git://` are clear text with no
+   * authentication, and `ext::` and `fd::` run a command: none of them is allowed, whatever URL a source names.
+   * Set in the environment, it overrides any `protocol.*.allow` of the user's git configuration.
+   */
+  static readonly ALLOWED_PROTOCOLS = 'https:ssh:file';
+
+  /** Built at each call: tests and callers change `process.env` (PATH among them) after load. Never prompts for credentials. */
+  static buildEnvironment(): NodeJS.ProcessEnv {
+    return {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: '0',
+      GIT_ALLOW_PROTOCOL: AtlasGit.ALLOWED_PROTOCOLS,
+    };
+  }
 }
 
 /** Every wait atlas puts on the network or on git: past its bound, a call counts as failed. */
@@ -42,20 +62,28 @@ export class Corpora {
 export class AtlasCommands {
   static readonly MCP = 'mcp';
   static readonly SURFACE = 'surface';
+  static readonly API = 'api';
   static readonly SYMBOLS = 'symbols';
   static readonly RELEASES = 'releases';
+  static readonly CHANGELOGS = 'changelogs';
+  static readonly MIGRATE = 'migrate';
   static readonly PULL = 'pull';
   static readonly INDEX = 'index';
   static readonly TOOLS = 'tools';
+  static readonly STATUS = 'status';
   static readonly HELP = 'help';
   static readonly SCHEME_SET = new Set<string>([
     this.MCP,
     this.SURFACE,
+    this.API,
     this.SYMBOLS,
     this.RELEASES,
+    this.CHANGELOGS,
+    this.MIGRATE,
     this.PULL,
     this.INDEX,
     this.TOOLS,
+    this.STATUS,
     this.HELP,
   ]);
   static isValid(value: string): boolean {

@@ -53,14 +53,40 @@ describe('where a project installs its packages', () => {
     install({ root: app, name: '@x/kernel', version: '1.1.0' });
     install({ root: app, name: '@x/only-here', version: '2.0.0' });
 
-    expect(
-      InstalledPackages.installedDirectoriesOf({ roots: [cwd, app], name: '@x/kernel' }),
-    ).toEqual([join(cwd, 'node_modules/@x/kernel'), join(app, 'node_modules/@x/kernel')]);
-    expect(
-      InstalledPackages.installedDirectoriesOf({ roots: [cwd, app], name: '@x/only-here' }),
-    ).toEqual([join(app, 'node_modules/@x/only-here')]);
-    expect(
-      InstalledPackages.installedDirectoriesOf({ roots: [cwd, app], name: '@x/absent' }),
-    ).toEqual([]);
+    const directories = (name: string) =>
+      InstalledPackages.copiesOf({ roots: [cwd, app], name }).map((copy) => copy.directory);
+
+    expect(directories('@x/kernel')).toEqual([
+      join(cwd, 'node_modules/@x/kernel'),
+      join(app, 'node_modules/@x/kernel'),
+    ]);
+    expect(directories('@x/only-here')).toEqual([join(app, 'node_modules/@x/only-here')]);
+    expect(directories('@x/absent')).toEqual([]);
+  });
+});
+
+describe('the copies of a package, with their versions', () => {
+  test('lists every copy in root order with its version; the first is the one atlas reads', () => {
+    const cwd = makeTempDirectory({ prefix: 'atlas-installed-' });
+    const app = join(cwd, 'services/api');
+
+    install({ root: cwd, name: '@x/kernel', version: '1.0.0' });
+    install({ root: app, name: '@x/kernel', version: '1.1.0' });
+
+    expect(InstalledPackages.copiesOf({ roots: [cwd, app], name: '@x/kernel' })).toEqual([
+      { directory: join(cwd, 'node_modules/@x/kernel'), version: '1.0.0' },
+      { directory: join(app, 'node_modules/@x/kernel'), version: '1.1.0' },
+    ]);
+    expect(InstalledPackages.copiesOf({ roots: [cwd, app], name: '@x/absent' })).toEqual([]);
+  });
+
+  test('a copy whose package.json has no readable version is listed without one', () => {
+    const cwd = makeTempDirectory({ prefix: 'atlas-installed-' });
+
+    writeSourceFile({ work: cwd, path: 'node_modules/@x/broken/package.json', text: '{ "name": ' });
+
+    expect(InstalledPackages.copiesOf({ roots: [cwd], name: '@x/broken' })).toEqual([
+      { directory: join(cwd, 'node_modules/@x/broken') },
+    ]);
   });
 });

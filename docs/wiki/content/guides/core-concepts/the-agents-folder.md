@@ -15,7 +15,8 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 ├── hooks/                    tracked   scripts of the project's own hooks (optional)
 ├── vulcan.manifest.json      tracked   written by vulcan sync; atlas and the hooks read it
 ├── vulcan.local.json         ignored   the agents you chose on this machine
-├── plans/, specs/            ignored   plans and specs an agent saved for you
+├── plans/                    ignored   plans an agent saved for you
+├── specs/                    tracked   lane-L cards from plan-a-change (optional)
 └── local/                    ignored   what an agent creates while it works
     ├── tmp/                            scratch for one task
     ├── worktrees/                      git worktrees, one per branch
@@ -23,15 +24,17 @@ description: What lives in .agents, which parts git tracks, which parts are loca
     ├── cache/                          the atlas source cache
     ├── reports/                        reports an agent wrote
     ├── prototypes/                     throwaway prototypes and vulcan visualize pages
+    ├── agents/                         one agent's own state: notes, staged copies, scratch that outlives a session (on demand)
     ├── events/                         the agent event log (on demand)
     ├── release-candidates/             builds made to test a release (on demand)
     ├── profile.json                    how you like to work (vulcan profile)
     ├── claude.launch.settings.json     the file to start Claude Code with (vulcan sync)
-    ├── auto-clean.json                 when the automatic clean last ran, and what it removed
-    └── violations.jsonl                the log of faulty replies (a note in vulcan doctor)
+    └── auto-clean.json                 when the automatic clean last ran, and what it removed
 ```
 
-`vulcan init` puts `.agents/plans`, `.agents/vulcan.local.json` and `.agents/local/` in `.gitignore`. `sync` writes the Claude Code launch file, the manifest and the folders below.
+`plans/` is created and ignored by init. `specs/` is the default folder where plan-a-change writes lane-L cards. It is not created and not ignored, so cards are tracked unless the project adds it to `.gitignore`.
+
+`vulcan init` puts `.agents/plans`, `.agents/vulcan.local.json`, `.agents/local/`, the secret patterns (`**/.env`, `**/.env.*`, with `!**/.env.example` kept) in `.gitignore`. `sync` writes the Claude Code launch file, the manifest and the folders below.
 
 ## What is tracked
 
@@ -54,10 +57,16 @@ Every folder of `local/` has a lifetime, and one command takes it back. `vulcan 
 | `cache/` | by `sync` | You ask; it rebuilds | `vulcan clean --cache` |
 | `reports/` | by `sync` | You delete it | `vulcan clean --reports` |
 | `prototypes/` | by `sync` | You delete it | `vulcan clean --prototypes` |
+| `agents/` | on first write | You delete it | Nothing: `vulcan clean` never takes it |
 | `events/` | on first write | You delete it | `vulcan clean --events` |
-| `release-candidates/` | on first write | The release ships: each folder is a version, and `doctor` warns when that version is tagged | `vulcan clean --release-candidates`, tagged versions only |
+| `release-candidates/` | on first write | The release ships | `vulcan clean --release-candidates`, tagged versions only |
 
-`--all` takes `tmp/`, `worktrees/`, `clones/` and `cache/`. It never takes `reports/`, `prototypes/`, `events/`, `release-candidates/` or the profile: those are named, or deleted by you. A worktree is removed with `git worktree remove` and only when its branch is merged into the branch checked out at the project root, into `origin/develop` or into the default branch of origin, **and** it is safe to lose: the branch has commits of its own (a new branch has the commit it came from, so git calls it merged; `clean` keeps it and says "no commits of its own yet"), it holds no uncommitted or untracked file, and every file git ignores in it is one a build or an install makes again (`node_modules`, `dist`, `.turbo`, `coverage`, `.cache`, `*.tsbuildinfo`). An ignored `.env`, a local database or a key keeps the worktree, and the output names the file. A folder in `release-candidates/` counts only when its name is a version (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`) and a tag of that name exists, with or without the `v`: the folder `1.0.0` is removed when the tag `v1.0.0` exists, and `v1.0.0` when the tag `1.0.0` exists. Any other name is kept. The [clean reference](/references/commands/clean) has the details.
+About two of these rows:
+
+- `agents/` holds one folder per agent, `agents/<name>/`: its notes, staged copies and per-session scratch that outlives a session. `doctor` never warns about it.
+- `release-candidates/` holds one folder per version, and `doctor` warns when that version is tagged.
+
+`--all` takes `tmp/`, `worktrees/`, `clones/` and `cache/`. It never takes `reports/`, `prototypes/`, `agents/`, `events/`, `release-candidates/` or the profile: those are named, or deleted by you. A worktree is removed with `git worktree remove` and only when its branch is merged into the branch checked out at the project root, into `origin/develop` or into the default branch of origin, **and** it is safe to lose: the branch has commits of its own (a new branch has the commit it came from, so git calls it merged; `clean` keeps it and says "no commits of its own yet"), it holds no uncommitted or untracked file, and every file git ignores in it is one a build or an install makes again (`node_modules`, `dist`, `.turbo`, `coverage`, `.cache`, `*.tsbuildinfo`). An ignored `.env`, a local database or a key keeps the worktree, and the output names the file. A folder in `release-candidates/` counts only when its name is a version (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`) and a tag of that name exists, with or without the `v`: the folder `1.0.0` is removed when the tag `v1.0.0` exists, and `v1.0.0` when the tag `1.0.0` exists. Any other name is kept. The [clean reference](/references/commands/clean) has the details.
 
 ## The automatic clean
 
@@ -65,10 +74,12 @@ You do not have to run `vulcan clean` for the safe part. At most once a day per 
 
 | What | When |
 |---|---|
-| `tmp/` entries | older than a day, unless the folder holds a repository: a `.git` folder or file anywhere inside it (a scratch clone, a `git worktree add` into `tmp/`; a `.git` inside `node_modules` does not count) is somebody's work and stays |
+| `tmp/` entries | older than a day, unless the folder holds a repository (see below) |
 | `com.google.Chrome.*` and `org.chromium.Chromium.*` folders under `.agents/local/` | older than an hour |
 | Event day files | past `maxAgeDays`, `maxFiles` or `maxSize`; never today's or a later day's |
 | `release-candidates/` folders | whose version is tagged |
+
+A `tmp/` folder that holds a repository stays: a `.git` folder or file anywhere inside it (a scratch clone, a `git worktree add` into `tmp/`; a `.git` inside `node_modules` does not count) is somebody's work.
 
 It never removes a worktree or a clone, wherever it sits, and never touches the cache, `reports/`, `prototypes/` or anything it does not know: a wrong guess there loses work, so those stay with `vulcan clean --yes` and the warnings of `vulcan doctor`. When a run removed something, the next session prints one line on stderr, such as `vulcan: cleaned 12.0 MB from .agents/local`. Set `local: { autoClean: false }` in the config to turn it off, or `VULCAN_AUTO_CLEAN=off` for one shell. A shared events folder outside the project is kept by whichever session starts first.
 
@@ -77,7 +88,7 @@ It never removes a worktree or a clone, wherever it sits, and never touches the 
 `vulcan doctor` never deletes anything. It warns about:
 
 - an entry that has outlived its use (old `tmp/`, a worktree of a merged branch, an old clone, a shipped release candidate), with the command that takes it;
-- an entry directly under `.agents/local/` that is not in the tree above. Put scratch in `tmp/` and what you want to keep in `reports/`; nothing removes the unknown entry;
+- an entry directly under `.agents/local/` that is not in the tree above. Put scratch in `tmp/`, what you want to keep in `reports/`, and what one agent keeps for itself in `agents/<name>/`; nothing removes the unknown entry. A script the team relies on does not belong here: put it in the tracked tree (`scripts/`), where it gets review and history;
 - the size of `.agents/local/` once it is large;
 - today's event file when it alone is over `events.maxSize`.
 

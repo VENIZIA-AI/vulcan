@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { RecordValue } from '../common/record.ts';
+import { ProjectKey } from './project-key.ts';
 import { EventConstants } from './common/index.ts';
 import type { IEventSettings } from './common/index.ts';
 import { EventRetention } from './retention.ts';
@@ -58,6 +59,21 @@ export class EventSettings {
       };
     } catch {
       return { log: false };
+    }
+  }
+
+  /** The project's flow key from the manifest, or `undefined` when it is missing or is not a key. Never throws. */
+  static keyOf(opts: { root: string }): string | undefined {
+    try {
+      const manifest: unknown = JSON.parse(
+        readFileSync(join(opts.root, EventConstants.MANIFEST_FILE), 'utf8'),
+      );
+      const block = RecordValue.isRecord(manifest) ? manifest.project : undefined;
+      const key = RecordValue.isRecord(block) ? block.key : undefined;
+
+      return ProjectKey.parse({ value: key });
+    } catch {
+      return undefined;
     }
   }
 

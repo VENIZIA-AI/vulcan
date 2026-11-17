@@ -26,6 +26,10 @@ const MARK =
 
 /** A figure is drawn at most this much larger than its natural width, so a short flow does not turn into a poster. */
 const FIGURE_MAX = 1.25;
+/** The page becomes one column at and below this viewport width. */
+const STACKED_AT = 860;
+/** The widest a figure can be drawn: the content column is 1208 px at most. */
+const CONTENT_WIDTH = 1208;
 
 const sha256 = (opts: { text: string }): string =>
   `'sha256-${createHash('sha256').update(opts.text).digest('base64')}'`;
@@ -39,19 +43,39 @@ const BANNER_STATE: Record<string, string> = {
 };
 
 /**
- * For each figure width: the size it may take (never under FIGURE_FIT of its natural width, never past a quarter more),
+ * For each figure: the size it may take (never under FIGURE_FIT of its natural width, never past a quarter more),
  * and the rule that swaps the figure for its list below the viewport width at which it would shrink under FIGURE_FIT
- * of its natural size (text under 12 px). The 66 is the page and frame padding.
+ * of its natural size (text under 12 px). The 66 is the page and frame padding. A key is the width, or the width and
+ * the inset: the space a figure shares with something beside it (the numeral of an explainer step) while the page
+ * is wide enough for the two columns; at and below 860 px the page is one column and the inset is gone.
  */
-const figureFitCss = (opts: { widths: Set<number> }): string =>
-  [...opts.widths]
-    .sort((a, b) => a - b)
-    .map((width) => {
-      const at = Math.ceil(width * FIGURE_FIT) + 66;
+const figureFitCss = (opts: { keys: Set<string> }): string =>
+  [...opts.keys]
+    .sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10))
+    .map((key) => {
+      const [widthText = '0', insetText = '0', frameText = '0'] = key.split(':');
+      const width = Number(widthText);
+      const inset = Number(insetText);
+      const frame = Number(frameText);
+      const name = FigureLayout.fitName({ key });
       const least = Math.ceil(width * FIGURE_FIT);
       const most = Math.ceil(width * FIGURE_MAX);
+      const swap = `.fig.${name}{display:none}.fig.${name}~.path,.fig.${name}~.path-detail{display:block}.fig.${name}~.say,.fig.${name}~.legend{display:none}.fig.${name}~.steps .explain{display:block}.fig.${name}~.steps button{pointer-events:none}`;
+      const narrow = least + 66 + frame;
+      const wide = narrow + inset;
+      const rules =
+        least > CONTENT_WIDTH - inset - frame
+          ? [swap]
+          : inset === 0
+            ? [`@media (max-width:${narrow}px){${swap}}`]
+            : [
+                `@media (max-width:${Math.min(narrow, STACKED_AT)}px){${swap}}`,
+                ...(wide > STACKED_AT
+                  ? [`@media (min-width:${STACKED_AT + 1}px) and (max-width:${wide}px){${swap}}`]
+                  : []),
+              ];
 
-      return `.fig.f${width} svg{min-width:${least}px;max-width:${most}px}\n@media (max-width:${at}px){.fig.f${width}{display:none}.fig.f${width}~.path,.fig.f${width}~.path-detail{display:block}.fig.f${width}~.say,.fig.f${width}~.legend{display:none}.fig.f${width}~.steps .explain{display:block}.fig.f${width}~.steps button{pointer-events:none}}`;
+      return `.fig.${name} svg{min-width:${least}px;max-width:${most}px}\n${rules.join('\n')}`;
     })
     .join('\n');
 
@@ -102,6 +126,47 @@ const stateOf = (opts: {
   return { state, tone: NodeStates.toneOf(state), word };
 };
 
+/** The group each part belongs to: the small amber label above its heading. */
+const KICKS: Record<string, keyof TChrome> = {
+  flow: 'kickOverview',
+  minimap: 'kickOverview',
+  next: 'kickOverview',
+  architecture: 'kickStructure',
+  compare: 'kickStructure',
+  sequence: 'kickStructure',
+  lifecycle: 'kickStructure',
+  tree: 'kickStructure',
+  'idea-map': 'kickStructure',
+  comparison: 'kickDecision',
+  'decision-record': 'kickDecision',
+  decisions: 'kickDecision',
+  findings: 'kickEvidence',
+  grades: 'kickEvidence',
+  metrics: 'kickEvidence',
+  evidence: 'kickEvidence',
+  explainer: 'kickPlan',
+  timeline: 'kickPlan',
+  'before-after': 'kickPlan',
+  risks: 'kickReference',
+  log: 'kickReference',
+  terms: 'kickReference',
+  sources: 'kickReference',
+  links: 'kickReference',
+};
+
+/** Puts the label above the heading of every part that has a group. */
+const withKickers = (opts: { html: string; chrome: TChrome }): string =>
+  opts.html.replace(
+    /(<section class="[^"]*" id="([a-z-]+)" data-slide><div class="wrap">)(<h2 class="sh">)/g,
+    (match, open: string, id: string, heading: string) => {
+      const key = KICKS[id];
+
+      return key === undefined
+        ? match
+        : `${open}<p class="kick">${escaped(String(opts.chrome[key]))}</p>${heading}`;
+    },
+  );
+
 /** The always-dark hero: the state, the title, the verdict, the caption, and the flow when the spec has one. */
 const heroHtml = (opts: { ctx: ISectionContext }): string => {
   const { spec, chrome } = opts.ctx;
@@ -111,7 +176,7 @@ const heroHtml = (opts: { ctx: ISectionContext }): string => {
     spec.scope === undefined ? '' : `<span>${escaped(chrome.scope)}: ${escaped(spec.scope)}</span>`,
   ].join('');
 
-  return `<div class="banner slab c-${tone}" data-slide data-hero><div class="wrap hero"><p class="state">${SpecCharts.stateIcon({ state, size: 22 })}<span class="word">${escaped(word)}</span></p><h1>${escaped(spec.title)}</h1><p class="lede">${escaped(spec.verdict)}</p>${spec.caption === undefined ? '' : `<p class="cap">${escaped(spec.caption)}</p>`}${meta === '' ? '' : `<p class="meta">${meta}</p>`}${SpecSections.flow({ ctx: opts.ctx })}</div></div>`;
+  return `<div class="banner slab c-${tone}" data-slide data-hero><div class="wrap hero"><p class="state">${SpecCharts.stateIcon({ state, size: 22 })}<span class="word">${escaped(word)}</span></p><h1>${escaped(spec.title)}${spec.titleMuted === undefined ? '' : ` <span class="mute">${escaped(spec.titleMuted)}</span>`}</h1><p class="lede">${escaped(spec.verdict)}</p>${spec.caption === undefined ? '' : `<p class="cap">${escaped(spec.caption)}</p>`}${meta === '' ? '' : `<p class="meta">${meta}</p>`}${SpecSections.flow({ ctx: opts.ctx })}</div></div>`;
 };
 
 /** The minimap as a track: a stripe, a shape and a word for every task. */
@@ -152,13 +217,13 @@ const ownerHtml = (opts: { spec: TVisualizeSpec; chrome: TChrome }): string => {
   return `<section class="two" id="next" data-slide><div class="wrap"><div class="own"><div class="nx"><p class="lab">${escaped(chrome.next)}</p><h2>${escaped(spec.strip.next)}</h2>${actions}${jump}</div><div class="stop"><p class="lab">${escaped(chrome.blockedBy)}</p><p>${escaped(spec.strip.blockedBy)}</p></div></div><div class="facts"><p class="fact">${IconSet.iconSvg({ name: 'done', size: 18 })}<span><b>${escaped(chrome.healthy)}</b> ${escaped(spec.strip.healthy)}</span></p><p class="fact">${IconSet.iconSvg({ name: 'info', size: 18 })}<span><b>${escaped(chrome.changed)}</b> ${escaped(spec.strip.changed)}</span></p></div></div></section>`;
 };
 
-/** The neutral theme of a page that is given none. */
-const NEUTRAL = ((): IResolvedTheme => {
+/** The theme of a page that is given none: the default preset. */
+const DEFAULT_THEME = ((): IResolvedTheme => {
   const resolved = ProjectTheme.resolve({});
 
   if (!resolved.ok) {
     throw new Error(
-      `the neutral theme does not pass its own checks: ${resolved.problems.join('; ')}`,
+      `the default theme does not pass its own checks: ${resolved.problems.join('; ')}`,
     );
   }
 
@@ -180,7 +245,7 @@ export class PageShell {
     const ctx: ISectionContext = {
       spec,
       chrome,
-      fits: new Set<number>(),
+      fits: new Set<string>(),
       spans: new Set<number>(),
     };
     const { state, tone, word } = stateOf({ spec, chrome });
@@ -204,6 +269,8 @@ export class PageShell {
       SpecSections.explainer({ ctx }),
       SpecSections.timeline({ ctx }),
       SpecSections.findings({ ctx }),
+      SpecSections.grades({ ctx }),
+      SpecSections.metrics({ ctx }),
       SpecSections.beforeAfter({ ctx }),
       SpecSections.decisionRecord({ ctx }),
       SpecSections.decisions({ ctx }),
@@ -226,7 +293,7 @@ export class PageShell {
           }),
       SpecSections.links({ ctx }),
     ].join('');
-    const css = `${Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? NEUTRAL }) })}\n${NEW_KINDS_CSS}\n${COMPARE_CSS}\n${GridSpans.css({ spans: ctx.spans })}\n${figureFitCss({ widths: ctx.fits })}`;
+    const css = `${Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? DEFAULT_THEME }) })}\n${NEW_KINDS_CSS}\n${COMPARE_CSS}\n${GridSpans.css({ spans: ctx.spans })}\n${figureFitCss({ keys: ctx.fits })}`;
     const policy = `default-src 'none'; style-src ${sha256({ text: css })}; script-src ${sha256({ text: HEAD_JS })} ${sha256({ text: PAGE_JS })}; base-uri 'none'; form-action 'none'`;
     const links = SpecSections.sectionLinks({ spec, chrome })
       .map((link) => `<a href="#${link.id}">${escaped(link.title)}</a>`)
@@ -238,6 +305,6 @@ export class PageShell {
     const bar = `<header class="top slab c-${tone}"><div class="wrap">${MARK}<b class="ttl">${escaped(spec.title)}</b>${SpecSections.chip({ chrome, state, size: 18, label: word })}<nav aria-label="${escaped(chrome.navLabel)}"><span class="links">${links}</span>${stamp}<span class="sep" aria-hidden="true"></span><button class="btn js-only" id="present" type="button" data-on="${escaped(chrome.present)}" data-off="${escaped(chrome.exitPresent)}">${escaped(chrome.present)}</button><button class="theme" id="theme" type="button" aria-label="${escaped(chrome.themeToDark)}" data-to-light="${escaped(chrome.themeToLight)}" data-to-dark="${escaped(chrome.themeToDark)}">${IconSet.iconSvg({ name: 'sun', size: 20, className: 'sun' })}${IconSet.iconSvg({ name: 'moon', size: 20, className: 'moon' })}<span class="tip" aria-hidden="true"></span></button></nav></div></header>`;
     const deck = `<nav class="deck" aria-label="${escaped(chrome.slide)}"><button class="btn" id="slide-prev" type="button">${escaped(chrome.previous)}</button><span id="slide-count" aria-live="polite"></span><button class="btn" id="slide-next" type="button">${escaped(chrome.following)}</button></nav>`;
 
-    return `<!doctype html><html lang="${escaped(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="${escaped(policy)}"><meta name="generator" content="vulcan visualize"><title>${escaped(spec.title)}</title><script>${HEAD_JS}</script><style>${css}</style></head><body>${bar}<main>${body}</main><footer class="slab foot"><div class="wrap"><p>${escaped(chrome.footer)}</p></div></footer>${deck}<script>${PAGE_JS}</script></body></html>`;
+    return `<!doctype html><html lang="${escaped(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="${escaped(policy)}"><meta name="generator" content="vulcan visualize"><title>${escaped(spec.title)}</title><script>${HEAD_JS}</script><style>${css}</style></head><body>${bar}<main>${withKickers({ html: body, chrome })}</main><footer class="slab foot"><div class="wrap"><p>${escaped(chrome.footer)}</p></div></footer>${deck}<script>${PAGE_JS}</script></body></html>`;
   }
 }

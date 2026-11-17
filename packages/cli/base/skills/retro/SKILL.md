@@ -47,7 +47,7 @@ Classify before proposing anything, in this order:
 | Mechanical check | The violation can be detected by a program | A lint rule, a hook or a CI job; the default for anything mechanical. Propose a failing test first |
 | Rule | A judgement call no program can make | One line in the rules, through the admission bar below |
 | Skill edit | The skill led the agent wrong, or left a step out | The smallest edit to the skill, and its eval |
-| Knowledge fact | The agent lacked a fact the project could state | A line in the knowledge bundle (`knowledge-sync` skill) |
+| Knowledge fact | The agent lacked a fact the project could state | A line in the knowledge bundle (`docs-update` skill) |
 | Rejected | The proposal was considered and rejected | A note in the issue or pull request where it was rejected: the reasons, the date, what would reopen it |
 | Nothing | A rule already exists and was loaded; the lapse was one-off | Say so: "nothing, the rule exists" |
 
@@ -64,6 +64,6 @@ change installed without a pick is how good work gets blocked. Ask once, with a 
 ## 5. Apply what was picked
 
 Only the owner's picks, each through its own path: a check through `build-a-feature`, a rule or skill line
-through the admission bar, a knowledge fact through `knowledge-sync`, a rejection as a note in the issue or pull request where it was rejected.
+through the admission bar, a knowledge fact through `docs-update`, a rejection as a note in the issue or pull request where it was rejected.
 Open an issue only for a pick. Report with `report-back`: what was applied, what was left, and the state of
 the previous retro's items.

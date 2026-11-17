@@ -18,6 +18,7 @@ import type { IReleaseTable } from '@/releases/common';
 import { ReleaseCompute } from '@/releases/compute';
 import { StderrLogger } from '@/common/logger';
 import { PrebuiltAttempt } from '@/prebuilt/attempt';
+import { ChangelogGuard } from './changelog-guard';
 import { SymbolCompute } from '@/symbols/compute';
 import { SourceCache } from './cache';
 import type {
@@ -30,6 +31,7 @@ import type {
 import { SourceModes } from './common';
 import { GithubCredentials } from './credentials';
 import { IndexBuild } from './index-build';
+import { FolderBlobs } from './folder-blobs';
 import { GitRepository } from './git';
 import { PullLock } from './lock';
 import { InstalledPackages } from './installed';
@@ -49,6 +51,8 @@ const HISTORY = 'history';
 const TAGS = 'tags';
 /** A source's newest SHAs the cache keeps - each one a checkout and an index - so it never grows unbounded. */
 const KEPT_SHAS = 3;
+/** The `refs/ref-*` files the cache keeps, the newest served first: each one holds a SHA out of pruning. */
+const KEPT_REFS = 5;
 /** `refs/ref-<ref>` holds the SHA last served for that ref: an offline start stays on its ref. */
 const REFS = 'refs';
 
@@ -81,6 +85,27 @@ const recordedShas = (opts: { cacheRoot: string }): Set<string> => {
       .filter((name) => name.startsWith('ref-'))
       .map((name) => readFileSync(join(directory, name), 'utf8').trim()),
   );
+};
+
+/**
+ * A ref that was pinned once and never served again lets its SHA go: only the newest `KEPT_REFS` stay, and the SHAs
+ * of the ones that left are pruned by the next pull.
+ */
+const pruneOlderRefs = (opts: { cacheRoot: string }): void => {
+  const directory = join(opts.cacheRoot, REFS);
+
+  if (!existsSync(directory)) {
+    return;
+  }
+
+  const refs = readdirSync(directory)
+    .filter((name) => name.startsWith('ref-'))
+    .map((name) => ({ name, at: statSync(join(directory, name)).mtimeMs }))
+    .sort((left, right) => right.at - left.at);
+
+  for (const ref of refs.slice(KEPT_REFS)) {
+    rmSync(join(directory, ref.name), { force: true });
+  }
 };
 
 const describe = (opts: { source: IAtlasSource }): string =>
@@ -131,6 +156,7 @@ const servedFrom = (opts: {
 
   if (opts.mode !== 'offline-cache') {
     recordRef({ cacheRoot: opts.cacheRoot, ref: opts.source.ref, sha: opts.sha });
+    pruneOlderRefs({ cacheRoot: opts.cacheRoot });
   }
 
   return {
@@ -154,9 +180,63 @@ const isComplete = (opts: { cacheRoot: string; sha: string }): boolean =>
   existsSync(join(SourceCache.artifactsOf(opts), COMPLETE)) &&
   existsSync(SourceCache.checkoutOf(opts));
 
+/** The dated entries the fetched commit holds in the changelog folder: what the checkout must show, whatever the sparse paths did. */
+const committedEntriesOf = (opts: {
+  checkout: string;
+  project: IAtlasProject;
+}): number | undefined => {
+  const directory = opts.project.knowledge.changelogs;
+
+  if (directory === undefined) {
+    return undefined;
+  }
+
+  const listed = GitRepository.run({
+    cwd: opts.checkout,
+    args: ['ls-tree', '--name-only', 'HEAD', '--', `${relative(opts.checkout, directory)}/`],
+  });
+
+  return ChangelogGuard.datedIn({
+    names: listed.split('\n').filter((line) => line.length > 0),
+    holdsLog: ({ folder }) =>
+      GitRepository.run({
+        cwd: opts.checkout,
+        args: ['ls-tree', '--name-only', 'HEAD', '--', `${folder}/log.md`],
+      }).trim().length > 0,
+  });
+};
+
+/**
+ * A set whose release table holds no changelog entry although its commit holds some: a table that lost them
+ * (a checkout that did not show the folder when it was built). It is not served: the next start pulls it again.
+ */
+const hasLostChangelogs = (opts: { cacheRoot: string; sha: string }): boolean => {
+  try {
+    const table: IReleaseTable = JSON.parse(
+      readFileSync(join(SourceCache.artifactsOf(opts), RELEASES), 'utf8'),
+    );
+
+    // A folder whose log holds no item is a changelog too: it yields no record, and the table names it.
+    if (table.changelogs.length > 0 || (table.versionFolders?.length ?? 0) > 0) {
+      return false;
+    }
+
+    const checkout = SourceCache.checkoutOf(opts);
+    const project = ProjectConfig.toAtlasProject({
+      root: checkout,
+      manifest: JSON.parse(readFileSync(join(checkout, MANIFEST_FILE), 'utf8')),
+    });
+
+    return (committedEntriesOf({ checkout, project }) ?? 0) > 0;
+  } catch {
+    // A set that cannot be read for this check is judged as it was before: by being complete and current.
+    return false;
+  }
+};
+
 /** A complete set built at this atlas's format: the only kind a start serves, online without pulling, offline from the cache. */
 const isCurrentSet = (opts: { cacheRoot: string; sha: string }): boolean =>
-  isComplete(opts) && isCurrentFormat(opts);
+  isComplete(opts) && isCurrentFormat(opts) && !hasLostChangelogs(opts);
 
 /** Every SHA pulled completely, the most recent pull first. */
 const completeShas = (opts: { cacheRoot: string }): string[] => {
@@ -281,6 +361,8 @@ const buildArtifacts = async (opts: {
   tags?: string;
   /** A pinned tag is read for its docs; the symbols come from what the project installed. */
   corpusOnly?: boolean;
+  /** How many dated changelog entries the fetched commit holds in the changelog folder, when git can say. */
+  committedEntries?: number;
   /** A verified downloaded index (and, while the tags are unchanged, its release table) in place of building them. */
   prebuilt?: { index: Uint8Array; releases?: IReleaseTable; builtBy: string };
 }): Promise<void> => {
@@ -292,6 +374,14 @@ const buildArtifacts = async (opts: {
   writeFileSync(join(partial, INDEX), opts.prebuilt?.index ?? IndexBuild.indexBytesOf({ project }));
 
   const releases = opts.prebuilt?.releases ?? ReleaseCompute.compute({ project });
+
+  // Not cached and not served: a table that lost its changelog would answer every window as empty.
+  ChangelogGuard.check({
+    project,
+    releases,
+    label: describe({ source: opts.source }),
+    committed: opts.committedEntries,
+  });
 
   writeFileSync(join(partial, RELEASES), `${JSON.stringify(releases)}\n`);
 
@@ -356,8 +446,19 @@ const pullByGit = async (opts: {
       ? hit.payload.releases
       : undefined;
 
+  const changelogs = project.knowledge.changelogs;
+
+  // `migrate` reads the version folders at a package's tags with git told never to fetch: their blobs come now.
+  FolderBlobs.prefetch({
+    project,
+    gitDir,
+    url: SourceCache.urlOf(opts.source),
+    sha: opts.sha,
+  });
+
   // A local build reads every declared path; a downloaded index needs the changelogs alone, to compute
-  // the release table here, and nothing at all when the pair's table is still current.
+  // the release table here, and nothing at all when the pair's table is still current - but the version folders,
+  // which `migrate` reads from disk.
   GitRepository.setSparsePaths({
     directory: checkout,
     paths:
@@ -365,9 +466,16 @@ const pullByGit = async (opts: {
         ? declaredPathsOf({ project, checkout })
         : [
             '.agents',
-            ...(releases !== undefined || project.knowledge.changelogs === undefined
+            ...(releases !== undefined || changelogs === undefined
               ? []
-              : [relative(checkout, project.knowledge.changelogs)]),
+              : [relative(checkout, changelogs)]),
+            ...(changelogs === undefined
+              ? []
+              : FolderBlobs.directoriesAt({
+                  gitDir,
+                  sha: opts.sha,
+                  folder: relative(checkout, changelogs),
+                })),
           ],
   });
   await buildArtifacts({
@@ -377,6 +485,7 @@ const pullByGit = async (opts: {
     project,
     history: true,
     tags: opts.tags,
+    committedEntries: committedEntriesOf({ checkout, project }),
     corpusOnly: opts.corpusOnly,
     ...(hit === undefined
       ? {}
@@ -560,6 +669,12 @@ const resolveRemote = async (opts: {
   prebuilt?: boolean;
   indexKeys?: string[];
 }): Promise<IResolvedSource> => {
+  const refused = GitRepository.refusedTransportOf({ repo: opts.source.repo });
+
+  if (refused !== undefined) {
+    throw new Error(`atlas: ${describe(opts)} uses ${refused} - use https or ssh`);
+  }
+
   const cacheRoot = SourceCache.cacheRootOf({ repo: opts.source.repo, cacheBase: opts.cacheBase });
   const byGit = GithubTarball.hasGit();
   const github = GithubTarball.githubRepoOf(opts.source);

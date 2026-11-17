@@ -10,8 +10,8 @@ It runs as `vulcan x atlas <command>`.
 Use atlas to search documentation, read sections, look up exported symbols, and inspect releases.
 
 ```text
-$ bun x --no-install vulcan x atlas help
-usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | index --out <dir> | index keygen | pull [--source <name>] | tools [--root <dir>] | <surface|symbols|releases> | help
+$ bun node_modules/.bin/vulcan x atlas help
+usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|api|symbols|releases|changelogs check> | migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose] | migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] | help
 ```
 
 | Command | What it does |
@@ -19,11 +19,18 @@ usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | inde
 | `mcp` | Serves the project over stdio (default when started by a client) |
 | `tools` | Prints the tools the server offers, one per line |
 | `pull` | Fetches every external source, or one named source |
-| `index --out <dir>` | Builds and signs the index of HEAD into `<dir>`; `index keygen` writes the key pair for it; `index publish` is what the CI action runs |
+| `index --out <dir>` | Builds and signs the index of HEAD into `<dir>` |
+| `index keygen` | Writes the key pair for the index |
+| `index publish` | What the CI action runs |
 | `surface gen\|check` | Writes or checks `.agents/knowledge/reference/public-surface.md` from built `.d.ts` files |
+| `api gen\|check` | Writes or checks one API reference page for each package entry under the wiki, from the built `.d.ts` files |
 | `symbols` | Prints what the `symbol` tool reads from built `.d.ts` declaration files |
-| `releases` | Prints what the `version` and `changes` tools read from git tags |
+| `releases` | Prints what the `version` and `changes` tools read from the git tags of this project |
+| `changelogs check` | Checks the `migration:` blocks of the changelog entries ([Changelogs](#changelogs)) |
+| `migrate plan\|apply` | Plans what an app must change to move a package between two releases, or runs the plan's codemods |
 | `help` | Prints the usage line and exits with code 0 |
+
+`mcp` takes `--cache-dir <dir>`, which says where atlas keeps what it fetches. `pull --warm` fetches and indexes only what the cache lacks; `pull --no-prebuilt` builds every source here instead of downloading its prebuilt index. The sources in `atlas.sources` are not included in what `releases` prints. For `migrate`, see [`migrate`](/references/atlas/tools#migrate).
 
 ## Starting the server
 
@@ -55,7 +62,9 @@ The server answers `initialize` and `tools/list` as soon as it starts, in well u
 |---|---|---|---|
 | `--root <dir>` | Path | Working directory | Root directory of the project to serve |
 | `--source <owner/repo>@<ref>` | String | None | External repository source to fetch and serve |
-| `--no-prebuilt` | Flag | Off | Never download a prebuilt index; every source's index is built here (see [the prebuilt index](/references/atlas/sources#prebuilt-index)) |
+| `--no-prebuilt` | Flag | Off | Never download a prebuilt index; build every source here |
+
+With `--no-prebuilt`, every source's index is built here (see [the prebuilt index](/references/atlas/sources#prebuilt-index)).
 
 To ensure atlas finds `.agents/vulcan.manifest.json`, pin `--root .` in `.mcp.json`.
 Without `--root`, atlas uses the current working directory of the launching process.
@@ -83,9 +92,9 @@ If you start atlas outside a VULCAN project without `--source`, it exits with co
 The example below was run outside any project:
 
 ```text
-$ bun x --no-install vulcan x atlas tools
+$ bun node_modules/.bin/vulcan x atlas tools
 vulcan-atlas: nothing to serve at /tmp/wiki-empty - run in a project (`vulcan sync` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>
-usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | index --out <dir> | index keygen | pull [--source <name>] [--cache-dir <dir>] | tools [--root <dir>] | <surface|symbols|releases> | help
+usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | index --out <dir> | index keygen | pull [--source <name>] [--cache-dir <dir>] | tools [--root <dir>] | <surface|api|symbols|releases> | help
 ```
 
 To resolve this error, run atlas inside a VULCAN project.
@@ -103,29 +112,42 @@ atlas reads the following fields from `.agents/vulcan.manifest.json`. The file i
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `schemaVersion` | Number | None (required) | Must be 1; any other value stops atlas with `atlas: the manifest is schemaVersion X; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan` |
+| `schemaVersion` | Number | None (required) | Must be 1; any other value stops atlas |
 | `name` | String | Folder name | Project name reported in results; server names itself `<name>-atlas` |
-| `packages` | Array | `[]` | Package entries in release order; only `dir` is required (defaults: name = `dir`, path = `packages/<dir>`, aliases `[]`, retired `false`); an invalid npm name is an error |
-| `release.tagPattern` | String | `<dir>-v<version>` | Template pattern for release tags; written from `atlas.tagPattern` in configuration |
-| `release.legacyTagPatterns` | Array | None | Templates of an earlier tag layout, read after `release.tagPattern`; written from `atlas.legacyTagPatterns` in configuration. A tag they read is a release and keeps its name |
+| `packages` | Array | `[]` | Package entries in release order; only `dir` is required |
+| `release.tagPattern` | String | `<dir>-v<version>` | Template pattern for release tags |
+| `release.legacyTagPatterns` | Array | None | Templates of an earlier tag layout, read after `release.tagPattern` |
 | `release.ignoreTags` | Array | `[]` | Glob patterns of tags that atlas ignores |
 | `sources` | Array | `[]` | External sources; entries missing `name` or `repo` are dropped; `ref` defaults to `develop`; git URLs are accepted |
 | `knowledge.bundle` | String | `.agents/knowledge` | Path to the knowledge bundle directory |
 | `knowledge.wiki` | String | None | Path to the wiki documentation directory |
 | `knowledge.changelogs` | String | None | Path to the dated changelog directory |
+| `knowledge.migrationFrom` | String (`YYYY-MM-DD`) | None | The first day whose Breaking Change entries must carry a `migration:` block |
+
+Notes on the fields:
+
+- `schemaVersion`: any other value stops atlas with `atlas: the manifest is schemaVersion X; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan`.
+- `packages`: the defaults are name = `dir`, path = `packages/<dir>`, aliases `[]`, retired `false`; an invalid npm name is an error.
+- `release.tagPattern`: written from `atlas.tagPattern` in configuration. It may hold `<dir>`, `<version>`, `<issue>` and `<date>`; the config refuses any other `<word>`.
+- `release.legacyTagPatterns`: written from `atlas.legacyTagPatterns` in configuration. A tag they read is a release and keeps its name.
+- `knowledge.migrationFrom`: `changelogs check` never reads an earlier entry.
 
 ## Tools
 
 To inspect the tools the server offers without an MCP client, run `vulcan x atlas tools`:
 
 ```text
-$ bun x --no-install vulcan x atlas tools
+$ bun node_modules/.bin/vulcan x atlas tools
 search   When the user asks how something works in my-product and ignis, or about this project's conventions, search here before you answer from memory
 get      After `search`, read the hit here before you rely on it
 symbol   Before you import or call an export of my-product and ignis, get its real signature, import path and source line here instead of recalling it
 version  When a version, an upgrade or an installed @venizia/* package comes up in my-product and ignis, check here
 changes  When the user asks what changed, what a release added or what breaks on upgrade in my-product and ignis, list the entries here
+migrate  When the user asks what to change to upgrade or roll back a @venizia/* package, or how to move an app between two versions of my-product and ignis, plan it here before you answer
+presets  When you are asked to create a new app or package in my-product and ignis, ask here which preset and which exact command to use before you write any file
 ```
+
+`symbol` answers with the record and, for an export of a project, its `declaration`: the TSDoc and the members as the built `.d.ts` has them, then the declarations of the exported types it uses (nearest and smallest first, three steps out), up to about 10 000 characters. `truncated: true` says something was left out. An internal type that is not exported but appears in the declaration (the shape an argument must have) is part of it. A name exported by two packages with the same shape gives the declaration once and `declarationOf` on the other.
 
 Each description opens with when to call the tool, and names the projects the server holds. The text is rendered from the config when the server starts. The command prints only the first sentence of each; a client gets the full description.
 
@@ -159,6 +181,8 @@ Which agents show these instructions to the model is recorded per agent in `vulc
 For tool arguments and reply schemas, see the [atlas tools reference](/references/atlas/tools).
 
 ## Pull
+
+To see what atlas reads, run `vulcan x atlas status` (`--root <dir>` for another project). It lists the sources the project declares and, for each `@venizia/*` package the app declares, the copy atlas reads its symbols from (the first one found, nearest the root) with its version and folder, then every other copy found, and says when the versions differ. It reads the disk only; whether a source's docs are pinned to the installed version or follow their ref is in the answer of the `version` tool.
 
 To fetch external sources, run `vulcan x atlas pull`.
 Inside a project, it fetches sources declared in the manifest plus any `--source` arguments.
@@ -203,7 +227,6 @@ The composite action `VENIZIA-AI/vulcan/.github/actions/atlas-index` runs it as 
 on:
   push:
     branches: [main, develop]
-    tags: ['*']
 
 permissions:
   contents: write
@@ -223,7 +246,7 @@ jobs:
 ```
 
 The job needs `contents: write`, the whole history (`fetch-depth: 0`: a shallow checkout is refused, because its release table would come from part of the history), and the private key as the secret `ATLAS_INDEX_KEY`.
-It uses the project's own installed atlas, so `bun x --no-install vulcan` must resolve.
+It uses the project's own installed atlas, so `bun node_modules/.bin/vulcan` must resolve.
 
 It publishes only when all of these hold; otherwise it uploads nothing, says why and succeeds:
 
@@ -265,25 +288,42 @@ An MCP server lives as long as the agent session that started it, often for days
 To manage the public API surface snapshot, use `vulcan x atlas surface`:
 
 ```text
-$ bun x --no-install vulcan x atlas surface
+$ bun node_modules/.bin/vulcan x atlas surface
 usage: vulcan x atlas surface gen|check
 ```
 
 Running bare `surface` prints the usage line and exits with code 2.
 `vulcan x atlas surface gen` writes `.agents/knowledge/reference/public-surface.md` and prints `wrote <path>`.
 `vulcan x atlas surface check` verifies the snapshot against current built declaration files.
-It prints a fresh or stale line.
-`surface check` fails with exit code 1 when the file is missing.
-It also fails when exported symbols were added, removed, or changed kind.
+It prints a fresh, stale or not set up line.
+`surface check` fails with exit code 1 when the file is missing, and says no public surface is committed yet and to run `surface gen` once; it does not call that stale.
+It also fails, as stale, when exported symbols were added, removed, or changed kind.
 `surface` needs the same built `.d.ts` declaration files as `symbols`.
 It finds them from each package's `exports` field, not a fixed `dist/`.
+
+## API reference
+
+To write the API reference of the project's packages, run `vulcan x atlas api`:
+
+```text
+$ bun node_modules/.bin/vulcan x atlas api
+usage: vulcan x atlas api gen|check | undocumented [--package <dir, name or path>]...
+```
+
+`api gen` writes `references/api/<entry>.md` under the wiki directory of the manifest (`knowledge.wiki`), one page for each `exports` entry (`@scope/name/subpath` becomes `scope-name-subpath.md`) and an `index.md` that counts the exports and the ones with TSDoc. An export is listed once, on the entry that declares it (the most specific entry of the package that owns its source file); an entry that only re-exports it names that entry in a short list at the end of its page. A page lists every export it declares by name with its kind, its TSDoc as prose, its declaration without that comment (members keep theirs) and the source file (no line number, so the check fails only when the API or its TSDoc changes); the exports with no TSDoc are named at the top. An export whose TSDoc says `@internal` is left out of the page and of its counts. A re-export of a third-party declaration shows its signature only. The pages are generated: link to them from a guide and never edit them. A page that no longer matches the declarations, or a generated page for an entry that was removed, is rewritten or deleted by the next `gen`. A file in the folder that `gen` did not write (it carries the generated note) is never touched.
+
+`api check` fails with exit code 1 and names the files when a page is missing, changed or no longer generated. A project with no `knowledge.wiki` gets an error, and `api` needs the same built `.d.ts` files as `symbols`.
+
+`api undocumented` writes no page. It lists, for each entry, the exports that have a declaration and no TSDoc, and exits 1 when there are any; `--package <dir, name or path>` (repeatable) limits it to some packages: the `dir` id, the npm name or the path from the project root (`packages/core`). `--package=<value>` works too, and a retired package matches nothing. A value that matches no package, or a `--package` with no value, stops the command with exit 2 before anything is read, and names it; "build the packages first" is said only when packages matched and have no exports. It is the check to run when public exports must carry TSDoc: an `@internal` export, a re-export of a third-party declaration and a module re-exported as a namespace are not counted. Unlike `gen` and `check`, it also reads a package that publishes its TypeScript source (an `exports` entry that points at a `.ts` file): the compiler reads the source, and a record keeps the TSDoc above each export and a signature built from names and types only: no body, no initializer, no default argument, no `export default` expression. A target is found under `types`, `import`, `default` or `bun`, also nested one under another; a subpath with a `*` is not read.
+
+The text on a page comes from the comment as written. Markup the comment did not mean (an angle bracket, a double brace) is escaped outside code, and a TSDoc that the compiler does not attach to the `.d.ts` (for example one on a destructured export) is shown as undocumented.
 
 ## Symbols
 
 To inspect what the `symbol` tool reads, run `vulcan x atlas symbols`:
 
 ```text
-$ bun x --no-install vulcan x atlas symbols
+$ bun node_modules/.bin/vulcan x atlas symbols
 {
   "generatedFrom": "dist",
   "packages": [
@@ -304,14 +344,14 @@ The output above shows a project with one package before a build.
 To populate the `symbols` array, build your packages first.
 atlas reads exported symbols directly from built `.d.ts` files found through each package's `exports` field.
 It does not commit or require a static symbol table file.
-When no live package exists, `symbols` and `surface` fail with "add packages to .configs/vulcan.config.*".
+When no live package exists, `symbols`, `surface gen` and a `surface check` of an existing file fail with "add packages to .configs/vulcan.config.*"; a `surface check` with no file says it is not set up before it reads any package.
 
 ## Releases
 
 To inspect what the `version` and `changes` tools read, run `vulcan x atlas releases`:
 
 ```text
-$ bun x --no-install vulcan x atlas releases
+$ bun node_modules/.bin/vulcan x atlas releases
 {
   "livePackages": [
     "api"
@@ -334,18 +374,40 @@ By default, the template is `<dir>-v<version>`, such as `api-v1.0.0`.
 atlas computes releases directly from git tags and commit history when it reads a source.
 Without a git root or commits, atlas finds zero releases and returns the "no releases" message.
 
+A changelog entry can also carry a `migration:` block in its frontmatter, and the table holds it for the entry (`changelogs[].migration`): how an app upgrades and downgrades across the entry. An entry whose block is invalid carries none.
+
+## Changelogs
+
+`vulcan x atlas changelogs check` (or `vulcan changelog check`) validates the `migration:` blocks of the entries in `knowledge.changelogs`.
+It exits `0` when every entry conforms and `1` when one does not, printing `<file>: <message>` for each problem on stderr; any other subcommand exits `2`.
+
+- **Shape**: each item has `id` (lower-case words joined by `-`, unique across the folder), `symbols` (at least one export name, `Name.member` or module specifier), `upgrade` and `downgrade` (each `before` and `after`, or `steps`; only an `upgrade` may hold `steps` together with `before` and `after`), and optionally `data` and `codemod`.
+- **Who owes a block**: an entry with a `Breaking Change` or `Breaking` badge (the badge line or `badges:`) dated on or after `knowledge.migrationFrom`; the short spelling is also reported there: use `Breaking Change`. With no `migrationFrom` nothing is owed, but a block that is present is still checked.
+- **Who is skipped**: an entry dated before `knowledge.migrationFrom`.
+- **`codemod`**: lower-case words joined by `-` (it reaches a command line, so never starts with `-`), and a name the project's runner prints with `--list` (`devz codemod --list` unless `knowledge.codemodCommand` sets another). When the runner is not installed, is not inside a package of the project, or cannot list, the names are not checked and the command says so.
+
 ## Why a result is empty
 
 When an atlas tool has nothing to read, it answers with an error whose message explains why.
 
-| Tool | Message | Meaning | How to fix |
-|---|---|---|---|
-| `symbol` | `no symbols - build the packages first: atlas reads their exports' .d.ts` | Built `.d.ts` files are missing from package exports targets | Build the packages |
-| `symbol` | `none of its packages is installed here or on npm` | Remote source packages are not installed in `node_modules` or cached from npm | Install the packages or publish them |
-| `version`, `changes` | `no releases: no tag matches <pattern> in this ref's history` | Git repository contains no tags matching `release.tagPattern` | Create git tags matching `release.tagPattern` |
-| `version`, `changes` | `no release history: <name> was fetched without git` | Git is missing, atlas used a tarball with no history | Install git and restart atlas |
-| `changes` | `no dated changelog entries: the manifest declares no changelog directory - set knowledge.changelogs; atlas reads files named YYYY-MM-DD-<slug>.md from it` (the message goes on to describe the file layout) | Manifest does not declare `knowledge.changelogs` | Set `knowledge.changelogs` in configuration and run `vulcan sync` |
-| `changes` | `no dated changelog entries in <dir> - atlas reads files named YYYY-MM-DD-<slug>.md from it` (the message goes on to describe the file layout) | Changelog directory contains no dated files | Add dated changelog files with `packages:` frontmatter |
+- **`symbol`**: `no symbols - build the packages first: atlas reads their exports' .d.ts`
+  - Meaning: Built `.d.ts` files are missing from package exports targets.
+  - Fix: Build the packages.
+- **`symbol`**: `none of its packages is installed here or on npm`
+  - Meaning: Remote source packages are not installed in `node_modules` or cached from npm.
+  - Fix: Install the packages or publish them.
+- **`version`, `changes`**: `no releases: no tag matches <pattern> in this ref's history`
+  - Meaning: Git repository contains no tags matching `release.tagPattern`.
+  - Fix: Create git tags matching `release.tagPattern`.
+- **`version`, `changes`**: `no release history: <name> was fetched without git`
+  - Meaning: Git is missing, atlas used a tarball with no history.
+  - Fix: Install git and restart atlas.
+- **`changes`**: `no dated changelog entries: the manifest declares no changelog directory - set knowledge.changelogs; atlas reads files named YYYY-MM-DD-<slug>.md from it` (the message goes on to describe the file layout)
+  - Meaning: Manifest does not declare `knowledge.changelogs`.
+  - Fix: Set `knowledge.changelogs` in configuration and run `vulcan sync`.
+- **`changes`**: `no dated changelog entries in <dir> - atlas reads files named YYYY-MM-DD-<slug>.md from it` (the message goes on to describe the file layout)
+  - Meaning: Changelog directory contains no dated files.
+  - Fix: Add dated changelog files with `packages:` frontmatter.
 
 ## See also
 

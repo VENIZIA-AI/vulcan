@@ -13,7 +13,7 @@ The manifest is always written.
 | Output | Where | Committed? | Built from |
 |---|---|---|---|
 | Agent instructions | `CLAUDE.md` | No (gitignored adapter) | `@AGENTS.md` import line |
-| Claude settings | `.claude/settings.json` | No (gitignored adapter) | Shipped settings, slot choices, project hooks, `claude.settings`, and personal settings |
+| Claude settings | `.claude/settings.json` | No (gitignored adapter) | Shipped settings, slot choices, `claude.settings` (project hooks included), and personal settings |
 | Skill links | `.claude/skills/<name>` | No (gitignored adapter) | Symbolic links to shipped and project skills |
 | Project manifest | `.agents/vulcan.manifest.json` | Yes (committed manifest) | Project configuration and base rule hashes |
 | Managed overlay | `.claude/vulcan-managed.json` | No (gitignored adapter) | Managed overlay record of settings written by VULCAN |
@@ -22,8 +22,10 @@ The manifest is always written.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `--agents <list>` | string | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/vulcan.local.json`. `--agents list` prints the table of agents and writes nothing. In a terminal, `--agents` with no value asks again |
+| `--agents <list>` | string | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/vulcan.local.json` |
 | `--dry-run` | boolean | false | Print planned changes without writing to disk |
+
+`--agents list` prints the table of agents and writes nothing. In a terminal, `--agents` with no value asks again.
 
 ## Choosing your agents
 
@@ -34,7 +36,7 @@ The manifest is always written.
 The first `sync` in a terminal detects the agents on the machine (a binary on `PATH`, a folder in your home or in the project) and asks you to confirm:
 
 ```text
-$ bun x --no-install vulcan sync
+$ bun node_modules/.bin/vulcan sync
 Which coding agents do you use in this project? (comma-separated; Enter accepts the detected list: claude, omp)
   detected: claude, omp
   available: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
@@ -54,7 +56,7 @@ The order that decides the list is: the `--agents` flag; the stored file; the `a
 | `antigravity` | `mcpServers.atlas` | `.agents/mcp_config.json` |
 | `pi` | `mcpServers.atlas` | `.pi/mcp.json`; Pi ignores it until you trust the project |
 
-These files are for your machine, so the entry carries the absolute project root and calls the project's own `vulcan` (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`), which works whatever directory the agent starts the server from. `sync` merges: your other servers and keys stay, an `atlas` entry that `sync` wrote itself is rewritten when the project has moved (the paths no longer match this folder: after you move, rename or copy the project, run `sync` again), any other `atlas` entry is yours and is left as it is, a file that is not valid JSON is skipped (`skipped`, with the reason), and a file git tracks is not written (it prints what to add). After the actions, `sync` prints one `note` line for each thing only you can do, such as trusting the project in Codex or Pi. Every chosen agent except Claude reads skills from `.agents/skills/<name>/SKILL.md`, so `sync` links the four shipped skills (`build-a-feature`, `docs-update`, `docs-writing`, `knowledge-sync`) there, as symbolic links to the same stable path the Claude links use. Agents that share the folder share the links. A skill of yours with the same name wins: its real folder is left and reported as `skipped`. Claude keeps `.claude/skills`, which also holds your project skills. The git ignore entries for these files are described in [Keeping the adapters out of git](#keeping-the-adapters-out-of-git).
+These files are for your machine, so the entry carries the absolute project root and calls the project's own `vulcan` (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`), which works whatever directory the agent starts the server from. `sync` merges: your other servers and keys stay, an `atlas` entry that `sync` wrote itself is rewritten when the project has moved (the paths no longer match this folder: after you move, rename or copy the project, run `sync` again), any other `atlas` entry is yours and is left as it is, a file that is not valid JSON is skipped (`skipped`, with the reason), and a file git tracks is not written (it prints what to add). After the actions, `sync` prints one `note` line for each thing only you can do, such as trusting the project in Codex or Pi. Every chosen agent except Claude reads skills from `.agents/skills/<name>/SKILL.md`, so `sync` links the 12 shipped skills there, as symbolic links to the same stable path the Claude links use. Agents that share the folder share the links. A skill of yours with the same name wins: its real folder is left and reported as `skipped`. Claude keeps `.claude/skills`, which also holds your project skills. The git ignore entries for these files are described in [Keeping the adapters out of git](#keeping-the-adapters-out-of-git).
 
 ## The root .mcp.json
 
@@ -94,16 +96,18 @@ How to build something here (a feature, a controller, a service, a repository): 
 
 The corpora come from the config (the project and every `atlas.sources` entry). `sync` inserts the block before the section that follows "Must read first" (or at the end), rewrites only what sits between the markers on later runs, and never touches your text around it. `vulcan doctor` prints an `info` line when the block is missing or out of date; it never fails.
 
+The blocks can make `AGENTS.md` pass 100 lines. When it is one of `okf.contents.files` (it is by default), `sync` then also writes its contents list, so `vulcan x okf check --strict` never reports `AGENTS.md has no fresh contents list` after a `sync`.
+
 ## The event hooks
 
-When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `Stop`, `SubagentStop`, `Notification` and `PostToolUse` (on the `SendMessage` tool only) to `.claude/settings.json`. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.
+When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `SubagentStop`, `Notification` and `PostToolUse` (only the `SendMessage` tool, so no process starts for any other tool call) to `.claude/settings.json`; a `Stop` hook and a `PostToolUse` hook for every tool are not installed, and `sync` removes one it finds. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.
 
 ## The commit-msg hook
 
 When `commit.message` turns a commit check on, `sync` installs a `commit-msg` git hook in your clone, so every commit message is checked, whoever or whatever makes the commit. Nothing is installed for a project that sets no check.
 
 - With no `core.hooksPath`, it writes `.git/hooks/commit-msg`, and a linked worktree shares it.
-- A hook that `sync` did not write is never touched: `sync` prints `skipped` and the line to add, `bun x --no-install vulcan commit-check "$1"`.
+- A hook that `sync` did not write is never touched: `sync` prints `skipped` and the line to add, `bun node_modules/.bin/vulcan commit-check "$1"`.
 - With `core.hooksPath` set, `sync` writes nothing there and prints the same line for that folder's `commit-msg` hook.
 - When you turn every check off, `sync` removes a hook it wrote.
 
@@ -115,7 +119,7 @@ A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you ch
 
 ## The temp folder
 
-`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/`, and writes `.agents/local/claude.launch.settings.json` for this checkout: `TMPDIR` and `CLAUDE_CODE_TMPDIR` set to `.agents/local/tmp`, to start Claude Code with `claude --settings .agents/local/claude.launch.settings.json`. The session-start hook it registers also exports `TMPDIR` into every Bash command. What each route moves, and what still needs the launch file, is in [Temporary files](/references/agents#temporary-files).
+`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/`, and writes `.agents/local/claude.launch.settings.json` for this checkout: `TMPDIR` and `CLAUDE_CODE_TMPDIR` set to `.agents/local/tmp` (or the folder `local.tmp` names, which `sync` also creates and gitignores), to start Claude Code with `claude --settings .agents/local/claude.launch.settings.json`. The session-start hook it registers also exports `TMPDIR` into every Bash command. What each route moves, and what still needs the launch file, is in [Temporary files](/references/agents#temporary-files).
 
 ## Keeping the adapters out of git
 
@@ -130,7 +134,6 @@ Which agents you use is your choice, so the committed `.gitignore` cannot list y
 /.agents/skills/docs-update
 /.agents/skills/docs-writing
 /.agents/skills/fix-a-bug
-/.agents/skills/knowledge-sync
 /.agents/skills/plan-a-change
 /.agents/skills/report-back
 /.agents/skills/review-a-change
@@ -146,44 +149,53 @@ The list holds the Claude files (`/CLAUDE.md`, `/.claude/`) when `claude` is cho
 To generate missing adapters and the manifest, run `vulcan sync`:
 
 ```text
-$ bun x --no-install vulcan sync
+$ bun node_modules/.bin/vulcan sync
   created   CLAUDE.md
-  created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  created   .claude/settings.json (shipped, slot and claude.settings over personal keys)
   created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
   created   .claude/skills/fix-a-bug
-  created   .claude/skills/knowledge-sync
   created   .claude/skills/plan-a-change
   created   .claude/skills/report-back
+  created   .claude/skills/research
+  created   .claude/skills/retro
   created   .claude/skills/review-a-change
+  created   .claude/skills/ship
+  created   .claude/skills/visualize-work
   created   .mcp.json
   created   .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)
   created   .agents/vulcan.local.json
+  created   .agents/local/claude.launch.settings.json (the Claude Code launch file is missing)
+  created   .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
   replaced  .git/info/exclude
 ```
 
-The last three lines are the Atlas block in `AGENTS.md`, the file that stores your choice of agents, and the ignore list in your clone (a project that is not a git repository gets no `.git/info/exclude` line).
+The last five lines are the Atlas block in `AGENTS.md`, the file that stores your choice of agents, the Claude Code launch file, the scratch folder `.agents/local/`, and the ignore list in your clone (a project that is not a git repository gets no `.git/info/exclude` line).
 
 Running `vulcan sync` again on an up-to-date repository makes no changes:
 
 ```text
-$ bun x --no-install vulcan sync
+$ bun node_modules/.bin/vulcan sync
   unchanged CLAUDE.md
   unchanged .claude/settings.json
   unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/fix-a-bug
-  unchanged .claude/skills/knowledge-sync
   unchanged .claude/skills/plan-a-change
   unchanged .claude/skills/report-back
+  unchanged .claude/skills/research
+  unchanged .claude/skills/retro
   unchanged .claude/skills/review-a-change
+  unchanged .claude/skills/ship
+  unchanged .claude/skills/visualize-work
   unchanged .mcp.json
   unchanged .agents/vulcan.manifest.json
   unchanged AGENTS.md
   unchanged .agents/vulcan.local.json
+  unchanged .agents/local
   unchanged .git/info/exclude
 ```
 
@@ -196,7 +208,7 @@ $ bun x --no-install vulcan sync
 | `created` | The target file or symbolic link did not exist and was written. |
 | `unchanged` | The target file or symbolic link already matches the planned content. |
 | `replaced` | The target existed with different content or pointed elsewhere, and was rewritten. |
-| `removed` | A dead skill link was removed: a link into a shipped skill this version no longer has, or into a skill of yours that is gone. |
+| `removed` | A dead skill link was removed: into a shipped skill this version lacks, or a skill of yours that is gone. |
 | `skipped` | The target was left untouched due to a conflict or invalid content. |
 
 A target is skipped when `CLAUDE.md` exists and is not exactly `@AGENTS.md`: `sync` never replaces a file it did not write (`skipped (hand-written - delete it to let sync write '@AGENTS.md')`).
@@ -214,13 +226,11 @@ The exit code is also 1 when configuration fails to load.
 Each later source overrides the earlier sources:
 
 1. Personal settings: Existing user keys in `.claude/settings.json` form the base.
-2. Shipped settings: Base settings from VULCAN register the `SessionStart` hook and the `guard-writes` `PreToolUse` hook, and approve the project's `atlas` server (`enabledMcpjsonServers: ["atlas"]`), so Claude does not ask you to approve `.mcp.json` the first time. A list of your own approved servers is kept and `atlas` is added to it.
+2. Shipped settings: Base settings from VULCAN register [the shipped hooks](/references/hooks/), and approve the project's `atlas` server (`enabledMcpjsonServers: ["atlas"]`), so Claude does not ask you to approve `.mcp.json` the first time. A list of your own approved servers is kept and `atlas` is added to it.
 3. Slot choices: Settings defined for chosen slot options in `base/slots.json`, such as git write restrictions for `V-W-01`.
-4. Remote hosts: If configuration defines `remoteHosts`, VULCAN adds the `guard-remote-hosts` `PreToolUse` hook.
-5. Commit attribution: With `commit.message.agent.signature: 'deny'`, VULCAN sets `attribution` empty so Claude Code adds no signature to commits and pull requests ([the details](/references/commands/commit-check#claude-code-s-own-attribution)).
-6. Event hooks: With `events.log: true`, VULCAN adds the five hooks of the [agent event log](/references/commands/event).
-7. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.mts`, grouped by event.
-8. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`.
+4. Commit attribution: With `commit.message.agent.signature: 'deny'`, VULCAN sets `attribution` empty so Claude Code adds no signature to commits and pull requests ([the details](/references/commands/commit-check#claude-code-s-own-attribution)).
+5. Event hooks: With `events.log: true`, VULCAN adds the five hooks of the [agent event log](/references/commands/event).
+6. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`, project hooks (`claude.settings.hooks`) included.
 
 ### Merge behavior
 
@@ -233,16 +243,11 @@ Arrays inside these four keys concatenate without duplicates (for example `permi
 For all other keys, incoming configuration values overwrite existing values.
 Original key ordering from `.claude/settings.json` is preserved to keep diffs stable.
 
-### Remote host guard hook
-
-Setting `remoteHosts` in `.configs/vulcan.config.mts` registers a second `PreToolUse` hook.
-The hook runs `guard-remote-hosts.ts` on Bash commands.
-The skill lines and the lines that did not change are dropped from the output below.
-The settings and the manifest are what change when you add `remoteHosts`:
+The settings and the manifest are what change; the skill lines and the lines that did not change are dropped from the output below:
 
 ```text
-$ bun x --no-install vulcan sync
-  replaced  .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+$ bun node_modules/.bin/vulcan sync
+  replaced  .claude/settings.json (shipped, slot and claude.settings over personal keys)
   replaced  .agents/vulcan.manifest.json
 ```
 
@@ -251,21 +256,26 @@ $ bun x --no-install vulcan sync
 To preview filesystem operations without making changes, pass `--dry-run`:
 
 ```text
-$ bun x --no-install vulcan sync --dry-run
+$ bun node_modules/.bin/vulcan sync --dry-run
   would create  CLAUDE.md
-  would create  .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  would create  .claude/settings.json (shipped, slot and claude.settings over personal keys)
   would create  .claude/skills/build-a-feature
   would create  .claude/skills/docs-update
   would create  .claude/skills/docs-writing
   would create  .claude/skills/fix-a-bug
-  would create  .claude/skills/knowledge-sync
   would create  .claude/skills/plan-a-change
   would create  .claude/skills/report-back
+  would create  .claude/skills/research
+  would create  .claude/skills/retro
   would create  .claude/skills/review-a-change
+  would create  .claude/skills/ship
+  would create  .claude/skills/visualize-work
   would create  .mcp.json
   would create  .agents/vulcan.manifest.json
   would replace AGENTS.md (Atlas block)
   would create  .agents/vulcan.local.json
+  would create  .agents/local/claude.launch.settings.json (the Claude Code launch file is missing)
+  would create  .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
   would replace .git/info/exclude
 ```
 
@@ -277,7 +287,7 @@ Run `vulcan sync` whenever the project environment or configuration changes:
 - After modifying configuration: Changes to `.configs/vulcan.config.mts` affect settings, hooks, skill links and the manifest.
 - After updating dependencies: Upgrading packages or VULCAN may introduce new shipped skills, hooks or base rules.
 
-`vulcan doctor` reports contract violations when adapters drift, such as `stale (<status>) - run 'bun x --no-install vulcan sync'`.
+`vulcan doctor` reports contract violations when adapters drift, such as `stale (<status>) - run 'bun node_modules/.bin/vulcan sync'`.
 To review adapter verification rules, see the [doctor reference](/references/commands/doctor#adapters).
 
 ## The project manifest
@@ -338,7 +348,7 @@ The committed manifest records resolved project metadata:
 }
 ```
 
-The sample shows 3 of the 39 base rule entries.
+The sample shows 3 of the base rule entries: 35, and 40 in a project that follows the `venizia` pack.
 The `rules.base` section stores one short hash per base rule, so a rule change is visible in review.
 
 After the actions, `vulcan sync` prints one line per base-rule change.
@@ -349,12 +359,13 @@ The manifest also includes optional fields when configured:
 
 - `knowledge.wiki`: Path to wiki documentation, present when set.
 - `knowledge.changelogs`: Path to changelogs, present when set.
-- `knowledge.syncAreas`: Map of code areas to concepts, present when set.
+- `knowledge.migrationFrom`: The first day (`YYYY-MM-DD`) whose Breaking Change changelog entries must carry a `migration:` block, present when set.
 - `layout`: The folders of backend apps, frontend apps and shared packages (`backend`, `frontend`, `shared`), present when set; `init --preset` and `add` write it.
 - `presets`: The presets the project's apps came from, each `{ spec, side, summary }` and `lib` when the preset also makes libraries. atlas's `presets` tool answers from it.
-- `kind`: `"lib"` on a package entry that `add --lib` made (apps carry no `kind`).
+- `kind`: `"lib"` on a package entry that `add --lib` made (apps carry no `kind`), and `presetKind` (`lib` or `shared`) on a library or shared package that `add` made.
 - `sources`: External repository sources for atlas, present when `atlas.sources` contains entries.
-- `remoteHosts`: Remote host security policy, present when `remoteHosts` is configured.
+- `atlas`: The keys a prebuilt index is checked with and the switch that turns its download off, present when `atlas.index` or `atlas.prebuilt` is set.
+- `guard`: The commands and push targets the guards ask about beyond their own list, present when `guard.writes.commands` or `guard.git.askPush` is set.
 
 ## See also
 

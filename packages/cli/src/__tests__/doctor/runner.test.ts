@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { DoctorChecks, DoctorRunner, Makefile } from '../../doctor/index.ts';
 import { LocalChoice } from '../../agents/index.ts';
 import { Bunfig } from '../../create/bunfig.ts';
-import { Dockerignore } from '../../create/dockerignore.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -27,7 +26,7 @@ const CONFORMANT: Record<string, string> = {
   '.agents/knowledge/index.md': '# k\n',
   Makefile: `${MAKE_INCLUDE}\nbuild:\n\t@echo build\n`,
   '.mcp.json':
-    '{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] } } }\n',
+    '{ "mcpServers": { "atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "."] } } }\n',
   'bunfig.toml': Bunfig.render(),
   ...LINT_CONFIGS,
 };
@@ -102,7 +101,7 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        '.agents/rules.md': '| **W-06** | **Extends V-W-04 and V-Z-99.** stay | SOFT |\n',
+        '.agents/rules.md': '| **W-06** | **Extends V-W-06 and V-Z-99.** stay | SOFT |\n',
       },
     });
     const result = runCli({ args: ['doctor'], cwd: root });
@@ -111,7 +110,27 @@ describe('doctor', () => {
     expect(result.stderr).toContain(
       `[${DoctorChecks.RULE_IDS}] .agents/rules.md: V-Z-99 is not a base rule`,
     );
-    expect(result.stderr).not.toContain('V-W-04');
+    expect(result.stderr).not.toContain('V-W-06');
+  });
+
+  test('a rule of a pack the project did not turn on says which pack holds it; with the pack on, it is known', async () => {
+    const rules = '| **C-30** | **Extends V-C-08.** mine | SOFT |\n';
+    const off = createSyncedProject({ files: { ...CONFORMANT, '.agents/rules.md': rules } });
+    const on = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.configs/vulcan.config.mts':
+          "export default { rules: { 'V-W-01': 'read-only' }, packs: ['venizia'] };\n",
+        '.agents/rules.md': rules,
+      },
+    });
+
+    const result = await DoctorRunner.runChecks({ root: off });
+    expect(result.map((item) => item.message)).toEqual([
+      "V-C-08 is in the venizia pack - add 'venizia' to packs in the config",
+    ]);
+    const result2 = await findChecks({ root: on });
+    expect(result2).toEqual([]);
   });
 
   test('a V- ID the base does not carry, extended or in a first cell', async () => {
@@ -130,12 +149,12 @@ describe('doctor', () => {
     ]);
   });
 
-  test("BANA's form: bold bare IDs define, V- IDs the base carries are references", async () => {
+  test("a downstream project's form: bold bare IDs define, V- IDs the base carries are references", async () => {
     const markdown = [
       '| ID | Rule |',
       '|---|---|',
       '| **W-00** | **Extends V-W-01 (slot `read-only`).** mine |',
-      '| **S-01** | **Extends V-S-01 and V-S-07.** mine |',
+      '| **S-01** | **Extends V-S-01 and V-S-06.** mine |',
       '| V-W-02, V-W-03 | the guard-writes hook asks |',
       '| **V-C-04** | quoted from the base |',
     ].join('\n');
@@ -208,7 +227,7 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        '.agents/skills/knowledge-sync/SKILL.md': '---\nname: knowledge-sync\n---\n',
+        '.agents/skills/research/SKILL.md': '---\nname: research\n---\n',
       },
     });
 
@@ -256,19 +275,6 @@ describe('doctor', () => {
 
     const result = await findChecks({ root });
     expect(result).toEqual([]);
-  });
-
-  test('a config hook that runs a shipped hook', async () => {
-    const root = createSyncedProject({
-      files: {
-        ...CONFORMANT,
-        '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, hooks: [{ event: 'Stop', command: 'bun node_modules/@venizia/vulcan/base/hooks/guard-writes.ts' }] };\n",
-      },
-    });
-
-    const result = await findChecks({ root });
-    expect(result).toEqual([DoctorChecks.HOOKS]);
   });
 
   test('never synced: one adapters violation, and the missing manifest', async () => {
@@ -352,7 +358,7 @@ describe('doctor', () => {
     expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
-  // D9: the style package comes from the package whose .configs/ holds the lint config (BANA's shape).
+  // D9: the style package comes from the package whose .configs/ holds the lint config (a downstream project's shape).
   const PACKAGE_LINT_CONFIGS = Object.fromEntries(
     Object.entries(LINT_CONFIGS).map(([file, text]) => [join('packages', 'app', file), text]),
   );
@@ -389,20 +395,20 @@ describe('doctor', () => {
     expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
-  test("a configured package outside packages/ is an owner too (BANA's umbras/kit)", async () => {
+  test("a configured package outside packages/ is an owner too (a downstream project's backends/kit)", async () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
         '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'kit', name: '@demo/kit', path: 'umbras/kit' }] };\n",
-        'umbras/kit/package.json': '{ "name": "@demo/kit" }',
-        'umbras/kit/.configs/lints/oxlint.config.mts': 'export default {};\n',
+          "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'kit', name: '@demo/kit', path: 'backends/kit' }] };\n",
+        'backends/kit/package.json': '{ "name": "@demo/kit" }',
+        'backends/kit/.configs/lints/oxlint.config.mts': 'export default {};\n',
       },
     });
     const violations = await DoctorRunner.runChecks({ root });
 
     expect(violations.map((violation) => [violation.check, violation.file])).toEqual([
-      [DoctorChecks.STYLE, 'umbras/kit/.configs/lints/oxlint.config.mts'],
+      [DoctorChecks.STYLE, 'backends/kit/.configs/lints/oxlint.config.mts'],
     ]);
   });
 
@@ -427,7 +433,7 @@ describe('doctor on a clean checkout', () => {
 
     expect(adapters).toHaveLength(1);
     expect(adapters[0]?.message).toBe(
-      "not synced yet - run 'bun x --no-install vulcan sync' (make vulcan-sync) first",
+      "not synced yet - run 'bun node_modules/.bin/vulcan sync' (make vulcan-sync) first",
     );
     expect(adapters[0]?.message).not.toContain('stale');
   });
@@ -521,10 +527,10 @@ describe('doctor: apps', () => {
       ...CONFORMANT,
       'package.json': `{ "name": "demo", "workspaces": ${opts.workspaces}, "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }`,
       '.configs/vulcan.config.mts':
-        "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'merchant', name: '@nx/merchant', path: 'auroras/features/merchant', kind: 'lib' }] };\n",
+        "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'merchant', name: '@nx/merchant', path: 'frontends/features/merchant', kind: 'lib' }] };\n",
     });
     const covered = createSyncedProject({
-      files: files({ workspaces: '["services/*", "auroras/features/*"]' }),
+      files: files({ workspaces: '["services/*", "frontends/features/*"]' }),
     });
     const uncovered = createSyncedProject({ files: files({ workspaces: '["services/*"]' }) });
 
@@ -536,7 +542,7 @@ describe('doctor: apps', () => {
         .filter((violation) => violation.check === DoctorChecks.APPS)
         .map((violation) => violation.message),
     ).toContain(
-      "package merchant lives at auroras/features/merchant, which no workspace glob covers - add 'auroras/features/*' to workspaces",
+      "package merchant lives at frontends/features/merchant, which no workspace glob covers - add 'frontends/features/*' to workspaces",
     );
   });
 
@@ -580,140 +586,6 @@ describe('doctor: apps', () => {
   });
 });
 
-describe('doctor: app scripts (info only)', () => {
-  const STANDARD = {
-    'server:dev': 'vite',
-    compile: 'sh scripts/compile.sh',
-    typecheck: 'bun check',
-    lint: 'sh scripts/lint.sh',
-    'lint:fix': 'sh scripts/lint.sh --fix',
-    test: 'bun test',
-    clean: 'sh scripts/clean.sh',
-  };
-  const CONFIG = (opts: { packages: string }): string =>
-    `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services', frontend: 'web', shared: 'libs' }, packages: ${opts.packages} };\n`;
-  const project = (opts: { files: Record<string, string>; packages: string }): string =>
-    createSyncedProject({
-      files: {
-        ...CONFORMANT,
-        'package.json':
-          '{ "name": "demo", "workspaces": ["services/*", "web/*", "libs/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
-        '.configs/vulcan.config.mts': CONFIG({ packages: opts.packages }),
-        ...opts.files,
-      },
-    });
-  const manifest = (opts: { name: string; scripts: Record<string, string> }): string =>
-    JSON.stringify({ name: opts.name, scripts: opts.scripts });
-
-  test('an app with the seven standard scripts, and a domain extra, has no note', async () => {
-    const root = project({
-      packages: "[{ dir: 'api', name: 'api', path: 'services/api' }]",
-      files: {
-        'services/api/package.json': manifest({
-          name: 'api',
-          scripts: { ...STANDARD, 'migrate:dev': 'bun run migrate.ts' },
-        }),
-      },
-    });
-
-    const result = await DoctorRunner.runNotes({ root });
-    expect(result).toEqual([]);
-  });
-
-  test('one line per app names the missing standard scripts and the legacy ones it carries', async () => {
-    const root = project({
-      packages:
-        "[{ dir: 'api', name: 'api', path: 'services/api' }, { dir: 'admin', name: 'admin', path: 'web/admin' }]",
-      files: {
-        'services/api/package.json': manifest({
-          name: 'api',
-          scripts: {
-            dev: 'bun run src/index.ts',
-            start: 'bun run dist/index.js',
-            test: 'bun test',
-          },
-        }),
-        'web/admin/package.json': manifest({
-          name: 'admin',
-          scripts: { ...STANDARD, build: 'vite build', preview: 'vite preview' },
-        }),
-      },
-    });
-    const notes = await DoctorRunner.runNotes({ root });
-
-    expect(notes).toHaveLength(2);
-    expect(notes[0]).toEqual({
-      check: DoctorChecks.SCRIPTS,
-      file: 'services/api/package.json',
-      message:
-        'app api: missing server:dev, compile, typecheck, lint, lint:fix, clean; legacy dev, start (use the standard names)',
-    });
-    expect(notes[1]?.message).toBe('app admin: legacy build, preview (use the standard names)');
-  });
-
-  test('all six legacy names are recognised', async () => {
-    const root = project({
-      packages: "[{ dir: 'api', name: 'api', path: 'services/api' }]",
-      files: {
-        'services/api/package.json': manifest({
-          name: 'api',
-          scripts: {
-            ...STANDARD,
-            dev: 'x',
-            start: 'x',
-            build: 'x',
-            rebuild: 'x',
-            preview: 'x',
-            'server:prod': 'x',
-          },
-        }),
-      },
-    });
-
-    const notes = await DoctorRunner.runNotes({ root });
-
-    expect(notes[0]?.message).toBe(
-      'app api: legacy dev, start, build, rebuild, preview, server:prod (use the standard names)',
-    );
-  });
-
-  test('shared code, retired packages, an app without a package.json and a project without a layout are not noted', async () => {
-    const root = project({
-      packages:
-        "[{ dir: 'kit', name: 'kit', path: 'libs/kit' }, { dir: 'old', name: 'old', path: 'services/old', retired: true }, { dir: 'ghost', name: 'ghost', path: 'services/ghost' }]",
-      files: {
-        'libs/kit/package.json': manifest({ name: 'kit', scripts: { build: 'tsc' } }),
-        'services/old/package.json': manifest({ name: 'old', scripts: { dev: 'x' } }),
-      },
-    });
-
-    const result = await DoctorRunner.runNotes({ root });
-    expect(result).toEqual([]);
-    const result2 = await DoctorRunner.runNotes({
-      root: createSyncedProject({ files: CONFORMANT }),
-    });
-    expect(result2).toEqual([]);
-  });
-
-  test('notes never fail: runDoctorChecks stays clean and the doctor command exits 0, printing them as info', async () => {
-    const root = project({
-      packages: "[{ dir: 'api', name: 'api', path: 'services/api' }]",
-      files: {
-        'services/api/package.json': manifest({ name: 'api', scripts: { dev: 'x' } }),
-      },
-    });
-    const result = runCli({ args: ['doctor'], cwd: root });
-
-    const result2 = await DoctorRunner.runChecks({ root });
-    expect(result2).toEqual([]);
-    expect(result.code).toBe(0);
-    expect(result.stderr).toContain(
-      '  info [scripts] services/api/package.json: app api: missing server:dev, compile, typecheck, lint, lint:fix, test, clean; legacy dev (use the standard names)\n',
-    );
-    expect(result.stderr).toContain('vulcan doctor: OK');
-  });
-});
-
 describe('doctor: agents', () => {
   test('a broken local choice file is a violation that says how to fix it', async () => {
     const root = createSyncedProject({
@@ -753,131 +625,6 @@ describe('Makefile.parseMakeTargets', () => {
       'A := 1\nB ?= 2\n.PHONY: x\nbuild: dep\n\t@echo\nokf-check:\n\techo\n$(T): %-x:\n';
 
     expect(Makefile.parseMakeTargets({ makefile })).toEqual(['build', 'okf-check']);
-  });
-});
-
-describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
-  const dockerignoreWarnings = async (opts: { root: string }) => {
-    const warnings = await DoctorRunner.runWarnings(opts);
-
-    return warnings.filter((item) => item.check === DoctorChecks.DOCKERIGNORE);
-  };
-  const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
-  const SAFE = '**/node_modules\n**/.env\n**/.env.*\n!**/.env.example\n';
-  const project = (opts: { files: Record<string, string> }): string =>
-    createSyncedProject({
-      files: {
-        ...CONFORMANT,
-        'package.json':
-          '{ "name": "demo", "workspaces": ["services/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
-        '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: ${PACKAGES} };\n`,
-        'services/api/package.json': JSON.stringify({
-          name: 'api',
-          scripts: {
-            'server:dev': 'x',
-            compile: 'x',
-            typecheck: 'x',
-            lint: 'x',
-            'lint:fix': 'x',
-            test: 'x',
-            clean: 'x',
-          },
-        }),
-        'services/api/.configs/builders/Dockerfile': 'FROM x\n',
-        ...opts.files,
-      },
-    });
-  const ADD =
-    'add **/.env, **/.env.* and !**/.env.example (in that order) to the root .dockerignore';
-
-  test('no root .dockerignore: one warning, and never an info note', async () => {
-    const root = project({ files: {} });
-
-    const result = await dockerignoreWarnings({ root });
-    expect(result).toEqual([
-      {
-        check: DoctorChecks.DOCKERIGNORE,
-        file: '.dockerignore',
-        message: `app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist, .git and every .env file (secrets) - create it, then ${ADD}`,
-      },
-    ]);
-    const result2 = await DoctorRunner.runNotes({ root });
-    expect(result2.map((note) => note.check)).not.toContain(DoctorChecks.DOCKERIGNORE);
-  });
-
-  test('a .dockerignore without the .env lines: one warning naming the three lines', async () => {
-    const root = project({ files: { '.dockerignore': '**/node_modules\n**/dist\n' } });
-
-    const result = await dockerignoreWarnings({ root });
-    expect(result).toEqual([
-      {
-        check: DoctorChecks.DOCKERIGNORE,
-        file: '.dockerignore',
-        message: `app api has a Dockerfile and the root .dockerignore does not exclude .env files, which hold secrets and would land in the image layer: ${ADD}`,
-      },
-    ]);
-  });
-
-  test('only .env excluded, not .env.*, still warns', async () => {
-    const root = project({ files: { '.dockerignore': '**/.env\n' } });
-
-    const result = await dockerignoreWarnings({ root });
-    expect(result.length).toBe(1);
-  });
-
-  test('the lines doctor asks for, and the usual spellings of them, are accepted', async () => {
-    for (const text of [SAFE, '.env\n.env.*\n', '.env*\n!.env.example\n', '**/.env*\n']) {
-      const root = project({ files: { '.dockerignore': text } });
-
-      const result = await dockerignoreWarnings({ root });
-      expect(result, text).toEqual([]);
-    }
-  });
-
-  test('the .dockerignore that init writes passes the check', async () => {
-    const root = project({ files: { '.dockerignore': Dockerignore.render() } });
-
-    const result = await dockerignoreWarnings({ root });
-    expect(result).toEqual([]);
-  });
-
-  test('a later negation that brings .env back is a warning again', async () => {
-    const root = project({ files: { '.dockerignore': '**/.env\n**/.env.*\n!**/.env*\n' } });
-
-    const result = await dockerignoreWarnings({ root });
-    expect(result.length).toBe(1);
-  });
-
-  test('no Dockerfile: silent', async () => {
-    const root = project({ files: {} });
-
-    rmSync(join(root, 'services/api/.configs/builders/Dockerfile'));
-    const result = await dockerignoreWarnings({ root });
-    expect(result).toEqual([]);
-  });
-
-  test('two apps with a Dockerfile give one warning naming both', async () => {
-    const root = project({
-      files: {
-        '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'api', name: 'api', path: 'services/api' }, { dir: 'jobs', name: 'jobs', path: 'services/jobs' }] };\n`,
-        'services/jobs/.configs/builders/Dockerfile': 'FROM x\n',
-        'services/jobs/package.json': JSON.stringify({ name: 'jobs', scripts: {} }),
-        '.dockerignore': '**/node_modules\n',
-      },
-    });
-    const warnings = await dockerignoreWarnings({ root });
-
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0].message).toContain('apps api, jobs have a Dockerfile');
-  });
-
-  test('doctor prints a warning line, stays green, and says how many', () => {
-    const root = project({ files: { '.dockerignore': '**/node_modules\n' } });
-    const result = runCli({ args: ['doctor'], cwd: root });
-
-    expect(result.code, result.stderr).toBe(0);
-    expect(result.stderr).toContain('  warning [dockerignore] .dockerignore: ');
-    expect(result.stderr).toContain('vulcan doctor: OK with 1 warning(s)');
   });
 });
 
@@ -1072,13 +819,13 @@ describe('doctor: bun fmt (warnings)', () => {
 
 describe('doctor: the atlas server is registered the canonical way (warnings)', () => {
   const ENTRY =
-    '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
+    '"atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "."] }';
   const MCP = (opts: { name?: string; root?: string }): string =>
     JSON.stringify({
       mcpServers: {
         [opts.name ?? 'atlas']: {
           command: 'bun',
-          args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', opts.root ?? '.'],
+          args: ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', opts.root ?? '.'],
         },
       },
     });
@@ -1140,12 +887,29 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
     ]);
   });
 
+  test('the line an earlier sync wrote is reported as out of date, with the command that rewrites it', async () => {
+    const legacy = JSON.stringify({
+      mcpServers: {
+        atlas: {
+          command: 'bun',
+          args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+        },
+      },
+    });
+    const warnings = await mcpWarnings({ root: project({ mcp: legacy }) });
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain('out of date');
+    expect(warnings[0].message).toContain('bunx');
+    expect(warnings[0].message).toContain('vulcan sync');
+  });
+
   test('an atlas entry that serves another root', async () => {
     const warnings = await mcpWarnings({ root: project({ mcp: MCP({ root: '../ignis' }) }) });
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0].message).toBe(
-      `the atlas entry is { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected ${ENTRY}`,
+      `the atlas entry is { "command": "bun", "args": ["node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected ${ENTRY}`,
     );
   });
 
@@ -1192,31 +956,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
   });
 });
 
-describe('the report shape note', () => {
-  test('counts the replies that broke the shape from the log, and says nothing without one', async () => {
-    const root = createProject({
-      files: {
-        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
-        '.agents/local/violations.jsonl':
-          '{"date":"2026-10-24","classes":["emoji","blocked-missing"]}\n{"date":"2026-10-25","classes":["emoji"]}\n',
-      },
-    });
-    const quiet = createProject({
-      files: {
-        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
-      },
-    });
-    const result = await DoctorRunner.runNotes({ root });
-    const notes = result.filter((note) => note.file.endsWith('violations.jsonl'));
-
-    expect(notes).toHaveLength(1);
-    expect(notes[0]?.message).toBe(
-      '2 replies were flagged on 2 days (emoji 2, blocked-missing 1); the retro skill turns a pattern into a check',
-    );
-    const result2 = await DoctorRunner.runNotes({ root: quiet });
-    expect(result2.filter((note) => note.file.endsWith('violations.jsonl'))).toEqual([]);
-  });
-
+describe('the owner reply switch', () => {
   test('a note says when VULCAN_OWNER_REPLY=off is set in the shell that runs doctor', async () => {
     const root = createProject({
       files: {
@@ -1232,7 +972,7 @@ describe('the report shape note', () => {
     const set = await notesOf({ VULCAN_OWNER_REPLY: 'off' });
 
     expect(set).toHaveLength(1);
-    expect(set[0]).toContain('not held to the owner reply shape');
+    expect(set[0]).toContain('gets no owner shape card');
     const result = await notesOf({ VULCAN_OWNER_REPLY: 'OFF' });
     expect(result).toEqual([]);
     const result2 = await notesOf({});

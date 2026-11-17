@@ -31,10 +31,12 @@ build, deploy or run your code.
 
 ```bash
 bun add -d --exact @venizia/vulcan @venizia/dev-configs
-bun x --no-install vulcan init
-bun x --no-install vulcan sync
-bun x --no-install vulcan doctor
+bun node_modules/.bin/vulcan init
+bun node_modules/.bin/vulcan sync
+bun node_modules/.bin/vulcan doctor
 ```
+
+`doctor` fails with `[scaffold]` until you describe the project in `.agents/knowledge/index.md` and delete the `vulcan:scaffold` line; it is the first item `init` lists under `left to do`.
 
 Needs Bun 1.4.4 or newer. `--no-install` matters: the unscoped npm name `vulcan` belongs to an unrelated
 package. A new project is one command: `bun x @venizia/vulcan init --preset ignis`. Moving an existing
@@ -57,9 +59,9 @@ The guards stop accidental commands; they are not a sandbox.
 
 ## What you get
 
-- **50 base rules** that every agent reads at session start: [rules and slots](https://vulcan.venizia.ai/guides/core-concepts/rules-and-slots).
+- **36 base rules** that every agent reads at session start: [rules and slots](https://vulcan.venizia.ai/guides/core-concepts/rules-and-slots).
 - **Guards** that ask or refuse before a database write, a deploy or a force-push, on seven agents (Codex, Cursor and Copilot not yet verified): [hooks and guards](https://vulcan.venizia.ai/guides/core-concepts/hooks-and-guards).
-- **12 skills and a work item format** an agent loads when the task fits: [skills](https://vulcan.venizia.ai/references/skills) and [work items](https://vulcan.venizia.ai/guides/core-concepts/work-items).
+- **11 skills and a work item format** an agent loads when the task fits: [skills](https://vulcan.venizia.ai/references/skills) and [work items](https://vulcan.venizia.ai/guides/core-concepts/work-items).
 - **Replies that follow the reader**, in the owner's language: [the owner and the reply shape](https://vulcan.venizia.ai/guides/core-concepts/owner-and-replies).
 - **A knowledge bundle and a search server** for your docs and symbols: [knowledge bundle](https://vulcan.venizia.ai/guides/core-concepts/knowledge-bundle) and [atlas](https://vulcan.venizia.ai/guides/core-concepts/atlas).
 

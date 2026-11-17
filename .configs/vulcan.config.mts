@@ -3,6 +3,8 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export default {
   agents: ['claude'],
   rules: { 'V-W-01': 'on-user-word' },
+  // The Venizia stack's rules (one script set per app, bun for scripts, verb-first names, const classes, await on its own line).
+  packs: ['venizia'],
   // W-00: a commit message never signs the commit as an agent. `vulcan sync` installs the commit-msg hook; CI runs the same check.
   commit: { message: { agent: { signature: 'deny' } } },
   // The colour of this project's pages (vulcan visualize); the generator has no colour of its own but a neutral slate.
@@ -16,13 +18,16 @@ export default {
       'pnt-ignis-1': 'flame',
       'pnt-ardor-1': 'ember',
       'pnt-vulcan-1': 'rock',
-      'bana-forge': 'banana',
     },
   },
   knowledge: {
     bundle: '.agents/knowledge',
     wiki: 'docs/wiki/content',
     changelogs: 'docs/wiki/content/changelogs',
+    // The changelog is one folder per version from 0.4.5 on: dated files are history (vulcan changelog check does not read them),
+    // and none may be dated after datedUntil.
+    migrationFrom: '0.4.5',
+    datedUntil: '2026-11-14',
   },
   // In release order: okf, then atlas, then the cli that pins both.
   packages: [
@@ -42,8 +47,10 @@ export default {
   // The release path is the owner's: an agent does not approve a waiting deployment or write a secret, an environment, a
   // ruleset, a branch protection, a collaborator role or the Actions permissions (rule W-08). A write to one of these through
   // `gh api` is an explicit -X POST, PUT, PATCH or DELETE or any body flag (gh turns -f, -F, --field, --raw-field and --input
-  // into a POST); a read of the same endpoints asks nothing. Guards ask, they do not deny, and they are not a sandbox.
+  // into a POST); a read of the same endpoints asks nothing. Guards ask (guard-outside denies), and they are not a sandbox.
   guard: {
+    // A write outside the project (V-B-08) is refused, not asked about: an ask interrupts the owner, or is approved unseen in an auto mode.
+    outside: 'deny',
     writes: {
       commands: [
         {
@@ -57,6 +64,23 @@ export default {
           rule: 'V-W-03',
           what: 'writing a GitHub Actions secret or variable',
           pattern: '\\bgh\\s+(?:secret|variable)\\s+(?:set|delete|remove)\\b',
+        },
+      ],
+    },
+  },
+  // Placeholder paths in documentation examples and in one error message: no machine is named.
+  doctor: {
+    privateValues: {
+      acknowledged: [
+        {
+          path: 'docs/wiki/content/**',
+          kinds: ['machine-path'],
+          reason: 'placeholder home-folder paths in examples',
+        },
+        {
+          path: 'packages/cli/src/events/settings.ts',
+          kinds: ['machine-path'],
+          reason: 'a placeholder path in an error message',
         },
       ],
     },

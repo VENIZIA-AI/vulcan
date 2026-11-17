@@ -292,9 +292,6 @@ export class OwnerSurvey {
       ...(about === '' || about === null ? {} : { about }),
       ...(codeTaste === '' || codeTaste === null ? {} : { codeTaste }),
       ...(existing?.enforce === undefined ? {} : { enforce: existing.enforce }),
-      ...(existing?.shortReplyWords === undefined
-        ? {}
-        : { shortReplyWords: existing.shortReplyWords }),
       labels,
     });
   }

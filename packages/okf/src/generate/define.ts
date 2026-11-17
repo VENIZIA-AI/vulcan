@@ -5,7 +5,9 @@ import { SourceScanner } from '../source/index.ts';
 
 /** Reading the project's source - every `dir` is relative to the project root. */
 export interface IRenderSource {
+  /** The folders directly under `dir`, sorted, without the pruned ones (`node_modules`, `.git`, ...). */
   listDirs(opts: { dir: string }): string[];
+  /** Every `.ts` file under `dir`, declaration files excluded, in path order; none when `dir` does not exist. */
   sourceFiles(opts: { dir: string }): string[];
   /** Exported classes named `<anything><suffix>`, abstract ones included, per configured dir. */
   exportedClasses(opts: { dirs: string[]; suffix: string }): { dir: string; classes: string[] }[];
@@ -15,13 +17,19 @@ export interface IRenderSource {
 
 /** The frame of a generated reference file. */
 export interface IRenderPage {
+  /** The front matter of a generated file: `type: Reference`, the given fields, and the `generated` marker. */
   header(opts: { title: string; description: string; resource: string; tags: string[] }): string;
+  /** The line under the front matter that says the file is generated and must not be edited; `seeAlso` is appended when not empty. */
   note(opts: { seeAlso: string }): string;
 }
 
+/** What a renderer gets: the project, the okf config entry that names it, and the helpers to read source and to frame a page. */
 export interface IRenderContext {
+  /** The absolute path of the project root. */
   root: string;
+  /** The absolute path of the knowledge bundle. */
   bundle: string;
+  /** The `options` of the `okf.renderers` entry that names this renderer; `{}` when it has none. */
   options: Record<string, unknown>;
   source: IRenderSource;
   page: IRenderPage;
@@ -30,6 +38,7 @@ export interface IRenderContext {
 /** `path` is relative to the bundle. */
 export interface IRenderedFile {
   path: string;
+  /** The whole text of the file. */
   content: string;
 }
 
@@ -40,10 +49,15 @@ export interface IRenderedFile {
  * number of pages.
  */
 export interface IRenderer<TFacts = unknown> {
+  /** The name the `okf.renderers` entry and the managed regions use for this renderer; a module must define the id its entry names. */
   id: string;
+  /** Reads the project once and returns the facts that `render`, `region` and `coverage` all use. */
   collect(opts: { context: IRenderContext }): TFacts;
+  /** The whole file (or files) this renderer owns, written under the bundle. */
   render?(opts: { context: IRenderContext; facts: TFacts }): IRenderedFile | IRenderedFile[];
+  /** The text of one managed region, between its markers in a hand-written page. */
   region?(opts: { context: IRenderContext; facts: TFacts }): string;
+  /** The row this renderer adds to the coverage report: what it counts and how many. */
   coverage?(opts: { facts: TFacts }): { name: string; count: number };
 }
 

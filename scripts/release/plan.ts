@@ -16,6 +16,10 @@
  * With `--label` (the run title the dispatcher sent) and `--train`, a label that is not `<version> <kind> ·
  * <package names> · #<issue> · <short sha>` as this job computes it is refused; an empty label is a dispatch by hand.
  *
+ * A stable of a project that keeps a folder per version (`knowledge.migrationFrom` is a version) also needs its folder
+ * `changelogs/<version>/log.md`, not yet carrying `released:`; the plan writes `changelog_base`, the previous stable tag
+ * the history check of the gates job measures from.
+ *
  * With `--merge-trial`, a stable also tries the merge of main back into develop (merge-back.ts) and refuses
  * when it would stop; `develop_sha` is the head of develop that trial read.
  */
@@ -30,7 +34,9 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { GithubRelease, GithubReleaseConstants } from './github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
+import { ReleaseStamp } from './stamp-release.ts';
 import { ReleaseBumps, ReleaseKinds } from './release-args.ts';
 import type { TReleaseKind } from './release-args.ts';
 
@@ -309,6 +315,52 @@ export class ReleasePlan {
       : [`the packages are one train at ${opts.version}, but ${apart.join(', ')} differ`];
   }
 
+  /**
+   * What a stable of a project with version folders needs that it lacks: its folder, and a folder that is not yet released.
+   * A project with no manifest, or that has not adopted the folders, needs nothing.
+   */
+  static changelogProblems(opts: { cwd: string; version: string; bump: string }): string[] {
+    if (!existsSync(join(opts.cwd, GithubReleaseConstants.MANIFEST))) {
+      return [];
+    }
+
+    const { changelogs: folder, migrationFrom: from } = GithubRelease.manifestOf({ cwd: opts.cwd });
+
+    if (from === undefined || !/^\d+\.\d+\.\d+$/.test(from)) {
+      return [];
+    }
+
+    const log = join(opts.cwd, folder, opts.version, MergeBackConstants.LOG_FILE);
+
+    if (!existsSync(log)) {
+      return [
+        `the stable ${opts.version} has no version folder: write ${folder}/${opts.version}/log.md before releasing it`,
+      ];
+    }
+
+    // A dispatch of bump none releases what is there: the folder it names may already be dated by the run that made the release commit.
+    return opts.bump !== ReleaseBumps.NONE && /^released:/m.test(readFileSync(log, 'utf8'))
+      ? [`${folder}/${opts.version}/log.md already says released: a stable is released once`]
+      : [];
+  }
+
+  /** The highest stable tag below `version`: where the history check of the gates job measures from; empty when there is none. */
+  static changelogBase(opts: { cwd: string; version: string }): string {
+    if (!existsSync(join(opts.cwd, GithubReleaseConstants.MANIFEST))) {
+      return '';
+    }
+
+    const manifest = GithubRelease.manifestOf({ cwd: opts.cwd });
+
+    return (
+      GithubRelease.previousTag({
+        tags: GithubRelease.tagsOf({ cwd: opts.cwd }),
+        templates: manifest.templates,
+        version: opts.version,
+      }) ?? ''
+    );
+  }
+
   /** What the run page shows about the plan: the target, and who has to approve it. */
   static summaryOf(opts: {
     plan: IReleasePlan;
@@ -415,6 +467,14 @@ export class ReleasePlan {
       );
     }
 
+    const cwd = opts.cwd ?? process.cwd();
+
+    if (result.plan !== undefined && result.plan.kind === ReleaseKinds.STABLE) {
+      result.problems.push(
+        ...ReleasePlan.changelogProblems({ cwd, version: result.plan.version, bump }),
+      );
+    }
+
     if (result.plan !== undefined) {
       console.log(`plan: ${result.plan.version} (${result.plan.kind}) from ${bump} on ${ref}`);
     }
@@ -430,16 +490,32 @@ export class ReleasePlan {
     const output = opts.env['GITHUB_OUTPUT'];
     const summary = opts.env['GITHUB_STEP_SUMMARY'];
     let developSha = '';
+    const changelogBase =
+      result.plan.kind === ReleaseKinds.STABLE
+        ? ReleasePlan.changelogBase({ cwd, version: result.plan.version })
+        : '';
 
     // The merge back of a stable is tried here, before anyone is asked to approve: a stop after the click would
     // need a second click on the re-run.
     if (result.plan.kind === ReleaseKinds.STABLE && args.includes('--merge-trial')) {
+      const { version } = result.plan;
       const trial = ReleaseMergeBack.trial({
-        cwd: opts.cwd ?? process.cwd(),
-        version: result.plan.version,
+        cwd,
+        version,
         main: opts.env['GITHUB_SHA'] ?? MergeBackConstants.DEFAULT_MAIN,
         develop: MergeBackConstants.DEFAULT_DEVELOP,
         scratchRoot,
+        // The release writes the day into the version folder: the trial makes the same commit. A bump of none
+        // writes nothing (the workflow skips its stamp step): the folder may already carry the first run's day.
+        stamp:
+          bump === ReleaseBumps.NONE
+            ? undefined
+            : ({ tree }) =>
+                ReleaseStamp.stampFolder({
+                  cwd: tree,
+                  version,
+                  date: new Date().toISOString().slice(0, 10),
+                }),
       });
 
       developSha = trial.developHead;
@@ -467,7 +543,7 @@ export class ReleasePlan {
     if (output !== undefined) {
       appendFileSync(
         output,
-        `version=${result.plan.version}\nkind=${result.plan.kind}\nnpm_tag=${result.plan.npmTag}\ndevelop_sha=${developSha}\n`,
+        `version=${result.plan.version}\nkind=${result.plan.kind}\nnpm_tag=${result.plan.npmTag}\ndevelop_sha=${developSha}\nchangelog_base=${changelogBase}\n`,
       );
     }
 

@@ -26,7 +26,7 @@ describe('ProjectConfig.readAtlasProject', () => {
           {
             name: '@a/kernel',
             dir: 'kernel',
-            path: 'umbras/kernel',
+            path: 'backends/kernel',
             aliases: ['k'],
             retired: false,
           },
@@ -39,7 +39,7 @@ describe('ProjectConfig.readAtlasProject', () => {
 
     expect(project.root).toBe(ROOT);
     expect(project.packages).toEqual([
-      { dir: 'kernel', name: '@a/kernel', path: 'umbras/kernel', aliases: ['k'], retired: false },
+      { dir: 'kernel', name: '@a/kernel', path: 'backends/kernel', aliases: ['k'], retired: false },
     ]);
     expect(project.tagPattern).toBe('v<version>');
     expect(project.ignoreTags).toEqual(['old/*']);
@@ -94,6 +94,85 @@ describe('ProjectConfig.readAtlasProject', () => {
     expect(() => ProjectConfig.readAtlasProject()).toThrow(
       "atlas: project 'acme' - package name '../../../escape' is not an npm package name",
     );
+  });
+
+  test.each(['2026-11-1', 'soon', '2026-11-14T00:00'])(
+    'a datedUntil that is not a plain day (%s) stops the read, naming the project and the value',
+    (value) => {
+      useAtlasProject({
+        root: ROOT,
+        manifest: { name: 'acme', knowledge: { datedUntil: value }, packages: [] },
+      });
+
+      expect(() => ProjectConfig.readAtlasProject()).toThrow(
+        `atlas: project 'acme' - knowledge.datedUntil '${value}' is not a date (YYYY-MM-DD)`,
+      );
+    },
+  );
+
+  test('a plain day in datedUntil is read', () => {
+    useAtlasProject({
+      root: ROOT,
+      manifest: { name: 'acme', knowledge: { datedUntil: '2026-11-14' }, packages: [] },
+    });
+
+    expect(ProjectConfig.readAtlasProject().knowledge.datedUntil).toBe('2026-11-14');
+  });
+
+  test('a siteUrl is read without its trailing slash', () => {
+    useAtlasProject({
+      root: ROOT,
+      manifest: {
+        name: 'acme',
+        knowledge: { siteUrl: 'https://acme.example.test/wiki/' },
+        packages: [],
+      },
+    });
+
+    expect(ProjectConfig.readAtlasProject().knowledge.siteUrl).toBe(
+      'https://acme.example.test/wiki',
+    );
+  });
+
+  test.each([
+    'acme.example.test',
+    'ftp://acme.example.test',
+    'https://user:pw@acme.example.test',
+    'https://acme.example.test/a b',
+    'javascript:alert(1)',
+  ])('a siteUrl that is not a usable address (%s) stops the read, naming the project', (value) => {
+    useAtlasProject({
+      root: ROOT,
+      manifest: { name: 'acme', knowledge: { siteUrl: value }, packages: [] },
+    });
+
+    expect(() => ProjectConfig.readAtlasProject()).toThrow(
+      "atlas: project 'acme' - knowledge.siteUrl ",
+    );
+  });
+
+  test('a siteUrl with an escape sequence is refused and never echoed raw', () => {
+    useAtlasProject({
+      root: ROOT,
+      manifest: {
+        name: 'acme',
+        knowledge: { siteUrl: 'https://acme.example.test/\u001b[2J\u202e' },
+        packages: [],
+      },
+    });
+
+    let message = '';
+
+    try {
+      ProjectConfig.readAtlasProject();
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+
+    expect(message).toContain('knowledge.siteUrl');
+    expect(message).toContain('\\u001b');
+    expect(message).not.toContain('\u001b');
+    expect(message).not.toContain('\u202e');
   });
 
   test('a package without a name takes its directory, which must be an npm name too', () => {

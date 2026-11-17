@@ -6,16 +6,17 @@ description: Find available VULCAN commands, arguments, tools, make targets, and
 # vulcan commands
 
 Use `vulcan` to scaffold a project or create a monorepo from a preset, write the agent adapters, check conformance, upgrade, and run okf and atlas.
-Run `bun x --no-install vulcan` or pass `--help` to inspect available commands:
+Run `bun node_modules/.bin/vulcan` or pass `--help` to inspect available commands. The bin is linked at the project root only, so run it from there (in a workspace, pass `--app <app folder>` where a command takes one):
 
 ```text
-vulcan 0.4.8 - one setup, one workflow for every project
+vulcan 0.4.10-12 - one setup, one workflow for every project
 
-Usage: bun x vulcan <command>
+Usage: bun node_modules/.bin/vulcan <command>
 
-  init                            Scaffold the project layer (never overwrites)
+  init [--key <KEY>]              Scaffold the project layer (never overwrites); --key is the project's flow key
+                                  (2 to 8 uppercase letters or digits; a terminal asks, else it is made from the name)
   init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
-       [--shared-dir <path>] [--scope <@scope>]
+       [--shared-dir <path>] [--scope <@scope>] [--key <KEY>]
                                   Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
   add --preset <name|file:path> (--app <name> | --lib <name> | --shared <name>) [--dir <folder>]
@@ -28,8 +29,8 @@ Usage: bun x vulcan <command>
   preset diff <package> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
                                   Read-only: set each file the preset makes now (for an app, a library or
                                   a shared package) against the file the package has (same, differs,
-                                  missing in the app); --full prints the unified diffs, --check exits 1
-                                  when anything differs or is missing
+                                  missing); --full prints the unified diffs, --check exits 1 when
+                                  anything differs or is missing
   sync [--agents <list>|list] [--dry-run]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/vulcan.local.json; --agents list shows the table)
@@ -41,14 +42,12 @@ Usage: bun x vulcan <command>
                                   agent in a trailer or a "generated with" line, the project's subject shape);
                                   sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input
   board [--out <file>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
-                                  Fold the event log (and GitHub pull requests, checks and reviews when gh
-                                  can read them) into flows and write one HTML file, by default
+                                  Fold the event log (and GitHub or GitLab pull requests, checks and reviews
+                                  when gh or glab can read them) into flows and write one HTML file, by default
                                   .agents/local/reports/board.html; read-only; exit 2 on bad input
-  ci affected --base <ref> [--head <ref>] [--check <check>] [--json | --names] | template <github|gitlab>
-                                  List the workspace packages a change touches (changed ones and what
-                                  depends on them) with the checks each has; template prints a CI file that
-                                  runs exactly those; exit 2 on bad input
-  event add --kind <k> --summary <text> [--flow F-n] [--ref <r>] | tail [--since <time>] [--json] [--dir <folder>]
+  board serve [--port <n>] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
+                                  Serve the same page on 127.0.0.1 (default port 4317) and push the new events to the open page, with no reload
+  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] | tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
                                   read it; with events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input
@@ -59,41 +58,81 @@ Usage: bun x vulcan <command>
                                   Tell VULCAN how you like to work (reply language, how to address you,
                                   tone, habits) in .agents/local/profile.json; no argument runs the form,
                                   show prints it, reset deletes it
-  clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--profile] [--yes]
+  clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--events|--release-candidates|--profile] [--include-fresh] [--yes]
                                   List what an agent left under .agents/local/ (a dry run) and, with
-                                  --yes, remove it; --tmp is the default, --worktrees takes merged or
-                                  gone branches only, --all never touches reports, prototypes or the profile
+                                  --yes, remove it; --tmp is the default and takes stale items only (--include-fresh
+                                  adds the rest), --worktrees takes merged or gone branches only, --all never touches reports, prototypes, events, release candidates or the profile
   upgrade [--stable | --nightly] [<version|tag>]
                                   Bump the pinned @venizia/vulcan, then sync; --stable (default)
                                   takes the latest tag, --nightly the newest of latest and next
+  runners check                   List every tracked file that runs an unscoped package through bunx, pnpx,
+                                  bun x, npx, npm exec, pnpm dlx or yarn dlx, whether or not it says no-install
+                                  (a name npm gives to someone else would be fetched and run). A scoped package
+                                  and the names of guard.runners.allow pass; tests, lockfiles, build output and
+                                  frozen history (dated entries, released version folders) are not read
+  changelog check [--history --base <ref>]
+                                  Check the changelog: a version folder changelogs/<X.Y.Z>/{log.md, migration.yaml}
+                                  has a block for every Breaking and Deprecated item; a dated Breaking Change entry
+                                  on or after a date cutover carries one. --history also fails a released folder that
+                                  changed since the base, a stable with no folder, and a dated file, dated after
+                                  knowledge.datedUntil, that was added or edited.
+  changelog notes --version <X.Y.Z> [--migration]
+                                  The release notes of a version folder: the body of its log.md, then the packages.
+                                  --migration prints the path of its migration.yaml when that file holds a block,
+                                  and nothing when it does not (what a workflow attaches to the Release)
+  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]
+                                  What an app must change to move a package between two releases, newer or
+                                  older: the steps in order, the places in your code they touch (file:line),
+                                  codemods and data warnings; read only
+  migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]
+                                  Run the codemods the plan links, once each in order (reversed for a
+                                  rollback), then print the steps that stay manual; refuses an app with
+                                  uncommitted changes or outside git unless --force
   x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas
   help · version
 ```
 
-The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a library other apps import (with `--dir`); `--scope` names the package for either; see [vulcan add](/references/commands/add).
+The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a library other apps import and `--shared` for a side-neutral package other apps import (both with `--dir`); `--scope` names the package for any of them; see [vulcan add](/references/commands/add).
 
-If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun x vulcan help'` and exits with code 1.
-The following table lists each command, its purpose, its exit codes, and its reference page:
+If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun node_modules/.bin/vulcan help'` and exits with code 1.
+The following list gives each command, its purpose, its exit codes, and its reference page:
 
-| Command | What it does | Exit codes | Page |
-|---|---|---|---|
-| `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
-| `add` | Add an app, or a library other apps import with `--lib`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
-| `preset` | `preset diff <package>`: read-only report of each file the preset of an app, a library or a shared package makes now against the file the package has | `0` after a report (with `--check`, `1` when anything differs or is missing); `1` on a refusal or an unknown argument | [vulcan preset diff](/references/commands/preset) |
-| `sync` | Write agent adapter files and manifest | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
-| `agents` | Show, add, remove or re-choose the coding agents chosen on this machine, and write or take back their adapters | `0` on success or when nothing needed changing; `1` on an unknown agent or subcommand, a missing list, `setup` without a terminal, or invalid configuration | [vulcan agents](/references/commands/agents) |
-| `visualize` | Make one small static HTML page from a JSON spec, in `.agents/local/prototypes/`; `--schema` prints the spec's JSON Schema | `0` on success; `1` when the spec is missing or not renderable, nothing is written, or `.agents/local/` is missing | [vulcan visualize](/references/commands/visualize) |
-| `profile` | Tell VULCAN how you like to work (language, how to address you, tone, habits); `show` prints it, `reset` deletes it | `0` on success; `1` when cancelled, unreadable, not gitignored or on an unknown argument | [vulcan profile](/references/commands/profile) |
-| `clean` | List what an agent left under `.agents/local/` and remove it with `--yes` | `0` on a dry run, a removal or nothing to remove; `1` when an item cannot be removed or on an unknown flag | [vulcan clean](/references/commands/clean) |
-| `commit-check` | Check a commit message for an agent signature and the project's subject shape, as the `commit-msg` hook that `sync` installs does; nothing is checked until `commit.message` turns a check on | `0` when clean or when no check is configured; `1` on a problem; `2` on bad input | [vulcan commit-check](/references/commands/commit-check) |
-| `board` | Fold the event log, and GitHub pull requests when `gh` can read them, into flows and write one read-only HTML page, by default `.agents/local/reports/board.html` | `0` written; `1` the file cannot be written; `2` on bad input | [vulcan board](/references/commands/board) |
-| `ci` | `ci affected` lists the workspace packages a change touches (changed ones and every package that depends on them) with the checks each has; `ci template github\|gitlab` prints a CI file that runs exactly those | `0` with a list (empty too); `2` on bad input | [vulcan ci](/references/commands/ci) |
-| `event` | `event add` writes a line to the agent event log, `event tail` reads it; with `events.log` on, `sync` installs the Claude Code hooks that write it | `0` on success; `1` when the log cannot be written; `2` on bad input | [vulcan event](/references/commands/event) |
-| `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |
-| `upgrade` | Bump the pinned `@venizia/vulcan` dependency and run sync | `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync` | [upgrade](#upgrade) |
-| `x` | Run a shipped tool (`okf` or `atlas`) at the pinned package version | `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool | [x](#x) |
-| `help` | Print usage information and available command options (`--help` and `-h` are aliases) | `0` | - |
-| `version` | Print the installed VULCAN package version (`--version` and `-v` are aliases) | `0` | - |
+- `init` ([vulcan init](/references/commands/init)): Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app.
+  Exit codes: `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check.
+- `add` ([vulcan add](/references/commands/add)): Add an app, a library other apps import with `--lib`, or a side-neutral shared package with `--shared`, from a preset to a monorepo that `init --preset` created.
+  Exit codes: `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check.
+- `preset` ([vulcan preset diff](/references/commands/preset)): `preset diff <package>`: read-only report of each file the preset of an app, a library or a shared package makes now against the file the package has.
+  Exit codes: `0` after a report (with `--check`, `1` when anything differs or is missing); `1` on a refusal or an unknown argument.
+- `sync` ([vulcan sync](/references/commands/sync)): Write agent adapter files and manifest.
+  Exit codes: `0` on success; `1` on invalid configuration, broken settings, or unknown argument.
+- `agents` ([vulcan agents](/references/commands/agents)): Show, add, remove or re-choose the coding agents chosen on this machine, and write or take back their adapters.
+  Exit codes: `0` on success or when nothing needed changing; `1` on an unknown agent or subcommand, a missing list, `setup` without a terminal, or invalid configuration.
+- `visualize` ([vulcan visualize](/references/commands/visualize)): Make one small static HTML page from a JSON spec, in `.agents/local/prototypes/`; `--schema` prints the spec's JSON Schema.
+  Exit codes: `0` on success; `1` when the spec is missing or not renderable, nothing is written, or `.agents/local/` is missing.
+- `profile` ([vulcan profile](/references/commands/profile)): Tell VULCAN how you like to work (language, how to address you, tone, habits); `show` prints it, `reset` deletes it.
+  Exit codes: `0` on success; `1` when cancelled, unreadable, not gitignored or on an unknown argument.
+- `clean` ([vulcan clean](/references/commands/clean)): List what an agent left under `.agents/local/` and remove it with `--yes`.
+  Exit codes: `0` on a dry run, a removal or nothing to remove; `1` when an item cannot be removed or on an unknown flag.
+- `commit-check` ([vulcan commit-check](/references/commands/commit-check)): Check a commit message for an agent signature and the project's subject shape, as the `commit-msg` hook that `sync` installs does; nothing is checked until `commit.message` turns a check on.
+  Exit codes: `0` when clean or when no check is configured; `1` on a problem; `2` on bad input.
+- `board` ([vulcan board](/references/commands/board)): Fold the event log, and GitHub or GitLab pull requests when `gh` or `glab` can read them, into flows and write one read-only HTML page, by default `.agents/local/reports/board.html`.
+  Exit codes: `0` written; `1` the file cannot be written, or `board serve` cannot start; `2` on bad input.
+- `event` ([vulcan event](/references/commands/event)): `event add` writes a line to the agent event log, `event tail` reads it; with `events.log` on, `sync` installs the Claude Code hooks that write it.
+  Exit codes: `0` on success; `1` when the log cannot be written; `2` on bad input.
+- `doctor` ([vulcan doctor](/references/commands/doctor)): Check the project against the VULCAN contract and report violations.
+  Exit codes: `0` when conformant; `1` on any contract violation or unknown argument.
+- `upgrade` ([upgrade](#upgrade)): Bump the pinned `@venizia/vulcan` dependency and run sync.
+  Exit codes: `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync`.
+- `changelog` ([changelog](#changelog)): `changelog check`: check the version folders and the `migration` blocks of the changelog.
+  Exit codes: `0` when every entry conforms; `1` when an entry does not, the tool is missing or the configuration is invalid; `2` for a subcommand other than `check`.
+- `migrate` ([migrate](#migrate)): `migrate plan`: what an app must change to move a package between two releases, newer or older; `migrate apply`: run the codemods the plan links.
+  Exit codes: `0` when a plan is printed or apply ran; `1` when the plan cannot be made, apply is refused or a codemod fails, or the tool is missing; `2` for a subcommand other than `plan` or `apply`, a missing `--to`, an unknown flag, a flag with no value or a `--format` other than `md` or `json`.
+- `x` ([x](#x)): Run a shipped tool (`okf` or `atlas`) at the pinned package version.
+  Exit codes: `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool.
+- `help`: Print usage information and available command options (`--help` and `-h` are aliases).
+  Exit codes: `0`.
+- `version`: Print the installed VULCAN package version (`--version` and `-v` are aliases).
+  Exit codes: `0`.
 
 ## upgrade
 
@@ -103,15 +142,17 @@ To update the package, `vulcan upgrade` runs `bun add --dev --exact @venizia/vul
 When the installation succeeds, the command spawns `node_modules/.bin/vulcan sync` as a child process.
 Spawning a child process ensures the newly installed version generates adapters matching the new base rules.
 
+Upgrade before you use a new config key. The config schema is strict, so a key from the version you are upgrading to is unreadable to the version you have now; see the Upgrading paragraph of [the configuration page](/references/configuration/) for what the hooks do meanwhile.
+
 ### Argument forms
 
 `--stable` is the default. Choose the channel with a flag, or name a version. The channel is never stored in the config.
 
 | Syntax | Installs | Behavior |
 |---|---|---|
-| `bun x --no-install vulcan upgrade` | `latest` | The stable release; never a prerelease. Same as `--stable` |
-| `bun x --no-install vulcan upgrade --nightly` | The higher of `latest` and `next` | The newest published version, by semver. Never older than the stable release |
-| `bun x --no-install vulcan upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
+| `bun node_modules/.bin/vulcan upgrade` | `latest` | The stable release; never a prerelease. Same as `--stable` |
+| `bun node_modules/.bin/vulcan upgrade --nightly` | The higher of `latest` and `next` | The newest published version, by semver. Never older than the stable release |
+| `bun node_modules/.bin/vulcan upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
 
 `--nightly` reads the dist-tags of `@venizia/vulcan` with `bun pm view`, so it uses the registry your project is configured for.
 If `latest` is `0.4.8` and `next` is `0.4.8`, `--nightly` installs `0.4.8`. If `next` is `0.4.9-2`, it installs `0.4.9-2`.
@@ -127,7 +168,7 @@ When the installed `@venizia/vulcan` is a prerelease and you run `upgrade` or `u
 The following run pins `@venizia/vulcan` to version `0.4.8`, the version already installed, so `sync` changes nothing:
 
 ```text
-$ bun x --no-install vulcan upgrade 0.4.8
+$ bun node_modules/.bin/vulcan upgrade 0.4.8
 bun add v1.4.3 (c6da4a4d3)
 
 installed @venizia/vulcan@0.4.8 with binaries:
@@ -140,10 +181,13 @@ installed @venizia/vulcan@0.4.8 with binaries:
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/fix-a-bug
-  unchanged .claude/skills/knowledge-sync
   unchanged .claude/skills/plan-a-change
   unchanged .claude/skills/report-back
+  unchanged .claude/skills/research
+  unchanged .claude/skills/retro
   unchanged .claude/skills/review-a-change
+  unchanged .claude/skills/ship
+  unchanged .claude/skills/visualize-work
   unchanged .mcp.json
   unchanged .agents/vulcan.manifest.json
   unchanged AGENTS.md
@@ -161,6 +205,43 @@ The command exits `1` when `node_modules/.bin/vulcan` is missing.
 It also exits `1` on an unknown argument, on `--stable` with `--nightly`, and on `--nightly` when the dist-tags cannot be read.
 Otherwise, the command returns the exit code of `bun add` or of the child `vulcan sync`.
 
+## changelog
+
+`vulcan changelog check` runs the gate over the dated entries of `knowledge.changelogs`: it is [`vulcan x atlas changelogs check`](/references/atlas/) at the pinned version.
+An entry with a `migration:` block in its frontmatter must have a valid one: every item has an `id` (unique in the folder), `symbols`, an `upgrade` and a `downgrade`, each either `before` and `after` or `steps`.
+An entry with a Breaking Change badge, dated on or after `knowledge.migrationFrom`, must carry a block; an earlier entry is never read.
+Each problem prints as `<file>: <message>` on stderr.
+
+A version folder `changelogs/<X.Y.Z>/` is valid when every Breaking and Deprecated item of its `log.md` has a block in `migration.yaml` and the file holds no block without an item, ids are unique, the sections are in the order Breaking, Deprecated, Added, Changed, Fixed, Security, at most one folder lacks `released:` (the line in progress: above every released one, and the stable the installable package heads to). With `knowledge.migrationFrom` set to a version, dated files are history and are not checked; `knowledge.datedUntil` is the last date a dated file may carry.
+
+`vulcan changelog check --history --base <ref>` also reads git: a folder whose `log.md` has `released:` at `<ref>` may not change, a stable release at or above `migrationFrom` needs its folder, and a dated file added or edited since `<ref>` fails when its date is after `knowledge.datedUntil` (the files a fold keeps on or before it are the old changelog). A released folder may still gain a `summary` and `highlights` in its `log.md`: those two keys do not count as a change. CI runs it on a pull request with `--base origin/develop`; the default check runs no git.
+
+A version folder without `released:` (the line in progress) must also carry what the version page shows: a `summary` and `highlights` in the frontmatter of its `log.md`, `steps` in the `upgrade` of every block of its `migration.yaml`, and an opening paragraph that does not name `migration.yaml` (the page links its upgrade guide itself). A released folder owes none of it.
+
+`vulcan changelog notes --version <X.Y.Z>` prints what a GitHub Release of that version shows: the body of `changelogs/<X.Y.Z>/log.md` without its frontmatter (a line saying there is no change for users when it has no body), then `## Packages` with a link to each live package at that version. With `--migration` it prints instead the path of the folder's `migration.yaml` when that file holds a block, and nothing when it is absent, empty or `{}`: a workflow attaches that path to the Release as `migration-<X.Y.Z>.yaml`. It exits `1` when the project has no folder for the version and `2` for a request it cannot read.
+
+## runners
+
+`vulcan runners check` lists every file git tracks that runs a package fetched by name: `bunx`, `pnpx`, `bun x`, `npx`, `npm exec`, `pnpm dlx` or `yarn dlx` (also behind `corepack`) followed by an unscoped name, with or without `--no-install`. Each finding prints as `<file>:<line>: <command>` on stderr and the exit code is 1; with none it exits 0. A scoped package passes (`bun x @venizia/vulcan@<version> init`, `npx @acme/tool`), whatever its scope: a scope has an owner, so nobody can register a name in it. A name in [`guard.runners.allow`](/references/configuration/#guard-runners-allow) passes too, with a version or a tag after it and nothing else (`shadcn@npm:ardor` is another package). The check reads a flag it does not know as taking the next word, so an unknown flag cannot hide the name. In a file, a scoped package may be pinned with a shell placeholder after the `@` (`$(...)` or `${...}`, the form a workflow uses); a command an agent types may not, because a variable can hold `npm:<name>`. The `-c` flag of `npx` and of `npm exec` takes a command line, which is read as a command of its own; for pnpm, `-c` and `--shell-mode` are switches and the first word is still fetched.
+
+A line in a Markdown file can show a refused command on purpose, such as a page that warns against it. Put `<!-- runners: example -->` on the line before the line, or before the fenced block, and the check does not count it; the check prints how many it set apart. A script, a workflow or a Makefile has no such marker. Tests, lockfiles, build output, binary files, dated changelog entries and the files of a released version folder are not read: they are not instructions, or they are frozen history.
+
+Why: npm gives the names `vulcan`, `devz`, `ardor` and `ignis` to unrelated packages, and `vulcan-atlas` to nobody. A bunx command fetches and runs the package of that name wherever the bin is not linked, and bun also runs a copy an earlier bare bunx saved (in `~/.bun/install/cache/.bunx-<uid>/<name>@latest/`, which never expires) even under `--no-install`. Write `bun node_modules/.bin/<bin>` from the project root (the folder where the bin is linked), or call it through a make target. `bun run <name>` falls back to `$PATH`, and to a program bun cached, when no linked bin matches, so a command that must not (a hook, an editor's server entry, the shipped `make` module) names the path.
+
+The same check as an agent's rule: `guard-git` denies the command in Claude Code, Codex, Antigravity, omp and pi (rule `V-S-08`); another agent has the rule text only. Run it in CI with `vulcan runners check`.
+
+If a bunx of a Venizia name ever ran on a machine, look for `~/.bun/install/cache/.bunx-*/`: an entry named `<name>@<version>` where the name is `vulcan`, `devz`, `ardor`, `ignis` or `vulcan-atlas` is a foreign package. Delete the entry.
+
+## migrate
+
+`vulcan migrate plan --to <version|latest|next>` is [`vulcan x atlas migrate plan`](/references/atlas/tools#migrate) at the pinned version: the same plan the atlas `migrate` tool answers, printed as Markdown, or as JSON with `--format json`. A step about a whole module prints a count of the places that import it; `--verbose` lists them.
+It asks the sources the project serves, so a package from a remote source is planned too: like `mcp`, it fetches and indexes a source that is not cached yet, and waits for it. A source that cannot be served is a `Warning:` at the top of the plan, and `apply` refuses to run on such a plan unless you pass `--force`. A package no source serves is an error that names `atlas.sources` and `vulcan x atlas pull`. `--package`, `--from` and `--app` default as the tool's do.
+
+Run from a folder with no VULCAN config, the command runs in the nearest enclosing folder that has one (never above the git work tree root) and scans the folder you ran it in; a relative `--app` is read from that folder too.
+`vulcan migrate plan` never edits the app.
+
+`vulcan migrate apply` runs the codemods the plan links, each once and in plan order, as `devz codemod <name> . --write` in the app (`--reverse` for a rollback), using the `devz` of `@venizia/dev-configs` found in `node_modules/.bin` of the app or a parent folder up to the root of its git work tree (outside git, only the app folder). A codemod name that is not lower-case words joined by `-` is refused. It then prints the steps that stay manual: a step with no codemod, and a step whose codemod is not reversible (it exits `2` and says `not reversible`). A codemod that fails stops the run with exit `1`. It rewrites nothing itself, and it refuses an app with uncommitted changes, or outside a git work tree, unless you pass `--force`: the app's own diff is the undo. A plan that links no codemod needs neither `devz` nor a clean tree.
+
 ## x
 
 `vulcan x` runs a shipped tool at the version pinned by `@venizia/vulcan`.
@@ -171,14 +252,14 @@ The known tools are [`okf`](/references/okf/) and [`atlas`](/references/atlas/).
 If you run `vulcan x` without a tool argument, the command exits with code 1:
 
 ```text
-$ bun x --no-install vulcan x
+$ bun node_modules/.bin/vulcan x
 vulcan x: no tool given - known tools: okf, atlas
 ```
 
 If you run `vulcan x` with an unknown tool name, the command exits with code 1:
 
 ```text
-$ bun x --no-install vulcan x nope
+$ bun node_modules/.bin/vulcan x nope
 vulcan x: unknown tool 'nope' - known tools: okf, atlas
 ```
 
@@ -198,7 +279,7 @@ This behavior allows atlas to inspect external sources without a local project c
 
 ## Running vulcan
 
-Every example invokes VULCAN as `bun x --no-install vulcan` to run the `@venizia/vulcan` package pinned in your project dependencies.
+Every example invokes VULCAN as `bun node_modules/.bin/vulcan` to run the `@venizia/vulcan` package pinned in your project dependencies.
 The `--no-install` flag prevents Bun from downloading packages, running pinned code instead of the unrelated npm package named `vulcan`.
 
 `vulcan.mk` wraps these commands in `make` targets.
@@ -218,7 +299,6 @@ The following table lists the targets provided by `vulcan.mk`:
 | `okf-check-strict` | okf-check plus the house rules: links, style, coverage, freshness |
 | `okf-gen` | Regenerate the generated pages and regions of the knowledge bundle |
 | `okf-coverage` | Report how much of the code the knowledge bundle covers |
-| `okf-viz` | Build the knowledge graph view |
 | `surface-gen` | Write the public API surface from the built .d.ts |
 | `surface-check` | Fail when the public API surface differs from the committed one |
 | `atlas-symbols` | Print the symbols atlas reads from the built or installed .d.ts |
@@ -230,7 +310,7 @@ The following table lists the targets provided by `vulcan.mk`:
 
 Two gates keep a VitePress wiki honest, and they take the same arguments in every repository:
 
-- `make wiki-links-check` reads every `.md` file under `docs/wiki/content` and `.agents/knowledge`. A GitHub link into your repository (`<owner>/<name>/blob/main/<path>` or `tree/main/<path>`), a backticked path under `packages/`, `examples/`, `scripts/`, `docs/` or `.agents/`, and a concept's `resource:` must each be tracked by git: a gitignored file is not on GitHub. Set `WIKI_REPO` (`owner/name`) in your Makefile before the include; without it the gate refuses to run. `WIKI_LINKS_FLAGS` takes `--dirs` (the folders to walk), `--skip-prose` (folders where a backticked path may name history or a file of another project, so only links and resources are checked; the changelogs by default) and `--skip` (generated pages that are never checked).
+- `make wiki-links-check` reads every `.md` file under `docs/wiki/content` and `.agents/knowledge`. A GitHub link into your repository (`<owner>/<name>/blob/main/<path>` or `tree/main/<path>`), a backticked path under a source folder, and a concept's `resource:` must each be tracked by git. The source folders are the folders of the config `layout` (`backend`, `frontend`, `shared`, `other`) plus `docs/`, `scripts/` and `.agents/`; with no `layout` they are `packages/`, `examples/`, `scripts/`, `docs/` and `.agents/`. A gitignored file is not on GitHub. Set `WIKI_REPO` (`owner/name`) in your Makefile before the include; without it the gate refuses to run. `WIKI_LINKS_FLAGS` takes `--dirs` (the folders to walk), `--skip-prose` (folders where a backticked path may name history or a file of another project, so only links and resources are checked; the changelogs by default) and `--skip` (generated pages that are never checked).
 - `make wiki-anchors-check` reads the built site (`make docs` first) and fails on a link to a heading, or to a page, that does not exist; it reads the ids VitePress emitted, never a computed slug. `WIKI_ANCHORS_FLAGS` takes `--content` and `--dist`.
 
 The entry scripts are `base/checks/wiki-source-links.ts` and `wiki-anchors.ts`, run by bun from the repository root.

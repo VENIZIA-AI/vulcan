@@ -150,7 +150,7 @@ export class ProfilePrompt {
 
     if (!TerminalCapability.menusAvailable()) {
       process.stderr.write(
-        "tell VULCAN how you like to work (language, how to address you, tone): run 'bun x --no-install vulcan profile'\n",
+        "tell VULCAN how you like to work (language, how to address you, tone): run 'bun node_modules/.bin/vulcan profile'\n",
       );
 
       return;

@@ -1,18 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { CommandView, GitGuard, RemoteHosts, ShellParser, WriteGuard } from '../../hooks/index.ts';
+import { CommandView, GitGuard, ShellParser, WriteGuard } from '../../hooks/index.ts';
 import { ASKS, QUIET } from './noise-corpus.ts';
 
-const POLICY = { trusted: ['lab1'], readOnly: [] as string[] };
-
 const asksOf = (command: string): string[] => [
-  ...WriteGuard.inspectCommand({ command, cwd: '/nowhere' }).map(
-    (hit) => `write ${hit.rule}: ${hit.message}`,
-  ),
-  ...RemoteHosts.inspectCommand({ command, policy: POLICY }).map((hit) => `remote: ${hit.message}`),
+  ...WriteGuard.inspectCommand({ command }).map((hit) => `write ${hit.rule}: ${hit.message}`),
 ];
 
-// BANA's scan: 142 asks in 13,000 Bash calls, most of them on data. These shapes stay quiet; the real ones ask.
-describe('the write guard and the remote-host guard do not ask about data', () => {
+// A downstream project's scan: 142 asks in 13,000 Bash calls, most of them on data. These shapes stay quiet; the real ones ask.
+describe('the write guard does not ask about data', () => {
   test.each(QUIET)('$id is quiet: $note', ({ command }) => {
     expect(asksOf(command)).toEqual([]);
   });
@@ -68,7 +63,6 @@ describe('a heredoc body', () => {
     const [cat] = ShellParser.parse({ command: 'cat > f <<EOF\nkubectl apply -f x' });
 
     expect(cat?.heredoc).toBe('kubectl apply -f x');
-    expect(asksOf('cat > f <<EOF\nkubectl apply -f x')).toEqual([]);
   });
 });
 
@@ -85,13 +79,13 @@ describe('CommandView.commandTextsOf and isDataOnly', () => {
         command: "find . -name '*.yaml' -exec kubectl delete -f {} +",
         withMessages: true,
       }),
-    ).toEqual(['find . -name *.yaml -exec kubectl delete -f {} +']);
+    ).toEqual(['find . -name *.yaml -exec kubectl delete -f {} +', 'kubectl delete -f {}']);
     expect(
       CommandView.commandTextsOf({ command: 'find . -name "*.md"', withMessages: true }),
     ).toEqual(['find']);
   });
 
-  test('git and gh are data to the write guard, and a host to the remote-host guard', () => {
+  test('git and gh are data to the write guard', () => {
     const [push] = ShellParser.parse({ command: 'git remote add x user@evil.example.com:repo' });
 
     expect(
@@ -140,5 +134,96 @@ describe('CommandView.commandTextsOf and isDataOnly', () => {
         withMessages: true,
       }),
     ).toEqual(['find', 'rg']);
+  });
+});
+
+/** Lines whose next line is a command bash runs: a comment, arithmetic or a quote that spans lines comes first. */
+const BEFORE_A_COMMAND: { note: string; lead: string }[] = [
+  { note: 'a comment that holds <<', lead: '# feed <<STOP to the reader' },
+  { note: 'a comment with an apostrophe', lead: "# don't stop here" },
+  { note: 'a shift in $(( ))', lead: 'echo $(( 2 << n ))' },
+  { note: 'a shift in (( ))', lead: '(( mask << bits ))' },
+  { note: 'a double-quoted string over two lines', lead: 'printf "%s" "first\n<<STOP"' },
+  { note: 'a single-quoted string over two lines', lead: "printf 'one\n<<STOP'" },
+];
+
+const gitDecisions = (command: string): string[] =>
+  GitGuard.inspect({ command, cwd: '/nowhere', run: () => 'topic' }).map((hit) => hit.decision);
+
+describe('every guard reads the command after a line that only looks like a heredoc start', () => {
+  test.each(BEFORE_A_COMMAND)('after $note, a force push is denied', ({ lead }) => {
+    expect(gitDecisions(`${lead}\ngit push --force origin main`)).toContain('deny');
+  });
+
+  test.each(BEFORE_A_COMMAND)(
+    'after $note, a deploy write and a database write ask',
+    ({ lead }) => {
+      const write = WriteGuard.inspectCommand({
+        command: `${lead}\nkubectl apply -f deploy.yaml`,
+      });
+      const database = WriteGuard.inspectCommand({
+        command: `${lead}\npsql app -c "delete from users"`,
+      });
+
+      expect(write.length).toBeGreaterThan(0);
+      expect(database.length).toBeGreaterThan(0);
+    },
+  );
+
+  test('a real heredoc with the same words in its body is still data to every guard', () => {
+    const body = `${BEFORE_A_COMMAND.map((row) => row.lead).join('\n')}\ngit push --force origin main\nkubectl apply -f deploy.yaml\npsql app -c "delete from users"`;
+
+    for (const command of [
+      `cat > notes.md <<'STOP'\n${body}\nSTOP`,
+      `body=$(cat <<'STOP'\n${body}\nSTOP\n)\ngh issue create --body "$body"`,
+    ]) {
+      expect(gitDecisions(command), command).toEqual([]);
+      expect(asksOf(command), command).toEqual([]);
+    }
+  });
+
+  test('a line the parser cannot follow to its end asks in the git and remote-host guards', () => {
+    const command = 'echo "never closed\ngit status';
+
+    expect(gitDecisions(command)).toContain('deny');
+    expect(gitDecisions('echo "closed\nhere"')).toEqual([]);
+    expect(asksOf('echo "closed\nhere"')).toEqual([]);
+  });
+
+  test('a body whose delimiter never comes is data, and the git guard still asks about a push in it', () => {
+    expect(gitDecisions('cat > notes.md <<STOP\ngit push --force origin main')).toContain('ask');
+    // The guard asks about any body whose delimiter never comes, even one that holds nothing risky.
+    expect(gitDecisions('cat > notes.md <<STOP\ngit status')).toEqual(['deny']);
+  });
+});
+
+describe('a program the line does not name', () => {
+  test('a variable or a substitution as the program asks in the git guard', () => {
+    expect(gitDecisions('tool=git; $tool push --force origin main')).toContain('deny');
+  });
+
+  test('a variable or a substitution as an argument stays quiet', () => {
+    expect(gitDecisions('git log "$HOME" $(date +%s)')).toEqual([]);
+    expect(asksOf('echo "$HOME" $(date +%s) "$@"')).toEqual([]);
+  });
+});
+
+describe('a command inside a process substitution or run through a variable is read by every guard', () => {
+  test.each([
+    'cat >(kubectl apply -f -) < manifest.yaml',
+    'tee >(psql -c "delete from t") < rows.txt',
+  ])('%s asks in the write guard', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each(['k=git; $k push --force origin main', 'echo >(git push --force origin main)'])(
+    '%s is not allowed by the git guard',
+    (command) => {
+      expect(gitDecisions(command).length).toBeGreaterThan(0);
+    },
+  );
+
+  test('a variable as an argument stays quiet in the write guard', () => {
+    expect(WriteGuard.inspectCommand({ command: 'ls $HOME/projects' })).toEqual([]);
   });
 });

@@ -1,16 +1,26 @@
-import { afterAll, describe, expect, spyOn, test } from 'bun:test';
+import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { CommandView, GitGuard, ProjectGuards, WriteGuard } from '../../hooks/index.ts';
 import type { IGitRunner, IProjectCommandCheck } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
+/** What a project with no guard block in its manifest gets. */
+const EMPTY_POLICY = {
+  commands: [],
+  askPush: [],
+  outside: 'ask',
+  asks: 'ask',
+  toolOwnedPaths: [],
+  runnersAllow: [],
+};
+
 afterAll(removeProjects);
 
 const WRITES_HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-writes.ts');
 const GIT_HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-git.ts');
 
-// BANA's own commands, which no fixed list could know.
+// A downstream project's own commands, which no fixed list could know.
 const MIGRATE: IProjectCommandCheck = {
   rule: 'V-W-02',
   what: 'running a migration',
@@ -24,12 +34,12 @@ const DEPLOY: IProjectCommandCheck = {
 const PROJECT = [MIGRATE, DEPLOY];
 
 const hitsOf = (opts: { command: string; extra?: IProjectCommandCheck[] }): string[] =>
-  WriteGuard.inspectCommand({ command: opts.command, cwd: '/p', extra: opts.extra }).map(
+  WriteGuard.inspectCommand({ command: opts.command, extra: opts.extra }).map(
     (hit) => `${hit.rule}: ${hit.message}`,
   );
 
 describe("guard-writes asks on the project's own commands", () => {
-  test("BANA's migrate and deploy commands: nothing without the patterns, a V-W-02 and a V-W-03 ask with them", () => {
+  test("a project's migrate and deploy commands: nothing without the patterns, a V-W-02 and a V-W-03 ask with them", () => {
     expect(hitsOf({ command: 'bun run migrate:up' })).toEqual([]);
     expect(hitsOf({ command: 'make deploy-develop-x' })).toEqual([]);
 
@@ -130,7 +140,9 @@ describe("the project's patterns see the request of gh api, gh secret and gh var
     ['under cd and &&', 'cd x && gh secret set X'],
     ['under sudo', 'sudo gh secret delete X'],
   ])('%s asks with the pattern', (_label, command) => {
-    expect(hitsOf({ command, extra: GH })).toEqual([expect.stringContaining('V-W-03')]);
+    expect(hitsOf({ command, extra: GH })).toContainEqual(
+      expect.stringMatching(/^V-W-03: .*\(this project's pattern\)$/),
+    );
   });
 
   test.each([
@@ -255,6 +267,51 @@ const manifestWith = (opts: { guard: unknown }): string =>
   });
 
 describe('ProjectGuards.readPolicy', () => {
+  test('reads what guard-outside needs: outside and tool-owned paths', () => {
+    const root = manifestWith({
+      guard: {
+        outside: 'deny',
+        toolOwnedPaths: ['/srv/store/**', 7, ''],
+      },
+    });
+    const policy = ProjectGuards.readPolicy({ root });
+
+    expect(policy.outside).toBe('deny');
+    expect(policy.toolOwnedPaths).toEqual(['/srv/store/**']);
+  });
+
+  test('reads the runners a project allows: names, nothing else', () => {
+    const policy = ProjectGuards.readPolicy({
+      root: manifestWith({ guard: { runners: { allow: ['shadcn', 7, '', 'turbo'] } } }),
+    });
+
+    expect(policy.runnersAllow).toEqual(['shadcn', 'turbo']);
+    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: {} }) }).runnersAllow).toEqual(
+      [],
+    );
+  });
+
+  test('reads guard.asks: deny, and anything else reads as ask', () => {
+    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: { asks: 'deny' } }) }).asks).toBe(
+      'deny',
+    );
+
+    for (const value of ['allow', 'ask', true, 7, null, { mode: 'deny' }]) {
+      expect(
+        ProjectGuards.readPolicy({ root: manifestWith({ guard: { asks: value } }) }).asks,
+        String(value),
+      ).toBe('ask');
+    }
+
+    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: {} }) }).asks).toBe('ask');
+  });
+
+  test('anything but deny reads as ask', () => {
+    expect(
+      ProjectGuards.readPolicy({ root: manifestWith({ guard: { outside: 'allow' } }) }).outside,
+    ).toBe('ask');
+  });
+
   test('reads the commands and the push targets from the manifest, and compiles the patterns', () => {
     const root = manifestWith({
       guard: undefined,
@@ -270,7 +327,7 @@ describe('ProjectGuards.readPolicy', () => {
       },
     });
 
-    expect(ProjectGuards.readPolicy({ root })).toEqual({ commands: [], askPush: [] });
+    expect(ProjectGuards.readPolicy({ root })).toEqual(EMPTY_POLICY);
 
     const policy = ProjectGuards.readPolicy({ root: full });
 
@@ -280,16 +337,94 @@ describe('ProjectGuards.readPolicy', () => {
     expect(policy.commands[0].rule).toBe('V-W-03');
   });
 
-  test('a project without a manifest, or with one that is not JSON, has no extra patterns', () => {
-    expect(ProjectGuards.readPolicy({ root: createProject({ files: {} }) })).toEqual({
-      commands: [],
-      askPush: [],
+  test('the launch environment tightens the manifest and never loosens it', () => {
+    const root = manifestWith({ guard: { asks: 'ask', outside: 'ask' } });
+    const held = manifestWith({ guard: { asks: 'deny', outside: 'deny' } });
+
+    expect(ProjectGuards.readPolicy({ root, env: {} }).asks).toBe('ask');
+    expect(ProjectGuards.readPolicy({ root, env: { VULCAN_GUARD_ASKS: 'deny' } }).asks).toBe(
+      'deny',
+    );
+    expect(ProjectGuards.readPolicy({ root, env: { VULCAN_GUARD_OUTSIDE: 'deny' } }).outside).toBe(
+      'deny',
+    );
+    expect(ProjectGuards.readPolicy({ root, env: { VULCAN_GUARD_OUTSIDE: 'deny' } }).asks).toBe(
+      'ask',
+    );
+
+    for (const value of ['ask', 'allow', '', '1', 'DENY', undefined]) {
+      const policy = ProjectGuards.readPolicy({
+        root: held,
+        env: { VULCAN_GUARD_ASKS: value, VULCAN_GUARD_OUTSIDE: value },
+      });
+
+      expect(policy.asks, String(value)).toBe('deny');
+      expect(policy.outside, String(value)).toBe('deny');
+    }
+  });
+
+  test('where the environment holds deny, the manifest cannot add a tool-owned store or a runner', () => {
+    const root = manifestWith({
+      guard: { toolOwnedPaths: ['/home/**'], runners: { allow: ['shadcn'] } },
     });
+
+    expect(ProjectGuards.readPolicy({ root, env: {} }).toolOwnedPaths).toEqual(['/home/**']);
+    expect(ProjectGuards.readPolicy({ root, env: {} }).runnersAllow).toEqual(['shadcn']);
+
+    for (const env of [{ VULCAN_GUARD_ASKS: 'deny' }, { VULCAN_GUARD_OUTSIDE: 'deny' }]) {
+      const policy = ProjectGuards.readPolicy({ root, env });
+
+      expect(policy.toolOwnedPaths).toEqual([]);
+      expect(policy.runnersAllow).toEqual([]);
+    }
+
+    // Anything but deny in the environment is not a hold.
     expect(
-      ProjectGuards.readPolicy({
-        root: createProject({ files: { '.agents/vulcan.manifest.json': '{ nope' } }),
-      }),
-    ).toEqual({ commands: [], askPush: [] });
+      ProjectGuards.readPolicy({ root, env: { VULCAN_GUARD_ASKS: 'ask' } }).toolOwnedPaths,
+    ).toEqual(['/home/**']);
+  });
+
+  test('says which of the three holds an ask: the environment, the manifest, or a manifest that cannot be read', () => {
+    const env = ProjectGuards.readPolicy({
+      root: manifestWith({ guard: {} }),
+      env: { VULCAN_GUARD_ASKS: 'deny' },
+    });
+    const file = ProjectGuards.readPolicy({
+      root: manifestWith({ guard: { asks: 'deny' } }),
+      env: {},
+    });
+    const broken = ProjectGuards.readPolicy({
+      root: createProject({ files: { '.agents/vulcan.manifest.json': '{ nope' } }),
+      env: {},
+    });
+
+    expect(env.asksNote).toContain('VULCAN_GUARD_ASKS=deny');
+    expect(file.asksNote).toContain('guard.asks: deny');
+    expect(broken.asksNote).toContain('cannot be read');
+    expect(
+      ProjectGuards.readPolicy({ root: manifestWith({ guard: {} }), env: {} }).asksNote,
+    ).toBeUndefined();
+  });
+
+  test('a manifest that exists and cannot be read holds every ask and keeps nothing else', () => {
+    for (const text of ['{ nope', '', '<<<<<<< HEAD\n{}\n>>>>>>> x', '[]', 'null', '"deny"']) {
+      const policy = ProjectGuards.readPolicy({
+        root: createProject({ files: { '.agents/vulcan.manifest.json': text } }),
+        env: {},
+      });
+
+      expect(policy.asks, JSON.stringify(text)).toBe('deny');
+      expect({ ...policy, asks: 'ask', asksNote: undefined }).toEqual({
+        ...EMPTY_POLICY,
+        asksNote: undefined,
+      });
+    }
+  });
+
+  test('a project without a manifest has no extra patterns', () => {
+    expect(ProjectGuards.readPolicy({ root: createProject({ files: {} }), env: {} })).toEqual(
+      EMPTY_POLICY,
+    );
   });
 
   test('an entry that is not usable is skipped and the others stay: a bad pattern, an unknown rule, a missing field', () => {
@@ -345,7 +480,7 @@ describe('the hooks read the manifest', () => {
     git: { askPush: ['develop'] },
   };
 
-  test("guard-writes asks for BANA's migrate and deploy commands, and not for the control", () => {
+  test("guard-writes asks for a project's migrate and deploy commands, and not for the control", () => {
     const root = manifestWith({ guard });
 
     for (const command of [
@@ -400,62 +535,5 @@ describe('the hooks read the manifest', () => {
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('ignoring');
     expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
-  });
-});
-
-describe('ProjectGuards.readPolicy and the read-only scripts', () => {
-  const ENTRY = { script: 'tools/release.ts', readOnly: ['plan', 'registry'] };
-
-  test('reads the entries of guard.writes.readOnlyScripts', () => {
-    const root = manifestWith({ guard: { writes: { readOnlyScripts: [ENTRY] } } });
-
-    expect(ProjectGuards.readPolicy({ root }).readOnlyScripts).toEqual([ENTRY]);
-  });
-
-  test('a manifest that lists none has no readOnlyScripts key, so the empty policy keeps its shape', () => {
-    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: { writes: {} } }) })).toEqual({
-      commands: [],
-      askPush: [],
-    });
-    expect(
-      ProjectGuards.readPolicy({
-        root: manifestWith({ guard: { writes: { readOnlyScripts: [] } } }),
-      }),
-    ).not.toHaveProperty('readOnlyScripts');
-  });
-
-  test('an entry that is not usable is skipped and said once each, and the others stay', () => {
-    const spy = spyOn(console, 'error').mockImplementation(() => undefined);
-
-    try {
-      const root = manifestWith({
-        guard: {
-          writes: {
-            readOnlyScripts: [
-              { script: 'a.ts' },
-              { script: 'a.ts', readOnly: 'plan' },
-              { script: 'a.ts', readOnly: ['plan', 7] },
-              { script: 'a.ts', readOnly: [''] },
-              { script: '', readOnly: ['plan'] },
-              'a.ts',
-              null,
-              ENTRY,
-            ],
-          },
-        },
-      });
-
-      expect(ProjectGuards.readPolicy({ root }).readOnlyScripts).toEqual([ENTRY]);
-      expect(spy).toHaveBeenCalledTimes(7);
-      expect(String(spy.mock.calls[0][0])).toContain('guard.writes.readOnlyScripts');
-    } finally {
-      spy.mockRestore();
-    }
-  });
-
-  test('a list that is not a list is ignored', () => {
-    const root = manifestWith({ guard: { writes: { readOnlyScripts: 'plan' } } });
-
-    expect(ProjectGuards.readPolicy({ root })).toEqual({ commands: [], askPush: [] });
   });
 });

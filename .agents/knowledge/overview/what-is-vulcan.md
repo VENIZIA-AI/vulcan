@@ -15,7 +15,7 @@ setup, one workflow and one coding style. It commits only its own layer and neve
   tools - the `vulcan` CLI, okf and atlas. See [the packages](/packages/cli.md).
 - **What a project keeps:** its own rules with bare IDs, its knowledge bundle, its config. See
   [the project contract](/architecture/project-contract.md).
-- **Who uses it:** IGNIS, ARDOR and BANA, each through its own session; they stay read-only from
+- **Who uses it:** IGNIS, ARDOR and a downstream project, each through its own session; they stay read-only from
   VULCAN (W-06).
 
 VULCAN is also its own first project: its root `package.json` depends on `@venizia/vulcan` through

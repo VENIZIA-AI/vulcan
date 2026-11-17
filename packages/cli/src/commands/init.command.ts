@@ -2,7 +2,9 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
+import { ConfigLoader } from '../config/index.ts';
 import { CreateFlags } from '../create/common/index.ts';
+import { KeyChoice } from '../create/project-key.ts';
 import { Monorepo } from '../create/init-monorepo.ts';
 import { SubProcess } from '../create/process.ts';
 import { ProjectScaffold } from '../init/index.ts';
@@ -22,7 +24,30 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
     return ExitCodes.FAILURE;
   }
 
-  const result = ProjectScaffold.scaffold({ root: opts.cwd });
+  // The key is asked for only when init is about to write the config: an existing config keeps the one it has.
+  let key: string | undefined;
+
+  if (ConfigLoader.findFile({ root: opts.cwd }) === undefined) {
+    const choice = KeyChoice.resolve({
+      args: opts.args,
+      name: ProjectScaffold.nameOf({ root: opts.cwd }),
+      interactive: process.stdin.isTTY === true,
+    });
+
+    if (!choice.ok) {
+      process.stderr.write(`vulcan init: ${choice.error}\n`);
+
+      return ExitCodes.USAGE;
+    }
+
+    if (choice.note !== undefined) {
+      process.stderr.write(`${choice.note}\n`);
+    }
+
+    key = choice.key;
+  }
+
+  const result = ProjectScaffold.scaffold({ root: opts.cwd, key });
 
   for (const entry of result.entries) {
     process.stderr.write(`  ${entry.status.padEnd(8)} ${entry.subject}\n`);

@@ -41,6 +41,8 @@ script or a `curl` against the running thing; a replay of a captured request or 
 commits (`git bisect run <the loop>`). A bug in a UI is reproduced in a real browser, at mobile and at
 desktop width, before any code is read.
 
+A script for the loop goes in a file under `.agents/local/tmp/<task>/` and runs by its literal path, with literal paths in its redirects (V-B-08): the guards deny a call they cannot read.
+
 If you cannot build a loop, stop and say what is missing (access, data, an environment). Do not proceed
 on theory.
 
@@ -70,8 +72,8 @@ Done when one hypothesis is confirmed by a loop result, and the others are ruled
 
 1. Write the regression test **before** the fix, at a seam that reproduces the real bug pattern. Run it:
    it is red, and you say why.
-2. Make the smallest fix for the cause, not for the symptom (V-C-11). Keep validation and error handling
-   (V-B-06).
+2. Make the smallest fix for the cause, not for the symptom. Keep validation and error handling
+   (V-C-11).
 3. Run the test (green), then the loop, then the project's gates.
 
 How a test is kept honest, and what to mock, is in `node_modules/@venizia/vulcan/base/references/testing.md`. If no correct seam exists for a regression test, that is itself the finding: report it, do not write a

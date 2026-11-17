@@ -1,0 +1,152 @@
+import { MigrateApply } from './apply';
+import { MigrateReport } from './report';
+import type { IMigrationResult } from './plan';
+
+const USAGE = [
+  'usage: vulcan x atlas migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]',
+  '       vulcan x atlas migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]',
+].join('\n');
+
+const VALUE_FLAGS = new Set([
+  '--package',
+  '--from',
+  '--to',
+  '--app',
+  '--format',
+  // Read by the server this command asks, not by the plan.
+  '--root',
+  '--source',
+  '--cache-dir',
+]);
+const SWITCH_FLAGS = new Set(['--no-prebuilt']);
+const FORMATS = new Set(['md', 'json']);
+
+interface IParsed {
+  subcommand: string;
+  values: Record<string, string>;
+  force: boolean;
+  verbose: boolean;
+}
+
+const parse = (opts: { args: string[] }): IParsed | undefined => {
+  const [subcommand, ...rest] = opts.args;
+  const values: Record<string, string> = {};
+  let force = false;
+  let verbose = false;
+
+  if (subcommand !== 'plan' && subcommand !== 'apply') {
+    return undefined;
+  }
+
+  for (let index = 0; index < rest.length; index++) {
+    const [flag, joined] = rest[index].split(/=(.*)/s);
+    const value = joined ?? rest[index + 1];
+
+    if (flag === '--force' && joined === undefined && subcommand === 'apply') {
+      force = true;
+
+      continue;
+    }
+
+    if (flag === '--verbose' && joined === undefined && subcommand === 'plan') {
+      verbose = true;
+
+      continue;
+    }
+
+    if (SWITCH_FLAGS.has(flag)) {
+      continue;
+    }
+
+    if (
+      !VALUE_FLAGS.has(flag) ||
+      value === undefined ||
+      (joined === undefined && value.startsWith('--'))
+    ) {
+      return undefined;
+    }
+
+    values[flag] = value;
+    index += joined === undefined ? 1 : 0;
+  }
+
+  // `apply` prints its own report: a format is a plan's.
+  const badFormat =
+    subcommand === 'apply'
+      ? values['--format'] !== undefined
+      : !FORMATS.has(values['--format'] ?? 'md');
+
+  if (values['--to'] === undefined || badFormat) {
+    return undefined;
+  }
+
+  return { subcommand, values, force, verbose };
+};
+
+interface IReply {
+  result?: { content?: { text?: string }[] };
+  error?: { message?: string };
+}
+
+/** `vulcan x atlas migrate plan|apply`: the `migrate` tool, asked through the server the project serves; `apply` then runs the codemods it links. */
+export class MigrateCommand {
+  /**
+   * Parses the flags, sends one `tools/call` through `send` (the server's transport, so a package
+   * from any source answers) and prints the plan as Markdown or JSON. Exit 0 on a plan, 1 when the
+   * tool refuses (for `apply`: the run is refused or a codemod fails), 2 on a usage error.
+   */
+  static async run(opts: {
+    args: string[];
+    send: (line: string) => Promise<string | null>;
+    out: (text: string) => void;
+    err: (text: string) => void;
+  }): Promise<number> {
+    const parsed = parse({ args: opts.args });
+
+    if (parsed === undefined) {
+      opts.err(`${USAGE}\n`);
+
+      return 2;
+    }
+
+    const { values, subcommand, force, verbose } = parsed;
+    const line = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: {
+        name: 'migrate',
+        arguments: {
+          package: values['--package'],
+          from: values['--from'],
+          to: values['--to'],
+          app: values['--app'],
+        },
+      },
+    });
+    const raw = await opts.send(line);
+    const reply: IReply = JSON.parse(raw ?? '{}');
+    const text = reply.result?.content?.[0]?.text;
+
+    if (text === undefined) {
+      opts.err(`vulcan-atlas: ${reply.error?.message ?? 'the migrate tool gave no answer'}\n`);
+
+      return 1;
+    }
+
+    // The tool's own JSON, read back: one answer for every door.
+    const result: IMigrationResult = JSON.parse(text);
+
+    if (subcommand === 'apply') {
+      return MigrateApply.run({ result, force, out: opts.out, err: opts.err });
+    }
+
+    opts.out(
+      values['--format'] === 'json'
+        ? `${JSON.stringify(result, null, 2)}\n`
+        : MigrateReport.markdown({ result, verbose }),
+    );
+
+    return 0;
+  }
+}

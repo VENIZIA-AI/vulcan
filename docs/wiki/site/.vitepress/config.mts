@@ -1,6 +1,14 @@
 import { defineConfig, type DefaultTheme } from 'vitepress';
+import { changelogPageData } from './theme/shared/changelog-entries.ts';
 import { writeChangelogFeed } from './theme/shared/changelog-loader.ts';
 import { venziaCodeTheme } from './theme/shared/code-theme.ts';
+import { WikiTheme } from './theme/shared/wiki-theme.ts';
+
+// The colours of the wiki are the project's resolved theme, as `vulcan sync` wrote it to the manifest.
+const THEME = WikiTheme.read({
+  manifest: new URL('../../../../.agents/vulcan.manifest.json', import.meta.url).pathname,
+});
+const ACCENT_2 = '#c48a5a';
 
 // The sidebars mirror IGNIS: Guides and References each have an index landing page.
 const guidesSidebar: DefaultTheme.SidebarItem[] = [
@@ -22,6 +30,7 @@ const guidesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Hooks and guards', link: '/guides/core-concepts/hooks-and-guards' },
       { text: 'The owner and the reply shape', link: '/guides/core-concepts/owner-and-replies' },
       { text: 'Work items', link: '/guides/core-concepts/work-items' },
+      { text: 'Migrate between releases', link: '/guides/core-concepts/migrate-between-releases' },
       { text: 'The knowledge bundle', link: '/guides/core-concepts/knowledge-bundle' },
       { text: 'Atlas', link: '/guides/core-concepts/atlas' },
     ],
@@ -50,7 +59,6 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'agents', link: '/references/commands/agents' },
       { text: 'doctor', link: '/references/commands/doctor' },
       { text: 'commit-check', link: '/references/commands/commit-check' },
-      { text: 'ci', link: '/references/commands/ci' },
       { text: 'event', link: '/references/commands/event' },
       { text: 'board', link: '/references/commands/board' },
       { text: 'clean', link: '/references/commands/clean' },
@@ -62,10 +70,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
   { text: 'Rules', items: [{ text: 'Base rules and slots', link: '/references/rules' }] },
   {
     text: 'Hooks',
-    items: [
-      { text: 'Overview', link: '/references/hooks/' },
-      { text: 'Remote-host guard', link: '/references/hooks/remote-host-guard' },
-    ],
+    items: [{ text: 'Overview', link: '/references/hooks/' }],
   },
   {
     text: 'okf',
@@ -91,10 +96,17 @@ export default defineConfig({
   appearance: 'dark',
   markdown: {
     // The code windows are dark in both themes (theme/shared/tokens.css), so one dark theme serves both: the
-    // shared theme built from VULCAN's accent on dark (the same value as --accent-on-dark in theme/product.css).
-    theme: venziaCodeTheme({ accent: '#dead6a' }),
+    // shared theme built from the accent on dark of the manifest theme (the value of --accent-on-dark).
+    theme: venziaCodeTheme({ accent: THEME.dark.accent ?? '' }),
   },
   srcDir: '../content',
+  // A version folder keeps its page as changelogs/<X.Y.Z>/log.md; the site serves it at /changelogs/<X.Y.Z>.
+  // The upgrade guide of a version is the dynamic route changelogs/upgrade/[version].md, served at /changelogs/<X.Y.Z>/upgrade.
+  rewrites: {
+    'changelogs/:version/log.md': 'changelogs/:version.md',
+    'changelogs/upgrade/:version.md': 'changelogs/:version/upgrade.md',
+  },
+  transformPageData: (pageData) => changelogPageData({ pageData }),
   outDir: './.vitepress/dist',
   title: 'VULCAN',
   description: 'The agentic-coding toolkit for VENIZIA projects',
@@ -120,6 +132,7 @@ export default defineConfig({
         href: '/changelog.xml',
       },
     ],
+    WikiTheme.head({ theme: THEME, accent2: ACCENT_2 }),
     // The home page and its terminal hide their reveal states only under this class, set before first paint.
     ['script', {}, "document.documentElement.classList.add('js');"],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
@@ -161,6 +174,8 @@ export default defineConfig({
   ],
   lastUpdated: true,
   themeConfig: {
+    // The page a Breaking item of a version points to; the changelog page of a version shows the link.
+    migrateGuide: '/guides/core-concepts/migrate-between-releases',
     logo: '/logo.svg',
     nav: [
       { text: 'Guide', link: '/guides/', activeMatch: '/guides/' },

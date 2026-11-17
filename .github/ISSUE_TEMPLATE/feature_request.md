@@ -15,4 +15,4 @@ What goes wrong, or what is missing, in a project that uses VULCAN today.
 **Alternatives you considered**
 
 **Which projects need it**
-IGNIS, ARDOR, BANA, or another.
+IGNIS, ARDOR, a downstream project, or another.

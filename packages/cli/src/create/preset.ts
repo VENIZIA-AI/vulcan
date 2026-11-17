@@ -79,6 +79,7 @@ const resolveInside = (opts: { root: string; from: string; path: string }): stri
   return resolved;
 };
 
+/** Locates a preset (name, path or spec), reads its files and copies them with names filled in; used by `vulcan init` and `vulcan add`. */
 export class Preset {
   /** Text gets its tokens replaced; anything else is copied as it is. */
   private static substituteTokens(opts: {

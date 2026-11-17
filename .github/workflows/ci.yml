@@ -31,15 +31,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           # The release table is generated from release commits; a shallow clone has none.
           fetch-depth: 0
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version: 1.4.4
 
       - name: Install
         id: install
@@ -64,8 +64,18 @@ jobs:
         run: make okf-check-strict
 
       - name: Agent setup (VULCAN)
+        id: sync
         if: ${{ !cancelled() && steps.atlas.outcome == 'success' }}
-        run: make vulcan-sync vulcan-doctor
+        run: make vulcan-sync
+
+      # The manifest is generated: a committed copy that differs from what sync wrote is stale or edited by hand.
+      - name: Committed manifest matches sync
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        run: git diff --exit-code -- .agents/vulcan.manifest.json
+
+      - name: Agent setup checks (VULCAN doctor)
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        run: make vulcan-doctor
 
       - name: Gate scripts' own tests
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
@@ -77,15 +87,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           # The release table is generated from release commits; a shallow clone has none.
           fetch-depth: 0
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version: 1.4.4
 
       - name: Install
         id: install

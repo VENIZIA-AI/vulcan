@@ -1,8 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
-import { BoardConstants, BoardShapes } from './common/index.ts';
+import { BoardConstants, BoardServe, ProviderTypes } from './common/index.ts';
+import type { IBoardProvider } from './common/index.ts';
+import { BoardAgentSetting } from './agent-setting.ts';
+import { BoardLogo } from './logo.ts';
+import { BOARD_AGENT, BOARD_AGENTS } from './schema.ts';
+import type { TBoardAgentSetting } from './schema.ts';
 
 export interface IBoardSettings {
   title: string;
@@ -10,6 +15,16 @@ export interface IBoardSettings {
   logo?: string;
   key: string;
   shapes: Record<string, string>;
+  /** The name of the address of `vulcan board serve`: `board.hostname`, else the default. */
+  hostname: string;
+  /** The listed `board.agents` keys with no lane; empty when none is listed, and then every agent shows. */
+  roster: string[];
+  /** A helper to the listed name it works under; shown as a label on its own card. */
+  lanes: Record<string, string>;
+  /** What `board.agents` says each agent is. */
+  roles: Record<string, string>;
+  /** The code host to read: `provider`, else GitHub. */
+  provider: IBoardProvider;
   /** Why a setting was not used, for the note the command prints. */
   notes: string[];
 }
@@ -34,15 +49,38 @@ export class BoardSettings {
     const text = (value: unknown): string | undefined =>
       typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
     const notes: string[] = [];
+    const { shapes, roster, lanes, roles, problem } = BoardSettings.agentsOf({
+      value: block.agents,
+    });
     const logoPath = text(block.logo);
     const logo = logoPath === undefined ? undefined : opts.readLogo(logoPath);
 
-    if (logoPath !== undefined && logo === undefined) {
-      notes.push(`board.logo ${logoPath} is missing, over 100 KB or not an SVG: no logo`);
+    if (problem !== undefined) {
+      notes.push(`board.agents is not used: ${problem}`);
     }
 
+    if (logoPath !== undefined && logo === undefined) {
+      notes.push(
+        `board.logo ${logoPath} is missing, outside the project, over 100 KB or not an SVG: no logo`,
+      );
+    }
+
+    const provider = RecordValue.isRecord(manifest.provider) ? manifest.provider : {};
+    const host = text(provider.host);
+
     return {
+      provider: {
+        type: provider.type === ProviderTypes.GITLAB ? ProviderTypes.GITLAB : ProviderTypes.GITHUB,
+        host:
+          host !== undefined && BoardConstants.GITLAB_HOST.test(host)
+            ? host
+            : BoardConstants.GITLAB_DEFAULT_HOST,
+      },
       title: text(block.title) ?? `${name} Board`,
+      hostname:
+        typeof block.hostname === 'string' && BoardServe.HOSTNAME.test(block.hostname)
+          ? block.hostname
+          : BoardServe.DEFAULT_HOSTNAME,
       owner: text(block.owner) ?? text(opts.gitUser) ?? BoardConstants.DEFAULT_OWNER,
       ...(logo === undefined ? {} : { logo }),
       key:
@@ -50,20 +88,86 @@ export class BoardSettings {
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, '') || 'project',
-      shapes: RecordValue.isRecord(block.agents)
-        ? Object.fromEntries(
-            Object.entries(block.agents).filter(
-              (entry): entry is [string, string] =>
-                typeof entry[1] === 'string' && BoardShapes.isValid(entry[1]),
-            ),
-          )
-        : {},
+      shapes,
+      roster,
+      lanes,
+      roles,
       notes,
     };
   }
 
-  /** `resolve` for the project at `root`: its manifest, `git config user.name`, and the logo file. */
-  static read(opts: { root: string }): IBoardSettings {
+  /** The faces, the roster, the lanes and the roles of `board.agents`. A value that is no face or object is skipped; a lane that cannot be honoured drops the whole block, with `problem` saying why. */
+  private static agentsOf(opts: { value: unknown }): Pick<
+    IBoardSettings,
+    'shapes' | 'roster' | 'lanes' | 'roles'
+  > & {
+    problem?: string;
+  } {
+    const listed: Record<string, TBoardAgentSetting> = {};
+
+    for (const [name, value] of Object.entries(
+      RecordValue.isRecord(opts.value) ? opts.value : {},
+    )) {
+      const entry = BOARD_AGENT.safeParse(value);
+
+      if (entry.success) {
+        listed[name] = entry.data;
+      }
+    }
+
+    const parsed = BOARD_AGENTS.safeParse(listed);
+
+    if (!parsed.success) {
+      return {
+        shapes: {},
+        roster: [],
+        lanes: {},
+        roles: {},
+        problem: parsed.error.issues[0]?.message ?? 'not valid',
+      };
+    }
+
+    const shapes: Record<string, string> = {};
+    const lanes: Record<string, string> = {};
+    const roles: Record<string, string> = {};
+    const roster: string[] = [];
+
+    for (const [name, setting] of Object.entries(parsed.data)) {
+      const shape = BoardAgentSetting.shapeOf({ setting });
+      const lane = BoardAgentSetting.laneOf({ setting });
+      const role = BoardAgentSetting.roleOf({ setting });
+
+      if (shape !== undefined) {
+        shapes[name] = shape;
+      }
+
+      if (role !== undefined) {
+        roles[name] = role;
+      }
+
+      if (lane === undefined) {
+        roster.push(name);
+      } else {
+        lanes[name] = lane;
+      }
+    }
+
+    return { shapes, roster, lanes, roles };
+  }
+
+  /** `git config user.name` of the project, or `undefined`. */
+  static gitUserOf(opts: { root: string }): string | undefined {
+    const git = spawnSync('git', ['config', 'user.name'], {
+      cwd: opts.root,
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+
+    return git.status === 0 ? git.stdout.trim() : undefined;
+  }
+
+  /** `resolve` for the project at `root`: its manifest, the git user (read by `readGitUser`, by default from git), and the logo file. */
+  static read(opts: { root: string; readGitUser?: () => string | undefined }): IBoardSettings {
     let manifest: unknown;
 
     try {
@@ -72,35 +176,10 @@ export class BoardSettings {
       manifest = {};
     }
 
-    const git = spawnSync('git', ['config', 'user.name'], {
-      cwd: opts.root,
-      encoding: 'utf8',
-      timeout: 5000,
-    });
-
     return BoardSettings.resolve({
       manifest,
-      gitUser: git.status === 0 ? git.stdout.trim() : undefined,
-      readLogo: (path) => BoardSettings.logoOf({ root: opts.root, path }),
+      gitUser: (opts.readGitUser ?? (() => BoardSettings.gitUserOf({ root: opts.root })))(),
+      readLogo: (path) => BoardLogo.read({ root: opts.root, path }),
     });
-  }
-
-  /** The SVG at `path` in the project as a `data:` URL; a picture in an `img` runs no script, whatever the file holds. */
-  private static logoOf(opts: { root: string; path: string }): string | undefined {
-    const file = join(opts.root, opts.path);
-
-    try {
-      if (!existsSync(file) || statSync(file).size > BoardConstants.LOGO_MAX_BYTES) {
-        return undefined;
-      }
-
-      const svg = readFileSync(file);
-
-      return /<svg[\s>]/i.test(svg.toString('utf8', 0, 2000))
-        ? `data:image/svg+xml;base64,${svg.toString('base64')}`
-        : undefined;
-    } catch {
-      return undefined;
-    }
   }
 }

@@ -10,7 +10,7 @@ import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
 /** The atlas entry of the root `.mcp.json`, as `sync` writes it and `doctor` shows it. */
 export const MCP_SERVER_HINT =
-  '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
+  '"atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "."] }';
 
 /** The files every project gets, apart from the config. */
 const SCAFFOLD_FILES: IScaffoldFile[] = [
@@ -80,6 +80,7 @@ const writeIfAbsent = (opts: { root: string; path: string; content: string }): I
   return { status: InitStatuses.CREATED, subject: opts.path };
 };
 
+/** Writes the starter files of a project and detects workspace globs and the project name; used by `vulcan init` and the create flows. */
 export class ProjectScaffold {
   /** Whether the root `package.json` declares workspaces: the array form or `{ packages: [...] }`. */
   static declaresWorkspaces(opts: { root: string }): boolean {
@@ -104,13 +105,13 @@ export class ProjectScaffold {
   /**
    * Whether a workspace glob list covers the packages directly under `folder`: `folder/*` or
    * `folder/**`, with or without a leading `./`, or any glob that matches a package there
-   * (`auroras/*\/*` covers `auroras/apps`).
+   * (`frontends/*\/*` covers `frontends/apps`).
    */
   static coversFolder(opts: { globs: string[]; folder: string }): boolean {
     return opts.globs.some((glob) => {
       const plain = glob.replace(/^\.\//, '');
 
-      // A negation (`!umbras/legacy`) excludes packages; it never covers a folder.
+      // A negation (`!backends/legacy`) excludes packages; it never covers a folder.
       if (plain.startsWith('!')) {
         return false;
       }
@@ -123,15 +124,31 @@ export class ProjectScaffold {
     });
   }
 
-  static renderTemplate(opts: { template: string; name: string }): string {
-    return readFileSync(join(BASE_DIRECTORY, 'templates', opts.template), 'utf8').replaceAll(
+  /** The template with the project's name in it; the config's `project.key` line takes `key`, or goes when there is none. */
+  static renderTemplate(opts: { template: string; name: string; key?: string }): string {
+    const text = readFileSync(join(BASE_DIRECTORY, 'templates', opts.template), 'utf8').replaceAll(
       InitConstants.NAME_TOKEN,
       opts.name,
     );
+
+    return opts.key === undefined
+      ? text.replace(
+          new RegExp(
+            `^ *project: \\{ key: '${InitConstants.KEY_TOKEN.replace(/[{}]/g, '\\$&')}' \\},\\n`,
+            'm',
+          ),
+          '',
+        )
+      : text.replaceAll(InitConstants.KEY_TOKEN, opts.key);
+  }
+
+  /** The project's name as init and sync take it: the root package name, unscoped. */
+  static nameOf(opts: { root: string }): string {
+    return resolveProjectName({ root: opts.root });
   }
 
   /** Scaffolds the project layer at `root`. Never overwrites: an existing file is kept and a needed edit becomes a hint; only `.gitignore` is appended to, line by line. */
-  static scaffold(opts: { root: string }): IScaffoldResult {
+  static scaffold(opts: { root: string; key?: string }): IScaffoldResult {
     const { root } = opts;
     const name = resolveProjectName({ root });
     const isWorkspaces = ProjectScaffold.declaresWorkspaces({ root });
@@ -159,7 +176,11 @@ export class ProjectScaffold {
         writeIfAbsent({
           root,
           path: join(ConfigConstants.DIRECTORY, ConfigConstants.FILE),
-          content: ProjectScaffold.renderTemplate({ template: ConfigConstants.FILE, name }),
+          content: ProjectScaffold.renderTemplate({
+            template: ConfigConstants.FILE,
+            name,
+            key: opts.key,
+          }),
         }),
       );
     } else {
@@ -189,8 +210,13 @@ export class ProjectScaffold {
     const gitignore = join(root, '.gitignore');
     const existing = existsSync(gitignore) ? readFileSync(gitignore, 'utf8') : '';
     const lines = existing.split('\n');
+    // The last matching line wins in git, so secret lines appended after the user's own `.env` rules would override their negations.
+    const hasEnvRule = lines.some(
+      (line) => /(^|[!/*])\.env/.test(line.trim()) && !line.startsWith('#'),
+    );
     const missingIgnores = ProjectLayout.GITIGNORE_ENTRIES.filter(
-      (entry) => !lines.includes(entry),
+      (entry) =>
+        !lines.includes(entry) && !(hasEnvRule && ProjectLayout.SECRET_PATTERNS.includes(entry)),
     );
 
     if (missingIgnores.length > 0) {
@@ -211,6 +237,11 @@ export class ProjectScaffold {
     const install = needed.filter((packageName) => !(packageName in declared));
     const todo = [
       `describe the project in ${ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE}/index.md, then delete the ${ProjectLayout.SCAFFOLD_MARKER} line`,
+      ...(hasEnvRule
+        ? [
+            `.gitignore has .env rules of its own and was left as it is: check that they ignore ${ProjectLayout.SECRET_PATTERNS.join(' ')} the way you want`,
+          ]
+        : []),
       ...entries
         .filter((entry) => entry.status === InitStatuses.ADD)
         .map((entry) => `add ${entry.subject}`),

@@ -26,12 +26,17 @@ make test              # every package suite (--parallel), then scripts/
 make catalog-check
 make docs wiki-links-check wiki-anchors-check
 make smoke-atlas smoke-cli
-bun x --no-install vulcan doctor
-bun x --no-install vulcan x okf check
+bun node_modules/.bin/vulcan sync
+git diff --exit-code -- .agents/vulcan.manifest.json
+bun node_modules/.bin/vulcan doctor
+bun node_modules/.bin/vulcan x okf check
 ```
 
 - `make test` and the smokes make their temp folders under `.agents/local/tmp/tests/` (`TMPDIR`, gitignored): nothing is written to the system temp directory. A bare `bun test` does the same: the `[test] preload` of the root and package `bunfig.toml` (`@venizia/dev-configs/testing/tmpdir-preload`, the logic in `@venizia/dev-configs/testing`) points `TMPDIR` at that folder when it is not already inside it and makes `Bun.spawn` children inherit it, and the pack smokes call the same `useRepoTmp()`. `make` also sets `NODE_COMPILE_CACHE` to `.agents/local/cache/node-compile`, so the Node tools (ESLint, the type checker) do not write `/tmp/node-compile-cache`. `scripts/checks/__tests__/test-tmp-hygiene.test.ts` runs sample test files bare, once with a fake system temp (it must stay empty and `/tmp` must gain no `vulcan-*`, `atlas-*`, `ignore.<pid>` entry) and once with a private `TMPDIR` inside the test folder (it must be empty afterwards); a new helper that needs a temp folder uses `os.tmpdir()` and nothing else. `GIT_CEILING_DIRECTORIES` keeps git from reading this repository, and an empty `.git` marker there is where bun's own ignore lookup stops (it would otherwise read this repository's `.gitignore` and `bun fmt` in a test project would see no files). Because that folder sits inside the repository, `zod` resolves from the repository's `node_modules`: a test or smoke that needs it unavailable replaces it with a stub that throws, never just removes it. A smoke sandbox needs its own `package.json` before `bun add`, or bun edits the nearest one above it.
+- In a worktree under `<checkout>/.agents/local/worktrees/<name>` the temp folder of the tests is under the worktree, which is itself under the checkout, so a fixture project is inside a checkout. A test of path geometry (`ClaudeLaunch.tmpOf`, the launch-file note) must give its project a path on no disk (`/srv/vulcan-fixture/checkout`), not a `createProject` folder, or its answer depends on where it runs.
+- `make wiki-shared-check` (C-21) compares the shared theme folder with the `SHARED.json` that IGNIS and ARDOR publish on develop, and fails naming the files that differ; `ARGS='../ignis ../ardor'` compares local checkouts. The release workflow runs it, so a release goes out with the three wikis in step; a pull request does not, so a theme change here never waits on another repository. To bring a copy in step, run `bun ../vulcan/scripts/wiki-shared/copy.ts .` inside that checkout and commit it there.
 - `make docs` builds the wiki through `scripts/wiki-shared/build.ts`, which runs the check in the shared theme folder (`docs/wiki/site/.vitepress/theme/shared/build-check.ts`). It fails on a server render error in the build log (a ReferenceError, "is not defined", a Vue warning, a hydration message); on a built home page without its hero with two `.btn` links, its footer, two dust canvases, or the brand and the `venizia.ai` link of the top bar, or with the old ecosystem switcher; on built style sheets without the button arrow (`--arrow-ne` masked by `.btn::after`, a 40 px `.btn`) or with a static dot pattern; and on an inner page with a footer or without the top bar. The file reads only the built site and the log of its build, and IGNIS and ARDOR get the same file by syncing. A wiki whose `docs:build` script already runs its own checks calls it from that script, after the build, as `bun docs/wiki/site/.vitepress/theme/shared/build-check.ts --check --log <build log>`; the default mode builds, and it refuses to run inside a docs build, so the wrong wiring fails at once instead of building for ever.
+- The manifest `.agents/vulcan.manifest.json` is generated, and no hook guards it. CI runs `vulcan sync`, then fails when the committed file differs from what sync wrote (`git diff --exit-code`, a step that is not a make target, so `make gates` does not run it), then runs `vulcan doctor`, whose check C1 fails a stale or hand-edited copy; `.githooks/pre-commit` runs `vulcan doctor` too.
 - Type-checking is `bun check --no-pretty` (Bun >= 1.4.4), the same errors as `tsc --noEmit` including options inherited through `extends`; `tsc` stays only where it emits (atlas `dist`).
 - Tests first: a test that fails, then the change.
 - A change that touches the generators or okf is checked against IGNIS read-only: `check` from
@@ -58,29 +63,3 @@ bun x --no-install vulcan x okf check
 ## What the base text is held to
 
 `packages/cli/src/__tests__/base-consistency.test.ts` runs with `make test`: every `V-*` id cited anywhere under `packages/cli/base/` is defined once in `base/rules.md` (a bullet there that opens with an id lists one VULCAN deliberately does not carry), every skill's frontmatter parses with a name equal to its folder, and the size budgets hold (rules under 4000 words, a shared reference under 250 lines, a skill under 24 KB). Cite a rule that does not exist and the build fails.
-
-## Skill evals across models
-
-A shipped skill that carries `evals/evals.json` can be run against every model that will use it -
-what works for Opus may need more detail for Haiku. **Each run calls the real `claude` and spends
-model quota**: 2 evals x 3 models is 6 runs plus 6 grader calls. Plan first, run nothing:
-
-```bash
-make skill-evals-plan SKILL=docs-writing PROJECT=../ignis
-make skill-evals SKILL=docs-writing PROJECT=../ignis MODELS=haiku,sonnet   # real runs
-```
-
-- `--baseline` (in `ARGS`) also runs every case with the skill NOT installed and not in the prompt, grades it the same way, and reports both arms; the exit code follows the skill arm only (a baseline is expected to do worse). A real run doubles the calls.
-- `scripts/evals/skill-evals.ts` (core in `scripts/evals/skill-evals-core.ts`). `PROJECT` is the checkout the
-  evals' `files` live in; it defaults to this repository. A missing input file stops a real run with
-  exit 2 before any call. Flags: `--grader` (default `opus`), `--out`, `--timeout` (seconds, default
-  900), `--max-budget-usd` (a cap passed to every `claude` call, run and grader alike), passed as
-  `ARGS="..."`.
-- Every run works in a scratch copy of the project - no `node_modules`, `.git` or symlinks, so the
-  project's hooks that need `node_modules` do not run. The skill reaches the model inline (SKILL.md in
-  the prompt) and installed at `.claude/skills/<name>/` without its `evals/`, so its references
-  resolve and the expected output stays hidden.
-- One grader call per run returns `{ pass, reasons }`; malformed grader output is a recorded failure.
-  Results land in `<out>/<skill>/<eval-id>/<model>/` and `<out>/<skill>/report.md`. Exit 0 when every
-  run passed, 1 otherwise, 2 on bad arguments.
-- Tests never run a model: `scripts/evals/__tests__/skill-evals.test.ts` puts a fake `claude` on `PATH`.

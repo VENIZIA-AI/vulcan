@@ -23,15 +23,23 @@ export default {
 To update the project manifest, run `vulcan sync`:
 
 ```bash
-bun x --no-install vulcan sync
+bun node_modules/.bin/vulcan sync
 ```
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | `name` | `string` | required | Source identifier reported in citations and search hits |
-| `repo` | `string` | required | GitHub `owner/repo` path or git URL |
+| `repo` | `string` | required | GitHub `owner/repo` path or git URL over `https`, `ssh` or `file` |
 | `ref` | `string` | `'develop'` | Git branch name, tag, or commit hash to fetch |
 | `pin` | `'installed'` or `'ref'` | `'installed'` | `installed` reads the docs at the release tag of the version the project has installed; `ref` always reads `ref` |
+
+A `repo` with an `http://` or `git://` URL (clear text) or a `scheme::` remote helper (it runs a command) is refused.
+
+## What a source may be, and how much atlas takes
+
+Every git call of atlas runs with `GIT_ALLOW_PROTOCOL=https:ssh:file`, so git uses only `https`, `ssh` and a repository on this machine (`file://` or a path), whatever the machine's own git configuration allows. `http://` and `git://` carry the repository in clear text with no authentication, and `ext::` and `fd::` run a command: a source that names one is refused before git is called, and the message names the source and says to use https or ssh.
+
+The tarball of a GitHub source, and an npm package read for its declarations, are read up to `atlas.limits.download` bytes (default 128 MiB; set it in [the config](/references/configuration/#atlas)). A response that announces a larger length is refused before its body is read, and one that sends more than it announced is cut off at the limit; nothing is kept. The ref advertisement of a remote is held to 16 MiB, with no setting. For scale: the tarball of `microsoft/TypeScript` is 28 MB, of `facebook/react` 10 MB, and the largest npm package of this project 0.4 MB.
 
 ## Which version of the docs
 
@@ -105,10 +113,11 @@ When an atlas version changes what an index holds, its format number changes, an
 On startup, atlas checks whether the remote reference moved.
 If the reference moved to a newer commit, atlas pulls the new commit.
 If new tags appear on the same commit, atlas updates release records without re-indexing markdown files.
-The cache keeps the newest 3 commits per source.
+The cache keeps the newest 3 commits per source, and the commit of each of the newest 5 refs it served (a ref file under `refs/` is rewritten each time its ref is served; the sixth oldest is removed, and its commit with it on the next pull).
 When the remote repository is unreachable, atlas serves the commit last served for that ref.
 atlas never serves another ref's cache.
 An unreachable remote serves only a cache built at the current index format; with none, the source is unavailable.
+A cached set whose release table holds no changelog entry, although its commit holds some, is not served: the next start pulls it again.
 atlas tells the client at startup:
 
 ```text
@@ -166,7 +175,7 @@ A start from a source whose index was downloaded says so, and keeps saying so fr
 - <name>: <origin> at <sha> - index: prebuilt, built by atlas <version>
 ```
 
-`pull --force` downloads the pair again. `--no-prebuilt` turns the download off for `mcp`, `tools` and `pull`.
+`pull` downloads the pair again unless you pass `--warm`, which fetches only what the cache lacks. `--no-prebuilt` turns the download off for `mcp`, `tools` and `pull`.
 A source without keys, and a source reached by a git URL or by tarball, is built here as before.
 
 For a private repository, the token must be able to read the repository's releases. A classic token with the `repo` scope, which is what `gh auth token` gives, was checked against a private repository: it lists the release, downloads the asset and gets 404 without the token. A fine-grained token was not checked.
@@ -176,13 +185,13 @@ For a private repository, the token must be able to read the repository's releas
 To pre-fetch all external sources, run `vulcan x atlas pull`:
 
 ```bash
-bun x --no-install vulcan x atlas pull
+bun node_modules/.bin/vulcan x atlas pull
 ```
 
 To fetch a single source, pass `--source <name>`:
 
 ```bash
-bun x --no-install vulcan x atlas pull --source ignis
+bun node_modules/.bin/vulcan x atlas pull --source ignis
 ```
 
 `pull` always forces a fresh fetch and rebuild.
@@ -212,14 +221,15 @@ vulcan-atlas: source '<name>' is not served - <reason>
 
 A source is not served when it hits any of these conditions:
 
-| Condition | Reason message |
-|---|---|
-| Unreachable with no cache | `atlas: source '<name>' (<repo>@<ref>) is unreachable and has no cache` |
-| Missing ref on remote | `atlas: source '<name>' (<repo>@<ref>) - the remote has no branch or tag '<ref>'` |
-| Git URL without git | `atlas: source '<name>' (<repo>@<ref>) needs git on this machine - only an owner/repo source has a tarball path` |
-| Short commit hash without git | `atlas: source '<name>' (<repo>@<ref>) - a short commit hash needs git on this machine; give all 40 characters` |
-| Missing manifest | `atlas: source '<name>' (<repo>@<ref>) has no .agents/vulcan.manifest.json - its maintainers run \`vulcan sync\` and commit it` |
-| Incompatible manifest | `atlas: the manifest is schemaVersion <n>; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan` |
+- Unreachable with no cache: `atlas: source '<name>' (<repo>@<ref>) is unreachable and has no cache`
+- Missing ref on remote: `atlas: source '<name>' (<repo>@<ref>) - the remote has no branch or tag '<ref>'`
+- `http://`, `git://` or `ext::` repository: `atlas: source '<name>' (<repo>@<ref>) uses an http:// URL, which is clear text - use https or ssh`
+- Tarball over `atlas.limits.download`: `atlas: the tarball of <owner>/<repo> at <sha> is over atlas.limits.download (<bytes> bytes) - raise it in the vulcan config if the source is meant to be that large`
+- Git URL without git: `atlas: source '<name>' (<repo>@<ref>) needs git on this machine - only an owner/repo source has a tarball path`
+- Short commit hash without git: `atlas: source '<name>' (<repo>@<ref>) - a short commit hash needs git on this machine; give all 40 characters`
+- Missing manifest: `atlas: source '<name>' (<repo>@<ref>) has no .agents/vulcan.manifest.json - its maintainers run \`vulcan sync\` and commit it`
+- Changelog entries lost: `atlas: source '<name>' (<repo>@<ref>) commits <n> dated entries in <folder>, but the checkout holds none, so its release table holds no changelog entry` or `... has <n> dated entries in <folder>, but its release table holds none`
+- Incompatible manifest: `atlas: the manifest is schemaVersion <n>; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan`
 
 If every source is unavailable and no local project exists, atlas halts with exit code 2:
 
@@ -254,7 +264,10 @@ none of its packages is installed here or on npm
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` |
+| `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>`, `<issue>` and `<date>` |
+| `legacyTagPatterns` | `string[]` | `undefined` | Templates of an earlier tag layout, read after `tagPattern`; a tag one of them reads is a release too |
+| `index.keys` | `string[]` | `undefined` | The public keys (base64, 32 raw bytes) whose signature a prebuilt index of this project must carry |
+| `prebuilt` | `boolean` | `true` | `false` turns off the download of a prebuilt index for this project's sources |
 | `ignoreTags` | `string[]` | `undefined` | Globs of tags to ignore. Read by `vulcan doctor` (`[tags]`) and by atlas when it computes releases |
 
 ### Template placeholders
@@ -263,6 +276,8 @@ Release tag templates support the following placeholders:
 
 - `<version>`: Release version string. Every tag template must include `<version>`.
 - `<dir>`: Package directory key from the `packages` list. Omit `<dir>` for release trains that tag once (`v<version>`).
+- `<issue>`: The issue number of the release commit, when the template names it.
+- `<date>`: The release date, when the template names it.
 
 ## See also
 

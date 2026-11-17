@@ -17,7 +17,7 @@ It also appends the agent entries to `.gitignore`, installs the lint tools with 
 To scaffold a project, run `vulcan init` at the repository root:
 
 ```text
-$ bun x --no-install vulcan init
+$ bun node_modules/.bin/vulcan init
   created  AGENTS.md
   created  .agents/rules.md
   created  .agents/knowledge/index.md
@@ -27,10 +27,10 @@ $ bun x --no-install vulcan init
   created  .dockerignore
   created  bunfig.toml
   created  Makefile
-  updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans .agents/vulcan.local.json
+  updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans .agents/vulcan.local.json .agents/local/ **/.env **/.env.* !**/.env.example
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
-  2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
+  2. bun node_modules/.bin/vulcan sync && bun node_modules/.bin/vulcan doctor
 ```
 
 When a package needs installing, `installing <packages>` appears between the file lines and `left to do:`, followed by the output of `bun add -d`.
@@ -39,20 +39,26 @@ Run `vulcan init` in a directory that holds a `package.json` (`bun init` writes 
 Without it, `vulcan init` writes nothing and exits with code 1, because `bun add` would otherwise install into the nearest parent project:
 
 ```text
-$ bun x --no-install vulcan init
+$ bun node_modules/.bin/vulcan init
 vulcan init: no package.json in ~/work/demo - run 'bun init' first, or use --preset to create a new project
 ```
 
 ## Options
 
-Without `--preset`, `vulcan init` takes no option. Any other argument is refused with `vulcan init: unknown argument '<argument>'` and nothing is written.
+Without `--preset`, `vulcan init` uses one option, `--key`. The other `init` flags (`--project`, `--app`, `--backend-dir`, `--frontend-dir`, `--shared-dir`, `--api`, `--no-api`, `--scope`) are accepted and ignored. Any argument that no `init` mode takes is refused with `vulcan init: unknown argument '<argument>'` and nothing is written.
+
+| Option | What it does |
+|---|---|
+| `--key <KEY>` | The project's flow key: 2 to 8 uppercase letters or digits |
+
+The key is written to the config as `project: { key: 'KEY' }`. A flow is named `VULZ-<key>-<number>`, such as `VULZ-ACME-15`. Without `--key`, a terminal asks (the key made from the project name is the default). With no terminal the key is made from the project name (its letters and digits in capitals, the first 8), `init` says which, and a name that makes fewer than 2 is an error that asks for `--key`. An existing config is kept, and the key is not asked.
 
 The config file is `.configs/vulcan.config.mts`, a TypeScript module that uses `satisfies VulcanConfig`.
 It is written only when it does not exist yet; an existing one is reported as `kept`.
 
 ## Generated files
 
-`vulcan init` can write nine files at the repository root, and appends to a tenth, `.gitignore`:
+`vulcan init` can write ten files, and appends to an eleventh, `.gitignore`:
 
 The project name in the generated files comes from `package.json` `name`, or from the directory name when there is none.
 It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index and the `Makefile`.
@@ -64,10 +70,15 @@ It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index an
 | `.agents/knowledge/index.md` | Entry point of the project knowledge bundle in okf v0.2 format | Describe the project |
 | `.configs/lints/oxlint.config.mts` | Lint configuration for oxlint extending `@venizia/dev-configs` | Add project linter rule overrides when needed |
 | `.configs/lints/eslint.config.mjs` | Lint configuration for ESLint naming conventions extending `@venizia/dev-configs` | Add project naming convention overrides when needed |
-| `.dockerignore` | Keeps dependencies, build output, `.git` and every agent's local files out of a Docker build context (the same list `init --preset` writes) | Edit it freely; `init` never overwrites it |
+| `.dockerignore` | Keeps dependencies, build output, `.git` and agent files out of a Docker build context | Edit it freely; `init` never overwrites it |
 | `.configs/vulcan.config.mts` | Main VULCAN configuration file for agents, rule slots and packages | Configure coding agents, rule slots, and workspace packages |
-| `bunfig.toml` | Bun's telemetry off (`telemetry = false`), a comment that `bun fmt` also inherits it from a parent folder, so it sits at the root and `[fmt]` applies to every folder below it, and the `[fmt]` section `bun fmt` reads (`printWidth = 100`, `singleQuote = true`, `arrowParens = "always"`, the shared style, and `flavor = "oxfmt"`, which keeps oxfmt's output when oxfmt is not a dependency). It is the only formatter configuration: `init` writes no `.configs/formatters/oxfmt.config.mts`. No release-age gate: a gate of a few days fails a fresh install whose version floors are the latest releases | Edit it freely; `init` never overwrites it, `sync` never touches it |
+| `bunfig.toml` | Bun's telemetry off, and the `[fmt]` section `bun fmt` reads | Edit it freely; `init` never overwrites it, `sync` never touches it |
 | `Makefile` | Root Makefile that includes shared VULCAN make targets from `vulcan.mk` | Add project make targets |
+
+More on the rows:
+
+- `.dockerignore` is the same list `init --preset` writes.
+- `bunfig.toml` holds `telemetry = false`, a comment that `bun fmt` also inherits it from a parent folder, so it sits at the root and `[fmt]` applies to every folder below it, and the `[fmt]` section `bun fmt` reads (`printWidth = 100`, `singleQuote = true`, `arrowParens = "always"`, the shared style, and `flavor = "oxfmt"`, which keeps oxfmt's output when oxfmt is not a dependency). It is the only formatter configuration: `init` writes no `.configs/formatters/oxfmt.config.mts`. No release-age gate: a gate of a few days fails a fresh install whose version floors are the latest releases.
 
 ## Report statuses
 
@@ -79,12 +90,12 @@ For each file and hint, `vulcan init` prints one line with an eight-column statu
 | `updated` | `vulcan init` appended missing lines to `.gitignore`; the lines already there are kept |
 | `kept` | The file exists on disk and `vulcan init` left it unchanged; an existing config is reported as `kept` |
 | `add` | A required line is missing from a file that `vulcan init` does not edit, printed as a hint |
-| `skipped` | `vulcan init` did not write the three lint configs because `package.json` declares `workspaces` |
+| `skipped` | `vulcan init` did not write the two lint configs because `package.json` declares `workspaces` |
 
 When you run `vulcan init` again on an initialized project, existing files receive the `kept` status:
 
 ```text
-$ bun x --no-install vulcan init
+$ bun node_modules/.bin/vulcan init
   kept     AGENTS.md
   kept     .agents/rules.md
   kept     .agents/knowledge/index.md
@@ -95,10 +106,12 @@ $ bun x --no-install vulcan init
   kept     bunfig.toml
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
-  2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
+  2. .gitignore has .env rules of its own and was left as it is: check that they ignore **/.env **/.env.* !**/.env.example the way you want
+  3. bun node_modules/.bin/vulcan sync && bun node_modules/.bin/vulcan doctor
+tell VULCAN how you like to work (language, how to address you, tone): run 'bun node_modules/.bin/vulcan profile'
 ```
 
-In this second run, `Makefile` and `.gitignore` produce no line because the include line and the ignore entries already exist, and no install runs because the dependencies are declared.
+In this second run, `Makefile` produces no line because the include line already exists, and no install runs because the dependencies are declared. Item 3 appears because the `.gitignore` already holds `.env` rules of its own, which `init` does not change. The last line appears until you have a profile.
 
 ## Special cases and hints
 
@@ -106,7 +119,7 @@ In this second run, `Makefile` and `.gitignore` produce no line because the incl
 
 ### Workspaces projects
 
-If `package.json` declares `workspaces`, `vulcan init` omits the three lint configurations at the root.
+If `package.json` declares `workspaces`, `vulcan init` omits the two lint configs at the root.
 The command prints status `skipped` with the reason:
 
 ```text
@@ -135,7 +148,13 @@ CLAUDE.*.md
 .claude/
 .agents/plans
 .agents/vulcan.local.json
+.agents/local/
+**/.env
+**/.env.*
+!**/.env.example
 ```
+
+The three `.env` lines are the list the generated `.dockerignore` carries too, so a `.env.local` or a `.env.production` is neither committed nor copied into an image, and `.env.example` stays. **A `.gitignore` that already has a `.env` rule is left alone on those three lines.** Git applies the last matching line, so lines appended after yours would override a negation such as `!.env.development`. In that case `init` adds the other lines, does not add the three `.env` lines, and says in `left to do:` to check that your rules ignore what you want. A comment that only mentions `.env` is not a rule.
 
 Existing lines are kept in order, and the new lines follow them.
 Run on an initialized project, `vulcan init` changes nothing.
@@ -169,6 +188,7 @@ The starter file provides baseline settings:
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
+  project: { key: 'ACME' },
   agents: ['claude'],
   rules: { 'V-W-01': 'on-user-word' },
 } satisfies VulcanConfig;
@@ -205,6 +225,7 @@ In a terminal, `init` asks for every name. With a published preset the side of t
 ```text
 $ bun x @venizia/vulcan init --preset ignis
 ? Project name (the monorepo folder) > my-product
+? Project key for flow ids, as VULZ-<key>-<number> (uppercase letters and digits, 2 to 8 of them) (MYPRODUC) > ACME
 Fetching preset @venizia/ignis@latest ...
 ? Backend folder (holds every backend app) > services
 ? Name of this backend app > core-api
@@ -241,15 +262,18 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
   available: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
 ? Agents > claude
   created   CLAUDE.md
-  created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  created   .claude/settings.json (shipped, slot and claude.settings over personal keys)
   created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
   created   .claude/skills/fix-a-bug
-  created   .claude/skills/knowledge-sync
   created   .claude/skills/plan-a-change
   created   .claude/skills/report-back
+  created   .claude/skills/research
+  created   .claude/skills/retro
   created   .claude/skills/review-a-change
+  created   .claude/skills/ship
+  created   .claude/skills/visualize-work
   created   .mcp.json
   created   .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)
@@ -286,7 +310,7 @@ A local preset (`file:<folder>`) works the same, and its side is known at once, 
 
 Because `.git` is not in the build context, an image cannot ask git for its commit: pass it as build arguments, `docker build -f <app>/.configs/builders/Dockerfile --build-arg APP_BUILD_COMMIT="$(git rev-parse HEAD)" --build-arg APP_BUILD_BRANCH="$(git rev-parse --abbrev-ref HEAD)" .`, run from the project root.
 
-The `.gitignore` it writes holds `node_modules/`, `dist/`, `.env`, `*.tsbuildinfo` and the agent entries, so the files `tsc` leaves behind after the checks do not show up as untracked.
+The `.gitignore` it writes holds `node_modules/`, `dist/`, `*.tsbuildinfo`, the agent entries and the `.env` patterns above, so the files `tsc` leaves behind after the checks do not show up as untracked.
 When the preset declares `urls`, the last lines are one `open http://localhost:3000<path>` per path instead of the root.
 
 ### Flags
@@ -295,6 +319,7 @@ Without a terminal (CI, scripts), every name comes from a flag. A missing one is
 
 ```text
 $ bun x @venizia/vulcan init --preset ignis --project fresh < /dev/null
+project key FRESH, made from the name: flows will be VULZ-FRESH-<number>; to use another, change project.key in the config
 vulcan init: missing --app (Name of the first app) - names are never chosen for you
 ```
 
@@ -309,11 +334,15 @@ vulcan init: missing --backend-dir (Backend folder (holds every backend app)) - 
 |---|---|
 | `--preset <name\|file:path>` | The preset package. Required. Its presence selects this mode |
 | `--project <name>` | The project name and the folder to create in the current directory |
-| `--backend-dir <path>` | The folder that holds backend apps, a path of 1 to 4 segments (`auroras/apps`). Used when the preset is a backend |
+| `--backend-dir <path>` | The folder that holds backend apps, a path of 1 to 4 segments (`frontends/apps`). Used when the preset is a backend |
 | `--frontend-dir <path>` | The folder that holds frontend apps, a path of 1 to 4 segments. Used when the preset is a frontend |
 | `--app <name>` | The name of the first app |
 | `--shared-dir <path>` | A folder, a path of 1 to 4 segments, for code shared between apps. Optional: leave it out, or answer empty, to skip it |
-| `--scope <@scope>` | The npm scope of the first app's package: `--scope @acme` names it `@acme/<app>`. Optional; the folder and the dir registered in the config stay bare. A menu asks for it (empty for none); a plain terminal does not |
+| `--key <KEY>` | The project's flow key, as above. Written to the new config |
+| `--scope <@scope>` | The npm scope of the first app's package. Optional |
+
+- `--key` is asked in a terminal right after the project name (the key made from the name is the default), else made from the name.
+- `--scope @acme` names the first app `@acme/<app>`. The folder and the dir registered in the config stay bare. A menu asks for it (empty for none); a plain terminal does not.
 
 A name is lowercase letters, digits and `-`, and starts with a letter or digit.
 In a terminal an invalid name is asked again; with a flag it is an error.
@@ -359,16 +388,22 @@ The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/vulcan.manifest.js
 
 | File | What it holds |
 |---|---|
-| `package.json` | A private root with `workspaces` (`services/*`, `libs/*`), a `catalog` of every version the preset declares, and a `dev` script, `bun run --filter '*' server:dev`, which `make dev` calls: it starts every app that has a `server:dev` script (rule `V-B-05`) and skips the rest. `@venizia/vulcan` is pinned to the exact running version |
+| `package.json` | A private root with `workspaces` (`services/*`, `libs/*`), a `catalog`, and a `dev` script |
 | `<folder>/<app>/` | The preset's files, plus a `package.json` whose dependencies are `catalog:` |
 | `.gitignore`, `README.md`, `Makefile` | The ignore list for agent files, a title, and the VULCAN targets plus `make dev` |
-| `.dockerignore` | The build context of a Dockerfile built from the root: `**/node_modules`, `**/dist`, `**/*.tsbuildinfo`, `**/coverage`, `**/*.log`, `.git`, `.claude`, `.agents/plans`, the secrets `**/.env` and `**/.env.*` with `!**/.env.example` kept (in that order, after a comment saying why), and the per-machine files of every coding agent (the ones `sync` keeps in `.git/info/exclude`). The lockfile, every `package.json` and the sources are not listed: the image needs them. Edit it freely; `init` only creates a project, so it never overwrites one |
-| `bunfig.toml` | `telemetry = false`, the comment above it and the `[fmt]` section, the same file the scaffold above writes | Edit it freely |
+| `.dockerignore` | The build context of a Dockerfile built from the root |
+| `bunfig.toml` | The same file the scaffold above writes: `telemetry = false` and the `[fmt]` section. Edit it freely |
 | `AGENTS.md`, `.agents/rules.md` | The same layer as [the scaffold above](#generated-files) |
-| `.agents/vulcan.manifest.json`, `.agents/vulcan.local.json`, `.mcp.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes: the manifest, your choice of agents, the atlas entry for the agents that read `.mcp.json`, and the Claude adapters |
+| `.agents/vulcan.manifest.json`, `.agents/vulcan.local.json`, `.mcp.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes (see below) |
 | `.configs/vulcan.config.mts` | `name`, `layout`, one `packages` entry per app, and the preset's `atlas` sources |
 | `.agents/knowledge/` | An index and one concept per app |
 | `<shared>/.gitkeep` | Keeps the shared folder in git |
+
+More on the rows:
+
+- `package.json`: the `catalog` holds every version the preset declares. The `dev` script is `bun run --filter '*' server:dev`, which `make dev` calls: it starts every app that has a `server:dev` script (rule `V-B-05`) and skips the rest. `@venizia/vulcan` is pinned to the exact running version.
+- `.dockerignore`: it lists `**/node_modules`, `**/dist`, `**/*.tsbuildinfo`, `**/coverage`, `**/*.log`, `.git`, `.claude`, `.agents/plans`, the secrets `**/.env` and `**/.env.*` with `!**/.env.example` kept (in that order, after a comment saying why), and the per-machine files of every coding agent (the ones `sync` keeps in `.git/info/exclude`). The lockfile, every `package.json` and the sources are not listed: the image needs them. Edit it freely; `init` only creates a project, so it never overwrites one.
+- The first `sync` writes the manifest, your choice of agents, the atlas entry for the agents that read `.mcp.json`, and the Claude adapters.
 
 Between the `vulcan:apps:start` and `vulcan:apps:end` comments, the config holds a block that `init` and [`add`](/references/commands/add) rewrite.
 Edit the config outside that block.
@@ -401,8 +436,10 @@ Add more apps later with [`vulcan add`](/references/commands/add).
 | `vulcan init: --project 'Fresh' is not a name: lowercase letters, digits and '-'` | A flag holds an invalid name |
 | `vulcan init: @acme/api@1.0.0 has preset version 2; this VULCAN reads version 1 - upgrade @venizia/vulcan` | The preset is newer than this VULCAN. Upgrade VULCAN |
 | `vulcan init: @acme/none@1.0.0 ships no VULCAN preset (no "vulcan": { "presets": { "app" } } in its package.json)` | The package is not a preset |
-| `vulcan init: @acme/api@1.0.0: ./dist/presets/app/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined` | `preset.json` breaks the format. The author fixes it |
+| `vulcan init: @acme/api@1.0.0: ./dist/presets/app/preset.json: ...` | `preset.json` breaks the format. The author fixes it |
 | `vulcan init: no package at ~/work/nope - was it installed?` | The `file:` path has no `package.json` |
+
+The `preset.json` message continues with the detail, such as `side one of: backend, frontend; devPort Invalid input: expected number, received undefined`.
 
 A `file:` preset is allowed but warns, because it writes a `file:<path>` entry into `catalog` that does not work on another machine or in CI.
 

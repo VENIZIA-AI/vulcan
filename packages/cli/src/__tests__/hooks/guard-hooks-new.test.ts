@@ -2,11 +2,14 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { copyFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
 const HOOKS = join(import.meta.dir, '..', '..', '..', 'base', 'hooks');
+/** What `vulcan sync` renders from the config below for the guards: the hooks read this. */
+const MANIFEST = guardManifest({ guard: { toolOwnedPaths: ['/srv/store/**'] } });
 const CONFIG =
   "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { toolOwnedPaths: ['/srv/store/**'] } };\n";
 
@@ -25,7 +28,8 @@ const runHook = async (opts: {
     timeout: SPAWN_TIMEOUT_MS,
     killSignal: 'SIGKILL',
   });
-  const stdout = await new Response(child.stdout).text();
+  const stdoutResponse = new Response(child.stdout);
+  const stdout = await stdoutResponse.text();
 
   const result = await child.exited;
   return { code: result, stdout: stdout.trim() };
@@ -60,18 +64,62 @@ describe('the guard-git hook', () => {
     expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
   });
 
-  test('is silent for a plain command, for input it cannot read, and with the kill switch on', async () => {
+  test.each([
+    ['a pull request with no base', 'gh pr create --title x --body y', '--base'],
+    ['a package run by name', 'bunx ardor codemod', 'bun node_modules/.bin/ardor'],
+    ['a program named by a variable', 'tool=git; $tool status', 'literal'],
+  ])(
+    'denies %s with the way to write it again, and does not hand it to the owner',
+    async (_name, command, hint) => {
+      const result = await runHook({
+        hook: 'guard-git',
+        root,
+        stdin: bash({ command, cwd: root }),
+      });
+      const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+      expect(decision.permissionDecision).toBe('deny');
+      expect(decision.permissionDecisionReason).toContain('Write it again');
+      expect(decision.permissionDecisionReason).toContain(hint);
+      expect(decision.permissionDecisionReason).not.toContain('Hand the exact command');
+    },
+  );
+
+  test('a denial only the owner can lift is still handed to the owner, a fix beside it or not', async () => {
+    const result = await runHook({
+      hook: 'guard-git',
+      root,
+      stdin: bash({ command: 'git push --force origin main; gh pr create --fill', cwd: root }),
+    });
+    const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(decision.permissionDecision).toBe('deny');
+    expect(decision.permissionDecisionReason).toContain('Hand the exact command');
+  });
+
+  test('asks, and never blocks, on input it cannot read', async () => {
+    for (const stdin of [
+      'not json',
+      '[1]',
+      '{"tool_name":"Bash","tool_input":{"command":5}}',
+      '{"tool_name":"Bash","tool_input":{}}',
+    ]) {
+      const result = await runHook({ hook: 'guard-git', root, stdin });
+      const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+      expect(result.code).toBe(0);
+      expect(decision.permissionDecision).toBe('ask');
+      expect(decision.permissionDecisionReason).toContain('the hook input could not be read');
+    }
+  });
+
+  test('is silent for a plain command, and with the kill switch on', async () => {
     const result = await runHook({
       hook: 'guard-git',
       root,
       stdin: bash({ command: 'git status', cwd: root }),
     });
     expect(result).toEqual({ code: 0, stdout: '' });
-    const result2 = await runHook({ hook: 'guard-git', root, stdin: 'not json' });
-    expect(result2).toEqual({
-      code: 0,
-      stdout: '',
-    });
     const result3 = await runHook({
       hook: 'guard-git',
       root,
@@ -82,71 +130,10 @@ describe('the guard-git hook', () => {
   });
 });
 
-describe('the guard-scripting hook', () => {
-  const root = createProject({ files: {} });
-  const adviceFor = async (command: string): Promise<{ code: number; stdout: string }> =>
-    runHook({ hook: 'guard-scripting', root, stdin: bash({ command, cwd: root }) });
-
-  test.each([
-    'python3 fix.py',
-    'python -c "print(1)"',
-    'python3.12 -m venv .venv',
-    'pip install requests',
-    'pip3 install x',
-    'cd src && python3 build.py',
-    'cat a | python3 -c "import sys"',
-    'FOO=1 python3 x.py',
-    'sudo python3 x.py',
-    'env -S "python3 x.py"',
-    '/usr/bin/python3 x.py',
-    'sh -c "python3 x.py"',
-  ])('adds the advice for %s, and never asks or denies', async (command) => {
-    const result = await adviceFor(command);
-    const output = JSON.parse(result.stdout).hookSpecificOutput;
-
-    expect(result.code).toBe(0);
-    expect(output.hookEventName).toBe('PreToolUse');
-    expect(output.additionalContext).toContain('V-B-09');
-    expect(output.additionalContext).toContain('fine when the task needs it');
-    expect(output.permissionDecision).toBeUndefined();
-  });
-
-  test.each([
-    'ls -la',
-    'bun -e "console.log(1)"',
-    'bun x --no-install vulcan doctor',
-    'echo python3',
-    'git commit -m "replace the python script with bun"',
-    'grep -rn python3 packages',
-    'cat <<EOF\npython3 x.py\nEOF',
-    'ls pythonic',
-    'command -v python3',
-    'command -v python3 >/dev/null && echo yes',
-    'pipx --version',
-    'bun add pip-tools',
-  ])('is silent for %s: a mention is not a run', async (command) => {
-    const result = await adviceFor(command);
-    expect(result).toEqual({ code: 0, stdout: '' });
-  });
-
-  test('is silent for input it cannot read, and with the kill switch on', async () => {
-    const result = await runHook({ hook: 'guard-scripting', root, stdin: 'not json' });
-    expect(result).toEqual({
-      code: 0,
-      stdout: '',
-    });
-    const result2 = await runHook({
-      hook: 'guard-scripting',
-      root,
-      env: { VULCAN_GUARDS: 'off' },
-      stdin: bash({ command: 'python3 x.py', cwd: root }),
-    });
-    expect(result2).toEqual({ code: 0, stdout: '' });
-  });
-});
-
 describe('the guard-outside hook', () => {
-  const root = createProject({ files: { '.configs/vulcan.config.mts': CONFIG } });
+  const root = createProject({
+    files: { '.configs/vulcan.config.mts': CONFIG, [GUARD_MANIFEST_FILE]: MANIFEST },
+  });
 
   test('asks, naming the path and V-B-08, for a write outside the project', async () => {
     const result = await runHook({
@@ -206,18 +193,107 @@ describe('the guard-outside hook', () => {
     expect(result).toEqual({ code: 0, stdout: '' });
   });
 
-  test('is silent inside the project, for input it cannot read, and with the kill switch on', async () => {
+  test('asks, and never blocks, on input it cannot read', async () => {
+    for (const stdin of ['not json', '[1]', '{"tool_input":{"command":"ls"}}']) {
+      const result = await runHook({ hook: 'guard-outside', root, stdin });
+      const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+      expect(result.code).toBe(0);
+      expect(decision.permissionDecision).toBe('ask');
+      expect(decision.permissionDecisionReason).toContain('hook input could not be read');
+    }
+  });
+
+  test.each([
+    'echo x > $f',
+    'for f in $(ls); do echo x > $f.log; done',
+    'bun -e "const a = `$(echo hi)`; console.log(a)"',
+    'echo x > $(mktemp)',
+  ])(
+    'denies, never asks, a call it cannot read, and says how to write it again: %s',
+    async (command) => {
+      const result = await runHook({
+        hook: 'guard-outside',
+        root,
+        stdin: bash({ command, cwd: root }),
+      });
+      const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+      expect(result.code).toBe(0);
+      expect(decision.permissionDecision).toBe('deny');
+      expect(decision.permissionDecisionReason).toContain('V-B-08');
+      expect(decision.permissionDecisionReason).toContain('could not be read');
+      expect(decision.permissionDecisionReason).toContain('literal path');
+      expect(decision.permissionDecisionReason).toContain('.agents/local/tmp/<task>/');
+      expect(decision.permissionDecisionReason).not.toContain('Confirm only if');
+    },
+  );
+
+  test.each([
+    'S=.agents/local/tmp/x; echo x > $S/a',
+    'export X=.agents/local/tmp/y; echo x > $X/a',
+    'for i in 1 2; do echo x > .agents/local/tmp/f$i.log; done',
+  ])('is silent for a variable it can resolve to a folder of the project: %s', async (command) => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root,
+      stdin: bash({ command, cwd: root }),
+    });
+
+    expect(result).toEqual({ code: 0, stdout: '' });
+  });
+
+  test('a resolved variable that points outside the project still asks', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root,
+      stdin: bash({ command: 'S=/var/tmp/vulcan-outside-test; echo x > $S/a', cwd: root }),
+    });
+    const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(decision.permissionDecision).toBe('ask');
+    expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test');
+  });
+
+  test.each([
+    'ln -s ../victim s; echo pwned > s',
+    'ln ../victim h',
+    'ln -s .. lnk; cd lnk; echo x > pwn',
+  ])(
+    'denies a link to a path outside the project, and says how to link inside: %s',
+    async (command) => {
+      const result = await runHook({
+        hook: 'guard-outside',
+        root,
+        stdin: bash({ command, cwd: root }),
+      });
+      const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+      expect(result.code).toBe(0);
+      expect(decision.permissionDecision).toBe('deny');
+      expect(decision.permissionDecisionReason).toContain('V-B-08');
+      expect(decision.permissionDecisionReason).toMatch(/link|cannot be checked/);
+      expect(decision.permissionDecisionReason).toContain('Nothing was run');
+    },
+  );
+
+  test('a link to a path inside the project is silent', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root,
+      stdin: bash({ command: 'ln -s node_modules/.bin/vulcan .agents/local/tmp/v', cwd: root }),
+    });
+
+    expect(result).toEqual({ code: 0, stdout: '' });
+  });
+
+  test('is silent inside the project, and with the kill switch on', async () => {
     const result = await runHook({
       hook: 'guard-outside',
       root,
       stdin: bash({ command: 'mkdir -p .agents/local/tmp/x', cwd: root }),
     });
     expect(result).toEqual({ code: 0, stdout: '' });
-    const result2 = await runHook({ hook: 'guard-outside', root, stdin: 'not json' });
-    expect(result2).toEqual({
-      code: 0,
-      stdout: '',
-    });
     const result3 = await runHook({
       hook: 'guard-outside',
       root,
@@ -225,6 +301,149 @@ describe('the guard-outside hook', () => {
       stdin: bash({ command: 'mkdir /var/tmp/x', cwd: root }),
     });
     expect(result3).toEqual({ code: 0, stdout: '' });
+  });
+});
+
+describe('the guard-outside hook with guard.outside set', () => {
+  const configOf = (opts: { outside: string }) =>
+    `export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: '${opts.outside}', toolOwnedPaths: ['/srv/store/**'] } };\n`;
+  const manifestOf = (opts: { outside: string }) =>
+    guardManifest({ guard: { outside: opts.outside, toolOwnedPaths: ['/srv/store/**'] } });
+  const denyRoot = createProject({
+    files: {
+      '.configs/vulcan.config.mts': configOf({ outside: 'deny' }),
+      [GUARD_MANIFEST_FILE]: manifestOf({ outside: 'deny' }),
+    },
+  });
+  const askRoot = createProject({
+    files: {
+      '.configs/vulcan.config.mts': configOf({ outside: 'ask' }),
+      [GUARD_MANIFEST_FILE]: manifestOf({ outside: 'ask' }),
+    },
+  });
+  const brokenRoot = createProject({
+    files: {
+      '.configs/vulcan.config.mts': configOf({ outside: 'maybe' }),
+      [GUARD_MANIFEST_FILE]: manifestOf({ outside: 'maybe' }),
+    },
+  });
+
+  test('deny refuses a write outside the project, naming V-B-08, the path and the place to use', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root: denyRoot,
+      stdin: bash({ command: 'echo x > /var/tmp/vulcan-outside-test', cwd: denyRoot }),
+    });
+    const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(result.code).toBe(0);
+    expect(decision.permissionDecision).toBe('deny');
+    expect(decision.permissionDecisionReason).toContain('V-B-08');
+    expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test');
+    expect(decision.permissionDecisionReason).toContain('.agents/local/tmp/');
+    expect(decision.permissionDecisionReason).toContain('guard.toolOwnedPaths');
+    expect(decision.permissionDecisionReason).toContain('Nothing was written');
+    expect(decision.permissionDecisionReason).not.toContain('confirm only if');
+  });
+
+  test('ask keeps asking, the same as no setting', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root: askRoot,
+      stdin: bash({ command: 'echo x > /var/tmp/vulcan-outside-test', cwd: askRoot }),
+    });
+
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+
+  test('a store listed in guard.toolOwnedPaths and a write inside the project still pass', async () => {
+    const listed = await runHook({
+      hook: 'guard-outside',
+      root: denyRoot,
+      stdin: bash({ command: 'touch /srv/store/a.bin', cwd: denyRoot }),
+    });
+    const inside = await runHook({
+      hook: 'guard-outside',
+      root: denyRoot,
+      stdin: bash({ command: 'mkdir -p .agents/local/tmp/x', cwd: denyRoot }),
+    });
+
+    expect(listed).toEqual({ code: 0, stdout: '' });
+    expect(inside).toEqual({ code: 0, stdout: '' });
+  });
+
+  const fileTool = (opts: { tool: string; path: string; cwd: string }): string =>
+    JSON.stringify(
+      Object.fromEntries([
+        ['tool_name', opts.tool],
+        ['tool_input', Object.fromEntries([['file_path', opts.path]])],
+        ['cwd', opts.cwd],
+      ]),
+    );
+
+  test.each(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])(
+    'deny refuses a %s outside the project, and one inside passes',
+    async (tool) => {
+      const outside = await runHook({
+        hook: 'guard-outside',
+        root: denyRoot,
+        stdin: fileTool({ tool, path: '/var/tmp/vulcan-outside-test.md', cwd: denyRoot }),
+      });
+      const inside = await runHook({
+        hook: 'guard-outside',
+        root: denyRoot,
+        stdin: fileTool({ tool, path: join(denyRoot, 'docs', 'a.md'), cwd: denyRoot }),
+      });
+      const decision = JSON.parse(outside.stdout).hookSpecificOutput;
+
+      expect(decision.permissionDecision).toBe('deny');
+      expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test.md');
+      expect(inside).toEqual({ code: 0, stdout: '' });
+    },
+  );
+
+  test('deny with the scratchpad: still one deny, and it names the scratchpad and the other path', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root: denyRoot,
+      stdin: bash({
+        command: 'mkdir /var/tmp/vulcan-outside-test && touch /tmp/claude-1000/p/s/scratchpad/a',
+        cwd: denyRoot,
+      }),
+    });
+    const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(decision.permissionDecision).toBe('deny');
+    expect(decision.permissionDecisionReason).toContain('scratchpad');
+    expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test');
+    expect(decision.permissionDecisionReason).toContain('/tmp/claude-1000/p/s/scratchpad/a');
+  });
+
+  test('a key this VULCAN does not know in the config changes nothing: the synced deny still denies', async () => {
+    const typoRoot = createProject({
+      files: {
+        '.configs/vulcan.config.mts':
+          "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny', notAKey: true } };\n",
+        [GUARD_MANIFEST_FILE]: guardManifest({ guard: { outside: 'deny' } }),
+      },
+    });
+    const result = await runHook({
+      hook: 'guard-outside',
+      root: typoRoot,
+      stdin: bash({ command: 'echo x > /var/tmp/vulcan-outside-test', cwd: typoRoot }),
+    });
+
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+  });
+
+  test('a value of the manifest that is not deny reads as ask', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root: brokenRoot,
+      stdin: bash({ command: 'echo x > /var/tmp/vulcan-outside-test', cwd: brokenRoot }),
+    });
+
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
   });
 });
 
@@ -252,7 +471,7 @@ describe('the subagent-start hook', () => {
 });
 
 describe('the kill switch does not depend on the install being healthy', () => {
-  test.each(['guard-git', 'guard-scripting', 'guard-outside'])(
+  test.each(['guard-git', 'guard-outside'])(
     '%s: with its modules unloadable it says so (guard-outside asks); with VULCAN_GUARDS=off it is silent',
     async (hook) => {
       // A copy of the hook where `../../src/hooks/*` does not exist: the import fails.
@@ -270,8 +489,10 @@ describe('the kill switch does not depend on the install being healthy', () => {
           timeout: SPAWN_TIMEOUT_MS,
           killSignal: 'SIGKILL',
         });
-        const stderr = await new Response(child.stderr).text();
-        const stdout = await new Response(child.stdout).text();
+        const stderrResponse = new Response(child.stderr);
+        const stderr = await stderrResponse.text();
+        const stdoutResponse = new Response(child.stdout);
+        const stdout = await stdoutResponse.text();
 
         const result = await child.exited;
         return { code: result, stderr, stdout };

@@ -163,7 +163,7 @@ describe('presets (kind app)', () => {
         side: 'backend',
         summary: 'An IGNIS API on Bun.',
         folder: 'services',
-        command: 'bun x --no-install vulcan add --preset ignis --app api3',
+        command: 'bun node_modules/.bin/vulcan add --preset ignis --app api3',
         inProject: true,
       },
       {
@@ -172,7 +172,7 @@ describe('presets (kind app)', () => {
         summary: 'An admin.',
         folder: 'web',
         command:
-          'bun x --no-install vulcan add --preset file:../acme-web --app api3 --api <backend app> | --no-api',
+          'bun node_modules/.bin/vulcan add --preset file:../acme-web --app api3 --api <backend app> | --no-api',
         inProject: true,
       },
       {
@@ -181,7 +181,7 @@ describe('presets (kind app)', () => {
         summary: 'ARDOR: a frontend app on Vite and React (official; not yet in this project)',
         folder: 'web',
         command:
-          'bun x --no-install vulcan add --preset ardor --app api3 --api <backend app> | --no-api',
+          'bun node_modules/.bin/vulcan add --preset ardor --app api3 --api <backend app> | --no-api',
         inProject: false,
       },
     ]);
@@ -209,10 +209,10 @@ describe('presets (kind app)', () => {
       true,
     );
     expect(answer.presets[0].command).toBe(
-      'bun x --no-install vulcan add --preset ignis --app api3',
+      'bun node_modules/.bin/vulcan add --preset ignis --app api3',
     );
     expect(answer.presets[1].command).toBe(
-      'bun x --no-install vulcan add --preset ardor --app api3 --frontend-dir <folder> --api <backend app> | --no-api',
+      'bun node_modules/.bin/vulcan add --preset ardor --app api3 --frontend-dir <folder> --api <backend app> | --no-api',
     );
     expect(answer.note).toBe(
       'this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use',
@@ -223,7 +223,7 @@ describe('presets (kind app)', () => {
     const answer = await ask({});
 
     expect(answer.presets[0].command).toBe(
-      'bun x --no-install vulcan add --preset ignis --app <name>',
+      'bun node_modules/.bin/vulcan add --preset ignis --app <name>',
     );
   });
 
@@ -235,7 +235,7 @@ describe('presets (kind app)', () => {
 
     expect(answer.presets[0].folder).toBeNull();
     expect(answer.presets[0].command).toBe(
-      'bun x --no-install vulcan add --preset ignis --app api3 --backend-dir <folder>',
+      'bun node_modules/.bin/vulcan add --preset ignis --app api3 --backend-dir <folder>',
     );
   });
 
@@ -244,9 +244,9 @@ describe('presets (kind app)', () => {
       manifest: {
         ...MANIFEST,
         layout: {
-          backend: 'umbras',
-          frontend: ['auroras/apps', 'auroras/guests'],
-          shared: ['auroras/kits', 'auroras/features'],
+          backend: 'backends',
+          frontend: ['frontends/apps', 'frontends/guests'],
+          shared: ['frontends/kits', 'frontends/features'],
         },
       },
     });
@@ -255,19 +255,19 @@ describe('presets (kind app)', () => {
     const backend = await ask({ project, args: { name: 'api3', side: 'backend' } });
 
     expect(app.presets[0].folder).toBeNull();
-    expect(app.presets[0].folders).toEqual(['auroras/apps', 'auroras/guests']);
+    expect(app.presets[0].folders).toEqual(['frontends/apps', 'frontends/guests']);
     expect(app.presets[0].command).toBe(
-      'bun x --no-install vulcan add --preset file:../acme-web --app shop --frontend-dir <auroras/apps|auroras/guests> --api <backend app> | --no-api',
+      'bun node_modules/.bin/vulcan add --preset file:../acme-web --app shop --frontend-dir <frontends/apps|frontends/guests> --api <backend app> | --no-api',
     );
-    expect(lib.presets[0].folders).toEqual(['auroras/kits', 'auroras/features']);
+    expect(lib.presets[0].folders).toEqual(['frontends/kits', 'frontends/features']);
     expect(lib.presets[0].command).toBe(
-      'bun x --no-install vulcan add --preset ignis --lib money --dir <auroras/kits|auroras/features>',
+      'bun node_modules/.bin/vulcan add --preset ignis --lib money --dir <frontends/kits|frontends/features>',
     );
     // One folder in a list is the folder, as a string was.
-    expect(backend.presets[0].folder).toBe('umbras');
+    expect(backend.presets[0].folder).toBe('backends');
     expect(backend.presets[0].folders).toBeUndefined();
     expect(backend.presets[0].command).toBe(
-      'bun x --no-install vulcan add --preset ignis --app api3',
+      'bun node_modules/.bin/vulcan add --preset ignis --app api3',
     );
   });
 
@@ -299,8 +299,8 @@ describe('presets (official, not yet used)', () => {
     const answer = await ask({ project: undefined, args: { name: 'api3' } });
 
     expect(answer.presets.map((item: { command: string }) => item.command)).toEqual([
-      'bun x --no-install vulcan add --preset ignis --app api3 --backend-dir <folder>',
-      'bun x --no-install vulcan add --preset ardor --app api3 --frontend-dir <folder> --api <backend app> | --no-api',
+      'bun node_modules/.bin/vulcan add --preset ignis --app api3 --backend-dir <folder>',
+      'bun node_modules/.bin/vulcan add --preset ardor --app api3 --frontend-dir <folder> --api <backend app> | --no-api',
     ]);
   });
 
@@ -325,14 +325,14 @@ describe('presets (kind lib)', () => {
         preset: 'ignis',
         summary: 'An IGNIS library.',
         folder: 'libs',
-        command: 'bun x --no-install vulcan add --preset ignis --lib billing',
+        command: 'bun node_modules/.bin/vulcan add --preset ignis --lib billing',
         inProject: true,
       },
       {
         preset: 'ardor',
         summary: 'ARDOR: a feature package other apps import (official; not yet in this project)',
         folder: 'libs',
-        command: 'bun x --no-install vulcan add --preset ardor --lib billing',
+        command: 'bun node_modules/.bin/vulcan add --preset ardor --lib billing',
         inProject: false,
       },
     ]);
@@ -352,11 +352,11 @@ describe('presets (kind lib)', () => {
 
     expect(fromLibs.presets[0].folder).toBe('libs');
     expect(fromLibs.presets[0].command).toBe(
-      'bun x --no-install vulcan add --preset ignis --lib billing',
+      'bun node_modules/.bin/vulcan add --preset ignis --lib billing',
     );
     expect(none.presets[0].folder).toBeNull();
     expect(none.presets[0].command).toBe(
-      'bun x --no-install vulcan add --preset ignis --lib billing --dir <folder>',
+      'bun node_modules/.bin/vulcan add --preset ignis --lib billing --dir <folder>',
     );
   });
 
@@ -392,7 +392,7 @@ describe('presets (kind shared)', () => {
         preset: 'ignis',
         summary: 'An IGNIS side-neutral package.',
         folder: 'libs',
-        command: 'bun x --no-install vulcan add --preset ignis --shared contracts',
+        command: 'bun node_modules/.bin/vulcan add --preset ignis --shared contracts',
         inProject: true,
       },
     ]);
@@ -428,7 +428,7 @@ describe('presets (kind shared)', () => {
 
     expect(answer.presets[0].folders).toEqual(['libs/a', 'libs/b']);
     expect(answer.presets[0].command).toBe(
-      'bun x --no-install vulcan add --preset ignis --shared contracts --dir <libs/a|libs/b>',
+      'bun node_modules/.bin/vulcan add --preset ignis --shared contracts --dir <libs/a|libs/b>',
     );
   });
 
@@ -472,7 +472,7 @@ describe('presets (kind shared)', () => {
           preset: 'forge',
           summary: 'Forge side-neutral package.',
           folder: 'libs',
-          command: 'bun x --no-install vulcan add --preset forge --shared contracts',
+          command: 'bun node_modules/.bin/vulcan add --preset forge --shared contracts',
           inProject: false,
         },
       ]);
@@ -501,7 +501,8 @@ describe('presets (kind shared)', () => {
           preset: '@venizia/forge@1.2.3',
           summary: 'Mine.',
           folder: 'libs',
-          command: 'bun x --no-install vulcan add --preset @venizia/forge@1.2.3 --shared contracts',
+          command:
+            'bun node_modules/.bin/vulcan add --preset @venizia/forge@1.2.3 --shared contracts',
           inProject: true,
         },
       ]);
@@ -547,7 +548,7 @@ describe('presets (kind shared)', () => {
         side: 'backend',
         summary: 'An IGNIS API on Bun.',
         folder: 'services',
-        command: 'bun x --no-install vulcan add --preset ignis --app api3',
+        command: 'bun node_modules/.bin/vulcan add --preset ignis --app api3',
         inProject: true,
       },
     ]);
@@ -556,14 +557,14 @@ describe('presets (kind shared)', () => {
         preset: 'ignis',
         summary: 'An IGNIS library.',
         folder: 'libs',
-        command: 'bun x --no-install vulcan add --preset ignis --lib billing',
+        command: 'bun node_modules/.bin/vulcan add --preset ignis --lib billing',
         inProject: true,
       },
       {
         preset: 'ardor',
         summary: 'ARDOR: a feature package other apps import (official; not yet in this project)',
         folder: 'libs',
-        command: 'bun x --no-install vulcan add --preset ardor --lib billing',
+        command: 'bun node_modules/.bin/vulcan add --preset ardor --lib billing',
         inProject: false,
       },
     ]);

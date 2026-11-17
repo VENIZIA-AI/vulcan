@@ -18,7 +18,7 @@ const ENV = { VULCAN_NO_INSTALL: '1' };
 const initFrom = (opts: { preset: string; args: string[] }): string => {
   const parent = createProject({ files: {} });
   const result = runCli({
-    args: ['init', '--preset', opts.preset, '--project', 'p', ...opts.args],
+    args: ['init', '--preset', opts.preset, '--project', 'p', '--key', 'TEST', ...opts.args],
     cwd: parent,
     env: ENV,
   });
@@ -157,7 +157,7 @@ describe('vulcan add --shared with a preset that has no shared kind', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('has no shared kind');
     expect(result.stderr).toMatch(
-      /a preset with one: run bun x --no-install vulcan add --preset file:\S+ --shared x/,
+      /a preset with one: run bun node_modules\/\.bin\/vulcan add --preset file:\S+ --shared x/,
     );
     expect(existsSync(join(root, 'libs/x'))).toBe(false);
   });
@@ -210,7 +210,7 @@ describe('vulcan add --shared names the official presets that have a shared kind
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(
-      'a preset with one: run bun x --no-install vulcan add --preset forge --shared x\n',
+      'a preset with one: run bun node_modules/.bin/vulcan add --preset forge --shared x\n',
     );
     expect(result.stderr).not.toContain('plain');
     expect(result.stderr).not.toContain('no preset known');
@@ -236,7 +236,7 @@ describe('vulcan add --shared names the official presets that have a shared kind
     const result = await refuse({ root, official: OFFICIAL });
 
     expect(result.stderr).toContain(
-      'a preset with one: run bun x --no-install vulcan add --preset @venizia/forge@1.2.3 --shared x\n',
+      'a preset with one: run bun node_modules/.bin/vulcan add --preset @venizia/forge@1.2.3 --shared x\n',
     );
     expect(result.stderr).not.toContain('--preset forge ');
   });

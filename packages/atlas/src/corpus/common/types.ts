@@ -9,6 +9,8 @@ export interface IDocument {
   body: string;
   /** The file line the body starts on, 1-based - after the frontmatter; absent reads as 1. */
   bodyLine?: number;
+  /** A version folder's `log.md`: the text of the `migration.yaml` beside it, when there is one. */
+  migration?: string;
 }
 
 /** One indexable section of a document - an H2/H3 chunk, or the intro text before the first one. */

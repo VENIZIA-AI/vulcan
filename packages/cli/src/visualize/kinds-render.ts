@@ -10,7 +10,7 @@ import { SpecSections } from './sections.ts';
 export interface INewKindsContext {
   spec: INewKindsSpec;
   chrome: TChrome;
-  fits: Set<number>;
+  fits: Set<string>;
 }
 
 /** A figure, the width it needs to keep its text readable, the list that replaces it on a phone, and its sentences. */
@@ -648,7 +648,7 @@ const renderTree = (opts: { tree: TTree; chrome: TChrome }): IKindDrawing => {
 const frame = (opts: { ctx: INewKindsContext; drawing: IKindDrawing }): string => {
   const width = Math.round(opts.drawing.width);
 
-  opts.ctx.fits.add(width);
+  opts.ctx.fits.add(`${width}`);
 
   return `<figure class="kfig"><div class="fig f${width}">${opts.drawing.svg}</div>${opts.drawing.list}<figcaption>${escaped(opts.drawing.caption)}</figcaption></figure>`;
 };

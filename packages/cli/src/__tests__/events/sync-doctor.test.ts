@@ -12,12 +12,12 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 const SRC = join(import.meta.dir, '..', '..');
-const HOOK_EVENTS = ['SessionStart', 'Stop', 'SubagentStop', 'Notification', 'PostToolUse'];
+const HOOK_EVENTS = ['SessionStart', 'SubagentStop', 'Notification', 'PostToolUse'];
 const HOOK = 'node_modules/@venizia/vulcan/base/hooks/event.ts';
 
 const parse = (events: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ events });
 const config = (opts: { events?: string; hooks?: string }) =>
-  `export default {${opts.events === undefined ? '' : ` events: ${opts.events},`}${opts.hooks === undefined ? '' : ` hooks: ${opts.hooks},`} };\n`;
+  `export default {${opts.events === undefined ? '' : ` events: ${opts.events},`}${opts.hooks === undefined ? '' : ` claude: { settings: { hooks: ${opts.hooks} } },`} };\n`;
 
 const projectWith = (opts: { events?: string; hooks?: string }): string =>
   createProject({ files: { '.configs/vulcan.config.mts': config(opts), 'AGENTS.md': '# x\n' } });
@@ -98,10 +98,38 @@ describe('vulcan sync and the event hooks', () => {
       expect(hook.command).toEndWith('exit 0');
     }
 
-    // The shipped hooks of those events are still there beside ours.
-    expect(settingsOf({ root }).hooks?.Stop?.length).toBeGreaterThan(1);
     expect(sync({ root }).code).toBe(0);
     expect(eventEntries({ root })).toHaveLength(HOOK_EVENTS.length);
+  });
+
+  test('an old install, whose PostToolUse entry has no matcher and which has a Stop entry, is replaced by the new one: a matcher for SendMessage, no Stop', () => {
+    const root = projectWith({ events: '{ log: true }' });
+
+    sync({ root });
+
+    // What the sync of the release before wrote: the entries in the settings and in the record of what it put there.
+    for (const name of ['settings.json', 'vulcan-managed.json']) {
+      const file = join(root, '.claude', name);
+      const settings = JSON.parse(readFileSync(file, 'utf8'));
+      const [entry] = settings.hooks.PostToolUse.filter((item: { hooks: { command: string }[] }) =>
+        item.hooks.some((hook) => hook.command.includes(HOOK)),
+      );
+
+      delete entry.matcher;
+      settings.hooks.Stop = [
+        { hooks: [{ type: 'command', command: entry.hooks[0].command, timeout: 5 }] },
+      ];
+      writeFileSync(file, JSON.stringify(settings, null, 2));
+    }
+
+    expect(eventEntries({ root }).find((item) => item.name === 'Stop')).toBeDefined();
+    expect(sync({ root }).code).toBe(0);
+
+    const after = eventEntries({ root });
+
+    expect(after.filter((item) => item.name === 'PostToolUse')).toHaveLength(1);
+    expect(after.find((item) => item.name === 'PostToolUse')?.entry.matcher).toBe('SendMessage');
+    expect(after.find((item) => item.name === 'Stop')).toBeUndefined();
   });
 
   test('log off installs none; a dir alone installs none', () => {
@@ -126,7 +154,7 @@ describe('vulcan sync and the event hooks', () => {
   });
 
   test('turning the log off takes exactly our entries back and keeps the project own hooks', () => {
-    const own = "[{ event: 'Stop', command: 'echo mine' }]";
+    const own = "{ Stop: [{ hooks: [{ type: 'command', command: 'echo mine' }] }] }";
     const root = projectWith({ events: '{ log: true }', hooks: own });
 
     sync({ root });

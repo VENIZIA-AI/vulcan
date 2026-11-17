@@ -1,5 +1,5 @@
 /**
- * The Sync PR of the release flow: `main` takes the exact commit of the prerelease BANA gated, never whatever
+ * The Sync PR of the release flow: `main` takes the exact commit of the prerelease the downstream project gated, never whatever
  * `develop` has become since.
  *
  *   bun scripts/release/sync-pr.ts open   --tag <prerelease tag> [--dry-run]

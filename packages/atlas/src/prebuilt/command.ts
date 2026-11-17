@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { AtlasGit } from '@/common/constants';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { ModeArguments, ModeUsageError } from '@/cli/modes';
@@ -41,8 +42,10 @@ export class IndexKeygen {
   } {
     const file = join(opts.root, PrebuiltConstants.KEY_FILE);
     const ignored =
-      spawnSync('git', ['check-ignore', '-q', PrebuiltConstants.KEY_FILE], { cwd: opts.root })
-        .status === 0;
+      spawnSync('git', ['check-ignore', '-q', PrebuiltConstants.KEY_FILE], {
+        cwd: opts.root,
+        env: AtlasGit.buildEnvironment(),
+      }).status === 0;
 
     if (!ignored) {
       throw new Error(

@@ -52,7 +52,7 @@ concurrency:
 # approval. `test` runs the gates. `approve` is the one human stop and exists for a stable only: environment
 # release-approval, whose reviewer is the owner. `publish` is the only job with the publish identity (environment
 # npm-release, which waits for nobody); it runs after `approve` succeeded, or after `approve` was skipped because the
-# plan says prerelease.
+# plan says prerelease. A fifth job, `docs`, runs last with no checkout and the one permission to start the docs run (see it below).
 #
 # A prerelease commits its release to develop. A stable commits its release to main, tags it there, and then merges
 # main back into develop (scripts/release/merge-back.ts); nothing waits for a second approval after the click.
@@ -82,6 +82,8 @@ jobs:
       npm_tag: ${{ steps.plan.outputs.npm_tag }}
       # The head of develop the merge trial read (empty for a prerelease): the publish job stops if develop moved.
       develop_sha: ${{ steps.plan.outputs.develop_sha }}
+      # The previous stable tag (empty for a prerelease, or with none): the history check of the gates measures from it.
+      changelog_base: ${{ steps.plan.outputs.changelog_base }}
 
     steps:
       # Full history: the merge trial of a stable needs the branches and their common ancestor.
@@ -146,6 +148,18 @@ jobs:
       - name: Lint
         run: make lint-all
 
+      # A stable releases a version folder: no released folder changed since the previous stable, and no dated entry
+      # was added or edited. The default check already ran in the lint above.
+      - name: Changelog history (a stable)
+        if: ${{ needs.plan.outputs.kind == 'stable' && needs.plan.outputs.changelog_base != '' }}
+        env:
+          CHANGELOG_BASE: ${{ needs.plan.outputs.changelog_base }}
+        run: bun run vulcan changelog check --history --base "$CHANGELOG_BASE"
+
+      # The shared wiki theme is the same in the three wikis (C-21): a release goes out with them in step.
+      - name: Shared wiki theme
+        run: make wiki-shared-check
+
       - name: Dependency catalog
         run: make catalog-check
 
@@ -155,9 +169,9 @@ jobs:
       # The contract VULCAN ships, checked on VULCAN itself. CI has no adapters yet, so sync first.
       - name: VULCAN contract
         run: |
-          bun x --no-install vulcan sync
-          bun x --no-install vulcan doctor
-          bun x --no-install vulcan x okf check --strict
+          bun run vulcan sync
+          bun run vulcan doctor
+          bun run vulcan x okf check --strict
 
   # The one human stop, for a stable only: the plan says so, and the job is skipped for a prerelease. It runs after
   # the gates, so the owner never approves a release that fails them, and its name carries the target version. The
@@ -193,6 +207,10 @@ jobs:
     # reach it. It has no reviewers: the owner's approval is the `approve` job's, and only a stable has one. Its
     # settings are GitHub's, not this file's; this line is what makes the job subject to them.
     environment: npm-release
+    # What the `docs` job below needs to know: the tag is pushed, and, for a stable, main is merged back into develop.
+    outputs:
+      tagged: ${{ steps.record.outputs.tagged }}
+      merged_back: ${{ steps.record.outputs.merged_back }}
     env:
       # The branch the release commit goes to: main for a stable, develop for a prerelease.
       TARGET_BRANCH: ${{ needs.plan.outputs.kind == 'stable' && 'main' || 'develop' }}
@@ -429,6 +447,15 @@ jobs:
           NAMES=$(for directory in $PUBLISH_ORDER; do jq -r .name "packages/$directory/package.json"; done)
           bun scripts/release/next-tag.ts --published "$NEW_VERSION" --tag "$NPM_TAG" $NAMES
 
+      # A stable writes the day it is released into its version folder (`released:` in changelogs/<version>/log.md),
+      # in the same commit as the version: a folder with that line is frozen. A project with no folder for the version
+      # writes nothing. A bump of none heals a run that already did.
+      - name: Date the version folder
+        if: ${{ needs.plan.outputs.kind == 'stable' && env.BUMP != 'none' }}
+        run: |
+          STAMPED_LOG=$(bun scripts/release/stamp-release.ts --version "$NEW_VERSION" --date "$(date -u +%F)")
+          echo "STAMPED_LOG=$STAMPED_LOG" >> "$GITHUB_ENV"
+
       # -------------------------------------------------------------------------
       # RECORD IN GIT
       # -------------------------------------------------------------------------
@@ -436,6 +463,11 @@ jobs:
         if: env.BUMP != 'none'
         run: |
           git add packages/*/package.json bun.lock
+
+          if [ -n "${STAMPED_LOG:-}" ]; then
+            git add -- "$STAMPED_LOG"
+          fi
+
           SUBJECT="chore(release): v$NEW_VERSION [$BUMP]"
 
           if [ -n "$RELEASE_ISSUE" ]; then
@@ -513,11 +545,12 @@ jobs:
       # -------------------------------------------------------------------------
       # GITHUB RELEASE
       # -------------------------------------------------------------------------
-      # One Release on the tag of the run: a stable is marked Latest with the changelog entries since the previous
-      # stable (or a line saying there is no change for users, when there is none), a prerelease is marked
-      # Pre-release and never Latest. A tag that has a Release is skipped, so a
-      # dispatch with bump none makes a missing one. A failure is reported in the run summary and never fails or
-      # undoes a publish. The script refuses the tag of the atlas index, whose release is not a publish's.
+      # One Release on the tag of a stable run, marked Latest when it is the newest stable: the notes of its version
+      # folder (`log.md`, and `migration.yaml` attached when it holds a block) or, for a project of dated entries, the
+      # entries since the previous stable. A prerelease has no Release: the script says so and succeeds. A tag that has a
+      # Release is skipped, so a dispatch with bump none makes a missing one. A failure is reported in the run summary
+      # and never fails or undoes a publish. The script refuses the tag of the atlas index, whose release is not a
+      # publish's.
       - name: Create the GitHub Release
         continue-on-error: true
         timeout-minutes: 5
@@ -596,3 +629,35 @@ jobs:
           echo "  the usual cause is a conflict that is more than a version or the lockfile; read the merge step above"
           echo "  finish it: git checkout develop && git merge ${RELEASE_SHA:-main}, resolve, commit, push"
           echo "  or, once develop is ready, dispatch bump 'none' on main: it publishes nothing, tags nothing, and merges back"
+
+      # What happened, for the job after this one. It runs even when a step failed: the tag may be pushed all the same.
+      - name: Record what was pushed
+        id: record
+        if: always()
+        run: |
+          echo "tagged=${IS_TAGGED:-false}" >> "$GITHUB_OUTPUT"
+          echo "merged_back=${IS_MERGED_BACK:-false}" >> "$GITHUB_OUTPUT"
+
+  # The pushes of the job above are made with the Actions token, so GitHub starts no docs run from them, and a release
+  # changes no page: the version box of the changelog names the newest prerelease (read from the release tags) and would
+  # stay on the old one. A manual run does start from the Actions token. It runs on develop, which holds the release commit
+  # (a prerelease) or the merge back of it (a stable), and it checks out every tag, the new one included. This job has no
+  # checkout, no install and no secret, and the one permission it needs; the job that publishes does not hold it, so code
+  # that runs there cannot start a workflow. It never fails a release that has published.
+  docs:
+    name: Rebuild the wiki
+    needs: [plan, publish]
+    if: >-
+      ${{ always() && needs.publish.outputs.tagged == 'true'
+      && (needs.plan.outputs.kind == 'prerelease' || needs.publish.outputs.merged_back == 'true') }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 2
+    continue-on-error: true
+    permissions:
+      actions: write
+    steps:
+      - name: Start the docs run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run deploy-docs.yml --ref develop

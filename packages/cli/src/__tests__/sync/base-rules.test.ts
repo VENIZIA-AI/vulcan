@@ -77,3 +77,46 @@ describe('the base diff', () => {
     expect(readFileSync(join(root, ManifestConstants.FILE), 'utf8')).toBe(before);
   });
 });
+
+describe('rule packs in the manifest hashes and the sync report', () => {
+  const withPack = (opts: { packs: boolean }): string =>
+    createProject({
+      files: {
+        ...PROJECT,
+        '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }${opts.packs ? ", packs: ['venizia']" : ''} };\n`,
+      },
+    });
+  const MOVED = ['V-B-05', 'V-B-09', 'V-C-07', 'V-C-08', 'V-C-20'];
+
+  test('the pack rules are hashed only when the project turns the pack on', () => {
+    const off = withPack({ packs: false });
+    const on = withPack({ packs: true });
+
+    runSync({ root: off });
+    runSync({ root: on });
+
+    for (const id of MOVED) {
+      expect(readBaseHashes({ root: off })[id], id).toBeUndefined();
+      expect(readBaseHashes({ root: on })[id], id).toHaveLength(8);
+    }
+  });
+
+  test('turning the pack on after a sync reports its rules as added; a second sync is quiet', () => {
+    const root = withPack({ packs: false });
+
+    runSync({ root });
+    writeFileSync(
+      join(root, '.configs/vulcan.config.mts'),
+      "export default { rules: { 'V-W-01': 'read-only' }, packs: ['venizia'] };\n",
+    );
+
+    const first = runSync({ root });
+    const second = runSync({ root });
+
+    for (const id of MOVED) {
+      expect(first.stderr, id).toMatch(new RegExp(`^ {2}added +${id} `, 'm'));
+    }
+
+    expect(second.stderr).not.toMatch(DIFF_LINE);
+  });
+});

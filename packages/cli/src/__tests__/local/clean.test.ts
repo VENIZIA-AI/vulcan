@@ -5,14 +5,14 @@ import {
   readFileSync,
   rmSync,
   symlinkSync,
-  truncateSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { EventLog } from '../../events/log.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
+import { SocketWarning } from '../doctor/socket-warning.helper.ts';
 import { CleanScopes, LocalClean, LocalConstants, LocalScan } from '../../local/index.ts';
 import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -65,8 +65,14 @@ const file = (opts: { root: string; path: string; text?: string; ageDays?: numbe
 
   if (opts.ageDays !== undefined) {
     const then = new Date(Date.now() - opts.ageDays * DAY);
+    const local = join(opts.root, '.agents/local');
 
     utimesSync(target, then, then);
+
+    // The age of an item is its newest change anywhere inside it: its folders get the date too.
+    for (let folder = join(target, '..'); dirname(folder) !== local; folder = dirname(folder)) {
+      utimesSync(folder, then, then);
+    }
   }
 };
 
@@ -310,7 +316,11 @@ describe('LocalClean.plan and runClean', () => {
       file({ root, path });
     }
 
-    const all = LocalClean.plan({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] });
+    const all = LocalClean.plan({
+      root,
+      scopes: ['tmp', 'worktrees', 'clones', 'cache'],
+      includeFresh: true,
+    });
 
     expect(names({ entries: all.remove })).toEqual(['cache/k', 'clones/c', 'tmp/a']);
 
@@ -360,7 +370,7 @@ describe('LocalClean.plan and runClean', () => {
 
     symlinkSync(outside, join(root, '.agents/local/tmp/link'));
 
-    const plan = LocalClean.plan({ root, scopes: ['tmp'] });
+    const plan = LocalClean.plan({ root, scopes: ['tmp'], includeFresh: true });
     const result = LocalClean.run({ root, plan });
 
     expect(result.removed).toHaveLength(1);
@@ -401,7 +411,7 @@ describe('vulcan clean', () => {
   test('is a dry run by default: it lists, and removes nothing', () => {
     const root = repository();
 
-    file({ root, path: 'tmp/job/a.txt', text: 'hello' });
+    file({ root, path: 'tmp/job/a.txt', text: 'hello', ageDays: 3 });
 
     const result = runCli({ args: ['clean'], cwd: root });
 
@@ -415,7 +425,7 @@ describe('vulcan clean', () => {
   test('--yes removes the default scope (tmp) and leaves the other scopes', () => {
     const root = repository();
 
-    file({ root, path: 'tmp/job/a.txt' });
+    file({ root, path: 'tmp/job/a.txt', ageDays: 3 });
     file({ root, path: 'cache/k/a.txt' });
     file({ root, path: 'reports/r.md' });
 
@@ -428,10 +438,83 @@ describe('vulcan clean', () => {
     expect(existsSync(join(root, '.agents/local/reports/r.md'))).toBe(true);
   });
 
+  test('by default only stale items go: a fresh one is kept with the reason, and --include-fresh takes it', () => {
+    const root = repository();
+
+    file({ root, path: 'tmp/old/a.txt', ageDays: 3 });
+    file({ root, path: 'tmp/live/a.txt' });
+    file({ root, path: 'clones/recent/a.txt', ageDays: 3 });
+    file({ root, path: 'clones/old/a.txt', ageDays: 20 });
+
+    const plan = LocalClean.plan({ root, scopes: ['tmp', 'clones'] });
+
+    expect(names({ entries: plan.remove })).toEqual(['clones/old', 'tmp/old']);
+    expect(names({ entries: plan.keep })).toEqual(['clones/recent', 'tmp/live']);
+    expect(plan.keep.map((entry) => entry.note)).toEqual([
+      'fresh (0m): may be in use; --include-fresh removes it',
+      'fresh (3d): may be in use; --include-fresh removes it',
+    ]);
+
+    const everything = LocalClean.plan({ root, scopes: ['tmp', 'clones'], includeFresh: true });
+
+    expect(names({ entries: everything.remove })).toEqual([
+      'clones/old',
+      'clones/recent',
+      'tmp/live',
+      'tmp/old',
+    ]);
+  });
+
+  test("Claude Code's task folder is never removed, stale or not, with or without the flag", () => {
+    const root = repository();
+
+    file({ root, path: 'tmp/claude-1000/tasks/out.txt', ageDays: 9 });
+    file({ root, path: 'tmp/b945/x' });
+    file({ root, path: 'cache/atlas/x' });
+
+    for (const includeFresh of [false, true]) {
+      const plan = LocalClean.plan({ root, scopes: ['tmp', 'cache'], includeFresh });
+
+      expect(names({ entries: plan.keep }).filter((name) => name.includes('claude-'))).toEqual([
+        'tmp/claude-1000',
+      ]);
+      expect(names({ entries: plan.remove }).filter((name) => name.includes('claude-'))).toEqual(
+        [],
+      );
+    }
+
+    const result = runCli({ args: ['clean', '--all', '--include-fresh', '--yes'], cwd: root });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain('in use');
+    expect(existsSync(join(root, '.agents/local/tmp/claude-1000/tasks/out.txt'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/tmp/b945'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/cache/atlas'))).toBe(false);
+  });
+
+  test('vulcan clean --yes leaves a fresh item and says why; --include-fresh --yes takes it', () => {
+    const root = repository();
+
+    file({ root, path: 'tmp/live/a.txt' });
+
+    const kept = runCli({ args: ['clean', '--yes'], cwd: root });
+
+    expect(kept.code).toBe(0);
+    expect(kept.stderr).toContain('kept tmp/live');
+    expect(kept.stderr).toContain('--include-fresh');
+    expect(existsSync(join(root, '.agents/local/tmp/live'))).toBe(true);
+
+    const taken = runCli({ args: ['clean', '--include-fresh', '--yes'], cwd: root });
+
+    expect(taken.code).toBe(0);
+    expect(taken.stderr).toContain('removed 1 item(s)');
+    expect(existsSync(join(root, '.agents/local/tmp/live'))).toBe(false);
+  });
+
   test('--all --yes sweeps what can be recreated and keeps reports; --reports names them', () => {
     const root = repository();
 
-    file({ root, path: 'tmp/a/x' });
+    file({ root, path: 'tmp/a/x', ageDays: 3 });
     file({ root, path: 'cache/k/x' });
     file({ root, path: 'reports/r.md' });
 
@@ -476,19 +559,54 @@ describe('doctor and what an agent left behind', () => {
     );
     worktree({ root, name: 'done', merged: true });
 
-    const result = await DoctorRunner.runWarnings({ root });
-    const warnings = result.filter((entry) => entry.file.startsWith('.agents/local/'));
+    const result2 = await DoctorRunner.runWarnings({ root });
+    const result = SocketWarning.without({ warnings: result2 });
+    const warnings = result.filter((entry) => entry.file.startsWith('.agents/local'));
 
-    expect(warnings.map((entry) => entry.file).sort()).toEqual([
-      '.agents/local/tmp/old',
-      '.agents/local/worktrees/done',
-    ]);
-    expect(warnings.find((entry) => entry.file.endsWith('tmp/old'))?.message).toContain(
-      'vulcan clean --tmp --yes',
+    expect(warnings.map((entry) => entry.file)).toEqual(['.agents/local']);
+    expect(warnings[0].message).toContain('2 entries have outlived their use');
+    expect(warnings[0].message).toContain('1 stale in tmp, 1 merged in worktrees');
+    expect(warnings[0].message).toContain('run: vulcan clean --tmp --worktrees --yes');
+  });
+
+  test('forty stale entries are one warning with the count and the command, not forty lines', async () => {
+    const root = repository();
+
+    for (let index = 0; index < 40; index++) {
+      file({ root, path: `tmp/old-${index}/a.txt`, ageDays: 3 });
+      utimesSync(
+        join(root, `.agents/local/tmp/old-${index}`),
+        new Date(Date.now() - 3 * DAY),
+        new Date(Date.now() - 3 * DAY),
+      );
+    }
+
+    const result = await DoctorRunner.runWarnings({ root });
+    const warnings = SocketWarning.without({ warnings: result }).filter((entry) =>
+      entry.file.startsWith('.agents/local'),
     );
-    expect(warnings.find((entry) => entry.file.endsWith('done'))?.message).toContain(
-      'vulcan clean --worktrees --yes',
-    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain('40 entries have outlived their use');
+    expect(warnings[0].message).toContain('40 stale in tmp');
+    expect(warnings[0].message).toContain('vulcan clean --tmp --yes');
+  });
+
+  test('forty entries it does not know are one warning that names the first ten', async () => {
+    const root = repository();
+
+    for (let index = 0; index < 40; index++) {
+      file({ root, path: `scratch-${String(index).padStart(2, '0')}.txt`, text: 'x' });
+    }
+
+    const result = await DoctorRunner.runWarnings({ root });
+    const warnings = result.filter((entry) => entry.message.includes('VULCAN knows'));
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain('40 entries are not ones VULCAN knows');
+    expect(warnings[0].message).toContain('scratch-09.txt');
+    expect(warnings[0].message).not.toContain('scratch-10.txt');
+    expect(warnings[0].message).toContain('and 30 more');
   });
 
   test('is quiet about fresh tmp and an unmerged worktree', async () => {
@@ -497,23 +615,9 @@ describe('doctor and what an agent left behind', () => {
     file({ root, path: 'tmp/fresh/a.txt' });
     worktree({ root, name: 'busy', commit: true });
 
-    const result = await DoctorRunner.runWarnings({ root });
-    expect(result.filter((entry) => entry.file.startsWith('.agents/local/'))).toEqual([]);
-  });
-
-  test('prints the size of .agents/local/ once it is large, with where it went', async () => {
-    const root = repository();
-
-    file({ root, path: 'cache/big', text: '' });
-    truncateSync(join(root, '.agents/local/cache/big'), 60 * 1024 * 1024);
-
-    const notes = await DoctorRunner.runNotes({ root });
-    const [note] = notes.filter((entry) => entry.file === '.agents/local');
-
-    expect(note?.message).toContain('holds 60.0 MB');
-    expect(note?.message).toContain('cache 60.0 MB');
-    const result = await DoctorRunner.runNotes({ root: repository() });
-    expect(result.filter((entry) => entry.file === '.agents/local')).toEqual([]);
+    const result2 = await DoctorRunner.runWarnings({ root });
+    const result = SocketWarning.without({ warnings: result2 });
+    expect(result.filter((entry) => entry.file.startsWith('.agents/local'))).toEqual([]);
   });
 });
 
@@ -534,13 +638,13 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     old({ root: opts.root, path: opts.name, hours: opts.hours });
   };
 
-  test('events and release-candidates are layout folders that sync does not create', () => {
+  test('agents, events and release-candidates are layout folders that sync does not create', () => {
     const layoutNames = ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name);
 
-    expect(layoutNames).toEqual(expect.arrayContaining(['events', 'release-candidates']));
+    expect(layoutNames).toEqual(expect.arrayContaining(['agents', 'events', 'release-candidates']));
     expect(
       ProjectLayout.LOCAL_LAYOUT.filter((entry) => 'onDemand' in entry).map((entry) => entry.name),
-    ).toEqual(['events', 'release-candidates']);
+    ).toEqual(['agents', 'events', 'release-candidates']);
   });
 
   test('a release candidate is removable once its version is tagged, kept until then, and never in --all', () => {
@@ -582,10 +686,15 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     const result = await DoctorRunner.runWarnings({ root });
     const warnings = result.filter((entry) => entry.file.includes('release-candidates'));
 
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0].file).toBe('.agents/local/release-candidates/1.0.0');
-    expect(warnings[0].message).toContain('the release shipped');
-    expect(warnings[0].message).toContain('vulcan clean --release-candidates --yes');
+    expect(warnings).toHaveLength(0);
+
+    const folded = result.filter((entry) =>
+      entry.message.includes('shipped in release-candidates'),
+    );
+
+    expect(folded).toHaveLength(1);
+    expect(folded[0].file).toBe('.agents/local');
+    expect(folded[0].message).toContain('vulcan clean --release-candidates --yes');
   });
 
   test('only a version can be a release candidate, and only a tag of that exact name ships it', () => {
@@ -827,7 +936,6 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     file({ root, path: 'scope.txt', text: 'x' });
     file({ root, path: 'audit/report.md', text: 'x' });
     file({ root, path: 'profile.json', text: '{}' });
-    file({ root, path: 'violations.jsonl', text: '' });
     chrome({ root, name: 'com.google.Chrome.xyz', hours: 5 });
 
     expect(LocalScan.unknown({ root }).map((entry) => entry.name)).toEqual([
@@ -837,29 +945,44 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     ]);
 
     const result = await DoctorRunner.runWarnings({ root });
-    const warnings = result.filter((entry) => entry.file.startsWith('.agents/local/'));
-    const unknown = warnings.filter((entry) =>
-      entry.message.startsWith('not an entry VULCAN knows'),
-    );
+    const warnings = result.filter((entry) => entry.file.startsWith('.agents/local'));
+    const unknown = warnings.filter((entry) => entry.message.includes('VULCAN knows'));
 
-    expect(unknown.map((entry) => entry.file)).toEqual([
-      '.agents/local/audit',
-      '.agents/local/diag.ts',
-      '.agents/local/scope.txt',
-    ]);
-    expect(unknown.find((entry) => entry.file.endsWith('diag.ts'))?.message).toContain('2.0 KB');
+    expect(unknown.map((entry) => entry.file)).toEqual(['.agents/local']);
+    expect(unknown[0].message).toContain('3 entries are not ones VULCAN knows');
+    expect(unknown[0].message).toContain('audit (');
+    expect(unknown[0].message).toContain('diag.ts (2.0 KB)');
+    expect(unknown[0].message).toContain('scope.txt (');
     expect(unknown[0].message).toContain(
       'put scratch in tmp/ and what you want to keep in reports/',
     );
+    expect(unknown[0].message).toContain('what one agent keeps for itself in agents/<name>/');
+    expect(unknown[0].message).toContain(
+      'a script the team relies on belongs in the tracked tree (scripts/)',
+    );
 
     // The browser folder is expired tmp, not unknown, and the command that takes it is named.
-    const chromeWarning = warnings.find((entry) => entry.file.endsWith('com.google.Chrome.xyz'));
+    const stale = warnings.find((entry) => entry.message.includes('outlived'));
 
-    expect(chromeWarning?.message).toContain('vulcan clean --tmp --yes');
+    expect(stale?.message).toContain('1 stale in tmp');
+    expect(stale?.message).toContain('vulcan clean --tmp --yes');
     expect(existsSync(join(root, '.agents/local/diag.ts'))).toBe(true);
     expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
     expect(existsSync(join(root, '.agents/local/diag.ts'))).toBe(true);
     expect(existsSync(join(root, '.agents/local/audit/report.md'))).toBe(true);
+  });
+
+  test('the folder of one agent is known, kept by every clean, and never a warning', async () => {
+    const root = repository();
+
+    file({ root, path: 'agents/scout/notes.md', text: 'x'.repeat(2048), ageDays: 90 });
+
+    const warnings = await DoctorRunner.runWarnings({ root });
+
+    expect(LocalScan.unknown({ root })).toEqual([]);
+    expect(warnings.filter((entry) => entry.file.includes('agents/scout'))).toEqual([]);
+    expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/agents/scout/notes.md'))).toBe(true);
   });
 
   test('a repository with only the layout folders has nothing unknown', async () => {
@@ -1039,5 +1162,28 @@ describe('vulcan clean --events and the configured log', () => {
     expect(result.failed).toHaveLength(3);
     expect(readFileSync(join(dir, 'notes.txt'), 'utf8')).toBe('keep');
     expect(existsSync(join(root, 'package.json'))).toBe(true);
+  });
+});
+
+describe('what a live session uses is not stale to doctor either', () => {
+  test('a stale task folder of Claude Code is kept by clean and not reported by doctor; a look-alike name is a normal item', async () => {
+    const root = repository();
+
+    file({ root, path: 'tmp/claude-1000/tasks/out.txt', ageDays: 9 });
+    file({ root, path: 'tmp/claude-notes/a.txt', ageDays: 9 });
+
+    const plan = LocalClean.plan({ root, scopes: ['tmp'] });
+
+    expect(names({ entries: plan.keep })).toEqual(['tmp/claude-1000']);
+    expect(names({ entries: plan.remove })).toEqual(['tmp/claude-notes']);
+
+    const result = await DoctorRunner.runWarnings({ root });
+    const stale = SocketWarning.without({ warnings: result }).find((entry) =>
+      entry.message.includes('outlived'),
+    );
+
+    // Only the look-alike is counted: the live session's task folder is not stale.
+    expect(stale?.message).toContain('1 entry has outlived its use');
+    expect(stale?.message).toContain('1 stale in tmp');
   });
 });

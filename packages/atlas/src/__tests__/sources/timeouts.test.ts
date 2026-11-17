@@ -44,7 +44,7 @@ test(
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
     const silent = listenSilently();
-    const repo = `http://127.0.0.1:${silent.port}/acme/source.git`;
+    const repo = `https://127.0.0.1:${silent.port}/acme/source.git`;
 
     // The same cache, under the silent host's name: the remote is all that changed.
     mkdirSync(dirname(SourceCache.cacheRootOf({ repo, cacheBase: cacheDir })), { recursive: true });

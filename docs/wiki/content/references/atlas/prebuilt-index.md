@@ -16,8 +16,10 @@ One pair per commit, on the release `atlas-index` of the repository (a pre-relea
 
 | File | Holds |
 |---|---|
-| `<sha>.atlas.gz` | The gzip of `index.sqlite`, and nothing else: no archive, so no entry names, links or paths to defend against |
-| `<sha>.atlas.json` | The envelope `{ payload, signature }`: `payload` is the base64 of the exact bytes that were signed, `signature` the base64 of the ed25519 signature over them |
+| `<sha>.atlas.gz` | The gzip of `index.sqlite`, and nothing else |
+| `<sha>.atlas.json` | The envelope `{ payload, signature }` |
+
+The gz holds no archive, so there are no entry names, links or paths to defend against. In the envelope, `payload` is the base64 of the exact bytes that were signed, and `signature` the base64 of the ed25519 signature over them.
 
 The payload:
 

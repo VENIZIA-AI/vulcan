@@ -12,7 +12,7 @@ tags: [architecture, project, contract]
 Makefile that `-include`s `vulcan.mk`.
 
 **Written by `vulcan sync`, gitignored:** `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json`
-(shipped, slot, project hooks and `claude.settings`, merged over personal keys), the record of what
+(shipped, slot and `claude.settings` with the project hooks in it, merged over personal keys), the record of what
 it applied (`.claude/vulcan-managed.json`), and the `.claude/skills/` links.
 
 **Checked by `vulcan doctor`:** config, layout, rule IDs (a `V-` ID a project rule
@@ -23,6 +23,6 @@ packages; the knowledge index no longer holds the `vulcan:scaffold` line `init` 
 ## Where the tools look
 
 Every VULCAN tool reads the project it runs in - the working directory. None reads an environment
-variable for its root. `*-gen` and `okf-viz` WRITE into that project, so never run them from VULCAN
+variable for its root. `*-gen` writes into that project, so never run it from VULCAN
 against IGNIS (W-06). Atlas's tests read the sibling IGNIS checkout, overridable for tests only
 through `IGNIS_ROOT` in `TEST_ENV_atlas` in `make/test.mk`.

@@ -1,12 +1,12 @@
 ---
 title: okf
-description: Validate, generate, inspect coverage, and visualize knowledge bundles in Open Knowledge Format.
+description: Validate, generate and inspect the coverage of knowledge bundles in Open Knowledge Format.
 ---
 
 # okf
 
 `okf` manages knowledge bundles in Open Knowledge Format (OKF) v0.2.
-You run commands through `vulcan x okf <command>`.
+You run commands through `vulcan x okf <command>`. Run it at the project root: it reads `.configs/vulcan.config.mts` of the current folder, and without that file `okf` stops with the error `okf: no project config`.
 
 | Command | What it does | Exit codes |
 |---|---|---|
@@ -14,21 +14,20 @@ You run commands through `vulcan x okf <command>`.
 | `vulcan x okf check --strict` | Check OKF v0.2 conformance and project house rules | `0` (pass), `1` (rule violation) |
 | `vulcan x okf gen` | Regenerate source-derived pages, regions, and contents lists | `0` (success), `1` (generation failure) |
 | `vulcan x okf coverage [--min <n>]` | Report source coverage and evaluate coverage threshold gates | `0` (pass), `1` (gate failure, project error, bad frontmatter), `2` (invalid `--min`) |
-| `vulcan x okf viz` | Build the offline HTML knowledge graph explorer | `0` (success), `1` (build failure) |
 
 Running an invalid command or omitting the command prints usage and exits with code `2`.
 
 To run the basic conformance check:
 
 ```text
-$ bun x --no-install vulcan x okf check
+$ bun node_modules/.bin/vulcan x okf check
 check: OK - OKF v0.2 - 2 files, 1 concepts
 ```
 
 To run conformance checks with house rules:
 
 ```text
-$ bun x --no-install vulcan x okf check --strict
+$ bun node_modules/.bin/vulcan x okf check --strict
 check: OK - OKF v0.2 + house rules - 2 files, 1 concepts
 ```
 
@@ -113,7 +112,7 @@ check: N warning(s):
 To enforce house rules on top of OKF conformance, pass `--strict`.
 House style rules run over every markdown file in the bundle, index and log included.
 
-`check --strict` enforces seven groups of house rules:
+`check --strict` enforces eight groups of house rules:
 
 1. Broken links: Every markdown link target in concept prose must resolve to an existing concept in the bundle:
    - `<file>: broken link -> <target>.md`
@@ -130,7 +129,7 @@ House style rules run over every markdown file in the bundle, index and log incl
 
    The brand rule fires only when the brand is all capitals of 2+ letters (for example VULCAN).
    It rejects the title-case spelling.
-   The brand comes from `okf.viz.brand` (default: root package name unscoped and upper-cased).
+   The brand comes from `okf.brand` (default: root package name unscoped and upper-cased).
 
 3. Structural coverage: Every directory matched by a coverage axis must have a concept or resource mapping:
    - `coverage: <section>/<name> has no concept (<section>/<name>.md)`
@@ -175,6 +174,22 @@ House style rules run over every markdown file in the bundle, index and log incl
    changelog: <path> declares no packages - add `packages: [<npm name>, ...]` to its frontmatter (`packages: []` for an entry about no package)
    ```
 
+   The check runs only when `knowledge.changelogs` is set. A `release:` override lists the tags with `git tag --list`, so `git` must be on the `PATH` and the tags must be in the clone.
+
+8. Code in the wiki: The fenced `ts`, `tsx`, `js`, `jsx`, `mts` and `mjs` blocks of every page under `knowledge.wiki`, changelogs excluded, follow the code rules, because a reader copies them:
+   - `docs-code: <file>:<line>: an explicit cast (<as ...>) - parse or narrow the value instead (V-C-10)`
+   - `docs-code: <file>:<line>: any or AnyType as a type - type it, or take unknown and narrow it`
+   - `docs-code: <file>:<line>: a conditional spread - build the object, then assign the optional key`
+   - `docs-code: <file>:<line>: a string-literal union - a const class and its value type (V-C-08)`
+
+   `as const`, `import { A as B }`, `export { A as B }` and `import * as ns` are not casts. Strings, template literals and comments are taken out before the rules run, so an `as` in a SQL template, a JSDoc comment or prose is not read, and neither is anything outside a fence. The check scans the code rather than parsing it, because an example is often a fragment; code inside a `${}` of a template is still code.
+
+   Two kinds of content are left out: a page that carries the note a generator writes (a blockquote that starts `Generated` and ends `do not edit.`, as `vulcan x atlas api gen` writes), and everything between `<!-- okf:generated:<id> start -->` and `end` markers. For a signature a page quotes from the source, wrap it in `<!-- docs-code: off -->` and `<!-- docs-code: on -->`. The marker is for a quoted source signature, never an example: the check prints every page that uses it with a count (`check: docs-code off - 3 region(s) in 2 page(s): <page> (2), ...`), and warns about an off region that holds a function body, a call or a statement (`docs-code: <file>:<line>: a docs-code off region holds a function body - off is for a quoted source signature, never an example`).
+
+   The same run prints warnings, which never fail it, about the shape of the tables of the wiki:
+   - `docs-table: <file>:<line>: a cell of <n> characters (over 120) - a heading and a short table, or a list`
+   - `docs-table: <file>:<line>: a continuation row with an empty first cell - one row for one item`
+
 ## gen
 
 Run `vulcan x okf gen` to regenerate source-derived content across the knowledge bundle.
@@ -183,7 +198,7 @@ Contents lists are written last.
 If a renderer fails, `gen` stops before writing any files.
 
 ```text
-$ bun x --no-install vulcan x okf gen
+$ bun node_modules/.bin/vulcan x okf gen
 gen: wrote .agents/knowledge/reference/makefile-targets.md
 ```
 
@@ -221,7 +236,7 @@ To configure built-in or custom renderers, see [okf renderers](/references/okf/r
 Run `vulcan x okf coverage` to report bundle documentation coverage against project source code.
 
 ```text
-$ bun x --no-install vulcan x okf coverage
+$ bun node_modules/.bin/vulcan x okf coverage
 
 COVERAGE - 2 curated concepts
 
@@ -282,26 +297,9 @@ An item is also covered when a concept declares a matching `resource:` value.
 The covering `resource:` value is the directory path from the repository root.
 To configure renderer coverage rows, see [okf renderers](/references/okf/renderers).
 
-## viz
-
-Run `vulcan x okf viz` to build the offline HTML knowledge graph explorer.
-The explorer bundles graph data and the browser client into a self-contained file.
-By default, the command writes to `.agents/knowledge/viz.html`.
-You can configure alternative destination paths in `okf.viz.outputs` in `.configs/vulcan.config.mts`.
-
-`viz` accepts no command-line flags; extra arguments are ignored.
-One `viz: wrote` line prints per configured output.
-The sample passes `--help` only to show extra arguments are ignored:
-
-```text
-$ bun x --no-install vulcan x okf viz --help
-viz: wrote .agents/knowledge/viz.html
-viz: 2 nodes, 0 edges, 2 sections
-```
-
 ## make targets
 
-The shared Makefile at `packages/cli/base/make/vulcan.mk` defines five `okf-*` targets:
+The shared Makefile at `packages/cli/base/make/vulcan.mk` defines four `okf-*` targets:
 
 | Target | Description |
 |---|---|
@@ -309,7 +307,6 @@ The shared Makefile at `packages/cli/base/make/vulcan.mk` defines five `okf-*` t
 | `make okf-check-strict` | okf-check plus the house rules: links, style, coverage, freshness |
 | `make okf-gen` | Regenerate the generated pages and regions of the knowledge bundle |
 | `make okf-coverage` | Report how much of the code the knowledge bundle covers |
-| `make okf-viz` | Build the knowledge graph view |
 
 ## See also
 

@@ -8,6 +8,7 @@ interface IChoice {
   hint?: string;
 }
 
+/** Terminal prompts (text, select, multiselect, confirm, plan) for the interactive commands such as `vulcan init`, `vulcan add` and `vulcan profile`. */
 export class TerminalPrompt {
   /**
    * Free text, only where there is nothing to pick from (a new name). A default, when there is one, is

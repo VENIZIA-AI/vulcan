@@ -21,7 +21,8 @@ afterAll(removeProjects);
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
-const NOW = Date.parse('2026-11-03T12:00:00');
+/** Noon today: the script the tests spawn reads the real clock, so a fixed date makes a file the test calls fresh stale from the next day on. */
+const NOW = new Date().setHours(12, 0, 0, 0);
 const SCRIPT = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'auto-clean.ts');
 const SESSION_START = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'session-start.ts');
 const day = (ago: number): string => EventLog.dayOf({ time: NOW - ago * DAY });

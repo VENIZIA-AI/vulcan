@@ -8,8 +8,21 @@ import type { ICommitHookStatus } from './common/index.ts';
 
 const HOOK_NAME = 'commit-msg';
 const MARKER = '# vulcan:commit-msg';
-const CALL = /vulcan\s+commit-check/;
-const COMMAND = 'bun x --no-install vulcan commit-check "$1"';
+/** The marker line, then the folder of the project that wrote it in brackets; a hook of an earlier release has no brackets. */
+const OWNER = new RegExp(`^${MARKER}(?: \\[([^\\]]*)\\])?`);
+/** A hook that calls the check: the old text (`vulcan commit-check`) and the one sync writes now (`vulcan" commit-check`). */
+const CALL = /vulcan["']?\s+commit-check/;
+/** The call sync wrote before V-S-08, and the `bunx` forms of it: they can run a copy bunx cached, so a hook that has one is stale. */
+const LEGACY_CALL = /\bbun(?:x|\s+x)\s+(?:--?[\w-]+\s+)*vulcan\s+commit-check/;
+/** A line break, or any other control character: a folder name that holds one cannot be written into the hook text. */
+const CONTROL_CHARACTER = /\p{Cc}/u;
+const CONTROL_CHARACTERS = /\p{Cc}/gu;
+/** The escapes the marker line holds: `%` and `]`, and a control character as two hex digits. */
+const ESCAPE = /%(25|5D|[01][0-9A-F]|7F|[89][0-9A-F])/g;
+/** The linked bin of the folder the loop above found, by path: nothing is fetched and no `$PATH` is searched (V-S-08). */
+const COMMAND = 'bun "$dir/node_modules/.bin/vulcan" commit-check "$1"';
+/** What a developer adds to a hook of their own, run from the project folder. */
+const ADVICE_COMMAND = 'bun node_modules/.bin/vulcan commit-check "$1"';
 
 const git = (opts: { root: string; args: string[] }): string | undefined => {
   try {
@@ -39,11 +52,15 @@ export class CommitHook {
    * no `commit-check` command (an older branch).
    */
   static template(opts: { prefix: string }): string {
-    const folder = opts.prefix.replace(/\/$/, '');
+    if (!CommitHook.isWritable({ prefix: opts.prefix })) {
+      throw new Error(CommitHook.REFUSAL);
+    }
+
+    const folder = CommitHook.folderOf({ prefix: opts.prefix });
     const enter = folder === '' ? '' : `cd ${CommitHook.quote({ text: folder })} || exit 0\n`;
 
     return `#!/bin/sh
-${MARKER} - written by vulcan sync from commit.message in .configs/vulcan.config.mts; do not edit
+${MARKER} [${CommitHook.encode({ folder })}] - written by vulcan sync from commit.message in .configs/vulcan.config.mts; do not edit
 message="$1"
 case "$message" in /*) ;; *) message="$PWD/$message" ;; esac
 top="$(git rev-parse --show-toplevel)"
@@ -71,6 +88,54 @@ exit "$status"
 `;
   }
 
+  /** Why a project folder is refused: its name could end a line of the hook text and start another. */
+  static readonly REFUSAL =
+    'the project folder name holds a line break or another control character, so the commit-msg hook is not written';
+
+  /** Whether the hook text can name the folder: its name holds no line break and no other control character. */
+  static isWritable(opts: { prefix: string }): boolean {
+    return !CONTROL_CHARACTER.test(opts.prefix);
+  }
+
+  /**
+   * A folder as the marker line spells it: `%` and `]` are escaped, so a name that holds a bracket cannot end the
+   * field, and so is a control character, so the field stays on its line.
+   */
+  private static encode(opts: { folder: string }): string {
+    return opts.folder
+      .replaceAll('%', '%25')
+      .replaceAll(']', '%5D')
+      .replace(
+        CONTROL_CHARACTERS,
+        (char) => `%${(char.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(2, '0')}`,
+      );
+  }
+
+  private static decode(opts: { field: string }): string {
+    return opts.field.replace(ESCAPE, (_, code: string) =>
+      String.fromCodePoint(Number.parseInt(code, 16)),
+    );
+  }
+
+  /**
+   * The project folder inside the repository, without the trailing slash; empty for the top level. A folder that
+   * `isWritable` refuses is still named here, so a hook of another project is told apart from this one's.
+   */
+  private static folderOf(opts: { prefix: string }): string {
+    return opts.prefix.replace(/\/$/, '');
+  }
+
+  /**
+   * The project folder a hook of ours was written for (empty: the repository's top level), or `undefined` when
+   * the file is not ours. A hook of an earlier release carries no folder and is the top level's: it is the only
+   * kind there was, and a project below the top level that wrote one is not told apart from it.
+   */
+  static ownerOf(opts: { text: string }): string | undefined {
+    const matched = OWNER.exec(opts.text.split('\n')[1] ?? '');
+
+    return matched === null ? undefined : CommitHook.decode({ field: matched[1] ?? '' });
+  }
+
   private static quote(opts: { text: string }): string {
     return `'${opts.text.replaceAll("'", "'\\''")}'`;
   }
@@ -92,15 +157,29 @@ exit "$status"
     const hooksPath = git({ root: opts.root, args: ['config', '--get', 'core.hooksPath'] });
     const entry = lstatSync(path, { throwIfNoEntry: false });
     const text = entry?.isFile() === true ? readFileSync(path, 'utf8') : undefined;
-    const isOurs = hooksPath === undefined && text?.split('\n')[1]?.startsWith(MARKER) === true;
+    const folder = CommitHook.folderOf({ prefix });
+    const owner = text === undefined ? undefined : CommitHook.ownerOf({ text });
+    // Ours is a hook this project wrote. One another project of the repository wrote is neither removed nor replaced.
+    const isOurs = hooksPath === undefined && owner === folder;
+    const isOtherProjects = hooksPath === undefined && owner !== undefined && owner !== folder;
 
     if (!isWanted) {
       return { state: isOurs ? CommitHookStates.LEFTOVER : CommitHookStates.OFF, path };
     }
 
-    const addLine = `add '${COMMAND}' to its ${HOOK_NAME} hook`;
+    const addLine = `add '${ADVICE_COMMAND}' to its ${HOOK_NAME} hook`;
+
+    const legacyNote = `it runs vulcan by name through bunx or \`bun x\`, which can run a copy bunx cached: change the line to '${ADVICE_COMMAND}'`;
 
     if (hooksPath !== undefined) {
+      if (text !== undefined && LEGACY_CALL.test(text)) {
+        return {
+          state: CommitHookStates.LEGACY,
+          path,
+          note: `core.hooksPath is ${hooksPath}: ${legacyNote}`,
+        };
+      }
+
       return text !== undefined && CALL.test(text)
         ? { state: CommitHookStates.WIRED, path }
         : {
@@ -108,6 +187,11 @@ exit "$status"
             path,
             note: `core.hooksPath is ${hooksPath}: ${addLine}`,
           };
+    }
+
+    // Nothing is written for such a folder, whatever is there: the plan skips it and says why.
+    if (!CommitHook.isWritable({ prefix })) {
+      return { state: CommitHookStates.UNWIRED, path, note: CommitHook.REFUSAL };
     }
 
     if (entry === undefined) {
@@ -122,10 +206,26 @@ exit "$status"
       };
     }
 
+    if (isOtherProjects) {
+      return {
+        state: CommitHookStates.OTHER_PROJECT,
+        path,
+        note: `the hook belongs to ${owner === '' ? 'the project at the top of the repository' : `the project in ${owner}`}, not touched: a repository has one ${HOOK_NAME} hook`,
+      };
+    }
+
     if (isOurs) {
       const isCurrent = text === CommitHook.template({ prefix }) && (entry.mode & 0o111) !== 0;
 
       return { state: isCurrent ? CommitHookStates.WIRED : CommitHookStates.STALE, path };
+    }
+
+    if (LEGACY_CALL.test(text)) {
+      return {
+        state: CommitHookStates.LEGACY,
+        path,
+        note: `a hook of yours is there, not touched: ${legacyNote}`,
+      };
     }
 
     return CALL.test(text)
@@ -138,8 +238,10 @@ exit "$status"
   }
 
   static write(opts: { path: string; prefix: string }): void {
+    const text = CommitHook.template({ prefix: opts.prefix });
+
     mkdirSync(dirname(opts.path), { recursive: true });
-    writeFileSync(opts.path, CommitHook.template({ prefix: opts.prefix }));
+    writeFileSync(opts.path, text);
     chmodSync(opts.path, 0o755);
   }
 }
@@ -164,7 +266,9 @@ export class CommitHookPlan {
         return [{ path, status: SyncStatuses.UNCHANGED, apply: () => {} }];
       }
 
-      case CommitHookStates.UNWIRED: {
+      case CommitHookStates.UNWIRED:
+      case CommitHookStates.LEGACY:
+      case CommitHookStates.OTHER_PROJECT: {
         return [{ path, status: SyncStatuses.SKIPPED, note: status.note, apply: () => {} }];
       }
 

@@ -37,27 +37,6 @@ export class CodingAgents {
   }
 }
 
-/** Claude Code hook events a project may add a hook to. */
-export class HookEvents {
-  static readonly PRE_TOOL_USE = 'PreToolUse';
-  static readonly POST_TOOL_USE = 'PostToolUse';
-  static readonly USER_PROMPT_SUBMIT = 'UserPromptSubmit';
-  static readonly SESSION_START = 'SessionStart';
-  static readonly STOP = 'Stop';
-
-  static readonly SCHEME_SET = new Set<string>([
-    this.PRE_TOOL_USE,
-    this.POST_TOOL_USE,
-    this.USER_PROMPT_SUBMIT,
-    this.SESSION_START,
-    this.STOP,
-  ]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
-}
-
 export class ConfigConstants {
   static readonly DIRECTORY = '.configs';
   /** The one config file name, under `.configs/`. */
@@ -71,7 +50,6 @@ export class ConfigConstants {
     'V-P-05',
     'V-P-06',
     'V-B-04',
-    'V-W-04',
     'V-C-02',
     'V-C-09',
     'V-C-10',
@@ -79,4 +57,32 @@ export class ConfigConstants {
     'V-B-07',
     'V-B-09',
   ];
+}
+
+/** The placeholders a release template (`atlas.tagPattern`, `atlas.legacyTagPatterns`) knows; any other `<word>` would be read as literal text and match no tag. */
+export class TemplatePlaceholders {
+  static readonly ALLOWED = ['dir', 'version', 'issue', 'date'];
+  private static readonly PATTERN = /<([^<>]*)>/g;
+
+  /** The `<word>` placeholders of the template that are not allowed, each once, in the order they appear. */
+  static unknownIn(opts: { template: string }): string[] {
+    const found = [...opts.template.matchAll(TemplatePlaceholders.PATTERN)].map(
+      (match) => match[1] ?? '',
+    );
+
+    return [...new Set(found)].filter((word) => !TemplatePlaceholders.ALLOWED.includes(word));
+  }
+
+  /** What the config error says: the placeholders it does not know, the ones it does, and what replaces `<package>`. */
+  static problemOf(opts: { unknown: string[] }): string {
+    const named = opts.unknown.map((word) => `<${word}>`).join(', ');
+    const hint = opts.unknown.includes('package')
+      ? ' <dir> replaces <package>: it is the package directory.'
+      : '';
+    const allowed = TemplatePlaceholders.ALLOWED.map((word) => `<${word}>`).join(', ');
+
+    const verb = opts.unknown.length === 1 ? 'is not a placeholder' : 'are not placeholders';
+
+    return `${named} ${verb} of a release template (${allowed}).${hint}`;
+  }
 }

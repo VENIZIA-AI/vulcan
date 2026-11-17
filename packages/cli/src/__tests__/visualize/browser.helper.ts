@@ -10,19 +10,19 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { findRepositoryRoot } from '@venizia/dev-configs/testing';
+import { BrowserSocket } from '../../local/browser-socket.ts';
 
 /** What a measuring run is asked: the page text, the width of the window, and the colour scheme. */
 export interface IBrowserRun {
-  html: string;
+  /** The page text, written to a file and opened; or give `url` to open a page that is served. */
+  html?: string;
+  url?: string;
   width: number;
   dark: boolean;
   /** An expression run in the page; its JSON result is returned. */
   expression: string;
 }
 
-/** Chrome puts a unix socket at `<temp folder>/com.google.Chrome.XXXXXX/SingletonSocket`; a socket path is 107 characters at most. */
-const SOCKET_PATH_MAX = 107;
-const SOCKET_SUFFIX = join('com.google.Chrome.XXXXXX', 'SingletonSocket');
 /** What a browser leaves in its temp folder when it is killed. */
 const SCRATCH_FOLDER = /^\.?(com\.google\.Chrome|org\.chromium\.Chromium)\./;
 
@@ -81,16 +81,14 @@ export class BrowserPage {
       folder,
     ].filter(
       (entry): entry is string =>
-        entry !== undefined &&
-        existsSync(entry) &&
-        join(entry, SOCKET_SUFFIX).length <= SOCKET_PATH_MAX,
+        entry !== undefined && existsSync(entry) && BrowserSocket.fits({ folder: entry }),
     );
 
     for (const base of candidates) {
       // Where the path allows, Chrome gets a folder of this run alone: another run in the same folder is never
       // touched and everything its Chrome left goes with the folder. Otherwise only the folder its own link names goes.
       const own = mkdtempSync(join(base, 'vz-'));
-      const isPrivate = join(own, SOCKET_SUFFIX).length <= SOCKET_PATH_MAX;
+      const isPrivate = BrowserSocket.fits({ folder: own });
 
       if (!isPrivate) {
         rmSync(own, { recursive: true, force: true });
@@ -108,7 +106,7 @@ export class BrowserPage {
     await BrowserPage.close();
     console.warn(
       candidates.length === 0
-        ? `browser tests skipped: no folder is short enough for Chrome's socket (${SOCKET_PATH_MAX} characters at most, \`${SOCKET_SUFFIX}\` included); set VULCAN_BROWSER_TMPDIR to a short folder`
+        ? `browser tests skipped: no folder is short enough for Chrome's socket (${BrowserSocket.PATH_MAX} characters at most, \`${BrowserSocket.longest()}\` included); set VULCAN_BROWSER_TMPDIR to a short folder`
         : 'browser tests skipped: Chrome did not answer in time',
     );
 
@@ -213,7 +211,10 @@ export class BrowserPage {
     const file = join(BrowserPage.folder!, `page-${BrowserPage.nextId}.html`);
 
     mkdirSync(BrowserPage.folder!, { recursive: true });
-    writeFileSync(file, run.html);
+
+    if (run.url === undefined) {
+      writeFileSync(file, run.html ?? '');
+    }
 
     await BrowserPage.send({
       method: 'Emulation.setDeviceMetricsOverride',
@@ -240,16 +241,29 @@ export class BrowserPage {
       BrowserPage.listeners.push(listener);
     });
 
-    await BrowserPage.send({ method: 'Page.navigate', params: { url: `file://${file}` } });
+    await BrowserPage.send({
+      method: 'Page.navigate',
+      params: { url: run.url ?? `file://${file}` },
+    });
     await loaded;
     await Bun.sleep(150);
 
     const result = await BrowserPage.send({
       method: 'Runtime.evaluate',
-      params: { expression: run.expression, returnByValue: true },
+      params: { expression: run.expression, returnByValue: true, awaitPromise: true },
     });
 
     return result.result.value as TResult;
+  }
+
+  /** Runs an expression in the page that is already open, without navigating, and returns its result as text (JSON, when the expression returns `JSON.stringify(...)`). */
+  static async evaluate(opts: { expression: string }): Promise<string> {
+    const result = await BrowserPage.send({
+      method: 'Runtime.evaluate',
+      params: { expression: opts.expression, returnByValue: true, awaitPromise: true },
+    });
+
+    return String(result.result.value);
   }
 
   /** A screenshot of the whole page, for a human to look at (not used by an assertion). */

@@ -32,17 +32,15 @@ describe('EventHook.map', () => {
     ).toEqual({
       kind: 'session-start',
       summary: 'resume claude-sonnet-5-5',
+      model: 'claude-sonnet-5-5',
     });
     expect(map({ hookEventName: 'SessionStart' })).toEqual({ kind: 'session-start', summary: '' });
   });
 
-  test('Stop: a turn ended, never the reply; a stop hook that is already active is skipped', () => {
+  test('a turn that ends is not an event, whatever the reply', () => {
     expect(
       map({ hookEventName: 'Stop', stopHookActive: false, lastAssistantMessage: 'SECRET REPLY' }),
-    ).toEqual({
-      kind: 'session-stop',
-      summary: 'turn ended',
-    });
+    ).toBeUndefined();
     expect(map({ hookEventName: 'Stop', stopHookActive: true })).toBeUndefined();
   });
 
@@ -69,12 +67,14 @@ describe('EventHook.map', () => {
       ).toEqual({
         kind: 'needs-owner',
         summary: 'Claude needs you',
+        notification: type,
       });
     }
 
     expect(map({ hookEventName: 'Notification', notificationType: 'idle_prompt' })).toEqual({
       kind: 'needs-owner',
       summary: 'idle_prompt',
+      notification: 'idle_prompt',
     });
     expect(
       map({ hookEventName: 'Notification', notificationType: 'auth_success', title: 't' }),
@@ -133,10 +133,18 @@ describe('EventHook.map', () => {
     expect(refOf('uds:/run/x/')).toBe('to:uds:x');
   });
 
-  test('other tools, a failed send and malformed payloads are not logged', () => {
+  test('PostToolUse of any other tool than SendMessage is not an event: nothing of the tool, its input or its result is read', () => {
     expect(
-      map({ hookEventName: 'PostToolUse', toolName: 'Bash', toolInput: { command: 'ls' } }),
+      map({
+        hookEventName: 'PostToolUse',
+        toolName: 'Bash',
+        toolInput: { command: 'cat /home/me/SECRET-PROJECT/.env' },
+        toolResponse: { stdout: 'TOKEN-IN-OUTPUT' },
+      }),
     ).toBeUndefined();
+  });
+
+  test('a failed send and malformed payloads are not logged', () => {
     expect(
       map({
         hookEventName: 'PostToolUse',
@@ -150,6 +158,43 @@ describe('EventHook.map', () => {
     expect(map(null)).toBeUndefined();
     expect(map('Stop')).toBeUndefined();
     expect(map([])).toBeUndefined();
+  });
+});
+
+describe('EventHook.run: what is no longer logged', () => {
+  const env = { VULCAN_ACTOR: 'pnt-vulcan-1' };
+
+  test('a turn that ends and a tool that is used write no line, no stamp and no folder, with the log on', () => {
+    const root = project({ events: { log: true } });
+
+    for (const input of [
+      wire({ hookEventName: 'Stop', sessionId: SESSION }),
+      wire({ hookEventName: 'PostToolUse', toolName: 'Bash', sessionId: SESSION }),
+      wire({ hookEventName: 'PostToolUse', toolName: 'Read', sessionId: SESSION }),
+    ]) {
+      expect(
+        EventHook.run({ root, input, env, now: Date.parse('2026-11-03T09:00:00Z') }),
+      ).toBeUndefined();
+    }
+
+    expect(existsSync(join(root, '.agents/local'))).toBe(false);
+  });
+
+  test('a SendMessage is still a msg-sent line', () => {
+    const root = project({ events: { log: true } });
+    const sent = EventHook.run({
+      root,
+      input: wire({
+        hookEventName: 'PostToolUse',
+        toolName: 'SendMessage',
+        sessionId: SESSION,
+        toolInput: { to: 'x', summary: 'hi', message: 'm' },
+      }),
+      env,
+      now: Date.parse('2026-11-03T09:00:05Z'),
+    });
+
+    expect(sent).toMatchObject({ kind: 'msg-sent' });
   });
 });
 
@@ -230,7 +275,7 @@ describe('EventHook.run', () => {
     const shared = createProject({ files: {} });
     const root = project({ events: { log: true, dir: shared } });
 
-    EventHook.run({ root, input: wire({ hookEventName: 'Stop' }), env });
+    EventHook.run({ root, input: wire({ hookEventName: 'SessionStart' }), env });
 
     expect(eventsOf({ dir: shared })).toHaveLength(1);
     expect(existsSync(join(root, '.agents/local/events'))).toBe(false);
@@ -247,7 +292,7 @@ describe('EventHook.run', () => {
     ];
     const inputs = [
       {
-        hookEventName: 'Stop',
+        hookEventName: 'SessionStart',
         lastAssistantMessage: secrets[1],
         transcriptPath: secrets[3],
         cwd: root,
@@ -309,7 +354,7 @@ describe('the hook script', () => {
     const root = project({ events: { log: true } });
     const result = run({
       root,
-      input: JSON.stringify(wire({ hookEventName: 'Stop', sessionId: SESSION, cwd: root })),
+      input: JSON.stringify(wire({ hookEventName: 'SessionStart', sessionId: SESSION, cwd: root })),
     });
 
     expect(result.exitCode).toBe(0);
@@ -328,7 +373,7 @@ describe('the hook script', () => {
     const blocked = project({ events: { log: true, dir: '/proc/vulcan-no-such/events' } });
     const unwritable = run({
       root: blocked,
-      input: JSON.stringify(wire({ hookEventName: 'Stop' })),
+      input: JSON.stringify(wire({ hookEventName: 'SessionStart' })),
     });
 
     expect(unwritable.exitCode).toBe(0);
@@ -346,7 +391,9 @@ describe('the hook script', () => {
 
   test('is fast: the median of 20 runs stays far under a second even on a slow runner', () => {
     const root = project({ events: { log: true } });
-    const input = JSON.stringify(wire({ hookEventName: 'Stop', sessionId: SESSION, cwd: root }));
+    const input = JSON.stringify(
+      wire({ hookEventName: 'SessionStart', sessionId: SESSION, cwd: root }),
+    );
     const times: number[] = [];
 
     for (let index = 0; index < 20; index++) {
@@ -361,5 +408,58 @@ describe('the hook script', () => {
     // The target is 50 ms on a developer machine; the number is printed so a slow run can be read, not guessed.
     console.log(`event hook median ${times[10].toFixed(1)} ms, p95 ${times[18].toFixed(1)} ms`);
     expect(times[10]).toBeLessThan(500);
+  });
+});
+
+describe('EventHook.run: the notification type is kept, so a title does not hide where the line came from', () => {
+  test('a needs-owner line from the hook carries its notification type; one written by hand carries none', () => {
+    const root = createProject({
+      files: { '.agents/vulcan.manifest.json': JSON.stringify({ events: { log: true } }) },
+    });
+    const written = EventHook.run({
+      root,
+      input: wire({
+        hookEventName: 'Notification',
+        notificationType: 'permission_prompt',
+        title: 'Claude needs your permission to use Bash',
+        sessionId: 's1',
+      }),
+      env: { VULCAN_ACTOR: 'pnt-vulcan-1' },
+    });
+
+    expect(written).toMatchObject({
+      kind: 'needs-owner',
+      summary: 'Claude needs your permission to use Bash',
+      notification: 'permission_prompt',
+      source: 'claude-hook',
+    });
+    expect(
+      EventLog.build({ kind: 'needs-owner', summary: 'Which way?', actor: 'a', source: 'cli' }),
+    ).not.toHaveProperty('notification');
+  });
+
+  test('the field is a short enum: a value that is not a prompt type is not written and is dropped on read', () => {
+    const built = EventLog.build({
+      kind: 'needs-owner',
+      summary: 'x',
+      actor: 'a',
+      source: 'claude-hook',
+      notification: 'rm -rf /',
+    });
+
+    expect(built).not.toHaveProperty('notification');
+    expect(
+      EventLog.parse({
+        line: JSON.stringify({
+          ...EventLog.build({ kind: 'needs-owner', summary: 'x', actor: 'a', source: 'cli' }),
+          notification: 'rm -rf /',
+        }),
+      }),
+    ).not.toHaveProperty('notification');
+    expect(
+      EventLog.parse({ line: JSON.stringify({ ...built, notification: 'idle_prompt' }) })
+        ?.notification,
+    ).toBe('idle_prompt');
+    expect(EventLog.parse({ line: JSON.stringify({ ...built, notification: 7 }) })).toBeUndefined();
   });
 });

@@ -1,29 +1,7 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { GuardDecisions, PackageVerdictKinds, TrustStates } from './constants.ts';
+import type { GuardDecisions } from './constants.ts';
 
 export type TGuardDecision = TConstValue<typeof GuardDecisions>;
-export type TPackageVerdictKind = TConstValue<typeof PackageVerdictKinds>;
-type TTrustState = TConstValue<typeof TrustStates>;
-
-/** Whether a listed trusted script may skip the script checks, and if not, why - in words an ask can show. */
-export interface IScriptTrust {
-  state: TTrustState;
-  reason: string;
-}
-
-/** A script the project vouches for on some subcommands only: the first argument after the script is one of `readOnly`. */
-export interface IReadOnlyScript {
-  script: string;
-  readOnly: string[];
-}
-
-/** One `bun x.ts` call as the shell sees it: the script word and the word right after it, if any. */
-export interface IScriptInvocation {
-  script: string;
-  subcommand: string | undefined;
-  /** A `cd`, `pushd` or `popd` came before it in the line, so a relative script word is not from the hook's folder. */
-  moved: boolean;
-}
 
 export interface IWriteCheck {
   rule: string;
@@ -42,7 +20,7 @@ export interface IHookCommand {
   cwd: string | undefined;
 }
 
-/** What the manifest guard reads of any tool call: the tool, the file it names, or the Bash command. */
+/** What a guard reads of any tool call: the tool, the file it names, or the Bash command. */
 export interface IManifestHookInput {
   tool: string;
   filePath: string | undefined;
@@ -55,6 +33,11 @@ export interface IGitHit {
   decision: TGuardDecision;
   rule: string;
   message: string;
+  /**
+   * What the agent does to get past a `deny` by itself (name the files, pass the base, write a literal path). A denial with
+   * a `fix` is the agent's to repair and is never handed to a person; one without it needs the owner.
+   */
+  fix?: string;
 }
 
 /** Runs a read-only `git` or `gh` query for a guard; `undefined` when it cannot answer. */
@@ -70,4 +53,10 @@ export interface IOutsideHit {
   message: string;
   /** Whether the path is under the scratchpad folder an agent tool offers: the hook denies it, it does not ask. */
   isAgentToolScratchpad: boolean;
+  /** Whether the check could not read the line or the target, so it does not know that anything is outside: the hook asks, even where the project denies. */
+  isUnread: boolean;
+  /** Whether the path is what an `ln` of the line links to: a write through the link changes it, so the hook denies and says how to link a path inside. */
+  isLink?: boolean;
+  /** Whether the path is one of the files the guards read their policy from: the hook denies a write to it, whatever the project sets. */
+  isProtected?: boolean;
 }

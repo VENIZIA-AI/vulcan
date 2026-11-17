@@ -1,3 +1,6 @@
+import { EnvVariables } from './env-variables.ts';
+
+/** The names of the `vulcan` subcommands, shared by the router, the command registry and the help output. */
 export class VulcanCommands {
   static readonly INIT = 'init';
   static readonly ADD = 'add';
@@ -10,9 +13,11 @@ export class VulcanCommands {
   static readonly PRESET = 'preset';
   static readonly VISUALIZE = 'visualize';
   static readonly COMMIT_CHECK = 'commit-check';
-  static readonly CI = 'ci';
   static readonly BOARD = 'board';
   static readonly EVENT = 'event';
+  static readonly CHANGELOG = 'changelog';
+  static readonly RUNNERS = 'runners';
+  static readonly MIGRATE = 'migrate';
   static readonly X = 'x';
   static readonly HELP = 'help';
   static readonly VERSION = 'version';
@@ -23,7 +28,7 @@ export class UpgradeFlags {
   static readonly STABLE = '--stable';
   static readonly NIGHTLY = '--nightly';
   /** Tests only: a JSON object of dist-tags that stands in for the registry read. */
-  static readonly DIST_TAGS_ENV = 'VULCAN_DIST_TAGS';
+  static readonly DIST_TAGS_ENV = EnvVariables.VULCAN_DIST_TAGS;
 }
 
 export class ExitCodes {
@@ -45,15 +50,17 @@ export class VulcanTools {
 
 /** What a VULCAN project carries; shared by `init`, which writes it, and `doctor`, which checks it. */
 export class ProjectLayout {
-  /** How everything unattended runs vulcan: `--no-install` never fetches the unrelated npm package named `vulcan`. */
-  static readonly VULCAN_COMMAND = 'bun x --no-install vulcan';
+  /** How everything unattended runs vulcan: the linked bin of this project, never a package fetched by the name `vulcan` (V-S-08). */
+  static readonly VULCAN_COMMAND = 'bun node_modules/.bin/vulcan';
 
   /** `vulcan x` hands the resolved project config to the tool in these variables; the tools read nothing else. */
-  static readonly CONFIG_ENV = 'VULCAN_CONFIG';
-  static readonly ROOT_ENV = 'VULCAN_PROJECT_ROOT';
+  static readonly CONFIG_ENV = EnvVariables.VULCAN_CONFIG;
+  static readonly ROOT_ENV = EnvVariables.VULCAN_PROJECT_ROOT;
   /** `-include`: a fresh clone runs `make install` before node_modules exists. */
   static readonly MAKE_INCLUDE_LINE = '-include node_modules/@venizia/vulcan/base/make/vulcan.mk';
   static readonly STYLE_PACKAGE = '@venizia/dev-configs';
+  /** The one list of secret files, for `.gitignore` and for `.dockerignore`: the `.env` files stay out of git and out of every image, the example stays in. */
+  static readonly SECRET_PATTERNS = ['**/.env', '**/.env.*', '!**/.env.example'];
   static readonly GITIGNORE_ENTRIES = [
     'CLAUDE.md',
     'CLAUDE.*.md',
@@ -61,6 +68,7 @@ export class ProjectLayout {
     '.agents/plans',
     '.agents/vulcan.local.json',
     '.agents/local/',
+    ...ProjectLayout.SECRET_PATTERNS,
   ];
   /** Everything an agent creates while it works lives under here, gitignored: nothing goes outside the project. */
   static readonly LOCAL_DIRECTORY = '.agents/local';
@@ -78,6 +86,8 @@ export class ProjectLayout {
     { name: 'reports', lifetime: 'kept', removedWhen: 'the user deletes it' },
     { name: 'prototypes', lifetime: 'kept', removedWhen: 'the user deletes it' },
     // On demand: sync does not create these; the folder appears when something writes there.
+    // `agents/<name>/` is the home of one agent's own state; `clean` never takes it.
+    { name: 'agents', lifetime: 'kept', removedWhen: 'the user deletes it', onDemand: true },
     { name: 'events', lifetime: 'kept', removedWhen: 'the user deletes it', onDemand: true },
     {
       name: 'release-candidates',

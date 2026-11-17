@@ -52,7 +52,7 @@ Done when you can say the question in one sentence and name the kind.
 ## 2. Write the spec
 
 Put it in `.agents/local/tmp/<name>.json`. The fields, their limits and a worked spec are in
-[references/spec.md](references/spec.md); `bun x --no-install vulcan visualize --schema` prints the schema.
+[references/spec.md](references/spec.md); `bun node_modules/.bin/vulcan visualize --schema` (from the project root) prints the schema.
 The rules that make a page worth opening:
 
 - **The title states the takeaway**, not the topic: "The form saves only inside the project", not "Profile
@@ -78,7 +78,7 @@ The rules that make a page worth opening:
   Vietnamese words are bundled; `language` in the spec overrides it). For any other language, translate the
   words you need into `chrome` (every key is optional); never invent a label set the owner did not give.
 - **The colour is the project's, not yours**: leave `accent` out. The page uses the project's `theme` (config key,
-  written into the manifest by `vulcan sync`), else a neutral slate. Give `accent` (and `accentDark`, `accentText`)
+  written into the manifest by `vulcan sync`), else the `venizia` preset. Give `accent` (and `accentDark`, `accentText`)
   only when you draw a page about another project from outside it. A colour that fails the contrast checks is
   refused, never swapped; state colours (done, waiting, blocked) are fixed and always carry an icon and a word.
 - **Say where a claim comes from.** A box or step that states how the code works carries a `source`
@@ -92,7 +92,7 @@ Done when each arrow has a verb and each evidence row has a label you can defend
 ## 3. Render
 
 ```
-bun x --no-install vulcan visualize .agents/local/tmp/<name>.json --out <name>
+bun node_modules/.bin/vulcan visualize .agents/local/tmp/<name>.json --out <name>
 ```
 
 It validates the spec (shape, limits, unique ids, every arrow and step pointing at a box, one box per cell),

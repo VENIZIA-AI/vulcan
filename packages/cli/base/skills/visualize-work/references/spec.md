@@ -1,7 +1,7 @@
 # The spec of a page
 
 One JSON file. It is strict: an unknown key is an error, and every text is a plain line that is escaped,
-never markup. `bun x --no-install vulcan visualize --schema` prints the full JSON Schema.
+never markup. `bun node_modules/.bin/vulcan visualize --schema` prints the full JSON Schema.
 
 **Contents**: [The kinds](#the-kinds) · [Fields](#fields) · [The other kinds](#the-other-kinds) · [Limits](#limits) · [Two worked specs](#two-worked-specs)
 
@@ -9,7 +9,7 @@ never markup. `bun x --no-install vulcan visualize --schema` prints the full JSO
 
 A page is the sections its spec has, in a fixed order: the banner (title, verdict, state), the tiles, the minimap,
 what you need to do and what blocks it, then the flow (drawn in the top slab, under the verdict, when there is
-one), the architecture, the compare view, the sequence, the lifecycle, the tree, the comparison, the idea map, the explainer, the timeline, the findings, the before and after, the decision record, the decisions, the evidence,
+one), the architecture, the compare view, the sequence, the lifecycle, the tree, the comparison, the idea map, the explainer, the timeline, the findings, the grades, the metrics, the before and after, the decision record, the decisions, the evidence,
 the risks, the log, the words of the page (`terms`), the sources and the links. Pick the sections the question needs and leave the rest out:
 
 | The page is | Use |
@@ -39,10 +39,11 @@ Space, Home, End and Escape, one section per slide; print gives one section afte
 | `schemaVersion` | `1` |
 | `title` | The takeaway, at most 120 characters |
 | `language` | A language code (`en`, `pt-BR`); default: the reply language of the owner's profile, else `en`. The page's own words are bundled for `en` and `vi` (a regional code such as `vi-VN` picks `vi`); any other language takes its words from `chrome` |
-| `accent`, `accentDark`, `accentText` | Optional six-digit hex colours that override the project's page colour (the `theme` config key, written into the manifest by `vulcan sync`; without one, a neutral slate). Give them only for a page about another project. A colour that fails the contrast checks (text 4.5:1, marks 3:1) is refused, never swapped; with no `accentDark` it is derived by mixing toward white |
+| `accent`, `accentDark`, `accentText` | Optional six-digit hex colours that override the project's page colour (the `theme` config key, written into the manifest by `vulcan sync`; without one, the `venizia` preset). Give them only for a page about another project. A colour that fails the contrast checks (text 4.5:1, marks 3:1) is refused, never swapped; with no `accentDark` it is derived by mixing toward white |
 | `status` | `{ state: ok \| warn \| blocked \| info, label? }`; the banner's colour, icon and word |
 | `asOf`, `scope` | An ISO date, and a sentence on what the page covers |
 | `verdict`, `caption` | One sentence the reader can stop at; one line under it |
+| `titleMuted` | The second half of the headline, shown muted after the `title` |
 | `strip` | Four sentences: `healthy`, `blockedBy`, `changed`, `next`; `next` (what the owner has to do) and `blockedBy` open the page, in a card of their own |
 | `actions` | One to six steps, shown as a numbered checklist under `strip.next` |
 | `tiles` | One to six `{ value, label, state? }` key numbers; with a `minimap` and no tiles, the page counts the states itself |
@@ -76,6 +77,8 @@ minimap words, or `info`) adds a colour, an icon and a word, so the figure can s
 | `tree` | `root`, a node `{ id, label, sublabel?, state?, children? }` nested up to four levels below the root, at most 25 nodes in all; optional `caption` |
 | `timeline` | 2 to 20 `items` of `{ date, title, text?, state? }` |
 | `findings` | `numbers` (`{ value, label, state? }`), `charts`, `callouts` (`{ text, state? }`) |
+| `grades` | 1 to 12 of `{ label, grade, note? }`, `grade` one of `A`, `B`, `C`; a chip that always shows its letter |
+| `metrics` | 1 to 6 cards of `{ value, of?, label, note?, parts }`; `parts` are 2 to 6 of `{ label, value, tone? }` (`tone` one of `ok`, `warn`, `bad`, `info`), drawn as one bar split in proportion to the values |
 | `decisionRecord` | `context`, 2 to 5 `options` of `{ name, summary, chosen? }`, the `decision`, `consequences` |
 
 A chart is `{ type: "bar", title, unit?, labels, values }` (values from zero up, one per label), `{ type: "line", title,

@@ -1,25 +1,34 @@
 import { spawnSync } from 'node:child_process';
+import { AtlasGit } from '@/common/constants';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { relative } from 'node:path';
 import { AtlasConstants } from '@/common';
 import { RepositoryRoots } from '@/corpus';
 import { RpcError, Transport } from '@/protocol';
 import type { IToolHandler } from '@/protocol/common';
-import { ReleaseCompute, ReleaseStore } from '@/releases';
+import { ReleaseCompute } from '@/releases';
+import type { ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
-import { InstalledPackages } from '@/sources/installed';
 import { SourceResolver } from '@/sources/resolver';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
 import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
 import { SymbolCompute, SymbolStore } from '@/symbols';
-import type { ISymbolRecord } from '@/symbols';
-import { ChangesTool, GetTool, PresetsTool, SearchTool, SymbolTool, VersionTool } from '@/tools';
+import {
+  ChangesTool,
+  GetTool,
+  MigrateTool,
+  PresetsTool,
+  SearchTool,
+  SymbolTool,
+  VersionTool,
+} from '@/tools';
 import { SkillCatalog } from '@/skills';
 import { FreshnessGuard } from './freshness';
 import { ServerGuidance } from './guidance';
 import { SourceBoot } from './boot';
 import { SourceNotice } from './notice';
 import { Refresher } from './refresh';
+import { RemoteSymbols } from './remote-symbols';
+import { ServedReleases } from './served-releases';
 import type { IRefreshTarget } from './refresh';
 
 const packageMapOf = (opts: { source: IResolvedSource }) =>
@@ -28,59 +37,6 @@ const packageMapOf = (opts: { source: IResolvedSource }) =>
     name: entry.name,
     aliases: entry.aliases,
   }));
-
-/**
- * A remote source's symbols, D2: what the consumer installed of each package - the exact version it
- * runs - else the newest release npm published, which the pull cached.
- */
-const remoteSymbolsOf = (opts: {
-  source: IResolvedSource;
-  cwd: string;
-  releases: ReleaseStore;
-}): ISymbolRecord[] => {
-  const { cacheBase } = opts.source;
-
-  if (cacheBase === undefined) {
-    throw new Error(`atlas: remote source '${opts.source.name}' was resolved without a cache base`);
-  }
-
-  return opts.source.project.packages
-    .filter((entry) => !entry.retired)
-    .flatMap((entry) => {
-      const [installed] = InstalledPackages.installedDirectoriesOf({
-        roots: InstalledPackages.installRootsOf({ cwd: opts.cwd }),
-        name: entry.name,
-      });
-
-      if (installed !== undefined) {
-        return SymbolCompute.symbolsOfInstalled({ directory: installed, cacheBase });
-      }
-
-      const version = opts.releases.newestOf({ package: entry.name })?.version;
-
-      return version === undefined
-        ? []
-        : (SymbolCompute.cached({ name: entry.name, version, cacheBase }) ?? []);
-    });
-};
-
-/** D1: a source fetched without git has no history; anything else has none of the tags it declares. */
-const emptyReleasesReasonOf = (opts: { source: IResolvedSource }): string =>
-  opts.source.history === false
-    ? `no release history: ${opts.source.name} was fetched without git`
-    : `no releases: no tag matches ${opts.source.project.tagPattern} in this ref's history`;
-
-const CHANGELOG_LAYOUT =
-  'atlas reads files named YYYY-MM-DD-<slug>.md from it, each with `packages: [<npm name>, ...]` frontmatter';
-
-/** Where a date window looked for dated entries - the directory the manifest declares, or that it declares none. */
-const noEntriesReasonOf = (opts: { source: IResolvedSource }): string => {
-  const { root, knowledge } = opts.source.project;
-
-  return knowledge.changelogs === undefined
-    ? `no dated changelog entries: the manifest declares no changelog directory - set knowledge.changelogs; ${CHANGELOG_LAYOUT}`
-    : `no dated changelog entries in ${relative(root, knowledge.changelogs)} - ${CHANGELOG_LAYOUT}`;
-};
 
 const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   const { source } = opts;
@@ -94,14 +50,13 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
     return {
       name: source.name,
       chunks: () => guard.getStore(),
-      releases: new ReleaseStore({
+      releases: ServedReleases.storeOf({
+        source,
         table: ReleaseCompute.compute({ project: source.project }),
-        emptyReason: emptyReleasesReasonOf({ source }),
-        noEntriesReason: noEntriesReasonOf({ source }),
       }),
       symbols: new SymbolStore({
         load: () => ({
-          symbols: SymbolCompute.symbolsOfRepository({ project: source.project }),
+          symbols: SymbolCompute.symbolsOfRepository({ project: source.project, withSource: true }),
           packageMap,
         }),
         fingerprint: () => SymbolCompute.declarationsFingerprintOf({ project: source.project }),
@@ -110,20 +65,28 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
     };
   }
 
+  const { cacheBase } = source;
+
+  if (cacheBase === undefined) {
+    throw new Error(`atlas: remote source '${source.name}' was resolved without a cache base`);
+  }
+
   const index = new ChunkStore({ serialized: readFileSync(source.indexFile ?? '') });
-  const releases = new ReleaseStore({
+  const releases = ServedReleases.storeOf({
+    source,
     table: JSON.parse(readFileSync(source.releasesFile ?? '', 'utf8')),
-    emptyReason: emptyReleasesReasonOf({ source }),
-    noEntriesReason: noEntriesReasonOf({ source }),
   });
 
   return {
     name: source.name,
     chunks: () => index,
     releases,
-    symbols: new SymbolStore({
-      load: () => ({ symbols: remoteSymbolsOf({ ...opts, releases }), packageMap }),
-      emptyReason: 'none of its packages is installed here or on npm',
+    symbols: RemoteSymbols.storeOf({
+      project: source.project,
+      cwd: opts.cwd,
+      cacheBase,
+      releases,
+      packageMap,
     }),
   };
 };
@@ -167,7 +130,12 @@ const timeOf = (opts: { file?: string }): number =>
 /** HEAD and every tag of the project's own repository: what changes when a release lands. */
 const repositoryFingerprintOf = (opts: { root: string }): string => {
   const run = (args: string[]): string =>
-    spawnSync('git', args, { cwd: opts.root, encoding: 'utf8', timeout: 10_000 }).stdout ?? '';
+    spawnSync('git', args, {
+      cwd: opts.root,
+      encoding: 'utf8',
+      timeout: 10_000,
+      env: AtlasGit.buildEnvironment(),
+    }).stdout ?? '';
 
   return `${run(['rev-parse', '--verify', '--quiet', 'HEAD'])}${run(['for-each-ref', 'refs/tags', '--format=%(objectname) %(refname)'])}`;
 };
@@ -216,10 +184,9 @@ const repositoryTarget = (opts: { entry: TLiveEntry; source: IResolvedSource }):
       }
 
       opts.entry.replaceReleases(
-        new ReleaseStore({
+        ServedReleases.storeOf({
+          source: opts.source,
           table: ReleaseCompute.compute({ project: opts.source.project }),
-          emptyReason: emptyReleasesReasonOf({ source: opts.source }),
-          noEntriesReason: noEntriesReasonOf({ source: opts.source }),
         }),
       );
       seen = now;
@@ -371,6 +338,7 @@ export class SourcesServer {
         guarded(SymbolTool.build({ store: chunks, symbols, projects })),
         guarded(VersionTool.build({ releases, projects })),
         guarded(ChangesTool.build({ releases, projects })),
+        guarded(MigrateTool.build({ releases, projects })),
         PresetsTool.build({ project: project?.project, projects }),
       ],
       // A project names its server whatever sources ride with it: a name that moved with the network

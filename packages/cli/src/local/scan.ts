@@ -1,10 +1,11 @@
+import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
-import { CleanScopes, LocalConstants, LocalStates } from './constants.ts';
+import { CleanScopes, LocalConstants, LocalProtected, LocalStates } from './constants.ts';
 
 /** One thing under `.agents/local/`: a child of one of its directories, or the profile file. */
 export interface ILocalEntry {
@@ -446,13 +447,18 @@ export class LocalScan {
       : undefined;
     const isEventsOutside = !`${eventsDir}${sep}`.startsWith(`${local}${sep}`);
 
+    const homes: Record<string, string> = {
+      [CleanScopes.EVENTS]: eventsDir,
+      [CleanScopes.TMP]: ProjectTmp.projectOf({ root: opts.root }),
+    };
+
     for (const layout of ProjectLayout.LOCAL_LAYOUT) {
       if (!wants(layout.name)) {
         continue;
       }
 
       const isEvents = layout.name === CleanScopes.EVENTS;
-      const directory = isEvents ? eventsDir : join(local, layout.name);
+      const directory = homes[layout.name] ?? join(local, layout.name);
 
       if (!isRealDirectory({ path: directory })) {
         continue;
@@ -513,6 +519,13 @@ export class LocalScan {
               });
         } else if (staleAfter !== undefined && ageMs > staleAfter) {
           state = LocalStates.STALE;
+        }
+
+        const inUse = LocalProtected.noteOf({ scope: layout.name, name });
+
+        if (inUse !== undefined) {
+          // Not stale either: it is in use, and doctor must not tell anyone to clean what clean never takes.
+          ({ state, removable, note } = { state: LocalStates.OK, removable: false, note: inUse });
         }
 
         entries.push({
@@ -614,21 +627,39 @@ export class LocalScan {
    * symlink is not followed. A symlinked `.agents` or `.agents/local` makes it false for everything.
    */
   static isInside(opts: { root: string; path: string }): boolean {
-    const local = LocalScan.localRootOf({ root: opts.root });
-
-    if (local === undefined) {
-      return false;
-    }
-
+    const bases = [
+      LocalScan.localRootOf({ root: opts.root }),
+      LocalScan.tmpRootOf({ root: opts.root }),
+    ].filter((base): base is string => base !== undefined);
     const parent = resolve(opts.path, '..');
 
-    if (!existsSync(parent)) {
+    if (bases.length === 0 || !existsSync(parent)) {
       return false;
     }
 
     const target = join(realpathSync(parent), resolve(opts.path).split(sep).at(-1) ?? '');
 
-    return target.startsWith(`${local}${sep}`);
+    return bases.some((base) => target.startsWith(`${base}${sep}`));
+  }
+
+  /**
+   * The project's tmp folder as the disk has it, when it is a real folder (not a link) that sits inside the project, and
+   * `clean` may therefore remove from it; undefined when it is missing, a link, or leads out of the project.
+   */
+  static tmpRootOf(opts: { root: string }): string | undefined {
+    const folder = ProjectTmp.projectOf({ root: opts.root });
+
+    try {
+      if (!lstatSync(folder).isDirectory()) {
+        return undefined;
+      }
+
+      const real = realpathSync(folder);
+
+      return `${real}${sep}`.startsWith(`${realpathSync(opts.root)}${sep}`) ? real : undefined;
+    } catch {
+      return undefined;
+    }
   }
 }
 

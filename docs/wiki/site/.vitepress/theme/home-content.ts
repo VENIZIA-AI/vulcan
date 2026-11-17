@@ -9,7 +9,7 @@
 import pkg from '../../../../../packages/cli/package.json';
 import type { THomeContent, TSiteInfo } from './shared/home-types';
 
-export const COUNTS = { rules: 50, skills: 12, agents: 7, tools: 6 };
+export const COUNTS = { rules: 36, skills: 11, agents: 7, tools: 7 };
 
 export const SITE: TSiteInfo = {
   id: 'vulcan',
@@ -37,7 +37,7 @@ export const HOME: THomeContent = {
     'Guards are checked in Claude Code, omp, pi and Antigravity; Codex, Cursor and Copilot are not verified yet.',
   install: {
     label: 'Install',
-    lines: ['bun add -d --exact @venizia/vulcan', 'bun x --no-install vulcan init'],
+    lines: ['bun add -d --exact @venizia/vulcan', 'bun node_modules/.bin/vulcan init'],
   },
   cta: [
     ['Get started', '/guides/get-started/what-is-vulcan'],
@@ -46,7 +46,7 @@ export const HOME: THomeContent = {
   tabs: [
     {
       file: 'an agent pushes',
-      kind: 'term',
+      type: 'term',
       body: [
         ['cmd', 'git push --force origin main'],
         ['c', '# guard-git, a PreToolUse hook, answers before git runs'],
@@ -63,34 +63,30 @@ export const HOME: THomeContent = {
     },
     {
       file: '.configs/vulcan.config.mts',
-      kind: 'code',
+      type: 'code',
       body: `import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
   agents: ['claude', 'omp'],
   rules: { 'V-W-01': 'on-user-word' },
-  remoteHosts: {
-    trusted: ['lab1'],
-    readOnly: ['prod1'],
-  },
   guard: {
-    writes: { trustedScripts: ['tools/i18n/cli.ts'] },
+    outside: 'deny',
   },
 } satisfies VulcanConfig;`,
       note: 'The config of a project. <a href="/references/configuration/">Every key is in the reference.</a>',
     },
     {
       file: 'vulcan sync',
-      kind: 'term',
+      type: 'term',
       body: [
-        ['cmd', 'bun x --no-install vulcan sync --agents claude'],
+        ['cmd', 'bun node_modules/.bin/vulcan sync --agents claude'],
         ['ok', '  created   CLAUDE.md'],
         [
           'ok',
           '  created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)',
         ],
         ['ok', '  created   .claude/skills/build-a-feature'],
-        ['c', '  ... 11 more skills'],
+        ['c', '  ... 10 more skills'],
         ['gap', ''],
         ['ok', '  created   .mcp.json'],
         ['ok', '  created   .agents/vulcan.manifest.json'],
@@ -183,7 +179,7 @@ export default {
       title: 'Init',
       text: 'Writes the project layer: rules, knowledge index, config, Makefile. It never overwrites.',
       lines: [
-        ['cmd', 'bun x --no-install vulcan init'],
+        ['cmd', 'bun node_modules/.bin/vulcan init'],
         ['ok', '  created  AGENTS.md'],
         ['ok', '  created  .agents/rules.md'],
         ['ok', '  created  .configs/vulcan.config.mts'],
@@ -194,7 +190,7 @@ export default {
       title: 'Sync',
       text: 'Writes what your agents read: adapters, skills, hooks, the atlas entry, the manifest.',
       lines: [
-        ['cmd', 'bun x --no-install vulcan sync'],
+        ['cmd', 'bun node_modules/.bin/vulcan sync'],
         ['ok', '  created   .claude/settings.json'],
         ['ok', '  created   .mcp.json'],
         ['ok', '  created   .agents/vulcan.manifest.json'],
@@ -205,7 +201,7 @@ export default {
       title: 'Doctor',
       text: 'Checks the result. Exit code 1 on any violation, so it also runs in CI.',
       lines: [
-        ['cmd', 'bun x --no-install vulcan doctor'],
+        ['cmd', 'bun node_modules/.bin/vulcan doctor'],
         ['ok', 'vulcan doctor: OK'],
       ],
     },

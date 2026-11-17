@@ -1,0 +1,1 @@
+f="${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/@@HOOK@@.ts"; if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then bun "$f" || echo "vulcan: the @@HOOK@@ hook failed - the call passes" >&2; exit 0; fi; echo "vulcan: the @@HOOK@@ hook cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes" >&2; exit 0

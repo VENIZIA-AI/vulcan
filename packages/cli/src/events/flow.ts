@@ -4,24 +4,24 @@ import { EventConstants } from './common/index.ts';
 
 const GITDIR_LINE = /^gitdir:\s*(.+)$/m;
 const HEAD_REF = /^ref:\s*refs\/heads\/(.+?)\s*$/m;
-const BRANCH_FLOW = /(?:^|\/)(F-\d+)(?=-|\/|$)/;
+const BRANCH_FLOW = new RegExp(`(?:^|/)(${EventConstants.FLOW_ID})(?=-|/|$)`);
 /** Enough parents for a deep folder inside a project; the walk stops at the filesystem root anyway. */
 const MAX_PARENTS = 40;
 
-/** The flow a line of the log belongs to: `F-n`, from the writer, the first line of a message or the branch. */
+/** The flow a line of the log belongs to: `VULZ-<key>-<number>` (or the older `F-<number>`), from the writer, the first line of a message or the branch. */
 export class EventFlow {
   static isValid(opts: { flow: string }): boolean {
     return EventConstants.FLOW_EXACT.test(opts.flow);
   }
 
-  /** `Flow: F-n` in the first line of `text`. */
+  /** `Flow: <id>` in the first line of `text`. */
   static fromText(opts: { text: string }): string | undefined {
     const first = opts.text.split(/\r\n|\r|\n/).find((line) => line.trim() !== '') ?? '';
 
     return EventConstants.FLOW_LINE.exec(first)?.[1];
   }
 
-  /** `F-n` as a whole segment of a branch name: `feature/F-12-events-log`. */
+  /** A flow id as a whole segment of a branch name: `feature/VULZ-ACME-12-events-log`. */
   static fromBranchName(opts: { branch: string }): string | undefined {
     return BRANCH_FLOW.exec(opts.branch)?.[1];
   }

@@ -1,4 +1,4 @@
-import { ShellParser } from './shell.ts';
+import { ShellParser, ShellPrograms } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 
 /** Programs that only read or print what they are given: their arguments are text to find or show, never a command to run. */
@@ -40,15 +40,18 @@ const GH_REQUESTS = new Set(['api', 'secret', 'variable']);
 const GH_REPOSITORY_FLAGS = new Set(['-R', '--repo']);
 
 /** `find` runs a command only with these; without them it only lists. */
-const FIND_RUNS = new Set(['-exec', '-execdir', '-ok', '-okdir', '-delete']);
+const FIND_RUNS = new Set([...ShellPrograms.FIND_RUN_OPTIONS, '-delete']);
 
 /** Programs that read their heredoc as a query or a script: the body is part of what they run. */
 const HEREDOC_READERS = new Set([
   'ssh',
   'psql',
   'mysql',
+  'mariadb',
   'mongosh',
+  'mongo',
   'sqlite3',
+  'redis-cli',
   'python',
   'python3',
   'node',
@@ -59,9 +62,39 @@ const HEREDOC_READERS = new Set([
   'php',
 ]);
 
-/** A pipe into a program that runs what it is fed: `echo "kubectl apply -f x" | sh`. */
-const PIPED_INTO_RUNNER =
-  /\|\s*(?:sudo\s+)?(?:sh|bash|zsh|dash|psql|mysql|mongosh|sqlite3|python3?|node|bun|ssh)\b/;
+/** Programs that run what a pipe feeds them: `echo "kubectl apply -f x" | sh`. */
+const PIPE_RUNNERS = new Set([
+  ...ShellPrograms.SHELL_NAMES,
+  'psql',
+  'mysql',
+  'mariadb',
+  'mongosh',
+  'mongo',
+  'sqlite3',
+  'python',
+  'python3',
+  'node',
+  'bun',
+  'ssh',
+]);
+
+/** What a command line runs, for a guard that must not let an unread part through. */
+export interface ICommandView {
+  /** One text per simple command, as `CommandView.commandTextsOf` gives them. */
+  texts: string[];
+  /** The simple command behind each of `texts`; `undefined` for a whole line that pipes into a runner. */
+  sources: (ISimpleCommand | undefined)[];
+  /** The simple commands whose arguments are not data, a reader's heredoc body still on them. */
+  commands: ISimpleCommand[];
+  /** Every simple command of the line, data too, in the parser's order. */
+  parsed: ISimpleCommand[];
+  /** Part of the line was not read: the guard asks. */
+  isOverBudget: boolean;
+  /** Part of the line could not be followed to its end: the guard asks. */
+  isUncertain: boolean;
+  /** A command's program is a variable or a substitution: the guard asks. */
+  hasUnknownProgram: boolean;
+}
 
 /** Whether a `gh` command is a request: its subcommand (the first word that is not an option or an option's value) is one of `GH_REQUESTS`. */
 const isGhRequest = (opts: { command: ISimpleCommand }): boolean => {
@@ -75,25 +108,24 @@ const isGhRequest = (opts: { command: ISimpleCommand }): boolean => {
 };
 
 export class CommandView {
-  /** The texts of the simple commands: the words, a bare name for data, a reader's heredoc body appended. */
-  private static textsOf(opts: { command: string; withMessages: boolean }): string[] {
-    return ShellParser.parse({ command: opts.command }).map((command) => {
-      const name = ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name });
+  /** The text of one simple command: the words, a bare name for data, a reader's heredoc body appended. */
+  private static textOf(opts: { command: ISimpleCommand; withMessages: boolean }): string {
+    const { command } = opts;
+    const name = ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name });
 
-      if (CommandView.isDataOnly({ command, withMessages: opts.withMessages })) {
-        return name;
-      }
+    if (CommandView.isDataOnly({ command, withMessages: opts.withMessages })) {
+      return name;
+    }
 
-      const body =
-        command.heredoc !== undefined && HEREDOC_READERS.has(name) ? `\n${command.heredoc}` : '';
+    const body =
+      command.heredoc !== undefined && HEREDOC_READERS.has(name) ? `\n${command.heredoc}` : '';
 
-      return `${command.words.join(' ')}${body}`;
-    });
+    return `${command.words.join(' ')}${body}`;
   }
 
   /**
    * Whether the arguments of a command are data. `withMessages` adds `git` and `gh` (their arguments are
-   * messages to the write guards, but a `git` remote is a host to the remote-host guard).
+   * messages to the write guards).
    */
   static isDataOnly(opts: { command: ISimpleCommand; withMessages: boolean }): boolean {
     const name = ShellParser.basenameOf({
@@ -119,8 +151,37 @@ export class CommandView {
    * that runs its input (`echo "kubectl apply -f x" | sh`) stands as one text, because what it prints is code.
    */
   static commandTextsOf(opts: { command: string; withMessages: boolean }): string[] {
-    const { text } = ShellParser.splitHeredocs({ command: opts.command });
+    return CommandView.viewOf(opts).texts;
+  }
 
-    return PIPED_INTO_RUNNER.test(text) ? [text] : CommandView.textsOf(opts);
+  /** `commandTextsOf`, with the commands behind the texts and whether all of the line was read. */
+  static viewOf(opts: { command: string; withMessages: boolean }): ICommandView {
+    const { text } = ShellParser.splitHeredocs({ command: opts.command });
+    const parsed = ShellParser.parseChecked({ command: opts.command });
+    const commands = parsed.commands.filter(
+      (command) => !CommandView.isDataOnly({ command, withMessages: opts.withMessages }),
+    );
+    // Read from the commands, not the text, so a `| sh` in a comment or in quotes feeds nothing.
+    const isWholeLine = parsed.commands.some(
+      (command) =>
+        command.input?.pipedFrom !== undefined &&
+        PIPE_RUNNERS.has(ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name })),
+    );
+    const texts = isWholeLine
+      ? [text]
+      : parsed.commands.map((command) =>
+          CommandView.textOf({ command, withMessages: opts.withMessages }),
+        );
+    const sources = isWholeLine ? [undefined] : parsed.commands;
+
+    return {
+      texts,
+      sources,
+      commands,
+      parsed: parsed.commands,
+      isOverBudget: parsed.isOverBudget,
+      isUncertain: parsed.isUncertain,
+      hasUnknownProgram: parsed.hasUnknownProgram,
+    };
   }
 }

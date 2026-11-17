@@ -16,7 +16,7 @@ git clone https://github.com/VENIZIA-AI/vulcan.git
 git clone https://github.com/VENIZIA-AI/ignis.git   # a sibling: atlas packages IGNIS content
 cd vulcan
 make install
-bun x --no-install vulcan sync
+bun node_modules/.bin/vulcan sync
 ```
 
 Bun only - never npm, yarn or pnpm (B-01).
@@ -52,8 +52,8 @@ make test              # every package, then the root scripts
 make catalog-check     # catalogued dependencies stay catalog:
 make docs wiki-links-check wiki-anchors-check   # the wiki builds, its source links and #fragments resolve
 make smoke-cli         # the packed tarballs, installed alone in an empty project
-bun x --no-install vulcan doctor
-bun x --no-install vulcan x okf check
+bun node_modules/.bin/vulcan doctor
+bun node_modules/.bin/vulcan x okf check
 ```
 
 4. Commit with a one-line message, `[#N] type(scope): subject`, and no agent signature (W-00).
@@ -62,7 +62,7 @@ bun x --no-install vulcan x okf check
 
 ## Code
 
-The code follows the base coding style, `V-C-01` to `V-C-19` in
+The code follows the base coding style, `V-C-*` in
 [`packages/cli/base/rules.md`](packages/cli/base/rules.md): options objects, full-word names, const
 classes for enumerable strings, scope folders with barrels, no casts, comments only for a constraint
 the code cannot show. `make lint-all` checks what a linter can.

@@ -1,7 +1,6 @@
 /**
  * The folders a project keeps its apps and shared packages in: the `layout` of the config and of the
- * manifest. One validator for the schema, `add`, `doctor` and `guard-package`, so none of them trusts
- * another. It imports nothing: `guard-package` is a hook that must run when everything else is broken.
+ * manifest. One validator for the schema, `add` and `doctor`, so none of them trusts another.
  */
 
 /** A folder, or a list of folders, as the layout holds it; a string stays valid. */
@@ -11,12 +10,12 @@ export interface ILayout {
   backend?: TLayoutValue;
   frontend?: TLayoutValue;
   shared?: TLayoutValue;
-  /** Folders the layout deliberately does not manage: packages there are not app targets and are not guarded. */
+  /** Folders the layout deliberately does not manage: packages there are not app targets. */
   other?: TLayoutValue;
 }
 
 class LayoutFolderLimits {
-  /** `auroras/apps` is two segments. */
+  /** `frontends/apps` is two segments. */
   static readonly MAX_SEGMENTS = 4;
   /** One segment of a layout folder: lower case letters, digits and hyphens, starting with a letter or digit. */
   static readonly SEGMENT_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
@@ -29,7 +28,7 @@ export class LayoutKeys {
   static readonly FRONTEND = 'frontend';
   static readonly SHARED = 'shared';
   static readonly OTHER = 'other';
-  /** The keys `add` can target and `guard-package` guards. */
+  /** The keys `add` can target. */
   static readonly MANAGED = [this.BACKEND, this.FRONTEND, this.SHARED] as const;
   static readonly ALL = [...this.MANAGED, this.OTHER] as const;
 }

@@ -1,6 +1,6 @@
 ---
 name: docs-update
-description: Updates the project's human-facing docs after a code change - the page that owns the topic or a new page, the changelog entry, then the docs gates. Use when asked to update the wiki or docs, document a change or feature, or keep docs in step with the code.
+description: Updates the project's human-facing docs after a code change - the page that owns the topic or a new page, the changelog entry, then the docs gates. Use when asked to update the wiki or docs, document a change or feature, or keep docs in step with the code, or to sync, refresh or audit the knowledge bundle against the code.
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 ---
@@ -41,7 +41,7 @@ Copy it into your reply and tick it off, in order:
 
 ## 1. Paths
 
-1. `bun x --no-install vulcan doctor` passes, so the manifest is fresh. Fix what it names first.
+1. `bun node_modules/.bin/vulcan doctor` passes (run it from the project root), so the manifest is fresh. Fix what it names first.
 2. Read `.agents/vulcan.manifest.json`. Every path comes from it, never from a layout you expect:
 
 | Key | What it gives you |
@@ -100,8 +100,8 @@ and says so.
 
 ## 6. Gates - validate, fix, repeat
 
-1. `bun x --no-install vulcan doctor`
-2. `bun x --no-install vulcan x okf check --strict` - the bundle, the house rules, every changelog
+1. `bun node_modules/.bin/vulcan doctor`
+2. `bun node_modules/.bin/vulcan x okf check --strict` - the bundle, the house rules, every changelog
    entry's `packages:` list.
 3. The project's own docs build, when it has one. Discover it, never assume a target name: the
    targets `.agents/rules.md` names, `make help`, the Makefile and its `*.mk` files (`grep -n '<the
@@ -113,7 +113,18 @@ Stop only when all of them pass. Never weaken a gate to make it pass.
 
 ## 7. Report
 
-A fact an agent reads changed too? Update its concept in the knowledge bundle in the same change; a
-full re-audit is the `knowledge-sync` skill's job. Report in the user's language: the pages changed
-and created, the changelog entry and its `packages:` list, each gate with its result, anything
-skipped and why. **Do not commit.** Leave the diff for the user.
+A fact an agent reads changed too? Update its concept in the knowledge bundle in the same change.
+Report in the user's language: the pages changed and created, the changelog entry and its `packages:`
+list, each gate with its result, anything skipped and why. **Do not commit.** Leave the diff for the user.
+
+## Auditing the bundle
+
+Asked to sync, refresh or audit the knowledge bundle - after a refactor, before a release, or when a
+concept may be stale - not once per change. Run `vulcan x okf gen` first (the generated layer heals
+itself). Then list the code that changed since the last commit that touched the bundle:
+`LAST=$(git log -1 --format=%H -- <knowledge.bundle>)`, then
+`git log $LAST..HEAD --no-merges --name-only --format= -- <the packages' paths>` (no such commit yet:
+every concept). Re-read each concept whose code changed and fix it from the code, never from docs,
+`AGENTS.md` or memory; every finding cites a `file:line`. A gap with no home gets a concept copied from
+two or three siblings and linked from `index.md`. Then run the gates of step 6 and
+`vulcan x okf coverage --min 100`, and report each correction as was -> is with its witness.

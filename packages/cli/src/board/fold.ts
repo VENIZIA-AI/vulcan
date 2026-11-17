@@ -1,4 +1,9 @@
-import { EventKinds, EventStatuses } from '../events/common/index.ts';
+import {
+  EventActorNames,
+  EventKinds,
+  EventSources,
+  EventStatuses,
+} from '../events/common/index.ts';
 import type { IEvent } from '../events/common/index.ts';
 import {
   BoardConstants,
@@ -13,6 +18,7 @@ import type {
   IBoardDecision,
   IBoardEvent,
   IBoardFlow,
+  IBoardItem,
   TBoardState,
 } from './common/index.ts';
 
@@ -20,6 +26,7 @@ const PR_NUMBER = /^#?(\d+)$/;
 /** A `pr` line with this ref says the pull request was merged: `--ref merged:12`. */
 const MERGED_REF = /^merged:#?(\d+)$/;
 const TO_PREFIX = 'to:';
+const FROM_PREFIX = 'from:';
 /** Kinds that take the stage the flow is at when they happen: a message belongs to the stage it was sent in. */
 const CARRY_KINDS: string[] = [BoardKinds.MSG, BoardKinds.NOTE];
 
@@ -72,17 +79,50 @@ export class BoardFold {
     const decisions: Record<string, IBoardDecision> = {};
 
     for (const [id, lines] of byFlow) {
-      const events = BoardFold.prepare({ lines });
+      // Plumbing (a session, a subagent, the harness waiting) and the lines that name the flow are carried along as
+      // lines of the flow; they never move it: not its state, stage, holder or last line. A `flow` line only sets the
+      // title and the reason, the newest by time winning.
+      const quiet = lines.filter((event) => event.plumbing === true || event.isTitle === true);
+      const core = lines.filter((event) => event.plumbing !== true && event.isTitle !== true);
+      const named = [...lines].sort(byTime).findLast((event) => event.isTitle === true);
+
+      if (core.length === 0) {
+        flows.push(BoardFold.quietFlow({ id, lines: quiet, named }));
+        continue;
+      }
+
+      const events = BoardFold.prepare({ lines: core });
       const decision = BoardFold.lastDecision({ events });
 
       if (decision !== undefined) {
         decisions[id] = decision;
       }
 
-      flows.push(BoardFold.flowOf({ id, events, owner: opts.owner }));
+      const flow = BoardFold.flowOf({ id, events, owner: opts.owner });
+
+      flows.push({
+        ...flow,
+        ...BoardFold.headingOf({ named }),
+        ...(quiet.length === 0
+          ? {}
+          : { events: BoardFold.withQuiet({ events: flow.events, quiet }) }),
+      });
     }
 
     return { flows, decisions };
+  }
+
+  /**
+   * A `needs-owner` line the harness raised: the hook recorded the notification type (so a title such as "Claude
+   * needs your permission" is still the harness). A line without the field is judged by its summary alone, the way
+   * lines written before the field existed are: the name of a prompt, in any case.
+   */
+  private static isHarnessAsk(opts: { line: IEvent }): boolean {
+    return (
+      opts.line.kind === EventKinds.NEEDS_OWNER &&
+      (opts.line.notification !== undefined ||
+        BoardConstants.HARNESS_ASKS.has(opts.line.summary.trim().toLowerCase()))
+    );
   }
 
   private static eventOf(opts: { line: IEvent }): IBoardEvent | undefined {
@@ -126,13 +166,59 @@ export class BoardFold {
 
       case EventKinds.MSG_SENT:
       case EventKinds.MSG_RECEIVED: {
-        const to = line.ref?.startsWith(TO_PREFIX) ? line.ref.slice(TO_PREFIX.length) : undefined;
+        const isIncoming = line.kind === EventKinds.MSG_RECEIVED;
+        // A received line has a sender, never a recipient: the page reads `to` as who the message went to.
+        const to =
+          !isIncoming && line.ref?.startsWith(TO_PREFIX)
+            ? line.ref.slice(TO_PREFIX.length)
+            : undefined;
+        const from =
+          isIncoming && line.ref?.startsWith(FROM_PREFIX)
+            ? line.ref.slice(FROM_PREFIX.length)
+            : undefined;
 
-        return { ...base, kind: BoardKinds.MSG, stage: -1, ...(to === undefined ? {} : { to }) };
+        return {
+          ...base,
+          kind: BoardKinds.MSG,
+          stage: -1,
+          ...(to === undefined ? {} : { to }),
+          ...(isIncoming ? { incoming: true } : {}),
+          ...(from === undefined || from === '' ? {} : { from }),
+        };
       }
 
       case EventKinds.NEEDS_OWNER: {
-        return { ...base, kind: BoardKinds.NOTE, stage: -1, needsOwner: true };
+        // The harness waiting for a prompt is not a person asking: it is shown only on request and never makes a flow wait.
+        return BoardFold.isHarnessAsk({ line })
+          ? { ...base, kind: BoardKinds.NOTE, stage: -1, plumbing: true }
+          : { ...base, kind: BoardKinds.NOTE, stage: -1, needsOwner: true };
+      }
+
+      case EventKinds.FLOW: {
+        return {
+          ...base,
+          kind: BoardKinds.FLOW,
+          stage: BoardStages.REQUEST,
+          isTitle: true,
+          ...(line.why === undefined ? {} : { why: line.why }),
+          ...(line.context === undefined ? {} : { context: line.context }),
+          ...(line.next === undefined ? {} : { next: line.next }),
+          ...(line.steps === undefined ? {} : { steps: line.steps }),
+          ...(line.checks === undefined ? {} : { checks: line.checks }),
+          ...(line.apps === undefined ? {} : { apps: line.apps }),
+          ...(line.due === undefined ? {} : { due: line.due }),
+          ...(line.ref === undefined ? {} : { tracker: line.ref }),
+        };
+      }
+
+      case EventKinds.DEPLOY: {
+        return { ...base, kind: BoardKinds.RELEASE, stage: BoardStages.RELEASE };
+      }
+
+      case EventKinds.SESSION_START:
+      case EventKinds.SESSION_STOP:
+      case EventKinds.SUBAGENT_STOP: {
+        return { ...base, kind: BoardKinds.AGENT, stage: -1, plumbing: true };
       }
 
       case EventKinds.DECISION: {
@@ -152,34 +238,77 @@ export class BoardFold {
     }
   }
 
+  /** When the agent's current stretch in `state` began: kept while it stays in the state and the lines come within the active gap. */
+  private static sinceOf(opts: {
+    known: IBoardAgent | undefined;
+    state: IBoardAgent['state'] | undefined;
+    ts: string;
+  }): string {
+    const { known } = opts;
+
+    if (
+      known === undefined ||
+      known.state !== opts.state ||
+      Date.parse(opts.ts) - Date.parse(known.checkedAt) > BoardConstants.ACTIVE_GAP_MS
+    ) {
+      return opts.ts;
+    }
+
+    return known.since;
+  }
+
   private static moveAgent(opts: { agents: Record<string, IBoardAgent>; line: IEvent }): void {
     const { agents, line } = opts;
     const known = agents[line.actor];
 
-    if (line.kind === EventKinds.SUBAGENT_STOP) {
+    // A session with no name of its own is no agent: its lines stay in their flows, and it has no card.
+    // A message the agent got is not a line of its own: it moves neither its state nor its time.
+    if (
+      !EventActorNames.isNamed({ actor: line.actor }) ||
+      line.kind === EventKinds.SUBAGENT_STOP ||
+      line.kind === EventKinds.MSG_RECEIVED ||
+      BoardFold.isHarnessAsk({ line })
+    ) {
       return;
     }
 
-    if (line.kind === EventKinds.SESSION_START || line.kind === EventKinds.SESSION_STOP) {
-      const state = line.kind === EventKinds.SESSION_START ? 'working' : 'idle';
+    if (
+      line.kind === EventKinds.SESSION_START ||
+      line.kind === EventKinds.SESSION_STOP ||
+      line.kind === EventKinds.TOOL_TICK
+    ) {
+      const state = line.kind === EventKinds.SESSION_STOP ? 'idle' : 'working';
+
+      // The model is what the session start said, and the harness is the hook that wrote it; both stay until a start says another.
+      const isHook = line.source === EventSources.CLAUDE_HOOK;
+      const model =
+        line.kind === EventKinds.SESSION_START ? (line.model ?? known?.model) : known?.model;
+      const harness = isHook ? BoardConstants.HARNESS_CLAUDE : known?.harness;
 
       agents[line.actor] = {
         name: line.actor,
         state,
         current: known?.current ?? '',
-        since: known?.state === state ? known.since : line.ts,
+        since: BoardFold.sinceOf({ known, state, ts: line.ts }),
         checkedAt: line.ts,
+        ...(model === undefined ? {} : { model }),
+        ...(harness === undefined ? {} : { harness }),
       };
 
       return;
     }
 
+    // A line of work after a stop means the agent is at it again.
+    const wakes = known?.state === 'idle';
+
     agents[line.actor] = {
       name: line.actor,
-      state: known?.state ?? 'working',
+      state: wakes ? 'working' : (known?.state ?? 'working'),
       current: line.summary,
-      since: known?.since ?? line.ts,
+      since: BoardFold.sinceOf({ known, state: wakes ? 'working' : known?.state, ts: line.ts }),
       checkedAt: line.ts,
+      ...(known?.model === undefined ? {} : { model: known.model }),
+      ...(known?.harness === undefined ? {} : { harness: known.harness }),
     };
   }
 
@@ -261,6 +390,7 @@ export class BoardFold {
     return {
       id,
       title: BoardFold.titleOf({ id, events }),
+      named: false,
       ...(repo === undefined ? {} : { repo }),
       state,
       holder: BoardFold.holderOf({ events, state, owner: opts.owner }),
@@ -276,6 +406,76 @@ export class BoardFold {
       ).size,
       events,
     };
+  }
+
+  /** The heading a `flow` line gives: title, reason, context and next step. The newest line wins as a whole: a newer line that leaves a field out drops the old one, so no stale text outlives the line that wrote it. */
+  private static headingOf(opts: { named: IBoardEvent | undefined }): {
+    title?: string;
+    named: boolean;
+    why?: string;
+    context?: string;
+    next?: string;
+    steps?: IBoardItem[];
+    checks?: IBoardItem[];
+    apps?: string[];
+    due?: string;
+    tracker?: string;
+  } {
+    const { named } = opts;
+
+    return named === undefined
+      ? { named: false }
+      : {
+          title: named.summary,
+          named: true,
+          ...(named.why === undefined ? {} : { why: named.why }),
+          ...(named.context === undefined ? {} : { context: named.context }),
+          ...(named.next === undefined ? {} : { next: named.next }),
+          ...(named.steps === undefined ? {} : { steps: named.steps }),
+          ...(named.checks === undefined ? {} : { checks: named.checks }),
+          ...(named.apps === undefined ? {} : { apps: named.apps }),
+          ...(named.due === undefined ? {} : { due: named.due }),
+          ...(named.tracker === undefined ? {} : { tracker: named.tracker }),
+        };
+  }
+
+  /**
+   * A flow with no line of work: only plumbing and `flow` lines. It is running (a closed group would hide what was just
+   * asked for), held by whoever wrote last; plumbing shows only when the page shows all events, a `flow` line always.
+   */
+  private static quietFlow(opts: {
+    id: string;
+    lines: IBoardEvent[];
+    named: IBoardEvent | undefined;
+  }): IBoardFlow {
+    const events = [...opts.lines]
+      .sort(byTime)
+      .map((event) => ({ ...event, stage: BoardStages.REQUEST }));
+    const last = events[events.length - 1];
+
+    return {
+      id: opts.id,
+      title: opts.id,
+      ...BoardFold.headingOf({ named: opts.named }),
+      state: BoardStates.RUNNING,
+      holder: last.actor,
+      stages: [BoardStages.REQUEST],
+      cur: BoardStages.REQUEST,
+      lastId: last.id,
+      ciRuns: 0,
+      reviewRounds: 0,
+      events,
+    };
+  }
+
+  /** The quiet lines among the lines of a flow, each at the stage the flow was at when it happened. */
+  private static withQuiet(opts: { events: IBoardEvent[]; quiet: IBoardEvent[] }): IBoardEvent[] {
+    const placed = opts.quiet.map((event) => ({
+      ...event,
+      stage: opts.events.findLast((core) => core.ts <= event.ts)?.stage ?? BoardStages.REQUEST,
+    }));
+
+    return [...opts.events, ...placed].sort(byTime);
   }
 
   private static stateOf(opts: {
@@ -301,9 +501,12 @@ export class BoardFold {
       }
     }
 
-    // A merge is Done until something reopens it: a commit, a fix or another pull request after it.
+    // A merge or a deploy is Done until something reopens it: a commit, a fix or another pull request after it.
     const merged = events.findLastIndex(
-      (event) => event.kind === BoardKinds.MERGE || event.status === BoardStatuses.DONE,
+      (event) =>
+        event.kind === BoardKinds.MERGE ||
+        event.kind === BoardKinds.RELEASE ||
+        event.status === BoardStatuses.DONE,
     );
 
     if (merged >= 0 && !events.slice(merged + 1).some((event) => BoardFold.reopens({ event }))) {
@@ -420,7 +623,7 @@ export class BoardFold {
     }
 
     const pr = opts.events.find(
-      (event) => event.kind === BoardKinds.PR && event.source === BoardSources.GITHUB,
+      (event) => event.kind === BoardKinds.PR && BoardSources.HOSTS.has(event.source),
     );
 
     return (pr ?? opts.events[0]).summary;

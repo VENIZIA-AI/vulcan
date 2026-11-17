@@ -62,14 +62,15 @@ The release ships code only and clones no IGNIS; atlas tests that measure IGNIS'
 
 ## A stable from main
 
-A prerelease goes through `develop`, `next` and BANA first. The stable is the same code, promoted.
+A prerelease goes through `develop`, `next` and the downstream project first. The stable is the same code, promoted.
 
-1. **The Sync PR.** `bun scripts/release/sync-pr.ts open --tag vulcan-v<prerelease>` cuts the branch `sync/<tag>` at the commit BANA gated, never at the tip of `develop`. It opens the pull request into `main`, and the body lists one `Closes #N` for each issue a `[#N]` commit subject names. They close when it merges into the default branch. The owner merges it. Run it on the owner's word: it pushes a branch and opens a pull request.
+1. **The Sync PR.** `bun scripts/release/sync-pr.ts open --tag vulcan-v<prerelease>` cuts the branch `sync/<tag>` at the commit the downstream project gated, never at the tip of `develop`. It opens the pull request into `main`, and the body lists one `Closes #N` for each issue a `[#N]` commit subject names. They close when it merges into the default branch. The owner merges it. Run it on the owner's word: it pushes a branch and opens a pull request.
    - It refuses a name that is not a tag, a tag that is not a prerelease, a tag outside the history of `develop`, and a tag whose history lacks a commit `main` has.
    - After the merge, `bun scripts/release/sync-pr.ts verify --tag <tag>` checks that the tree of `main` equals the tree of the tag.
 2. **Dispatch on `main`.** `make release ARGS="--bump patch"`. `minor` and `major` move all three packages: the repositories share one MAJOR.MINOR. The plan job prints the target (`0.4.9-1` and `patch` give `0.4.9`; `0.4.0-N` and `minor` give `0.4.0`). It refuses a train whose packages are not all at one version, and lists them.
-3. **The merge trial.** Still in the plan job, `scripts/release/merge-back.ts trial` makes the release commit the run would make on `main`, in a throwaway worktree. It merges that commit into `develop` in another worktree.
+3. **The merge trial.** Still in the plan job, `scripts/release/merge-back.ts trial` makes the release commit the run would make on `main`, in a throwaway worktree, with the `released:` stamp of the version folder included (`plan.ts` passes `ReleaseStamp.stampFolder`, except for `--bump none`, which stamps nothing). Only a `<X.Y.Z>/log.md` is resolved this way, never another `log.md`. It merges that commit into `develop` in another worktree.
    - A conflict that is only the `version` of a `package.json` takes the greater version: `0.4.9` beats `0.4.9-3`, and `0.4.10-0` beats `0.4.9`.
+   - A conflict that is only the `released:` line the stamp writes as the last frontmatter line of `<changelogs>/<version>/log.md`, next to a line `develop` edited (`packages:`), keeps both: the other lines are merged by `git merge-file` and `released:` goes back last. A day on `develop` that differs from the release's stops the merge.
    - `bun.lock` is regenerated with `bun install --lockfile-only`, never merged by hand, and may differ from `develop`'s only in workspace versions.
    - Any other conflict stops the plan before the approval, with the file named. So does a `package.json` the script cannot read (it expects two-space indentation).
    - `trial` takes `--version <v>` for a train, or `--versions <dir=v,...>` for packages that release apart, and `--lock keep` to leave `bun.lock` out of the release commit.
@@ -80,19 +81,19 @@ A prerelease goes through `develop`, `next` and BANA first. The stable is the sa
 
 ## GitHub Releases
 
-Every publish makes one GitHub Release on its tag (`scripts/release/github-release.ts create`, the step "Create the GitHub Release", after the tag).
+A stable makes one GitHub Release on its tag (`scripts/release/github-release.ts create`, the step "Create the GitHub Release", after the tag). A prerelease makes none: the script says so and exits 0.
 
 | Kind | Marked | Title | Notes |
 |---|---|---|---|
-| Stable | Latest, when no higher stable tag exists | `VULCAN <version>` | The changelog entries added since the previous stable tag, without front matter or date heading, and without the `VULCAN <version>:` prefix an older entry heading carries (a heading with no prefix is left as written), then the three packages with their npm links |
-| Prerelease | Pre-release, never Latest | `VULCAN <version>` | The install line with `@next`, the `[#N]` commit subjects since the previous tag (at most 30, with a line that counts the rest), then the packages |
+| Stable with a version folder | Latest, when no higher stable tag exists | `VULCAN <version>` | The body of `changelogs/<version>/log.md` (what `vulcan changelog notes --version <version>` prints), then the packages with their npm links; `migration.yaml` is attached as `migration-<version>.yaml` when it holds a block, and nothing is attached when it is absent or `{}` |
+| Stable of dated entries | Latest, when no higher stable tag exists | `VULCAN <version>` | The changelog entries added since the previous stable tag, without front matter or date heading, and without the `VULCAN <version>:` prefix an older entry heading carries (a heading with no prefix is left as written), then the packages with their npm links |
 
 - **A stable needs no changelog entry.** The changelog records only what affects users of the packages, so a stable made of internal work has none: its Release says "No change for users of the packages in this release." The previous stable is read through `tagPattern` and `legacyTagPatterns`, so the first stable after the rename looks back to `v0.4.7`.
+- **A stable of a project with version folders needs its folder.** The plan job refuses a stable whose `changelogs/<version>/log.md` is missing or already carries `released:` (once `knowledge.migrationFrom` is a version). It writes `changelog_base`, the previous stable tag, and the gates job runs `vulcan changelog check --history --base <that tag>`: no released folder changed since, and no dated entry dated after `knowledge.datedUntil` was added or edited. The publish job then writes `released: <today>` into the folder (`scripts/release/stamp-release.ts`) and the release commit adds it: a folder with that line is frozen. A dispatch of bump `none` (the heal run) writes and commits nothing, so it does not date the folder: when the run that made the release commit lost it, set `released:` in a pull request of its own, with the date of the tag. The plan accepts a folder that already says released for bump `none`, and still needs the folder to exist.
 - **A repeat makes nothing twice.** A tag that has a Release is skipped. A dispatch with bump `none` makes a missing one.
 - **A failure never fails a publish.** The step continues on error and reports in the run summary.
 - **To make a missing Release,** dispatch `make release ARGS="--bump none"` (add `--branch main` for a stable). It releases the version at the head of that branch, so do it before the next release lands.
 - **The atlas index release is not touched.** The script refuses the tag `atlas-index`.
-- **Backfill, on the owner's word only.** `bun scripts/release/github-release.ts backfill --tag v0.4.7` prints the notes and whether the Release would be Latest. `--yes` writes it, with commit subjects when no entry covers the tag. It makes the Release of a stable only, and it is a public write.
 
 ## Accepted risks of the stable path
 
@@ -109,7 +110,7 @@ The owner makes the entries on the release day, right before the release that pr
 
 ## Publishing the wiki
 
-The wiki site deploys with the `docs` job of the workflow `Docs` (`deploy-docs.yml`) on a push to `develop` that touches `docs/wiki/`, or on a manual dispatch (`gh workflow run deploy-docs.yml --ref develop`). Merging a pull request into `develop` publishes it; `main` receives `develop` by an ordinary merge and does not deploy.
+The wiki site deploys with the `docs` job of the workflow `Docs` (`deploy-docs.yml`) on a push to `develop` that touches `docs/wiki/`, or on a manual dispatch (`gh workflow run deploy-docs.yml --ref develop`). A release starts the docs run itself: the last job of `package-release.yml` (`docs`, with `needs: publish`, no checkout and the only `actions: write` of the workflow) runs `gh workflow run deploy-docs.yml --ref develop` once the tag is pushed (and, for a stable, once main is merged back); the `publish` job, which holds `id-token`, does not hold that permission, because the release workflow pushes with the Actions token and GitHub starts no workflow from that push. The version box of the changelog names the newest prerelease from the release tags, so it follows the release. Merging a pull request into `develop` publishes it; `main` receives `develop` by an ordinary merge and does not deploy.
 
 ## Who does what on the release path
 
@@ -121,5 +122,5 @@ The `atlas-index` job of the workflow `Docs` (`deploy-docs.yml`) runs on a push 
 
 - **The release publishes its own pair.** `package-release.yml` pushes the release commit and the tag with the Actions token, and GitHub starts no workflow from that push, so the `atlas-index` job never runs for them. The release's last step runs the local action with `ref` set to the tag, from its own checkout, so the pair of the release commit is made there (it refuses a tag whose commit is not on `develop`, and cannot fail a release that has published). The release keeps every tag commit's pair (at most 300 pairs, the newest 20 branch heads besides). A pair a release is missing is made by hand: `gh workflow run deploy-docs.yml --ref develop -f job=atlas-index -f ref=<tag>` (a manual run on `develop` with the tag as input), once, on the owner's word.
 - **A change to what an index holds raises `AtlasConstants.INDEX_FORMAT`** (and the locked digest in `index-format.test.ts`): a published pair of another format is never used by a reader, so the old pairs stop helping until CI has published the commit again.
-- **Rotating the key.** In this repository the installed atlas has no `index` command until the release that carries it is installed, so make the pair from source: `bun packages/atlas/src/cli.ts index keygen`, then `gh secret set ATLAS_INDEX_KEY < .agents/local/atlas-index.key`, `rm` the file, replace the key in the config and run `bun x --no-install vulcan sync`. The private key goes nowhere but the secret.
+- **Rotating the key.** In this repository the installed atlas has no `index` command until the release that carries it is installed, so make the pair from source: `bun packages/atlas/src/cli.ts index keygen`, then `gh secret set ATLAS_INDEX_KEY < .agents/local/atlas-index.key`, `rm` the file, replace the key in the config and run `bun node_modules/.bin/vulcan sync`. The private key goes nowhere but the secret.
 - **A pair that is not there is not an error.** A reader builds the index itself; look at the release's assets and the `atlas-index` job of the run of `Docs` before suspecting atlas.

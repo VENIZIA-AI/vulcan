@@ -1,21 +1,12 @@
-import { spawnSync } from 'node:child_process';
-import { ShellParser } from './shell.ts';
+import { ShellParser, ShellUnread } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IGitHit, IGitRunner } from './common/index.ts';
+import { GitQueries } from './git-queries.ts';
 import { ProjectGuards } from './project-guards.ts';
 
-/** `git` and `gh` read-only queries the guard makes; `undefined` when the tool is missing, slow or fails. */
-const runQuery: IGitRunner = (opts) => {
-  const result = spawnSync(opts.program, opts.args, {
-    cwd: opts.cwd,
-    encoding: 'utf8',
-    timeout: HookConstants.QUERY_TIMEOUT_MS,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
-  });
-
-  return result.status === 0 ? result.stdout.trim() : undefined;
-};
+/** `git` and `gh` read-only queries the guard makes, inert (`GitQueries`); `undefined` when the tool is missing, slow or fails. */
+const runQuery: IGitRunner = (opts) => GitQueries.run(opts);
 
 /** Options of `git` before its subcommand, and how many words each takes. */
 const GIT_OPTIONS_WITH_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace']);
@@ -177,9 +168,10 @@ const inspectStage = (opts: {
   return count > HookConstants.BLANKET_STAGE_PATHS
     ? [
         {
-          decision: GuardDecisions.ASK,
+          decision: GuardDecisions.DENY,
           rule: 'V-W-06',
-          message: `this stages ${count} changed paths at once (more than ${HookConstants.BLANKET_STAGE_PATHS}), a formatter's or a generator's included; name the files you mean`,
+          message: `this stages ${count} changed paths at once (more than ${HookConstants.BLANKET_STAGE_PATHS}), a formatter's or a generator's included`,
+          fix: 'name the files you mean (git add <path> ...), or stage a folder you own',
         },
       ]
     : [];
@@ -298,6 +290,45 @@ const ghCall = (opts: { args: string[] }): { group: string; action: string; rest
   return { group: names[0] ?? '', action: names[1] ?? '', rest: opts.args.slice(index) };
 };
 
+const REF_ENDPOINT = /^repos\/[^/]+\/[^/]+\/git\/refs\/heads\/(.+)$/;
+
+/** The path `gh api` calls for a word: without the host, a `?query`, the slashes at its ends, decoded once. */
+const endpointOf = (opts: { word: string }): string => {
+  const path = opts.word
+    .replace(/^https?:\/\/api\.github\.com/i, '')
+    .replace(/[?#].*$/s, '')
+    .replace(/^\/+|\/+$/g, '');
+
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+};
+
+/** `gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>` deletes the branch as `git push --delete` does. */
+const inspectGhApi = (opts: { args: string[] }): IGitHit[] => {
+  const { args } = opts;
+  const isDelete = args.some(
+    (word, index) =>
+      /^(-X|--method)=?DELETE$/i.test(word) ||
+      (/^(-X|--method)$/.test(word) && (args[index + 1] ?? '').toUpperCase() === 'DELETE'),
+  );
+
+  if (ghCall({ args }).group !== 'api' || !isDelete) {
+    return [];
+  }
+
+  return args
+    .map((word) => REF_ENDPOINT.exec(endpointOf({ word }))?.[1])
+    .filter((name): name is string => name !== undefined && isProtected({ name }))
+    .map((name) => ({
+      decision: GuardDecisions.DENY,
+      rule: 'V-W-06',
+      message: `deleting the remote branch '${name}'`,
+    }));
+};
+
 /** `gh pr merge [<pr>] --delete-branch`: the PR's head branch decides, and `gh` is asked for it. */
 const inspectGhMerge = (opts: {
   args: string[];
@@ -373,10 +404,10 @@ const inspectGhCreate = (opts: { args: string[] }): IGitHit[] => {
     ? []
     : [
         {
-          decision: GuardDecisions.ASK,
+          decision: GuardDecisions.DENY,
           rule: 'V-W-06',
-          message:
-            "'gh pr create' names no --base, so the pull request targets the default branch; pass --base <branch>",
+          message: "'gh pr create' names no --base, so the pull request targets the default branch",
+          fix: 'pass --base <branch>, the branch the project takes its changes on',
         },
       ];
 };
@@ -394,6 +425,7 @@ const inspectOne = (opts: {
     return [
       ...inspectGhMerge({ args: program.args, cwd: opts.cwd, run: opts.run }),
       ...inspectGhCreate({ args: program.args }),
+      ...inspectGhApi({ args: program.args }),
     ];
   }
 
@@ -432,7 +464,7 @@ const inspectOne = (opts: {
     return [
       {
         decision: GuardDecisions.ASK,
-        rule: 'V-W-04',
+        rule: 'V-W-06',
         message: 'git reset --hard discards every uncommitted change',
       },
     ];
@@ -471,22 +503,42 @@ export class GitGuard {
       inspectOne({ command, cwd: opts.cwd, run: limited, askPush: opts.askPush ?? [] }),
     );
 
+    // The lines of a heredoc body that never ends are data to bash: what they would do is asked about, not denied.
+    for (const command of parsed.unterminatedHeredocCommands) {
+      for (const hit of inspectOne({
+        command,
+        cwd: opts.cwd,
+        run: limited,
+        askPush: opts.askPush ?? [],
+      })) {
+        hits.push({
+          ...hit,
+          decision: GuardDecisions.ASK,
+          message: `${hit.message} (in a heredoc body whose delimiter never comes)`,
+        });
+      }
+    }
+
     // Part of the line was not read: never an allow.
-    if (parsed.isOverBudget) {
+    const unread = ShellUnread.reasonOf(parsed);
+
+    // The agent can write either again, so neither stops a person: a denial that says how.
+    if (unread !== undefined) {
       hits.push({
-        decision: GuardDecisions.ASK,
+        decision: GuardDecisions.DENY,
         rule: 'V-W-06',
-        message:
-          'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
+        message: unread,
+        fix: 'write the line again with literal program names and paths, and quotes and substitutions that close',
       });
     }
 
     if (isCapped) {
       hits.push({
-        decision: GuardDecisions.ASK,
+        decision: GuardDecisions.DENY,
         rule: 'V-W-06',
         message:
           'this command line needs more git or gh queries than the guard runs, so part of it could not be checked',
+        fix: 'run the git or gh commands in separate calls',
       });
     }
 

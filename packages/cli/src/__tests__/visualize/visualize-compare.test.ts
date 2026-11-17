@@ -68,8 +68,8 @@ describe('the compare view', () => {
     expect(html).toMatch(/<g class="edge main" data-ce="develop&gt;main">/);
     expect(html).toMatch(/<g class="edge main" data-ce="main&gt;npm">/);
     // The words: a sign and who has it alone, on the arrow's label and in its title.
-    expect(html).toContain('>+ raises number</text>');
-    expect(html).toContain('>- merges back</text>');
+    expect(html).toMatch(/>\+ raises( number|<\/tspan><tspan[^>]*>number)<\/(text|tspan)>/);
+    expect(html).toMatch(/>- merges( back|<\/tspan><tspan[^>]*>back)<\/(text|tspan)>/);
     expect(html).toContain('<title>+ only here Manual: raises number</title>');
     expect(html).toContain('<title>- only here Machine: merges back</title>');
     // The key says each line style once, with the same words.

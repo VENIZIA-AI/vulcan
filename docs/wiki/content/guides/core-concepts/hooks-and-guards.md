@@ -16,17 +16,28 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 
 ## The guards
 
-| Guard | Acts on | Answer |
-|---|---|---|
-| `guard-writes` | A Bash command that writes to a database, runs a migration or deploys; the body of a `bun script.ts` it runs | Asks (`V-W-02`, `V-W-03`) |
-| `guard-git` | `git` and `gh`: deleting or force-pushing `develop` or `main`, `gh pr merge --delete-branch` on a pull request headed by one of them, `reset --hard`, `branch -D` of an unmerged branch | Refuses the first group, asks about the rest (`V-W-06`) |
-| `guard-outside` | A file, worktree, clone or temp file created outside the project | Asks (`V-B-08`); denies a write into the scratchpad folder the agent tool offers |
-| `guard-remote-hosts` | A command that reaches a host you have not listed in `remoteHosts` (only registered when that key is set) | Asks |
-| `guard-manifest` | A write to `.agents/vulcan.manifest.json`, which `vulcan sync` generates | Refuses |
-| `guard-package` | A hand-written new `package.json` in a backend, frontend or shared folder, when a `vulcan add` command exists | Refuses, and gives the command |
-| `guard-scripting` | A command that runs `python` or `pip` | Adds one line of advice (`V-B-09`); never asks or blocks |
+### guard-writes
 
-Around them, `session-start` prints the rules digest into the session and, in Claude Code, exports `TMPDIR` (the project's `.agents/local/tmp`) into every Bash command ([Temporary files](/references/agents#temporary-files)), `subagent-start` gives every subagent a small rules card, and `stop` and `prompt-submit` check the shape of replies ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
+- Acts on: a Bash command of its table that writes to a database, runs a migration or deploys, in any simple command of the line.
+- It does not read the scripts a command runs.
+- Answer: asks (`V-W-02`, `V-W-03`).
+
+### guard-git
+
+- Acts on: `git` and `gh`.
+- Refuses: deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request headed by one of them.
+- Asks about: `reset --hard`, and `branch -D` of an unmerged branch (`V-W-06`).
+
+### guard-outside
+
+- Acts on: a file, worktree, clone or temp file created outside the project.
+- Answer: asks (`V-B-08`), or denies when `guard.outside` or `guard.asks` is `deny`.
+- Always denies a write into the scratchpad folder the agent tool offers.
+- Asks, never denies, about what it cannot read.
+
+Around them, `session-start` prints a short digest (a config problem, a launch warning, how to answer the owner) into the session and, in Claude Code, exports `TMPDIR` (the project's `.agents/local/tmp`) into every Bash command ([Temporary files](/references/agents#temporary-files)), and `subagent-start` gives every subagent a small rules card. The shape of replies to the owner is a card in that digest, not a check ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
+
+No hook guards `.agents/vulcan.manifest.json`: `vulcan sync` rewrites it from the config, and `vulcan doctor` fails a copy that is stale or edited by hand ([The generated manifest](/references/hooks/#the-generated-manifest)).
 
 ## Your own deploy and migrate commands
 
@@ -34,9 +45,9 @@ The guards know a fixed list of commands (`kubectl apply`, `docker compose up`, 
 
 ## What the guards are not
 
-They stop accidental and drifting commands: a force-push because a flag looked right, a write outside the project because a path was relative, an `ssh` to a host nobody named. They are not a sandbox. A shell is a language no hand-written parser reads completely, and each review of the parser has found spellings it missed (the [reference lists every one](/references/hooks/#what-the-guards-are-and-are-not)).
+They stop accidental and drifting commands: a force-push because a flag looked right, or a write outside the project because a path was relative. They are not a sandbox. A shell is a language no hand-written parser reads completely, and each review of the parser has found spellings it missed (the [reference lists every one](/references/hooks/#what-the-guards-are-and-are-not)).
 
-Whatever must never happen belongs in `permissions.deny`, the `read-only` slot of `V-W-01`, or branch protection on the remote. When a guard cannot read a line in full, it asks.
+Whatever must never happen belongs in `permissions.deny`, the `read-only` slot of `V-W-01`, or branch protection on the remote. When `guard-git` or `guard-outside` cannot read a line in full, it asks; `guard-writes` asks only for the commands it can name.
 
 ## When a hook cannot run
 
@@ -44,9 +55,8 @@ A broken install must not stop every command, and a guard must not be switched o
 
 | Kind | Hooks | If it cannot run |
 |---|---|---|
-| Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | Exit 2: the tool call is blocked. A bare `bun install` still passes |
+| Safety hooks | `guard-writes` | Exit 2: the tool call is blocked. A bare `bun install` still passes |
 | Deny-class guards | `guard-git`, `guard-outside` | A missing package or `bun` passes with a note; a hook that started and then crashed or timed out asks |
-| Advice and shape hooks | `guard-scripting`, `stop`, `prompt-submit`, `post-tool` | Fail open: the call passes |
 
 `VULCAN_GUARDS=off` switches the guards off for one session; set it only for the command that needs it.
 
@@ -56,67 +66,41 @@ A broken install must not stop every command, and a guard must not be switched o
 |---|---|---|
 | Claude Code | Hooks in `.claude/settings.json` | Real sessions |
 | omp | `.omp/hooks/pre/vulcan-guards.ts`, written by `vulcan sync` | omp 18.8.9 with a real model |
-| pi | `.pi/extensions/vulcan-guards.ts`, written by `vulcan sync`; pi asks you to trust the project first | pi 1.4.0 through its SDK with a scripted provider, not a real model |
-| Antigravity | A `vulcan-guards` entry in `.agents/hooks.json`, written by `vulcan sync` | `agy` 1.4.7: a `deny` holds; `agy --dangerously-skip-permissions` approves an `ask` |
-| Codex | A hook in `.codex/hooks.json`, written by `vulcan sync`; Codex runs it after you trust it in `/hooks`; it cannot ask, so an ask is shown as a deny | **NOT VERIFIED** |
+| pi | `.pi/extensions/vulcan-guards.ts`, written by `vulcan sync` | pi 1.4.0, scripted provider (see below) |
+| Antigravity | A `vulcan-guards` entry in `.agents/hooks.json`, written by `vulcan sync` | `agy` 1.4.7 (see below) |
+| Codex | A hook in `.codex/hooks.json`, written by `vulcan sync` (see below) | **NOT VERIFIED** |
 | Cursor | Reads the Claude hooks in `.claude/settings.json` | **NOT VERIFIED** |
 | Copilot (CLI and VS Code) | Reads the Claude hooks in `.claude/settings.json` | **NOT VERIFIED** |
 
-NOT VERIFIED means built from the agent's documentation and unit tests, and never run in that agent. omp and pi run the three safety guards, `guard-git` and `guard-outside`; they do not run `guard-scripting` or `guard-remote-hosts`. Choose your agents with `vulcan sync --agents <list>` ([Coding agents](/references/agents)).
+Notes on the table:
 
-## Let your own CLI through
+- pi asks you to trust the project first. It was checked through its SDK with a scripted provider, not a real model.
+- Antigravity: a `deny` holds; `agy --dangerously-skip-permissions` approves an `ask`.
+- Codex runs its hook after you trust it in `/hooks`. It cannot ask, so an ask is shown as a deny.
 
-`guard-writes` reads the body of a `bun script.ts` command, so a project's own CLI that calls its API asks on every run. List it, and it is skipped while git tracks it and its file matches the last commit:
+NOT VERIFIED means built from the agent's documentation and unit tests, and never run in that agent. omp and pi run the safety guards `guard-git` and `guard-outside`. Choose your agents with `vulcan sync --agents <list>` ([Coding agents](/references/agents)).
 
-```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+## Your own hooks
 
-export default {
-  guard: { writes: { trustedScripts: ['tools/i18n/cli.ts'] } },
-} satisfies VulcanConfig;
-```
-
-Entries are exact repo-relative `.ts` paths. A modified or uncommitted script asks again and says why, and the command line itself is still checked. Trust means committed and unchanged, not reviewed: the pull request that edits the script and the list is your review. A script with both a read-only and a publishing subcommand can list only the read-only ones: `{ script: 'scripts/release/release-run.ts', readOnly: ['plan', 'registry'] }`; run `vulcan sync` after you add one, because the hook reads it from the manifest. [`guard`](/references/configuration/#guard) and the [reference](/references/hooks/#trusted-scripts) have the details; `vulcan doctor` lists each entry.
-
-## Guarding remote hosts
-
-To protect remote machines, set `remoteHosts` in `.configs/vulcan.config.mts` and run `vulcan sync`, which registers the hook:
+Put a project hook under `claude.settings.hooks` in `.configs/vulcan.config.mts`, in Claude Code's own settings shape; `vulcan sync` merges it into `.claude/settings.json` next to the shipped ones:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  remoteHosts: {
-    trusted: ['lab1'],
-    readOnly: ['prod1', 'prod1.*'],
+  claude: {
+    settings: {
+      hooks: {
+        PreToolUse: [
+          { matcher: 'Bash', hooks: [{ type: 'command', command: 'bun .agents/hooks/check-lint.ts' }] },
+        ],
+      },
+    },
   },
 } satisfies VulcanConfig;
 ```
 
-A command to a `trusted` host passes. A command that changes a `readOnly` host asks, because only a strict read-only form passes there (`uptime`, `df -h`, `cat <path>`, `kubectl get`). Any other host asks. Dynamic targets such as loops and pipes are in the [remote host guard reference](/references/hooks/remote-host-guard).
-
-## Your own hooks
-
-Add entries to the `hooks` array in `.configs/vulcan.config.mts`; `vulcan sync` merges them into `.claude/settings.json` next to the shipped ones:
-
-```ts
-import type { VulcanConfig } from '@venizia/vulcan';
-
-export default {
-  hooks: [
-    {
-      event: 'PreToolUse',
-      matcher: 'Bash',
-      command: 'bun .agents/hooks/check-lint.ts',
-    },
-  ],
-} satisfies VulcanConfig;
-```
-
-`vulcan doctor` `[hooks]` fails a project hook that runs a shipped hook.
-
 ## See also
 
 - [Hooks reference](/references/hooks/)
-- [Remote host guard reference](/references/hooks/remote-host-guard)
 - [Coding agents](/references/agents)

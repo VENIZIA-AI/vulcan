@@ -2,7 +2,8 @@ import { BaseHelper } from '@/common/helper';
 import { PackageMap } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
 import { TextValue } from '@/common/text';
-import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
+import { ChangelogLayouts } from './common';
+import type { IChangelogRecord, IFolderHistory, IReleaseRecord, IReleaseTable } from './common';
 
 /**
  * The generated release table in memory: which versions of a package exist, when each shipped, and
@@ -13,15 +14,35 @@ export class ReleaseStore extends BaseHelper {
   private readonly releases = new Map<string, IReleaseRecord[]>();
   private readonly changelogs: IChangelogRecord[];
   private readonly live: string[];
+  private readonly codemod: string[] | undefined;
+  private readonly siteUrl: string | undefined;
+  private readonly codemodPackages: string[];
+  private readonly history: IFolderHistory | undefined;
   private readonly packageMap: IPackageMapEntry[];
   /** What `version` and `changes` say when the table holds no release. */
   readonly emptyReason: string;
   /** What `changes` says when the table holds no dated changelog entry. */
   readonly noEntriesReason: string;
 
-  constructor(opts: { table: IReleaseTable; emptyReason?: string; noEntriesReason?: string }) {
+  constructor(opts: {
+    table: IReleaseTable;
+    emptyReason?: string;
+    noEntriesReason?: string;
+    /** The source project's `knowledge.codemodCommand`: what runs the codemods its migrations name. */
+    codemodCommand?: string[];
+    /** The source project's `knowledge.siteUrl`: where its wiki is, so a step can name its upgrade guide. */
+    siteUrl?: string;
+    /** The npm names of the source project's packages, from its validated manifest: where its codemod runner may be installed. */
+    codemodPackages?: string[];
+    /** The source's version folders at HEAD and at its tags: what `migrate` diffs. */
+    folderHistory?: IFolderHistory;
+  }) {
     super({ scope: ReleaseStore.name });
 
+    this.codemod = opts.codemodCommand;
+    this.siteUrl = opts.siteUrl;
+    this.codemodPackages = opts.codemodPackages ?? [];
+    this.history = opts.folderHistory;
     this.packageMap = opts.table.packageMap;
     this.emptyReason = opts.emptyReason ?? 'no releases';
     this.noEntriesReason = opts.noEntriesReason ?? 'no dated changelog entries';
@@ -109,17 +130,59 @@ export class ReleaseStore extends BaseHelper {
    * the release that opens a window is not counted twice; the upper bound is closed so the release
    * that closes it carries its own entries.
    */
-  entriesBetween(opts: { package?: string; fromDate: string; toDate: string }): IChangelogRecord[] {
+  entriesBetween(opts: {
+    package?: string;
+    fromDate: string;
+    toDate: string;
+    includeFolded?: boolean;
+    datedOnly?: boolean;
+  }): IChangelogRecord[] {
     const wanted =
       opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
-    return this.changelogs.filter((entry) => {
-      if (entry.date <= opts.fromDate || entry.date > opts.toDate) {
-        return false;
-      }
+    return ReleaseStore.standIn({
+      includeFolded: opts.includeFolded,
+      datedOnly: opts.datedOnly,
+      hits: this.changelogs.filter((entry) => {
+        if (entry.date <= opts.fromDate || entry.date > opts.toDate) {
+          return false;
+        }
 
-      return wanted === undefined || entry.packages.includes(wanted);
+        return wanted === undefined || entry.packages.includes(wanted);
+      }),
     });
+  }
+
+  /**
+   * A dated file a version folder covers is left out of a window only when that folder's items are in it: the folder is
+   * then the final form of the change. A window that does not reach them keeps the dated file, so nothing is lost.
+   */
+  private static standIn(opts: {
+    hits: IChangelogRecord[];
+    includeFolded?: boolean;
+    datedOnly?: boolean;
+  }): IChangelogRecord[] {
+    if (opts.datedOnly === true) {
+      return opts.hits.filter(
+        (entry) =>
+          entry.layout !== ChangelogLayouts.FOLDER &&
+          (opts.includeFolded === true || entry.foldedInto === undefined),
+      );
+    }
+
+    if (opts.includeFolded === true) {
+      return opts.hits;
+    }
+
+    const folders = new Set(
+      opts.hits
+        .filter((entry) => entry.layout === ChangelogLayouts.FOLDER)
+        .map((entry) => entry.version),
+    );
+
+    return opts.hits.filter(
+      (entry) => entry.foldedInto === undefined || !folders.has(entry.foldedInto),
+    );
   }
 
   /**
@@ -133,22 +196,48 @@ export class ReleaseStore extends BaseHelper {
     toOrder: number;
     fromDate: string;
     toDate: string;
+    includeFolded?: boolean;
+    datedOnly?: boolean;
   }): IChangelogRecord[] {
     const wanted =
       opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
-    return this.changelogs.filter((entry) => {
-      const inside =
-        entry.order === undefined
-          ? entry.date > opts.fromDate && entry.date <= opts.toDate
-          : entry.order > opts.fromOrder && entry.order <= opts.toOrder;
+    return ReleaseStore.standIn({
+      includeFolded: opts.includeFolded,
+      datedOnly: opts.datedOnly,
+      hits: this.changelogs.filter((entry) => {
+        const inside =
+          entry.order === undefined
+            ? entry.date > opts.fromDate && entry.date <= opts.toDate
+            : entry.order > opts.fromOrder && entry.order <= opts.toOrder;
 
-      if (!inside) {
-        return false;
-      }
+        if (!inside) {
+          return false;
+        }
 
-      return wanted === undefined || entry.packages.includes(wanted);
+        return wanted === undefined || entry.packages.includes(wanted);
+      }),
     });
+  }
+
+  /** The source's version folders over time, or `undefined` when it keeps none. */
+  folderHistoryOf(): IFolderHistory | undefined {
+    return this.history;
+  }
+
+  /** The npm names of the source project's own packages; never read from the table, which a pair of files carries. */
+  codemodPackagesOf(): string[] {
+    return this.codemodPackages;
+  }
+
+  /** The source project's codemod runner words, or `undefined` for the default. */
+  codemodCommandOf(): string[] | undefined {
+    return this.codemod;
+  }
+
+  /** The address of the source project's wiki, or `undefined` when it names none. */
+  siteUrlOf(): string | undefined {
+    return this.siteUrl;
   }
 
   /** The recorded commit position of one release, or `undefined` when the table carries none. */

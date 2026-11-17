@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * The okf command runner: `cli.ts` spawns it with `gen | check [--strict] | coverage | viz`.
+ * The okf command runner: `cli.ts` spawns it with `gen | check [--strict] | coverage`.
  *
  * Source-derived content is either a whole generated file (reference/*) or lives inside a managed
  * region delimited by `<!-- okf:generated:<id> start -->` and `<!-- okf:generated:<id> end -->`.
@@ -10,7 +10,6 @@
 import { check } from './check/index.ts';
 import { coverage } from './coverage-report/index.ts';
 import { gen } from './generate/index.ts';
-import { buildViz } from './viz/index.ts';
 
 /** A project the user must fix (no config, a bad renderer module): its message, never a stack. */
 const isProjectError = (opts: { error: unknown }): opts is { error: Error } =>
@@ -33,13 +32,8 @@ const runCommand = async (opts: { command: string | undefined; argv: string[] })
       break;
     }
 
-    case 'viz': {
-      await buildViz();
-      break;
-    }
-
     default: {
-      console.error('usage: vulcan x okf <check|gen|coverage|viz>');
+      console.error('usage: vulcan x okf <check|gen|coverage>');
       process.exit(2);
     }
   }

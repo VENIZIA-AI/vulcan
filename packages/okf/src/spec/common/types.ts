@@ -1,6 +1,7 @@
 import type { TConstValue } from '../../common/index.ts';
 import type { IssueSeverities } from './constants.ts';
 
+/** `error` or `warning`: a value of `IssueSeverities`. */
 export type TIssueSeverity = TConstValue<typeof IssueSeverities>;
 
 /** A markdown file of the bundle; `path` is relative to the bundle root, `/`-separated. */

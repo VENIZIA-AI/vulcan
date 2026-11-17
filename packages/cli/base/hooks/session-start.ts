@@ -1,5 +1,5 @@
 /**
- * SessionStart hook: prints the rules that cost the most when skipped (src/hooks/session-digest.ts).
+ * SessionStart hook: prints what only this session knows - a config problem, a launch warning, the owner card (src/hooks/session-digest.ts). The rules are the block of AGENTS.md.
  * Stdout becomes session context. With `VULCAN_OWNER_REPLY=off` the owner shape and profile cards are left out.
  * It also exports `TMPDIR` (the project's `.agents/local/tmp`) into the file Claude Code sources before each Bash command.
  */

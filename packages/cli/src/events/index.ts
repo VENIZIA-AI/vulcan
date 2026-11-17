@@ -2,6 +2,8 @@ export * from './common/index.ts';
 export * from './actor.ts';
 export * from './command.ts';
 export * from './flow.ts';
+export * from './flow-id.ts';
+export * from './project-key.ts';
 export * from './hook.ts';
 export * from './log.ts';
 export * from './settings.ts';

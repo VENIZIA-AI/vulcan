@@ -1,19 +1,21 @@
 import { AtlasConstants } from '@/common';
-import { RpcError, RpcErrorCodes } from '@/protocol/common';
-import type { IToolHandler } from '@/protocol/common';
+import type { IToolHandler, RpcError } from '@/protocol/common';
+import { ChangelogLayouts } from '@/releases';
 import type { IChangelogRecord, IReleaseIndex } from '@/releases';
+import type { TMigrationItem } from '@/migrations/schema';
 import { z } from 'zod';
-import { ChangesInputSchema, ToolInput, ToolTriggers } from './common';
+import { ChangesInputSchema, ToolErrors, ToolInput, ToolTriggers } from './common';
 
 const DESCRIPTION =
   'List the changelog entries between two releases: a package with two of its versions, or no ' +
-  'package with two `YYYY-MM-DD` dates. Every entry carries the id `get` reads it in full by.';
+  'package with two `YYYY-MM-DD` dates. Every entry carries the id `get` reads it in full by. A ' +
+  'window too long for one reply returns `nextOffset`: call again with `offset: nextOffset` for the ' +
+  'older entries.';
 
 // Built once at module load - a guarded tool that re-resolves its store on every call never needs
 // to rebuild this.
 const INPUT_JSON_SCHEMA = z.toJSONSchema(ChangesInputSchema);
 
-const KNOWN_VALUES_MAX = 10;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 // Sorts below every real date, so a window with no lower bound opens before the first entry.
@@ -29,6 +31,8 @@ interface IChangesEntry {
   title: string;
   kind: string | null;
   packages: string[];
+  /** A version folder item with a block: how an app upgrades and downgrades across it. */
+  migration?: TMigrationItem[];
 }
 
 interface IChangesResponse {
@@ -36,7 +40,10 @@ interface IChangesResponse {
   from: string | null;
   to: string;
   entries: IChangesEntry[];
+  /** Present when entries remain after this page: the window is longer than one reply. */
   truncated?: boolean;
+  /** Where the next page starts; present exactly when `truncated` is. */
+  nextOffset?: number;
   /** Why the window is what it is, when the package has no release to bound it. */
   note?: string;
 }
@@ -54,25 +61,8 @@ interface IWindow {
   note?: string;
 }
 
-const invalidParams = (message: string): RpcError =>
-  new RpcError({ code: RpcErrorCodes.INVALID_PARAMS, message });
-
-const listOf = (values: string[]): string => values.slice(0, KNOWN_VALUES_MAX).join(', ');
-
-const unknownPackageError = (opts: { name: string; known: string[] }): RpcError =>
-  invalidParams(`unknown package '${opts.name}'; known packages: ${listOf(opts.known)}`);
-
-const unknownVersionError = (opts: {
-  package: string;
-  version: string;
-  known: string[];
-}): RpcError =>
-  invalidParams(
-    `unknown version '${opts.version}' for ${opts.package}; known versions: ${listOf(opts.known)}`,
-  );
-
 const notADateError = (opts: { field: string; value: string }): RpcError =>
-  invalidParams(
+  ToolErrors.invalidParams(
     `${opts.field} must be a YYYY-MM-DD date when no package is given; got '${opts.value}'`,
   );
 
@@ -82,6 +72,9 @@ const entryOf = (record: IChangelogRecord): IChangesEntry => ({
   title: record.title,
   kind: record.kind,
   packages: record.packages,
+  ...(record.layout === ChangelogLayouts.FOLDER && record.migration !== undefined
+    ? { migration: record.migration }
+    : {}),
 });
 
 /**
@@ -106,7 +99,7 @@ const packageWindowOf = (opts: {
     const note = `no release of ${name} is recorded on this ref (a tag has to match the project's tagPattern and be in this branch's history); every dated entry that names it`;
 
     if (opts.from !== undefined || opts.to !== undefined) {
-      throw invalidParams(
+      throw ToolErrors.invalidParams(
         `${note.split(';')[0]}, so there is no version ${opts.to ?? opts.from} to window by`,
       );
     }
@@ -125,14 +118,14 @@ const packageWindowOf = (opts: {
 
   if (versions.length === 0) {
     throw opts.releases.packages().length === 0
-      ? invalidParams(opts.releases.emptyReason)
-      : unknownPackageError({ name: opts.package, known: opts.releases.declaredPackages() });
+      ? ToolErrors.invalidParams(opts.releases.emptyReason)
+      : ToolErrors.unknownPackage({ name: opts.package, known: opts.releases.declaredPackages() });
   }
 
   const to = opts.to ?? versions[0];
 
   if (!versions.includes(to)) {
-    throw unknownVersionError({ package: name, version: to, known: versions });
+    throw ToolErrors.unknownVersion({ package: name, version: to, known: versions });
   }
 
   // The default lower bound is the newest version released on an EARLIER day: several releases of
@@ -149,7 +142,7 @@ const packageWindowOf = (opts: {
       );
 
   if (from !== undefined && !versions.includes(from)) {
-    throw unknownVersionError({ package: name, version: from, known: versions });
+    throw ToolErrors.unknownVersion({ package: name, version: from, known: versions });
   }
 
   const toOrder = opts.releases.releaseOrderOf({ package: name, version: to });
@@ -180,7 +173,7 @@ const dateWindowOf = (opts: { releases: IReleaseIndex; from?: string; to?: strin
   const dates = opts.releases.entryDates();
 
   if (dates.length === 0) {
-    throw invalidParams(opts.releases.noEntriesReason);
+    throw ToolErrors.invalidParams(opts.releases.noEntriesReason);
   }
 
   if (opts.to !== undefined && !DATE_PATTERN.test(opts.to)) {
@@ -203,25 +196,37 @@ const dateWindowOf = (opts: { releases: IReleaseIndex; from?: string; to?: strin
   };
 };
 
-/** Drops the oldest entries until the reply fits, and says so - a trimmed page never looks whole. */
-const withinBudget = (opts: { window: IWindow; entries: IChangesEntry[] }): IChangesResponse => {
+/**
+ * The page of the window that starts at `offset` and fits the budget: it drops entries from the end of the page,
+ * never the first, and says where the next page starts - a trimmed page never looks whole.
+ */
+const withinBudget = (opts: {
+  window: IWindow;
+  entries: IChangesEntry[];
+  offset: number;
+}): IChangesResponse => {
   const base = {
     package: opts.window.package,
     from: opts.window.from,
     to: opts.window.to,
     ...(opts.window.note === undefined ? {} : { note: opts.window.note }),
   };
-  let entries = [...opts.entries];
-  let response: IChangesResponse = { ...base, entries };
-  const isOverBudget = (): boolean =>
-    JSON.stringify(response).length > AtlasConstants.SEARCH_BUDGET_CHARS;
+  const rest = opts.entries.slice(opts.offset);
+  let count = rest.length;
+  const responseOf = (): IChangesResponse => {
+    const entries = rest.slice(0, count);
+    const nextOffset = opts.offset + count;
 
-  while (isOverBudget() && entries.length > 0) {
-    entries = entries.slice(0, -1);
-    response = { ...base, entries, truncated: true };
+    return nextOffset < opts.entries.length
+      ? { ...base, entries, truncated: true, nextOffset }
+      : { ...base, entries };
+  };
+
+  while (count > 1 && JSON.stringify(responseOf()).length > AtlasConstants.SEARCH_BUDGET_CHARS) {
+    count -= 1;
   }
 
-  return response;
+  return responseOf();
 };
 
 export class ChangesTool {
@@ -236,7 +241,7 @@ export class ChangesTool {
         const input = ToolInput.parse({ schema: ChangesInputSchema, args });
 
         if (opts.releases.isEmpty()) {
-          throw invalidParams(opts.releases.emptyReason);
+          throw ToolErrors.invalidParams(opts.releases.emptyReason);
         }
 
         const resolved =
@@ -266,7 +271,11 @@ export class ChangesTool {
                 toDate: resolved.toDate,
               });
 
-        return withinBudget({ window: resolved, entries: found.map(entryOf) });
+        return withinBudget({
+          window: resolved,
+          entries: found.map(entryOf),
+          offset: input.offset ?? 0,
+        });
       },
     };
   }

@@ -1,3 +1,4 @@
+import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { relative } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
@@ -13,7 +14,7 @@ import { ConfigLoader } from '../config/index.ts';
 import {
   AgentFiles,
   AgentRemoval,
-  AtlasBlockPlan,
+  AgentsBlockPlan,
   BaseRulesDiff,
   ExcludePlan,
   LocalPlan,
@@ -116,14 +117,17 @@ export class SyncFlow {
     const actions = [
       ...AgentRemoval.plan({ root: opts.cwd, removed, remaining: resolved.agents }),
       ...SyncPlanner.plan({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
-      ...AtlasBlockPlan.plan({ root: opts.cwd, config: loaded.config }),
+      ...AgentsBlockPlan.plan({ root: opts.cwd, config: loaded.config }),
       ...stored,
-      ...LocalPlan.planWorkspace({ root: opts.cwd }),
+      ...LocalPlan.planWorkspace({
+        root: opts.cwd,
+        tmp: ProjectTmp.configuredOf({ tmp: loaded.config.local.tmp }),
+      }),
       ...ExcludePlan.plan({ root: opts.cwd, agents: resolved.agents }),
       ...CommitHookPlan.plan({ root: opts.cwd, config: loaded.config }),
     ];
     // Read before the manifest action rewrites the hashes it compares against.
-    const changes = BaseRulesDiff.diff({ root: opts.cwd });
+    const changes = BaseRulesDiff.diff({ root: opts.cwd, packs: loaded.config.packs });
     const width = dryRun ? DRY_RUN_LABEL_WIDTH : LABEL_WIDTH;
 
     for (const action of actions) {

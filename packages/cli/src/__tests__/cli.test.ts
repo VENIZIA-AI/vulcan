@@ -17,7 +17,7 @@ const readVersion = (opts: { packageDirectory: string }): string =>
   ).version;
 
 describe('vulcan router', () => {
-  test('help lists every command, in the bun x form', () => {
+  test('help lists every command, in the bun run form', () => {
     const result = runCli({ args: ['help'], cwd: tmpdir() });
 
     expect(result.code).toBe(0);
@@ -26,12 +26,14 @@ describe('vulcan router', () => {
       expect(result.stdout).toContain(command);
     }
 
-    expect(result.stdout).toContain('bun x vulcan');
-    expect(result.stdout).not.toContain('bunx');
+    expect(result.stdout).toContain('bun node_modules/.bin/vulcan');
+    expect(result.stdout).not.toMatch(/\bbunx vulcan/);
   });
 
   test('no command prints the help', () => {
-    expect(runCli({ args: [], cwd: tmpdir() }).stdout).toContain('Usage: bun x vulcan');
+    expect(runCli({ args: [], cwd: tmpdir() }).stdout).toContain(
+      'Usage: bun node_modules/.bin/vulcan',
+    );
   });
 
   test('version prints the package version', () => {
@@ -61,7 +63,9 @@ describe('vulcan router', () => {
       const result = runCli({ args, cwd });
 
       expect(result.code, args.join(' ')).toBe(0);
-      expect(result.stdout, args.join(' ')).toContain('Usage: bun x vulcan <command>');
+      expect(result.stdout, args.join(' ')).toContain(
+        'Usage: bun node_modules/.bin/vulcan <command>',
+      );
     }
 
     expect(existsSync(join(cwd, 'CLAUDE.md'))).toBe(false);

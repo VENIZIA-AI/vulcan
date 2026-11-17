@@ -1,5 +1,13 @@
 import type { IPackageMapEntry } from '@/common/package-map';
 
+/** Where the symbols of a package were read from, in a remote source. */
+export interface ISymbolOrigin {
+  /** The version of the package whose declarations these are. */
+  version: string;
+  /** The folder of the installed copy, relative to the project when inside it; absent when the newest published release answered because none is installed. */
+  installedAt?: string;
+}
+
 /**
  * One exported symbol as `vulcan x atlas symbols` records it. `file`/`line` name the source
  * declaration, not the `dist` file the generator read - an alias export points at what it aliases.
@@ -7,6 +15,8 @@ import type { IPackageMapEntry } from '@/common/package-map';
 export interface ISymbolRecord {
   /** The source it came from, when atlas serves more than one. */
   source?: string;
+  /** The version and the folder these declarations were read from; set for a remote source, never cached. */
+  origin?: ISymbolOrigin;
   name: string;
   package: string;
   subpath: string;
@@ -20,6 +30,14 @@ export interface ISymbolRecord {
    * built `.d.ts`. Never served.
    */
   shape?: string;
+  /** Present and true when `file` points inside `node_modules`: the export re-exports a third-party declaration, so the path is an install detail, not repository source. */
+  external?: boolean;
+  /** The declaration as the built `.d.ts` has it: its TSDoc, its members, the unexported declarations it uses. Capped. */
+  declaration?: string;
+  /** The TSDoc of the export alone, without comment markers; empty when there is none. */
+  doc?: string;
+  /** Names of exported symbols the declaration refers to. */
+  uses?: string[];
 }
 
 /** What `search` adds beside its hits when the query is one identifier the table knows - no signature, no docs, so the reply budget barely moves. */

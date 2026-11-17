@@ -1,17 +1,20 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { BunFormatter } from '../common/index.ts';
+import { ProviderTypes } from '../board/common/constants.ts';
+import { BunFormatter, EnvVariables } from '../common/index.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { ProjectPackages } from '../config/index.ts';
+import { GuardDecisions } from '../hooks/common/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules } from '../rules/index.ts';
+import { ThemeTokens } from '../theme/index.ts';
 
 export class ManifestConstants {
   /** Committed; what atlas reads from a project - local or fetched - and nothing else. */
   static readonly FILE = '.agents/vulcan.manifest.json';
   static readonly SCHEMA_VERSION = 1;
   static readonly PROJECT_RULES = '.agents/rules.md';
-  static readonly ENV = 'VULCAN_MANIFEST';
+  static readonly ENV = EnvVariables.VULCAN_MANIFEST;
   /** The first key: a reader sees at once that the file is generated. Readers ignore it. */
   static readonly GENERATED_KEY = '$generated';
   static readonly GENERATED_NOTE = 'by vulcan sync from .configs/vulcan.config.* - do not edit';
@@ -19,14 +22,16 @@ export class ManifestConstants {
 
 const HASH_LENGTH = 8;
 
-/** The manifest's `guard` block: what the project adds to guard-writes and guard-git, as data a hook reads without the config (the read-only script entries of `trustedScripts` included). */
+/**
+ * The manifest's `guard` block: what the project sets for the guards, as data a hook reads without the config, so a
+ * config this VULCAN cannot parse never changes a guard: `outside` and `asks` (when not the default), `toolOwnedPaths`,
+ * the commands of guard-writes, the push targets of guard-git, the runners the runner guard accepts.
+ */
 const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<string, unknown> } => {
-  const { commands, trustedScripts } = opts.config.guard.writes;
+  const { commands } = opts.config.guard.writes;
   const { askPush } = opts.config.guard.git;
-  // Only the object entries: a path string is read from the config by the hook, as before.
-  const readOnlyScripts = trustedScripts.flatMap((entry) =>
-    typeof entry === 'string' ? [] : [{ script: entry.script, readOnly: entry.readOnly }],
-  );
+  const { allow } = opts.config.guard.runners;
+  const { outside, asks, toolOwnedPaths } = opts.config.guard;
   const writes = {
     ...(commands.length === 0
       ? {}
@@ -38,11 +43,14 @@ const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<strin
             ...(command.ignoreCase === true ? { ignoreCase: true } : {}),
           })),
         }),
-    ...(readOnlyScripts.length === 0 ? {} : { readOnlyScripts }),
   };
   const block = {
+    ...(outside === GuardDecisions.ASK ? {} : { outside }),
+    ...(asks === GuardDecisions.ASK ? {} : { asks }),
+    ...(toolOwnedPaths.length === 0 ? {} : { toolOwnedPaths }),
     ...(Object.keys(writes).length === 0 ? {} : { writes }),
     ...(askPush.length === 0 ? {} : { git: { askPush } }),
+    ...(allow.length === 0 ? {} : { runners: { allow } }),
   };
 
   return Object.keys(block).length === 0 ? {} : { guard: block };
@@ -70,13 +78,6 @@ const commitBlockOf = (opts: { config: TResolvedConfig }): { commit?: Record<str
   };
 };
 
-/** The manifest's `ci` block, which `vulcan ci affected` reads: only the globs the project adds. */
-const ciBlockOf = (opts: { config: TResolvedConfig }): { ci?: Record<string, unknown> } => {
-  const { global } = opts.config.ci.affected;
-
-  return global.length === 0 ? {} : { ci: { affected: { global } } };
-};
-
 /** The manifest's `events` block, which the hooks and `vulcan event` read: only when the log is on or has a folder. */
 const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<string, unknown> } => {
   const { log, dir, maxSize, maxFiles, maxAgeDays } = opts.config.events;
@@ -91,16 +92,53 @@ const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<str
     : {};
 };
 
-/** The manifest's `local` block: only when the project turns the automatic clean off, which the hook reads. */
-const localBlockOf = (opts: { config: TResolvedConfig }): { local?: Record<string, unknown> } =>
-  opts.config.local.autoClean ? {} : { local: { autoClean: false } };
+/** The manifest's `local` block, which the hooks and `vulcan clean` read: when the automatic clean is off or the project names its tmp folder. */
+const localBlockOf = (opts: { config: TResolvedConfig }): { local?: Record<string, unknown> } => {
+  const { autoClean, tmp } = opts.config.local;
+  const block = {
+    ...(autoClean ? {} : { autoClean: false }),
+    ...(tmp === undefined ? {} : { tmp }),
+  };
+
+  return Object.keys(block).length === 0 ? {} : { local: block };
+};
+
+/**
+ * The manifest's `theme` block: the accent seeds the project gave, its preset, and the resolved design tokens (both
+ * modes, font, mono, radius) that the board, the pages and the wiki read. Always written: a project with no `theme`
+ * gets the default preset. A theme the check refused never reaches here (the config does not load).
+ */
+const themeBlockOf = (opts: { config: TResolvedConfig }): { theme?: Record<string, unknown> } => {
+  const resolved = ThemeTokens.resolve({ theme: opts.config.theme });
+
+  if (!resolved.ok) {
+    return {};
+  }
+
+  const { preset, light, dark, font, mono, radius } = resolved.tokens;
+  const { accent, accentDark, accentText } = opts.config.theme ?? {};
+
+  return {
+    theme: {
+      ...(accent === undefined ? {} : { accent }),
+      ...(accentDark === undefined ? {} : { accentDark }),
+      ...(accentText === undefined ? {} : { accentText }),
+      preset,
+      tokens: { light, dark },
+      font,
+      mono,
+      radius,
+    },
+  };
+};
 
 /** The manifest's `board` block, which `vulcan board` reads: only what the project sets. */
 const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<string, unknown> } => {
-  const { owner, title, logo, agents } = opts.config.board;
+  const { owner, title, logo, hostname, agents } = opts.config.board;
 
   return owner === undefined &&
     title === undefined &&
+    hostname === undefined &&
     logo === undefined &&
     Object.keys(agents).length === 0
     ? {}
@@ -109,9 +147,21 @@ const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<strin
           ...(owner === undefined ? {} : { owner }),
           ...(title === undefined ? {} : { title }),
           ...(logo === undefined ? {} : { logo }),
+          ...(hostname === undefined ? {} : { hostname }),
           ...(Object.keys(agents).length === 0 ? {} : { agents }),
         },
       };
+};
+
+/** The manifest's `provider` block, which `vulcan board` reads: written only when the code host is not GitHub. */
+const providerBlockOf = (opts: {
+  config: TResolvedConfig;
+}): { provider?: Record<string, unknown> } => {
+  const { type, host } = opts.config.provider;
+
+  return type === ProviderTypes.GITHUB
+    ? {}
+    : { provider: { type, ...(host === undefined ? {} : { host }) } };
 };
 
 /** The manifest's `atlas` block: only what the config sets (keys listed, the download turned off). */
@@ -120,11 +170,15 @@ const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<strin
   const block = {
     ...(keys.length === 0 ? {} : { index: { keys } }),
     ...(opts.config.atlas.prebuilt === false ? { prebuilt: false } : {}),
+    ...(opts.config.atlas.limits?.download === undefined
+      ? {}
+      : { limits: { download: opts.config.atlas.limits.download } }),
   };
 
   return Object.keys(block).length === 0 ? {} : { atlas: block };
 };
 
+/** Renders `.agents/vulcan.manifest.json` from the config and the base rule hashes; written by `vulcan sync`. */
 export class ProjectManifest {
   /** `@acme/shop-workspace` gives `shop`; a project with no package name takes its directory's. */
   static projectNameOf(opts: { root: string; config: TResolvedConfig }): string {
@@ -145,9 +199,9 @@ export class ProjectManifest {
   }
 
   /** Each base rule's ID with a hash of its row: a sync after an upgrade can say which rules changed. */
-  static buildBaseRuleHashes(): Record<string, string> {
+  static buildBaseRuleHashes(opts: { packs?: string[] } = {}): Record<string, string> {
     return Object.fromEntries(
-      Object.entries(BaseRules.read()).map(([id, row]) => {
+      Object.entries(BaseRules.read(opts)).map(([id, row]) => {
         const hash = new Bun.CryptoHasher('sha256').update(row.trim()).digest('hex');
 
         return [id, hash.slice(0, HASH_LENGTH)];
@@ -161,7 +215,8 @@ export class ProjectManifest {
    */
   static render(opts: { root: string; config: TResolvedConfig }): string {
     const { config } = opts;
-    const { wiki, changelogs, syncAreas } = config.knowledge;
+    const { wiki, changelogs, migrationFrom, datedUntil, siteUrl, codemodCommand } =
+      config.knowledge;
 
     const manifest = {
       [ManifestConstants.GENERATED_KEY]: ManifestConstants.GENERATED_NOTE,
@@ -183,7 +238,10 @@ export class ProjectManifest {
         bundle: config.knowledge.bundle,
         ...(wiki === undefined ? {} : { wiki }),
         ...(changelogs === undefined ? {} : { changelogs }),
-        ...(syncAreas === undefined ? {} : { syncAreas }),
+        migrationFrom,
+        ...(datedUntil === undefined ? {} : { datedUntil }),
+        ...(siteUrl === undefined ? {} : { siteUrl }),
+        ...(codemodCommand === undefined ? {} : { codemodCommand }),
       },
       release: {
         tagPattern: config.atlas.tagPattern,
@@ -195,7 +253,7 @@ export class ProjectManifest {
       },
       rules: {
         project: ManifestConstants.PROJECT_RULES,
-        base: ProjectManifest.buildBaseRuleHashes(),
+        base: ProjectManifest.buildBaseRuleHashes({ packs: config.packs }),
       },
       // The sources this project reads knowledge from (atlas, git mode); a project without any carries none.
       ...(config.atlas.sources.length === 0 ? {} : { sources: config.atlas.sources }),
@@ -203,19 +261,19 @@ export class ProjectManifest {
       ...atlasBlockOf({ config }),
       // The commands and push targets the guards ask about beyond their own list; neither set, nothing is written.
       ...guardBlockOf({ config }),
-      // The remote-host guard reads its policy here; a project without the key has no guard.
-      ...(config.remoteHosts === undefined ? {} : { remoteHosts: config.remoteHosts }),
-      // The colour `vulcan visualize` takes for its pages; a project without the key gets the neutral default.
-      ...(config.theme === undefined ? {} : { theme: config.theme }),
+      // The design tokens: the preset, the seeds the project gave and the resolved set every consumer reads.
+      ...themeBlockOf({ config }),
       ...commitBlockOf({ config }),
-      // The files the project adds to the ones that make every package affected; none added, nothing is written.
-      ...ciBlockOf({ config }),
       // The names and the logo `vulcan board` puts on its page; nothing set, nothing is written.
       ...boardBlockOf({ config }),
+      // The code host the board reads; GitHub, the default, writes nothing.
+      ...providerBlockOf({ config }),
       // The automatic clean of .agents/local is on unless the project turns it off here.
       ...localBlockOf({ config }),
       // Whether the Claude Code hooks write the agent event log, and the folder it goes to.
       ...eventsBlockOf({ config }),
+      // The key a flow is named by; the hooks and `vulcan event` read it here, not from the config.
+      ...(config.project === undefined ? {} : { project: { key: config.project.key } }),
     };
 
     return BunFormatter.format({

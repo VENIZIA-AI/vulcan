@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { ProjectLayout } from '../../common/index.ts';
 import { createFakeCommand } from '../fake-command.helper.ts';
 import { checkFiles, FORMATTED_GLOB } from '../format.helper.ts';
 import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
@@ -362,6 +363,8 @@ describe('vulcan init --preset', () => {
         `file:${frontend}`,
         '--project',
         'p',
+        '--key',
+        'TEST',
         '--frontend-dir',
         'web',
         '--app',
@@ -463,7 +466,17 @@ describe('vulcan init --preset', () => {
   test('a preset that is not there is an error and nothing is written', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
-      args: ['init', '--preset', `file:${join(parent, 'nowhere')}`, '--project', 'p', '--app', 'a'],
+      args: [
+        'init',
+        '--preset',
+        `file:${join(parent, 'nowhere')}`,
+        '--project',
+        'p',
+        '--key',
+        'TEST',
+        '--app',
+        'a',
+      ],
       cwd: parent,
       env: ENV,
     });
@@ -476,7 +489,7 @@ describe('vulcan init --preset', () => {
   test('an npm preset cannot be located offline', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
-      args: ['init', '--preset', 'some-name', '--project', 'p', '--app', 'a'],
+      args: ['init', '--preset', 'some-name', '--project', 'p', '--key', 'TEST', '--app', 'a'],
       cwd: parent,
       env: ENV,
     });
@@ -541,6 +554,8 @@ describe('vulcan init --preset', () => {
         `file:${frontend}`,
         '--project',
         'p',
+        '--key',
+        'TEST',
         '--frontend-dir',
         'web',
         '--app',
@@ -613,5 +628,47 @@ describe('vulcan init --preset', () => {
     expect(result.code).toBe(0);
     expect(result.stderr).toContain(`file:${BACKEND}`);
     expect(result.stderr).toContain('not portable');
+  });
+});
+
+describe('the ignore files of a new project', () => {
+  test('.gitignore and .dockerignore carry the same secret patterns, and .env.local is ignored', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const gitignore = readFileSync(join(parent, 'my-product', '.gitignore'), 'utf8').split('\n');
+    const dockerignore = readFileSync(join(parent, 'my-product', '.dockerignore'), 'utf8').split(
+      '\n',
+    );
+
+    expect(ProjectLayout.SECRET_PATTERNS).toEqual(['**/.env', '**/.env.*', '!**/.env.example']);
+
+    for (const lines of [gitignore, dockerignore]) {
+      const at = ProjectLayout.SECRET_PATTERNS.map((pattern) => lines.indexOf(pattern));
+
+      expect(at.every((index) => index >= 0)).toBe(true);
+      expect(at).toEqual([...at].sort((a, b) => a - b));
+    }
+  });
+
+  test('git agrees: .env.local and .env.production are ignored, .env.example is not', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const project = join(parent, 'my-product');
+
+    Bun.spawnSync(['git', 'init', '-q'], { cwd: project });
+
+    const ignored = (name: string): boolean =>
+      Bun.spawnSync(['git', 'check-ignore', '-q', '--no-index', name], { cwd: project })
+        .exitCode === 0;
+
+    expect(ignored('.env')).toBe(true);
+    expect(ignored('.env.local')).toBe(true);
+    expect(ignored('.env.production')).toBe(true);
+    expect(ignored('apps/api/.env.local')).toBe(true);
+    expect(ignored('.env.example')).toBe(false);
   });
 });

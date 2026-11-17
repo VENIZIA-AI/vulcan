@@ -1,5 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { CodemodRunner } from './codemod-runner';
+import { GitArgument } from './git-argument';
+import { AtlasLimits } from './limits';
+import { SiteUrl } from './site-url';
 import { WireValue } from './wire';
 import { LibraryKinds, PackageKinds, SourcePins } from './constants';
 import type { TAppSide, TLibraryKind, TPackageKind, TSourcePin } from './types';
@@ -65,13 +69,27 @@ export interface IAtlasProject {
   /** Absolute: where the project's `typescript` resolves from. */
   typescriptFrom: string;
   /** Absolute paths. */
-  knowledge: { bundle: string; wiki?: string; changelogs?: string };
+  knowledge: {
+    bundle: string;
+    wiki?: string;
+    changelogs?: string;
+    /** A date (dated files) or a version `X.Y.Z` (version folders from it on). */
+    migrationFrom?: string;
+    /** The last date a dated changelog file may carry. */
+    datedUntil?: string;
+    /** The address of the project's wiki, without a trailing slash: `migrate plan` builds the link to a step's upgrade guide on it. */
+    siteUrl?: string;
+    /** The runner of the migrations' codemods: a bare binary name, then fixed words; absent means `devz codemod`. */
+    codemodCommand?: string[];
+  };
   /** The sources this project reads knowledge from (git mode): `atlas.sources` of its config. */
   sources: { name: string; repo: string; ref: string; pin?: TSourcePin }[];
   /** The ed25519 public keys (base64, 32 raw bytes) whose signature a prebuilt index of this project must carry; absent when it publishes none. */
   indexKeys?: string[];
   /** `false` when the manifest turns the prebuilt-index download off for this project's sources; absent otherwise. */
   prebuilt?: false;
+  /** `atlas.limits.download` of the manifest, in bytes; absent when it sets none or an unusable one. */
+  downloadLimit?: number;
 }
 
 const isNpmName = (opts: { name: string }): boolean =>
@@ -130,6 +148,14 @@ const layoutOf = (opts: { value: unknown }): Pick<IAtlasProject, 'layout'> => {
   );
 
   return Object.keys(layout).length === 0 ? {} : { layout };
+};
+
+/** `atlas.limits.download` of the manifest: an integer within the bounds atlas keeps; nothing is added otherwise. */
+const downloadLimitOf = (opts: { value: unknown }): Pick<IAtlasProject, 'downloadLimit'> => {
+  const limits = WireValue.recordOf({ value: WireValue.recordOf({ value: opts.value }).limits });
+  const downloadLimit = AtlasLimits.validDownloadOf({ value: limits.download });
+
+  return downloadLimit === undefined ? {} : { downloadLimit };
 };
 
 /** `atlas.index.keys` of the manifest: the strings in it; nothing is added when there are none. */
@@ -205,6 +231,32 @@ export class ProjectConfig {
     const knowledge = WireValue.recordOf({ value: manifest.knowledge });
     const wiki = WireValue.stringOf({ value: knowledge.wiki });
     const changelogs = WireValue.stringOf({ value: knowledge.changelogs });
+    const migrationFrom = WireValue.stringOf({ value: knowledge.migrationFrom });
+    const datedUntil = WireValue.stringOf({ value: knowledge.datedUntil });
+
+    // compared as text with the date of a dated file: anything but a plain day would silently decide wrong
+    if (datedUntil !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(datedUntil)) {
+      throw new Error(
+        `atlas: ${opts.source ?? `project '${projectName}'`} - knowledge.datedUntil '${datedUntil}' is not a date (YYYY-MM-DD)`,
+      );
+    }
+    const rawSiteUrl = WireValue.stringOf({ value: knowledge.siteUrl });
+    // a fetched manifest is data from elsewhere: only a plain web address becomes a link, normalized here once
+    const parsedSiteUrl =
+      rawSiteUrl === undefined ? undefined : SiteUrl.parse({ value: rawSiteUrl });
+
+    if (parsedSiteUrl !== undefined && 'problem' in parsedSiteUrl) {
+      throw new Error(
+        `atlas: ${opts.source ?? `project '${projectName}'`} - knowledge.siteUrl ${parsedSiteUrl.problem}`,
+      );
+    }
+
+    const siteUrl = parsedSiteUrl?.href;
+
+    const codemodCommand = CodemodRunner.wordsOf({
+      value: knowledge.codemodCommand,
+      label: opts.source ?? `project '${projectName}'`,
+    });
 
     if (manifest.schemaVersion !== MANIFEST_SCHEMA_VERSION) {
       throw new Error(
@@ -231,6 +283,7 @@ export class ProjectConfig {
       ...(WireValue.recordOf({ value: manifest.atlas }).prebuilt === false
         ? { prebuilt: false as const }
         : {}),
+      ...downloadLimitOf({ value: manifest.atlas }),
       sources: (Array.isArray(manifest.sources) ? manifest.sources : []).flatMap((item) => {
         const source = WireValue.recordOf({ value: item });
         const name = WireValue.stringOf({ value: source.name });
@@ -240,13 +293,21 @@ export class ProjectConfig {
             ? source.pin
             : undefined;
 
-        return name === undefined || repo === undefined
+        const ref = WireValue.stringOf({ value: source.ref }) ?? 'develop';
+
+        // A name that could be read as a flag, and a repository or a ref that starts with '-', are not values a
+        // command line can be given: the source is left out.
+        return name === undefined ||
+          repo === undefined ||
+          !GitArgument.isSourceName({ value: name }) ||
+          GitArgument.isOptionLike({ value: repo }) ||
+          GitArgument.isOptionLike({ value: ref })
           ? []
           : [
               {
                 name,
                 repo,
-                ref: WireValue.stringOf({ value: source.ref }) ?? 'develop',
+                ref,
                 ...(pin === undefined ? {} : { pin }),
               },
             ];
@@ -258,6 +319,10 @@ export class ProjectConfig {
         ),
         ...(wiki === undefined ? {} : { wiki: resolve(opts.root, wiki) }),
         ...(changelogs === undefined ? {} : { changelogs: resolve(opts.root, changelogs) }),
+        migrationFrom,
+        ...(datedUntil === undefined ? {} : { datedUntil }),
+        ...(siteUrl === undefined ? {} : { siteUrl }),
+        ...(codemodCommand.length === 0 ? {} : { codemodCommand }),
       },
     };
   }

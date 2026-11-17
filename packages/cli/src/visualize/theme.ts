@@ -142,8 +142,8 @@ const ratioText = (value: number): string => `${value.toFixed(2)}:1`;
 
 /** The fixed grounds: tinted a little toward the accent, so a page reads as the project's own. */
 const GROUNDS = {
-  light: { bg: '#ffffff', bgSoft: '#f6f6f5', ink: '#0e0e0f', body: '#3a3a3d', muted: '#66666b' },
-  dark: { bg: '#121214', bgSoft: '#1b1b1e', ink: '#f6f6f7', body: '#d0d0d4', muted: '#a2a2a8' },
+  light: { bg: '#ffffff', bgSoft: '#f6f6f7', ink: '#0e0e0f', body: '#3a3a3d', muted: '#66666b' },
+  dark: { bg: '#1b1b1f', bgSoft: '#202127', ink: '#f6f6f7', body: '#d0d0d4', muted: '#a2a2a8' },
   slab: {
     slab: '#151517',
     slab2: '#202023',
@@ -154,16 +154,19 @@ const GROUNDS = {
   },
   slabDark: { slab: '#0b0b0c', slab2: '#19191b', slab3: '#252528' },
   accentLightSoft: 0.12,
-  accentDarkSoft: 0.14,
+  accentDarkSoft: 0.12,
   tint: 0.035,
 };
 
 export class ProjectTheme {
-  /** The colour of a page whose project says nothing: a slate ink. */
-  static readonly DEFAULT: IThemeInput = { accent: '#3f5266', accentDark: '#9fb4cc' };
+  /** The colour of a page whose project says nothing: the venizia bronze, the seeds of the default preset. */
+  static readonly DEFAULT: IThemeInput = { accent: '#8a5a20', accentDark: '#dead6a' };
 
   /** The manifest is read only up to this size: a real one is a few KB. */
   static readonly MAX_MANIFEST_BYTES = 1024 * 1024;
+
+  /** The six-digit hex colour pattern, the one the config and the tokens check with. */
+  static readonly HEX = HEX;
 
   /** Whether `value` is a six-digit hex colour. */
   static isHex(value: unknown): value is string {
@@ -171,8 +174,8 @@ export class ProjectTheme {
   }
 
   /**
-   * The theme of a page: the spec's own accent, else the project's `theme` from the manifest, else the neutral
-   * default. Every text, mark and fill pair is checked; a failure writes nothing and says the colour, the ground
+   * The theme of a page: the spec's own accent, else the project's `theme` from the manifest, else the default
+   * preset. Every text, mark and fill pair is checked; a failure writes nothing and says the colour, the ground
    * and the ratio. A colour is never swapped for another.
    */
   static resolve(opts: { spec?: IThemeInput; project?: IThemeInput }): TThemeResult {
@@ -393,21 +396,21 @@ export class ProjectTheme {
   }
 
   /**
-   * The theme blocks: light on `:root`, then the system dark setting unless the page was set to light, then an
-   * explicit dark. The same tokens in each.
+   * The theme blocks: dark on `:root`, then the system light setting unless the page was set to dark, then an
+   * explicit light. The same tokens in each.
    */
   static tokensCss(opts: { theme: IResolvedTheme }): string {
     const light = ProjectTheme.declarations({ palette: opts.theme.light });
     const dark = ProjectTheme.declarations({ palette: opts.theme.dark });
 
-    return `:root{${light};color-scheme:light}\n@media (prefers-color-scheme:dark){:root:not([data-theme=light]){${dark};color-scheme:dark}}\n:root[data-theme=dark]{${dark};color-scheme:dark}`;
+    return `:root{${dark};color-scheme:dark}\n@media (prefers-color-scheme:light){:root:not([data-theme=dark]){${light};color-scheme:light}}\n:root[data-theme=light]{${light};color-scheme:light}`;
   }
 
   /**
-   * The project's `theme` from the manifest of the folder the command runs in. No config file is loaded and nothing
-   * is requested: a missing file, or a manifest with no `theme`, is the neutral default.
+   * The `theme` block of the manifest of the folder the command runs in. No config file is loaded and nothing is
+   * requested: a missing file, or a manifest with no `theme`, gives no block and no warning.
    */
-  static readManifestTheme(opts: { root: string }): { theme?: IThemeInput; warning?: string } {
+  static readManifestBlock(opts: { root: string }): { block?: object; warning?: string } {
     let text: string;
 
     try {
@@ -436,7 +439,7 @@ export class ProjectTheme {
       manifest = JSON.parse(text);
     } catch {
       return {
-        warning: '.agents/vulcan.manifest.json is not valid JSON, so the neutral colour is used',
+        warning: '.agents/vulcan.manifest.json is not valid JSON, so the default colour is used',
       };
     }
 
@@ -450,16 +453,44 @@ export class ProjectTheme {
     }
 
     if (typeof theme !== 'object' || theme === null) {
-      return { warning: 'the manifest theme is not an object, so the neutral colour is used' };
+      return { warning: 'the manifest theme is not an object, so the default colour is used' };
     }
 
-    const accent: unknown = Reflect.get(theme, 'accent');
-    const accentDark: unknown = Reflect.get(theme, 'accentDark');
+    return { block: theme };
+  }
+
+  /**
+   * The accent seeds of the project's `theme` in the manifest, for the pages `vulcan visualize` makes. A missing file, or a
+   * manifest with no `theme`, is the default preset.
+   */
+  static readManifestTheme(opts: { root: string }): { theme?: IThemeInput; warning?: string } {
+    const { block: theme, warning } = ProjectTheme.readManifestBlock(opts);
+
+    if (theme === undefined) {
+      return warning === undefined ? {} : { warning };
+    }
+
+    // A manifest that holds only the resolved tokens (a project that set no accent) gives the accent of its preset.
+    const tokens: unknown = Reflect.get(theme, 'tokens');
+    const modeOf = (mode: string): unknown =>
+      typeof tokens === 'object' && tokens !== null ? Reflect.get(tokens, mode) : undefined;
+    const resolvedAccent = (mode: string): unknown => {
+      const palette = modeOf(mode);
+
+      return typeof palette === 'object' && palette !== null
+        ? Reflect.get(palette, 'accent')
+        : undefined;
+    };
+    const given: unknown = Reflect.get(theme, 'accent');
+    const accent: unknown = given ?? resolvedAccent('light');
+    const accentDark: unknown =
+      Reflect.get(theme, 'accentDark') ??
+      (given === undefined ? resolvedAccent('dark') : undefined);
     const accentText: unknown = Reflect.get(theme, 'accentText');
 
     if (!ProjectTheme.isHex(accent)) {
       return {
-        warning: 'the manifest theme has no six-digit hex accent, so the neutral colour is used',
+        warning: 'the manifest theme has no six-digit hex accent, so the default colour is used',
       };
     }
 

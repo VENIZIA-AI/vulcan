@@ -27,7 +27,7 @@ One release train: the three packages always share a version.
 | Package | Role |
 |---|---|
 | [cli](/packages/cli.md) | `@venizia/vulcan` - the `vulcan` CLI and the shipped base |
-| [okf](/packages/okf.md) | `@venizia/vulcan-okf` - OKF v0.2 check, gen, coverage, viz |
+| [okf](/packages/okf.md) | `@venizia/vulcan-okf` - OKF v0.2 check, gen, coverage |
 | [atlas](/packages/atlas.md) | `@venizia/vulcan-atlas` - the MCP knowledge server and the table generators |
 
 ## Architecture

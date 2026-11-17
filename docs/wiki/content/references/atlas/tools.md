@@ -1,11 +1,11 @@
 ---
 title: atlas tools
-description: Arguments, schemas, and return formats for the six atlas MCP tools.
+description: Arguments, schemas, and return formats for the seven atlas MCP tools.
 ---
 
 # atlas tools
 
-atlas provides six MCP tools for search, retrieval, code inspection, release tracking, and creating apps and packages.
+atlas provides seven MCP tools for search, retrieval, code inspection, release tracking, migration plans, and creating apps and packages.
 Agents call these tools over JSON-RPC 2.0 stdio.
 
 | Tool | Required arguments |
@@ -15,6 +15,7 @@ Agents call these tools over JSON-RPC 2.0 stdio.
 | `symbol` | `name` |
 | `version` | None |
 | `changes` | None |
+| `migrate` | `to` |
 | `presets` | None |
 
 The following output drops the initialize handshake line:
@@ -30,7 +31,7 @@ The corpus segment identifies the source collection.
 Three corpus prefixes exist in chunk citations:
 
 - `wiki`: full path in the wiki documentation directory
-- `changelog`: dated markdown file stem without the `.md` extension
+- `changelog`: dated markdown file stem without the `.md` extension, or the version of a version folder (`0.4.8`)
 - `okf`: full path in the knowledge bundle directory
 
 In chunk citations, the knowledge bundle prefix is `okf`.
@@ -42,6 +43,7 @@ Pass `all` to search across every corpus without filtering.
 | `wiki:guides/core-concepts/components-guide.md#step-4-create-the-controller` | One step of a wiki guide |
 | `okf:overview/design-decisions.md#decorator-based-dependency-injection` | One section of a knowledge concept |
 | `changelog:2026-09-02-bundle-safe-helpers#what-changed` | One section of a changelog entry |
+| `changelog:<version>#<item-id>` | One item of a version folder's `log.md`, with its migration block when it has one |
 | `okf:process/release-publish.md#steps` | One section of a process page |
 
 When you drop the anchor and hash from an identifier, `get` reads the entire document.
@@ -145,6 +147,21 @@ When exactly one match exists, `symbol` returns a flat record:
 ```
 
 The `docs` array carries up to five chunk IDs documenting the symbol.
+A record can also carry these fields:
+
+| Field | Meaning |
+|---|---|
+| `source` | The source the record came from, when atlas serves more than one |
+| `origin` | For a remote source: `version`, and `installedAt` (the folder the declarations were read from, relative to the project) when the app has the package installed; with no `installedAt` the newest published release answered because none is installed |
+| `external` | `true` when the export re-exports a third-party declaration |
+| `declaration` | The declaration as the built `.d.ts` has it, within 10,000 characters |
+| `truncated` | `true` when something was left out of `declaration` to stay within that budget |
+| `declarationOf` | The specifier of an earlier match that has the same declaration, which is then not repeated |
+
+A remote source answers with the declarations of the copy the app has installed, read again when the installed version changes while the server runs (a bump, a `bun install`). Check `origin` when a signature looks old: a different version than the one you run means another copy was read, and `vulcan x atlas status` lists every copy.
+
+With `external`, `file` points inside `node_modules`, an install detail and not repository source. `declaration` holds its TSDoc, its members, and the declarations of the exported symbols it uses, nearest first.
+
 When multiple packages export the same name, `symbol` returns a `matches` array containing those records.
 
 An unknown symbol name is not an error.
@@ -211,6 +228,7 @@ When `package.json` is missing, `version` answers with `installed: {}`.
 | `package` | String | None | Package name or alias; omitted, filters across all packages by date |
 | `from` | String | Earlier release or date | Starting version or starting YYYY-MM-DD date |
 | `to` | String | Newest release or date | Ending version or ending YYYY-MM-DD date |
+| `offset` | Integer | `0` | Where the page starts in the window's entries, newest first; the `nextOffset` of the previous reply |
 
 For a package, `from` defaults to the newest release on an earlier day than `to`.
 Without a package, `from` defaults to the newest entry date below `to`.
@@ -223,6 +241,7 @@ The window excludes entries dated on `from` and includes entries on `to`.
 For a date window across all packages, `package` is `null`.
 `from` can be `null` when no earlier boundary exists.
 Each entry carries `id`, `date`, `title`, `kind`, and `packages`.
+`kind` is the text of the entry's first badge, and the short `Breaking` badge is reported as `Breaking Change`, so one value names a breaking entry.
 `packages` lists npm package names, never directory names:
 
 ```json
@@ -254,8 +273,9 @@ Each entry carries `id`, `date`, `title`, `kind`, and `packages`.
 }
 ```
 
-If the reply exceeds 2,000 characters, `changes` sets `truncated` to `true`.
-A truncated reply drops the oldest entries and keeps the newest.
+A reply holds at most 2,000 characters, and always at least one entry.
+When entries remain, `changes` sets `truncated` to `true` and `nextOffset` to where the next page starts: call again with `offset: nextOffset`, and repeat until `nextOffset` is absent to read every entry once, newest first.
+An `offset` past the last entry answers an empty page.
 For a declared package with no recorded release, `from` is `null`.
 The reply includes a `note` explaining why no release bounded the window.
 Passing `from` or `to` returns an error: `no release of <pkg> is recorded on this ref`.
@@ -278,6 +298,34 @@ If you pass a version without a package, `changes` returns error `-32602`:
 to must be a YYYY-MM-DD date when no package is given; got '0.2.0-16'
 ```
 
+## migrate
+
+`migrate` plans what an app must change to move a package from one version to another. The move can be an upgrade or a rollback, and any number of releases apart. It reads the app and never edits it.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `to` | String | Required | A version, `latest` (the newest stable release in the release table) or `next` (the newest release in it) |
+| `package` | String | Every installed package the sources serve | The package to move; a version for `to` or `from` needs it |
+| `from` | String | The installed version | The version the app runs now |
+| `app` | String | The server's working directory | The app directory to scan |
+
+The reply holds `app`, `plans` (one for each package), `skipped` and, when a source atlas serves could not be served, `notServed`: the sources still indexing or failed, with the reason, and what the answer covers. A plan that holds no entry or no structured step is not a clean result when `notServed` is present. `skipped`: an installed package the release table cannot place (a local build, a version that was never released) is listed there with the reason while the other packages are planned. `unserved` lists the installed packages no atlas source serves, by name (VULCAN itself is one in a project that does not list it as a source); the Markdown plan prints them as one line. Naming such a package with `package` is an error instead, which points to `atlas.sources` and `vulcan x atlas pull`. A plan holds:
+
+- `package`, `from`, `to`: the move.
+- `direction`: `upgrade`, `downgrade`, or `none` when both versions are the same.
+- `target`: `release table` when `to` was `latest` or `next`, else `version`. The version is never taken from the registry: npm is asked only whether the atlas is behind it (below).
+- `apply`: the `vulcan migrate apply` command that runs the codemods the steps link; absent when no step links one. The tool never runs it.
+- `entries`: how many changelog entries of the package fall in the window, with a `migration` block or not. `0` means the release table holds none between the two versions, which proves nothing about the move.
+- `note`: present when the plan needs a warning, for example `latest` is older than the installed prerelease, so the plan is a downgrade; use `next` to stay on the newest release.
+- `steps`: the window's migration items in the order they apply (newest first for a downgrade): `id`, `entry`, `title`, `date`, `symbols`, `change` (the `upgrade` or `downgrade` of the item), `data`, `codemod`, and `touches`, the `file`, `line`, `symbol` and `kind` where the app's code reaches it (empty when no static import of it was found). `kind` is `name` (the code imports or uses the name), `re-export` (`export * from` the package: only the consumers are reached) or `module` (the symbol is a module specifier and the line imports it). The Markdown report counts a `re-export` as "only re-exported" and lists the `module` places only with `--verbose`; the JSON always holds every touch.
+- `unstructured`: entries of the window with any Breaking or Breaking Change badge and no `migration` block: read each with `get`.
+- `behind`: set when npm publishes a `latest` or `next` the atlas does not know: the ref of the source is behind the registry, so the plan stops short of it. `apply` refuses such a plan unless `--force`. One bounded request per package to the registry of `VULCAN_NPM_REGISTRY` (default `https://registry.npmjs.org`); when it cannot be asked, nothing is claimed. A `to` that is a version npm publishes and the atlas does not know is an error that says so, not "unknown version".
+- `unreadable`: files of the app that could not be read; the scan covered the rest.
+
+The scan reads static imports in `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs` and `.cjs` files, skipping `node_modules`, `dist`, `build`, `coverage` and folders that start with a dot: named, aliased, namespace and default imports, re-exports and `export *`, and a string `import()` of a module-specifier symbol. It does not scan `require()` calls or destructured namespaces, so an empty `touches` means no static import was found, not that the code is safe. It matches by name, without types, so a local that shadows an import is counted. A missing `app` directory is an error naming it.
+
+An entry that names several packages is in the plan of each. `vulcan migrate plan` and `vulcan x atlas migrate plan` print the same answer as Markdown or, with `--format json`, as this JSON.
+
 ## presets
 
 `presets` answers "how do I create a new app or package here" from the manifest `vulcan sync` renders: which preset makes it, which folder it lands in, and the exact `vulcan add` command. An agent asked to create something calls it before it writes a file.
@@ -286,11 +334,13 @@ The answer lists the presets this project recorded first (`inProject: true`), th
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `kind` | String | `app` | What is created: `app`, `lib` for a library other apps import, or `shared` for a side-neutral package other apps import. Any other word is a kind no preset makes |
+| `kind` | String | `app` | What is created: `app`, `lib` or `shared` |
 | `name` | String | `<name>` | The new name (lowercase letters, digits and `-`), put into the command |
 | `side` | `backend` or `frontend` | Both | Narrows the apps list to one side |
 
-For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `command` and `inProject`; for `kind: "lib"` and `kind: "shared"`, `preset`, `summary`, `folder`, `command` and `inProject`. With `kind: "shared"` the entries are the recorded presets that have a shared kind, and the command ends in `--shared <name>`. A side or kind whose layout lists several folders has `folder: null`, a `folders` list, and a command with a folder placeholder (`--frontend-dir <auroras/apps|auroras/guests>`): the agent picks one. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder. A frontend's command ends with `--api <backend app> | --no-api`.
+`lib` is a library other apps import; `shared` is a side-neutral package other apps import. Any other `kind` word is a kind no preset makes.
+
+For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `command` and `inProject`; for `kind: "lib"` and `kind: "shared"`, `preset`, `summary`, `folder`, `command` and `inProject`. With `kind: "shared"` the entries are the recorded presets that have a shared kind, and the command ends in `--shared <name>`. A side or kind whose layout lists several folders has `folder: null`, a `folders` list, and a command with a folder placeholder (`--frontend-dir <frontends/apps|frontends/guests>`): the agent picks one. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder. A frontend's command ends with `--api <backend app> | --no-api`.
 
 ```json
 {
@@ -301,7 +351,7 @@ For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `com
       "side": "backend",
       "summary": "An IGNIS API on Bun.",
       "folder": "services",
-      "command": "bun x --no-install vulcan add --preset ignis --app web2",
+      "command": "bun node_modules/.bin/vulcan add --preset ignis --app web2",
       "inProject": true
     },
     {
@@ -309,7 +359,7 @@ For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `com
       "side": "frontend",
       "summary": "ARDOR: a frontend app on Vite and React (official; not yet in this project)",
       "folder": null,
-      "command": "bun x --no-install vulcan add --preset ardor --app web2 --frontend-dir <folder> --api <backend app> | --no-api",
+      "command": "bun node_modules/.bin/vulcan add --preset ardor --app web2 --frontend-dir <folder> --api <backend app> | --no-api",
       "inProject": false
     }
   ]
@@ -318,12 +368,10 @@ For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `com
 
 A recorded preset of the same package (`ignis`, `@venizia/ignis`, `ignis@0.3.5`) replaces the official entry, so a preset is listed once. When no entry is in the project, a `note` says so. When nothing fits the kind, `presets` is empty and a `note` says what to do instead. The tool never offers an app preset for a library or a shared package, or a command that does not exist:
 
-| Case | `note` |
-|---|---|
-| A kind other than `app`, `lib` or `shared` | `no preset makes a <kind> (vulcan add makes apps, libs and shared packages): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app, lib or shared preset for it` |
-| The project recorded no preset | `this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use` |
-| No recorded preset makes the kind or side | `no recorded preset makes a <lib, shared or side>: the entries are the official ones, marked inProject false; ask the user which to use, and do not hand-write package.json, tsconfig or scripts` |
-| No preset at all makes the kind (a `shared` ask while no recorded preset has a shared kind and no official one has published it) | `no preset makes a shared: ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app preset for it` |
+- A kind other than `app`, `lib` or `shared`: `no preset makes a <kind> (vulcan add makes apps, libs and shared packages): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app, lib or shared preset for it`
+- The project recorded no preset: `this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use`
+- No recorded preset makes the kind or side: `no recorded preset makes a <lib, shared or side>: the entries are the official ones, marked inProject false; ask the user which to use, and do not hand-write package.json, tsconfig or scripts`
+- No preset at all makes the kind (a `shared` ask while no recorded preset has a shared kind and no official one has published it): `no preset makes a shared: ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app preset for it`
 
 ## Errors
 
@@ -357,13 +405,17 @@ The server returns tool definitions containing `name`, `description`, and `input
 To inspect tool declarations without an MCP client, run `vulcan x atlas tools`:
 
 ```text
-$ bun x --no-install vulcan x atlas tools
-search   Search the wiki, changelogs and knowledge bundle for chunks matching a keyword query, ranked by relevance
-get      Read one chunk's body by the id a search hit returned, or a whole document by the same id with its `#anchor` dropped, paging a long body with a cursor.
-symbol   Locate one exported symbol by name: which package and import specifier it comes from, its kind, its one-line signature, the source `file` and `line` it is declared on, and the chunk ids that document it
-version  Compare the @venizia/* packages installed in a directory against the newest versions this build knows about - the versions its generated release table carries, not the registry.
-changes  List the changelog entries between two releases: a package with two of its versions, or no package with two `YYYY-MM-DD` dates
+$ bun node_modules/.bin/vulcan x atlas tools
+search   When the user asks how something works in demo-app, how to build something in it, or about this project's conventions, search here before you answer from memory
+get      After `search`, read the hit here before you rely on it
+symbol   Before you import or call an export of demo-app, get its real signature, import path and source line here instead of recalling it
+version  When a version, an upgrade or an installed @venizia/* package comes up in demo-app, check here
+changes  When the user asks what changed, what a release added or what breaks on upgrade in demo-app, list the entries here
+migrate  When the user asks what to change to upgrade or roll back a @venizia/* package, or how to move an app between two versions of demo-app, plan it here before you answer
+presets  When you are asked to create a new app or package in demo-app, ask here which preset and which exact command to use before you write any file
 ```
+
+Each line is the first sentence of the tool's description; the description goes on to say what the tool returns.
 
 ## See also
 
