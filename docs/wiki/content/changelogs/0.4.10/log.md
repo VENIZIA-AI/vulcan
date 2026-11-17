@@ -8,6 +8,7 @@ highlights:
   - "The changelog is one folder per version, with an upgrade step for each breaking item"
   - "`vulcan board serve` keeps the board current, and GitLab merge requests and jobs are read too"
   - "Seven shipped hooks and several config keys are removed: run `vulcan sync` and delete the keys"
+released: 2026-11-17
 ---
 This release adds `vulcan migrate` and a changelog folder per version, a board that updates by itself, GitLab support and a lighter set of shipped hooks. It trims the base rules and removes several hooks and config keys, so a project must run `vulcan sync` after it updates and may have a key to delete.
 
