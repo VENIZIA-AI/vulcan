@@ -5,6 +5,7 @@ description: List every tracked file that runs an unscoped package fetched by na
 
 # vulcan runners
 
+<!-- runners: example -->
 `vulcan runners check` lists every file git tracks that runs a package fetched by name: `bunx shadcn`, `npx turbo`, `pnpm dlx create-foo`. It is the check behind rule `V-S-08`, for CI and for you. The agent's side of the same rule is the `guard-git` hook.
 
 ## Why
@@ -42,6 +43,7 @@ bun node_modules/.bin/vulcan runners check
 
 Each finding is one line on stderr: ``<file>:<line>: <runner> <name> fetches a package by name; run `bun node_modules/.bin/<bin>` from the project root, or through a make target (V-S-08)``. The runner is as written, with `--no-install` when it was there.
 
+<!-- runners: example -->
 ```text
 $ bun node_modules/.bin/vulcan runners check
 Makefile:2: bunx shadcn fetches a package by name; run `bun node_modules/.bin/<bin>` from the project root, or through a make target (V-S-08)
