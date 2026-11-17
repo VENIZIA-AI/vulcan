@@ -123,10 +123,12 @@ The following list gives each command, its purpose, its exit codes, and its refe
   Exit codes: `0` when conformant; `1` on any contract violation or unknown argument.
 - `upgrade` ([upgrade](#upgrade)): Bump the pinned `@venizia/vulcan` dependency and run sync.
   Exit codes: `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync`.
-- `changelog` ([changelog](#changelog)): `changelog check`: check the version folders and the `migration` blocks of the changelog.
-  Exit codes: `0` when every entry conforms; `1` when an entry does not, the tool is missing or the configuration is invalid; `2` for a subcommand other than `check`.
-- `migrate` ([migrate](#migrate)): `migrate plan`: what an app must change to move a package between two releases, newer or older; `migrate apply`: run the codemods the plan links.
-  Exit codes: `0` when a plan is printed or apply ran; `1` when the plan cannot be made, apply is refused or a codemod fails, or the tool is missing; `2` for a subcommand other than `plan` or `apply`, a missing `--to`, an unknown flag, a flag with no value or a `--format` other than `md` or `json`.
+- `changelog` ([vulcan changelog](/references/commands/changelog)): `changelog check` is the gate over the changelog (dated entries, version folders, `migration` blocks); `changelog notes --version <X.Y.Z>` prints the release notes of a version.
+  Exit codes: `0` when every entry conforms or the notes are printed; `1` when an entry does not, a version has no folder, the tool is missing or the configuration is invalid; `2` for arguments that match no form.
+- `migrate` ([vulcan migrate](/references/commands/migrate)): `migrate plan` lists what an app must change to move a package between two releases, newer or older; `migrate apply` runs the codemods the plan links.
+  Exit codes: `0` when a plan is printed or `apply` ran; `1` when the plan cannot be made, `apply` is refused or a codemod fails, or the tool is missing; `2` for a subcommand other than `plan` or `apply`, a missing `--to`, an unknown flag, a flag with no value or a flag of the other subcommand.
+- `runners` ([vulcan runners](/references/commands/runners)): `runners check` lists every tracked file that runs an unscoped package fetched by name (rule `V-S-08`).
+  Exit codes: `0` when there is none; `1` when a file runs one; `2` for any other arguments or when git cannot list the files.
 - `x` ([x](#x)): Run a shipped tool (`okf` or `atlas`) at the pinned package version.
   Exit codes: `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool.
 - `help`: Print usage information and available command options (`--help` and `-h` are aliases).
@@ -204,43 +206,6 @@ The command exits 0 on success.
 The command exits `1` when `node_modules/.bin/vulcan` is missing.
 It also exits `1` on an unknown argument, on `--stable` with `--nightly`, and on `--nightly` when the dist-tags cannot be read.
 Otherwise, the command returns the exit code of `bun add` or of the child `vulcan sync`.
-
-## changelog
-
-`vulcan changelog check` runs the gate over the dated entries of `knowledge.changelogs`: it is [`vulcan x atlas changelogs check`](/references/atlas/) at the pinned version.
-An entry with a `migration:` block in its frontmatter must have a valid one: every item has an `id` (unique in the folder), `symbols`, an `upgrade` and a `downgrade`, each either `before` and `after` or `steps`.
-An entry with a Breaking Change badge, dated on or after `knowledge.migrationFrom`, must carry a block; an earlier entry is never read.
-Each problem prints as `<file>: <message>` on stderr.
-
-A version folder `changelogs/<X.Y.Z>/` is valid when every Breaking and Deprecated item of its `log.md` has a block in `migration.yaml` and the file holds no block without an item, ids are unique, the sections are in the order Breaking, Deprecated, Added, Changed, Fixed, Security, at most one folder lacks `released:` (the line in progress: above every released one, and the stable the installable package heads to). With `knowledge.migrationFrom` set to a version, dated files are history and are not checked; `knowledge.datedUntil` is the last date a dated file may carry.
-
-`vulcan changelog check --history --base <ref>` also reads git: a folder whose `log.md` has `released:` at `<ref>` may not change, a stable release at or above `migrationFrom` needs its folder, and a dated file added or edited since `<ref>` fails when its date is after `knowledge.datedUntil` (the files a fold keeps on or before it are the old changelog). A released folder may still gain a `summary` and `highlights` in its `log.md`: those two keys do not count as a change. CI runs it on a pull request with `--base origin/develop`; the default check runs no git.
-
-A version folder without `released:` (the line in progress) must also carry what the version page shows: a `summary` and `highlights` in the frontmatter of its `log.md`, `steps` in the `upgrade` of every block of its `migration.yaml`, and an opening paragraph that does not name `migration.yaml` (the page links its upgrade guide itself). A released folder owes none of it.
-
-`vulcan changelog notes --version <X.Y.Z>` prints what a GitHub Release of that version shows: the body of `changelogs/<X.Y.Z>/log.md` without its frontmatter (a line saying there is no change for users when it has no body), then `## Packages` with a link to each live package at that version. With `--migration` it prints instead the path of the folder's `migration.yaml` when that file holds a block, and nothing when it is absent, empty or `{}`: a workflow attaches that path to the Release as `migration-<X.Y.Z>.yaml`. It exits `1` when the project has no folder for the version and `2` for a request it cannot read.
-
-## runners
-
-`vulcan runners check` lists every file git tracks that runs a package fetched by name: `bunx`, `pnpx`, `bun x`, `npx`, `npm exec`, `pnpm dlx` or `yarn dlx` (also behind `corepack`) followed by an unscoped name, with or without `--no-install`. Each finding prints as `<file>:<line>: <command>` on stderr and the exit code is 1; with none it exits 0. A scoped package passes (`bun x @venizia/vulcan@<version> init`, `npx @acme/tool`), whatever its scope: a scope has an owner, so nobody can register a name in it. A name in [`guard.runners.allow`](/references/configuration/#guard-runners-allow) passes too, with a version or a tag after it and nothing else (`shadcn@npm:ardor` is another package). The check reads a flag it does not know as taking the next word, so an unknown flag cannot hide the name. In a file, a scoped package may be pinned with a shell placeholder after the `@` (`$(...)` or `${...}`, the form a workflow uses); a command an agent types may not, because a variable can hold `npm:<name>`. The `-c` flag of `npx` and of `npm exec` takes a command line, which is read as a command of its own; for pnpm, `-c` and `--shell-mode` are switches and the first word is still fetched.
-
-A line in a Markdown file can show a refused command on purpose, such as a page that warns against it. Put `<!-- runners: example -->` on the line before the line, or before the fenced block, and the check does not count it; the check prints how many it set apart. A script, a workflow or a Makefile has no such marker. Tests, lockfiles, build output, binary files, dated changelog entries and the files of a released version folder are not read: they are not instructions, or they are frozen history.
-
-Why: npm gives the names `vulcan`, `devz`, `ardor` and `ignis` to unrelated packages, and `vulcan-atlas` to nobody. A bunx command fetches and runs the package of that name wherever the bin is not linked, and bun also runs a copy an earlier bare bunx saved (in `~/.bun/install/cache/.bunx-<uid>/<name>@latest/`, which never expires) even under `--no-install`. Write `bun node_modules/.bin/<bin>` from the project root (the folder where the bin is linked), or call it through a make target. `bun run <name>` falls back to `$PATH`, and to a program bun cached, when no linked bin matches, so a command that must not (a hook, an editor's server entry, the shipped `make` module) names the path.
-
-The same check as an agent's rule: `guard-git` denies the command in Claude Code, Codex, Antigravity, omp and pi (rule `V-S-08`); another agent has the rule text only. Run it in CI with `vulcan runners check`.
-
-If a bunx of a Venizia name ever ran on a machine, look for `~/.bun/install/cache/.bunx-*/`: an entry named `<name>@<version>` where the name is `vulcan`, `devz`, `ardor`, `ignis` or `vulcan-atlas` is a foreign package. Delete the entry.
-
-## migrate
-
-`vulcan migrate plan --to <version|latest|next>` is [`vulcan x atlas migrate plan`](/references/atlas/tools#migrate) at the pinned version: the same plan the atlas `migrate` tool answers, printed as Markdown, or as JSON with `--format json`. A step about a whole module prints a count of the places that import it; `--verbose` lists them.
-It asks the sources the project serves, so a package from a remote source is planned too: like `mcp`, it fetches and indexes a source that is not cached yet, and waits for it. A source that cannot be served is a `Warning:` at the top of the plan, and `apply` refuses to run on such a plan unless you pass `--force`. A package no source serves is an error that names `atlas.sources` and `vulcan x atlas pull`. `--package`, `--from` and `--app` default as the tool's do.
-
-Run from a folder with no VULCAN config, the command runs in the nearest enclosing folder that has one (never above the git work tree root) and scans the folder you ran it in; a relative `--app` is read from that folder too.
-`vulcan migrate plan` never edits the app.
-
-`vulcan migrate apply` runs the codemods the plan links, each once and in plan order, as `devz codemod <name> . --write` in the app (`--reverse` for a rollback), using the `devz` of `@venizia/dev-configs` found in `node_modules/.bin` of the app or a parent folder up to the root of its git work tree (outside git, only the app folder). A codemod name that is not lower-case words joined by `-` is refused. It then prints the steps that stay manual: a step with no codemod, and a step whose codemod is not reversible (it exits `2` and says `not reversible`). A codemod that fails stops the run with exit `1`. It rewrites nothing itself, and it refuses an app with uncommitted changes, or outside a git work tree, unless you pass `--force`: the app's own diff is the undo. A plan that links no codemod needs neither `devz` nor a clean tree.
 
 ## x
 

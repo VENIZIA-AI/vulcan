@@ -142,6 +142,6 @@ migration:
 
 ## See also
 
-- [`vulcan migrate`](/references/commands/#migrate) for the flags and exit codes.
+- [`vulcan migrate`](/references/commands/migrate) for the flags and exit codes.
 - [The atlas tools](/references/atlas/tools#migrate) for the JSON plan.
 - [Atlas](/guides/core-concepts/atlas) for the sources that supply the release table.
