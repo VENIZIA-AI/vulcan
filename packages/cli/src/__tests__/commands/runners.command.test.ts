@@ -127,3 +127,68 @@ describe('vulcan runners check', () => {
     expect(runCli({ args: ['runners', 'fix'], cwd: repository({ files: {} }) }).code).toBe(2);
   });
 });
+
+describe('the allow-list of the project, under the launch environment that holds every ask', () => {
+  const HELD = { VULCAN_GUARD_ASKS: 'deny', VULCAN_GUARD_OUTSIDE: 'deny' };
+  const GIT_HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-git.ts');
+  const project = (): string =>
+    repository({
+      files: {
+        '.agents/vulcan.manifest.json': JSON.stringify({
+          schemaVersion: 1,
+          guard: { runners: { allow: ['shadcn'] } },
+        }),
+        'README.md': 'bunx shadcn@latest add button\n',
+      },
+    });
+
+  test('vulcan runners check reads the list whatever the environment holds', () => {
+    const root = project();
+
+    expect(runCli({ args: ['runners', 'check'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['runners', 'check'], cwd: root, env: HELD }).code).toBe(0);
+    expect(RunnersCheck.scan({ root }).findings).toEqual([]);
+  });
+
+  test('a name the list does not hold is still found under that environment', () => {
+    const root = repository({
+      files: {
+        '.agents/vulcan.manifest.json': JSON.stringify({
+          schemaVersion: 1,
+          guard: { runners: { allow: ['shadcn'] } },
+        }),
+        'README.md': 'bunx ardor codemod\n',
+      },
+    });
+
+    expect(runCli({ args: ['runners', 'check'], cwd: root, env: HELD }).code).toBe(1);
+  });
+
+  test('the live hook still ignores the list under that environment, and honours it without', () => {
+    const root = project();
+    const event = JSON.stringify(
+      Object.fromEntries([
+        ['tool_name', 'Bash'],
+        ['tool_input', { command: 'bunx shadcn@latest add button' }],
+        ['cwd', root],
+      ]),
+    );
+    const answerOf = (env: Record<string, string>): string => {
+      const environment: Record<string, string | undefined> = { ...process.env };
+
+      delete environment.VULCAN_GUARD_ASKS;
+      delete environment.VULCAN_GUARD_OUTSIDE;
+      Object.assign(environment, env);
+
+      return spawnSync(process.execPath, [GIT_HOOK], {
+        cwd: root,
+        env: environment,
+        input: event,
+        encoding: 'utf8',
+      }).stdout;
+    };
+
+    expect(answerOf(HELD)).toContain('deny');
+    expect(answerOf({})).not.toContain('deny');
+  });
+});
