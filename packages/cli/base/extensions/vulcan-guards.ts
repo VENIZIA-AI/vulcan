@@ -76,14 +76,10 @@ const PACKAGE_DIRECTORY = join('node_modules', '@venizia', 'vulcan');
 const HOOKS_DIRECTORY = join(PACKAGE_DIRECTORY, 'base', 'hooks');
 const TIMEOUT_MS = 30_000;
 
-/**
- * The variables a guard process does not inherit: bun runs `BUN_OPTIONS=--preload=<file>` before the guard, and reads
- * its configuration from `BUN_CONFIG_*` and `NODE_OPTIONS`. A copy of the list in `src/hooks/loader-environment.ts`
- * (this file imports only node: modules); a test holds the two equal.
- */
+/** The variables a guard does not inherit: a copy of `src/hooks/loader-environment.ts` (this file imports only node: modules); a test holds them equal. */
 class LoaderNames {
   static readonly WHOLE = ['BUN_OPTIONS', 'NODE_OPTIONS'];
-  static readonly PREFIXES = ['BUN_CONFIG_'];
+  static readonly PREFIXES = ['BUN_CONFIG_', 'BUN_INSPECT'];
 }
 
 const withoutLoaderNames = (opts: {

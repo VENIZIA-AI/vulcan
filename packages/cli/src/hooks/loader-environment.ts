@@ -1,18 +1,12 @@
 /**
- * The environment variables a guard process must not inherit. `bun --no-env-file --config=/dev/null` keeps a `.env`
- * and a `bunfig.toml` out of a guard, but `BUN_OPTIONS=--preload=<file>` still runs the file before the guard does
- * (measured on bun 1.4.4; it is the only name proven to). `NODE_OPTIONS` and `BUN_CONFIG_*` had no effect there; they
- * are stripped as a precaution, because bun reads its configuration from them. `PATH`, `NODE_PATH` and the other
- * loader variables are not covered.
- *
- * The hook scripts under `base/hooks` import nothing from the package, so the extension for omp and pi
- * (`base/extensions/vulcan-guards.ts`) keeps its own copy of these names; a test holds the copy equal.
+ * The variables a guard process must not inherit: bun loads `BUN_OPTIONS=--preload=<file>` before the guard (the only name
+ * proven to), and reads its options from the rest. The hooks reference says what is not covered; a test holds the extension's copy equal.
  */
 export class LoaderEnvironment {
   /** Names taken out whole. */
   static readonly NAMES = ['BUN_OPTIONS', 'NODE_OPTIONS'];
   /** Every name that starts with one of these is taken out. */
-  static readonly PREFIXES = ['BUN_CONFIG_'];
+  static readonly PREFIXES = ['BUN_CONFIG_', 'BUN_INSPECT'];
 
   static isStripped(name: string): boolean {
     return (

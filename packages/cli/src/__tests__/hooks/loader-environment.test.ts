@@ -10,7 +10,7 @@ import { createProject, removeProjects } from '../project.helper.ts';
 afterAll(removeProjects);
 
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
-const NAMES_SEEN = /^(BUN_OPTIONS|NODE_OPTIONS|BUN_CONFIG_)/;
+const NAMES_SEEN = /^(BUN_OPTIONS|NODE_OPTIONS|BUN_CONFIG_|BUN_INSPECT)/;
 
 /** The launch environment of an agent that was started with a loader variable set. */
 const loaderEnv = (opts: { preload: string }): Record<string, string> => ({
@@ -103,8 +103,15 @@ const handlerOf = (): THandler => {
 };
 
 describe('LoaderEnvironment', () => {
-  test('strips BUN_OPTIONS, NODE_OPTIONS and every BUN_CONFIG_ name, and nothing else', () => {
-    for (const name of ['BUN_OPTIONS', 'NODE_OPTIONS', 'BUN_CONFIG_REGISTRY', 'BUN_CONFIG_']) {
+  test('strips BUN_OPTIONS, NODE_OPTIONS, every BUN_CONFIG_ and BUN_INSPECT name, and nothing else', () => {
+    for (const name of [
+      'BUN_OPTIONS',
+      'NODE_OPTIONS',
+      'BUN_CONFIG_REGISTRY',
+      'BUN_CONFIG_',
+      'BUN_INSPECT',
+      'BUN_INSPECT_CONNECT_TO',
+    ]) {
       expect(LoaderEnvironment.isStripped(name), name).toBe(true);
     }
 
@@ -122,6 +129,24 @@ describe('LoaderEnvironment', () => {
     ).toEqual({ PATH: '/bin', HOME: '/h' });
   });
 
+  test('the shell form unsets every one of them, and only them', () => {
+    const result = shell({
+      command: `${LoaderEnvironment.shellUnset()} env`,
+      cwd: PACKAGE_ROOT,
+      env: {
+        BUN_OPTIONS: '--preload=./x.ts',
+        NODE_OPTIONS: '--max-old-space-size=256',
+        BUN_CONFIG_REGISTRY: 'https://registry.example.test',
+        BUN_INSPECT: 'ws://127.0.0.1:1/x',
+        BUN_INSPECT_CONNECT_TO: '/nonexistent',
+        BUN_INSTALL: '/keep',
+      },
+    });
+
+    expect(result.stdout).toContain('BUN_INSTALL=/keep');
+    expect(result.stdout).not.toMatch(/^(BUN_OPTIONS|NODE_OPTIONS|BUN_CONFIG_|BUN_INSPECT)/m);
+  });
+
   test('the extension keeps the same names: it imports only node: modules, so it holds its own copy', () => {
     const source = readFileSync(
       join(PACKAGE_ROOT, 'base', 'extensions', 'vulcan-guards.ts'),
@@ -136,13 +161,16 @@ describe('LoaderEnvironment', () => {
     );
   });
 
-  test('every wrapper starts by unsetting them: Claude Code, Codex and Antigravity', () => {
-    const settings: { hooks: Record<string, { hooks: { command: string }[] }[]> } = JSON.parse(
-      readFileSync(join(PACKAGE_ROOT, 'base', 'claude', 'settings.json'), 'utf8'),
-    );
-    const commands = Object.values(settings.hooks).flatMap((entries) =>
-      entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)),
-    );
+  test('every wrapper starts by unsetting them: Claude Code (settings and events), Codex and Antigravity', () => {
+    const commands = ['settings.json', 'events.json'].flatMap((name) => {
+      const file: { hooks: Record<string, { hooks: { command: string }[] }[]> } = JSON.parse(
+        readFileSync(join(PACKAGE_ROOT, 'base', 'claude', name), 'utf8'),
+      );
+
+      return Object.values(file.hooks).flatMap((entries) =>
+        entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)),
+      );
+    });
     const codex = CodexHooks.merge({ text: undefined });
     const antigravity = GuardHook.merge({ text: undefined });
 
@@ -168,6 +196,26 @@ describe('BUN_OPTIONS and the other loader names do not reach a guard', () => {
     shell({ command: 'bun --no-env-file --config=/dev/null -e 0', cwd: root, env });
 
     expect(existsSync(marker)).toBe(true);
+  });
+
+  test('the Claude event hooks start without them and with the flags of the guards', () => {
+    const { root, seen, marker, env } = probed({ scripts: ['event'] });
+    const file: { hooks: Record<string, { hooks: { command: string }[] }[]> } = JSON.parse(
+      readFileSync(join(PACKAGE_ROOT, 'base', 'claude', 'events.json'), 'utf8'),
+    );
+    const commands = Object.values(file.hooks).flatMap((entries) =>
+      entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)),
+    );
+
+    expect(commands.length).toBeGreaterThan(0);
+
+    for (const command of commands) {
+      expect(command).toContain('bun --no-env-file --config=/dev/null "$f"');
+      expect(shell({ command, cwd: root, env: { ...env, CLAUDE_PROJECT_DIR: root } }).code).toBe(0);
+    }
+
+    expect(existsSync(marker)).toBe(false);
+    expect(readFileSync(seen, 'utf8').trim()).toBe('');
   });
 
   test('Codex wrapper', () => {
