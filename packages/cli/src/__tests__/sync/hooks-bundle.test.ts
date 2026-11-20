@@ -1,7 +1,17 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { chmodSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { HooksBundle } from '../../sync/hooks-bundle.ts';
+import { installBundle } from '../bundle.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -212,5 +222,39 @@ describe('a bundle that is not the one the manifest records for the same version
     expect(HooksBundle.manifestBlock({ previous: undefined, isPinned: true })?.sha256).toEqual(
       shipped.files,
     );
+  });
+});
+
+describe('the session-start bundle runs from the project, away from the package sources', () => {
+  const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
+  const command = (): string => {
+    const settings = JSON.parse(
+      readFileSync(join(PACKAGE_ROOT, 'base', 'claude', 'settings.json'), 'utf8'),
+    );
+
+    return settings.hooks.SessionStart[0].hooks[0].command;
+  };
+
+  test.each([
+    ['a project whose config sets packs', "export default { packs: ['venizia'] };\n"],
+    ['a project whose config sets none', 'export default {};\n'],
+  ])('%s: it prints the digest and exits 0', (_name, config) => {
+    const root = createProject({
+      files: { '.configs/vulcan.config.mts': config, 'AGENTS.md': '# x\n' },
+    });
+
+    mkdirSync(join(root, 'node_modules', '@venizia'), { recursive: true });
+    symlinkSync(PACKAGE_ROOT, join(root, 'node_modules', '@venizia', 'vulcan'));
+    installBundle({ root });
+
+    const result = Bun.spawnSync(['/bin/sh', '-c', command()], {
+      cwd: root,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+      stdin: new Blob(['{"hook_event_name":"SessionStart","source":"startup"}']),
+    });
+
+    expect(result.stderr.toString()).not.toContain('paths[0]');
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.toString()).toContain('# VULCAN session');
   });
 });

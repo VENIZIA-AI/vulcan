@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BASE_DIRECTORY } from '../common/index.ts';
+import { BASE_DIRECTORY } from '../common/paths.ts';
 import type { ISlot } from './common/index.ts';
 
 export class RuleSlots {

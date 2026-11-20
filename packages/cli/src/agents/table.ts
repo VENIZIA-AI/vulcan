@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { BASE_DIRECTORY } from '../common/index.ts';
+import { BASE_DIRECTORY } from '../common/paths.ts';
 import { AGENT_ENTRY_SCHEMA } from './common/index.ts';
 import type { TAgentEntry } from './common/index.ts';
 

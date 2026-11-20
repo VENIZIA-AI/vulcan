@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BASE_DIRECTORY } from '../common/index.ts';
+import { BASE_DIRECTORY } from '../common/paths.ts';
 import { RuleParser } from './parser.ts';
 
 /** Read when used, not when the module loads: a bundle of the hooks initialises its modules in another order than the source does. */

@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { GUARD_HOOK_NAME, GuardHook } from '../../agents/index.ts';
 import { installBundle } from '../bundle.helper.ts';
@@ -206,13 +206,30 @@ describe('the hook command wrapper in .agents/hooks.json', () => {
     expect(JSON.parse(result.stdout).decision).toBe('deny');
   });
 
-  test('with no package it allows, says so on stderr, and exits 0', () => {
+  test('with no bundle it denies, says so on stderr and names who repairs it: a fresh clone is not left unguarded', () => {
     const root = createProject({ files: { 'package.json': '{}' } });
     const result = runWrapper({ root, stdin: eventOf({ root, name: 'run_command', args: {} }) });
+    const answer = JSON.parse(result.stdout);
 
     expect(result.code).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual({ decision: 'allow' });
+    expect(answer.decision).toBe('deny');
+    expect(answer.reason).toContain('the owner runs bun node_modules/.bin/vulcan sync');
     expect(result.stderr).toContain('the guards cannot run');
+  });
+
+  test('a bundle that is not the one the manifest at HEAD records denies, and is not an ask', () => {
+    const root = installedProject();
+    const file = join(root, '.agents', 'local', 'hooks', 'antigravity-guards.js');
+
+    chmodSync(file, 0o644);
+    writeFileSync(file, 'console.log(JSON.stringify({ decision: "allow" }));\n');
+
+    const answer = JSON.parse(
+      runWrapper({ root, stdin: eventOf({ root, name: 'run_command', args: {} }) }).stdout,
+    );
+
+    expect(answer.decision).toBe('deny');
+    expect(answer.reason).toContain('the manifest at HEAD');
   });
 
   test('a .env and a bunfig.toml in the folder of the hooks file do not reach the adapter', () => {
@@ -242,16 +259,14 @@ describe('the hook command wrapper in .agents/hooks.json', () => {
 
   test('an adapter that started and crashed denies where every ask is held, and asks otherwise', () => {
     const crashed = (opts: { manifest?: string; env?: Record<string, string> }) => {
-      const root = createProject({
-        files: {
-          'package.json': '{}',
-          ...(opts.manifest === undefined ? {} : { '.agents/vulcan.manifest.json': opts.manifest }),
-        },
-      });
-      const hooks = join(root, '.agents', 'local', 'hooks');
+      const root = createProject({ files: { 'package.json': '{}' } });
 
-      mkdirSync(hooks, { recursive: true });
-      writeFileSync(join(hooks, 'antigravity-guards.js'), 'process.exit(3);\n');
+      installBundle({
+        root,
+        bare: true,
+        manifest: opts.manifest,
+        files: { 'antigravity-guards.js': 'process.exit(3);\n' },
+      });
 
       return JSON.parse(
         runWrapper({ root, env: opts.env, stdin: eventOf({ root, name: 'run_command', args: {} }) })
@@ -270,10 +285,8 @@ describe('the hook command wrapper in .agents/hooks.json', () => {
 
   test('an adapter that started and crashed asks, as the Claude wrappers do', () => {
     const root = createProject({ files: { 'package.json': '{}' } });
-    const hooks = join(root, '.agents', 'local', 'hooks');
 
-    mkdirSync(hooks, { recursive: true });
-    writeFileSync(join(hooks, 'antigravity-guards.js'), 'process.exit(3);\n');
+    installBundle({ root, bare: true, files: { 'antigravity-guards.js': 'process.exit(3);\n' } });
 
     const result = runWrapper({ root, stdin: eventOf({ root, name: 'run_command', args: {} }) });
     const answer = JSON.parse(result.stdout);

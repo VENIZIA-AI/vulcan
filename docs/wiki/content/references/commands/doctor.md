@@ -38,6 +38,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `make` | The project `Makefile` includes `vulcan.mk` and avoids shipped target names | Add the `-include` line or rename conflicting project make targets |
 | `adapters` | Generated files, settings and links match configuration; the `AGENTS.md` blocks are present and current | Run `bun node_modules/.bin/vulcan sync` |
 | `manifest` | Committed `.agents/vulcan.manifest.json` matches project configuration | Run `bun node_modules/.bin/vulcan sync` and commit the manifest |
+| `hooks-published` | Under `CI`, for an installed package: the sums the manifest records for the hook bundle are the ones the registry published for that version | Reinstall the package; sync only if you mean to take it |
 | `changelog-folders` | A project with version folders under its changelog directory has a vulcan installed whose atlas reads them | Install the vulcan version the message names |
 | `tags` | Git tags matching `atlas.tagPattern` resolve to declared packages | Declare the package, add an alias, or add the tag to `atlas.ignoreTags` |
 | `skills` (warning) | A skill's description has no "Use when" part, so atlas cannot tell an agent when to load it; never a failure | Start the description with when to use the skill |

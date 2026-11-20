@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -136,19 +137,11 @@ const pathWithoutBun = (): string => {
 const BASH_INPUT = (command: string): string =>
   `{"tool_name":"Bash","tool_input":{"command":${JSON.stringify(command)}},"cwd":"/tmp"}`;
 
-/** A project with the real bundle copied in, as `vulcan sync` leaves it; `manifest` is written when given. */
+/** A project with the real bundle copied in and its sums committed, as `vulcan sync` and the owner's commit leave it. */
 const synced = (opts: { manifest?: string; files?: Record<string, string> } = {}): string => {
   const root = makeRoot();
-  const target = installBundle({ root });
 
-  if (opts.manifest !== undefined) {
-    mkdirSync(join(root, '.agents'), { recursive: true });
-    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), opts.manifest);
-  }
-
-  for (const [name, text] of Object.entries(opts.files ?? {})) {
-    writeFileSync(join(target, name), text);
-  }
+  installBundle({ root, manifest: opts.manifest, files: opts.files });
 
   return root;
 };
@@ -510,6 +503,168 @@ describe('bun does not read the .env or the bunfig.toml of the project into a ho
   });
 });
 
+describe('a bundle runs only if it is the one the manifest at HEAD records', () => {
+  const git = hookOf('guard-git');
+  const outside = hookOf('guard-outside');
+  const writes = hookOf('guard-writes');
+  const REFUSAL = 'is not the one the manifest at HEAD records';
+
+  const gitIn = (opts: { root: string; args: string[] }): void => {
+    const result = Bun.spawnSync(
+      [
+        'git',
+        '-c',
+        'user.email=t@t.t',
+        '-c',
+        'user.name=t',
+        '-c',
+        'commit.gpgsign=false',
+        ...opts.args,
+      ],
+      { cwd: opts.root },
+    );
+
+    expect(result.exitCode, opts.args.join(' ')).toBe(0);
+  };
+
+  test('the committed sums match: the hook runs and decides', () => {
+    const root = synced({ manifest: '{"guard":{"asks":"deny"}}' });
+
+    expect(
+      runHook({ command: git.command, root, stdin: BASH_INPUT('git reset --hard HEAD~1') }).stdout,
+    ).toContain(DENY);
+  });
+
+  test.each(shippedHooks().map((hook) => ({ name: hook.name, hook })))(
+    'a bundle file changed after the commit is refused and blocks, whatever the call: $name',
+    ({ name, hook }) => {
+      const root = synced();
+      const file = join(root, '.agents', 'local', 'hooks', `${name}.js`);
+
+      chmodSync(file, 0o644);
+      writeFileSync(file, `${readFileSync(file, 'utf8')}\n// the agent was here\n`);
+
+      const result = runHook({ command: hook.command, root, stdin: BASH_INPUT('git status') });
+
+      // The event hooks of the settings are separate commands; these are the guards and the session hooks.
+      expect(result.code, name).toBe(2);
+      expect(result.stderr, name).toContain(REFUSAL);
+      expect(result.stdout, name).not.toContain('permissionDecision":"allow"');
+    },
+  );
+
+  test('the working tree manifest does not count, only HEAD: new sums in the file are not trusted until committed', () => {
+    const root = synced();
+    const path = join(root, '.agents', 'vulcan.manifest.json');
+    const file = join(root, '.agents', 'local', 'hooks', 'guard-outside.js');
+    const manifest = JSON.parse(readFileSync(path, 'utf8'));
+
+    chmodSync(file, 0o644);
+    writeFileSync(file, '// not the committed bundle\nprocess.exit(0);\n');
+    manifest.hooks.sha256['guard-outside.js'] = new Bun.CryptoHasher('sha256')
+      .update(readFileSync(file))
+      .digest('hex');
+    writeFileSync(path, `${JSON.stringify(manifest)}\n`);
+
+    const refused = runHook({ command: outside.command, root, stdin: BASH_INPUT('ls') });
+
+    expect(refused.code).toBe(2);
+    expect(refused.stderr).toContain(REFUSAL);
+
+    // Once the owner commits the manifest, the same bundle runs.
+    gitIn({ root, args: ['add', '.agents/vulcan.manifest.json'] });
+    gitIn({ root, args: ['commit', '-q', '-m', 'sums'] });
+
+    expect(runHook({ command: outside.command, root, stdin: BASH_INPUT('ls') }).code).toBe(0);
+  });
+
+  test('an entry missing from the manifest at HEAD refuses the file', () => {
+    const root = synced();
+    const path = join(root, '.agents', 'vulcan.manifest.json');
+    const manifest = JSON.parse(readFileSync(path, 'utf8'));
+
+    delete manifest.hooks.sha256['guard-writes.js'];
+    writeFileSync(path, `${JSON.stringify(manifest)}\n`);
+    gitIn({ root, args: ['commit', '-q', '-am', 'drop an entry'] });
+
+    const result = runHook({ command: writes.command, root, stdin: BASH_INPUT('ls') });
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(REFUSAL);
+  });
+
+  test('no git repository, or a manifest that was never committed, refuses too: nothing runs on trust', () => {
+    const bare = makeRoot();
+    const uncommitted = makeRoot();
+
+    installBundle({ root: bare });
+    rmSync(join(bare, '.git'), { recursive: true, force: true });
+    installBundle({ root: uncommitted });
+    gitIn({ root: uncommitted, args: ['reset', '-q', '--soft', 'HEAD~0'] });
+    rmSync(join(uncommitted, '.git'), { recursive: true, force: true });
+    gitIn({ root: uncommitted, args: ['init', '-q', '-b', 'main'] });
+
+    for (const root of [bare, uncommitted]) {
+      const result = runHook({ command: writes.command, root, stdin: BASH_INPUT('ls') });
+
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain(REFUSAL);
+    }
+  });
+
+  test('a refusal blocks guard-git and guard-outside: it is not an ask a person could wave through', () => {
+    const root = synced();
+    const file = join(root, '.agents', 'local', 'hooks', 'guard-git.js');
+
+    chmodSync(file, 0o644);
+    writeFileSync(file, 'console.log("{}");\n');
+
+    const result = runHook({ command: git.command, root, stdin: BASH_INPUT('git status') });
+
+    expect(result.code).toBe(2);
+    expect(result.stdout).not.toContain(ASK);
+  });
+
+  test('a refusal of an event hook runs nothing and does not block the session', () => {
+    const events = JSON.parse(
+      readFileSync(join(PACKAGE_ROOT, 'base', 'claude', 'events.json'), 'utf8'),
+    );
+    const [first] = Object.values<{ hooks: { command: string }[] }[]>(events.hooks).flat();
+    const root = synced();
+    const file = join(root, '.agents', 'local', 'hooks', 'event.js');
+    const marker = join(root, 'event-ran.txt');
+
+    chmodSync(file, 0o644);
+    writeFileSync(file, `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'ran');\n`);
+
+    const result = runHook({ command: first?.hooks[0]?.command ?? '', root, stdin: '{}' });
+
+    expect(result.code).toBe(0);
+    expect(existsSync(marker)).toBe(false);
+  });
+
+  test('the cost of the check: one git show and one hash beside the hook', () => {
+    const root = synced();
+    const run = (): number => {
+      const start = performance.now();
+
+      runHook({ command: outside.command, root, stdin: BASH_INPUT('ls') });
+
+      return performance.now() - start;
+    };
+
+    run();
+
+    const median = [run(), run(), run(), run(), run()].sort((a, b) => a - b)[2] ?? 0;
+
+    // Printed so a release can state the per-call cost; the bound only catches a loader that stopped being cheap.
+    console.log(
+      `loader: guard-outside through the wrapper, median of 5 runs: ${median.toFixed(0)} ms`,
+    );
+    expect(median).toBeLessThan(2000);
+  });
+});
+
 describe('BUN_OPTIONS, NODE_OPTIONS and BUN_CONFIG_* do not reach a Claude hook', () => {
   const LOADER = {
     BUN_OPTIONS: '',
@@ -517,13 +672,15 @@ describe('BUN_OPTIONS, NODE_OPTIONS and BUN_CONFIG_* do not reach a Claude hook'
     BUN_CONFIG_REGISTRY: 'https://registry.example.test',
     BUN_CONFIG_VERBOSE_FETCH: 'curl',
   };
-  const NAMES_SEEN = /^(BUN_OPTIONS|NODE_OPTIONS|BUN_CONFIG_)/;
+  const NAMES_SEEN = /^(BUN_OPTIONS|NODE_OPTIONS|BUN_CONFIG_|BUN_INSPECT)/;
 
   /**
    * A project whose five hooks record which of those names they inherit, and whose preload file writes a marker:
    * `BUN_OPTIONS=--preload=<it>` runs it before any script bun starts, unless the wrapper took the name out.
    */
-  const probed = (): {
+  const probed = (
+    opts: { files?: Record<string, string>; manifest?: string } = {},
+  ): {
     root: string;
     seen: string;
     marker: string;
@@ -532,24 +689,28 @@ describe('BUN_OPTIONS, NODE_OPTIONS and BUN_CONFIG_* do not reach a Claude hook'
     const root = makeRoot();
     const seen = join(root, 'seen.txt');
     const marker = join(root, 'preload-ran.txt');
+    const probe = `require('node:fs').appendFileSync(${JSON.stringify(seen)}, Object.keys(process.env).filter((n) => ${NAMES_SEEN}.test(n)).join(',') + '\\n');\n`;
     const files = Object.fromEntries(
-      ['guard-writes', 'guard-git', 'guard-outside', 'session-start', 'subagent-start'].map(
-        (name) => [
-          `${name}.js`,
-          `require('node:fs').appendFileSync(${JSON.stringify(seen)}, Object.keys(process.env).filter((n) => ${NAMES_SEEN}.test(n)).join(',') + '\\n');\n`,
-        ],
-      ),
+      [
+        'guard-writes',
+        'guard-git',
+        'guard-outside',
+        'session-start',
+        'subagent-start',
+        'event',
+      ].map((name) => [`${name}.js`, probe]),
     );
 
-    mkdirSync(join(root, '.agents', 'local', 'hooks'), { recursive: true });
+    installBundle({
+      root,
+      bare: true,
+      files: { ...files, ...opts.files },
+      manifest: opts.manifest,
+    });
     writeFileSync(
       join(root, 'preload.ts'),
       `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'ran');\n`,
     );
-
-    for (const [name, text] of Object.entries(files)) {
-      writeFileSync(join(root, '.agents', 'local', 'hooks', name), text);
-    }
 
     return {
       root,
@@ -580,14 +741,10 @@ describe('BUN_OPTIONS, NODE_OPTIONS and BUN_CONFIG_* do not reach a Claude hook'
   );
 
   test('the manifest check of a crash answer does not run the preload either', () => {
-    const { root, marker, env } = probed();
-
-    mkdirSync(join(root, '.agents'), { recursive: true });
-    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{ nope');
-
-    for (const name of ['guard-git', 'guard-outside']) {
-      writeFileSync(join(root, '.agents', 'local', 'hooks', `${name}.js`), 'process.exit(3);');
-    }
+    const { root, marker, env } = probed({
+      files: { 'guard-git.js': 'process.exit(3);', 'guard-outside.js': 'process.exit(3);' },
+      manifest: '{ nope',
+    });
 
     for (const name of ['guard-git', 'guard-outside']) {
       const result = runHook({

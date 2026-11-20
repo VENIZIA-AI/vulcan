@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vulcanGuards from '../../../base/extensions/vulcan-guards.ts';
 import { installBundle } from '../bundle.helper.ts';
@@ -60,15 +60,20 @@ const installedProject = (opts: { files?: Record<string, string> } = {}): string
   return root;
 };
 
-/** A project whose bundle is the real one except `broken`, which exits 3. */
+/** A project whose bundle is the real one except `broken`, which exits 3; its sums are committed as the owner's commit leaves them. */
 const projectWithBrokenGuard = (opts: {
   broken: string;
   files?: Record<string, string>;
+  /** The manifest text left in the working tree (HEAD holds a good one with the sums). */
+  manifest?: string;
 }): string => {
   const root = createProject({ files: { 'package.json': '{}', ...opts.files } });
-  const hooks = installBundle({ root });
 
-  writeFileSync(join(hooks, `${opts.broken}.js`), 'process.exit(3);\n');
+  installBundle({
+    root,
+    manifest: opts.manifest,
+    files: { [`${opts.broken}.js`]: 'process.exit(3);\n' },
+  });
 
   return root;
 };
@@ -324,10 +329,7 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
     ['merge-conflict markers', '<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> topic\n'],
     ['an array', '[]'],
   ])('a manifest that is %s holds a broken drift guard', async (_, manifest) => {
-    const root = projectWithBrokenGuard({
-      broken: 'guard-git',
-      files: { [GUARD_MANIFEST_FILE]: manifest },
-    });
+    const root = projectWithBrokenGuard({ broken: 'guard-git', manifest });
     const handle = handlerOf();
     const result = await handle(
       bash('git status'),
@@ -441,6 +443,38 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
     );
 
     expect(read).toBeUndefined();
+  });
+
+  test('a bundle file changed after the commit is refused: every guard blocks, UI or not, and the reason names the manifest at HEAD', async () => {
+    const root = installedProject();
+    const file = join(root, '.agents', 'local', 'hooks', 'guard-writes.js');
+
+    chmodSync(file, 0o644);
+    writeFileSync(file, 'process.exit(0);\n');
+
+    const result = await handlerOf()(
+      bash('ls'),
+      contextOf({ cwd: root, hasUI: true, answer: true }),
+    );
+
+    expect(result?.block).toBe(true);
+    expect(result?.reason).toContain('is not the one the manifest at HEAD records');
+    expect(result?.reason).toContain(
+      'the owner runs bun node_modules/.bin/vulcan sync and commits the manifest',
+    );
+  });
+
+  test('no git repository: nothing runs on trust, and every guard blocks', async () => {
+    const root = installedProject();
+
+    rmSync(join(root, '.git'), { recursive: true, force: true });
+
+    const result = await handlerOf()(
+      bash('ls'),
+      contextOf({ cwd: root, hasUI: true, answer: true }),
+    );
+
+    expect(result?.block).toBe(true);
   });
 
   test('a bundle with only guard-writes gone blocks too: the bundle is all or nothing', async () => {

@@ -7,17 +7,13 @@
  *
  *   bun scripts/hooks-bundle/build.ts [--out <folder>]
  */
-import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { HooksBundle } from '../../packages/cli/src/sync/hooks-bundle.ts';
 
 const PACKAGE = resolve(import.meta.dir, '..', '..', 'packages', 'cli');
 const outIndex = process.argv.indexOf('--out');
 const folder = resolve(outIndex === -1 ? HooksBundle.SOURCE : (process.argv[outIndex + 1] ?? ''));
-const { version }: { version: string } = JSON.parse(
-  readFileSync(join(PACKAGE, 'package.json'), 'utf8'),
-);
-const sums = HooksBundle.build({ folder, version });
+const sums = HooksBundle.build({ folder, version: HooksBundle.versionOf({ folder: PACKAGE }) });
 
 console.log(
   `hooks-bundle: ${Object.keys(sums.files).length} files, version ${sums.version}, in ${folder}`,

@@ -13,6 +13,7 @@ One command runs every check CI runs, in CI's order, and stops at the first that
 make gates                       # the whole list, read from .github/workflows/ci.yml
 make gates ARGS="--keep-going"    # run them all and report every failure
 make gates ARGS="--list"          # print the list, run nothing
+make gates ARGS="--with-sync"     # the owner's run: the sync step too (it rewrites the hook bundle, the manifest and the settings)
 ```
 
 CI runs the same list on every pull request into `develop` or `main` (`pull_request`, no `push` trigger, so a push to develop does not run it a second time; a newer push to the pull request cancels the older run) and by hand (`workflow_dispatch`). The check is not required to merge unless the repository ruleset says so.

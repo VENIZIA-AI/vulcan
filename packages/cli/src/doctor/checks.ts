@@ -38,6 +38,7 @@ import { SkillCatalog, VersionFolders } from '@venizia/vulcan-atlas';
 import { HookConstants, ProjectTmp } from '../hooks/index.ts';
 import { DoctorChecks, DoctorConstants, PrivateValueKinds } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
+import { HooksBundle } from '../sync/hooks-bundle.ts';
 import { Makefile } from './makefile.ts';
 
 export interface ICheckContext {
@@ -385,6 +386,55 @@ export class ProjectContract {
             : `stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and ${fix}`,
       }),
     ];
+  }
+
+  /**
+   * The sums the manifest records for the hook bundle against the package the registry serves for that version, for a project that installs
+   * `@venizia/vulcan` from the registry. It needs the network, so it runs where `CI` is set; the workspace of VULCAN itself is not pinned this way.
+   */
+  static checkHooksPublished(opts: ICheckContext): IViolation[] {
+    const recorded = SyncPlanner.recordedHooks({ root: opts.root });
+    const sums = RecordValue.isRecord(recorded)
+      ? HooksBundle.parseSums({
+          text: JSON.stringify({ version: recorded['version'], files: recorded['sha256'] }),
+        })
+      : undefined;
+
+    if (
+      sums === undefined ||
+      !HooksBundle.isInstalled() ||
+      process.env.CI === undefined ||
+      process.env.CI === ''
+    ) {
+      return [];
+    }
+
+    const published = HooksBundle.published({ version: sums.version });
+    const fix = `the package in node_modules is not what the registry published for ${sums.version}: reinstall it, and run '${ProjectLayout.VULCAN_COMMAND} sync' only if you mean to take it`;
+
+    if (published === undefined) {
+      return [
+        createViolation({
+          check: DoctorChecks.HOOKS_PUBLISHED,
+          file: ManifestConstants.FILE,
+          message: `cannot read the published bundle of ${sums.version} to compare the recorded sums with it (no network, or no such version)`,
+        }),
+      ];
+    }
+
+    const differs = Object.entries(sums.files).filter(
+      ([name, sum]) => published.files[name] !== sum,
+    );
+
+    return differs.length === 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.HOOKS_PUBLISHED,
+            file: ManifestConstants.FILE,
+            message: `the recorded sums of ${differs.map(([name]) => name).join(', ')} are not the published ones: ${fix}`,
+          }),
+        ];
   }
 
   /**

@@ -1,4 +1,5 @@
 import { RecordValue } from '../common/record.ts';
+import { BundleLoader } from '../hooks/bundle-loader.ts';
 import { LoaderEnvironment } from '../hooks/loader-environment.ts';
 import { RemoveOutcomes } from './common/index.ts';
 
@@ -7,6 +8,13 @@ export const GUARD_HOOK_NAME = 'vulcan-guards';
 
 /** The Antigravity tools the guards cover, as a matcher (a regular expression over the tool name). */
 const GUARD_MATCHER = 'run_command|write_to_file|replace_file_content|multi_replace_file_content';
+
+/** What a missing or refused bundle answers: not a crash that a person could wave through. */
+const DENY_ON_MISSING = JSON.stringify({
+  decision: 'deny',
+  reason:
+    'The VULCAN guards cannot run: .agents/local/hooks is missing, bun is missing, or the bundle is not the one the manifest at HEAD records. Nothing was run: the owner runs bun node_modules/.bin/vulcan sync and commits the manifest, outside the agent session.',
+});
 
 const ASK_ON_CRASH = JSON.stringify({
   decision: 'ask',
@@ -40,12 +48,13 @@ const IS_HELD = [
 const GUARD_COMMAND = [
   LoaderEnvironment.shellUnset(),
   'f="$PWD/local/hooks/antigravity-guards.js";',
+  BundleLoader.shellRun({ root: '$PWD/..' }),
   'if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then',
-  'in=$(cat); out=$(printf \'%s\' "$in" | bun --no-env-file --config=/dev/null "$f"); s=$?;',
+  `in=$(cat); out=$(printf '%s' "$in" | ${BundleLoader.BUN_COMMAND}); s=$?;`,
   `if [ "$s" -eq 0 ]; then printf '%s' "$out"; exit 0; fi;`,
+  `if [ "$s" -eq ${BundleLoader.REFUSED} ]; then printf '%s\\n' '${DENY_ON_MISSING}'; exit 0; fi;`,
   `${IS_HELD} if [ $? -eq 0 ]; then printf '%s\\n' '${DENY_ON_CRASH}'; else printf '%s\\n' '${ASK_ON_CRASH}'; fi; exit 0; fi;`,
-  'cat >/dev/null; echo "vulcan: the guards cannot run: .agents/local/hooks or bun is missing - the owner runs bun node_modules/.bin/vulcan sync; the call passes" >&2;',
-  `printf '%s\\n' '{"decision":"allow"}'`,
+  `cat >/dev/null; echo "vulcan: the guards cannot run: .agents/local/hooks or bun is missing - the owner runs bun node_modules/.bin/vulcan sync" >&2; printf '%s\\n' '${DENY_ON_MISSING}'`,
 ].join(' ');
 
 /** What the entry holds: one PreToolUse hook on the tools the guards cover. */

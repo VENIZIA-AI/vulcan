@@ -5,6 +5,7 @@
  *   make gates                      # run them, stop at the first that fails
  *   make gates ARGS="--keep-going"  # run them all, report every failure
  *   make gates ARGS="--list"        # print them, run nothing
+ *   make gates ARGS="--with-sync"   # the owner's run: the sync step too (it rewrites the hook bundle, the manifest and the settings)
  *
  * A pipe to `tail` or `grep` reports the pipe's status, not make's; this runs make directly.
  */
@@ -63,6 +64,16 @@ export class Gates {
     });
   }
 
+  /**
+   * What runs on a machine where an agent may be at work: CI's list without `vulcan-sync`, which rewrites the hook bundle, the manifest and
+   * the settings the guards run from (the owner's act, asked by guard-git); `vulcan-doctor` checks the copy against the manifest instead.
+   */
+  static localCommands(opts: { commands: IGateCommand[]; withSync: boolean }): IGateCommand[] {
+    return opts.withSync
+      ? opts.commands
+      : opts.commands.filter((command) => !command.targets.includes('vulcan-sync'));
+  }
+
   /** Runs the commands in order; stops at the first failure unless `keepGoing`. A make that cannot start is a failure. */
   static run(opts: {
     commands: IGateCommand[];
@@ -113,7 +124,10 @@ const runMake = (command: IGateCommand): { code: number; tail: string } => {
 
 const main = (): number => {
   const args = process.argv.slice(2);
-  const commands = Gates.commandsOf({ text: readFileSync(CI_FILE, 'utf8') });
+  const commands = Gates.localCommands({
+    commands: Gates.commandsOf({ text: readFileSync(CI_FILE, 'utf8') }),
+    withSync: args.includes('--with-sync'),
+  });
 
   if (args.includes('--list')) {
     for (const command of commands) {

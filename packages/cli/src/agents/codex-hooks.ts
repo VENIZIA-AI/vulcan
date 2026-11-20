@@ -1,4 +1,5 @@
 import { RecordValue } from '../common/record.ts';
+import { BundleLoader } from '../hooks/bundle-loader.ts';
 import { LoaderEnvironment } from '../hooks/loader-environment.ts';
 import { RemoveOutcomes } from './common/index.ts';
 
@@ -16,20 +17,31 @@ const DENY_ON_CRASH = JSON.stringify({
   },
 });
 
+/** What a missing bundle answers: Codex cannot ask, so a project that is not synced is not left unguarded. */
+const DENY_ON_MISSING = JSON.stringify({
+  hookSpecificOutput: {
+    hookEventName: 'PreToolUse',
+    permissionDecision: 'deny',
+    permissionDecisionReason:
+      'The VULCAN guards cannot run: .agents/local/hooks or bun is missing. Nothing was run: the owner runs bun node_modules/.bin/vulcan sync and commits the manifest, outside the agent session.',
+  },
+});
+
 /**
  * The hook command. Codex runs it from the session's folder, which may be below the project, so the project
- * is the git top level. A missing package or bun passes with a note; a script that started and crashed
- * denies, because Codex cannot ask.
+ * is the git top level. The bundle runs through the loader, which checks it against the manifest at HEAD. A missing bundle or bun,
+ * a bundle that is refused and a script that started and crashed all deny, because Codex cannot ask.
  */
 const GUARD_COMMAND = [
   LoaderEnvironment.shellUnset(),
   'd=$(git rev-parse --show-toplevel 2>/dev/null || pwd);',
   `f="$d/.agents/local/hooks/${GUARD_SCRIPT}";`,
+  BundleLoader.shellRun({ root: '$d' }),
   'if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then',
-  'in=$(cat); out=$(printf \'%s\' "$in" | bun --no-env-file --config=/dev/null "$f"); s=$?;',
+  `in=$(cat); out=$(printf '%s' "$in" | ${BundleLoader.BUN_COMMAND}); s=$?;`,
   `if [ "$s" -eq 0 ]; then printf '%s' "$out"; exit 0; fi;`,
   `printf '%s\\n' '${DENY_ON_CRASH}'; exit 0; fi;`,
-  'cat >/dev/null; echo "vulcan: the guards cannot run: .agents/local/hooks or bun is missing - the owner runs bun node_modules/.bin/vulcan sync; the call passes" >&2',
+  `cat >/dev/null; echo "vulcan: the guards cannot run: .agents/local/hooks or bun is missing - the owner runs bun node_modules/.bin/vulcan sync" >&2; printf '%s\\n' '${DENY_ON_MISSING}';`,
 ].join(' ');
 
 /** What the entry holds: one hook on the shell and the patch tool. */

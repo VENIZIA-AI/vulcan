@@ -12,6 +12,10 @@ export class EnvVariables {
   static readonly VULCAN_GUARD_ASKS = 'VULCAN_GUARD_ASKS';
   /** `deny` makes `guard-outside` refuse a write outside the project; the strictest of this and `guard.outside` holds. Set it where the agent is launched. */
   static readonly VULCAN_GUARD_OUTSIDE = 'VULCAN_GUARD_OUTSIDE';
+  /** Set by the wrapper of a hook for its loader: the bundle file to hash and run. */
+  static readonly VULCAN_HOOK_FILE = 'VULCAN_HOOK_FILE';
+  /** Set by the wrapper of a hook for its loader: the project root, where `git show HEAD:` reads the manifest that records the sums. */
+  static readonly VULCAN_HOOK_ROOT = 'VULCAN_HOOK_ROOT';
   /** `1` makes `init`, `add` and `upgrade` print the install, `git init`, `sync` and the checks as skipped; for tests. */
   static readonly VULCAN_NO_INSTALL = 'VULCAN_NO_INSTALL';
   /** Set by `vulcan x` for okf and atlas: the resolved project config as JSON. */

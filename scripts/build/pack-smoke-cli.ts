@@ -13,6 +13,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -416,6 +417,29 @@ const withBrokenPackages = <T>(opts: { paths: string[]; run: () => T }): T => {
 /** The hooks, from the tarball: a failure message, or `undefined` when every case held. */
 const smokeHooks = (opts: { sandbox: string }): string | undefined => {
   const { sandbox } = opts;
+
+  // What the owner does after a sync: commit the manifest, whose sums every hook is checked against at HEAD.
+  for (const args of [
+    ['init', '-q', '-b', 'main'],
+    ['add', '.agents/vulcan.manifest.json'],
+    [
+      '-c',
+      'user.email=smoke@example.test',
+      '-c',
+      'user.name=smoke',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '-q',
+      '-m',
+      'manifest',
+    ],
+  ]) {
+    if (spawnSync('git', args, { cwd: sandbox, encoding: 'utf8' }).status !== 0) {
+      return `hooks: git ${args.join(' ')} failed in the sandbox`;
+    }
+  }
+
   const hooks = hooksOf({ sandbox });
   const blocking = hooks.filter((hook) => BLOCKING.has(hookNameOf({ hook })));
 
@@ -503,6 +527,26 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
 
   if (!withoutPackage.git.stdout.includes('"permissionDecision":"deny"')) {
     return 'hooks: guard-git did not deny a force-push to main with the installed package unusable';
+  }
+
+  // A bundle file that is not the one the manifest at HEAD records is refused by every hook, and nothing of it runs.
+  const tampered = join(hooksFolder, 'guard-outside.js');
+  const original = readFileSync(tampered);
+
+  chmodSync(tampered, 0o644);
+  writeFileSync(tampered, Buffer.concat([original, Buffer.from('\n// the agent was here\n')]));
+
+  const refused = firstUnexpected({
+    hook: blocking.find((hook) => hookNameOf({ hook }) === 'guard-outside') ?? gitHook,
+    sandbox,
+    expected: 2,
+  });
+
+  writeFileSync(tampered, original);
+  chmodSync(tampered, 0o444);
+
+  if (refused !== undefined) {
+    return `hooks: a changed guard-outside.js exited ${refused.code}, expected 2 (refused against the manifest at HEAD)`;
   }
 
   // The bundle gone: guard-writes and guard-outside block every call, guard-git a git or gh line, and nothing that was a repair command passes.

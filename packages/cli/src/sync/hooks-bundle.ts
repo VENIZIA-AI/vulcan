@@ -24,6 +24,8 @@ export interface IHooksBundle {
 }
 
 const SUMS_FILE = 'SHA256SUMS.json';
+/** The name of a bundle file: a bare `*.js`, never a path. */
+const BUNDLE_NAME = /^[\w.-]+\.js$/;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -95,23 +97,90 @@ export class HooksBundle {
     return sums;
   }
 
+  /** The `version` of the `package.json` in a folder, or `unknown`. */
+  static versionOf(opts: { folder: string }): string {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(join(opts.folder, 'package.json'), 'utf8'));
+      const version =
+        typeof parsed === 'object' && parsed !== null
+          ? Object.fromEntries(Object.entries(parsed))['version']
+          : undefined;
+
+      return typeof version === 'string' ? version : 'unknown';
+    } catch {
+      return 'unknown';
+    }
+  }
+
   /** The sums the package ships, or `undefined` when it ships no bundle or the file is not what it should be. */
   static shipped(): IHooksBundle | undefined {
     try {
-      const parsed: unknown = JSON.parse(readFileSync(join(HooksBundle.SOURCE, SUMS_FILE), 'utf8'));
+      return HooksBundle.parseSums({
+        text: readFileSync(join(HooksBundle.SOURCE, SUMS_FILE), 'utf8'),
+      });
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** The version and the sums of a `SHA256SUMS.json`: bare `*.js` names only, or `undefined` when the text is not that. */
+  static parseSums(opts: { text: string }): IHooksBundle | undefined {
+    try {
+      const parsed: unknown = JSON.parse(opts.text);
 
       return isRecord(parsed) && typeof parsed['version'] === 'string' && isRecord(parsed['files'])
         ? {
             version: parsed['version'],
             files: Object.fromEntries(
               Object.entries(parsed['files']).filter(
-                (entry): entry is [string, string] => typeof entry[1] === 'string',
+                (entry): entry is [string, string] =>
+                  typeof entry[1] === 'string' && BUNDLE_NAME.test(entry[0]),
               ),
             ),
           }
         : undefined;
     } catch {
       return undefined;
+    }
+  }
+
+  /**
+   * The sums of the package `@venizia/vulcan@<version>` as the registry serves it (`npm pack`, then `base/bundle/SHA256SUMS.json` of the tarball),
+   * or `undefined` when it cannot be read: no network, no such version. Slow, so it is for CI and not for every doctor.
+   */
+  static published(opts: { version: string }): IHooksBundle | undefined {
+    const folder = mkdtempSync(join(tmpdir(), 'vulcan-published-'));
+
+    try {
+      const packed = spawnSync(
+        'npm',
+        [
+          'pack',
+          `@venizia/vulcan@${opts.version}`,
+          '--pack-destination',
+          folder,
+          '--json',
+          '--ignore-scripts',
+        ],
+        { encoding: 'utf8', timeout: 120_000 },
+      );
+      const tarball = readdirSync(folder).find((name) => name.endsWith('.tgz'));
+
+      if (packed.status !== 0 || tarball === undefined) {
+        return undefined;
+      }
+
+      const sums = spawnSync(
+        'tar',
+        ['-xzOf', join(folder, tarball), 'package/base/bundle/SHA256SUMS.json'],
+        {
+          encoding: 'utf8',
+        },
+      );
+
+      return sums.status === 0 ? HooksBundle.parseSums({ text: sums.stdout }) : undefined;
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
     }
   }
 
@@ -129,11 +198,11 @@ export class HooksBundle {
 
     if (HooksBundle.built === undefined) {
       const folder = mkdtempSync(join(tmpdir(), 'vulcan-hooks-'));
-      const version = JSON.parse(
-        readFileSync(join(BASE_DIRECTORY, '..', 'package.json'), 'utf8'),
-      ).version;
+      const version = HooksBundle.versionOf({ folder: join(BASE_DIRECTORY, '..') });
 
-      HooksBundle.built = { folder, sums: HooksBundle.build({ folder, version: String(version) }) };
+      // The folder is made for this run only.
+      process.on('exit', () => rmSync(folder, { recursive: true, force: true }));
+      HooksBundle.built = { folder, sums: HooksBundle.build({ folder, version }) };
     }
 
     return HooksBundle.built;

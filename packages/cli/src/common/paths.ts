@@ -3,16 +3,25 @@ import { join, resolve } from 'node:path';
 
 const OWN_ROOT = resolve(import.meta.dir, '..', '..');
 
-/** Whether `folder` is a copy of this package: it has a `package.json` of that name. */
-const isPackage = (opts: { folder: string }): boolean => {
+/** A string field of a `package.json`, or `undefined` when the file or the field is not there. */
+const stringField = (opts: { folder: string; key: string }): string | undefined => {
   try {
-    return (
-      JSON.parse(readFileSync(join(opts.folder, 'package.json'), 'utf8')).name === '@venizia/vulcan'
-    );
+    const parsed: unknown = JSON.parse(readFileSync(join(opts.folder, 'package.json'), 'utf8'));
+    const value =
+      typeof parsed === 'object' && parsed !== null
+        ? Object.fromEntries(Object.entries(parsed))[opts.key]
+        : undefined;
+
+    return typeof value === 'string' ? value : undefined;
   } catch {
-    return false;
+    return undefined;
   }
 };
+
+/** Whether `folder` is a copy of this package: a `package.json` of that name and the source of this module beside it. */
+const isPackage = (opts: { folder: string }): boolean =>
+  stringField({ folder: opts.folder, key: 'name' }) === '@venizia/vulcan' &&
+  existsSync(join(opts.folder, 'src', 'common', 'paths.ts'));
 
 /**
  * The installed `@venizia/vulcan` directory, in a workspace or a project's node_modules. A hook bundle runs from the project's
@@ -56,10 +65,5 @@ export class BaseDirectory {
 }
 
 /** The version of the package, or `unknown` for a hook bundle that finds no installed copy to read it from. */
-export const VULCAN_VERSION: string = (() => {
-  try {
-    return String(JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8')).version);
-  } catch {
-    return 'unknown';
-  }
-})();
+export const VULCAN_VERSION: string =
+  stringField({ folder: PACKAGE_ROOT, key: 'version' }) ?? 'unknown';

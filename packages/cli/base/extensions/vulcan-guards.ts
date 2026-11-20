@@ -72,6 +72,16 @@ interface IAnswer {
 const HOOKS_DIRECTORY = join('.agents', 'local', 'hooks');
 const TIMEOUT_MS = 30_000;
 
+/**
+ * What every bundle runs through: it hashes the file and compares the hash with the manifest at HEAD before it imports it. A copy of
+ * `src/hooks/bundle-loader.ts` (this file imports only node: modules); a test holds them equal.
+ */
+export const BUNDLE_LOADER_SCRIPT =
+  'const fs = require("node:fs"), cp = require("node:child_process"), c = require("node:crypto"); const f = process.env.VULCAN_HOOK_FILE ?? "", root = process.env.VULCAN_HOOK_ROOT ?? "", name = f.split("/").pop() ?? ""; let want; try { const g = cp.spawnSync("git", ["-C", root, "show", "HEAD:./.agents/vulcan.manifest.json"], { encoding: "utf8", timeout: 10000 }); const m = JSON.parse(g.stdout); const s = m && m.hooks && m.hooks.sha256; want = s && typeof s[name] === "string" ? s[name] : undefined; } catch {} let got; try { got = c.createHash("sha256").update(fs.readFileSync(f)).digest("hex"); } catch {} if (want === undefined || want !== got) { console.error("vulcan: the hook " + name + " is not the one the manifest at HEAD records (hooks.sha256), or there is no git or no committed manifest: the owner runs bun node_modules/.bin/vulcan sync and commits the manifest, outside the agent session"); process.exit(97); } await import(f);';
+
+/** The exit code of a bundle the loader refused. */
+const REFUSED = 97;
+
 /** The variables a guard does not inherit: a copy of `src/hooks/loader-environment.ts` (this file imports only node: modules); a test holds them equal. */
 class LoaderNames {
   static readonly WHOLE = ['BUN_OPTIONS', 'NODE_OPTIONS'];
@@ -244,15 +254,31 @@ const runGuard = (opts: {
   }
 
   // bun reads `.env` and `bunfig.toml` from the working directory: a file an agent writes there (a `VULCAN_GUARDS=off`, a preload) must not reach a guard.
-  const result = spawnSync('bun', ['--no-env-file', '--config=/dev/null', script], {
-    input: JSON.stringify(opts.claudeEvent),
-    encoding: 'utf8',
-    timeout: TIMEOUT_MS,
-    env: { ...withoutLoaderNames({ env: process.env }), CLAUDE_PROJECT_DIR: opts.root },
-  });
+  const result = spawnSync(
+    'bun',
+    ['--no-env-file', '--config=/dev/null', '-e', BUNDLE_LOADER_SCRIPT],
+    {
+      input: JSON.stringify(opts.claudeEvent),
+      encoding: 'utf8',
+      timeout: TIMEOUT_MS,
+      env: {
+        ...withoutLoaderNames({ env: process.env }),
+        CLAUDE_PROJECT_DIR: opts.root,
+        VULCAN_HOOK_FILE: script,
+        VULCAN_HOOK_ROOT: opts.root,
+      },
+    },
+  );
 
   if (result.error !== undefined && 'code' in result.error && result.error.code === 'ENOENT') {
     return { kind: Answers.MISSING, reason: 'bun is not on PATH: put bun on PATH' };
+  }
+
+  if (result.status === REFUSED) {
+    return {
+      kind: Answers.MISSING,
+      reason: `VULCAN guards unavailable: ${opts.guard.name}.js is not the one the manifest at HEAD records; the owner runs bun node_modules/.bin/vulcan sync and commits the manifest, outside the agent session`,
+    };
   }
 
   if (result.error !== undefined || result.status !== 0) {

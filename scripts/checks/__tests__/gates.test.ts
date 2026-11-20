@@ -28,6 +28,24 @@ jobs:
         run: make epsilon zeta
 `;
 
+describe('Gates.localCommands', () => {
+  const commands = [
+    { step: 'Sync', targets: ['vulcan-sync'] },
+    { step: 'Doctor', targets: ['vulcan-doctor'] },
+    { step: 'Build', targets: ['build'] },
+  ];
+
+  test('leaves the sync out of a local run, and keeps the rest in order', () => {
+    expect(
+      Gates.localCommands({ commands, withSync: false }).map((command) => command.step),
+    ).toEqual(['Doctor', 'Build']);
+  });
+
+  test('the owner asks for it with --with-sync', () => {
+    expect(Gates.localCommands({ commands, withSync: true })).toEqual(commands);
+  });
+});
+
 describe('Gates.commandsOf reads the gates from the workflow', () => {
   test('the make commands of every job, in the order of the file, one per line, the targets as separate words', () => {
     expect(Gates.commandsOf({ text: WORKFLOW })).toEqual([

@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { CodexHooks } from '../../agents/index.ts';
 import { installBundle } from '../bundle.helper.ts';
@@ -237,21 +237,33 @@ describe('the hook command wrapper in .codex/hooks.json', () => {
     expect(decisionOf(JSON.parse(result.stdout))).toBe('deny');
   });
 
-  test('with no package it prints nothing, says so on stderr and exits 0', () => {
+  test('with no bundle it denies, says so on stderr and names who repairs it: Codex cannot ask, and a fresh clone is not left unguarded', () => {
     const root = createProject({ files: { 'package.json': '{}' } });
     const result = runWrapper({ root, stdin: eventOf({ root, tool: 'Bash', command: 'ls' }) });
 
     expect(result.code).toBe(0);
-    expect(result.stdout).toBe('');
+    expect(decisionOf(JSON.parse(result.stdout))).toBe('deny');
+    expect(result.stdout).toContain('the owner runs bun node_modules/.bin/vulcan sync');
     expect(result.stderr).toContain('the guards cannot run');
+  });
+
+  test('a bundle that is not the one the manifest at HEAD records denies', () => {
+    const root = installedProject();
+    const file = join(root, '.agents', 'local', 'hooks', 'codex-guards.js');
+
+    chmodSync(file, 0o644);
+    writeFileSync(file, 'process.exit(0);\n');
+
+    const result = runWrapper({ root, stdin: eventOf({ root, tool: 'Bash', command: 'ls' }) });
+
+    expect(decisionOf(JSON.parse(result.stdout))).toBe('deny');
+    expect(result.stderr).toContain('the manifest at HEAD');
   });
 
   test('an adapter that started and crashed is a deny, because Codex cannot ask', () => {
     const root = createProject({ files: { 'package.json': '{}' } });
-    const hooks = join(root, '.agents', 'local', 'hooks');
 
-    mkdirSync(hooks, { recursive: true });
-    writeFileSync(join(hooks, 'codex-guards.js'), 'process.exit(3);\n');
+    installBundle({ root, bare: true, files: { 'codex-guards.js': 'process.exit(3);\n' } });
 
     const result = runWrapper({ root, stdin: eventOf({ root, tool: 'Bash', command: 'ls' }) });
 

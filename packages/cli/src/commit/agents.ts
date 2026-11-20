@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { BASE_DIRECTORY } from '../common/index.ts';
+import { BASE_DIRECTORY } from '../common/paths.ts';
 import type { ICommitAgents } from './common/index.ts';
 
 const AGENTS_SCHEMA = z.strictObject({

@@ -1,10 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
-import vulcanGuards from '../../../base/extensions/vulcan-guards.ts';
+import vulcanGuards, { BUNDLE_LOADER_SCRIPT } from '../../../base/extensions/vulcan-guards.ts';
+import { BundleLoader } from '../../hooks/bundle-loader.ts';
 import { CodexHooks, GuardHook, GUARD_HOOK_NAME } from '../../agents/index.ts';
 import { LoaderEnvironment } from '../../hooks/loader-environment.ts';
+import { installBundle } from '../bundle.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -31,25 +33,30 @@ interface IProbe {
  * A project whose guard scripts (`scripts`) record which stripped names they inherit, and whose preload file writes a
  * marker: `BUN_OPTIONS=--preload=<it>` runs it before any script bun starts, unless the wrapper took the name out.
  */
-const probed = (opts: { scripts: string[] }): IProbe => {
+const probed = (opts: {
+  scripts: string[];
+  files?: Record<string, string>;
+  manifest?: string;
+}): IProbe => {
   const root = createProject({ files: { 'package.json': '{}' } });
-  const hooks = join(root, '.agents', 'local', 'hooks');
   const seen = join(root, 'seen.txt');
   const marker = join(root, 'preload-ran.txt');
+  const probe = `require('node:fs').appendFileSync(${JSON.stringify(seen)}, Object.keys(process.env).filter((n) => ${NAMES_SEEN}.test(n)).join(',') + '\\n');\n`;
 
-  mkdirSync(hooks, { recursive: true });
-  mkdirSync(join(root, '.agents'), { recursive: true });
   writeFileSync(
     join(root, 'preload.ts'),
     `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'ran');\n`,
   );
-
-  for (const name of opts.scripts) {
-    writeFileSync(
-      join(hooks, `${name}.js`),
-      `require('node:fs').appendFileSync(${JSON.stringify(seen)}, Object.keys(process.env).filter((n) => ${NAMES_SEEN}.test(n)).join(',') + '\\n');\n`,
-    );
-  }
+  // The sums of these scripts are committed, as the owner's commit leaves them: only a bundle the manifest at HEAD records runs.
+  installBundle({
+    root,
+    bare: true,
+    manifest: opts.manifest,
+    files: {
+      ...Object.fromEntries(opts.scripts.map((name) => [`${name}.js`, probe])),
+      ...opts.files,
+    },
+  });
 
   return { root, seen, marker, env: loaderEnv({ preload: join(root, 'preload.ts') }) };
 };
@@ -101,6 +108,13 @@ const handlerOf = (): THandler => {
 
   return captured;
 };
+
+describe('the loader every bundle runs through', () => {
+  test('the extension keeps a copy of the script, and the script holds no single quote a shell could not quote', () => {
+    expect(BUNDLE_LOADER_SCRIPT).toBe(BundleLoader.SCRIPT);
+    expect(BundleLoader.SCRIPT).not.toContain("'");
+  });
+});
 
 describe('LoaderEnvironment', () => {
   test('strips BUN_OPTIONS, NODE_OPTIONS, every BUN_CONFIG_ and BUN_INSPECT name, and nothing else', () => {
@@ -210,7 +224,8 @@ describe('BUN_OPTIONS and the other loader names do not reach a guard', () => {
     expect(commands.length).toBeGreaterThan(0);
 
     for (const command of commands) {
-      expect(command).toContain('bun --no-env-file --config=/dev/null "$f"');
+      expect(command).toContain('bun --no-env-file --config=/dev/null -e');
+      expect(command).toContain('VULCAN_HOOK_FILE="$f"');
       expect(shell({ command, cwd: root, env: { ...env, CLAUDE_PROJECT_DIR: root } }).code).toBe(0);
     }
 
@@ -259,16 +274,21 @@ describe('BUN_OPTIONS and the other loader names do not reach a guard', () => {
     expect(existsSync(marker)).toBe(false);
     expect(readFileSync(seen, 'utf8').trim()).toBe('');
 
-    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{ nope');
-    writeFileSync(
-      join(root, '.agents', 'local', 'hooks', 'antigravity-guards.js'),
-      'process.exit(3);',
-    );
-
-    const crashed = shell({ command, cwd: join(root, '.agents'), env, stdin: '{}' });
+    // A hook that crashes, with a manifest that cannot be read: the check of the manifest is bun again, and must not run the preload either.
+    const crashing = probed({
+      scripts: [],
+      files: { 'antigravity-guards.js': 'process.exit(3);' },
+      manifest: '{ nope',
+    });
+    const crashed = shell({
+      command,
+      cwd: join(crashing.root, '.agents'),
+      env: crashing.env,
+      stdin: '{}',
+    });
 
     expect(crashed.stdout).toContain('deny');
-    expect(existsSync(marker)).toBe(false);
+    expect(existsSync(crashing.marker)).toBe(false);
   });
 
   test('the omp and pi extension: the guard it starts inherits none of them', async () => {

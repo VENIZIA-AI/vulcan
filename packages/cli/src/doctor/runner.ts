@@ -37,6 +37,7 @@ export class DoctorRunner {
       ...ProjectContract.checkAdapters(context),
       ...ProjectContract.checkAgents(context),
       ...ProjectContract.checkManifest(context),
+      ...ProjectContract.checkHooksPublished(context),
       ...ProjectContract.checkChangelogFolders(context),
       ...TagCheck.check(context),
       ...SkillLint.check(context),

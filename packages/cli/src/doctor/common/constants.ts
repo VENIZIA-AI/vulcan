@@ -18,6 +18,8 @@ export class DoctorChecks {
   static readonly STYLE = 'style';
   /** The committed .agents/vulcan.manifest.json against the config; a missing or outdated one is an error. */
   static readonly MANIFEST = 'manifest';
+  /** The sums the manifest records for the hook bundle against the published package of that version (CI, an installed package); a difference is an error. */
+  static readonly HOOKS_PUBLISHED = 'hooks-published';
   /** Version folders under the changelog directory while the installed vulcan predates the atlas that reads them; an error. */
   static readonly CHANGELOG_FOLDERS = 'changelog-folders';
   /** Git tags matching atlas.tagPattern that name no declared package, alias or ignored tag; an error. */
