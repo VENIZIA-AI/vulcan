@@ -8,6 +8,7 @@ import { ShellWrites } from './shell-writes.ts';
 import type { IWriteTarget } from './shell-writes.ts';
 import { HookConstants } from './common/index.ts';
 import { ProjectTmp } from './project-tmp.ts';
+import { ProtectedNames } from './protected-names.ts';
 import type { IManifestHookInput, IOutsideHit } from './common/index.ts';
 
 const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
@@ -102,12 +103,52 @@ const matchesNothing = (opts: { word: string; base: string }): boolean => {
 const isInside = (opts: { path: string; root: string }): boolean =>
   opts.path === opts.root || opts.path.startsWith(`${opts.root}${sep}`);
 
+/** What a write to a path is judged against: the file itself, a folder removed with what it holds, or a folder written into with names not known. */
+type TProtectedMode = 'file' | 'removal' | 'folder' | 'put';
+
 /**
  * Whether `path` is one of the files the guards read their policy from (`HookConstants.PROTECTED_FILES`), relative to the project
  * root. A removal or a move also takes a folder that holds one of them (`rm -rf .claude`), bar `node_modules`, whose removal leaves
- * the guards missing and the call blocked until `bun install`.
+ * the guards missing and the call blocked until `bun install`. A folder written into with names this check cannot tell (`tar -C`,
+ * `cp -a dir/. folder`, `find folder -delete`) is protected when it holds one of them, is inside the installed package, or is the root.
  */
-const isProtectedFile = (opts: { path: string; root: string; isRemoval: boolean }): boolean => {
+/** Where the installed package really is, when `node_modules/@venizia/vulcan` is a link into `node_modules` (Bun's store): that tree, and the folders above it. */
+interface IPackageStore {
+  tree: string;
+  parents: string[];
+}
+
+/**
+ * The real place of the installed package when it is a copy under `node_modules` and not where its link stands, or `undefined`. A link to a
+ * source folder (a workspace, this repository) is the project's own code, which an agent develops: it is not protected as the store is.
+ */
+const packageStoreOf = (opts: { root: string }): IPackageStore | undefined => {
+  const link = join(opts.root, 'node_modules', '@venizia', 'vulcan');
+  const real = realOf({ path: link });
+
+  if (real === undefined || real === link || !real.startsWith(`${opts.root}/node_modules/`)) {
+    return undefined;
+  }
+
+  const parts = real
+    .slice(opts.root.length + 1)
+    .toLowerCase()
+    .split('/');
+  const parents = parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).join('/'));
+
+  return { tree: parts.join('/'), parents: parents.filter((parent) => parent !== 'node_modules') };
+};
+
+const isProtectedFile = (opts: {
+  path: string;
+  root: string;
+  mode: TProtectedMode;
+  store?: IPackageStore;
+}): boolean => {
+  if (opts.mode === 'folder' && opts.path === opts.root) {
+    return true;
+  }
+
   if (!isInside({ path: opts.path, root: opts.root }) || opts.path === opts.root) {
     return false;
   }
@@ -120,11 +161,78 @@ const isProtectedFile = (opts: { path: string; root: string; isRemoval: boolean 
     return true;
   }
 
+  // The real place of the package: it, and what is under it, is the package whatever the link says; the folders above it are replaced as the ones above the link are.
+  const { store } = opts;
+
+  if (store !== undefined) {
+    if (relative === store.tree || relative.startsWith(`${store.tree}/`)) {
+      return true;
+    }
+
+    if ((opts.mode === 'put' || opts.mode === 'folder') && store.parents.includes(relative)) {
+      return true;
+    }
+  }
+
+  if (
+    (opts.mode === 'put' || opts.mode === 'folder') &&
+    ['node_modules/.bun', 'node_modules/.bin'].includes(relative)
+  ) {
+    return true;
+  }
+
+  // The folders above the installed package: replacing one replaces the guards. Removing one is left to `bun install`.
+  if (relative === 'node_modules/@venizia' && opts.mode !== 'removal') {
+    return true;
+  }
+
+  if (relative === 'node_modules' && (opts.mode === 'put' || opts.mode === 'folder')) {
+    return true;
+  }
+
+  if (
+    opts.mode === 'folder' &&
+    globs.some((pattern) => new Bun.Glob(pattern).match(`${relative}/x`))
+  ) {
+    return true;
+  }
+
   return (
-    opts.isRemoval &&
-    !relative.startsWith('node_modules') &&
+    (opts.mode === 'folder' || (opts.mode === 'removal' && !relative.startsWith('node_modules'))) &&
     globs.some((pattern) => pattern.startsWith(`${relative}/`))
   );
+};
+
+/** A word with a pattern in it: the shell expands `*`, `?` and `[...]` into the names that match. */
+const GLOB_CHARACTER = /[*?[]/;
+
+/**
+ * Whether a glob (an absolute path with a pattern in it) can match a file the guards read their policy from, or a folder that holds one.
+ * A name that starts with a dot is matched only by a segment that starts with one, as the shell does; the installed package is left out,
+ * as for `rm -rf node_modules`.
+ */
+const globReachesProtected = (opts: { glob: string; root: string }): boolean => {
+  if (!isInside({ path: opts.glob, root: opts.root })) {
+    return false;
+  }
+
+  const relative = opts.glob.slice(opts.root.length + 1).toLowerCase();
+  const segments = relative.split('/').filter((segment) => segment !== '');
+
+  return ProtectedNames.REACH.some((name) => {
+    const names = name.split('/');
+
+    return (
+      names.length === segments.length &&
+      segments.every((segment, index) => {
+        const part = names[index] ?? '';
+
+        return (
+          (!part.startsWith('.') || segment.startsWith('.')) && new Bun.Glob(segment).match(part)
+        );
+      })
+    );
+  });
 };
 
 /**
@@ -193,6 +301,7 @@ export class OutsideGuard {
     const env = opts.env ?? process.env;
     const home = opts.home ?? env.HOME ?? '';
     const root = realOf({ path: resolve(opts.projectRoot) }) ?? resolve(opts.projectRoot);
+    const store = packageStoreOf({ root });
     const patterns = allowPatterns({
       patterns: [...HookConstants.TOOL_OWNED_PATHS, ...(opts.toolOwnedPaths ?? [])],
       home,
@@ -283,7 +392,12 @@ export class OutsideGuard {
       }
 
       // A link the line made under a name this check could not work out may be on any path that follows.
-      if (target.hasUnknownLink === true && target.isLinkRead !== true) {
+      if (
+        target.hasUnknownLink === true &&
+        target.isLinkRead !== true &&
+        target.isNameInFolder !== true &&
+        target.isIntoFolder !== true
+      ) {
         hits.push({
           path: target.word,
           message: `${target.message}: the line made a symbolic link under a name this check cannot work out, so the path may go through it`,
@@ -318,6 +432,42 @@ export class OutsideGuard {
             env: { ...env, ...target.vars },
             cwd: target.pwd,
           });
+
+      // A pattern in a removal or an edit: the names it matches are not known, so it is judged by what it can reach.
+      if (
+        (target.isProtectedOnly === true || target.isEdit === true) &&
+        target.isKnown !== false &&
+        GLOB_CHARACTER.test(target.word) &&
+        !/[$`~]/.test(target.word)
+      ) {
+        const pattern = isAbsolute(target.word) ? target.word : `${target.base}/${target.word}`;
+        const cut = pattern.search(GLOB_CHARACTER);
+        const folder = pattern.slice(0, pattern.lastIndexOf('/', cut) + 1) || '/';
+        const real = realOf({ path: folder });
+        const reaches =
+          real !== undefined &&
+          globReachesProtected({
+            glob: `${real === '/' ? '' : real}/${pattern.slice(folder.length)}`,
+            root,
+          });
+
+        if (reaches) {
+          hits.push({
+            path: pattern,
+            message: `${target.message}: the pattern can match one of the files the guards read their policy from`,
+            isAgentToolScratchpad: false,
+            isUnread: false,
+            isProtected: true,
+          });
+
+          continue;
+        }
+
+        // A removal of names this check cannot work out is left to the owner; an edit is judged like any write.
+        if (target.isProtectedOnly === true) {
+          continue;
+        }
+      }
 
       if (expanded === undefined && target.isProtectedOnly === true) {
         // A removal or an edit in place of a word this check cannot work out: nothing says it is a guard file.
@@ -371,12 +521,16 @@ export class OutsideGuard {
 
       // A path at or through a link the line made is where the link points, which is not on disk yet to be followed. The name a
       // link command makes is its own, so it is the command's destination and not a path through an earlier link.
-      const through = ShellFolders.passesThrough({
-        path: expanded,
-        base: target.base,
-        links: target.links ?? [],
-        isLastCounted: target.isLinkName !== true,
-      });
+      // A name this check adds for a protected folder (`cp f dir` writes `dir/f`) is judged by what it is: the destination itself has said the rest.
+      const through =
+        target.isNameInFolder === true || target.isIntoFolder === true
+          ? undefined
+          : ShellFolders.passesThrough({
+              path: expanded,
+              base: target.base,
+              links: target.links ?? [],
+              isLastCounted: target.isLinkName !== true,
+            });
 
       if (through !== undefined) {
         hits.push({
@@ -438,11 +592,18 @@ export class OutsideGuard {
       }
 
       // A write to a file the guards read their policy from switches a guard off: denied whatever the project sets.
-      const isRemoval = target.isProtectedOnly === true;
+      const mode: TProtectedMode =
+        target.isIntoFolder === true
+          ? 'folder'
+          : target.isPut === true || target.isNameInFolder === true
+            ? 'put'
+            : target.isProtectedOnly === true
+              ? 'removal'
+              : 'file';
 
       if (
-        isProtectedFile({ path, root, isRemoval }) ||
-        isProtectedFile({ path: resolve(written), root, isRemoval })
+        isProtectedFile({ path, root, mode, store }) ||
+        isProtectedFile({ path: resolve(written), root, mode, store })
       ) {
         hits.push({
           path,
@@ -455,7 +616,7 @@ export class OutsideGuard {
         continue;
       }
 
-      if (isRemoval) {
+      if (target.isProtectedOnly === true || target.isIntoFolder === true) {
         continue;
       }
 

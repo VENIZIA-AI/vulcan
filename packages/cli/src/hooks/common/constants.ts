@@ -43,8 +43,16 @@ export class HookConstants {
     '.claude/settings.json',
     '.claude/settings.local.json',
     '.agents/local/claude.launch.settings.json',
+    '.codex/hooks.json',
+    '.agents/hooks.json',
+    '.omp/hooks/pre/vulcan-guards.ts',
+    '.pi/extensions/vulcan-guards.ts',
     'node_modules/@venizia/vulcan',
     'node_modules/@venizia/vulcan/**',
+    // Bun's own copy of the package, which the link above points to, and the bin the owner runs.
+    'node_modules/.bun/@venizia+vulcan@*',
+    'node_modules/.bun/@venizia+vulcan@*/**',
+    'node_modules/.bin/vulcan',
   ];
   /** Branches no agent deletes or force-pushes (V-W-06). */
   static readonly PROTECTED_BRANCHES = new Set(['develop', 'main']);
