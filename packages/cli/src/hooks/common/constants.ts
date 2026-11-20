@@ -37,12 +37,15 @@ export class HookConstants {
    * The files the guards read their policy from, relative to the project root: the manifest, the config, Claude Code's
    * project settings and the installed package with its hooks. An agent that can write one can switch a guard off, so
    * guard-outside denies a write to any of them; the owner changes them by hand, or through `vulcan sync`.
+   * The launch file is the `--settings` file of `claude --settings <it>`: it carries an `env` block that every
+   * hook inherits, so a write to it reaches the guards as surely as a write to the project settings.
    */
   static readonly PROTECTED_FILES = [
     '.agents/vulcan.manifest.json',
     '.configs/vulcan.config.*',
     '.claude/settings.json',
     '.claude/settings.local.json',
+    '.agents/local/claude.launch.settings.json',
     'node_modules/@venizia/vulcan',
     'node_modules/@venizia/vulcan/**',
   ];

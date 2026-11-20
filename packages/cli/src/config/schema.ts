@@ -3,6 +3,7 @@ import { SiteUrl } from '@venizia/vulcan-atlas';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { DOCTOR_SCHEMA } from '../doctor/schema.ts';
 import { GuardDecisions } from '../hooks/common/constants.ts';
+import { LoaderEnvironment } from '../hooks/loader-environment.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { RulePacks } from '../rules/packs.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
@@ -559,7 +560,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   /** Team-shared Claude settings (permissions, env, enabledPlugins...), merged by sync over personal keys. */
   claude: z
     .strictObject({
-      /** The Claude settings merged into `.claude/settings.json`; an `env` that sets a `VULCAN_GUARD*` variable is refused. */
+      /** The Claude settings merged into `.claude/settings.json`; an `env` that sets a `VULCAN_GUARD*` variable, `BUN_OPTIONS`, `NODE_OPTIONS` or a `BUN_CONFIG_*` variable is refused. */
       settings: z
         .record(z.string(), z.unknown())
         .superRefine((settings, context) => {
@@ -573,6 +574,13 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
             context.addIssue({
               code: 'custom',
               message: `${name} is the owner's choice and belongs in the environment that launches the agent, not in the project's Claude settings, which an agent can edit`,
+            });
+          }
+
+          for (const name of Object.keys(env).filter((key) => LoaderEnvironment.isStripped(key))) {
+            context.addIssue({
+              code: 'custom',
+              message: `${name} changes what bun loads before a guard runs, and every hook inherits the \`env\` of these settings: it is refused here, and the hooks remove it from their own environment`,
             });
           }
         })

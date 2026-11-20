@@ -1,4 +1,5 @@
 import { RecordValue } from '../common/record.ts';
+import { LoaderEnvironment } from '../hooks/loader-environment.ts';
 import { RemoveOutcomes } from './common/index.ts';
 
 /** The key of VULCAN's entry in Antigravity's hooks file: the file maps a hook name to its events. */
@@ -37,6 +38,7 @@ const IS_HELD = [
  * and crashed asks, or denies where every ask is held.
  */
 const GUARD_COMMAND = [
+  LoaderEnvironment.shellUnset(),
   'f="$PWD/../node_modules/@venizia/vulcan/base/hooks/antigravity-guards.ts";',
   'if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then',
   'in=$(cat); out=$(printf \'%s\' "$in" | bun --no-env-file --config=/dev/null "$f"); s=$?;',

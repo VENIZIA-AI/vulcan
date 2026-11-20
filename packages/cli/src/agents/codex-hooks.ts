@@ -1,4 +1,5 @@
 import { RecordValue } from '../common/record.ts';
+import { LoaderEnvironment } from '../hooks/loader-environment.ts';
 import { RemoveOutcomes } from './common/index.ts';
 
 /** The script every VULCAN entry runs: it is how an entry of ours is told from a hook of the user's. */
@@ -19,6 +20,7 @@ const DENY_ON_CRASH = JSON.stringify({
  * denies, because Codex cannot ask.
  */
 const GUARD_COMMAND = [
+  LoaderEnvironment.shellUnset(),
   'd=$(git rev-parse --show-toplevel 2>/dev/null || pwd);',
   `f="$d/node_modules/@venizia/vulcan/base/hooks/${GUARD_SCRIPT}";`,
   'if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then',
