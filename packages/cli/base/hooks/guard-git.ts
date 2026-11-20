@@ -28,6 +28,7 @@ try {
   const { GuardDecisions } = await import('../../src/hooks/common/index.ts');
   const { HookDecision } = await import('../../src/hooks/decision.ts');
   const { GitGuard } = await import('../../src/hooks/guard-git.ts');
+  const { PackageSwap } = await import('../../src/hooks/package-swap.ts');
   const { RunnerGuard } = await import('../../src/hooks/guard-runner.ts');
   const { WriteGuard } = await import('../../src/hooks/guard-writes.ts');
   const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
@@ -38,6 +39,7 @@ try {
     ? [
         ...GitGuard.inspect({ command: hookCommand.command, cwd, askPush: policy.askPush }),
         ...RunnerGuard.inspect({ command: hookCommand.command, cwd, allow: policy.runnersAllow }),
+        ...PackageSwap.inspectCommand({ command: hookCommand.command, cwd }),
       ]
     : [
         {

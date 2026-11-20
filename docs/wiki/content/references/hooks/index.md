@@ -194,6 +194,18 @@ Every hook command of Claude Code, Codex and Antigravity starts by unsetting `BU
 
 The hooks that only record events run with the same flags and the same unset. Not covered: `PATH` and `NODE_PATH`, and any other variable bun or node reads. A variable set outside the project, in the shell that starts the agent or in `~/.claude/settings.json`, is removed at the hook all the same, but nothing refuses it where it is set.
 
+### The package manager and the guard package
+
+The `vulcan` command the owner runs (`vulcan sync`, `vulcan doctor`) comes from `node_modules/@venizia/vulcan`, so whatever puts another package there runs when the owner next uses it. `bun add @venizia/vulcan@file:./evil` does it in one command. `guard-git` reads the command (rule `V-S-05`) of `bun`, `npm`, `pnpm` and `yarn`, and denies:
+
+- `add`, `install`, `update`, `link` of `@venizia/vulcan` with a source that is not a registry version, range or tag (`file:`, `link:`, `workspace:`, a path, a URL, a git ref, an `npm:` alias), and `link` or `patch` of it at all, including `bun patch node_modules/@venizia/vulcan` and `bun patch --commit <path>` into the installed copy or Bun's store copy.
+- A folder given to an install (`bun add ./evil`) that holds a package of that name or has no `package.json` to read. The folder is read where the command runs, so `cd sub && bun add ../evil`, `bun --cwd sub add ...`, `npm --prefix sub install ...` and a flag before the verb (`pnpm -r add ...`) are read the same way.
+- `--registry`, `--cache-dir` or `--config`, and `BUN_CONFIG_REGISTRY`, `npm_config_registry` or `NPM_CONFIG_REGISTRY`, on an install: they decide where the package comes from.
+
+`bun add @venizia/vulcan@^0.5.0`, `bun add left-pad`, `bun install`, `bun remove` and `bun update` pass.
+
+This is a first line, not a boundary. Not read: an edit of `package.json` (the dependency spec, `overrides`, `resolutions`, `patchedDependencies`, `workspaces`, a `catalog:`), `bunfig.toml`, `.npmrc` and the lockfiles, by a file tool or a shell redirect; an archive, URL or git ref given to an install, whose package name cannot be read; and a `bun install` that the owner runs afterwards. **Install scripts** (`preinstall`, `postinstall`, `prepare`) that an agent adds to a `package.json` and then triggers with `bun install` run arbitrary code, and can write into `node_modules`, the guard package included: the guards read commands, not what a script does.
+
 ### What the guards do not stop
 
 These guards stop an agent that is working normally from doing what a person should confirm. They do not stop one that sets out to get around them. What is not read, so what an agent can still do:
