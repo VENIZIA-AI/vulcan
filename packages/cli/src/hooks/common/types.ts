@@ -57,4 +57,6 @@ export interface IOutsideHit {
   isUnread: boolean;
   /** Whether the path is what an `ln` of the line links to: a write through the link changes it, so the hook denies and says how to link a path inside. */
   isLink?: boolean;
+  /** Whether the path is one of the files the guards read their policy from: the hook denies a write to it, whatever the project sets. */
+  isProtected?: boolean;
 }

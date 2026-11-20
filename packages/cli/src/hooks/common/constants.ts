@@ -20,6 +20,32 @@ export class HookConstants {
    * unintended files into one commit; on this repository's develop the median commit touches 7 files and 2.2% touch more than 50.
    */
   static readonly BLANKET_STAGE_PATHS = 50;
+  /** The environment variable that makes every guard refuse what it would ask about; the launch environment sets it, the project cannot loosen it. */
+  static readonly ENV_ASKS = 'VULCAN_GUARD_ASKS';
+  /** The environment variable that makes guard-outside refuse a write outside the project; as `ENV_ASKS`. */
+  static readonly ENV_OUTSIDE = 'VULCAN_GUARD_OUTSIDE';
+  /** What an answer says when the project (`guard.asks: 'deny'`) holds every ask. */
+  static readonly HELD_ASK =
+    'This project denies every call that would need a human to confirm it (guard.asks: deny). Nothing was run: hand this to the owner.';
+  /** What an answer says when the launch environment (`VULCAN_GUARD_ASKS=deny`) holds every ask. */
+  static readonly HELD_ASK_ENV =
+    'This session denies every call that would need a human to confirm it (VULCAN_GUARD_ASKS=deny). Nothing was run: hand this to the owner.';
+  /** What an answer says when the manifest exists and cannot be read: the hooks cannot tell what the project asked for, so an ask is a deny. */
+  static readonly MANIFEST_UNREADABLE =
+    'The manifest .agents/vulcan.manifest.json exists but cannot be read, so every call that would need a human to confirm it is denied. Nothing was run: the owner repairs the file or runs bun node_modules/.bin/vulcan sync.';
+  /**
+   * The files the guards read their policy from (the manifest, the config, Claude Code's project and launch settings, the installed package):
+   * an agent that can write one can switch a guard off, so guard-outside denies it; the owner changes them by hand or through `vulcan sync`.
+   */
+  static readonly PROTECTED_FILES = [
+    '.agents/vulcan.manifest.json',
+    '.configs/vulcan.config.*',
+    '.claude/settings.json',
+    '.claude/settings.local.json',
+    '.agents/local/claude.launch.settings.json',
+    'node_modules/@venizia/vulcan',
+    'node_modules/@venizia/vulcan/**',
+  ];
   /** Branches no agent deletes or force-pushes (V-W-06). */
   static readonly PROTECTED_BRANCHES = new Set(['develop', 'main']);
   /**

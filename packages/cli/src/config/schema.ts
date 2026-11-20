@@ -3,6 +3,7 @@ import { SiteUrl } from '@venizia/vulcan-atlas';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { DOCTOR_SCHEMA } from '../doctor/schema.ts';
 import { GuardDecisions } from '../hooks/common/constants.ts';
+import { LoaderEnvironment } from '../hooks/loader-environment.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { RulePacks } from '../rules/packs.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
@@ -558,7 +559,33 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   doctor: DOCTOR_SCHEMA.default({ privateValues: { acknowledged: [] } }),
   /** Team-shared Claude settings (permissions, env, enabledPlugins...), merged by sync over personal keys. */
   claude: z
-    .strictObject({ settings: z.record(z.string(), z.unknown()).default({}) })
+    .strictObject({
+      /** The Claude settings merged into `.claude/settings.json`; an `env` that sets a `VULCAN_GUARD*` variable, `BUN_OPTIONS`, `NODE_OPTIONS` or a `BUN_CONFIG_*` variable is refused. */
+      settings: z
+        .record(z.string(), z.unknown())
+        .superRefine((settings, context) => {
+          const env = settings['env'];
+
+          if (typeof env !== 'object' || env === null || Array.isArray(env)) {
+            return;
+          }
+
+          for (const name of Object.keys(env).filter((key) => /^VULCAN_GUARD/.test(key))) {
+            context.addIssue({
+              code: 'custom',
+              message: `${name} is the owner's choice and belongs in the environment that launches the agent, not in the project's Claude settings, which an agent can edit`,
+            });
+          }
+
+          for (const name of Object.keys(env).filter((key) => LoaderEnvironment.isStripped(key))) {
+            context.addIssue({
+              code: 'custom',
+              message: `${name} changes what bun loads before a guard runs, and every hook inherits the \`env\` of these settings: it is refused here, and the hooks remove it from their own environment`,
+            });
+          }
+        })
+        .default({}),
+    })
     .default({ settings: {} }),
   /** The session-start digest: the rule IDs it repeats as "the rules sessions drop most" - base or the project's own. */
   digest: z
@@ -579,8 +606,16 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    * compound commands too), and `git.askPush` lists the branches a plain `git push` asks about; `vulcan sync`
    * writes both to the manifest, where the hooks read them, and writes `outside` (when it is `deny`) and
    * `toolOwnedPaths` there too, so a config this VULCAN cannot parse changes no guard. `outside` is what
-   * `guard-outside` does with a write outside the project: `ask` (the default) or `deny`. Where the agent runs in an auto mode an ask can be
-   * approved without the owner seeing it, so a project that wants the line held sets `deny`.
+   * `guard-outside` does with a write outside the project: `ask` (the default) or `deny`. `asks` is the same choice for every guard:
+   * `deny` makes each answer that would ask a human (a command of guard-writes, a push target of `git.askPush`, `git push --mirror`,
+   * `git reset --hard`, a force-push to a branch that is not protected, a force-delete of an unmerged branch, a write outside the
+   * project, a part of a call a guard cannot read, a guard that crashed or timed out) a refusal with the same hint. Where the agent
+   * runs in an auto mode an ask can be approved without the owner seeing it, so a project that runs agents there sets `asks: 'deny'`.
+   * Both are a drift guard, not a boundary: the owner's choice belongs in the launch environment (`VULCAN_GUARD_ASKS=deny`,
+   * `VULCAN_GUARD_OUTSIDE=deny`), where the strictest of the environment and the manifest holds and nothing in the project can
+   * loosen it (it also ignores `toolOwnedPaths` and `runners.allow` of the manifest, and every hook runs with `bun --no-env-file
+   * --config=/dev/null`). `guard-outside` denies an agent's write to the manifest, `.configs/vulcan.config.*`, `.claude/settings*.json` and
+   * `node_modules/@venizia/vulcan`.
    */
   guard: z
     .strictObject({
@@ -588,6 +623,8 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       toolOwnedPaths: z.array(z.string().min(1)).default([]),
       /** What guard-outside does with a write outside the project: `ask` or `deny`; default `ask`. */
       outside: z.enum([GuardDecisions.ASK, GuardDecisions.DENY]).default(GuardDecisions.ASK),
+      /** What every guard does with a call that needs a human to confirm it: `ask` or `deny`; default `ask`. Set `deny` where the agent runs in an auto mode; `VULCAN_GUARD_ASKS=deny` in the launch environment holds it where the project cannot. */
+      asks: z.enum([GuardDecisions.ASK, GuardDecisions.DENY]).default(GuardDecisions.ASK),
       /** Write guard list: the project's own deploy and migrate commands; default `[]`. */
       writes: z
         .strictObject({
@@ -618,6 +655,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .default({
       toolOwnedPaths: [],
       outside: GuardDecisions.ASK,
+      asks: GuardDecisions.ASK,
       writes: { commands: [] },
       git: { askPush: [] },
       runners: { allow: [] },

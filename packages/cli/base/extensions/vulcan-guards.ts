@@ -4,13 +4,14 @@
 // tool call it runs the same guard scripts Claude Code runs (node_modules/@venizia/vulcan/base/hooks/*.ts),
 // with a Claude-shaped event on stdin, and turns the answer into this agent's: `deny` blocks, `ask` asks
 // the owner (and blocks when there is no UI to ask). A guard that cannot give an answer follows the same
-// policy as the Claude wrappers: the safety guards block, the others ask, and a missing install passes
-// except for the safety guards, which block - bar a bare `bun install`, the way to repair it. A guard that
-// is gone from an installed package passes: there is nothing to run.
+// policy as the Claude wrappers: the safety guards block, the others ask, and a missing install blocks
+// too - bar a bare `bun install` or `vulcan sync`, the way to repair it (guard-git only for a git or gh line).
+// A guard that is gone from an installed package blocks, except guard-writes, which passes: there is nothing
+// to run. A project that sets `guard.asks: 'deny'` has every ask answered as a block.
 // Only node: modules are imported, so any host that loads TypeScript can load it.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 class Tools {
@@ -60,6 +61,10 @@ interface IGuard {
   name: string;
   tools: string[];
   onFailure: string;
+  /** Whether the call is blocked when the package is installed and only this guard is gone from it. */
+  isClosedWhenGone: boolean;
+  /** The lines the guard covers when it is missing: a line that does not match passes. Every line when absent. */
+  onlyLines?: RegExp;
 }
 
 interface IAnswer {
@@ -70,15 +75,48 @@ interface IAnswer {
 const PACKAGE_DIRECTORY = join('node_modules', '@venizia', 'vulcan');
 const HOOKS_DIRECTORY = join(PACKAGE_DIRECTORY, 'base', 'hooks');
 const TIMEOUT_MS = 30_000;
-/** The one command that passes while the install is missing: it is how the install is repaired. */
-const BUN_INSTALL =
-  /^\s*bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*\s*$/;
+
+/** The variables a guard does not inherit: a copy of `src/hooks/loader-environment.ts` (this file imports only node: modules); a test holds them equal. */
+class LoaderNames {
+  static readonly WHOLE = ['BUN_OPTIONS', 'NODE_OPTIONS'];
+  static readonly PREFIXES = ['BUN_CONFIG_', 'BUN_INSPECT'];
+}
+
+const withoutLoaderNames = (opts: {
+  env: Record<string, string | undefined>;
+}): Record<string, string | undefined> =>
+  Object.fromEntries(
+    Object.entries(opts.env).filter(
+      ([name]) =>
+        !LoaderNames.WHOLE.includes(name) &&
+        !LoaderNames.PREFIXES.some((prefix) => name.startsWith(prefix)),
+    ),
+  );
+/** The commands that pass while the install is missing or out of step: they are how it is repaired (`bun install`, `vulcan sync`). */
+const REPAIR =
+  /^\s*(bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*|bun node_modules\/\.bin\/vulcan sync( --?[a-z][a-z-]*( [\w./@-]+)?)*)\s*$/;
+/** A command line that names git or gh as a word. */
+const GIT_LINE = /(^|[^A-Za-z0-9_])(git|gh)([^A-Za-z0-9_]|$)/;
+const MANIFEST_FILE = join('.agents', 'vulcan.manifest.json');
+const HELD_ASK =
+  'Every call that would need a human to confirm it is denied here (guard.asks: deny, VULCAN_GUARD_ASKS=deny, or a manifest that cannot be read). Nothing was run: hand this to the owner.';
 
 /** The guards of `.claude/settings.json`, with the tools each covers and what each does when it cannot answer. */
 const GUARDS: IGuard[] = [
-  { name: 'guard-writes', tools: [Tools.BASH], onFailure: Failures.BLOCK },
-  { name: 'guard-git', tools: [Tools.BASH], onFailure: Failures.ASK },
-  { name: 'guard-outside', tools: [Tools.BASH, Tools.WRITE, Tools.EDIT], onFailure: Failures.ASK },
+  { name: 'guard-writes', tools: [Tools.BASH], onFailure: Failures.BLOCK, isClosedWhenGone: false },
+  {
+    name: 'guard-git',
+    tools: [Tools.BASH],
+    onFailure: Failures.ASK,
+    isClosedWhenGone: true,
+    onlyLines: GIT_LINE,
+  },
+  {
+    name: 'guard-outside',
+    tools: [Tools.BASH, Tools.WRITE, Tools.EDIT],
+    onFailure: Failures.ASK,
+    isClosedWhenGone: true,
+  },
 ];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -100,6 +138,31 @@ const rootOf = (opts: { cwd: string }): string => {
     }
 
     directory = parent;
+  }
+};
+
+/**
+ * Whether every ask is a deny in the project at `root`: the launch environment says `VULCAN_GUARD_ASKS=deny`, the manifest sets
+ * `guard.asks` to `deny`, or the manifest exists and cannot be read. No manifest means asks stay asks.
+ */
+const isHeldIn = (opts: { root: string }): boolean => {
+  if (process.env.VULCAN_GUARD_ASKS === Answers.DENY) {
+    return true;
+  }
+
+  const file = join(opts.root, MANIFEST_FILE);
+
+  if (!existsSync(file)) {
+    return false;
+  }
+
+  try {
+    const manifest: unknown = JSON.parse(readFileSync(file, 'utf8'));
+    const guard = isRecord(manifest) ? manifest.guard : undefined;
+
+    return !isRecord(manifest) || (isRecord(guard) && guard.asks === Answers.DENY);
+  } catch {
+    return true;
   }
 };
 
@@ -183,19 +246,28 @@ const runGuard = (opts: {
   const script = join(opts.root, HOOKS_DIRECTORY, `${opts.guard.name}.ts`);
 
   if (!existsSync(script)) {
-    // The package is installed and only this guard is gone from it: nothing to run, the call passes.
+    // The package is installed and only this guard is gone from it: guard-writes passes (nothing to run), the others block.
     if (existsSync(join(opts.root, PACKAGE_DIRECTORY, 'package.json'))) {
-      return { kind: Answers.ALLOW, reason: '' };
+      return opts.guard.isClosedWhenGone
+        ? {
+            kind: Answers.MISSING,
+            reason: `VULCAN guards unavailable: ${opts.guard.name} is not in the installed package; run bun node_modules/.bin/vulcan sync`,
+          }
+        : { kind: Answers.ALLOW, reason: '' };
     }
 
-    return { kind: Answers.MISSING, reason: `${opts.guard.name} is missing: run bun install` };
+    return {
+      kind: Answers.MISSING,
+      reason: `VULCAN guards unavailable: ${opts.guard.name} is missing; finish bun install`,
+    };
   }
 
-  const result = spawnSync('bun', [script], {
+  // bun reads `.env` and `bunfig.toml` from the working directory: a file an agent writes there (a `VULCAN_GUARDS=off`, a preload) must not reach a guard.
+  const result = spawnSync('bun', ['--no-env-file', '--config=/dev/null', script], {
     input: JSON.stringify(opts.claudeEvent),
     encoding: 'utf8',
     timeout: TIMEOUT_MS,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: opts.root },
+    env: { ...withoutLoaderNames({ env: process.env }), CLAUDE_PROJECT_DIR: opts.root },
   });
 
   if (result.error !== undefined && 'code' in result.error && result.error.code === 'ENOENT') {
@@ -253,10 +325,13 @@ export class GuardVerdict {
       }
 
       if (answer.kind === Answers.MISSING) {
-        const isRepair =
-          opts.toolName === Tools.BASH && BUN_INSTALL.test(String(opts.input.command));
+        const command = String(opts.input.command);
+        const isRepair = opts.toolName === Tools.BASH && REPAIR.test(command);
+        const isCovered =
+          guard.onlyLines === undefined ||
+          (opts.toolName === Tools.BASH && guard.onlyLines.test(command));
 
-        if (guard.onFailure === Failures.BLOCK && !isRepair) {
+        if (!isRepair && isCovered) {
           return { kind: Verdicts.DENY, reason: answer.reason };
         }
       }
@@ -268,6 +343,10 @@ export class GuardVerdict {
 
         asks.push(answer.reason);
       }
+    }
+
+    if (asks.length > 0 && isHeldIn({ root })) {
+      return { kind: Verdicts.DENY, reason: `${asks.join('\n\n')}\n\n${HELD_ASK}` };
     }
 
     return asks.length > 0

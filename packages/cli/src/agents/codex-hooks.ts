@@ -1,4 +1,5 @@
 import { RecordValue } from '../common/record.ts';
+import { LoaderEnvironment } from '../hooks/loader-environment.ts';
 import { RemoveOutcomes } from './common/index.ts';
 
 /** The script every VULCAN entry runs: it is how an entry of ours is told from a hook of the user's. */
@@ -19,10 +20,11 @@ const DENY_ON_CRASH = JSON.stringify({
  * denies, because Codex cannot ask.
  */
 const GUARD_COMMAND = [
+  LoaderEnvironment.shellUnset(),
   'd=$(git rev-parse --show-toplevel 2>/dev/null || pwd);',
   `f="$d/node_modules/@venizia/vulcan/base/hooks/${GUARD_SCRIPT}";`,
   'if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then',
-  'in=$(cat); out=$(printf \'%s\' "$in" | bun "$f"); s=$?;',
+  'in=$(cat); out=$(printf \'%s\' "$in" | bun --no-env-file --config=/dev/null "$f"); s=$?;',
   `if [ "$s" -eq 0 ]; then printf '%s' "$out"; exit 0; fi;`,
   `printf '%s\\n' '${DENY_ON_CRASH}'; exit 0; fi;`,
   'cat >/dev/null; echo "vulcan: the guards cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes" >&2',

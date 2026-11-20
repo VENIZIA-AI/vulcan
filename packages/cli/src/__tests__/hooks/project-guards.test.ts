@@ -10,6 +10,7 @@ const EMPTY_POLICY = {
   commands: [],
   askPush: [],
   outside: 'ask',
+  asks: 'ask',
   toolOwnedPaths: [],
   runnersAllow: [],
 };
@@ -290,6 +291,21 @@ describe('ProjectGuards.readPolicy', () => {
     );
   });
 
+  test('reads guard.asks: deny, and anything else reads as ask', () => {
+    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: { asks: 'deny' } }) }).asks).toBe(
+      'deny',
+    );
+
+    for (const value of ['allow', 'ask', true, 7, null, { mode: 'deny' }]) {
+      expect(
+        ProjectGuards.readPolicy({ root: manifestWith({ guard: { asks: value } }) }).asks,
+        String(value),
+      ).toBe('ask');
+    }
+
+    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: {} }) }).asks).toBe('ask');
+  });
+
   test('anything but deny reads as ask', () => {
     expect(
       ProjectGuards.readPolicy({ root: manifestWith({ guard: { outside: 'allow' } }) }).outside,
@@ -321,13 +337,94 @@ describe('ProjectGuards.readPolicy', () => {
     expect(policy.commands[0].rule).toBe('V-W-03');
   });
 
-  test('a project without a manifest, or with one that is not JSON, has no extra patterns', () => {
-    expect(ProjectGuards.readPolicy({ root: createProject({ files: {} }) })).toEqual(EMPTY_POLICY);
+  test('the launch environment tightens the manifest and never loosens it', () => {
+    const root = manifestWith({ guard: { asks: 'ask', outside: 'ask' } });
+    const held = manifestWith({ guard: { asks: 'deny', outside: 'deny' } });
+
+    expect(ProjectGuards.readPolicy({ root, env: {} }).asks).toBe('ask');
+    expect(ProjectGuards.readPolicy({ root, env: { VULCAN_GUARD_ASKS: 'deny' } }).asks).toBe(
+      'deny',
+    );
+    expect(ProjectGuards.readPolicy({ root, env: { VULCAN_GUARD_OUTSIDE: 'deny' } }).outside).toBe(
+      'deny',
+    );
+    expect(ProjectGuards.readPolicy({ root, env: { VULCAN_GUARD_OUTSIDE: 'deny' } }).asks).toBe(
+      'ask',
+    );
+
+    for (const value of ['ask', 'allow', '', '1', 'DENY', undefined]) {
+      const policy = ProjectGuards.readPolicy({
+        root: held,
+        env: { VULCAN_GUARD_ASKS: value, VULCAN_GUARD_OUTSIDE: value },
+      });
+
+      expect(policy.asks, String(value)).toBe('deny');
+      expect(policy.outside, String(value)).toBe('deny');
+    }
+  });
+
+  test('where the environment holds deny, the manifest cannot add a tool-owned store or a runner', () => {
+    const root = manifestWith({
+      guard: { toolOwnedPaths: ['/home/**'], runners: { allow: ['shadcn'] } },
+    });
+
+    expect(ProjectGuards.readPolicy({ root, env: {} }).toolOwnedPaths).toEqual(['/home/**']);
+    expect(ProjectGuards.readPolicy({ root, env: {} }).runnersAllow).toEqual(['shadcn']);
+
+    for (const env of [{ VULCAN_GUARD_ASKS: 'deny' }, { VULCAN_GUARD_OUTSIDE: 'deny' }]) {
+      const policy = ProjectGuards.readPolicy({ root, env });
+
+      expect(policy.toolOwnedPaths).toEqual([]);
+      expect(policy.runnersAllow).toEqual([]);
+    }
+
+    // Anything but deny in the environment is not a hold.
     expect(
-      ProjectGuards.readPolicy({
-        root: createProject({ files: { '.agents/vulcan.manifest.json': '{ nope' } }),
-      }),
-    ).toEqual(EMPTY_POLICY);
+      ProjectGuards.readPolicy({ root, env: { VULCAN_GUARD_ASKS: 'ask' } }).toolOwnedPaths,
+    ).toEqual(['/home/**']);
+  });
+
+  test('says which of the three holds an ask: the environment, the manifest, or a manifest that cannot be read', () => {
+    const env = ProjectGuards.readPolicy({
+      root: manifestWith({ guard: {} }),
+      env: { VULCAN_GUARD_ASKS: 'deny' },
+    });
+    const file = ProjectGuards.readPolicy({
+      root: manifestWith({ guard: { asks: 'deny' } }),
+      env: {},
+    });
+    const broken = ProjectGuards.readPolicy({
+      root: createProject({ files: { '.agents/vulcan.manifest.json': '{ nope' } }),
+      env: {},
+    });
+
+    expect(env.asksNote).toContain('VULCAN_GUARD_ASKS=deny');
+    expect(file.asksNote).toContain('guard.asks: deny');
+    expect(broken.asksNote).toContain('cannot be read');
+    expect(
+      ProjectGuards.readPolicy({ root: manifestWith({ guard: {} }), env: {} }).asksNote,
+    ).toBeUndefined();
+  });
+
+  test('a manifest that exists and cannot be read holds every ask and keeps nothing else', () => {
+    for (const text of ['{ nope', '', '<<<<<<< HEAD\n{}\n>>>>>>> x', '[]', 'null', '"deny"']) {
+      const policy = ProjectGuards.readPolicy({
+        root: createProject({ files: { '.agents/vulcan.manifest.json': text } }),
+        env: {},
+      });
+
+      expect(policy.asks, JSON.stringify(text)).toBe('deny');
+      expect({ ...policy, asks: 'ask', asksNote: undefined }).toEqual({
+        ...EMPTY_POLICY,
+        asksNote: undefined,
+      });
+    }
+  });
+
+  test('a project without a manifest has no extra patterns', () => {
+    expect(ProjectGuards.readPolicy({ root: createProject({ files: {} }), env: {} })).toEqual(
+      EMPTY_POLICY,
+    );
   });
 
   test('an entry that is not usable is skipped and the others stay: a bad pattern, an unknown rule, a missing field', () => {

@@ -8,6 +8,10 @@ export class EnvVariables {
   static readonly VULCAN_OWNER_REPLY = 'VULCAN_OWNER_REPLY';
   /** `off` switches the guard hooks off for one session. */
   static readonly VULCAN_GUARDS = 'VULCAN_GUARDS';
+  /** `deny` makes every guard refuse what it would ask a person about; the strictest of this and `guard.asks` holds, so the project cannot loosen it. Set it where the agent is launched. */
+  static readonly VULCAN_GUARD_ASKS = 'VULCAN_GUARD_ASKS';
+  /** `deny` makes `guard-outside` refuse a write outside the project; the strictest of this and `guard.outside` holds. Set it where the agent is launched. */
+  static readonly VULCAN_GUARD_OUTSIDE = 'VULCAN_GUARD_OUTSIDE';
   /** `1` makes `init`, `add` and `upgrade` print the install, `git init`, `sync` and the checks as skipped; for tests. */
   static readonly VULCAN_NO_INSTALL = 'VULCAN_NO_INSTALL';
   /** Set by `vulcan x` for okf and atlas: the resolved project config as JSON. */

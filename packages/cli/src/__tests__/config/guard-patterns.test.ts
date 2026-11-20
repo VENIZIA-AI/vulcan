@@ -54,6 +54,67 @@ describe('guard.writes.commands and guard.git.askPush', () => {
   });
 });
 
+describe('claude.settings.env', () => {
+  const parseEnv = (env: Record<string, unknown>) =>
+    VULCAN_CONFIG_SCHEMA.safeParse({ claude: { settings: { env } } });
+
+  test.each([
+    'VULCAN_GUARD_ASKS',
+    'VULCAN_GUARD_OUTSIDE',
+    'VULCAN_GUARDS',
+    'VULCAN_GUARD_ANYTHING',
+  ])("refuses %s: it is the owner's choice and belongs in the launch environment", (name) => {
+    const result = parseEnv({ [name]: 'ask' });
+
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result.error?.issues)).toContain(name);
+  });
+
+  test.each([
+    'BUN_OPTIONS',
+    'NODE_OPTIONS',
+    'BUN_CONFIG_REGISTRY',
+    'BUN_CONFIG_VERBOSE_FETCH',
+    'BUN_INSPECT',
+    'BUN_INSPECT_CONNECT_TO',
+  ])('refuses %s: bun loads it before a guard runs, and every hook inherits this env', (name) => {
+    const result = parseEnv({ [name]: '--preload=./x.ts' });
+
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result.error?.issues)).toContain(name);
+  });
+
+  test('takes the other BUN_ and NODE_ names, and settings with no env', () => {
+    expect(parseEnv({ BUN_INSTALL: '/x', NODE_ENV: 'test', MY_BUN_OPTIONS: '1' }).success).toBe(
+      true,
+    );
+  });
+
+  test('takes the other variables, and settings with no env', () => {
+    expect(parseEnv({ MY_FLAG: '1', VULCAN_ACTOR: 'a' }).success).toBe(true);
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ claude: { settings: { permissions: { deny: [] } } } })
+        .success,
+    ).toBe(true);
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).claude.settings).toEqual({});
+  });
+});
+
+describe('guard.asks', () => {
+  test('defaults to ask, and takes ask or deny', () => {
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).guard.asks).toBe('ask');
+    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: {} }).guard.asks).toBe('ask');
+    expect(parse({ asks: 'ask' }).success).toBe(true);
+    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: { asks: 'deny' } }).guard.asks).toBe('deny');
+  });
+
+  test('anything else is refused', () => {
+    expect(parse({ asks: 'allow' }).success).toBe(false);
+    expect(parse({ asks: true }).success).toBe(false);
+    expect(parse({ asks: { mode: 'deny' } }).success).toBe(false);
+  });
+});
+
 describe('guard.outside', () => {
   test('defaults to ask, and takes ask or deny', () => {
     expect(VULCAN_CONFIG_SCHEMA.parse({}).guard.outside).toBe('ask');

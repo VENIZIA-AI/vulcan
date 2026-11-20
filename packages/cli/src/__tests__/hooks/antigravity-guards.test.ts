@@ -169,13 +169,19 @@ describe('the hook command wrapper in .agents/hooks.json', () => {
     return parsed[GUARD_HOOK_NAME]?.PreToolUse[0]?.hooks[0]?.command ?? '';
   };
 
-  const runWrapper = (opts: { root: string; stdin: string }) => {
+  const runWrapper = (opts: { root: string; stdin: string; env?: Record<string, string> }) => {
     mkdirSync(join(opts.root, '.agents'), { recursive: true });
+
+    const environment: Record<string, string | undefined> = { ...process.env, ...opts.env };
+
+    if (opts.env?.VULCAN_GUARD_ASKS === undefined) {
+      delete environment.VULCAN_GUARD_ASKS;
+    }
 
     const result = spawnSyncBounded({
       cmd: ['/bin/sh', '-c', commandOf()],
       cwd: join(opts.root, '.agents'),
-      env: { ...process.env },
+      env: environment,
       stdin: new Blob([opts.stdin]),
       stdout: 'pipe',
       stderr: 'pipe',
@@ -208,6 +214,59 @@ describe('the hook command wrapper in .agents/hooks.json', () => {
     expect(result.code).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({ decision: 'allow' });
     expect(result.stderr).toContain('the guards cannot run');
+  });
+
+  test('a .env and a bunfig.toml in the folder of the hooks file do not reach the adapter', () => {
+    const root = installedProject({
+      files: {
+        ...Object.fromEntries(
+          Object.entries({
+            '.env': 'VULCAN_GUARDS=off\n',
+            'evil.ts': 'process.exit(0);\n',
+            'bunfig.toml': 'preload = ["./evil.ts"]\n',
+          }).map(([file, text]) => [`.agents/${file}`, text]),
+        ),
+        '.agents/vulcan.manifest.json': '{"guard":{"asks":"deny"}}',
+      },
+    });
+    const result = runWrapper({
+      root,
+      stdin: eventOf({
+        root,
+        name: 'run_command',
+        args: { CommandLine: 'git reset --hard HEAD~1' },
+      }),
+    });
+
+    expect(JSON.parse(result.stdout).decision).toBe('deny');
+  });
+
+  test('an adapter that started and crashed denies where every ask is held, and asks otherwise', () => {
+    const crashed = (opts: { manifest?: string; env?: Record<string, string> }) => {
+      const root = createProject({
+        files: {
+          'package.json': '{}',
+          ...(opts.manifest === undefined ? {} : { '.agents/vulcan.manifest.json': opts.manifest }),
+        },
+      });
+      const hooks = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+
+      mkdirSync(hooks, { recursive: true });
+      writeFileSync(join(hooks, 'antigravity-guards.ts'), 'process.exit(3);\n');
+
+      return JSON.parse(
+        runWrapper({ root, env: opts.env, stdin: eventOf({ root, name: 'run_command', args: {} }) })
+          .stdout,
+      ).decision;
+    };
+
+    expect(crashed({})).toBe('ask');
+    expect(crashed({ manifest: '{"guard":{"asks":"ask"}}' })).toBe('ask');
+    expect(crashed({ manifest: '{"guard":{"asks":"deny"}}' })).toBe('deny');
+    expect(crashed({ manifest: '{ nope' })).toBe('deny');
+    expect(crashed({ manifest: '[]' })).toBe('deny');
+    expect(crashed({ manifest: '{"guard":{}}', env: { VULCAN_GUARD_ASKS: 'deny' } })).toBe('deny');
+    expect(crashed({ manifest: '{"guard":{}}', env: { VULCAN_GUARD_ASKS: 'ask' } })).toBe('ask');
   });
 
   test('an adapter that started and crashed asks, as the Claude wrappers do', () => {
