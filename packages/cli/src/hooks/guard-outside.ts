@@ -104,7 +104,7 @@ const isInside = (opts: { path: string; root: string }): boolean =>
   opts.path === opts.root || opts.path.startsWith(`${opts.root}${sep}`);
 
 /** What a write to a path is judged against: the file itself, a folder removed with what it holds, or a folder written into with names not known. */
-type TProtectedMode = 'file' | 'removal' | 'folder';
+type TProtectedMode = 'file' | 'removal' | 'folder' | 'put';
 
 /**
  * Whether `path` is one of the files the guards read their policy from (`HookConstants.PROTECTED_FILES`), relative to the project
@@ -129,6 +129,15 @@ const isProtectedFile = (opts: { path: string; root: string; mode: TProtectedMod
     return true;
   }
 
+  // The folders above the installed package: replacing one replaces the guards. Removing one is left to `bun install`.
+  if (relative === 'node_modules/@venizia' && opts.mode !== 'removal') {
+    return true;
+  }
+
+  if (relative === 'node_modules' && (opts.mode === 'put' || opts.mode === 'folder')) {
+    return true;
+  }
+
   if (
     opts.mode === 'folder' &&
     globs.some((pattern) => new Bun.Glob(pattern).match(`${relative}/x`))
@@ -137,8 +146,7 @@ const isProtectedFile = (opts: { path: string; root: string; mode: TProtectedMod
   }
 
   return (
-    opts.mode !== 'file' &&
-    (opts.mode === 'folder' ? relative !== 'node_modules' : !relative.startsWith('node_modules')) &&
+    (opts.mode === 'folder' || (opts.mode === 'removal' && !relative.startsWith('node_modules'))) &&
     globs.some((pattern) => pattern.startsWith(`${relative}/`))
   );
 };
@@ -534,9 +542,11 @@ export class OutsideGuard {
       const mode: TProtectedMode =
         target.isIntoFolder === true
           ? 'folder'
-          : target.isProtectedOnly === true && target.isNameInFolder !== true
-            ? 'removal'
-            : 'file';
+          : target.isPut === true || target.isNameInFolder === true
+            ? 'put'
+            : target.isProtectedOnly === true
+              ? 'removal'
+              : 'file';
 
       if (
         isProtectedFile({ path, root, mode }) ||

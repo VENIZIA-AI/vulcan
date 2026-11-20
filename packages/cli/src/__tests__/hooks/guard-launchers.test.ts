@@ -14,6 +14,9 @@ describe('a runner behind a launcher is found', () => {
     'taskset -c 0-3 bunx ardor',
     'taskset 0x1 bunx ardor',
     'taskset --cpu-list 0 bunx ardor',
+    'chrt -f 10 bunx ardor',
+    'chrt --rr 5 npx ardor',
+    'chrt --fifo 1 flock lock bunx ardor',
     'flock lock bunx ardor',
     'flock -n lock bunx ardor',
     'flock -w 5 lock bunx ardor',
@@ -46,6 +49,7 @@ describe('a runner behind a launcher is found', () => {
 
   test.each([
     'taskset -c 0 make test',
+    'chrt -f 10 make test',
     'taskset 0x1 bun run test',
     'flock lock make test',
     "flock lock -c 'make test'",
@@ -76,6 +80,9 @@ describe('create, init and a global add fetch a package by name', () => {
     'npm create vite@latest myapp',
     'pnpm create vite',
     'yarn create vite',
+    'npm init @scope',
+    'npm create @scope',
+    'bun create @scope',
     'bun add -g vulcan',
     'bun add --global vulcan',
     'bun add vulcan -g',

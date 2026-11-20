@@ -35,6 +35,7 @@ export class RunnerGuard {
     'setsid',
     'unshare',
     'taskset',
+    'chrt',
     'flock',
     'runuser',
     'parallel',

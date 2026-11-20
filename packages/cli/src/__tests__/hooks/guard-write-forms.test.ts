@@ -138,6 +138,88 @@ describe('names this check cannot tell, put into the folder of a protected file'
   });
 });
 
+describe('the folders above the installed package cannot be replaced', () => {
+  test.each([
+    'rsync -a evil/ node_modules/',
+    'rsync -a evil/ node_modules',
+    'cp -r evil/. node_modules',
+    'cp -aT evil node_modules',
+    'tar xf evil.tar -C node_modules',
+    'tar xf evil.tar -C node_modules/@venizia',
+    'unzip -o evil.zip -d node_modules',
+    'cd node_modules && tar xf ../evil.tar',
+    'cd node_modules/@venizia && unzip ../../evil.zip',
+    'cp -r evil/@venizia node_modules',
+    'cp -a evil/@venizia node_modules/',
+    'mv evil/@venizia node_modules/',
+    'mv -t node_modules evil/@venizia',
+    'rsync -a evil/@venizia node_modules/',
+    'rm -rf node_modules/@venizia && cp -r evil node_modules/@venizia',
+    'rm -rf node_modules/@venizia && mv evil node_modules/@venizia',
+    'mv node_modules nm && mv evil node_modules',
+    'rm -rf node_modules && cp -r evil node_modules',
+    'rm -rf node_modules && mv evil node_modules',
+    'rm -rf node_modules && ln -s /tmp/evil node_modules',
+    'rm -rf node_modules/@venizia && ln -s /tmp/evil node_modules/@venizia',
+    'cp -r evil node_modules/@venizia/vulcan',
+    'echo x > node_modules/@venizia/vulcan/base/hooks/guard-outside.ts',
+  ])('%s is denied', (command) => {
+    expect(isDenied(command)).toBe(true);
+  });
+
+  test.each([
+    'rm -rf node_modules',
+    'mv node_modules nm',
+    'rm -rf node_modules/@venizia',
+    'cp pkg.tgz node_modules/',
+    'cp x node_modules/foo',
+    'mv x node_modules/foo',
+    'ln -s ../x node_modules/@scope/x',
+    'ln -s ../x node_modules/@venizia/other',
+    'cp -r evil node_modules/@venizia/other',
+    'rsync -a dist/ node_modules/.cache/',
+    'tar xf cache.tgz -C node_modules/.cache',
+    'mkdir -p node_modules/.cache',
+    'cd node_modules && ls',
+  ])('%s passes: the package itself is not touched', (command) => {
+    expect(isSilent(command)).toBe(true);
+  });
+});
+
+describe('find runs a writer over a protected file', () => {
+  test.each([
+    "find . -name '*.json' -exec sed -i s/deny/allow/ {} +",
+    'find . -name settings.json -exec mv {} {}.bak ;',
+    'find .claude -exec truncate -s0 {} ;',
+    'find .claude -type f -exec sed -i s/a/b/ {} +',
+    'find .claude -exec perl -pi -e s/a/b/ {} +',
+    'find .claude -exec cp /tmp/x {} ;',
+    'find .claude -exec tee {} ;',
+    'find .claude -exec dd of={} ;',
+    'find .claude -exec ln -sf /tmp/x {} ;',
+    'find .claude -execdir install -m 644 /tmp/x {} ;',
+    'find .claude -ok mv {} /tmp/ ;',
+    'find .claude -exec shred -u {} ;',
+    "find .agents -name 'hooks.json' -exec rsync /tmp/x {} ;",
+    "find .agents/local -name '*.json' -exec sed --in-place s/a/b/ {} +",
+  ])('%s is denied', (command) => {
+    expect(isDenied(command)).toBe(true);
+  });
+
+  test.each([
+    'find src -exec sed -i s/a/b/ {} +',
+    'find src -name "*.ts" -exec mv {} dist/ ;',
+    "find . -name '*.log' -exec mv {} dist/ ;",
+    'find .claude -exec cat {} ;',
+    'find .claude -exec sed -n 1p {} ;',
+    'find .claude -exec perl -ne print {} ;',
+    "find .claude -name '*.log' -exec truncate -s0 {} ;",
+    'find .agents/local/tmp -exec truncate -s0 {} ;',
+  ])('%s passes', (command) => {
+    expect(isSilent(command)).toBe(true);
+  });
+});
+
 describe('a pattern in a removal reaches a protected file', () => {
   test.each([
     'rm -rf .agents/local/*',

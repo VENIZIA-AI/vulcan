@@ -227,6 +227,11 @@ const WRAPPER_OPTIONS: Record<string, IWrapperOptions> = {
       '--colsep',
     ],
   }),
+  // `chrt -f 10 cmd`: the priority comes before the command.
+  chrt: wrapperOptions({
+    longValues: ['--sched-runtime', '--sched-deadline', '--sched-period'],
+    positionals: 1,
+  }),
   // Not a wrapper of a local command: its options are known so a reader can read past them.
   sshpass: wrapperOptions({ shortValues: 'pfPd' }),
 };

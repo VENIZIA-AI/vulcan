@@ -43,6 +43,8 @@ export interface IWriteTarget {
   isNameInFolder?: boolean;
   /** A folder that things are put into, or deleted from, under names this check cannot tell: it counts when it holds a file the guards read. */
   isIntoFolder?: boolean;
+  /** The destination of a command that may replace it whole (`mv`, `rsync`, `ln`, a recursive `cp`): the folder `node_modules` counts, which a file write does not. */
+  isPut?: boolean;
   /** An edit in place (`sed -i`, `perl -i`, `truncate`): a write like a redirect, and a pattern in it is judged by what it can reach. */
   isEdit?: boolean;
 }
@@ -415,6 +417,9 @@ const gitTargets = (opts: {
   return [];
 };
 
+/** The programs an `-exec` of `find` may run that write or move the files they are given, besides the removers. */
+const FIND_WRITERS = new Set(['mv', 'cp', 'truncate', 'tee', 'dd', 'ln', 'install', 'rsync']);
+
 export class ShellWrites {
   /** curl's short options that take a value; every other letter is a switch (`-sL`). */
   private static readonly CURL_VALUED_SHORT = 'AbcCdDeEFHKmoPQrtTuUwxXyYz';
@@ -707,16 +712,41 @@ export class ShellWrites {
     });
   }
 
-  /** `find` with `-delete`, or `-exec` of a remover, deletes what it finds under its folders. */
+  /**
+   * Whether an `-exec`, `-execdir`, `-ok` or `-okdir` of `find` runs a program that removes, moves, copies or edits what it is given
+   * (`sed` and `perl` only with an in-place option).
+   */
+  private static findRunsWriter(opts: { args: string[] }): boolean {
+    const { args } = opts;
+
+    return args.some((word, index) => {
+      if (!['-exec', '-execdir', '-ok', '-okdir'].includes(word)) {
+        return false;
+      }
+
+      const rest = args.slice(index + 1);
+      const end = rest.findIndex((item) => item === ';' || item === '+');
+      const run = end === -1 ? rest : rest.slice(0, end);
+      const program = ShellParser.basenameOf({ word: run[0] ?? '' });
+
+      if (ShellWrites.REMOVERS.has(program) || FIND_WRITERS.has(program)) {
+        return true;
+      }
+
+      return (
+        (program === 'sed' || program === 'perl') &&
+        run.some(
+          (item) =>
+            item === '--in-place' || item.startsWith('--in-place=') || /^-[a-zA-Z]*i/.test(item),
+        )
+      );
+    });
+  }
+
+  /** `find` with `-delete`, or `-exec` of a program that writes, deletes what it finds under its folders. */
   private static addFind(opts: { args: string[]; base: string; targets: IWriteTarget[] }): void {
     const { args, base, targets } = opts;
-    const isDeleting =
-      args.includes('-delete') ||
-      args.some(
-        (word, index) =>
-          ['-exec', '-execdir', '-ok', '-okdir'].includes(word) &&
-          ShellWrites.REMOVERS.has(ShellParser.basenameOf({ word: args[index + 1] ?? '' })),
-      );
+    const isDeleting = args.includes('-delete') || ShellWrites.findRunsWriter({ args });
 
     if (!isDeleting) {
       return;
@@ -816,10 +846,28 @@ export class ShellWrites {
           ? undefined
           : valueOf({ args, long: ['--target-directory'], short: ['t'], valued: values?.shorts });
 
+      const before = targets.length;
+
       if (directory !== undefined) {
         add(directory, `${name} writes into ${directory}`);
       } else if (last !== undefined) {
         add(last, `${name} writes ${last}`);
+      }
+
+      // What `mv`, `rsync`, `ln` and a recursive `cp` put at the destination may replace it: a folder named so is the folder.
+      const isReplacing =
+        ['mv', 'rsync', 'ln'].includes(name) ||
+        (name === 'cp' &&
+          args.some(
+            (word) =>
+              word === '--recursive' ||
+              word === '--archive' ||
+              (/^-[a-zA-Z]+$/.test(word) && /[rRa]/.test(word)),
+          ));
+      const put = targets[before];
+
+      if (isReplacing && put !== undefined) {
+        targets[before] = { ...put, isPut: true };
       }
 
       for (const word of values === undefined ? [] : wordsBeforeUnknownOptions({ args, values })) {
