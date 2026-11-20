@@ -26,9 +26,6 @@ export interface IManifestHookInput {
   filePath: string | undefined;
   command: string | undefined;
   cwd: string | undefined;
-  /** What a `Write` puts in the file, and what an `Edit` or a `MultiEdit` replaces: a guard judges a project file by what changes in it. */
-  content?: string;
-  edits?: { oldString: string; newString: string }[];
 }
 
 /** One thing a guard found: how to answer (`ask` or `deny`), the rule it enforces, and what the command does. */
