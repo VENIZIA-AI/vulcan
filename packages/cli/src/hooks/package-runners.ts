@@ -40,11 +40,24 @@ export class PackageRunners {
     bunx: [],
     pnpx: [],
     npx: [],
-    bun: ['x'],
-    npm: ['exec', 'x'],
-    pnpm: ['dlx'],
-    yarn: ['dlx'],
+    bun: ['x', 'create', 'add'],
+    npm: ['exec', 'x', 'init', 'create'],
+    pnpm: ['dlx', 'create'],
+    yarn: ['dlx', 'create'],
   };
+
+  /**
+   * The subcommands that run a package only when a name follows: `init` and `create` fetch the package `create-<name>` (with no
+   * name, `init` makes a package.json), and `bun add` fetches what it is given only with the global flag (a project's own add is an install).
+   */
+  private static readonly NAMED: ReadonlySet<string> = new Set([
+    'bun create',
+    'bun add',
+    'npm init',
+    'npm create',
+    'pnpm create',
+    'yarn create',
+  ]);
 
   /** Whether `name` is one of the programs of the table: an own key, so `constructor` in a sentence is not one. */
   static isProgram(opts: { name: string }): boolean {
@@ -174,12 +187,34 @@ export class PackageRunners {
         continue;
       }
 
-      return subcommands.includes(word)
-        ? { runner: `${name} ${word}`, words: opts.args.slice(index + 1), leading }
-        : undefined;
+      if (!subcommands.includes(word)) {
+        return undefined;
+      }
+
+      const call = { runner: `${name} ${word}`, words: opts.args.slice(index + 1), leading };
+
+      return PackageRunners.isNamed({ call, args: opts.args }) ? call : undefined;
     }
 
     return undefined;
+  }
+
+  /** Whether a call of a subcommand in `NAMED` runs a package: a name follows, and for `bun add` the `-g` flag too. */
+  private static isNamed(opts: { call: IRunnerCall; args: string[] }): boolean {
+    if (!PackageRunners.NAMED.has(opts.call.runner)) {
+      return true;
+    }
+
+    if (
+      opts.call.runner === 'bun add' &&
+      ![...opts.call.leading, ...opts.args].some((word) => word === '-g' || word === '--global')
+    ) {
+      return false;
+    }
+
+    return (
+      PackageRunners.targetOf({ words: opts.call.words, runner: opts.call.runner }).name !== ''
+    );
   }
 
   /**

@@ -186,6 +186,47 @@ const WRAPPER_OPTIONS: Record<string, IWrapperOptions> = {
       '--process-slot-var',
     ],
   }),
+  // `taskset 0x3 cmd` takes a mask first; `taskset -c 0-3 cmd` takes its list as the value of `-c` and no mask.
+  taskset: wrapperOptions({ shortValues: 'c', longValues: ['--cpu-list'], positionals: 1 }),
+  // `flock file cmd`: the lock file first; the string of `-c` is read apart (`commandStringsOf`).
+  flock: wrapperOptions({
+    shortValues: 'wEc',
+    longValues: ['--timeout', '--wait', '--conflict-exit-code', '--command'],
+    positionals: 1,
+  }),
+  // `runuser -u user -- cmd`; `runuser user -c 'cmd'` is the string form.
+  runuser: wrapperOptions({
+    shortValues: 'ugsGcw',
+    longValues: [
+      '--user',
+      '--group',
+      '--supp-group',
+      '--shell',
+      '--command',
+      '--whitelist-environment',
+    ],
+  }),
+  // GNU parallel: the command template comes after its options and before `:::`.
+  parallel: wrapperOptions({
+    shortValues: 'jaSnNIdLlPW',
+    longValues: [
+      '--jobs',
+      '--arg-file',
+      '--sshlogin',
+      '--max-args',
+      '--max-replace-args',
+      '--replace',
+      '--delimiter',
+      '--max-lines',
+      '--load',
+      '--results',
+      '--joblog',
+      '--retries',
+      '--timeout',
+      '--header',
+      '--colsep',
+    ],
+  }),
   // Not a wrapper of a local command: its options are known so a reader can read past them.
   sshpass: wrapperOptions({ shortValues: 'pfPd' }),
 };
@@ -207,6 +248,8 @@ export class ShellPrograms {
 }
 
 const SHELLS = new Set(ShellPrograms.SHELL_NAMES);
+/** The programs that run the string their `-c` option gives in a shell. */
+const COMMAND_STRING_PROGRAMS = new Set(['su', 'runuser', 'flock', 'script']);
 const FIND_RUN_OPTIONS = new Set(ShellPrograms.FIND_RUN_OPTIONS);
 
 /** The mark of an open `case` among the groups the parser tracks: its `)` closes a pattern. */
@@ -1312,13 +1355,13 @@ export class ShellParser {
     program: ReturnType<typeof ShellParser.programOf>;
   }): string[] {
     const { command, program } = opts;
+    const scripts: string[] = ShellParser.commandStringsOf({ command, program });
 
     if (program.index === -1) {
-      return [];
+      return scripts;
     }
 
     const name = ShellParser.basenameOf({ word: program.name });
-    const scripts: string[] = [];
 
     if (SHELLS.has(name)) {
       const call = ShellParser.shellCallOf({ args: program.args });
@@ -1346,12 +1389,49 @@ export class ShellParser {
       /\s/.test(program.name) &&
       command.words
         .slice(0, program.index)
-        .some((word) => ShellParser.basenameOf({ word }) === 'watch')
+        .some((word) => ['watch', 'parallel'].includes(ShellParser.basenameOf({ word })))
     ) {
       scripts.push([program.name, ...program.args].join(' '));
     }
 
     return scripts;
+  }
+
+  /**
+   * The string `su`, `runuser`, `flock` and `script` hand to a shell with `-c` or `--command` (`su -c 'cmd' user`, `script -qec 'cmd'
+   * /dev/null`, `flock file -c 'cmd'`), when the program is one of them or stands behind wrappers that are not the program.
+   */
+  private static commandStringsOf(opts: {
+    command: ISimpleCommand;
+    program: ReturnType<typeof ShellParser.programOf>;
+  }): string[] {
+    const { words } = opts.command;
+    const strings: string[] = [];
+    const last = opts.program.index === -1 ? words.length : opts.program.index;
+
+    for (const [at, word] of words.entries()) {
+      if (at > last || !COMMAND_STRING_PROGRAMS.has(ShellParser.basenameOf({ word }))) {
+        continue;
+      }
+
+      for (let index = at + 1; index < words.length; index += 1) {
+        const option = words[index] ?? '';
+
+        if (option === '--command' || /^-[A-Za-z]*c$/.test(option)) {
+          const script = words[index + 1];
+
+          if (script !== undefined) {
+            strings.push(script);
+          }
+
+          index += 1;
+        } else if (option.startsWith('--command=')) {
+          strings.push(option.slice('--command='.length));
+        }
+      }
+    }
+
+    return strings;
   }
 
   /**
@@ -2144,6 +2224,11 @@ export class ShellParser {
             ...ShellParser.splitEnvString({ value: split.value }),
             ...opts.command.words.slice(index + (split.takesNext ? 2 : 1)),
           ]);
+        }
+
+        // `taskset -c 0-3 cmd` names its CPUs with the option, so there is no mask before the command.
+        if (wrapper === 'taskset' && /^(?:-[A-Za-z]*c|--cpu-list)/.test(word)) {
+          positionals = 0;
         }
 
         // An option of the wrapper; `-u X` and `nice -n 5` take a value that is not the program.

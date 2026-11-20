@@ -34,6 +34,10 @@ export class RunnerGuard {
     'chroot',
     'setsid',
     'unshare',
+    'taskset',
+    'flock',
+    'runuser',
+    'parallel',
   ]);
 
   /** The runner a simple command is and the words after it, or `undefined` when it runs no package by name. */
@@ -120,6 +124,16 @@ export class RunnerGuard {
       opts.name === ''
         ? `\`${opts.use.runner}\` with no package named on its command line fetches whatever its input names`
         : `\`${opts.use.runner} ${opts.name}\` fetches a package by name`;
+
+    // The create, init and global-add subcommands fetch a package and run or install it: there is no bin of the project to run instead.
+    if (/ (?:create|init|add)$/.test(opts.use.runner)) {
+      return {
+        rule: 'V-S-08',
+        decision: GuardDecisions.DENY,
+        fix: 'add the package to the project dependencies and run its bin from node_modules/.bin, or list it in guard.runners.allow',
+        message: `\`${opts.use.runner} ${opts.name}\` fetches a package by name and runs or installs it, and npm may give that name to someone else. Add the package you mean to the project's dependencies (bun install links its bin) and run it from node_modules/.bin, or ask the owner to list the name in guard.runners.allow.`,
+      };
+    }
 
     return {
       rule: 'V-S-08',
