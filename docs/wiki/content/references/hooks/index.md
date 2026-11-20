@@ -194,6 +194,20 @@ Every hook command of Claude Code, Codex and Antigravity starts by unsetting `BU
 
 The hooks that only record events run with the same flags and the same unset. Not covered: `PATH` and `NODE_PATH`, and any other variable bun or node reads. A variable set outside the project, in the shell that starts the agent or in `~/.claude/settings.json`, is removed at the hook all the same, but nothing refuses it where it is set.
 
+### The package manager and the guard package
+
+The hooks load from `node_modules/@venizia/vulcan`, so whatever puts another package there runs as the guard. `bun add @venizia/vulcan@file:./evil` does it in one command, and so does a `package.json` that points the dependency at a folder followed by `bun install`. Two hooks read this, under the rule `V-S-05`:
+
+- **`guard-git` reads the command** of `bun`, `npm`, `pnpm` and `yarn`: `add`, `install`, `i`, `link`, `patch`, `patch-commit`, `update` and `pkg set`. It denies a word that names `@venizia/vulcan` with a source that is not a registry version, range or tag (`file:`, `link:`, `workspace:`, a path, a URL, a git ref, an `npm:` alias), `link` and `patch` of it (also `bun patch node_modules/@venizia/vulcan` and `bun patch --commit <path>` into the installed copy or Bun's store copy), a folder that holds a package of that name or has no `package.json` to read (`bun add ./evil`), and `--registry`, `--cache-dir`, `--config` or `BUN_CONFIG_REGISTRY` and `npm_config_registry` on an install. It asks about an archive, a URL or a git ref with no name (`bun add github:user/repo`), because the package inside cannot be told, and about a whole-file write of `package.json`, `bunfig.toml`, `.npmrc`, `.yarnrc.yml`, `pnpm-workspace.yaml` or a lockfile (a redirect, `tee`, `cp`, `mv`), because its content cannot be read from the command. A `sed -i` or `perl -i` on one of them is denied when its script names `@venizia`, `workspaces`, `overrides`, `resolutions`, `patchedDependencies` or `registry`. `bun add @venizia/vulcan@^0.5.0`, `bun add left-pad`, `bun install` and `bun remove` pass.
+- **`guard-outside` reads what a file tool writes** (`Write`, `Edit`, `MultiEdit`) to those files, by what changes in them, so an ordinary edit passes. In `package.json`: the spec of `@venizia/vulcan` in `dependencies`, `devDependencies`, `optionalDependencies` and `peerDependencies` (a registry version, range or tag passes, anything else is denied), an override, resolution or patch that names the package, and a `workspaces` entry that is added when the folders it finds hold a package of that name. In `bunfig.toml`, `.npmrc`, `.yarnrc.yml` and `pnpm-workspace.yaml`: a changed line that mentions `@venizia`, `registry`, `scope`, `cache`, `link`, `override`, `patch` or `preload`. In a lockfile: a changed line that names `@venizia/vulcan`. The answer says the owner changes these, or `bun install` does.
+
+What this does not stop, in the plainest terms:
+
+- **Install scripts.** A `preinstall`, `postinstall` or `prepare` script that an agent adds to a `package.json` and then runs with `bun install` is arbitrary code, and it can write into `node_modules`, the guard package included. The guards read commands and file edits, not what a script does.
+- **An interpreter** that writes the file (`node -e`, `python -c`), git operations that bring in another `package.json` or lockfile (`git checkout`, `git apply`, `git merge`), and the binary `bun.lockb`.
+- **Outside the project:** a user-level `~/.bunfig.toml` or `~/.npmrc`, and an environment set before the agent starts. A `bun install` the owner runs after editing by hand is the owner's act.
+- **Workspaces:** only plain patterns are expanded, at the time of the edit; a folder created afterwards is not seen. The `packages` list of `pnpm-workspace.yaml` is not read.
+
 ### What the guards do not stop
 
 These guards stop an agent that is working normally from doing what a person should confirm. They do not stop one that sets out to get around them. What is not read, so what an agent can still do:

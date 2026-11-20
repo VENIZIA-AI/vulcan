@@ -19,6 +19,30 @@ const toolOf = (opts: { value: unknown }): string | undefined => {
 };
 
 export class HookInput {
+  /** The edits of an `Edit` (its old and new string) or a `MultiEdit` (a list of them), or none for another tool. */
+  private static editsOf(opts: {
+    input: Record<string, unknown>;
+  }): { oldString: string; newString: string }[] | undefined {
+    const one = (value: Record<string, unknown>) => ({
+      oldString: typeof value['old_string'] === 'string' ? value['old_string'] : '',
+      newString: typeof value['new_string'] === 'string' ? value['new_string'] : '',
+    });
+    const list = opts.input['edits'];
+
+    if (Array.isArray(list)) {
+      return list.flatMap((entry: unknown) => {
+        const holder = { value: entry };
+
+        return isRecord(holder) ? [one(holder.value)] : [];
+      });
+    }
+
+    return typeof opts.input['old_string'] === 'string' ||
+      typeof opts.input['new_string'] === 'string'
+      ? [one(opts.input)]
+      : undefined;
+  }
+
   /** The tool call from the hook's JSON; `undefined` when it is not what Claude Code sends. */
   static parse(opts: { text: string }): IManifestHookInput | undefined {
     let payload: unknown;
@@ -52,6 +76,8 @@ export class HookInput {
             toText({ value: input['file_path'] }) ?? toText({ value: input['notebook_path'] }),
           command: toText({ value: input['command'] }),
           cwd: toText({ value: holder.value['cwd'] }),
+          content: toText({ value: input['content'] }),
+          edits: HookInput.editsOf({ input }),
         };
   }
 }

@@ -8,6 +8,7 @@ import { ShellWrites } from './shell-writes.ts';
 import type { IWriteTarget } from './shell-writes.ts';
 import { HookConstants } from './common/index.ts';
 import { ProjectTmp } from './project-tmp.ts';
+import { PackageSwap } from './package-swap.ts';
 import { ProtectedNames } from './protected-names.ts';
 import type { IManifestHookInput, IOutsideHit } from './common/index.ts';
 
@@ -380,6 +381,23 @@ export class OutsideGuard {
               isUnread: true,
             },
           ];
+
+    // A file tool that writes a project file in a way that changes where the guard package comes from: judged by what it changes.
+    if (FILE_TOOLS.has(opts.input.tool) && opts.input.filePath !== undefined) {
+      for (const message of PackageSwap.inspectFile({
+        filePath: resolve(start, opts.input.filePath),
+        content: opts.input.content,
+        edits: opts.input.edits ?? [],
+      })) {
+        hits.push({
+          path: opts.input.filePath,
+          message,
+          isAgentToolScratchpad: false,
+          isUnread: false,
+          isProtected: true,
+        });
+      }
+    }
 
     for (const target of targets) {
       if (target.hasUnreadBrace === true && target.isProtectedOnly !== true) {
