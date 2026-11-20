@@ -131,11 +131,42 @@ describe('a package manager that takes the guard package from somewhere else is 
     'bun run add ./evil',
     'bun run install ./evil',
     'bunx @venizia/vulcan --version',
-    'bun node_modules/.bin/vulcan sync',
     'git add ./evil',
     'echo bun add ./evil',
   ])('%s passes', (command) => {
     expect(isDenied(command)).toBe(false);
+  });
+});
+
+describe('vulcan sync is run by the owner, not from inside the session', () => {
+  const decisions = (command: string): string[] =>
+    PackageSwap.inspectCommand({ command, cwd: root }).map((hit) => hit.decision);
+
+  test.each([
+    'vulcan sync',
+    'vulcan sync --agents claude',
+    'bun node_modules/.bin/vulcan sync',
+    'bun node_modules/.bin/vulcan sync --app apps/web',
+    'bun run vulcan sync',
+    'node node_modules/.bin/vulcan sync',
+    'make vulcan-sync',
+    'cd sub && bun node_modules/.bin/vulcan sync',
+    'sudo bun node_modules/.bin/vulcan sync',
+  ])('%s asks, and is denied where every ask is', (command) => {
+    expect(decisions(command)).toEqual(['ask']);
+  });
+
+  test.each([
+    'bun node_modules/.bin/vulcan doctor',
+    'bun node_modules/.bin/vulcan runners check',
+    'vulcan --help',
+    'make gates',
+    'make vulcan-doctor',
+    'echo vulcan sync',
+    'git commit -m "vulcan sync"',
+    'bun run sync',
+  ])('%s passes', (command) => {
+    expect(decisions(command)).toEqual([]);
   });
 });
 

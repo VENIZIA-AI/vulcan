@@ -83,6 +83,21 @@
       "V-C-20": "ca184ba4"
     }
   },
+  "hooks": {
+    "version": "0.4.10",
+    "folder": ".agents/local/hooks",
+    "sha256": {
+      "antigravity-guards.js": "1e6f3cd248ae14eade5051c4fe420991dda8033524b4476cac483f49ffc38a4f",
+      "auto-clean.js": "602b47fb837e316a0676c92cfc54a981d399c75c4130104c4d5f31993d2e4a1f",
+      "codex-guards.js": "60401fc883a25b4d85ecb643d9b57752a350cbeae4f2e0335e0f223f90fefd52",
+      "event.js": "06ce207ab46876ee5778bf6fb915b05ef00b07f62d5b94d0db4ed2ce47a549f6",
+      "guard-git.js": "f6eb1f70f0b7dc48efd290c252382e3a262504a998e72444e95a3f46cb9d2bf3",
+      "guard-outside.js": "d79274bc2f132fb2e4d83f48c3356dca79466c2b4b99afb621dbb64937227411",
+      "guard-writes.js": "06d17fcfc4484697bdd28360a6c866a54f03daa8300e489103fb4663a8063085",
+      "session-start.js": "d7fc4427e0732d8925ae6d9e6295fcc8114c653f5cf610ad1ff467f412d3e37b",
+      "subagent-start.js": "e87f23f4189fb16d788097fcb611f39cba1f1d39dc63d8ae13467b628330dad0"
+    }
+  },
   "atlas": {
     "index": {
       "keys": ["RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ="]

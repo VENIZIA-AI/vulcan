@@ -5,10 +5,10 @@
  * itself and a source it declares, a local bare repository read through git.
  *
  * It also runs every hook the generated `.claude/settings.json` registers, from the installed tarball:
- * each hook runs one benign call and must exit 0; with `zod` made unresolvable the blocking hooks still
- * work; with a module of the hook path removed a crashed safety hook still lets `bun install` through,
- * and the drift guards pass the call, except that guard-git asks about a git command it could not check.
- * A release whose hooks cannot load stops every tool call in every
+ * each hook runs one benign call and must exit 0. The hooks run from the bundle `vulcan sync` copied into
+ * `.agents/local/hooks`, whose sums the manifest records and the tarball ships: with the whole installed package
+ * and `zod` made unresolvable they still decide, and with the bundle gone they block and nothing repairs it from inside
+ * the session. A release whose hooks cannot load stops every tool call in every
  * project that syncs it, so none goes out before this step passes.
  */
 import { spawnSync } from 'node:child_process';
@@ -308,7 +308,7 @@ const hooksOf = (opts: { sandbox: string }): IHookEntry[] => {
 };
 
 const hookNameOf = (opts: { hook: IHookEntry }): string =>
-  /hooks\/([\w-]+)\.ts/.exec(opts.hook.command)?.[1] ?? opts.hook.command.slice(0, 40);
+  /hooks\/([\w-]+)\.js/.exec(opts.hook.command)?.[1] ?? opts.hook.command.slice(0, 40);
 
 /** Every benign call the hook's matcher covers: a Bash `ls`, a Write inside the project, or the event itself. */
 const benignPayloadsOf = (opts: {
@@ -368,7 +368,6 @@ const runHook = (opts: { hook: IHookEntry; sandbox: string; payload: string }) =
 };
 
 const BLOCKING = new Set(['guard-writes', 'guard-git', 'guard-outside']);
-const SAFETY = new Set(['guard-writes']);
 
 /** A path of the installed package moved aside while `run` executes, then put back. */
 const withoutFile = <T>(opts: { path: string; run: () => T }): T => {
@@ -446,6 +445,25 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
   }
 
   const installed = join(sandbox, 'node_modules', '@venizia', 'vulcan');
+  const hooksFolder = join(sandbox, '.agents', 'local', 'hooks');
+  const shipped: { files: Record<string, string> } = JSON.parse(
+    readFileSync(join(installed, 'base', 'bundle', 'SHA256SUMS.json'), 'utf8'),
+  );
+  const manifest: { hooks?: { sha256?: Record<string, string> } } = JSON.parse(
+    readFileSync(join(sandbox, '.agents', 'vulcan.manifest.json'), 'utf8'),
+  );
+
+  // The tarball ships the sums, sync copied the files byte for byte, and the manifest records the same sums.
+  for (const [name, sum] of Object.entries(shipped.files)) {
+    const copied = new Bun.CryptoHasher('sha256')
+      .update(readFileSync(join(hooksFolder, name)))
+      .digest('hex');
+
+    if (copied !== sum || manifest.hooks?.sha256?.[name] !== sum) {
+      return `hooks: ${name} is not the shipped file, or the manifest records another sum`;
+    }
+  }
+
   // Every copy of zod the hooks could resolve: one left behind would make the case below pass for nothing.
   const zods = [
     join(sandbox, 'node_modules', 'zod'),
@@ -456,50 +474,62 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
     return 'hooks: cannot find the installed zod to break - the check would pass for nothing';
   }
 
-  // The blocking hooks must not need zod, config or rules: a drift in those must not stop every call.
-  const withoutZod = withBrokenPackages({
-    paths: zods,
-    run: () =>
-      blocking
-        .map((hook) => ({ hook, bad: firstUnexpected({ hook, sandbox, expected: 0 }) }))
-        .find((item) => item.bad !== undefined),
-  });
+  // The hooks run from the project's copy: with the installed package and zod both unusable they still decide.
+  const forcePush =
+    '{"tool_name":"Bash","tool_input":{"command":"git push --force origin main"},"cwd":"/tmp"}';
+  const gitHook = blocking.find((hook) => hookNameOf({ hook }) === 'guard-git');
 
-  if (withoutZod?.bad !== undefined) {
-    return `hooks: ${hookNameOf({ hook: withoutZod.hook })} exited ${withoutZod.bad.code} with zod unresolvable: ${withoutZod.bad.stderr.slice(-300)}`;
+  if (gitHook === undefined) {
+    return 'hooks: nothing registers guard-git';
   }
 
-  // A module of the hook path gone: a safety hook crashes and blocks - except a bare `bun install`,
-  // the escape - and the drift guards pass the call; guard-git asks about a git command it could not check.
+  const withoutPackage = withBrokenPackages({
+    paths: [installed, ...zods],
+    run: () => ({
+      benign: blocking
+        .map((hook) => ({ hook, bad: firstUnexpected({ hook, sandbox, expected: 0 }) }))
+        .find((item) => item.bad !== undefined),
+      git: runHook({
+        hook: gitHook,
+        sandbox,
+        payload: forcePush,
+      }),
+    }),
+  });
+
+  if (withoutPackage.benign?.bad !== undefined) {
+    return `hooks: ${hookNameOf({ hook: withoutPackage.benign.hook })} exited ${withoutPackage.benign.bad.code} with the installed package unusable: ${withoutPackage.benign.bad.stderr.slice(-300)}`;
+  }
+
+  if (!withoutPackage.git.stdout.includes('"permissionDecision":"deny"')) {
+    return 'hooks: guard-git did not deny a force-push to main with the installed package unusable';
+  }
+
+  // The bundle gone: guard-writes and guard-outside block every call, guard-git a git or gh line, and nothing that was a repair command passes.
   return withoutFile({
-    path: join(installed, 'src', 'hooks', 'common', 'constants.ts'),
+    path: hooksFolder,
     run: () => {
       for (const hook of blocking) {
         const name = hookNameOf({ hook });
-        const expected = SAFETY.has(name) ? 2 : 0;
-        const bad = firstUnexpected({ hook, sandbox, expected });
+        const cases: [string, number][] =
+          name === 'guard-git'
+            ? [
+                ['git status', 2],
+                ['ls', 0],
+              ]
+            : [
+                ['ls', 2],
+                ['bun install', 2],
+                ['bun node_modules/.bin/vulcan sync', 2],
+              ];
 
-        if (bad !== undefined) {
-          return `hooks: with a module of the hook path removed ${name} exited ${bad.code} on a benign call, expected ${expected}`;
+        for (const [command, expected] of cases) {
+          const bad = firstUnexpected({ hook, sandbox, expected, command });
+
+          if (bad !== undefined) {
+            return `hooks: with the bundle gone ${name} exited ${bad.code} on ${command}, expected ${expected}`;
+          }
         }
-
-        const install = firstUnexpected({ hook, sandbox, expected: 0, command: 'bun install' });
-
-        if (hook.matcher.includes('Bash') && install !== undefined) {
-          return `hooks: with a module of the hook path removed ${name} blocked a bare bun install (exit ${install.code}) - the agent could not repair the install`;
-        }
-      }
-
-      const git = blocking.find((hook) => hookNameOf({ hook }) === 'guard-git');
-      const gitStatus = '{"tool_name":"Bash","tool_input":{"command":"git status"},"cwd":"/tmp"}';
-
-      if (
-        git !== undefined &&
-        !runHook({ hook: git, sandbox, payload: gitStatus }).stdout.includes(
-          '"permissionDecision":"ask"',
-        )
-      ) {
-        return 'hooks: with a module of the hook path removed guard-git passed a git command unchecked instead of asking';
       }
 
       return undefined;
@@ -661,5 +691,5 @@ if (failure !== undefined) {
 }
 
 console.log(
-  'pack-smoke: OK - install, init, sync, doctor, every registered hook from the tarball (benign calls, zod unresolvable, a crashed safety hook), x okf check, an okf module from @venizia/vulcan/okf (bun check, gen), x atlas mcp over the project and a bare-repository source (JSON-RPC only on stdout)',
+  'pack-smoke: OK - install, init, sync, doctor, every registered hook from the tarball (benign calls, the bundle and its sums, the installed package and zod unusable, the bundle gone), x okf check, an okf module from @venizia/vulcan/okf (bun check, gen), x atlas mcp over the project and a bare-repository source (JSON-RPC only on stdout)',
 );

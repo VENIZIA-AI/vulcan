@@ -19,6 +19,8 @@ const PROTECTED = [
   '.claude/settings.json',
   '.claude/settings.local.json',
   '.agents/local/claude.launch.settings.json',
+  '.agents/local/hooks/guard-outside.js',
+  '.agents/local/hooks/session-start.js',
   'node_modules/@venizia/vulcan/base/hooks/guard-outside.ts',
   'node_modules/@venizia/vulcan/package.json',
 ];

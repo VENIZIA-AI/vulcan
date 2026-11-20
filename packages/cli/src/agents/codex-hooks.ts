@@ -3,7 +3,9 @@ import { LoaderEnvironment } from '../hooks/loader-environment.ts';
 import { RemoveOutcomes } from './common/index.ts';
 
 /** The script every VULCAN entry runs: it is how an entry of ours is told from a hook of the user's. */
-const GUARD_SCRIPT = 'codex-guards.ts';
+const GUARD_SCRIPT = 'codex-guards.js';
+/** The script of the releases that ran the guard from the installed package: an entry that names it is ours too, and is replaced. */
+const LEGACY_GUARD_SCRIPT = 'codex-guards.ts';
 
 const DENY_ON_CRASH = JSON.stringify({
   hookSpecificOutput: {
@@ -22,12 +24,12 @@ const DENY_ON_CRASH = JSON.stringify({
 const GUARD_COMMAND = [
   LoaderEnvironment.shellUnset(),
   'd=$(git rev-parse --show-toplevel 2>/dev/null || pwd);',
-  `f="$d/node_modules/@venizia/vulcan/base/hooks/${GUARD_SCRIPT}";`,
+  `f="$d/.agents/local/hooks/${GUARD_SCRIPT}";`,
   'if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then',
   'in=$(cat); out=$(printf \'%s\' "$in" | bun --no-env-file --config=/dev/null "$f"); s=$?;',
   `if [ "$s" -eq 0 ]; then printf '%s' "$out"; exit 0; fi;`,
   `printf '%s\\n' '${DENY_ON_CRASH}'; exit 0; fi;`,
-  'cat >/dev/null; echo "vulcan: the guards cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes" >&2',
+  'cat >/dev/null; echo "vulcan: the guards cannot run: .agents/local/hooks or bun is missing - the owner runs bun node_modules/.bin/vulcan sync; the call passes" >&2',
 ].join(' ');
 
 /** What the entry holds: one hook on the shell and the patch tool. */
@@ -43,7 +45,7 @@ const isGuardEntry = (entry: unknown): boolean =>
     (hook) =>
       RecordValue.isRecord(hook) &&
       typeof hook.command === 'string' &&
-      hook.command.includes(GUARD_SCRIPT),
+      (hook.command.includes(GUARD_SCRIPT) || hook.command.includes(LEGACY_GUARD_SCRIPT)),
   );
 
 interface IParsedFile {

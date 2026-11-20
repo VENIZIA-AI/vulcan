@@ -89,6 +89,8 @@ export class ProjectLayout {
     // `agents/<name>/` is the home of one agent's own state; `clean` never takes it.
     { name: 'agents', lifetime: 'kept', removedWhen: 'the user deletes it', onDemand: true },
     { name: 'events', lifetime: 'kept', removedWhen: 'the user deletes it', onDemand: true },
+    // The hook bundle `vulcan sync` copies in: the files every hook command runs. `clean` never takes it.
+    { name: 'hooks', lifetime: 'kept', removedWhen: 'vulcan sync writes it again', onDemand: true },
     {
       name: 'release-candidates',
       lifetime: 'release',

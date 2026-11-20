@@ -1,8 +1,38 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-/** The installed `@venizia/vulcan` directory, in a workspace or a project's node_modules. */
-export const PACKAGE_ROOT = resolve(import.meta.dir, '..', '..');
+const OWN_ROOT = resolve(import.meta.dir, '..', '..');
+
+/** Whether `folder` is a copy of this package: it has a `package.json` of that name. */
+const isPackage = (opts: { folder: string }): boolean => {
+  try {
+    return (
+      JSON.parse(readFileSync(join(opts.folder, 'package.json'), 'utf8')).name === '@venizia/vulcan'
+    );
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The installed `@venizia/vulcan` directory, in a workspace or a project's node_modules. A hook bundle runs from the project's
+ * `.agents/local/hooks`, away from the package: what it reads from the package (rules, skills, the text of the base) it reads
+ * from the copy the project installed, as data.
+ */
+export const PACKAGE_ROOT = ((): string => {
+  if (isPackage({ folder: OWN_ROOT })) {
+    return OWN_ROOT;
+  }
+
+  const installed = join(
+    process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+    'node_modules',
+    '@venizia',
+    'vulcan',
+  );
+
+  return isPackage({ folder: installed }) ? installed : OWN_ROOT;
+})();
 
 /** The shipped base: rules, slots, skills, settings, hooks, make module, templates. */
 export const BASE_DIRECTORY = join(PACKAGE_ROOT, 'base');
@@ -25,6 +55,11 @@ export class BaseDirectory {
   }
 }
 
-export const VULCAN_VERSION: string = JSON.parse(
-  readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8'),
-).version;
+/** The version of the package, or `unknown` for a hook bundle that finds no installed copy to read it from. */
+export const VULCAN_VERSION: string = (() => {
+  try {
+    return String(JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8')).version);
+  } catch {
+    return 'unknown';
+  }
+})();

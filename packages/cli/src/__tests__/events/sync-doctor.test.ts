@@ -13,7 +13,7 @@ afterAll(removeProjects);
 
 const SRC = join(import.meta.dir, '..', '..');
 const HOOK_EVENTS = ['SessionStart', 'SubagentStop', 'Notification', 'PostToolUse'];
-const HOOK = 'node_modules/@venizia/vulcan/base/hooks/event.ts';
+const HOOK = '.agents/local/hooks/event.js';
 
 const parse = (events: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ events });
 const config = (opts: { events?: string; hooks?: string }) =>

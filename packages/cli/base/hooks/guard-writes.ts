@@ -39,7 +39,7 @@ try {
   }
 } catch (error) {
   console.error(
-    `vulcan: the guard-writes hook failed (${error instanceof Error ? error.message : String(error)}) - blocked; run bun install`,
+    `vulcan: the guard-writes hook failed (${error instanceof Error ? error.message : String(error)}) - blocked; the owner runs bun node_modules/.bin/vulcan sync`,
   );
   process.exit(2);
 }

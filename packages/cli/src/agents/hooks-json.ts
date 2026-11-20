@@ -39,12 +39,12 @@ const IS_HELD = [
  */
 const GUARD_COMMAND = [
   LoaderEnvironment.shellUnset(),
-  'f="$PWD/../node_modules/@venizia/vulcan/base/hooks/antigravity-guards.ts";',
+  'f="$PWD/local/hooks/antigravity-guards.js";',
   'if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then',
   'in=$(cat); out=$(printf \'%s\' "$in" | bun --no-env-file --config=/dev/null "$f"); s=$?;',
   `if [ "$s" -eq 0 ]; then printf '%s' "$out"; exit 0; fi;`,
   `${IS_HELD} if [ $? -eq 0 ]; then printf '%s\\n' '${DENY_ON_CRASH}'; else printf '%s\\n' '${ASK_ON_CRASH}'; fi; exit 0; fi;`,
-  'cat >/dev/null; echo "vulcan: the guards cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes" >&2;',
+  'cat >/dev/null; echo "vulcan: the guards cannot run: .agents/local/hooks or bun is missing - the owner runs bun node_modules/.bin/vulcan sync; the call passes" >&2;',
   `printf '%s\\n' '{"decision":"allow"}'`,
 ].join(' ');
 

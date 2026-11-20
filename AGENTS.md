@@ -4,7 +4,7 @@ How to work in the VULCAN repository. **This file is routing** - it holds no fac
 `vulcan:rules` block, no rules: it points to where both live.
 
 This is the **only tracked instruction file**. Tool files are gitignored adapters that point at it -
-`CLAUDE.md` holds only `@AGENTS.md` - written by `bun node_modules/.bin/vulcan sync`.
+`CLAUDE.md` holds only `@AGENTS.md` - written by the owner running `bun node_modules/.bin/vulcan sync`. An agent does not run it: it rewrites the hooks, the manifest and the settings the guards run from, so `guard-git` asks first (and denies under `guard.asks: deny`). Say that a sync is needed, and the owner runs it.
 
 ## Must read first
 

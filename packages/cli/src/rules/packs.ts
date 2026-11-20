@@ -3,14 +3,15 @@ import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../common/index.ts';
 import { RuleParser } from './parser.ts';
 
-const PACKS_DIRECTORY = join(BASE_DIRECTORY, 'packs');
+/** Read when used, not when the module loads: a bundle of the hooks initialises its modules in another order than the source does. */
+const packsDirectory = (): string => join(BASE_DIRECTORY, 'packs');
 
 /** The rule packs shipped with the CLI: a markdown file of rule rows for one stack, which a project turns on with `packs` in its config. */
 export class RulePacks {
   /** The shipped packs, by name. */
   static names(): string[] {
-    return existsSync(PACKS_DIRECTORY)
-      ? readdirSync(PACKS_DIRECTORY)
+    return existsSync(packsDirectory())
+      ? readdirSync(packsDirectory())
           .filter((file) => file.endsWith('.md'))
           .map((file) => file.slice(0, -'.md'.length))
           .sort()
@@ -24,7 +25,7 @@ export class RulePacks {
 
   /** The rows of one pack, each rule's ID with its table row verbatim; a name that is no shipped pack has none. */
   static rowsOf(opts: { name: string }): Record<string, string> {
-    const file = join(PACKS_DIRECTORY, `${opts.name}.md`);
+    const file = join(packsDirectory(), `${opts.name}.md`);
 
     // Only a name the folder lists: `../rules` is not a pack.
     return RulePacks.names().includes(opts.name) && existsSync(file)

@@ -27,7 +27,7 @@ describe('GuardHook.merge', () => {
       'run_command|write_to_file|replace_file_content|multi_replace_file_content',
     );
     expect(entry.PreToolUse[0]?.hooks[0]?.type).toBe('command');
-    expect(entry.PreToolUse[0]?.hooks[0]?.command).toContain('antigravity-guards.ts');
+    expect(entry.PreToolUse[0]?.hooks[0]?.command).toContain('antigravity-guards.js');
     expect(entry.PreToolUse[0]?.hooks[0]?.timeout).toBe(60);
   });
 

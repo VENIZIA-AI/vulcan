@@ -11,7 +11,10 @@ test('no source file is ignored by git', () => {
   const files = [
     ...new Glob('packages/*/{src,base,scripts}/**/*').scanSync({ cwd: ROOT, onlyFiles: true }),
     ...new Glob('scripts/**/*').scanSync({ cwd: ROOT, onlyFiles: true }),
-  ].filter((file) => !file.includes('/node_modules/'));
+    // The hook bundle is build output on purpose: ignored by git, made by `make build`, shipped in the package.
+  ].filter(
+    (file) => !file.includes('/node_modules/') && !file.startsWith('packages/cli/base/bundle/'),
+  );
   const result = spawnSyncBounded({
     cmd: ['git', 'check-ignore', '--stdin'],
     cwd: ROOT,

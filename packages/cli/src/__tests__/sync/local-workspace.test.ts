@@ -127,6 +127,7 @@ describe('LocalPlan.planWorkspace', () => {
       prototypes: 'kept',
       agents: 'kept',
       events: 'kept',
+      hooks: 'kept',
       'release-candidates': 'release',
     });
   });

@@ -20,6 +20,7 @@ help:
 	@$(HELP_ROW) "install" "Install all dependencies with bun."
 	@$(HELP_ROW) "clean" "Clean build artifacts from all packages."
 	@$(HELP_ROW) "setup-hooks" "Configure git to use .githooks directory."
+	@$(HELP_ROW) "hooks-bundle" "Build the hook bundle (packages/cli/base/bundle) that vulcan sync copies."
 	@echo ""
 	@echo "Per package - <pkg> is one of:"
 	@echo "  $(PACKAGES)"

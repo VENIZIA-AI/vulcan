@@ -4,7 +4,7 @@ import { HookConstants } from './common/index.ts';
 export class ProtectedNames {
   /** The paths of `HookConstants.PROTECTED_FILES` as names, bar the installed package (its removal is left to `bun install`); a `*` of the list stands for the usual extensions. */
   static readonly FILES = HookConstants.PROTECTED_FILES.filter(
-    (pattern) => !pattern.startsWith('node_modules'),
+    (pattern) => !pattern.startsWith('node_modules') && !pattern.endsWith('/**'),
   ).flatMap((pattern) =>
     pattern.endsWith('.*')
       ? ['mts', 'ts', 'js', 'mjs', 'cjs', 'json'].map(

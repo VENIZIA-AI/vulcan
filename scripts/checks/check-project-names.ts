@@ -15,9 +15,9 @@ const SOURCE_GLOBS = [
   'packages/*/src/**/*.{ts,mts,html,css,md}',
   'packages/cli/base/**/*.{md,js,mjs,ts,mts,mk,json,sh}',
 ];
-/** The registry of published presets is data that names the frameworks by design; nothing else is exempt. */
+/** The registry of published presets is data that names the frameworks by design, and the hook bundle is built from sources this check already read; nothing else is exempt. */
 const EXEMPT =
-  /\/(__tests__|fixtures)\/|\/packages\/atlas\/src\/tools\/common\/official-presets\.ts$/;
+  /\/(__tests__|fixtures)\/|\/packages\/atlas\/src\/tools\/common\/official-presets\.ts$|\/packages\/cli\/base\/bundle\//;
 
 const readRoot = (opts: { argv: string[] }): string => {
   const index = opts.argv.indexOf('--root');

@@ -258,7 +258,7 @@ describe('.claude/settings.json', () => {
   const guardCommandsOf = (opts: { root: string }): string[] =>
     Object.values(readSettings(opts).hooks as Record<string, { hooks: { command: string }[] }[]>)
       .flatMap((entries) => entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)))
-      .filter((command) => command.includes('guard-writes.ts'));
+      .filter((command) => command.includes('guard-writes.js'));
 
   test('an upgrade takes back a hand-edited shipped hook by its command; other hooks in its entry stay', () => {
     const root = createProject({ files: READ_ONLY_PROJECT });
@@ -520,6 +520,7 @@ describe('SyncPlanner.plan with the resolved agents', () => {
     const withClaude = SyncPlanner.plan({ root, config: loaded.config, agents: ['claude', 'omp'] });
 
     expect(without.map((action) => action.path)).toEqual([
+      join(root, '.agents/local/hooks'),
       join(root, '.agents/skills/build-a-feature'),
       join(root, '.agents/skills/docs-update'),
       join(root, '.agents/skills/docs-writing'),

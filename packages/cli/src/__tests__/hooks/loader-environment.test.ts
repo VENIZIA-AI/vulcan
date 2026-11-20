@@ -33,7 +33,7 @@ interface IProbe {
  */
 const probed = (opts: { scripts: string[] }): IProbe => {
   const root = createProject({ files: { 'package.json': '{}' } });
-  const hooks = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+  const hooks = join(root, '.agents', 'local', 'hooks');
   const seen = join(root, 'seen.txt');
   const marker = join(root, 'preload-ran.txt');
 
@@ -46,7 +46,7 @@ const probed = (opts: { scripts: string[] }): IProbe => {
 
   for (const name of opts.scripts) {
     writeFileSync(
-      join(hooks, `${name}.ts`),
+      join(hooks, `${name}.js`),
       `require('node:fs').appendFileSync(${JSON.stringify(seen)}, Object.keys(process.env).filter((n) => ${NAMES_SEEN}.test(n)).join(',') + '\\n');\n`,
     );
   }
@@ -261,7 +261,7 @@ describe('BUN_OPTIONS and the other loader names do not reach a guard', () => {
 
     writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{ nope');
     writeFileSync(
-      join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks', 'antigravity-guards.ts'),
+      join(root, '.agents', 'local', 'hooks', 'antigravity-guards.js'),
       'process.exit(3);',
     );
 

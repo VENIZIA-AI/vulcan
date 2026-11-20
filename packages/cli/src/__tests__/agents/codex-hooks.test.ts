@@ -22,7 +22,7 @@ describe('CodexHooks.merge', () => {
     expect(merged.changed).toBe(true);
     expect(file.hooks.PreToolUse).toHaveLength(1);
     expect(file.hooks.PreToolUse[0]?.matcher).toBe('Bash|apply_patch');
-    expect(file.hooks.PreToolUse[0]?.hooks[0]?.command).toContain('codex-guards.ts');
+    expect(file.hooks.PreToolUse[0]?.hooks[0]?.command).toContain('codex-guards.js');
     expect(file.hooks.PreToolUse[0]?.hooks[0]?.command).toContain('git rev-parse --show-toplevel');
     expect(file.hooks.PreToolUse[0]?.hooks[0]?.timeout).toBe(60);
   });

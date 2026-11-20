@@ -114,7 +114,11 @@ export class PackageSwap {
     for (const [index, command] of parsed.commands.entries()) {
       const program = ShellParser.programOf({ command });
 
-      if (MANAGERS.has(ShellParser.basenameOf({ word: program.name }))) {
+      const name = ShellParser.basenameOf({ word: program.name });
+
+      hits.push(...PackageSwap.inspectSync({ name, args: program.args }));
+
+      if (MANAGERS.has(name)) {
         const folder = folders[index];
 
         hits.push(
@@ -129,6 +133,35 @@ export class PackageSwap {
     }
 
     return hits;
+  }
+
+  /**
+   * `vulcan sync` (also through `bun node_modules/.bin/vulcan` and `make vulcan-sync`) rewrites the hook bundle, the manifest and the settings the
+   * guards run from, with the code of the package in `node_modules`: it is the owner's act, asked here and denied where every ask is.
+   */
+  private static inspectSync(opts: { name: string; args: string[] }): IGitHit[] {
+    // The words of a program that only prints or searches are text, not a command.
+    if (['echo', 'printf', 'grep', 'rg', 'cat', 'man', 'git', 'gh'].includes(opts.name)) {
+      return [];
+    }
+
+    const isSync =
+      (opts.name === 'vulcan' && opts.args.find((word) => !word.startsWith('-')) === 'sync') ||
+      (opts.name === 'make' && opts.args.includes('vulcan-sync')) ||
+      opts.args.some(
+        (word, index) => /(?:^|\/)vulcan$/.test(word) && opts.args[index + 1] === 'sync',
+      );
+
+    return isSync
+      ? [
+          {
+            rule: RULE,
+            decision: GuardDecisions.ASK,
+            message:
+              'vulcan sync rewrites the hook bundle, the manifest and the settings the guards run from, using the package in node_modules: the owner runs it, outside the agent session',
+          },
+        ]
+      : [];
   }
 
   /** What one package manager command does to the guard package. */

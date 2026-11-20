@@ -184,7 +184,9 @@ try {
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
 
-  console.error(`vulcan: the guard-outside hook failed (${message}); run bun install`);
+  console.error(
+    `vulcan: the guard-outside hook failed (${message}); the owner runs bun node_modules/.bin/vulcan sync`,
+  );
 
   // The imports may be what failed, so the answer is written by hand, and a project that sets guard.asks to deny is read from the manifest by hand too.
   let isHeldOnCrash = false;
@@ -228,8 +230,8 @@ try {
           `  - ${message}`,
           '',
           isHeldOnCrash
-            ? 'This project denies every call that would need a human to confirm it (guard.asks: deny). Nothing was run: run bun install to repair the install.'
-            : 'Confirm only if the call stays inside the project; run bun install to repair the install, or VULCAN_GUARDS=off to switch the guards off for a session.',
+            ? 'This project denies every call that would need a human to confirm it (guard.asks: deny). Nothing was run: the owner runs bun node_modules/.bin/vulcan sync to rewrite the hooks.'
+            : 'Confirm only if the call stays inside the project; the owner runs bun node_modules/.bin/vulcan sync to rewrite the hooks, or VULCAN_GUARDS=off to switch the guards off for a session.',
         ].join('\n'),
       },
     }),

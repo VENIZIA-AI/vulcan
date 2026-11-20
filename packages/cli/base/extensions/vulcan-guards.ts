@@ -1,13 +1,12 @@
 // Written by `vulcan sync` for omp and pi; sync rewrites it, so change the guards, not this file.
 //
 // VULCAN's guards for an agent that takes an extension instead of Claude Code's hook commands. Before each
-// tool call it runs the same guard scripts Claude Code runs (node_modules/@venizia/vulcan/base/hooks/*.ts),
+// tool call it runs the same guard bundles Claude Code runs (.agents/local/hooks/*.js, copied there by `vulcan sync`),
 // with a Claude-shaped event on stdin, and turns the answer into this agent's: `deny` blocks, `ask` asks
 // the owner (and blocks when there is no UI to ask). A guard that cannot give an answer follows the same
-// policy as the Claude wrappers: the safety guards block, the others ask, and a missing install blocks
-// too - bar a bare `bun install` or `vulcan sync`, the way to repair it (guard-git only for a git or gh line).
-// A guard that is gone from an installed package blocks, except guard-writes, which passes: there is nothing
-// to run. A project that sets `guard.asks: 'deny'` has every ask answered as a block.
+// policy as the Claude wrappers: the safety guards block, the others ask, and a missing bundle blocks too
+// (guard-git only for a git or gh line); the owner repairs it with `vulcan sync`, outside the agent's session.
+// A project that sets `guard.asks: 'deny'` has every ask answered as a block.
 // Only node: modules are imported, so any host that loads TypeScript can load it.
 
 import { spawnSync } from 'node:child_process';
@@ -61,8 +60,6 @@ interface IGuard {
   name: string;
   tools: string[];
   onFailure: string;
-  /** Whether the call is blocked when the package is installed and only this guard is gone from it. */
-  isClosedWhenGone: boolean;
   /** The lines the guard covers when it is missing: a line that does not match passes. Every line when absent. */
   onlyLines?: RegExp;
 }
@@ -72,8 +69,7 @@ interface IAnswer {
   reason: string;
 }
 
-const PACKAGE_DIRECTORY = join('node_modules', '@venizia', 'vulcan');
-const HOOKS_DIRECTORY = join(PACKAGE_DIRECTORY, 'base', 'hooks');
+const HOOKS_DIRECTORY = join('.agents', 'local', 'hooks');
 const TIMEOUT_MS = 30_000;
 
 /** The variables a guard does not inherit: a copy of `src/hooks/loader-environment.ts` (this file imports only node: modules); a test holds them equal. */
@@ -92,9 +88,6 @@ const withoutLoaderNames = (opts: {
         !LoaderNames.PREFIXES.some((prefix) => name.startsWith(prefix)),
     ),
   );
-/** The commands that pass while the install is missing or out of step: they are how it is repaired (`bun install`, `vulcan sync`). */
-const REPAIR =
-  /^\s*(bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*|bun node_modules\/\.bin\/vulcan sync( --?[a-z][a-z-]*( [\w./@-]+)?)*)\s*$/;
 /** A command line that names git or gh as a word. */
 const GIT_LINE = /(^|[^A-Za-z0-9_])(git|gh)([^A-Za-z0-9_]|$)/;
 const MANIFEST_FILE = join('.agents', 'vulcan.manifest.json');
@@ -103,19 +96,17 @@ const HELD_ASK =
 
 /** The guards of `.claude/settings.json`, with the tools each covers and what each does when it cannot answer. */
 const GUARDS: IGuard[] = [
-  { name: 'guard-writes', tools: [Tools.BASH], onFailure: Failures.BLOCK, isClosedWhenGone: false },
+  { name: 'guard-writes', tools: [Tools.BASH], onFailure: Failures.BLOCK },
   {
     name: 'guard-git',
     tools: [Tools.BASH],
     onFailure: Failures.ASK,
-    isClosedWhenGone: true,
     onlyLines: GIT_LINE,
   },
   {
     name: 'guard-outside',
     tools: [Tools.BASH, Tools.WRITE, Tools.EDIT],
     onFailure: Failures.ASK,
-    isClosedWhenGone: true,
   },
 ];
 
@@ -243,22 +234,12 @@ const runGuard = (opts: {
   root: string;
   claudeEvent: Record<string, unknown>;
 }): IAnswer => {
-  const script = join(opts.root, HOOKS_DIRECTORY, `${opts.guard.name}.ts`);
+  const script = join(opts.root, HOOKS_DIRECTORY, `${opts.guard.name}.js`);
 
   if (!existsSync(script)) {
-    // The package is installed and only this guard is gone from it: guard-writes passes (nothing to run), the others block.
-    if (existsSync(join(opts.root, PACKAGE_DIRECTORY, 'package.json'))) {
-      return opts.guard.isClosedWhenGone
-        ? {
-            kind: Answers.MISSING,
-            reason: `VULCAN guards unavailable: ${opts.guard.name} is not in the installed package; run bun node_modules/.bin/vulcan sync`,
-          }
-        : { kind: Answers.ALLOW, reason: '' };
-    }
-
     return {
       kind: Answers.MISSING,
-      reason: `VULCAN guards unavailable: ${opts.guard.name} is missing; finish bun install`,
+      reason: `VULCAN guards unavailable: ${HOOKS_DIRECTORY}/${opts.guard.name}.js is missing; the owner runs bun node_modules/.bin/vulcan sync, outside the agent session`,
     };
   }
 
@@ -326,12 +307,11 @@ export class GuardVerdict {
 
       if (answer.kind === Answers.MISSING) {
         const command = String(opts.input.command);
-        const isRepair = opts.toolName === Tools.BASH && REPAIR.test(command);
         const isCovered =
           guard.onlyLines === undefined ||
           (opts.toolName === Tools.BASH && guard.onlyLines.test(command));
 
-        if (!isRepair && isCovered) {
+        if (isCovered) {
           return { kind: Verdicts.DENY, reason: answer.reason };
         }
       }

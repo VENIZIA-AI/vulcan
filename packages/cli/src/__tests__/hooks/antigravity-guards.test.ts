@@ -1,7 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { GUARD_HOOK_NAME, GuardHook } from '../../agents/index.ts';
+import { installBundle } from '../bundle.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
@@ -16,13 +17,11 @@ const DENY_OUTSIDE_CONFIG =
 /** What `vulcan sync` renders from it: the hooks read this, not the config. */
 const DENY_OUTSIDE_MANIFEST = guardManifest({ guard: { outside: 'deny' } });
 
-/** A project with the package installed, so the real guard scripts run. */
+/** A project with the hook bundle copied in, as `vulcan sync` leaves it, so the real guards run. */
 const installedProject = (opts: { files?: Record<string, string> } = {}): string => {
   const root = createProject({ files: { 'package.json': '{}', ...opts.files } });
-  const installed = join(root, 'node_modules', '@venizia', 'vulcan');
 
-  mkdirSync(dirname(installed), { recursive: true });
-  symlinkSync(PACKAGE_ROOT, installed);
+  installBundle({ root });
 
   return root;
 };
@@ -249,10 +248,10 @@ describe('the hook command wrapper in .agents/hooks.json', () => {
           ...(opts.manifest === undefined ? {} : { '.agents/vulcan.manifest.json': opts.manifest }),
         },
       });
-      const hooks = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+      const hooks = join(root, '.agents', 'local', 'hooks');
 
       mkdirSync(hooks, { recursive: true });
-      writeFileSync(join(hooks, 'antigravity-guards.ts'), 'process.exit(3);\n');
+      writeFileSync(join(hooks, 'antigravity-guards.js'), 'process.exit(3);\n');
 
       return JSON.parse(
         runWrapper({ root, env: opts.env, stdin: eventOf({ root, name: 'run_command', args: {} }) })
@@ -271,10 +270,10 @@ describe('the hook command wrapper in .agents/hooks.json', () => {
 
   test('an adapter that started and crashed asks, as the Claude wrappers do', () => {
     const root = createProject({ files: { 'package.json': '{}' } });
-    const hooks = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+    const hooks = join(root, '.agents', 'local', 'hooks');
 
     mkdirSync(hooks, { recursive: true });
-    writeFileSync(join(hooks, 'antigravity-guards.ts'), 'process.exit(3);\n');
+    writeFileSync(join(hooks, 'antigravity-guards.js'), 'process.exit(3);\n');
 
     const result = runWrapper({ root, stdin: eventOf({ root, name: 'run_command', args: {} }) });
     const answer = JSON.parse(result.stdout);

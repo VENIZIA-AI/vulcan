@@ -49,11 +49,16 @@ export class HookConstants {
     '.pi/extensions/vulcan-guards.ts',
     'node_modules/@venizia/vulcan',
     'node_modules/@venizia/vulcan/**',
+    // The hooks the guards run: the bundle `vulcan sync` copies in, so no package folder decides what a hook runs.
+    '.agents/local/hooks',
+    '.agents/local/hooks/**',
     // Bun's own copy of the package, which the link above points to, and the bin the owner runs.
     'node_modules/.bun/@venizia+vulcan@*',
     'node_modules/.bun/@venizia+vulcan@*/**',
     'node_modules/.bin/vulcan',
   ];
+  /** Where `vulcan sync` copies the hook bundle, from the project root: the files every hook command runs. */
+  static readonly BUNDLE_DIRECTORY = '.agents/local/hooks';
   /** Branches no agent deletes or force-pushes (V-W-06). */
   static readonly PROTECTED_BRANCHES = new Set(['develop', 'main']);
   /**

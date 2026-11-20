@@ -32,6 +32,7 @@ const isSilent = (command: string): boolean => hitsOf({ root, command }).length 
 const FOLDERS: [string, string][] = [
   ['.agents', 'vulcan.manifest.json'],
   ['.agents/local', 'claude.launch.settings.json'],
+  ['.agents/local/hooks', 'guard-git.js'],
   ['.claude', 'settings.json'],
   ['.claude', 'settings.local.json'],
   ['.configs', 'vulcan.config.mts'],

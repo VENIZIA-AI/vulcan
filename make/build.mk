@@ -2,7 +2,7 @@
 
 UPDATE_TARGETS := $(addprefix update-,$(PACKAGES))
 
-.PHONY: install clean setup-hooks build build-all docs $(PACKAGES) $(UPDATE_TARGETS)
+.PHONY: install clean setup-hooks build build-all hooks-bundle docs $(PACKAGES) $(UPDATE_TARGETS)
 
 # ----------------------------------------------------------------------------
 # INSTALL & CLEAN
@@ -37,6 +37,11 @@ $(PACKAGES):
 	@echo ""
 	@echo "build: $(call PKG_NAME,$@)"
 	@$(MAKE) --no-print-directory -C packages/$@ rebuild
+
+# The hooks of @venizia/vulcan, one self-contained file each in packages/cli/base/bundle: what `vulcan sync` copies into .agents/local/hooks.
+# `make build` makes it too; run this alone before `make vulcan-sync` in a checkout that has not built.
+hooks-bundle:
+	@bun scripts/hooks-bundle/build.ts
 
 # The wiki site has its own package and lockfile, so the npm packages never install VitePress.
 docs:

@@ -7,6 +7,7 @@ import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
 import { Bunfig } from '../../create/bunfig.ts';
+import { HooksBundle } from '../../sync/hooks-bundle.ts';
 import { checkFiles } from '../format.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -27,6 +28,9 @@ const CONFIG = {
 
 const render = (opts: { root: string; config: object }): string =>
   ProjectManifest.render({ root: opts.root, config: VULCAN_CONFIG_SCHEMA.parse(opts.config) });
+
+/** The `hooks` key the manifest carries when the package ships a hook bundle (after `make build`). */
+const HOOKS_KEY = HooksBundle.shipped() === undefined ? [] : ['hooks'];
 
 describe('ProjectManifest.render', () => {
   test('the text is already formatted for bun fmt: short arrays on one line, so lint stays green', () => {
@@ -53,6 +57,7 @@ describe('ProjectManifest.render', () => {
       'knowledge',
       'release',
       'rules',
+      ...HOOKS_KEY,
       'theme',
     ]);
     expect(manifest.$generated).toBe('by vulcan sync from .configs/vulcan.config.* - do not edit');
@@ -186,6 +191,7 @@ describe('the prebuilt index in the manifest (C27)', () => {
       'knowledge',
       'release',
       'rules',
+      ...HOOKS_KEY,
       'atlas',
       'theme',
     ]);

@@ -171,7 +171,8 @@ The scratchpad folder an agent tool offers a session is under the system temp di
 - `.claude/settings.json` and `.claude/settings.local.json`
 - `.agents/local/claude.launch.settings.json`, the file `vulcan sync` writes for `claude --settings .agents/local/claude.launch.settings.json`. Its `env` block reaches every hook, so a write to it reaches the guards as surely as a write to the project settings. Only this path is held: a session started with another `--settings` file is not covered.
 - `.codex/hooks.json`, `.agents/hooks.json`, `.omp/hooks/pre/vulcan-guards.ts` and `.pi/extensions/vulcan-guards.ts`, the files `vulcan sync` writes for Codex, Antigravity, omp and pi
-- `node_modules/@venizia/vulcan` and everything under it (the hooks themselves)
+- `.agents/local/hooks` and everything under it: the bundle the hooks run, which `vulcan sync` writes
+- `node_modules/@venizia/vulcan` and everything under it (the package the owner's `vulcan` command runs)
 - Bun's own copy of that package, `node_modules/.bun/@venizia+vulcan@*` and everything under it, which the link in `node_modules/@venizia/vulcan` points to; where the link leads to another copy under `node_modules`, that copy and the folders above it are held the same way. A link to a source folder of a workspace (this repository links the package to `packages/cli`) is the project's own code and is not held, only the link path is
 - `node_modules/.bin/vulcan`, the bin the owner runs with `bun node_modules/.bin/vulcan sync`; `node_modules/.bun` and `node_modules/.bin` cannot be the destination of a move, a recursive copy, an `rsync`, a link or an extraction either
 
@@ -210,7 +211,7 @@ This is a first line, not a boundary. Not read: an edit of `package.json` (the d
 
 These guards stop an agent that is working normally from doing what a person should confirm. They do not stop one that sets out to get around them. What is not read, so what an agent can still do:
 
-- **A `package.json` swap plus `bun install`.** `package.json` is not protected, so an agent can point `@venizia/vulcan` at another package and run `bun install`, which replaces the hooks.
+- **A `package.json` swap plus `bun install`.** It no longer changes the hooks, which run from the bundle; it changes the package the owner's `vulcan` command runs (`sync` included), which the commands in [the package manager section](#the-package-manager-and-the-guard-package) deny and a file edit is not read for.
 - **Writes from an interpreter.** A script run by `python`, `node`, `bun`, `deno`, `ruby`, `perl` or `php` writes with its own calls (`os.rename`, `fs.writeFileSync`, `os.symlink`); the guard reads the command, not the script.
 - **Git restores of a whole tree or by pattern.** `git checkout .`, `git restore :/`, a glob, `git stash pop`, `git apply`, `git am`, `git merge` and `git pull` can bring back an older manifest or settings file; only a path named on the line is judged.
 - **Other ways to copy or delete.** A hard-link copy, `xargs rm`, `awk -i inplace`, and `patch`. Not followed: a link inside an archive that `tar` or `unzip` extracts and a later write through it, a tracked link that `git checkout` places and a later write through it, and a pattern whose folder is a variable.
@@ -304,22 +305,42 @@ export default {
 
 `VULCAN_OWNER_REPLY=off` in the environment of a session takes the shape card and the profile card out of `session-start` for that session only. The value is read when the hook runs, only `off` counts, and everything else (the guards, the rules) stays on. Set it on the command that starts the session, never with `export`, and never in the `env` of a committed Claude Code settings file. The launcher of a session whose reader is an agent sets it (see "Starting another session" in the delegation brief of the shipped references); `vulcan doctor` prints a note when it is set in the shell that runs it and a warning when a Claude Code settings file of the project sets it in `env`, so an owner who exported it by mistake sees why the rules carry no card. Subagents started through the tool's own mechanism never had the shape.
 
+## Where the hooks run from
+
+The hook commands do not run the package in `node_modules`. The release builds every hook into one self-contained file (`bun build`, no imports left to resolve) and ships them in `@venizia/vulcan` as `base/bundle/*.js`, with a `SHA256SUMS.json` beside them. `vulcan sync` copies those files, byte for byte, into the project's `.agents/local/hooks/`, makes them read-only (`0444`), and records the version and the sha256 of each file in the manifest:
+
+```json
+"hooks": {
+  "version": "0.5.0",
+  "folder": ".agents/local/hooks",
+  "sha256": { "guard-git.js": "<64 hex digits>", "guard-outside.js": "<64 hex digits>" }
+}
+```
+
+Every command of `.claude/settings.json`, `.codex/hooks.json`, `.agents/hooks.json` and the omp and pi extension runs a file of that folder. So an `add`, a `link` or a `patch` of the package, a changed `package.json`, a store copy under `node_modules/.bun` or a link in `node_modules` does not change what a hook runs: only a new bundle written by `vulcan sync` does, and the folder is a protected path (a write to it is denied like a write to the manifest).
+
+- **Sync is the owner's act.** It runs the code of the package in `node_modules` and writes the bundle, the manifest and the settings the guards run from, so `guard-git` asks before `vulcan sync`, `bun node_modules/.bin/vulcan sync` and `make vulcan-sync` (denied where every ask is held), and no wrapper lets it pass while the bundle is missing: the owner runs it in a terminal of their own, not through the agent.
+- **A bundle that is not the one the manifest records is not copied.** Where the manifest already records other sums for the same version, sync leaves the folder and the recorded sums as they are and says so; a new version is a new bundle, and the manifest diff shows it in review. `vulcan doctor` reports a copy that differs from the shipped files.
+- **Read-only is a speed bump, not a lock.** An agent running as the same user can change the mode of a file it owns; the owner who wants more sets the immutable flag (`chattr +i .agents/local/hooks/*.js` on Linux, `chflags uchg` on macOS) after a sync, and clears it before the next one.
+- **In a workspace that builds the package** (this repository) `make build` or `make hooks-bundle` writes `packages/cli/base/bundle/`, and `vulcan sync` copies from it; a checkout that has not built one builds it for the sync. A change to a hook source reaches the running hooks only at the next sync.
+- **Still the package's code:** the `vulcan` command itself (`sync`, `doctor`, `x okf`, `x atlas`) and the make targets. The command denies in [The package manager and the guard package](#the-package-manager-and-the-guard-package) protect that.
+
 ## How the hooks fail
 
 Several kinds of hook run in every session of every project, so each kind has a stated failure mode.
 
-- **Safety hooks** (`guard-writes`): when one cannot run (missing package, missing `bun`, a crash), it fails closed: exit 2, the tool call is blocked; a bare `bun install` still passes. A hook file that is gone from an installed package passes with a note on stderr (see below)
-- **Deny-class guards** (`guard-git`, `guard-outside`): when the package, `bun` or the hook file is missing, the call is blocked (exit 2, "VULCAN guards unavailable"), bar the repair commands `bun install` and `bun node_modules/.bin/vulcan sync`. `guard-git` blocks only a command that names `git` or `gh`; `guard-outside` blocks every call, a file write included. A hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**, or denies where every ask is held (`guard.asks`, `VULCAN_GUARD_ASKS`, or a manifest that cannot be read)
+- **Safety hooks** (`guard-writes`): when one cannot run (its bundle file or `bun` is missing, a crash), it fails closed: exit 2, the tool call is blocked, and nothing passes as a repair: the owner runs `vulcan sync`
+- **Deny-class guards** (`guard-git`, `guard-outside`): when the bundle file or `bun` is missing, the call is blocked (exit 2, "VULCAN guards unavailable", naming the file and saying that the owner runs `vulcan sync`). `guard-git` blocks only a command that names `git` or `gh`; `guard-outside` blocks every call, a file write included. A hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**, or denies where every ask is held (`guard.asks`, `VULCAN_GUARD_ASKS`, or a manifest that cannot be read)
 
 `subagent-start` never blocks. `VULCAN_GUARDS=off` switches the guards off and is read before any module loads.
 
-**Where the project root comes from.** Claude Code sets `CLAUDE_PROJECT_DIR`, and every wrapper builds its path from `${CLAUDE_PROJECT_DIR:-$PWD}`, so a host that reads `.claude/settings.json` without setting the variable (Cursor and Copilot document that they read it) still finds the install when its hooks run from the project root. A set variable always wins, and a missing install still exits 2 for a safety hook. Without the fallback, an unset variable would point the wrapper at `/node_modules/...`, a missing install, and `guard-writes`, `session-start` and `subagent-start` would exit 2, which a host that treats a non-zero exit as a refusal would apply to every call.
+**Where the project root comes from.** Claude Code sets `CLAUDE_PROJECT_DIR`, and every wrapper builds its path from `${CLAUDE_PROJECT_DIR:-$PWD}`, so a host that reads `.claude/settings.json` without setting the variable (Cursor and Copilot document that they read it) still finds the bundle when its hooks run from the project root. A set variable always wins, and a missing bundle still exits 2 for a safety hook. Without the fallback, an unset variable would point the wrapper at `/.agents/local/hooks/...`, a missing bundle, and `guard-writes`, `session-start` and `subagent-start` would exit 2, which a host that treats a non-zero exit as a refusal would apply to every call.
 
 **Why the deny-class guards ask.** A guard that refuses must not be switched off by the same input that breaks it: a line that overflows the stack or runs for minutes can crash `guard-git`, and a wrapper that let the call through would switch the guard off. The wrapper of `guard-git` and `guard-outside` runs the hook under `timeout 30` (where `timeout` exists; macOS has none, and a hook that hangs there is bounded by Claude Code's own limit) and, when the hook ends with a non-zero status, prints an `ask` decision and exits 0. A hook that fails inside its own `try` (an internal error, a module that does not load) asks the same way, with the error in the reason. The cost is noise on a broken install: `guard-git` asks about each `git` or `gh` command and `guard-outside` about each call until you run `bun install` or set `VULCAN_GUARDS=off`. A missing package, `bun` or hook file is a different case and blocks (see above): a call that passes while the install is being rebuilt is a call no guard saw, and a `bun install` in one session opens that window for every session that shares the checkout. The repair commands pass, so the first `bun install` of a fresh clone is never blocked. Where every ask is held the crash answer is a deny too: the wrapper reads `VULCAN_GUARD_ASKS` and the manifest by itself (the manifest with `bun`, which must parse it as an object), so a hook that cannot load still honours it.
 
-The safety hooks import only the modules they need, not the config loader, the rules reader or `zod`, so a defect in those cannot stop every tool call. The release pipeline's pack smoke runs every hook of the generated settings from the installed tarball (a benign call each, with every copy of `zod` made unresolvable, and with `src/hooks/common/constants.ts` removed) and refuses to publish if one fails.
+The safety hooks import only the modules they need, not the config loader, the rules reader or `zod`, so a defect in those cannot stop every tool call. The release pipeline's pack smoke installs the tarball in an empty project, syncs it, checks that the copied bundle is the shipped one and that the manifest records the same sums, runs every hook of the generated settings (a benign call each), runs them again with the whole installed package and every copy of `zod` made unusable, and with the bundle gone, and refuses to publish if one fails.
 
-A safety hook's command exits 2 when `node_modules/@venizia/vulcan` is absent, `bun` is missing from `PATH` or the hook crashes. When the package is installed (its `package.json` is there) and only this hook's file is missing, because a later release removed the hook, the command exits 0 and prints a note on stderr that names `vulcan sync`: nothing is left to run, and a release can remove a hook without keeping an empty file for it. `guard-git` and `guard-outside` do not pass there: they block with the same exit 2 and name `vulcan sync`, which drops the entry of a hook the package no longer has. Claude Code treats exit code 2 as a blocking failure only for a `PreToolUse` hook (the call is blocked); `session-start` also exits 2 but cannot block a session.
+A safety hook's command exits 2 when its bundle file is absent, `bun` is missing from `PATH` or the hook crashes. The bundle is all or nothing: a release that removes a hook removes its entry from the settings in the same sync, and a project whose bundle lacks a file its settings name is blocked until the owner syncs. `guard-git` and `guard-outside` block the same way with exit 2.
 
 If `bun` is missing from `PATH`, the wrapper prints:
 
@@ -331,19 +352,14 @@ The shipped hook scripts exit 2 on internal errors.
 `guard-writes` reports:
 
 ```text
-vulcan: the guard-writes hook failed (...) - blocked; run bun install
+vulcan: the guard-writes hook failed (...) - blocked; the owner runs bun node_modules/.bin/vulcan sync
 ```
 
-When `node_modules` or `bun` is missing, or the hook crashes, the Bash safety hooks (`guard-writes`) let `bun install` or `bun i` through; the agent can then repair the install.
-Both forms accept the usual flags: `--frozen-lockfile`, `--production`, `-p`, `--no-save`, `--ignore-scripts`, `--force`, `--verbose`, or `--silent`.
-
-When `node_modules` is missing, `guard-writes` exits 2 on other commands, while `bun install` exits 0:
+When the bundle is missing, `guard-writes` exits 2 on every command, `bun install` and `vulcan sync` included, and says who repairs it:
 
 ```text
 $ CLAUDE_PROJECT_DIR=/nonexistent sh -c "<the PreToolUse guard-writes command from .claude/settings.json>"
-vulcan: the guard-writes hook cannot run: node_modules/@venizia/vulcan is missing - run bun install (the one command that passes until then)
-
-$ same, with the input {"tool_name":"Bash","tool_input":{"command":"bun install"}}
+vulcan: the guard-writes hook cannot run: .agents/local/hooks/guard-writes.js is missing - the owner runs bun node_modules/.bin/vulcan sync, outside the agent session
 ```
 
 The parse-failure behavior differs per hook.
@@ -392,10 +408,9 @@ omp and pi take extensions instead of hook commands, so `vulcan sync` writes one
 | `deny` | the call is blocked with the guard's reason |
 | `ask` | the owner is asked; with no UI (a print-mode run) the call is blocked and says to hand it to the owner |
 | no output | the call runs |
-| a safety guard (`guard-writes`) that crashes, times out (30 s) or whose script is missing with no installed package | blocked, bar a bare `bun install` when the install is missing |
-| `guard-writes` whose script is missing from an installed package (its `package.json` is there) | the call runs |
+| a safety guard (`guard-writes`) that crashes, times out (30 s) or whose bundle file is missing | blocked |
 | `guard-git` or `guard-outside` that crashes or times out | asks, as the Claude wrappers do; blocked where every ask is held (`guard.asks`, `VULCAN_GUARD_ASKS`, a manifest that cannot be read) |
-| `guard-git` or `guard-outside` whose script is missing, with the package installed or not | blocked, bar `bun install` and `vulcan sync`; `guard-git` only for a `git` or `gh` line |
+| `guard-git` or `guard-outside` whose bundle file is missing | blocked, and no repair command passes; `guard-git` only for a `git` or `gh` line |
 
 `VULCAN_GUARDS=off` is read by the guard scripts, so it switches the guards off here too.
 

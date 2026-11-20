@@ -17,6 +17,8 @@ bun.lockb
 # Build and Compilation Output
 # These files are generated from source code and don't need to be in version control.
 dist/
+# The built hooks of @venizia/vulcan: made by make build, shipped in the package.
+packages/cli/base/bundle/
 release/
 # The release scripts are source, not build output: without this line a new file there is silently ignored.
 !/scripts/release/

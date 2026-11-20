@@ -641,10 +641,12 @@ describe("the layout: on-demand folders, release candidates, events and a browse
   test('agents, events and release-candidates are layout folders that sync does not create', () => {
     const layoutNames = ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name);
 
-    expect(layoutNames).toEqual(expect.arrayContaining(['agents', 'events', 'release-candidates']));
+    expect(layoutNames).toEqual(
+      expect.arrayContaining(['agents', 'events', 'hooks', 'release-candidates']),
+    );
     expect(
       ProjectLayout.LOCAL_LAYOUT.filter((entry) => 'onDemand' in entry).map((entry) => entry.name),
-    ).toEqual(['agents', 'events', 'release-candidates']);
+    ).toEqual(['agents', 'events', 'hooks', 'release-candidates']);
   });
 
   test('a release candidate is removable once its version is tagged, kept until then, and never in --all', () => {

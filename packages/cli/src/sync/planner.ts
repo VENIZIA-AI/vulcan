@@ -17,6 +17,7 @@ import type { TResolvedConfig } from '../config/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
 import { RuleSlots } from '../rules/index.ts';
 import { AgentFiles } from './agent-files.ts';
+import { HooksBundle } from './hooks-bundle.ts';
 import { SyncConstants, SyncLinks, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
 import { isSettingsObject, ProjectSettings } from './settings.ts';
@@ -293,6 +294,21 @@ export class SyncPlanner {
       : { path, status: SyncStatuses.REPLACED, apply: write };
   }
 
+  /** The `hooks` block of the manifest on disk: the sums this project was synced with, or `undefined`. */
+  static recordedHooks(opts: { root: string }): unknown {
+    try {
+      const parsed: unknown = JSON.parse(
+        readFileSync(join(opts.root, ManifestConstants.FILE), 'utf8'),
+      );
+
+      return typeof parsed === 'object' && parsed !== null
+        ? Object.fromEntries(Object.entries(parsed))['hooks']
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   /** Every adapter the project's agents need, and the manifest every project carries - planned, not written. */
   static plan(opts: {
     root: string;
@@ -301,6 +317,11 @@ export class SyncPlanner {
     agents: string[];
   }): ISyncAction[] {
     return [
+      // The hooks are copied before any settings file that points at them is written.
+      ...HooksBundle.plan({
+        root: opts.root,
+        previous: SyncPlanner.recordedHooks({ root: opts.root }),
+      }),
       ...(opts.agents.includes(CodingAgents.CLAUDE)
         ? [planClaudeImport({ root: opts.root }), planSettings(opts)]
         : []),

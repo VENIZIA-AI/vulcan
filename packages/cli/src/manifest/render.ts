@@ -7,6 +7,7 @@ import { ProjectPackages } from '../config/index.ts';
 import { GuardDecisions } from '../hooks/common/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules } from '../rules/index.ts';
+import { HooksBundle } from '../sync/hooks-bundle.ts';
 import { ThemeTokens } from '../theme/index.ts';
 
 export class ManifestConstants {
@@ -54,6 +55,31 @@ const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<strin
   };
 
   return Object.keys(block).length === 0 ? {} : { guard: block };
+};
+
+/**
+ * The hook bundle `vulcan sync` copies into `.agents/local/hooks`: its version and the sha256 of each file, as the package ships them.
+ * Where the manifest already records other sums for the same version they stay, and sync copies nothing. A package with no bundle writes none.
+ */
+const hooksBlockOf = (opts: { root: string }): { hooks?: Record<string, unknown> } => {
+  let previous: unknown;
+
+  try {
+    const parsed: unknown = JSON.parse(
+      readFileSync(join(opts.root, ManifestConstants.FILE), 'utf8'),
+    );
+
+    previous =
+      typeof parsed === 'object' && parsed !== null
+        ? Object.fromEntries(Object.entries(parsed))['hooks']
+        : undefined;
+  } catch {
+    previous = undefined;
+  }
+
+  const block = HooksBundle.manifestBlock({ previous });
+
+  return block === undefined ? {} : { hooks: block };
 };
 
 const commitBlockOf = (opts: { config: TResolvedConfig }): { commit?: Record<string, unknown> } => {
@@ -255,6 +281,8 @@ export class ProjectManifest {
         project: ManifestConstants.PROJECT_RULES,
         base: ProjectManifest.buildBaseRuleHashes({ packs: config.packs }),
       },
+      // The hooks the guards run, copied into .agents/local/hooks: the version and the sha256 of each file.
+      ...hooksBlockOf({ root: opts.root }),
       // The sources this project reads knowledge from (atlas, git mode); a project without any carries none.
       ...(config.atlas.sources.length === 0 ? {} : { sources: config.atlas.sources }),
       // The prebuilt index: the keys a published pair is checked with, and the switch; neither set, nothing is written.

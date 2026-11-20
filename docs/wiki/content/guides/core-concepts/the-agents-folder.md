@@ -26,6 +26,7 @@ description: What lives in .agents, which parts git tracks, which parts are loca
     ├── prototypes/                     throwaway prototypes and vulcan visualize pages
     ├── agents/                         one agent's own state: notes, staged copies, scratch that outlives a session (on demand)
     ├── events/                         the agent event log (on demand)
+    ├── hooks/                          the hook bundle the guards run, copied by vulcan sync (read-only)
     ├── release-candidates/             builds made to test a release (on demand)
     ├── profile.json                    how you like to work (vulcan profile)
     ├── claude.launch.settings.json     the file to start Claude Code with (vulcan sync)
@@ -59,6 +60,7 @@ Every folder of `local/` has a lifetime, and one command takes it back. `vulcan 
 | `prototypes/` | by `sync` | You delete it | `vulcan clean --prototypes` |
 | `agents/` | on first write | You delete it | Nothing: `vulcan clean` never takes it |
 | `events/` | on first write | You delete it | `vulcan clean --events` |
+| `hooks/` | by `vulcan sync`, run by the owner | `vulcan sync` writes it again | Nothing: `vulcan clean` never takes it |
 | `release-candidates/` | on first write | The release ships | `vulcan clean --release-candidates`, tagged versions only |
 
 About two of these rows:
