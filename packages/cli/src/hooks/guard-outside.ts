@@ -112,7 +112,39 @@ type TProtectedMode = 'file' | 'removal' | 'folder' | 'put';
  * the guards missing and the call blocked until `bun install`. A folder written into with names this check cannot tell (`tar -C`,
  * `cp -a dir/. folder`, `find folder -delete`) is protected when it holds one of them, is inside the installed package, or is the root.
  */
-const isProtectedFile = (opts: { path: string; root: string; mode: TProtectedMode }): boolean => {
+/** Where the installed package really is, when `node_modules/@venizia/vulcan` is a link into `node_modules` (Bun's store): that tree, and the folders above it. */
+interface IPackageStore {
+  tree: string;
+  parents: string[];
+}
+
+/**
+ * The real place of the installed package when it is a copy under `node_modules` and not where its link stands, or `undefined`. A link to a
+ * source folder (a workspace, this repository) is the project's own code, which an agent develops: it is not protected as the store is.
+ */
+const packageStoreOf = (opts: { root: string }): IPackageStore | undefined => {
+  const link = join(opts.root, 'node_modules', '@venizia', 'vulcan');
+  const real = realOf({ path: link });
+
+  if (real === undefined || real === link || !real.startsWith(`${opts.root}/node_modules/`)) {
+    return undefined;
+  }
+
+  const parts = real
+    .slice(opts.root.length + 1)
+    .toLowerCase()
+    .split('/');
+  const parents = parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).join('/'));
+
+  return { tree: parts.join('/'), parents: parents.filter((parent) => parent !== 'node_modules') };
+};
+
+const isProtectedFile = (opts: {
+  path: string;
+  root: string;
+  mode: TProtectedMode;
+  store?: IPackageStore;
+}): boolean => {
   if (opts.mode === 'folder' && opts.path === opts.root) {
     return true;
   }
@@ -126,6 +158,26 @@ const isProtectedFile = (opts: { path: string; root: string; mode: TProtectedMod
   const globs = HookConstants.PROTECTED_FILES.map((pattern) => pattern.toLowerCase());
 
   if (globs.some((pattern) => new Bun.Glob(pattern).match(relative))) {
+    return true;
+  }
+
+  // The real place of the package: it, and what is under it, is the package whatever the link says; the folders above it are replaced as the ones above the link are.
+  const { store } = opts;
+
+  if (store !== undefined) {
+    if (relative === store.tree || relative.startsWith(`${store.tree}/`)) {
+      return true;
+    }
+
+    if ((opts.mode === 'put' || opts.mode === 'folder') && store.parents.includes(relative)) {
+      return true;
+    }
+  }
+
+  if (
+    (opts.mode === 'put' || opts.mode === 'folder') &&
+    ['node_modules/.bun', 'node_modules/.bin'].includes(relative)
+  ) {
     return true;
   }
 
@@ -249,6 +301,7 @@ export class OutsideGuard {
     const env = opts.env ?? process.env;
     const home = opts.home ?? env.HOME ?? '';
     const root = realOf({ path: resolve(opts.projectRoot) }) ?? resolve(opts.projectRoot);
+    const store = packageStoreOf({ root });
     const patterns = allowPatterns({
       patterns: [...HookConstants.TOOL_OWNED_PATHS, ...(opts.toolOwnedPaths ?? [])],
       home,
@@ -549,8 +602,8 @@ export class OutsideGuard {
               : 'file';
 
       if (
-        isProtectedFile({ path, root, mode }) ||
-        isProtectedFile({ path: resolve(written), root, mode })
+        isProtectedFile({ path, root, mode, store }) ||
+        isProtectedFile({ path: resolve(written), root, mode, store })
       ) {
         hits.push({
           path,

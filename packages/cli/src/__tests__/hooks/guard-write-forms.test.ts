@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { OutsideGuard } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -399,5 +399,107 @@ describe('an in-place edit, an extraction and a git init are writes', () => {
     'git -C dist init',
   ])('%s passes', (command) => {
     expect(isSilent(command)).toBe(true);
+  });
+});
+
+describe("Bun's own copy of the installed package, and the bin the owner runs", () => {
+  const STORE = 'node_modules/.bun/@venizia+vulcan@1';
+  const PACKAGE = `${STORE}/node_modules/@venizia/vulcan`;
+  /** A project laid out as Bun does: the package a link in node_modules/@venizia points into node_modules/.bun. */
+  const linked = (): string => {
+    const base = createProject({ files: { 'package.json': '{}' } });
+
+    mkdirSync(join(base, PACKAGE, 'base', 'hooks'), { recursive: true });
+    mkdirSync(join(base, 'node_modules', '@venizia'), { recursive: true });
+    mkdirSync(join(base, 'node_modules', '.bin'), { recursive: true });
+    mkdirSync(join(base, 'dist'), { recursive: true });
+    symlinkSync(
+      '../.bun/@venizia+vulcan@1/node_modules/@venizia/vulcan',
+      join(base, 'node_modules', '@venizia', 'vulcan'),
+    );
+
+    return base;
+  };
+  const denied = (opts: { root: string; command: string }): boolean =>
+    hitsOf(opts).some((hit) => hit.isProtected === true);
+
+  const WRITES = [
+    `echo x > ${PACKAGE}/base/hooks/guard-outside.ts`,
+    `cp -r evil/@venizia/vulcan/. ${PACKAGE}`,
+    `rsync -a evil/ ${PACKAGE}/`,
+    'rsync -a evil/ node_modules/.bun/',
+    `rm -rf ${STORE} && mv evil/x ${STORE}`,
+    `rm -rf ${STORE} && cp -r evil ${STORE}`,
+    'mv evil/x node_modules/.bun',
+    'cp -r evil node_modules/.bun',
+    `tar xf e.tar -C ${STORE}`,
+    `tar xf e.tar -C ${PACKAGE}`,
+    'tar xf e.tar -C node_modules/.bun',
+    `unzip e.zip -d ${STORE}/node_modules/@venizia`,
+    `cd ${STORE} && tar xf ../../../e.tar`,
+    'cp -r evil/@venizia+vulcan@2 node_modules/.bun/',
+    `sed -i s/a/b/ ${PACKAGE}/base/hooks/guard-outside.ts`,
+    `rm ${PACKAGE}/base/hooks/guard-outside.ts`,
+    `find ${PACKAGE} -name '*.ts' -delete`,
+    'ln -sf ../../evil/cli.ts node_modules/.bin/vulcan',
+    'cp evil/cli.ts node_modules/.bin/vulcan',
+    'echo x > node_modules/.bin/vulcan',
+    'cp -r evil node_modules/.bin',
+    'mv evil node_modules/.bin',
+    'rsync -a evil/ node_modules/.bin/',
+    'tar xf e.tar -C node_modules/.bin',
+    'rm node_modules/.bin/vulcan',
+  ];
+
+  test.each(WRITES)('with the package linked into the store: %s is denied', (command) => {
+    expect(denied({ root: linked(), command })).toBe(true);
+  });
+
+  test.each(
+    WRITES.filter((command) => command.includes('@venizia+vulcan@1') || command.includes('.bin')),
+  )('with no link at all, the names still hold: %s is denied', (command) => {
+    const bare = createProject({ files: { 'package.json': '{}' } });
+
+    expect(denied({ root: bare, command })).toBe(true);
+  });
+
+  test.each([
+    'rm -rf node_modules/.bun',
+    'mv node_modules/.bun old',
+    'ln -s ../x node_modules/.bin/other',
+    'cp x node_modules/.bin/other',
+    'rsync -a dist/ node_modules/.cache/',
+    'echo x > node_modules/.bun/other@1/f',
+    'cp x node_modules/.bun/other@1/f',
+    `cat ${PACKAGE}/package.json`,
+    `ls ${STORE}`,
+    'bun node_modules/.bin/vulcan sync',
+  ])('%s passes', (command) => {
+    expect(denied({ root: linked(), command })).toBe(false);
+  });
+
+  test('a link to a source folder of a workspace is the project own code: only the link path is protected', () => {
+    const base = createProject({
+      files: { 'package.json': '{}', 'libs/guards/src/hooks.ts': 'x' },
+    });
+
+    mkdirSync(join(base, 'node_modules', '@venizia'), { recursive: true });
+    symlinkSync('../../libs/guards', join(base, 'node_modules', '@venizia', 'vulcan'));
+
+    for (const command of [
+      'echo x > libs/guards/src/hooks.ts',
+      'cp x libs/guards/src/',
+      'rm -rf libs/guards/src/*',
+      'sed -i s/a/b/ libs/guards/src/hooks.ts',
+    ]) {
+      expect(denied({ root: base, command }), command).toBe(false);
+    }
+
+    for (const command of [
+      'echo x > node_modules/@venizia/vulcan/src/hooks.ts',
+      'rsync -a evil/ node_modules/@venizia/',
+    ]) {
+      expect(denied({ root: base, command }), command).toBe(true);
+    }
   });
 });
