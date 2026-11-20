@@ -2,7 +2,8 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
-import { OutsideGuard } from '../../hooks/index.ts';
+import { HookConstants, OutsideGuard } from '../../hooks/index.ts';
+import { CLAUDE_LAUNCH_FILE } from '../../sync/claude-launch.ts';
 import { fileToolEvent, toolEvent } from '../hook-event.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -17,6 +18,7 @@ const PROTECTED = [
   '.configs/vulcan.config.ts',
   '.claude/settings.json',
   '.claude/settings.local.json',
+  '.agents/local/claude.launch.settings.json',
   'node_modules/@venizia/vulcan/base/hooks/guard-outside.ts',
   'node_modules/@venizia/vulcan/package.json',
 ];
@@ -74,6 +76,10 @@ const protectedHitsOf = (opts: { root: string; command: string }) =>
 
 describe('guard-outside denies a write to a file the guards read their policy from', () => {
   const root = project();
+
+  test('the launch file `vulcan sync` writes for `claude --settings` is on the list', () => {
+    expect(HookConstants.PROTECTED_FILES).toContain(CLAUDE_LAUNCH_FILE);
+  });
 
   test.each(PROTECTED.flatMap((path) => FORMS.map(([form, make]) => ({ path, form, make }))))(
     '$form on $path',

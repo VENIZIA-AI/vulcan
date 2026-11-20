@@ -34,15 +34,15 @@ export class HookConstants {
   static readonly MANIFEST_UNREADABLE =
     'The manifest .agents/vulcan.manifest.json exists but cannot be read, so every call that would need a human to confirm it is denied. Nothing was run: the owner repairs the file or runs bun node_modules/.bin/vulcan sync.';
   /**
-   * The files the guards read their policy from, relative to the project root: the manifest, the config, Claude Code's
-   * project settings and the installed package with its hooks. An agent that can write one can switch a guard off, so
-   * guard-outside denies a write to any of them; the owner changes them by hand, or through `vulcan sync`.
+   * The files the guards read their policy from (the manifest, the config, Claude Code's project and launch settings, the installed package):
+   * an agent that can write one can switch a guard off, so guard-outside denies it; the owner changes them by hand or through `vulcan sync`.
    */
   static readonly PROTECTED_FILES = [
     '.agents/vulcan.manifest.json',
     '.configs/vulcan.config.*',
     '.claude/settings.json',
     '.claude/settings.local.json',
+    '.agents/local/claude.launch.settings.json',
     'node_modules/@venizia/vulcan',
     'node_modules/@venizia/vulcan/**',
   ];

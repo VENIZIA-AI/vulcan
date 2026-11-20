@@ -75,6 +75,23 @@ interface IAnswer {
 const PACKAGE_DIRECTORY = join('node_modules', '@venizia', 'vulcan');
 const HOOKS_DIRECTORY = join(PACKAGE_DIRECTORY, 'base', 'hooks');
 const TIMEOUT_MS = 30_000;
+
+/** The variables a guard does not inherit: a copy of `src/hooks/loader-environment.ts` (this file imports only node: modules); a test holds them equal. */
+class LoaderNames {
+  static readonly WHOLE = ['BUN_OPTIONS', 'NODE_OPTIONS'];
+  static readonly PREFIXES = ['BUN_CONFIG_', 'BUN_INSPECT'];
+}
+
+const withoutLoaderNames = (opts: {
+  env: Record<string, string | undefined>;
+}): Record<string, string | undefined> =>
+  Object.fromEntries(
+    Object.entries(opts.env).filter(
+      ([name]) =>
+        !LoaderNames.WHOLE.includes(name) &&
+        !LoaderNames.PREFIXES.some((prefix) => name.startsWith(prefix)),
+    ),
+  );
 /** The commands that pass while the install is missing or out of step: they are how it is repaired (`bun install`, `vulcan sync`). */
 const REPAIR =
   /^\s*(bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*|bun node_modules\/\.bin\/vulcan sync( --?[a-z][a-z-]*( [\w./@-]+)?)*)\s*$/;
@@ -250,7 +267,7 @@ const runGuard = (opts: {
     input: JSON.stringify(opts.claudeEvent),
     encoding: 'utf8',
     timeout: TIMEOUT_MS,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: opts.root },
+    env: { ...withoutLoaderNames({ env: process.env }), CLAUDE_PROJECT_DIR: opts.root },
   });
 
   if (result.error !== undefined && 'code' in result.error && result.error.code === 'ENOENT') {

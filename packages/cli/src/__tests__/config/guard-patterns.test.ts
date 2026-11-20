@@ -70,6 +70,26 @@ describe('claude.settings.env', () => {
     expect(JSON.stringify(result.error?.issues)).toContain(name);
   });
 
+  test.each([
+    'BUN_OPTIONS',
+    'NODE_OPTIONS',
+    'BUN_CONFIG_REGISTRY',
+    'BUN_CONFIG_VERBOSE_FETCH',
+    'BUN_INSPECT',
+    'BUN_INSPECT_CONNECT_TO',
+  ])('refuses %s: bun loads it before a guard runs, and every hook inherits this env', (name) => {
+    const result = parseEnv({ [name]: '--preload=./x.ts' });
+
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result.error?.issues)).toContain(name);
+  });
+
+  test('takes the other BUN_ and NODE_ names, and settings with no env', () => {
+    expect(parseEnv({ BUN_INSTALL: '/x', NODE_ENV: 'test', MY_BUN_OPTIONS: '1' }).success).toBe(
+      true,
+    );
+  });
+
   test('takes the other variables, and settings with no env', () => {
     expect(parseEnv({ MY_FLAG: '1', VULCAN_ACTOR: 'a' }).success).toBe(true);
     expect(

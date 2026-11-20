@@ -629,7 +629,7 @@ The `guard` object configures the write guards.
 
 ### claude.settings.env
 
-`claude.settings` is merged into `.claude/settings.json`. An `env` there that names a `VULCAN_GUARD*` variable (`VULCAN_GUARD_ASKS`, `VULCAN_GUARD_OUTSIDE`, `VULCAN_GUARDS`) is refused, and so is the sync: those variables are the owner's choice and belong in the environment that launches the agent, not in a project file. Other variables are not affected.
+`claude.settings` is merged into `.claude/settings.json`. An `env` there that names a `VULCAN_GUARD*` variable (`VULCAN_GUARD_ASKS`, `VULCAN_GUARD_OUTSIDE`, `VULCAN_GUARDS`) is refused, and so is the sync: those variables are the owner's choice and belong in the environment that launches the agent, not in a project file. An `env` that names `BUN_OPTIONS`, `NODE_OPTIONS`, a `BUN_CONFIG_*` or a `BUN_INSPECT*` variable is refused too: Claude Code gives that `env` to every hook, and bun loads `BUN_OPTIONS=--preload=...` before a guard runs (see [the loader variables the hooks remove](/references/hooks/#the-loader-variables-the-hooks-remove)). Other variables are not affected.
 
 ### guard.toolOwnedPaths
 

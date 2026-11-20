@@ -78,7 +78,9 @@ export class RunnersCheck {
   }
 
   static scan(opts: { root: string }): IRunnersScan {
-    const { runnersAllow } = ProjectGuards.readPolicy({ root: opts.root });
+    // The check lists what git tracks, so its answer must not depend on who runs it: the project's own list
+    // counts whatever the launch environment holds (the live hook ignores the list there).
+    const { runnersAllow } = ProjectGuards.readPolicy({ root: opts.root, env: {} });
     const findings: IRunnerFinding[] = [];
     let examples = 0;
 

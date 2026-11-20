@@ -2,6 +2,7 @@ import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -1033,5 +1034,99 @@ describe('shipped hooks fail closed', () => {
 
     expect(result.code).toBe(2);
     expect(result.stderr).toContain('guard-writes');
+  });
+});
+
+describe('BUN_OPTIONS, NODE_OPTIONS and BUN_CONFIG_* do not reach a Claude hook', () => {
+  const LOADER = {
+    BUN_OPTIONS: '',
+    NODE_OPTIONS: '--max-old-space-size=256',
+    BUN_CONFIG_REGISTRY: 'https://registry.example.test',
+    BUN_CONFIG_VERBOSE_FETCH: 'curl',
+  };
+  const NAMES_SEEN = /^(BUN_OPTIONS|NODE_OPTIONS|BUN_CONFIG_)/;
+
+  /**
+   * A project whose five guard scripts record which of those names they inherit, and whose preload file writes a marker:
+   * `BUN_OPTIONS=--preload=<it>` runs it before any script bun starts, unless the wrapper took the name out.
+   */
+  const probed = (): {
+    root: string;
+    seen: string;
+    marker: string;
+    env: Record<string, string>;
+  } => {
+    const root = makeRoot();
+    const hooks = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+    const seen = join(root, 'seen.txt');
+    const marker = join(root, 'preload-ran.txt');
+
+    mkdirSync(hooks, { recursive: true });
+    writeFileSync(
+      join(root, 'preload.ts'),
+      `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'ran');\n`,
+    );
+
+    for (const name of [
+      'guard-writes',
+      'guard-git',
+      'guard-outside',
+      'session-start',
+      'subagent-start',
+    ]) {
+      writeFileSync(
+        join(hooks, `${name}.ts`),
+        `require('node:fs').appendFileSync(${JSON.stringify(seen)}, Object.keys(process.env).filter((n) => ${NAMES_SEEN}.test(n)).join(',') + '\\n');\n`,
+      );
+    }
+
+    return {
+      root,
+      seen,
+      marker,
+      env: { ...LOADER, BUN_OPTIONS: `--preload=${join(root, 'preload.ts')}` },
+    };
+  };
+
+  test('the control: bare bun with the variable runs the preload, so the test can fail', () => {
+    const { root, marker, env } = probed();
+
+    runHook({ command: 'bun --no-env-file --config=/dev/null -e 0', root, env });
+
+    expect(existsSync(marker)).toBe(true);
+  });
+
+  test.each(
+    shippedHooks().map((hook) => [/hooks\/([\w-]+)\.ts/.exec(hook.command)?.[1] ?? '', hook]),
+  )(
+    '%s: the guard script starts with none of the names and the preload does not run',
+    (_name, hook) => {
+      const { root, seen, marker, env } = probed();
+      const result = runHook({ command: hook.command, root, env, stdin: BASH_INPUT('ls') });
+
+      expect(result.code).toBe(0);
+      expect(existsSync(marker)).toBe(false);
+      expect(readFileSync(seen, 'utf8').trim()).toBe('');
+    },
+  );
+
+  test('the manifest check of a crash answer does not run the preload either', () => {
+    const { root, marker, env } = probed();
+    const hooks = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{ nope');
+
+    for (const name of ['guard-git', 'guard-outside']) {
+      writeFileSync(join(hooks, `${name}.ts`), 'process.exit(3);');
+    }
+
+    for (const name of ['guard-git', 'guard-outside']) {
+      const [hook] = shippedHooks().filter((item) => item.command.includes(`${name}.ts`));
+      const result = runHook({ command: hook.command, root, env, stdin: BASH_INPUT('git status') });
+
+      expect(result.stdout).toContain('"permissionDecision":"deny"');
+      expect(existsSync(marker), name).toBe(false);
+    }
   });
 });

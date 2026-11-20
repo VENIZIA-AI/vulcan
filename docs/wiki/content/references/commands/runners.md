@@ -66,8 +66,7 @@ A line in a Markdown file can show a refused command, such as a page that warns 
 ## Common errors
 
 - A finding on a line of a script or a workflow: Replace the runner with `bun node_modules/.bin/<bin>` from the project root, or a make target. If the package has no linked bin yet, add it to the project's dependencies so `bun install` links it.
-- A finding on a name you trust, such as `shadcn`: Add the name to `guard.runners.allow` of `.configs/vulcan.config.mts` and run `vulcan sync`; the check reads it from the manifest.
-- The same name is a finding in your shell and passes in CI: `VULCAN_GUARD_ASKS=deny` or `VULCAN_GUARD_OUTSIDE=deny` in the environment makes the policy ignore `guard.runners.allow`. Unset it for the check, or drop the name from the file.
+- A finding on a name you trust, such as `shadcn`: Add the name to `guard.runners.allow` of `.configs/vulcan.config.mts` and run `vulcan sync`; the check reads it from the manifest, whatever `VULCAN_GUARD_ASKS` and `VULCAN_GUARD_OUTSIDE` hold in your shell. The live hook does not: where either is `deny`, it ignores that list.
 - A finding in a Markdown page that warns against the command: Mark it with `<!-- runners: example -->`.
 - `vulcan runners: git ls-files failed in ...`: Run it from the root of a git repository.
 - `usage: vulcan runners check`: You gave another subcommand or an option.
