@@ -208,3 +208,217 @@ describe('guard-git runs the pin check', () => {
     expect(answerOf({ VULCAN_GUARD_ASKS: 'deny' })).toContain('"permissionDecision":"deny"');
   });
 });
+
+const gitOut = (opts: { root: string; args: string[] }): string => {
+  const result = Bun.spawnSync(['git', ...opts.args], { cwd: opts.root });
+
+  return result.stdout.toString().trim();
+};
+
+/** A branch `topic` that changes the sums, and one `quiet` that changes something else; the project stays on main. */
+const withBranches = (): string => {
+  const root = project();
+
+  git({ root, args: ['checkout', '-q', '-b', 'quiet'] });
+  writeFileSync(join(root, 'src', 'a.ts'), 'quiet\n');
+  git({ root, args: ['commit', '-q', '-am', 'quiet change'] });
+  git({ root, args: ['checkout', '-q', 'main'] });
+  git({ root, args: ['checkout', '-q', '-b', 'topic'] });
+  writeFileSync(manifestPath(root), withNewSum(root));
+  git({ root, args: ['commit', '-q', '-am', 'new sums'] });
+  git({ root, args: ['checkout', '-q', 'main'] });
+
+  return root;
+};
+
+const decisionsOf = (opts: { root: string; command: string }): string[] =>
+  HooksPin.inspectCommand({ command: opts.command, cwd: opts.root }).map((hit) => hit.decision);
+
+describe('git plumbing and an alias on the command line are denied', () => {
+  test.each([
+    'git replace HEAD~0 HEAD',
+    'git replace -d abc',
+    'git update-ref refs/heads/x HEAD',
+    'git update-ref -d refs/heads/x',
+    'git commit-tree HEAD^{tree} -m x',
+    'git symbolic-ref HEAD refs/heads/x',
+    'git -C . replace a b',
+    'cd . && git update-ref refs/heads/x HEAD',
+    'git -c alias.ci=commit ci -am x',
+    'git -c Alias.x=!sh x',
+    'git -c user.name=a -c alias.s=status s',
+  ])('%s is denied', (command) => {
+    expect(decisionsOf({ root: project(), command })).toEqual(['deny']);
+  });
+
+  test.each(['git -c user.name=a commit -m x', 'git -c core.pager=cat log -1', 'git status'])(
+    '%s is not',
+    (command) => {
+      expect(decisionsOf({ root: project(), command })).not.toContain('deny');
+    },
+  );
+});
+
+describe('an alias of the repository is resolved', () => {
+  test('an alias of commit is read as a commit, and a shell alias asks', () => {
+    const root = project();
+
+    writeFileSync(manifestPath(root), withNewSum(root));
+    git({ root, args: ['add', '.agents/vulcan.manifest.json'] });
+    git({ root, args: ['config', 'alias.ci', 'commit'] });
+    git({ root, args: ['config', 'alias.sh', '!sh -c true'] });
+
+    expect(decisionsOf({ root, command: 'git ci -m x' })).toEqual(['ask']);
+    expect(decisionsOf({ root, command: 'git sh' })).toEqual(['ask']);
+    expect(decisionsOf({ root, command: 'git status' })).toEqual([]);
+  });
+
+  test('an alias with arguments keeps them: commit -a', () => {
+    const root = project();
+
+    writeFileSync(manifestPath(root), withNewSum(root));
+    git({ root, args: ['config', 'alias.cia', 'commit -a'] });
+
+    expect(decisionsOf({ root, command: 'git cia -m x' })).toEqual(['ask']);
+  });
+});
+
+describe('a line that stages and then commits is judged by the working tree', () => {
+  test.each([
+    'git add -A && git commit -m x',
+    'git add .agents && git commit -m x',
+    'git add .agents/vulcan.manifest.json; git commit -m x',
+    'git add -A && git commit --amend --no-edit',
+    'git rm -q src/a.ts && git commit -m x',
+    'git update-index --add .agents/vulcan.manifest.json && git commit -m x',
+  ])('%s asks when the working tree changes the sums', (command) => {
+    const root = project();
+
+    writeFileSync(manifestPath(root), withNewSum(root));
+
+    expect(decisionsOf({ root, command })).toEqual(['ask']);
+  });
+
+  test('and passes when it does not', () => {
+    const root = project();
+
+    writeFileSync(join(root, 'src', 'a.ts'), 'changed\n');
+
+    expect(decisionsOf({ root, command: 'git add -A && git commit -m x' })).toEqual([]);
+    expect(decisionsOf({ root, command: 'git add src && git commit -m x' })).toEqual([]);
+  });
+});
+
+describe('a command that moves HEAD to a commit with other sums asks', () => {
+  test.each([
+    'git merge topic',
+    'git merge --no-edit topic',
+    'git cherry-pick topic',
+    'git revert topic',
+    'git rebase topic',
+    'git checkout topic',
+    'git switch topic',
+    'git reset --hard topic',
+    'git reset topic',
+    'git checkout topic -- .',
+  ])('%s asks', (command) => {
+    expect(decisionsOf({ root: withBranches(), command })).toEqual(['ask']);
+  });
+
+  test.each([
+    'git merge quiet',
+    'git cherry-pick quiet',
+    'git rebase quiet',
+    'git checkout quiet',
+    'git switch quiet',
+    'git reset --hard quiet',
+    'git checkout main',
+    'git checkout -b newbranch',
+    'git switch -c newbranch',
+    'git reset --hard HEAD',
+    'git rebase --continue',
+    'git merge --abort',
+    'git cherry-pick --continue',
+    'git revert --abort',
+    'git status',
+    'git log topic',
+    'git diff topic',
+  ])('%s passes', (command) => {
+    expect(decisionsOf({ root: withBranches(), command })).toEqual([]);
+  });
+
+  test('a target that cannot be read asks: a ref that is not there, a range, a mailbox, a pull with nothing fetched', () => {
+    const root = withBranches();
+
+    for (const command of [
+      'git merge nowhere',
+      'git cherry-pick topic~1..topic',
+      'git am some.patch',
+      'git pull',
+      'git rebase nowhere',
+    ]) {
+      expect(decisionsOf({ root, command }), command).toEqual(['ask']);
+    }
+  });
+
+  test('a pull reads FETCH_HEAD: sums that differ ask, the same sums pass', () => {
+    const root = withBranches();
+
+    git({ root, args: ['fetch', '-q', '.', 'topic'] });
+    expect(decisionsOf({ root, command: 'git pull' })).toEqual(['ask']);
+
+    git({ root, args: ['fetch', '-q', '.', 'quiet'] });
+    expect(decisionsOf({ root, command: 'git pull' })).toEqual([]);
+  });
+
+  test('the change a branch brings is measured from the merge base: a change the current branch made itself is not new', () => {
+    const root = withBranches();
+
+    git({ root, args: ['merge', '-q', '--no-edit', 'topic'] });
+    git({ root, args: ['checkout', '-q', 'quiet'] });
+    git({ root, args: ['merge', '-q', '--no-edit', 'main'] });
+
+    // quiet now holds the new sums; merging main again brings nothing new in.
+    expect(decisionsOf({ root, command: 'git merge main' })).toEqual([]);
+  });
+});
+
+describe('a replaced object does not hide a change', () => {
+  test('with the manifest at HEAD replaced by another blob, a commit of the working tree still asks', () => {
+    const root = project();
+    const original = gitOut({ root, args: ['rev-parse', `HEAD:.agents/vulcan.manifest.json`] });
+    const forged = withNewSum(root);
+
+    writeFileSync(manifestPath(root), forged);
+    git({ root, args: ['add', '.agents/vulcan.manifest.json'] });
+
+    const blob = gitOut({ root, args: ['rev-parse', ':.agents/vulcan.manifest.json'] });
+
+    // Without the protection, HEAD would read as the forged manifest and the commit would change nothing.
+    git({ root, args: ['replace', original, blob] });
+
+    expect(gitOut({ root, args: ['show', 'HEAD:./.agents/vulcan.manifest.json'] })).toBe(
+      forged.trim(),
+    );
+    expect(decisionsOf({ root, command: 'git commit -a -m x' })).toEqual(['ask']);
+  });
+});
+
+describe('guard-git denies the plumbing through the hook', () => {
+  test('git replace is a deny, with or without guard.asks', () => {
+    const root = project();
+    const answer = Bun.spawnSync(
+      [process.execPath, join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-git.ts')],
+      {
+        cwd: root,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: root, VULCAN_GUARD_ASKS: '' },
+        stdin: new Blob([
+          `{"tool_name":"Bash","tool_input":{"command":"git replace HEAD HEAD~0"},"cwd":"${root}"}`,
+        ]),
+      },
+    ).stdout.toString();
+
+    expect(answer).toContain('"permissionDecision":"deny"');
+    expect(answer).toContain('rewrites an object or a ref by hand');
+  });
+});

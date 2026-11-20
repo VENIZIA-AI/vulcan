@@ -643,6 +643,62 @@ describe('a bundle runs only if it is the one the manifest at HEAD records', () 
     expect(existsSync(marker)).toBe(false);
   });
 
+  test('a replaced object does not put another manifest under HEAD: git replace of the manifest blob is not trusted', () => {
+    const root = synced();
+    const file = join(root, '.agents', 'local', 'hooks', 'guard-outside.js');
+    const path = join(root, '.agents', 'vulcan.manifest.json');
+    const original = Bun.spawnSync(['git', 'rev-parse', 'HEAD:.agents/vulcan.manifest.json'], {
+      cwd: root,
+    })
+      .stdout.toString()
+      .trim();
+
+    chmodSync(file, 0o644);
+    writeFileSync(file, '// the agent was here\nprocess.exit(0);\n');
+
+    const manifest = JSON.parse(readFileSync(path, 'utf8'));
+
+    manifest.hooks.sha256['guard-outside.js'] = new Bun.CryptoHasher('sha256')
+      .update(readFileSync(file))
+      .digest('hex');
+    writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    const forged = Bun.spawnSync(['git', 'hash-object', '-w', '.agents/vulcan.manifest.json'], {
+      cwd: root,
+    })
+      .stdout.toString()
+      .trim();
+
+    gitIn({ root, args: ['replace', original, forged] });
+
+    // The replacement is there: a plain `git show` would now read the forged manifest.
+    expect(
+      Bun.spawnSync(['git', 'show', 'HEAD:./.agents/vulcan.manifest.json'], {
+        cwd: root,
+      }).stdout.toString(),
+    ).toContain(manifest.hooks.sha256['guard-outside.js']);
+
+    const result = runHook({ command: outside.command, root, stdin: BASH_INPUT('ls') });
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(REFUSAL);
+  });
+
+  test('the bytes that were hashed are the bytes that run: the hook runs from a private copy that is gone afterwards', () => {
+    const root = makeRoot();
+    const seen = join(root, 'ran-from.txt');
+    const probe = `require('node:fs').writeFileSync(${JSON.stringify(seen)}, import.meta.path);\n`;
+
+    installBundle({ root, bare: true, files: { 'guard-outside.js': probe } });
+    runHook({ command: outside.command, root, stdin: BASH_INPUT('ls') });
+
+    const ranFrom = readFileSync(seen, 'utf8');
+
+    expect(ranFrom).not.toContain('.agents/local/hooks');
+    expect(ranFrom).toContain('vulcan-hook-');
+    expect(existsSync(ranFrom)).toBe(false);
+  });
+
   test('the cost of the check: one git show and one hash beside the hook', () => {
     const root = synced();
     const run = (): number => {

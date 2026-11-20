@@ -13,16 +13,21 @@ export class BundleLoader {
 
   /** The script, with no single quote in it so a shell can hold it in single quotes. */
   static readonly SCRIPT = [
-    'const fs = require("node:fs"), cp = require("node:child_process"), c = require("node:crypto");',
+    'const fs = require("node:fs"), cp = require("node:child_process"), c = require("node:crypto"), os = require("node:os"), path = require("node:path");',
     'const f = process.env.VULCAN_HOOK_FILE ?? "", root = process.env.VULCAN_HOOK_ROOT ?? "", name = f.split("/").pop() ?? "";',
     'let want;',
-    'try { const g = cp.spawnSync("git", ["-C", root, "show", "HEAD:./.agents/vulcan.manifest.json"], { encoding: "utf8", timeout: 10000 });',
+    // A replaced object would put another blob under the name of the manifest at HEAD: ask git to ignore replacements.
+    'try { const g = cp.spawnSync("git", ["--no-replace-objects", "-C", root, "show", "HEAD:./.agents/vulcan.manifest.json"], { encoding: "utf8", timeout: 10000, env: { ...process.env, GIT_NO_REPLACE_OBJECTS: "1" } });',
     'const m = JSON.parse(g.stdout); const s = m && m.hooks && m.hooks.sha256; want = s && typeof s[name] === "string" ? s[name] : undefined; } catch {}',
-    'let got; try { got = c.createHash("sha256").update(fs.readFileSync(f)).digest("hex"); } catch {}',
+    'let bytes, got; try { bytes = fs.readFileSync(f); got = c.createHash("sha256").update(bytes).digest("hex"); } catch {}',
     'if (want === undefined || want !== got) {',
     'console.error("vulcan: the hook " + name + " is not the one the manifest at HEAD records (hooks.sha256), or there is no git or no committed manifest: the owner runs bun node_modules/.bin/vulcan sync and commits the manifest, outside the agent session");',
     'process.exit(97); }',
-    'await import(f);',
+    // The bytes that were hashed are the bytes that run: a private copy, so the file in the project cannot be swapped between the check and the import.
+    'const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vulcan-hook-")); const copy = path.join(dir, name);',
+    'process.on("exit", () => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} });',
+    'fs.writeFileSync(copy, bytes, { mode: 0o600 });',
+    'await import(copy);',
   ].join(' ');
 
   /** The shell words that run the file in `$f` through the script, for a wrapper whose project root is `root` (a shell expression). */
