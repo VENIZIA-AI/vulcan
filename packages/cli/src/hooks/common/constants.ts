@@ -43,6 +43,10 @@ export class HookConstants {
     '.claude/settings.json',
     '.claude/settings.local.json',
     '.agents/local/claude.launch.settings.json',
+    '.codex/hooks.json',
+    '.agents/hooks.json',
+    '.omp/hooks/pre/vulcan-guards.ts',
+    '.pi/extensions/vulcan-guards.ts',
     'node_modules/@venizia/vulcan',
     'node_modules/@venizia/vulcan/**',
   ];
