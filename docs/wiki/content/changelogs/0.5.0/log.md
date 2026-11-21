@@ -10,6 +10,9 @@ highlights:
 ---
 This release makes the guards read more of what an agent can do: more ways to write or delete a file they protect, more launchers of a package, and the package managers' ways of swapping in another `@venizia/vulcan`. A project that sets `BUN_OPTIONS`, `NODE_OPTIONS` or `BUN_CONFIG_*` in `claude.settings.env` must move them to the shell.
 
+## Added
+- **The `venizia` rule pack names a class by what it is** `rule-v-c-21` (`@venizia/vulcan`): `V-C-21` says that an object you create or bind and that holds state is a `XxxHelper` (in `helpers/`, extending `BaseHelper`), and that every other class is static: an access point to one thing is named after it with no suffix (`RuntimeConfig`, `AppEnv`), a bag of pure functions is a `XxxUtility` (in `utilities/`), a clear role names the class (`Reader`, `Builder`, `Encoder`, `Factory`, `Registry`, `Store`, `Guard`), and a constants class is named for its group (`HTTP`, `RequestTypes`); one protocol keeps one constants namespace and one class prefix. It reaches a project that lists `packs: ['venizia']`, after `vulcan sync`.
+
 ## Fixed
 - **`vulcan runners check` gives the answer CI gives** `runners-check-ignores-guard-variables` (`@venizia/vulcan`): it reads the project's `guard.runners.allow` whatever `VULCAN_GUARD_ASKS` and `VULCAN_GUARD_OUTSIDE` hold.
 
