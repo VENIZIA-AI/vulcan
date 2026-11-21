@@ -200,13 +200,14 @@ describe('the hook stays light', () => {
     return { files, packages };
   };
 
-  test('the events module reaches no config, no zod, no atlas and no other vulcan module but record.ts', () => {
+  test('the events module reaches no config, no zod, no atlas and no other vulcan module but record.ts and types.ts', () => {
     const { files, packages } = reached({ entry: join(SRC, 'events', 'hook.ts') });
     const outside = [...files]
       .map((file) => file.slice(SRC.length + 1))
       .filter((file) => !file.startsWith('events/'));
 
-    expect(outside).toEqual(['common/record.ts']);
+    // common/types.ts holds ConstClass, which EventKinds extends: no imports of its own, so the hook still loads no package.
+    expect(outside.sort()).toEqual(['common/record.ts', 'common/types.ts']);
     expect([...packages].sort()).toEqual(['node:fs', 'node:os', 'node:path']);
   });
 

@@ -14,27 +14,27 @@ const TEXT = z.string().regex(OwnerConstants.LABEL_PATTERN, {
 const LANGUAGE = z.string().regex(OwnerConstants.LANGUAGE_PATTERN, {
   message: 'a language code such as en or pt-BR',
 });
-const choice = (opts: { isValid: (value: string) => boolean; set: Set<string> }) =>
+const choice = (opts: { isValid: (value: string) => boolean; set: Iterable<string> }) =>
   z.string().refine((value) => opts.isValid(value), {
     message: `one of: ${[...opts.set].join(', ')}`,
   });
 
 const SECTION = choice({
   isValid: (value) => OwnerSections.isValid(value),
-  set: OwnerSections.SCHEME_SET,
+  set: OwnerSections.values(),
 });
 const ENFORCE = choice({
   isValid: (value) => OwnerEnforcement.isValid(value),
-  set: OwnerEnforcement.SCHEME_SET,
+  set: OwnerEnforcement.values(),
 });
-const TONE = choice({ isValid: (value) => OwnerTones.isValid(value), set: OwnerTones.SCHEME_SET });
+const TONE = choice({ isValid: (value) => OwnerTones.isValid(value), set: OwnerTones.values() });
 const FORMALITY = choice({
   isValid: (value) => OwnerFormalities.isValid(value),
-  set: OwnerFormalities.SCHEME_SET,
+  set: OwnerFormalities.values(),
 });
 const DETAIL = choice({
   isValid: (value) => OwnerDetails.isValid(value),
-  set: OwnerDetails.SCHEME_SET,
+  set: OwnerDetails.values(),
 });
 
 /** A key that was removed: optional, and refused when present with what to do, instead of a bare "unrecognized key". */

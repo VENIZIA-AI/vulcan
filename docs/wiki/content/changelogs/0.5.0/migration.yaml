@@ -1,3 +1,33 @@
+const-classes-extend-const-class:
+  symbols:
+    - Corpora.SCHEME_SET
+    - AtlasCommands.SCHEME_SET
+    - SkillSources.SCHEME_SET
+    - PackageKinds.SCHEME_SET
+    - LibraryKinds.SCHEME_SET
+    - AppSides.SCHEME_SET
+    - SourcePins.SCHEME_SET
+    - LogLevels.SCHEME_SET
+    - ConceptStatuses.SCHEME_SET
+    - IssueSeverities.SCHEME_SET
+    - ReservedFiles.SCHEME_SET
+  upgrade:
+    before: |-
+      if (Corpora.SCHEME_SET.has(value)) {
+        use(value);
+      }
+      const all = [...Corpora.SCHEME_SET];
+    after: |-
+      if (Corpora.isValid(value)) {
+        use(value);
+      }
+      const all = Corpora.values();
+    steps:
+      - 'Replace `X.SCHEME_SET.has(value)` with `X.isValid(value)`: it also narrows `value` to the type of the class values.'
+      - 'Replace `[...X.SCHEME_SET]`, a loop over it and `X.SCHEME_SET.size` with `X.values()`, `for (const v of X.values())` and `X.values().length`; the result is a read-only list, copy it if you need to change it.'
+  downgrade:
+    steps:
+      - 'Pin the earlier package and put `X.SCHEME_SET` and `X.isValid` back where you replaced them.'
 launch-file-and-loader-variables:
   symbols:
     - BUN_OPTIONS

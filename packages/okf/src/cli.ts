@@ -4,15 +4,12 @@
  * reads its own `process.argv`.
  */
 import { join } from 'node:path';
+import { ConstClass } from './common/types.ts';
 
-class OkfCommands {
+class OkfCommands extends ConstClass {
   static readonly CHECK = 'check';
   static readonly GEN = 'gen';
   static readonly COVERAGE = 'coverage';
-  static readonly SCHEME_SET = new Set<string>([this.CHECK, this.GEN, this.COVERAGE]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 const USAGE = 'usage: vulcan x okf <check|gen|coverage>';

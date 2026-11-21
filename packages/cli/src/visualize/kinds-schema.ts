@@ -1,20 +1,19 @@
 import { z } from 'zod';
 import { NodeStates, VisualizeLimits } from './constants.ts';
+import { ConstClass } from '../common/types.ts';
 
 /** How a message in a sequence is drawn: a call, the reply to it, or a call that does not wait. */
-export class MessageKinds {
+export class MessageKinds extends ConstClass {
   static readonly CALL = 'call';
   static readonly REPLY = 'reply';
   static readonly ASYNC = 'async';
-  static readonly SCHEME_SET = new Set<string>([this.CALL, this.REPLY, this.ASYNC]);
 }
 
 /** What a state is in a lifecycle: where it begins, a state in between, or where it ends. */
-export class LifecycleKinds {
+export class LifecycleKinds extends ConstClass {
   static readonly START = 'start';
   static readonly NORMAL = 'normal';
   static readonly END = 'end';
-  static readonly SCHEME_SET = new Set<string>([this.START, this.NORMAL, this.END]);
 }
 
 /** The limits of the three kinds; the shared ones come from `VisualizeLimits`. */
@@ -37,7 +36,7 @@ const text = (max: number) =>
     .max(max)
     .regex(/^(?=.*\S)[^\p{Cc}‪-‮⁦-⁩]+$/u, 'one line of text, not blank');
 /** A closed set as a pattern, so the printed JSON Schema says the same as the renderer. */
-const choice = (opts: { set: Set<string> }) =>
+const choice = (opts: { set: Iterable<string> }) =>
   z
     .string()
     .regex(new RegExp(`^(${[...opts.set].join('|')})$`), `one of: ${[...opts.set].join(', ')}`);
@@ -64,7 +63,7 @@ export const SEQUENCE_SCHEMA = z.strictObject({
         to: ID,
         /** A verb phrase: what the sender does. */
         label: text(VisualizeLimits.MAX_EDGE_LABEL),
-        kind: choice({ set: MessageKinds.SCHEME_SET }).optional(),
+        kind: choice({ set: MessageKinds.values() }).optional(),
         note: text(VisualizeLimits.MAX_LABEL).optional(),
       }),
     )
@@ -82,7 +81,7 @@ export const LIFECYCLE_SCHEMA = z.strictObject({
         id: ID,
         label: text(VisualizeLimits.MAX_LABEL),
         sublabel: text(VisualizeLimits.MAX_LABEL).optional(),
-        kind: choice({ set: LifecycleKinds.SCHEME_SET }).optional(),
+        kind: choice({ set: LifecycleKinds.values() }).optional(),
       }),
     )
     .min(NewKindLimits.MIN_STATES)
@@ -136,11 +135,10 @@ export const TREE_SCHEMA = z.strictObject({
 });
 
 /** The letter of a grade: A is good, B has gaps, C is weak. */
-export class GradeLetters {
+export class GradeLetters extends ConstClass {
   static readonly A = 'A';
   static readonly B = 'B';
   static readonly C = 'C';
-  static readonly SCHEME_SET = new Set<string>([this.A, this.B, this.C]);
 }
 
 /** The colour of a part of a bar: the page's state tones. */
@@ -151,7 +149,7 @@ export const GRADES_SCHEMA = z
   .array(
     z.strictObject({
       label: text(VisualizeLimits.MAX_LABEL),
-      grade: choice({ set: GradeLetters.SCHEME_SET }),
+      grade: choice({ set: GradeLetters.values() }),
       note: text(VisualizeLimits.MAX_SENTENCE).optional(),
     }),
   )

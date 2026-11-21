@@ -46,7 +46,7 @@ const CLEAR_ANSWER = '-';
 const languageProblem = (value: string): string | undefined =>
   OwnerConstants.LANGUAGE_PATTERN.test(value) ? undefined : 'a language code such as en or pt-BR';
 
-const choicesOf = (opts: { set: Set<string> }): ISurveyChoice[] =>
+const choicesOf = (opts: { set: Iterable<string> }): ISurveyChoice[] =>
   [...opts.set].map((value) => ({ value, label: value }));
 
 /** The label set typed word by word, each default the English one; `null` when the user cancelled. */
@@ -185,7 +185,7 @@ export class OwnerSurvey {
         ? null
         : io.select({
             message: 'How formal should I be?',
-            choices: choicesOf({ set: OwnerFormalities.SCHEME_SET }),
+            choices: choicesOf({ set: OwnerFormalities.values() }),
             initial: existing?.address.formality ?? OwnerFormalities.NEUTRAL,
           });
     const formality = await askingFormality;
@@ -194,7 +194,7 @@ export class OwnerSurvey {
         ? null
         : io.select({
             message: 'Tone',
-            choices: choicesOf({ set: OwnerTones.SCHEME_SET }),
+            choices: choicesOf({ set: OwnerTones.values() }),
             initial: existing?.tone ?? OwnerTones.NEUTRAL,
           });
     const tone = await askingTone;
@@ -203,7 +203,7 @@ export class OwnerSurvey {
         ? null
         : io.select({
             message: 'Reports: headline only, or headline plus tables?',
-            choices: choicesOf({ set: OwnerDetails.SCHEME_SET }),
+            choices: choicesOf({ set: OwnerDetails.values() }),
             initial: existing?.reportDetail ?? OwnerDetails.TABLES,
           });
     const reportDetail = await askingReportDetail;

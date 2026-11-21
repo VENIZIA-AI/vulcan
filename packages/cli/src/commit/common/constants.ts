@@ -1,12 +1,8 @@
-export class AgentSignaturePolicies {
+import { ConstClass } from '../../common/types.ts';
+
+export class AgentSignaturePolicies extends ConstClass {
   static readonly ALLOW = 'allow';
   static readonly DENY = 'deny';
-
-  static readonly SCHEME_SET = new Set<string>([this.ALLOW, this.DENY]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class CommitCheckFlags {

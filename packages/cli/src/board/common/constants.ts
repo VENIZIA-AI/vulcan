@@ -1,3 +1,5 @@
+import { ConstClass } from '../../common/types.ts';
+
 /** The states a flow is in, in the order the board lists them. */
 export class BoardStates {
   static readonly YOU = 'you';
@@ -104,24 +106,12 @@ export class BoardServe {
 }
 
 /** The faces the page can draw for an agent. `bun` is the default; the others are chosen by name in `board.agents`. */
-export class BoardShapes {
+export class BoardShapes extends ConstClass {
   static readonly BUN = 'bun';
   static readonly FLAME = 'flame';
   static readonly EMBER = 'ember';
   static readonly ROCK = 'rock';
   static readonly BANANA = 'banana';
-
-  static readonly SCHEME_SET = new Set<string>([
-    this.BUN,
-    this.FLAME,
-    this.EMBER,
-    this.ROCK,
-    this.BANANA,
-  ]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class BoardSources {

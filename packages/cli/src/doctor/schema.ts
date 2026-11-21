@@ -5,7 +5,7 @@ import type { TPrivateValueKind } from './common/types.ts';
 
 const KIND = z.custom<TPrivateValueKind>(
   (value) => typeof value === 'string' && PrivateValueKinds.isValid(value),
-  { message: `one of ${[...PrivateValueKinds.SCHEME_SET].join(', ')}` },
+  { message: `one of ${PrivateValueKinds.values().join(', ')}` },
 );
 
 /** A decision to keep private values in files: where, which kinds (all when absent), and why. */

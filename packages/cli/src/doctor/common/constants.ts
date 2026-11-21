@@ -1,3 +1,5 @@
+import { ConstClass } from '../../common/types.ts';
+
 export class DoctorChecks {
   /** The config file: missing, unloadable or without a default export is an error, and the only check run then. */
   static readonly CONFIG = 'config';
@@ -49,24 +51,12 @@ export class DoctorChecks {
 }
 
 /** What `vulcan doctor` looks for in committed files. */
-export class PrivateValueKinds {
+export class PrivateValueKinds extends ConstClass {
   static readonly PRIVATE_KEY = 'private-key';
   static readonly TOKEN = 'token';
   static readonly URL_CREDENTIALS = 'url-credentials';
   static readonly IPV4 = 'ipv4';
   static readonly MACHINE_PATH = 'machine-path';
-
-  static readonly SCHEME_SET = new Set<string>([
-    this.PRIVATE_KEY,
-    this.TOKEN,
-    this.URL_CREDENTIALS,
-    this.IPV4,
-    this.MACHINE_PATH,
-  ]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class PrivateValueScan {

@@ -1,3 +1,5 @@
+import { ConstClass } from './types';
+
 export class AtlasConstants {
   static readonly SERVER_NAME = 'vulcan-atlas';
   /** The one MCP protocol version this server speaks; `initialize` answers it whatever the client asked. */
@@ -48,18 +50,14 @@ export class AtlasTimeouts {
   static readonly LOCAL_GIT_MS = 30_000;
 }
 
-export class Corpora {
+export class Corpora extends ConstClass {
   static readonly WIKI = 'wiki';
   static readonly CHANGELOG = 'changelog';
   static readonly KNOWLEDGE = 'knowledge';
-  static readonly SCHEME_SET = new Set<string>([this.WIKI, this.CHANGELOG, this.KNOWLEDGE]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** The `vulcan-atlas` subcommands: the MCP server, and the generators of the tables it serves. */
-export class AtlasCommands {
+export class AtlasCommands extends ConstClass {
   static readonly MCP = 'mcp';
   static readonly SURFACE = 'surface';
   static readonly API = 'api';
@@ -72,102 +70,43 @@ export class AtlasCommands {
   static readonly TOOLS = 'tools';
   static readonly STATUS = 'status';
   static readonly HELP = 'help';
-  static readonly SCHEME_SET = new Set<string>([
-    this.MCP,
-    this.SURFACE,
-    this.API,
-    this.SYMBOLS,
-    this.RELEASES,
-    this.CHANGELOGS,
-    this.MIGRATE,
-    this.PULL,
-    this.INDEX,
-    this.TOOLS,
-    this.STATUS,
-    this.HELP,
-  ]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** Where a skill of the catalog comes from: the package ships it, or the project wrote it. */
-export class SkillSources {
+export class SkillSources extends ConstClass {
   static readonly SHIPPED = 'shipped';
   static readonly PROJECT = 'project';
-
-  static readonly SCHEME_SET = new Set<string>([this.SHIPPED, this.PROJECT]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** What a package of the project is: an app, or a library other apps import. */
-export class PackageKinds {
+export class PackageKinds extends ConstClass {
   static readonly APP = 'app';
   static readonly LIB = 'lib';
-
-  static readonly SCHEME_SET = new Set<string>([this.APP, this.LIB]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** Which preset kind made a library: `lib` (may use the project's framework) or `shared` (depends on no framework). */
-export class LibraryKinds {
+export class LibraryKinds extends ConstClass {
   static readonly LIB = 'lib';
   static readonly SHARED = 'shared';
-
-  static readonly SCHEME_SET = new Set<string>([this.LIB, this.SHARED]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** The side of the stack an app of a preset is on. */
-export class AppSides {
+export class AppSides extends ConstClass {
   static readonly BACKEND = 'backend';
   static readonly FRONTEND = 'frontend';
-
-  static readonly SCHEME_SET = new Set<string>([this.BACKEND, this.FRONTEND]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** What a source's corpus is read at: the release tag of the installed package, or the configured ref. */
-export class SourcePins {
+export class SourcePins extends ConstClass {
   static readonly INSTALLED = 'installed';
   static readonly REF = 'ref';
-
-  static readonly SCHEME_SET = new Set<string>([this.INSTALLED, this.REF]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** The levels a log line carries; `emerg` is never a configured threshold. */
-export class LogLevels {
+export class LogLevels extends ConstClass {
   static readonly DEBUG = 'debug';
   static readonly INFO = 'info';
   static readonly WARN = 'warn';
   static readonly ERROR = 'error';
   static readonly EMERG = 'emerg';
-
-  static readonly SCHEME_SET = new Set<string>([
-    this.DEBUG,
-    this.INFO,
-    this.WARN,
-    this.ERROR,
-    this.EMERG,
-  ]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }

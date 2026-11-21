@@ -1,64 +1,39 @@
 import { EnvVariables } from '../common/env-variables.ts';
+import { ConstClass } from '../common/types.ts';
 
 /** The sections of a reply to the owner; a project picks which appear and in what order. */
-export class OwnerSections {
+export class OwnerSections extends ConstClass {
   static readonly HEADLINE = 'headline';
   static readonly MINIMAP = 'minimap';
   static readonly BLOCKED = 'blocked';
   static readonly DETAIL = 'detail';
   static readonly DECISIONS = 'decisions';
-  static readonly SCHEME_SET = new Set<string>([
-    this.HEADLINE,
-    this.MINIMAP,
-    this.BLOCKED,
-    this.DETAIL,
-    this.DECISIONS,
-  ]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** Whether the shape card is shown: `off` leaves it out, `advise` and `block` show it. The stricter of two values wins. */
-export class OwnerEnforcement {
+export class OwnerEnforcement extends ConstClass {
   static readonly OFF = 'off';
   static readonly ADVISE = 'advise';
   static readonly BLOCK = 'block';
   /** From the loosest to the strictest: the stricter of two values wins. */
   static readonly STRICTNESS = [this.OFF, this.ADVISE, this.BLOCK] as const;
-  static readonly SCHEME_SET = new Set<string>(this.STRICTNESS);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
-export class OwnerTones {
+export class OwnerTones extends ConstClass {
   static readonly TERSE = 'terse';
   static readonly NEUTRAL = 'neutral';
   static readonly FRIENDLY = 'friendly';
-  static readonly SCHEME_SET = new Set<string>([this.TERSE, this.NEUTRAL, this.FRIENDLY]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
-export class OwnerFormalities {
+export class OwnerFormalities extends ConstClass {
   static readonly INFORMAL = 'informal';
   static readonly NEUTRAL = 'neutral';
   static readonly FORMAL = 'formal';
-  static readonly SCHEME_SET = new Set<string>([this.INFORMAL, this.NEUTRAL, this.FORMAL]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
-export class OwnerDetails {
+export class OwnerDetails extends ConstClass {
   static readonly HEADLINE = 'headline';
   static readonly TABLES = 'tables';
-  static readonly SCHEME_SET = new Set<string>([this.HEADLINE, this.TABLES]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 const DEFAULT_MINIMAP_COLUMNS: [string, string, string] = ['#', 'Task', 'Status'];

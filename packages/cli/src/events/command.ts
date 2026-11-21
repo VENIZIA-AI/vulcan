@@ -21,11 +21,11 @@ import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 import { EventText } from './text.ts';
 
-const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} <flow id>] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${[...EventStatuses.SCHEME_SET].join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
+const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} <flow id>] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${EventStatuses.values().join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
        vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} [${EventFlags.FLOW} <flow id>] ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.NEXT} <text>] [${EventFlags.DUE} <YYYY-MM-DD>] [${EventFlags.REF} <tracker id>]
          [${EventFlags.STEP} <text> | ${EventFlags.STEP_DONE} <text>]... [${EventFlags.CHECK} <text> | ${EventFlags.CHECK_DONE} <text>]... [${EventFlags.APP} <name>]... [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
        vulcan event tail [${EventFlags.SINCE} <time>] [${EventFlags.JSON}] [${EventFlags.DIR} <folder>]
-kinds: ${[...EventKinds.SCHEME_SET].join(', ')}
+kinds: ${EventKinds.values().join(', ')}
 A flow line without ${EventFlags.FLOW} makes a new flow and prints its id (VULZ-<project.key>-<number>); give that id to every other line of the flow. Ids are never typed by hand.`;
 
 type TFlagValues = Record<string, string>;
@@ -123,7 +123,7 @@ export class EventCommand {
 
     if (kind === undefined || !EventKinds.isValid(kind)) {
       process.stderr.write(
-        `event: ${EventFlags.KIND} must be one of ${[...EventKinds.SCHEME_SET].join(', ')}\n`,
+        `event: ${EventFlags.KIND} must be one of ${EventKinds.values().join(', ')}\n`,
       );
 
       return ExitCodes.USAGE;
@@ -188,7 +188,7 @@ export class EventCommand {
     ) {
       process.stderr.write(
         kind === EventKinds.DECISION
-          ? `event: a decision needs ${EventFlags.STATUS} <${[...EventStatuses.SCHEME_SET].join('|')}>\n`
+          ? `event: a decision needs ${EventFlags.STATUS} <${EventStatuses.values().join('|')}>\n`
           : `event: ${EventFlags.STATUS} belongs to a decision only\n`,
       );
 

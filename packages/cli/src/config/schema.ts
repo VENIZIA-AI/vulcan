@@ -680,7 +680,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
               signature: z
                 .custom<TAgentSignaturePolicy>(
                   (value) => typeof value === 'string' && AgentSignaturePolicies.isValid(value),
-                  { message: `one of ${[...AgentSignaturePolicies.SCHEME_SET].join(', ')}` },
+                  { message: `one of ${AgentSignaturePolicies.values().join(', ')}` },
                 )
                 .default(AgentSignaturePolicies.ALLOW),
               /** Agent names added to the shipped list; a co-author or `Generated with` line naming one is flagged under `deny`. Default `[]`. */

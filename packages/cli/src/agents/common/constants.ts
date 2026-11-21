@@ -1,13 +1,9 @@
+import { ConstClass } from '../../common/types.ts';
+
 /** Where an agent reads the atlas MCP entry: the committed root `.mcp.json`, or a file of its own. */
-export class AgentScopes {
+export class AgentScopes extends ConstClass {
   static readonly PROJECT = 'project';
   static readonly SHARED = 'shared';
-
-  static readonly SCHEME_SET = new Set<string>([this.PROJECT, this.SHARED]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** Why an agent's list was chosen: a flag, the local file, the config, the question, or the default. */
@@ -26,31 +22,19 @@ export class RemoveOutcomes {
 }
 
 /** How a guard reaches an agent that has no Claude-style hook commands: a file the agent loads. */
-export class AgentGuardKinds {
+export class AgentGuardKinds extends ConstClass {
   static readonly EXTENSION = 'extension';
   /** A hooks file that names a command: Antigravity's `.agents/hooks.json`. */
   static readonly HOOKS_JSON = 'hooks-json';
   /** Codex's `.codex/hooks.json`: `hooks.PreToolUse` is a list of matcher entries. */
   static readonly CODEX_HOOKS = 'codex-hooks';
-
-  static readonly SCHEME_SET = new Set<string>([this.EXTENSION, this.HOOKS_JSON, this.CODEX_HOOKS]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** The file formats an agent's MCP entry is written in. */
-export class AgentRenderers {
+export class AgentRenderers extends ConstClass {
   static readonly MCP_SERVERS = 'mcpServers';
   static readonly SERVERS = 'servers';
   static readonly CODEX_TOML = 'codex-toml';
-
-  static readonly SCHEME_SET = new Set<string>([this.MCP_SERVERS, this.SERVERS, this.CODEX_TOML]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class AgentConstants {

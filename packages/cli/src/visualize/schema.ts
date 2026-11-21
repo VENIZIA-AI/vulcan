@@ -28,7 +28,7 @@ const text = (max: number) =>
     .max(max)
     .regex(/^(?=.*\S)[^\p{Cc}\u202A-\u202E\u2066-\u2069]+$/u, 'one line of text, not blank');
 /** A closed set as a pattern, so the printed JSON Schema says the same as the renderer. */
-const choice = (opts: { set: Set<string> }) =>
+const choice = (opts: { set: Iterable<string> }) =>
   z
     .string()
     .regex(new RegExp(`^(${[...opts.set].join('|')})$`), `one of: ${[...opts.set].join(', ')}`);
@@ -58,7 +58,7 @@ const NODE = z.strictObject({
   detail: text(VisualizeLimits.MAX_DETAIL).optional(),
   row: GRID,
   col: GRID,
-  kind: choice({ set: NodeKinds.SCHEME_SET }).optional(),
+  kind: choice({ set: NodeKinds.values() }).optional(),
   state: STATE.optional(),
   /** Where the box comes from: shown as `repo@commit:path:lines` in its detail. */
   source: SOURCE_SCHEMA.optional(),
@@ -69,7 +69,7 @@ const EDGE = z.strictObject({
   to: ID,
   /** Every arrow says what it does: a verb. */
   label: text(VisualizeLimits.MAX_EDGE_LABEL),
-  variant: choice({ set: EdgeVariants.SCHEME_SET }).optional(),
+  variant: choice({ set: EdgeVariants.values() }).optional(),
 });
 
 const STEP = z.strictObject({
@@ -370,7 +370,7 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   /** A darker accent for text, when `accent` is too light to be read as text. */
   accentText: HEX_COLOUR.optional(),
   status: z.strictObject({
-    state: choice({ set: StatusStates.SCHEME_SET }),
+    state: choice({ set: StatusStates.values() }),
     label: text(VisualizeLimits.MAX_LABEL).optional(),
   }),
   asOf: z
@@ -393,7 +393,7 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   minimap: rows(
     z.strictObject({
       task: text(VisualizeLimits.MAX_LABEL),
-      status: choice({ set: MinimapStates.SCHEME_SET }),
+      status: choice({ set: MinimapStates.values() }),
       note: text(VisualizeLimits.MAX_SENTENCE).optional(),
     }),
   ).optional(),
@@ -452,7 +452,7 @@ export const VISUALIZE_SCHEMA = z.strictObject({
       claim: text(VisualizeLimits.MAX_SENTENCE),
       probe: text(VisualizeLimits.MAX_SENTENCE),
       result: text(VisualizeLimits.MAX_SENTENCE),
-      label: choice({ set: EvidenceLabels.SCHEME_SET }),
+      label: choice({ set: EvidenceLabels.values() }),
     }),
   ).optional(),
   risks: rows(

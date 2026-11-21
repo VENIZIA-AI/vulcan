@@ -3,7 +3,7 @@ import { BoardAgentSetting } from './agent-setting.ts';
 import { BoardConstants, BoardShapes } from './common/index.ts';
 
 const SHAPE = z.custom<string>((value) => typeof value === 'string' && BoardShapes.isValid(value), {
-  message: `one of ${[...BoardShapes.SCHEME_SET].join(', ')}`,
+  message: `one of ${BoardShapes.values().join(', ')}`,
 });
 
 /** A face, or `{ shape?, lane?, role? }`: the lane labels the agent "under" another listed agent on its own card; the role is what the card says it is. */
