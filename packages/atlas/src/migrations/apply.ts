@@ -171,10 +171,19 @@ const reportOf = (opts: {
       lines.push('');
     }
 
-    for (const step of plan.steps.filter(
-      (entry) => done.has(stepKeyOf({ step: entry, plan })) && entry.data !== undefined,
-    )) {
-      lines.push(`Check after the codemod, \`${step.id}\`: ${step.data}`, '');
+    // A codemod that exits 0 may only list places or leave some behind, so its step's text is still printed.
+    if (done.size > 0) {
+      lines.push('### After the codemod, check each place it listed', '');
+    }
+
+    for (const step of plan.steps.filter((entry) => done.has(stepKeyOf({ step: entry, plan })))) {
+      lines.push(`#### ${step.id}`, '', ...MigrateReport.changeLines({ change: step.change }));
+
+      if (step.data !== undefined) {
+        lines.push('', `Data: ${step.data}`);
+      }
+
+      lines.push('');
     }
 
     if (manual.length > 0) {
