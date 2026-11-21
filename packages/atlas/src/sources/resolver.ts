@@ -854,6 +854,7 @@ const resolveAtInstalled = async (opts: {
       declared: opts.source,
       releasesFile: base.releasesFile,
       history: base.history,
+      refProject: base.project,
       pin: { ref: decision.tag, pinned: true, reason: decision.basis },
     };
   } catch (error) {

@@ -23,6 +23,7 @@ This release makes the guards catch more of what an agent can do: more ways to w
 
 ## Fixed
 - **`vulcan runners check` gives the answer CI gives** `runners-check-ignores-guard-variables` (`@venizia/vulcan`): the command now reads the project's `guard.runners.allow` and ignores what `VULCAN_GUARD_ASKS` and `VULCAN_GUARD_OUTSIDE` hold, so your local result matches CI.
+- **`vulcan migrate plan` reads the steps of a newer line for a pinned source** `plan-reads-folders-of-pinned-source` (`@venizia/vulcan-atlas`): a source pinned to the release of the package you have installed kept the newer releases in its table, but read the version folders from the older tag, so a plan to a newer line (`0.5.0`) found no step and printed `0 structured steps` with nothing to say why. The plan now reads the folders from the source's ref, and when the folders it read still hold none for the line you plan to, it says so and names the source's `ref` and `vulcan x atlas pull`. What to do: nothing; rerun the plan.
 
 ## Security
 - **The guards refuse a package manager's way of swapping in another `@venizia/vulcan`** `guards-refuse-package-swap` (`@venizia/vulcan`): the guards refuse `bun add`, `npm install`, `pnpm add`, `yarn add`, `link` and `patch` of it from anything but a registry version, a folder that is that package, or a registry or cache set on the install. What to do: add a registry version (`bun add @venizia/vulcan@^<version>`), or leave the change to the owner.
