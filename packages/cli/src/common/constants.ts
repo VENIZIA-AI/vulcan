@@ -1,4 +1,5 @@
 import { EnvVariables } from './env-variables.ts';
+import { ConstClass } from './types.ts';
 
 /** The names of the `vulcan` subcommands, shared by the router, the command registry and the help output. */
 export class VulcanCommands {
@@ -39,13 +40,9 @@ export class ExitCodes {
 }
 
 /** The tools `vulcan x` runs; each is a dependency of @venizia/vulcan at the exact same version. */
-export class VulcanTools {
+export class VulcanTools extends ConstClass {
   static readonly OKF = 'okf';
   static readonly ATLAS = 'atlas';
-  static readonly SCHEME_SET = new Set<string>([this.OKF, this.ATLAS]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** What a VULCAN project carries; shared by `init`, which writes it, and `doctor`, which checks it. */

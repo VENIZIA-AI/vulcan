@@ -1,3 +1,5 @@
+import { ConstClass } from '../common/types.ts';
+
 /** The state of one thing under `.agents/local/`, as `clean` and `doctor` read it. */
 export class LocalStates {
   static readonly OK = 'ok';
@@ -20,7 +22,7 @@ export class LocalStates {
 }
 
 /** What `vulcan clean` can be told to clear. The default is `tmp`; `all` never reaches the kept ones. */
-export class CleanScopes {
+export class CleanScopes extends ConstClass {
   static readonly TMP = 'tmp';
   static readonly WORKTREES = 'worktrees';
   static readonly CLONES = 'clones';
@@ -32,20 +34,6 @@ export class CleanScopes {
   static readonly RELEASE_CANDIDATES = 'release-candidates';
   /** `--all`: what an agent creates and can recreate. Reports, prototypes, events, release candidates and the profile are named, never swept. */
   static readonly ALL = [this.TMP, this.WORKTREES, this.CLONES, this.CACHE];
-  static readonly SCHEME_SET = new Set<string>([
-    this.TMP,
-    this.WORKTREES,
-    this.CLONES,
-    this.CACHE,
-    this.REPORTS,
-    this.PROTOTYPES,
-    this.PROFILE,
-    this.EVENTS,
-    this.RELEASE_CANDIDATES,
-  ]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class LocalConstants {

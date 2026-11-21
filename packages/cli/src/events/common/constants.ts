@@ -1,7 +1,8 @@
 import { EventActorNames } from './actor-names.ts';
+import { ConstClass } from '../../common/types.ts';
 
 /** What happened. A board reads these; add one only when a reader needs to tell it apart. */
-export class EventKinds {
+export class EventKinds extends ConstClass {
   static readonly SESSION_START = 'session-start';
   /** No longer written (a turn that ends is not an event); read so a log written before still folds until its retention removes it. */
   static readonly SESSION_STOP = 'session-stop';
@@ -19,38 +20,13 @@ export class EventKinds {
   static readonly DEPLOY = 'deploy';
   /** No longer written (a tool that is used is not an event); read so a log written before still folds until its retention removes it. */
   static readonly TOOL_TICK = 'tool-tick';
-
-  static readonly SCHEME_SET = new Set<string>([
-    this.SESSION_START,
-    this.SESSION_STOP,
-    this.MSG_SENT,
-    this.MSG_RECEIVED,
-    this.NEEDS_OWNER,
-    this.SUBAGENT_STOP,
-    this.COMMIT,
-    this.PR,
-    this.DECISION,
-    this.FLOW,
-    this.DEPLOY,
-    this.TOOL_TICK,
-  ]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** What a `decision` line says: the owner approved, parked or rejected the flow. */
-export class EventStatuses {
+export class EventStatuses extends ConstClass {
   static readonly APPROVE = 'approve';
   static readonly PARK = 'park';
   static readonly REJECT = 'reject';
-
-  static readonly SCHEME_SET = new Set<string>([this.APPROVE, this.PARK, this.REJECT]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** Who wrote the line: the hook installed for Claude Code, or `vulcan event add`. */

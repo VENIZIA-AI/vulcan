@@ -19,7 +19,7 @@ const PRESET_SCHEMA = z
   .object({
     presetVersion: z.number(),
     side: z.string().refine((value): value is TAppSide => AppSides.isValid(value), {
-      message: `one of: ${[...AppSides.SCHEME_SET].join(', ')}`,
+      message: `one of: ${AppSides.values().join(', ')}`,
     }),
     summary: z.string(),
     devPort: z.number().int().positive(),

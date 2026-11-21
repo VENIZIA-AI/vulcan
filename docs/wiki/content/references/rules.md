@@ -163,7 +163,7 @@ The `venizia` pack holds the five rules that bind the Venizia stack (Bun, `devz`
   - Enforced by: SOFT
 - `V-C-07` - Open function names with verbs, prefer arrow functions, and group state in classes.
   - Enforced by: SOFT
-- `V-C-08` - Define enumerable strings as constant classes with validation sets; prefix types with T or I.
+- `V-C-08` - Define enumerable strings as constant classes; one that is validated extends `ConstClass` (`values()`, `isValid(value)`) instead of declaring a set; prefix types with T or I.
   - Enforced by: SOFT - lint (`const-class-values`) in a project that enables `houseConfigs` of `@venizia/dev-configs`
 - `V-C-20` - Declare the instance, then await on its own line: `const runner = new X({...}); await runner.run({...});`, never `await new X({...}).run({...})`. Tests and scripts too.
   - Enforced by: SOFT - lint (`venizia/no-await-new-chain`, `@venizia/dev-configs` from 0.4.8-3) in a project that enables `houseConfigs`

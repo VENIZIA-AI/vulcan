@@ -16,7 +16,7 @@ const projectWithManifest = (opts: { manifest: object }): string =>
 
 describe('AgentSignaturePolicies', () => {
   test('two values, and isValid reads them', () => {
-    expect([...AgentSignaturePolicies.SCHEME_SET]).toEqual(['allow', 'deny']);
+    expect(AgentSignaturePolicies.values()).toEqual(['allow', 'deny']);
     expect(AgentSignaturePolicies.isValid('deny')).toBe(true);
     expect(AgentSignaturePolicies.isValid('maybe')).toBe(false);
   });

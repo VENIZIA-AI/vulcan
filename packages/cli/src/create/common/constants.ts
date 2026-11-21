@@ -1,12 +1,9 @@
 import { EnvVariables } from '../../common/env-variables.ts';
+import { ConstClass } from '../../common/types.ts';
 
-export class AppSides {
+export class AppSides extends ConstClass {
   static readonly BACKEND = 'backend';
   static readonly FRONTEND = 'frontend';
-  static readonly SCHEME_SET = new Set<string>([this.BACKEND, this.FRONTEND]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** Why the `vulcan:apps` block of the config could not be read: its markers are gone, or what is between them is not JSON. */

@@ -1,3 +1,5 @@
+import { ConstClass } from '../../common/types.ts';
+
 /** What a package of the project is: an app, or a library other apps import. */
 export class PackageKinds {
   static readonly APP = 'app';
@@ -5,15 +7,9 @@ export class PackageKinds {
 }
 
 /** Which preset kind made a library: `lib` (may use the project's framework) or `shared` (depends on no framework). */
-export class LibraryKinds {
+export class LibraryKinds extends ConstClass {
   static readonly LIB = 'lib';
   static readonly SHARED = 'shared';
-
-  static readonly SCHEME_SET = new Set<string>([this.LIB, this.SHARED]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** The agents `vulcan sync` writes adapters for. */

@@ -14,7 +14,7 @@ interface IPackageManifest {
   bin?: string | Record<string, string>;
 }
 
-const listTools = (): string => [...VulcanTools.SCHEME_SET].join(', ');
+const listTools = (): string => VulcanTools.values().join(', ');
 
 export class ToolRunner {
   /** The tool's bin inside its installed package, resolved from @venizia/vulcan; `undefined` when not installed. */

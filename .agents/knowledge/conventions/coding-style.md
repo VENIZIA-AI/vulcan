@@ -15,7 +15,7 @@ The rules are the `V-C-*` rules in `packages/cli/base/rules.md`; this is how the
   A class is named by what it is (`V-C-21`, the `venizia` pack): `XxxHelper` has state; a static class is an access point named after its one thing (`AppEnv`), an `XxxUtility`, a role (`Reader`, `Store`) or a constants class (`HTTP`).
 - **Options objects everywhere** (`V-C-02`; the cost shows on an interface others implement: `IStorageHelper` carried three positional methods and its migration touched 72 call sites), with options that serve one concern grouped into a named sub-object, not prefixed siblings; verb-first arrow functions (`V-C-07`); full-word names
   (`V-C-04`); an instance is declared before it is awaited on (`await runner.run()`, never `await new X().run()`, `V-C-20`).
-- **Enumerable strings** are const classes, with `SCHEME_SET` / `isValid` where a value is validated (`V-C-08`, the `venizia` pack) - see any
+- **Enumerable strings** are const classes, `extends ConstClass` (`values()`, `isValid`) where a value is validated (`V-C-08`, the `venizia` pack) - see any
   `common/constants.ts`.
 - **Scopes** are folders with `common/{constants,types,index}.ts` and an `index.ts` barrel;
   cross-scope imports go through the barrel. A folder next to a same-named file

@@ -66,7 +66,7 @@ const PIECES = [
 
 describe('EventKinds', () => {
   test('the twelve kinds a board reads, and isValid', () => {
-    expect([...EventKinds.SCHEME_SET]).toEqual([
+    expect(EventKinds.values()).toEqual([
       'session-start',
       'session-stop',
       'msg-sent',

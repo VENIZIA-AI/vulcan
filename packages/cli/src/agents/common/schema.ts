@@ -17,11 +17,11 @@ export const AGENT_ENTRY_SCHEMA = z
     }),
     mcp: z.strictObject({
       scope: z.string().refine((value) => AgentScopes.isValid(value), {
-        message: `one of: ${[...AgentScopes.SCHEME_SET].join(', ')}`,
+        message: `one of: ${AgentScopes.values().join(', ')}`,
       }),
       path: z.string().min(1),
       renderer: z.string().refine((value) => AgentRenderers.isValid(value), {
-        message: `one of: ${[...AgentRenderers.SCHEME_SET].join(', ')}`,
+        message: `one of: ${AgentRenderers.values().join(', ')}`,
       }),
     }),
     skills: z.strictObject({ dir: z.string().min(1) }),
@@ -29,7 +29,7 @@ export const AGENT_ENTRY_SCHEMA = z
     guards: z
       .strictObject({
         kind: z.string().refine((value) => AgentGuardKinds.isValid(value), {
-          message: `one of: ${[...AgentGuardKinds.SCHEME_SET].join(', ')}`,
+          message: `one of: ${AgentGuardKinds.values().join(', ')}`,
         }),
         path: z.string().min(1),
       })

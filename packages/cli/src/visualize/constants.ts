@@ -1,4 +1,5 @@
 import type { TConstValue } from '../common/index.ts';
+import { ConstClass } from '../common/types.ts';
 
 /** Which side of a before/after page a row is on: what was added, what was removed. */
 export class ChangeKinds {
@@ -8,30 +9,21 @@ export class ChangeKinds {
 
 export type TChangeKind = TConstValue<typeof ChangeKinds>;
 
-export class StatusStates {
+export class StatusStates extends ConstClass {
   static readonly OK = 'ok';
   static readonly WARN = 'warn';
   static readonly BLOCKED = 'blocked';
   static readonly INFO = 'info';
-  static readonly SCHEME_SET = new Set<string>([this.OK, this.WARN, this.BLOCKED, this.INFO]);
 }
 
 /** Where a task stands on the minimap: a shape and a word each, never colour alone. */
-export class MinimapStates {
+export class MinimapStates extends ConstClass {
   static readonly DONE = 'done';
   static readonly IN_PROGRESS = 'in progress';
   static readonly WAITING = 'waiting';
   static readonly NOT_STARTED = 'not started';
   static readonly BLOCKED = 'blocked';
   static readonly DROPPED = 'dropped';
-  static readonly SCHEME_SET = new Set<string>([
-    this.DONE,
-    this.IN_PROGRESS,
-    this.WAITING,
-    this.NOT_STARTED,
-    this.BLOCKED,
-    this.DROPPED,
-  ]);
 
   /** The class and chrome key of a state: the words have spaces, the keys do not. */
   static keyOf(value: string): string {
@@ -41,7 +33,7 @@ export class MinimapStates {
 
 /** The state of a box, a milestone or a chart part: a minimap state, or plain information. Never told by colour alone. */
 export class NodeStates {
-  static readonly SCHEME_SET = new Set<string>([...MinimapStates.SCHEME_SET, 'info']);
+  static readonly SCHEME_SET = new Set<string>([...MinimapStates.values(), 'info']);
 
   /** The colour family of a state: green, blue, amber, red, or neutral. */
   static toneOf(value: string): string {
@@ -65,42 +57,27 @@ export class NodeStates {
 }
 
 /** How an edge reads: the main path, a branch, a return, a fan-out or a failure. Never by colour alone. */
-export class EdgeVariants {
+export class EdgeVariants extends ConstClass {
   static readonly MAIN = 'main';
   static readonly BRANCH = 'branch';
   static readonly RETURN = 'return';
   static readonly FANOUT = 'fanout';
   static readonly ERROR = 'error';
-  static readonly SCHEME_SET = new Set<string>([
-    this.MAIN,
-    this.BRANCH,
-    this.RETURN,
-    this.FANOUT,
-    this.ERROR,
-  ]);
 }
 
-export class NodeKinds {
+export class NodeKinds extends ConstClass {
   static readonly STEP = 'step';
   static readonly SERVICE = 'service';
   static readonly STORE = 'store';
   static readonly ACTOR = 'actor';
   static readonly EXTERNAL = 'external';
-  static readonly SCHEME_SET = new Set<string>([
-    this.STEP,
-    this.SERVICE,
-    this.STORE,
-    this.ACTOR,
-    this.EXTERNAL,
-  ]);
 }
 
 /** What a claim in the evidence table rests on. An analogy is never shown as a fact. */
-export class EvidenceLabels {
+export class EvidenceLabels extends ConstClass {
   static readonly VERIFIED = 'verified';
   static readonly INFERRED = 'inferred';
   static readonly GUESS = 'guess';
-  static readonly SCHEME_SET = new Set<string>([this.VERIFIED, this.INFERRED, this.GUESS]);
 }
 
 export class VisualizeLimits {

@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { NodeKinds, NodeStates, VisualizeLimits } from './constants.ts';
 import { SOURCE_SCHEMA } from './sources.ts';
+import { ConstClass } from '../common/types.ts';
 
 /** Which of the two versions an edge belongs to: both, only the first (a), or only the second (b). */
-export class EdgeSides {
+export class EdgeSides extends ConstClass {
   static readonly BOTH = 'both';
   static readonly A = 'a';
   static readonly B = 'b';
-  static readonly SCHEME_SET = new Set<string>([this.BOTH, this.A, this.B]);
 }
 
 /** The limits of the compare view; the shared ones come from `VisualizeLimits`. */
@@ -23,7 +23,7 @@ const text = (max: number) =>
     .max(max)
     .regex(/^(?=.*\S)[^\p{Cc}‪-‮⁦-⁩]+$/u, 'one line of text, not blank');
 /** A closed set as a pattern, so the printed JSON Schema says the same as the renderer. */
-const choice = (opts: { set: Set<string> }) =>
+const choice = (opts: { set: Iterable<string> }) =>
   z
     .string()
     .regex(new RegExp(`^(${[...opts.set].join('|')})$`), `one of: ${[...opts.set].join(', ')}`);
@@ -50,7 +50,7 @@ export const COMPARE_SCHEMA = z.strictObject({
         sublabel: text(VisualizeLimits.MAX_LABEL).optional(),
         row: GRID,
         col: GRID,
-        kind: choice({ set: NodeKinds.SCHEME_SET }).optional(),
+        kind: choice({ set: NodeKinds.values() }).optional(),
         state: choice({ set: NodeStates.SCHEME_SET }).optional(),
         source: SOURCE_SCHEMA.optional(),
       }),
@@ -65,7 +65,7 @@ export const COMPARE_SCHEMA = z.strictObject({
         /** Every arrow says what it does: a verb. */
         label: text(VisualizeLimits.MAX_EDGE_LABEL),
         /** Absent, the arrow is in both versions. */
-        in: choice({ set: EdgeSides.SCHEME_SET }).optional(),
+        in: choice({ set: EdgeSides.values() }).optional(),
       }),
     )
     .min(1)

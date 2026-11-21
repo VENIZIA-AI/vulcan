@@ -1039,7 +1039,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     }
 
     // Every folder with a scope has a flag the clean page documents, and the router accepts it.
-    for (const scope of CleanScopes.SCHEME_SET) {
+    for (const scope of CleanScopes.values()) {
       expect(clean, scope).toContain(`--${scope}`);
       expect(
         runCli({ args: ['clean', `--${scope}`], cwd: repository() }).stderr,
