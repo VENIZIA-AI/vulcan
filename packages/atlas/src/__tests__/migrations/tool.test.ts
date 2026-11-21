@@ -337,11 +337,15 @@ describe('MigrateReport.markdown', () => {
       }),
     });
 
-    expect(text).toContain('2 structured steps, 1 found in your code, 1 only re-exported.');
+    expect(text).toContain(
+      '2 structured steps, 1 with mentions in your code (places that name a changed symbol; check each), 1 only re-exported.',
+    );
     expect(text).toContain(
       'Re-exported by your code (your consumers may be hit; your own code needs no change):\n- src/index.ts:4 (Alpha, Beta)',
     );
-    expect(text).not.toContain('Found in your code:\n- src/index.ts');
+    expect(text).not.toContain(
+      'Mentions in your code (places that name a changed symbol; check each):\n- src/index.ts',
+    );
     expect(text.indexOf('### used')).toBeLessThan(text.indexOf('### only-reexported'));
   });
 
@@ -387,7 +391,7 @@ describe('MigrateReport.markdown', () => {
     });
 
     expect(text).toContain('Warning: ignis could not be indexed (fetch failed)');
-    expect(text.indexOf('Warning:')).toBeLessThan(text.indexOf('Places are found'));
+    expect(text.indexOf('Warning:')).toBeLessThan(text.indexOf('Mentions are places'));
   });
 
   test('prints the plan note, the skipped packages and the files not read, and says what the scan covers', () => {
@@ -437,7 +441,7 @@ describe('MigrateReport.markdown', () => {
     expect(text).toContain('Not read (1): src/locked.ts');
     // Entries and no structured step: the headline says so and does not read as clean.
     expect(text).toContain(
-      'A downgrade: 2 changelog entries in the window; 0 structured steps, 0 found in your code; 2 breaking entries have no structured steps, so the scan could not check them.',
+      'A downgrade: 2 changelog entries in the window; 0 structured steps, 0 with mentions in your code (places that name a changed symbol; check each); 2 breaking entries have no structured steps, so the scan could not check them.',
     );
     // An empty window says it is empty and why it proves nothing.
     expect(text).toContain('No changelog entry falls between 1.0.0 and 1.1.0 in the release table');
@@ -458,7 +462,7 @@ describe('MigrateReport.markdown', () => {
 
     expect(text).toContain('## @venizia/kernel: 1.0.0 to 2.0.0');
     expect(text).toContain(
-      'An upgrade: 1 changelog entry in the window; 1 structured step, 1 found in your code.',
+      'An upgrade: 1 changelog entry in the window; 1 structured step, 1 with mentions in your code (places that name a changed symbol; check each).',
     );
     expect(text).toContain('src/a.ts:3 (Thing.make)');
     expect(text).toContain('ThingFactory.build()');
@@ -490,9 +494,9 @@ describe('MigrateReport.markdown', () => {
     const text = MigrateReport.markdown({ result });
 
     expect(text).toContain(
-      'A downgrade: 1 changelog entry in the window; 1 structured step, 0 found in your code.',
+      'A downgrade: 1 changelog entry in the window; 1 structured step, 0 with mentions in your code (places that name a changed symbol; check each).',
     );
-    expect(text).toContain('### No static import found');
+    expect(text).toContain('### No mention found');
     expect(text).toContain('Use Thing.make() again');
   });
 });
