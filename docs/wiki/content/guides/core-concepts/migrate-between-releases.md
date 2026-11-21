@@ -54,7 +54,7 @@ No mention found.
 Data: Tokens issued before the change keep the old prefix and stop verifying.
 ```
 
-The output above is shortened. Each step names the changelog entry it comes from, the symbols it is about, and the steps or the before and after code. A step with a `Data:` line warns about stored data, tokens or formats that do not cross the version boundary: your code does not show those, so read them even when the step says no import was found.
+The output above is shortened. Each step names the changelog entry it comes from, the symbols it is about, and the steps or the before and after code. A step with a `Data:` line warns about stored data, tokens or formats that do not cross the version boundary: your code does not show those, so read them even when the step says "No mention found".
 
 A step that is about a whole module (its symbol is a package specifier such as `@venizia/ignis-inversion`) does not list every importer: it prints how many places import it and says that the import itself is not what breaks. Add `--verbose` to list the places. Code that only passes a module on with `export * from '<package>'` is listed apart as "Re-exported by your code" and counts as "only re-exported", not as a mention: your consumers may be hit, your own code needs no change.
 
@@ -115,7 +115,7 @@ Run the command from any folder of the project. A folder with no VULCAN config u
 
 The plan finds places by reading the app's source files (`.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`; not `node_modules`, `dist`, `build`, `coverage` or folders that start with a dot). It follows static imports of the package: named, aliased, namespace and default imports, re-exports, `export *` and a string `import()` of a module path.
 
-It does not read `require()` calls or destructured namespaces, and it matches by name without types, so a local variable that shadows an import is counted. A mention is a place that names a changed symbol, not a place that breaks: 848 mentions of a type may hold a few real breakages, so check each against the step. "No mention found" means the scan saw none, not that the change is safe. A file the scan cannot read is listed under `Not read`.
+It does not read `require()` calls or destructured namespaces, and it matches by name without types, so a local variable that shadows an import is counted. A mention is a place that names a changed symbol, not a place that breaks: 200 mentions of a type may hold a few real breakages, so check each against the step. "No mention found" means the scan saw none, not that the change is safe. A file the scan cannot read is listed under `Not read`.
 
 ## Breaking changes with no steps
 
