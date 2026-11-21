@@ -4,7 +4,7 @@ import type { IReleaseTable } from '@/releases';
 import type { IResolvedSource } from '@/sources/common';
 
 /** What a source says about itself, as the release store needs it. */
-type TServedSource = Pick<IResolvedSource, 'name' | 'history' | 'project'>;
+type TServedSource = Pick<IResolvedSource, 'name' | 'history' | 'project' | 'refProject'>;
 
 const CHANGELOG_LAYOUT =
   'atlas reads files named YYYY-MM-DD-<slug>.md from it, each with `packages: [<npm name>, ...]` frontmatter';
@@ -25,7 +25,7 @@ export class ServedReleases {
       codemodCommand: project.knowledge.codemodCommand,
       siteUrl: project.knowledge.siteUrl,
       codemodPackages: project.packages.map((entry) => entry.name),
-      folderHistory: new FolderHistory({ project }),
+      folderHistory: new FolderHistory({ project: opts.source.refProject ?? project }),
     });
   }
 

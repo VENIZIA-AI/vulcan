@@ -215,6 +215,8 @@ describe('a source is served at the version the project has installed', () => {
     const result = await forgeHits({ transport });
     expect(result).toBe(0);
     expect(sources[0].origin).toContain('kernel-v1.0.0');
+    expect(sources[0].refProject?.root).toBeDefined();
+    expect(sources[0].refProject?.root).not.toBe(sources[0].project.root);
     const result2 = await call({ transport, name: 'version' });
     expect(result2.snapshot['@x/kernel']).toBe('1.1.0');
   });
@@ -247,7 +249,7 @@ describe('a source is served at the version the project has installed', () => {
 
   test('nothing installed: the ref is served, and the status says why', async () => {
     const source = releasedSource();
-    const { transport } = await serve({
+    const { sources, transport } = await serve({
       cwd: consumerWith({}),
       source: SRC({ url: source.url }),
     });
@@ -257,6 +259,7 @@ describe('a source is served at the version the project has installed', () => {
     expect(result).toBe(1);
     expect(text).toContain('develop');
     expect(text).toContain('none of its packages is installed');
+    expect(sources[0].refProject).toBeUndefined();
   });
 
   test("a package installed under a workspace app's node_modules is the installed one", async () => {
@@ -300,7 +303,7 @@ describe('a source is served at the version the project has installed', () => {
 
   test("pin: 'ref' keeps serving the ref whatever is installed", async () => {
     const source = releasedSource();
-    const { transport } = await serve({
+    const { sources, transport } = await serve({
       cwd: consumerWith({ installed: { '@x/kernel': '1.0.0' } }),
       source: SRC({ url: source.url, pin: 'ref' }),
     });
@@ -309,6 +312,7 @@ describe('a source is served at the version the project has installed', () => {
     const result = await forgeHits({ transport });
     expect(result).toBe(1);
     expect(text).toContain('pin is ref');
+    expect(sources[0].refProject).toBeUndefined();
   });
 
   test('the status line names the tag served and the version it comes from', async () => {

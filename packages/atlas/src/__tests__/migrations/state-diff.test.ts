@@ -716,3 +716,75 @@ describe('migrate points at the upgrade guide', () => {
     ]);
   });
 });
+
+describe('a plan to a line the folders do not reach says so', () => {
+  const lines = (opts: { withNewFolder: boolean }) => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-plan-line-'));
+    const app = mkdtempSync(join(tmpdir(), 'atlas-plan-line-app-'));
+
+    roots.push(root, app);
+
+    const git = (args: string[]): void => {
+      execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+        cwd: root,
+        stdio: 'ignore',
+      });
+    };
+    const folder = (version: string): void => {
+      const files = folderOf({
+        version,
+        items: [{ section: 'Added', id: `item-${version.replaceAll('.', '-')}` }],
+      });
+
+      mkdirSync(join(root, 'changes', version), { recursive: true });
+      writeFileSync(join(root, 'changes', version, 'log.md'), files.log);
+      writeFileSync(join(root, 'changes', version, 'migration.yaml'), files.migration);
+    };
+
+    git(['init', '-q', '-b', 'develop']);
+    folder('0.4.5');
+    git(['add', '-A']);
+    git(['commit', '-q', '-m', 'a']);
+    git(['tag', '-a', 'kernel-v0.4.5', '-m', 'k']);
+
+    if (opts.withNewFolder) {
+      folder('0.5.0');
+    }
+
+    git(['add', '-A']);
+    git(['commit', '-q', '--allow-empty', '-m', 'b']);
+    git(['tag', '-a', 'kernel-v0.5.0-0', '-m', 'k']);
+
+    const project = ProjectConfig.toAtlasProject({
+      root,
+      manifest: {
+        schemaVersion: 1,
+        packages: PACKAGES,
+        knowledge: { changelogs: 'changes' },
+        release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+      },
+    });
+
+    return {
+      app,
+      releases: new ReleaseStore({
+        table: ReleaseCompute.compute({ project }),
+        folderHistory: new FolderHistory({ project }),
+        codemodPackages: ['@a/kernel'],
+      }),
+    };
+  };
+
+  test('folders that end at 0.4.5 and a plan to 0.5.0-0: the note names the end and the way out', () => {
+    const plan = planOf({ made: lines({ withNewFolder: false }), from: '0.4.5', to: '0.5.0-0' });
+
+    expect(plan.note).toContain('end at 0.4.5 and hold none for 0.5.0');
+    expect(plan.note).toContain('vulcan x atlas pull');
+  });
+
+  test('a folder for 0.5.0 in the history: no note', () => {
+    const plan = planOf({ made: lines({ withNewFolder: true }), from: '0.4.5', to: '0.5.0-0' });
+
+    expect(plan.note ?? '').not.toContain('hold none');
+  });
+});

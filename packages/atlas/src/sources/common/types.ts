@@ -48,6 +48,8 @@ export interface IResolvedSource {
   indexFile?: string;
   /** The release table computed at the pull, for this SHA (git mode only). */
   releasesFile?: string;
+  /** The project at the configured ref, set when the corpus is pinned to an older tag: the release folders and tags of the newer lines are read from it. */
+  refProject?: IAtlasProject;
   /** Whether releases have history - a source pulled without git has none. */
   history?: boolean;
   /** The atlas version that built the index, when it was downloaded as a verified prebuilt pair rather than built here. */
