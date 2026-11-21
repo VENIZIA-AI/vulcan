@@ -119,7 +119,9 @@ const installRunner = (opts: {
 };
 
 /** An app in a clean git repository with a stub `devz` that logs every call; `log` is read back by the tests. */
-const appWith = (opts: { git?: boolean; devz?: boolean } = {}): { app: string; log: string } => {
+const appWith = (
+  opts: { git?: boolean; devz?: boolean; script?: (opts: { log: string }) => string } = {},
+): { app: string; log: string } => {
   const root = mkdtempSync(join(tmpdir(), 'atlas-apply-'));
   const app = join(root, 'app');
   const log = join(root, 'devz.log');
@@ -135,7 +137,11 @@ const appWith = (opts: { git?: boolean; devz?: boolean } = {}): { app: string; l
   writeFileSync(log, '');
 
   if (opts.devz !== false) {
-    installRunner({ nodeModules: join(app, 'node_modules'), name: 'devz', script: STUB({ log }) });
+    installRunner({
+      nodeModules: join(app, 'node_modules'),
+      name: 'devz',
+      script: (opts.script ?? STUB)({ log }),
+    });
   }
 
   if (opts.git !== false) {
@@ -175,6 +181,18 @@ const apply = (opts: { app: string; from: string; to: string; force?: boolean })
 
   return { code, out: out.join(''), err: err.join('') };
 };
+
+/** A runner like dev-configs: it refuses unstaged and untracked files, so `cm-b` refuses what `cm-a` wrote unless it is staged. */
+const SAVING_STUB = (opts: { log: string }): string => `#!/bin/sh
+echo "$@" >> "${opts.log}"
+case "$2" in
+  cm-a) echo "// a" >> src/a.ts; echo "// new" > src/new.ts ;;
+  cm-b)
+    if ! git diff --quiet || [ -n "$(git ls-files -o --exclude-standard)" ]; then echo "files with local changes" >&2; exit 1; fi
+    echo "// b" >> src/a.ts ;;
+esac
+exit 0
+`;
 
 const calls = (opts: { log: string }): string[] =>
   readFileSync(opts.log, 'utf8').split('\n').filter(Boolean);
@@ -293,6 +311,59 @@ describe('MigrateApply.run', () => {
 
     expect(forced.code).toBe(0);
     expect(calls({ log })).toHaveLength(3);
+  });
+
+  test('each codemod that ran is staged, so the next one reads it as saved; the result is left staged', () => {
+    const { app, log } = appWith({ script: SAVING_STUB });
+    const { code, out } = apply({ app, from: '1.0.0', to: '1.2.0' });
+    const git = (args: string[]): string =>
+      execFileSync('git', args, { cwd: app, encoding: 'utf8' }).trim();
+
+    expect(code).toBe(0);
+    expect(calls({ log })).toHaveLength(3);
+    expect(readFileSync(join(app, 'src', 'a.ts'), 'utf8')).toContain('// b');
+    expect(git(['diff', '--name-only'])).toBe('');
+    expect(git(['diff', '--cached', '--name-only']).split('\n').sort()).toEqual([
+      'src/a.ts',
+      'src/new.ts',
+    ]);
+    expect(out).toContain('is staged');
+    expect(out.indexOf('is staged')).toBeLessThan(out.indexOf('### Still manual'));
+  });
+
+  test('a tree with a staged change of its own is refused before any codemod runs', () => {
+    const { app, log } = appWith({ script: SAVING_STUB });
+
+    writeFileSync(join(app, 'src', 'a.ts'), '// mine\n');
+    execFileSync('git', ['add', '-A'], { cwd: app, stdio: 'ignore' });
+
+    const refused = apply({ app, from: '1.0.0', to: '1.2.0' });
+
+    expect(refused.code).toBe(1);
+    expect(refused.err).toContain('commit or stash');
+    expect(calls({ log })).toEqual([]);
+  });
+
+  test("--force on a dirty tree runs the codemods and stages nothing of the user's", () => {
+    const { app } = appWith({ script: SAVING_STUB });
+
+    writeFileSync(join(app, 'src', 'a.ts'), '// mine\n');
+
+    const forced = apply({ app, from: '1.0.0', to: '1.2.0', force: true });
+
+    expect(forced.out).not.toContain('is staged');
+    expect(
+      execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: app, encoding: 'utf8' }),
+    ).toBe('');
+  });
+
+  test('outside git with --force the codemods run as before, and nothing is staged', () => {
+    const { app, log } = appWith({ git: false });
+    const forced = apply({ app, from: '1.0.0', to: '1.2.0', force: true });
+
+    expect(forced.code).toBe(0);
+    expect(calls({ log })).toHaveLength(3);
+    expect(forced.out).not.toContain('is staged');
   });
 
   test('an app outside any git repository is refused without --force', () => {
