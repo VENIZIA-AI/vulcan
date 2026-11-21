@@ -1,0 +1,49 @@
+launch-file-and-loader-variables:
+  symbols:
+    - BUN_OPTIONS
+    - NODE_OPTIONS
+    - claude.settings
+  upgrade:
+    steps:
+      - 'Run `bun node_modules/.bin/vulcan sync` in a terminal after upgrading; if `claude.settings.env` in `.configs/vulcan.config.*` sets `BUN_OPTIONS`, `NODE_OPTIONS` or any `BUN_CONFIG_*`, it refuses and names the key.'
+      - 'Delete each of those keys from `claude.settings.env` and set it in your shell instead (your shell profile or the command that starts the agent): the hooks no longer pass them on.'
+      - 'Run `bun node_modules/.bin/vulcan sync` again and commit `.claude/settings.json` and the manifest.'
+      - 'Stop writing `.agents/local/claude.launch.settings.json` from an agent or a script that ran through one: it is protected like the project settings.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`, put the keys back in `claude.settings.env` if you want the agent to receive them, and run `bun node_modules/.bin/vulcan sync`.'
+  data: 'A loader variable that was set through `claude.settings.env` is no longer applied to the hooks, so what it changed (a preload, a config file) stops until you set it in your shell.'
+guards-read-more-write-forms:
+  symbols:
+    - tar
+    - unzip
+    - sed
+    - perl
+    - truncate
+  upgrade:
+    steps:
+      - 'Run archive extractions in a subfolder instead of the project root: `tar xf a.tar -C dist`, `unzip a.zip -d dist`. A copy, a move, an install, a link or an extraction into the folder of a protected file now asks.'
+      - 'Clear `.agents/local/tmp/*` and not `.agents/local/*`: a pattern or `find -delete` or `git clean -x` that can reach a protected file now asks.'
+      - 'Expect a question for `sed -i`, `perl -pi`, `truncate`, `tar`, `unzip` and `git init` outside the project, and for an edit in place of a protected file. Codex and Cursor cannot ask on a tool call, so there it is a denial: run the command yourself in a terminal.'
+      - 'Do not write `.codex/hooks.json`, `.agents/hooks.json`, `.omp/hooks/pre/vulcan-guards.ts` or `.pi/extensions/vulcan-guards.ts` from an agent: `vulcan sync` writes them.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`; its guards read fewer spellings and ask for none of these.'
+guards-read-more-launchers:
+  symbols:
+    - taskset
+    - flock
+    - runuser
+    - parallel
+    - npm
+    - pnpm
+    - yarn
+  upgrade:
+    steps:
+      - 'Run `make runners-check` after upgrading: it now fails on a `bun create`, an `npm init` with a package name, an `npm`, `pnpm` or `yarn` `create` or a `bun add -g` in your docs or scripts, as it does for `bunx`.'
+      - 'For each one it names, add the package to the project dependencies and run its bin from `node_modules/.bin`, or list it in `guard.runners.allow` in `.configs/vulcan.config.*` (for a scaffolder such as `vite`, the name goes there).'
+      - 'Run `bun node_modules/.bin/vulcan sync` and commit the manifest.'
+      - 'An agent can no longer run a package through `taskset`, `flock`, `runuser`, `parallel`, `su -c`, `script -c` or `find -exec sh -c`: run the package from its bin in `node_modules/.bin` instead.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`; its guards and `runners check` read only the earlier list of launchers. Remove from `guard.runners.allow` only what you added for this release.'
