@@ -96,7 +96,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.4
+          bun-version: 1.4.5
 
       # The Node of the publish job, so that the global npm below lands in a folder this job owns: the runner's own
       # /usr/local is not writable, and a global install without a setup-node fails there with EACCES.
@@ -137,7 +137,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.4
+          bun-version: 1.4.5
 
       - name: Install
         run: bun install
@@ -245,7 +245,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.4
+          bun-version: 1.4.5
 
       - name: Setup Git
         run: |
