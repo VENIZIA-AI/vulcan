@@ -87,12 +87,12 @@ const stepOf = (opts: { step: IMigrationStep; verbose: boolean; isMixed: boolean
   const reexports = ofKind({ touches: step.touches, kind: TouchKinds.REEXPORT });
 
   if (step.touches.length === 0) {
-    lines.push('No static import found.');
+    lines.push('No mention found.');
   }
 
   if (named.length > 0) {
     lines.push(
-      'Found in your code:',
+      'Mentions in your code (places that name a changed symbol; check each):',
       ...named.map((touch) => `- ${touch.file}:${touch.line} (${touch.symbol})`),
     );
   }
@@ -198,7 +198,7 @@ const planOf = (opts: { plan: IMigrationPlan; verbose: boolean }): string[] => {
         : `; ${countOf({ count: plan.unstructured.length, one: 'breaking entry has', many: 'breaking entries have' })} no structured steps, so the scan could not check ${plan.unstructured.length === 1 ? 'it' : 'them'}`;
 
     lines.push(
-      `${article} ${plan.direction}: ${countOf({ count: plan.entries, one: 'changelog entry', many: 'changelog entries' })} in the window; ${countOf({ count: plan.steps.length, one: 'structured step', many: 'structured steps' })}, ${touched.length} found in your code${reexported === 0 ? '' : `, ${reexported} only re-exported`}${unchecked}.${source}`,
+      `${article} ${plan.direction}: ${countOf({ count: plan.entries, one: 'changelog entry', many: 'changelog entries' })} in the window; ${countOf({ count: plan.steps.length, one: 'structured step', many: 'structured steps' })}, ${touched.length} with mentions in your code (places that name a changed symbol; check each)${reexported === 0 ? '' : `, ${reexported} only re-exported`}${unchecked}.${source}`,
       '',
       ...touched.flatMap((step) => stepOf({ step, verbose: opts.verbose, isMixed })),
     );
@@ -206,7 +206,7 @@ const planOf = (opts: { plan: IMigrationPlan; verbose: boolean }): string[] => {
 
   if (rest.length > 0) {
     lines.push(
-      '### No static import found',
+      '### No mention found',
       '',
       ...rest.flatMap((step) => stepOf({ step, verbose: opts.verbose, isMixed })),
     );
@@ -250,7 +250,7 @@ export class MigrateReport {
       `# Migration plan for ${opts.result.app}`,
       '',
       ...warningOf({ result: opts.result }),
-      'Places are found by static imports of the package in `.ts`, `.tsx`, `.js` and similar files; `require()` calls and destructured namespaces are not scanned.',
+      'Mentions are places that name a changed symbol, found by static imports of the package in `.ts`, `.tsx`, `.js` and similar files; `require()` calls and destructured namespaces are not scanned.',
       '',
       ...opts.result.plans.flatMap((plan) => planOf({ plan, verbose })),
     ];

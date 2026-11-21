@@ -69,11 +69,11 @@ One section per package: the move, the steps in the order they apply (newest fir
 
 Run the codemods: `vulcan migrate apply --package @venizia/ignis --from 1.0.0 --to 1.1.0 --app /work/app`
 
-An upgrade: 1 changelog entry in the window; 2 structured steps, 1 found in your code.
+An upgrade: 1 changelog entry in the window; 2 structured steps, 1 with mentions in your code (places that name a changed symbol; check each).
 
 ### thing-factory
 
-Found in your code:
+Mentions in your code (places that name a changed symbol; check each):
 - src/legacy.ts:3 (Thing.make)
 
 Before:   Thing.make({ name })

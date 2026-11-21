@@ -20,6 +20,7 @@ This release makes the guards catch more of what an agent can do: more ways to w
 
 ## Changed
 - **Supported runtime: Bun 1.4 or newer** `supported-bun-version` (`@venizia/vulcan`, `@venizia/vulcan-atlas`, `@venizia/vulcan-okf`): the packages now accept Bun 1.4 and newer (`engines.bun` is `>=1.4`). We recommend Bun 1.4.5, a security release with TLS, HTTP and DNS fixes, but you do not have to upgrade. If you contribute to VULCAN, you need Bun 1.4.4 or newer to run `bun check`.
+- **`vulcan migrate plan` counts mentions, not breakages** `plan-counts-mentions` (`@venizia/vulcan-atlas`): the headline and the list under each step were worded as "found in your code", which read as "you are broken in this many places". The headline counts the steps with mentions, and each step lists the places that name a changed symbol; only some of those break. The wording is now "mentions in your code (places that name a changed symbol; check each)", and a step with none says "No mention found". The counting is unchanged. What to do: nothing; read each mention against the step.
 
 ## Fixed
 - **`vulcan runners check` gives the answer CI gives** `runners-check-ignores-guard-variables` (`@venizia/vulcan`): the command now reads the project's `guard.runners.allow` and ignores what `VULCAN_GUARD_ASKS` and `VULCAN_GUARD_OUTSIDE` hold, so your local result matches CI.
