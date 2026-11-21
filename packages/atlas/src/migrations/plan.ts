@@ -4,7 +4,7 @@ import { RpcError } from '@/protocol/common';
 import { InstalledVersions, ToolErrors } from '@/tools/common';
 import type { IChangelogRecord, IFolderHistory, IReleaseIndex } from '@/releases';
 import type { TConstValue } from '@/common/types';
-import { PRERELEASE_PART, VersionFolders } from '@/changelogs/version-folder';
+import { VersionFolders } from '@/changelogs/version-folder';
 import { AppScan } from './scan';
 import type { IMigrationTouch } from './scan';
 import { CodemodRunner } from '@/common/codemod-runner';
@@ -437,11 +437,11 @@ export class MigratePlan {
     }
 
     const notes = [...read.notes];
-    const line = newer.replace(PRERELEASE_PART, '');
+    const line = FolderStates.lineOf({ version: newer });
     const names = history === undefined ? [] : history.folders().map((folder) => folder.name);
     const newest = names.sort((a, b) => Bun.semver.order(b, a))[0];
 
-    if (newest !== undefined && !names.includes(line) && Bun.semver.order(line, newest) > 0) {
+    if (newest !== undefined && Bun.semver.order(line, newest) > 0) {
       notes.push(
         `the folders of this source end at ${newest} and hold none for ${line}: the steps of ${line} are not in this plan. Check the source's ref in .configs/vulcan.config.* (a branch such as develop), then run \`vulcan x atlas pull\``,
       );
