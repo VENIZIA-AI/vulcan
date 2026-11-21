@@ -6,11 +6,13 @@ import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { BaseRules, RulePacks, RuleParser } from '../../rules/index.ts';
 
 const MOVED = ['V-B-05', 'V-B-09', 'V-C-07', 'V-C-08', 'V-C-20'];
+const PACK_RULES = [...MOVED, 'V-C-21'];
 
 describe('RulePacks', () => {
-  test('the venizia pack is shipped and holds the five rules that left the base, with their IDs', () => {
+  test('the venizia pack is shipped and holds the five rules that left the base, with their IDs, and the rule that was written for it', () => {
     expect(RulePacks.names()).toEqual(['venizia']);
-    expect(Object.keys(RulePacks.rowsOf({ name: 'venizia' }))).toEqual(MOVED);
+    expect(Object.keys(RulePacks.rowsOf({ name: 'venizia' }))).toEqual(PACK_RULES);
+    expect(RulePacks.rowsOf({ name: 'venizia' })['V-C-21']).toContain('XxxHelper');
     expect(RulePacks.rowsOf({ name: 'venizia' })['V-C-08']).toContain('TConstValue');
   });
 
@@ -42,7 +44,7 @@ describe('BaseRules.read with packs', () => {
       expect(withPack[id], id).toStartWith(`| ${id} |`);
     }
 
-    expect(Object.keys(withPack)).toHaveLength(Object.keys(base).length + MOVED.length);
+    expect(Object.keys(withPack)).toHaveLength(Object.keys(base).length + PACK_RULES.length);
   });
 
   test('a rule ID is in the base or in a pack, never in both', () => {

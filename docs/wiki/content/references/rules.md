@@ -167,6 +167,8 @@ The `venizia` pack holds the five rules that bind the Venizia stack (Bun, `devz`
   - Enforced by: SOFT - lint (`const-class-values`) in a project that enables `houseConfigs` of `@venizia/dev-configs`
 - `V-C-20` - Declare the instance, then await on its own line: `const runner = new X({...}); await runner.run({...});`, never `await new X({...}).run({...})`. Tests and scripts too.
   - Enforced by: SOFT - lint (`venizia/no-await-new-chain`, `@venizia/dev-configs` from 0.4.8-3) in a project that enables `houseConfigs`
+- `V-C-21` - Name a class by what it is: a `Helper` (an object you `new` or bind, with state; `XxxHelper`, extends `BaseHelper`, `helpers/`); otherwise a static class - an access point to one thing named after it with no suffix (`RuntimeConfig`, `AppEnv`), a `Utility` (static pure functions about one data type or topic; `XxxUtility`, `utilities/`), a role class (`Reader`, `Builder`, `Encoder`, `Factory`, `Registry`, `Store`, `Guard`) or a constants class (`HTTP`, `RequestTypes`). One protocol, one namespace (`HTTP.*`) and one class prefix (`Http*`).
+  - Enforced by: SOFT
 
 ## Identifiers are never reused
 
