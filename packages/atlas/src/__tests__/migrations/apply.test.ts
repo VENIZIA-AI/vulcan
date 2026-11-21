@@ -24,12 +24,13 @@ afterAll(() => {
   }
 });
 
-const item = (opts: { id: string; codemod?: string }): TMigrationItem => ({
+const item = (opts: { id: string; codemod?: string; data?: string }): TMigrationItem => ({
   id: opts.id,
   symbols: ['Thing'],
   upgrade: { steps: [`up ${opts.id}`] },
   downgrade: { steps: [`down ${opts.id}`] },
   codemod: opts.codemod,
+  data: opts.data,
 });
 
 const entry = (opts: {
@@ -65,7 +66,10 @@ const TABLE: IReleaseTable = {
     entry({
       slug: 'first',
       order: 1,
-      items: [item({ id: 'a-item', codemod: 'cm-a' }), item({ id: 'plain-item' })],
+      items: [
+        item({ id: 'a-item', codemod: 'cm-a', data: 'a-item stored data' }),
+        item({ id: 'plain-item' }),
+      ],
     }),
     entry({
       slug: 'second',
@@ -195,9 +199,16 @@ describe('MigrateApply.run', () => {
     expect(out).toContain('plain-item');
     expect(out).toContain('up plain-item');
     expect(out).toContain('Ran `cm-a`');
-    expect(out).toContain('After the codemod, check each place it listed:');
+    expect(out).toContain('### After the codemod, check each place it listed');
     expect(out.indexOf('up a-item')).toBeGreaterThan(out.indexOf('After the codemod'));
     expect(out.indexOf('up a-item')).toBeLessThan(out.indexOf('### Still manual'));
+  });
+
+  test('the Data line of a step its codemod ran is printed after the step text', () => {
+    const { app } = appWith();
+    const { out } = apply({ app, from: '1.0.0', to: '1.2.0' });
+
+    expect(out.indexOf('Data: a-item stored data')).toBeGreaterThan(out.indexOf('up a-item'));
   });
 
   test('C17: a downgrade runs the codemods with --reverse; one that is not reversible prints its downgrade steps', () => {
@@ -226,6 +237,7 @@ describe('MigrateApply.run', () => {
     expect(code).toBe(0);
     expect(out).toContain('not reversible');
     expect(out).toContain('down irr-item');
+    expect(out.indexOf('down a-again')).toBeGreaterThan(out.indexOf('After the codemod'));
     expect(out.indexOf('down irr-item')).toBeGreaterThan(out.indexOf('### Still manual'));
     expect(out.indexOf('down a-again')).toBeLessThan(out.indexOf('### Still manual'));
   });
@@ -856,6 +868,9 @@ describe('MigrateApply.run: each step runs in its own direction (C7)', () => {
     ]);
     expect(out.join('')).toContain('not reversible');
     expect(out.join('')).toContain('downgrade irr-item');
+    expect(out.join('').indexOf('upgrade irr-item')).toBeGreaterThan(
+      out.join('').indexOf('After the codemod'),
+    );
     expect(out.join('').indexOf('upgrade irr-item')).toBeLessThan(
       out.join('').indexOf('### Still manual'),
     );

@@ -172,17 +172,15 @@ const reportOf = (opts: {
     }
 
     // A codemod that exits 0 may only list places or leave some behind, so its step's text is still printed.
+    if (done.size > 0) {
+      lines.push('### After the codemod, check each place it listed', '');
+    }
+
     for (const step of plan.steps.filter((entry) => done.has(stepKeyOf({ step: entry, plan })))) {
-      lines.push(
-        `#### ${step.id}`,
-        '',
-        'After the codemod, check each place it listed:',
-        '',
-        ...MigrateReport.changeLines({ change: step.change }),
-      );
+      lines.push(`#### ${step.id}`, '', ...MigrateReport.changeLines({ change: step.change }));
 
       if (step.data !== undefined) {
-        lines.push('', `Check after the codemod, \`${step.id}\`: ${step.data}`);
+        lines.push('', `Data: ${step.data}`);
       }
 
       lines.push('');
