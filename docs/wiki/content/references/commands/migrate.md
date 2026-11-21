@@ -93,6 +93,7 @@ A `Note:` line warns when the plan needs it, for example when `latest` is older 
 | Situation | What `apply` does |
 |---|---|
 | The app has uncommitted changes, or is not under git | Refuses and exits `1`, unless `--force`. |
+| A codemod ran | The files it wrote are staged (`git add -A`) before the next codemod runs, and stay staged; not done when `--force` runs over a tree with changes of its own. |
 | The plan is incomplete, behind the registry, or its folder state could not be read exactly | Refuses and exits `1`, unless `--force`. |
 | The codemod runner is not installed in the app or above it | Prints every step as manual and exits `1`. |
 | A codemod exits `2` and says `not reversible` | Not a failure: the step is printed as manual, with the steps that undo it. |

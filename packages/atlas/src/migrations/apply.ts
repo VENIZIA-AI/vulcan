@@ -97,6 +97,25 @@ const refusalOf = (opts: { app: string }): string | undefined => {
     : undefined;
 };
 
+/** Whether the app is in a git work tree with nothing to commit: no unstaged, staged or untracked change that is not ignored. */
+const isCleanTree = (opts: { app: string }): boolean => {
+  const status = spawnSync('git', ['status', '--porcelain'], {
+    cwd: opts.app,
+    encoding: 'utf8',
+    env: AtlasGit.buildEnvironment(),
+  });
+
+  return status.status === 0 && status.stdout.trim().length === 0;
+};
+
+/** Stages what a codemod wrote, so the next codemod, which refuses unsaved files, reads it as saved. */
+const stageAll = (opts: { app: string }): boolean =>
+  spawnSync('git', ['add', '-A'], {
+    cwd: opts.app,
+    encoding: 'utf8',
+    env: AtlasGit.buildEnvironment(),
+  }).status === 0;
+
 const trimmed = (opts: { text: string }): string => {
   const lines = opts.text.trim().split('\n');
 
@@ -137,8 +156,16 @@ const codemodsOf = (opts: {
 const reportOf = (opts: {
   result: IMigrationResult;
   outcomes: Record<string, ICodemodOutcome[]>;
+  staged?: boolean;
 }): string => {
   const lines = [`# Migration applied to ${opts.result.app}`, ''];
+
+  if (opts.staged === true) {
+    lines.push(
+      'The codemods ran one after another, and what they wrote is staged (`git add -A`): review it with `git diff --staged`. The steps that stay manual come after it.',
+      '',
+    );
+  }
 
   for (const plan of opts.result.plans) {
     const outcomes = opts.outcomes[plan.package] ?? [];
@@ -361,7 +388,10 @@ export class MigrateApply {
       return 1;
     }
 
+    // Only a tree that was clean at the start is staged: staging a tree with changes of its own would sweep them in.
+    const staging = isCleanTree({ app: result.app });
     let failed = false;
+    let staged = false;
 
     for (const { plan, codemods } of planned) {
       outcomes[plan.package] = [];
@@ -408,6 +438,15 @@ export class MigrateApply {
 
         if (ran.status === 0) {
           outcome.status = CodemodStatuses.RAN;
+
+          if (staging && stageAll({ app: result.app })) {
+            staged = true;
+          } else if (staging) {
+            failed = true;
+            opts.err(
+              `vulcan migrate apply: \`git add -A\` failed in ${result.app}; the codemods after ${codemod} were not run\n`,
+            );
+          }
         } else if (ran.status === NOT_REVERSIBLE_EXIT && text.includes(NOT_REVERSIBLE_TEXT)) {
           outcome.status = CodemodStatuses.NOT_REVERSIBLE;
         } else {
@@ -420,7 +459,7 @@ export class MigrateApply {
       }
     }
 
-    opts.out(reportOf({ result, outcomes }));
+    opts.out(reportOf({ result, outcomes, staged }));
 
     return failed ? 1 : 0;
   }

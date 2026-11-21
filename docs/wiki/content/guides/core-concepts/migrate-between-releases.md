@@ -97,7 +97,8 @@ bun node_modules/.bin/vulcan migrate apply --package @venizia/ignis --to 1.1.0
 
 | Situation | What `apply` does |
 |---|---|
-| The app has uncommitted changes, or is not under git | Refuses and exits `1`. Commit or stash first, so the rewrite is a diff of its own, or pass `--force` |
+| The app has uncommitted changes (unstaged, staged or untracked), or is not under git | Refuses and exits `1`. Commit or stash first, so the rewrite is a diff of its own, or pass `--force` |
+| A codemod ran | `apply` stages what it wrote (`git add -A`) before the next codemod, which refuses unsaved files, and leaves the result staged: review it with `git diff --staged`. A forced run over a tree with changes of its own stages nothing |
 | `devz` is not installed | Exits `1` and prints every step as manual. It looks in the app and its parents up to the root of the git work tree |
 | A codemod exits `2` and says `not reversible` | Not a failure: the step is printed as manual, with the steps that undo it |
 | A codemod fails | Stops, prints its output, exits `1`; the codemods after it are listed as not run |
