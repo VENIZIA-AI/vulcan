@@ -115,10 +115,13 @@ const ownerHtml = (opts: { spec: TVisualizeSpec; chrome: TChrome }): string => {
   const fact = (label: string, value: string | undefined): string =>
     value === undefined ? '' : `<p class="fact"><b>${escaped(label)}</b> ${escaped(value)}</p>`;
 
-  const list =
-    spec.actions === undefined
-      ? `<p class="ask">${escaped(strip?.next ?? '')}</p>`
-      : `<ol class="check">${spec.actions.map((action) => `<li>${escaped(action)}</li>`).join('')}</ol>`;
+  let list = '';
+
+  if (spec.actions !== undefined) {
+    list = `<ol class="check">${spec.actions.map((action) => `<li>${escaped(action)}</li>`).join('')}</ol>`;
+  } else if (strip !== undefined) {
+    list = `<p class="ask">${escaped(strip.next)}</p>`;
+  }
 
   return `<section class="part own" id="next" data-slide><div class="wrap"><h2 class="vh">${escaped(chrome.next)}</h2>${list}${fact(chrome.blockedBy, strip?.blockedBy)}${fact(chrome.healthy, strip?.healthy)}${fact(chrome.changed, strip?.changed)}</div></section>`;
 };

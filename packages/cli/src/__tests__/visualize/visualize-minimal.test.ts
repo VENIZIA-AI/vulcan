@@ -232,4 +232,16 @@ describe('answer first: the owner part, the steps and the decisions are quiet', 
     expect(html).toContain('<li class="srow c-ok done"><svg');
     expect(html).not.toMatch(/<p class="key">.*not started/);
   });
+
+  test('the key is left out when every step is not started', () => {
+    const html = htmlOf({
+      ...fullSpec(),
+      minimap: [
+        { task: 'One', status: 'not started' },
+        { task: 'Two', status: 'not started' },
+      ],
+    });
+
+    expect(html).not.toContain('class="key"');
+  });
 });

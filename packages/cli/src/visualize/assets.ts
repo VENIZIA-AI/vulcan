@@ -88,7 +88,7 @@ const BASE_CSS = [
   `.win,.pull{background-image:radial-gradient(var(--slab-dot) 1px,transparent 1.2px);background-size:16px 16px}`,
   // The page: one light column of 960 px, one text measure of 70 characters, three type sizes (28, 20, 16) and a small 13.
   `.wrap{max-width:960px}`,
-  `.top{position:absolute;top:12px;left:0;right:0;z-index:5}`,
+  `.top{position:absolute;top:20px;left:0;right:0;z-index:5}`,
   `.top .wrap{display:flex;align-items:center;justify-content:flex-end;gap:8px}`,
   `.head{padding-top:20px}.head .chip{margin-bottom:14px;min-height:36px}`,
   `h1{font-size:28px;line-height:1.2;max-width:30ch;letter-spacing:-.02em;overflow-wrap:anywhere}`,
@@ -102,13 +102,13 @@ const BASE_CSS = [
   `h3{font-size:16px;line-height:1.3}`,
   `.foot{margin-top:72px;padding-block:24px;border-top:1px solid var(--line)}.foot p{font-size:13px;color:var(--muted)}`,
   `.figure{margin-top:0}`,
-  // What the owner has to do: one ask, a numbered list, and the plain facts.
+  // What the owner has to do: the numbered actions (or the ask when there are none) and the plain facts.
   `.ask{max-width:70ch;color:var(--ink);font-weight:600;margin-bottom:14px}`,
   `.check{display:grid;gap:8px;counter-reset:s;max-width:70ch}`,
   `.check li{counter-increment:s;display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;align-items:baseline;color:var(--ink)}`,
   `.check li::before{content:counter(s);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg);font:600 13px var(--font)}`,
   `.fact{max-width:70ch;margin-top:14px;color:var(--body)}.fact b{color:var(--ink)}.fact b::after{content:':'}`,
-  // Decisions: a numbered card each, the options stacked, the reason, then the detail in small monospace.
+  // Decisions: a flat numbered block each, ruled option rows, the reason, then the detail in small monospace.
   `.decs{display:grid;gap:16px;counter-reset:d}`,
   `.dec{counter-increment:d;padding:20px 0 0;border-top:1px solid var(--line)}.dec:first-child{border-top:0;padding-top:0}`,
   `.dec h3{font-size:20px;line-height:1.3;letter-spacing:-.01em;max-width:60ch;margin-bottom:12px}.dec h3::before{content:counter(d) '. ';color:var(--muted)}`,
@@ -118,7 +118,7 @@ const BASE_CSS = [
   `.dopt .tag{display:inline-block;margin:0 0 0 8px;background:var(--accent);color:var(--accent-ink);padding:1px 8px;border-radius:var(--radius);font-size:13px;font-weight:600}`,
   `.why{margin-top:14px;max-width:70ch;color:var(--body)}.why b{color:var(--ink)}`,
   `.dt{margin-top:12px;font:13px/1.5 var(--code);color:var(--muted);overflow-wrap:anywhere}`,
-  // Steps: one row each: icon, name, note. Done rows are muted, the next one is tinted.
+  // Steps: one row each: an icon or the number, the name, the note. Done rows are muted, the next one is tinted.
   `.rows{display:grid;gap:2px}`,
   `.srow{display:grid;grid-template-columns:24px minmax(0,22rem) minmax(0,1fr);gap:4px 12px;align-items:baseline;padding:10px 12px;border-radius:var(--radius);color:var(--c)}`,
   `.srow .ic{align-self:center}.srow .no{color:var(--muted);font-size:13px;text-align:center}.srow b{color:var(--ink);font-weight:600}.srow .nt{color:var(--body)}`,
@@ -324,7 +324,7 @@ const BASE_CSS = [
   `html.present .deck{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;gap:12px;align-items:center;justify-content:center;padding:10px;border-top:1px solid var(--line)}`,
   `html.present .deck span{font:600 14px var(--font);color:var(--muted)}`,
   `@media (max-width:860px){.estep,.diff,.ev,.log li,.idea{grid-template-columns:minmax(0,1fr)}.estep .dg{grid-column:auto}.estep .no{line-height:1}.idea .centre{order:-1;grid-column:1;grid-row:auto}.idea .branch:nth-child(n){grid-column:1}.estep{gap:12px}.estep .no{font-size:28px}`,
-  `.part{padding-top:28px}.opt{padding:22px 18px}.ba{padding:22px 18px}.toc{flex-direction:column;gap:6px}.dopt{grid-template-columns:minmax(0,1fr)}.srow{grid-template-columns:24px minmax(0,1fr)}.srow .nt{grid-column:2}`,
+  `.part:not(.own){padding-top:28px}.opt{padding:22px 18px}.ba{padding:22px 18px}.toc{flex-direction:column;gap:6px}.dopt{grid-template-columns:minmax(0,1fr)}.srow{grid-template-columns:24px minmax(0,1fr)}.srow .nt{grid-column:2}`,
   `.stack thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.stack,.stack tbody,.stack tr,.stack td{display:block;width:100%}.stack tr{padding:14px 0;border-top:1px solid var(--line)}.stack tbody tr:first-child{border-top:0;padding-top:0}.stack td{border:0;padding:3px 0}`,
   `.stack td[data-label]::before{content:attr(data-label);display:block;font:600 13px/1.3 var(--font);color:var(--muted);margin-bottom:2px}}`,
   `@media (max-width:520px){#present{display:none}.tile{padding:22px 20px}.tile .n{font-size:28px}.steps{grid-template-columns:minmax(0,1fr)}.say{grid-template-columns:minmax(0,1fr)}}`,
