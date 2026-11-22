@@ -524,7 +524,10 @@ export class SpecSections {
     }
 
     const next = minimap.findIndex((row) => row.status !== 'done' && row.status !== 'dropped');
-    const used = [...new Set(minimap.map((row) => row.status))];
+    // A step not yet started is its plain number; only the other states take an icon, and the key names those.
+    const used = [...new Set(minimap.map((row) => row.status))].filter(
+      (state) => state !== 'not started',
+    );
 
     return SpecSections.section({
       id: 'minimap',
@@ -532,11 +535,11 @@ export class SpecSections {
       body: `<ol class="rows">${minimap
         .map(
           (row, index) =>
-            `<li class="srow c-${NodeStates.toneOf(row.status)}${row.status === 'done' ? ' done' : ''}${index === next ? ' next' : ''}">${SpecCharts.stateIcon({ state: row.status, size: 18 })}<b>${escaped(row.task)}</b><span class="vh">${escaped(SpecSections.stateWord({ chrome, state: row.status }))}</span>${row.note === undefined ? '' : `<span class="nt">${escaped(row.note)}</span>`}</li>`,
+            `<li class="srow c-${NodeStates.toneOf(row.status)}${row.status === 'done' ? ' done' : ''}${index === next ? ' next' : ''}">${row.status === 'not started' ? `<span class="no" aria-hidden="true">${index + 1}</span>` : SpecCharts.stateIcon({ state: row.status, size: 18 })}<b>${escaped(row.task)}</b><span class="vh">${escaped(SpecSections.stateWord({ chrome, state: row.status }))}</span>${row.note === undefined ? '' : `<span class="nt">${escaped(row.note)}</span>`}</li>`,
         )
         .join(
           '',
-        )}</ol><p class="key">${used.map((state) => SpecSections.chip({ chrome, state })).join('')}</p>`,
+        )}</ol>${used.length === 0 ? '' : `<p class="key">${used.map((state) => SpecSections.chip({ chrome, state })).join('')}</p>`}`,
     });
   }
 

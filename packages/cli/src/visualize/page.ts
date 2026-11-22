@@ -100,7 +100,10 @@ const headHtml = (opts: { ctx: ISectionContext; toc: string }): string => {
   return `<header class="head" data-slide><div class="wrap">${SpecSections.chip({ chrome, state, size: 18, label: word })}<h1>${escaped(spec.title)}</h1><p class="lede">${escaped(spec.verdict)}</p>${meta === '' ? '' : `<p class="meta">${meta}</p>`}${opts.toc}</div></header>`;
 };
 
-/** What the owner has to do: the ask, the numbered actions, and the plain facts around it. */
+/**
+ * What the owner has to do: the numbered actions, or the ask when there are none (never both: the ask would say the
+ * same twice), and the plain facts around it. The part has no visible heading; the contents line names it.
+ */
 const ownerHtml = (opts: { spec: TVisualizeSpec; chrome: TChrome }): string => {
   const { spec, chrome } = opts;
   const { strip } = spec;
@@ -112,11 +115,15 @@ const ownerHtml = (opts: { spec: TVisualizeSpec; chrome: TChrome }): string => {
   const fact = (label: string, value: string | undefined): string =>
     value === undefined ? '' : `<p class="fact"><b>${escaped(label)}</b> ${escaped(value)}</p>`;
 
-  return SpecSections.section({
-    id: 'next',
-    title: chrome.next,
-    body: `${strip === undefined ? '' : `<p class="ask">${escaped(strip.next)}</p>`}${spec.actions === undefined ? '' : `<ol class="check">${spec.actions.map((action) => `<li>${escaped(action)}</li>`).join('')}</ol>`}${fact(chrome.blockedBy, strip?.blockedBy)}${fact(chrome.healthy, strip?.healthy)}${fact(chrome.changed, strip?.changed)}`,
-  });
+  let list = '';
+
+  if (spec.actions !== undefined) {
+    list = `<ol class="check">${spec.actions.map((action) => `<li>${escaped(action)}</li>`).join('')}</ol>`;
+  } else if (strip !== undefined) {
+    list = `<p class="ask">${escaped(strip.next)}</p>`;
+  }
+
+  return `<section class="part own" id="next" data-slide><div class="wrap"><h2 class="vh">${escaped(chrome.next)}</h2>${list}${fact(chrome.blockedBy, strip?.blockedBy)}${fact(chrome.healthy, strip?.healthy)}${fact(chrome.changed, strip?.changed)}</div></section>`;
 };
 
 /** The theme of a page that is given none: the default preset. */
