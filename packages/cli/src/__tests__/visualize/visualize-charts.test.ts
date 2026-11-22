@@ -83,6 +83,28 @@ describe('the form of a chart is chosen from its data', () => {
   });
 });
 
+describe('charts sit two to a row without leaving an empty cell', () => {
+  test('a table is a row of its own, and a chart left alone takes the whole row', () => {
+    expect(ChartShape.wideRows({ isTable: [false, false, false, false, false, true] })).toEqual([
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+    ]);
+    expect(ChartShape.wideRows({ isTable: [false, false] })).toEqual([false, false]);
+    expect(ChartShape.wideRows({ isTable: [false] })).toEqual([true]);
+    expect(ChartShape.wideRows({ isTable: [false, true, false, false, false] })).toEqual([
+      true,
+      true,
+      false,
+      false,
+      true,
+    ]);
+  });
+});
+
 describe('what each chart is drawn as', () => {
   test('a bar of three values is a stat line; a bar over months is a line; names are bars, largest first', () => {
     const stats = htmlOf([
@@ -167,7 +189,7 @@ describe('what each chart is drawn as', () => {
     const series = Array.from({ length: 7 }, (_, n) => ({ name: `s${n}`, values: [1, 2, 3] }));
     const html = htmlOf([{ type: 'stack', title: 'Mix', groups: ['x', 'y', 'z'], series }]);
 
-    expect(html).toContain('<figure class="chart stack">');
+    expect(html).toContain('<figure class="chart stack');
     expect(html).toContain('<ul class="clegend row">');
     expect(html).toContain('<span>Other</span>');
     expect(html).toContain('<details class="tv">');
@@ -184,6 +206,55 @@ describe('what each chart is drawn as', () => {
         },
       ]),
     ).toContain('3 values for 2 groups');
+  });
+
+  test('line labels at the end of lines that end close together are at least 17 px apart', () => {
+    const html = htmlOf([
+      {
+        type: 'line',
+        title: 'Close',
+        labels: ['a', 'b', 'c'],
+        series: [
+          { name: 'one', values: [1, 2, 3] },
+          { name: 'two', values: [1, 2, 3.1] },
+          { name: 'three', values: [1, 2, 3.2] },
+        ],
+      },
+    ]);
+    const ys = [...html.matchAll(/<text x="[\d.]+" y="([\d.]+)" class="cv">(?:one|two|three)</g)]
+      .map((match) => Number(match[1]))
+      .sort((a, b) => a - b);
+
+    expect(ys).toHaveLength(3);
+    expect(Math.min(...ys.slice(1).map((y, at) => y - (ys[at] ?? 0)))).toBeGreaterThanOrEqual(17.9);
+  });
+
+  test('stack totals are printed only when they differ', () => {
+    const stack = (values: number[][]) =>
+      htmlOf([
+        {
+          type: 'stack',
+          title: 'Mix',
+          groups: ['x', 'y'],
+          series: [
+            { name: 'a', values: values[0] },
+            { name: 'b', values: values[1] },
+          ],
+        },
+      ]);
+
+    expect(
+      stack([
+        [60, 70],
+        [40, 30],
+      ]).match(/class="cv">100</g),
+    ).toBeNull();
+    expect(
+      stack([
+        [60, 70],
+        [40, 40],
+      ]).match(/class="cv">/g),
+    ).toHaveLength(2);
   });
 
   test('a meter list gives each row a name, a bar and a figure against its limit', () => {

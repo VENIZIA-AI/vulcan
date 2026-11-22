@@ -222,7 +222,7 @@ describe('charts are drawn from the data and carry their table', () => {
     const html = rendered(kindsSpec());
 
     for (const type of ['bar', 'line', 'donut']) {
-      expect(html, type).toContain(`<figure class="chart ${type}">`);
+      expect(html, type).toContain(`<figure class="chart ${type}`);
     }
 
     expect(html.match(/<details class="tv">/g)).toHaveLength(3);

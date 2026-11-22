@@ -137,7 +137,7 @@ export class SpecCharts {
     }
 
     const every = labels.length > 6 ? Math.ceil(labels.length / 6) : 1;
-    // The direct labels sit at the last point of each line; where two would touch, they are pushed apart by 15 px.
+    // The direct labels sit at the last point of each line; where two would touch, they are pushed apart by 18 px.
     const ends = series
       .map((s, index) => ({ index, y: y(s.values.slice(0, labels.length).at(-1) ?? 0) }))
       .sort((a, b) => a.y - b.y);
@@ -146,8 +146,8 @@ export class SpecCharts {
       const previous = ends[at - 1];
       const current = ends[at];
 
-      if (previous !== undefined && current !== undefined && current.y - previous.y < 15) {
-        current.y = previous.y + 15;
+      if (previous !== undefined && current !== undefined && current.y - previous.y < 18) {
+        current.y = previous.y + 18;
       }
     }
 
@@ -221,6 +221,8 @@ export class SpecCharts {
       opts.series.reduce((sum, s) => sum + (s.values[at] ?? 0), 0),
     );
     const largest = Math.max(...totals, 1);
+    // Totals that are all the same say nothing, so they are not printed.
+    const hasTotals = new Set(totals).size > 1;
 
     return `<svg viewBox="0 0 ${VIEW_WIDTH} ${opts.groups.length * rowHeight + 8}" role="img" aria-label="${escaped(opts.title)}">${opts.groups
       .map((group, row) => {
@@ -240,7 +242,7 @@ export class SpecCharts {
           })
           .join('');
 
-        return `<g><text x="0" y="${y + 16}" class="ct">${escaped(shorten({ value: group, max: 14 }))}</text>${segments}<text x="${at + 6}" y="${y + 16}" class="cv">${SpecCharts.formatNumber({ value: totals[row] ?? 0 })}${escaped(opts.unit ?? '')}</text></g>`;
+        return `<g><text x="0" y="${y + 16}" class="ct">${escaped(shorten({ value: group, max: 14 }))}</text>${segments}${hasTotals ? `<text x="${at + 6}" y="${y + 16}" class="cv">${SpecCharts.formatNumber({ value: totals[row] ?? 0 })}${escaped(opts.unit ?? '')}</text>` : ''}</g>`;
       })
       .join('')}</svg>`;
   }
@@ -438,12 +440,12 @@ export class SpecCharts {
   }
 
   /** One chart as a figure: a title, the drawing, a legend when there is more than one thing to tell apart, and its data as a table. */
-  static render(opts: { chart: TChart; chrome: TChrome }): string {
+  static render(opts: { chart: TChart; chrome: TChrome; isWide?: boolean }): string {
     const { chart } = opts;
     const { body, legend } = SpecCharts.drawing(opts);
 
     // A table takes the whole row.
-    const wide = chart.type === 'table' ? ' wide' : '';
+    const wide = chart.type === 'table' || opts.isWide === true ? ' wide' : '';
 
     return `<figure class="chart ${chart.type}${wide}"><figcaption class="lab">${escaped(chart.title)}</figcaption><div class="cbody">${body}${legend}</div>${SpecCharts.tableView({ chart, chrome: opts.chrome })}</figure>`;
   }

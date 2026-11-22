@@ -367,10 +367,14 @@ export class SpecSections {
       return '';
     }
 
+    const wideRows = ChartShape.wideRows({
+      isTable: (findings.charts ?? []).map((chart) => chart.type === 'table'),
+    });
+
     return SpecSections.section({
       id: 'findings',
       title: chrome.findings,
-      body: `${findings.numbers === undefined ? '' : SpecSections.tilesHtml({ tiles: findings.numbers, chrome })}${findings.charts === undefined ? '' : `<div class="charts">${findings.charts.map((chart) => SpecCharts.render({ chart, chrome })).join('')}</div>`}${findings.callouts === undefined ? '' : `<ul class="callouts">${findings.callouts.map((callout) => `<li class="callout c-${callout.state === undefined ? 'info' : NodeStates.toneOf(callout.state)}">${SpecCharts.stateIcon({ state: callout.state ?? 'info', size: 22 })}<p>${callout.state === undefined ? '' : `<span class="vh">${escaped(SpecSections.stateWord({ chrome, state: callout.state }))}: </span>`}${escaped(callout.text)}</p></li>`).join('')}</ul>`}`,
+      body: `${findings.numbers === undefined ? '' : SpecSections.tilesHtml({ tiles: findings.numbers, chrome })}${findings.charts === undefined ? '' : `<div class="charts">${findings.charts.map((chart, at) => SpecCharts.render({ chart, chrome, isWide: wideRows[at] })).join('')}</div>`}${findings.callouts === undefined ? '' : `<ul class="callouts">${findings.callouts.map((callout) => `<li class="callout c-${callout.state === undefined ? 'info' : NodeStates.toneOf(callout.state)}">${SpecCharts.stateIcon({ state: callout.state ?? 'info', size: 22 })}<p>${callout.state === undefined ? '' : `<span class="vh">${escaped(SpecSections.stateWord({ chrome, state: callout.state }))}: </span>`}${escaped(callout.text)}</p></li>`).join('')}</ul>`}`,
     });
   }
 

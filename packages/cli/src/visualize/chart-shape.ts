@@ -99,6 +99,31 @@ export class ChartShape {
     ];
   }
 
+  /**
+   * Which charts take a whole row. Charts sit two to a row; a table is always a row of its own, and a chart left alone
+   * at the end of a run of charts (before a table, or last) takes the whole row instead of leaving an empty cell.
+   */
+  static wideRows(opts: { isTable: boolean[] }): boolean[] {
+    const wide = opts.isTable.map((isTable) => isTable);
+    let run = 0;
+
+    for (const [at, isTable] of opts.isTable.entries()) {
+      if (isTable) {
+        run = 0;
+      } else {
+        run += 1;
+
+        const next = opts.isTable[at + 1];
+
+        if (run % 2 === 1 && (next === undefined || next)) {
+          wide[at] = true;
+        }
+      }
+    }
+
+    return wide;
+  }
+
   /** Short items (40 characters or fewer) in a list of more than 8 sit in two columns on a wide page. */
   static isColumned(opts: { items: string[] }): boolean {
     return opts.items.length > 8 && opts.items.every((item) => item.length <= 40);
