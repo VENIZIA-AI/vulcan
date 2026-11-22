@@ -88,7 +88,7 @@ export class VisualizeLimits {
   static readonly MAX_GRID = 10;
   static readonly MAX_STEPS = 12;
   static readonly MAX_ROWS_PER_TABLE = 30;
-  static readonly MAX_TITLE = 120;
+  static readonly MAX_TITLE = 60;
   static readonly MAX_SENTENCE = 300;
   static readonly MAX_LABEL = 60;
   /** An arrow label has to fit the gap between two boxes. */
@@ -109,6 +109,20 @@ export class VisualizeLimits {
   static readonly MAX_SERIES = 3;
   static readonly MAX_PARTS = 5;
   static readonly MAX_LIST = 6;
+  /** A step of the plan is a name and a note that read on one line each. */
+  static readonly MAX_STEP_NAME = 40;
+  static readonly MAX_STEP_NOTE = 80;
+  /** A decision is a question, two or three options and a reason; the code goes in its detail. */
+  static readonly MAX_QUESTION = 80;
+  static readonly MAX_OPTION_LABEL = 24;
+  static readonly MAX_OPTION_EFFECT = 120;
+  static readonly MAX_WHY = 160;
+  static readonly MAX_DECISION_DETAIL = 300;
+  /** Body blocks of a written section. */
+  static readonly MAX_SECTIONS = 6;
+  static readonly MAX_BLOCKS = 12;
+  static readonly MAX_CODE_LINES = 40;
+  static readonly MAX_CODE_LINE = 120;
   /** Typical pages are 30-60 KB; a page past `FAIL_BYTES` is refused: two pages, not one dense one. */
   static readonly WARN_BYTES = 80 * 1024;
   static readonly FAIL_BYTES = 150 * 1024;
@@ -130,7 +144,7 @@ export const DEFAULT_CHROME = {
   blockedBy: 'Blocked by',
   changed: 'What changed',
   next: 'What you need to do',
-  minimap: 'Where things stand',
+  minimap: 'Steps',
   task: 'Task',
   minimapStates: {
     done: 'done',
@@ -228,13 +242,7 @@ export const DEFAULT_CHROME = {
   gradeB: 'has gaps',
   gradeC: 'weak',
   metrics: 'Numbers',
-  /** The small label above a section: the group its part of the page belongs to. */
-  kickOverview: 'Overview',
-  kickStructure: 'Structure',
-  kickDecision: 'Decision',
-  kickEvidence: 'Evidence',
-  kickPlan: 'Plan',
-  kickReference: 'Reference',
+  why: 'Why',
   /** The words that tell an added arrow from a removed one: never colour alone. */
   onlyHere: 'only here',
   addedEdge: 'added',

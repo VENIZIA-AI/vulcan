@@ -2,9 +2,9 @@ import { describe, expect, test } from 'bun:test';
 import { PAGE_JS } from '../../visualize/assets.ts';
 import { SpecPage, VisualizeLimits } from '../../visualize/index.ts';
 import { fullSpec } from './spec.fixture.ts';
+import { renderSpec } from './render.helper.ts';
 
-const render = (spec: Record<string, unknown>) =>
-  SpecPage.renderText({ text: JSON.stringify(spec) });
+const render = (spec: Record<string, unknown>) => renderSpec(spec);
 const rendered = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
@@ -305,7 +305,7 @@ describe('diagrams', () => {
     expect(html).toContain('class="dband"');
     expect(html.match(/class="dlink"/g)).toHaveLength(3);
     expect(html).toContain('<span class="verb">uses</span>');
-    expect(html).toMatch(/class="fig f\d+"/);
+    expect(html).toMatch(/class="fig f\d+(p\d+)?"/);
   });
 
   test('a box id twice, a link to nowhere and a link to itself are refused', () => {
@@ -414,20 +414,23 @@ describe('the decision record and the timeline', () => {
   });
 });
 
-describe('tiles, actions and the presentation mode', () => {
-  test('given tiles replace the counted ones, and actions are a numbered checklist', () => {
-    const html = rendered({
-      ...kindsSpec(),
-      tiles: [{ value: '7', label: 'things', state: 'done' }],
-    });
+/** The spec of a page for presenting: a page for the owner (steps, actions, decisions) is read, not presented. */
+const presentable = (): Record<string, unknown> => {
+  const owner = new Set(['strip', 'minimap', 'actions', 'decisions']);
 
-    expect(html).toContain('<span class="n">7</span>');
-    expect(html).not.toContain('class="n">1 / 3');
+  return Object.fromEntries(Object.entries(kindsSpec()).filter(([key]) => !owner.has(key)));
+};
+
+describe('actions and the presentation mode', () => {
+  test('actions are a numbered checklist, and the page has no tiles of its own', () => {
+    const html = rendered(kindsSpec());
+
+    expect(html).not.toContain('slide-tiles');
     expect(html).toContain('<ol class="check"><li>Read the options.</li><li>Choose one.</li></ol>');
   });
 
   test('every section is a slide, with the controls to step through them and the keys in the script', () => {
-    const html = rendered(kindsSpec());
+    const html = rendered(presentable());
     const slides = html.match(/data-slide/g)?.length ?? 0;
 
     expect(slides).toBeGreaterThanOrEqual(10);
@@ -446,14 +449,14 @@ describe('tiles, actions and the presentation mode', () => {
 describe('words, schema and size', () => {
   test('the words of the new kinds are English and a spec replaces them', () => {
     const html = rendered({
-      ...kindsSpec(),
+      ...presentable(),
       chrome: { comparison: 'Vergleich', findings: 'Ergebnisse', present: 'Zeigen' },
     });
 
     expect(html).toContain('Vergleich');
     expect(html).toContain('Ergebnisse');
     expect(html).toContain('>Zeigen</button>');
-    expect(rendered(kindsSpec())).toContain('>Present</button>');
+    expect(rendered(presentable())).toContain('>Present</button>');
   });
 
   test('the printed schema names the new kinds and their limits', () => {
@@ -467,8 +470,8 @@ describe('words, schema and size', () => {
       'timeline',
       'findings',
       'decisionRecord',
-      'tiles',
       'actions',
+      'sections',
     ]) {
       expect(schema, key).toContain(`"${key}"`);
     }

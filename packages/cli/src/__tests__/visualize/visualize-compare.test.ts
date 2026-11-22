@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { SpecPage } from '../../visualize/index.ts';
 import { fullSpec } from './spec.fixture.ts';
+import { renderSpec } from './render.helper.ts';
 
-const render = (spec: Record<string, unknown>) =>
-  SpecPage.renderText({ text: JSON.stringify(spec) });
+const render = (spec: Record<string, unknown>) => renderSpec(spec);
 const rendered = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
@@ -107,8 +107,10 @@ describe('the compare view', () => {
     expect(groups[2]).toContain('<span class="verb removed">merges back</span>');
     expect(groups[2]).not.toContain('raises number');
     // The page swaps the figure for the list below the width where the figure would shrink.
-    expect(html).toMatch(/\.fig\.f\d+~\.path,\.fig\.f\d+~\.path-detail\{display:block\}/);
-    expect(html).toMatch(/\.fig\.f\d+~\.legend\{display:none\}/);
+    expect(html).toMatch(
+      /\.fig\.f\d+(?:p\d+)?~\.path,\.fig\.f\d+(?:p\d+)?~\.path-detail\{display:block\}/,
+    );
+    expect(html).toMatch(/\.fig\.f\d+(?:p\d+)?~\.legend\{display:none\}/);
     expect(html).toContain('<ul class="legend cmp-key">');
     expect(html).toContain('<ul class="path-detail"><li><b>develop</b>the working branch</li>');
   });
@@ -327,7 +329,9 @@ describe('replacement patterns in the text of a spec', () => {
       });
 
       expect(sections(html), text).toBe(sections(control));
-      expect(html.match(/id="slide-next"/g)?.length, text).toBe(1);
+      expect(html.match(/id="slide-next"/g)?.length ?? 0, text).toBe(
+        control.match(/id="slide-next"/g)?.length ?? 0,
+      );
       // The words may appear as text; no tag may carry them as an attribute.
       // (Inside a quoted attribute value it is still text, so the values are taken out first.)
       expect(html.replace(/="[^"]*"/g, '=""'), text).not.toMatch(/<[^>]*\smask=/);

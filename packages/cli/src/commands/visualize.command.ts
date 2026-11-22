@@ -77,7 +77,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   }
 
   // The page takes the project's colour from the manifest of the folder it runs in (no config is loaded, nothing
-  // is requested) and its words from the owner's profile; a spec's own `accent` and `language` win.
+  // is requested) and its words from the owner's profile, the one place that sets the language; a spec's own `accent` wins.
   const manifest = ProjectTheme.readManifestTheme({ root: opts.cwd });
   const profile = OwnerProfile.read({ root: opts.cwd });
   const rendered = SpecPage.renderText({

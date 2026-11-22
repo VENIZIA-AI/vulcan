@@ -6,7 +6,6 @@ export const fullSpec = (): Record<string, unknown> => ({
   asOf: '2026-10-25',
   scope: 'the profile form',
   verdict: 'Answers go to one ignored file; nothing leaves the project.',
-  caption: 'Five boxes from a typed answer to the saved file.',
   strip: {
     healthy: 'Yes, the tests pass.',
     blockedBy: 'Nothing.',
@@ -74,8 +73,11 @@ export const fullSpec = (): Record<string, unknown> => ({
   decisions: [
     {
       question: 'Ask again after an upgrade?',
-      recommended: 'No.',
-      changes: 'Nothing is asked unless you run the form.',
+      options: [
+        { label: 'No', effect: 'Nothing is asked unless you run the form.', recommended: true },
+        { label: 'Yes', effect: 'The form opens after every upgrade.' },
+      ],
+      why: 'Answers rarely change, and a question nobody asked is noise.',
     },
   ],
   evidence: [{ claim: 'A symlink is refused', probe: 'test', result: 'passes', label: 'verified' }],

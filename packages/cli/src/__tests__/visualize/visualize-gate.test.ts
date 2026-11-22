@@ -2,9 +2,10 @@ import { describe, expect, test } from 'bun:test';
 import { PageGate } from '../../visualize/gate.ts';
 import { SpecPage } from '../../visualize/index.ts';
 import { fullSpec } from './spec.fixture.ts';
+import { renderSpec } from './render.helper.ts';
 
 const page = (): string => {
-  const result = SpecPage.renderText({ text: JSON.stringify(fullSpec()) });
+  const result = renderSpec(fullSpec());
 
   if (!result.ok) {
     throw new Error(result.problems.join('; '));

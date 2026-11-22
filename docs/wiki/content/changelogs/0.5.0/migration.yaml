@@ -77,3 +77,18 @@ guards-read-more-launchers:
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`; its guards and `runners check` read only the earlier list of launchers. Remove from `guard.runners.allow` only what you added for this release.'
+visualize-pages-simplified:
+  symbols:
+    - titleMuted
+    - tiles
+    - decisions
+  upgrade:
+    steps:
+      - 'Delete `titleMuted`, `tiles`, `caption` and `language` from each visualize spec; put key numbers in `findings.numbers`, and set the page language in your owner profile (`vulcan profile`).'
+      - 'Shorten each title to 60 characters with no status word, each step name to 40 characters and each step note to 80.'
+      - 'Rewrite each decision as `{ question, options, why, detail? }`: a question that ends with `?`, two or three options of `{ label, effect, recommended? }` with exactly one recommended, and a reason; move code out of the question and the labels into `detail`.'
+      - 'Render again with `bun node_modules/.bin/vulcan visualize <spec> --out <name>`.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`; its renderer reads the earlier spec.'
+  data: 'No stored data changes: a rendered page is a file in `.agents/local/prototypes/`, and it is written again by the next render.'

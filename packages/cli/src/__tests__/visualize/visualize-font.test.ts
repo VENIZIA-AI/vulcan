@@ -17,11 +17,11 @@ describe('the code font in a generated page', () => {
   const css = `${Assets.pageCss({ tokens: '' })}${COMPARE_CSS}`;
 
   test('only real code uses it: inline code and source references', () => {
-    expect(codeFontSelectors({ css }).sort()).toEqual(['.src', 'code']);
+    expect(codeFontSelectors({ css }).sort()).toEqual(['.blk pre', '.dt', '.src', 'code']);
   });
 
   test('sentence-type text is set in the text font: the scope line, evidence result, edge labels and dates', () => {
-    for (const selector of ['.hero .meta', '.ev .rs', '.verb', '.tl time', '.log time']) {
+    for (const selector of ['.meta', '.ev .rs', '.verb', '.tl time', '.log time']) {
       const rule = css.split('}').find((item) => item.trim().startsWith(selector));
 
       expect(rule, selector).toBeDefined();

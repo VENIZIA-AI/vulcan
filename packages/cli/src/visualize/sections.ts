@@ -47,6 +47,37 @@ const table = (opts: { head: string[]; rows: string[][] }): string =>
 const cell = (opts: { value: string; label?: string; tag?: boolean }): string =>
   `<td${opts.tag === true ? ' class="tag"' : ''}${opts.label === undefined ? '' : ` data-label="${escaped(opts.label)}"`}>${escaped(opts.value)}</td>`;
 
+/** Text with `code` spans: the text between a pair of backticks is code; an unpaired backtick is plain text. */
+const inline = (value: string): string => {
+  const parts = value.split('`');
+
+  return parts.length % 2 === 0
+    ? escaped(value)
+    : parts
+        .map((part, index) => (index % 2 === 1 ? `<code>${escaped(part)}</code>` : escaped(part)))
+        .join('');
+};
+
+type TBlock = NonNullable<TVisualizeSpec['sections']>[number]['blocks'][number];
+
+const blockHtml = (opts: { block: TBlock }): string => {
+  const { block } = opts;
+
+  if (block.type === 'p') {
+    return `<p>${inline(block.text)}</p>`;
+  }
+
+  if (block.type === 'quote') {
+    return `<blockquote><p>${inline(block.text)}</p></blockquote>`;
+  }
+
+  if (block.type === 'code') {
+    return `<pre><code>${escaped(block.lines.join('\n'))}</code></pre>`;
+  }
+
+  return `<${block.type}>${block.items.map((item) => `<li>${inline(item)}</li>`).join('')}</${block.type}>`;
+};
+
 export class SpecSections {
   /** The word of a state in the page's language. */
   static stateWord(opts: { chrome: TChrome; state: string }): string {
@@ -60,45 +91,65 @@ export class SpecSections {
     return `<span class="chip c-${NodeStates.toneOf(opts.state)}">${SpecCharts.stateIcon({ state: opts.state, size: opts.size ?? 16 })}<span>${escaped(opts.label ?? SpecSections.stateWord(opts))}</span></span>`;
   }
 
-  /** The in-page links of the top bar: the parts that exist, in the order of the page. */
+  /** The contents line: the parts that exist, in the order of the page, each with the count a reader wants first. */
   static sectionLinks(opts: {
     spec: TVisualizeSpec;
     chrome: TChrome;
-  }): { id: string; title: string }[] {
+  }): { id: string; title: string; count?: string }[] {
     const { spec, chrome } = opts;
-    const parts: [boolean, string, string][] = [
-      [spec.flow !== undefined, 'flow', chrome.flow],
-      [spec.minimap !== undefined, 'minimap', chrome.minimap],
-      [spec.strip !== undefined, 'next', chrome.next],
-      [spec.architecture !== undefined, 'architecture', chrome.architecture],
-      [spec.compare !== undefined, 'compare', chrome.compareView],
-      [spec.sequence !== undefined, 'sequence', chrome.sequence],
-      [spec.lifecycle !== undefined, 'lifecycle', chrome.lifecycle],
-      [spec.tree !== undefined, 'tree', chrome.tree],
-      [spec.comparison !== undefined, 'comparison', chrome.comparison],
-      [spec.ideaMap !== undefined, 'idea-map', chrome.ideaMap],
-      [spec.explainer !== undefined, 'explainer', chrome.explainer],
-      [spec.timeline !== undefined, 'timeline', chrome.timeline],
-      [spec.findings !== undefined, 'findings', chrome.findings],
-      [spec.grades !== undefined, 'grades', chrome.grades],
-      [spec.metrics !== undefined, 'metrics', chrome.metrics],
-      [spec.beforeAfter !== undefined, 'before-after', `${chrome.before} / ${chrome.after}`],
-      [spec.decisionRecord !== undefined, 'decision-record', chrome.decisionRecord],
-      [spec.decisions !== undefined, 'decisions', chrome.decisions],
-      [spec.evidence !== undefined, 'evidence', chrome.evidence],
-      [spec.risks !== undefined, 'risks', chrome.risks],
-      [spec.log !== undefined, 'log', chrome.log],
-      [spec.terms !== undefined, 'terms', chrome.terms],
+    const done = (spec.minimap ?? []).filter((row) => row.status === 'done').length;
+    const parts: [unknown, string, string, string?][] = [
+      [spec.actions ?? spec.strip, 'next', chrome.next],
+      [
+        spec.decisions,
+        'decisions',
+        chrome.decisions,
+        spec.decisions && String(spec.decisions.length),
+      ],
+      [
+        spec.minimap,
+        'minimap',
+        chrome.minimap,
+        spec.minimap &&
+          `${done}/${spec.minimap.length} ${SpecSections.stateWord({ chrome, state: 'done' })}`,
+      ],
+      [spec.flow, 'flow', chrome.flow],
+      ...(spec.sections ?? []).map((part, index): [unknown, string, string] => [
+        part,
+        `note-${index + 1}`,
+        part.title,
+      ]),
+      [spec.architecture, 'architecture', chrome.architecture],
+      [spec.compare, 'compare', chrome.compareView],
+      [spec.sequence, 'sequence', chrome.sequence],
+      [spec.lifecycle, 'lifecycle', chrome.lifecycle],
+      [spec.tree, 'tree', chrome.tree],
+      [spec.comparison, 'comparison', chrome.comparison],
+      [spec.ideaMap, 'idea-map', chrome.ideaMap],
+      [spec.explainer, 'explainer', chrome.explainer],
+      [spec.timeline, 'timeline', chrome.timeline],
+      [spec.findings, 'findings', chrome.findings],
+      [spec.grades, 'grades', chrome.grades],
+      [spec.metrics, 'metrics', chrome.metrics],
+      [spec.beforeAfter, 'before-after', `${chrome.before} / ${chrome.after}`],
+      [spec.decisionRecord, 'decision-record', chrome.decisionRecord],
+      [spec.evidence, 'evidence', chrome.evidence, spec.evidence && String(spec.evidence.length)],
+      [spec.risks, 'risks', chrome.risks, spec.risks && String(spec.risks.length)],
+      [spec.log, 'log', chrome.log],
+      [spec.terms, 'terms', chrome.terms],
       [SourceRefs.entries({ spec, chrome }).length > 0, 'sources', chrome.sources],
-      [spec.links !== undefined, 'links', chrome.links],
+      [spec.links, 'links', chrome.links],
     ];
 
-    return parts.filter(([exists]) => exists).map(([, id, title]) => ({ id, title }));
+    return parts
+      .filter(([exists]) => exists !== undefined && exists !== false)
+      .map(([, id, title, count]) => (count === undefined ? { id, title } : { id, title, count }));
   }
 
   /**
-   * The flow lives in the hero: the figure on the slab, its phone list, the legend, then the steps to press and the
-   * line that says what is picked. Without script the steps are a plain list with their text.
+   * The flow: the figure in a dark window, its phone list, the legend, then the steps to press and the line that says
+   * what is picked. Without script the steps are a plain list with their text. A flow of one step or none has no legend,
+   * no hint and no Run button: there is nothing to choose.
    */
   static flow(opts: { ctx: ISectionContext }): string {
     const { flow } = opts.ctx.spec;
@@ -115,23 +166,26 @@ export class SpecSections {
       ...new Set(flow.nodes.flatMap((node) => (node.state === undefined ? [] : [node.state]))),
     ];
     const steps = flow.steps;
-    const legend = [
-      ...states.map((state) => `<li>${SpecSections.chip({ chrome, state })}</li>`),
-      ...(kinds.length > 1
-        ? kinds.map(
-            (kind) =>
-              `<li>${escaped(chrome.nodeKinds[kind as keyof TChrome['nodeKinds']] ?? kind)}</li>`,
-          )
-        : []),
-      ...(variants.length > 1
-        ? variants.map(
-            (variant) =>
-              `<li>${variantSwatch({ variant })}<span>${escaped(chrome.edgeVariants[variant as keyof TChrome['edgeVariants']] ?? variant)}</span></li>`,
-          )
-        : []),
-    ];
+    const plain = steps.length <= 1;
+    const legend = plain
+      ? []
+      : [
+          ...states.map((state) => `<li>${SpecSections.chip({ chrome, state })}</li>`),
+          ...(kinds.length > 1
+            ? kinds.map(
+                (kind) =>
+                  `<li>${escaped(chrome.nodeKinds[kind as keyof TChrome['nodeKinds']] ?? kind)}</li>`,
+              )
+            : []),
+          ...(variants.length > 1
+            ? variants.map(
+                (variant) =>
+                  `<li>${variantSwatch({ variant })}<span>${escaped(chrome.edgeVariants[variant as keyof TChrome['edgeVariants']] ?? variant)}</span></li>`,
+              )
+            : []),
+        ];
     const play =
-      flow.edges.length > 0
+      flow.edges.length > 0 && !plain
         ? `<button class="btn" id="play" type="button" aria-pressed="false" data-play="${escaped(chrome.play)}" data-pause="${escaped(chrome.pause)}">${escaped(chrome.play)}</button>`
         : '';
     const all =
@@ -139,7 +193,7 @@ export class SpecSections {
         ? `<button class="btn" id="all" type="button" hidden>${escaped(chrome.allSteps)}</button>`
         : '';
 
-    opts.ctx.fits.add(`${width}`);
+    opts.ctx.fits.add(`${width}:0:${WIN_FRAME}`);
 
     // A box that has a source says it in its detail line: on hover, and in the phone list.
     const shown = {
@@ -169,13 +223,13 @@ export class SpecSections {
     );
 
     // The figure, its phone list, the legend, then the steps: a sibling order the page CSS relies on to swap the figure for the list.
-    return `<figure class="figure" id="flow"><p class="lab">${escaped(chrome.flow)}</p><div class="fig f${width}">${FigureLayout.render({ flow: shown })}</div>${FigureLayout.renderPathList({ flow: shown })}${
+    return `<figure class="figure win"><div class="fig ${FigureLayout.fitName({ key: `${width}:0:${WIN_FRAME}` })}">${FigureLayout.render({ flow: shown })}</div>${FigureLayout.renderPathList({ flow: shown })}${
       legend.length === 0 ? '' : `<ul class="legend">${legend.join('')}</ul>`
     }${
       steps.length > 0
         ? `<ol class="steps">${steps.map((step, index) => `<li><button type="button" aria-pressed="false"><b>${escaped(step.title)}</b><span>${index + 1} / ${steps.length}</span></button><p class="explain">${escaped(step.note)}${step.source === undefined ? '' : ` ${SourceRefs.html({ source: step.source })}`}</p></li>`).join('')}</ol>`
         : ''
-    }<div class="say js-only"><p id="say" aria-live="polite">${escaped(chrome.detailHint)}</p><div class="ctl">${play}${all}</div></div>${
+    }<div class="say js-only"><p id="say" aria-live="polite">${plain ? '' : escaped(chrome.detailHint)}</p><div class="ctl">${play}${all}</div></div>${
       steps.length > 0
         ? `<script type="application/json" id="steps">${jsonForScript({ value: stepsJson })}</script>`
         : ''
@@ -425,6 +479,7 @@ export class SpecSections {
     });
   }
 
+  /** A decision: a numbered card, the question, its options stacked with the recommended one tagged, the reason, the detail. */
   static decisions(opts: { ctx: ISectionContext }): string {
     const { decisions } = opts.ctx.spec;
     const { chrome } = opts.ctx;
@@ -436,13 +491,59 @@ export class SpecSections {
     return SpecSections.section({
       id: 'decisions',
       title: chrome.decisions,
-      body: `<ol class="qs">${decisions
+      body: `<ol class="decs">${decisions
         .map(
           (item) =>
-            `<li class="q"><div><h3>${escaped(item.question)}</h3><p class="chg"><span class="lab">${escaped(chrome.changesClaim)}</span>${escaped(item.changes)}</p></div><div class="rec"><b>${escaped(chrome.recommended)}</b><strong>${escaped(item.recommended)}</strong></div></li>`,
+            `<li class="dec"><h3>${escaped(item.question)}</h3><ul class="dopts">${item.options
+              .map(
+                (option) =>
+                  `<li class="dopt${option.recommended === true ? ' rec' : ''}"><b>${escaped(option.label)}${option.recommended === true ? `<span class="tag">${escaped(chrome.recommended)}</span>` : ''}</b><span>${escaped(option.effect)}</span></li>`,
+              )
+              .join(
+                '',
+              )}</ul><p class="why"><b>${escaped(chrome.why)}:</b> ${escaped(item.why)}</p>${item.detail === undefined ? '' : `<p class="dt">${escaped(item.detail)}</p>`}</li>`,
         )
         .join('')}</ol>`,
     });
+  }
+
+  /** The steps of the plan as one list of rows: an icon, the name, the note; done rows muted, the next one tinted, one key. */
+  static steps(opts: { ctx: ISectionContext }): string {
+    const { minimap } = opts.ctx.spec;
+    const { chrome } = opts.ctx;
+
+    if (minimap === undefined) {
+      return '';
+    }
+
+    const next = minimap.findIndex((row) => row.status !== 'done' && row.status !== 'dropped');
+    const used = [...new Set(minimap.map((row) => row.status))];
+
+    return SpecSections.section({
+      id: 'minimap',
+      title: chrome.minimap,
+      body: `<ol class="rows">${minimap
+        .map(
+          (row, index) =>
+            `<li class="row c-${NodeStates.toneOf(row.status)}${row.status === 'done' ? ' done' : ''}${index === next ? ' next' : ''}">${SpecCharts.stateIcon({ state: row.status, size: 18 })}<b>${escaped(row.task)}</b><span class="vh">${escaped(SpecSections.stateWord({ chrome, state: row.status }))}</span>${row.note === undefined ? '' : `<span class="nt">${escaped(row.note)}</span>`}</li>`,
+        )
+        .join(
+          '',
+        )}</ol><p class="key">${used.map((state) => SpecSections.chip({ chrome, state })).join('')}</p>`,
+    });
+  }
+
+  /** The written sections: a typed list of blocks, each its own element, never parsed markup. */
+  static notes(opts: { ctx: ISectionContext }): string {
+    return (opts.ctx.spec.sections ?? [])
+      .map((part, index) =>
+        SpecSections.section({
+          id: `note-${index + 1}`,
+          title: part.title,
+          body: `<div class="blk">${part.blocks.map((block) => blockHtml({ block })).join('')}</div>`,
+        }),
+      )
+      .join('');
   }
 
   static evidence(opts: { ctx: ISectionContext }): string {

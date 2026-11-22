@@ -49,22 +49,16 @@ export const alignmentSpec = (): Record<string, unknown> => ({
   minimap: [
     { task: 'Share the rows', status: 'done', note: 'One short note.' },
     {
-      task: 'A task whose name wraps onto a second and a third line',
+      task: 'A task whose name wraps onto two lines',
       status: 'in progress',
       note: 'Its note starts under its long name.',
     },
     {
       task: 'Measure',
       status: 'waiting',
-      note: 'A note that is long enough to wrap onto several lines in its card so that the notes below the names differ.',
+      note: 'A note long enough to wrap onto several lines, so the notes differ.',
     },
     { task: 'Ship', status: 'not started' },
-  ],
-  tiles: [
-    { value: '21', label: 'Short label', state: 'done' },
-    { value: '1,234,567', label: 'A label long enough to wrap onto a second and third line' },
-    { value: '7', label: 'Mid label here', state: 'blocked' },
-    { value: '100%', label: 'Another one' },
   ],
   comparison: {
     criteria: [
@@ -130,13 +124,29 @@ export const alignmentSpec = (): Record<string, unknown> => ({
   decisions: [
     {
       question: 'Ask again after an upgrade, and say so in the first line of the output?',
-      recommended: 'No.',
-      changes: 'Nothing is asked unless the form changes.',
+      options: [
+        { label: 'No', effect: 'Nothing is asked unless the form changes.', recommended: true },
+        {
+          label: 'Yes, every time',
+          effect: 'The form opens after each upgrade, and says why on its first line.',
+        },
+        { label: 'Once a year', effect: 'A reminder, nothing more.' },
+      ],
+      why: 'The answers rarely change, and a question nobody needs is noise.',
+      detail:
+        'ask.afterUpgrade = false; reset with vulcan profile --reset (a long path/like/this/one/that/wraps/anywhere/in/the/box)',
     },
     {
       question: 'Keep the digest file?',
-      recommended: 'Yes, keep it for one release as a fallback in case the new path fails.',
-      changes: 'The size of the project folder.',
+      options: [
+        {
+          label: 'Keep it',
+          effect: 'Keep it for one release as a fallback in case the new path fails.',
+          recommended: true,
+        },
+        { label: 'Delete it', effect: 'The project folder gets smaller.' },
+      ],
+      why: 'A fallback costs little for one release.',
     },
   ],
   findings: {
@@ -184,7 +194,7 @@ export const alignmentSpec = (): Record<string, unknown> => ({
     before: {
       title: 'Before',
       items: [
-        { text: 'A refusal, with a long explanation that wraps.', change: 'removed' },
+        { text: 'A refusal, with a short explanation.', change: 'removed' },
         { text: 'Ten questions.' },
       ],
     },

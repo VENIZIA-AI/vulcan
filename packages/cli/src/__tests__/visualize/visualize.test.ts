@@ -15,6 +15,7 @@ import { SpecPage, VISUALIZE_SCHEMA, VisualizeLimits } from '../../visualize/ind
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 import { fullSpec } from './spec.fixture.ts';
+import { renderSpec } from './render.helper.ts';
 
 afterAll(removeProjects);
 
@@ -29,8 +30,7 @@ const PAGE_CSS = ((): string => {
   return Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: resolved.theme }) });
 })();
 
-const render = (spec: Record<string, unknown>) =>
-  SpecPage.renderText({ text: JSON.stringify(spec) });
+const render = (spec: Record<string, unknown>) => renderSpec(spec);
 const rendered = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
@@ -224,7 +224,7 @@ describe('the spec', () => {
     expect(required).not.toContain('edges');
     expect(schema.properties.status.properties.state.pattern).toContain('blocked');
     expect(schema.properties.links.items.properties.href.pattern).toContain('https');
-    expect(new RegExp(schema.properties.language.pattern).test('pt-BR')).toBe(true);
+    expect(schema.properties.language).toBeUndefined();
   });
 
   test('the JSON Schema can be printed and names the title', () => {
@@ -382,42 +382,56 @@ describe('the page words', () => {
 });
 
 describe('the page reads the answer first', () => {
-  test('the banner, the tiles and the minimap, then your action, then the figure, the decisions and the evidence', () => {
+  test('the header, the contents, your actions, the decisions, the steps, then the rest, and the footer last', () => {
     const html = rendered(fullSpec());
     const at = (part: string): number => html.indexOf(part);
+    const order = [
+      'class="head"',
+      'class="toc"',
+      'id="next"',
+      'id="decisions"',
+      'id="minimap"',
+      'id="flow"',
+      'id="evidence"',
+      'class="foot"',
+    ].map(at);
 
-    // The flow lives in the hero slab, under the verdict; the tiles, the minimap and the owner's two cards follow it.
-    expect(at('data-hero')).toBeLessThan(at('id="flow"'));
-    expect(at('id="flow"')).toBeLessThan(at('class="tiles"'));
-    expect(at('class="tiles"')).toBeLessThan(at('id="minimap"'));
-    expect(at('id="minimap"')).toBeLessThan(at('class="two"'));
-    expect(at('class="two"')).toBeLessThan(at('id="decisions"'));
-    expect(at('id="decisions"')).toBeLessThan(at('id="evidence"'));
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(html).toContain('What you need to do');
-    expect(html).toContain('<a class="jump" href="#decisions">Decisions needed (');
+    expect(html).toContain('<a href="#decisions">Decisions needed <span>· 1</span></a>');
+    expect(html).toContain('<a href="#minimap">Steps <span>· 1/3 done</span></a>');
   });
 
-  test('the banner carries the state as an icon, a colour and a word', () => {
+  test('the page has no dark slab, no kicker, no tiles of its own and no title in the top bar', () => {
     const html = rendered(fullSpec());
 
-    expect(html).toMatch(/<div class="banner slab c-ok"/);
-    expect(html).toContain('class="word">On track<');
+    expect(html).not.toContain('class="slab');
+    expect(html).not.toContain('class="kick"');
+    expect(html).not.toContain('class="tiles"');
+    expect(html).not.toMatch(/<header class="top">.*<b class="ttl"/);
+    expect(html).not.toContain('id="present"');
+  });
+
+  test('the head carries the state as an icon, a colour and a word', () => {
+    const html = rendered(fullSpec());
+
+    expect(html).toMatch(/<span class="chip c-ok">.*?<span>On track<\/span>/);
     expect(rendered({ ...fullSpec(), status: { state: 'blocked' } })).toMatch(
-      /<div class="banner slab c-bad"/,
+      /<span class="chip c-bad">.*?<span>Blocked<\/span>/,
     );
     expect(
       rendered({ ...fullSpec(), status: { state: 'warn', label: 'Waiting for you' } }),
-    ).toContain('class="word">Waiting for you<');
+    ).toContain('<span>Waiting for you</span>');
   });
 
-  test('the minimap gives every task a shape and a word, the tiles count the states, and a spec replaces the words', () => {
+  test('every step is a row with an icon and a word, done rows are muted and the next one is marked', () => {
     const html = rendered(fullSpec());
 
-    expect(html).toContain('class="seg c-ok"');
-    expect(html).toContain('class="seg c-info"');
-    expect(html).toContain('class="seg c-mut"');
-    expect(html).toContain('<span>in progress</span>');
-    expect(html).toMatch(/class="tile c-ok"[^>]*>.*?<span class="n">1 \/ 3<\/span>/);
+    expect(html).toContain('<li class="row c-ok done">');
+    expect(html).toContain('<li class="row c-info next">');
+    expect(html).toContain('<li class="row c-mut">');
+    expect(html).toContain('<span class="vh">in progress</span>');
 
     const french = rendered({
       ...fullSpec(),
@@ -425,7 +439,7 @@ describe('the page reads the answer first', () => {
     });
 
     expect(french).toContain('Ou en sont les choses');
-    expect(french).toContain('<span>fait</span>');
+    expect(french).toContain('<span class="vh">fait</span>');
   });
 
   test('a status the minimap does not know, an empty minimap and a long task are refused', () => {
@@ -436,11 +450,20 @@ describe('the page reads the answer first', () => {
     );
     expect(problems({ ...fullSpec(), minimap: [] }).join()).toContain('minimap');
     expect(
-      problems({ ...fullSpec(), minimap: [{ ...row, task: 'x'.repeat(61) }] }).join(),
+      problems({ ...fullSpec(), minimap: [{ ...row, task: 'x'.repeat(41) }] }).join(),
+    ).toContain('minimap');
+    expect(
+      problems({ ...fullSpec(), minimap: [{ ...row, note: 'x'.repeat(81) }] }).join(),
     ).toContain('minimap');
     expect(problems({ ...fullSpec(), minimap: [{ ...row, extra: 1 }] }).join()).toContain(
       'minimap',
     );
+  });
+
+  test('a title is at most 60 characters, and a spec cannot have tiles or a muted title', () => {
+    expect(problems({ ...fullSpec(), title: 'x'.repeat(61) }).join()).toContain('title');
+    expect(problems({ ...fullSpec(), tiles: [] }).join()).toContain('tiles');
+    expect(problems({ ...fullSpec(), titleMuted: 'x' }).join()).toContain('titleMuted');
   });
 
   test('evidence tags differ in shape as well as in word, and tables name each cell for a phone', () => {
@@ -462,24 +485,17 @@ describe('the page reads the answer first', () => {
     expect(html).toContain('<ol class="path">');
     expect(html).toContain('<span class="verb main">');
     // The figure is as wide as its boxes and its arrow labels need; 92% of that, plus the page padding, is the width below which the list shows.
-    const width = Number(/class="fig f(\d+)"/.exec(html)?.[1]);
+    const width = Number(/class="fig f(\d+)p32"/.exec(html)?.[1]);
 
     expect(width).toBeGreaterThan(400);
     expect(html).toContain(
-      `@media (max-width:${Math.ceil(width * 0.92) + 66}px){.fig.f${width}{display:none}`,
+      `@media (max-width:${Math.ceil(width * 0.92) + 66 + 32}px){.fig.f${width}p32{display:none}`,
     );
-    expect(html).toContain(`.fig.f${width}~.path`);
+    expect(html).toContain(`.fig.f${width}p32~.path`);
   });
 
   test('there is no inline style anywhere: the page policy would block it', () => {
     expect(rendered(fullSpec())).not.toMatch(/ style=/);
-  });
-
-  test('the page is complete from its first frame: the intro moves the hero and never hides it', () => {
-    const intro = /@keyframes rise\{([^}]*\{[^}]*\}[^}]*)\}/.exec(PAGE_CSS)?.[1] ?? '';
-
-    expect(intro).toContain('transform');
-    expect(intro).not.toContain('opacity');
   });
 
   test('print shows the figure and not the phone list', () => {

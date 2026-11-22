@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { SpecPage, VisualizeLimits } from '../../visualize/index.ts';
 import { fullSpec } from './spec.fixture.ts';
+import { renderSpec } from './render.helper.ts';
 
-const render = (spec: Record<string, unknown>) =>
-  SpecPage.renderText({ text: JSON.stringify(spec) });
+const render = (spec: Record<string, unknown>) => renderSpec(spec);
 const rendered = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
@@ -323,8 +323,8 @@ describe('the page with sources and terms', () => {
     expect(at('sources')).toBeLessThan(at('links'));
 
     const nav = html.slice(
-      html.indexOf('<span class="links">'),
-      html.indexOf('</span>', html.indexOf('<span class="links">')),
+      html.indexOf('<nav class="toc"'),
+      html.indexOf('</nav>', html.indexOf('<nav class="toc"')),
     );
     const order = [
       '#flow',

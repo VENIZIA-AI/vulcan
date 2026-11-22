@@ -40,14 +40,6 @@ export const GROUPS: IGroup[] = [
     slots: ['.tag-slot', 'h3', '.ln'],
   },
   { name: 'tiles', container: '.tiles', item: '.tile', slots: ['.n', '.l'] },
-  {
-    name: 'minimap stepper',
-    container: '.strip',
-    item: '.seg',
-    slots: ['.bar', '.nm', '.tn', '.nt'],
-  },
-  { name: 'the owner cards', container: '.own', item: ':scope > div', slots: ['.lab'] },
-  { name: 'the two facts', container: '.facts', item: '.fact', slots: ['b'] },
   { name: 'charts', container: '.charts', item: 'figure.chart', slots: ['.lab', '.cbody', '.tv'] },
   {
     name: 'before and after',
@@ -64,7 +56,8 @@ export const GROUPS: IGroup[] = [
   },
   { name: 'terms', container: '.terms', item: ':scope > div', slots: ['dt', 'dd'] },
   { name: 'links', container: '.links', item: ':scope > li', slots: ['a'] },
-  { name: 'decisions', container: '.qs', item: '.q', slots: ['h3', '.rec'], mode: 'column' },
+  { name: 'decision options', container: '.dopts', item: '.dopt', slots: ['b'], mode: 'column' },
+  { name: 'steps', container: '.rows', item: '.row', slots: ['b'], mode: 'column' },
   {
     name: 'timeline',
     container: '.tl',
