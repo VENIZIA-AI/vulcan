@@ -222,7 +222,7 @@ describe('charts are drawn from the data and carry their table', () => {
     const html = rendered(kindsSpec());
 
     for (const type of ['bar', 'line', 'donut']) {
-      expect(html, type).toContain(`<figure class="chart ${type}">`);
+      expect(html, type).toContain(`<figure class="chart ${type}`);
     }
 
     expect(html.match(/<details class="tv">/g)).toHaveLength(3);
@@ -235,7 +235,9 @@ describe('charts are drawn from the data and carry their table', () => {
     const html = rendered({
       ...kindsSpec(),
       findings: {
-        charts: [{ type: 'bar', title: 'Big', labels: ['a', 'b'], values: [1234567, 0] }],
+        charts: [
+          { type: 'bar', title: 'Big', labels: ['a', 'b', 'c', 'd'], values: [1234567, 0, 5, 9] },
+        ],
       },
     });
 
@@ -243,26 +245,25 @@ describe('charts are drawn from the data and carry their table', () => {
     expect(html).toMatch(/<path d="M120 \d+h/);
   });
 
-  test('data that does not line up with its labels, negatives in a bar and too many parts are refused', () => {
+  test('data that does not line up with its labels, too many series and too many parts are refused', () => {
     const charts = (kindsSpec()['findings'] as { charts: Record<string, unknown>[] }).charts;
     const withChart = (chart: Record<string, unknown>) =>
       problems({ ...kindsSpec(), findings: { charts: [chart] } }).join();
 
     expect(withChart({ ...charts[0], values: [1, 2] })).toContain('3 labels for 2 values');
-    expect(withChart({ ...charts[0], values: [1, -2, 3] })).toContain('findings');
     expect(withChart({ ...charts[1], series: [{ name: 'x', values: [1, 2] }] })).toContain(
       'findings',
     );
     expect(
       withChart({
         ...charts[1],
-        series: [1, 2, 3, 4].map((n) => ({ name: `s${n}`, values: [1, 2, 3] })),
+        series: [1, 2, 3, 4, 5, 6].map((n) => ({ name: `s${n}`, values: [1, 2, 3] })),
       }),
     ).toContain('findings');
     expect(
       withChart({
         ...charts[2],
-        parts: [1, 2, 3, 4, 5, 6].map((n) => ({ label: `p${n}`, value: n })),
+        parts: Array.from({ length: 13 }, (_, n) => ({ label: `p${n}`, value: n + 1 })),
       }),
     ).toContain('findings');
     expect(

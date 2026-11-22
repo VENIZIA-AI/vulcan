@@ -1,3 +1,4 @@
+import { ChartShape } from './chart-shape.ts';
 import { SpecCharts } from './charts.ts';
 import { ChangeKinds, MinimapStates, NodeStates } from './constants.ts';
 import type { TChangeKind, TChrome } from './constants.ts';
@@ -75,7 +76,9 @@ const blockHtml = (opts: { block: TBlock }): string => {
     return `<pre><code>${escaped(block.lines.join('\n'))}</code></pre>`;
   }
 
-  return `<${block.type}>${block.items.map((item) => `<li>${inline(item)}</li>`).join('')}</${block.type}>`;
+  const columns = ChartShape.isColumned({ items: block.items }) ? ' class="cols"' : '';
+
+  return `<${block.type}${columns}>${block.items.map((item) => `<li>${inline(item)}</li>`).join('')}</${block.type}>`;
 };
 
 export class SpecSections {
@@ -345,13 +348,13 @@ export class SpecSections {
 
   /** Big numbers as fields: a tint and an icon for a state, plain for a number that is only a number. */
   static tilesHtml(opts: {
-    tiles: { value: string; label: string; state?: string }[];
+    tiles: { value: string; label: string; state?: string; trend?: number[] }[];
     chrome: TChrome;
   }): string {
     return `<ul class="tiles" aria-label="${escaped(opts.chrome.findings)}">${opts.tiles
       .map(
         (tile) =>
-          `<li class="tile${tile.state === undefined ? '' : ` c-${NodeStates.toneOf(tile.state)}`}">${tile.state === undefined ? '' : SpecCharts.stateIcon({ state: tile.state, size: 22 })}<span class="n">${escaped(tile.value)}</span><span class="l">${escaped(tile.label)}</span>${tile.state === undefined ? '' : `<span class="vh">${escaped(SpecSections.stateWord({ chrome: opts.chrome, state: tile.state }))}</span>`}</li>`,
+          `<li class="tile${tile.state === undefined ? '' : ` c-${NodeStates.toneOf(tile.state)}`}">${tile.state === undefined ? '' : SpecCharts.stateIcon({ state: tile.state, size: 22 })}<span class="n">${escaped(tile.value)}${tile.trend === undefined ? '' : SpecCharts.sparkline({ points: tile.trend, chrome: opts.chrome })}</span><span class="l">${escaped(tile.label)}</span>${tile.state === undefined ? '' : `<span class="vh">${escaped(SpecSections.stateWord({ chrome: opts.chrome, state: tile.state }))}</span>`}</li>`,
       )
       .join('')}</ul>`;
   }
@@ -364,10 +367,14 @@ export class SpecSections {
       return '';
     }
 
+    const wideRows = ChartShape.wideRows({
+      isTable: (findings.charts ?? []).map((chart) => chart.type === 'table'),
+    });
+
     return SpecSections.section({
       id: 'findings',
       title: chrome.findings,
-      body: `${findings.numbers === undefined ? '' : SpecSections.tilesHtml({ tiles: findings.numbers, chrome })}${findings.charts === undefined ? '' : `<div class="charts">${findings.charts.map((chart) => SpecCharts.render({ chart, chrome })).join('')}</div>`}${findings.callouts === undefined ? '' : `<ul class="callouts">${findings.callouts.map((callout) => `<li class="callout c-${callout.state === undefined ? 'info' : NodeStates.toneOf(callout.state)}">${SpecCharts.stateIcon({ state: callout.state ?? 'info', size: 22 })}<p>${callout.state === undefined ? '' : `<span class="vh">${escaped(SpecSections.stateWord({ chrome, state: callout.state }))}: </span>`}${escaped(callout.text)}</p></li>`).join('')}</ul>`}`,
+      body: `${findings.numbers === undefined ? '' : SpecSections.tilesHtml({ tiles: findings.numbers, chrome })}${findings.charts === undefined ? '' : `<div class="charts">${findings.charts.map((chart, at) => SpecCharts.render({ chart, chrome, isWide: wideRows[at] })).join('')}</div>`}${findings.callouts === undefined ? '' : `<ul class="callouts">${findings.callouts.map((callout) => `<li class="callout c-${callout.state === undefined ? 'info' : NodeStates.toneOf(callout.state)}">${SpecCharts.stateIcon({ state: callout.state ?? 'info', size: 22 })}<p>${callout.state === undefined ? '' : `<span class="vh">${escaped(SpecSections.stateWord({ chrome, state: callout.state }))}: </span>`}${escaped(callout.text)}</p></li>`).join('')}</ul>`}`,
     });
   }
 

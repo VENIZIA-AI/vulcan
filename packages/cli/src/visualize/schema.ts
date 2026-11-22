@@ -230,20 +230,75 @@ const TIMELINE = z.strictObject({
     .max(VisualizeLimits.MAX_TIMELINE),
 });
 
+const CELL = text(VisualizeLimits.MAX_CELL);
+const TOO_MANY_POINTS = `at most ${VisualizeLimits.MAX_POINTS} points: more than that is a table`;
+
+/** The charts that need no choice of form from the agent: the page draws them as the data says. */
+const MORE_CHARTS = [
+  z.strictObject({
+    type: z.literal('stack'),
+    title: text(VisualizeLimits.MAX_LABEL),
+    unit: text(16).optional(),
+    groups: z
+      .array(text(VisualizeLimits.MAX_LABEL))
+      .min(2)
+      .max(VisualizeLimits.MAX_POINTS, TOO_MANY_POINTS),
+    /** One value per group, from zero up; the series past the fifth are added up into "Other". */
+    series: z
+      .array(
+        z.strictObject({
+          name: text(VisualizeLimits.MAX_LABEL),
+          values: z.array(NUMBER.min(0)).min(2).max(VisualizeLimits.MAX_POINTS),
+        }),
+      )
+      .min(2)
+      .max(VisualizeLimits.MAX_STACK_SERIES),
+  }),
+  z.strictObject({
+    type: z.literal('meter'),
+    title: text(VisualizeLimits.MAX_LABEL),
+    rows: z
+      .array(
+        z.strictObject({
+          label: text(VisualizeLimits.MAX_LABEL),
+          value: NUMBER.min(0),
+          /** The limit or the whole the value is read against. */
+          of: NUMBER.positive(),
+          unit: text(16).optional(),
+        }),
+      )
+      .min(1)
+      .max(VisualizeLimits.MAX_METERS),
+  }),
+  z.strictObject({
+    type: z.literal('table'),
+    title: text(VisualizeLimits.MAX_LABEL),
+    columns: z.array(text(VisualizeLimits.MAX_LABEL)).min(2).max(VisualizeLimits.MAX_TABLE_COLUMNS),
+    rows: z.array(z.array(CELL)).min(1).max(VisualizeLimits.MAX_TABLE_ROWS),
+  }),
+] as const;
+
 const CHART = z.discriminatedUnion('type', [
+  ...MORE_CHARTS,
   z.strictObject({
     type: z.literal('bar'),
     title: text(VisualizeLimits.MAX_LABEL),
     unit: text(16).optional(),
-    labels: z.array(text(VisualizeLimits.MAX_LABEL)).min(2).max(VisualizeLimits.MAX_POINTS),
-    /** One value per label, from zero up: a bar starts at the baseline. */
-    values: z.array(NUMBER.min(0)).min(2).max(VisualizeLimits.MAX_POINTS),
+    labels: z
+      .array(text(VisualizeLimits.MAX_LABEL))
+      .min(2)
+      .max(VisualizeLimits.MAX_POINTS, TOO_MANY_POINTS),
+    /** One value per label. A negative value draws the bars around a zero line. */
+    values: z.array(NUMBER).min(2).max(VisualizeLimits.MAX_POINTS, TOO_MANY_POINTS),
   }),
   z.strictObject({
     type: z.literal('line'),
     title: text(VisualizeLimits.MAX_LABEL),
     unit: text(16).optional(),
-    labels: z.array(text(VisualizeLimits.MAX_LABEL)).min(3).max(VisualizeLimits.MAX_POINTS),
+    labels: z
+      .array(text(VisualizeLimits.MAX_LABEL))
+      .min(3)
+      .max(VisualizeLimits.MAX_POINTS, TOO_MANY_POINTS),
     series: z
       .array(
         z.strictObject({
@@ -253,6 +308,8 @@ const CHART = z.discriminatedUnion('type', [
       )
       .min(1)
       .max(VisualizeLimits.MAX_SERIES),
+    /** The name of the one series that is the point: it takes the accent, the others turn gray. */
+    emphasis: text(VisualizeLimits.MAX_LABEL).optional(),
   }),
   z.strictObject({
     type: z.literal('donut'),
@@ -279,8 +336,8 @@ const BLOCK = z.discriminatedUnion('type', [
     type: z.literal('code'),
     lines: z.array(CODE_LINE).min(1).max(VisualizeLimits.MAX_CODE_LINES),
   }),
-  z.strictObject({ type: z.literal('ul'), items: LIST() }),
-  z.strictObject({ type: z.literal('ol'), items: LIST() }),
+  z.strictObject({ type: z.literal('ul'), items: LIST(12) }),
+  z.strictObject({ type: z.literal('ol'), items: LIST(12) }),
 ]);
 
 const FINDINGS = z.strictObject({
@@ -290,6 +347,8 @@ const FINDINGS = z.strictObject({
         value: text(16),
         label: text(VisualizeLimits.MAX_LABEL),
         state: STATE.optional(),
+        /** Where the figure is heading: a small line beside it, no axis. */
+        trend: z.array(NUMBER).min(3).max(VisualizeLimits.MAX_POINTS).optional(),
       }),
     )
     .min(1)

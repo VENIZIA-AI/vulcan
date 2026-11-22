@@ -28,7 +28,7 @@ A page is one light column about 960 px wide, in a fixed order: the head, a cont
 - **Sequence, lifecycle and tree**: lanes for the participants with one arrow per message (a call, a reply, or a call that does not wait); states with a start, ends and the trigger on each move; a root with children nested up to four levels. Each is drawn as a figure on a wide screen and is a list on a phone.
 - **Comparison**: scores of 1 to 5 per criterion, totalled and drawn as bars, an option card each with pros and cons, and the recommended option tagged.
 - **Idea map, explainer, timeline, decision record**: a centre with clusters of ideas; numbered steps on a rail with a small diagram for each; dated items on a vertical rail; the context, the options, the decision as a pull-quote and the consequences.
-- **Findings**: key numbers, and bar, line and donut charts drawn from the data as inline SVG in a fixed colour order, each with its numbers as a table view.
+- **Findings**: key numbers (with an optional trend line), and bar, line, donut, stack, meter and table charts drawn from the data as inline SVG in a fixed colour order. The page chooses the form from the data: three values or fewer are a stat line, dates make a line, names make ranked bars, the parts of a whole are one segmented bar (ranked bars past five), and a list of more than eight short items takes two columns. Each chart has its numbers as a table view.
 - **Before and after**: two columns, the lines that changed highlighted and marked `+` or `-`.
 
 ## The page
