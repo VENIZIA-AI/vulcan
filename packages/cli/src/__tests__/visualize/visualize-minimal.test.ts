@@ -211,3 +211,25 @@ describe('write it plainly: a sentence of more than 30 words is a warning', () =
     expect(code.ok ? code.page.warnings.join('\n') : 'refused').not.toContain('more than 30 words');
   });
 });
+
+describe('answer first: the owner part, the steps and the decisions are quiet', () => {
+  test('the actions have no visible heading, and the ask is not drawn when there are actions', () => {
+    const html = htmlOf({ ...fullSpec(), actions: ['Read it.'], strip: { next: 'Approve it.' } });
+
+    expect(html).toContain(
+      '<h2 class="vh">What you need to do</h2><ol class="check"><li>Read it.</li></ol>',
+    );
+    expect(html).not.toContain('Approve it.');
+    expect(htmlOf({ ...fullSpec(), actions: undefined, strip: { next: 'Approve it.' } })).toContain(
+      '<p class="ask">Approve it.</p>',
+    );
+  });
+
+  test('a step not started is its number, the other states keep an icon, and the key names only those', () => {
+    const html = htmlOf(fullSpec());
+
+    expect(html).toContain('<li class="srow c-mut"><span class="no" aria-hidden="true">3</span>');
+    expect(html).toContain('<li class="srow c-ok done"><svg');
+    expect(html).not.toMatch(/<p class="key">.*not started/);
+  });
+});
