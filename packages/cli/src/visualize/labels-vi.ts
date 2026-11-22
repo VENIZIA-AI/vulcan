@@ -113,6 +113,8 @@ export const VI_CHROME: TChrome = {
   gradeC: 'yếu',
   metrics: 'Số liệu',
   why: 'Vì',
+  other: 'Khác',
+  limit: 'Giới hạn',
   onlyHere: 'chỉ ở đây',
   addedEdge: 'thêm',
   removedEdge: 'bỏ',

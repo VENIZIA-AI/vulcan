@@ -196,6 +196,44 @@ const checkKinds = (opts: { spec: TVisualizeSpec }): string[] => {
     if (chart.type === 'donut' && chart.parts.every((part) => part.value === 0)) {
       problems.push(`findings.charts[${index}]: every part of the donut is zero`);
     }
+
+    if (chart.type === 'line' && chart.emphasis !== undefined) {
+      if (!chart.series.some((series) => series.name === chart.emphasis)) {
+        problems.push(
+          `findings.charts[${index}]: emphasis '${chart.emphasis}' is not a series name`,
+        );
+      }
+    }
+
+    if (chart.type === 'stack') {
+      for (const series of chart.series) {
+        if (series.values.length !== chart.groups.length) {
+          problems.push(
+            `findings.charts[${index}]: series '${series.name}' has ${series.values.length} values for ${chart.groups.length} groups`,
+          );
+        }
+      }
+    }
+
+    if (chart.type === 'meter') {
+      for (const row of chart.rows) {
+        if (row.value > row.of * 10) {
+          problems.push(
+            `findings.charts[${index}]: '${row.label}' is more than ten times its limit`,
+          );
+        }
+      }
+    }
+
+    if (chart.type === 'table') {
+      for (const [at, row] of chart.rows.entries()) {
+        if (row.length !== chart.columns.length) {
+          problems.push(
+            `findings.charts[${index}]: row ${at + 1} has ${row.length} cells for ${chart.columns.length} columns`,
+          );
+        }
+      }
+    }
   }
 
   for (const [index, step] of (explainer?.steps ?? []).entries()) {

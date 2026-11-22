@@ -104,10 +104,15 @@ export class VisualizeLimits {
   static readonly MAX_LINKS = 20;
   static readonly MAX_TIMELINE = 20;
   static readonly MAX_TILES = 6;
-  static readonly MAX_CHARTS = 4;
+  static readonly MAX_CHARTS = 6;
   static readonly MAX_POINTS = 12;
-  static readonly MAX_SERIES = 3;
-  static readonly MAX_PARTS = 5;
+  static readonly MAX_STACK_SERIES = 8;
+  static readonly MAX_TABLE_COLUMNS = 6;
+  static readonly MAX_TABLE_ROWS = 12;
+  static readonly MAX_METERS = 8;
+  static readonly MAX_CELL = 60;
+  static readonly MAX_SERIES = 5;
+  static readonly MAX_PARTS = 12;
   static readonly MAX_LIST = 6;
   /** A step of the plan is a name and a note that read on one line each. */
   static readonly MAX_STEP_NAME = 40;
@@ -242,6 +247,8 @@ export const DEFAULT_CHROME = {
   gradeC: 'weak',
   metrics: 'Numbers',
   why: 'Why',
+  other: 'Other',
+  limit: 'Limit',
   /** The words that tell an added arrow from a removed one: never colour alone. */
   onlyHere: 'only here',
   addedEdge: 'added',

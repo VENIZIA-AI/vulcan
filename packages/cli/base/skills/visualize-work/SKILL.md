@@ -69,7 +69,23 @@ The rules that make a page worth opening:
 - **A comparison names its scores for what they are**: a 1 to 5 judgement per criterion, not a measurement, and the
   `note` says so; mark one option `recommended` only when you recommend it, with the reason in the verdict.
 - **Findings are numbers you measured**: each chart has a title that states what it shows, a unit, and values that
-  come from a probe you ran; a chart of guesses is not a finding. A donut has at most 5 parts.
+  come from a probe you ran; a chart of guesses is not a finding. You give the data and the question; the page chooses the
+  form (see the table below), so never describe a shape in a title.
+- **Pick the chart by the question the reader asks**, and give the data, not the shape:
+
+  | The reader's question                         | Give the spec                                                                                                                                     |
+  | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | How many, how much: one to three figures      | `findings.numbers`                                                                                                                                |
+  | Where is it heading                           | `findings.numbers` with `trend`, or a `line`                                                                                                      |
+  | Which is biggest, or how do names rank        | `bar` (the page sorts it; three values or fewer become a stat line; labels that are dates become a line; a negative value makes bars around zero) |
+  | How is one whole split                        | `donut` with the parts (up to 6 parts one segmented bar, more are ranked bars with the tail as "Other")                                           |
+  | How do groups compare, each split in parts    | `stack` (series past the fifth are added up into "Other")                                                                                         |
+  | How far along is each thing against its limit | `meter`                                                                                                                                           |
+  | What are the exact values                     | `table` (more than 7 classes that all carry meaning is a table, not more colours)                                                                 |
+  | One series is the point among several         | `line` with `emphasis` set to that series name                                                                                                    |
+
+  A list of more than 8 short items in a `ul` or `ol` block sits in two columns on a wide page; the order of steps, evidence and decisions is never columned.
+
 - **An explainer step is one idea**: a short title, two sentences, and a diagram only where a picture says it faster.
 - **A timeline item has a date and a state**, so a roadmap reads as done, in progress and not started.
 - **A decision is a question, two or three options and a reason.** The question is at most 80 characters, ends with a question mark and holds no code; each option has a label (24 characters, no code), what happens if the owner picks it (120) and, for exactly one option, `recommended`; `why` is one sentence (160). Code, names and commands go in `detail` (300), shown last in small monospace. Never put a backtick, an arrow function, a snake_case name, a dotted call such as `X.values()`, a `--flag`, a brace or an angle bracket in a question or a label: the page refuses it.
