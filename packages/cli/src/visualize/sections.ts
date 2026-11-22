@@ -117,6 +117,11 @@ export class SpecSections {
           `${done}/${spec.minimap.length} ${SpecSections.stateWord({ chrome, state: 'done' })}`,
       ],
       [spec.flow, 'flow', chrome.flow],
+      ...(spec.sections ?? []).map((part, index): [unknown, string, string] => [
+        part,
+        `note-${index + 1}`,
+        part.title,
+      ]),
       [spec.architecture, 'architecture', chrome.architecture],
       [spec.compare, 'compare', chrome.compareView],
       [spec.sequence, 'sequence', chrome.sequence],
@@ -131,11 +136,6 @@ export class SpecSections {
       [spec.metrics, 'metrics', chrome.metrics],
       [spec.beforeAfter, 'before-after', `${chrome.before} / ${chrome.after}`],
       [spec.decisionRecord, 'decision-record', chrome.decisionRecord],
-      ...(spec.sections ?? []).map((part, index): [unknown, string, string] => [
-        part,
-        `note-${index + 1}`,
-        part.title,
-      ]),
       [spec.evidence, 'evidence', chrome.evidence, spec.evidence && String(spec.evidence.length)],
       [spec.risks, 'risks', chrome.risks, spec.risks && String(spec.risks.length)],
       [spec.log, 'log', chrome.log],
@@ -354,7 +354,7 @@ export class SpecSections {
     return `<ul class="tiles" aria-label="${escaped(opts.chrome.findings)}">${opts.tiles
       .map(
         (tile) =>
-          `<li class="tile${tile.state === undefined ? '' : ` c-${NodeStates.toneOf(tile.state)}`}">${tile.state === undefined ? '' : SpecCharts.stateIcon({ state: tile.state, size: 22 })}<span class="n">${escaped(tile.value)}${tile.trend === undefined ? '' : SpecCharts.sparkline({ points: tile.trend })}</span><span class="l">${escaped(tile.label)}</span>${tile.state === undefined ? '' : `<span class="vh">${escaped(SpecSections.stateWord({ chrome: opts.chrome, state: tile.state }))}</span>`}</li>`,
+          `<li class="tile${tile.state === undefined ? '' : ` c-${NodeStates.toneOf(tile.state)}`}">${tile.state === undefined ? '' : SpecCharts.stateIcon({ state: tile.state, size: 22 })}<span class="n">${escaped(tile.value)}${tile.trend === undefined ? '' : SpecCharts.sparkline({ points: tile.trend, chrome: opts.chrome })}</span><span class="l">${escaped(tile.label)}</span>${tile.state === undefined ? '' : `<span class="vh">${escaped(SpecSections.stateWord({ chrome: opts.chrome, state: tile.state }))}</span>`}</li>`,
       )
       .join('')}</ul>`;
   }

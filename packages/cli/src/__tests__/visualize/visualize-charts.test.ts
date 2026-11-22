@@ -55,9 +55,9 @@ describe('the form of a chart is chosen from its data', () => {
     ]);
   });
 
-  test('parts up to six are one segmented bar, more are ranked, and the tail folds into Other', () => {
-    expect(ChartShape.partsForm({ count: 6 })).toBe('segmented');
-    expect(ChartShape.partsForm({ count: 7 })).toBe('ranked');
+  test('parts up to five are one segmented bar, more are ranked, and the tail folds into Other', () => {
+    expect(ChartShape.partsForm({ count: 5 })).toBe('segmented');
+    expect(ChartShape.partsForm({ count: 6 })).toBe('ranked');
 
     const rows = Array.from({ length: 10 }, (_, n) => ({ label: `p${n}`, value: 10 - n }));
     const folded = ChartShape.foldRows({ rows, other: 'Other' });
@@ -80,6 +80,23 @@ describe('the form of a chart is chosen from its data', () => {
     expect(ChartShape.isColumned({ items: Array.from({ length: 9 }, () => 'x'.repeat(41)) })).toBe(
       false,
     );
+  });
+});
+
+describe('time is detected only from labels that name a moment', () => {
+  test('whole month names, weeks, quarters and a run of plausible years are time', () => {
+    expect(ChartShape.isTime({ labels: ['Q3 2026', 'Q4 2026', 'Q1 2027'] })).toBe(true);
+    expect(ChartShape.isTime({ labels: ['2026-W44', '2026-W45', '2026-W46'] })).toBe(true);
+    expect(ChartShape.isTime({ labels: ['2024', '2025', '2026'] })).toBe(true);
+    expect(ChartShape.isTime({ labels: ['Tháng 9', 'Tháng 10', 'Tháng 11'] })).toBe(true);
+    expect(ChartShape.isTime({ labels: ['Sept', 'October', 'Nov'] })).toBe(true);
+  });
+
+  test('words that begin like a month, and round numbers, are not', () => {
+    expect(ChartShape.isTime({ labels: ['Marketing', 'Junior', 'Decline'] })).toBe(false);
+    expect(ChartShape.isTime({ labels: ['1000', '2000', '5000'] })).toBe(false);
+    expect(ChartShape.isTime({ labels: ['2025', '2026', 'Mar'] })).toBe(false);
+    expect(ChartShape.isTime({ labels: ['1000', '2024', '2025'] })).toBe(false);
   });
 });
 
@@ -140,7 +157,7 @@ describe('what each chart is drawn as', () => {
     expect(html).toContain('class="cgrid"');
   });
 
-  test('a donut is a segmented bar up to six parts, ranked bars beyond, with a table view', () => {
+  test('a donut is a segmented bar up to five parts, ranked bars beyond, with a table view', () => {
     const parts = (count: number) =>
       Array.from({ length: count }, (_, n) => ({ label: `p${n}`, value: n + 1 }));
     const few = htmlOf([{ type: 'donut', title: 'Split', parts: parts(4) }]);
@@ -185,6 +202,65 @@ describe('what each chart is drawn as', () => {
     ).toContain('emphasis');
   });
 
+  test('six parts are ranked bars, each part keeps a distinct colour in a segmented bar of five', () => {
+    const parts = (count: number) =>
+      Array.from({ length: count }, (_, n) => ({ label: `p${n}`, value: n + 1 }));
+    const five = htmlOf([{ type: 'donut', title: 'Split', parts: parts(5) }]);
+    const six = htmlOf([{ type: 'donut', title: 'Split', parts: parts(6) }]);
+
+    expect(five).toContain('data-s="5"');
+    expect(six).not.toContain('class="seg-svg"');
+  });
+
+  test('ranked bars fold a tail beyond seven into Other, and a real part named Other takes it', () => {
+    const labels = Array.from({ length: 10 }, (_, n) => `name ${n}`);
+    const values = labels.map((_, n) => 10 - n);
+    const folded = htmlOf([{ type: 'bar', title: 'Many', labels, values }]);
+
+    expect(folded.match(/<g><title>/g)?.filter(Boolean).length).toBeGreaterThan(0);
+    expect(folded).toContain('>Other<');
+    expect(
+      ChartShape.foldRows({
+        rows: [
+          ...labels.slice(0, 9).map((label, n) => ({ label, value: 20 - n })),
+          { label: 'Other', value: 1 },
+        ].sort((a, b) => b.value - a.value),
+        other: 'Other',
+      })
+        .map((row) => row.label)
+        .filter((label) => label === 'Other'),
+    ).toHaveLength(1);
+  });
+
+  test('a meter over its limit is full, takes the warning tone and reads the true figure', () => {
+    const html = htmlOf([
+      { type: 'meter', title: 'Quota', rows: [{ label: 'Disk', value: 150, of: 100 }] },
+    ]);
+
+    expect(html).toContain('aria-label="Disk: 150%"');
+    expect(html).toContain('<rect class="t-warn" x="0" width="100.00"');
+  });
+
+  test('a trend has a text alternative: rising, falling or flat', () => {
+    const trend = (values: number[]) =>
+      htmlOf(
+        [{ type: 'bar', title: 'B', labels: ['a', 'b', 'c', 'd'], values: [1, 2, 3, 4] }],
+        [{ value: '1', label: 'x', trend: values }],
+      );
+
+    expect(trend([1, 2, 3])).toContain('aria-label="rising"');
+    expect(trend([3, 2, 1])).toContain('aria-label="falling"');
+    expect(trend([2, 3, 2])).toContain('aria-label="flat"');
+  });
+
+  test('too many points say that a table is the answer', () => {
+    const labels = Array.from({ length: 13 }, (_, n) => `l${n}`);
+
+    expect(
+      problemsOf([{ type: 'bar', title: 'B', labels, values: labels.map(() => 1) }]),
+    ).toContain('is a table');
+  });
+
   test('a stack draws one bar per group, folds the series past five, and names them in a legend', () => {
     const series = Array.from({ length: 7 }, (_, n) => ({ name: `s${n}`, values: [1, 2, 3] }));
     const html = htmlOf([{ type: 'stack', title: 'Mix', groups: ['x', 'y', 'z'], series }]);
@@ -208,7 +284,7 @@ describe('what each chart is drawn as', () => {
     ).toContain('3 values for 2 groups');
   });
 
-  test('line labels at the end of lines that end close together are at least 17 px apart', () => {
+  test('line labels at the end of lines that end close together are at least 18 px apart', () => {
     const html = htmlOf([
       {
         type: 'line',

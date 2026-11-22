@@ -1,17 +1,22 @@
-const MONTH = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?(\s+\d{2,4})?$/i;
-/** Labels that name a moment: a year, a month, a day, a week, a quarter, a month name. */
+const MONTHS =
+  'january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec';
+/** Labels that name a moment: a month name in full or short, a day, a week, a quarter, a Vietnamese month. */
 const TIME_LABELS = [
-  /^\d{4}$/,
+  new RegExp(`^(${MONTHS})\\.?(\\s+\\d{2,4})?$`, 'i'),
+  /^tháng\s?\d{1,2}(\s+\d{4})?$/i,
   /^\d{4}-\d{2}(-\d{2})?$/,
+  /^\d{4}-W\d{1,2}$/i,
   /^\d{1,2}\/\d{1,2}(\/\d{2,4})?$/,
-  /^[WQ]\d{1,2}$/i,
-  MONTH,
+  /^[WQ]\d{1,2}(\s+\d{4})?$/i,
 ];
+/** A year is a moment only inside a plausible range, and only when every label is one (1000, 2000, 5000 are numbers). */
+const isYear = (label: string): boolean =>
+  /^\d{4}$/.test(label) && Number(label) >= 1900 && Number(label) <= 2100;
 /** Labels that carry their own order: a number first, or a bound such as `<10` or `65+`. */
 const ORDERED_LABELS = /^[<>≤≥]?\s?\d/;
 
-/** The most parts one segmented bar shows; more are ranked as bars. */
-const SEGMENT_MOST = 6;
+/** The most parts one segmented bar shows (the palette has five validated hues); more are ranked as bars. */
+const SEGMENT_MOST = 5;
 /** The most bars of a ranking; the tail beyond is folded into one "Other" bar. */
 const RANK_MOST = 8;
 /** The most series a stacked bar tells apart; the rest are folded into "Other". */
@@ -31,9 +36,12 @@ export interface IRow {
 export class ChartShape {
   /** Three or more labels that all name a moment. */
   static isTime(opts: { labels: string[] }): boolean {
+    const labels = opts.labels.map((label) => label.trim());
+
     return (
-      opts.labels.length >= 3 &&
-      opts.labels.every((label) => TIME_LABELS.some((rule) => rule.test(label.trim())))
+      labels.length >= 3 &&
+      (labels.every(isYear) ||
+        labels.every((label) => TIME_LABELS.some((rule) => rule.test(label))))
     );
   }
 
@@ -71,8 +79,12 @@ export class ChartShape {
 
     const kept = opts.rows.slice(0, RANK_MOST - 1);
     const rest = opts.rows.slice(RANK_MOST - 1).reduce((sum, row) => sum + row.value, 0);
+    const same = kept.find((row) => row.label === opts.other);
 
-    return [...kept, { label: opts.other, value: rest }];
+    // A real part already named like the fold takes the tail, so two rows never share a name.
+    return same === undefined
+      ? [...kept, { label: opts.other, value: rest }]
+      : kept.map((row) => (row === same ? { ...row, value: row.value + rest } : row));
   }
 
   /** The series of a stacked bar: the first `STACK_MOST`, and the rest added up into one series named `other`. */
@@ -88,15 +100,17 @@ export class ChartShape {
     }
 
     const first = rest[0]?.values ?? [];
+    const sums = first.map((_, at) => rest.reduce((sum, s) => sum + (s.values[at] ?? 0), 0));
+    const same = kept.find((s) => s.name === opts.other);
 
-    return [
-      ...kept,
-      {
-        name: opts.other,
-        values: first.map((_, at) => rest.reduce((sum, s) => sum + (s.values[at] ?? 0), 0)),
-        isOther: true,
-      },
-    ];
+    // A real series already named like the fold takes the tail, so two series never share a name.
+    if (same !== undefined) {
+      return kept.map((s) =>
+        s === same ? { ...s, values: s.values.map((value, at) => value + (sums[at] ?? 0)) } : s,
+      );
+    }
+
+    return [...kept, { name: opts.other, values: sums, isOther: true }];
   }
 
   /**

@@ -271,7 +271,6 @@ const BASE_CSS = [
   `figure.chart svg{display:block;width:100%;max-width:380px;height:auto}`,
   `svg .ct{font:13px var(--font);fill:var(--body)}svg .ct.strong{font-weight:700;fill:var(--ink)}svg .cv{font:600 13px var(--font);fill:var(--ink)}`,
   `svg .ctrack{fill:var(--line)}svg .cgrid{stroke:var(--line);stroke-width:1}svg .cring{stroke:var(--bg-soft);stroke-width:2}`,
-  `svg .cbig{font:650 22px var(--font);fill:var(--ink)}`,
   `.clegend{display:grid;gap:6px;min-width:0;flex:1 1 150px}.clegend li{display:grid;grid-template-columns:14px minmax(0,1fr) auto auto;gap:8px;align-items:center;font-size:16px}.clegend.row{display:flex;flex-wrap:wrap;gap:6px 16px}.clegend.row li{display:flex}`,
   `.clegend em{color:var(--muted);font-style:normal;font-size:13px}.clegend b{font-weight:600;font-size:14px;color:var(--ink)}`,
   `.sw{width:12px;height:12px;border-radius:3px;background:var(--muted);display:inline-block}`,

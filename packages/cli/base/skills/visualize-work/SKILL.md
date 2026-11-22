@@ -78,7 +78,7 @@ The rules that make a page worth opening:
   | How many, how much: one to three figures      | `findings.numbers`                                                                                                                                |
   | Where is it heading                           | `findings.numbers` with `trend`, or a `line`                                                                                                      |
   | Which is biggest, or how do names rank        | `bar` (the page sorts it; three values or fewer become a stat line; labels that are dates become a line; a negative value makes bars around zero) |
-  | How is one whole split                        | `donut` with the parts (up to 6 parts one segmented bar, more are ranked bars with the tail as "Other")                                           |
+  | How is one whole split                        | `donut` with the parts (up to 5 parts one segmented bar, more are ranked bars with the tail as "Other")                                           |
   | How do groups compare, each split in parts    | `stack` (series past the fifth are added up into "Other")                                                                                         |
   | How far along is each thing against its limit | `meter`                                                                                                                                           |
   | What are the exact values                     | `table` (more than 7 classes that all carry meaning is a table, not more colours)                                                                 |

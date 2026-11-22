@@ -253,9 +253,12 @@ export class SpecCharts {
   }): string {
     return `<ul class="meters">${opts.rows
       .map((row) => {
-        const share = Math.min(100, (row.value / row.of) * 100);
+        const ratio = (row.value / row.of) * 100;
+        const share = Math.min(100, ratio);
+        // Past its limit the bar is full and takes the warning tone, and the reading says the true figure.
+        const tone = ratio > 100 ? 't-warn' : 't-info';
 
-        return `<li><span class="ml">${escaped(row.label)}</span><svg class="mb" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="${escaped(row.label)}: ${Math.round(share)}%"><rect class="t-info" x="0" width="${share.toFixed(2)}" height="8"/></svg><b>${SpecCharts.formatNumber({ value: row.value })} / ${SpecCharts.formatNumber({ value: row.of })}${escaped(row.unit ?? '')}</b></li>`;
+        return `<li><span class="ml">${escaped(row.label)}</span><svg class="mb" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="${escaped(row.label)}: ${Math.round(ratio)}%"><rect class="${tone}" x="0" width="${share.toFixed(2)}" height="8"/></svg><b>${SpecCharts.formatNumber({ value: row.value })} / ${SpecCharts.formatNumber({ value: row.of })}${escaped(row.unit ?? '')}</b></li>`;
       })
       .join('')}</ul>`;
   }
@@ -270,7 +273,7 @@ export class SpecCharts {
   }
 
   /** The figures of a number and, when it has a trend, a small line beside it: no axis, the last point marked. */
-  static sparkline(opts: { points: number[] }): string {
+  static sparkline(opts: { points: number[]; chrome: TChrome }): string {
     const low = Math.min(...opts.points);
     const high = Math.max(...opts.points);
     const x = (at: number): number => 2 + (at / (opts.points.length - 1)) * 56;
@@ -279,8 +282,16 @@ export class SpecCharts {
       .map((value, at) => `${at === 0 ? 'M' : 'L'}${x(at).toFixed(1)} ${y(value).toFixed(1)}`)
       .join('');
     const last = opts.points.length - 1;
+    const first = opts.points[0] ?? 0;
+    const end = opts.points[last] ?? 0;
+    const word =
+      end > first
+        ? opts.chrome.trendUp
+        : end < first
+          ? opts.chrome.trendDown
+          : opts.chrome.trendFlat;
 
-    return `<svg class="spark" viewBox="0 0 60 18" aria-hidden="true"><path d="${path}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(last).toFixed(1)}" cy="${y(opts.points[last] ?? 0).toFixed(1)}" r="2.5" fill="var(--s1)"/></svg>`;
+    return `<svg class="spark" viewBox="0 0 60 18" role="img" aria-label="${escaped(word)}"><path d="${path}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(last).toFixed(1)}" cy="${y(opts.points[last] ?? 0).toFixed(1)}" r="2.5" fill="var(--s1)"/></svg>`;
   }
 
   private static legend(opts: {
@@ -378,13 +389,15 @@ export class SpecCharts {
         };
       }
 
-      const ranked = ChartShape.ranked({
-        rows,
-        isOrdered: ChartShape.isOrdered({ labels: chart.labels }),
-      });
+      const isOrdered = ChartShape.isOrdered({ labels: chart.labels });
+      const ranked = ChartShape.ranked({ rows, isOrdered });
 
       return {
-        body: SpecCharts.bars({ title: chart.title, unit: chart.unit, rows: ranked }),
+        body: SpecCharts.bars({
+          title: chart.title,
+          unit: chart.unit,
+          rows: isOrdered ? ranked : ChartShape.foldRows({ rows: ranked, other: chrome.other }),
+        }),
         legend: '',
       };
     }

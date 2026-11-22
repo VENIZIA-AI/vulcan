@@ -231,6 +231,7 @@ const TIMELINE = z.strictObject({
 });
 
 const CELL = text(VisualizeLimits.MAX_CELL);
+const TOO_MANY_POINTS = `at most ${VisualizeLimits.MAX_POINTS} points: more than that is a table`;
 
 /** The charts that need no choice of form from the agent: the page draws them as the data says. */
 const MORE_CHARTS = [
@@ -238,7 +239,10 @@ const MORE_CHARTS = [
     type: z.literal('stack'),
     title: text(VisualizeLimits.MAX_LABEL),
     unit: text(16).optional(),
-    groups: z.array(text(VisualizeLimits.MAX_LABEL)).min(2).max(VisualizeLimits.MAX_POINTS),
+    groups: z
+      .array(text(VisualizeLimits.MAX_LABEL))
+      .min(2)
+      .max(VisualizeLimits.MAX_POINTS, TOO_MANY_POINTS),
     /** One value per group, from zero up; the series past the fifth are added up into "Other". */
     series: z
       .array(
@@ -280,15 +284,21 @@ const CHART = z.discriminatedUnion('type', [
     type: z.literal('bar'),
     title: text(VisualizeLimits.MAX_LABEL),
     unit: text(16).optional(),
-    labels: z.array(text(VisualizeLimits.MAX_LABEL)).min(2).max(VisualizeLimits.MAX_POINTS),
+    labels: z
+      .array(text(VisualizeLimits.MAX_LABEL))
+      .min(2)
+      .max(VisualizeLimits.MAX_POINTS, TOO_MANY_POINTS),
     /** One value per label. A negative value draws the bars around a zero line. */
-    values: z.array(NUMBER).min(2).max(VisualizeLimits.MAX_POINTS),
+    values: z.array(NUMBER).min(2).max(VisualizeLimits.MAX_POINTS, TOO_MANY_POINTS),
   }),
   z.strictObject({
     type: z.literal('line'),
     title: text(VisualizeLimits.MAX_LABEL),
     unit: text(16).optional(),
-    labels: z.array(text(VisualizeLimits.MAX_LABEL)).min(3).max(VisualizeLimits.MAX_POINTS),
+    labels: z
+      .array(text(VisualizeLimits.MAX_LABEL))
+      .min(3)
+      .max(VisualizeLimits.MAX_POINTS, TOO_MANY_POINTS),
     series: z
       .array(
         z.strictObject({

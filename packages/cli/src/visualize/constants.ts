@@ -249,6 +249,9 @@ export const DEFAULT_CHROME = {
   why: 'Why',
   other: 'Other',
   limit: 'Limit',
+  trendUp: 'rising',
+  trendDown: 'falling',
+  trendFlat: 'flat',
   /** The words that tell an added arrow from a removed one: never colour alone. */
   onlyHere: 'only here',
   addedEdge: 'added',
