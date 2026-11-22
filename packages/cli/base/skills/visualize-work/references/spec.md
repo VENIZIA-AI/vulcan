@@ -7,55 +7,53 @@ never markup. `bun node_modules/.bin/vulcan visualize --schema` prints the full 
 
 ## The kinds
 
-A page is the sections its spec has, in a fixed order: the banner (title, verdict, state), the tiles, the minimap,
-what you need to do and what blocks it, then the flow (drawn in the top slab, under the verdict, when there is
-one), the architecture, the compare view, the sequence, the lifecycle, the tree, the comparison, the idea map, the explainer, the timeline, the findings, the grades, the metrics, the before and after, the decision record, the decisions, the evidence,
+A page is one light column about 960 px wide, in a fixed order: the head (state, title, one sentence, date and scope),
+a contents line (each part with its count), what you need to do, the decisions, the steps (`minimap`), then the flow,
+the written `sections`, the architecture, the compare view, the sequence, the lifecycle, the tree, the comparison, the idea map, the explainer, the timeline, the findings, the grades, the metrics, the before and after, the decision record, the decisions, the evidence,
 the risks, the log, the words of the page (`terms`), the sources and the links. Pick the sections the question needs and leave the rest out:
 
-| The page is | Use |
-|---|---|
-| A status or a handoff for the owner | `strip`, `actions`, `minimap`, `decisions`, `evidence`, `risks`, `log` |
-| How something moves | `flow` (boxes on a grid, labelled arrows, numbered steps) |
-| How a system is built | `architecture` (layers of boxes with links) |
-| What differs between two ways of doing it | `compare` (one figure: edges in both, only in A, only in B) |
-| Who calls whom, in what order | `sequence` (lanes for the participants, one arrow per message) |
-| The states of a thing | `lifecycle` (states, with a start and ends, and what moves it between them) |
-| What is inside what | `tree` (a root with children, up to four levels) |
-| Options compared, with a pick | `comparison` (scores per criterion, pros and cons, a recommended option) |
-| A brainstorm | `ideaMap` (a centre and clusters of ideas) |
-| An idea explained | `explainer` (numbered steps, a small diagram for each) |
-| A plan or a roadmap | `timeline` (dated items with a state) |
-| Findings | `findings` (key numbers, bar, line and donut charts, callouts) |
-| A choice that was made | `decisionRecord` (context, options, the decision, consequences) |
-| A change | `beforeAfter` |
+| The page is                               | Use                                                                         |
+| ----------------------------------------- | --------------------------------------------------------------------------- |
+| A status or a handoff for the owner       | `strip`, `actions`, `minimap`, `decisions`, `evidence`, `risks`, `log`      |
+| How something moves                       | `flow` (boxes on a grid, labelled arrows, numbered steps)                   |
+| How a system is built                     | `architecture` (layers of boxes with links)                                 |
+| What differs between two ways of doing it | `compare` (one figure: edges in both, only in A, only in B)                 |
+| Who calls whom, in what order             | `sequence` (lanes for the participants, one arrow per message)              |
+| The states of a thing                     | `lifecycle` (states, with a start and ends, and what moves it between them) |
+| What is inside what                       | `tree` (a root with children, up to four levels)                            |
+| Options compared, with a pick             | `comparison` (scores per criterion, pros and cons, a recommended option)    |
+| A brainstorm                              | `ideaMap` (a centre and clusters of ideas)                                  |
+| An idea explained                         | `explainer` (numbered steps, a small diagram for each)                      |
+| A plan or a roadmap                       | `timeline` (dated items with a state)                                       |
+| Findings                                  | `findings` (key numbers, bar, line and donut charts, callouts)              |
+| A choice that was made                    | `decisionRecord` (context, options, the decision, consequences)             |
+| A change                                  | `beforeAfter`                                                               |
 
-Add `?present=1` to the page address, or press **Present**, to walk through it as slides: arrow keys,
-Space, Home, End and Escape, one section per slide; print gives one section after another.
+A page with `minimap`, `strip`, `actions` or `decisions` is for the owner to read: no Present button and no slides. Any other page has them: add `?present=1` to the address, or press **Present**, to walk through the sections with the arrow keys, Space, Home, End and Escape; print gives one section after another.
 
 ## Fields
 
-| Field | Content |
-|---|---|
-| `schemaVersion` | `1` |
-| `title` | The takeaway, at most 120 characters |
-| `language` | A language code (`en`, `pt-BR`); default: the reply language of the owner's profile, else `en`. The page's own words are bundled for `en` and `vi` (a regional code such as `vi-VN` picks `vi`); any other language takes its words from `chrome` |
-| `accent`, `accentDark`, `accentText` | Optional six-digit hex colours that override the project's page colour (the `theme` config key, written into the manifest by `vulcan sync`; without one, the `venizia` preset). Give them only for a page about another project. A colour that fails the contrast checks (text 4.5:1, marks 3:1) is refused, never swapped; with no `accentDark` it is derived by mixing toward white |
-| `status` | `{ state: ok \| warn \| blocked \| info, label? }`; the banner's colour, icon and word |
-| `asOf`, `scope` | An ISO date, and a sentence on what the page covers |
-| `verdict`, `caption` | One sentence the reader can stop at; one line under it |
-| `titleMuted` | The second half of the headline, shown muted after the `title` |
-| `strip` | Four sentences: `healthy`, `blockedBy`, `changed`, `next`; `next` (what the owner has to do) and `blockedBy` open the page, in a card of their own |
-| `actions` | One to six steps, shown as a numbered checklist under `strip.next` |
-| `tiles` | One to six `{ value, label, state? }` key numbers; with a `minimap` and no tiles, the page counts the states itself |
-| `minimap` | Rows of `{ task, status, note? }`, `status` one of `done`, `in progress`, `waiting`, `not started`, `blocked`, `dropped`; drawn as a stepper, one segment per task, with an icon and a word |
-| `flow` | `nodes` (`id`, `label`, `sublabel?`, `detail?`, `row`, `col`, `kind?`, `state?`), `edges` (`from`, `to`, `label`, `variant?`), `steps` (`title`, `note`, `nodes`, `edges`) |
-| `beforeAfter` | `before` and `after`, each a `title` and `items` of `{ text, change? }` (`added` in after, `removed` in before) |
-| `decisions` | One to five of `{ question, recommended, changes }` |
-| `evidence` | Rows of `{ claim, probe, result, label: verified \| inferred \| guess }` |
-| `risks` | Rows of `{ risk, impact, fallback }` |
-| `log` | Rows of `{ date, text }`, newest first |
-| `links` | Rows of `{ label, href }`; `href` is https only |
-| `chrome` | Optional replacements for the page's own words, every key optional |
+| Field                                | Content                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `schemaVersion`                      | `1`                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `title`                              | The takeaway, at most 60 characters, no status word                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| _language_                           | Not a field: the page takes the language of the owner's profile, else English. The page's own words are bundled for `en` and `vi` (a regional code such as `vi-VN` picks `vi`); any other language takes its words from `chrome`                                                                                                                                                                                                                                    |
+| `accent`, `accentDark`, `accentText` | Optional six-digit hex colours that override the project's page colour (the `theme` config key, written into the manifest by `vulcan sync`; without one, the `venizia` preset). Give them only for a page about another project. A colour that fails the contrast checks (text 4.5:1, marks 3:1) is refused, never swapped; with no `accentDark` it is derived by mixing toward white                                                                               |
+| `status`                             | `{ state: ok \| warn \| blocked \| info, label? }`; the head's icon, colour and word                                                                                                                                                                                                                                                                                                                                                                                |
+| `asOf`, `scope`                      | An ISO date, and a sentence on what the page covers                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `verdict`                            | One sentence the reader can stop at                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `strip`                              | `next` (what the owner has to do) and optional `healthy`, `blockedBy`, `changed`, one sentence each; shown under "What you need to do"                                                                                                                                                                                                                                                                                                                              |
+| `actions`                            | One to six steps, shown as a numbered checklist under `strip.next`                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `minimap`                            | Rows of `{ task (40), status, note? (80) }`, `status` one of `done`, `in progress`, `waiting`, `not started`, `blocked`, `dropped`; drawn as one list of rows (icon, name, note): done rows muted, the next step tinted, one key for the statuses used                                                                                                                                                                                                              |
+| `flow`                               | `nodes` (`id`, `label`, `sublabel?`, `detail?`, `row`, `col`, `kind?`, `state?`), `edges` (`from`, `to`, `label`, `variant?`), `steps` (`title`, `note`, `nodes`, `edges`)                                                                                                                                                                                                                                                                                          |
+| `beforeAfter`                        | `before` and `after`, each a `title` and `items` of `{ text, change? }` (`added` in after, `removed` in before)                                                                                                                                                                                                                                                                                                                                                     |
+| `decisions`                          | One to five of `{ question, options, why, detail? }`: `question` at most 80 characters, ends with `?`, no code; `options` 2 or 3 of `{ label (24, no code), effect (120), recommended? }` with exactly one `recommended`; `why` at most 160; `detail` at most 300, shown last in small monospace. A backtick, an arrow function, a snake_case name, a dotted call such as `X.values()`, a `--flag`, a brace or an angle bracket in a question or a label is refused |
+| `sections`                           | One to six of `{ title, blocks }`, `blocks` 1 to 12 of `{ type: "p", text }`, `{ type: "quote", text }`, `{ type: "code", lines }` (up to 40 lines of 120 characters), `{ type: "ul", items }` or `{ type: "ol", items }`; a `code` span inside a text is written with backticks                                                                                                                                                                                    |
+| `evidence`                           | Rows of `{ claim, probe, result, label: verified \| inferred \| guess }`                                                                                                                                                                                                                                                                                                                                                                                            |
+| `risks`                              | Rows of `{ risk, impact, fallback }`                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `log`                                | Rows of `{ date, text }`, newest first                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `links`                              | Rows of `{ label, href }`; `href` is https only                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `chrome`                             | Optional replacements for the page's own words, every key optional                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 Node `kind` is `step`, `service`, `store`, `actor` or `external`: each has its own outline. A node `state` (the six
 minimap words, or `info`) adds a colour, an icon and a word, so the figure can show where the work stands. Edge
@@ -63,23 +61,23 @@ minimap words, or `info`) adds a colour, an icon and a word, so the figure can s
 
 ## The other kinds
 
-| Field | Content |
-|---|---|
-| `comparison` | `criteria` (up to 8), `options` (2 to 6) of `{ name, line?, scores, pros?, cons?, recommended? }` with one `scores` entry from 1 to 5 per criterion, and an optional `note`; the page totals the scores and draws them as bars |
-| `ideaMap` | `center`, and 2 to 8 `branches` of `{ label, items (1 to 6), note? }` |
-| `explainer` | 1 to 8 `steps` of `{ title, text, diagram? }`; a diagram is `{ type: "row", nodes, arrows? }` (2 to 5 boxes, one arrow label fewer than boxes) or `{ type: "layers", layers }` |
-| `architecture` | `layers` (up to 5) of `{ label, boxes }`, a box `{ id, label, sub?, state? }`, and `links` of `{ from, to, label? }` between box ids |
-| `compare` | `a` and `b` (the names of the two ways, 24 characters each), `nodes` (2 to 25 of `{ id, label, sublabel?, row, col, kind?, state?, source? }`, shared by both ways), `edges` (1 to 40 of `{ from, to, label, in? }`, `in` one of `both` (default), `a`, `b`), optional `caption`. An edge only in B is drawn heavy and solid with `+`, an edge only in A dotted with `-`, and the legend says the words; at least one edge has to differ, or the spec is refused |
-| `terms` | 1 to 12 of `{ term (40 characters), meaning (200) }`, shown as "Words in this page"; a term that never appears in the rest of the page text is a warning |
-| `source` | On a flow node, a flow step or a compare node: `{ repo, commit, path, lines? }`. `repo` is `owner/name`, `commit` is exactly 40 lowercase hex characters, `path` is relative with no `..`, `lines` is `12` or `12-30`. Shown as `repo@commit:path:lines`, and a "Sources" part lists each source once with what points at it |
-| `sequence` | `participants` (2 to 6 of `{ id, label, sublabel? }`), `messages` (1 to 20 of `{ from, to, label, kind?, note? }`, `kind` one of `call`, `reply`, `async`, in the order they happen), optional `caption` |
-| `lifecycle` | `states` (2 to 10 of `{ id, label, sublabel?, kind? }`, `kind` one of `start`, `normal`, `end`; one start, at least one end), `transitions` (up to 20 of `{ from, to, label }`, the label is the trigger), optional `caption` |
-| `tree` | `root`, a node `{ id, label, sublabel?, state?, children? }` nested up to four levels below the root, at most 25 nodes in all; optional `caption` |
-| `timeline` | 2 to 20 `items` of `{ date, title, text?, state? }` |
-| `findings` | `numbers` (`{ value, label, state? }`), `charts`, `callouts` (`{ text, state? }`) |
-| `grades` | 1 to 12 of `{ label, grade, note? }`, `grade` one of `A`, `B`, `C`; a chip that always shows its letter |
-| `metrics` | 1 to 6 cards of `{ value, of?, label, note?, parts }`; `parts` are 2 to 6 of `{ label, value, tone? }` (`tone` one of `ok`, `warn`, `bad`, `info`), drawn as one bar split in proportion to the values |
-| `decisionRecord` | `context`, 2 to 5 `options` of `{ name, summary, chosen? }`, the `decision`, `consequences` |
+| Field            | Content                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `comparison`     | `criteria` (up to 8), `options` (2 to 6) of `{ name, line?, scores, pros?, cons?, recommended? }` with one `scores` entry from 1 to 5 per criterion, and an optional `note`; the page totals the scores and draws them as bars                                                                                                                                                                                                                                   |
+| `ideaMap`        | `center`, and 2 to 8 `branches` of `{ label, items (1 to 6), note? }`                                                                                                                                                                                                                                                                                                                                                                                            |
+| `explainer`      | 1 to 8 `steps` of `{ title, text, diagram? }`; a diagram is `{ type: "row", nodes, arrows? }` (2 to 5 boxes, one arrow label fewer than boxes) or `{ type: "layers", layers }`                                                                                                                                                                                                                                                                                   |
+| `architecture`   | `layers` (up to 5) of `{ label, boxes }`, a box `{ id, label, sub?, state? }`, and `links` of `{ from, to, label? }` between box ids                                                                                                                                                                                                                                                                                                                             |
+| `compare`        | `a` and `b` (the names of the two ways, 24 characters each), `nodes` (2 to 25 of `{ id, label, sublabel?, row, col, kind?, state?, source? }`, shared by both ways), `edges` (1 to 40 of `{ from, to, label, in? }`, `in` one of `both` (default), `a`, `b`), optional `caption`. An edge only in B is drawn heavy and solid with `+`, an edge only in A dotted with `-`, and the legend says the words; at least one edge has to differ, or the spec is refused |
+| `terms`          | 1 to 12 of `{ term (40 characters), meaning (200) }`, shown as "Words in this page"; a term that never appears in the rest of the page text is a warning                                                                                                                                                                                                                                                                                                         |
+| `source`         | On a flow node, a flow step or a compare node: `{ repo, commit, path, lines? }`. `repo` is `owner/name`, `commit` is exactly 40 lowercase hex characters, `path` is relative with no `..`, `lines` is `12` or `12-30`. Shown as `repo@commit:path:lines`, and a "Sources" part lists each source once with what points at it                                                                                                                                     |
+| `sequence`       | `participants` (2 to 6 of `{ id, label, sublabel? }`), `messages` (1 to 20 of `{ from, to, label, kind?, note? }`, `kind` one of `call`, `reply`, `async`, in the order they happen), optional `caption`                                                                                                                                                                                                                                                         |
+| `lifecycle`      | `states` (2 to 10 of `{ id, label, sublabel?, kind? }`, `kind` one of `start`, `normal`, `end`; one start, at least one end), `transitions` (up to 20 of `{ from, to, label }`, the label is the trigger), optional `caption`                                                                                                                                                                                                                                    |
+| `tree`           | `root`, a node `{ id, label, sublabel?, state?, children? }` nested up to four levels below the root, at most 25 nodes in all; optional `caption`                                                                                                                                                                                                                                                                                                                |
+| `timeline`       | 2 to 20 `items` of `{ date, title, text?, state? }`                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `findings`       | `numbers` (`{ value, label, state? }`), `charts`, `callouts` (`{ text, state? }`)                                                                                                                                                                                                                                                                                                                                                                                |
+| `grades`         | 1 to 12 of `{ label, grade, note? }`, `grade` one of `A`, `B`, `C`; a chip that always shows its letter                                                                                                                                                                                                                                                                                                                                                          |
+| `metrics`        | 1 to 6 cards of `{ value, of?, label, note?, parts }`; `parts` are 2 to 6 of `{ label, value, tone? }` (`tone` one of `ok`, `warn`, `bad`, `info`), drawn as one bar split in proportion to the values                                                                                                                                                                                                                                                           |
+| `decisionRecord` | `context`, 2 to 5 `options` of `{ name, summary, chosen? }`, the `decision`, `consequences`                                                                                                                                                                                                                                                                                                                                                                      |
 
 A chart is `{ type: "bar", title, unit?, labels, values }` (values from zero up, one per label), `{ type: "line", title,
 unit?, labels, series }` (up to 3 series of `{ name, values }`, one value per label) or `{ type: "donut", title, unit?,
@@ -89,7 +87,7 @@ only way to tell parts apart: the legend names them and the values are printed.
 ## Limits
 
 At most 25 boxes, 40 arrows, 12 steps, 5 decisions and 30 rows per table; grid cells 0 to 9; labels 60
-characters (an arrow label 20), sentences 300, a box detail 600; 6 tiles, 4 charts, 12 points per chart.
+characters (an arrow label 20), sentences 300, a box detail 600; a step name 40 and its note 80; 6 finding numbers, 4 charts, 12 points per chart.
 The page is refused over 150 KB and warned over 80 KB; a typical page is 30 to 60 KB, most of it the page's own style.
 
 ## Two worked specs
@@ -106,15 +104,35 @@ A flow:
   "flow": {
     "nodes": [
       { "id": "user", "label": "You", "row": 0, "col": 0, "kind": "actor" },
-      { "id": "form", "label": "The form", "sublabel": "ten questions", "row": 0, "col": 1, "kind": "service", "state": "done" },
-      { "id": "file", "label": "profile.json", "row": 0, "col": 2, "kind": "store", "detail": "Mode 0600, inside the project." }
+      {
+        "id": "form",
+        "label": "The form",
+        "sublabel": "ten questions",
+        "row": 0,
+        "col": 1,
+        "kind": "service",
+        "state": "done"
+      },
+      {
+        "id": "file",
+        "label": "profile.json",
+        "row": 0,
+        "col": 2,
+        "kind": "store",
+        "detail": "Mode 0600, inside the project."
+      }
     ],
     "edges": [
       { "from": "user", "to": "form", "label": "answers" },
       { "from": "form", "to": "file", "label": "saves" }
     ],
     "steps": [
-      { "title": "Save", "note": "Only after the ignore check.", "nodes": ["form", "file"], "edges": ["form>file"] }
+      {
+        "title": "Save",
+        "note": "Only after the ignore check.",
+        "nodes": ["form", "file"],
+        "edges": ["form>file"]
+      }
     ]
   },
   "evidence": [
@@ -131,12 +149,22 @@ A comparison with a pick:
   "title": "A per-session snapshot is the best way to check permissions",
   "status": { "state": "ok", "label": "Recommended" },
   "verdict": "Compute the effective permissions once at sign-in and check against that.",
-  "strip": { "healthy": "All three options are workable.", "blockedBy": "Your pick.", "changed": "Option B grew a refresh path.", "next": "Pick B, or say which criterion should weigh more." },
+  "strip": {
+    "healthy": "All three options are workable.",
+    "blockedBy": "Your pick.",
+    "changed": "Option B grew a refresh path.",
+    "next": "Pick B, or say which criterion should weigh more."
+  },
   "comparison": {
     "criteria": ["Security", "Speed", "Simplicity"],
     "options": [
       { "name": "Central service", "scores": [5, 2, 3], "cons": ["A call on every request"] },
-      { "name": "Snapshot", "scores": [4, 5, 4], "pros": ["No call per request"], "recommended": true },
+      {
+        "name": "Snapshot",
+        "scores": [4, 5, 4],
+        "pros": ["No call per request"],
+        "recommended": true
+      },
       { "name": "Per route", "scores": [3, 4, 5], "cons": ["Rules are scattered"] }
     ]
   }

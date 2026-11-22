@@ -1,9 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Assets, HEAD_JS, PAGE_JS } from './assets.ts';
-import { NodeStates } from './constants.ts';
 import type { TChrome } from './constants.ts';
 import { IconSet } from './icons.ts';
-import { SpecCharts } from './charts.ts';
 import { COMPARE_CSS } from './compare-css.ts';
 import { CompareView } from './compare-render.ts';
 import { NEW_KINDS_CSS } from './kinds-css.ts';
@@ -20,16 +18,12 @@ import type { ISectionContext } from './sections.ts';
 
 const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
-/** The mark of the top bar: a diamond in the hot colour. */
-const MARK =
-  '<svg class="mark" viewBox="0 0 14 18" aria-hidden="true"><path d="M7 0 14 9 7 18 0 9Z"/></svg>';
-
 /** A figure is drawn at most this much larger than its natural width, so a short flow does not turn into a poster. */
 const FIGURE_MAX = 1.25;
 /** The page becomes one column at and below this viewport width. */
 const STACKED_AT = 860;
-/** The widest a figure can be drawn: the content column is 1208 px at most. */
-const CONTENT_WIDTH = 1208;
+/** The widest a figure can be drawn: the content column is 928 px at most (960 less its padding). */
+const CONTENT_WIDTH = 928;
 
 const sha256 = (opts: { text: string }): string =>
   `'sha256-${createHash('sha256').update(opts.text).digest('base64')}'`;
@@ -79,43 +73,11 @@ const figureFitCss = (opts: { keys: Set<string> }): string =>
     })
     .join('\n');
 
-/** Counts of each minimap state, as tiles: how many tasks are done, in progress, waiting and blocked. */
-const countTiles = (opts: {
-  spec: TVisualizeSpec;
-  chrome: TChrome;
-}): { value: string; label: string; state: string }[] => {
-  const rows = opts.spec.minimap ?? [];
-  const count = (state: string): number => rows.filter((row) => row.status === state).length;
-
-  return [
-    {
-      value: `${count('done')} / ${rows.length}`,
-      label: SpecSections.stateWord({ chrome: opts.chrome, state: 'done' }),
-      state: 'done',
-    },
-    {
-      value: String(count('in progress')),
-      label: SpecSections.stateWord({ chrome: opts.chrome, state: 'in progress' }),
-      state: 'in progress',
-    },
-    {
-      value: String(count('waiting')),
-      label: SpecSections.stateWord({ chrome: opts.chrome, state: 'waiting' }),
-      state: 'waiting',
-    },
-    {
-      value: String(count('blocked')),
-      label: SpecSections.stateWord({ chrome: opts.chrome, state: 'blocked' }),
-      state: 'blocked',
-    },
-  ];
-};
-
-/** The state of the spec as the page says it: a minimap state for the icon, its tone, and the word. */
+/** The state of the spec as the page says it: a minimap state for the icon, and the word. */
 const stateOf = (opts: {
   spec: TVisualizeSpec;
   chrome: TChrome;
-}): { state: string; tone: string; word: string } => {
+}): { state: string; word: string } => {
   const { spec, chrome } = opts;
   const state = BANNER_STATE[spec.status.state] ?? 'info';
   const word =
@@ -123,98 +85,38 @@ const stateOf = (opts: {
     chrome.statusStates[spec.status.state as keyof TChrome['statusStates']] ??
     spec.status.state;
 
-  return { state, tone: NodeStates.toneOf(state), word };
+  return { state, word };
 };
 
-/** The group each part belongs to: the small amber label above its heading. */
-const KICKS: Record<string, keyof TChrome> = {
-  flow: 'kickOverview',
-  minimap: 'kickOverview',
-  next: 'kickOverview',
-  architecture: 'kickStructure',
-  compare: 'kickStructure',
-  sequence: 'kickStructure',
-  lifecycle: 'kickStructure',
-  tree: 'kickStructure',
-  'idea-map': 'kickStructure',
-  comparison: 'kickDecision',
-  'decision-record': 'kickDecision',
-  decisions: 'kickDecision',
-  findings: 'kickEvidence',
-  grades: 'kickEvidence',
-  metrics: 'kickEvidence',
-  evidence: 'kickEvidence',
-  explainer: 'kickPlan',
-  timeline: 'kickPlan',
-  'before-after': 'kickPlan',
-  risks: 'kickReference',
-  log: 'kickReference',
-  terms: 'kickReference',
-  sources: 'kickReference',
-  links: 'kickReference',
-};
-
-/** Puts the label above the heading of every part that has a group. */
-const withKickers = (opts: { html: string; chrome: TChrome }): string =>
-  opts.html.replace(
-    /(<section class="[^"]*" id="([a-z-]+)" data-slide><div class="wrap">)(<h2 class="sh">)/g,
-    (match, open: string, id: string, heading: string) => {
-      const key = KICKS[id];
-
-      return key === undefined
-        ? match
-        : `${open}<p class="kick">${escaped(String(opts.chrome[key]))}</p>${heading}`;
-    },
-  );
-
-/** The always-dark hero: the state, the title, the verdict, the caption, and the flow when the spec has one. */
-const heroHtml = (opts: { ctx: ISectionContext }): string => {
+/** The head of the page: the state, the title, one sentence, the date and the scope. */
+const headHtml = (opts: { ctx: ISectionContext; toc: string }): string => {
   const { spec, chrome } = opts.ctx;
-  const { state, tone, word } = stateOf({ spec, chrome });
+  const { state, word } = stateOf({ spec, chrome });
   const meta = [
     spec.asOf === undefined ? '' : `<span>${escaped(chrome.asOf)}: ${escaped(spec.asOf)}</span>`,
     spec.scope === undefined ? '' : `<span>${escaped(chrome.scope)}: ${escaped(spec.scope)}</span>`,
   ].join('');
 
-  return `<div class="banner slab c-${tone}" data-slide data-hero><div class="wrap hero"><p class="state">${SpecCharts.stateIcon({ state, size: 22 })}<span class="word">${escaped(word)}</span></p><h1>${escaped(spec.title)}${spec.titleMuted === undefined ? '' : ` <span class="mute">${escaped(spec.titleMuted)}</span>`}</h1><p class="lede">${escaped(spec.verdict)}</p>${spec.caption === undefined ? '' : `<p class="cap">${escaped(spec.caption)}</p>`}${meta === '' ? '' : `<p class="meta">${meta}</p>`}${SpecSections.flow({ ctx: opts.ctx })}</div></div>`;
+  return `<header class="head" data-slide><div class="wrap">${SpecSections.chip({ chrome, state, size: 18, label: word })}<h1>${escaped(spec.title)}</h1><p class="lede">${escaped(spec.verdict)}</p>${meta === '' ? '' : `<p class="meta">${meta}</p>`}${opts.toc}</div></header>`;
 };
 
-/** The minimap as a track: a stripe, a shape and a word for every task. */
-const stepperHtml = (opts: { spec: TVisualizeSpec; chrome: TChrome }): string => {
-  const { minimap } = opts.spec;
-
-  if (minimap === undefined) {
-    return '';
-  }
-
-  const { chrome } = opts;
-
-  return `<section class="part" id="minimap" data-slide><div class="wrap"><h2 class="sh">${escaped(chrome.minimap)}</h2><ol class="strip">${minimap
-    .map(
-      (row) =>
-        `<li class="seg c-${NodeStates.toneOf(row.status)}"><span class="bar"></span><span class="nm">${SpecSections.chip({ chrome, state: row.status })}<span class="tn">${escaped(row.task)}</span></span>${row.note === undefined ? '' : `<span class="nt">${escaped(row.note)}</span>`}</li>`,
-    )
-    .join('')}</ol></div></section>`;
-};
-
-/** What the owner has to do and what blocks it: the first thing after the verdict. */
+/** What the owner has to do: the ask, the numbered actions, and the plain facts around it. */
 const ownerHtml = (opts: { spec: TVisualizeSpec; chrome: TChrome }): string => {
   const { spec, chrome } = opts;
+  const { strip } = spec;
 
-  if (spec.strip === undefined) {
+  if (strip === undefined && spec.actions === undefined) {
     return '';
   }
 
-  const jump =
-    spec.decisions === undefined
-      ? ''
-      : `<a class="jump" href="#decisions">${escaped(chrome.decisions)} (${spec.decisions.length})</a>`;
-  const actions =
-    spec.actions === undefined
-      ? ''
-      : `<ol class="check">${spec.actions.map((action) => `<li>${escaped(action)}</li>`).join('')}</ol>`;
+  const fact = (label: string, value: string | undefined): string =>
+    value === undefined ? '' : `<p class="fact"><b>${escaped(label)}</b> ${escaped(value)}</p>`;
 
-  return `<section class="two" id="next" data-slide><div class="wrap"><div class="own"><div class="nx"><p class="lab">${escaped(chrome.next)}</p><h2>${escaped(spec.strip.next)}</h2>${actions}${jump}</div><div class="stop"><p class="lab">${escaped(chrome.blockedBy)}</p><p>${escaped(spec.strip.blockedBy)}</p></div></div><div class="facts"><p class="fact">${IconSet.iconSvg({ name: 'done', size: 18 })}<span><b>${escaped(chrome.healthy)}</b> ${escaped(spec.strip.healthy)}</span></p><p class="fact">${IconSet.iconSvg({ name: 'info', size: 18 })}<span><b>${escaped(chrome.changed)}</b> ${escaped(spec.strip.changed)}</span></p></div></div></section>`;
+  return SpecSections.section({
+    id: 'next',
+    title: chrome.next,
+    body: `${strip === undefined ? '' : `<p class="ask">${escaped(strip.next)}</p>`}${spec.actions === undefined ? '' : `<ol class="check">${spec.actions.map((action) => `<li>${escaped(action)}</li>`).join('')}</ol>`}${fact(chrome.blockedBy, strip?.blockedBy)}${fact(chrome.healthy, strip?.healthy)}${fact(chrome.changed, strip?.changed)}`,
+  });
 };
 
 /** The theme of a page that is given none: the default preset. */
@@ -234,13 +136,13 @@ export class PageShell {
   /** The whole page: one file, no network, a content-security policy that allows only the page's own style and scripts by hash. */
   static render(opts: {
     spec: TVisualizeSpec;
-    /** The page's language: the spec's, else the owner's profile, else English. */
+    /** The page's language: the owner's profile, else English. */
     language?: string;
     /** The checked colours of the page; the stylesheet takes its tokens from them. */
     theme?: IResolvedTheme;
   }): string {
     const { spec } = opts;
-    const language = opts.language ?? spec.language ?? 'en';
+    const language = opts.language ?? 'en';
     const chrome = Labels.chromeOf({ spec, language });
     const ctx: ISectionContext = {
       spec,
@@ -248,17 +150,30 @@ export class PageShell {
       fits: new Set<string>(),
       spans: new Set<number>(),
     };
-    const { state, tone, word } = stateOf({ spec, chrome });
     const sources = SourceRefs.entries({ spec, chrome });
-    const tiles =
-      spec.tiles ?? (spec.minimap === undefined ? undefined : countTiles({ spec, chrome }));
-    const body = [
-      heroHtml({ ctx }),
-      tiles === undefined
+    const links = SpecSections.sectionLinks({ spec, chrome })
+      .map(
+        (link) =>
+          `<a href="#${link.id}">${escaped(link.title)}${link.count === undefined ? '' : ` <span>· ${escaped(link.count)}</span>`}</a>`,
+      )
+      .join('');
+    const toc =
+      links === ''
         ? ''
-        : `<div data-slide class="slide-tiles"><div class="wrap">${SpecSections.tilesHtml({ tiles, chrome })}</div></div>`,
-      stepperHtml({ spec, chrome }),
+        : `<nav class="toc" aria-label="${escaped(chrome.navLabel)}">${links}</nav>`;
+    const body = [
+      headHtml({ ctx, toc }),
       ownerHtml({ spec, chrome }),
+      SpecSections.decisions({ ctx }),
+      SpecSections.steps({ ctx }),
+      spec.flow === undefined
+        ? ''
+        : SpecSections.section({
+            id: 'flow',
+            title: chrome.flow,
+            body: SpecSections.flow({ ctx }),
+          }),
+      SpecSections.notes({ ctx }),
       SpecSections.architecture({ ctx }),
       CompareView.section({ ctx }),
       KindsRender.sequenceSection({ ctx }),
@@ -273,7 +188,6 @@ export class PageShell {
       SpecSections.metrics({ ctx }),
       SpecSections.beforeAfter({ ctx }),
       SpecSections.decisionRecord({ ctx }),
-      SpecSections.decisions({ ctx }),
       SpecSections.evidence({ ctx }),
       SpecSections.risks({ ctx }),
       SpecSections.log({ ctx }),
@@ -295,16 +209,20 @@ export class PageShell {
     ].join('');
     const css = `${Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? DEFAULT_THEME }) })}\n${NEW_KINDS_CSS}\n${COMPARE_CSS}\n${GridSpans.css({ spans: ctx.spans })}\n${figureFitCss({ keys: ctx.fits })}`;
     const policy = `default-src 'none'; style-src ${sha256({ text: css })}; script-src ${sha256({ text: HEAD_JS })} ${sha256({ text: PAGE_JS })}; base-uri 'none'; form-action 'none'`;
-    const links = SpecSections.sectionLinks({ spec, chrome })
-      .map((link) => `<a href="#${link.id}">${escaped(link.title)}</a>`)
-      .join('');
-    const stamp =
-      spec.asOf === undefined
-        ? ''
-        : `<span class="sep" aria-hidden="true"></span><span class="stamp">${escaped(spec.asOf)}</span>`;
-    const bar = `<header class="top slab c-${tone}"><div class="wrap">${MARK}<b class="ttl">${escaped(spec.title)}</b>${SpecSections.chip({ chrome, state, size: 18, label: word })}<nav aria-label="${escaped(chrome.navLabel)}"><span class="links">${links}</span>${stamp}<span class="sep" aria-hidden="true"></span><button class="btn js-only" id="present" type="button" data-on="${escaped(chrome.present)}" data-off="${escaped(chrome.exitPresent)}">${escaped(chrome.present)}</button><button class="theme" id="theme" type="button" aria-label="${escaped(chrome.themeToDark)}" data-to-light="${escaped(chrome.themeToLight)}" data-to-dark="${escaped(chrome.themeToDark)}">${IconSet.iconSvg({ name: 'sun', size: 20, className: 'sun' })}${IconSet.iconSvg({ name: 'moon', size: 20, className: 'moon' })}<span class="tip" aria-hidden="true"></span></button></nav></div></header>`;
-    const deck = `<nav class="deck" aria-label="${escaped(chrome.slide)}"><button class="btn" id="slide-prev" type="button">${escaped(chrome.previous)}</button><span id="slide-count" aria-live="polite"></span><button class="btn" id="slide-next" type="button">${escaped(chrome.following)}</button></nav>`;
+    // A page for the owner (status, plan, decisions) is read, not presented: no Present button and no deck.
+    const readOnly =
+      spec.minimap !== undefined ||
+      spec.strip !== undefined ||
+      spec.actions !== undefined ||
+      spec.decisions !== undefined;
+    const present = readOnly
+      ? ''
+      : `<button class="btn js-only" id="present" type="button" data-on="${escaped(chrome.present)}" data-off="${escaped(chrome.exitPresent)}">${escaped(chrome.present)}</button>`;
+    const bar = `<header class="top"><div class="wrap">${present}<button class="theme" id="theme" type="button" aria-label="${escaped(chrome.themeToDark)}" data-to-light="${escaped(chrome.themeToLight)}" data-to-dark="${escaped(chrome.themeToDark)}">${IconSet.iconSvg({ name: 'sun', size: 20, className: 'sun' })}${IconSet.iconSvg({ name: 'moon', size: 20, className: 'moon' })}<span class="tip" aria-hidden="true"></span></button></div></header>`;
+    const deck = readOnly
+      ? ''
+      : `<nav class="deck" aria-label="${escaped(chrome.slide)}"><button class="btn" id="slide-prev" type="button">${escaped(chrome.previous)}</button><span id="slide-count" aria-live="polite"></span><button class="btn" id="slide-next" type="button">${escaped(chrome.following)}</button></nav>`;
 
-    return `<!doctype html><html lang="${escaped(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="${escaped(policy)}"><meta name="generator" content="vulcan visualize"><title>${escaped(spec.title)}</title><script>${HEAD_JS}</script><style>${css}</style></head><body>${bar}<main>${withKickers({ html: body, chrome })}</main><footer class="slab foot"><div class="wrap"><p>${escaped(chrome.footer)}</p></div></footer>${deck}<script>${PAGE_JS}</script></body></html>`;
+    return `<!doctype html><html lang="${escaped(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="${escaped(policy)}"><meta name="generator" content="vulcan visualize"><title>${escaped(spec.title)}</title><script>${HEAD_JS}</script><style>${css}</style></head><body>${bar}<main>${body}</main><footer class="foot"><div class="wrap"><p>${escaped(chrome.footer)}</p></div></footer>${deck}<script>${PAGE_JS}</script></body></html>`;
   }
 }

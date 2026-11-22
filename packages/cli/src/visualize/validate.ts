@@ -128,7 +128,7 @@ const checkFlow = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }): string[
 /** The other kinds: scores match the criteria, links point at boxes, chart data lines up with its labels. */
 const checkKinds = (opts: { spec: TVisualizeSpec }): string[] => {
   const problems: string[] = [];
-  const { comparison, architecture, findings, explainer, decisionRecord } = opts.spec;
+  const { comparison, architecture, findings, explainer, decisionRecord, decisions } = opts.spec;
 
   if (comparison !== undefined) {
     for (const option of comparison.options) {
@@ -141,6 +141,12 @@ const checkKinds = (opts: { spec: TVisualizeSpec }): string[] => {
 
     if (comparison.options.filter((option) => option.recommended === true).length > 1) {
       problems.push('comparison.options: only one option can be recommended');
+    }
+  }
+
+  for (const [index, decision] of (decisions ?? []).entries()) {
+    if (decision.options.filter((option) => option.recommended === true).length !== 1) {
+      problems.push(`decisions[${index}]: exactly one option is recommended`);
     }
   }
 

@@ -27,6 +27,17 @@ const text = (max: number) =>
     .string()
     .max(max)
     .regex(/^(?=.*\S)[^\p{Cc}\u202A-\u202E\u2066-\u2069]+$/u, 'one line of text, not blank');
+/**
+ * A question or an option label is read, not parsed: no backtick, arrow function, snake_case name, dotted call, flag, brace or angle bracket. What needs code goes in the detail of the decision or in a code block.
+ */
+const CODE_LIKE = /`|=>|\w_\w|\.\w+\(|(?:^|\s)--\w|[<>{}]/;
+const plain = (max: number) =>
+  text(max).refine((value) => !CODE_LIKE.test(value), 'no code here: put it in the detail');
+/** One line of a code block: it may be indented or empty, and holds no control character. */
+const CODE_LINE = z
+  .string()
+  .max(VisualizeLimits.MAX_CODE_LINE)
+  .regex(/^[^\p{Cc}\u202A-\u202E\u2066-\u2069]*$/u, 'one line of code');
 /** A closed set as a pattern, so the printed JSON Schema says the same as the renderer. */
 const choice = (opts: { set: Iterable<string> }) =>
   z
@@ -260,6 +271,18 @@ const CHART = z.discriminatedUnion('type', [
   }),
 ]);
 
+/** What a written section holds: a small typed list, never markup. `code` spans inside a text are shown as code. */
+const BLOCK = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('p'), text: text(VisualizeLimits.MAX_SENTENCE) }),
+  z.strictObject({ type: z.literal('quote'), text: text(VisualizeLimits.MAX_SENTENCE) }),
+  z.strictObject({
+    type: z.literal('code'),
+    lines: z.array(CODE_LINE).min(1).max(VisualizeLimits.MAX_CODE_LINES),
+  }),
+  z.strictObject({ type: z.literal('ul'), items: LIST() }),
+  z.strictObject({ type: z.literal('ol'), items: LIST() }),
+]);
+
 const FINDINGS = z.strictObject({
   numbers: z
     .array(
@@ -356,13 +379,6 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   schemaVersion: z.literal(VisualizeLimits.SCHEMA_VERSION),
   /** The takeaway, not a topic. */
   title: text(VisualizeLimits.MAX_TITLE),
-  /** The second half of the headline, shown muted after the title. */
-  titleMuted: text(VisualizeLimits.MAX_TITLE).optional(),
-  /** The page's language; absent, it is the owner's profile language, else English. */
-  language: z
-    .string()
-    .regex(/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/)
-    .optional(),
   /** The accent of this page; it wins over the project's `theme`. A six-digit hex colour. */
   accent: HEX_COLOUR.optional(),
   /** The accent on dark grounds; derived from `accent` when absent. */
@@ -380,37 +396,24 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   scope: text(VisualizeLimits.MAX_SENTENCE).optional(),
   /** The verdict: one sentence the reader can stop at. */
   verdict: text(VisualizeLimits.MAX_SENTENCE),
-  caption: text(VisualizeLimits.MAX_SENTENCE).optional(),
   strip: z
     .strictObject({
-      healthy: text(VisualizeLimits.MAX_SENTENCE),
-      blockedBy: text(VisualizeLimits.MAX_SENTENCE),
-      changed: text(VisualizeLimits.MAX_SENTENCE),
+      healthy: text(VisualizeLimits.MAX_SENTENCE).optional(),
+      blockedBy: text(VisualizeLimits.MAX_SENTENCE).optional(),
+      changed: text(VisualizeLimits.MAX_SENTENCE).optional(),
       next: text(VisualizeLimits.MAX_SENTENCE),
     })
     .optional(),
   /** Where each task stands, one row each: the owner's map of the work. */
   minimap: rows(
     z.strictObject({
-      task: text(VisualizeLimits.MAX_LABEL),
+      task: text(VisualizeLimits.MAX_STEP_NAME),
       status: choice({ set: MinimapStates.values() }),
-      note: text(VisualizeLimits.MAX_SENTENCE).optional(),
+      note: text(VisualizeLimits.MAX_STEP_NOTE).optional(),
     }),
   ).optional(),
   /** What the owner has to do, in order: shown as a numbered checklist under `strip.next`. */
   actions: LIST().optional(),
-  /** Key numbers; with a `minimap` and no tiles, the page counts the states itself. */
-  tiles: z
-    .array(
-      z.strictObject({
-        value: text(16),
-        label: text(VisualizeLimits.MAX_LABEL),
-        state: STATE.optional(),
-      }),
-    )
-    .min(1)
-    .max(VisualizeLimits.MAX_TILES)
-    .optional(),
   flow: z
     .strictObject({
       nodes: z.array(NODE).min(1).max(VisualizeLimits.MAX_NODES),
@@ -439,13 +442,34 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   decisions: z
     .array(
       z.strictObject({
-        question: text(VisualizeLimits.MAX_SENTENCE),
-        recommended: text(VisualizeLimits.MAX_SENTENCE),
-        changes: text(VisualizeLimits.MAX_SENTENCE),
+        question: plain(VisualizeLimits.MAX_QUESTION).regex(/\?$/, 'a question ends with ?'),
+        options: z
+          .array(
+            z.strictObject({
+              label: plain(VisualizeLimits.MAX_OPTION_LABEL),
+              effect: text(VisualizeLimits.MAX_OPTION_EFFECT),
+              recommended: z.boolean().optional(),
+            }),
+          )
+          .min(2)
+          .max(3),
+        why: text(VisualizeLimits.MAX_WHY),
+        detail: text(VisualizeLimits.MAX_DECISION_DETAIL).optional(),
       }),
     )
     .min(1)
     .max(5)
+    .optional(),
+  /** Background to read: a titled section of paragraphs, code, quotes and lists. */
+  sections: z
+    .array(
+      z.strictObject({
+        title: text(VisualizeLimits.MAX_LABEL),
+        blocks: z.array(BLOCK).min(1).max(VisualizeLimits.MAX_BLOCKS),
+      }),
+    )
+    .min(1)
+    .max(VisualizeLimits.MAX_SECTIONS)
     .optional(),
   evidence: rows(
     z.strictObject({

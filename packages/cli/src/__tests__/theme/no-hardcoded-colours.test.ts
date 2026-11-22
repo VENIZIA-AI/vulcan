@@ -95,7 +95,6 @@ const ALLOWED: { file: string; why: string; colours: string[] }[] = [
       '#fcefd8',
       '#ff8a80',
       '#ffffff0d',
-      '#ffffff14',
       '#ffffff1f',
     ],
   },

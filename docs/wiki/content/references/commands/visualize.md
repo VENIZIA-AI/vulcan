@@ -19,9 +19,9 @@ The command validates the spec (shape, limits, unique ids, every arrow, step and
 
 ## The kinds
 
-A page is the sections its spec has, in a fixed order: the banner, the tiles, the minimap, what you need to do and what blocks it, then a flow (drawn in the top slab, under the verdict), an architecture, a compare view, a sequence, a lifecycle, a tree, a comparison, an idea map, an explainer, a timeline, findings, grades, metrics, a before and after, a decision record, the decisions, the evidence, the risks, the log, the terms, the sources and the links. The fields of each are in the [spec reference](/references/skills) of the `visualize-work` skill.
+A page is one light column about 960 px wide, in a fixed order: the head, a contents line with a count for each part, what you need to do, the decisions, the steps, then a flow, the written sections, an architecture, a compare view, a sequence, a lifecycle, a tree, a comparison, an idea map, an explainer, a timeline, findings, grades, metrics, a before and after, a decision record, the evidence, the risks, the log, the terms, the sources and the links. The fields of each are in the [spec reference](/references/skills) of the `visualize-work` skill.
 
-- **Status and handoff**: a banner coloured by the state with a large status word and icon, key numbers as tiles (counted from the minimap when you give none), the minimap as a stepper with one coloured segment per task, **What you need to do** as a card with a numbered checklist, and **Blocked by** beside it.
+- **Status and handoff**: a head with the state as an icon and a word, the title, one sentence, the date and the scope; **What you need to do** as a numbered list; each decision as a numbered card with a question, two or three options (the recommended one tagged), the reason and, last, a detail in small monospace; the steps as one list of rows (icon, name, note) with done rows muted and the next one tinted. Background goes in `sections`: paragraphs, code, quotes and lists.
 - **Flow and architecture**: boxes and labelled arrows on a grid, or layers with links between boxes; a box can carry a state (a colour, an icon and a word); Play animates the arrows and Next steps through the lit boxes.
 - **Compare**: two ways of doing the same thing drawn as one figure. An edge only in the second way is heavy and solid with a `+`, an edge only in the first is dotted with a `-`, and the legend and the phone list say the words, so colour is never the only difference. A compare with no edge that differs is refused.
 - **Sources and terms**: a flow box, a flow step or a compare box can carry a `source` (`repo`, a 40-character `commit`, `path`, `lines`), shown as `repo@commit:path:lines` and listed once in a Sources part; a short commit, an absolute path or a `..` is refused. A `terms` list explains words the reader may not know, and a term that never appears in the page is a warning.
@@ -33,15 +33,15 @@ A page is the sections its spec has, in a fixed order: the banner, the tiles, th
 
 ## The page
 
-Every state carries an icon and a word, never colour alone: the status, each minimap row (done, in progress, waiting, not started, blocked, dropped) and each evidence tag (verified, inferred, guess). Light and dark follow the system, with a sun and moon switch in the top bar; the choice is remembered in the browser of the reader. A sticky dark top bar carries the title, the state, links to the sections on the page and the date.
+Every state carries an icon and a word, never colour alone: the status, each minimap row (done, in progress, waiting, not started, blocked, dropped) and each evidence tag (verified, inferred, guess). Light and dark follow the system, with a sun and moon switch at the top; the choice is remembered in the browser of the reader. The contents line lists the parts of the page with a count each (decisions, steps done).
 
-Cards in a row share their rows: the score, the title, each criterion and each pro of one comparison card, the tiles, the stepper, the idea-map branches, the charts and the terms sit at the same height in every card of a row, whatever wraps or is missing (CSS grid with `subgrid`; one column on a phone). A test measures the offsets in headless Chrome.
+Cards in a row share their rows: the score, the title, each criterion and each pro of one comparison card, the finding tiles, the flow steps, the idea-map branches, the charts and the terms sit at the same height in every card of a row, whatever wraps or is missing (CSS grid with `subgrid`; one column on a phone). A test measures the offsets in headless Chrome.
 
 The page fits a phone without sideways scrolling. A figure is drawn whole while its text stays at 12 px or more; on a narrower screen it gives way to a list, and tables become one block per row with the column names beside the values.
 
-**Present** (or `?present=1` on the address) turns the sections into slides: the arrow keys, Space, Page Up and Page Down step, Home and End jump, Escape leaves, and the buttons at the foot do the same on a phone. Print gives every section one after another, with the figure and without the phone list. With no script, print or reduced motion, the final state shows.
+A page for the owner (steps, actions or decisions) is read, not presented. On any other page, **Present** (or `?present=1` on the address) turns the sections into slides: the arrow keys, Space, Page Up and Page Down step, Home and End jump, Escape leaves, and the buttons at the foot do the same on a phone. Print gives every section one after another, with the figure and without the phone list. With no script, print or reduced motion, the final state shows.
 
-The look is the one of this wiki: a system font stack and a monospace one, an always-dark slab with a fine dot pattern at the top and the foot, 4 px corners, and one accent colour for what needs the owner. Nothing is loaded for it.
+The look is the one of this wiki: a system font stack and a monospace one, three type sizes (28, 20 and 16 px, and 13 px for small print), 4 px corners, and one accent colour for what needs the owner. Figures sit in a dark window. Nothing is loaded for it.
 
 ## The colour
 
@@ -49,7 +49,7 @@ The accent is the project's. The page takes the first that exists of: the `accen
 
 ## Words and language
 
-The page takes the language of your [profile](/references/commands/profile) (`vulcan visualize` reads it), and a spec's `language` overrides it. The words of the page are bundled in English and Vietnamese; for any other language a spec replaces any word through a `chrome` object, so the [`visualize-work` skill](/references/skills) writes them in your language.
+The page takes the language of your [profile](/references/commands/profile) (`vulcan visualize` reads it), else English; a spec cannot choose the language. The words of the page are bundled in English and Vietnamese; for any other language a spec replaces any word through a `chrome` object, so the [`visualize-work` skill](/references/skills) writes them in your language.
 
 ## Exit codes
 

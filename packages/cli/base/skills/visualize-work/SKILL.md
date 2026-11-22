@@ -1,6 +1,6 @@
 ---
 name: visualize-work
-description: "Use when asked to show, present, explain, diagram or compare something visually, or when a page would be read faster than Markdown: how something works, a status or handoff, options compared with scores and a pick, a brainstorm or idea map, a timeline or roadmap, findings with charts, an architecture, a decision record, before and after. Makes one static HTML page from a JSON spec, with a slide mode for presenting. Skip for a plain written answer, long prose documents (docs-writing), and UI mockups of a product."
+description: 'Use when asked to show, present, explain, diagram or compare something visually, or when a page would be read faster than Markdown: how something works, a status or handoff, options compared with scores and a pick, a brainstorm or idea map, a timeline or roadmap, findings with charts, an architecture, a decision record, before and after. Makes one static HTML page from a JSON spec, with a slide mode for presenting. Skip for a plain written answer, long prose documents (docs-writing), and UI mockups of a product.'
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 ---
@@ -28,21 +28,21 @@ through it. The page loads nothing from the network, and nothing is published an
 
 One page answers one question, and the question picks the kind (the table is in [references/spec.md](references/spec.md)):
 
-| The question | The kind |
-|---|---|
-| Where does the round stand, what do I do | status or handoff: `strip`, `actions`, `minimap`, `decisions` |
-| How does it move, how is it built | `flow`, `architecture` |
-| What differs between two ways of doing it | `compare` |
-| Who calls whom, in what order | `sequence` |
-| Which states, and how it moves between them | `lifecycle` |
-| What is inside what | `tree` |
-| Which option, and why | `comparison` |
-| What could we do | `ideaMap` |
-| How does it work | `explainer` |
-| What happens when | `timeline` |
-| What did we find | `findings` with charts |
-| What did we decide | `decisionRecord` |
-| What changes | `beforeAfter` |
+| The question                                | The kind                                                      |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| Where does the round stand, what do I do    | status or handoff: `strip`, `actions`, `minimap`, `decisions` |
+| How does it move, how is it built           | `flow`, `architecture`                                        |
+| What differs between two ways of doing it   | `compare`                                                     |
+| Who calls whom, in what order               | `sequence`                                                    |
+| Which states, and how it moves between them | `lifecycle`                                                   |
+| What is inside what                         | `tree`                                                        |
+| Which option, and why                       | `comparison`                                                  |
+| What could we do                            | `ideaMap`                                                     |
+| How does it work                            | `explainer`                                                   |
+| What happens when                           | `timeline`                                                    |
+| What did we find                            | `findings` with charts                                        |
+| What did we decide                          | `decisionRecord`                                              |
+| What changes                                | `beforeAfter`                                                 |
 
 A page holds at most 25 boxes and 40 arrows, and stays under 80 KB; what does not fit is two pages, not one
 dense page. A long explanation is a document (see `docs-writing`), not a page.
@@ -65,18 +65,16 @@ The rules that make a page worth opening:
 - **Label evidence honestly**: `verified` only for a probe you ran in this session, `inferred` for a
   conclusion you drew, `guess` for the rest. An analogy is never presented as a fact. A claim that something
   is published or live needs a public-state probe, as in `report-back`.
-- **Give the owner the map**: a `minimap` row for each task or step the page is about, with the status words the owner shape uses; put what the owner has to do in `strip.next` and what blocks it in `strip.blockedBy`, because the page shows those two first, right after the verdict.
+- **Give the owner the map**: a `minimap` row for each step the page is about (a name of at most 40 characters, a note of at most 80), with the status words the owner shape uses. What the owner has to do goes in `strip.next` and `actions`, and the page shows it, then the decisions, then the steps. Say each fact once: `strip.blockedBy` names something other than the owner's own approval or a decision (the state chip already says the page waits for the owner), and leave it out when nothing else blocks the work; and a row of steps does not repeat the lede.
 - **A comparison names its scores for what they are**: a 1 to 5 judgement per criterion, not a measurement, and the
   `note` says so; mark one option `recommended` only when you recommend it, with the reason in the verdict.
 - **Findings are numbers you measured**: each chart has a title that states what it shows, a unit, and values that
   come from a probe you ran; a chart of guesses is not a finding. A donut has at most 5 parts.
 - **An explainer step is one idea**: a short title, two sentences, and a diagram only where a picture says it faster.
 - **A timeline item has a date and a state**, so a roadmap reads as done, in progress and not started.
-- **Decisions are one to five forks**, each with a recommended default and the claim it changes.
+- **A decision is a question, two or three options and a reason.** The question is at most 80 characters, ends with a question mark and holds no code; each option has a label (24 characters, no code), what happens if the owner picks it (120) and, for exactly one option, `recommended`; `why` is one sentence (160). Code, names and commands go in `detail` (300), shown last in small monospace. Never put a backtick, an arrow function, a snake_case name, a dotted call such as `X.values()`, a `--flag`, a brace or an angle bracket in a question or a label: the page refuses it.
 - **No secrets, no private data** in any field: the page is a file others may open.
-- **The owner's language is a setting**: the page takes the reply language of the owner's profile (English and
-  Vietnamese words are bundled; `language` in the spec overrides it). For any other language, translate the
-  words you need into `chrome` (every key is optional); never invent a label set the owner did not give.
+- **The owner's language is one setting**: the page takes the language of the owner's profile (`vulcan profile`), else English; a spec cannot choose it. Write every field of the spec in that language. English and Vietnamese words are bundled; for any other language, translate the words you need into `chrome` (every key is optional) and never invent a label set the owner did not give.
 - **The colour is the project's, not yours**: leave `accent` out. The page uses the project's `theme` (config key,
   written into the manifest by `vulcan sync`), else the `venizia` preset. Give `accent` (and `accentDark`, `accentText`)
   only when you draw a page about another project from outside it. A colour that fails the contrast checks is
@@ -84,8 +82,28 @@ The rules that make a page worth opening:
 - **Say where a claim comes from.** A box or step that states how the code works carries a `source`
   (`repo`, the full 40-character `commit`, `path`, `lines`) you have read in this session; the page refuses a
   short commit. Explain the words the reader may not know in `terms`, and use each in the page.
-- **Tiles only when the numbers are the point.** A flow or a comparison opens the page with its figure, not with
-  a row of tiles.
+- **Tiles only for findings.** Numbers you measured go in `findings.numbers`; a status or plan page has no tiles.
+- **The title is a takeaway of at most 60 characters** with no status word in it (the state chip says it).
+- **Background goes in `sections`**: a titled section of typed blocks, `p` (paragraph), `code` (`lines`), `quote`, `ul` and `ol`; a `code` span inside a paragraph is written with backticks. Code, paths and commands belong in a `code` block or in a decision's `detail`, never in a title, a question or a label.
+
+## Write it plainly
+
+The page is read by the owner in one pass. Each of these is a rule of the writing, and the render warns about a sentence of more than 30 words.
+
+- One idea per sentence, and short: aim for 20 words or fewer.
+- Plain words the owner uses. No code, flags, paths or identifiers in prose: they go in a code block or in `detail`.
+- One language in a sentence. Product names and the words listed in `terms` are the only exceptions.
+- No stacked abbreviations or internal labels (A3, D, E, "lane", "block") unless the sentence says what each one is.
+- Say who does what: "the team runs the three codemods", not a pile of nouns.
+- A number carries its unit and what it counts: "761 classes changed by the codemod", not "761 class sang ConstClass".
+
+A question that fails these, and the same question written plainly:
+
+| Before                                                                                                                                                  | After                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| zEnum đổi sang cách của ConstClass: class X extends ConstClass, schema () => z.enum(X.values()), không cần VALUES hay SCHEME_SET (thay khuôn D tối qua) | Hàm tạo enum có nên dùng lớp nền mới cho các hằng số không? |
+
+The code moves to the decision's `detail`, the options say what changes ("Mọi lớp hằng số dùng lớp nền mới; hai tên cũ bị bỏ"), and `why` gives the reason ("Nhóm framework đã kiểm tra: cách mới giữ đúng kiểu của từng giá trị").
 
 Done when each arrow has a verb and each evidence row has a label you can defend.
 
@@ -107,11 +125,10 @@ Done when it prints the path.
 The command cannot see the page. Open it in a browser at 390 px and at 1280 px (a browser tool, or ask the
 owner to open it) and check: the page does not scroll sideways (at 390 px a figure gives way to a list),
 no text is smaller than 12 px, nothing overlaps (arrow labels against boxes), both themes are readable (the
-sun and moon switch in the top bar flips them), the page is complete with the script off,
-hover or focus on a box shows its detail, Next steps through the lit boxes, the **Present** button (or
-`?present=1`) walks the sections as slides with the arrow keys and Escape leaves, and the console is clean.
+sun and moon switch at the top flips them), the page is complete with the script off,
+hover or focus on a box shows its detail, Next steps through the lit boxes, on a page that is not for the owner (no steps, actions or decisions) the **Present** button (or `?present=1`) walks the sections as slides with the arrow keys and Escape leaves, and the console is clean.
 
-**Cards in a row line up.** Where cards stand side by side (the options of a comparison, tiles, the stepper,
+**Cards in a row line up.** Where cards stand side by side (the options of a comparison, tiles, the flow steps,
 the branches of an idea map, charts, terms), the same part of every card sits at the same height as in its
 neighbours: the big score, the title, each criterion row, each pro and con, the notes. A badge on one card, a
 label that wraps or a longer list must not push a part of that card lower than its neighbours. The generator

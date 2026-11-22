@@ -1,10 +1,10 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { SpecPage } from '../../visualize/index.ts';
 import { GROUPS, MEASURE } from './alignment.groups.ts';
 import { alignmentSpec } from './alignment.fixture.ts';
 import { architectureSpec } from './architecture.fixture.ts';
 import { figuresSpec } from './figures.fixture.ts';
 import { BrowserPage } from './browser.helper.ts';
+import { renderSpec } from './render.helper.ts';
 
 /**
  * Repeated cards share their rows. Measured in a real browser, on a page built to break alignment (a badge on one
@@ -16,7 +16,7 @@ import { BrowserPage } from './browser.helper.ts';
  * VULCAN_BROWSER_TMPDIR to a short folder when the browser says its socket path is too long.
  */
 const html = ((): string => {
-  const result = SpecPage.renderText({ text: JSON.stringify(alignmentSpec()) });
+  const result = renderSpec(alignmentSpec());
 
   if (!result.ok) {
     throw new Error(result.problems.join('; '));
@@ -90,7 +90,7 @@ describe.skipIf(hasBrowser)('no browser here', () => {
  * (below that the figure gives way to its list).
  */
 const figuresHtml = ((): string => {
-  const result = SpecPage.renderText({ text: JSON.stringify(figuresSpec()) });
+  const result = renderSpec(figuresSpec());
 
   if (!result.ok) {
     throw new Error(result.problems.join('; '));
@@ -174,7 +174,10 @@ describe.skipIf(!hasBrowser)('figures hold their text (measured in a browser)', 
       /(<g class="edge main" data-edge="b&gt;c"><title>[^<]*<\/title><path d="[^"]*"[^>]*\/><text x=")[\d.]+(")/,
       '$1240$2',
     );
-    const wide = figuresHtml.replace('.fig{overflow-x:auto}', '.fig{overflow-x:auto;width:300px}');
+    // A changed style no longer matches the page policy's hash, so the policy is taken out for this probe.
+    const wide = figuresHtml
+      .replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '')
+      .replace('.fig{overflow-x:auto}', '.fig{overflow-x:auto;width:300px}');
     const measure = (page: string) =>
       BrowserPage.measure<{ issues: string[] }>({
         html: page,
@@ -219,11 +222,11 @@ describe.skipIf(!hasBrowser)(
         },
       );
       spec.flow.edges.push(
-        { from: 'd', to: 'f', label: 'gửi báo cáo tuần' },
+        { from: 'c', to: 'f', label: 'gửi báo cáo tuần' },
         { from: 'f', to: 'g', label: 'lưu bản sao' },
       );
 
-      const result = SpecPage.renderText({ text: JSON.stringify(spec) });
+      const result = renderSpec(spec);
 
       if (!result.ok) {
         throw new Error(result.problems.join('; '));
@@ -249,7 +252,7 @@ describe.skipIf(!hasBrowser)(
 );
 
 const architectureHtml = ((): string => {
-  const result = SpecPage.renderText({ text: JSON.stringify(architectureSpec()) });
+  const result = renderSpec(architectureSpec());
 
   if (!result.ok) {
     throw new Error(result.problems.join('; '));
@@ -383,7 +386,7 @@ describe.skipIf(!hasBrowser)(
   () => {
     for (const width of [1280, 1440]) {
       for (const dark of [false, true]) {
-        test(`${width} px, ${dark ? 'dark' : 'light'}: six boxes in a layer are drawn, and nothing crosses a box or a label`, async () => {
+        test(`${width} px, ${dark ? 'dark' : 'light'}: three boxes in a layer are drawn, and nothing crosses a box or a label`, async () => {
           const found = await BrowserPage.measure<{ drawn: boolean; issues: string[] }>({
             html: architectureHtml,
             width,

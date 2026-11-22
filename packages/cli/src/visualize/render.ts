@@ -11,11 +11,12 @@ import { VISUALIZE_SCHEMA } from './schema.ts';
 import { PageTerms } from './sources.ts';
 import { ProjectTheme } from './theme.ts';
 import type { IThemeInput } from './theme.ts';
+import { PlainWriting } from './plain.ts';
 import { SpecValidation } from './validate.ts';
 
 /** What the page takes from the project it is made in: the owner's language and the project's colour. */
 export interface IRenderContext {
-  /** The language a spec without `language` gets: the owner's profile language. */
+  /** The page's language: the owner's profile language, else English. A spec cannot choose it. */
   language?: string;
   /** The project's `theme` from the manifest. */
   project?: IThemeInput;
@@ -90,7 +91,7 @@ export class SpecPage {
       return { ok: false, problems: themed.problems.map((problem) => `colour: ${problem}`) };
     }
 
-    const language = parsed.data.language ?? opts.context?.language ?? 'en';
+    const language = opts.context?.language ?? 'en';
     const html = PageShell.render({ spec: parsed.data, language, theme: themed.theme });
     const bytes = Buffer.byteLength(html, 'utf8');
     const gate = PageGate.problems({ html });
@@ -123,6 +124,7 @@ export class SpecPage {
         warnings: [
           ...themed.theme.warnings,
           ...PageTerms.warnings({ html, terms: parsed.data.terms }),
+          ...PlainWriting.warnings({ spec: parsed.data }),
           ...(bytes > VisualizeLimits.WARN_BYTES
             ? [
                 `the page is ${Math.round(bytes / 1024)} KB, past the ${VisualizeLimits.WARN_BYTES / 1024} KB a page should stay under: consider two pages`,

@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { SpecPage } from '../../visualize/index.ts';
 import { FigureLayout } from '../../visualize/layout.ts';
 import { architectureSpec } from './architecture.fixture.ts';
 import { figuresSpec } from './figures.fixture.ts';
+import { renderSpec } from './render.helper.ts';
 
 const pageOf = (spec: Record<string, unknown>): string => {
-  const result = SpecPage.renderText({ text: JSON.stringify(spec) });
+  const result = renderSpec(spec);
 
   if (!result.ok) {
     throw new Error(result.problems.join('; '));
@@ -171,13 +171,13 @@ describe('the explainer step diagrams', () => {
 });
 
 describe('the architecture figure', () => {
-  test('six boxes in a layer are drawn, not given up for the list, and the frame is counted in the fit rule', () => {
+  test('three boxes in a layer are drawn, not given up for the list, and the frame is counted in the fit rule', () => {
     const html = pageOf(architectureSpec());
     const name = /class="fig (f\d+p32)"/.exec(html)?.[1] ?? '';
     const width = Number(/^f(\d+)/.exec(name)?.[1]);
 
     expect(name).not.toBe('');
-    expect(width).toBeLessThanOrEqual(1270);
+    expect(width).toBeLessThanOrEqual(970);
     expect(html).toMatch(
       new RegExp(`@media \\(max-width:\\d+px\\)\\{\\.fig\\.${name}\\{display:none\\}`),
     );
@@ -222,7 +222,7 @@ describe('the architecture figure', () => {
     }));
     const widest = Math.max(...boxes.map((box) => box.x + box.w));
 
-    expect(paths.length).toBe(9);
+    expect(paths.length).toBe(8);
 
     for (const path of paths) {
       // Every vertex of every link is outside every box (the ends touch an edge, never the inside).

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { SpecPage, VISUALIZE_SCHEMA } from '../../visualize/index.ts';
+import { VISUALIZE_SCHEMA } from '../../visualize/index.ts';
+import { renderSpec } from './render.helper.ts';
 
 const BASE = {
   schemaVersion: 1,
@@ -9,7 +10,7 @@ const BASE = {
 };
 
 const render = (extra: Record<string, unknown>): string => {
-  const result = SpecPage.renderText({ text: JSON.stringify({ ...BASE, ...extra }) });
+  const result = renderSpec({ ...BASE, ...extra });
 
   if (!result.ok) {
     throw new Error(result.problems.join('; '));
@@ -34,26 +35,6 @@ const METRICS = [
     ],
   },
 ];
-
-describe('the second half of the headline', () => {
-  test('titleMuted follows the title in the hero, in a span of its own', () => {
-    const html = render({ titleMuted: 'but heavy.' });
-
-    expect(html).toContain('<h1>A page <span class="mute">but heavy.</span></h1>');
-    expect(render({})).not.toContain('class="mute"');
-  });
-});
-
-describe('the label above a heading', () => {
-  test('a part with a group gets the group word above its heading, in the page language', () => {
-    expect(render({ grades: GRADES })).toContain(
-      '<p class="kick">Evidence</p><h2 class="sh">Grades</h2>',
-    );
-    expect(render({ grades: GRADES, language: 'vi' })).toContain(
-      '<p class="kick">Bằng chứng</p><h2 class="sh">Xếp hạng</h2>',
-    );
-  });
-});
 
 describe('grades', () => {
   test('each item shows its letter and its word, so colour is never the only signal', () => {
