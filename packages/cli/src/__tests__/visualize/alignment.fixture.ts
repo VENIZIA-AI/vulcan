@@ -193,10 +193,7 @@ export const alignmentSpec = (): Record<string, unknown> => ({
   beforeAfter: {
     before: {
       title: 'Before',
-      items: [
-        { text: 'A short refusal.', change: 'removed' },
-        { text: 'Ten questions.' },
-      ],
+      items: [{ text: 'A short refusal.', change: 'removed' }, { text: 'Ten questions.' }],
     },
     after: {
       title: 'After',
