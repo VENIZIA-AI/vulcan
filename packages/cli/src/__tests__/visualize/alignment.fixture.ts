@@ -194,14 +194,14 @@ export const alignmentSpec = (): Record<string, unknown> => ({
     before: {
       title: 'Before',
       items: [
-        { text: 'A refusal, with a short explanation.', change: 'removed' },
+        { text: 'A short refusal.', change: 'removed' },
         { text: 'Ten questions.' },
       ],
     },
     after: {
       title: 'After',
       items: [
-        { text: 'A refusal before the first question.', change: 'added' },
+        { text: 'A refusal comes first.', change: 'added' },
         { text: 'Ten questions.' },
         { text: 'A saved file.', change: 'added' },
       ],
