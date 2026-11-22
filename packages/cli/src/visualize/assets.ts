@@ -286,7 +286,6 @@ const BASE_CSS = [
   `.spark{display:inline-block;width:60px;height:18px;margin-left:12px;vertical-align:middle}`,
   `@media (min-width:861px){.blk ul.cols,.blk ol.cols{display:block;columns:2;column-gap:32px;max-width:none}.blk .cols li{break-inside:avoid;margin-bottom:6px}}`,
   `.tv summary{cursor:pointer;font:600 13px var(--font);color:var(--muted)}.tv .tw{margin-top:8px}`,
-||||||| 8f15e4cf
   `.callouts{display:grid;gap:2px;margin-top:2px;border-radius:var(--radius);overflow:hidden}`,
   `.callout{display:flex;gap:14px;padding:20px 24px;background:var(--cb);box-shadow:inset 4px 0 0 var(--c);color:var(--ink)}.callout .ic{color:var(--c);margin-top:2px}`,
   // Before and after: two panels; a plus or a minus, its word, and a line style.
