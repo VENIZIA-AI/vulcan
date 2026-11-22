@@ -47,7 +47,6 @@ export const VI_CHROME: TChrome = {
   removed: 'bỏ',
   decisions: 'Cần quyết định',
   recommended: 'Đề xuất',
-  changesClaim: 'Thay đổi',
   evidence: 'Bằng chứng',
   claim: 'Nhận định',
   probe: 'Cách kiểm',

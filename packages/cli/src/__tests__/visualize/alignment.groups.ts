@@ -57,7 +57,7 @@ export const GROUPS: IGroup[] = [
   { name: 'terms', container: '.terms', item: ':scope > div', slots: ['dt', 'dd'] },
   { name: 'links', container: '.links', item: ':scope > li', slots: ['a'] },
   { name: 'decision options', container: '.dopts', item: '.dopt', slots: ['b'], mode: 'column' },
-  { name: 'steps', container: '.rows', item: '.row', slots: ['b'], mode: 'column' },
+  { name: 'steps', container: '.rows', item: '.srow', slots: ['b'], mode: 'column' },
   {
     name: 'timeline',
     container: '.tl',

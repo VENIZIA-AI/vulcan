@@ -173,7 +173,6 @@ export const DEFAULT_CHROME = {
   removed: 'removed',
   decisions: 'Decisions needed',
   recommended: 'Recommended',
-  changesClaim: 'Changes',
   evidence: 'Evidence',
   claim: 'Claim',
   probe: 'Probe',

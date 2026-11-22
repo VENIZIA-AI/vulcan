@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { PAGE_JS } from '../../visualize/assets.ts';
 import { SpecPage } from '../../visualize/index.ts';
 import { renderSpec } from './render.helper.ts';
 import { fullSpec } from './spec.fixture.ts';
@@ -57,9 +58,11 @@ describe('a decision is a question, two or three options and a reason', () => {
     for (const question of [
       'Use `values` here?',
       'Does x => y hold?',
-      'Call values() now?',
-      'Should zEnum change?',
       'Is the snake_case name kept?',
+      'Does env.get still work?',
+      'Pass --force to it?',
+      'Is <script> allowed?',
+      'Is {use:false} valid?',
     ]) {
       expect(
         problemsOf({ ...fullSpec(), decisions: [decision({ question })] }),
@@ -69,12 +72,32 @@ describe('a decision is a question, two or three options and a reason', () => {
 
     const label = decision({
       options: [
-        { label: 'X.values()', effect: 'a', recommended: true },
+        { label: 'X.values', effect: 'a', recommended: true },
         { label: 'Yes', effect: 'b' },
       ],
     });
 
     expect(problemsOf({ ...fullSpec(), decisions: [label] })).toContain('no code');
+  });
+
+  test('plain text with product names is accepted', () => {
+    for (const question of [
+      'Dùng GitHub hay GitLab?',
+      'Should we write it in JavaScript?',
+      'Does it run on macOS and iPhone?',
+      'Can we keep the file(s) as they are?',
+    ]) {
+      expect(problemsOf({ ...fullSpec(), decisions: [decision({ question })] }), question).toBe('');
+    }
+
+    const label = decision({
+      options: [
+        { label: 'GitHub', effect: 'a', recommended: true },
+        { label: 'macOS', effect: 'b' },
+      ],
+    });
+
+    expect(problemsOf({ ...fullSpec(), decisions: [label] })).toBe('');
   });
 });
 
@@ -117,6 +140,31 @@ describe('a section can carry body blocks', () => {
   });
 });
 
+describe('hostile text stays text', () => {
+  const hostile = '<img src=x onerror=alert(1)>';
+
+  test('an inline code span, a quote, a decision and its detail are escaped', () => {
+    const html = htmlOf({
+      ...fullSpec(),
+      decisions: [decision({ why: hostile, detail: hostile })],
+      sections: [
+        {
+          title: 'T',
+          blocks: [
+            { type: 'p', text: `a \`${hostile}\` b` },
+            { type: 'quote', text: hostile },
+            { type: 'ul', items: [hostile] },
+          ],
+        },
+      ],
+    });
+
+    expect(html).not.toContain('<img');
+    expect(html).toContain('<code>&lt;img src=x onerror=alert(1)&gt;</code>');
+    expect(html).toContain('<blockquote><p>&lt;img');
+  });
+});
+
 describe('the language is the owner profile and nothing else', () => {
   test('the page is English unless the profile says vi, and a spec cannot say it', () => {
     expect(htmlOf(fullSpec())).toContain('<html lang="en">');
@@ -130,12 +178,27 @@ describe('the language is the owner profile and nothing else', () => {
   });
 });
 
+describe('a page for the owner is not presented', () => {
+  test('?present=1 only acts where the Present button exists', () => {
+    expect(PAGE_JS).toContain("if(pb&&new URLSearchParams(location.search).get('present')==='1')");
+  });
+});
+
 describe('write it plainly: a sentence of more than 30 words is a warning', () => {
   test('it names the sentence, and code lines and the owner chrome are not prose', () => {
     const long = Array.from({ length: 31 }, () => 'word').join(' ');
     const result = renderSpec({ ...fullSpec(), verdict: `${long}.` });
 
     expect(result.ok ? result.page.warnings.join('\n') : 'refused').toContain('more than 30 words');
+
+    const detail = renderSpec({
+      ...fullSpec(),
+      decisions: [decision({ detail: long })],
+    });
+
+    expect(detail.ok ? detail.page.warnings.join('\n') : 'refused').not.toContain(
+      'more than 30 words',
+    );
 
     const code = renderSpec({
       ...fullSpec(),

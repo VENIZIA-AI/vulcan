@@ -81,6 +81,8 @@ visualize-pages-simplified:
   symbols:
     - titleMuted
     - tiles
+    - caption
+    - language
     - decisions
   upgrade:
     steps:

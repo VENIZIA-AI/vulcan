@@ -525,7 +525,7 @@ export class SpecSections {
       body: `<ol class="rows">${minimap
         .map(
           (row, index) =>
-            `<li class="row c-${NodeStates.toneOf(row.status)}${row.status === 'done' ? ' done' : ''}${index === next ? ' next' : ''}">${SpecCharts.stateIcon({ state: row.status, size: 18 })}<b>${escaped(row.task)}</b><span class="vh">${escaped(SpecSections.stateWord({ chrome, state: row.status }))}</span>${row.note === undefined ? '' : `<span class="nt">${escaped(row.note)}</span>`}</li>`,
+            `<li class="srow c-${NodeStates.toneOf(row.status)}${row.status === 'done' ? ' done' : ''}${index === next ? ' next' : ''}">${SpecCharts.stateIcon({ state: row.status, size: 18 })}<b>${escaped(row.task)}</b><span class="vh">${escaped(SpecSections.stateWord({ chrome, state: row.status }))}</span>${row.note === undefined ? '' : `<span class="nt">${escaped(row.note)}</span>`}</li>`,
         )
         .join(
           '',

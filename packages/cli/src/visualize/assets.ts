@@ -83,7 +83,7 @@ const BASE_CSS = [
   `.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}`,
   `.mut{color:var(--muted)}`,
   `:focus-visible{outline:2px solid var(--accent);outline-offset:2px}`,
-  // The slab, the figure window, the pull-quote, the top bar and the slide deck are dark in both themes: the page tokens are redefined for them.
+  // The figure window, the pull-quote and the slide deck are dark in both themes: the page tokens are redefined for them.
   `.win,.pull,.deck{--bg:var(--slab);--bg-soft:var(--slab-2);--raise:var(--slab-3);--ink:var(--slab-ink);--body:var(--slab-body);--muted:var(--slab-muted);--accent:var(--hot);--accent-soft:var(--slab-3);--accent-ink:var(--hot-ink);--line:#ffffff1f;${SLAB_STATES};color:var(--body);background-color:var(--slab)}`,
   `.win,.pull{background-image:radial-gradient(var(--slab-dot) 1px,transparent 1.2px);background-size:16px 16px}`,
   // The page: one light column of 960 px, one text measure of 70 characters, three type sizes (28, 20, 16) and a small 13.
@@ -112,16 +112,15 @@ const BASE_CSS = [
   `.dec h3{font-size:20px;line-height:1.3;letter-spacing:-.01em;max-width:60ch;margin-bottom:14px}.dec h3::before{content:counter(d) '. ';color:var(--muted)}`,
   `.dopts{display:grid;gap:6px}`,
   `.dopt{display:grid;grid-template-columns:minmax(0,16rem) minmax(0,1fr);gap:4px 16px;align-items:baseline;padding:10px 12px;border-radius:var(--radius);background:var(--bg)}`,
-  `.dopt.rec{background:var(--accent-soft)}.dopt b{color:var(--ink);font-weight:600}.dopt .tag{justify-self:start;margin:0 0 0 8px;font-size:13px}`,
-  `.dopt .tag{display:inline-block;background:var(--accent);color:var(--accent-ink);padding:1px 8px;border-radius:var(--radius);font-weight:600}`,
+  `.dopt.rec{background:var(--accent-soft)}.dopt b{color:var(--ink);font-weight:600}.dopt .tag{margin:0 0 0 8px;font-size:13px;display:inline-block;background:var(--accent);color:var(--accent-ink);padding:1px 8px;border-radius:var(--radius);font-weight:600}`,
   `.why{margin-top:14px;max-width:70ch;color:var(--body)}.why b{color:var(--ink)}`,
   `.dt{margin-top:12px;font:13px/1.5 var(--code);color:var(--muted);overflow-wrap:anywhere}`,
   // Steps: one row each: icon, name, note. Done rows are muted, the next one is tinted.
   `.rows{display:grid;gap:2px}`,
-  `.row{display:grid;grid-template-columns:24px minmax(0,22rem) minmax(0,1fr);gap:4px 12px;align-items:baseline;padding:10px 12px;border-radius:var(--radius);color:var(--c)}`,
-  `.row .ic{align-self:center}.row b{color:var(--ink);font-weight:600}.row .nt{color:var(--body)}`,
-  `.row.done b,.row.done .nt{color:var(--muted);font-weight:400}`,
-  `.row.next{background:var(--accent-soft)}`,
+  `.srow{display:grid;grid-template-columns:24px minmax(0,22rem) minmax(0,1fr);gap:4px 12px;align-items:baseline;padding:10px 12px;border-radius:var(--radius);color:var(--c)}`,
+  `.srow .ic{align-self:center}.srow b{color:var(--ink);font-weight:600}.srow .nt{color:var(--body)}`,
+  `.srow.done b,.srow.done .nt{color:var(--muted);font-weight:400}`,
+  `.srow.next{background:var(--accent-soft)}`,
   `.key{display:flex;flex-wrap:wrap;gap:4px 20px;margin-top:14px;font-size:13px}`,
   // Written sections: paragraphs, code, quotes and lists in one measure.
   `.blk{display:grid;gap:14px;max-width:70ch}`,
@@ -142,7 +141,6 @@ const BASE_CSS = [
   `.btn[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}`,
   `html:not(.js) .js-only,html:not(.js) .theme{display:none}`,
   `html:not(.js) .steps button{cursor:default;pointer-events:none}`,
-  // The top bar: part of the slab, sticky, 64 px, with the theme switch.
   `.theme{all:unset;box-sizing:border-box;cursor:pointer;position:relative;width:36px;height:36px;border-radius:var(--radius);color:var(--body);flex:none;transition:color .25s,background-color .25s}`,
   `.theme:hover{color:var(--ink);background:#ffffff0d}`,
   `.theme:focus-visible{outline:2px solid var(--hot);outline-offset:1px}`,
@@ -154,7 +152,6 @@ const BASE_CSS = [
   `.theme:hover .tip,.theme:focus-visible .tip{opacity:1;transform:none}`,
   `::view-transition-old(root),::view-transition-new(root){animation-duration:200ms;animation-timing-function:ease}`,
   `.theme-fade,.theme-fade *{transition:background-color .2s ease,color .2s ease,fill .2s ease,stroke .2s ease!important}`,
-  // The hero slab: the state, the title, the verdict, and the flow when the spec has one.
   // Sections: each a part with its title; the compositions below differ from neighbour to neighbour.
   `.panels{display:grid;gap:2px;border-radius:var(--radius);overflow:hidden}`,
   // Tiles: fields of colour with a big number.
@@ -173,9 +170,6 @@ const BASE_CSS = [
   `.mb{display:block;width:100%;height:8px;border-radius:2px;overflow:hidden;background:color-mix(in srgb,var(--ink) 10%,transparent)}.mb rect{fill:var(--tc)}`,
   `.t-ok{--tc:var(--ok)}.t-warn{--tc:var(--accent)}.t-bad{--tc:var(--bad)}.t-info{--tc:var(--info)}`,
   `.mlg{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0;padding:0;list-style:none;color:var(--body);font-size:13px}.mlg .sw{display:inline-block;width:8px;height:8px;margin-right:6px;background:var(--tc)}`,
-  // The minimap: a track, a stripe and a word per task.
-  // What the owner has to do, what blocks it, and the two quiet facts.
-  // The flow in the hero: the figure straight on the slab, then its steps and the line that says what is picked.
   `.fig{overflow-x:auto}`,
   `.fig svg{display:block;width:100%;height:auto;margin-inline:auto;color:var(--muted)}`,
   `.win{padding:16px;border-radius:var(--radius)}`,
@@ -301,7 +295,6 @@ const BASE_CSS = [
   `.pull .ic{color:var(--hot);width:36px;height:36px}.pull .lab{color:var(--accent);margin:12px 0 10px}`,
   `.pull .big{max-width:30ch;font-size:20px;line-height:1.15;font-weight:650;letter-spacing:-.03em;color:var(--ink)}`,
   `.cons{display:grid;gap:10px}.cons li{display:flex;gap:12px;font-size:16px}.cons .ic{color:var(--ok);margin-top:4px}`,
-  // Decisions: each question with a recommendation box.
   // Evidence and log: ledgers, a rule between rows.
   `.ledger,.log{display:grid}`,
   `.ev{display:grid;grid-template-columns:160px minmax(0,1.6fr) minmax(0,1fr);gap:8px 28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--line)}.ev:first-child,.log li:first-child{border-top:0}`,
@@ -327,13 +320,12 @@ const BASE_CSS = [
   `html.present .foot,html.present .toc{display:none}`,
   `html.present .deck{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;gap:12px;align-items:center;justify-content:center;padding:10px;border-top:1px solid var(--line)}`,
   `html.present .deck span{font:600 14px var(--font);color:var(--muted)}`,
-  // A phone: panels stack, the bar keeps only the title, the state, present and the switch.
   `@media (max-width:860px){.estep,.diff,.ev,.log li,.idea{grid-template-columns:minmax(0,1fr)}.estep .dg{grid-column:auto}.estep .no{line-height:1}.idea .centre{order:-1;grid-column:1;grid-row:auto}.idea .branch:nth-child(n){grid-column:1}.estep{gap:12px}.estep .no{font-size:28px}`,
-  `.part{padding-top:40px}.opt{padding:22px 18px}.ba{padding:22px 18px}.toc{flex-direction:column;gap:6px}.dopt{grid-template-columns:minmax(0,1fr)}.row{grid-template-columns:24px minmax(0,1fr)}.row .nt{grid-column:2}`,
+  `.part{padding-top:40px}.opt{padding:22px 18px}.ba{padding:22px 18px}.toc{flex-direction:column;gap:6px}.dopt{grid-template-columns:minmax(0,1fr)}.srow{grid-template-columns:24px minmax(0,1fr)}.srow .nt{grid-column:2}`,
   `.stack thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.stack,.stack tbody,.stack tr,.stack td{display:block;width:100%}.stack tr{padding:14px 0;border-top:1px solid var(--line)}.stack tbody tr:first-child{border-top:0;padding-top:0}.stack td{border:0;padding:3px 0}`,
   `.stack td[data-label]::before{content:attr(data-label);display:block;font:600 13px/1.3 var(--font);color:var(--muted);margin-bottom:2px}}`,
   `@media (max-width:520px){#present{display:none}.tile{padding:22px 20px}.tile .n{font-size:28px}.steps{grid-template-columns:minmax(0,1fr)}.say{grid-template-columns:minmax(0,1fr)}}`,
-  // Motion is an extra: the hero rises and the owner's gate glows only when the reader has not asked for less.
+  // Motion is an extra: the owner's gate glows only when the reader has not asked for less.
   `@media (prefers-reduced-motion:no-preference){.gate .halo{animation:heat 2.6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}@keyframes heat{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.12)}}}`,
   `@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}`,
   // Print: the final state, light on paper, one slide after another.
@@ -382,7 +374,7 @@ addEventListener('keydown',e=>{if(!root.classList.contains('present'))return;con
 if(k==='ArrowRight'||k==='ArrowDown'||k==='PageDown'||k===' '){e.preventDefault();show(cur+1)}
 else if(k==='ArrowLeft'||k==='ArrowUp'||k==='PageUp'){e.preventDefault();show(cur-1)}
 else if(k==='Home'){show(0)}else if(k==='End'){show(slides.length-1)}else if(k==='Escape'){present(false)}});
-if(new URLSearchParams(location.search).get('present')==='1')present(true);
+if(pb&&new URLSearchParams(location.search).get('present')==='1')present(true);
 const fig=q('#flow .fig'),say=q('#say'),hint=say?say.textContent:'',all=q('#all');
 let at=-1;
 const note=t=>{if(say)say.textContent=t};

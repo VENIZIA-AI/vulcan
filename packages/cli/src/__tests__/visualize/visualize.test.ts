@@ -428,9 +428,9 @@ describe('the page reads the answer first', () => {
   test('every step is a row with an icon and a word, done rows are muted and the next one is marked', () => {
     const html = rendered(fullSpec());
 
-    expect(html).toContain('<li class="row c-ok done">');
-    expect(html).toContain('<li class="row c-info next">');
-    expect(html).toContain('<li class="row c-mut">');
+    expect(html).toContain('<li class="srow c-ok done">');
+    expect(html).toContain('<li class="srow c-info next">');
+    expect(html).toContain('<li class="srow c-mut">');
     expect(html).toContain('<span class="vh">in progress</span>');
 
     const french = rendered({

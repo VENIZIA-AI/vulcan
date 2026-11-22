@@ -34,7 +34,16 @@ export class PlainWriting {
   static warnings(opts: { spec: unknown }): string[] {
     const found: string[] = [];
 
-    proseOf({ value: opts.spec, found });
+    // The detail of a decision holds code, like a code block: it is not prose.
+    const decisions = Reflect.get(Object(opts.spec), 'decisions');
+    const prose: unknown = Array.isArray(decisions)
+      ? {
+          ...Object(opts.spec),
+          decisions: decisions.map((item) => ({ ...Object(item), detail: undefined })),
+        }
+      : opts.spec;
+
+    proseOf({ value: prose, found });
 
     return found
       .flatMap((line) => line.split(/(?<=[.!?;:])\s+/))
