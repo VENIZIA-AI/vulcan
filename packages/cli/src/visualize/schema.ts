@@ -28,9 +28,9 @@ const text = (max: number) =>
     .max(max)
     .regex(/^(?=.*\S)[^\p{Cc}\u202A-\u202E\u2066-\u2069]+$/u, 'one line of text, not blank');
 /**
- * A question or an option label is read, not parsed: no backtick, arrow function, snake_case name, dotted access, flag, brace or angle bracket. What needs code goes in the detail of the decision or in a code block.
+ * A question or an option label is read, not parsed: no backtick, arrow function, snake_case name, dotted call, flag, brace or angle bracket. What needs code goes in the detail of the decision or in a code block.
  */
-const CODE_LIKE = /`|=>|\w_\w|\w\.\w|(?:^|\s)--\w|[<>{}]/;
+const CODE_LIKE = /`|=>|\w_\w|\.\w+\(|(?:^|\s)--\w|[<>{}]/;
 const plain = (max: number) =>
   text(max).refine((value) => !CODE_LIKE.test(value), 'no code here: put it in the detail');
 /** One line of a code block: it may be indented or empty, and holds no control character. */

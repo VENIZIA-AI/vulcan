@@ -59,7 +59,8 @@ describe('a decision is a question, two or three options and a reason', () => {
       'Use `values` here?',
       'Does x => y hold?',
       'Is the snake_case name kept?',
-      'Does env.get still work?',
+      'Does env.get() still work?',
+      'Does X.values() still work?',
       'Pass --force to it?',
       'Is <script> allowed?',
       'Is {use:false} valid?',
@@ -72,7 +73,7 @@ describe('a decision is a question, two or three options and a reason', () => {
 
     const label = decision({
       options: [
-        { label: 'X.values', effect: 'a', recommended: true },
+        { label: 'X.values()', effect: 'a', recommended: true },
         { label: 'Yes', effect: 'b' },
       ],
     });
@@ -83,6 +84,8 @@ describe('a decision is a question, two or three options and a reason', () => {
   test('plain text with product names is accepted', () => {
     for (const question of [
       'Dùng GitHub hay GitLab?',
+      'Lên bản 0.5.0?',
+      'Dùng Node.js hay Bun?',
       'Should we write it in JavaScript?',
       'Does it run on macOS and iPhone?',
       'Can we keep the file(s) as they are?',
