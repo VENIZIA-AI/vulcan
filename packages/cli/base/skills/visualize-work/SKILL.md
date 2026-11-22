@@ -65,7 +65,7 @@ The rules that make a page worth opening:
 - **Label evidence honestly**: `verified` only for a probe you ran in this session, `inferred` for a
   conclusion you drew, `guess` for the rest. An analogy is never presented as a fact. A claim that something
   is published or live needs a public-state probe, as in `report-back`.
-- **Give the owner the map**: a `minimap` row for each step the page is about (a name of at most 40 characters, a note of at most 80), with the status words the owner shape uses. What the owner has to do goes in `strip.next` and `actions`, and the page shows it, then the decisions, then the steps. Say each fact once: `strip.blockedBy` does not repeat a decision, and a row of steps does not repeat the lede.
+- **Give the owner the map**: a `minimap` row for each step the page is about (a name of at most 40 characters, a note of at most 80), with the status words the owner shape uses. What the owner has to do goes in `strip.next` and `actions`, and the page shows it, then the decisions, then the steps. Say each fact once: `strip.blockedBy` names something other than the owner's own approval or a decision (the state chip already says the page waits for the owner), and leave it out when nothing else blocks the work; and a row of steps does not repeat the lede.
 - **A comparison names its scores for what they are**: a 1 to 5 judgement per criterion, not a measurement, and the
   `note` says so; mark one option `recommended` only when you recommend it, with the reason in the verdict.
 - **Findings are numbers you measured**: each chart has a title that states what it shows, a unit, and values that
