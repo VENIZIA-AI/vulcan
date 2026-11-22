@@ -96,14 +96,6 @@ const legOf = (opts: { from: TPoint; to: TPoint }): IRect => ({
 });
 
 /**
- * The layered view: bands from top to bottom, boxes in each, and an orthogonal line for every link that never crosses
- * a box. Between two bands is a channel; a link runs along its own lane of it, so no two lines are closer than
- * SPACING, and a link over more than one layer goes down the right margin, which no box reaches. The ends of the
- * links on one edge of a box are spread to SPACING and lined up with their other end where they can be, so a line
- * is straight when it can be. Each label sits on its own line, nearer to it than to any other. The boxes are as wide
- * as the widest layer lets the drawing stay under TARGET_WIDTH, and their text wraps inside them.
- */
-/**
  * The boxes of each layer in the order that crosses the fewest lines: a few sweeps down and up the layers, each box
  * placed at the average position of the boxes it links to in the neighbouring layer. A box with no link keeps its own
  * place, and equal averages keep the order the spec gave.
@@ -114,13 +106,14 @@ const ordered = (opts: { architecture: TArchitecture }): TArchitecture => {
 
   layers.forEach((layer, row) => layer.boxes.forEach((box) => rowOf.set(box.id, row)));
 
-  const position = (id: string): number => {
-    const row = layers[rowOf.get(id) ?? 0];
+  const positionOf = (box: { id: string }): number => {
+    const row = layers[rowOf.get(box.id) ?? 0];
 
-    return row === undefined ? 0 : row.boxes.findIndex((box) => box.id === id);
+    return row === undefined ? 0 : row.boxes.findIndex((item) => item.id === box.id);
   };
-  const sort = (row: number, towards: number): void => {
-    const layer = layers[row];
+  const sortLayer = (move: { row: number; towards: number }): void => {
+    const { towards } = move;
+    const layer = layers[move.row];
 
     if (layer === undefined) {
       return;
@@ -137,7 +130,7 @@ const ordered = (opts: { architecture: TArchitecture }): TArchitecture => {
           box.id,
           near.length === 0
             ? at
-            : (near.reduce((sum, other) => sum + position(other), 0) / near.length) *
+            : (near.reduce((sum, other) => sum + positionOf({ id: other }), 0) / near.length) *
               ((layer.boxes.length - 1) / Math.max(1, (layers[towards]?.boxes.length ?? 1) - 1)),
         ];
       }),
@@ -148,17 +141,25 @@ const ordered = (opts: { architecture: TArchitecture }): TArchitecture => {
 
   for (let sweep = 0; sweep < 3; sweep += 1) {
     for (let row = 1; row < layers.length; row += 1) {
-      sort(row, row - 1);
+      sortLayer({ row, towards: row - 1 });
     }
 
     for (let row = layers.length - 2; row >= 0; row -= 1) {
-      sort(row, row + 1);
+      sortLayer({ row, towards: row + 1 });
     }
   }
 
   return { ...opts.architecture, layers };
 };
 
+/**
+ * The layered view: bands from top to bottom, boxes in each, and an orthogonal line for every link that never crosses
+ * a box. Between two bands is a channel; a link runs along its own lane of it, so no two lines are closer than
+ * SPACING, and a link over more than one layer goes down the right margin, which no box reaches. The ends of the
+ * links on one edge of a box are spread to SPACING and lined up with their other end where they can be, so a line
+ * is straight when it can be. Each label sits on its own line, nearer to it than to any other. The boxes are as wide
+ * as the widest layer lets the drawing stay under TARGET_WIDTH, and their text wraps inside them.
+ */
 export class SpecArchitecture {
   static render(opts: { architecture: TArchitecture; chrome: TChrome }): IDrawing {
     const architecture = ordered({ architecture: opts.architecture });

@@ -21,8 +21,8 @@ export interface ISectionContext {
 
 const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
-/** The numeral column and the gap of an explainer step, and the 160 px by which the wide figure column is wider than the text column an explainer sits in: space a step diagram does not have. */
-const EXPLAINER_INSET = 128 + 160;
+/** The numeral column and the gap of an explainer step: space a step diagram does not have beside the text. */
+const EXPLAINER_INSET = 128;
 /** The padding of a figure's frame (`.win`) on both sides: space the figure does not have. */
 const WIN_FRAME = 32;
 
@@ -150,7 +150,7 @@ export class SpecSections {
   }
 
   /**
-   * The flow: the figure in a dark window, its phone list, the legend, then the steps to press and the line that says
+   * The flow: the figure in a light window, its phone list, the legend, then the steps to press and the line that says
    * what is picked. Without script the steps are a plain list with their text. A flow of one step or none has no legend,
    * no hint and no Run button: there is nothing to choose.
    */
@@ -637,7 +637,7 @@ export class SpecSections {
     return `<section class="part${opts.extra === undefined ? '' : ` ${opts.extra}`}" id="${opts.id}" data-slide><div class="wrap${opts.isWide === true ? ' fw' : ''}"><h2 class="sh">${escaped(opts.title)}</h2>${opts.body}</div></section>`;
   }
 
-  /** A drawing in a dark window; below the width where its text would pass 12 px the list takes its place. */
+  /** A drawing in a light window; below the width where its text would pass 12 px the list takes its place. */
   static figure(opts: { ctx: ISectionContext; drawing: IDrawing; inset?: number }): string {
     const width = Math.round(opts.drawing.width);
     const inset = opts.inset ?? 0;

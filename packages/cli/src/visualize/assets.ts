@@ -17,7 +17,7 @@ export interface IStatePalette {
 
 /**
  * Fixed state colours and the five chart series. `warn` is the amber of an inferred claim; a task that waits for the
- * owner is the project's hot accent instead, so what needs the owner is one colour on the page.
+ * owner is the project's accent instead, so what needs the owner is one colour on the page.
  */
 const STATE_PALETTE: { light: IStatePalette; dark: IStatePalette } = {
   light: {
@@ -83,8 +83,8 @@ const BASE_CSS = [
   `.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}`,
   `.mut{color:var(--muted)}`,
   `:focus-visible{outline:2px solid var(--accent);outline-offset:2px}`,
-  // The figure window, the pull-quote and the slide deck are dark in both themes: the page tokens are redefined for them.
-  `.deck{--bg:var(--slab);--bg-soft:var(--slab-2);--raise:var(--slab-3);--ink:var(--slab-ink);--body:var(--slab-body);--muted:var(--slab-muted);--accent:var(--accent);--accent-soft:var(--slab-3);--accent-ink:var(--accent-ink);--line:#ffffff1f;${SLAB_STATES};color:var(--body);background-color:var(--slab)}`,
+  // The slide deck is dark in both themes: the page tokens are redefined for it.
+  `.deck{--bg:var(--slab);--bg-soft:var(--slab-2);--raise:var(--slab-3);--ink:var(--slab-ink);--body:var(--slab-body);--muted:var(--slab-muted);--accent-soft:var(--slab-3);--line:#ffffff1f;${SLAB_STATES};color:var(--body);background-color:var(--slab)}`,
   // The page: one light column of 960 px, one text measure of 70 characters, three type sizes (28, 20, 16) and a small 13.
   `.wrap{max-width:960px}`,
   `.top{position:absolute;top:20px;left:0;right:0;z-index:5}`,
@@ -96,7 +96,7 @@ const BASE_CSS = [
   `.toc{display:flex;flex-wrap:wrap;gap:6px 24px;margin-top:28px;padding-block:14px 0;border-top:1px solid var(--line)}`,
   `.toc a{color:var(--ink);font-size:16px;text-decoration:none}.toc a:hover{text-decoration:underline}.toc a span{color:var(--muted)}`,
   `.part{padding-top:32px}`,
-  `.wrap.fw{max-width:1120px}.wrap.fw>.sh{padding-left:max(0px,calc((100% - 928px)/2))}`,
+  `.wrap.fw{max-width:1120px}.wrap.fw>.sh,.wrap.fw .kfig>figcaption{margin-inline:max(0px,calc((100% - 928px)/2))}`,
   `.sh{font-size:20px;line-height:1.25;margin-bottom:20px;padding-top:20px;border-top:1px solid var(--line);letter-spacing:-.01em}`,
   `.own{padding-top:20px}`,
   `h3{font-size:16px;line-height:1.3}`,
@@ -217,7 +217,7 @@ const BASE_CSS = [
   `html:not(.js) .say{display:none}`,
   `.say p{color:var(--ink);font-size:16px;line-height:1.4;max-width:46ch;letter-spacing:-.01em}`,
   `.say .ctl{display:flex;gap:8px;flex-wrap:wrap}.say .ctl[hidden],.say [hidden]{display:none}`,
-  // Architecture and explainer drawings sit in a dark window.
+  // Architecture and explainer drawings sit in a light window with a hairline frame.
   `.dband{fill:var(--bg-soft)}`,
   `.dbox rect{fill:var(--raise)}.dbox.c-ok rect,.dbox.c-warn rect,.dbox.c-bad rect,.dbox.c-info rect,.dbox.c-mut rect{stroke:var(--c);stroke-width:1.5}`,
   `.dbox .t{font:600 14px var(--font);fill:var(--ink)}.dbox .s{font:12.5px var(--font);fill:var(--muted)}.dbox .st{color:var(--c)}`,
@@ -225,7 +225,7 @@ const BASE_CSS = [
   `.dl{font:12.5px var(--font);fill:var(--body);paint-order:stroke;stroke:var(--bg);stroke-width:4px}`,
   `.dlab{font:600 13px var(--font);fill:var(--muted)}`,
   `.win .path{margin-top:0}`,
-  // Comparison: panels side by side, the big total, the recommended pick filled.
+  // Comparison: bordered panels side by side, the total, the recommended pick with an accent border.
   `.ranks{max-width:520px;margin-bottom:28px}`,
   `.ranks svg{display:block;width:100%;height:auto;margin-top:8px}`,
   `.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px}`,
@@ -296,7 +296,7 @@ const BASE_CSS = [
   `.ba li.add{border-left:4px solid var(--ink);color:var(--ink);font-weight:550}`,
   `.ba li.del{border-left:3px dotted var(--muted)}.ba li.del .tx{text-decoration:line-through;text-decoration-thickness:1px}`,
   `.wd{display:inline-block;margin-right:8px;font:650 13px/1.4 var(--font);color:var(--ink);text-decoration:none}`,
-  // Decision record: the context, the options, the decision as a dark pull-quote, the consequences.
+  // Decision record: the context, the options, the decision as a quote with an accent rule, the consequences.
   `.dh{font-size:16px;line-height:1.3;margin-bottom:6px}.dr{display:grid;gap:28px}.dr .ctx{max-width:64ch;font-size:16px;color:var(--ink)}`,
   `.pull{padding:4px 0 4px 20px;border-left:3px solid var(--accent)}`,
   `.pull .ic{color:var(--accent);width:24px;height:24px}.pull .dh{margin:8px 0 6px}`,

@@ -326,12 +326,11 @@ const renderLifecycle = (opts: { lifecycle: TLifecycle; chrome: TChrome }): IKin
         ? []
         : wrapLines({ text: state.sublabel, chars: Math.floor((BOX_WIDTH - 24) / SMALL_PX) });
     const word = wordFor(state);
-    const wordBase = 21;
-    const first = word === undefined ? 24 : 40;
+    const first = 24;
     const last = first + (labelLines.length - 1) * 17;
     const bottom = subLines.length === 0 ? last : last + 17 + (subLines.length - 1) * 15;
 
-    return { state, labelLines, subLines, word, wordBase, first, last, height: bottom + 14 };
+    return { state, labelLines, subLines, word, first, last, height: bottom + 14 };
   });
   const boxHeight = Math.max(72, ...contents.map((item) => item.height));
 
@@ -650,7 +649,7 @@ const frame = (opts: { ctx: INewKindsContext; drawing: IKindDrawing }): string =
 
   opts.ctx.fits.add(`${width}`);
 
-  return `<figure class="kfig"><div class="fig f${width}">${opts.drawing.svg}</div>${opts.drawing.list}<figcaption>${escaped(opts.drawing.caption)}</figcaption></figure>`;
+  return `<figure class="kfig"><div class="fig f${width}${width * 1.25 <= 928 ? ' at' : ''}">${opts.drawing.svg}</div>${opts.drawing.list}<figcaption>${escaped(opts.drawing.caption)}</figcaption></figure>`;
 };
 
 export class KindsRender {

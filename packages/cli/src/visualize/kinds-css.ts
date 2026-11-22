@@ -3,7 +3,7 @@
  * page ground with a hairline frame, like the phone lists. Nothing here names a colour of a project.
  */
 export const NEW_KINDS_CSS = `.kfig{margin:0}
-.kfig .fig svg{margin-inline:0}
+.kfig .fig.at svg{margin-inline:max(0px,calc((100% - 928px)/2)) 0}
 .kfig figcaption{margin-top:14px;max-width:70ch;color:var(--muted);font-size:15px;line-height:1.5}
 .kf{display:block;max-width:100%;height:auto;background:var(--bg);border:1px solid color-mix(in srgb,var(--ink) 18%,transparent);color:var(--ink);border-radius:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .kf text{fill:var(--body);font-size:12px}

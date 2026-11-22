@@ -382,16 +382,12 @@ export class ProjectTheme {
       `--accent:${p.accent}`,
       `--accent-ink:${p.accentInk}`,
       `--accent-soft:${p.accentSoft}`,
-      `--hot:${p.hot}`,
-      `--hot-ink:${p.hotInk}`,
-      `--hot-glow:${p.hotGlow}`,
       `--slab:${p.slab}`,
       `--slab-2:${p.slab2}`,
       `--slab-3:${p.slab3}`,
       `--slab-ink:${p.slabInk}`,
       `--slab-body:${p.slabBody}`,
       `--slab-muted:${p.slabMuted}`,
-      `--slab-dot:${p.slabDot}`,
     ].join(';');
   }
 
