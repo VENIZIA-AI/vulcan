@@ -22,8 +22,12 @@ const escaped = (value: string): string => FigureLayout.escapeText({ value });
 const FIGURE_MAX = 1.25;
 /** The page becomes one column at and below this viewport width. */
 const STACKED_AT = 860;
-/** The widest a figure can be drawn: the content column is 928 px at most (960 less its padding). */
-const CONTENT_WIDTH = 928;
+/**
+ * The widest a figure can be drawn: a part with a figure is 1120 px wide, 1088 inside its padding; the explainer's step
+ * diagrams (the only figures with an inset beside them) sit in the 960 px text column, 928 inside its padding.
+ */
+const WIDE_COLUMN = 1088;
+const TEXT_COLUMN = 928;
 
 const sha256 = (opts: { text: string }): string =>
   `'sha256-${createHash('sha256').update(opts.text).digest('base64')}'`;
@@ -58,7 +62,7 @@ const figureFitCss = (opts: { keys: Set<string> }): string =>
       const narrow = least + 66 + frame;
       const wide = narrow + inset;
       const rules =
-        least > CONTENT_WIDTH - inset - frame
+        least > (inset === 0 ? WIDE_COLUMN : TEXT_COLUMN) - inset - frame
           ? [swap]
           : inset === 0
             ? [`@media (max-width:${narrow}px){${swap}}`]
@@ -177,6 +181,7 @@ export class PageShell {
         ? ''
         : SpecSections.section({
             id: 'flow',
+            isWide: true,
             title: chrome.flow,
             body: SpecSections.flow({ ctx }),
           }),

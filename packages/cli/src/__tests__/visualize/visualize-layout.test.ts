@@ -157,6 +157,17 @@ describe('the explainer step diagrams', () => {
     expect(html).toContain('.estep .dg .win{width:fit-content;max-width:100%}');
   });
 
+  test('the explainer figures are not sent to the list earlier than their own room needs', () => {
+    const html = pageOf(figuresSpec());
+    const width = Number(/class="fig f(\d+)i128p32"/.exec(html)?.[1]);
+    const least = Math.ceil(width * 0.92);
+    const narrow = least + 66 + 32;
+
+    // The band where the page is wide enough for two columns but the figure would shrink: from 861 px to narrow + 128.
+    expect(html).toContain(`(min-width:861px) and (max-width:${narrow + 128}px)`);
+    expect(html).not.toContain(`(max-width:${narrow + 128 + 160}px)`);
+  });
+
   test('its row gap fits the arrow labels', () => {
     const html = pageOf(figuresSpec());
     const first = /<g class="dbox"><rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)"/.exec(html);

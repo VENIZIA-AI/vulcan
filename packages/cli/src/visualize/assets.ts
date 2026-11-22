@@ -17,7 +17,7 @@ export interface IStatePalette {
 
 /**
  * Fixed state colours and the five chart series. `warn` is the amber of an inferred claim; a task that waits for the
- * owner is the project's hot accent instead, so what needs the owner is one colour on the page.
+ * owner is the project's accent instead, so what needs the owner is one colour on the page.
  */
 const STATE_PALETTE: { light: IStatePalette; dark: IStatePalette } = {
   light: {
@@ -83,9 +83,8 @@ const BASE_CSS = [
   `.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}`,
   `.mut{color:var(--muted)}`,
   `:focus-visible{outline:2px solid var(--accent);outline-offset:2px}`,
-  // The figure window, the pull-quote and the slide deck are dark in both themes: the page tokens are redefined for them.
-  `.win,.pull,.deck{--bg:var(--slab);--bg-soft:var(--slab-2);--raise:var(--slab-3);--ink:var(--slab-ink);--body:var(--slab-body);--muted:var(--slab-muted);--accent:var(--hot);--accent-soft:var(--slab-3);--accent-ink:var(--hot-ink);--line:#ffffff1f;${SLAB_STATES};color:var(--body);background-color:var(--slab)}`,
-  `.win,.pull{background-image:radial-gradient(var(--slab-dot) 1px,transparent 1.2px);background-size:16px 16px}`,
+  // The slide deck is dark in both themes: the page tokens are redefined for it.
+  `.deck{--bg:var(--slab);--bg-soft:var(--slab-2);--raise:var(--slab-3);--ink:var(--slab-ink);--body:var(--slab-body);--muted:var(--slab-muted);--accent-soft:var(--slab-3);--line:#ffffff1f;${SLAB_STATES};color:var(--body);background-color:var(--slab)}`,
   // The page: one light column of 960 px, one text measure of 70 characters, three type sizes (28, 20, 16) and a small 13.
   `.wrap{max-width:960px}`,
   `.top{position:absolute;top:20px;left:0;right:0;z-index:5}`,
@@ -94,9 +93,10 @@ const BASE_CSS = [
   `h1{font-size:28px;line-height:1.2;max-width:30ch;letter-spacing:-.02em;overflow-wrap:anywhere}`,
   `.lede{margin-top:12px;max-width:70ch;font-size:16px;color:var(--ink)}`,
   `.meta{margin-top:12px;display:flex;flex-wrap:wrap;gap:4px 20px;font:16px/1.5 var(--font);color:var(--muted)}`,
-  `.toc{display:flex;flex-wrap:wrap;gap:6px 24px;margin-top:28px;padding-block:14px;border-block:1px solid var(--line)}`,
+  `.toc{display:flex;flex-wrap:wrap;gap:6px 24px;margin-top:28px;padding-block:14px 0;border-top:1px solid var(--line)}`,
   `.toc a{color:var(--ink);font-size:16px;text-decoration:none}.toc a:hover{text-decoration:underline}.toc a span{color:var(--muted)}`,
   `.part{padding-top:32px}`,
+  `.wrap.fw{max-width:1120px}.wrap.fw>.sh,.wrap.fw .kfig>figcaption{margin-inline:max(0px,calc((100% - 928px)/2))}`,
   `.sh{font-size:20px;line-height:1.25;margin-bottom:20px;padding-top:20px;border-top:1px solid var(--line);letter-spacing:-.01em}`,
   `.own{padding-top:20px}`,
   `h3{font-size:16px;line-height:1.3}`,
@@ -146,7 +146,7 @@ const BASE_CSS = [
   `html:not(.js) .steps button{cursor:default;pointer-events:none}`,
   `.theme{all:unset;box-sizing:border-box;cursor:pointer;position:relative;width:36px;height:36px;border-radius:var(--radius);color:var(--body);flex:none;transition:color .25s,background-color .25s}`,
   `.theme:hover{color:var(--ink);background:#ffffff0d}`,
-  `.theme:focus-visible{outline:2px solid var(--hot);outline-offset:1px}`,
+  `.theme:focus-visible{outline:2px solid var(--accent);outline-offset:1px}`,
   `.theme svg{position:absolute;top:8px;left:8px;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:transform .4s cubic-bezier(.22,1,.36,1),opacity .25s ease}`,
   `.theme .sun{opacity:0;transform:rotate(90deg) scale(.6)}`,
   `:root[data-theme=light] .theme .sun{opacity:1;transform:none}:root[data-theme=light] .theme .moon{opacity:0;transform:rotate(-90deg) scale(.6)}`,
@@ -175,25 +175,25 @@ const BASE_CSS = [
   `.mlg{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0;padding:0;list-style:none;color:var(--body);font-size:13px}.mlg .sw{display:inline-block;width:8px;height:8px;margin-right:6px;background:var(--tc)}`,
   `.fig{overflow-x:auto}`,
   `.fig svg{display:block;width:100%;height:auto;margin-inline:auto;color:var(--muted)}`,
-  `.win{padding:16px;border-radius:var(--radius)}`,
+  `.win{padding:16px;border:1px solid var(--line);border-radius:var(--radius)}`,
   `.node rect{fill:var(--bg-soft)}`,
   `.node .t{font:600 15px var(--font);fill:var(--ink);letter-spacing:-.01em}`,
   `.node .s{font:13px var(--font);fill:var(--muted)}`,
   `.node .st{color:var(--c)}`,
   `.node.service rect{stroke:var(--ink);stroke-width:2}.node.store rect{stroke:var(--muted);stroke-width:2;stroke-dasharray:2 4}.node.actor rect{rx:30}.node.external rect{stroke:var(--muted);stroke-width:2;stroke-dasharray:8 5}`,
-  `.node.gate rect{fill:var(--raise);stroke:var(--hot);stroke-width:2}`,
-  `.gate .halo{fill:var(--hot-glow)}.gate .core{fill:var(--hot)}.gate .st{color:var(--hot-ink)}`,
+  `.node.gate rect{fill:var(--raise);stroke:var(--accent);stroke-width:2}`,
+  `.gate .halo{fill:color-mix(in srgb,var(--accent) 25%,transparent)}.gate .core{fill:var(--accent)}.gate .st{color:var(--accent-ink)}`,
   `.edge path{fill:none;stroke:var(--muted);stroke-width:2}`,
   `.edge text{font:13px var(--font);fill:var(--body);paint-order:stroke;stroke:var(--bg);stroke-width:5px;stroke-linejoin:round}`,
   `.edge.branch path,.edge.return path{stroke-dasharray:7 6}.edge.fanout path{stroke:var(--ink);stroke-width:3.5}.edge.fanout text{font-weight:650}`,
   `.edge.error path{stroke:var(--bad);stroke-dasharray:2 5;stroke-linecap:round}.edge.error text{fill:var(--bad)}`,
-  `.edge.hot path{stroke:var(--hot);stroke-width:3}.edge.hot text{fill:var(--hot)}`,
-  `marker .ah{fill:var(--muted)}marker .bad{fill:var(--bad)}marker .hot{fill:var(--hot)}`,
+  `.edge.hot path{stroke:var(--accent);stroke-width:3}.edge.hot text{fill:var(--accent)}`,
+  `marker .ah{fill:var(--muted)}marker .bad{fill:var(--bad)}marker .hot{fill:var(--accent)}`,
   `.fig.playing .edge path{stroke-dasharray:6 6;animation:dash 1s linear infinite}`,
   `@keyframes dash{to{stroke-dashoffset:-12}}`,
   `.node,.edge{transition:opacity .25s ease}`,
   `.focus .node:not(.on),.focus .edge:not(.on){opacity:.22}`,
-  `.node:focus-visible{outline:2px solid var(--hot);outline-offset:2px}`,
+  `.node:focus-visible{outline:2px solid var(--accent);outline-offset:2px}`,
   `.legend{display:flex;flex-wrap:wrap;gap:8px 28px;margin-top:22px;color:var(--body);font-size:16px}`,
   `.legend li{display:flex;align-items:center;gap:10px}.legend .lg{width:44px;height:12px;flex:none;overflow:visible}.legend .edge path{stroke-width:2}`,
   // Phone list of a figure.
@@ -208,8 +208,8 @@ const BASE_CSS = [
   `.steps button{all:unset;box-sizing:border-box;cursor:pointer;display:grid;align-content:start;gap:6px;width:100%;padding:16px;color:var(--body);transition:background-color .2s,color .2s}`,
   `.steps button b{color:var(--ink);font-weight:600;font-size:16px;line-height:1.3;letter-spacing:0}.steps button span{font-size:14px;color:var(--muted)}`,
   `.steps button:hover{background:var(--raise)}`,
-  `.steps button:focus-visible{outline:2px solid var(--hot);outline-offset:-2px}`,
-  `.steps button[aria-pressed=true]{background:var(--hot)}.steps button[aria-pressed=true] b,.steps button[aria-pressed=true] span{color:var(--hot-ink)}`,
+  `.steps button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}`,
+  `.steps button[aria-pressed=true]{background:var(--accent)}.steps button[aria-pressed=true] b,.steps button[aria-pressed=true] span{color:var(--accent-ink)}`,
   `.steps .explain{padding:0 16px 16px;font-size:16px;color:var(--body)}`,
   `.js .steps .explain{display:none}`,
   `html:not(.js) .steps{grid-template-columns:minmax(0,1fr)}`,
@@ -217,7 +217,7 @@ const BASE_CSS = [
   `html:not(.js) .say{display:none}`,
   `.say p{color:var(--ink);font-size:16px;line-height:1.4;max-width:46ch;letter-spacing:-.01em}`,
   `.say .ctl{display:flex;gap:8px;flex-wrap:wrap}.say .ctl[hidden],.say [hidden]{display:none}`,
-  // Architecture and explainer drawings sit in a dark window.
+  // Architecture and explainer drawings sit in a light window with a hairline frame.
   `.dband{fill:var(--bg-soft)}`,
   `.dbox rect{fill:var(--raise)}.dbox.c-ok rect,.dbox.c-warn rect,.dbox.c-bad rect,.dbox.c-info rect,.dbox.c-mut rect{stroke:var(--c);stroke-width:1.5}`,
   `.dbox .t{font:600 14px var(--font);fill:var(--ink)}.dbox .s{font:12.5px var(--font);fill:var(--muted)}.dbox .st{color:var(--c)}`,
@@ -225,12 +225,12 @@ const BASE_CSS = [
   `.dl{font:12.5px var(--font);fill:var(--body);paint-order:stroke;stroke:var(--bg);stroke-width:4px}`,
   `.dlab{font:600 13px var(--font);fill:var(--muted)}`,
   `.win .path{margin-top:0}`,
-  // Comparison: panels side by side, the big total, the recommended pick filled.
+  // Comparison: bordered panels side by side, the total, the recommended pick with an accent border.
   `.ranks{max-width:520px;margin-bottom:28px}`,
   `.ranks svg{display:block;width:100%;height:auto;margin-top:8px}`,
-  `.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:2px;border-radius:var(--radius);overflow:hidden}`,
-  `.opt{display:grid;align-content:start;padding:32px 30px 34px;background:var(--bg-soft)}`,
-  `.opt.rec{background:var(--accent-soft)}`,
+  `.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px}`,
+  `.opt{display:grid;align-content:start;padding:24px;border:1px solid var(--line)}`,
+  `.opt.rec{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}`,
   `.opt .tag-slot{display:block}.opt .tag{display:inline-block;margin-bottom:18px;background:var(--accent);color:var(--accent-ink);padding:4px 10px;border-radius:var(--radius);font:650 13px/1.3 var(--font)}`,
   `.opt h3{font-size:20px;line-height:1.2;margin-bottom:18px}.opt .ln{color:var(--body);max-width:46ch;margin-bottom:18px}`,
   `.opt .tot{display:flex;align-items:baseline;gap:12px;font-size:28px;line-height:.85;font-weight:650;letter-spacing:-.05em;color:var(--ink);margin-bottom:18px}`,
@@ -250,7 +250,7 @@ const BASE_CSS = [
   `.idea .bs{display:contents}.idea .branch:nth-child(odd){grid-column:1}.idea .branch:nth-child(even){grid-column:3}`,
   `.centre{display:grid;gap:12px;justify-items:center;align-content:center;text-align:center;padding:40px 24px;border-radius:var(--radius)}`,
   `.idea .centre{grid-column:2;grid-row-start:1}`,
-  `.centre .ic{color:var(--hot)}.centre b{color:var(--ink);font-size:20px;line-height:1.2;letter-spacing:-.02em}`,
+  `.centre .ic{color:var(--accent)}.centre b{color:var(--ink);font-size:20px;line-height:1.2;letter-spacing:-.02em}`,
   `.branch{display:grid;align-content:start;padding:22px 24px;background:var(--bg-soft);box-shadow:inset 4px 0 0 var(--sc,var(--muted))}`,
   `.branch[data-s="1"]{--sc:var(--s1)}.branch[data-s="2"]{--sc:var(--s2)}.branch[data-s="3"]{--sc:var(--s3)}.branch[data-s="4"]{--sc:var(--s4)}.branch[data-s="5"]{--sc:var(--s5)}`,
   `.branch h3{display:flex;gap:10px;align-items:center;font-size:18px;letter-spacing:-.01em;margin-bottom:12px}`,
@@ -295,11 +295,11 @@ const BASE_CSS = [
   `.ba li .ic{margin-top:4px;flex:none}.ba li.same .ic{opacity:0}`,
   `.ba li.add{border-left:4px solid var(--ink);color:var(--ink);font-weight:550}`,
   `.ba li.del{border-left:3px dotted var(--muted)}.ba li.del .tx{text-decoration:line-through;text-decoration-thickness:1px}`,
-  `.wd{display:inline-block;margin-right:8px;font:650 12.5px/1.4 var(--font);text-transform:uppercase;letter-spacing:.06em;color:var(--ink);text-decoration:none}`,
-  // Decision record: the context, the options, the decision as a dark pull-quote, the consequences.
-  `.dr{display:grid;gap:28px}.dr .ctx{max-width:64ch;font-size:16px;color:var(--ink)}`,
-  `.pull{padding:clamp(28px,5vw,60px);border-radius:var(--radius)}`,
-  `.pull .ic{color:var(--hot);width:36px;height:36px}.pull .lab{color:var(--accent);margin:12px 0 10px}`,
+  `.wd{display:inline-block;margin-right:8px;font:650 13px/1.4 var(--font);color:var(--ink);text-decoration:none}`,
+  // Decision record: the context, the options, the decision as a quote with an accent rule, the consequences.
+  `.dh{font-size:16px;line-height:1.3;margin-bottom:6px}.dr{display:grid;gap:28px}.dr .ctx{max-width:64ch;font-size:16px;color:var(--ink)}`,
+  `.pull{padding:4px 0 4px 20px;border-left:3px solid var(--accent)}`,
+  `.pull .ic{color:var(--accent);width:24px;height:24px}.pull .dh{margin:8px 0 6px}`,
   `.pull .big{max-width:30ch;font-size:20px;line-height:1.15;font-weight:650;letter-spacing:-.03em;color:var(--ink)}`,
   `.cons{display:grid;gap:10px}.cons li{display:flex;gap:12px;font-size:16px}.cons .ic{color:var(--ok);margin-top:4px}`,
   // Evidence and log: ledgers, a rule between rows.
@@ -336,7 +336,7 @@ const BASE_CSS = [
   `@media (prefers-reduced-motion:no-preference){.gate .halo{animation:heat 2.6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}@keyframes heat{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.12)}}}`,
   `@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}`,
   // Print: the final state, light on paper, one slide after another.
-  `@media print{body{background:#fff;color:#000}.top,.deck,.toc,.js-only,.say{display:none}.win,.pull{--slab:#fff;--slab-2:#f1f1f1;--slab-3:#e6e6e6;--slab-ink:#000;--slab-body:#222;--slab-muted:#444;--hot:#5a3600;--hot-ink:#fff;--hot-glow:transparent;--ok:#0f5c2a;--warn:#7a4504;--bad:#9a1d17;--info:#164a9e;background-image:none}`,
+  `@media print{body{background:#fff;color:#000}.top,.deck,.toc,.js-only,.say{display:none}`,
   `.fig{overflow:visible;display:block!important}.path,.path-detail{display:none!important}.steps{display:block}.js .steps .explain{display:block}[data-slide]{display:block!important;break-inside:avoid}.fig.playing .edge path{animation:none}.focus .node:not(.on),.focus .edge:not(.on){opacity:1}}`,
 ].join('\n');
 

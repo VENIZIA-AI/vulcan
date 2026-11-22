@@ -92,7 +92,7 @@ const textOf = (html: string): string =>
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ');
 const figureOf = (html: string): string =>
-  /<div class="fig f\d+">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? '';
+  /<div class="fig f\d+(?: at)?">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? '';
 const listOf = (html: string): string =>
   /(<(?:div|ul) class="path kl[\s\S]*?)<figcaption>/.exec(html)?.[1] ?? '';
 
@@ -392,7 +392,7 @@ describe('the figures', () => {
       expect(html[kind]).toContain(`id="${kind}" data-slide`);
       expect(html[kind]).toContain('<figure class="kfig">');
       expect(html[kind]).toContain('<figcaption>');
-      expect(html[kind]).toMatch(/<div class="fig f\d+"><svg class="kf"/);
+      expect(html[kind]).toMatch(/<div class="fig f\d+(?: at)?"><svg class="kf"/);
       expect(html[kind]).toMatch(/class="path kl k/);
     }
   });
@@ -672,7 +672,7 @@ describe('a phone, escaping and no script', () => {
     expect(widths).toHaveLength(3);
 
     for (const kind of ['sequence', 'lifecycle', 'tree'] as const) {
-      const width = Number(/<div class="fig f(\d+)">/.exec(html[kind])?.[1]);
+      const width = Number(/<div class="fig f(\d+)(?: at)?">/.exec(html[kind])?.[1]);
 
       expect(html.ctx.fits.has(String(width))).toBe(true);
       expect(Math.ceil(width * FIGURE_FIT) + 66).toBeGreaterThan(390);
