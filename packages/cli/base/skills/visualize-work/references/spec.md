@@ -7,7 +7,7 @@ never markup. `bun node_modules/.bin/vulcan visualize --schema` prints the full 
 
 ## The kinds
 
-A page is one light column about 960 px wide, in a fixed order: the head (state, title, one sentence, date and scope),
+A page is one light column about 960 px wide (a part with a figure is up to 1120 px wide; its heading and text stay on the 960 px edge), in a fixed order: the head (state, title, one sentence, date and scope),
 a contents line (each part with its count), what you need to do, the decisions, the steps (`minimap`), then the flow,
 the written `sections`, the architecture, the compare view, the sequence, the lifecycle, the tree, the comparison, the idea map, the explainer, the timeline, the findings, the grades, the metrics, the before and after, the decision record, the decisions, the evidence,
 the risks, the log, the words of the page (`terms`), the sources and the links. Pick the sections the question needs and leave the rest out:

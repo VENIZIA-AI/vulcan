@@ -146,7 +146,7 @@ describe('the explainer step diagrams', () => {
     const html = pageOf(figuresSpec());
 
     expect(html).toContain('.estep .dg{grid-column:2/-1;min-width:0}');
-    expect(html).toMatch(/class="fig f\d+i128p32"/);
+    expect(html).toMatch(/class="fig f\d+i288p32"/);
   });
 
   test('the layers list says each layer with its colon attached, and the diagrams share a left edge', () => {

@@ -19,7 +19,7 @@ The command validates the spec (shape, limits, unique ids, every arrow, step and
 
 ## The kinds
 
-A page is one light column about 960 px wide, in a fixed order: the head, a contents line with a count for each part, what you need to do, the decisions, the steps, then a flow, the written sections, an architecture, a compare view, a sequence, a lifecycle, a tree, a comparison, an idea map, an explainer, a timeline, findings, grades, metrics, a before and after, a decision record, the evidence, the risks, the log, the terms, the sources and the links. The fields of each are in the [spec reference](/references/skills) of the `visualize-work` skill.
+A page is one light column about 960 px wide (a part with a figure is up to 1120 px wide), in a fixed order: the head, a contents line with a count for each part, what you need to do, the decisions, the steps, then a flow, the written sections, an architecture, a compare view, a sequence, a lifecycle, a tree, a comparison, an idea map, an explainer, a timeline, findings, grades, metrics, a before and after, a decision record, the evidence, the risks, the log, the terms, the sources and the links. The fields of each are in the [spec reference](/references/skills) of the `visualize-work` skill.
 
 - **Status and handoff**: a head with the state as an icon and a word, the title, one sentence, the date and the scope; your actions as a numbered list with no heading of their own; each decision as a numbered card with a question, two or three options (the recommended one tagged), the reason and, last, a detail in small monospace; the steps as one list of rows (name, note, and an icon, or the number for a step not started) with done rows muted and the next one tinted. Background goes in `sections`: paragraphs, code, quotes and lists.
 - **Flow and architecture**: boxes and labelled arrows on a grid, or layers with links between boxes; a box can carry a state (a colour, an icon and a word); Play animates the arrows and Next steps through the lit boxes.
@@ -41,7 +41,7 @@ The page fits a phone without sideways scrolling. A figure is drawn whole while 
 
 A page for the owner (steps, actions or decisions) is read, not presented. On any other page, **Present** (or `?present=1` on the address) turns the sections into slides: the arrow keys, Space, Page Up and Page Down step, Home and End jump, Escape leaves, and the buttons at the foot do the same on a phone. Print gives every section one after another, with the figure and without the phone list. With no script, print or reduced motion, the final state shows.
 
-The look is the one of this wiki: a system font stack and a monospace one, three type sizes (28, 20 and 16 px, and 13 px for small print), 4 px corners, and one accent colour for what needs the owner. Figures sit in a dark window. Nothing is loaded for it.
+The look is the one of this wiki: a system font stack and a monospace one, three type sizes (28, 20 and 16 px, and 13 px for small print), 4 px corners, and one accent colour for what needs the owner. Figures sit in a light window with a hairline frame. Nothing is loaded for it.
 
 ## The colour
 

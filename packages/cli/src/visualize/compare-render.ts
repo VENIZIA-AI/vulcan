@@ -187,6 +187,7 @@ export class CompareView {
 
     return SpecSections.section({
       id: 'compare',
+      isWide: true,
       title: chrome.compareView,
       body: `<figure class="kfig">${SpecSections.figure({ ctx: opts.ctx, drawing: CompareView.drawing({ compare, chrome }) })}<figcaption>${escaped(caption)}</figcaption></figure>`,
     });

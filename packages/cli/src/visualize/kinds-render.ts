@@ -300,8 +300,8 @@ const renderLifecycle = (opts: { lifecycle: TLifecycle; chrome: TChrome }): IKin
   const { lifecycle, chrome } = opts;
   const order = orderStates({ lifecycle });
   const count = order.length;
-  const perRow = count <= 5 ? count : Math.ceil(count / 2);
-  const rows = count <= 5 ? 1 : 2;
+  const perRow = count <= 4 ? count : Math.ceil(count / 2);
+  const rows = count <= 4 ? 1 : 2;
   const places = new Map(
     order.map((state, index) => {
       const row = index < perRow ? 0 : 1;
@@ -502,7 +502,7 @@ const renderLifecycle = (opts: { lifecycle: TLifecycle; chrome: TChrome }): IKin
       const y = rowTop(place.row);
       const kind = item.state.kind ?? LifecycleKinds.NORMAL;
 
-      return `<g class="kstate kk-${kind}"><rect class="kbox" x="${x}" y="${y}" width="${BOX_WIDTH}" height="${boxHeight}" rx="4"/>${kind === LifecycleKinds.END ? `<rect class="kinner" x="${x + 5}" y="${y + 5}" width="${BOX_WIDTH - 10}" height="${boxHeight - 10}" rx="2"/>` : ''}${item.word === undefined ? '' : `<text class="kw" x="${x + 14}" y="${y + item.wordBase}">${escaped(item.word)}</text>`}${textLines({ cls: 'kt', x: x + 14, y: y + item.first, lines: item.labelLines, step: 17 })}${item.subLines.length === 0 ? '' : textLines({ cls: 'ks', x: x + 14, y: y + item.last + 17, lines: item.subLines, step: 15 })}</g>`;
+      return `<g class="kstate kk-${kind}">${item.word === undefined ? '' : `<title>${escaped(item.word)}</title>`}<rect class="kbox" x="${x}" y="${y}" width="${BOX_WIDTH}" height="${boxHeight}" rx="4"/>${kind === LifecycleKinds.END ? `<rect class="kinner" x="${x + 5}" y="${y + 5}" width="${BOX_WIDTH - 10}" height="${boxHeight - 10}" rx="2"/>` : ''}${textLines({ cls: 'kt', x: x + 14, y: y + item.first, lines: item.labelLines, step: 17 })}${item.subLines.length === 0 ? '' : textLines({ cls: 'ks', x: x + 14, y: y + item.last + 17, lines: item.subLines, step: 15 })}</g>`;
     })
     .join('');
   const [first] = order;
@@ -661,6 +661,7 @@ export class KindsRender {
       ? ''
       : SpecSections.section({
           id: 'sequence',
+          isWide: true,
           title: opts.ctx.chrome.sequence,
           body: frame({
             ctx: opts.ctx,
@@ -676,6 +677,7 @@ export class KindsRender {
       ? ''
       : SpecSections.section({
           id: 'lifecycle',
+          isWide: true,
           title: opts.ctx.chrome.lifecycle,
           body: frame({
             ctx: opts.ctx,
@@ -691,6 +693,7 @@ export class KindsRender {
       ? ''
       : SpecSections.section({
           id: 'tree',
+          isWide: true,
           title: opts.ctx.chrome.tree,
           body: frame({ ctx: opts.ctx, drawing: renderTree({ tree, chrome: opts.ctx.chrome }) }),
         });

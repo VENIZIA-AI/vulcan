@@ -21,8 +21,8 @@ export interface ISectionContext {
 
 const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
-/** The numeral column and the gap of an explainer step: space a step diagram does not have beside the text. */
-const EXPLAINER_INSET = 128;
+/** The numeral column and the gap of an explainer step, and the 160 px by which the wide figure column is wider than the text column an explainer sits in: space a step diagram does not have. */
+const EXPLAINER_INSET = 128 + 160;
 /** The padding of a figure's frame (`.win`) on both sides: space the figure does not have. */
 const WIN_FRAME = 32;
 
@@ -248,6 +248,7 @@ export class SpecSections {
 
     return SpecSections.section({
       id: 'architecture',
+      isWide: true,
       title: opts.ctx.chrome.architecture,
       body: SpecSections.figure({
         ctx: opts.ctx,
@@ -475,14 +476,14 @@ export class SpecSections {
     return SpecSections.section({
       id: 'decision-record',
       title: chrome.decisionRecord,
-      body: `<div class="dr"><div><p class="lab">${escaped(chrome.context)}</p><p class="ctx">${escaped(decisionRecord.context)}</p></div><div><p class="lab">${escaped(chrome.optionsConsidered)}</p><div class="opts n${decisionRecord.options.length}">${decisionRecord.options
+      body: `<div class="dr"><div><h3 class="dh">${escaped(chrome.context)}</h3><p class="ctx">${escaped(decisionRecord.context)}</p></div><div><h3 class="dh">${escaped(chrome.optionsConsidered)}</h3><div class="opts n${decisionRecord.options.length}">${decisionRecord.options
         .map(
           (option) =>
             `<article class="opt${option.chosen === true ? ' rec' : ''} ${GridSpans.classOf({ count: recordRows, spans: opts.ctx.spans })}">${hasChosen ? `<span class="tag-slot">${option.chosen === true ? `<span class="tag">${escaped(chrome.chosen)}</span>` : ''}</span>` : ''}<h3>${escaped(option.name)}</h3><p class="ln">${escaped(option.summary)}</p></article>`,
         )
         .join(
           '',
-        )}</div></div><blockquote class="pull">${IconSet.iconSvg({ name: 'quote', size: 36 })}<p class="lab">${escaped(chrome.decision)}</p><p class="big">${escaped(decisionRecord.decision)}</p></blockquote><div><p class="lab">${escaped(chrome.consequences)}</p><ul class="cons">${decisionRecord.consequences.map((consequence) => `<li>${IconSet.iconSvg({ name: 'check', size: 18 })}<span>${escaped(consequence)}</span></li>`).join('')}</ul></div></div>`,
+        )}</div></div><blockquote class="pull">${IconSet.iconSvg({ name: 'quote', size: 24 })}<h3 class="dh">${escaped(chrome.decision)}</h3><p class="big">${escaped(decisionRecord.decision)}</p></blockquote><div><h3 class="dh">${escaped(chrome.consequences)}</h3><ul class="cons">${decisionRecord.consequences.map((consequence) => `<li>${IconSet.iconSvg({ name: 'check', size: 18 })}<span>${escaped(consequence)}</span></li>`).join('')}</ul></div></div>`,
     });
   }
 
@@ -625,8 +626,15 @@ export class SpecSections {
   }
 
   /** A part of the page: its title, then its body, each part a slide of its own. */
-  static section(opts: { id: string; title: string; body: string; extra?: string }): string {
-    return `<section class="part${opts.extra === undefined ? '' : ` ${opts.extra}`}" id="${opts.id}" data-slide><div class="wrap"><h2 class="sh">${escaped(opts.title)}</h2>${opts.body}</div></section>`;
+  /** A part of the page. A part that holds a figure is wide (`isWide`): its figure may be wider than the text, which stays at the text measure. */
+  static section(opts: {
+    id: string;
+    title: string;
+    body: string;
+    extra?: string;
+    isWide?: boolean;
+  }): string {
+    return `<section class="part${opts.extra === undefined ? '' : ` ${opts.extra}`}" id="${opts.id}" data-slide><div class="wrap${opts.isWide === true ? ' fw' : ''}"><h2 class="sh">${escaped(opts.title)}</h2>${opts.body}</div></section>`;
   }
 
   /** A drawing in a dark window; below the width where its text would pass 12 px the list takes its place. */

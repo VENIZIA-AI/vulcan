@@ -15,8 +15,8 @@ const PAD = 24;
 const GAP = 48;
 const MIN_BOX_WIDTH = 128;
 const MAX_BOX_WIDTH = 192;
-/** The widest the drawing is made: the content column, less its frame, holds it at 92% (see the fit rule of the page). */
-const TARGET_WIDTH = 1270;
+/** The widest the drawing is made: the wide column (1088), less its frame, holds it at 92% (see the fit rule of the page). */
+const TARGET_WIDTH = 1140;
 const TOP_ZONE = 32;
 const BOTTOM_PAD = 14;
 /** The least distance between two parallel lines, and so between two lanes, two margin lanes and two ends on one edge. */
@@ -103,9 +103,65 @@ const legOf = (opts: { from: TPoint; to: TPoint }): IRect => ({
  * is straight when it can be. Each label sits on its own line, nearer to it than to any other. The boxes are as wide
  * as the widest layer lets the drawing stay under TARGET_WIDTH, and their text wraps inside them.
  */
+/**
+ * The boxes of each layer in the order that crosses the fewest lines: a few sweeps down and up the layers, each box
+ * placed at the average position of the boxes it links to in the neighbouring layer. A box with no link keeps its own
+ * place, and equal averages keep the order the spec gave.
+ */
+const ordered = (opts: { architecture: TArchitecture }): TArchitecture => {
+  const layers = opts.architecture.layers.map((layer) => ({ ...layer, boxes: [...layer.boxes] }));
+  const rowOf = new Map<string, number>();
+
+  layers.forEach((layer, row) => layer.boxes.forEach((box) => rowOf.set(box.id, row)));
+
+  const position = (id: string): number => {
+    const row = layers[rowOf.get(id) ?? 0];
+
+    return row === undefined ? 0 : row.boxes.findIndex((box) => box.id === id);
+  };
+  const sort = (row: number, towards: number): void => {
+    const layer = layers[row];
+
+    if (layer === undefined) {
+      return;
+    }
+
+    const wanted = new Map<string, number>(
+      layer.boxes.map((box, at) => {
+        const near = opts.architecture.links
+          .filter((link) => link.from === box.id || link.to === box.id)
+          .map((link) => (link.from === box.id ? link.to : link.from))
+          .filter((other) => rowOf.get(other) === towards);
+
+        return [
+          box.id,
+          near.length === 0
+            ? at
+            : (near.reduce((sum, other) => sum + position(other), 0) / near.length) *
+              ((layer.boxes.length - 1) / Math.max(1, (layers[towards]?.boxes.length ?? 1) - 1)),
+        ];
+      }),
+    );
+
+    layer.boxes.sort((one, other) => (wanted.get(one.id) ?? 0) - (wanted.get(other.id) ?? 0));
+  };
+
+  for (let sweep = 0; sweep < 3; sweep += 1) {
+    for (let row = 1; row < layers.length; row += 1) {
+      sort(row, row - 1);
+    }
+
+    for (let row = layers.length - 2; row >= 0; row -= 1) {
+      sort(row, row + 1);
+    }
+  }
+
+  return { ...opts.architecture, layers };
+};
+
 export class SpecArchitecture {
   static render(opts: { architecture: TArchitecture; chrome: TChrome }): IDrawing {
-    const { architecture } = opts;
+    const architecture = ordered({ architecture: opts.architecture });
     const most = Math.max(...architecture.layers.map((layer) => layer.boxes.length));
     const rowOf = new Map<string, number>();
 
