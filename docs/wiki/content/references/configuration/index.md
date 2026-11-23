@@ -66,7 +66,7 @@ The table below lists the top-level configuration keys:
 | `atlas` | `object` | `{ tagPattern: '...', sources: [] }` | Release tags and external knowledge sources |
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `digest` | `object` | `{ oftenDropped: [...] }` | The rules the rules block of `AGENTS.md` names |
-| `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask', asks: 'ask', writes: { commands: [] }, git: { askPush: [] }, runners: { allow: [] } }` | Tool-owned stores, and the commands and push targets the guards ask about ([guard](#guard)) |
+| `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask' (`'deny'` with the `venizia` pack), asks: 'ask', writes: { commands: [] }, git: { askPush: [] }, runners: { allow: [] } }` | Tool-owned stores, and the commands and push targets the guards ask about ([guard](#guard)) |
 | `doctor` | `object` | `{ privateValues: { acknowledged: [] } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)) |
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 | `theme` | `object` | `undefined` | The colour the project's `vulcan visualize` pages use |
@@ -622,7 +622,7 @@ The `guard` object configures the write guards.
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `toolOwnedPaths` | `string[]` | `[]` | Stores a tool in this project manages itself |
-| `outside` | `'ask'` or `'deny'` | `'ask'` | What `guard-outside` does with a write outside the project (`V-B-08`) |
+| `outside` | `'ask'` or `'deny'` | `'ask'`; `'deny'` with the `venizia` pack | What `guard-outside` does with a write outside the project (`V-B-08`) |
 | `asks` | `'ask'` or `'deny'` | `'ask'` | What every guard does with a call that would ask a person: ask, or refuse |
 | `writes.commands` | `Array<{ rule, what, pattern, ignoreCase? }>` | `[]` | Commands of this project that `guard-writes` asks about |
 | `git.askPush` | `string[]` | `[]` | Branches that a plain `git push` asks about in `guard-git` |
@@ -698,7 +698,7 @@ The `commit` object configures `vulcan commit-check` and the `commit-msg` hook t
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `message.agent.signature` | `'allow' \| 'deny'` | `'allow'` | `'deny'` rejects an agent's signature in a commit message |
+| `message.agent.signature` | `'allow' \| 'deny'` | `'allow'`; `'deny'` with the `venizia` pack | `'deny'` rejects an agent's signature in a commit message |
 | `message.agent.names` | `string[]` | `[]` | Agent names added to the shipped list |
 | `message.agent.allow` | `string[]` | `[]` | Whole co-author names never flagged |
 | `message.subject` | `{ pattern, hint? }` | none | The project's one-line shape for the first line |

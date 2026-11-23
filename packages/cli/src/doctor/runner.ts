@@ -64,9 +64,11 @@ export class DoctorRunner {
       root: opts.root,
       config: loaded.config,
       configFile: relative(opts.root, loaded.file),
+      layers: loaded.layers,
     };
 
     return [
+      ...ProjectContract.checkConfigDefaults(context),
       ...ProjectContract.checkAtlasBlock(context),
       ...ProjectContract.checkAcknowledgedValues(context),
       ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
@@ -85,9 +87,11 @@ export class DoctorRunner {
       root: opts.root,
       config: loaded.config,
       configFile: relative(opts.root, loaded.file),
+      layers: loaded.layers,
     };
 
     return [
+      ...ProjectContract.checkStaleRemove(context),
       ...ProjectContract.checkMcpAtlas(context),
       ...ProjectContract.checkCommitHook(context),
       ...ProjectContract.checkEventsDir(context),

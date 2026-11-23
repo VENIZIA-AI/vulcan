@@ -6,7 +6,6 @@ export default {
   // The Venizia stack's rules (one script set per app, bun for scripts, verb-first names, const classes, await on its own line).
   packs: ['venizia'],
   // W-00: a commit message never signs the commit as an agent. `vulcan sync` installs the commit-msg hook; CI runs the same check.
-  commit: { message: { agent: { signature: 'deny' } } },
   // The colour of this project's pages (vulcan visualize); the generator has no colour of its own but a neutral slate.
   theme: { accent: '#8a5a20', accentDark: '#dead6a' },
   // The names on this repository's board page (vulcan board): the owner who answers asks, the title, the logo, and the faces of the Venizia agents.
@@ -51,8 +50,7 @@ export default {
   // `gh api` is an explicit -X POST, PUT, PATCH or DELETE or any body flag (gh turns -f, -F, --field, --raw-field and --input
   // into a POST); a read of the same endpoints asks nothing. Guards ask (guard-outside denies), and they are not a sandbox.
   guard: {
-    // A write outside the project (V-B-08) is refused, not asked about: an ask interrupts the owner, or is approved unseen in an auto mode.
-    outside: 'deny',
+    // A write outside the project (V-B-08) is refused, not asked about (`outside: 'deny'`, from the venizia pack): an ask interrupts the owner, or is approved unseen in an auto mode.
     writes: {
       commands: [
         {

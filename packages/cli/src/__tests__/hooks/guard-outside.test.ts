@@ -330,6 +330,12 @@ describe('the tool-owned allowlist', () => {
     expect(file({ tool: 'Write', path: settings }).length).toBe(1);
   });
 
+  test('the plan file of plan mode is allowed under the plans folder, and only there', () => {
+    expect(file({ tool: 'Write', path: join(HOME, '.claude/plans/a-plan.md') })).toEqual([]);
+    expect(file({ tool: 'Write', path: join(HOME, '.claude/plansx/a.md') }).length).toBe(1);
+    expect(file({ tool: 'Write', path: join(HOME, '.claude/settings.json') }).length).toBe(1);
+  });
+
   test('guard.toolOwnedPaths extends the defaults', () => {
     const store = join(HOME, 'custom-store');
 

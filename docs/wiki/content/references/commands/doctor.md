@@ -54,6 +54,8 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `guards` (note) | Notes list each `guard.writes.commands` pattern and `guard.git.askPush` | Change the list in the config |
 | `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `local.tmp` to a short folder and run `vulcan sync`, or check out at a shorter path |
 | `local` (failure) | `local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
+| `config-defaults` (note) | N values of the config repeat what the shipped defaults give | Run `vulcan config --diff` and delete them |
+| `config-remove` (warning) | A `remove` entry matches nothing, so it does nothing | Delete the entry |
 | `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it, or delete `packages` so it is derived from the workspaces |
 | `project-key` (warning) | `events.log` is on and `project.key` is not set, so no flow can be created | Add `project: { key: 'KEY' }` to the config and run `vulcan sync` |
 | `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `doctor.privateValues.acknowledged` |
@@ -296,6 +298,14 @@ A warning: today's event file is bigger than `events.maxSize` on its own. The re
 ```text
   warning [events-size] .configs/vulcan.config.mts: today's event file in /path/.agents/local/events is 61.2 MB, over events.maxSize (50MB); nothing is truncated and today's file is never removed - raise maxSize or write fewer events
 ```
+
+### config-defaults
+
+A note: the config states values that the shipped layers (the defaults, and the config of each rule pack) already give, so they can be deleted. `vulcan config --diff` lists them by path.
+
+### config-remove
+
+A warning: a `remove` entry names an item that is not in the merged array (it was never there, or the shipped layers no longer add it), so it removes nothing. Delete the entry, or fix the name; `vulcan config --effective` shows what is in the arrays.
 
 ### workspace-packages
 

@@ -41,5 +41,15 @@
         "repo": "VENIZIA-AI/vulcan"
       }
     ]
+  },
+  "guard": {
+    "outside": "deny"
+  },
+  "commit": {
+    "message": {
+      "agent": {
+        "signature": "deny"
+      }
+    }
   }
 }

@@ -13,7 +13,8 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
 import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
 import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
-import { ProjectPackages, WorkspacePackages, pathKeyOf } from '../config/index.ts';
+import { ConfigLayers, ProjectPackages, WorkspacePackages, pathKeyOf } from '../config/index.ts';
+import type { IConfigLayer, IConfigMerge } from '../config/index.ts';
 import { ProjectKey } from '../events/project-key.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules, RulePacks, RuleParser, RuleSlots } from '../rules/index.ts';
@@ -46,6 +47,8 @@ export interface ICheckContext {
   root: string;
   config: TResolvedConfig;
   configFile: string;
+  /** The project's own object, the shipped layers below it and the merge, when the caller loaded them: the two config-layer checks need them. */
+  layers?: { project: Record<string, unknown>; below: IConfigLayer[]; merge: IConfigMerge };
 }
 
 const createViolation = (opts: {
@@ -763,6 +766,36 @@ export class ProjectContract {
             message: `events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
           }),
         ];
+  }
+
+  /** Lines of the config that repeat what the shipped layers give: how many, and the command that lists them. A note. */
+  static checkConfigDefaults(opts: ICheckContext): IViolation[] {
+    if (opts.layers === undefined) {
+      return [];
+    }
+
+    const same = ConfigLayers.redundant({ project: opts.layers.project, below: opts.layers.below });
+
+    return same.length === 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.CONFIG_DEFAULTS,
+            file: opts.configFile,
+            message: `${same.length} value(s) of this config repeat what VULCAN ships: run \`${ProjectLayout.VULCAN_COMMAND} config --diff\` to list them, then delete them`,
+          }),
+        ];
+  }
+
+  /** A `remove` entry that takes out nothing (the item is not in the merged array, or the array is not one a layer fills): a stale opt-out. A warning. */
+  static checkStaleRemove(opts: ICheckContext): IViolation[] {
+    return (opts.layers?.merge.unmatched ?? []).map((entry) =>
+      createViolation({
+        check: DoctorChecks.CONFIG_REMOVE,
+        file: opts.configFile,
+        message: `remove: ${entry} matches nothing, so it does nothing: delete it`,
+      }),
+    );
   }
 
   /**
