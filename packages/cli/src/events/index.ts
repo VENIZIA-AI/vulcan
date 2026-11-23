@@ -6,6 +6,8 @@ export * from './flow-id.ts';
 export * from './flow-state.ts';
 export * from './flow-steps.ts';
 export * from './project-key.ts';
+export * from './prompt-context.ts';
+export * from './session-flow.ts';
 export * from './hook.ts';
 export * from './log.ts';
 export * from './settings.ts';

@@ -1,23 +1,30 @@
-import { statSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { ProjectLayout } from '../common/constants.ts';
 import { GitQueries } from '../hooks/git-queries.ts';
 import { RecordValue } from '../common/record.ts';
 import { EventConstants, EventKinds } from './common/index.ts';
 import type { TIsOver } from './common/index.ts';
-import { EventActor } from './actor.ts';
 import { FlowId } from './flow-id.ts';
-import { FlowSteps } from './flow-steps.ts';
-import { EventLog } from './log.ts';
+import { EventText } from './text.ts';
+import { SessionFlow } from './session-flow.ts';
+import type { ISessionFlow } from './session-flow.ts';
 import { EventSettings } from './settings.ts';
 
 /** Whether a tracked file of the project was modified after a time (milliseconds). */
 type TEdited = (opts: { root: string; since: number }) => boolean;
 
+/** The kinds that are work on a flow: usage and session lines say nothing of it. */
+const WORK_KINDS = new Set<string>([
+  EventKinds.FLOW,
+  EventKinds.COMMIT,
+  EventKinds.PR,
+  EventKinds.DECISION,
+  EventKinds.DEPLOY,
+]);
+
 /** The most open steps the reason lists as ready commands. */
 const STEPS_LISTED = 5;
-
-const shellQuote = (opts: { text: string }): string => `'${opts.text.replaceAll("'", "'\\''")}'`;
 
 /**
  * The `Stop` hook: it holds the end of a turn once when the board is out of step with the work of the turn, and says
@@ -43,39 +50,19 @@ export class BoardStop {
       return undefined;
     }
 
-    const settings = EventSettings.read({ root: opts.root });
-
-    if (!settings.log) {
-      return undefined;
-    }
-
-    const actor = EventActor.resolve({
-      sessionId: typeof input.session_id === 'string' ? input.session_id : undefined,
+    const found = SessionFlow.of({
+      root: opts.root,
+      input,
       env: opts.env,
+      isOver: opts.isOver,
+      ...(opts.now === undefined ? {} : { now: opts.now }),
     });
 
-    if (actor === EventConstants.UNKNOWN_ACTOR) {
+    if (found === undefined) {
       return undefined;
     }
 
-    const key = EventSettings.keyOf({ root: opts.root });
-    const known = EventLog.read({
-      dir: EventSettings.dirOf({ root: opts.root, settings }),
-      since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
-    }).events;
-    const cwd = typeof input.cwd === 'string' && input.cwd !== '' ? input.cwd : opts.root;
-    const flowId = FlowSteps.flowOf({
-      events: known,
-      cwd,
-      actor,
-      isOver: (id) => opts.isOver({ events: known, flowId: id, key }),
-    });
-    const last =
-      flowId === undefined ? undefined : FlowSteps.lastLine({ events: known, flowId, key });
-
-    if (flowId === undefined || last === undefined || opts.isOver({ events: known, flowId, key })) {
-      return undefined;
-    }
+    const { actor, key, known, flowId, last } = found;
 
     const since = Date.parse(last.ts);
     const wanted = FlowId.canon({ id: flowId, key });
@@ -123,7 +110,93 @@ export class BoardStop {
       };
     }
 
-    return undefined;
+    return BoardStop.staleHold({ ...opts, found, open, isInFlow, wanted });
+  }
+
+  /**
+   * A flow of this session with open steps and no line of work (a flow, commit, pull request, decision or deploy line, by
+   * anyone) for `STALE_FLOW_MS` holds the turn once, and then not again for `STALE_FLOW_MS` for this session: the time of the
+   * reminder is kept in a small file of the events folder, because the hook writes no line to the log.
+   */
+  private static staleHold(opts: {
+    root: string;
+    now?: number;
+    found: ISessionFlow;
+    open: { text: string }[];
+    isInFlow: boolean;
+    wanted: string;
+  }): { decision: 'block'; reason: string } | undefined {
+    const { actor, key, known, flowId, last } = opts.found;
+    const now = opts.now ?? Date.now();
+
+    if (opts.open.length === 0 || !opts.isInFlow) {
+      return undefined;
+    }
+
+    const newest = known
+      .filter(
+        (event) =>
+          WORK_KINDS.has(event.kind) &&
+          event.flowId !== undefined &&
+          FlowId.canon({ id: event.flowId, key }) === opts.wanted,
+      )
+      .reduce((latest, event) => Math.max(latest, Date.parse(event.ts)), Date.parse(last.ts));
+
+    if (now - newest < EventConstants.STALE_FLOW_MS) {
+      return undefined;
+    }
+
+    const file = join(
+      EventSettings.dirOf({ root: opts.root }),
+      EventConstants.STALE_REMINDER_DIR,
+      actor.replace(/[^A-Za-z0-9._-]/g, '_'),
+    );
+
+    try {
+      const before = Number(readFileSync(file, 'utf8'));
+
+      if (Number.isFinite(before) && now - before < EventConstants.STALE_FLOW_MS) {
+        return undefined;
+      }
+    } catch {
+      // No reminder yet: this is the first one.
+    }
+
+    try {
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, String(now), { mode: 0o600 });
+      BoardStop.pruneReminders({ dir: dirname(file), now });
+    } catch {
+      // A reminder that cannot be remembered would repeat every turn: no reminder.
+      return undefined;
+    }
+
+    const hours = Math.floor((now - newest) / (60 * 60 * 1000));
+
+    return {
+      decision: 'block',
+      reason: BoardStop.reasonOf({
+        flow: flowId,
+        title: last.summary,
+        open: opts.open,
+        why: `The flow has had no update for ${hours} hours and steps are still open. Tick what is done, say what comes next, or park or close the flow`,
+      }),
+    };
+  }
+
+  /** Removes the reminder files nobody has touched for `STALE_REMINDER_KEEP_MS`; a file that cannot be read or removed stays. */
+  private static pruneReminders(opts: { dir: string; now: number }): void {
+    try {
+      for (const name of readdirSync(opts.dir)) {
+        const path = join(opts.dir, name);
+
+        if (opts.now - statSync(path).mtimeMs > EventConstants.STALE_REMINDER_KEEP_MS) {
+          unlinkSync(path);
+        }
+      }
+    } catch {
+      // Best effort: an old file is a few bytes.
+    }
   }
 
   private static reasonOf(opts: {
@@ -132,13 +205,13 @@ export class BoardStop {
     open: { text: string }[];
     why: string;
   }): string {
-    const command = `${ProjectLayout.VULCAN_COMMAND} event step --flow ${opts.flow}`;
+    const command = `${ProjectLayout.VULCAN_COMMAND} event step --flow ${EventText.shellQuote({ text: opts.flow })}`;
     const shown = opts.open.slice(0, STEPS_LISTED);
 
     return [
       `The board is out of step: flow ${opts.flow} (${opts.title}). ${opts.why}.`,
       'Run what applies, then finish your turn:',
-      ...shown.map((step) => `  ${command} --done ${shellQuote({ text: step.text })}`),
+      ...shown.map((step) => `  ${command} --done ${EventText.shellQuote({ text: step.text })}`),
       ...(opts.open.length > shown.length
         ? [`  (${opts.open.length - shown.length} more open steps are in the flow)`]
         : []),

@@ -17,7 +17,13 @@ const LOCAL_SCHEMA = z.object({
   schemaVersion: z.literal(AgentConstants.LOCAL_SCHEMA_VERSION),
   agents: z.array(z.string()).optional(),
   /** The roster of the board for this checkout; it replaces `board.agents` of the committed config. */
-  board: z.strictObject({ agents: BOARD_AGENTS.optional() }).optional(),
+  board: z
+    .strictObject({
+      agents: BOARD_AGENTS.optional(),
+      /** `serve.autoStart` starts the board at session start on this machine; personal, so a teammate's commit cannot start a listener here. */
+      serve: z.strictObject({ autoStart: z.boolean().optional() }).optional(),
+    })
+    .optional(),
   /** `dir` replaces `events.dir` of the committed config: an absolute folder, such as one shared by several repositories. */
   events: z
     .strictObject({

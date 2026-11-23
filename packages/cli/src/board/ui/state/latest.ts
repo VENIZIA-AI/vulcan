@@ -7,6 +7,7 @@ import type { IBoardViewEvent, TTranslate } from '../common/types.ts';
  */
 const ACTIVITY_VERBS: Record<string, string> = {
   'session-start': 'lt.sessionStart',
+  'subagent-start': 'lt.subagentStart',
   'subagent-stop': 'lt.subagent',
   usage: 'lt.usage',
   commit: 'lt.commit',

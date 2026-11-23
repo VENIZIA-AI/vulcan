@@ -17,7 +17,9 @@ const parse = (board: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ board });
 
 describe('board in the config', () => {
   test('nothing is set by default', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).board).toEqual({ agents: {} });
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).board).toEqual({
+      agents: {},
+    });
   });
 
   test('an owner, a title, a logo path and agent faces are accepted', () => {

@@ -175,7 +175,7 @@ export class CommandTable {
         [EventFlags.JSON]: 'Print each line as written (tail)',
       },
       values: {
-        [EventFlags.KIND]: 'One of the thirteen event kinds',
+        [EventFlags.KIND]: 'One of the fourteen event kinds',
         [EventFlags.SUMMARY]: 'A short label, cut to one line of 200 characters',
         [EventFlags.FLOW]: 'The id of a flow the log already has',
         [EventFlags.DONE]: 'step: set this step of the flow done (added when it is not there)',

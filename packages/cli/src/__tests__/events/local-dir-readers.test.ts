@@ -159,7 +159,7 @@ describe('the other readers of the local folder', () => {
     });
 
     expect(held?.decision).toBe('block');
-    expect(held?.reason).toContain('event step --flow VULZ-ACME-1');
+    expect(held?.reason).toContain("event step --flow 'VULZ-ACME-1'");
   });
 });
 

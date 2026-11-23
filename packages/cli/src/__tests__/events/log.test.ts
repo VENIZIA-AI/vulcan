@@ -65,13 +65,14 @@ const PIECES = [
 ];
 
 describe('EventKinds', () => {
-  test('the thirteen kinds a board reads, and isValid', () => {
+  test('the fourteen kinds a board reads, and isValid', () => {
     expect(EventKinds.values()).toEqual([
       'session-start',
       'session-stop',
       'msg-sent',
       'msg-received',
       'needs-owner',
+      'subagent-start',
       'subagent-stop',
       'commit',
       'pr',

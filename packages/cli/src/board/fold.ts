@@ -234,6 +234,7 @@ export class BoardFold {
 
       case EventKinds.SESSION_START:
       case EventKinds.SESSION_STOP:
+      case EventKinds.SUBAGENT_START:
       case EventKinds.SUBAGENT_STOP: {
         return { ...base, kind: BoardKinds.AGENT, stage: -1, plumbing: true };
       }
@@ -286,6 +287,7 @@ export class BoardFold {
 
     // A message got, a usage line and a subagent stop show the session is busy; they do not say what it works on.
     if (
+      line.kind === EventKinds.SUBAGENT_START ||
       line.kind === EventKinds.SUBAGENT_STOP ||
       line.kind === EventKinds.MSG_RECEIVED ||
       line.kind === EventKinds.USAGE

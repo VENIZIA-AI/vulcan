@@ -9,6 +9,8 @@ export class EventKinds extends ConstClass {
   static readonly MSG_SENT = 'msg-sent';
   static readonly MSG_RECEIVED = 'msg-received';
   static readonly NEEDS_OWNER = 'needs-owner';
+  /** A subagent started: its session is busy until it stops. */
+  static readonly SUBAGENT_START = 'subagent-start';
   static readonly SUBAGENT_STOP = 'subagent-stop';
   static readonly COMMIT = 'commit';
   static readonly PR = 'pr';
@@ -104,6 +106,7 @@ export class EventFlags {
 /** The names a Claude Code hook payload carries, as Claude Code 2.1.317 sends them. */
 export class ClaudeHookEvents {
   static readonly SESSION_START = 'SessionStart';
+  static readonly SUBAGENT_START = 'SubagentStart';
   static readonly SUBAGENT_STOP = 'SubagentStop';
   static readonly NOTIFICATION = 'Notification';
   static readonly POST_TOOL_USE = 'PostToolUse';
@@ -197,6 +200,12 @@ export class EventConstants {
   static readonly SESSION_ENV = 'CLAUDE_CODE_SESSION_ID';
   static readonly CONFIG_DIR_ENV = 'CLAUDE_CONFIG_DIR';
   static readonly DAY_MS = 24 * 60 * 60 * 1000;
+  /** A flow with open steps and no line of work for this long gets a reminder from the Stop hook, once per period per session. */
+  static readonly STALE_FLOW_MS = 2 * 60 * 60 * 1000;
+  /** The folder of the events folder that holds, per session, when it was last reminded of a stale flow. */
+  static readonly STALE_REMINDER_DIR = '.stale-reminders';
+  /** A reminder file this old (by its modified time) is removed the next time one is written. */
+  static readonly STALE_REMINDER_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
 }
 
 /**

@@ -85,6 +85,13 @@ export class BoardServe {
   static readonly HOSTNAME =
     /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.localhost$/;
   static readonly DEFAULT_PORT = 4317;
+  /** Every refusal of the server carries this header, so a probe can tell a VULCAN board from another listener without a token. */
+  static readonly IDENTITY_HEADER = 'x-vulcan-board';
+  static readonly IDENTITY_VALUE = '1';
+  /** How long the session start waits for something to answer on the port before it starts the board. */
+  static readonly PROBE_MS = 300;
+  /** The file, under the project's temp folder, that takes the output of a board started by the session. */
+  static readonly AUTO_LOG = 'board-serve.log';
   static readonly TOKEN_BYTES = 16;
   static readonly TOKEN_PARAM = 't';
   static readonly PAGE_PATH = '/';
