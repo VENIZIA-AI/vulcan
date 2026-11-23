@@ -299,13 +299,13 @@ A warning: today's event file is bigger than `events.maxSize` on its own. The re
 
 ### workspace-packages
 
-A warning: the root `package.json` declares workspaces, the config writes a `packages` list, and a member of those workspaces is not in it. Every table keyed by `packages` (release tags, versions, the atlas) then misses that package. A list that is derived from the workspaces has none, and a retired entry that holds the member's path counts as naming it.
+A warning with two forms. First: the root `package.json` declares workspaces, the config writes a `packages` list, and a member of those workspaces is not in it. Every table keyed by `packages` (release tags, versions, the atlas) then misses that package. A list that is derived from the workspaces has none, and a retired entry that holds the member's path counts as naming it.
 
 ```text
   warning [workspace-packages] .configs/vulcan.config.mts: 2 workspace member(s) of the root package.json are not in packages: @x/okf (packages/okf), @x/site (apps/web/site). Add them, or delete `packages` so it is derived from the workspaces
 ```
 
-Add the entries, or delete the `packages` key.
+Add the entries, or delete the `packages` key. Second: a workspace member that cannot be a package (a folder that is not a valid `dir`, such as `apps/WebApp` or `packages/my_lib`, or a `package.json` with no valid `name`) is named with its reason, for a derived list too; nothing is normalised. Rename the folder or the package, or write `packages` with the `dir` you want.
 
 ### events-dir
 

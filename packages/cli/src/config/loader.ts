@@ -165,6 +165,16 @@ export class ConfigLoader {
     const isDerived =
       RecordValue.isRecord(loaded.default) && !Object.hasOwn(loaded.default, 'packages');
 
+    const derived = isDerived ? WorkspacePackages.derive({ root: opts.root }) : undefined;
+
+    if (derived !== undefined && derived.errors.length > 0) {
+      return {
+        ok: false,
+        file,
+        error: `${shown}: invalid workspaces\n${derived.errors.map((error) => `  ${error}`).join('\n')}`,
+      };
+    }
+
     if (isDerived) {
       layered.merge.from.packages = 'workspaces';
     }
@@ -172,9 +182,7 @@ export class ConfigLoader {
     return {
       ok: true,
       file,
-      config: isDerived
-        ? { ...parsed.data, packages: WorkspacePackages.derive({ root: opts.root }) }
-        : parsed.data,
+      config: derived === undefined ? parsed.data : { ...parsed.data, packages: derived.packages },
       layers: {
         project: RecordValue.isRecord(loaded.default) ? loaded.default : {},
         below: layered.below,

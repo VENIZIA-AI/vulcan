@@ -1,87 +1,166 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { GitQueries } from '../hooks/git-queries.ts';
 import { RecordValue } from '../common/record.ts';
+import { WorkspaceGlobs } from './common/index.ts';
+import type { IProjectPackage } from './packages.ts';
 import { VULCAN_CONFIG_SCHEMA } from './schema.ts';
 
-/** A package derived from a workspace member: the shape of an entry of `packages`, with its path always written. */
-export interface IWorkspacePackage {
-  dir: string;
-  name: string;
+/** A workspace member that is not a package of the derived list, and why. */
+export interface ISkippedMember {
   path: string;
-  aliases: string[];
-  retired: boolean;
+  reason: string;
+}
+
+/** What deriving gave: the packages, the members left out (each with its reason) and what makes the whole list unusable. */
+export interface IDerivedPackages {
+  packages: IProjectPackage[];
+  skipped: ISkippedMember[];
+  errors: string[];
 }
 
 const PACKAGES_SCHEMA = VULCAN_CONFIG_SCHEMA.shape.packages;
+const PACKAGE_FILE = 'package.json';
 
 /**
- * The packages of a project read from its root `package.json` `workspaces` (an array, or the object form with `packages`)
- * and the `package.json` of each member, so the config does not list by hand what the repository already says. An entry is
- * `{ dir, name, path }`: `name` is the package's, `path` its folder from the root and `dir` that path with `/` as `-` (the
- * unique key of an entry, as the `dir` of a hand-written list is). A member with no valid `name`, or whose `dir` is not a
- * valid key (an upper case letter, for one), is left out; the entries are in the order of their paths.
+ * The packages of a project read from its root `package.json` `workspaces` and the `package.json` of each member, so the
+ * config does not list by hand what the repository already says. An entry is `{ dir, name, path }`: `name` is the
+ * package's, `path` its folder from the root and `dir` that path with `/` as `-` (the unique key of an entry, as the `dir`
+ * of a hand-written list is; nothing is normalised, so a folder that cannot be a key is named and left out). The patterns
+ * are applied in order, a `!` pattern taking out what the patterns before it gave. Only members whose `package.json` git
+ * tracks count when the project is a git repository (an untracked experiment must not change what `sync` writes); outside
+ * one, the files are read, and `node_modules` and dot folders are never entered. Entries are in the order of their paths.
+ * A pattern that leaves the root, or two members that give one key or one name, makes the whole list an error.
  */
 export class WorkspacePackages {
-  /** The workspace patterns of the root `package.json`; none when the file is missing, unreadable or has no `workspaces`. */
-  static patternsOf(opts: { root: string }): string[] {
-    try {
-      const file: unknown = JSON.parse(readFileSync(join(opts.root, 'package.json'), 'utf8'));
-      const workspaces = RecordValue.isRecord(file) ? file.workspaces : undefined;
-      const list = Array.isArray(workspaces)
-        ? workspaces
-        : RecordValue.isRecord(workspaces) && Array.isArray(workspaces.packages)
-          ? workspaces.packages
-          : [];
+  static derive(opts: { root: string }): IDerivedPackages {
+    const errors: string[] = [];
+    const skipped: ISkippedMember[] = [];
+    const patterns = WorkspaceGlobs.read({ root: opts.root });
+    const leaving = patterns.filter(
+      (pattern) => pattern.startsWith('/') || pattern.replace(/^!/, '').split('/').includes('..'),
+    );
 
-      return list.filter(
-        (pattern: unknown): pattern is string =>
-          typeof pattern === 'string' && !pattern.startsWith('!'),
-      );
-    } catch {
-      return [];
+    if (leaving.length > 0) {
+      return {
+        packages: [],
+        skipped,
+        errors: leaving.map((pattern) => `workspaces: '${pattern}' leaves the project root`),
+      };
     }
-  }
 
-  /** The folders of the members, from the root, in order, each holding a `package.json`; `node_modules` is never entered. */
-  static foldersOf(opts: { root: string }): string[] {
-    const found = new Set<string>();
+    let folders: string[];
 
-    for (const pattern of WorkspacePackages.patternsOf({ root: opts.root })) {
-      const glob = new Bun.Glob(`${pattern.replace(/^\.\//, '').replace(/\/+$/, '')}/package.json`);
+    try {
+      folders = WorkspacePackages.membersOf({ root: opts.root, patterns });
+    } catch (error) {
+      return {
+        packages: [],
+        skipped,
+        errors: [
+          `workspaces: cannot read the members (${error instanceof Error ? error.message : String(error)})`,
+        ],
+      };
+    }
 
-      for (const file of glob.scanSync({ cwd: opts.root, onlyFiles: true })) {
-        if (!file.split('/').includes('node_modules')) {
-          found.add(dirname(file));
+    const entries: IProjectPackage[] = [];
+
+    for (const folder of folders) {
+      const name = WorkspacePackages.nameOf({ root: opts.root, folder });
+      const checked = PACKAGES_SCHEMA.safeParse([
+        { dir: folder.replaceAll('/', '-'), name, path: folder },
+      ]);
+
+      if (checked.success && checked.data[0] !== undefined) {
+        entries.push({ ...checked.data[0], path: folder });
+      } else {
+        const issue = checked.success ? undefined : checked.error.issues[0];
+
+        skipped.push({
+          path: folder,
+          reason: `${issue?.path.slice(1).join('.') ?? 'package'}: ${issue?.message ?? 'not a package'}`,
+        });
+      }
+    }
+
+    for (const key of ['dir', 'name'] as const) {
+      for (const entry of entries) {
+        const same = entries.filter((other) => other[key] === entry[key]);
+
+        if (same.length > 1 && same[0] === entry) {
+          errors.push(
+            `workspaces: ${same.map((other) => other.path).join(' and ')} give the same package ${key} '${entry[key]}'; write \`packages\` to set each one`,
+          );
         }
       }
     }
 
-    return [...found].filter((folder) => folder !== '.').sort();
+    return { packages: errors.length === 0 ? entries : [], skipped, errors };
   }
 
-  /** The derived entries of `packages`; a member that cannot be one is left out. */
-  static derive(opts: { root: string }): IWorkspacePackage[] {
-    return WorkspacePackages.foldersOf({ root: opts.root }).flatMap((folder) => {
-      try {
-        const file: unknown = JSON.parse(
-          readFileSync(join(opts.root, folder, 'package.json'), 'utf8'),
-        );
-        const name = RecordValue.isRecord(file) ? file.name : undefined;
-        const entry = { dir: folder.replaceAll('/', '-'), name, path: folder };
-        const checked = PACKAGES_SCHEMA.safeParse([entry]);
+  /** The member folders, from the root, in path order: the patterns applied in order over the `package.json` files that count. */
+  private static membersOf(opts: { root: string; patterns: string[] }): string[] {
+    const files = WorkspacePackages.packageFiles({ root: opts.root });
+    const folders = new Set<string>();
 
-        return checked.success && existsSync(join(opts.root, folder))
-          ? checked.data.map((item) => ({
-              dir: item.dir,
-              name: item.name,
-              path: item.path ?? folder,
-              aliases: item.aliases,
-              retired: item.retired,
-            }))
-          : [];
-      } catch {
-        return [];
+    for (const pattern of opts.patterns) {
+      const negated = pattern.startsWith('!');
+      const glob = new Bun.Glob(pattern.replace(/^!/, '').replace(/^\.\//, '').replace(/\/+$/, ''));
+
+      for (const file of files) {
+        const folder = file.slice(0, -`/${PACKAGE_FILE}`.length);
+
+        if (glob.match(folder)) {
+          if (negated) {
+            folders.delete(folder);
+          } else {
+            folders.add(folder);
+          }
+        }
       }
+    }
+
+    return [...folders].sort();
+  }
+
+  /** The `package.json` files below the root (not the root's own): those git tracks, else those found by reading the folders. */
+  private static packageFiles(opts: { root: string }): string[] {
+    const tracked = GitQueries.run({
+      args: ['ls-files', '--', `*/${PACKAGE_FILE}`],
+      cwd: opts.root,
     });
+
+    return tracked === undefined
+      ? WorkspacePackages.walk({ root: opts.root, folder: '' })
+      : tracked.split('\n').filter((file) => file.endsWith(`/${PACKAGE_FILE}`));
+  }
+
+  /** Outside git: the `package.json` files found by reading the folders, never entering `node_modules` or a dot folder. */
+  private static walk(opts: { root: string; folder: string }): string[] {
+    const found: string[] = [];
+
+    for (const entry of readdirSync(join(opts.root, opts.folder), { withFileTypes: true })) {
+      const path = opts.folder === '' ? entry.name : `${opts.folder}/${entry.name}`;
+
+      if (entry.isDirectory() && entry.name !== 'node_modules' && !entry.name.startsWith('.')) {
+        found.push(...WorkspacePackages.walk({ root: opts.root, folder: path }));
+      } else if (entry.isFile() && entry.name === PACKAGE_FILE && opts.folder !== '') {
+        found.push(path);
+      }
+    }
+
+    return found;
+  }
+
+  private static nameOf(opts: { root: string; folder: string }): unknown {
+    try {
+      const file: unknown = JSON.parse(
+        readFileSync(join(opts.root, opts.folder, PACKAGE_FILE), 'utf8'),
+      );
+
+      return RecordValue.isRecord(file) ? file.name : undefined;
+    } catch {
+      return undefined;
+    }
   }
 }

@@ -13,7 +13,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
 import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
 import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
-import { ProjectPackages, WorkspacePackages } from '../config/index.ts';
+import { ProjectPackages, WorkspacePackages, pathKeyOf } from '../config/index.ts';
 import { ProjectKey } from '../events/project-key.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules, RulePacks, RuleParser, RuleSlots } from '../rules/index.ts';
@@ -768,27 +768,37 @@ export class ProjectContract {
   /**
    * A workspace member of the root `package.json` that the config's `packages` list does not name: a package every table
    * keyed by `packages` (release tags, versions, the atlas) then misses. A list that is derived from the workspaces
-   * has none; the warning is for a list the project wrote. Retired entries count as named. A warning.
+   * has none of those; the other warning is for the members that cannot be a package (a folder that is not a valid key, a
+   * member with no valid name), each named with its reason, derived list or written. Retired entries count as named. Warnings.
    */
   static checkWorkspacePackages(opts: ICheckContext): IViolation[] {
     const named = new Set(
       ProjectPackages.resolve({ config: opts.config }).map((entry) =>
-        entry.path.replace(/\/+$/, ''),
+        pathKeyOf({ path: entry.path }),
       ),
     );
-    const missing = WorkspacePackages.derive({ root: opts.root }).filter(
-      (entry) => !named.has(entry.path),
-    );
+    const derived = WorkspacePackages.derive({ root: opts.root });
+    const missing = derived.packages.filter((entry) => !named.has(pathKeyOf({ path: entry.path })));
+    const message = [
+      missing.length === 0
+        ? undefined
+        : `${missing.length} workspace member(s) of the root package.json are not in packages: ${missing.map((entry) => `${entry.name} (${entry.path})`).join(', ')}. Add them, or delete \`packages\` so it is derived from the workspaces`,
+      derived.skipped.length === 0
+        ? undefined
+        : `${derived.skipped.length} workspace member(s) cannot be a package and are left out: ${derived.skipped.map((entry) => `${entry.path} (${entry.reason})`).join('; ')}. Rename the folder or the package, or write \`packages\` with the dir you want`,
+    ];
 
-    return missing.length === 0
-      ? []
-      : [
-          createViolation({
-            check: DoctorChecks.WORKSPACE_PACKAGES,
-            file: opts.configFile,
-            message: `${missing.length} workspace member(s) of the root package.json are not in packages: ${missing.map((entry) => `${entry.name} (${entry.path})`).join(', ')}. Add them, or delete \`packages\` so it is derived from the workspaces`,
-          }),
-        ];
+    return message.flatMap((text) =>
+      text === undefined
+        ? []
+        : [
+            createViolation({
+              check: DoctorChecks.WORKSPACE_PACKAGES,
+              file: opts.configFile,
+              message: text,
+            }),
+          ],
+    );
   }
 
   /**

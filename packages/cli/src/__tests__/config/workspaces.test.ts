@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigLoader, VULCAN_CONFIG_SCHEMA, WorkspacePackages } from '../../config/index.ts';
 import { ProjectContract } from '../../doctor/checks.ts';
@@ -36,62 +37,167 @@ const monorepo = (
   });
 };
 
+const git = (opts: { cwd: string; args: string[] }) =>
+  Bun.spawnSync(['git', ...opts.args], { cwd: opts.cwd, stdout: 'pipe', stderr: 'pipe' });
+const repository = (root: string): void => {
+  git({ cwd: root, args: ['init', '-q', '-b', 'develop'] });
+  git({ cwd: root, args: ['config', 'user.email', 'a@example.com'] });
+  git({ cwd: root, args: ['config', 'user.name', 'a'] });
+};
+const names = (root: string): string[] =>
+  WorkspacePackages.derive({ root }).packages.map((entry) => entry.name);
+
 describe('WorkspacePackages.derive', () => {
   test('reads the workspaces and each package.json: name, path, a dir key from the path, in the order of the paths', () => {
-    expect(WorkspacePackages.derive({ root: monorepo() })).toEqual([
-      { dir: 'apps-web-site', name: '@x/site', path: 'apps/web/site', aliases: [], retired: false },
-      { dir: 'packages-cli', name: '@x/cli', path: 'packages/cli', aliases: [], retired: false },
-      { dir: 'packages-okf', name: '@x/okf', path: 'packages/okf', aliases: [], retired: false },
+    expect(WorkspacePackages.derive({ root: monorepo() })).toEqual({
+      packages: [
+        {
+          dir: 'apps-web-site',
+          name: '@x/site',
+          path: 'apps/web/site',
+          aliases: [],
+          retired: false,
+        },
+        { dir: 'packages-cli', name: '@x/cli', path: 'packages/cli', aliases: [], retired: false },
+        { dir: 'packages-okf', name: '@x/okf', path: 'packages/okf', aliases: [], retired: false },
+      ],
+      skipped: [],
+      errors: [],
+    });
+  });
+
+  test('the object form of workspaces works, and a folder without a pattern is a member', () => {
+    const root = monorepo({ workspaces: { packages: ['packages/okf'], catalog: { a: '1' } } });
+
+    expect(WorkspacePackages.derive({ root }).packages.map((entry) => entry.path)).toEqual([
+      'packages/okf',
     ]);
   });
 
-  test('the object form of workspaces works, a negation is not a member, and a folder without a pattern is a member', () => {
-    const root = monorepo({
-      workspaces: { packages: ['packages/okf', '!packages/cli'], catalog: { a: '1' } },
-    });
-
-    expect(WorkspacePackages.derive({ root }).map((entry) => entry.path)).toEqual(['packages/okf']);
+  test('a ! pattern takes out what the patterns before it gave, and a later pattern can bring it back', () => {
+    expect(names(monorepo({ workspaces: ['packages/*', '!packages/cli'] }))).toEqual(['@x/okf']);
+    expect(names(monorepo({ workspaces: ['packages/*', '!packages/*', 'packages/cli'] }))).toEqual([
+      '@x/cli',
+    ]);
+    expect(names(monorepo({ workspaces: ['!packages/cli', 'packages/*'] }))).toEqual([
+      '@x/cli',
+      '@x/okf',
+    ]);
   });
 
-  test('a member with no name, an invalid name or a folder that cannot be a key is left out; node_modules is never entered', () => {
+  test('a member that cannot be a package is named with its reason and left out, never normalised', () => {
     const root = monorepo({
-      workspaces: ['packages/*'],
+      workspaces: ['packages/*', 'apps/*'],
       members: {
         'packages/ok': '@x/ok',
         'packages/noname': undefined,
-        'packages/Upper': '@x/upper',
+        'packages/my_lib': '@x/lib',
+        'apps/WebApp': '@x/web',
         'packages/bad': 'Not A Name',
-        'packages/ok/node_modules/dep': '@x/dep',
       },
     });
+    const derived = WorkspacePackages.derive({ root });
 
-    expect(WorkspacePackages.derive({ root }).map((entry) => entry.name)).toEqual(['@x/ok']);
+    expect(derived.packages.map((entry) => entry.name)).toEqual(['@x/ok']);
+    expect(derived.skipped.map((entry) => entry.path)).toEqual([
+      'apps/WebApp',
+      'packages/bad',
+      'packages/my_lib',
+      'packages/noname',
+    ]);
+    expect(derived.skipped.every((entry) => entry.reason.length > 0)).toBe(true);
+    expect(derived.errors).toEqual([]);
+  });
+
+  test('two members that give one key or one name make the whole list an error that names both', () => {
+    const key = WorkspacePackages.derive({
+      root: monorepo({
+        workspaces: ['a/*', 'a-b/*'],
+        members: { 'a/b-c': '@x/one', 'a-b/c': '@x/two' },
+      }),
+    });
+    const name = WorkspacePackages.derive({
+      root: monorepo({
+        workspaces: ['packages/*'],
+        members: { 'packages/a': '@x/same', 'packages/b': '@x/same' },
+      }),
+    });
+
+    expect(key.packages).toEqual([]);
+    expect(key.errors[0]).toContain('a-b/c and a/b-c');
+    expect(key.errors[0]).toContain("'a-b-c'");
+    expect(name.errors[0]).toContain('packages/a and packages/b');
+    expect(name.errors[0]).toContain("name '@x/same'");
+  });
+
+  test('a pattern that leaves the root is an error up front', () => {
+    const outside = WorkspacePackages.derive({ root: monorepo({ workspaces: ['../other/*'] }) });
+    const absolute = WorkspacePackages.derive({ root: monorepo({ workspaces: ['/etc/*'] }) });
+    const negated = WorkspacePackages.derive({
+      root: monorepo({ workspaces: ['packages/*', '!../x'] }),
+    });
+
+    for (const found of [outside, absolute, negated]) {
+      expect(found.packages).toEqual([]);
+      expect(found.errors[0]).toContain('leaves the project root');
+    }
+  });
+
+  test('outside git node_modules is never entered, even for a ** pattern', () => {
+    const root = monorepo({
+      workspaces: ['packages/**'],
+      members: { 'packages/ok': '@x/ok', 'packages/ok/node_modules/dep': '@x/dep' },
+    });
+    const blocked = join(root, 'packages/ok/node_modules');
+
+    // A folder that cannot be read: a walk that entered it would fail, and so would derive.
+    chmodSync(blocked, 0o000);
+
+    try {
+      const derived = WorkspacePackages.derive({ root });
+
+      expect(derived.errors).toEqual([]);
+      expect(derived.packages.map((entry) => entry.name)).toEqual(['@x/ok']);
+    } finally {
+      chmodSync(blocked, 0o755);
+    }
+  });
+
+  test('in a git repository only the members whose package.json git tracks count; a staged one does', () => {
+    const root = monorepo();
+
+    repository(root);
+    git({ cwd: root, args: ['add', 'package.json', 'packages/okf'] });
+    expect(names(root)).toEqual(['@x/okf']);
+    git({ cwd: root, args: ['add', 'packages/cli'] });
+    expect(names(root)).toEqual(['@x/cli', '@x/okf']);
   });
 
   test('no package.json, a broken one and no workspaces give none', () => {
-    expect(WorkspacePackages.derive({ root: createProject({ files: {} }) })).toEqual([]);
+    expect(WorkspacePackages.derive({ root: createProject({ files: {} }) }).packages).toEqual([]);
     expect(
-      WorkspacePackages.derive({ root: createProject({ files: { 'package.json': '{ nope' } }) }),
+      WorkspacePackages.derive({ root: createProject({ files: { 'package.json': '{ nope' } }) })
+        .packages,
     ).toEqual([]);
     expect(
       WorkspacePackages.derive({
         root: createProject({ files: { 'package.json': '{"name":"x"}' } }),
-      }),
+      }).packages,
     ).toEqual([]);
   });
 
   test('this repository: its three packages, from its own root', () => {
-    expect(
-      WorkspacePackages.derive({ root: join(import.meta.dir, '../../../../..') }).map(
-        (entry) => entry.name,
-      ),
-    ).toEqual(['@venizia/vulcan-atlas', '@venizia/vulcan', '@venizia/vulcan-okf']);
+    expect(names(join(import.meta.dir, '../../../../..'))).toEqual([
+      '@venizia/vulcan-atlas',
+      '@venizia/vulcan',
+      '@venizia/vulcan-okf',
+    ]);
   });
 
-  test('every derived entry is one the packages schema accepts', () => {
-    const entries = WorkspacePackages.derive({ root: monorepo() });
+  test('every derived list is one the packages schema accepts', () => {
+    const { packages } = WorkspacePackages.derive({ root: monorepo() });
 
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ packages: entries }).success).toBe(true);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ packages }).success).toBe(true);
   });
 });
 
@@ -127,6 +233,28 @@ describe('the loader: packages the config does not write are derived, a list it 
     expect(none.ok ? none.config.packages : undefined).toEqual([]);
     expect(none.ok ? none.layers.merge.from.packages : 'x').toBe('project');
     expect(listed.ok ? listed.config.packages.map((entry) => entry.dir) : []).toEqual(['only']);
+  });
+
+  test('a collision or a pattern that leaves the root fails the load, naming the paths; a written list is not derived at all', async () => {
+    const collision = await ConfigLoader.load({
+      root: monorepo({
+        workspaces: ['a/*', 'a-b/*'],
+        members: { 'a/b-c': '@x/one', 'a-b/c': '@x/two' },
+      }),
+    });
+    const leaving = await ConfigLoader.load({ root: monorepo({ workspaces: ['../x/*'] }) });
+    const written = await ConfigLoader.load({
+      root: monorepo({
+        workspaces: ['a/*', 'a-b/*'],
+        members: { 'a/b-c': '@x/one', 'a-b/c': '@x/two' },
+        config: 'export default { packages: [] };\n',
+      }),
+    });
+
+    expect(collision.ok ? '' : collision.error).toContain('a-b/c and a/b-c');
+    expect(collision.ok ? '' : collision.error).toContain('invalid workspaces');
+    expect(leaving.ok ? '' : leaving.error).toContain('leaves the project root');
+    expect(written.ok).toBe(true);
   });
 
   test('a project with no workspaces has no packages, as before', async () => {
@@ -165,6 +293,30 @@ describe('doctor: a workspace member the list does not name', () => {
     expect(hit?.message).toContain('@x/site (apps/web/site)');
     expect(hit?.message).not.toContain('@x/cli');
     expect(hit?.message).toContain('delete `packages`');
+  });
+
+  test('members that cannot be a package are named with their reason, for a derived list too', async () => {
+    const root = monorepo({
+      workspaces: ['packages/*'],
+      members: { 'packages/ok': '@x/ok', 'packages/my_lib': '@x/lib' },
+    });
+    const [hit] = await check(root);
+
+    expect(hit?.message).toContain('packages/my_lib');
+    expect(hit?.message).toContain('cannot be a package');
+    expect(hit?.message).toContain('write `packages`');
+  });
+
+  test('a path written with a leading ./ names the member', async () => {
+    const root = monorepo({
+      workspaces: ['packages/*'],
+      members: { 'packages/okf': '@x/okf' },
+      config:
+        "export default { packages: [{ dir: 'okf', name: '@x/okf', path: './packages/okf/' }] };\n",
+    });
+
+    const result = await check(root);
+    expect(result).toEqual([]);
   });
 
   test('a derived list, a full list and a retired entry that holds the path have none', async () => {

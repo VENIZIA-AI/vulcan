@@ -1,8 +1,8 @@
 import { Glob } from 'bun';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
-import { BASE_DIRECTORY, JsonValue, ProjectLayout } from '../common/index.ts';
-import { ConfigConstants, ConfigLoader } from '../config/index.ts';
+import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
+import { ConfigConstants, ConfigLoader, WorkspaceGlobs } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
 import { Bunfig } from '../create/bunfig.ts';
 import { Dockerignore } from '../create/dockerignore.ts';
@@ -91,15 +91,7 @@ export class ProjectScaffold {
 
   /** The root workspace globs, from either form; empty when there are none. */
   static readWorkspaceGlobs(opts: { root: string }): string[] {
-    const workspaces = readManifest(opts)?.workspaces;
-
-    if (Array.isArray(workspaces)) {
-      return workspaces.map(String);
-    }
-
-    const packages = JsonValue.readProperty({ value: workspaces, key: 'packages' });
-
-    return Array.isArray(packages) ? packages.map(String) : [];
+    return WorkspaceGlobs.read(opts);
   }
 
   /**
