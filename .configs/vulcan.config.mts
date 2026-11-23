@@ -68,6 +68,8 @@ export default {
       ],
     },
   },
+  events: { log: true },
+  project: { key: 'VULCAN' },
   // Placeholder paths in documentation examples and in one error message: no machine is named.
   doctor: {
     privateValues: {

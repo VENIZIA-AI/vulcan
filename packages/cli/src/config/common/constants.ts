@@ -42,10 +42,6 @@ export class ConfigConstants {
   /**
    * The arrays a shipped layer may add to and a project may `remove` from, each with the field that names an item of an array
    * of objects, or the fields that together name it (an acknowledgement is its `path` and its `kinds`, written `path|kind,kind`); `undefined`: the items are strings, named by themselves. One list for the merge and for the schema.
-   *
-   * `digest.oftenDropped` is listed, but `DEFAULT_OFTEN_DROPPED` is still the zod default of the key, which a layer that adds
-   * to it would replace and `remove` could not take from: PR 3 moves those ids into `base/defaults.config.json` and drops the
-   * zod default, with the other defaults that move there.
    */
   static readonly LAYERED_ARRAYS: Readonly<Record<string, string | string[] | undefined>> = {
     'claude.settings.permissions.allow': undefined,
@@ -55,20 +51,6 @@ export class ConfigConstants {
     'digest.oftenDropped': undefined,
     'doctor.privateValues.acknowledged': ['path', 'kinds'],
   };
-  /** The rules a session drops most, printed at every session start unless the project lists its own. */
-  static readonly DEFAULT_OFTEN_DROPPED = [
-    'V-P-07',
-    'V-B-03',
-    'V-P-05',
-    'V-P-06',
-    'V-B-04',
-    'V-C-02',
-    'V-C-09',
-    'V-C-10',
-    'V-P-08',
-    'V-B-07',
-    'V-B-09',
-  ];
 }
 
 /** The placeholders a release template (`atlas.tagPattern`, `atlas.legacyTagPatterns`) knows; any other `<word>` would be read as literal text and match no tag. */

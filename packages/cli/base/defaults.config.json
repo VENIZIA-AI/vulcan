@@ -1,1 +1,110 @@
-{}
+{
+  "claude": {
+    "settings": {
+      "permissions": {
+        "allow": [
+          "Bash(ls:*)",
+          "Bash(head:*)",
+          "Bash(tail:*)",
+          "Bash(wc:*)",
+          "Bash(cut:*)",
+          "Bash(tr:*)",
+          "Bash(comm:*)",
+          "Bash(paste:*)",
+          "Bash(cmp:*)",
+          "Bash(md5sum:*)",
+          "Bash(sha256sum:*)",
+          "Bash(du:*)",
+          "Bash(df:*)",
+          "Bash(free:*)",
+          "Bash(readlink:*)",
+          "Bash(realpath:*)",
+          "Bash(basename:*)",
+          "Bash(dirname:*)",
+          "Bash(which:*)",
+          "Bash(test:*)",
+          "Bash(pgrep:*)",
+          "Bash(lsof:*)",
+          "Bash(diff:*)",
+          "Bash(grep:*)",
+          "Bash(jq:*)",
+          "Bash(stat:*)",
+          "Bash(ps:*)",
+          "Bash(file:*)",
+          "Bash(date:*)",
+          "Bash(ss:*)",
+          "Bash(rg:*)",
+          "Bash(sort:*)",
+          "Bash(git status:*)",
+          "Bash(git log:*)",
+          "Bash(git diff:*)",
+          "Bash(git show:*)",
+          "Bash(git blame:*)",
+          "Bash(git ls-files:*)",
+          "Bash(git ls-tree:*)",
+          "Bash(git rev-parse:*)",
+          "Bash(git rev-list:*)",
+          "Bash(git merge-base:*)",
+          "Bash(git cat-file:*)",
+          "Bash(git for-each-ref:*)",
+          "Bash(git check-ignore:*)",
+          "Bash(git describe:*)"
+        ],
+        "deny": [
+          "Bash(file *-C*)",
+          "Bash(date *-s*)",
+          "Bash(date *--set*)",
+          "Bash(ss *-K*)",
+          "Bash(ss *--kill*)",
+          "Bash(rg *--pre*)",
+          "Bash(rg *--hostname-bin*)",
+          "Bash(rg *--search-zip*)",
+          "Bash(rg *-z*)",
+          "Bash(sort *--compress-program*)",
+          "Bash(sort *--output*)",
+          "Bash(sort *-o *)",
+          "Bash(git log *--output*)",
+          "Bash(git diff *--output*)",
+          "Bash(git show *--output*)",
+          "Bash(git log *--ext-diff*)",
+          "Bash(git diff *--ext-diff*)",
+          "Bash(git show *--ext-diff*)",
+          "Bash(git blame *--textconv*)",
+          "Bash(git diff *--textconv*)",
+          "Bash(git show *--textconv*)",
+          "Bash(git log *--textconv*)",
+          "Bash(git cat-file *--textconv*)",
+          "Bash(git cat-file *--filters*)"
+        ]
+      }
+    }
+  },
+  "digest": {
+    "oftenDropped": [
+      "V-P-07",
+      "V-B-03",
+      "V-P-05",
+      "V-P-06",
+      "V-B-04",
+      "V-C-02",
+      "V-C-09",
+      "V-C-10",
+      "V-P-08",
+      "V-B-07",
+      "V-B-09"
+    ]
+  },
+  "doctor": {
+    "privateValues": {
+      "acknowledged": [
+        {
+          "path": "**/Dockerfile*",
+          "kinds": [
+            "machine-path"
+          ],
+          "reason": "Container paths such as /home/app in an image recipe: a path inside the image, not a machine of the project."
+        }
+      ]
+    }
+  }
+}

@@ -1,1 +1,45 @@
-{}
+{
+  "claude": {
+    "settings": {
+      "permissions": {
+        "allow": [
+          "Bash(bun run typecheck:*)",
+          "Bash(bun run test:*)",
+          "Bash(bun run lint:*)",
+          "Bash(bun test:*)",
+          "Bash(bun check:*)"
+        ]
+      }
+    }
+  },
+  "presets": [
+    {
+      "spec": "ignis",
+      "side": "backend",
+      "summary": "IGNIS: a backend app on Bun",
+      "lib": "IGNIS: a shared library"
+    },
+    {
+      "spec": "ardor",
+      "side": "frontend",
+      "summary": "ARDOR: a frontend app on Vite and React",
+      "lib": "ARDOR: a shared feature package"
+    }
+  ],
+  "atlas": {
+    "sources": [
+      {
+        "name": "ignis",
+        "repo": "VENIZIA-AI/ignis"
+      },
+      {
+        "name": "ardor",
+        "repo": "VENIZIA-AI/ardor"
+      },
+      {
+        "name": "vulcan",
+        "repo": "VENIZIA-AI/vulcan"
+      }
+    ]
+  }
+}
