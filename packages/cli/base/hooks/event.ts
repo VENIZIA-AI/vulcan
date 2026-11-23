@@ -1,5 +1,5 @@
 /**
- * Event log hook (SessionStart, Stop, SubagentStop, Notification and PostToolUse: a SendMessage is a message,
+ * Event log hook (SessionStart, Stop, SubagentStop (which also records the subagent's tokens), Notification and PostToolUse: a SendMessage is a message,
  * any other tool at most one tick per session every 30 seconds): appends one line to the agent event log
  * (src/events/hook.ts) when the manifest says `events.log` is on. It stores names and short labels only -
  * never a message body, the last reply, a command, a path or anything of a tool's input or result, except
@@ -51,13 +51,28 @@ try {
     }
   }
 
+  const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+
   EventHook.run({
-    root: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+    root,
     input,
     env: process.env,
     ...(isOver === undefined ? {} : { isOver }),
     ...(activity === undefined ? {} : { activity }),
   });
+
+  // A subagent that stopped: its tokens go to the log, on the flow of its parent session.
+  if (input?.hook_event_name === 'SubagentStop') {
+    const meter = await import('../../src/events/usage.ts');
+    const state = await import('../../src/events/flow-state.ts');
+
+    meter.UsageMeter.recordSubagent({
+      root,
+      input,
+      env: process.env,
+      isOver: state.FlowState.isOver,
+    });
+  }
 } catch (error) {
   // Input that is not JSON is not echoed: Bun's parse error quotes it.
   const reason =

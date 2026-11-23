@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { IBoardData } from '../../common/index.ts';
+import type { IBoardData, IBoardTokenRow, IBoardTokens } from '../../common/index.ts';
 import { BoardConstants } from '../../common/index.ts';
 import { BoardStateWords, BoardTables } from '../common/constants.ts';
 import type { IAgentRow, IBoardViewEvent, IFlowView } from '../common/types.ts';
@@ -37,6 +37,54 @@ const Section = (props: { title: string; children: ReactNode }) => (
   </div>
 );
 
+/** The tokens of a flow: the four counts in total, then by agent and by model. Numbers only. */
+export const Tokens = (props: { tokens: IBoardTokens | undefined }) => {
+  const { t } = useUi();
+  const { tokens } = props;
+
+  if (tokens === undefined) {
+    return null;
+  }
+
+  const count = (value: number): string => value.toLocaleString('en-US');
+  const columns = [t('tk.input'), t('tk.output'), t('tk.cacheRead'), t('tk.cacheWrite')];
+  const row = (opts: { name: string; row: IBoardTokenRow }) => (
+    <tr key={opts.name}>
+      <th scope="row">{opts.name}</th>
+      <td>{count(opts.row.input)}</td>
+      <td>{count(opts.row.output)}</td>
+      <td>{count(opts.row.cacheRead)}</td>
+      <td>{count(opts.row.cacheWrite)}</td>
+    </tr>
+  );
+
+  return (
+    <Section title={t('tk.title')}>
+      <table className="d-tokens">
+        <thead>
+          <tr>
+            <th scope="col" />
+            {columns.map((name) => (
+              <th key={name} scope="col">
+                {name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {row({ name: t('tk.total'), row: { name: '', ...tokens } })}
+          {tokens.agents.length > 1
+            ? tokens.agents.map((agent) => row({ name: agent.name, row: agent }))
+            : null}
+          {tokens.models.length > 1
+            ? tokens.models.map((model) => row({ name: model.name, row: model }))
+            : null}
+        </tbody>
+      </table>
+    </Section>
+  );
+};
+
 /** The lines that mark the flow's way: it was opened, decided, merged, deployed. Newest first. */
 const Milestones = (props: { view: IFlowView }) => {
   const { t } = useUi();
@@ -66,6 +114,7 @@ const LooseDetail = (props: { view: IFlowView }) => {
     <div id="dBody" className="d-body">
       <h2>{t('it.unsorted')}</h2>
       <p className="d-empty">{t('it.unsortedNote')}</p>
+      <Tokens tokens={props.view.flow.tokens} />
       <ul className="evs">
         {[...props.view.evs]
           .reverse()
@@ -144,6 +193,7 @@ const FlowDetail = (props: {
         </div>
       ) : null}
       {view.noWork ? <p className="d-empty">{t('nw.empty')}</p> : null}
+      <Tokens tokens={flow.tokens} />
       <Section title={t('dt.milestones')}>
         <Milestones view={view} />
       </Section>

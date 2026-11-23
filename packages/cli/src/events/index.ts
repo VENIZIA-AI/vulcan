@@ -10,5 +10,6 @@ export * from './hook.ts';
 export * from './log.ts';
 export * from './settings.ts';
 export * from './stop.ts';
+export * from './usage.ts';
 export * from './text.ts';
 export * from './retention.ts';

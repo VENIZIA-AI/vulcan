@@ -2,7 +2,15 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { ClaudeHookEvents, EventConstants, EventKinds, EventStatuses } from './common/index.ts';
-import type { IEvent, IEventItem, IEventRead, TEventKind, TEventStatus } from './common/index.ts';
+import type {
+  IEvent,
+  IEventItem,
+  IEventMark,
+  IEventRead,
+  IEventUsage,
+  TEventKind,
+  TEventStatus,
+} from './common/index.ts';
 import { EventText } from './text.ts';
 
 const ID_TIME_WIDTH = 9;
@@ -47,6 +55,8 @@ export class EventLog {
     due?: string;
     model?: string;
     notification?: string;
+    usage?: IEventUsage;
+    mark?: IEventMark;
     now?: number;
   }): IEvent {
     const now = opts.now ?? Date.now();
@@ -104,6 +114,8 @@ export class EventLog {
       ...(apps.length === 0 ? {} : { apps }),
       ...(opts.due !== undefined && EventText.isDay({ value: opts.due }) ? { due: opts.due } : {}),
       ...(model === '' ? {} : { model }),
+      ...(opts.usage === undefined ? {} : { usage: EventLog.usageOf({ value: opts.usage }) }),
+      ...(opts.mark === undefined ? {} : { mark: EventLog.markOf({ value: opts.mark }) }),
       ...(opts.notification !== undefined &&
       ClaudeHookEvents.OWNER_NOTIFICATIONS.has(opts.notification)
         ? { notification: opts.notification }
@@ -170,6 +182,55 @@ export class EventLog {
     return { events, skipped };
   }
 
+  /** A count as the log keeps it: a whole number of at least 0; anything else is 0. */
+  private static countOf(opts: { value: unknown }): number {
+    return typeof opts.value === 'number' && Number.isSafeInteger(opts.value) && opts.value > 0
+      ? opts.value
+      : 0;
+  }
+
+  /** The tokens of a `usage` line, cleaned like every text of the log; `undefined` when the value is not one. */
+  private static usageOf(opts: { value: unknown }): IEventUsage | undefined {
+    const { value } = opts;
+
+    if (!RecordValue.isRecord(value) || typeof value.model !== 'string') {
+      return undefined;
+    }
+
+    const agent =
+      typeof value.agent === 'string'
+        ? EventText.oneLine({ text: value.agent, max: EventConstants.MODEL_MAX })
+        : '';
+
+    return {
+      model: EventText.oneLine({ text: value.model, max: EventConstants.MODEL_MAX }),
+      ...(agent === '' ? {} : { agent }),
+      input: EventLog.countOf({ value: value.input }),
+      output: EventLog.countOf({ value: value.output }),
+      cacheRead: EventLog.countOf({ value: value.cacheRead }),
+      cacheWrite: EventLog.countOf({ value: value.cacheWrite }),
+    };
+  }
+
+  /** The mark of a `usage` line; `undefined` when the value is not one. */
+  private static markOf(opts: { value: unknown }): IEventMark | undefined {
+    const { value } = opts;
+
+    if (!RecordValue.isRecord(value) || typeof value.offset !== 'number') {
+      return undefined;
+    }
+
+    const message =
+      typeof value.message === 'string'
+        ? EventText.oneLine({ text: value.message, max: EventConstants.REF_MAX })
+        : '';
+
+    return {
+      offset: EventLog.countOf({ value: value.offset }),
+      ...(message === '' ? {} : { message }),
+    };
+  }
+
   /** The items of a list as a reader keeps them: what is not a `{ text, done }` is dropped, the rest cleaned and cut. */
   private static itemsOf(opts: { value: unknown }): IEventItem[] {
     if (!Array.isArray(opts.value)) {
@@ -230,6 +291,8 @@ export class EventLog {
       apps,
       due,
       model,
+      usage,
+      mark,
       notification,
       source,
     } = value;
@@ -263,6 +326,8 @@ export class EventLog {
     const keptSteps = EventLog.itemsOf({ value: steps });
     const keptChecks = EventLog.itemsOf({ value: checks });
     const keptApps = EventLog.appsOf({ value: apps });
+    const keptUsage = EventLog.usageOf({ value: usage });
+    const keptMark = EventLog.markOf({ value: mark });
 
     return {
       id: clean(id),
@@ -282,6 +347,8 @@ export class EventLog {
       // A due day that is no day is dropped, and only it: the line is still a line.
       ...(typeof due === 'string' && EventText.isDay({ value: due }) ? { due } : {}),
       ...(model === undefined ? {} : { model: text(model, EventConstants.MODEL_MAX) }),
+      ...(keptUsage === undefined ? {} : { usage: keptUsage }),
+      ...(keptMark === undefined ? {} : { mark: keptMark }),
       // A value that is not one of the types the hook knows is dropped: it is a short enum, not free text.
       ...(notification === undefined || !ClaudeHookEvents.OWNER_NOTIFICATIONS.has(notification)
         ? {}

@@ -5,6 +5,7 @@ import {
   EventStatuses,
 } from '../events/common/index.ts';
 import type { IEvent } from '../events/common/index.ts';
+import { BoardTokens } from './tokens.ts';
 import {
   BoardConstants,
   BoardKinds,
@@ -18,6 +19,7 @@ import type {
   IBoardDecision,
   IBoardEvent,
   IBoardFlow,
+  IBoardTokens,
   IBoardItem,
   TBoardState,
 } from './common/index.ts';
@@ -42,6 +44,8 @@ export class BoardFold {
   static fromLog(opts: { events: IEvent[] }): {
     events: IBoardEvent[];
     agents: Record<string, IBoardAgent>;
+    /** The tokens by flow id as the lines carry it (`Unsorted` for a line with none): see `BoardTokens`. */
+    tokens: Record<string, IBoardTokens>;
   } {
     const events: IBoardEvent[] = [];
     const agents: Record<string, IBoardAgent> = {};
@@ -57,7 +61,11 @@ export class BoardFold {
       }
     }
 
-    return { events, agents };
+    return {
+      events,
+      agents,
+      tokens: BoardTokens.of({ events: opts.events, unflowed: BoardConstants.UNSORTED }),
+    };
   }
 
   /**
@@ -213,6 +221,14 @@ export class BoardFold {
 
       case EventKinds.DEPLOY: {
         return { ...base, kind: BoardKinds.RELEASE, stage: BoardStages.RELEASE };
+      }
+
+      case EventKinds.USAGE: {
+        // The tokens are summed by `BoardTokens` and not drawn as lines of a flow; a line with no flow keeps the group of
+        // such lines on the page, so the tokens that belong to no flow have a place to be shown.
+        return line.flowId === undefined
+          ? { ...base, kind: BoardKinds.AGENT, stage: -1, plumbing: true }
+          : undefined;
       }
 
       case EventKinds.SESSION_START:

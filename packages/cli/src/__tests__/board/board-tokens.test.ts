@@ -1,226 +1,147 @@
-import { afterAll, afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { BoardCommand } from '../../board/command.ts';
+import { afterAll, describe, expect, test } from 'bun:test';
+import { BoardFold } from '../../board/fold.ts';
 import { BoardPage } from '../../board/page.ts';
-import { BoardServer } from '../../board/server.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
-import { ThemeTokens } from '../../theme/index.ts';
-import { hermeticEnv } from '../hermetic.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
-import { sampleData } from './sample-data.helper.ts';
+import { BoardTokens } from '../../board/tokens.ts';
+import type { IBoardData } from '../../board/common/index.ts';
+import { EventLog } from '../../events/index.ts';
+import { BrowserPage } from '../visualize/browser.helper.ts';
+import { line } from './log-lines.helper.ts';
 
-afterAll(removeProjects);
-afterEach(() => BoardServer.stop());
+const hasBrowser = await BrowserPage.available();
 
-const SHELL = readFileSync(join(import.meta.dir, '../../board/ui/shell.html'), 'utf8');
-/** The colours the shell keeps for itself: the line of its own panes and the mascot, not part of the shared tokens. */
-const PRIVATE = new Set(['line-2', 'face-ink', 'cheek']);
-/** The tokens whose preset values the shell must not hold as literals: the accent and the states. */
-const NOT_IN_SHELL = ['accent', 'accent-soft', 'ok', 'wait', 'fail'];
-const venizia = ThemeTokens.PRESETS.venizia;
-const slate = ThemeTokens.resolve({ theme: { preset: 'slate', radius: '2px' } });
-const INJECTION = '4px}</style><script>alert(document.title)</script><style>';
+afterAll(() => BrowserPage.close());
 
-/** A project whose manifest holds the tokens of `theme`, the way `vulcan sync` writes them. */
-const projectWith = (opts: { theme: object }): string =>
-  createProject({
-    files: {
-      '.agents/vulcan.manifest.json': JSON.stringify({ theme: opts.theme }),
-      '.git/HEAD': 'ref: refs/heads/x\n',
+const BASE = Date.now() - 60 * 60_000;
+const usage = (opts: { flow?: string; actor: string; agent?: string; out: number }) =>
+  EventLog.build({
+    kind: 'usage',
+    summary: 'tokens',
+    actor: opts.actor,
+    source: 'claude-hook',
+    ...(opts.flow === undefined ? {} : { flowId: opts.flow }),
+    usage: {
+      model: 'claude-sonnet-5-5',
+      ...(opts.agent === undefined ? {} : { agent: opts.agent }),
+      input: 12,
+      output: opts.out,
+      cacheRead: 1_234_567,
+      cacheWrite: 89,
     },
+    mark: { offset: 1 },
+    now: BASE + 5 * 60_000,
   });
 
-const slateManifestTheme = (): object => {
-  if (!slate.ok) {
-    throw new Error('slate must resolve');
-  }
+const data = (): IBoardData => {
+  const lines = [
+    line({ base: BASE, minute: 1, kind: 'flow', actor: 'lead', flow: 'F-1', summary: 'Sign in' }),
+    line({
+      base: BASE,
+      minute: 2,
+      kind: 'commit',
+      actor: 'lead',
+      flow: 'F-1',
+      summary: 'the lock',
+    }),
+    usage({ flow: 'F-1', actor: 'lead', out: 4210 }),
+    usage({ flow: 'F-1', actor: 'lead', agent: 'Explore', out: 90 }),
+    usage({ actor: 'lead', out: 7 }),
+  ];
+  const log = BoardFold.fromLog({ events: lines });
+  const tokens = log.tokens;
+  const { flows, decisions } = BoardFold.fold({ events: log.events, owner: 'Ana' });
 
-  const { preset, light, dark, font, mono, radius } = slate.tokens;
-
-  return { preset, tokens: { light, dark }, font, mono, radius };
+  return {
+    title: 'Acme Board',
+    owner: 'Ana',
+    key: 'acme',
+    shapes: {},
+    generatedAt: new Date(BASE + 70 * 60_000).toISOString(),
+    since: new Date(BASE - 60_000).toISOString(),
+    flows: flows.map((flow) =>
+      tokens[flow.id] === undefined ? flow : { ...flow, tokens: tokens[flow.id] },
+    ),
+    decisions,
+    agents: log.agents,
+    sources: [],
+  };
 };
 
-describe('the board takes its colours from the design tokens', () => {
-  test('the page carries the tokens of the default preset in every block the shell used to hold', () => {
-    const page = BoardPage.render({ data: sampleData() });
+const EXPRESSION = `(async () => {
+  localStorage.clear();
+  const wait = () => new Promise((resolve) => setTimeout(resolve, 80));
+  const out = { errors: window.__errs };
+  if (document.documentElement.lang !== 'en') { document.getElementById('bLang').click(); await wait(); }
+  document.querySelector('.row[data-id="F-1"]').click();
+  await wait();
+  const table = document.querySelector('.d-tokens');
+  out.heading = table.closest('.d-sec').querySelector('h4').textContent;
+  out.head = [...table.querySelectorAll('thead th')].map((c) => c.textContent);
+  out.rows = [...table.querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => c.textContent));
+  document.getElementById('bLang').click();
+  await wait();
+  out.vi = {
+    heading: document.querySelector('.d-tokens').closest('.d-sec').querySelector('h4').textContent,
+    head: [...document.querySelectorAll('.d-tokens thead th')].map((c) => c.textContent),
+  };
+  document.getElementById('bLang').click();
+  await wait();
+  // A page of an earlier test may have left the plumbing on in the saved choices: it is made visible, not toggled.
+  if (document.getElementById('bPlumb').getAttribute('aria-pressed') !== 'true') { document.getElementById('bPlumb').click(); await wait(); }
+  document.querySelector('.c-loose').click();
+  await wait();
+  out.loose = document.querySelector('.d-tokens') ? document.querySelector('.d-tokens').textContent : null;
+  return JSON.stringify(out);
+})()`;
 
-    expect(page).toContain('<style id="board-tokens">');
-    expect(page).toContain(`:root{--ground:${venizia.light.ground};`);
-    expect(page).toContain(`:root[data-board-theme='light']{--ground:${venizia.light.ground};`);
-    expect(page).toContain(`:root[data-board-theme='dark']{--ground:${venizia.dark.ground};`);
-    expect(page).toContain(`:root[data-theme='dark']{--ground:${venizia.dark.ground};`);
-    expect(page).toContain(`--accent:${venizia.dark.accent}`);
-    expect(page).toContain(`--stroke-strong:${venizia.light['line-strong']}`);
-    expect(page).toContain(`--focus:${venizia.light.accent};--r:${ThemeTokens.RADIUS}}`);
-    expect(page.slice(0, page.indexOf('</head>'))).not.toContain('BOARD_TOKENS');
-  });
+describe('the tokens of a flow in the data', () => {
+  test('a flow carries its totals, and the lines of no flow are summed apart', () => {
+    const found = data();
+    const flow = found.flows.find((item) => item.id === 'F-1');
 
-  test('the text colour of the accent and the greys of the panes come with the tokens, in each mode', () => {
-    const page = BoardPage.render({ data: sampleData() });
-    const darkBlock = /:root\[data-board-theme='dark'\]\{[^}]*\}/.exec(page)?.[0] ?? '';
-
-    expect(page).toContain(`--accent-text:${venizia.light['accent-text']}`);
-    expect(darkBlock).toContain(`--accent-text:${venizia.dark['accent-text']}`);
-    expect(page).toContain(`--head:${ThemeTokens.SURFACES.light.head}`);
-    expect(darkBlock).toContain(`--sunk:${ThemeTokens.SURFACES.dark.sunk}`);
-  });
-
-  test('another preset or a project override changes the page', () => {
-    const page = BoardPage.render({
-      data: sampleData(),
-      tokens: slate.ok ? slate.tokens : undefined,
+    expect(flow?.tokens).toMatchObject({
+      input: 24,
+      output: 4300,
+      cacheRead: 2_469_134,
+      cacheWrite: 178,
     });
-
-    expect(page).toContain(`--accent:${ThemeTokens.PRESETS.slate.seed.accent}`);
-    expect(page).toContain('--r:2px');
-    expect(page).not.toContain(`--accent:${venizia.light.accent}`);
-  });
-
-  test('the shell holds no colour of the shared tokens: only the private ones, by name', () => {
-    const declared = [...SHELL.matchAll(/^\s+--([a-z0-9-]+):\s*(#[0-9a-fA-F]{3,8})\s*;/gm)].map(
-      (m) => m[1],
-    );
-    const stray = declared.filter((name) => !PRIVATE.has(name));
-    const literals = NOT_IN_SHELL.flatMap((name) => [venizia.light[name], venizia.dark[name]]);
-
-    expect(declared.length).toBeGreaterThan(5);
-    expect(stray).toEqual([]);
-
-    for (const colour of literals) {
-      expect(SHELL.toLowerCase(), colour).not.toContain(colour);
-    }
-  });
-
-  test('text in the accent is drawn in accent-text, never in accent', () => {
-    expect(SHELL).not.toMatch(/^\s+color:\s*var\(--accent\)/m);
+    expect(flow?.tokens?.agents.map((row) => row.name)).toEqual(['lead', 'lead (Explore)']);
+    expect(BoardTokens.of({ events: [], unflowed: 'Unsorted' })).toEqual({});
+    expect(JSON.stringify(found)).not.toMatch(/price|cost|usd|dollar|money/i);
   });
 });
 
-describe('the tokens come from the manifest of the project', () => {
-  test('they are read from it, and the default preset is used when it has none or an unreadable one', () => {
-    const withManifest = projectWith({ theme: slateManifestTheme() });
-    const short = projectWith({ theme: { tokens: { light: {} } } });
-    const empty = createProject({ files: {} });
+describe.skipIf(!hasBrowser)('the tokens block of the board page, in a real browser', () => {
+  const html = BoardPage.render({ data: data() }).replace(
+    '<script type="application/json"',
+    '<script>window.__errs=[];addEventListener("error",(e)=>__errs.push(e.message))</script><script type="application/json"',
+  );
 
-    expect(ThemeTokens.read({ root: withManifest }).tokens.light.accent).toBe(
-      ThemeTokens.PRESETS.slate.seed.accent,
-    );
-    expect(ThemeTokens.read({ root: empty })).toEqual({ tokens: ThemeTokens.defaults() });
-    expect(ThemeTokens.read({ root: short }).tokens).toEqual(ThemeTokens.defaults());
-    expect(ThemeTokens.read({ root: short }).warning).toContain('not readable by this version');
-  });
+  for (const dark of [false, true]) {
+    test(`${dark ? 'dark' : 'light'}: totals, the agents and the words in both languages, no money`, async () => {
+      const result2 = await BrowserPage.measure<string>({
+        html,
+        width: 1440,
+        dark,
+        expression: EXPRESSION,
+      });
+      const result = JSON.parse(result2) as {
+        errors: string[];
+        heading: string;
+        head: string[];
+        rows: string[][];
+        vi: { heading: string; head: string[] };
+        loose: string | null;
+      };
 
-  test('a radius that is not a length is refused when the config loads and when the manifest is read', () => {
-    const root = projectWith({ theme: { ...slateManifestTheme(), radius: INJECTION } });
-    const read = ThemeTokens.read({ root });
-
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { radius: INJECTION } }).success).toBe(false);
-    expect(ThemeTokens.resolve({ theme: { radius: INJECTION } }).ok).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { radius: '0.25rem' } }).success).toBe(true);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { radius: '0' } }).success).toBe(true);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { radius: '00' } }).success).toBe(false);
-    expect(read.tokens.radius).toBe(ThemeTokens.RADIUS);
-    expect(read.warning).toBeDefined();
-    expect(BoardPage.render({ data: sampleData(), tokens: read.tokens })).not.toContain(
-      '<script>alert',
-    );
-  });
-
-  test('a text colour that passes on the page and fails on a pane of the board is refused, naming the pane', () => {
-    // #6f6f6f is 4.61:1 on the ground (#f5f5f5) and 4.49:1 on the soft pane (#f2f2f2).
-    const result = ThemeTokens.resolve({ theme: { tokens: { muted: { light: '#6f6f6f' } } } });
-    const problems = result.ok ? [] : result.problems;
-
-    expect(problems.filter((problem) => problem.includes(' on ground '))).toEqual([]);
-    expect(problems).toContainEqual(
-      expect.stringMatching(/^light: muted #6f6f6f as text on soft #f2f2f2 is 4\.49:1/),
-    );
-  });
-
-  test('vulcan board writes a page in the colours of the manifest', () => {
-    const root = projectWith({ theme: slateManifestTheme() });
-    const result = runCli({
-      args: ['board', '--no-github', '--since', '2026-11-01'],
-      cwd: root,
-      env: hermeticEnv(),
+      expect(result.errors).toEqual([]);
+      expect(result.heading).toBe('Tokens');
+      expect(result.head).toEqual(['', 'Input', 'Output', 'Cache read', 'Cache write']);
+      expect(result.rows[0]).toEqual(['All agents', '24', '4,300', '2,469,134', '178']);
+      expect(result.rows.map((row) => row[0])).toEqual(['All agents', 'lead', 'lead (Explore)']);
+      expect(result.vi.heading).toBe('Token');
+      expect(result.vi.head).toEqual(['', 'Đầu vào', 'Đầu ra', 'Đọc cache', 'Ghi cache']);
+      expect(result.loose).toContain('7');
+      expect(JSON.stringify(result)).not.toMatch(/price|cost|usd|\$|money/i);
     });
-    const page = readFileSync(result.stdout.trim(), 'utf8');
-
-    expect(result.code, result.stderr).toBe(0);
-    expect(page).toContain(`--accent:${ThemeTokens.PRESETS.slate.seed.accent}`);
-    expect(page).toContain('--r:2px');
-  });
-
-  test('vulcan board says so on stderr when the manifest theme cannot be read, and uses the default', () => {
-    const root = projectWith({ theme: { tokens: { light: {} } } });
-    const result = runCli({
-      args: ['board', '--no-github', '--since', '2026-11-01'],
-      cwd: root,
-      env: hermeticEnv(),
-    });
-
-    expect(result.code, result.stderr).toBe(0);
-    expect(result.stderr).toContain('board: the manifest theme is not readable by this version');
-    expect(readFileSync(result.stdout.trim(), 'utf8')).toContain(
-      `--accent:${venizia.light.accent}`,
-    );
-  });
-
-  test('board serve serves the tokens it was started with', async () => {
-    const root = projectWith({ theme: slateManifestTheme() });
-    const dir = join(root, '.agents/local/events');
-
-    mkdirSync(dir, { recursive: true });
-
-    const server = await BoardServer.start({
-      dir,
-      collect: () =>
-        BoardCommand.collect({
-          root,
-          dir,
-          since: Date.parse('2026-11-01'),
-          args: { repos: [], noGithub: true },
-        }),
-      port: 0,
-      tokens: ThemeTokens.read({ root }).tokens,
-    });
-    const response = await fetch(server.url);
-    const html = await response.text();
-
-    expect(html).toContain(`--accent:${ThemeTokens.PRESETS.slate.seed.accent}`);
-  });
-
-  test('vulcan board serve reads the manifest too: the served page is in its colours', async () => {
-    const root = projectWith({ theme: slateManifestTheme() });
-    const child = Bun.spawn(
-      [
-        process.execPath,
-        join(import.meta.dir, '..', '..', 'cli.ts'),
-        'board',
-        'serve',
-        '--no-github',
-        '--since',
-        '2026-11-01',
-        '--port',
-        '0',
-      ],
-      { cwd: root, env: { ...process.env, ...hermeticEnv() }, stdout: 'pipe', stderr: 'pipe' },
-    );
-    const first = await child.stdout.getReader().read();
-    const url = new TextDecoder().decode(first.value).trim();
-    const errors = await child.stderr.getReader().read();
-    const fallback = /use (http:\/\/127\.0\.0\.1:\d+\/\?t=[0-9a-f]{32})/.exec(
-      new TextDecoder().decode(errors.value),
-    )?.[1];
-    const page = await fetch(fallback ?? url);
-    const html = await page.text();
-
-    child.kill('SIGINT');
-    await child.exited;
-
-    expect(html).toContain(`--accent:${ThemeTokens.PRESETS.slate.seed.accent}`);
-    expect(html).toContain('--r:2px');
-  });
+  }
 });

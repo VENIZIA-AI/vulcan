@@ -65,7 +65,7 @@ const PIECES = [
 ];
 
 describe('EventKinds', () => {
-  test('the twelve kinds a board reads, and isValid', () => {
+  test('the thirteen kinds a board reads, and isValid', () => {
     expect(EventKinds.values()).toEqual([
       'session-start',
       'session-stop',
@@ -79,6 +79,7 @@ describe('EventKinds', () => {
       'flow',
       'deploy',
       'tool-tick',
+      'usage',
     ]);
     expect(EventKinds.isValid('commit')).toBe(true);
     expect(EventKinds.isValid('rollout')).toBe(false);

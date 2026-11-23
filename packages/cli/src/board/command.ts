@@ -16,7 +16,7 @@ import {
   BoardStates,
   ProviderTypes,
 } from './common/index.ts';
-import type { IBoardData, IBoardEvent, IBoardProvider } from './common/index.ts';
+import type { IBoardData, IBoardEvent, IBoardProvider, IBoardTokens } from './common/index.ts';
 import { BoardFold } from './fold.ts';
 import { BoardGithub } from './github.ts';
 import { BoardGitlab } from './gitlab.ts';
@@ -157,6 +157,13 @@ export class BoardCommand {
       owner: settings.owner,
     });
 
+    // The tokens are keyed by the flow id as the log carries it; the page shows the same id as the flow does.
+    const tokens = new Map<string, IBoardTokens>();
+
+    for (const [id, found] of Object.entries(fromLog.tokens)) {
+      tokens.set(FlowId.canon({ id, key }), found);
+    }
+
     return {
       title: settings.title,
       owner: settings.owner,
@@ -168,11 +175,17 @@ export class BoardCommand {
       ...(Object.keys(settings.roles).length === 0 ? {} : { roles: settings.roles }),
       generatedAt: new Date().toISOString(),
       since: new Date(opts.since).toISOString(),
-      flows: flows.sort(
-        (left, right) =>
-          BoardStates.ORDER.indexOf(left.state) - BoardStates.ORDER.indexOf(right.state) ||
-          left.id.localeCompare(right.id),
-      ),
+      flows: flows
+        .map((flow) => {
+          const found = tokens.get(flow.id);
+
+          return found === undefined ? flow : { ...flow, tokens: found };
+        })
+        .sort(
+          (left, right) =>
+            BoardStates.ORDER.indexOf(left.state) - BoardStates.ORDER.indexOf(right.state) ||
+            left.id.localeCompare(right.id),
+        ),
       decisions,
       agents: fromLog.agents,
       sources: [

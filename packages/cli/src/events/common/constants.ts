@@ -20,6 +20,8 @@ export class EventKinds extends ConstClass {
   static readonly DEPLOY = 'deploy';
   /** No longer written (a tool that is used is not an event); read so a log written before still folds until its retention removes it. */
   static readonly TOOL_TICK = 'tool-tick';
+  /** The tokens a Claude Code session or subagent used since the last such line, as numbers and a model: never a price. */
+  static readonly USAGE = 'usage';
 }
 
 /** What a `decision` line says: the owner approved, parked or rejected the flow. */
@@ -149,6 +151,14 @@ export class EventConstants {
   static readonly COMMIT_LABEL = 'commit';
   static readonly PR_OPEN_LABEL = 'pull request opened';
   static readonly PR_MERGE_LABEL = 'pull request merge';
+  /** The fixed summary of a `usage` line. */
+  static readonly USAGE_LABEL = 'tokens';
+  /** What the usage meter reads of a transcript it meets for the first time: a longer one is marked at its end and counts nothing. */
+  static readonly USAGE_FIRST_READ_MAX = 16 * 1024 * 1024;
+  /** The model named on a `usage` line that only moves the mark (a transcript too long to read the first time). */
+  static readonly USAGE_NO_MODEL = 'none';
+  /** How far back the meter looks for the mark of a transcript. */
+  static readonly USAGE_MARK_DAYS = 2;
   static readonly REF_MAX = 120;
   /** A flow line's lists: how many items, and how long one is. */
   static readonly ITEM_COUNT_MAX = 30;

@@ -64,6 +64,25 @@ export interface IBoardEvent {
 /** One step or acceptance check of a flow, and whether it is done: the same thing the event log carries. */
 export type IBoardItem = IEventItem;
 
+/** The tokens of one agent or one model: four counts, and nothing else. */
+export interface IBoardTokenRow {
+  name: string;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+
+/** The tokens of a flow, from the `usage` lines of the log: the totals, and the split by agent and by model. */
+export interface IBoardTokens {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  agents: IBoardTokenRow[];
+  models: IBoardTokenRow[];
+}
+
 export interface IBoardFlow {
   id: string;
   title: string;
@@ -93,6 +112,8 @@ export interface IBoardFlow {
   askId?: string;
   ciRuns: number;
   reviewRounds: number;
+  /** The tokens the flow's sessions and subagents used; absent when none were recorded. */
+  tokens?: IBoardTokens;
   events: IBoardEvent[];
 }
 
