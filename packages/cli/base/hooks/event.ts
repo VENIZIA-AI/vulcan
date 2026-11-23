@@ -20,11 +20,21 @@ if (process.env.VULCAN_GUARDS === 'off') {
 try {
   const { EventHook } = await import('../../src/events/hook.ts');
   const stdin = await Bun.stdin.text();
+  const input = JSON.parse(stdin);
+  // The board's fold is loaded only for a task list, the one call that must know whether a flow is over.
+  let isOver;
+
+  if (input?.tool_name === 'TodoWrite') {
+    const state = await import('../../src/events/flow-state.ts');
+
+    isOver = state.FlowState.isOver;
+  }
 
   EventHook.run({
     root: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-    input: JSON.parse(stdin),
+    input,
     env: process.env,
+    ...(isOver === undefined ? {} : { isOver }),
   });
 } catch (error) {
   // Input that is not JSON is not echoed: Bun's parse error quotes it.

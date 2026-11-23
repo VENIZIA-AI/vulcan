@@ -8,6 +8,8 @@ import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 import { EventText } from './text.ts';
 
+type TIsOver = (opts: { events: IEvent[]; flowId: string; key?: string }) => boolean;
+
 const text = (opts: { value: unknown }): string =>
   typeof opts.value === 'string' ? opts.value : '';
 
@@ -119,10 +121,14 @@ export class EventHook {
   }
 
   /**
-   * The task list of a `TodoWrite` call as the steps of the flow: a completed task is a done step, any other an open one,
-   * and the list replaces the steps. The flow is the branch's at the payload's `cwd`, else the one this session last opened
-   * or updated; with none, or with no flow line yet, nothing is written. A list that is empty, or the same as the last
-   * line's steps, writes nothing, so a burst of calls is one line. The rest of the last flow line is copied forward.
+   * The task list of a `TodoWrite` call merged into the steps of the flow, never replacing them: a task that is not yet
+   * a step is added, a completed one marks its step done, and nothing is removed or reopened, so what an agent wrote
+   * with `vulcan event step` stays. The flow is the branch's at the payload's `cwd`, else the one this session last
+   * opened or updated, both only within `MIRROR_DAYS` of the log; a flow that is over, a flow with no flow line yet, an
+   * actor that is not known and a call of a subagent (its payload carries `agent_id`, and it would write its own list
+   * over its parent's flow) write nothing. The rest of the last flow line is copied forward. A call that changes no
+   * step writes nothing, so a burst of calls is one line. Two writers of one flow at the same moment can lose one
+   * change: the log has no lock, and the next call restates the whole merge.
    */
   private static mirrorTodos(opts: {
     dir: string;
@@ -130,10 +136,11 @@ export class EventHook {
     input: Record<string, unknown>;
     env: Record<string, string | undefined>;
     now?: number;
+    isOver?: TIsOver;
   }): IEvent | undefined {
     const call = opts.input.tool_input;
     const todos = RecordValue.isRecord(call) && Array.isArray(call.todos) ? call.todos : [];
-    const steps = EventText.items({
+    const tasks = EventText.items({
       items: todos.flatMap((todo: unknown) =>
         RecordValue.isRecord(todo)
           ? [{ text: text({ value: todo.content }), done: todo.status === 'completed' }]
@@ -142,25 +149,43 @@ export class EventHook {
       max: EventConstants.ITEM_TEXT_MAX,
       count: EventConstants.ITEM_COUNT_MAX,
     });
-
-    if (steps.length === 0) {
-      return undefined;
-    }
-
     const actor = EventActor.resolve({
       sessionId: text({ value: opts.input.session_id }),
       env: opts.env,
     });
+
+    // No checker, no write: a flow that may be over is never written to.
+    if (
+      opts.isOver === undefined ||
+      tasks.length === 0 ||
+      text({ value: opts.input.agent_id }) !== '' ||
+      actor === EventConstants.UNKNOWN_ACTOR
+    ) {
+      return undefined;
+    }
+
+    const key = EventSettings.keyOf({ root: opts.root });
     const known = EventLog.read({
       dir: opts.dir,
       since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
     }).events;
     const flowId =
       EventFlow.fromBranch({ cwd: text({ value: opts.input.cwd }) || opts.root }) ??
-      FlowSteps.lastOpenedBy({ events: known, actor });
-    const last = flowId === undefined ? undefined : FlowSteps.lastLine({ events: known, flowId });
+      FlowSteps.lastOpenedBy({
+        events: known,
+        actor,
+        isOver: (id) => opts.isOver?.({ events: known, flowId: id, key }) ?? true,
+      });
+    const last =
+      flowId === undefined ? undefined : FlowSteps.lastLine({ events: known, flowId, key });
 
-    if (last === undefined || FlowSteps.isSame({ first: steps, second: last.steps ?? [] })) {
+    if (last === undefined || opts.isOver({ events: known, flowId: flowId ?? '', key })) {
+      return undefined;
+    }
+
+    const steps = FlowSteps.merged({ steps: last.steps ?? [], tasks });
+
+    if (FlowSteps.isSame({ first: steps, second: last.steps ?? [] })) {
       return undefined;
     }
 
@@ -187,6 +212,8 @@ export class EventHook {
     input: unknown;
     env: Record<string, string | undefined>;
     now?: number;
+    /** `FlowState.isOver`, given by the script only for a `TodoWrite` call: it reaches the board, which the other calls do not load. */
+    isOver?: TIsOver;
   }): IEvent | undefined {
     const settings = EventSettings.read({ root: opts.root });
 
@@ -201,6 +228,7 @@ export class EventHook {
         input: opts.input,
         env: opts.env,
         ...(opts.now === undefined ? {} : { now: opts.now }),
+        ...(opts.isOver === undefined ? {} : { isOver: opts.isOver }),
       });
     }
 

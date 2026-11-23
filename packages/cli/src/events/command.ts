@@ -11,11 +11,10 @@ import {
   EventSubcommands,
 } from './common/index.ts';
 import type { IEvent, IEventItem, TEventKind, TEventStatus } from './common/index.ts';
-import { BoardFold } from '../board/fold.ts';
-import { BoardStates } from '../board/common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
+import { FlowState } from './flow-state.ts';
 import { FlowSteps } from './flow-steps.ts';
 import { ProjectKey } from './project-key.ts';
 import { EventLog } from './log.ts';
@@ -59,14 +58,12 @@ export class EventCommand {
         subcommand !== EventSubcommands.STEP &&
         subcommand !== EventSubcommands.TAIL)
     ) {
-      process.stderr.write(`event: ${USAGE}\n`);
-
-      return ExitCodes.USAGE;
+      return EventCommand.usage();
     }
 
     if (subcommand === EventSubcommands.STEP) {
-      return parsed.lists.length > 0
-        ? EventCommand.stepUsage()
+      return parsed.lists.length > 0 || parsed.json
+        ? EventCommand.usage()
         : EventCommand.step({ cwd: opts.cwd, values: parsed.values });
     }
 
@@ -75,7 +72,14 @@ export class EventCommand {
       : EventCommand.tail({ cwd: opts.cwd, values: parsed.values, json: parsed.json });
   }
 
-  private static stepUsage(): number {
+  /** The first of `--context` and `--next` that is given and blank. */
+  private static blankFlag(opts: { values: TFlagValues }): string | undefined {
+    return [EventFlags.CONTEXT, EventFlags.NEXT].find(
+      (flag) => opts.values[flag] !== undefined && opts.values[flag].trim() === '',
+    );
+  }
+
+  private static usage(): number {
     process.stderr.write(`event: ${USAGE}\n`);
 
     return ExitCodes.USAGE;
@@ -130,10 +134,10 @@ export class EventCommand {
       return fail(`the step needs a text of 1 to ${EventConstants.ITEM_TEXT_MAX} characters`);
     }
 
-    for (const flag of [EventFlags.CONTEXT, EventFlags.NEXT]) {
-      if (values[flag] !== undefined && values[flag].trim() === '') {
-        return fail(`${flag} needs a short text, or leave it out`);
-      }
+    const blank = EventCommand.blankFlag({ values });
+
+    if (blank !== undefined) {
+      return fail(`${blank} needs a short text, or leave it out`);
     }
 
     const flow = values[EventFlags.FLOW];
@@ -200,6 +204,17 @@ export class EventCommand {
       ...(values[EventFlags.NEXT] === undefined ? {} : { next: values[EventFlags.NEXT] }),
       ...(values[EventFlags.CONTEXT] === undefined ? {} : { context: values[EventFlags.CONTEXT] }),
     });
+
+    // A change that changes nothing writes nothing: the id printed is the line that already says it.
+    if (
+      FlowSteps.isSame({ first: event.steps ?? [], second: last.steps ?? [] }) &&
+      event.next === last.next &&
+      event.context === last.context
+    ) {
+      process.stdout.write(`${last.id}\n`);
+
+      return ExitCodes.OK;
+    }
 
     try {
       EventLog.append({ dir, event });
@@ -314,12 +329,12 @@ export class EventCommand {
       return ExitCodes.USAGE;
     }
 
-    for (const flag of [EventFlags.CONTEXT, EventFlags.NEXT]) {
-      if (values[flag] !== undefined && values[flag].trim() === '') {
-        process.stderr.write(`event: ${flag} needs a short text, or leave it out\n`);
+    const blank = EventCommand.blankFlag({ values });
 
-        return ExitCodes.USAGE;
-      }
+    if (blank !== undefined) {
+      process.stderr.write(`event: ${blank} needs a short text, or leave it out\n`);
+
+      return ExitCodes.USAGE;
     }
 
     if (flow !== undefined && !EventFlow.isValid({ flow })) {
@@ -472,23 +487,6 @@ export class EventCommand {
   }
 
   /**
-   * Whether the board would show the flow as Done or Parked: the board's own fold decides, so the command and the page
-   * cannot disagree. A merge only the GitHub reader sees is not in the log, so it is not seen here.
-   */
-  private static isOver(opts: { events: IEvent[]; id: string; key: string | undefined }): boolean {
-    const wanted = FlowId.canon({ id: opts.id, key: opts.key });
-    const lines = BoardFold.fromLog({ events: opts.events }).events.map((event) => ({
-      ...event,
-      flowId: FlowId.canon({ id: event.flowId, key: opts.key }),
-    }));
-    const state = BoardFold.fold({ events: lines, owner: '' }).flows.find(
-      (flow) => flow.id === wanted,
-    )?.state;
-
-    return state === BoardStates.DONE || state === BoardStates.PARKED;
-  }
-
-  /**
    * The flow a line belongs to. A flow named with `--flow` must exist (an id is never made up by hand). A flow line that
    * names none either updates the flow of its branch, when the branch names one that exists and is not over, or starts a
    * new flow with the next number. The exit code comes back when the line cannot be written.
@@ -507,7 +505,7 @@ export class EventCommand {
     if (
       flow !== undefined &&
       FlowId.exists({ events: known, id: flow, key }) &&
-      (opts.explicit || !opts.isFlow || !EventCommand.isOver({ events: known, id: flow, key }))
+      (opts.explicit || !opts.isFlow || !FlowState.isOver({ events: known, flowId: flow, key }))
     ) {
       return { ok: true, flowId: flow };
     }

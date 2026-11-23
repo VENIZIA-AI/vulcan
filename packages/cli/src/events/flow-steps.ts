@@ -21,12 +21,37 @@ export class FlowSteps {
     );
   }
 
-  /** The flow of the newest `flow` line this actor wrote: the flow the session last opened or updated. */
-  static lastOpenedBy(opts: { events: IEvent[]; actor: string }): string | undefined {
-    return opts.events.findLast(
-      (event) =>
-        event.kind === EventKinds.FLOW && event.actor === opts.actor && event.flowId !== undefined,
-    )?.flowId;
+  /** The newest flow this actor wrote a `flow` line for that is not over: the flow the session last opened or updated. */
+  static lastOpenedBy(opts: {
+    events: IEvent[];
+    actor: string;
+    isOver: (flowId: string) => boolean;
+  }): string | undefined {
+    const seen = new Set<string>();
+
+    for (const event of [...opts.events].reverse()) {
+      if (
+        event.kind !== EventKinds.FLOW ||
+        event.actor !== opts.actor ||
+        event.flowId === undefined ||
+        seen.has(event.flowId)
+      ) {
+        continue;
+      }
+
+      seen.add(event.flowId);
+
+      if (!opts.isOver(event.flowId)) {
+        return event.flowId;
+      }
+
+      // A session names a handful of flows a day; the search stops before it becomes a scan of the log.
+      if (seen.size >= EventConstants.LAST_OPENED_CHECKS) {
+        return undefined;
+      }
+    }
+
+    return undefined;
   }
 
   /** The steps with `text` set done or open; a step that is not there is added at the end. The text is matched as the log keeps it. */
@@ -37,6 +62,27 @@ export class FlowSteps {
     return has
       ? opts.steps.map((step) => (step.text === text ? { ...step, done: opts.done } : step))
       : [...opts.steps, { text, done: opts.done }];
+  }
+
+  /**
+   * A task list merged into the steps, never replacing them: a task that is not a step is added (done when it is
+   * completed), a completed task marks its step done (matched by the cleaned text). Nothing is removed and nothing
+   * is reopened, so what `vulcan event step` or the agent wrote stays. At most `ITEM_COUNT_MAX` steps are kept.
+   */
+  static merged(opts: { steps: IEventItem[]; tasks: IEventItem[] }): IEventItem[] {
+    const steps = opts.steps.map((step) => ({ ...step }));
+
+    for (const task of opts.tasks) {
+      const found = steps.find((step) => step.text === task.text);
+
+      if (found === undefined) {
+        steps.push({ ...task });
+      } else if (task.done) {
+        found.done = true;
+      }
+    }
+
+    return steps.slice(0, EventConstants.ITEM_COUNT_MAX);
   }
 
   /** Whether two lists hold the same steps in the same order, each done or not. */

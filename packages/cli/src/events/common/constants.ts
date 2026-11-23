@@ -141,6 +141,8 @@ export class EventConstants {
   static readonly ITEM_COUNT_MAX = 30;
   /** How far back the task-list mirror looks for the flow's last line: it reads the log on every `TodoWrite`. */
   static readonly MIRROR_DAYS = 3;
+  /** How many of a session's flows are checked for being over before the search gives up. */
+  static readonly LAST_OPENED_CHECKS = 5;
   static readonly ITEM_TEXT_MAX = 200;
   static readonly APP_COUNT_MAX = 12;
   static readonly APP_TEXT_MAX = 40;
