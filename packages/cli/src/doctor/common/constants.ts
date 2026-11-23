@@ -46,6 +46,10 @@ export class DoctorChecks {
   static readonly EVENTS_SIZE = 'events-size';
   /** The event log is on but project.key is unset, so no flow can be created; a warning. */
   static readonly PROJECT_KEY = 'project-key';
+  /** Lines of the config that repeat what the shipped defaults give; a note. */
+  static readonly CONFIG_DEFAULTS = 'config-defaults';
+  /** A `remove` entry that matches nothing: a stale opt-out; a warning. */
+  static readonly CONFIG_REMOVE = 'config-remove';
   /** A workspace member of the root `package.json` that the config's `packages` list does not name; a warning. */
   static readonly WORKSPACE_PACKAGES = 'workspace-packages';
   /** Tracked files holding keys, tokens, URL credentials, IPv4 or machine paths: a warning; the count of acknowledged files: a note. */

@@ -106,6 +106,58 @@ describe('what the base and the venizia pack ship', () => {
   });
 });
 
+describe('the pack gives the stack its guard and commit defaults', () => {
+  test('a project with the venizia pack denies writes outside the project and agent signatures; one without keeps ask and allow', async () => {
+    const stack = await effective("export default { name: 'acme', packs: ['venizia'] };\n");
+    const plain = await effective("export default { name: 'acme' };\n");
+
+    expect(stack.guard.outside).toBe('deny');
+    expect(stack.commit.message.agent.signature).toBe('deny');
+    expect(plain.guard.outside).toBe('ask');
+    expect(plain.commit.message.agent.signature).toBe('allow');
+  });
+
+  test('the project file overrides the pack, and sync writes the guard to the manifest', async () => {
+    const own = await effective(
+      "export default { name: 'acme', packs: ['venizia'], guard: { outside: 'ask' }, commit: { message: { agent: { signature: 'allow' } } } };\n",
+    );
+
+    expect(own.guard.outside).toBe('ask');
+    expect(own.commit.message.agent.signature).toBe('allow');
+
+    const root = project("export default { name: 'acme', packs: ['venizia'] };\n");
+
+    expect(runCli({ args: ['sync', '--agents', 'claude'], cwd: root }).code).toBe(0);
+    expect(
+      JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8')).guard.outside,
+    ).toBe('deny');
+  });
+
+  test('doctor says how many lines repeat the defaults, and warns about a remove that matches nothing', async () => {
+    const repeats = project(
+      "export default { name: 'acme', packs: ['venizia'], guard: { outside: 'deny' } };\n",
+    );
+    const clean = project("export default { name: 'acme', packs: ['venizia'] };\n");
+    const stale = project(
+      "export default { name: 'acme', remove: { 'atlas.sources': ['ghost'] } };\n",
+    );
+    const result = await DoctorRunner.runNotes({ root: repeats });
+    const repeatsNotes = JSON.stringify(result);
+    const result2 = await DoctorRunner.runNotes({ root: clean });
+    const cleanNotes = JSON.stringify(result2);
+    const result3 = await DoctorRunner.runWarnings({ root: stale });
+    const staleWarnings = JSON.stringify(result3);
+    const result4 = await DoctorRunner.runWarnings({ root: clean });
+    const cleanWarnings = JSON.stringify(result4);
+
+    expect(repeatsNotes).toContain('1 value(s) of this config repeat what VULCAN ships');
+    expect(repeatsNotes).toContain('config --diff');
+    expect(cleanNotes).not.toContain('repeat what VULCAN ships');
+    expect(staleWarnings).toContain('remove: atlas.sources: ghost matches nothing');
+    expect(cleanWarnings).not.toContain('matches nothing');
+  });
+});
+
 describe('the effective config of a project that writes none of it', () => {
   test('gets the base list, and the pack list only with the pack', async () => {
     const plain = await effective("export default { name: 'acme' };\n");

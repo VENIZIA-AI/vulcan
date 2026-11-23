@@ -133,3 +133,16 @@ config-defaults-from-base-and-pack:
   downgrade:
     steps:
       - 'Pin the earlier package and put back the allow, deny, presets and atlas sources lines you deleted.'
+pack-guard-and-commit-defaults:
+  symbols:
+    - guard.outside
+    - commit.message
+  upgrade:
+    steps:
+      - "Run `bun node_modules/.bin/vulcan config --effective`: with `packs: ['venizia']`, `config.guard.outside` is `deny` and `config.commit.message.agent.signature` is `deny` unless you wrote otherwise."
+      - "To keep the earlier behaviour, write `guard: { outside: 'ask' }` and `commit: { message: { agent: { signature: 'allow' } } }` in the config; the project value wins over the pack."
+      - 'If you wrote the same values as the pack, delete them: `bun node_modules/.bin/vulcan config --diff` lists them.'
+      - 'Run `bun node_modules/.bin/vulcan sync` and commit `.agents/vulcan.manifest.json`.'
+  downgrade:
+    steps:
+      - 'Pin the earlier package and write `guard.outside` and the signature value you want in the config.'

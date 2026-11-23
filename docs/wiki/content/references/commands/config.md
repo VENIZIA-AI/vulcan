@@ -39,7 +39,7 @@ Only a plain object (a literal or JSON) is merged into; a key named `__proto__` 
 | Layer | Holds |
 |---|---|
 | `base/defaults.config.json` | the allow list for Claude Code of commands that only read (42 lines: 28 commands and 14 git read subcommands) with 14 companion denies for flags of those commands that write a file or run a program the repository names (`date -s`, `rg --pre`, `git ... --output`, `git cat-file --filters`...); the 11 rule ids the session digest repeats (`digest.oftenDropped`); one standing acknowledgement, `**/Dockerfile*` for kind `machine-path` (container paths such as `/home/app`) |
-| `base/packs/venizia.config.json` | the presets `ignis` and `ardor`, the atlas sources `ignis`, `ardor` and `vulcan`, and five allow lines that run the stack's project scripts: `bun run typecheck`, `bun run test`, `bun run lint`, `bun test`, `bun check` |
+| `base/packs/venizia.config.json` | the presets `ignis` and `ardor`, the atlas sources `ignis`, `ardor` and `vulcan`, and five allow lines that run the stack's project scripts: `bun run typecheck`, `bun run test`, `bun run lint`, `bun test`, `bun check`; `guard.outside: 'deny'` (a write outside the project is refused, not asked about) and `commit.message.agent.signature: 'deny'` (no agent signature in a commit message). The project file overrides both |
 
 The base denies no git write: a project that wants that picks the `read-only` choice of rule `V-W-01`, or lists its own denies. What these lists do not cover, stated so no one relies on them:
 
