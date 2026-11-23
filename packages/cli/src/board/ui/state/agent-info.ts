@@ -113,6 +113,21 @@ export class BoardAgentInfo {
     };
   }
 
+  /** Whether the receiver logged the message as got: the line is its own, or it has a received line with the same words. */
+  static isDelivered(opts: { message: IBoardViewEvent; events: IBoardViewEvent[] }): boolean {
+    const { message } = opts;
+
+    return (
+      message.incoming === true ||
+      opts.events.some(
+        (event) =>
+          event.incoming === true &&
+          event.actor === message.to &&
+          event.summary === message.summary,
+      )
+    );
+  }
+
   /** The messages to `name` newer than the last one it sent, each message once (sender, receiver, words and minute). */
   private static pendingOf(opts: {
     data: IBoardData;

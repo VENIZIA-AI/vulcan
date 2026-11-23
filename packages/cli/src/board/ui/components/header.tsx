@@ -38,6 +38,12 @@ export const Header = (props: IHeaderProps) => {
       </span>
       <span className="brule" aria-hidden="true" />
       <h1 id="boardTitle">{props.title}</h1>
+      {props.live === undefined ? null : (
+        <span className={`fresh live-${props.live}`} id="fresh">
+          <span className="fresh-dot" aria-hidden="true" />
+          {t(`live.${props.live}`)}
+        </span>
+      )}
       <span className="spacer" />
       <span className="since" id="since" title={props.sources.join('\n')}>
         <span id="sinceTxt">
@@ -45,55 +51,52 @@ export const Header = (props: IHeaderProps) => {
           <b>{BoardTime.clock({ iso: props.lastSeen })}</b>: <b>{props.newCount}</b>
           {t(' sự kiện mới')}
         </span>
+        <button className="btn btn-text" type="button" id="bSeen" onClick={props.onSeen}>
+          {t('Đánh dấu đã xem')}
+        </button>
       </span>
-      <button className="btn" type="button" id="bSeen" onClick={props.onSeen}>
-        <span>{t('Đánh dấu đã xem')}</span>
-      </button>
-      <span className="fresh" id="fresh">
-        {props.live === undefined ? null : (
-          <span className={props.live === 'on' ? undefined : 'st'}>{t(`live.${props.live}`)}</span>
-        )}
+      <span className="tools">
+        <button
+          className="btn"
+          type="button"
+          id="bPlumb"
+          aria-pressed={props.showPlumbing}
+          title={t('pl.tip')}
+          onClick={props.onPlumbing}
+        >
+          {t('pl.all')}
+        </button>
+        <button
+          className="btn sq lang"
+          type="button"
+          id="bLang"
+          aria-label={langLabel}
+          title={langLabel}
+          onClick={props.onLanguage}
+        >
+          {props.language === 'en' ? 'VI' : 'EN'}
+        </button>
+        <button
+          className="btn sq theme"
+          type="button"
+          id="bTheme"
+          aria-label={`${themeLabel}${t('. Bấm để đổi')}`}
+          title={themeLabel}
+          onClick={props.onTheme}
+        >
+          {THEME_ICONS[props.theme]}
+        </button>
+        <button
+          className="btn sq"
+          type="button"
+          id="bKeys"
+          aria-label={t('Phím tắt')}
+          aria-expanded={props.keysOpen}
+          onClick={props.onKeys}
+        >
+          ?
+        </button>
       </span>
-      <button
-        className="btn"
-        type="button"
-        id="bPlumb"
-        aria-pressed={props.showPlumbing}
-        title={t('pl.tip')}
-        onClick={props.onPlumbing}
-      >
-        <span>{t('pl.all')}</span>
-      </button>
-      <button
-        className="btn lang"
-        type="button"
-        id="bLang"
-        aria-label={langLabel}
-        title={langLabel}
-        onClick={props.onLanguage}
-      >
-        {props.language === 'en' ? 'VI' : 'EN'}
-      </button>
-      <button
-        className="btn sq theme"
-        type="button"
-        id="bTheme"
-        aria-label={`${themeLabel}${t('. Bấm để đổi')}`}
-        title={themeLabel}
-        onClick={props.onTheme}
-      >
-        {THEME_ICONS[props.theme]}
-      </button>
-      <button
-        className="btn sq"
-        type="button"
-        id="bKeys"
-        aria-label={t('Phím tắt')}
-        aria-expanded={props.keysOpen}
-        onClick={props.onKeys}
-      >
-        ?
-      </button>
     </header>
   );
 };

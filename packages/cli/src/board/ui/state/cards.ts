@@ -1,5 +1,5 @@
 import { BoardConstants } from '../../common/index.ts';
-import type { IBoardAgent, IBoardData } from '../../common/index.ts';
+import type { IBoardActivity, IBoardAgent, IBoardData } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
 import type { IAgentRow, IBoardViewEvent, IFlowView } from '../common/types.ts';
 import { BoardAgentInfo } from './agent-info.ts';
@@ -27,13 +27,13 @@ export interface IItemCard {
 /** What an agent card says beyond its row. */
 export interface IAgentCard {
   workingOn?: IFlowView;
-  action?: IBoardViewEvent;
+  /** The newest line of the agent of any type. */
+  activity?: IBoardActivity;
+  /** The newest message it sent or got, when that is not already the activity. */
   message?: IBoardViewEvent;
   prs: number;
   pending: number;
   today: number;
-  /** When it was last heard from. */
-  last?: string;
   since?: string;
   role?: string;
   /** The agent it works under, from `board.agents`. */
@@ -113,23 +113,24 @@ export class BoardCards {
         undefined,
       );
 
+    const message = newest(
+      events.filter((event) => {
+        const { sender, receiver } = BoardAgentInfo.endsOf({ data, message: event });
+
+        return event.kind === 'msg' && (sender === row.n || receiver === row.n);
+      }),
+    );
+
     return {
       workingOn:
         row.st === 'idle' || row.flow === BoardConstants.UNSORTED
           ? undefined
           : views.find((view) => view.flow.id === row.flow),
-      action: newest(mine.filter((event) => event.kind !== 'msg' && event.kind !== 'flow')),
-      message: newest(
-        events.filter((event) => {
-          const { sender, receiver } = BoardAgentInfo.endsOf({ data, message: event });
-
-          return event.kind === 'msg' && (sender === row.n || receiver === row.n);
-        }),
-      ),
+      activity: doc?.latest,
+      message: message?.ts === doc?.latest?.ts ? undefined : message,
       prs: info.open.length,
       pending: info.pending.length,
       today: mine.filter((event) => BoardTime.isSameDay({ iso: event.ts, now })).length,
-      last: doc?.checkedAt,
       // An idle agent that its record still calls working has been idle since it was last heard from.
       since: row.st === 'idle' && doc?.state === 'working' ? (row.lastAt ?? doc.since) : doc?.since,
       role: data.roles?.[row.n],

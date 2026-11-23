@@ -218,7 +218,7 @@ describe.skipIf(!hasBrowser)("today's detail shows the lists", () => {
         document.querySelector('.row[data-id="${target.id}"]').click();
         await wait();
         const lists = [...document.querySelectorAll('#dBody .d-sec')].filter((box) => box.querySelector('.ckl')).map((box) => ({
-          label: box.querySelector('h4').textContent,
+          label: box.querySelector('h3').textContent,
           items: [...box.querySelectorAll('.ckl li')].map((li) => [li.textContent, li.classList.contains('on')]),
         }));
         return JSON.stringify({

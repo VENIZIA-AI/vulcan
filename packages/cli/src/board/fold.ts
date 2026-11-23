@@ -15,6 +15,7 @@ import {
   BoardStatuses,
 } from './common/index.ts';
 import type {
+  IBoardActivity,
   IBoardAgent,
   IBoardDecision,
   IBoardEvent,
@@ -278,13 +279,30 @@ export class BoardFold {
     const known = agents[line.actor];
 
     // A session with no name of its own is no agent: its lines stay in their flows, and it has no card.
-    // A message the agent got is not a line of its own: it moves neither its state nor its time.
+    // The harness waiting for a prompt is not something the agent did.
+    if (!EventActorNames.isNamed({ actor: line.actor }) || BoardFold.isHarnessAsk({ line })) {
+      return;
+    }
+
+    // A message got, a usage line and a subagent stop show the session is busy; they do not say what it works on.
     if (
-      !EventActorNames.isNamed({ actor: line.actor }) ||
       line.kind === EventKinds.SUBAGENT_STOP ||
       line.kind === EventKinds.MSG_RECEIVED ||
-      BoardFold.isHarnessAsk({ line })
+      line.kind === EventKinds.USAGE
     ) {
+      const state = 'working';
+
+      agents[line.actor] = {
+        name: line.actor,
+        state,
+        current: known?.current ?? '',
+        since: BoardFold.sinceOf({ known, state, ts: line.ts }),
+        checkedAt: line.ts,
+        ...(known?.model === undefined ? {} : { model: known.model }),
+        ...(known?.harness === undefined ? {} : { harness: known.harness }),
+        latest: BoardFold.activityOf({ line }),
+      };
+
       return;
     }
 
@@ -309,6 +327,11 @@ export class BoardFold {
         checkedAt: line.ts,
         ...(model === undefined ? {} : { model }),
         ...(harness === undefined ? {} : { harness }),
+        ...(line.kind === EventKinds.SESSION_START
+          ? { latest: BoardFold.activityOf({ line }) }
+          : known?.latest === undefined
+            ? {}
+            : { latest: known.latest }),
       };
 
       return;
@@ -325,6 +348,25 @@ export class BoardFold {
       checkedAt: line.ts,
       ...(known?.model === undefined ? {} : { model: known.model }),
       ...(known?.harness === undefined ? {} : { harness: known.harness }),
+      latest: BoardFold.activityOf({ line }),
+    };
+  }
+
+  private static activityOf(opts: { line: IEvent }): IBoardActivity {
+    const { line } = opts;
+    const prefix = line.kind === EventKinds.MSG_RECEIVED ? FROM_PREFIX : TO_PREFIX;
+    const peer =
+      (line.kind === EventKinds.MSG_SENT || line.kind === EventKinds.MSG_RECEIVED) &&
+      line.ref?.startsWith(prefix)
+        ? line.ref.slice(prefix.length)
+        : undefined;
+
+    return {
+      type: line.kind,
+      ts: line.ts,
+      summary: line.summary,
+      ...(line.flowId === undefined ? {} : { flowId: line.flowId }),
+      ...(peer === undefined || peer === '' ? {} : { peer }),
     };
   }
 

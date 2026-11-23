@@ -34,3 +34,11 @@ export const Chevron = () => (
     <path d="M3 4.5l3 3 3-3" {...STROKE} />
   </svg>
 );
+
+/** The order of a sorted column; two faint arrows on a column that is not sorted. */
+export const SortArrow = (props: { order: 'ascending' | 'descending' | undefined }) => (
+  <svg className={`sort${props.order ? ' on' : ''}`} viewBox="0 0 10 12" aria-hidden="true">
+    {props.order === 'descending' ? null : <path d="M2.5 5 5 2.5 7.5 5" {...STROKE} />}
+    {props.order === 'ascending' ? null : <path d="M2.5 7 5 9.5 7.5 7" {...STROKE} />}
+  </svg>
+);

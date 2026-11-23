@@ -7,7 +7,8 @@ import { Detail } from './components/detail.tsx';
 import type { TDetail } from './components/detail.tsx';
 import { Header, THEMES } from './components/header.tsx';
 import type { TTheme } from './components/header.tsx';
-import { ItemPane } from './components/items.tsx';
+import { ItemPane, WORK_VIEWS } from './components/items.tsx';
+import type { TWorkView } from './components/items.tsx';
 import { Keys } from './components/keys.tsx';
 import { useLive, useNow, useStored } from './hooks.ts';
 import { UiContext } from './i18n/context.ts';
@@ -53,6 +54,11 @@ export const App = (props: { data: IBoardData }) => {
     key: `${prefix}agentDetails`,
     initial: '1',
     allowed: ['0', '1'],
+  });
+  const [workView, setWorkView] = useStored<TWorkView>({
+    key: `${prefix}view`,
+    initial: 'cards',
+    allowed: WORK_VIEWS,
   });
   const [keysOpen, setKeysOpen] = useState(false);
   const [detail, setDetail] = useState<TDetail | null>(null);
@@ -156,6 +162,8 @@ export const App = (props: { data: IBoardData }) => {
         }
       } else if (event.key === 'e' && selected) {
         setEverything(!everything);
+      } else if (event.key === 'c') {
+        setWorkView(workView === 'compact' ? 'cards' : 'compact');
       } else if (event.key === 'Escape') {
         if (keysOpen) {
           setKeysOpen(false);
@@ -206,6 +214,9 @@ export const App = (props: { data: IBoardData }) => {
           />
           <ItemPane
             views={flows}
+            agents={rows.map((row) => row.n)}
+            view={workView}
+            onView={setWorkView}
             agent={agent}
             onAgent={(name) => {
               setAgent(name);
