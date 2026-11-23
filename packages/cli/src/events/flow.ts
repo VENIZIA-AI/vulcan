@@ -36,14 +36,28 @@ export class EventFlow {
     return branch === undefined ? undefined : EventFlow.fromBranchName({ branch });
   }
 
+  /** Whether a merge is in progress in the repository at `cwd` (`MERGE_HEAD` exists): a commit then concludes the merge and adds no new work. */
+  static isMerging(opts: { cwd: string }): boolean {
+    const gitdir = EventFlow.repositoryOf({ cwd: opts.cwd });
+
+    return gitdir !== undefined && existsSync(join(gitdir, 'MERGE_HEAD'));
+  }
+
   private static branchOf(opts: { cwd: string }): string | undefined {
+    const gitdir = EventFlow.repositoryOf({ cwd: opts.cwd });
+
+    return gitdir === undefined ? undefined : EventFlow.headOf({ gitdir });
+  }
+
+  /** The git folder of the repository `cwd` is in, found by walking up from it; `undefined` when there is none. */
+  private static repositoryOf(opts: { cwd: string }): string | undefined {
     let directory = resolve(opts.cwd);
 
     for (let step = 0; step < MAX_PARENTS; step++) {
       const gitdir = EventFlow.gitDirOf({ directory });
 
       if (gitdir !== undefined) {
-        return EventFlow.headOf({ gitdir });
+        return gitdir;
       }
 
       const parent = dirname(directory);

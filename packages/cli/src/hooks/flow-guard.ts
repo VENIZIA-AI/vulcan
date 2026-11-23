@@ -12,10 +12,14 @@ import { GitActivity } from './git-activity.ts';
 
 /**
  * V-P-13, held by the git guard: in a project that logs events, `git commit`, `gh pr create` and `glab mr create` are refused
- * when no flow can be found for the work, and the reason says the command that makes one. A flow is found when the branch
- * names it (`feature/VULZ-ACME-12-...`), when the command itself carries a flow id (`Flow: VULZ-ACME-12` in a message or
- * body), or when this session last opened or updated one that is not over. It fails open: a log, a manifest or a clock
- * that cannot be read is no refusal, and with `events.log` off the rule does not exist.
+ * when no flow can be found for the work, and the reason says how to name or make one. A flow is found when the branch
+ * names it (`feature/VULZ-ACME-12-...`), when the command carries `Flow: <id>` (in `-m` or a heredoc message or a body
+ * given inline; the contents of `-F` or `--body-file` are not read), or when this session last opened or updated one in
+ * the last three days that is not over. Not asked about: a line that works in another repository (`git -C`, `cd`, `gh -R`:
+ * the branch and the rule here are not that repository's), a commit `--amend` (it adds no new work), a commit that
+ * concludes a merge (`MERGE_HEAD`), and a session whose name is not known (no session id and no `VULCAN_ACTOR`: every
+ * such agent would share one identity). It fails open: a log, a manifest or a clock that cannot be read is no
+ * refusal, and with `events.log` off the rule does not exist.
  */
 export class FlowGuard {
   static inspect(opts: {
@@ -34,20 +38,25 @@ export class FlowGuard {
         return [];
       }
 
-      const activity = GitActivity.classify({ command: opts.command });
-
-      if (activity !== GitActivities.COMMIT && activity !== GitActivities.PR_OPEN) {
-        return [];
-      }
+      const detail = GitActivity.describe({ command: opts.command });
 
       if (
-        EventConstants.FLOW_PATTERN.test(opts.command) ||
-        (opts.cwd !== undefined && EventFlow.fromBranch({ cwd: opts.cwd }) !== undefined)
+        detail === undefined ||
+        (detail.activity !== GitActivities.COMMIT && detail.activity !== GitActivities.PR_OPEN) ||
+        detail.isElsewhere ||
+        detail.isAmend ||
+        EventConstants.FLOW_LINE.test(opts.command)
       ) {
         return [];
       }
 
+      const cwd = opts.cwd ?? opts.root;
       const actor = EventActor.resolve({ sessionId: opts.sessionId, env: opts.env });
+
+      if (actor === EventConstants.UNKNOWN_ACTOR || EventFlow.isMerging({ cwd })) {
+        return [];
+      }
+
       const key = EventSettings.keyOf({ root: opts.root });
       const known = EventLog.read({
         dir: EventSettings.dirOf({ root: opts.root, settings }),
@@ -55,8 +64,9 @@ export class FlowGuard {
       }).events;
 
       if (
-        FlowSteps.lastOpenedBy({
+        FlowSteps.flowOf({
           events: known,
+          cwd,
           actor,
           isOver: (flowId) => opts.isOver({ events: known, flowId, key }),
         }) !== undefined
@@ -68,8 +78,8 @@ export class FlowGuard {
         {
           decision: GuardDecisions.DENY,
           rule: 'V-P-13',
-          message: `${activity === GitActivities.COMMIT ? 'a commit' : 'a pull request'} with no flow: the branch does not name one and this session has no open flow, so the board cannot place the work`,
-          fix: `make the flow first with: ${ProjectLayout.VULCAN_COMMAND} event add --kind flow --title "<what this work is>" (it prints the id), then name the branch with that id (for example feature/<id>-<topic>) or put "Flow: <id>" in the message or the pull request body`,
+          message: `${detail.activity === GitActivities.COMMIT ? 'a commit' : 'a pull request'} with no flow: the branch does not name one and this session has no open flow, so the board cannot place the work`,
+          fix: `if this work already has a flow, put "Flow: <id>" in the message (or name the branch with its id); otherwise make one first with: ${ProjectLayout.VULCAN_COMMAND} event add --kind flow --title '<what this work is>' (it prints the id), then name the branch with that id (for example feature/<id>-<topic>) or put "Flow: <id>" in the message or the pull request body`,
         },
       ];
     } catch {

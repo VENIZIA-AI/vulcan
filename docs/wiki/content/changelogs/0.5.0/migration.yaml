@@ -97,12 +97,12 @@ visualize-pages-simplified:
 flow-required-for-commit:
   symbols:
     - events.log
-    - GitGuard
+    - FlowGuard
   upgrade:
     steps:
-      - 'In a project with `events.log` on, make the flow before the first commit of a piece of work: `bun node_modules/.bin/vulcan event add --kind flow --title "<what this work is>"` prints the id.'
-      - 'Name the branch with that id (for example `feature/VULZ-ACME-12-sign-in`), or put `Flow: <id>` in the commit message or the pull request body, then run `git commit` or `gh pr create` again.'
-      - 'A script or CI job that commits or opens pull requests through an agent shell and has no flow: set `events.log` off for that project, or run it with `VULCAN_GUARDS=off`.'
+      - "In a project with `events.log` on, make the flow before the first commit of a piece of work: `bun node_modules/.bin/vulcan event add --kind flow --title '<what this work is>'` prints the id."
+      - 'If the work already has a flow, put `Flow: <id>` in the commit message or the pull request body, or name the branch with that id (for example `feature/VULZ-ACME-12-sign-in`), then run `git commit` or `gh pr create` again. The contents of a `-F` or `--body-file` file are not read, so give the line inline.'
+      - 'A script or CI job that commits or opens pull requests through an agent shell and has no flow: turn `events.log` off for that project, or run it with `VULCAN_GUARDS=off`.'
   downgrade:
     steps:
       - 'Pin the earlier package: the commit is no longer refused for a missing flow.'

@@ -173,13 +173,12 @@ export class EventHook {
       dir: opts.dir,
       since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
     }).events;
-    const flowId =
-      EventFlow.fromBranch({ cwd: text({ value: opts.input.cwd }) || opts.root }) ??
-      FlowSteps.lastOpenedBy({
-        events: known,
-        actor,
-        isOver: (id) => opts.isOver?.({ events: known, flowId: id, key }) ?? true,
-      });
+    const flowId = FlowSteps.flowOf({
+      events: known,
+      cwd: text({ value: opts.input.cwd }) || opts.root,
+      actor,
+      isOver: (id) => opts.isOver?.({ events: known, flowId: id, key }) ?? true,
+    });
     const last =
       flowId === undefined ? undefined : FlowSteps.lastLine({ events: known, flowId, key });
 
@@ -267,13 +266,12 @@ export class EventHook {
       since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
     }).events;
     const { isOver } = opts;
-    const flowId =
-      EventFlow.fromBranch({ cwd: text({ value: opts.input.cwd }) || opts.root }) ??
-      FlowSteps.lastOpenedBy({
-        events: known,
-        actor,
-        isOver: (id) => isOver({ events: known, flowId: id, key }),
-      });
+    const flowId = FlowSteps.flowOf({
+      events: known,
+      cwd: text({ value: opts.input.cwd }) || opts.root,
+      actor,
+      isOver: (id) => isOver({ events: known, flowId: id, key }),
+    });
 
     // Work on a flow that is over is not logged on it, as for the task list.
     if (flowId !== undefined && isOver({ events: known, flowId, key })) {

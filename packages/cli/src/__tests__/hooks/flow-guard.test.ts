@@ -46,8 +46,8 @@ const inspect = (opts: { root: string; command: string; actor?: string }) =>
 describe('FlowGuard: a commit or a pull request needs a flow, in a project that logs events', () => {
   test.each([
     'git commit -m "x"',
-    'git -C sub commit --amend',
-    'cd a && git add . && git commit -m "x"',
+    'git commit -a -m "x"',
+    'git add . && git commit -m "x"',
     'gh pr create --base develop --title t',
     'glab mr create',
   ])('%s with no flow is refused with the command that makes one', (command) => {
@@ -89,6 +89,12 @@ describe('FlowGuard: a commit or a pull request needs a flow, in a project that 
     expect(
       inspect({ root: project(), command: `git commit -m "Flow: ${FLOW} fix the thing"` }),
     ).toEqual([]);
+    expect(
+      inspect({
+        root: project(),
+        command: `git commit -F - <<'EOF'\nfix the thing\n\nFlow: ${FLOW}\nEOF`,
+      }),
+    ).toEqual([]);
 
     const session = project();
 
@@ -114,6 +120,75 @@ describe('FlowGuard: a commit or a pull request needs a flow, in a project that 
 
     addLine({ root, kind: 'flow', at: Date.now() - 4 * 24 * 60 * 60 * 1000 });
     expect(inspect({ root, command: 'git commit -m x' })).toHaveLength(1);
+  });
+});
+
+describe('FlowGuard: what is not asked about, and what fails open', () => {
+  test('an id-like word that is not "Flow: <id>" does not resolve it, and the fix says to name an existing flow first', () => {
+    const [hit] = inspect({ root: project(), command: 'git commit -m "fix F-35 gear"' });
+
+    expect(hit?.decision).toBe('deny');
+    expect(hit?.fix?.startsWith('if this work already has a flow, put "Flow: <id>"')).toBe(true);
+    expect(hit?.fix).toContain("--title '<what this work is>'");
+  });
+
+  test.each([
+    'git -C ../ignis commit -m x',
+    'git --git-dir=../ignis/.git commit -m x',
+    'cd ../ignis && git commit -m x',
+    'gh -R a/b pr create --base develop',
+    'gh pr create --repo a/b --base develop',
+    'git commit --amend --no-edit',
+  ])('%s is not judged by this repository', (command) => {
+    expect(inspect({ root: project(), command })).toEqual([]);
+  });
+
+  test('a commit that concludes a merge is not asked about', () => {
+    const root = project();
+
+    mkdirSync(join(root, '.git'));
+    writeFileSync(join(root, '.git/HEAD'), 'ref: refs/heads/develop\n');
+    expect(inspect({ root, command: 'git commit -m x' })).toHaveLength(1);
+    writeFileSync(join(root, '.git/MERGE_HEAD'), 'abc\n');
+    expect(inspect({ root, command: 'git commit -m x' })).toEqual([]);
+  });
+
+  test('a session id with no VULCAN_ACTOR names the session, and its own flow resolves it', () => {
+    const root = project();
+    const sessionId = 'abcdef12-3456-7890-abcd-ef1234567890';
+    const ask = () =>
+      FlowGuard.inspect({
+        root,
+        command: 'git commit -m x',
+        cwd: root,
+        sessionId,
+        env: {},
+        isOver: FlowState.isOver,
+      });
+
+    expect(ask()).toHaveLength(1);
+    addLine({ root, kind: 'flow', actor: 'claude:abcdef12' });
+    expect(ask()).toEqual([]);
+  });
+
+  test('a session whose name is not known is not refused', () => {
+    expect(
+      FlowGuard.inspect({
+        root: project(),
+        command: 'git commit -m x',
+        cwd: undefined,
+        env: {},
+        isOver: FlowState.isOver,
+      }),
+    ).toEqual([]);
+  });
+
+  test('a log that cannot be read is no refusal', () => {
+    const root = project();
+
+    mkdirSync(join(root, '.agents/local'), { recursive: true });
+    writeFileSync(join(root, '.agents/local/events'), 'not a folder');
+    expect(inspect({ root, command: 'git commit -m x' })).toEqual([]);
   });
 });
 
@@ -164,6 +239,16 @@ describe('the git guard script holds the rule', () => {
     ).toBe('');
     expect(run({ root: project(), command: 'git status' }).stdout.toString()).toBe('');
     expect(run({ root: project(), command: 'ls' }).stdout.toString()).toBe('');
+  });
+
+  test('a commit in another repository, an amend and a heredoc message with the flow print nothing', () => {
+    const root = project();
+
+    expect(run({ root, command: 'git -C ../x commit -m "x"' }).stdout.toString()).toBe('');
+    expect(run({ root, command: 'git commit --amend --no-edit' }).stdout.toString()).toBe('');
+    expect(
+      run({ root, command: `git commit -F - <<'EOF'\nx\n\nFlow: ${FLOW}\nEOF` }).stdout.toString(),
+    ).toBe('');
   });
 
   test('VULCAN_GUARDS=off lets it through', () => {
