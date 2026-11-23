@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { AgentConstants } from '../agents/common/constants.ts';
 import { LocalSettings } from '../common/local-settings.ts';
 import { RecordValue } from '../common/record.ts';
 import { BoardConstants, BoardServe, ProviderTypes } from './common/index.ts';
@@ -42,6 +43,8 @@ export class BoardSettings {
     manifest: unknown;
     gitUser: string | undefined;
     readLogo: (path: string) => string | undefined;
+    /** What the roster is called in a note when it is not the manifest's `board.agents`. */
+    agentsFrom?: string;
   }): IBoardSettings {
     const manifest = RecordValue.isRecord(opts.manifest) ? opts.manifest : {};
     const block = RecordValue.isRecord(manifest.board) ? manifest.board : {};
@@ -57,7 +60,7 @@ export class BoardSettings {
     const logo = logoPath === undefined ? undefined : opts.readLogo(logoPath);
 
     if (problem !== undefined) {
-      notes.push(`board.agents is not used: ${problem}`);
+      notes.push(`${opts.agentsFrom ?? 'board.agents'} is not used: ${problem}`);
     }
 
     if (logoPath !== undefined && logo === undefined) {
@@ -192,6 +195,7 @@ export class BoardSettings {
             },
       gitUser: (opts.readGitUser ?? (() => BoardSettings.gitUserOf({ root: opts.root })))(),
       readLogo: (path) => BoardLogo.read({ root: opts.root, path }),
+      ...(own === undefined ? {} : { agentsFrom: `board.agents in ${AgentConstants.LOCAL_FILE}` }),
     });
   }
 }

@@ -138,7 +138,9 @@ describe('precedence: the local value replaces the whole key', () => {
       local: { board: { agents: { a: { lane: 'a' } } } },
     });
 
-    expect(BoardSettings.read({ root }).notes.join('\n')).toContain('board.agents is not used');
+    expect(BoardSettings.read({ root }).notes.join('\n')).toContain(
+      'board.agents in .agents/vulcan.local.json is not used',
+    );
   });
 });
 
