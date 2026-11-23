@@ -19,7 +19,7 @@ import { GitActivity } from './git-activity.ts';
  * the branch and the rule here are not that repository's), a commit `--amend` (it adds no new work), a commit that
  * concludes a merge (`MERGE_HEAD`), and a session whose name is not known (no session id and no `VULCAN_ACTOR`: every
  * such agent would share one identity). It fails open: a log, a manifest or a clock that cannot be read is no
- * refusal, and with `events.log` off the rule does not exist.
+ * refusal, and with `events.log` off, or no `project.key` to make a flow with, the rule does not exist.
  */
 export class FlowGuard {
   static inspect(opts: {
@@ -34,7 +34,9 @@ export class FlowGuard {
     try {
       const settings = EventSettings.read({ root: opts.root });
 
-      if (!settings.log) {
+      // A project that logs events but has no `project.key` cannot make a flow (`vulcan event add --kind flow` refuses): the
+      // rule would ask for what cannot be done, so it does not exist until the key is set.
+      if (!settings.log || EventSettings.keyOf({ root: opts.root }) === undefined) {
         return [];
       }
 
