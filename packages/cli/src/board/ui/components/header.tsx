@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { usePopover } from '../hooks.ts';
 import type { TLiveState } from '../hooks.ts';
 import { useT } from '../i18n/context.ts';
 import { BoardTime } from '../state/time.ts';
@@ -33,6 +34,21 @@ export const Header = (props: IHeaderProps) => {
   const langLabel = `${t('lang.label')}: ${t(`lang.${props.language}`)}`;
   const clock = BoardTime.clock({ iso: props.lastSeen });
   const [menuOpen, setMenuOpen] = useState(false);
+  const moreButton = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLSpanElement>(null);
+  const closeMenu = (): void => {
+    setMenuOpen(false);
+    moreButton.current?.focus();
+  };
+  const choose = (action: () => void) => (): void => {
+    action();
+
+    if (menuOpen) {
+      closeMenu();
+    }
+  };
+
+  usePopover({ open: menuOpen, panel: menu, trigger: moreButton, onClose: closeMenu });
 
   return (
     <header className={`bar${menuOpen ? ' menu-open' : ''}`}>
@@ -60,6 +76,7 @@ export const Header = (props: IHeaderProps) => {
         <b className="num">{props.newCount}</b> {t('hd.new')} <span className="num">{clock}</span>
       </button>
       <button
+        ref={moreButton}
         className="ib more"
         type="button"
         aria-label={t('hd.more')}
@@ -68,14 +85,14 @@ export const Header = (props: IHeaderProps) => {
       >
         {ICONS.more}
       </button>
-      <span className="tools">
+      <span className="tools" ref={menu}>
         <button
           className="ib"
           type="button"
           id="bPlumb"
           aria-pressed={props.showPlumbing}
           title={t('pl.tip')}
-          onClick={props.onPlumbing}
+          onClick={choose(props.onPlumbing)}
         >
           {ICONS.eye}
           <span className="lbl">{t('pl.all')}</span>
@@ -86,7 +103,7 @@ export const Header = (props: IHeaderProps) => {
           id="bLang"
           aria-label={langLabel}
           title={langLabel}
-          onClick={props.onLanguage}
+          onClick={choose(props.onLanguage)}
         >
           {props.language === 'en' ? 'VI' : 'EN'}
           <span className="lbl" aria-hidden="true">
@@ -99,7 +116,7 @@ export const Header = (props: IHeaderProps) => {
           id="bTheme"
           aria-label={`${themeLabel}${t('. Bấm để đổi')}`}
           title={themeLabel}
-          onClick={props.onTheme}
+          onClick={choose(props.onTheme)}
         >
           {THEME_ICONS[props.theme]}
           <span className="lbl" aria-hidden="true">
@@ -112,7 +129,7 @@ export const Header = (props: IHeaderProps) => {
           id="bKeys"
           aria-label={t('Phím tắt')}
           aria-expanded={props.keysOpen}
-          onClick={props.onKeys}
+          onClick={choose(props.onKeys)}
         >
           ?
           <span className="lbl" aria-hidden="true">

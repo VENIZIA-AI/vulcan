@@ -311,6 +311,7 @@
       "since": "2026-11-03T09:30:00.000Z",
       "checkedAt": "2026-11-03T09:30:00.000Z",
       "latest": {
+        "id": "pnt-vulcan-1:2026-11-03T09:25:00.000Z:commit",
         "type": "commit",
         "ts": "2026-11-03T09:25:00.000Z",
         "summary": "fix a typo in the docs"
@@ -323,6 +324,7 @@
       "since": "2026-11-03T09:15:00.000Z",
       "checkedAt": "2026-11-03T09:15:00.000Z",
       "latest": {
+        "id": "pnt-ignis-1:2026-11-03T09:15:00.000Z:commit",
         "type": "commit",
         "ts": "2026-11-03T09:15:00.000Z",
         "summary": "spike: edge cache",
@@ -336,6 +338,7 @@
       "since": "2026-11-03T09:10:00.000Z",
       "checkedAt": "2026-11-03T09:20:00.000Z",
       "latest": {
+        "id": "veni-forge:2026-11-03T09:20:00.000Z:decision",
         "type": "decision",
         "ts": "2026-11-03T09:20:00.000Z",
         "summary": "Phat parked the edge cache spike",
@@ -349,6 +352,7 @@
       "since": "2026-11-03T08:30:00.000Z",
       "checkedAt": "2026-11-03T08:40:00.000Z",
       "latest": {
+        "id": "pnt-ardor-1:2026-11-03T08:40:00.000Z:commit",
         "type": "commit",
         "ts": "2026-11-03T08:40:00.000Z",
         "summary": "retry with backoff",

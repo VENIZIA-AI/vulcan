@@ -15,6 +15,7 @@ import { UiContext } from './i18n/context.ts';
 import { BoardI18n } from './i18n/translate.ts';
 import { BoardCards } from './state/cards.ts';
 import { BoardView } from './state/view.ts';
+import { BoardWork } from './state/work.ts';
 import { BoardStorage } from './storage.ts';
 
 /** What a snapshot of `vulcan board serve` replaces; the title, owner, key and logo stay as the page loaded them. */
@@ -60,6 +61,12 @@ export const App = (props: { data: IBoardData }) => {
     initial: 'cards',
     allowed: WORK_VIEWS,
   });
+  const [sortKey, setSortKey] = useStored<string>({
+    key: `${prefix}sort`,
+    initial: BoardWork.sortKeyOf({ sort: undefined }),
+    allowed: BoardWork.sortKeys(),
+  });
+  const sort = useMemo(() => BoardWork.sortFromKey({ key: sortKey }), [sortKey]);
   const [keysOpen, setKeysOpen] = useState(false);
   const [detail, setDetail] = useState<TDetail | null>(null);
   const [everything, setEverything] = useState(false);
@@ -217,6 +224,8 @@ export const App = (props: { data: IBoardData }) => {
             agents={rows.map((row) => row.n)}
             view={workView}
             onView={setWorkView}
+            sort={sort}
+            onSort={(next) => setSortKey(BoardWork.sortKeyOf({ sort: next }))}
             agent={agent}
             onAgent={(name) => {
               setAgent(name);

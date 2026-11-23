@@ -362,6 +362,7 @@ export class BoardFold {
         : undefined;
 
     return {
+      id: line.id,
       type: line.kind,
       ts: line.ts,
       summary: line.summary,

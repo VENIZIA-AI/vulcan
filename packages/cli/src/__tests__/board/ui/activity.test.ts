@@ -82,6 +82,7 @@ describe('an agent card: state and latest from the newest line of any type', () 
     const say = (type: string, translate: (key: string) => string, peer?: string): string =>
       BoardLatest.activityOf({
         activity: {
+          id: 'a',
           type,
           ts: commit.ts,
           summary: type === 'usage' ? 'tokens' : 'the bucket',

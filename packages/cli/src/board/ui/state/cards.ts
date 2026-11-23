@@ -8,6 +8,8 @@ import { BoardTime } from './time.ts';
 const SENTENCE_END = /[.!?](\s|$)/;
 const NOW_MAX = 140;
 const RECENT_DEPLOYS = 3;
+/** The log types of a message line, written out: the page bundle must not take the events constants. */
+const MESSAGE_TYPES = new Set<string>(['msg-sent', 'msg-received']);
 
 /** What a work item card says beyond the flow itself. */
 export interface IItemCard {
@@ -85,6 +87,21 @@ export class BoardCards {
     };
   }
 
+  /** Whether the line is the agent's latest activity: a message line with the same id, or of the same moment. */
+  static isActivity(opts: {
+    activity: IBoardActivity | undefined;
+    event: IBoardViewEvent | undefined;
+  }): boolean {
+    const { activity, event } = opts;
+
+    return (
+      activity !== undefined &&
+      event !== undefined &&
+      MESSAGE_TYPES.has(activity.type) &&
+      (activity.id === event.id || activity.ts === event.ts)
+    );
+  }
+
   /** Whole days from today to the due day: negative when it is past. Local days, as a person counts them. */
   static daysLeft(opts: { due: string; now: number }): number {
     const today = new Date(opts.now);
@@ -127,7 +144,9 @@ export class BoardCards {
           ? undefined
           : views.find((view) => view.flow.id === row.flow),
       activity: doc?.latest,
-      message: message?.ts === doc?.latest?.ts ? undefined : message,
+      message: BoardCards.isActivity({ activity: doc?.latest, event: message })
+        ? undefined
+        : message,
       prs: info.open.length,
       pending: info.pending.length,
       today: mine.filter((event) => BoardTime.isSameDay({ iso: event.ts, now })).length,

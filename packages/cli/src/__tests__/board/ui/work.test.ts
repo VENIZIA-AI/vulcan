@@ -57,7 +57,7 @@ describe('BoardWork.isStale: a flow with an open step and no line for two hours'
     expect(BoardWork.isStale({ flow: fresh, now: NOW })).toBe(false);
   });
 
-  test('not stale with every step done, with no steps, or when the flow is over', () => {
+  test('not stale with every step done, with no steps, when it waits on the owner or when it is over', () => {
     const events = [event({ ts: at(5) })];
 
     expect(
@@ -76,8 +76,11 @@ describe('BoardWork.isStale: a flow with an open step and no line for two hours'
       BoardWork.isStale({ flow: flowOf({ id: 'F-1', events, state: 'parked' }), now: NOW }),
     ).toBe(false);
     expect(BoardWork.isStale({ flow: flowOf({ id: 'F-1', events, state: 'you' }), now: NOW })).toBe(
-      true,
+      false,
     );
+    expect(
+      BoardWork.isStale({ flow: flowOf({ id: 'F-1', events, state: 'blocked' }), now: NOW }),
+    ).toBe(true);
   });
 
   test('a step ticked on the flow line counts as a line; plumbing does not', () => {
@@ -183,5 +186,83 @@ describe('BoardWork.listOf: one set for every view, then the filters', () => {
     expect(ids({ ...NONE, state: 'blocked' })).toEqual(['F-2']);
     expect(ids({ ...NONE, staleOnly: true })).toEqual(['F-1']);
     expect(BoardWork.reposOf({ views })).toEqual(['shop/api', 'shop/web']);
+  });
+});
+
+describe('BoardWork: the table order, more', () => {
+  const ids = (sorted: IFlowView[]): string[] => sorted.map((view) => view.flow.id);
+  const tokens = (total: number) => ({
+    input: total,
+    output: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+    agents: [],
+    models: [],
+  });
+  const views = [
+    viewOf(
+      flowOf({ id: 'F-1', state: 'done', tokens: tokens(50), events: [event({ ts: at(4) })] }),
+    ),
+    viewOf(flowOf({ id: 'F-2', state: 'blocked', events: [event({ ts: at(1) })] })),
+    viewOf(
+      flowOf({ id: 'F-3', state: 'you', tokens: tokens(900), events: [event({ ts: at(2) })] }),
+    ),
+    viewOf(flowOf({ id: 'F-4', state: 'blocked', holder: '', events: [event({ ts: at(3) })] })),
+  ];
+
+  test('tokens sort by the four counts added up; a flow with none is last', () => {
+    expect(ids(BoardWork.sortOf({ views, sort: { column: 'tokens', descending: true } }))).toEqual([
+      'F-3',
+      'F-1',
+      'F-2',
+      'F-4',
+    ]);
+  });
+
+  test('state sorts by the order of the groups, and ties keep the default order', () => {
+    expect(ids(BoardWork.sortOf({ views, sort: { column: 'state', descending: false } }))).toEqual([
+      'F-3',
+      'F-2',
+      'F-4',
+      'F-1',
+    ]);
+  });
+
+  test('an empty holder is last, up and down', () => {
+    for (const descending of [false, true]) {
+      expect(ids(BoardWork.sortOf({ views, sort: { column: 'holder', descending } })).at(-1)).toBe(
+        'F-4',
+      );
+    }
+  });
+
+  test('a header click goes one way, the other way, then back to the default order', () => {
+    const first = BoardWork.nextSort({ sort: undefined, column: 'code' });
+    const second = BoardWork.nextSort({ sort: first, column: 'code' });
+
+    expect(first).toEqual({ column: 'code', descending: false });
+    expect(second).toEqual({ column: 'code', descending: true });
+    expect(BoardWork.nextSort({ sort: second, column: 'code' })).toBeUndefined();
+    expect(BoardWork.nextSort({ sort: undefined, column: 'updated' })).toEqual({
+      column: 'updated',
+      descending: true,
+    });
+  });
+
+  test('the kept sort reads back as itself, and anything else is the default order', () => {
+    for (const key of BoardWork.sortKeys()) {
+      expect(BoardWork.sortKeyOf({ sort: BoardWork.sortFromKey({ key }) })).toBe(key);
+    }
+
+    expect(BoardWork.sortFromKey({ key: 'nope:asc' })).toBeUndefined();
+  });
+
+  test('a flow of plumbing only is updated at its last line, never at nothing', () => {
+    const quiet = viewOf(
+      flowOf({ id: 'F-9', events: [event({ ts: at(1), kind: 'agent', plumbing: true })] }),
+    );
+
+    expect(BoardWork.lastAt({ flow: quiet.flow })).toBe('');
+    expect(BoardWork.updatedAt({ view: quiet })).toBe(at(1));
   });
 });

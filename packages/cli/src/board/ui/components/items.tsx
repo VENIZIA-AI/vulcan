@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BoardConstants, BoardStates } from '../../common/index.ts';
 import { BoardTables, BoardUiConstants } from '../common/constants.ts';
 import type { IFlowView, TTranslate } from '../common/types.ts';
+import { usePopover } from '../hooks.ts';
 import { useUi } from '../i18n/context.ts';
 import { BoardCards } from '../state/cards.ts';
 import type { IItemCard } from '../state/cards.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardView } from '../state/view.ts';
-import { BoardWork } from '../state/work.ts';
+import { BoardWork, WORK_COLUMNS } from '../state/work.ts';
 import type { IWorkFilter, TWorkColumn, TWorkSort } from '../state/work.ts';
 import { Mark } from './bits.tsx';
 import { BoardFace } from './face.tsx';
@@ -18,20 +19,10 @@ export type TWorkView = 'cards' | 'compact' | 'table';
 export const WORK_VIEWS: TWorkView[] = ['cards', 'compact', 'table'];
 
 const SOON_DAYS = 2;
+/** Where the filters open as a modal sheet; the same width as the page's phone rules. */
+const PHONE = '(max-width: 640px)';
 /** Up to this many steps a bar draws one segment each; more draw as one bar. */
 const SEGMENTS_MAX = 12;
-const COLUMNS: TWorkColumn[] = [
-  'code',
-  'title',
-  'stage',
-  'state',
-  'holder',
-  'steps',
-  'pr',
-  'tokens',
-  'due',
-  'updated',
-];
 const NUMBER_COLUMNS = new Set<TWorkColumn>(['tokens']);
 const TOKENS = new Intl.NumberFormat('en-US', { notation: 'compact', maximumSignificantDigits: 3 });
 const VIEW_ICONS: Record<TWorkView, ReactNode> = {
@@ -141,7 +132,7 @@ const usePick = (opts: { id: string; selected: boolean; onSelect: (id: string) =
     },
     'data-id': opts.id,
     tabIndex: 0,
-    'aria-selected': opts.selected,
+    'aria-current': opts.selected || undefined,
     onClick: () => opts.onSelect(opts.id),
     onKeyDown: (event: {
       key: string;
@@ -264,7 +255,7 @@ const ItemCard = (props: IRowProps & { card: IItemCard }) => {
 /** How long ago the flow's newest line was. */
 const Updated = (props: { view: IFlowView }) => {
   const { t, now } = useUi();
-  const last = BoardWork.lastAt({ flow: props.view.flow });
+  const last = BoardWork.updatedAt({ view: props.view });
 
   return (
     <time className="c-ago" dateTime={last} title={BoardTime.clock({ iso: last })}>
@@ -323,8 +314,12 @@ const Groups = (props: {
           .filter((view) => view.flow.state === group.key)
           .sort((left, right) =>
             group.key === 'you' || group.key === 'blocked'
-              ? left.last.ts.localeCompare(right.last.ts)
-              : right.last.ts.localeCompare(left.last.ts),
+              ? BoardWork.updatedAt({ view: left }).localeCompare(
+                  BoardWork.updatedAt({ view: right }),
+                )
+              : BoardWork.updatedAt({ view: right }).localeCompare(
+                  BoardWork.updatedAt({ view: left }),
+                ),
           );
         const open = props.open[group.key] ?? group.open;
 
@@ -424,28 +419,25 @@ const WorkTable = (props: {
   views: IFlowView[];
   selected: string | null;
   onSelect: (id: string) => void;
+  sort: TWorkSort;
+  onSort: (sort: TWorkSort) => void;
 }) => {
   const { t } = useUi();
-  const [sort, setSort] = useState<TWorkSort>(undefined);
-  const rows = BoardWork.sortOf({ views: props.views, sort });
-  const sortBy = (column: TWorkColumn): void =>
-    setSort(
-      sort?.column === column
-        ? { column, descending: !sort.descending }
-        : { column, descending: column === 'updated' || column === 'tokens' },
-    );
+  const { sort } = props;
+  const rows = useMemo(() => BoardWork.sortOf({ views: props.views, sort }), [props.views, sort]);
+  const sortBy = (column: TWorkColumn): void => props.onSort(BoardWork.nextSort({ sort, column }));
 
   return (
     <div className="t-wrap">
       <table className="t-work">
         <colgroup>
-          {COLUMNS.map((column) => (
+          {WORK_COLUMNS.map((column) => (
             <col key={column} className={`w-${column}`} />
           ))}
         </colgroup>
         <thead>
           <tr>
-            {COLUMNS.map((column) => {
+            {WORK_COLUMNS.map((column) => {
               const active = sort?.column === column;
               let order: 'ascending' | 'descending' | undefined;
 
@@ -493,6 +485,7 @@ const Filters = (props: {
   staleCount: number;
   open: boolean;
   onClose: () => void;
+  panel: { current: HTMLDivElement | null };
 }) => {
   const { t } = useUi();
   const { filter } = props;
@@ -523,7 +516,13 @@ const Filters = (props: {
   );
 
   return (
-    <div className={`c-tools${props.open ? ' open' : ''}`} role="group" aria-label={t('ft.label')}>
+    <div
+      ref={props.panel}
+      className={`c-tools${props.open ? ' open' : ''}`}
+      role={props.open ? 'dialog' : 'group'}
+      aria-modal={props.open && matchMedia(PHONE).matches ? true : undefined}
+      aria-label={t('ft.label')}
+    >
       <div className="sheet-head">
         <b>{t('ft.label')}</b>
         <button className="btn-text" type="button" onClick={props.onClose}>
@@ -587,6 +586,8 @@ export const ItemPane = (props: {
   onToggle: (key: string) => void;
   view: TWorkView;
   onView: (view: TWorkView) => void;
+  sort: TWorkSort;
+  onSort: (sort: TWorkSort) => void;
 }) => {
   const { t, now } = useUi();
   const [rest, setRest] = useState<Omit<IWorkFilter, 'agent'>>({
@@ -599,12 +600,37 @@ export const ItemPane = (props: {
   const active =
     [filter.agent, filter.repo, filter.state].filter((value) => value !== null).length +
     Number(filter.staleOnly);
-  const all = BoardWork.listOf({
-    views: props.views,
-    filter: { agent: null, repo: null, state: null, staleOnly: false },
-    now,
+  const fButton = useRef<HTMLButtonElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const closeFilters = (): void => {
+    setFiltersOpen(false);
+    fButton.current?.focus();
+  };
+  const all = useMemo(
+    () =>
+      BoardWork.listOf({
+        views: props.views,
+        filter: { agent: null, repo: null, state: null, staleOnly: false },
+        now,
+      }),
+    [props.views, now],
+  );
+  const shown = useMemo(
+    () => BoardWork.listOf({ views: props.views, filter, now }),
+    [props.views, now, filter.agent, filter.repo, filter.state, filter.staleOnly],
+  );
+  const staleCount = useMemo(
+    () => all.filter((view) => BoardWork.isStale({ flow: view.flow, now })).length,
+    [all, now],
+  );
+
+  usePopover({
+    open: filtersOpen,
+    panel: sheet,
+    trigger: fButton,
+    onClose: closeFilters,
+    trap: true,
   });
-  const shown = BoardWork.listOf({ views: props.views, filter, now });
   const loose = props.views.find(
     (view) =>
       view.flow.id === BoardConstants.UNSORTED &&
@@ -630,7 +656,15 @@ export const ItemPane = (props: {
   } else if (shown.length === 0) {
     body = <p className="c-empty">{t('ft.none')}</p>;
   } else if (props.view === 'table') {
-    body = <WorkTable views={shown} selected={props.selected} onSelect={props.onSelect} />;
+    body = (
+      <WorkTable
+        views={shown}
+        selected={props.selected}
+        onSelect={props.onSelect}
+        sort={props.sort}
+        onSort={props.onSort}
+      />
+    );
   } else {
     body = (
       <Groups
@@ -670,6 +704,7 @@ export const ItemPane = (props: {
         {all.length === 0 ? null : (
           <>
             <button
+              ref={fButton}
               className={`pill f-btn${active > 0 ? ' on' : ''}`}
               type="button"
               aria-expanded={filtersOpen}
@@ -684,17 +719,13 @@ export const ItemPane = (props: {
               agents={props.agents}
               filter={filter}
               onFilter={onFilter}
-              staleCount={all.filter((view) => BoardWork.isStale({ flow: view.flow, now })).length}
+              staleCount={staleCount}
               open={filtersOpen}
-              onClose={() => setFiltersOpen(false)}
+              onClose={closeFilters}
+              panel={sheet}
             />
             {filtersOpen ? (
-              <button
-                className="scrim"
-                type="button"
-                aria-label={t('Đóng')}
-                onClick={() => setFiltersOpen(false)}
-              />
+              <div className="scrim" aria-hidden="true" onClick={closeFilters} />
             ) : null}
           </>
         )}

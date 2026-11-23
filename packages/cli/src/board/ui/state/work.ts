@@ -21,6 +21,20 @@ export type TWorkColumn =
 /** A column and its direction; `undefined` is the default order: needs you first, then the latest update. */
 export type TWorkSort = { column: TWorkColumn; descending: boolean } | undefined;
 
+/** The table columns, in their order. */
+export const WORK_COLUMNS: TWorkColumn[] = [
+  'code',
+  'title',
+  'stage',
+  'state',
+  'holder',
+  'steps',
+  'pr',
+  'tokens',
+  'due',
+  'updated',
+];
+
 export interface IWorkFilter {
   /** The picked agent: the flows it holds or has a line in. */
   agent: string | null;
@@ -29,7 +43,11 @@ export interface IWorkFilter {
   staleOnly: boolean;
 }
 
-const OVER: string[] = [BoardStates.DONE, BoardStates.PARKED];
+/** States where a quiet flow is expected: it waits on the owner, or it is over. */
+const NEVER_STALE: string[] = [BoardStates.YOU, BoardStates.DONE, BoardStates.PARKED];
+/** Columns whose first click sorts the largest or newest first. */
+const DESCENDING_FIRST = new Set<TWorkColumn>(['tokens', 'updated']);
+const DEFAULT_SORT = 'default';
 const STALE_MS = BoardUiConstants.STALE_HOURS * BoardConstants.HOUR_MS;
 
 /** The work items every view draws: the same set, filtered and ordered the same way. */
@@ -42,13 +60,18 @@ export class BoardWork {
     );
   }
 
-  /** A flow that is not over, has a step still open and no line for `STALE_HOURS`. */
+  /** When the flow last moved, for the page: its newest line that is not plumbing, else its last line. */
+  static updatedAt(opts: { view: IFlowView }): string {
+    return BoardWork.lastAt({ flow: opts.view.flow }) || opts.view.last.ts;
+  }
+
+  /** A flow that does not wait on the owner, is not over, has a step still open and no line for `STALE_HOURS`. */
   static isStale(opts: { flow: IBoardFlow; now: number }): boolean {
     const { flow } = opts;
     const last = BoardWork.lastAt({ flow });
 
     return (
-      !OVER.includes(flow.state) &&
+      !NEVER_STALE.includes(flow.state) &&
       (flow.steps ?? []).some((step) => !step.done) &&
       last !== '' &&
       opts.now - Date.parse(last) >= STALE_MS
@@ -137,40 +160,84 @@ export class BoardWork {
       }
 
       default: {
-        return BoardWork.lastAt({ flow }) || undefined;
+        return BoardWork.updatedAt({ view: opts.view });
       }
     }
   }
 
+  /**
+   * The default order (needs you first, then the latest update), then by the column when one is set. Each key is
+   * worked out once; a value that is missing or empty is last in both directions, and ties keep the default order.
+   */
   static sortOf(opts: { views: IFlowView[]; sort: TWorkSort }): IFlowView[] {
     const { sort } = opts;
-    const updated = (view: IFlowView): string => BoardWork.lastAt({ flow: view.flow });
+    const byDefault = opts.views
+      .map((view) => ({
+        view,
+        you: Number(view.flow.state === BoardStates.YOU),
+        updated: BoardWork.updatedAt({ view }),
+      }))
+      .sort((left, right) => right.you - left.you || right.updated.localeCompare(left.updated))
+      .map((entry) => entry.view);
 
     if (sort === undefined) {
-      return [...opts.views].sort(
-        (left, right) =>
-          Number(right.flow.state === BoardStates.YOU) -
-            Number(left.flow.state === BoardStates.YOU) ||
-          updated(right).localeCompare(updated(left)),
-      );
+      return byDefault;
     }
 
     const sign = sort.descending ? -1 : 1;
+    const keyed = byDefault.map((view) => {
+      const value = BoardWork.valueOf({ view, column: sort.column });
 
-    return [...opts.views].sort((left, right) => {
-      const a = BoardWork.valueOf({ view: left, column: sort.column });
-      const b = BoardWork.valueOf({ view: right, column: sort.column });
-
-      if (a === undefined || b === undefined) {
-        return Number(a === undefined) - Number(b === undefined);
-      }
-
-      const order =
-        typeof a === 'number' && typeof b === 'number'
-          ? a - b
-          : String(a).localeCompare(String(b), undefined, { numeric: true });
-
-      return sign * order;
+      return { view, value: value === '' ? undefined : value };
     });
+
+    return keyed
+      .sort((left, right) => {
+        const a = left.value;
+        const b = right.value;
+
+        if (a === undefined || b === undefined) {
+          return Number(a === undefined) - Number(b === undefined);
+        }
+
+        const order =
+          typeof a === 'number' && typeof b === 'number'
+            ? a - b
+            : String(a).localeCompare(String(b), undefined, { numeric: true });
+
+        return sign * order;
+      })
+      .map((entry) => entry.view);
+  }
+
+  /** The sort after a click on `column`: its first direction, then the other, then the default order. */
+  static nextSort(opts: { sort: TWorkSort; column: TWorkColumn }): TWorkSort {
+    const { sort, column } = opts;
+    const first = DESCENDING_FIRST.has(column);
+
+    if (sort?.column !== column) {
+      return { column, descending: first };
+    }
+
+    return sort.descending === first ? { column, descending: !first } : undefined;
+  }
+
+  /** The sort as the browser keeps it: `column:asc`, `column:desc` or `default`. */
+  static sortKeyOf(opts: { sort: TWorkSort }): string {
+    const { sort } = opts;
+
+    return sort === undefined ? DEFAULT_SORT : `${sort.column}:${sort.descending ? 'desc' : 'asc'}`;
+  }
+
+  static sortFromKey(opts: { key: string }): TWorkSort {
+    const [column, direction] = opts.key.split(':');
+    const known = WORK_COLUMNS.find((one) => one === column);
+
+    return known === undefined ? undefined : { column: known, descending: direction === 'desc' };
+  }
+
+  /** Every value `sortKeyOf` can give: what a stored sort may be. */
+  static sortKeys(): string[] {
+    return [DEFAULT_SORT, ...WORK_COLUMNS.flatMap((column) => [`${column}:asc`, `${column}:desc`])];
   }
 }

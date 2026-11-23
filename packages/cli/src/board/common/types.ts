@@ -138,6 +138,8 @@ export interface IBoardAgent {
 
 /** One line of an agent as its card tells it: the log's type of line, its time and words, and the other end of a message. */
 export interface IBoardActivity {
+  /** The id of the log line. */
+  id: string;
   type: string;
   ts: string;
   summary: string;
