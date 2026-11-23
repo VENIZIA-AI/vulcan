@@ -132,7 +132,7 @@ const PROJECT_PACKAGE = z.strictObject({
 });
 
 /** A path as a key: no leading `./`, no trailing slash. */
-const pathKeyOf = (opts: { path: string }): string =>
+export const pathKeyOf = (opts: { path: string }): string =>
   opts.path.replace(/^\.\//, '').replace(/\/+$/, '');
 
 /**
