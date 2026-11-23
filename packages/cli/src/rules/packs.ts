@@ -17,13 +17,13 @@ export class RulePacks {
       : [];
   }
 
-  /** The config a pack ships next to its rules (`<name>.config.json`), as parsed JSON; `undefined` when it has none. A name that is no shipped pack has none. */
-  static configOf(opts: { name: string }): unknown {
+  /** The config a pack ships next to its rules (`<name>.config.json`), as parsed JSON, or `found: false` when it has none. A name that is no shipped pack has none; a file that is not JSON throws. */
+  static configOf(opts: { name: string }): { found: false } | { found: true; value: unknown } {
     const file = join(PACKS_DIRECTORY, `${opts.name}.config.json`);
 
     return RulePacks.names().includes(opts.name) && existsSync(file)
-      ? JSON.parse(readFileSync(file, 'utf8'))
-      : undefined;
+      ? { found: true, value: JSON.parse(readFileSync(file, 'utf8')) }
+      : { found: false };
   }
 
   /** Where a pack's rules are, from the project root's `node_modules`, as the rules block names it. */

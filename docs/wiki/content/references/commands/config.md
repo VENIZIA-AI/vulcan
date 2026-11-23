@@ -22,9 +22,9 @@ Exit codes: `0` shown; `1` when the config cannot be loaded; `2` on bad input (n
 | Kind | Rule |
 |---|---|
 | Object | merged key by key |
-| Array | adds: the items of the later layer after those of the earlier; an item that is already there is left out, and for an array of objects the later copy replaces the earlier in its place. An item is named by itself (a string) or by its `spec` (`presets`), its `name` (`atlas.sources`) or its `path` and `kinds` (`doctor.privateValues.acknowledged`, written `path\|kind,kind`) |
+| Array listed below | adds: the items of the later layer come after those of the earlier layers; an item the earlier layers already hold is not added again (a string), or replaces it in its place (an object of the same identity). Items are compared with the earlier layers only, so a layer that lists an item twice keeps both. An item is named by itself (a string) or by its `spec` (`presets`), its `name` (`atlas.sources`) or its `path` and its sorted `kinds` (`doctor.privateValues.acknowledged`, written `path\|kind,kind`) |
+| Any other array (`packages`, `claude.settings.hooks`...) | replaced by the later layer, as a scalar |
 | Scalar | the later layer wins; the project file is always last |
-| `packages` | the exception: when the project writes it (even `[]`) it is the list, not an addition |
 | `remove` | a key of the project file: `remove: { 'atlas.sources': ['vulcan'] }` takes items out of an array after all layers are in, wherever they came from. The keys are the arrays shipped defaults can add to: `claude.settings.permissions.allow`, `claude.settings.permissions.deny`, `presets`, `atlas.sources`, `digest.oftenDropped` and `doctor.privateValues.acknowledged` |
 
 ## Where the shipped layers are
@@ -32,7 +32,7 @@ Exit codes: `0` shown; `1` when the config cannot be loaded; `2` on bad input (n
 - `base/defaults.config.json` in the package: what suits any project.
 - `base/packs/<name>.config.json`: what suits the stack of that rule pack.
 
-A shipped layer may set only `claude`, `presets`, `atlas`, `digest`, `guard`, `commit`, `doctor` and `knowledge`, and every value is checked by the schema of the project config; a layer that is not valid stops the command that loads the config and names the layer. In this release both files are empty, so nothing changes for a project.
+Only a plain object (a literal or JSON) is merged into; a key named `__proto__` stays a key, which the schema refuses. A shipped layer may set only `claude`, `presets`, `atlas`, `digest`, `guard`, `commit`, `doctor` and `knowledge`, and every value is checked by the schema of the project config; a layer that is not valid stops the command that loads the config and is named by its own file (`base/packs/<name>.config.json`) with the problem; reinstall the package, do not upgrade. In this release both files are empty, so nothing changes for a project.
 
 ## See also
 

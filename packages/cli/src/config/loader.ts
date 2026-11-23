@@ -6,7 +6,7 @@ import { VULCAN_CONFIG_SCHEMA } from './schema.ts';
 import type { TResolvedConfig } from './schema.ts';
 import { RecordValue } from '../common/record.ts';
 import { ConfigLayers } from './layers.ts';
-import type { IConfigLayer, IConfigMerge } from './layers.ts';
+import type { IConfigLayer, IConfigMerge, IShippedProblem } from './layers.ts';
 
 type TLoadResult =
   | {
@@ -38,6 +38,12 @@ export class ConfigLoader {
     // A schema error is "<file>: invalid config" and then one line per issue: the first issue says more than the
     // head. Any other failure (an import that threw, no default export) is told by its head line, whatever follows.
     const [head = '', first = ''] = loaded.error.split('\n');
+
+    // The shipped config of this install is not the project's file: reinstalling the package is the way out, not an upgrade.
+    if (head.endsWith('invalid shipped config')) {
+      return `a config file of this VULCAN install is not valid, so the defaults apply (${head.trim()}: ${first.trim()}). Run \`bun install\` again; if it stays, report it`;
+    }
+
     const problem =
       head.endsWith('invalid config') && first.trim() !== '' ? first.trim() : head.trim();
 
@@ -53,25 +59,22 @@ export class ConfigLoader {
 
   /**
    * The project's config object merged over the shipped layers (the defaults, then each pack it turns on): what the schema
-   * is given. `layers` is for a test, which gives its own; the command `vulcan config` shows the merge.
+   * is given. A `remove` key that does not name a listed array is left out here, and the schema refuses it.
    */
-  static layered(opts: { project: unknown; layers?: IConfigLayer[] }): {
+  static layered(opts: { project: unknown }): {
     merge: IConfigMerge;
     below: IConfigLayer[];
-    problems: string[];
+    problems: IShippedProblem[];
   } {
     const project = RecordValue.isRecord(opts.project) ? opts.project : {};
     const packs = Array.isArray(project.packs)
       ? project.packs.filter((name: unknown): name is string => typeof name === 'string')
       : [];
-    const shipped =
-      opts.layers === undefined
-        ? ConfigLayers.shipped({ packs })
-        : { layers: opts.layers, problems: [] };
+    const shipped = ConfigLayers.shipped({ packs });
     const remove = RecordValue.isRecord(project.remove)
       ? Object.fromEntries(
           Object.entries(project.remove).flatMap(([key, items]) =>
-            Array.isArray(items)
+            Object.hasOwn(ConfigConstants.LAYERED_ARRAYS, key) && Array.isArray(items)
               ? [[key, items.filter((item: unknown): item is string => typeof item === 'string')]]
               : [],
           ),
@@ -126,11 +129,14 @@ export class ConfigLoader {
 
     const layered = ConfigLoader.layered({ project: loaded.default });
 
-    if (layered.problems.length > 0) {
+    // A shipped layer that is not valid is named by its own file, with the real problem: it is not the project's file.
+    const broken = layered.problems[0];
+
+    if (broken !== undefined) {
       return {
         ok: false,
         file,
-        error: `${shown}: shipped config\n${layered.problems.map((problem) => `  ${problem}`).join('\n')}`,
+        error: `${broken.file}: invalid shipped config\n  ${broken.message}`,
       };
     }
 

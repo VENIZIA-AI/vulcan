@@ -12,6 +12,12 @@ export interface IConfigLayer {
   value: Record<string, unknown>;
 }
 
+/** A shipped layer that is not valid: the file it came from, and why. */
+export interface IShippedProblem {
+  file: string;
+  message: string;
+}
+
 /** What a merge gives back: the merged object, where each value came from, and the `remove` entries that matched nothing. */
 export interface IConfigMerge {
   value: Record<string, unknown>;
@@ -20,7 +26,6 @@ export interface IConfigMerge {
   unmatched: string[];
 }
 
-const PROJECT_LAYER = 'project';
 const DEFAULTS_FILE = 'defaults.config.json';
 /** The keys a shipped layer may set: what is generic or stack specific. A project's own facts (name, layout, packages, owner...) are not defaults. */
 const SHIPPED_MASK = {
@@ -35,75 +40,101 @@ const SHIPPED_MASK = {
 } as const;
 const SHIPPED_KEYS = Object.keys(SHIPPED_MASK);
 
+/** Whether a value is a plain object: a literal or `JSON.parse`, never a `Date`, a class instance or an array. */
+const isPlain = (value: unknown): value is Record<string, unknown> => {
+  if (!RecordValue.isRecord(value)) {
+    return false;
+  }
+
+  const prototype: unknown = Object.getPrototypeOf(value);
+
+  return prototype === Object.prototype || prototype === null;
+};
+
+/** A key set as an own property, so a key named `__proto__` stays a key (which the strict schema refuses) and never changes a prototype. */
+const define = (opts: { into: Record<string, unknown>; key: string; value: unknown }): void => {
+  Object.defineProperty(opts.into, opts.key, {
+    value: opts.value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+};
+
 /**
  * The config as layers: the shipped defaults (`base/defaults.config.json`), then the config of each rule pack the project
  * turned on, in the order of `packs`, then the project file. The layers are merged as plain data before the one schema parse
  * of `ConfigLoader`, so every shipped value is checked by the same schema as the project's own.
  *
- * Rules, the same for every key: an object merges key by key; an array adds (the items of the later layer after those of
- * the earlier, an item that is already there left out; for an array of objects the later copy of one identity replaces the
- * earlier in its place); a scalar is overridden by the later layer. `packages` is the one exception: written by the project
- * (even as `[]`) it is the list, not an addition. A top-level `remove` of the project takes items out of an array after all
+ * Rules: an object merges key by key; a scalar, and every array that is not listed in `ConfigConstants.LAYERED_ARRAYS`, is
+ * replaced by the later layer. The six listed arrays add: the items of a later layer come after those of the earlier layers,
+ * an item the earlier layers already hold is not added again (a string) or replaces it in its place (an object of the same
+ * identity). Items are compared with the earlier layers only, never with each other, so a layer that lists an item twice
+ * keeps both, as the schema alone would. A top-level `remove` of the project takes items out of a listed array after all
  * layers are in, wherever they came from.
  */
 export class ConfigLayers {
-  /** The arrays a layer may add to and a project may remove from. */
-  static removable(): string[] {
-    return Object.keys(ConfigConstants.LAYERED_ARRAYS);
-  }
-
-  /** The shipped layers for `packs`: the defaults first, then each shipped pack that has config, in order. A layer that cannot be read or is not valid is named in `problems`. */
-  static shipped(opts: { packs: string[] }): { layers: IConfigLayer[]; problems: string[] } {
+  /**
+   * The shipped layers for `packs`: the defaults first, then each shipped pack that has config, in order. A layer that cannot
+   * be read or is not valid is named, with its file, in `problems`.
+   */
+  static shipped(opts: { packs: string[] }): {
+    layers: IConfigLayer[];
+    problems: IShippedProblem[];
+  } {
     const layers: IConfigLayer[] = [];
-    const problems: string[] = [];
-    const read = (given: { name: string; load: () => unknown }): void => {
+    const problems: IShippedProblem[] = [];
+    const read = (given: { name: string; file: string; load: () => unknown }): void => {
       try {
         const value = given.load();
+        const message = ConfigLayers.checkShipped({ value });
 
-        if (value === undefined) {
-          return;
-        }
-
-        const checked = ConfigLayers.checkShipped({ name: given.name, value });
-
-        if (checked === undefined) {
-          layers.push({ name: given.name, value: RecordValue.isRecord(value) ? value : {} });
+        if (message === undefined) {
+          layers.push({ name: given.name, value: isPlain(value) ? value : {} });
         } else {
-          problems.push(checked);
+          problems.push({ file: given.file, message });
         }
       } catch (error) {
-        problems.push(
-          `${given.name}: not readable (${error instanceof Error ? error.message : String(error)})`,
-        );
+        problems.push({
+          file: given.file,
+          message: `not readable (${error instanceof Error ? error.message : String(error)})`,
+        });
       }
     };
 
-    read({
-      name: 'base',
-      load: () => {
-        const file = join(BASE_DIRECTORY, DEFAULTS_FILE);
-
-        return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : undefined;
-      },
-    });
+    if (existsSync(join(BASE_DIRECTORY, DEFAULTS_FILE))) {
+      read({
+        name: 'base',
+        file: `base/${DEFAULTS_FILE}`,
+        load: () => JSON.parse(readFileSync(join(BASE_DIRECTORY, DEFAULTS_FILE), 'utf8')),
+      });
+    }
 
     for (const name of opts.packs) {
-      read({ name: `pack ${name}`, load: () => RulePacks.configOf({ name }) });
+      const config = RulePacks.configOf({ name });
+
+      if (config.found) {
+        read({
+          name: `pack ${name}`,
+          file: `base/packs/${name}.config.json`,
+          load: () => config.value,
+        });
+      }
     }
 
     return { layers, problems };
   }
 
   /** Why a shipped layer is not valid (a key a shipped layer may not set, or a value the schema refuses), or `undefined`. */
-  static checkShipped(opts: { name: string; value: unknown }): string | undefined {
-    if (!RecordValue.isRecord(opts.value)) {
-      return `${opts.name}: must be an object`;
+  static checkShipped(opts: { value: unknown }): string | undefined {
+    if (!isPlain(opts.value)) {
+      return 'must be an object';
     }
 
     const stray = Object.keys(opts.value).filter((key) => !SHIPPED_KEYS.includes(key));
 
     if (stray.length > 0) {
-      return `${opts.name}: ${stray.join(', ')} cannot be set by shipped defaults (one of ${SHIPPED_KEYS.join(', ')})`;
+      return `${stray.join(', ')} cannot be set by shipped defaults (one of ${SHIPPED_KEYS.join(', ')})`;
     }
 
     const parsed = VULCAN_CONFIG_SCHEMA.pick(SHIPPED_MASK).safeParse(opts.value);
@@ -114,7 +145,7 @@ export class ConfigLayers {
 
     const issue = parsed.error.issues[0];
 
-    return `${opts.name}: ${issue?.path.join('.') ?? ''}: ${issue?.message ?? 'not valid'}`;
+    return `${issue?.path.join('.') ?? ''}: ${issue?.message ?? 'not valid'}`;
   }
 
   /** Merges the layers in order (the last layer wins a scalar) and applies `remove`. */
@@ -135,32 +166,27 @@ export class ConfigLayers {
     const unmatched: string[] = [];
 
     for (const [path, items] of Object.entries(opts.remove ?? {})) {
+      const identity = ConfigConstants.LAYERED_ARRAYS[path];
       const holder = ConfigLayers.holderOf({ value, path });
       const current = holder?.object[holder.key];
 
-      if (!Array.isArray(current)) {
+      if (holder === undefined || !Array.isArray(current)) {
         unmatched.push(...items.map((item) => `${path}: ${item}`));
         continue;
       }
 
-      const identity = ConfigConstants.LAYERED_ARRAYS[path];
-      const kept = current.filter(
-        (item: unknown) => !items.includes(ConfigLayers.identityOf({ item, identity })),
+      const names = current.map((entry: unknown) =>
+        ConfigLayers.identityOf({ item: entry, identity }),
       );
 
-      for (const item of items) {
-        if (
-          !current.some(
-            (entry: unknown) => ConfigLayers.identityOf({ item: entry, identity }) === item,
-          )
-        ) {
-          unmatched.push(`${path}: ${item}`);
-        }
-      }
-
-      if (holder !== undefined) {
-        holder.object[holder.key] = kept;
-      }
+      unmatched.push(
+        ...items.filter((item) => !names.includes(item)).map((item) => `${path}: ${item}`),
+      );
+      define({
+        into: holder.object,
+        key: holder.key,
+        value: current.filter((_, at) => !items.includes(names[at] ?? '')),
+      });
     }
 
     return { value, from, unmatched };
@@ -169,24 +195,17 @@ export class ConfigLayers {
   /** The values of `project` that a layer below it already gives, by dotted path: lines the project file can delete. */
   static redundant(opts: { project: Record<string, unknown>; below: IConfigLayer[] }): string[] {
     const lower = ConfigLayers.merge({ layers: opts.below });
-    const upper = ConfigLayers.merge({
-      layers: [{ name: PROJECT_LAYER, value: opts.project }],
-    });
-    const found: string[] = [];
+    const upper = ConfigLayers.merge({ layers: [{ name: 'project', value: opts.project }] });
 
-    for (const path of Object.keys(upper.from)) {
-      if (
+    return Object.keys(upper.from).filter(
+      (path) =>
         path in lower.from &&
         ConfigLayers.valueAt({ value: lower.value, path }) ===
-          ConfigLayers.valueAt({ value: upper.value, path })
-      ) {
-        found.push(path);
-      }
-    }
-
-    return found;
+          ConfigLayers.valueAt({ value: upper.value, path }),
+    );
   }
 
+  /** The name of an item: itself for a string, else its identity fields joined by `|` (the `kinds` of an acknowledgement sorted, joined by `,`). */
   private static identityOf(opts: {
     item: unknown;
     identity: string | string[] | undefined;
@@ -199,7 +218,11 @@ export class ConfigLayers {
         .map((field) => {
           const value = item[field];
 
-          return Array.isArray(value) ? value.join(',') : value === undefined ? '' : String(value);
+          return Array.isArray(value)
+            ? value.map(String).sort().join(',')
+            : value === undefined
+              ? ''
+              : String(value);
         })
         .join('|');
     }
@@ -218,41 +241,43 @@ export class ConfigLayers {
 
     for (const [key, incoming] of Object.entries(opts.add)) {
       const path = opts.path === '' ? key : `${opts.path}.${key}`;
-      const current = out[key];
+      const current = Object.hasOwn(out, key) ? out[key] : undefined;
 
       if (incoming === undefined) {
         continue;
       }
 
-      if (
-        RecordValue.isRecord(incoming) &&
-        (current === undefined || RecordValue.isRecord(current))
-      ) {
-        out[key] = ConfigLayers.mergeObject({
-          into: RecordValue.isRecord(current) ? current : {},
-          add: incoming,
-          path,
-          layer: opts.layer,
-          from: opts.from,
+      if (isPlain(incoming) && (current === undefined || isPlain(current))) {
+        define({
+          into: out,
+          key,
+          value: ConfigLayers.mergeObject({
+            into: isPlain(current) ? current : {},
+            add: incoming,
+            path,
+            layer: opts.layer,
+            from: opts.from,
+          }),
         });
       } else if (
         Array.isArray(incoming) &&
-        path !== 'packages' &&
+        Object.hasOwn(ConfigConstants.LAYERED_ARRAYS, path) &&
         (current === undefined || Array.isArray(current))
       ) {
-        out[key] = ConfigLayers.mergeArray({
-          into: Array.isArray(current) ? current : [],
-          add: incoming,
-          path,
-          layer: opts.layer,
-          from: opts.from,
+        define({
+          into: out,
+          key,
+          value: ConfigLayers.mergeArray({
+            into: Array.isArray(current) ? current : [],
+            add: incoming,
+            path,
+            layer: opts.layer,
+            from: opts.from,
+          }),
         });
       } else {
-        out[key] = incoming;
-
-        if (!Array.isArray(incoming) || path === 'packages') {
-          opts.from[path] = opts.layer;
-        }
+        define({ into: out, key, value: incoming });
+        opts.from[path] = opts.layer;
       }
     }
 
@@ -268,17 +293,22 @@ export class ConfigLayers {
   }): unknown[] {
     const identity = ConfigConstants.LAYERED_ARRAYS[opts.path];
     const out = [...opts.into];
+    const earlier = opts.into.map((entry) => ConfigLayers.identityOf({ item: entry, identity }));
+    const met = new Set<number>();
 
     for (const item of opts.add) {
       const id = ConfigLayers.identityOf({ item, identity });
-      const at = out.findIndex(
-        (entry) => ConfigLayers.identityOf({ item: entry, identity }) === id,
-      );
+      const at = earlier.indexOf(id);
 
-      if (at === -1) {
+      // Only the earlier layers' items are met, once each: a second copy in this layer is its own item.
+      if (at === -1 || met.has(at)) {
         out.push(item);
-      } else if (identity !== undefined) {
-        out[at] = item;
+      } else {
+        met.add(at);
+
+        if (identity !== undefined) {
+          out[at] = item;
+        }
       }
 
       opts.from[`${opts.path}[${id}]`] = opts.layer;
@@ -296,16 +326,19 @@ export class ConfigLayers {
     let object: unknown = opts.value;
 
     for (const part of keys) {
-      object = RecordValue.isRecord(object) ? object[part] : undefined;
+      object = isPlain(object) && Object.hasOwn(object, part) ? object[part] : undefined;
     }
 
-    return RecordValue.isRecord(object) ? { object, key } : undefined;
+    return isPlain(object) ? { object, key } : undefined;
   }
 
   private static valueAt(opts: { value: Record<string, unknown>; path: string }): string {
     const bracket = /^(.*)\[(.*)\]$/.exec(opts.path);
     const holder = ConfigLayers.holderOf({ value: opts.value, path: bracket?.[1] ?? opts.path });
-    const found = holder?.object[holder.key];
+    const found =
+      holder === undefined || !Object.hasOwn(holder.object, holder.key)
+        ? undefined
+        : holder.object[holder.key];
 
     return bracket === null
       ? JSON.stringify(found)

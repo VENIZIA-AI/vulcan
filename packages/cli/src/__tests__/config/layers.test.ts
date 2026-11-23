@@ -91,15 +91,63 @@ describe('ConfigLayers.merge: the rules, the same for every key', () => {
     expect(list.map((entry) => entry.reason)).toEqual(['three', 'two']);
   });
 
-  test('packages is the one exception: what the project writes, even [], is the list', () => {
+  test('an array that is not one of the six is replaced by the later layer, never added to or deduplicated', () => {
     expect(
       ConfigLayers.merge({
         layers: [
-          layer('base', { packages: [{ dir: 'x', name: 'x' }] }),
-          layer('project', { packages: [] }),
+          layer('base', {
+            packages: [{ dir: 'x', name: 'x' }],
+            claude: { settings: { hooks: { Stop: ['a'] } } },
+          }),
+          layer('project', { packages: [], claude: { settings: { hooks: { Stop: ['b', 'b'] } } } }),
         ],
       }).value,
-    ).toEqual({ packages: [] });
+    ).toEqual({ packages: [], claude: { settings: { hooks: { Stop: ['b', 'b'] } } } });
+  });
+
+  test('duplicates inside one layer are kept, and only the earlier layers are compared', () => {
+    const { value } = ConfigLayers.merge({
+      layers: [
+        layer('base', { digest: { oftenDropped: ['V-P-07'] }, atlas: { sources: [source('a')] } }),
+        layer('project', {
+          digest: { oftenDropped: ['V-P-07', 'V-B-03', 'V-B-03'] },
+          atlas: {
+            sources: [
+              { name: 'a', repo: 'mine/a' },
+              { name: 'a', repo: 'mine/a2' },
+            ],
+          },
+        }),
+      ],
+    });
+
+    expect(value).toEqual({
+      digest: { oftenDropped: ['V-P-07', 'V-B-03', 'V-B-03'] },
+      atlas: {
+        sources: [
+          { name: 'a', repo: 'mine/a' },
+          { name: 'a', repo: 'mine/a2' },
+        ],
+      },
+    });
+  });
+
+  test('only plain objects are merged into: a key named __proto__ stays a key, and a Date or a class instance is a value', () => {
+    const hostile = JSON.parse('{"name":"acme","__proto__":{"polluted":true}}');
+    const { value } = ConfigLayers.merge({ layers: [layer('project', hostile)] });
+
+    expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
+    expect(Object.hasOwn(value, '__proto__')).toBe(true);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(VULCAN_CONFIG_SCHEMA.safeParse(value).success).toBe(false);
+
+    const when = new Date(0);
+
+    expect(
+      ConfigLayers.merge({
+        layers: [layer('base', { a: { b: 1 } }), layer('project', { a: when })],
+      }).value,
+    ).toEqual({ a: when });
   });
 
   test('a later layer of a different type replaces the earlier (the schema then says what is wrong)', () => {
@@ -124,7 +172,7 @@ describe('ConfigLayers.merge: remove', () => {
       atlas: { sources: [source('ignis'), source('ardor'), source('vulcan')] },
       claude: { settings: { permissions: { allow: ['Bash(ls:*)', 'Bash(ps:*)'] } } },
       doctor: {
-        privateValues: { acknowledged: [{ path: 'a/**', kinds: ['ipv4', 'token'], reason: 'r' }] },
+        privateValues: { acknowledged: [{ path: 'a/**', kinds: ['token', 'ipv4'], reason: 'r' }] },
       },
     }),
     layer('project', { atlas: { sources: [source('own')] } }),
@@ -225,31 +273,33 @@ describe('the shipped layers', () => {
     [{ guard: { outside: 'maybe' } }, 'guard'],
     [{ atlas: { sources: [{ name: 'a' }] } }, 'atlas'],
   ])('%j is refused by name', (value, word) => {
-    expect(ConfigLayers.checkShipped({ name: 'pack x', value })).toContain(word);
+    expect(ConfigLayers.checkShipped({ value })).toContain(word);
   });
 
   test('a value that is not an object, and the keys a shipped layer may set, are checked', () => {
-    expect(ConfigLayers.checkShipped({ name: 'base', value: [] })).toContain('must be an object');
+    expect(ConfigLayers.checkShipped({ value: [] })).toContain('must be an object');
     expect(
       ConfigLayers.checkShipped({
-        name: 'base',
         value: { digest: { oftenDropped: ['V-P-07'] }, presets: [] },
       }),
     ).toBeUndefined();
   });
 });
 
-describe('ConfigLoader.layered and the schema', () => {
+describe('the merge and the schema', () => {
   test('a pack layer gives the project values it did not write, and the schema checks the merge', () => {
-    const { merge } = ConfigLoader.layered({
-      project: { name: 'acme', remove: { 'atlas.sources': ['ardor'] } },
-      layers: [layer('pack venizia', { atlas: { sources: [source('ignis'), source('ardor')] } })],
+    const { value, from } = ConfigLayers.merge({
+      layers: [
+        layer('pack venizia', { atlas: { sources: [source('ignis'), source('ardor')] } }),
+        layer('project', { name: 'acme' }),
+      ],
+      remove: { 'atlas.sources': ['ardor'] },
     });
-    const parsed = VULCAN_CONFIG_SCHEMA.parse(merge.value);
+    const parsed = VULCAN_CONFIG_SCHEMA.parse(value);
 
     expect(parsed.name).toBe('acme');
     expect(parsed.atlas.sources.map((entry) => entry.name)).toEqual(['ignis']);
-    expect(merge.from['atlas.sources[ignis]']).toBe('pack venizia');
+    expect(from['atlas.sources[ignis]']).toBe('pack venizia');
   });
 
   test('remove accepts only the arrays shipped defaults can add to, with string items', () => {
@@ -279,6 +329,85 @@ describe('ConfigLoader.layered and the schema', () => {
       'base',
       'pack venizia',
     ]);
+  });
+});
+
+describe('with the shipped layers empty, the config is exactly what the schema gave before', () => {
+  const duplicate = { name: 'acme', repo: 'o/a' };
+  const configs: Record<string, Record<string, unknown>> = {
+    'a team app config': {
+      name: 'acme',
+      project: { key: 'ACME' },
+      agents: ['claude'],
+      packs: ['venizia'],
+      layout: { backend: 'umbras', frontend: ['auroras/apps'], shared: ['shared'] },
+      presets: [{ spec: 'ignis', side: 'backend', summary: 'a backend', lib: 'lib' }],
+      packages: [
+        { dir: 'shared-contracts', name: '@x/contracts', path: 'shared/contracts' },
+        { dir: 'umbras-core', name: '@x/core', path: 'umbras/core' },
+      ],
+      digest: { oftenDropped: ['P-02', 'V-P-07'] },
+      atlas: { tagPattern: '<date>_v<version>', sources: [{ name: 'ignis', repo: 'o/ignis' }] },
+      claude: {
+        settings: {
+          enabledPlugins: { 'figma@x': true },
+          permissions: { allow: ['Bash(ls:*)', 'Bash(jq:*)'], deny: ['Bash(git push:*)'] },
+        },
+      },
+      doctor: {
+        privateValues: {
+          acknowledged: [
+            { path: 'a/**', kinds: ['ipv4'], reason: 'one' },
+            { path: 'a/**', kinds: ['token'], reason: 'two' },
+          ],
+        },
+      },
+      events: { log: true },
+    },
+    'duplicate arrays, hooks and atlas sources': {
+      digest: { oftenDropped: ['V-P-07', 'V-P-07'] },
+      presets: [
+        { spec: 'ignis', side: 'backend', summary: 'first' },
+        { spec: 'ignis', side: 'backend', summary: 'second' },
+      ],
+      atlas: { sources: [{ ...duplicate }, { name: 'a', repo: 'o/b' }] },
+      claude: {
+        settings: {
+          hooks: {
+            Stop: [
+              { hooks: [{ type: 'command', command: 'x' }] },
+              { hooks: [{ type: 'command', command: 'x' }] },
+            ],
+          },
+          permissions: { allow: ['Bash(ls:*)', 'Bash(ls:*)'] },
+        },
+      },
+    },
+    'an empty config': {},
+  };
+
+  test.each(Object.keys(configs))('%s parses to the same config as without layers', (label) => {
+    const project = configs[label] ?? {};
+    const { merge } = ConfigLoader.layered({ project });
+
+    expect(VULCAN_CONFIG_SCHEMA.parse(merge.value)).toEqual(VULCAN_CONFIG_SCHEMA.parse(project));
+  });
+});
+
+describe('a broken shipped layer', () => {
+  test('is named by its own file with the real problem, and the session note does not send the user to upgrade', () => {
+    const note = ConfigLoader.unreadableNote({
+      loaded: {
+        ok: false,
+        file: '/p/.configs/vulcan.config.mts',
+        error:
+          'base/packs/venizia.config.json: invalid shipped config\n  digest.oftenDropped: Invalid input',
+      },
+    });
+
+    expect(note).toContain('base/packs/venizia.config.json');
+    expect(note).toContain('digest.oftenDropped: Invalid input');
+    expect(note).not.toContain('vulcan upgrade');
   });
 });
 
