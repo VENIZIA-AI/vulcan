@@ -86,7 +86,7 @@ vulcan event add --kind flow [--flow <flow id>] --title <text> [--why <text>] [-
 
 It prints the id of the line. This is the way in for any coding agent: a hook of Claude Code is only one writer.
 
-- `--kind`: one of the thirteen kinds. `deploy` says something went live (`--summary "block 10" --flow <id>`); a board shows it as a milestone of its flow and, like a merge, counts it as Done until later work reopens the flow.
+- `--kind`: one of the fourteen kinds. `deploy` says something went live (`--summary "block 10" --flow <id>`); a board shows it as a milestone of its flow and, like a merge, counts it as Done until later work reopens the flow.
 - `--summary`: a short label (not on a `flow` line: it takes `--title`). It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]`.
 - `--flow`: the id of a flow that the log already has: `VULZ-<key>-<number>`, as the command printed it when the flow was made, or an older `F-<number>`. An id no line carries is refused, with the recent flows listed. Without it, a line that is not a `flow` line takes the flow its branch names, when the branch name has a flow id segment such as `feature/VULZ-ACME-12-events-log`; a `flow` line with no `--flow` is always a new flow, whatever the branch. Give `--flow` to change the heading or the lists of a flow that exists.
 - `--ref`: a commit, a PR number, a recipient; on a `flow` line, the id of the flow in a tracker (`TICKET-12`). On a `pr` line, `merged:12` says pull request 12 was merged.
@@ -124,11 +124,12 @@ It prints the events at or after `--since`, oldest first. `--since` takes anythi
 
 ## What the Claude Code hooks log
 
-`sync` installs one hook per event (five of them: `PostToolUse` only for the `SendMessage`, `TodoWrite` and `Bash` tools). Four run `base/hooks/event.ts`, read the payload from stdin and write at most one line; the fifth, `Stop`, runs `base/hooks/board-stop.ts` and writes nothing (see [The Stop hook](#the-stop-hook)). The payload fields are those of Claude Code 2.1.317.
+`sync` installs one hook per event (six of them: `PostToolUse` only for the `SendMessage`, `TodoWrite` and `Bash` tools). Five run `base/hooks/event.ts`, read the payload from stdin and write at most one line; the sixth, `Stop`, runs `base/hooks/board-stop.ts` and writes nothing (see [The Stop hook](#the-stop-hook)). The payload fields are those of Claude Code 2.1.317.
 
 | Claude Code event | Logged as | Summary | Read from the payload |
 |---|---|---|---|
 | `SessionStart` | `session-start` | the `source` and the `model`; the model is also stored in `model` | `source`, `model` |
+| `SubagentStart` | `subagent-start` | the `agent_type` and the `agent_id` | `agent_type`, `agent_id` |
 | `SubagentStop` | `subagent-stop`, and a `usage` line for its tokens | the `agent_type` and the `agent_id` | `agent_type`, `agent_id`, `agent_transcript_path` (the tokens, see [Token usage](#token-usage)) |
 | `Notification` | `needs-owner`, for `permission_prompt`, `idle_prompt` and `elicitation_dialog` | the notification `title`, else its type; the type is also stored in `notification` | `notification_type`, `title` |
 | `PostToolUse` of `TodoWrite` | a `flow` line: the last flow line of the flow, copied whole, with the task list merged into its steps | the `content` and `status` of each task |

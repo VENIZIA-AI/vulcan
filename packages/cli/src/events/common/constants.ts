@@ -9,6 +9,8 @@ export class EventKinds extends ConstClass {
   static readonly MSG_SENT = 'msg-sent';
   static readonly MSG_RECEIVED = 'msg-received';
   static readonly NEEDS_OWNER = 'needs-owner';
+  /** A subagent started: its session is busy until it stops. */
+  static readonly SUBAGENT_START = 'subagent-start';
   static readonly SUBAGENT_STOP = 'subagent-stop';
   static readonly COMMIT = 'commit';
   static readonly PR = 'pr';
@@ -104,6 +106,7 @@ export class EventFlags {
 /** The names a Claude Code hook payload carries, as Claude Code 2.1.317 sends them. */
 export class ClaudeHookEvents {
   static readonly SESSION_START = 'SessionStart';
+  static readonly SUBAGENT_START = 'SubagentStart';
   static readonly SUBAGENT_STOP = 'SubagentStop';
   static readonly NOTIFICATION = 'Notification';
   static readonly POST_TOOL_USE = 'PostToolUse';

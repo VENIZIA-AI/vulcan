@@ -44,6 +44,17 @@ describe('EventHook.map', () => {
     expect(map({ hookEventName: 'Stop', stopHookActive: true })).toBeUndefined();
   });
 
+  test('SubagentStart: the agent type and id only', () => {
+    expect(
+      map({
+        hookEventName: 'SubagentStart',
+        agentType: 'Explore',
+        agentId: 'a1-b2',
+        prompt: 'SECRET',
+      }),
+    ).toEqual({ kind: 'subagent-start', summary: 'Explore a1-b2' });
+  });
+
   test('SubagentStop: the agent type and id, never the reply', () => {
     expect(
       map({

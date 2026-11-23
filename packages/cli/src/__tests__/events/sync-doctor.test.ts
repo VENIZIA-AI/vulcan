@@ -12,7 +12,7 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 const SRC = join(import.meta.dir, '..', '..');
-const HOOK_EVENTS = ['SessionStart', 'SubagentStop', 'Notification', 'PostToolUse', 'Stop'];
+const HOOK_EVENTS = ['SessionStart', 'SubagentStart', 'SubagentStop', 'Notification', 'PostToolUse', 'Stop'];
 const HOOK = 'node_modules/@venizia/vulcan/base/hooks/event.ts';
 const STOP_HOOK = 'node_modules/@venizia/vulcan/base/hooks/board-stop.ts';
 

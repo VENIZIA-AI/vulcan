@@ -64,7 +64,7 @@ An event belongs to the flow named by its `flowId` (`VULZ-ACME-12`; an older `F-
 - `flow`: the flow's title and reason (the heading of the flow, a line in its Proposal stage). See [The title of a flow](#the-title-of-a-flow).
 - `decision` (`approve`, `park`, `reject`): your answer: it answers the ask and, for `park` and `reject`, parks the flow.
 - `session-start`: the agents pane: working. Also [agent plumbing](#agent-plumbing). A `session-stop` or `tool-tick` line written by an earlier release is read the same way until the log's age limit removes it.
-- `subagent-stop`: [agent plumbing](#agent-plumbing).
+- `subagent-start`, `subagent-stop`: [agent plumbing](#agent-plumbing).
 
 From GitHub: each pull request, each finished check (pass or fail), each review (approved, changes requested), and the merge. One call per repository asks for the newest 30 pull requests; the note on stderr says how many of them changed since `--since`.
 
@@ -94,7 +94,7 @@ The pane of an agent shows its newest five lines, its open pull requests and the
 
 ### Agent plumbing
 
-Session starts and stops, subagent stops and a prompt the harness waits on are not work. By default the page leaves them out of the flows, the cards and the counts, and they never move a flow: an idle prompt does not make a flow wait for you. The button **Show all events** puts them back, as lines of agent activity and, for lines with no flow, in the **Unsorted** list; press it again to hide them. The choice is saved in the browser. A `needs-owner` line that someone wrote with a question stays visible, and still makes the flow wait for you.
+Session starts and stops, subagent starts and stops and a prompt the harness waits on are not work. By default the page leaves them out of the flows, the cards and the counts, and they never move a flow: an idle prompt does not make a flow wait for you. The button **Show all events** puts them back, as lines of agent activity and, for lines with no flow, in the **Unsorted** list; press it again to hide them. The choice is saved in the browser. A `needs-owner` line that someone wrote with a question stays visible, and still makes the flow wait for you.
 
 ## What the page shows
 
@@ -137,7 +137,7 @@ export default {
 
 **Not replied yet.** On an agent's card, the messages sent to it after the last one it sent, each counted once. It is not the count of every message it ever got, and it does not mean a message was lost: in the agent's detail a message says **delivered** when the receiver logged it as received.
 
-**Working or idle.** An agent is working while its newest line, of any type, is less than half an hour old: a session start, a message it sent or got, a flow line, a commit, a pull request, a usage line or a subagent that finished. A half hour with no line makes it idle, whatever its record says; the card says since when, and its **Latest** row says what that newest line was. The hooks do not log a turn that ends, a tool that is used or a subagent that starts, so a session that works for more than half an hour without any of those lines, a long subagent included, shows as idle.
+**Working or idle.** An agent is working while its newest line, of any type, is less than half an hour old: a session start, a message it sent or got, a flow line, a commit, a pull request, a usage line or a subagent that started or finished. A half hour with no line makes it idle, whatever its record says; the card says since when, and its **Latest** row says what that newest line was. The hooks do not log a turn that ends or a tool that is used, so a session that works for more than half an hour without any line, a subagent that runs longer than that included, shows as idle.
 
 Each agent also has a solid colour, taken from a hash of its name out of a fixed palette of six, so it is the same on every load. Its mascot is that colour with a thick outline: at work it digs with a hoe, waiting on you it waves under a "?" bubble, idle it sleeps in grey, and stuck it sweats. The motion is plain CSS and stops for `prefers-reduced-motion`. A logo or a name the page cannot use is left out, with a note on stderr.
 

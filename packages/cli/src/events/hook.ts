@@ -46,6 +46,15 @@ export class EventHook {
         };
       }
 
+      case ClaudeHookEvents.SUBAGENT_START: {
+        return {
+          kind: EventKinds.SUBAGENT_START,
+          summary: [text({ value: input.agent_type }), text({ value: input.agent_id })]
+            .filter((word) => word !== '')
+            .join(' '),
+        };
+      }
+
       case ClaudeHookEvents.SUBAGENT_STOP: {
         return {
           kind: EventKinds.SUBAGENT_STOP,
