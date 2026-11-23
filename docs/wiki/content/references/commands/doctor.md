@@ -54,6 +54,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `guards` (note) | Notes list each `guard.writes.commands` pattern and `guard.git.askPush` | Change the list in the config |
 | `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `local.tmp` to a short folder and run `vulcan sync`, or check out at a shorter path |
 | `local` (failure) | `local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
+| `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it, or delete `packages` so it is derived from the workspaces |
 | `project-key` (warning) | `events.log` is on and `project.key` is not set, so no flow can be created | Add `project: { key: 'KEY' }` to the config and run `vulcan sync` |
 | `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `doctor.privateValues.acknowledged` |
 | `mcp` (warning) | `.mcp.json` holds the canonical `atlas` entry, is not untracked and unignored, and the Claude settings enable `atlas` | Use the entry the warning shows; ignore `/.mcp.json` or run `vulcan sync` at the top level; run `vulcan sync` |
@@ -295,6 +296,16 @@ A warning: today's event file is bigger than `events.maxSize` on its own. The re
 ```text
   warning [events-size] .configs/vulcan.config.mts: today's event file in /path/.agents/local/events is 61.2 MB, over events.maxSize (50MB); nothing is truncated and today's file is never removed - raise maxSize or write fewer events
 ```
+
+### workspace-packages
+
+A warning with two forms. First: the root `package.json` declares workspaces, the config writes a `packages` list, and a member of those workspaces is not in it. Every table keyed by `packages` (release tags, versions, the atlas) then misses that package. A list that is derived from the workspaces has none, and a retired entry that holds the member's path counts as naming it.
+
+```text
+  warning [workspace-packages] .configs/vulcan.config.mts: 2 workspace member(s) of the root package.json are not in packages: @x/okf (packages/okf), @x/site (apps/web/site). Add them, or delete `packages` so it is derived from the workspaces
+```
+
+Add the entries, or delete the `packages` key. Second: a workspace member that cannot be a package (a folder that is not a valid `dir`, such as `apps/WebApp` or `packages/my_lib`, or a `package.json` with no valid `name`) is named with its reason, for a derived list too; nothing is normalised. Rename the folder or the package, or write `packages` with the `dir` you want.
 
 ### events-dir
 

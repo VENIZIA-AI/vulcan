@@ -6,6 +6,7 @@ import { VULCAN_CONFIG_SCHEMA } from './schema.ts';
 import type { TResolvedConfig } from './schema.ts';
 import { RecordValue } from '../common/record.ts';
 import { ConfigLayers } from './layers.ts';
+import { WorkspacePackages } from './workspaces.ts';
 import type { IConfigLayer, IConfigMerge, IShippedProblem } from './layers.ts';
 
 type TLoadResult =
@@ -160,10 +161,28 @@ export class ConfigLoader {
       return { ok: false, file, error: `${shown}: invalid config\n${issues}` };
     }
 
+    // Packages the config does not write are the workspace members of the root; a list the project writes, even `[]`, is the list.
+    const isDerived =
+      RecordValue.isRecord(loaded.default) && !Object.hasOwn(loaded.default, 'packages');
+
+    const derived = isDerived ? WorkspacePackages.derive({ root: opts.root }) : undefined;
+
+    if (derived !== undefined && derived.errors.length > 0) {
+      return {
+        ok: false,
+        file,
+        error: `${shown}: invalid workspaces\n${derived.errors.map((error) => `  ${error}`).join('\n')}`,
+      };
+    }
+
+    if (isDerived) {
+      layered.merge.from.packages = 'workspaces';
+    }
+
     return {
       ok: true,
       file,
-      config: parsed.data,
+      config: derived === undefined ? parsed.data : { ...parsed.data, packages: derived.packages },
       layers: {
         project: RecordValue.isRecord(loaded.default) ? loaded.default : {},
         below: layered.below,
