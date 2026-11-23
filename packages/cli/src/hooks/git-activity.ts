@@ -1,17 +1,18 @@
+import { GitActivities } from '../events/common/index.ts';
+import type { TGitActivity } from '../events/common/index.ts';
 import { ghCall, gitCall } from './guard-git.ts';
 import { ShellParser } from './shell.ts';
 
-/** What a shell line did that the board should know: a commit, a pull request opened, a pull request merged. */
-export class GitActivities {
-  static readonly COMMIT = 'commit';
-  static readonly PR_OPEN = 'pr-open';
-  static readonly PR_MERGE = 'pr-merge';
-}
-
-export type TGitActivity = 'commit' | 'pr-open' | 'pr-merge';
-
 /** Words after a subcommand that mean the line only reads or tries: nothing was committed, opened or merged. */
 const READS = new Set(['--help', '-h', '--dry-run']);
+
+/** `gh pr merge --auto` and `glab mr merge --when-pipeline-succeeds` only ask for a merge later: nothing is merged yet. */
+const MERGE_LATER = new Set([
+  '--auto',
+  '--auto-merge',
+  '--when-pipeline-succeeds',
+  '--disable-auto',
+]);
 
 /**
  * Which of the three the command line is, by the guards' own shell parser and call readers (`gitCall`, `ghCall`), so
@@ -43,7 +44,7 @@ export class GitActivity {
             return GitActivities.PR_OPEN;
           }
 
-          if (action === 'merge') {
+          if (action === 'merge' && !rest.some((word) => MERGE_LATER.has(word))) {
             return GitActivities.PR_MERGE;
           }
         }

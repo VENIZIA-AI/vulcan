@@ -1,8 +1,12 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { EventKinds, EventStatuses } from './constants.ts';
+import type { EventKinds, EventStatuses, GitActivities } from './constants.ts';
 
 export type TEventKind = TConstValue<typeof EventKinds>;
 export type TEventStatus = TConstValue<typeof EventStatuses>;
+export type TGitActivity = TConstValue<typeof GitActivities>;
+
+/** Whether the board would show a flow as over (Done or Parked): `FlowState.isOver`, given to the hooks that need it. */
+export type TIsOver = (opts: { events: IEvent[]; flowId: string; key?: string }) => boolean;
 
 /** One entry of a list on a flow line: a step or an acceptance check, and whether it is done. */
 export interface IEventItem {

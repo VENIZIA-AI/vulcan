@@ -35,6 +35,13 @@ export class EventSources {
   static readonly CLI = 'cli';
 }
 
+/** What a shell call did that the board should know; the Bash hook writes a fixed line for each. */
+export class GitActivities extends ConstClass {
+  static readonly COMMIT = 'commit';
+  static readonly PR_OPEN = 'pr-open';
+  static readonly PR_MERGE = 'pr-merge';
+}
+
 export class EventSubcommands {
   static readonly ADD = 'add';
   static readonly TAIL = 'tail';
@@ -147,8 +154,6 @@ export class EventConstants {
   static readonly ITEM_COUNT_MAX = 30;
   /** How far back the task-list mirror looks for the flow's last line: it reads the log on every `TodoWrite`. */
   static readonly MIRROR_DAYS = 3;
-  /** The Stop hook asks git once, and gives up (no block) past this. */
-  static readonly STOP_GIT_TIMEOUT_MS = 2000;
   /** How many of a session's flows are checked for being over before the search gives up. */
   static readonly LAST_OPENED_CHECKS = 5;
   static readonly ITEM_TEXT_MAX = 200;

@@ -43,6 +43,12 @@ try {
     const found = await import('../../src/hooks/git-activity.ts');
 
     activity = found.GitActivity.classify({ command });
+
+    if (activity !== undefined) {
+      const state = await import('../../src/events/flow-state.ts');
+
+      isOver = state.FlowState.isOver;
+    }
   }
 
   EventHook.run({

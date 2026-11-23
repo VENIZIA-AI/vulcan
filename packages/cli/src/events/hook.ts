@@ -1,14 +1,18 @@
 import { RecordValue } from '../common/record.ts';
-import { ClaudeHookEvents, EventConstants, EventKinds, EventSources } from './common/index.ts';
-import type { IEvent, IHookEvent, TEventKind } from './common/index.ts';
+import {
+  ClaudeHookEvents,
+  EventConstants,
+  EventKinds,
+  EventSources,
+  GitActivities,
+} from './common/index.ts';
+import type { IEvent, IHookEvent, TEventKind, TGitActivity, TIsOver } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowSteps } from './flow-steps.ts';
 import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 import { EventText } from './text.ts';
-
-type TIsOver = (opts: { events: IEvent[]; flowId: string; key?: string }) => boolean;
 
 const text = (opts: { value: unknown }): string =>
   typeof opts.value === 'string' ? opts.value : '';
@@ -203,6 +207,27 @@ export class EventHook {
   }
 
   /**
+   * Whether the tool result says the call failed or was interrupted. Claude Code runs a failed tool through
+   * `PostToolUseFailure`, so this is only a second guard for a result that carries a flag or an exit code.
+   */
+  private static hasFailed(opts: { input: Record<string, unknown> }): boolean {
+    const result = opts.input.tool_response;
+
+    if (!RecordValue.isRecord(result)) {
+      return false;
+    }
+
+    const code = result.exit_code ?? result.exitCode;
+
+    return (
+      result.interrupted === true ||
+      result.success === false ||
+      result.is_error === true ||
+      (typeof code === 'number' && code !== 0)
+    );
+  }
+
+  /**
    * A shell call that committed, opened a pull request or merged one: a line of the fixed label for it, on the flow of the
    * branch, else the one this session last opened or updated (none when neither is found). The command itself is never
    * read here; the script gives only its class, and every other shell call writes nothing.
@@ -213,16 +238,22 @@ export class EventHook {
     input: Record<string, unknown>;
     env: Record<string, string | undefined>;
     now?: number;
-    activity?: string;
+    activity?: TGitActivity;
+    isOver?: TIsOver;
   }): IEvent | undefined {
-    const labels: Record<string, { kind: TEventKind; summary: string }> = {
-      commit: { kind: EventKinds.COMMIT, summary: EventConstants.COMMIT_LABEL },
-      'pr-open': { kind: EventKinds.PR, summary: EventConstants.PR_OPEN_LABEL },
-      'pr-merge': { kind: EventKinds.PR, summary: EventConstants.PR_MERGE_LABEL },
+    const labels: Record<TGitActivity, { kind: TEventKind; summary: string }> = {
+      [GitActivities.COMMIT]: { kind: EventKinds.COMMIT, summary: EventConstants.COMMIT_LABEL },
+      [GitActivities.PR_OPEN]: { kind: EventKinds.PR, summary: EventConstants.PR_OPEN_LABEL },
+      [GitActivities.PR_MERGE]: { kind: EventKinds.PR, summary: EventConstants.PR_MERGE_LABEL },
     };
     const label = opts.activity === undefined ? undefined : labels[opts.activity];
 
-    if (label === undefined) {
+    // A call that failed or was interrupted did not commit, open or merge anything.
+    if (
+      label === undefined ||
+      opts.isOver === undefined ||
+      EventHook.hasFailed({ input: opts.input })
+    ) {
       return undefined;
     }
 
@@ -230,16 +261,25 @@ export class EventHook {
       sessionId: text({ value: opts.input.session_id }),
       env: opts.env,
     });
+    const key = EventSettings.keyOf({ root: opts.root });
+    const known = EventLog.read({
+      dir: opts.dir,
+      since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
+    }).events;
+    const { isOver } = opts;
     const flowId =
       EventFlow.fromBranch({ cwd: text({ value: opts.input.cwd }) || opts.root }) ??
       FlowSteps.lastOpenedBy({
-        events: EventLog.read({
-          dir: opts.dir,
-          since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
-        }).events,
+        events: known,
         actor,
-        isOver: () => false,
+        isOver: (id) => isOver({ events: known, flowId: id, key }),
       });
+
+    // Work on a flow that is over is not logged on it, as for the task list.
+    if (flowId !== undefined && isOver({ events: known, flowId, key })) {
+      return undefined;
+    }
+
     const event = EventLog.build({
       kind: label.kind,
       summary: label.summary,
@@ -264,10 +304,10 @@ export class EventHook {
     input: unknown;
     env: Record<string, string | undefined>;
     now?: number;
-    /** `FlowState.isOver`, given by the script only for a `TodoWrite` call: it reaches the board, which the other calls do not load. */
+    /** `FlowState.isOver`, given by the script only for a `TodoWrite` call or a commit, a pull request: it reaches the board, which the other calls do not load. */
     isOver?: TIsOver;
     /** What a `Bash` call did, as `GitActivity.classify` says it (the script reads the command and passes only the class). */
-    activity?: string;
+    activity?: TGitActivity;
   }): IEvent | undefined {
     const settings = EventSettings.read({ root: opts.root });
 
@@ -283,6 +323,7 @@ export class EventHook {
         env: opts.env,
         ...(opts.now === undefined ? {} : { now: opts.now }),
         ...(opts.activity === undefined ? {} : { activity: opts.activity }),
+        ...(opts.isOver === undefined ? {} : { isOver: opts.isOver }),
       });
     }
 

@@ -1,8 +1,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { GitActivity } from '../../hooks/git-activity.ts';
-import type { TGitActivity } from '../../hooks/git-activity.ts';
+import type { TGitActivity } from '../../events/index.ts';
 import { BoardStop, EventHook, EventLog, FlowState } from '../../events/index.ts';
 import type { IEvent } from '../../events/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -110,7 +111,8 @@ describe('the Stop hook decides', () => {
     expect(held?.reason).toContain(
       `bun node_modules/.bin/vulcan event step --flow ${FLOW} --done 'Refresh'`,
     );
-    expect(held?.reason).toContain(`event step --flow ${FLOW} --next '`);
+    expect(held?.reason).toContain(`event step --flow ${FLOW} --next with the real state`);
+    expect(held?.reason).not.toContain('where the work stands');
     expect(held?.reason).not.toContain("--done 'Token'");
 
     const pr = project();
@@ -205,6 +207,69 @@ describe('the Stop hook decides', () => {
   });
 });
 
+describe('the edit signal belongs to a session that is in the flow', () => {
+  const branch = (root: string): void => {
+    mkdirSync(join(root, '.git'));
+    writeFileSync(join(root, '.git/HEAD'), `ref: refs/heads/feature/${FLOW}-sign-in\n`);
+  };
+
+  test('dirty files in a shared checkout do not hold a session that has no line in the flow', () => {
+    const root = project();
+
+    flowLine({ root, at: T0 });
+    branch(root);
+    expect(stop({ root, actor: 'assistant-1', edited: true })).toBeUndefined();
+    expect(stop({ root, actor: ACTOR, edited: true })?.decision).toBe('block');
+  });
+
+  test('a branch flow of another actor holds a session only on its own commit or pull request lines', () => {
+    const root = project();
+
+    flowLine({ root, at: T0 });
+    branch(root);
+    line({ root, kind: 'commit', summary: 'commit', at: T0 + 1000, actor: ACTOR });
+    expect(stop({ root, actor: 'assistant-1' })).toBeUndefined();
+
+    line({ root, kind: 'commit', summary: 'commit', at: T0 + 2000, actor: 'assistant-1' });
+    expect(stop({ root, actor: 'assistant-1' })?.decision).toBe('block');
+  });
+});
+
+describe('BoardStop.editedSince in a real repository', () => {
+  const git = (root: string, ...args: string[]) =>
+    Bun.spawnSync(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+      cwd: root,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+
+  test('a tracked file changed after the time counts, an untouched tree and an older time do not', () => {
+    const root = createProject({ files: { 'a.txt': 'one\n', 'sub/b.txt': 'two\n' } });
+
+    git(root, 'init', '-q');
+    git(root, 'add', '.');
+    git(root, 'commit', '-q', '-m', 'first');
+    expect(BoardStop.editedSince({ root, since: 0 })).toBe(false);
+
+    writeFileSync(join(root, 'a.txt'), 'changed\n');
+    expect(BoardStop.editedSince({ root, since: 0 })).toBe(true);
+    expect(BoardStop.editedSince({ root, since: Date.now() + 60_000 })).toBe(false);
+    // An untracked file is not an edit of the project's tracked files.
+    git(root, 'checkout', '-q', '--', 'a.txt');
+    writeFileSync(join(root, 'new.txt'), 'x\n');
+    expect(BoardStop.editedSince({ root, since: 0 })).toBe(false);
+  });
+
+  test('a folder that is not a repository, or one with no commit, is no edit', () => {
+    const plain = createProject({ files: { 'a.txt': 'x\n' } });
+    const empty = createProject({ files: {} });
+
+    git(empty, 'init', '-q');
+    expect(BoardStop.editedSince({ root: plain, since: 0 })).toBe(false);
+    expect(BoardStop.editedSince({ root: empty, since: 0 })).toBe(false);
+  });
+});
+
 describe('GitActivity.classify', () => {
   test.each<[string, TGitActivity]>([
     ['git commit -m "x"', 'commit'],
@@ -226,6 +291,9 @@ describe('GitActivity.classify', () => {
     'git commit --help',
     'gh pr view 5',
     'gh pr create --help',
+    'gh pr merge 5 --auto',
+    'gh pr merge 5 --squash --auto',
+    'glab mr merge 5 --when-pipeline-succeeds',
     'echo git commit',
     'ls',
   ])('%s is nothing', (command) => {
@@ -234,7 +302,12 @@ describe('GitActivity.classify', () => {
 });
 
 describe('the Bash line of the event hook', () => {
-  const bash = (opts: { root: string; activity?: string; env?: Record<string, string> }) =>
+  const bash = (opts: {
+    root: string;
+    activity?: TGitActivity;
+    env?: Record<string, string>;
+    result?: Record<string, unknown>;
+  }) =>
     EventHook.run({
       root: opts.root,
       input: wire({
@@ -243,8 +316,10 @@ describe('the Bash line of the event hook', () => {
         sessionId: 'abcdef12-3456-7890-abcd-ef1234567890',
         cwd: opts.root,
         toolInput: { command: 'git commit -m "a secret message"' },
+        ...(opts.result === undefined ? {} : { toolResponse: opts.result }),
       }),
       env: { VULCAN_ACTOR: ACTOR, ...opts.env },
+      isOver: FlowState.isOver,
       ...(opts.activity === undefined ? {} : { activity: opts.activity }),
     });
 
@@ -261,6 +336,25 @@ describe('the Bash line of the event hook', () => {
     expect([opened?.kind, opened?.summary]).toEqual(['pr', 'pull request opened']);
     expect([merged?.kind, merged?.summary]).toEqual(['pr', 'pull request merge']);
     expect(JSON.stringify([commit, opened, merged])).not.toContain('secret');
+  });
+
+  test('a failed or interrupted call, and a flow that is over, write nothing', () => {
+    const root = project();
+
+    flowLine({ root, at: Date.now() });
+    expect(bash({ root, activity: 'commit', result: { interrupted: true } })).toBeUndefined();
+    expect(bash({ root, activity: 'commit', result: { exitCode: 1 } })).toBeUndefined();
+    expect(bash({ root, activity: 'commit', result: { success: false } })).toBeUndefined();
+    expect(
+      bash({ root, activity: 'commit', result: { stdout: 'ok', interrupted: false } }),
+    ).toBeDefined();
+
+    // The branch names the flow, and it is over: nothing is written on it. With no branch, the search skips it and the line has no flow.
+    line({ root, kind: 'deploy', summary: 'live', at: Date.now() + 5000 });
+    expect(bash({ root, activity: 'commit' })?.flowId).toBeUndefined();
+    mkdirSync(join(root, '.git'));
+    writeFileSync(join(root, '.git/HEAD'), `ref: refs/heads/feature/${FLOW}-sign-in\n`);
+    expect(bash({ root, activity: 'commit' })).toBeUndefined();
   });
 
   test('a call with no class writes nothing, and with no flow the line is kept without one', () => {

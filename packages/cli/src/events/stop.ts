@@ -1,10 +1,10 @@
-import { spawnSync } from 'node:child_process';
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
+import { GitQueries } from '../hooks/git-queries.ts';
 import { RecordValue } from '../common/record.ts';
 import { EventConstants, EventKinds } from './common/index.ts';
-import type { IEvent } from './common/index.ts';
+import type { TIsOver } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
@@ -12,8 +12,7 @@ import { FlowSteps } from './flow-steps.ts';
 import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 
-type TIsOver = (opts: { events: IEvent[]; flowId: string; key?: string }) => boolean;
-/** The tracked files changed since a time: their paths, relative to the project. */
+/** Whether a tracked file of the project was modified after a time (milliseconds). */
 type TEdited = (opts: { root: string; since: number }) => boolean;
 
 /** The most open steps the reason lists as ready commands. */
@@ -106,7 +105,15 @@ export class BoardStop {
       };
     }
 
-    if (acts.length > 0 || edited({ root: opts.root, since })) {
+    // The working tree is shared by every session of a checkout, so an edit is this session's only when it already has a line in the flow.
+    const isInFlow = known.some(
+      (event) =>
+        event.actor === actor &&
+        event.flowId !== undefined &&
+        FlowId.canon({ id: event.flowId, key }) === wanted,
+    );
+
+    if (acts.length > 0 || (isInFlow && edited({ root: opts.root, since }))) {
       return {
         decision: 'block',
         reason: BoardStop.reasonOf({
@@ -137,34 +144,32 @@ export class BoardStop {
       ...(opts.open.length > shown.length
         ? [`  (${opts.open.length - shown.length} more open steps are in the flow)`]
         : []),
-      `  ${command} --next ${shellQuote({ text: 'where the work stands and what comes next' })}`,
+      `Or run ${command} --next with the real state of the work, in your own words: what is done and what comes next.`,
     ].join('\n');
   }
 
-  /** Whether a tracked file of the project was modified after `since` (milliseconds): one `git diff` and a stat of each path. A failure reads as no edit. */
+  /**
+   * Whether a tracked file of the project was modified after `since` (milliseconds): one inert `git diff` (`GitQueries`: no
+   * file system monitor, no filter, no inherited `GIT_DIR`, no lock) and a stat of each path. A failure reads as no edit.
+   */
   static editedSince(opts: { root: string; since: number }): boolean {
-    try {
-      const diff = spawnSync('git', ['diff', '--name-only', '--relative', 'HEAD'], {
-        cwd: opts.root,
-        encoding: 'utf8',
-        timeout: EventConstants.STOP_GIT_TIMEOUT_MS,
-      });
+    const names = GitQueries.run({
+      args: ['diff', '--name-only', '--relative', 'HEAD'],
+      cwd: opts.root,
+    });
 
-      return (
-        diff.status === 0 &&
-        diff.stdout
-          .split('\n')
-          .filter((path) => path !== '')
-          .some((path) => {
-            try {
-              return statSync(join(opts.root, path)).mtimeMs > opts.since;
-            } catch {
-              return false;
-            }
-          })
-      );
-    } catch {
-      return false;
-    }
+    return (
+      names !== undefined &&
+      names
+        .split('\n')
+        .filter((path) => path !== '')
+        .some((path) => {
+          try {
+            return statSync(join(opts.root, path)).mtimeMs > opts.since;
+          } catch {
+            return false;
+          }
+        })
+    );
   }
 }
