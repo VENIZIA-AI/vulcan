@@ -38,10 +38,17 @@ Only a plain object (a literal or JSON) is merged into; a key named `__proto__` 
 
 | Layer | Holds |
 |---|---|
-| `base/defaults.config.json` | the read-only allow list for Claude Code (46 lines: 32 commands that only read, 14 git read subcommands) with its 24 companion denies for the flags that run a program or write a file (`rg --pre`, `sort --output`, `git diff --ext-diff`, `git cat-file --filters`...); the 11 rule ids the session digest repeats (`digest.oftenDropped`); one standing acknowledgement, `**/Dockerfile*` for kind `machine-path` (container paths such as `/home/app`) |
+| `base/defaults.config.json` | the allow list for Claude Code of commands that only read (42 lines: 28 commands and 14 git read subcommands) with 16 companion denies for flags of those commands that write a file or run a program the repository names (`date -s`, `rg --pre`, `git log --output`, `git cat-file --filters`...); the 11 rule ids the session digest repeats (`digest.oftenDropped`); one standing acknowledgement, `**/Dockerfile*` for kind `machine-path` (container paths such as `/home/app`) |
 | `base/packs/venizia.config.json` | the presets `ignis` and `ardor`, the atlas sources `ignis`, `ardor` and `vulcan`, and five allow lines that run the stack's project scripts: `bun run typecheck`, `bun run test`, `bun run lint`, `bun test`, `bun check` |
 
-The base denies no git write: a project that wants that picks the `read-only` choice of rule `V-W-01`, or lists its own denies. An allow rule cannot stop a shell redirect (`jq ... > file`) or a flag glued to its value (`sort -ofile`); the write guards cover those. To take a shipped line out: `remove: { 'claude.settings.permissions.allow': ['Bash(ps:*)'] }`; `vulcan config --effective` shows what is in, and `--diff` which of your lines repeat it.
+The base denies no git write: a project that wants that picks the `read-only` choice of rule `V-W-01`, or lists its own denies. What these lists do not cover, stated so no one relies on them:
+
+- An allow rule matches the command line as written. A flag glued to its value (`-ofile`), a short flag inside a group (`-uz`), an environment prefix (`GIT_EXTERNAL_DIFF=./x git diff`), quoting and a shell redirect (`jq ... > file`) are not matched by a pattern. Whether Claude Code's own matcher splits an environment prefix or quoting is **not verified** here.
+- What stands behind them are the write guards (`guard-outside`, `guard-writes`, the protected files): they refuse a redirect or a known write form that targets a file outside the project or a protected one. They do not read every flag of every command, and a flag glued to its value is not among the forms they know.
+- The `--ext-diff` and `--textconv` denies of the git commands are a second line, not the control: `diff.external` and a textconv filter apply from the repository's own git config whether or not the flag is on the command line, so the real control is the config of the repository you open.
+- The `rg --pre` and `--hostname-bin` denies stop a program being named on the command line (ripgrep does not accept a prefix of those flags).
+
+To take a shipped line out: `remove: { 'claude.settings.permissions.allow': ['Bash(date:*)'] }`, or `deny` for a shipped deny that refuses a command your own allow line used to permit; `vulcan config --effective` shows what is in, and `--diff` which of your lines repeat it.
 
 ## See also
 

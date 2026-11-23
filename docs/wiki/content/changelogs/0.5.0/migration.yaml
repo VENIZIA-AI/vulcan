@@ -113,7 +113,7 @@ digest-add-replaces-often-dropped:
   upgrade:
     steps:
       - 'Run `bun node_modules/.bin/vulcan config --effective` and read `config.digest.oftenDropped`: the shipped ids first, then yours.'
-      - "If you listed fewer ids than the 11 shipped ones to drop the rest, delete the list and write `remove: { 'digest.oftenDropped': ['<the ids you do not want>'] }`; keep in `oftenDropped` only ids the shipped list lacks."
+      - "If you had put the ids in your own order, the order is gone: the shipped ids come first, then yours. If you listed fewer ids than the 11 shipped ones to drop the rest, delete the list and write `remove: { 'digest.oftenDropped': ['<the ids you do not want>'] }`; keep in `oftenDropped` only ids the shipped list lacks."
       - 'Run `bun node_modules/.bin/vulcan sync` and commit `AGENTS.md`.'
   downgrade:
     steps:
@@ -127,7 +127,8 @@ config-defaults-from-base-and-pack:
     steps:
       - 'Run `bun node_modules/.bin/vulcan config --effective` and read `config.claude.settings.permissions`, `config.presets` and `config.atlas.sources`: they now hold the shipped lines before yours.'
       - 'Run `bun node_modules/.bin/vulcan config --diff`: it lists the lines of your config that the shipped layers already give. Delete them from the config.'
-      - "To refuse a shipped line, add `remove: { 'claude.settings.permissions.allow': ['Bash(ps:*)'] }` (or `deny`, `presets`, `atlas.sources`)."
+      - "To refuse a shipped line, add `remove: { 'claude.settings.permissions.allow': ['Bash(date:*)'] }` (or `deny`, `presets`, `atlas.sources`). A shipped deny can refuse a command your own allow line used to permit (for example a `git diff --output`): `remove` it from `claude.settings.permissions.deny`."
+      - "A repository that uses the venizia pack and is itself one of its atlas sources (IGNIS, ARDOR, VULCAN) adds `remove: { 'atlas.sources': ['<its own name>'] }`, or it lists itself twice."
       - 'Run `bun node_modules/.bin/vulcan sync` and commit `.claude/settings.json` if your project commits it.'
   downgrade:
     steps:

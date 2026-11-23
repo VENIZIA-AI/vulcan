@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { z } from 'zod';
 import { ConfigLoader } from '../../config/index.ts';
 import { ConfigLayers } from '../../config/layers.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
@@ -13,16 +14,26 @@ afterAll(removeProjects);
 const [BASE] = ConfigLayers.shipped({ packs: [] }).layers;
 const [, PACK] = ConfigLayers.shipped({ packs: ['venizia'] }).layers;
 
-interface IShipped {
-  claude: { settings: { permissions: { allow: string[]; deny?: string[] } } };
-  digest?: { oftenDropped: string[] };
-  presets?: { spec: string }[];
-  atlas?: { sources: { name: string; repo: string }[] };
-  doctor?: { privateValues: { acknowledged: { path: string; kinds: string[] }[] } };
-}
+const PERMISSIONS = z.object({ allow: z.array(z.string()), deny: z.array(z.string()).optional() });
+const SHIPPED_SCHEMA = z.object({
+  claude: z.object({ settings: z.object({ permissions: PERMISSIONS }) }),
+  digest: z.object({ oftenDropped: z.array(z.string()) }).optional(),
+  presets: z.array(z.object({ spec: z.string() })).optional(),
+  atlas: z
+    .object({ sources: z.array(z.object({ name: z.string(), repo: z.string() })) })
+    .optional(),
+  doctor: z
+    .object({
+      privateValues: z.object({
+        acknowledged: z.array(z.object({ path: z.string(), kinds: z.array(z.string()) })),
+      }),
+    })
+    .optional(),
+});
+const shippedOf = (opts: { value: unknown }) => SHIPPED_SCHEMA.parse(opts.value);
 
-const base = BASE?.value as unknown as IShipped;
-const pack = PACK?.value as unknown as IShipped;
+const base = shippedOf({ value: BASE?.value });
+const pack = shippedOf({ value: PACK?.value });
 const project = (config: string): string =>
   createProject({ files: { '.configs/vulcan.config.mts': config } });
 const effective = async (config: string) => {
@@ -37,8 +48,8 @@ const effective = async (config: string) => {
 
 describe('what the base and the venizia pack ship', () => {
   test('the audited read-only allow list, its companion denies, the digest ids and the one acknowledgement', () => {
-    expect(base.claude.settings.permissions.allow).toHaveLength(46);
-    expect(base.claude.settings.permissions.deny).toHaveLength(24);
+    expect(base.claude.settings.permissions.allow).toHaveLength(42);
+    expect(base.claude.settings.permissions.deny).toHaveLength(16);
     expect(base.digest?.oftenDropped).toEqual([
       'V-P-07',
       'V-B-03',
@@ -100,10 +111,10 @@ describe('the effective config of a project that writes none of it', () => {
     const plain = await effective("export default { name: 'acme' };\n");
     const stack = await effective("export default { name: 'acme', packs: ['venizia'] };\n");
     const allowOf = (config: typeof plain): string[] =>
-      (config.claude.settings.permissions as { allow: string[] }).allow;
+      PERMISSIONS.parse(config.claude.settings.permissions).allow;
 
-    expect(allowOf(plain)).toHaveLength(46);
-    expect(allowOf(stack)).toHaveLength(51);
+    expect(allowOf(plain)).toHaveLength(42);
+    expect(allowOf(stack)).toHaveLength(47);
     expect([...plain.digest.oftenDropped]).toEqual(base.digest?.oftenDropped ?? []);
     expect(plain.presets).toBeUndefined();
     expect(stack.presets?.map((preset) => preset.spec)).toEqual(['ignis', 'ardor']);
@@ -124,10 +135,10 @@ describe('the effective config of a project that writes none of it', () => {
         'digest.oftenDropped': ['V-P-07'],
         presets: ['ardor'],
         'atlas.sources': ['vulcan'],
-        'claude.settings.permissions.allow': ['Bash(ps:*)', 'Bash(bun test:*)'],
+        'claude.settings.permissions.allow': ['Bash(date:*)', 'Bash(bun test:*)'],
       },
     };\n`);
-    const allow = (config.claude.settings.permissions as { allow: string[] }).allow;
+    const allow = PERMISSIONS.parse(config.claude.settings.permissions).allow;
 
     expect(config.digest.oftenDropped).toHaveLength(11);
     expect(config.digest.oftenDropped).toContain('P-02');
@@ -135,9 +146,9 @@ describe('the effective config of a project that writes none of it', () => {
     expect(config.presets?.map((preset) => preset.spec)).toEqual(['ignis']);
     expect(config.atlas.sources.map((source) => source.name)).toEqual(['ignis', 'ardor']);
     expect(allow).toContain('Bash(make okf-check:*)');
-    expect(allow).not.toContain('Bash(ps:*)');
+    expect(allow).not.toContain('Bash(date:*)');
     expect(allow).not.toContain('Bash(bun test:*)');
-    expect(allow).toHaveLength(46 + 5 + 1 - 2);
+    expect(allow).toHaveLength(42 + 5 + 1 - 2);
   });
 
   test('a project that writes a line the base already has can delete it: --diff names it', () => {
@@ -216,21 +227,10 @@ const matches = (opts: { rule: string; command: string }): boolean => {
 describe('every companion deny matches the flag form it targets', () => {
   // Each deny, the commands it must stop (all of which an allow rule of the base would otherwise let through).
   const TARGETS: Record<string, string[]> = {
-    'Bash(file *-C*)': ['file -C -m magic.src', 'file -C'],
     'Bash(date *-s*)': ['date -s 2020-01-01', 'date -s "2020-01-01 10:00"'],
     'Bash(date *--set*)': ['date --set=2020-01-01'],
-    'Bash(ss *-K*)': ['ss -K dst 10.0.0.1', 'ss -t -K'],
-    'Bash(ss *--kill*)': ['ss --kill'],
     'Bash(rg *--pre*)': ['rg --pre cat foo', 'rg foo --pre=./run.sh'],
     'Bash(rg *--hostname-bin*)': ['rg --hostname-bin ./h foo'],
-    'Bash(rg *--search-zip*)': ['rg --search-zip foo'],
-    'Bash(rg *-z*)': ['rg -z foo', 'rg foo -z'],
-    'Bash(sort *--compress-program*)': [
-      'sort --compress-program=./x f',
-      'sort -n --compress-program ./x f',
-    ],
-    'Bash(sort *--output*)': ['sort --output=out f', 'sort f --output out'],
-    'Bash(sort *-o *)': ['sort -o out f', 'sort -n -o out f'],
     'Bash(git log *--output*)': ['git log --output=out', 'git log -5 --output out'],
     'Bash(git diff *--output*)': ['git diff --output=out', 'git diff HEAD~1 --output out'],
     'Bash(git show *--output*)': ['git show --output=out HEAD'],
@@ -264,21 +264,21 @@ describe('every companion deny matches the flag form it targets', () => {
     },
   );
 
-  test('the reading forms of the same commands are not denied', () => {
+  test('the reading forms of the same commands are not denied, and a regex with -z in it is not mistaken for a flag', () => {
     for (const command of [
       'rg foo src',
       'rg -n --glob "*.ts" foo',
-      'sort -n file',
-      'sort -u a b',
+      "rg '[a-z]+' src",
+      "rg -e 'a-z' -g '*-zip*'",
       'git log --oneline -5',
       'git diff HEAD~1',
       'git show HEAD',
       'git blame file',
       'git cat-file -p HEAD',
-      'ss -tlnp',
       'date +%s',
       'date',
-      'file a.txt',
+      'ls User-Card.tsx',
+      'grep -rn foo src',
     ]) {
       expect(
         deny.some((rule) => matches({ rule, command })),
@@ -291,14 +291,30 @@ describe('every companion deny matches the flag form it targets', () => {
     }
   });
 
-  test('a form the patterns cannot see is a known limit, written down (an attached short flag)', () => {
-    // `sort -ofile` carries the flag glued to its value: the `*-o *` pattern needs a space after it and does not match.
-    // The write guards (guard-outside, guard-writes) are what stand between that form and a write outside the project.
-    expect(deny.some((rule) => matches({ rule, command: 'sort -ofile f' }))).toBe(false);
-    // The same for a short flag inside a group (`ss -tK`, `rg -uz`): the patterns look for `-K` and `-z` as their own words.
-    expect(deny.some((rule) => matches({ rule, command: 'ss -tK' }))).toBe(false);
-    expect(deny.some((rule) => matches({ rule, command: 'rg foo -uz' }))).toBe(false);
-    // `date -s2020-01-01` is caught because its deny does not need the space.
+  test('the commands that can write or print secrets from their own flags are not allowed at all', () => {
+    for (const command of [
+      'sort -ofile f',
+      'sort --output=f f',
+      'ss -D out',
+      'file --compile -m m',
+      'ps eww',
+    ]) {
+      expect(
+        allow.some((line) => matches({ rule: line, command })),
+        command,
+      ).toBe(false);
+    }
+  });
+
+  test('known limits, written down: a flag glued to its value, and an environment prefix, are not seen by a pattern', () => {
+    // `date -s2020-01-01` is caught because its deny needs no space; `git diff --output=x` after an environment prefix is not
+    // matched by the allow line either, so Claude Code asks (whether its matcher splits the prefix is not verified here).
     expect(deny.some((rule) => matches({ rule, command: 'date -s2020-01-01' }))).toBe(true);
+    expect(deny.some((rule) => matches({ rule, command: 'GIT_EXTERNAL_DIFF=./x git diff' }))).toBe(
+      false,
+    );
+    expect(
+      allow.some((line) => matches({ rule: line, command: 'GIT_EXTERNAL_DIFF=./x git diff' })),
+    ).toBe(false);
   });
 });
