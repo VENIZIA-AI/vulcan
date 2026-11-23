@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import type { TLiveState } from '../hooks.ts';
 import { useT } from '../i18n/context.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardUrl } from '../url.ts';
-import { THEME_ICONS } from './icons.tsx';
+import { ICONS, THEME_ICONS } from './icons.tsx';
 
 export type TTheme = 'light' | 'dark' | 'system';
 export const THEMES: TTheme[] = ['light', 'dark', 'system'];
@@ -30,9 +31,11 @@ export const Header = (props: IHeaderProps) => {
   const t = useT();
   const themeLabel = `${t('Giao diện: ')}${t(THEME_NAMES[props.theme])}`;
   const langLabel = `${t('lang.label')}: ${t(`lang.${props.language}`)}`;
+  const clock = BoardTime.clock({ iso: props.lastSeen });
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="bar">
+    <header className={`bar${menuOpen ? ' menu-open' : ''}`}>
       <span className="mark" id="mark">
         {props.logo ? <img src={BoardUrl.safe({ value: props.logo, image: true })} alt="" /> : null}
       </span>
@@ -41,33 +44,44 @@ export const Header = (props: IHeaderProps) => {
       {props.live === undefined ? null : (
         <span className={`fresh live-${props.live}`} id="fresh">
           <span className="fresh-dot" aria-hidden="true" />
-          {t(`live.${props.live}`)}
+          <span className="fresh-text">{t(`live.${props.live}`)}</span>
         </span>
       )}
       <span className="spacer" />
-      <span className="since" id="since" title={props.sources.join('\n')}>
-        <span id="sinceTxt">
-          {t('Từ lần xem trước lúc ')}
-          <b>{BoardTime.clock({ iso: props.lastSeen })}</b>: <b>{props.newCount}</b>
-          {t(' sự kiện mới')}
-        </span>
-        <button className="btn btn-text" type="button" id="bSeen" onClick={props.onSeen}>
-          {t('Đánh dấu đã xem')}
-        </button>
-      </span>
+      <button
+        className={`since${props.newCount > 0 ? ' has-new' : ''}`}
+        type="button"
+        id="bSeen"
+        title={`${t('Từ lần xem trước lúc ')}${clock}: ${props.newCount}${t(' sự kiện mới')}\n${props.sources.join('\n')}`}
+        aria-label={`${props.newCount} ${t('hd.new')} ${clock}. ${t('Đánh dấu đã xem')}`}
+        onClick={props.onSeen}
+      >
+        <span className="since-dot" aria-hidden="true" />
+        <b className="num">{props.newCount}</b> {t('hd.new')} <span className="num">{clock}</span>
+      </button>
+      <button
+        className="ib more"
+        type="button"
+        aria-label={t('hd.more')}
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen(!menuOpen)}
+      >
+        {ICONS.more}
+      </button>
       <span className="tools">
         <button
-          className="btn"
+          className="ib"
           type="button"
           id="bPlumb"
           aria-pressed={props.showPlumbing}
           title={t('pl.tip')}
           onClick={props.onPlumbing}
         >
-          {t('pl.all')}
+          {ICONS.eye}
+          <span className="lbl">{t('pl.all')}</span>
         </button>
         <button
-          className="btn sq lang"
+          className="ib lang"
           type="button"
           id="bLang"
           aria-label={langLabel}
@@ -75,9 +89,12 @@ export const Header = (props: IHeaderProps) => {
           onClick={props.onLanguage}
         >
           {props.language === 'en' ? 'VI' : 'EN'}
+          <span className="lbl" aria-hidden="true">
+            {t(`lang.${props.language === 'en' ? 'vi' : 'en'}`)}
+          </span>
         </button>
         <button
-          className="btn sq theme"
+          className="ib theme"
           type="button"
           id="bTheme"
           aria-label={`${themeLabel}${t('. Bấm để đổi')}`}
@@ -85,9 +102,12 @@ export const Header = (props: IHeaderProps) => {
           onClick={props.onTheme}
         >
           {THEME_ICONS[props.theme]}
+          <span className="lbl" aria-hidden="true">
+            {themeLabel}
+          </span>
         </button>
         <button
-          className="btn sq"
+          className="ib"
           type="button"
           id="bKeys"
           aria-label={t('Phím tắt')}
@@ -95,6 +115,9 @@ export const Header = (props: IHeaderProps) => {
           onClick={props.onKeys}
         >
           ?
+          <span className="lbl" aria-hidden="true">
+            {t('Phím tắt')}
+          </span>
         </button>
       </span>
     </header>

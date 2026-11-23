@@ -21,6 +21,10 @@ export const DICTIONARY: Record<TBoardLanguage, Record<string, string>> = {
     'ft.agent': 'Agent',
     'ft.all': 'All',
     'ft.clear': 'Clear filters',
+    'ft.done': 'Done',
+    'hd.more': 'More',
+    'hd.new': 'new since',
+
     'ft.label': 'Filters',
     'ft.none': 'No work item matches these filters.',
     'ft.repo': 'Repo',
@@ -215,6 +219,10 @@ export const DICTIONARY: Record<TBoardLanguage, Record<string, string>> = {
     'ft.agent': 'Agent',
     'ft.all': 'Tất cả',
     'ft.clear': 'Bỏ lọc',
+    'ft.done': 'Xong',
+    'hd.more': 'Thêm',
+    'hd.new': 'mới từ',
+
     'ft.label': 'Bộ lọc',
     'ft.none': 'Không có việc nào khớp bộ lọc.',
     'ft.repo': 'Repo',

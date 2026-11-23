@@ -6,20 +6,23 @@
     <title>Board</title>
     <!--BOARD_TOKENS-->
     <style>
-      /* One screen: a top bar, then three panes: the agents, the work, and the detail of what was picked. Colours come from the design tokens (the style above); only the mascot keeps its own. Nothing under 13px. */
+      /* One screen: a slim bar, then three panes side by side: the agents, the work, and the detail of what was picked. Colours come from the design tokens (the style above); only the mascot keeps its own. Nothing under 13px. */
       :root {
-        --font: 'Inter Display','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+        --font: 'Inter Display','Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
         --mono: 'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-        --bar: 56px;
-        --control: 32px;
-        --line-2: #00000033;
+        --bar: 48px;
+        --control: 28px;
+        --r-m: calc(var(--r) + 2px);
+        --line-2: #00000026;
+        --shadow: 0 8px 24px #0000001f, 0 1px 2px #00000014;
         color-scheme: light;
         --face-ink: #18181b;
         --cheek: #e8a8a0;
       }
       @media (prefers-color-scheme: dark) {
         :root:not([data-theme='light']):not([data-board-theme='light']) {
-          --line-2: #ffffff33;
+          --line-2: #ffffff2e;
+          --shadow: 0 8px 24px #00000080, 0 0 0 1px #ffffff14;
           color-scheme: dark;
           --face-ink: #f4f4f5;
           --cheek: #b8706a;
@@ -27,13 +30,15 @@
       }
       :root[data-theme='dark'],
       :root[data-board-theme='dark'] {
-        --line-2: #ffffff33;
+        --line-2: #ffffff2e;
+        --shadow: 0 8px 24px #00000080, 0 0 0 1px #ffffff14;
         color-scheme: dark;
         --face-ink: #f4f4f5;
         --cheek: #b8706a;
       }
       :root[data-board-theme='light'] {
-        --line-2: #00000033;
+        --line-2: #00000026;
+        --shadow: 0 8px 24px #0000001f, 0 1px 2px #00000014;
         color-scheme: light;
         --face-ink: #18181b;
         --cheek: #e8a8a0;
@@ -74,27 +79,38 @@
       time {
         font-variant-numeric: tabular-nums;
       }
+      .sr,
+      .ib .lbl {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
       :focus-visible {
         outline: 2px solid var(--focus);
         outline-offset: 2px;
       }
       .app {
         height: 100%;
-        box-sizing: border-box;
         display: flex;
         flex-direction: column;
-        padding: 0 max(16px, env(safe-area-inset-right, 0px)) 16px
-          max(16px, env(safe-area-inset-left, 0px));
-        gap: 4px;
+        padding: 0 12px 12px;
       }
 
-      /* The top bar. */
+      /* The bar. */
       .bar {
+        position: relative;
         flex: none;
-        min-height: var(--bar);
+        height: 52px;
+        box-sizing: border-box;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
+        padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0
+          max(16px, env(safe-area-inset-left, 0px));
+        border-bottom: 0;
         min-width: 0;
       }
       .mark {
@@ -104,13 +120,13 @@
       }
       .mark img {
         display: block;
-        height: 28px;
+        height: 24px;
         width: auto;
       }
       .brule {
         flex: none;
         width: 1px;
-        height: 24px;
+        height: 20px;
         background: var(--line-2);
       }
       .mark:empty,
@@ -118,7 +134,7 @@
         display: none;
       }
       h1 {
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 600;
         letter-spacing: -0.01em;
         white-space: nowrap;
@@ -137,11 +153,13 @@
         color: var(--muted);
         white-space: nowrap;
       }
-      .fresh-dot {
-        width: 8px;
-        height: 8px;
+      .fresh-dot,
+      .since-dot {
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
         background: var(--ok);
+        flex: none;
       }
       .live-wait .fresh-dot,
       .live-big .fresh-dot {
@@ -150,81 +168,107 @@
       .live-off .fresh-dot {
         background: var(--fail);
       }
-      .live-off,
-      .live-big {
-        color: var(--ink);
-      }
       .since {
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 4px;
+        height: var(--control);
+        padding: 0 10px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--soft);
         font-size: 13px;
         color: var(--muted);
         white-space: nowrap;
-        min-width: 0;
+        cursor: pointer;
       }
       .since b {
         color: var(--ink);
         font-weight: 600;
-        font-variant-numeric: tabular-nums;
+      }
+      .since .since-dot {
+        display: none;
+        background: var(--accent);
+      }
+      .since.has-new .since-dot {
+        display: block;
+      }
+      .since:hover {
+        background: var(--sunk);
+        color: var(--body);
       }
       .tools {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 2px;
+      }
+      .ib {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        min-width: 32px;
+        height: 32px;
+        padding: 0 6px;
+        border: 0;
+        border-radius: var(--r-m);
+        background: none;
+        color: var(--body);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background-color 0.12s,
+          color 0.12s;
+      }
+      .ib svg {
+        width: 16px;
+        height: 16px;
+        flex: none;
+      }
+      .ib:hover {
+        background: var(--sunk);
+        color: var(--ink);
+      }
+      .ib[aria-pressed='true'] {
+        background: var(--accent-soft);
+        color: var(--accent-text);
+      }
+      .ib.more {
+        display: none;
       }
 
-      /* One button, one select, one segmented switch: the same height, line and corner everywhere. */
+      /* One control language: pills, a segmented switch, text buttons. */
       .btn,
-      .c-field select {
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         height: var(--control);
         box-sizing: border-box;
-        padding: 0 12px;
-        border-radius: var(--r);
-        border: 1px solid var(--line-2);
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
         background: var(--bg);
         color: var(--ink);
         font-size: 13px;
         font-weight: 500;
-        line-height: 1;
-        cursor: pointer;
         white-space: nowrap;
+        cursor: pointer;
         transition:
           background-color 0.12s,
           border-color 0.12s;
       }
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-      }
       .btn:hover,
-      .c-field select:hover {
-        background: var(--soft);
-      }
-      .btn:active {
+      .pill:hover {
         background: var(--sunk);
+        border-color: var(--line);
       }
       .btn[aria-pressed='true'] {
-        background: var(--soft);
-        border-color: var(--ink);
-      }
-      .btn.sq {
-        width: var(--control);
-        padding: 0;
-      }
-      .btn.lang {
-        font-weight: 600;
-      }
-      .btn-text {
-        border-color: transparent;
-        background: none;
-        color: var(--accent-text);
-        padding: 0 8px;
-      }
-      .btn-text:hover {
         background: var(--accent-soft);
+        border-color: var(--accent);
+        color: var(--accent-text);
       }
       .btn.chip {
         height: 24px;
@@ -232,30 +276,106 @@
         margin: 0 6px 0 0;
         font: 13px var(--mono);
       }
-      .theme svg {
-        width: 18px;
-        height: 18px;
+      .btn-text {
+        height: var(--control);
+        padding: 0 8px;
+        border: 0;
+        border-radius: var(--r-m);
+        background: none;
+        color: var(--accent-text);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .btn-text:hover {
+        background: var(--accent-soft);
+      }
+      .pill > span {
+        color: var(--muted);
+      }
+      .pill select {
+        appearance: none;
+        border: 0;
+        background: none;
+        padding: 0 16px 0 0;
+        margin-right: -18px;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        max-width: 140px;
+        text-overflow: ellipsis;
+      }
+      .pill select:focus-visible {
+        outline: none;
+      }
+      .pill:focus-within {
+        outline: 2px solid var(--focus);
+        outline-offset: 1px;
+      }
+      .pill .dn {
+        width: 14px;
+        height: 14px;
+        color: var(--muted);
+        pointer-events: none;
+      }
+      .pill.on {
+        border-color: transparent;
+        background: var(--accent-soft);
+      }
+      .pill.on select {
+        color: var(--accent-text);
+      }
+      .stale-pill b {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .stale-pill[aria-pressed='true'] {
+        border-color: var(--wait);
+        background: var(--wait-soft);
+        color: var(--wait);
+      }
+      .stale-pill[aria-pressed='true'] b {
+        color: var(--wait);
+      }
+      .f-btn svg {
+        width: 14px;
+        height: 14px;
+      }
+      .f-btn b {
+        min-width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: var(--accent-ink);
+        font-size: 13px;
+        line-height: 16px;
+        text-align: center;
       }
       .seg {
         display: inline-flex;
         padding: 2px;
         gap: 2px;
-        border-radius: var(--r);
+        border-radius: 8px;
         background: var(--soft);
       }
       .seg button {
-        height: 28px;
-        padding: 0 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 8px;
         border: 0;
-        border-radius: var(--r);
+        border-radius: 6px;
         background: none;
-        color: var(--body);
+        color: var(--muted);
         font-size: 13px;
         font-weight: 500;
         cursor: pointer;
-        transition:
-          background-color 0.12s,
-          color 0.12s;
+      }
+      .seg svg {
+        width: 14px;
+        height: 14px;
       }
       .seg button:hover {
         color: var(--ink);
@@ -263,34 +383,47 @@
       .seg button[aria-pressed='true'] {
         background: var(--bg);
         color: var(--ink);
-        box-shadow: 0 0 0 1px var(--line-2);
+        box-shadow:
+          0 0 0 1px var(--line),
+          0 1px 2px #0000000f;
+      }
+      .theme svg {
+        width: 16px;
+        height: 16px;
       }
 
-      /* The three panes. */
+      /* The three panes, side by side on one surface. */
       .c-main {
         flex: 1;
         min-height: 0;
         display: grid;
-        grid-template-columns: 320px minmax(0, 1fr) 440px;
+        grid-template-columns: 288px minmax(0, 1fr) 440px;
         gap: 12px;
       }
       .c-main.closed {
-        grid-template-columns: 320px minmax(0, 1fr);
+        grid-template-columns: 288px minmax(0, 1fr);
       }
       .c-pane {
         background: var(--bg);
-        border: 1px solid var(--line);
-        border-radius: var(--r);
         display: flex;
         flex-direction: column;
         min-height: 0;
         min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 10px;
         overflow: hidden;
+      }
+      .c-pane + .c-pane {
+        border-left: 1px solid var(--line);
       }
       .c-pane[hidden] {
         display: none;
       }
+      .c-items {
+        container-type: inline-size;
+      }
       .c-ph {
+        position: relative;
         flex: none;
         height: 48px;
         box-sizing: border-box;
@@ -305,11 +438,29 @@
         font-size: 14px;
         font-weight: 600;
         color: var(--ink);
+        white-space: nowrap;
       }
       .c-n {
         color: var(--muted);
         font-size: 13px;
         font-weight: 500;
+      }
+      .c-bar2 .seg {
+        margin-left: 4px;
+      }
+      .c-tools {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        margin-left: 8px;
+        padding-left: 4px;
+        border-left: 0;
+      }
+      .sheet-head,
+      .f-btn,
+      .scrim {
+        display: none;
       }
       .c-grow {
         flex: 1;
@@ -317,17 +468,18 @@
       }
       .c-x {
         margin-left: auto;
-        width: var(--control);
-        height: var(--control);
-        border-radius: var(--r);
+        width: 32px;
+        height: 32px;
+        border-radius: var(--r-m);
         border: 0;
         background: none;
-        color: var(--ink);
+        color: var(--body);
         font-size: 15px;
         cursor: pointer;
       }
       .c-x:hover {
-        background: var(--soft);
+        background: var(--sunk);
+        color: var(--ink);
       }
       .c-tg {
         margin-left: auto;
@@ -336,27 +488,6 @@
         overflow: auto;
         flex: 1;
         min-height: 0;
-      }
-      .c-tools {
-        flex: none;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 8px 12px;
-        padding: 8px 16px;
-        border-bottom: 1px solid var(--line);
-        background: var(--head);
-      }
-      .c-field {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 13px;
-        color: var(--muted);
-      }
-      .c-field select {
-        padding: 0 8px;
-        max-width: 160px;
       }
       .c-empty {
         margin: 0;
@@ -385,6 +516,40 @@
         background: var(--accent-soft);
       }
 
+      /* State: a mark and a colour that mean the same in every view. */
+      .sm {
+        width: 14px;
+        height: 14px;
+        flex: none;
+      }
+      .s-you {
+        color: var(--wait);
+      }
+      .s-blocked {
+        color: var(--fail);
+      }
+      .s-running {
+        color: var(--info);
+      }
+      .s-parked {
+        color: var(--muted);
+      }
+      .s-done {
+        color: var(--ok);
+      }
+      .state {
+        vertical-align: middle;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--ink);
+        white-space: nowrap;
+        height: 22px;
+        padding: 0 8px 0 6px;
+        border-radius: 999px;
+      }
+
       /* Groups of the list. */
       .c-gh {
         position: sticky;
@@ -394,15 +559,16 @@
         align-items: center;
         gap: 8px;
         width: 100%;
-        min-height: 36px;
-        padding: 0 16px;
-        background: var(--head);
+        height: 40px;
+        padding: 0 16px 0 12px;
+        background: var(--bg);
         border: 0;
-        border-bottom: 1px solid var(--line);
+        border-bottom: 0;
         font-size: 13px;
         font-weight: 600;
         color: var(--ink);
         cursor: pointer;
+        padding-top: 8px;
       }
       .c-gh .chev {
         width: 12px;
@@ -413,14 +579,8 @@
       .c-gh[aria-expanded='false'] .chev {
         transform: rotate(-90deg);
       }
-      .c-dot {
-        flex: none;
-        width: 8px;
-        height: 8px;
-        border-radius: 2px;
-      }
 
-      /* A flow as a card, a line or a table row: one hover, one selection. */
+      /* A flow or an agent as a card, a line or a table row: one hover, one selection. */
       .row,
       .cell {
         cursor: pointer;
@@ -435,17 +595,23 @@
       .cell.sel,
       .cell.sel:hover {
         background: var(--accent-soft);
-        box-shadow: inset 3px 0 0 var(--accent);
+      }
+      .row:focus-visible,
+      .cell:focus-visible {
+        outline-offset: -2px;
       }
       .c-card {
-        padding: 14px 16px 12px;
+        padding: 12px 14px;
         border-bottom: 1px solid var(--line);
+        margin: 0 12px 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
       }
       .c-head {
         display: flex;
         align-items: center;
         flex-wrap: wrap;
-        gap: 6px 8px;
+        gap: 4px 8px;
       }
       .c-badge {
         display: inline-block;
@@ -456,13 +622,32 @@
         padding: 0 6px;
         white-space: nowrap;
       }
+      .b-stage {
+        background: none;
+        color: var(--body);
+        box-shadow: inset 0 0 0 1px var(--line-2);
+        border-radius: 999px;
+        padding: 0 8px;
+        line-height: 20px;
+      }
+      .c-head .b-ask {
+        color: var(--fail);
+      }
+      .c-head .b-idle {
+        color: var(--muted);
+      }
+      .c-head .b-ask,
+      .c-head .b-idle {
+        padding: 0;
+        background: none;
+      }
       .b-ask {
         background: var(--fail-soft);
         color: var(--fail);
       }
       .b-work {
-        background: var(--accent-soft);
-        color: var(--accent-text);
+        background: var(--info-soft);
+        color: var(--info);
       }
       .b-idle {
         background: var(--soft);
@@ -476,12 +661,18 @@
         background: var(--ok-soft);
         color: var(--ok);
       }
+      .c-head .b-ask,
+      .c-head .b-idle {
+        background: none;
+      }
       .b-stale {
         color: var(--wait);
         box-shadow: inset 0 0 0 1px var(--wait);
+        line-height: 18px;
       }
       .c-id {
         font: 13px var(--mono);
+        letter-spacing: -0.02em;
         color: var(--muted);
         white-space: nowrap;
       }
@@ -491,16 +682,16 @@
         font-size: 13px;
       }
       .unread {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
         background: var(--accent);
       }
       .c-title {
-        margin-top: 8px;
+        margin-top: 6px;
         font-size: 15px;
         font-weight: 600;
-        line-height: 1.35;
+        line-height: 1.4;
         color: var(--ink);
         overflow-wrap: anywhere;
       }
@@ -508,77 +699,82 @@
         margin-top: 2px;
         color: var(--body);
       }
-      .c-wb {
+      .c-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 16px;
         margin-top: 10px;
-        display: grid;
-        grid-template-columns: 96px minmax(0, 1fr);
-        gap: 6px 12px;
         font-size: 13px;
       }
-      .c-k {
+      .m {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .k {
         color: var(--muted);
       }
-      .c-v {
-        color: var(--ink);
-        min-width: 0;
-        overflow-wrap: anywhere;
-      }
-      .c-v small {
-        color: var(--muted);
-        font-size: 13px;
-      }
-      .c-wait {
+      .m b {
         color: var(--ink);
         font-weight: 500;
       }
-      .c-mini {
-        display: flex;
-        align-items: center;
-        gap: 8px;
+      .segs {
+        display: inline-flex;
+        gap: 2px;
       }
-      .c-bar {
-        display: block;
-        flex: 0 0 96px;
-        height: 4px;
-        background: var(--soft);
-        border-radius: 2px;
+      .segs > span {
+        width: 8px;
+        height: 6px;
+        border-radius: 1.5px;
+        background: var(--line);
+      }
+      .segs > span.on {
+        background: var(--ok);
+      }
+      .segs > .seg-bar {
+        width: 64px;
+        border-radius: 3px;
         overflow: hidden;
       }
-      .c-bar span {
+      .seg-bar span {
         display: block;
         height: 100%;
         background: var(--ok);
       }
-      .c-chips {
-        display: flex;
+      .c-apps {
+        display: inline-flex;
         gap: 4px;
-        flex-wrap: wrap;
       }
-      .c-chips span {
-        font: 13px/20px var(--mono);
-        background: var(--soft);
-        border-radius: var(--r);
+      .c-apps span {
+        font-size: 13px;
+        line-height: 20px;
         padding: 0 6px;
-        color: var(--ink);
-      }
-      .c-chips span.h {
-        background: var(--accent-soft);
-        color: var(--accent-text);
-        font-weight: 600;
+        border-radius: var(--r);
+        background: var(--soft);
+        color: var(--body);
       }
       .c-prs {
-        display: flex;
+        display: inline-flex;
         flex-wrap: wrap;
         gap: 2px 12px;
       }
       .c-pr {
+        display: inline-flex;
+        align-items: center;
         font: 13px var(--mono);
         color: var(--ink);
         white-space: nowrap;
       }
       .c-pr b {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         margin-left: 6px;
-        font: 600 13px var(--font);
+        font: 500 13px var(--font);
+      }
+      .c-pr .mk {
+        margin: 0;
       }
       .c-pr .good {
         color: var(--ok);
@@ -586,11 +782,49 @@
       .c-pr .bad {
         color: var(--fail);
       }
+      .c-people {
+        margin-top: 8px;
+      }
+      .c-chips {
+        display: flex;
+        gap: 4px 12px;
+        flex-wrap: wrap;
+      }
+      .who {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        font-size: 13px;
+        color: var(--body);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .who i {
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+      .who.h {
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .c-wait {
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--ink);
+      }
+      .c-wait .k {
+        color: var(--wait);
+        font-weight: 600;
+      }
       .c-foot {
         display: flex;
         flex-wrap: wrap;
-        gap: 4px 16px;
-        margin-top: 10px;
+        gap: 2px 12px;
+        margin-top: 8px;
         font-size: 13px;
         color: var(--muted);
       }
@@ -599,20 +833,19 @@
         font-weight: 500;
         font-variant-numeric: tabular-nums;
       }
-      .c-r {
-        margin-left: auto;
-      }
 
       /* Compact: one line a flow. */
       .c-line {
         display: grid;
-        grid-template-columns: 116px minmax(0, 1fr) auto 44px 76px;
+        grid-template-columns: 14px 104px minmax(0, 1fr) auto 84px 116px 72px;
         align-items: center;
-        gap: 12px;
-        min-height: 40px;
-        padding: 0 16px;
-        border-bottom: 1px solid var(--line);
+        gap: 10px;
+        height: 40px;
+        padding: 0 8px;
+        border-bottom: 0;
         font-size: 13px;
+        margin: 0 8px;
+        border-radius: 6px;
       }
       .c-lt {
         font-size: 14px;
@@ -627,8 +860,11 @@
         gap: 6px;
         justify-content: flex-end;
       }
-      .c-ls {
-        text-align: right;
+      .c-ls,
+      .t-steps {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         color: var(--body);
       }
       .c-ago {
@@ -644,19 +880,47 @@
       }
       .t-work {
         width: 100%;
+        min-width: 1080px;
+        table-layout: fixed;
         border-collapse: separate;
         border-spacing: 0;
         font-size: 13px;
+      }
+      .w-code {
+        width: 120px;
+      }
+      .w-stage {
+        width: 92px;
+      }
+      .w-state {
+        width: 108px;
+      }
+      .w-holder {
+        width: 104px;
+      }
+      .w-steps {
+        width: 100px;
+      }
+      .w-pr {
+        width: 88px;
+      }
+      .w-tokens {
+        width: 64px;
+      }
+      .w-due {
+        width: 92px;
+      }
+      .w-updated {
+        width: 104px;
       }
       .t-work th {
         position: sticky;
         top: 0;
         z-index: 1;
         padding: 0;
-        background: var(--head);
+        background: var(--bg);
         border-bottom: 1px solid var(--line);
         text-align: left;
-        font-weight: 600;
         white-space: nowrap;
       }
       .t-work th button {
@@ -665,10 +929,10 @@
         gap: 4px;
         width: 100%;
         height: 40px;
-        padding: 0 10px;
+        padding: 0 8px;
         border: 0;
         background: none;
-        color: var(--muted);
+        color: var(--body);
         font-size: 13px;
         font-weight: 600;
         text-align: inherit;
@@ -685,52 +949,62 @@
         flex: none;
         width: 10px;
         height: 12px;
-        opacity: 0.4;
+        opacity: 0.35;
       }
       .sort.on {
         opacity: 1;
       }
       .t-work td {
-        padding: 9px 10px;
+        height: 44px;
+        box-sizing: border-box;
+        padding: 0 8px;
         border-bottom: 1px solid var(--line);
         color: var(--ink);
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         vertical-align: middle;
       }
       .t-work td:first-child,
       .t-work th:first-child button {
         padding-left: 16px;
       }
-      .t-work td.c-id {
-        color: var(--muted);
-      }
       .t-work .num {
         text-align: right;
-      }
-      .t-title {
-        width: 100%;
       }
       .t-title div {
         display: flex;
         align-items: center;
         gap: 8px;
+        min-width: 0;
       }
       .t-title span:first-child {
-        max-width: 40ch;
+        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         font-weight: 500;
       }
-      .t-state {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
+      .t-work .c-pr b {
+        font-size: 0;
+        margin-left: 4px;
       }
-      .t-who {
-        font-family: var(--mono);
+      .t-work .c-pr .mk {
+        width: 12px;
+        height: 12px;
       }
 
       /* Agents. */
+      .cell {
+        margin: 8px 12px 0;
+        padding: 12px 16px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      .cell .c-head {
+        flex-wrap: nowrap;
+        align-items: flex-start;
+        gap: 10px;
+      }
       .c-compact {
         display: flex;
         align-items: center;
@@ -738,12 +1012,12 @@
         padding: 6px 16px;
       }
       .c-compact .c-face {
-        width: 44px;
-        height: 40px;
+        width: 36px;
+        height: 32px;
       }
       .c-face {
-        width: 56px;
-        height: 50px;
+        width: 44px;
+        height: 40px;
         flex: none;
       }
       .c-top {
@@ -753,7 +1027,8 @@
         gap: 2px 8px;
       }
       .c-nm {
-        font: 600 14px var(--mono);
+        font-size: 14px;
+        font-weight: 600;
         color: var(--ink);
         max-width: 100%;
         white-space: nowrap;
@@ -769,15 +1044,27 @@
       }
       .c-body {
         display: grid;
-        grid-template-columns: 1fr;
-        margin-top: 4px;
+        gap: 4px;
+        margin-top: 8px;
         font-size: 13px;
       }
-      .c-body .c-k {
-        margin-top: 6px;
+      .a-line {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        color: var(--ink);
+      }
+      .a-line .c-k {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .a-line small {
+        color: var(--muted);
+        font-size: 13px;
       }
       .cell .c-foot {
-        gap: 4px 12px;
+        margin-top: 8px;
       }
       .c-ask {
         width: 8px;
@@ -787,6 +1074,260 @@
         background: var(--fail);
       }
 
+      /* The mascots: solid colour, thick outline, round hands. Motion is cheap keyframes and stops for reduced motion. */
+      .bot {
+        width: 100%;
+        height: 100%;
+        display: block;
+        overflow: visible;
+      }
+      .m-o {
+        stroke: var(--face-ink);
+        stroke-linejoin: round;
+        stroke-linecap: round;
+      }
+      .m-line {
+        fill: none;
+      }
+      .m-ink {
+        fill: var(--face-ink);
+      }
+      .m-bad {
+        stroke: var(--fail);
+      }
+      .m-shadow {
+        opacity: 0.12;
+      }
+      .m-q {
+        font: 900 13px system-ui;
+        fill: #1f1f1f;
+      }
+      .m-hoe {
+        transform-origin: 26px 22px;
+        animation: m-swing 1.1s cubic-bezier(0.55, 0, 0.35, 1) infinite;
+      }
+      .m-dig {
+        transform-origin: 20px 36px;
+        animation: m-dig 1.1s ease-in-out infinite;
+      }
+      .m-squint {
+        transform-origin: 20px 23px;
+        animation: m-squint 1.1s ease-in-out infinite;
+      }
+      .m-clod {
+        opacity: 0;
+        animation: m-clod 1.1s ease-out infinite;
+      }
+      .m-c2 {
+        animation-name: m-clod2;
+      }
+      .m-c3 {
+        animation-name: m-clod3;
+      }
+      .m-sleep {
+        transform-origin: 20px 36px;
+        animation: m-breathe 3s ease-in-out infinite;
+      }
+      .m-snot {
+        transform-origin: 24.5px 29px;
+        animation: m-snot 3s ease-in-out infinite;
+      }
+      .m-zz {
+        font: 900 9px system-ui;
+        fill: #3b4cca;
+        opacity: 0;
+        animation: m-zz 3s ease-in-out infinite;
+      }
+      .m-z2 {
+        font-size: 11px;
+        animation-delay: 1s;
+      }
+      .m-z3 {
+        font-size: 13px;
+        animation-delay: 2s;
+      }
+      .m-bubble {
+        transform-origin: 35px 6px;
+        animation: m-pop 1.8s ease-in-out infinite;
+      }
+      .m-lean {
+        transform-origin: 20px 36px;
+        animation: m-lean 1.8s ease-in-out infinite;
+      }
+      .m-wave {
+        transform-origin: 33px 26px;
+        animation: m-wave 0.9s ease-in-out infinite;
+      }
+      @keyframes m-swing {
+        0%,
+        38% {
+          transform: rotate(-118deg);
+        }
+        56% {
+          transform: rotate(4deg);
+        }
+        62% {
+          transform: rotate(-6deg);
+        }
+        70% {
+          transform: rotate(0);
+        }
+        100% {
+          transform: rotate(-118deg);
+        }
+      }
+      @keyframes m-dig {
+        0%,
+        38% {
+          transform: scale(1, 1) translateY(-1px);
+        }
+        56% {
+          transform: scale(1.07, 0.92);
+        }
+        66% {
+          transform: scale(0.98, 1.03);
+        }
+        100% {
+          transform: scale(1, 1) translateY(-1px);
+        }
+      }
+      @keyframes m-squint {
+        0%,
+        50% {
+          transform: scaleY(1);
+        }
+        56%,
+        64% {
+          transform: scaleY(0.35);
+        }
+        72%,
+        100% {
+          transform: scaleY(1);
+        }
+      }
+      @keyframes m-clod {
+        0%,
+        55% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+        58% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(7px, -11px);
+        }
+      }
+      @keyframes m-clod2 {
+        0%,
+        55% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+        58% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(11px, -5px);
+        }
+      }
+      @keyframes m-clod3 {
+        0%,
+        55% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+        58% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(2px, -13px);
+        }
+      }
+      @keyframes m-breathe {
+        0%,
+        100% {
+          transform: scale(1, 1);
+        }
+        50% {
+          transform: scale(1.05, 0.95);
+        }
+      }
+      @keyframes m-snot {
+        0%,
+        8% {
+          transform: scale(0.15);
+          opacity: 0.9;
+        }
+        50% {
+          transform: scale(1);
+          opacity: 0.9;
+        }
+        88% {
+          transform: scale(1.15);
+          opacity: 0.9;
+        }
+        92% {
+          transform: scale(1.35);
+          opacity: 0;
+        }
+        100% {
+          transform: scale(0.15);
+          opacity: 0;
+        }
+      }
+      @keyframes m-zz {
+        0% {
+          opacity: 0;
+          transform: translate(0, 0);
+        }
+        25% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(9px, -14px);
+        }
+      }
+      @keyframes m-pop {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        12% {
+          transform: scale(1.14);
+        }
+        24% {
+          transform: scale(0.96);
+        }
+        34% {
+          transform: scale(1);
+        }
+      }
+      @keyframes m-lean {
+        0%,
+        100% {
+          transform: rotate(0);
+        }
+        12% {
+          transform: rotate(-5deg) translateY(-2px);
+        }
+        34% {
+          transform: rotate(0);
+        }
+      }
+      @keyframes m-wave {
+        0%,
+        100% {
+          transform: rotate(0);
+        }
+        50% {
+          transform: rotate(-28deg);
+        }
+      }
       /* Detail. */
       .d-body {
         padding: 20px;
@@ -810,8 +1351,8 @@
         color: var(--muted);
       }
       .d-who {
-        font-family: var(--mono);
         color: var(--ink);
+        font-weight: 500;
       }
       .d-stages {
         display: flex;
@@ -1072,8 +1613,8 @@
         z-index: 20;
         background: var(--bg);
         border: 1px solid var(--line-2);
-        border-radius: var(--r);
-        box-shadow: 0 8px 24px #00000026;
+        border-radius: 10px;
+        box-shadow: var(--shadow);
         padding: 12px 16px;
         width: 260px;
       }
@@ -1095,260 +1636,102 @@
       .keys dd {
         margin: 0;
       }
-      /* The mascots: solid colour, thick outline, round hands. Motion is cheap keyframes and stops for reduced motion. */
-      .bot {
-        width: 100%;
-        height: 100%;
-        display: block;
-        overflow: visible;
+      /* Filled pills, the group counts, the state pills and the picked card: after the base rules, which they refine. */
+      .pill {
+        border-color: transparent;
+        background: var(--soft);
+        border-radius: 8px;
       }
-      .m-o {
-        stroke: var(--face-ink);
-        stroke-linejoin: round;
-        stroke-linecap: round;
+      .c-gh .c-n {
+        min-width: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: var(--soft);
+        text-align: center;
+        line-height: 20px;
       }
-      .m-line {
-        fill: none;
+      .c-card.sel {
+        border-color: var(--accent);
       }
-      .m-ink {
-        fill: var(--face-ink);
+      .st-you {
+        background: var(--wait-soft);
+        color: var(--wait);
       }
-      .m-bad {
-        stroke: var(--fail);
+      .st-blocked {
+        background: var(--fail-soft);
+        color: var(--fail);
       }
-      .m-shadow {
-        opacity: 0.12;
+      .st-running {
+        background: var(--info-soft);
+        color: var(--info);
       }
-      .m-q {
-        font: 900 13px system-ui;
-        fill: #1f1f1f;
+      .st-parked {
+        background: var(--soft);
+        color: var(--muted);
       }
-      .m-hoe {
-        transform-origin: 26px 22px;
-        animation: m-swing 1.1s cubic-bezier(0.55, 0, 0.35, 1) infinite;
+      .st-done {
+        background: var(--ok-soft);
+        color: var(--ok);
       }
-      .m-dig {
-        transform-origin: 20px 36px;
-        animation: m-dig 1.1s ease-in-out infinite;
+      .row.sel td:first-child {
+        box-shadow: inset 2px 0 0 var(--accent);
       }
-      .m-squint {
-        transform-origin: 20px 23px;
-        animation: m-squint 1.1s ease-in-out infinite;
+      .cell.sel {
+        border-color: var(--accent);
       }
-      .m-clod {
-        opacity: 0;
-        animation: m-clod 1.1s ease-out infinite;
-      }
-      .m-c2 {
-        animation-name: m-clod2;
-      }
-      .m-c3 {
-        animation-name: m-clod3;
-      }
-      .m-sleep {
-        transform-origin: 20px 36px;
-        animation: m-breathe 3s ease-in-out infinite;
-      }
-      .m-snot {
-        transform-origin: 24.5px 29px;
-        animation: m-snot 3s ease-in-out infinite;
-      }
-      .m-zz {
-        font: 900 9px system-ui;
-        fill: #3b4cca;
-        opacity: 0;
-        animation: m-zz 3s ease-in-out infinite;
-      }
-      .m-z2 {
-        font-size: 11px;
-        animation-delay: 1s;
-      }
-      .m-z3 {
-        font-size: 13px;
-        animation-delay: 2s;
-      }
-      .m-bubble {
-        transform-origin: 35px 6px;
-        animation: m-pop 1.8s ease-in-out infinite;
-      }
-      .m-lean {
-        transform-origin: 20px 36px;
-        animation: m-lean 1.8s ease-in-out infinite;
-      }
-      .m-wave {
-        transform-origin: 33px 26px;
-        animation: m-wave 0.9s ease-in-out infinite;
-      }
-      @keyframes m-swing {
-        0%,
-        38% {
-          transform: rotate(-118deg);
-        }
-        56% {
-          transform: rotate(4deg);
-        }
-        62% {
-          transform: rotate(-6deg);
-        }
-        70% {
-          transform: rotate(0);
-        }
-        100% {
-          transform: rotate(-118deg);
+      /* A narrow work pane (the detail open, a tablet): the filters fold into one button and a panel. */
+      @container (max-width: 820px) {
+        .seg .lbl {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip-path: inset(50%);
         }
       }
-      @keyframes m-dig {
-        0%,
-        38% {
-          transform: scale(1, 1) translateY(-1px);
+      @container (max-width: 760px) {
+        .f-btn {
+          display: inline-flex;
+          margin-left: auto;
         }
-        56% {
-          transform: scale(1.07, 0.92);
+        .c-tools {
+          display: none;
         }
-        66% {
-          transform: scale(0.98, 1.03);
+        .c-tools.open {
+          display: flex;
+          position: absolute;
+          top: calc(100% + 4px);
+          right: 8px;
+          z-index: 20;
+          flex-direction: column;
+          align-items: stretch;
+          width: 280px;
+          margin: 0;
+          padding: 12px;
+          gap: 8px;
+          border: 1px solid var(--line-2);
+          border-radius: 10px;
+          background: var(--bg);
+          box-shadow: var(--shadow);
         }
-        100% {
-          transform: scale(1, 1) translateY(-1px);
+        .c-tools.open .sheet-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          color: var(--ink);
         }
-      }
-      @keyframes m-squint {
-        0%,
-        50% {
-          transform: scaleY(1);
+        .c-tools.open .pill {
+          justify-content: space-between;
+          height: 36px;
+          border-radius: 8px;
         }
-        56%,
-        64% {
-          transform: scaleY(0.35);
-        }
-        72%,
-        100% {
-          transform: scaleY(1);
-        }
-      }
-      @keyframes m-clod {
-        0%,
-        55% {
-          opacity: 0;
-          transform: translate(0, 0);
-        }
-        58% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0;
-          transform: translate(7px, -11px);
-        }
-      }
-      @keyframes m-clod2 {
-        0%,
-        55% {
-          opacity: 0;
-          transform: translate(0, 0);
-        }
-        58% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0;
-          transform: translate(11px, -5px);
+        .c-tools.open .pill select {
+          flex: 1;
+          max-width: none;
+          text-align: right;
         }
       }
-      @keyframes m-clod3 {
-        0%,
-        55% {
-          opacity: 0;
-          transform: translate(0, 0);
-        }
-        58% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0;
-          transform: translate(2px, -13px);
-        }
-      }
-      @keyframes m-breathe {
-        0%,
-        100% {
-          transform: scale(1, 1);
-        }
-        50% {
-          transform: scale(1.05, 0.95);
-        }
-      }
-      @keyframes m-snot {
-        0%,
-        8% {
-          transform: scale(0.15);
-          opacity: 0.9;
-        }
-        50% {
-          transform: scale(1);
-          opacity: 0.9;
-        }
-        88% {
-          transform: scale(1.15);
-          opacity: 0.9;
-        }
-        92% {
-          transform: scale(1.35);
-          opacity: 0;
-        }
-        100% {
-          transform: scale(0.15);
-          opacity: 0;
-        }
-      }
-      @keyframes m-zz {
-        0% {
-          opacity: 0;
-          transform: translate(0, 0);
-        }
-        25% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0;
-          transform: translate(9px, -14px);
-        }
-      }
-      @keyframes m-pop {
-        0%,
-        100% {
-          transform: scale(1);
-        }
-        12% {
-          transform: scale(1.14);
-        }
-        24% {
-          transform: scale(0.96);
-        }
-        34% {
-          transform: scale(1);
-        }
-      }
-      @keyframes m-lean {
-        0%,
-        100% {
-          transform: rotate(0);
-        }
-        12% {
-          transform: rotate(-5deg) translateY(-2px);
-        }
-        34% {
-          transform: rotate(0);
-        }
-      }
-      @keyframes m-wave {
-        0%,
-        100% {
-          transform: rotate(0);
-        }
-        50% {
-          transform: rotate(-28deg);
-        }
-      }
+
       /* A tablet or a phone: one column, the work first; the detail opens over it. */
       @media (max-width: 900px) {
         body {
@@ -1362,6 +1745,7 @@
         .c-main.closed {
           display: flex;
           flex-direction: column;
+          gap: 12px;
         }
         .c-items {
           order: -1;
@@ -1380,7 +1764,7 @@
         .c-p3 {
           position: fixed;
           inset: 0;
-          z-index: 15;
+          z-index: 25;
           border: 0;
           border-radius: 0;
           padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0
@@ -1389,21 +1773,20 @@
         .c-p3 .c-scroll {
           overflow: auto;
         }
-        .c-gh,
-        .t-work th {
-          top: 0;
-        }
       }
       @media (max-width: 640px) {
         :root {
-          --control: 44px;
+          --control: 36px;
         }
         .bar {
-          flex-wrap: wrap;
-          padding-block: 8px;
-          row-gap: 4px;
+          position: sticky;
+          top: 0;
+          z-index: 12;
+          background: var(--ground);
+          gap: 6px;
         }
-        .brule {
+        .brule,
+        .fresh-text {
           display: none;
         }
         h1 {
@@ -1413,48 +1796,99 @@
           display: none;
         }
         .since {
-          order: 4;
-          width: 100%;
-          white-space: normal;
-          flex-wrap: wrap;
+          padding: 0 10px;
+          height: 32px;
         }
-        .tools {
-          display: contents;
-        }
-        #bPlumb {
-          order: 5;
-        }
-        .seg button,
-        .t-work th button {
+        .ib.more {
+          display: inline-flex;
+          min-width: 44px;
           height: 44px;
         }
-        .c-ph {
+        .tools {
+          display: none;
+        }
+        .bar.menu-open .tools {
+          display: flex;
+          position: absolute;
+          top: calc(100% - 4px);
+          right: 8px;
+          z-index: 30;
+          flex-direction: column;
+          align-items: stretch;
+          min-width: 220px;
+          padding: 4px;
+          border: 1px solid var(--line-2);
+          border-radius: 10px;
+          background: var(--bg);
+          box-shadow: var(--shadow);
+        }
+        .bar.menu-open .tools .ib {
+          justify-content: flex-start;
+          height: 44px;
+          padding: 0 12px;
+          font-weight: 500;
+        }
+        .bar.menu-open .tools .ib .lbl {
+          position: static;
+          width: auto;
           height: auto;
-          min-height: 52px;
-          flex-wrap: wrap;
-          padding: 4px 8px 4px 16px;
+          clip-path: none;
+          font-weight: 500;
         }
-        .c-tools {
-          padding: 8px 16px;
+        .bar.menu-open .tools .lang {
+          font-family: var(--mono);
         }
-        .c-field select {
-          max-width: 128px;
+        .c-ph {
+          height: 52px;
+          padding: 0 8px 0 16px;
+        }
+        .seg button {
+          height: 36px;
+          min-width: 40px;
+          justify-content: center;
+        }
+        .f-btn {
+          height: 40px;
+        }
+        .c-tools.open {
+          position: fixed;
+          inset: auto 0 0 0;
+          top: auto;
+          width: auto;
+          padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+          border-radius: 14px 14px 0 0;
+          border-width: 1px 0 0;
+        }
+        .c-tools.open .pill {
+          height: 44px;
+        }
+        .c-tools.open .btn-text {
+          height: 44px;
+        }
+        .scrim {
+          display: block;
+          position: fixed;
+          inset: 0;
+          z-index: 19;
+          border: 0;
+          background: #00000059;
         }
         .c-gh,
         .c-loose {
           min-height: 44px;
         }
-        .c-wb {
-          grid-template-columns: 88px minmax(0, 1fr);
-        }
         .c-line {
-          grid-template-columns: auto minmax(0, 1fr) auto auto;
+          grid-template-columns: 14px auto minmax(0, 1fr) auto;
           grid-template-areas:
-            'lt lt lt lt'
-            'id lm ls ago';
-          gap: 2px 12px;
+            'sm lt lt lt'
+            '. id lm ago';
+          gap: 2px 8px;
+          height: auto;
           padding: 8px 16px;
           min-height: 44px;
+        }
+        .c-line .sm {
+          grid-area: sm;
         }
         .c-line .c-id {
           grid-area: id;
@@ -1466,11 +1900,15 @@
           grid-area: lm;
           justify-content: flex-start;
         }
-        .c-ls {
-          grid-area: ls;
+        .c-ls,
+        .c-line .who {
+          display: none;
         }
         .c-ago {
           grid-area: ago;
+        }
+        .t-work th button {
+          height: 44px;
         }
         .c-x {
           width: 44px;
@@ -1481,6 +1919,12 @@
         }
         .btn.chip {
           height: 32px;
+        }
+        .app {
+          padding: 0 8px 8px;
+        }
+        .c-card {
+          margin: 0 8px 8px;
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -1496,9 +1940,10 @@
   <body>
     <div id="root"></div>
     <!--BOARD_DATA-->
-    <script>(()=>{var y,vt,Sn,Q,Ge,Ie,wt,Ee,kt,je,ze,bt,ge=Symbol.for("pv"),Oe={},Ae=[],En=/^m(i|n|o|s|text|space)$/,Ce=Array.isArray,Nt=Ae.slice,ie=Object.assign;function se(e){e&&e.parentNode&&e.remove()}function Te(e,t,n,o,s){var i={type:e,props:t,key:n,ref:o,__k:null,__:null,__b:0,__e:null,__c:null,constructor:ge,__v:s||++vt,__i:-1,__u:0};return!s&&y.vnode&&y.vnode(i),i}function E(e){return e.children}function ee(e,t){this.props=e,this.context=t,this.__g=0}function te(e,t){if(t==null)return e.__&&te(e.__,e.__i+1);for(var n;t<e.__k.length;t++)if((n=e.__k[t])&&n.__e)return n.__e;return typeof e.type!="function"||e.props.__P?null:te(e)}function St(e){if((e=e.__)&&e.__c&&!e.props.__P)return e.__e=null,e.__k.some(function(t){return t&&(e.__e=t.__e)}),St(e)}function Ke(e){(8&e.__g||(e.__g|=8,Q.push(e),Ie++))&&Ge==y.debounceRendering||((Ge=y.debounceRendering)||queueMicrotask)(Et)}function Et(){var e,t,n,o,s,i,r,l,c;try{for(t=1;Q.length;)Q.length>t&&Q.sort(wt),e=Q.shift(),t=Q.length,8&e.__g&&(o=void 0,s=void 0,i=(s=(n=e).__v).__e,r=[],l=[],(c=n.__P)&&((o=ie({constructor:ge},s)).__v=s.__v+1,y.vnode&&y.vnode(o),Ye(c,o,s,n.__n,c.namespaceURI,32&s.__u?[i]:null,r,i||te(s),32&s.__u,l),o.__v=s.__v,o.__.__k[o.__i]=o,At(r,o,l),s.__=s.__e=null,o.__e!=i&&St(o)))}finally{(Ie=Q.length)&&(Ge||queueMicrotask)(Et)}}function Tt(e,t,n,o,s,i,r,l,c,m,d){var f,_,u,p,S,g,w=o.__k||Ae,k=t.length;for(c=Tn(n,t,w,c,k),f=0;f<k;f++)(u=n.__k[f])!=null&&(_=~u.__i&&w[u.__i]||Oe,u.__i=f,g=Ye(e,u,_,s,i,r,l,c,m,d),p=u.__e,(_.ref!=u.ref||8&_.__u)&&(_.ref&&Xe(_.ref,null,u,_),u.ref&&d.push(u.ref,u.__c||p,u)),S=S||p,4&u.__u?(c=It(u,c,e,!_.__v),_.__e&&(_.__e=null)):typeof u.type=="function"&&g!==void 0?c=g:p&&(c=p.nextSibling),u.__u&=-21);return n.__e=S,c}function Tn(e,t,n,o,s){var i,r,l,c,m,d,f,_,u,p=n.length,S=p,g=0,w=0,k=e.__k=Array(s);for(i=0;i<s;i++)(r=t[i])!=null&&typeof r!="boolean"&&typeof r!="function"?(typeof r!="object"||r.constructor===String?r=k[i]=Te(null,r):Ce(r)?r=k[i]=Te(E,{children:r}):r.constructor===ge&&r.__b?r=k[i]=Te(r.type,r.props,r.key,r.ref,r.__v):k[i]=r,c=i+g,r.__=e,r.__b=e.__b+1,l=null,~(m=r.__i=In(r,n,c,S))&&(S--,(l=n[m])&&(l.__u|=2)),l&&l.__v?(r.__u|=16,m==c-1?g--:m==c+1?g++:m!=c&&(m>c?g--:g++,w=1)):(~m||(s>p?g--:s<p&&g++),typeof r.type!="function"&&(r.__u|=4))):k[i]=null;if(w){for(d=[],f=[],i=0;i<s;i++)if((r=k[i])&&16&r.__u){for(g=0,_=d.length;g<_;)d[u=g+_>>1]<r.__i?g=u+1:_=u;d[g]=r.__i,f[i]=g+1}for(g=d.length;i--;)f[i]&&(f[i]==g?g--:k[i].__u|=4)}if(S)for(i=0;i<p;i++)!(l=n[i])||2&l.__u||(l.__e==o&&(o=te(l)),Ze(l,l));return o}function It(e,t,n,o){var s,i,r,l;if(typeof e.type=="function"){if(e.props.__P)return t;if(s=e.__k)for(i=0;i<s.length;i++)s[i]&&(s[i].__=e,t=It(s[i],t,n,!1));return t}for(t&&!t.parentNode&&(t=te(e))&&!t.parentNode&&(t=null),r=e.__e,l=t;l&&l.nodeType==8;)l=l.nextSibling;for(r!=l&&(!o&&n.moveBefore&&r.parentNode?n.moveBefore(r,t):n.insertBefore(r,t||null)),t=r;(t=t&&t.nextSibling)&&t.nodeType==8&&!t.data.startsWith("$s"););return t}function xe(e,t){return t=t||[],e!=null&&typeof e!="boolean"&&(Ce(e)?e.some(function(n){xe(n,t)}):t.push(e)),t}function In(e,t,n,o){var s,{key:i,type:r}=e,l=t[n],c=l&&!(2&l.__u);if(l===null&&i==null||c&&i==l.key&&r==l.type)return n;if(o>(c?1:0)){for(s=n-1;s>=0;s--)if((l=t[s])&&!(2&l.__u)&&i==l.key&&r==l.type)return s;for(s=n+1;s<t.length;s++)if((l=t[s])&&!(2&l.__u)&&i==l.key&&r==l.type)return s}return-1}function yt(e,t,n){n==null&&(n=""),t[0]=="-"?e.setProperty(t,n):e[t]=n}function Se(e,t,n,o,s){var i,r;if(t=="style")if(typeof n=="string")e.style.cssText=n;else{if(typeof o=="string"&&(e.style.cssText=o=""),o)for(t in o)n&&t in n||yt(e.style,t);if(n)for(t in n)o&&n[t]==o[t]||yt(e.style,t,n[t])}else if(t[0]=="o"&&t[1]=="n")(e.__e||(e.__e={}))[t]=n,n&&o||(r=ze[t]||(ze[t]=On(t)),(e.__a||(e.__a={}))[t]=je,i=t!=(t=t.replace(kt,"$1")),(t=t.slice(2))[0]<"a"&&(t=t.toLowerCase()),n?e.addEventListener(t,r,i):e.removeEventListener(t,r,i));else{if(s=="http://www.w3.org/2000/svg")t=t.replace(/xlink(H|:h)/,"h").replace(/sName$/,"s");else if(t!="width"&&t!="height"&&t!="href"&&t!="list"&&t!="form"&&t!="tabIndex"&&t!="download"&&t!="rowSpan"&&t!="colSpan"&&t!="role"&&t!="popover"&&t in e)try{return void(e[t]=n==null?"":n)}catch(l){}if(typeof n=="function")return;n==null||n===!1&&t[4]!="-"?e.removeAttribute(t):e.setAttribute(t,t=="popover"&&n==1?"":n)}}function On(e){return function(t){var n=this.__e;if(n){if(n=n[e],t[Ee]==null)t[Ee]=je++;else if(t[Ee]<this.__a[e])return;return n(y.event?y.event(t):t)}}}function Ye(e,t,n,o,s,i,r,l,c,m){var d,f,_,u,p,S,g,w,k,A,h,b,ke,le,H,Z,F,U,G=t.type;if(t.constructor!==ge)return null;128&n.__u&&(c=32&n.__u,d=n.__c.__z)&&(t.__u|=c,f=i=[],d.nodeType==8?l=qe(d,i):i.push(d),l=i[0]||l),(d=y.__b)&&d(t);e:if(typeof G=="function"){_=r.length;try{if(w=t.props,k=(d=G.prototype)&&d.render,A=(d=G.contextType)&&o[d.__c],h=d?A?A.props.value:d.__:o,(u=n.__c)?(t.__c=u,2&u.__g&&(u.__g|=1)):(k?t.__c=u=new G(w,h):(t.__c=u=new ee(w,h),u.constructor=G,u.render=Cn),A&&A.sub(u),u.state||(u.state={}),u.__n=o,u.__g|=8,u.__h=[],u.__k=[]),k&&(u.__s||(u.__s=u.state),G.getDerivedStateFromProps&&(u.__s==u.state&&(u.__s=ie({},u.__s)),ie(u.__s,G.getDerivedStateFromProps(w,u.__s)))),p=u.props,S=u.state,u.__v=t,n.__c){if(w!==p&&k&&!G.getDerivedStateFromProps&&u.componentWillReceiveProps&&u.componentWillReceiveProps(w,h),t.__v==n.__v&&!(8&u.__g)||!(4&u.__g)&&u.shouldComponentUpdate&&u.shouldComponentUpdate(w,u.__s,h)===!1){t.__v!=n.__v&&(u.props=w,u.state=u.__s,u.__g&=-9),t.__e=n.__e,t.__k=n.__k,t.__k.some(function(L){L&&(L.__=t)}),Ae.push.apply(u.__h,u.__k),u.__k=[],u.__h.length&&r.push(u),l=te(n);break e}u.componentWillUpdate&&u.componentWillUpdate(w,u.__s,h),k&&u.componentDidUpdate&&u.__h.push(function(){u.componentDidUpdate(p,S,g)})}else k&&!G.getDerivedStateFromProps&&u.componentWillMount&&u.componentWillMount(),k&&u.componentDidMount&&u.__h.push(u.componentDidMount);if(u.context=h,u.props=w,u.__P=e,u.__g&=-5,b=y.__r,ke=0,k)u.state=u.__s,u.__g&=-9,b&&b(t),d=u.render(u.props,u.state,u.context),Ae.push.apply(u.__h,u.__k),u.__k=[];else do u.__g&=-9,b&&b(t),d=u.render(u.props,u.state,u.context),u.state=u.__s;while(8&u.__g&&++ke<25);u.state=u.__s,u.getChildContext&&(o=ie({},o,u.getChildContext())),k&&n.__c&&u.getSnapshotBeforeUpdate&&(g=u.getSnapshotBeforeUpdate(p,S)),le=d&&d.type===E&&d.key==null?d.props.children:d,w.__P&&(d=l,s=(e=w.__P).namespaceURI,c=i=null,n.props&&n.props.__P!=e&&(n.__k.some(function(L){L&&Ze(L,L)}),n.__k=null),l=n.__k?te(n,0):null),l=Tt(e,Ce(le)?le:[le],t,n,o,s,i,r,l,c,m),w.__P&&(t.__e=null,l=d),t.__u&=-161,f&&f.some(se),u.__h.length&&r.push(u),1&u.__g&&(u.__g&=-4)}catch(L){if(r.length=_,t.__v=null,c||i)if(L.then){if(H=0,t.__u|=128|c,i){for(~(F=i.indexOf(l||void 0))||(F=i.length);(U=i[F-1])&&U.nodeType==8;)F--;for(;F<i.length;F++)if(U=i[F]){if(i[F]=null,U.nodeType==8){if(U.data.startsWith("$s"))H++||(Z=U);else if(H&&U.data.startsWith("/$s")&&!--H)break}else if(!H)break}}if(!Z){for(;l&&l.nodeType==8&&l.nextSibling;)l=l.nextSibling;Z=l}(d=qe(Z=t.__c.__z||(t.__c.__z=Z)))?(t.__e=Z,l=d):t.__e=l,l=l&&l.nextSibling}else i&&i.some(se);else t.__e=n.__e;t.__k||(t.__k=n.__k||[]),L.then||Ot(t),y.__e(L,t,n)}}else l=t.__e=An(n.__e,t,n,o,s,i,r,c,m,e);return(d=y.diffed)&&d(t),l}function qe(e,t){if(e&&e.nodeType==8&&e.data.startsWith("$s"))for(var n=1;e=e.nextSibling;){if(e.nodeType==8){if(e.data.startsWith("$s"))n++;else if(e.data.startsWith("/$s")&&!--n)return e}t&&t.push(e)}}function Ot(e){e&&(e.__c&&(e.__c.__g|=4),e.__k&&e.__k.some(Ot))}function At(e,t,n){for(var o=0;o<n.length;)Xe(n[o++],n[o++],n[o++]);y.__c&&y.__c(t,e),e.some(function(s){try{e=s.__h,s.__h=[],e.some(function(i){i.call(s)})}catch(i){y.__e(i,s.__v)}})}function An(e,t,n,o,s,i,r,l,c,m){var d,f,_,u,p,S,g,w,k,A=n.props||Oe,{props:h,type:b}=t;if(b=="svg"?s="http://www.w3.org/2000/svg":b=="math"?s="http://www.w3.org/1998/Math/MathML":s||(s="http://www.w3.org/1999/xhtml"),i){for(d=0;d<i.length;d++)if((p=i[d])&&(b?p.localName==b:p.nodeType==3)){e=p,i[d]=null;break}}if(!e){if(w=m.ownerDocument||document,!b)return w.createTextNode(h);e=w.createElementNS(s,b,h.is&&h),l&&(y.__m&&y.__m(t,i),l=!1),i=null}if(b){if(m=b=="template"&&e.content||e,i=b=="textarea"&&h.defaultValue!=null?null:i&&Nt.call(m.childNodes),!l&&i)for(A={},d=0;d<e.attributes.length;d++)A[(p=e.attributes[d]).name]=p.value;for(d in A)p=A[d],d=="dangerouslySetInnerHTML"?_=p:d=="children"||(d in h)||d=="value"&&("defaultValue"in h)||d=="checked"&&("defaultChecked"in h)||Se(e,d,null,p,s);for(d in k=1&n.__u,h)p=h[d],d=="children"?u=p:d=="dangerouslySetInnerHTML"?f=p:d=="value"?S=p:d=="checked"?g=p:l&&typeof p!="function"||!(A[d]!==p||k&&p!=null)||Se(e,d,p,A[d],s);f?(l||_&&(f.__html==_.__html||f.__html==e.innerHTML)||(e.innerHTML=f.__html),t.__k=[]):(_&&(e.textContent=""),(b=="foreignObject"||s=="http://www.w3.org/1998/Math/MathML"&&En.test(b))&&(s="http://www.w3.org/1999/xhtml"),Tt(m,Ce(u)?u:[u],t,n,o,s,i,r,i?i[0]:n.__k&&te(n,0),l,c),i&&i.some(se)),l&&b!="textarea"||(d="value",b=="progress"&&S==null?e.removeAttribute(d):S==null||S===e[d]&&(b!="progress"||S)||Se(e,d,S,A[d],s),d="checked",g!=null&&g!=e[d]&&Se(e,d,g,A[d],s))}else A===h||l&&e.data==h||(e.data=h);return e}function Xe(e,t,n,o){try{typeof e=="function"?t?t.__x=e(t)||1:o&&(o=o.__c||o.__e)&&(t=o.__x)&&(o.__x=null,typeof t=="function"?t():e(null)):e.current=t}catch(s){y.__e(s,n)}}function Ze(e,t,n){var o,s,i,r;if(y.unmount&&y.unmount(e),!(o=e.ref)||o.current&&o.current!=e.__e||Xe(o,null,t,e),o=e.__c){if(o.componentWillUnmount)try{o.componentWillUnmount()}catch(l){y.__e(l,t)}o.__P=o.__n=null}if(o=e.__k)for(r=0;r<o.length;r++)o[r]&&Ze(o[r],t,typeof e.type!="function"||n&&!e.props.__P);!n&&(o=e.__c)&&(o=o.__z)&&(s=qe(o,i=[]))&&(o==e.__e&&i.some(se),se(s),se(o)),(o=e.__e)&&(n||se(o),o.__e&&(o.__e=null)),e.__e=e.__c=e.__=null}function Cn(e,t,n){return this.constructor(e,n)}function Je(e,t){var n,o,s,i;y.__&&y.__(e,t),t.nodeType==9&&(t=t.documentElement),o=(n=e&&32&e.__u)?null:t.__k,t.__k=Te(E,{children:[e]}),s=[],i=[],Ye(t,t.__k,o||Oe,Oe,t.namespaceURI,o?null:t.firstChild?Nt.call(t.childNodes):null,s,o?o.__e:t.firstChild,n,i),At(s,t.__k,i),t.__k.props.children=null}function Re(e){function t(n){var o,s;return this.getChildContext||(o=new Set,(s={})[t.__c]=this,this.getChildContext=function(){return s},this.shouldComponentUpdate=function(i){this.props.value!=i.value&&o.forEach(function(r){r.__g|=4,Ke(r)})},this.sub=function(i){o.add(i);var r=i.componentWillUnmount;i.componentWillUnmount=function(){o.delete(i),r&&r.call(i)}}),n.children}return t.__c="__cC"+bt++,t.__=e,t.Provider=(t.Consumer=function(n,o){return n.children(o)}).contextType=t,t}y={__e:function(e,t,n,o){for(var s,i,r;t=t.__;)if((s=t.__c)&&!(1&s.__g)){s.__g|=4;try{if((r=(i=s.constructor)&&i.getDerivedStateFromError)&&s.setState(i.getDerivedStateFromError(e)),s.componentDidCatch&&(s.componentDidCatch(e,o||{}),r=1),r&&8&s.__g)return void(s.__g|=2)}catch(l){e=l}}throw Ie=0,e}},vt=0,Sn=function(e){return e!=null&&e.constructor===ge},ee.prototype.setState=function(e,t){var n=this.__s;n&&n!=this.state||(n=this.__s=ie({},this.state)),typeof e=="function"&&(e=e(ie({},n),this.props)),e&&(ie(n,e),this.__v&&(t&&this.__k.push(t),Ke(this)))},ee.prototype.forceUpdate=function(e){this.__v&&(this.__g|=4,e&&this.__h.push(e),Ke(this))},ee.prototype.render=E,Q=[],Ie=0,wt=function(e,t){return e.__v.__b-t.__v.__b},Ee=Symbol(),kt=/(PointerCapture)$|Capture$/i,je=0,ze={},bt=0;var de,I,Qe,Ct,et=Object.is,ye=0,Lt=[],tt=[],x=y,{__b:xt,__r:Rt,diffed:Bt,__c:Pt,unmount:Dt,__:$t}=x;function Be(e,t){x.__h&&x.__h(I,e,ye||t),ye=0;var n=I.__H||(I.__H={__:[],__h:[]});return e>=n.__.length&&n.__.push({}),n.__[e]}function P(e){return ye=1,Vt(Wt,e)}function Vt(e,t,n){var o=Be(de++,2);if(o.t=e,!o.__c&&(o.__=[n?n(t):Wt(void 0,t),function(i){var r=o.__N?o.__N[0]:o.__[0],l=o.t(r,i);et(r,l)||(o.__N=[l,o.__[1]],o.__c.setState({}))}],o.__c=I,!I.__f)){I.__f=!0;var s=I.shouldComponentUpdate;I.shouldComponentUpdate=function(i,r,l){var c=this.__H;if(!c)return!0;var m=!1,d=this.props!=i;if(c.__.some(function(_){_.__N&&(m=!0,et(_.__[0],_.__N[0])||(d=!0))}),s){var f=s.call(this,i,r,l);return m?f||d:f}return!m||d}}return o.__}function z(e,t){var n=Be(de++,3);!x.__s&&Ut(n.__H,t)&&(n.__P=!0,n.__=e,n.u=t,I.__H.__h.push(n))}function Pe(e){return ye=5,q(function(){return{current:e}},[])}function q(e,t){var n=Be(de++,7);return Ut(n.__H,t)&&(n.__=e(),n.__H=t),n.__}function at(e,t){return ye=8,q(function(){return e},t)}function De(e){var t=I.context[e.__c],n=Be(de++,9);return n.c=e,t?(n.__==null&&(n.__=!0,t.sub(I)),t.props.value):e.__}function xn(){var e;do{for(;e=tt.shift();)try{he(e)}catch(n){x.__e(n,{__:(e=e.__P)&&e.__v})}for(;e=Lt.shift();){var t=e.__H;if(e.__P&&t)try{t.__h.some(he),t.__h.some(nt),t.__h=[]}catch(n){t.__h=[],x.__e(n,e.__v)}}}while(tt.length)}x.__b=function(e){I=null,xt&&xt(e)},x.__=function(e,t){e&&t.__k&&t.__k.__m&&(e.__m=t.__k.__m),$t&&$t(e,t)},x.__r=function(e){Rt&&Rt(e),de=0;var t=(I=e.__c).__H;t&&(Qe==I?I.__h=[]:(t.__h.some(he),t.__h.some(nt),de=0),t.__h=[],t.__.some(function(n){n.__N&&(n.__=n.__N),n.u=n.__N=void 0})),Qe=I},x.diffed=function(e){Bt&&Bt(e);var t=e.__c;t&&t.__H&&(t.__H.__h.length&&Ft(Lt.push(t)),t.__H.__.some(function(n){n.u&&(n.__H=n.u)})),Qe=I=null},x.__c=function(e,t){t.some(function(n){try{n.__h.some(he),n.__h=n.__h.filter(function(o){return!o.__||nt(o)})}catch(o){n.__h=[function(){throw o}]}}),Pt&&Pt(e,t)},x.unmount=function(e){Dt&&Dt(e);var t,n,o=e.__c;o&&o.__H&&(o.__H.__.some(function(s){try{if(s.__P&&s.__c){if(n===void 0){for(n=e.__;n&&(!n.__c||!n.__c.__P);)n=n.__;n=n&&n.__c}s.__P=n,Ft(tt.push(s))}else he(s)}catch(i){t=i}}),o.__H=void 0,t&&x.__e(t,o.__v))};var Mt=typeof requestAnimationFrame=="function";function Rn(e){var t,n=function(){clearTimeout(o),Mt&&cancelAnimationFrame(t),setTimeout(e)},o=setTimeout(n,35);Mt&&(t=requestAnimationFrame(n))}function Ft(e){e!=1&&Ct==x.requestAnimationFrame||((Ct=x.requestAnimationFrame)||Rn)(xn)}function he(e){var t=I,n=e.__c;typeof n=="function"&&(e.__c=void 0,n()),I=t}function nt(e){var t=I;e.__c=e.__(),I=t}function Ut(e,t){return!e||e.length!=t.length||t.some(function(n,o){return!et(n,e[o])})}function Wt(e,t){return typeof t=="function"?t(e):t}var Ht=Object.assign;var Dn=/^(-|f[lo].*[^se]$|g.{5,}[^ps]$|z|o[pr]|(W.{5})?[lL]i.*(t|mp)$|an|(bo|s).{4}Im|sca|m.{6}[ds]|ta|c.*[st]$|wido|ini|asp|fill|st)/;var $n=Symbol.for("react.element"),Mn=/^(?:accent|alignment|arabic|baseline|cap|clip(?!PathU)|color|dominant|fill|flood|font|glyph(?!R)|horiz|image(?!S)|letter|lighting|marker(?!H|W|U)|overline|paint|pointer|shape|stop|strikethrough|stroke|text(?!L)|transform|underline|unicode|units|v|vector|vert|word|writing|x(?!C))[A-Z]/,Fn=/[A-Z0-9]/g,Ln=typeof document<"u";var Vn=function(e){return/fil|che|rad/.test(e)};function Kt(e,t,n){return t.__k==null&&(t.textContent=""),Je(e,t),typeof n=="function"&&n(),e?e.__c:null}ee.prototype.isReactComponent=!0,["componentWillMount","componentWillReceiveProps","componentWillUpdate"].forEach(function(e){Object.defineProperty(ee.prototype,e,{configurable:!0,get:function(){return this["UNSAFE_"+e]},set:function(t){Object.defineProperty(this,e,{configurable:!0,writable:!0,value:t})}})});var Gt=y.event;y.event=function(e){return Gt&&(e=Gt(e)),e.persist=function(){},e.isPropagationStopped=function(){return this.cancelBubble},e.isDefaultPrevented=function(){return this.defaultPrevented},e.nativeEvent=e};var Un={configurable:!0,get:function(){return this.class}},zt=y.vnode;y.vnode=function(e){if(typeof e.type=="string")(function(o){var{props:s,type:i}=o,r={},l=i.indexOf("-")==-1;for(var c in s){var m=s[c];if(!(c=="value"&&("defaultValue"in s)&&m==null||Ln&&c=="children"&&i=="noscript"||c=="class"||c=="className")){if(c=="style"&&m&&m.constructor==Object){var d=void 0;for(var f in m)typeof m[f]!="number"||Dn.test(f)||(d||(d=m=Ht({},m)),m[f]+="px")}else if(c=="defaultValue"&&"value"in s&&s.value==null)c="value";else if(c=="download"&&m===!0)m="";else if(c=="translate"&&m==="no")m=!1;else if(c[0]=="o"&&c[1]=="n"){var _=c.toLowerCase();_=="ondoubleclick"?c="ondblclick":_!="onchange"||i!="input"&&i!="textarea"||Vn(s.type)?_=="onfocus"?c="onfocusin":_=="onblur"&&(c="onfocusout"):_=c="oninput",_=="oninput"&&r[c=_]&&(c="oninputCapture")}else l&&Mn.test(c)?c=c.replace(Fn,"-$&").toLowerCase():m===null&&(m=void 0);r[c]=m}}i=="select"&&(r.multiple&&Array.isArray(r.value)&&(r.value=xe(s.children).forEach(function(u){u.props.selected=r.value.indexOf(u.props.value)!=-1})),r.defaultValue!=null&&(r.value=xe(s.children).forEach(function(u){u.props.selected=r.multiple?r.defaultValue.indexOf(u.props.value)!=-1:r.defaultValue==u.props.value}))),s.class&&!s.className?(r.class=s.class,Object.defineProperty(r,"className",Un)):s.className&&(r.class=r.className=s.className),o.props=r})(e);else if(typeof e.type=="function"&&(("ref"in e.props)&&("prototype"in e.type)&&e.type.prototype.render&&(e.ref=e.props.ref,delete e.props.ref),e.type.defaultProps)){var t=Ht({},e.props);for(var n in e.type.defaultProps)t[n]===void 0&&(t[n]=e.type.defaultProps[n]);e.props=t}e.ref&&!("ref"in e.props)&&Object.defineProperty(e.props,"ref",{value:e.ref,configurable:!0,writable:!0}),e.$$typeof=$n,zt&&zt(e)};function qt(e){return!!e.__k&&(Je(null,e),!0)}function jt(e){return{render:function(t){Kt(t,e)},unmount:function(){qt(e)}}}class j{static YOU="you";static BLOCKED="blocked";static RUNNING="running";static PARKED="parked";static DONE="done";static ORDER=[this.YOU,this.BLOCKED,this.RUNNING,this.PARKED,this.DONE]}class W{static REQUEST="request";static DECISION="decision";static ASSIGN="assign";static NOTE="note";static DESIGN="design";static COMMIT="commit";static PR="pr";static CI="ci";static REVIEW="review";static FIX="fix";static MERGE="merge";static RELEASE="release";static HANDOFF="handoff";static MSG="msg";static FLOW="flow";static AGENT="agent"}class X{static GITHUB="github";static GITLAB="gitlab";static HOSTS=new Set([this.GITHUB,this.GITLAB])}class O{static ROLE_MAX=60;static HARNESS_CLAUDE="Claude Code";static DEFAULT_OWNER="Owner";static LOGO_MAX_BYTES=102400;static MANIFEST_FILE=".agents/vulcan.manifest.json";static CI_ACTOR="CI";static ACTIVE_GAP_MS=1800000;static UNSORTED="Unsorted";static DEFAULT_OUT=".agents/local/reports/board.html";static DEFAULT_DAYS=7;static HOUR_MS=3600000;static DAY_MS=24*O.HOUR_MS;static TEMPLATE="templates/board.html";static DATA_MARKER="<\!--BOARD_DATA-->";static TOKENS_MARKER="<\!--BOARD_TOKENS-->";static GH_TIMEOUT_MS=15000;static GH_LIMIT=30;static PROJECT_PATH=/^[\w.-]+(?:\/[\w.-]+)+$/;static GITLAB_DEFAULT_HOST="gitlab.com";static GITLAB_HOST=/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*(?::\d{1,5})?$/;static GITLAB_JOB_PIPELINES=10;static HARNESS_ASKS=new Set(["idle_prompt","permission_prompt","elicitation_dialog"]);static WORK_KINDS=[W.ASSIGN,W.DESIGN,W.COMMIT,W.PR,W.FIX,W.NOTE];static PROGRESS_KINDS=[W.COMMIT,W.PR,W.FIX,W.MERGE,W.RELEASE,W.HANDOFF]}class ne{static EN="en";static VI="vi"}class V{static NOT_AGENTS=new Set([O.CI_ACTOR,"reviewer"]);static APPROXIMATE_SOURCE=/ước lượng/;static EARLIER_HOURS=24;static DONE_DAYS=7;static STALE_HOURS=2;static IDLE_TEXT=/^rảnh/}class M{static STAGES=["Đề xuất","Anh duyệt","Thiết kế","Code","PR + CI","Review","Merge","Phát hành","Bàn giao"];static STATE_TEXT={you:"Cần anh",blocked:"Bị chặn",running:"Đang chạy",parked:"st.parked",done:"Xong"};static KIND_TEXT={request:"đề xuất",decision:"quyết định",assign:"giao việc",note:"ghi chú",design:"thiết kế",commit:"code",pr:"PR",ci:"CI",review:"review",fix:"sửa",merge:"merge",release:"phát hành",handoff:"bàn giao",msg:"tin nhắn",flow:"k.flow",agent:"k.agent"};static GROUPS=[{key:"you",label:"g.you",swatch:"var(--ink)",open:!0},{key:"blocked",label:"g.blocked",swatch:"var(--fail)",open:!0},{key:"running",label:"g.running",swatch:"var(--accent)",open:!0},{key:"parked",label:"g.parked",swatch:"var(--line-2)",open:!1},{key:"done",label:"g.done",swatch:"var(--ok)",open:!1}];static STATE_ORDER=["you","blocked","running","parked","done"]}class ve{static PILL={working:"Đang làm",you:"Chờ anh",idle:"Rảnh",blocked:"Bị chặn"};static WORD={working:"đang làm",you:"chờ anh",idle:"rảnh",blocked:"bị chặn"}}var $e=Re({t:(e)=>e,now:0}),N=()=>De($e),Me=()=>De($e).t;var Yt={"session-start":"lt.sessionStart","subagent-stop":"lt.subagent",usage:"lt.usage",commit:"lt.commit",pr:"lt.pr",decision:"lt.decision",flow:"lt.flow",deploy:"lt.release","needs-owner":"lt.ask"},Wn=new Set(["usage","session-start"]);class Fe{static textOf(e){let{event:t,translate:n}=e,o;if(t.kind==="decision"&&t.choice)o=n(`lt.${t.choice}`);else if(t.kind==="note")o=n(t.needsOwner?"lt.ask":"lt.note");else if(t.kind==="msg"&&t.incoming)o=t.from?`${n("lt.gotFrom")} ${t.from}`:n("lt.got");else if(t.kind==="msg"&&t.to)o=`${n("lt.msgTo")} ${t.to}`;else o=n(`lt.${t.kind}`);return`${t.actor} ${o}${t.summary?`: ${t.summary}`:""}`}static activityOf(e){let{activity:t,translate:n}=e,o;if(t.type==="msg-sent")o=t.peer?`${n("lt.msgTo")} ${t.peer}`:n("lt.msg");else if(t.type==="msg-received")o=t.peer?`${n("lt.gotFrom")} ${t.peer}`:n("lt.got");else o=Yt[t.type]?n(Yt[t.type]):"";let s=Wn.has(t.type)?"":t.summary;return o&&s?`${o}: ${s}`:o||s}}var Hn=60000;class T{static clock(e){let t=new Date(e.iso);return Number.isNaN(t.getTime())?"--:--":t.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",hour12:!1})}static ago(e){let{translate:t}=e,n=Math.max(0,Math.round((e.now-new Date(e.iso).getTime())/Hn));if(n<1)return t("vừa xong");if(n<60)return`${n}${t(" phút")}`;let o=Math.floor(n/60);if(o<24)return`${o}${t(" giờ")}${n%60?` ${n%60}${t(" phút")}`:""}`;return`${Math.floor(o/24)}${t(" ngày")}`}static isSameDay(e){return new Date(e.iso).toDateString()===new Date(e.now).toDateString()}static isWithin(e){return e.now-Date.parse(e.iso)<e.days*O.DAY_MS}static isApproximate(e){return V.APPROXIMATE_SOURCE.test(e.source??"")}}var Gn=Symbol.for("pv"),zn=0;function a(e,t,n,o,s,i){t||(t={});var r,l,c=t;if("ref"in c&&typeof e!="function")for(l in c={},t)l=="ref"?r=t[l]:c[l]=t[l];var m={type:e,props:c,key:n,ref:r,__k:null,__:null,__b:0,__e:null,__c:null,constructor:Gn,__v:--zn,__i:-1,__u:0};return(s||i)&&(m.__source=s,m.__self=i),y.vnode&&y.vnode(m),m}var Zt={bun:{d:"M6 30C6 18.5 12.4 12 20 12s14 6.5 14 18c0 3.3-2.2 5-5 5H11c-2.8 0-5-1.7-5-5z",eyes:[[15,23.4],[25,23.4]],mouth:[20,28.4],cheeks:[[11.4,27.2],[28.6,27.2]]},flame:{d:"M20 4.5c2.2 5.2 6.4 7.6 9.6 12.2 2.6 3.7 3.9 7 3.9 10.3 0 5.6-5.6 9-13.5 9S6.5 32.6 6.5 27c0-4.2 2-7.6 4.6-10.4.6 2.4 1.8 3.8 3.4 4.4-.6-6.4 1.8-11.6 5.5-16.5z",eyes:[[15.2,25.4],[24.8,25.4]],mouth:[20,30],cheeks:[[11.4,28.8],[28.6,28.8]]},ember:{d:"M7.5 27.5c0-8 5.8-13.5 12.8-13.5S33 19.6 33 26.8c0 5.6-5 8.7-12.6 8.7S7.5 33 7.5 27.5z",eyes:[[15.4,25.2],[25,25.2]],mouth:[20.2,29.8],cheeks:[[11.6,28.6],[28.8,28.6]]},rock:{d:"M8.5 31.5 6.8 23.6l4.4-8.2 8-4.2 9.2 2.2 5 7.2v8.6l-4.8 6.3H13.2z",eyes:[[15,24.6],[24.6,24.6]],mouth:[19.8,29.4],cheeks:[[11,28.2],[28.4,28.2]]},banana:{d:"M5.6 18.6c-.9-2 1.6-3.6 3.2-2.2 3.4 3.2 7.2 4.6 11.2 4.6s7.8-1.4 11.2-4.6c1.6-1.4 4.1.2 3.2 2.2-3 8.4-8.6 14.4-14.4 14.4S8.6 27 5.6 18.6z",eyes:[[15.4,25.6],[24.6,25.6]],mouth:[20,29.4],cheeks:[[11.8,27.6],[28.2,27.6]]}},Xt=["#F5B83D","#EF5B3A","#8FD16F","#5BB6E8","#B28DE0","#F28DB2"];var Kn=(e)=>{let{state:t}=e;return a("g",{className:t==="working"?"m-squint":void 0,children:e.shape.eyes.map(([n,o],s)=>{let i=s===0?1:-1;if(t==="idle")return a("path",{d:`M${n-2.4} ${o}q2.4 1.8 4.8 0`,className:"m-o m-line"},n);return a("g",{children:[a("circle",{cx:n,cy:o,r:2.3,className:"m-ink"}),a("circle",{cx:n+0.8,cy:o-0.8,r:0.8,fill:"#fff"}),t==="you"?a("path",{d:`M${n-2.6*i} ${o-4.2}l${4*i} -1`,className:"m-o m-line"}):null,t==="blocked"?a("path",{d:`M${n-2.2*i} ${o-3.2}l${4*i} -1.4`,className:"m-o m-line"}):null]},n)})})},qn=(e)=>{let[t,n]=e.at;if(e.state==="working")return a("path",{d:`M${t-2.2} ${n-0.4}q2.2 1.4 4.4 0`,className:"m-o m-line"});if(e.state==="you")return a("ellipse",{cx:t,cy:n+0.2,rx:1.8,ry:1.4,className:"m-ink"});if(e.state==="blocked")return a("path",{d:`M${t-2.8} ${n+0.8}q1.4-1.5 2.8 0t2.8 0`,className:"m-o m-line m-bad"});return a("ellipse",{cx:t,cy:n+0.2,rx:1.4,ry:1,className:"m-ink"})},Le=(e)=>a(E,{children:[a("path",{d:e.shape.d,fill:e.fill,className:"m-o",strokeWidth:2.2}),a(Kn,{shape:e.shape,state:e.state}),e.shape.cheeks.map(([t,n])=>a("ellipse",{cx:t,cy:n,rx:2.4,ry:1.5,fill:"#FF8A80"},t)),a(qn,{at:e.shape.mouth,state:e.state})]}),jn=(e)=>a("g",{transform:"translate(8,3)",children:a("g",{className:"m-hoe",children:[a("path",{d:"M22.5 18.5 41 37",strokeWidth:4.2,className:"m-o m-line"}),a("path",{d:"M22.5 18.5 41 37",stroke:"#B9783F",strokeWidth:2.2,strokeLinecap:"round"}),a("path",{d:"M38.6 34.6 44.4 33.2 45.6 40.2 41.2 41.6z",fill:"#A9B4BF",className:"m-o",strokeWidth:1.6}),a("circle",{cx:25,cy:21,r:2.6,fill:e.fill,className:"m-o",strokeWidth:1.6}),a("circle",{cx:29.4,cy:25.4,r:2.6,fill:e.fill,className:"m-o",strokeWidth:1.6})]})});class ue{static shapeOf(e){let t=e.shapes[e.name];return t in Zt?t:"bun"}static colorOf(e){let t=0;for(let n of e.name)t=t*31+n.charCodeAt(0)>>>0;return Xt[t%Xt.length]}}var Ve=(e)=>{let t=Zt[e.shape],n=ue.colorOf({name:e.name});return a("svg",{viewBox:"-6 -16 68 60",className:"bot","aria-hidden":"true",children:[e.state==="working"?a(E,{children:[a("ellipse",{cx:47,cy:40.5,rx:10,ry:3,fill:"#8B5A2B",className:"m-o",strokeWidth:1.6}),a("path",{d:"M39 40.5c3-4 13-4 16 0",fill:"#A0703F",className:"m-o",strokeWidth:1.6}),a("g",{className:"m-dig",children:a(Le,{shape:t,state:"working",fill:n})}),a(jn,{fill:n}),a("circle",{cx:50,cy:39,r:1.6,fill:"#8B5A2B",className:"m-o m-clod",strokeWidth:0.8}),a("circle",{cx:51,cy:39.5,r:1.2,fill:"#8B5A2B",className:"m-o m-clod m-c2",strokeWidth:0.8}),a("circle",{cx:48.5,cy:39,r:1.1,fill:"#8B5A2B",className:"m-o m-clod m-c3",strokeWidth:0.8})]}):null,e.state==="idle"?a(E,{children:[a("ellipse",{cx:20,cy:36.8,rx:14,ry:1.8,className:"m-ink m-shadow"}),a("g",{className:"m-sleep",children:[a(Le,{shape:t,state:"idle",fill:"#8E8FA3"}),a("circle",{cx:24.5,cy:29,r:2.6,fill:"#BFE6FF",className:"m-o m-snot",strokeWidth:0.9})]}),a("text",{x:31,y:10,className:"m-zz",children:"z"}),a("text",{x:31,y:10,className:"m-zz m-z2",children:"z"}),a("text",{x:31,y:10,className:"m-zz m-z3",children:"Z"})]}):null,e.state==="you"?a(E,{children:[a("g",{className:"m-bubble",children:[a("path",{d:"M26 -10h18a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4h-9l-5 4 1-4h-5a4 4 0 0 1-4-4v-10a4 4 0 0 1 4-4z",fill:"#F6D33C",className:"m-o",strokeWidth:1.8}),a("text",{x:35,y:5,textAnchor:"middle",className:"m-q",children:"?"})]}),a("g",{className:"m-lean",children:[a(Le,{shape:t,state:"you",fill:n}),a("g",{className:"m-wave",children:a("circle",{cx:35.4,cy:22,r:2.7,fill:n,className:"m-o",strokeWidth:1.6})})]})]}):null,e.state==="blocked"?a(E,{children:[a(Le,{shape:t,state:"blocked",fill:n}),a("path",{d:"M7.6 13.4c1.3 1.8 2 2.8 2 3.8a2 2 0 0 1-4 0c0-1 .7-2 2-3.8z",fill:"#BFE6FF",className:"m-o",strokeWidth:0.9}),a("circle",{cx:34,cy:7.4,r:3.4,fill:"var(--fail)",className:"m-o",strokeWidth:1.2}),a("path",{d:"M34 5.6v2.2",stroke:"#fff",strokeWidth:1.2,strokeLinecap:"round"}),a("circle",{cx:34,cy:9.3,r:0.5,fill:"#fff"})]}):null]})};var ot={you:"ask",blocked:"ask",working:"work",idle:"idle"},Ue=(e)=>a(E,{children:[a("span",{className:"c-k",children:e.label}),a("span",{className:"c-v",children:e.children})]}),Yn=(e)=>{let{t,now:n}=N(),{row:o,card:s}=e,i=(f)=>T.clock({iso:f}),r=[s.role,s.lane?`${t("ag.under")} ${s.lane}`:void 0,s.harness,s.model].filter(Boolean).join(" · "),l=s.since?` · ${T.ago({iso:s.since,now:n,translate:t})}`:"",c=a("span",{className:"c-face",children:a(Ve,{state:o.st,name:o.n,shape:e.shape})}),m=a("span",{className:`c-badge b-${ot[o.st]}`,children:`${t(ve.PILL[o.st])}${l}`}),d={"data-agent":o.n,tabIndex:0,"aria-pressed":e.picked,onClick:()=>e.onPick(o.n),onKeyDown:(f)=>{if(f.key==="Enter"||f.key===" ")f.preventDefault(),e.onPick(o.n)}};if(e.compact)return a("div",{className:`c-card c-compact cell ${o.st}${e.picked?" sel":""}`,role:"button",...d,children:[c,a("div",{className:"c-grow",children:[a("div",{className:"c-top",children:[a("span",{className:"c-nm",children:o.n}),m]}),s.workingOn?a("div",{className:"c-id",children:s.workingOn.flow.id}):null]}),o.st==="you"?a("span",{className:"c-ask",role:"img","aria-label":t("ag.asking"),title:t("ag.asking")}):null]});return a("div",{className:`c-card cell ${o.st}${e.picked?" sel":""}`,role:"button",...d,children:[a("div",{className:"c-head",children:[c,a("div",{className:"c-grow",children:[a("div",{className:"c-top",children:[a("span",{className:"c-nm",children:o.n}),m]}),r?a("div",{className:"c-role",children:r}):null]})]}),a("div",{className:"c-body",children:[s.workingOn?a(Ue,{label:t("ag.working"),children:[s.workingOn.flow.title," ",a("small",{children:s.workingOn.flow.id})]}):null,o.ask?a(Ue,{label:t("ag.asking"),children:`"${o.ask}"`}):null,s.activity?a(Ue,{label:t("ag.latest"),children:[Fe.activityOf({activity:s.activity,translate:t})," ",a("small",{children:i(s.activity.ts)})]}):null,s.message?a(Ue,{label:t("ag.message"),children:[Fe.textOf({event:s.message,translate:t})," ",a("small",{children:i(s.message.ts)})]}):null]}),a("div",{className:"c-foot",children:[a("span",{children:[t("ag.prs")," ",a("b",{children:s.prs})]}),a("span",{children:[t("ag.pending")," ",a("b",{children:s.pending})]}),a("span",{children:[a("b",{children:s.today})," ",t("ag.today")]})]})]})},Jt=(e)=>{let{t,now:n}=N(),[o,s]=P(!1),i=n-V.EARLIER_HOURS*O.HOUR_MS,r=(d)=>d.lastAt!==null&&Date.parse(d.lastAt)>=i,l=e.rows.filter(r),c=e.rows.filter((d)=>!r(d)),m=(d)=>a(Yn,{row:d,card:e.cards[d.n],shape:ue.shapeOf({name:d.n,shapes:e.shapes}),picked:e.picked===d.n,compact:!e.details,onPick:e.onPick},d.n);return a("section",{className:"c-pane",id:"dock","aria-label":t("Các agent đang chạy"),children:[a("div",{className:"c-ph",children:[a("h2",{children:t("pn.agents")}),a("span",{className:"c-n num",children:l.length}),a("button",{className:"btn c-tg",type:"button","aria-pressed":e.details,onClick:()=>e.onDetails(!e.details),children:t("ag.details")})]}),a("div",{className:"c-scroll",children:[e.rows.length===0?a("p",{className:"c-empty",children:t("chưa có agent")}):null,l.map(m),c.length>0?a("button",{className:"btn c-loose",type:"button","aria-expanded":o,onClick:()=>s(!o),children:`${t("ag.earlier")} (${c.length})`}):null,o?c.map(m):null]})]})};class Y{static safe(e){let{value:t}=e;if(t===void 0)return;if(e.image===!0)return/^(?:https:\/\/|data:image\/)/.test(t)?t:void 0;return/^https?:\/\//.test(t)?t:void 0}}class st{static UNKNOWN="unknown";static UNNAMED_PREFIX="claude:";static isNamed(e){return e.actor!==this.UNKNOWN&&!e.actor.startsWith(this.UNNAMED_PREFIX)}}class D{static byTime(e,t){if(e.ts!==t.ts)return e.ts<t.ts?-1:1;return e.stage-t.stage}static involves(e){return e.view.holder===e.name||e.view.evs.some((t)=>t.actor===e.name||t.to===e.name)}static linesOf(e){return e.flow.events.filter((t)=>e.showAll||!t.plumbing)}static eventsOf(e){return e.data.flows.flatMap((t)=>D.linesOf({flow:t,showAll:e.showAll}))}static flowsOf(e){let t=[];for(let n of e.data.flows){let o=D.linesOf({flow:n,showAll:e.showAll}).sort(D.byTime),s=o.find((i)=>i.id===n.lastId)??o.at(-1);if(s===void 0)continue;t.push({flow:n,holder:n.holder,evs:o,last:s,lastAsk:o.find((i)=>i.id===n.askId),noWork:!o.some((i)=>!i.plumbing&&i.kind!=="flow"),newCount:o.filter((i)=>i.ts>e.lastSeen).length})}return t}static rowsOf(e){let{data:t,flows:n,events:o,translate:s}=e,i=t.agents,r=(d)=>d!==""&&d!==t.owner&&!V.NOT_AGENTS.has(d)&&st.isNamed({actor:d}),l=t.roster??[],c=(d)=>l.includes(d)?l.indexOf(d):l.length;return[...new Set([...Object.keys(i).filter(r),...o.filter((d)=>!X.HOSTS.has(d.source)&&r(d.actor)).map((d)=>d.actor)])].map((d)=>{let f=i[d],_=o.filter((h)=>h.actor===d&&!h.incoming).sort(D.byTime).at(-1),u=n.find((h)=>h.flow.state==="you"&&h.evs.findLast((b)=>b.actor!==t.owner)?.actor===d),p=n.find((h)=>h.flow.state==="blocked"&&h.holder===d),S=n.find((h)=>h.flow.state==="running"&&h.holder===d),g=[f?.checkedAt,_?.ts].filter((h)=>h!==void 0).sort().at(-1)??null,w=g===null||e.now-Date.parse(g)>O.ACTIVE_GAP_MS,k=D.stateOf({doc:f,blockedFlow:p,youFlow:u,runFlow:S,quiet:w}),A=D.saidOf({st:k,doc:f,lastLine:_,youFlow:u,translate:s});return{n:d,lastAt:g,st:k,...k==="you"&&u?.lastAsk?{ask:u.lastAsk.summary}:{},flow:(p??u)?.flow.id??S?.flow.id??_?.flowId??null,...A,key:`${_?.id??_?.ts??""}|${f?.checkedAt??""}|${f?.current??""}`}}).sort((d,f)=>c(d.n)-c(f.n)||d.n.localeCompare(f.n))}static stateOf(e){if(e.blockedFlow)return"blocked";if(e.youFlow)return"you";return!e.quiet&&(e.doc?.state==="working"||e.runFlow)?"working":"idle"}static saidOf(e){let{st:t,doc:n,lastLine:o,youFlow:s,translate:i}=e,r=(m)=>m?Date.parse(m)||0:0,l=(m,d)=>({text:d,ts:m.ts,approx:T.isApproximate({source:m.source})}),c;if(t==="you"&&s?.lastAsk)c=l(s.lastAsk,`${i("chờ anh: ")}${s.lastAsk.summary}`);else if(n?.current&&(!o||r(n.checkedAt)>r(o.ts)))c={text:n.current,ts:n.since,approx:!1};else if(o)c=l(o,o.summary);else c={text:n?.current===""||n===void 0?i("chưa có việc"):n.current,ts:n?.since??null,approx:!1};return t==="idle"&&!V.IDLE_TEXT.test(c.text)?{...c,text:`${i("rảnh · ")}${c.text}`}:c}}class R{static endsOf(e){let{message:t}=e;return t.incoming?{sender:t.from,receiver:t.actor}:{sender:t.actor,receiver:t.to}}static labelOf(e){let{pr:t}=e;return`${t.repo??""}${t.source===X.GITLAB?"!":"#"}${t.n}`}static prHref(e){let{pr:t}=e;if(Y.safe({value:t.link??void 0}))return t.link??void 0;return t.source!==X.GITLAB&&t.repo&&/^[\w.-]+\/[\w.-]+$/.test(t.repo)?`https://github.com/${t.repo}/pull/${t.n}`:void 0}static prsOf(e){let{events:t}=e,n={};for(let o of t){if(!o.ref?.pr)continue;let s=n[`${o.ref.repo??""}#${o.ref.pr}`]??={repo:o.ref.repo,source:o.source,n:o.ref.pr,flow:o.flowId,ci:null,link:null,merged:!1,closed:!1};s.by??=o.kind==="pr"?o.actor:void 0,s.merged||=o.kind==="merge",s.closed||=o.status==="closed",s.ci=o.kind==="ci"?o.status??null:s.ci,s.link=o.link&&/^https?:\/\/.+\/(?:pull|-\/merge_requests)\//.test(o.link)?o.link:s.link}return Object.values(n)}static of(e){let{data:t,events:n,name:o}=e,s=n.filter((i)=>i.kind==="msg").filter((i)=>{let{sender:r,receiver:l}=R.endsOf({data:t,message:i});return r===o||l===o}).sort(D.byTime);return{mine:n.filter((i)=>i.actor===o).sort(D.byTime),open:R.prsOf({events:n}).filter((i)=>i.by===o&&!i.merged&&!i.closed),pending:R.pendingOf({data:t,messages:s,name:o})}}static isDelivered(e){let{message:t}=e;return t.incoming===!0||e.events.some((n)=>n.incoming===!0&&n.actor===t.to&&n.summary===t.summary)}static pendingOf(e){let{data:t,messages:n,name:o}=e,s=(l)=>R.endsOf({data:t,message:l}),i=n.filter((l)=>s(l).sender===o).at(-1)?.ts??"",r=new Set;return n.filter((l)=>{let{sender:c,receiver:m}=s(l),d=`${c}|${m}|${l.summary}|${l.ts.slice(0,16)}`;if(m!==o||l.ts<=i||r.has(d))return!1;return r.add(d),!0})}}var Xn=/[.!?](\s|$)/,Qt=140,Zn=3;class K{static sentenceOf(e){let t=(e.text??"").trim(),n=Xn.exec(t),o=n===null?t:t.slice(0,n.index+1);return o.length>Qt?`${o.slice(0,Qt-1).trimEnd()}…`:o}static itemOf(e){let{view:t}=e,{flow:n}=t,o=(i)=>({done:(i??[]).filter((r)=>r.done).length,total:(i??[]).length}),s=t.evs.filter((i)=>!i.plumbing&&!V.NOT_AGENTS.has(i.actor)).map((i)=>i.actor);return{now:K.sentenceOf({text:n.next??n.why}),waiting:n.state==="you"||n.state==="blocked"?n.next??t.lastAsk?.summary:void 0,steps:o(n.steps),checks:o(n.checks),prs:R.prsOf({events:t.evs}).filter((i)=>!i.merged&&!i.closed).map((i)=>({label:R.labelOf({pr:i}),ci:i.ci})),people:[...new Set([t.holder,...s])],updates:t.evs.filter((i)=>i.kind==="flow").length,deploys:[...new Set(t.evs.filter((i)=>i.kind==="release").map((i)=>i.summary))].slice(-Zn)}}static daysLeft(e){let t=new Date(e.now);return t.setHours(0,0,0,0),Math.round((new Date(`${e.due}T00:00:00`).getTime()-t.getTime())/O.DAY_MS)}static agentOf(e){let{data:t,events:n,views:o,row:s,doc:i,now:r}=e,l=n.filter((f)=>f.actor===s.n&&!f.plumbing),c=R.of({data:t,events:n,name:s.n}),d=((f)=>f.reduce((_,u)=>_===void 0||u.ts>=_.ts?u:_,void 0))(n.filter((f)=>{let{sender:_,receiver:u}=R.endsOf({data:t,message:f});return f.kind==="msg"&&(_===s.n||u===s.n)}));return{workingOn:s.st==="idle"||s.flow===O.UNSORTED?void 0:o.find((f)=>f.flow.id===s.flow),activity:i?.latest,message:d?.ts===i?.latest?.ts?void 0:d,prs:c.open.length,pending:c.pending.length,today:l.filter((f)=>T.isSameDay({iso:f.ts,now:r})).length,since:s.st==="idle"&&i?.state==="working"?s.lastAt??i.since:i?.since,role:t.roles?.[s.n],lane:t.lanes?.[s.n],model:i?.model,harness:i?.harness}}}var Jn=(e)=>e.status==="fail"||e.status==="blocked",en=(e)=>{let{t}=N();return a("svg",{className:`mk ${e.bad?"x":"v"}`,viewBox:"0 0 10 10",role:"img","aria-label":e.bad?t("lỗi"):t("đạt"),children:a("path",{d:e.bad?"M2.5 2.5l5 5M7.5 2.5l-5 5":"M2 5.4l2 2 4-4.8",fill:"none",stroke:"currentColor",strokeWidth:"1.6",strokeLinecap:"round",strokeLinejoin:"round"})})},We=(e)=>a("span",{className:"c-bar",children:a("span",{style:{width:`${Math.round(e.done/e.total*100)}%`}})}),it=(e)=>{let{items:t}=e;if(t===void 0||t.length===0)return null;return a("div",{className:"ckl",children:a("ul",{children:t.map((n,o)=>a("li",{className:n.done?"on":void 0,children:n.text},`${o}:${n.text}`))})})},Qn=(e)=>{let{event:t}=e;if(t.incoming)return t.from?a(E,{children:[" ← ",a("b",{children:t.from})]}):null;return t.to?a(E,{children:[" → ",a("b",{children:t.to})]}):null},rt=(e)=>{let{t}=N(),{event:n}=e,o=T.isApproximate({source:n.source}),s=Y.safe({value:n.link}),i=M.KIND_TEXT[n.kind],r="";if(o)r=t("giờ ước lượng");else if(n.source===X.GITHUB)r="GitHub";else if(n.source===X.GITLAB)r="GitLab";return a("li",{className:`ev${Jn(n)?" fail":""}`,children:[a("span",{className:"tm",children:[o?"≈":"",T.clock({iso:n.ts})]}),a("div",{children:[e.chip,a("div",{className:"who",children:[a("b",{children:n.actor}),a(Qn,{event:n}),` · ${i?t(i):n.kind}${n.attempt&&n.attempt>1?`${t(" lần ")}${n.attempt}`:""}`]}),a("div",{className:"sm",children:n.summary}),s||r?a("div",{children:[s?a("a",{className:"lk",href:Y.safe({value:n.link}),target:"_blank",rel:"noopener",children:s.replace(/^https:\/\/github\.com\//,"")}):null,s&&r?" · ":null,r?a("span",{className:"src",children:r}):null]}):null]})]})};var tn={decision:"ms.decision",merge:"ms.merge",release:"ms.deploy"},nn=5,ea=200,ta=(e)=>{if(e.stage===e.cur)return"st cur";return e.stage<e.cur?"st done":"st"},ae=(e)=>a("div",{className:"d-sec",children:[a("h3",{children:e.title}),e.children]}),an=(e)=>{let{t}=N(),{tokens:n}=e;if(n===void 0)return null;let o=(r)=>r.toLocaleString("en-US"),s=[t("tk.input"),t("tk.output"),t("tk.cacheRead"),t("tk.cacheWrite")],i=(r)=>a("tr",{children:[a("th",{scope:"row",children:r.name}),a("td",{children:o(r.row.input)}),a("td",{children:o(r.row.output)}),a("td",{children:o(r.row.cacheRead)}),a("td",{children:o(r.row.cacheWrite)})]},r.name);return a(ae,{title:t("tk.title"),children:a("table",{className:"d-tokens",children:[a("thead",{children:a("tr",{children:[a("th",{scope:"col"}),s.map((r)=>a("th",{scope:"col",children:r},r))]})}),a("tbody",{children:[i({name:t("tk.total"),row:{name:"",...n}}),n.agents.length>1?n.agents.map((r)=>i({name:r.name,row:r})):null,n.models.length>1?n.models.map((r)=>i({name:r.name,row:r})):null]})]})})},na=(e)=>{let{t}=N(),n=e.view.evs.filter((o,s)=>s===0||(o.kind in tn)).map((o,s)=>({event:o,tag:s===0?"ms.open":tn[o.kind]})).reverse();return a("div",{className:"d-up",children:n.map(({event:o,tag:s},i)=>a("div",{className:`d-u${i===0?" last":""}`,children:[a("time",{children:T.clock({iso:o.ts})}),a("span",{className:"d-tag",children:t(s)}),o.summary]},o.id))})},aa=(e)=>{let{t}=N();return a("div",{id:"dBody",className:"d-body",children:[a("h2",{children:t("it.unsorted")}),a("p",{className:"d-empty",children:t("it.unsortedNote")}),a(an,{tokens:e.view.flow.tokens}),a("ul",{className:"evs",children:[...e.view.evs].reverse().slice(0,ea).map((n)=>a(rt,{event:n},n.id))})]})},oa=(e)=>{let{t}=N(),{view:n}=e,{flow:o}=n,s=K.itemOf({view:n});return a("div",{id:"dBody",className:"d-body",children:[a("h2",{children:o.title}),a("div",{className:"d-meta",children:[a("span",{className:"c-id",children:o.id}),o.tracker?a("span",{className:"c-ref",children:o.tracker}):null,o.due?a("span",{children:`${t("fl.due")} ${o.due}`}):null,a("span",{children:[t("it.holder"),": ",a("span",{className:"d-who",children:n.holder})]})]}),n.noWork?null:a(E,{children:[a("div",{className:"d-stages",children:M.STAGES.map((i,r)=>a("span",{title:t(i),className:ta({stage:r,cur:o.cur})},i))}),a("div",{className:"d-stl",children:[a("span",{children:t(M.STAGES[0])}),a("b",{children:t(M.STAGES[o.cur])}),a("span",{children:t(M.STAGES[M.STAGES.length-1])})]})]}),o.context||o.apps?a(ae,{title:t("dt.whatItIs"),children:[o.context?a("p",{children:o.context}):null,o.apps?a("div",{className:"c-chips",children:o.apps.map((i)=>a("span",{children:i},i))}):null]}):null,o.steps&&o.steps.length>0?a(ae,{title:`${t("fl.steps")} · ${s.steps.done}/${s.steps.total}`,children:[a(We,{...s.steps}),a(it,{items:o.steps})]}):null,o.checks&&o.checks.length>0?a(ae,{title:`${t("fl.checks")}${o.tracker?` · ${o.tracker}`:""}`,children:a(it,{items:o.checks})}):null,s.waiting?a("div",{className:"d-sec d-waiting",children:[a("span",{className:"d-k",children:t("it.waiting")}),a("span",{children:s.waiting})]}):null,n.noWork?a("p",{className:"d-empty",children:t("nw.empty")}):null,a(an,{tokens:o.tokens}),a(ae,{title:t("dt.milestones"),children:a(na,{view:n})}),a("button",{className:"btn d-all",type:"button","aria-pressed":e.everything,onClick:()=>e.onEverything(!e.everything),children:`${t("dt.all")} (${n.evs.length})`}),e.everything?a("ul",{className:"evs",children:n.evs.map((i)=>a(rt,{event:i},i.id))}):null]})},sa=(e)=>{let{t,now:n}=N(),{row:o,card:s,data:i}=e,r=R.of({data:i,events:e.events,name:o.n}),l=(c)=>T.clock({iso:c});return a("div",{id:"dBody",className:"d-body d-agent",children:[a("div",{className:"d-agenthead",children:[a(Ve,{state:o.st,name:o.n,shape:e.shape}),a("div",{children:[a("h2",{id:"popName",children:o.n}),a("div",{className:"d-meta",children:[a("span",{className:`c-badge b-${ot[o.st]}`,children:t(ve.PILL[o.st])}),s.since?a("span",{children:`${t("từ ")}${l(s.since)} · ${T.ago({iso:s.since,now:n,translate:t})}`}):null]})]})]}),a(ae,{title:t("5 sự kiện gần nhất"),children:r.mine.length===0?a("p",{className:"d-empty",children:t("Chưa có sự kiện nào của agent này.")}):a("ul",{className:"d-list",children:r.mine.slice(-nn).reverse().map((c)=>a("li",{children:[a("time",{children:l(c.ts)}),c.flowId?a("button",{className:"btn chip",type:"button",onClick:()=>e.onFlow(c.flowId),children:c.flowId}):null,c.summary]},c.id))})}),a(ae,{title:`${t("PR đang mở (")}${r.open.length})`,children:r.open.length===0?a("p",{className:"d-empty",children:t("Không có PR nào đang mở.")}):a("ul",{className:"d-list",children:r.open.map((c)=>a("li",{children:[a("a",{href:Y.safe({value:R.prHref({pr:c})}),target:"_blank",rel:"noopener",children:R.labelOf({pr:c})}),c.ci?a(en,{bad:c.ci==="fail"}):null,c.flow]},`${c.repo}#${c.n}`))})}),a(ae,{title:`${t("ag.notReplied")} (${r.pending.length})`,children:r.pending.length===0?a("p",{className:"d-empty",children:t("Không có tin nào đang chờ.")}):a("ul",{className:"d-list",children:r.pending.slice(-nn).reverse().map((c)=>{let{sender:m,receiver:d}=R.endsOf({data:i,message:c});return a("li",{children:[a("time",{children:l(c.ts)}),`${m===o.n?`→ ${d??"?"}`:`← ${m??"?"}`}: ${c.summary}`,a("span",{className:"d-note",children:R.isDelivered({message:c,events:e.events})?`${t("ag.delivered")} · ${t("ag.notRepliedYet")}`:t("ag.notRepliedYet")})]},c.id)})})})]})},on=(e)=>{let{t}=N(),{detail:n}=e,o=n?.kind==="flow"?e.views.find((i)=>i.flow.id===n.id):void 0,s=n?.kind==="agent"?e.rows.find((i)=>i.n===n.name):void 0;return a("section",{className:"c-pane c-p3",id:"detail","aria-label":t("Chi tiết luồng"),hidden:o===void 0&&s===void 0,children:[a("div",{className:"c-ph",children:[a("span",{className:"c-pt",children:t("pn.detail")}),a("button",{className:"c-x",type:"button",title:t("Đóng"),"aria-label":t("Đóng"),onClick:e.onClose,children:"✕"})]}),a("div",{className:"c-scroll",children:[o&&o.flow.id===O.UNSORTED?a(aa,{view:o}):null,o&&o.flow.id!==O.UNSORTED?a(oa,{view:o,everything:e.everything,onEverything:e.onEverything}):null,s?a(sa,{row:s,card:e.cards[s.n],data:e.data,events:e.events,shape:ue.shapeOf({name:s.n,shapes:e.data.shapes}),onFlow:e.onFlow}):null]})]})};var oe={fill:"none",stroke:"currentColor",strokeWidth:1.5},sn={light:a("svg",{viewBox:"0 0 20 20","aria-hidden":"true",children:[a("circle",{cx:"10",cy:"10",r:"3.6",...oe}),a("path",{d:"M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4",...oe,strokeLinecap:"round"})]}),dark:a("svg",{viewBox:"0 0 20 20","aria-hidden":"true",children:a("path",{d:"M16.5 12.4A7 7 0 0 1 7.6 3.5a7 7 0 1 0 8.9 8.9Z",...oe,strokeLinejoin:"round"})}),system:a("svg",{viewBox:"0 0 20 20","aria-hidden":"true",children:[a("rect",{x:"2.5",y:"3.5",width:"15",height:"10",rx:"1.5",...oe}),a("path",{d:"M7 17h6M10 13.5V17",...oe,strokeLinecap:"round"})]})},rn=()=>a("svg",{className:"chev",viewBox:"0 0 12 12","aria-hidden":"true",children:a("path",{d:"M3 4.5l3 3 3-3",...oe})}),ln=(e)=>a("svg",{className:`sort${e.order?" on":""}`,viewBox:"0 0 10 12","aria-hidden":"true",children:[e.order==="descending"?null:a("path",{d:"M2.5 5 5 2.5 7.5 5",...oe}),e.order==="ascending"?null:a("path",{d:"M2.5 7 5 9.5 7.5 7",...oe})]});var we=["light","dark","system"],ia={light:"sáng",dark:"tối",system:"theo máy"},cn=(e)=>{let t=Me(),n=`${t("Giao diện: ")}${t(ia[e.theme])}`,o=`${t("lang.label")}: ${t(`lang.${e.language}`)}`;return a("header",{className:"bar",children:[a("span",{className:"mark",id:"mark",children:e.logo?a("img",{src:Y.safe({value:e.logo,image:!0}),alt:""}):null}),a("span",{className:"brule","aria-hidden":"true"}),a("h1",{id:"boardTitle",children:e.title}),e.live===void 0?null:a("span",{className:`fresh live-${e.live}`,id:"fresh",children:[a("span",{className:"fresh-dot","aria-hidden":"true"}),t(`live.${e.live}`)]}),a("span",{className:"spacer"}),a("span",{className:"since",id:"since",title:e.sources.join(`
-`),children:[a("span",{id:"sinceTxt",children:[t("Từ lần xem trước lúc "),a("b",{children:T.clock({iso:e.lastSeen})}),": ",a("b",{children:e.newCount}),t(" sự kiện mới")]}),a("button",{className:"btn btn-text",type:"button",id:"bSeen",onClick:e.onSeen,children:t("Đánh dấu đã xem")})]}),a("span",{className:"tools",children:[a("button",{className:"btn",type:"button",id:"bPlumb","aria-pressed":e.showPlumbing,title:t("pl.tip"),onClick:e.onPlumbing,children:t("pl.all")}),a("button",{className:"btn sq lang",type:"button",id:"bLang","aria-label":o,title:o,onClick:e.onLanguage,children:e.language==="en"?"VI":"EN"}),a("button",{className:"btn sq theme",type:"button",id:"bTheme","aria-label":`${n}${t(". Bấm để đổi")}`,title:n,onClick:e.onTheme,children:sn[e.theme]}),a("button",{className:"btn sq",type:"button",id:"bKeys","aria-label":t("Phím tắt"),"aria-expanded":e.keysOpen,onClick:e.onKeys,children:"?"})]})]})};var ra=[j.DONE,j.PARKED],la=V.STALE_HOURS*O.HOUR_MS;class B{static lastAt(e){return e.flow.events.reduce((t,n)=>!n.plumbing&&n.ts>t?n.ts:t,"")}static isStale(e){let{flow:t}=e,n=B.lastAt({flow:t});return!ra.includes(t.state)&&(t.steps??[]).some((o)=>!o.done)&&n!==""&&e.now-Date.parse(n)>=la}static tokensOf(e){let{tokens:t}=e.flow;return t===void 0?void 0:t.input+t.output+t.cacheRead+t.cacheWrite}static reposOf(e){return[...new Set(e.views.flatMap((t)=>t.flow.repo===void 0?[]:[t.flow.repo]))].sort()}static listOf(e){let{filter:t,now:n}=e;return e.views.filter((o)=>o.flow.id!==O.UNSORTED&&(o.flow.state!==j.DONE||T.isWithin({iso:o.last.ts,now:n,days:V.DONE_DAYS}))&&(t.agent===null||D.involves({view:o,name:t.agent}))&&(t.repo===null||o.flow.repo===t.repo)&&(t.state===null||o.flow.state===t.state)&&(!t.staleOnly||B.isStale({flow:o.flow,now:n})))}static valueOf(e){let{flow:t}=e.view;switch(e.column){case"code":return t.id;case"title":return t.title;case"stage":return e.view.noWork?void 0:t.cur;case"state":return j.ORDER.indexOf(t.state);case"holder":return e.view.holder;case"steps":{let n=t.steps??[];return n.length===0?void 0:n.filter((o)=>o.done).length/n.length}case"pr":return R.prsOf({events:e.view.evs}).map((n)=>R.labelOf({pr:n})).at(0);case"tokens":return B.tokensOf({flow:t});case"due":return t.due;default:return B.lastAt({flow:t})||void 0}}static sortOf(e){let{sort:t}=e,n=(s)=>B.lastAt({flow:s.flow});if(t===void 0)return[...e.views].sort((s,i)=>Number(i.flow.state===j.YOU)-Number(s.flow.state===j.YOU)||n(i).localeCompare(n(s)));let o=t.descending?-1:1;return[...e.views].sort((s,i)=>{let r=B.valueOf({view:s,column:t.column}),l=B.valueOf({view:i,column:t.column});if(r===void 0||l===void 0)return Number(r===void 0)-Number(l===void 0);let c=typeof r==="number"&&typeof l==="number"?r-l:String(r).localeCompare(String(l),void 0,{numeric:!0});return o*c})}}var lt=["cards","compact","table"],ca={you:"wait",blocked:"ask",running:"work",parked:"idle",done:"ok"},da=2,ua=["code","title","stage","state","holder","steps","pr","tokens","due","updated"],ma=new Set(["steps","tokens"]),fa=new Intl.NumberFormat("en-US",{notation:"compact",maximumSignificantDigits:3}),me=(e)=>a(E,{children:[a("span",{className:"c-k",children:e.label}),a("span",{className:"c-v",children:e.children})]}),dn=(e)=>a("span",{className:"c-v c-mini",children:[a(We,{done:e.done,total:e.total}),a("span",{className:"num",children:`${e.done}/${e.total}`})," ",e.label]}),_a=(e)=>{let{t,now:n}=N();if(e.due===void 0)return a("span",{className:"c-badge b-idle",children:t("it.noDue")});let o=K.daysLeft({due:e.due,now:n}),s=`${o} ${t(o===1?"it.dayLeft":"it.daysLeft")}`;if(o<0)s=t("it.overdue");return a("span",{className:`c-badge ${o<=da?"b-ask":"b-idle"}`,children:`${t("fl.due")} ${e.due} · ${s}`})},ct=(e)=>{let{t}=N(),{view:n}=e;return a("span",{className:`c-badge b-${ca[n.flow.state]}`,children:n.noWork?t("nw.chip"):t(M.STAGES[n.flow.cur])})},un=(e)=>`${e.t("it.staleTip")} ${V.STALE_HOURS}${e.t(" giờ")}`,dt=()=>{let{t:e}=N();return a("span",{className:"c-badge b-stale",title:un({t:e}),children:e("it.stale")})},ut=(e)=>{let t=Pe(null);return z(()=>{if(e.selected)t.current?.scrollIntoView({block:"nearest"})},[e.selected]),{ref:(n)=>{t.current=n},"data-id":e.id,tabIndex:0,"aria-selected":e.selected,onClick:()=>e.onSelect(e.id),onKeyDown:(n)=>{if(n.key==="Enter"&&n.target===n.currentTarget)n.preventDefault(),e.onSelect(e.id)}}},mn=(e)=>{let{t}=N();return a("span",{className:"c-prs",children:e.prs.map((n)=>a("span",{className:"c-pr",children:[n.label,n.ci===null?null:a("b",{className:n.ci==="fail"?"bad":"good",children:`CI ${t(n.ci==="fail"?"lỗi":"đạt")}`})]},n.label))})},pa=(e)=>{let{t,now:n}=N(),{view:o,card:s}=e,{flow:i}=o,r=(c)=>T.clock({iso:c}),l=ut({id:i.id,selected:e.selected,onSelect:e.onSelect});return a("div",{className:`c-card row${e.selected?" sel":""}`,role:"button",...l,children:[a("div",{className:"c-head",children:[a(ct,{view:o}),a("span",{className:"c-id",children:i.id}),i.tracker?a("span",{className:"c-ref",children:i.tracker}):null,B.isStale({flow:i,now:n})?a(dt,{}):null,o.newCount>0?a("span",{className:"unread",title:`${o.newCount}${t(" sự kiện mới")}`}):null,a("span",{className:"c-grow"}),a(_a,{due:i.due})]}),a("div",{className:"c-title",children:i.title}),s.now?a("div",{className:"c-now",children:`${t("it.now")}: ${s.now}`}):null,a("div",{className:"c-wb",children:[s.steps.total>0?a(me,{label:t("fl.steps"),children:a(dn,{...s.steps,label:t("it.done")})}):null,s.checks.total>0?a(me,{label:t("it.checks"),children:a(dn,{...s.checks,label:t("it.criteria")})}):null,i.apps?a(me,{label:t("it.apps"),children:a("span",{className:"c-chips",children:i.apps.map((c)=>a("span",{children:c},c))})}):null,s.prs.length>0?a(me,{label:t("it.prs"),children:a(mn,{prs:s.prs})}):null,a(me,{label:t("it.people"),children:a("span",{className:"c-chips",children:s.people.map((c,m)=>a("span",{className:m===0?"h":void 0,children:m===0?`${c} ${t("it.holds")}`:c},c))})}),s.waiting?a(me,{label:t("it.waiting"),children:a("span",{className:"c-wait",children:s.waiting})}):null]}),a("div",{className:"c-foot",children:[a("span",{children:[t("it.started")," ",a("b",{children:r(o.evs[0].ts)})]}),a("span",{children:[t("it.updates")," ",a("b",{children:s.updates})]}),s.deploys.length>0?a("span",{children:[t("it.deploys")," ",a("b",{children:s.deploys.join(", ")})]}):null,a("span",{className:"c-r",children:[t("it.latest")," ",a("b",{children:r(o.last.ts)})]})]})]})},fn=(e)=>{let{t,now:n}=N(),o=B.lastAt({flow:e.view.flow});return a("time",{className:"c-ago",dateTime:o,title:T.clock({iso:o}),children:T.ago({iso:o,now:n,translate:t})})},ga=(e)=>{let{t,now:n}=N(),{view:o}=e,s=K.itemOf({view:o}).steps,i=ut({id:o.flow.id,selected:e.selected,onSelect:e.onSelect});return a("div",{className:`c-line row${e.selected?" sel":""}`,role:"button",...i,children:[a("span",{className:"c-id",children:o.flow.id}),a("span",{className:"c-lt",title:o.flow.title,children:o.flow.title}),a("span",{className:"c-lm",children:[B.isStale({flow:o.flow,now:n})?a(dt,{}):null,a(ct,{view:o})]}),a("span",{className:"c-ls num",title:t("fl.steps"),children:s.total>0?`${s.done}/${s.total}`:""}),a(fn,{view:o})]})},ha=(e)=>{let{t}=N();return a(E,{children:M.GROUPS.map((n)=>{let o=e.views.filter((i)=>i.flow.state===n.key).sort((i,r)=>n.key==="you"||n.key==="blocked"?i.last.ts.localeCompare(r.last.ts):r.last.ts.localeCompare(i.last.ts)),s=e.open[n.key]??n.open;return a("section",{className:"c-group",children:[a("button",{className:"c-gh",type:"button","aria-expanded":s,onClick:()=>e.onToggle(n.key),children:[a(rn,{}),a("span",{className:"c-dot",style:{background:n.swatch}}),a("span",{children:t(n.label)}),a("span",{className:"c-n num",children:o.length})]}),s&&o.length===0?a("p",{className:"c-empty",children:n.key==="you"?t("Không có gì chờ anh."):t("Trống.")}):null,s?o.map((i)=>e.compact?a(ga,{view:i,selected:e.selected===i.flow.id,onSelect:e.onSelect},i.flow.id):a(pa,{view:i,card:K.itemOf({view:i}),selected:e.selected===i.flow.id,onSelect:e.onSelect},i.flow.id)):null]},n.key)})})},ya=(e)=>{let{t,now:n}=N(),{view:o}=e,{flow:s}=o,i=K.itemOf({view:o}),r=B.tokensOf({flow:s}),l=ut({id:s.id,selected:e.selected,onSelect:e.onSelect});return a("tr",{className:`row${e.selected?" sel":""}`,...l,children:[a("td",{className:"c-id",children:s.id}),a("td",{className:"t-title",children:a("div",{children:[a("span",{title:s.title,children:s.title}),B.isStale({flow:s,now:n})?a(dt,{}):null]})}),a("td",{children:a(ct,{view:o})}),a("td",{children:a("span",{className:"t-state",children:[a("span",{className:"c-dot",style:{background:M.GROUPS.find((c)=>c.key===s.state)?.swatch}}),t(M.STATE_TEXT[s.state])]})}),a("td",{className:"t-who",children:o.holder}),a("td",{className:"num",children:i.steps.total>0?`${i.steps.done}/${i.steps.total}`:""}),a("td",{children:i.prs.length>0?a(mn,{prs:i.prs}):null}),a("td",{className:"num",title:r===void 0?void 0:r.toLocaleString("en-US"),children:r===void 0?"":fa.format(r)}),a("td",{className:"num",children:s.due??""}),a("td",{children:a(fn,{view:o})})]})},va=(e)=>{let{t}=N(),[n,o]=P(void 0),s=B.sortOf({views:e.views,sort:n}),i=(r)=>o(n?.column===r?{column:r,descending:!n.descending}:{column:r,descending:r==="updated"||r==="tokens"});return a("div",{className:"t-wrap",children:a("table",{className:"t-work",children:[a("thead",{children:a("tr",{children:ua.map((r)=>{let l=n?.column===r,c;if(l)c=n.descending?"descending":"ascending";return a("th",{scope:"col","aria-sort":c,className:ma.has(r)?"num":void 0,children:a("button",{type:"button","data-column":r,onClick:()=>i(r),children:[t(`col.${r}`),a(ln,{order:c})]})},r)})})}),a("tbody",{children:s.map((r)=>a(ya,{view:r,selected:e.selected===r.flow.id,onSelect:e.onSelect},r.flow.id))})]})})},wa=(e)=>{let{t}=N(),{filter:n}=e,o=B.reposOf({views:e.views}),s=n.agent!==null||n.repo!==null||n.state!==null||n.staleOnly,i=(r)=>a("label",{className:"c-field",children:[a("span",{children:r.label}),a("select",{value:r.value??"",onChange:(l)=>r.onChange(l.currentTarget.value||null),children:[a("option",{value:"",children:t("ft.all")}),r.options.map((l)=>a("option",{value:l.value,children:l.text},l.value))]})]});return a("div",{className:"c-tools",role:"group","aria-label":t("ft.label"),children:[i({label:t("ft.agent"),value:n.agent,options:e.agents.map((r)=>({value:r,text:r})),onChange:(r)=>e.onFilter({...n,agent:r})}),o.length>0?i({label:t("ft.repo"),value:n.repo,options:o.map((r)=>({value:r,text:r})),onChange:(r)=>e.onFilter({...n,repo:r})}):null,i({label:t("ft.state"),value:n.state,options:j.ORDER.map((r)=>({value:r,text:t(M.STATE_TEXT[r])})),onChange:(r)=>e.onFilter({...n,state:r})}),a("button",{className:"btn",type:"button","aria-pressed":n.staleOnly,title:un({t}),onClick:()=>e.onFilter({...n,staleOnly:!n.staleOnly}),children:[t("it.stale")," ",a("span",{className:"c-n num",children:e.staleCount})]}),s?a("button",{className:"btn btn-text",type:"button",onClick:()=>e.onFilter({agent:null,repo:null,state:null,staleOnly:!1}),children:t("ft.clear")}):null]})},_n=(e)=>{let{t,now:n}=N(),[o,s]=P({repo:null,state:null,staleOnly:!1}),i={...o,agent:e.agent},r=B.listOf({views:e.views,filter:{agent:null,repo:null,state:null,staleOnly:!1},now:n}),l=B.listOf({views:e.views,filter:i,now:n}),c=e.views.find((f)=>f.flow.id===O.UNSORTED&&(e.agent===null||D.involves({view:f,name:e.agent}))),m=(f)=>{let{agent:_,...u}=f;if(s(u),_!==e.agent)e.onAgent(_)},d=null;if(r.length===0)d=a("p",{className:"c-empty",children:t("Chưa có luồng nào. Bật events.log, hoặc ghi một dòng bằng vulcan event add.")});else if(l.length===0)d=a("p",{className:"c-empty",children:t("ft.none")});else if(e.view==="table")d=a(va,{views:l,selected:e.selected,onSelect:e.onSelect});else d=a(ha,{views:l,compact:e.view==="compact",selected:e.selected,onSelect:e.onSelect,open:e.open,onToggle:e.onToggle});return a("section",{className:"c-pane c-items","aria-label":t("Danh sách luồng"),children:[a("div",{className:"c-ph",children:[a("h2",{children:t("pn.items")}),a("span",{className:"c-n num",id:"flowN",children:l.length}),a("span",{className:"c-grow"}),a("div",{className:"seg",role:"group","aria-label":t("vw.label"),children:lt.map((f)=>a("button",{type:"button","data-view":f,"aria-pressed":e.view===f,onClick:()=>e.onView(f),children:t(`vw.${f}`)},f))})]}),r.length===0?null:a(wa,{views:r,agents:e.agents,filter:i,onFilter:m,staleCount:r.filter((f)=>B.isStale({flow:f.flow,now:n})).length}),a("div",{className:"c-scroll",id:"groups",children:[d,c?a("button",{className:"c-loose",type:"button","aria-pressed":e.selected===c.flow.id,onClick:()=>e.onSelect(c.flow.id),children:`${t("it.unsorted")} · ${c.evs.length}`}):null]})]})};var ka=[["j / k","Luồng sau / trước"],["Enter","Mở chi tiết"],["e","Các bước hoặc mọi sự kiện"],["c","Xem gọn hoặc thẻ"],["Esc","Đóng"],["?","Bảng này"]],pn=(e)=>{let t=Me();return a("div",{className:"keys",id:"keys",hidden:!e.open,role:"dialog","aria-label":t("Phím tắt"),children:[a("h2",{children:a("span",{children:t("Phím tắt")})}),a("dl",{children:ka.flatMap(([n,o])=>[a("dt",{children:n},n),a("dd",{children:a("span",{children:t(o)})},o)])})]})};class re{static get(e){try{return localStorage.getItem(e.key)}catch{return null}}static set(e){try{localStorage.setItem(e.key,e.value)}catch{}}static remove(e){try{localStorage.removeItem(e.key)}catch{}}}var fe=(e)=>{let[t,n]=P(()=>{let s=re.get({key:e.key});return e.allowed.find((i)=>i===s)??e.initial}),o=at((s)=>{re.set({key:e.key,value:s}),n(s)},[e.key]);return[t,o]},gn=()=>{let[e,t]=P(Date.now());return z(()=>{let n=setInterval(()=>t(Date.now()),60000);return()=>clearInterval(n)},[]),e},hn=(e)=>{let t=e.data.live?.stream,[n,o]=P("wait");return z(()=>{if(t===void 0)return;let s,i,r=!1,l=0,c=()=>{s=new EventSource(t),s.onmessage=(m)=>{l=0;let d=JSON.parse(m.data);if(d.tooLarge){o("big");return}e.onData(d),o("on")},s.onerror=()=>{if(s?.close(),o("off"),!r)i=setTimeout(c,Math.min(30000,1000*2**l)),l+=1}};return c(),()=>{r=!0,s?.close(),clearTimeout(i)}},[t]),n};var yn={en:{"Xem gọn hoặc thẻ":"Compact or cards","ag.delivered":"delivered","ag.latest":"Latest","ag.notReplied":"Messages not replied yet","ag.notRepliedYet":"not replied yet","col.code":"Code","col.due":"Due","col.holder":"Holder","col.pr":"PR · CI","col.stage":"Stage","col.state":"State","col.steps":"Steps","col.title":"Title","col.tokens":"Tokens","col.updated":"Last update","ft.agent":"Agent","ft.all":"All","ft.clear":"Clear filters","ft.label":"Filters","ft.none":"No work item matches these filters.","ft.repo":"Repo","ft.state":"State","it.dayLeft":"day left","it.stale":"Stale","it.staleTip":"Steps open and no event for","lt.flow":"updated the flow","lt.sessionStart":"started a session","lt.subagent":"a subagent finished","lt.usage":"recorded token use","vw.cards":"Cards","vw.compact":"Compact","vw.label":"View","vw.table":"Table","ag.under":"under","ag.earlier":"Earlier","ag.details":"Details","it.unsorted":"Unsorted","it.unsortedNote":"Events that name no flow, newest first."," giờ":" h"," lần ":" try "," ngày":" d"," phút":" min"," sự kiện mới":" new events",". Bấm để đổi":". Click to change","5 sự kiện gần nhất":"Last 5 events","Anh duyệt":"Approval","Bàn giao":"Handoff","Bảng này":"This panel","Bị chặn":"Blocked","Bỏ lọc theo ":"Clear filter for ","Chi tiết luồng":"Flow detail","Chưa có luồng nào. Bật events.log, hoặc ghi một dòng bằng vulcan event add.":"No flows yet. Turn on events.log, or write a line with vulcan event add.","Chưa có sự kiện nào của agent này.":"No events from this agent yet.","Chờ anh":"Waiting on you",Code:"Code","Các agent đang chạy":"Running agents","Các bước hoặc mọi sự kiện":"Stages or all events","Cần anh":"Needs you","Của ":"By ","Danh sách luồng":"Flow list","Giao diện: ":"Theme: ","Không có PR nào đang mở.":"No open pull requests.","Không có gì chờ anh.":"Nothing waits on you.","Không có tin nào đang chờ.":"No message is waiting.","Luồng sau / trước":"Next / previous flow",Merge:"Merge","Mở chi tiết":"Open detail","PR + CI":"PR + CI","PR đang mở (":"Open pull requests (","Phát hành":"Release","Phím tắt":"Shortcuts",Review:"Review",Rảnh:"Idle","Thiết kế":"Design","Trống.":"Empty.","Từ lần xem trước lúc ":"Since your last visit at ",Xong:"Done","ag.asking":"Asking you","ag.message":"Latest message","ag.pending":"Not replied yet","ag.prs":"PRs","ag.today":"events today","ag.working":"Working on","bàn giao":"handoff","bị chặn":"blocked","chưa có agent":"no agents yet","chưa có việc":"no work yet","chờ anh":"waiting on you","chờ anh: ":"waiting on you: ","dt.all":"All events","dt.milestones":"Milestones","dt.whatItIs":"What it is","fl.checks":"Acceptance checks","fl.due":"Due","fl.steps":"Steps","tk.cacheRead":"Cache read","tk.cacheWrite":"Cache write","tk.input":"Input","tk.output":"Output","tk.title":"Tokens","tk.total":"All agents","g.blocked":"Blocked","g.done":"Done this week","g.parked":"Parked","g.running":"Running","g.you":"Needs you","ghi chú":"note","giao việc":"assign","giờ ước lượng":"estimated time","it.apps":"Apps","it.checks":"Acceptance","it.criteria":"criteria","it.daysLeft":"days left","it.deploys":"Deploy","it.done":"done","it.holder":"Holder","it.holds":"holds","it.latest":"latest","it.noDue":"No due date","it.now":"Now","it.overdue":"overdue","it.people":"People","it.prs":"PR","it.started":"Started","it.updates":"Updates","it.waiting":"Waiting on","k.agent":"agent activity","k.flow":"flow title","lang.en":"English","lang.label":"Language","lang.vi":"Tiếng Việt","live.big":"too large to stream: reload","live.off":"disconnected, retrying","live.on":"live","live.wait":"connecting","lt.approve":"approved","lt.ask":"asked the owner","lt.assign":"assigned work","lt.ci":"ran a check","lt.commit":"committed","lt.decision":"decided","lt.design":"designed","lt.fix":"fixed","lt.got":"got a message","lt.gotFrom":"got a message from","lt.handoff":"handed over","lt.merge":"merged","lt.msg":"sent a message","lt.msgTo":"wrote to","lt.note":"noted","lt.park":"parked","lt.pr":"updated a pull request","lt.reject":"rejected","lt.release":"released","lt.request":"requested","lt.review":"reviewed",lỗi:"error","ms.decision":"Decision","ms.deploy":"Deploy","ms.merge":"Merge","ms.open":"Opened","nw.chip":"No work yet","nw.empty":"No work logged yet","phát hành":"release","pl.all":"Show all events","pl.tip":"Sessions starting and stopping, subagents and prompts that only wait are hidden, and so are agents the project did not list; this shows them","pn.agents":"Agents","pn.detail":"Details","pn.items":"Work items","quyết định":"decision",rảnh:"idle","rảnh · ":"idle · ","st.parked":"Parked",sáng:"light",sửa:"fix","theo máy":"system","thiết kế":"design","tin nhắn":"message",to:"to",tối:"dark","từ ":"since ","vừa xong":"just now","Đang chạy":"Running","Đang làm":"Working","Đánh dấu đã xem":"Mark as seen",Đóng:"Close","Đề xuất":"Proposal","đang làm":"working",đạt:"pass","đề xuất":"proposal",đỏ:"red"},vi:{"ag.delivered":"đã nhận","ag.latest":"Mới nhất","ag.notReplied":"Tin nhắn chưa trả lời","ag.notRepliedYet":"chưa trả lời","col.code":"Mã","col.due":"Hạn","col.holder":"Người giữ","col.pr":"PR · CI","col.stage":"Giai đoạn","col.state":"Trạng thái","col.steps":"Bước","col.title":"Tên","col.tokens":"Token","col.updated":"Cập nhật","ft.agent":"Agent","ft.all":"Tất cả","ft.clear":"Bỏ lọc","ft.label":"Bộ lọc","ft.none":"Không có việc nào khớp bộ lọc.","ft.repo":"Repo","ft.state":"Trạng thái","it.dayLeft":"ngày nữa","it.stale":"Đứng yên","it.staleTip":"Còn bước mở và không có sự kiện trong","lt.flow":"cập nhật luồng","lt.sessionStart":"mở phiên","lt.subagent":"một subagent xong","lt.usage":"ghi token","vw.cards":"Thẻ","vw.compact":"Gọn","vw.label":"Kiểu xem","vw.table":"Bảng","ag.under":"thuộc","ag.earlier":"Trước đó","ag.details":"Chi tiết","it.unsorted":"Chưa xếp luồng","it.unsortedNote":"Các sự kiện không thuộc luồng nào, mới nhất trước.","ag.asking":"Hỏi anh","ag.message":"Tin nhắn","ag.pending":"Chưa trả lời","ag.prs":"PR","ag.today":"sự kiện hôm nay","ag.working":"Đang làm","dt.all":"Mọi sự kiện","dt.milestones":"Diễn biến","dt.whatItIs":"Đây là gì","fl.checks":"Tiêu chí nghiệm thu","fl.due":"Hạn","fl.steps":"Các bước","tk.cacheRead":"Đọc cache","tk.cacheWrite":"Ghi cache","tk.input":"Đầu vào","tk.output":"Đầu ra","tk.title":"Token","tk.total":"Mọi agent","g.blocked":"Bị chặn / Lỗi","g.done":"Xong trong tuần","g.parked":"Để sau","g.running":"Đang chạy","g.you":"Cần anh","it.apps":"App","it.checks":"Nghiệm thu","it.criteria":"tiêu chí","it.daysLeft":"ngày nữa","it.deploys":"Deploy","it.done":"xong","it.holder":"Giữ việc","it.holds":"giữ","it.latest":"mới nhất","it.noDue":"Chưa có hạn","it.now":"Đang","it.overdue":"quá hạn","it.people":"Người","it.prs":"PR","it.started":"Bắt đầu","it.updates":"Cập nhật","it.waiting":"Đang chờ","k.agent":"hoạt động agent","k.flow":"tên luồng","lang.en":"English","lang.label":"Ngôn ngữ","lang.vi":"Tiếng Việt","live.big":"quá lớn để truyền: tải lại","live.off":"mất kết nối, đang thử lại","live.on":"trực tiếp","live.wait":"đang kết nối","lt.approve":"duyệt","lt.ask":"hỏi chủ","lt.assign":"giao việc","lt.ci":"chạy kiểm tra","lt.commit":"commit","lt.decision":"quyết định","lt.design":"thiết kế","lt.fix":"sửa","lt.got":"nhận tin nhắn","lt.gotFrom":"nhận tin nhắn từ","lt.handoff":"bàn giao","lt.merge":"merge","lt.msg":"gửi tin nhắn","lt.msgTo":"nhắn cho","lt.note":"ghi chú","lt.park":"để sau","lt.pr":"cập nhật pull request","lt.reject":"từ chối","lt.release":"phát hành","lt.request":"đề xuất","lt.review":"review","ms.decision":"Quyết định","ms.deploy":"Deploy","ms.merge":"Merge","ms.open":"Mở việc","nw.chip":"Chưa có việc","nw.empty":"Chưa có việc nào được ghi","pl.all":"Hiện mọi sự kiện","pl.tip":"Phiên bắt đầu và kết thúc, subagent và lời nhắc chỉ để chờ, cùng các agent dự án không liệt kê, đang được ẩn; nút này hiện chúng","pn.agents":"Agent","pn.detail":"Chi tiết","pn.items":"Việc","st.parked":"Để sau",to:"cho"}};class mt{static translate(e){return yn[e.language][e.key]??e.key}}var ba=["flows","decisions","agents","shapes","roster","lanes","roles","sources","generatedAt","since"],Na='input,textarea,select,[contenteditable="true"]',vn=(e)=>{let[t,n]=P(e.data),o=`board:${t.key}:`,[s,i]=fe({key:`${o}lang`,initial:ne.EN,allowed:[ne.EN,ne.VI]}),[r,l]=fe({key:`${o}theme`,initial:"light",allowed:we}),[c,m]=fe({key:`${o}plumbing`,initial:"0",allowed:["0","1"]}),[d,f]=fe({key:`${o}agentDetails`,initial:"1",allowed:["0","1"]}),[_,u]=fe({key:`${o}view`,initial:"cards",allowed:lt}),[p,S]=P(!1),[g,w]=P(null),[k,A]=P(!1),[h,b]=P(null),[ke,le]=P({}),[H,Z]=P(()=>re.get({key:`${o}lastSeen`})??new Date().toISOString()),F=gn(),U=c==="1",G=hn({data:t,onData:(v)=>n((C)=>({...C,...Object.fromEntries(ba.map((pe)=>[pe,v[pe]]))}))}),L=q(()=>(v)=>mt.translate({language:s,key:v}),[s]),bn=q(()=>({t:L,now:F}),[L,F]),_e=q(()=>D.eventsOf({data:t,showAll:U}),[t,U]),J=q(()=>D.flowsOf({data:t,showAll:U,lastSeen:H}),[t,U,H,F]),ce=q(()=>D.rowsOf({data:t,flows:J,events:_e,translate:L,now:F}),[t,J,_e,L,F]),ft=q(()=>Object.fromEntries(ce.map((v)=>[v.n,K.agentOf({data:t,events:_e,views:J,row:v,doc:t.agents[v.n],now:F})])),[t,_e,J,ce,F]),_t=g!==null&&(g.kind==="flow"?J.some((v)=>v.flow.id===g.id):ce.some((v)=>v.n===g.name)),He=(v)=>w({kind:"flow",id:v}),Nn=(v)=>{if(h===v){b(null),w(null);return}b(v),w({kind:"agent",name:v})};return z(()=>{document.title=t.title,document.documentElement.lang=s},[t.title,s]),z(()=>{if(r==="system")document.documentElement.removeAttribute("data-board-theme");else document.documentElement.setAttribute("data-board-theme",r)},[r]),z(()=>{re.set({key:`${o}lastSeen`,value:H})},[o,H]),z(()=>{let v=(C)=>{if((C.target instanceof Element?C.target:null)?.closest?.(Na)||C.metaKey||C.ctrlKey||C.altKey)return;let be=[...document.querySelectorAll(".row")],pt=g?.kind==="flow"?g.id:null,gt=be.findIndex((Ne)=>Ne.dataset.id===pt);if(C.key==="j"||C.key==="k"){C.preventDefault();let Ne=C.key==="j"?Math.min(be.length-1,gt+1):Math.max(0,gt-1),ht=be[Ne]?.dataset.id;if(ht!==void 0)He(ht),be[Ne].focus()}else if(C.key==="e"&&pt)A(!k);else if(C.key==="c")u(_==="compact"?"cards":"compact");else if(C.key==="Escape")if(p)S(!1);else w(null);else if(C.key==="?")S(!p)};return document.addEventListener("keydown",v),()=>document.removeEventListener("keydown",v)}),a($e.Provider,{value:bn,children:[a("div",{className:"app",children:[a(cn,{title:t.title,logo:t.logo,sources:t.sources,lastSeen:H,newCount:J.reduce((v,C)=>v+C.newCount,0),onSeen:()=>Z(new Date().toISOString()),showPlumbing:U,onPlumbing:()=>m(U?"0":"1"),language:s,onLanguage:()=>i(s===ne.EN?ne.VI:ne.EN),theme:r,onTheme:()=>l(we[(we.indexOf(r)+1)%we.length]),keysOpen:p,onKeys:()=>S(!p),live:t.live===void 0?void 0:G}),a("main",{className:`c-main${_t?"":" closed"}`,id:"vFlows",children:[a(Jt,{rows:ce,cards:ft,shapes:t.shapes,picked:h,details:d==="1",onDetails:(v)=>f(v?"1":"0"),onPick:Nn}),a(_n,{views:J,agents:ce.map((v)=>v.n),view:_,onView:u,agent:h,onAgent:(v)=>{if(b(v),v===null&&g?.kind==="agent")w(null)},selected:g?.kind==="flow"?g.id:null,onSelect:He,open:ke,onToggle:(v)=>le((C)=>({...C,[v]:!(C[v]??M.GROUPS.find((pe)=>pe.key===v)?.open)}))}),a(on,{detail:_t?g:null,views:J,rows:ce,cards:ft,data:t,events:_e,everything:k,onEverything:A,onFlow:He,onClose:()=>w(null)})]})]}),a(pn,{open:p})]})};var wn=document.getElementById("board-data"),kn=document.getElementById("root");if(wn?.textContent&&kn){let e=JSON.parse(wn.textContent);jt(kn).render(a(vn,{data:e}))}})();
+    <script>(()=>{var y,Nt,Cn,te,Ke,Ce,St,Te,Et,Xe,je,Tt,he=Symbol.for("pv"),xe={},Oe=[],xn=/^m(i|n|o|s|text|space)$/,Ae=Array.isArray,It=Oe.slice,le=Object.assign;function re(e){e&&e.parentNode&&e.remove()}function Ie(e,t,a,o,s){var i={type:e,props:t,key:a,ref:o,__k:null,__:null,__b:0,__e:null,__c:null,constructor:he,__v:s||++Nt,__i:-1,__u:0};return!s&&y.vnode&&y.vnode(i),i}function N(e){return e.children}function ne(e,t){this.props=e,this.context=t,this.__g=0}function ae(e,t){if(t==null)return e.__&&ae(e.__,e.__i+1);for(var a;t<e.__k.length;t++)if((a=e.__k[t])&&a.__e)return a.__e;return typeof e.type!="function"||e.props.__P?null:ae(e)}function Ct(e){if((e=e.__)&&e.__c&&!e.props.__P)return e.__e=null,e.__k.some(function(t){return t&&(e.__e=t.__e)}),Ct(e)}function qe(e){(8&e.__g||(e.__g|=8,te.push(e),Ce++))&&Ke==y.debounceRendering||((Ke=y.debounceRendering)||queueMicrotask)(xt)}function xt(){var e,t,a,o,s,i,r,l,d;try{for(t=1;te.length;)te.length>t&&te.sort(St),e=te.shift(),t=te.length,8&e.__g&&(o=void 0,s=void 0,i=(s=(a=e).__v).__e,r=[],l=[],(d=a.__P)&&((o=le({constructor:he},s)).__v=s.__v+1,y.vnode&&y.vnode(o),Ze(d,o,s,a.__n,d.namespaceURI,32&s.__u?[i]:null,r,i||ae(s),32&s.__u,l),o.__v=s.__v,o.__.__k[o.__i]=o,Bt(r,o,l),s.__=s.__e=null,o.__e!=i&&Ct(o)))}finally{(Ce=te.length)&&(Ke||queueMicrotask)(xt)}}function Ot(e,t,a,o,s,i,r,l,d,m,u){var f,_,c,p,b,g,w=o.__k||Oe,k=t.length;for(d=On(a,t,w,d,k),f=0;f<k;f++)(c=a.__k[f])!=null&&(_=~c.__i&&w[c.__i]||xe,c.__i=f,g=Ze(e,c,_,s,i,r,l,d,m,u),p=c.__e,(_.ref!=c.ref||8&_.__u)&&(_.ref&&Je(_.ref,null,c,_),c.ref&&u.push(c.ref,c.__c||p,c)),b=b||p,4&c.__u?(d=At(c,d,e,!_.__v),_.__e&&(_.__e=null)):typeof c.type=="function"&&g!==void 0?d=g:p&&(d=p.nextSibling),c.__u&=-21);return a.__e=b,d}function On(e,t,a,o,s){var i,r,l,d,m,u,f,_,c,p=a.length,b=p,g=0,w=0,k=e.__k=Array(s);for(i=0;i<s;i++)(r=t[i])!=null&&typeof r!="boolean"&&typeof r!="function"?(typeof r!="object"||r.constructor===String?r=k[i]=Ie(null,r):Ae(r)?r=k[i]=Ie(N,{children:r}):r.constructor===he&&r.__b?r=k[i]=Ie(r.type,r.props,r.key,r.ref,r.__v):k[i]=r,d=i+g,r.__=e,r.__b=e.__b+1,l=null,~(m=r.__i=An(r,a,d,b))&&(b--,(l=a[m])&&(l.__u|=2)),l&&l.__v?(r.__u|=16,m==d-1?g--:m==d+1?g++:m!=d&&(m>d?g--:g++,w=1)):(~m||(s>p?g--:s<p&&g++),typeof r.type!="function"&&(r.__u|=4))):k[i]=null;if(w){for(u=[],f=[],i=0;i<s;i++)if((r=k[i])&&16&r.__u){for(g=0,_=u.length;g<_;)u[c=g+_>>1]<r.__i?g=c+1:_=c;u[g]=r.__i,f[i]=g+1}for(g=u.length;i--;)f[i]&&(f[i]==g?g--:k[i].__u|=4)}if(b)for(i=0;i<p;i++)!(l=a[i])||2&l.__u||(l.__e==o&&(o=ae(l)),Qe(l,l));return o}function At(e,t,a,o){var s,i,r,l;if(typeof e.type=="function"){if(e.props.__P)return t;if(s=e.__k)for(i=0;i<s.length;i++)s[i]&&(s[i].__=e,t=At(s[i],t,a,!1));return t}for(t&&!t.parentNode&&(t=ae(e))&&!t.parentNode&&(t=null),r=e.__e,l=t;l&&l.nodeType==8;)l=l.nextSibling;for(r!=l&&(!o&&a.moveBefore&&r.parentNode?a.moveBefore(r,t):a.insertBefore(r,t||null)),t=r;(t=t&&t.nextSibling)&&t.nodeType==8&&!t.data.startsWith("$s"););return t}function Re(e,t){return t=t||[],e!=null&&typeof e!="boolean"&&(Ae(e)?e.some(function(a){Re(a,t)}):t.push(e)),t}function An(e,t,a,o){var s,{key:i,type:r}=e,l=t[a],d=l&&!(2&l.__u);if(l===null&&i==null||d&&i==l.key&&r==l.type)return a;if(o>(d?1:0)){for(s=a-1;s>=0;s--)if((l=t[s])&&!(2&l.__u)&&i==l.key&&r==l.type)return s;for(s=a+1;s<t.length;s++)if((l=t[s])&&!(2&l.__u)&&i==l.key&&r==l.type)return s}return-1}function bt(e,t,a){a==null&&(a=""),t[0]=="-"?e.setProperty(t,a):e[t]=a}function Ee(e,t,a,o,s){var i,r;if(t=="style")if(typeof a=="string")e.style.cssText=a;else{if(typeof o=="string"&&(e.style.cssText=o=""),o)for(t in o)a&&t in a||bt(e.style,t);if(a)for(t in a)o&&a[t]==o[t]||bt(e.style,t,a[t])}else if(t[0]=="o"&&t[1]=="n")(e.__e||(e.__e={}))[t]=a,a&&o||(r=je[t]||(je[t]=Rn(t)),(e.__a||(e.__a={}))[t]=Xe,i=t!=(t=t.replace(Et,"$1")),(t=t.slice(2))[0]<"a"&&(t=t.toLowerCase()),a?e.addEventListener(t,r,i):e.removeEventListener(t,r,i));else{if(s=="http://www.w3.org/2000/svg")t=t.replace(/xlink(H|:h)/,"h").replace(/sName$/,"s");else if(t!="width"&&t!="height"&&t!="href"&&t!="list"&&t!="form"&&t!="tabIndex"&&t!="download"&&t!="rowSpan"&&t!="colSpan"&&t!="role"&&t!="popover"&&t in e)try{return void(e[t]=a==null?"":a)}catch(l){}if(typeof a=="function")return;a==null||a===!1&&t[4]!="-"?e.removeAttribute(t):e.setAttribute(t,t=="popover"&&a==1?"":a)}}function Rn(e){return function(t){var a=this.__e;if(a){if(a=a[e],t[Te]==null)t[Te]=Xe++;else if(t[Te]<this.__a[e])return;return a(y.event?y.event(t):t)}}}function Ze(e,t,a,o,s,i,r,l,d,m){var u,f,_,c,p,b,g,w,k,O,h,E,be,ue,G,Q,F,W,z=t.type;if(t.constructor!==he)return null;128&a.__u&&(d=32&a.__u,u=a.__c.__z)&&(t.__u|=d,f=i=[],u.nodeType==8?l=Ye(u,i):i.push(u),l=i[0]||l),(u=y.__b)&&u(t);e:if(typeof z=="function"){_=r.length;try{if(w=t.props,k=(u=z.prototype)&&u.render,O=(u=z.contextType)&&o[u.__c],h=u?O?O.props.value:u.__:o,(c=a.__c)?(t.__c=c,2&c.__g&&(c.__g|=1)):(k?t.__c=c=new z(w,h):(t.__c=c=new ne(w,h),c.constructor=z,c.render=$n),O&&O.sub(c),c.state||(c.state={}),c.__n=o,c.__g|=8,c.__h=[],c.__k=[]),k&&(c.__s||(c.__s=c.state),z.getDerivedStateFromProps&&(c.__s==c.state&&(c.__s=le({},c.__s)),le(c.__s,z.getDerivedStateFromProps(w,c.__s)))),p=c.props,b=c.state,c.__v=t,a.__c){if(w!==p&&k&&!z.getDerivedStateFromProps&&c.componentWillReceiveProps&&c.componentWillReceiveProps(w,h),t.__v==a.__v&&!(8&c.__g)||!(4&c.__g)&&c.shouldComponentUpdate&&c.shouldComponentUpdate(w,c.__s,h)===!1){t.__v!=a.__v&&(c.props=w,c.state=c.__s,c.__g&=-9),t.__e=a.__e,t.__k=a.__k,t.__k.some(function(V){V&&(V.__=t)}),Oe.push.apply(c.__h,c.__k),c.__k=[],c.__h.length&&r.push(c),l=ae(a);break e}c.componentWillUpdate&&c.componentWillUpdate(w,c.__s,h),k&&c.componentDidUpdate&&c.__h.push(function(){c.componentDidUpdate(p,b,g)})}else k&&!z.getDerivedStateFromProps&&c.componentWillMount&&c.componentWillMount(),k&&c.componentDidMount&&c.__h.push(c.componentDidMount);if(c.context=h,c.props=w,c.__P=e,c.__g&=-5,E=y.__r,be=0,k)c.state=c.__s,c.__g&=-9,E&&E(t),u=c.render(c.props,c.state,c.context),Oe.push.apply(c.__h,c.__k),c.__k=[];else do c.__g&=-9,E&&E(t),u=c.render(c.props,c.state,c.context),c.state=c.__s;while(8&c.__g&&++be<25);c.state=c.__s,c.getChildContext&&(o=le({},o,c.getChildContext())),k&&a.__c&&c.getSnapshotBeforeUpdate&&(g=c.getSnapshotBeforeUpdate(p,b)),ue=u&&u.type===N&&u.key==null?u.props.children:u,w.__P&&(u=l,s=(e=w.__P).namespaceURI,d=i=null,a.props&&a.props.__P!=e&&(a.__k.some(function(V){V&&Qe(V,V)}),a.__k=null),l=a.__k?ae(a,0):null),l=Ot(e,Ae(ue)?ue:[ue],t,a,o,s,i,r,l,d,m),w.__P&&(t.__e=null,l=u),t.__u&=-161,f&&f.some(re),c.__h.length&&r.push(c),1&c.__g&&(c.__g&=-4)}catch(V){if(r.length=_,t.__v=null,d||i)if(V.then){if(G=0,t.__u|=128|d,i){for(~(F=i.indexOf(l||void 0))||(F=i.length);(W=i[F-1])&&W.nodeType==8;)F--;for(;F<i.length;F++)if(W=i[F]){if(i[F]=null,W.nodeType==8){if(W.data.startsWith("$s"))G++||(Q=W);else if(G&&W.data.startsWith("/$s")&&!--G)break}else if(!G)break}}if(!Q){for(;l&&l.nodeType==8&&l.nextSibling;)l=l.nextSibling;Q=l}(u=Ye(Q=t.__c.__z||(t.__c.__z=Q)))?(t.__e=Q,l=u):t.__e=l,l=l&&l.nextSibling}else i&&i.some(re);else t.__e=a.__e;t.__k||(t.__k=a.__k||[]),V.then||Rt(t),y.__e(V,t,a)}}else l=t.__e=Bn(a.__e,t,a,o,s,i,r,d,m,e);return(u=y.diffed)&&u(t),l}function Ye(e,t){if(e&&e.nodeType==8&&e.data.startsWith("$s"))for(var a=1;e=e.nextSibling;){if(e.nodeType==8){if(e.data.startsWith("$s"))a++;else if(e.data.startsWith("/$s")&&!--a)return e}t&&t.push(e)}}function Rt(e){e&&(e.__c&&(e.__c.__g|=4),e.__k&&e.__k.some(Rt))}function Bt(e,t,a){for(var o=0;o<a.length;)Je(a[o++],a[o++],a[o++]);y.__c&&y.__c(t,e),e.some(function(s){try{e=s.__h,s.__h=[],e.some(function(i){i.call(s)})}catch(i){y.__e(i,s.__v)}})}function Bn(e,t,a,o,s,i,r,l,d,m){var u,f,_,c,p,b,g,w,k,O=a.props||xe,{props:h,type:E}=t;if(E=="svg"?s="http://www.w3.org/2000/svg":E=="math"?s="http://www.w3.org/1998/Math/MathML":s||(s="http://www.w3.org/1999/xhtml"),i){for(u=0;u<i.length;u++)if((p=i[u])&&(E?p.localName==E:p.nodeType==3)){e=p,i[u]=null;break}}if(!e){if(w=m.ownerDocument||document,!E)return w.createTextNode(h);e=w.createElementNS(s,E,h.is&&h),l&&(y.__m&&y.__m(t,i),l=!1),i=null}if(E){if(m=E=="template"&&e.content||e,i=E=="textarea"&&h.defaultValue!=null?null:i&&It.call(m.childNodes),!l&&i)for(O={},u=0;u<e.attributes.length;u++)O[(p=e.attributes[u]).name]=p.value;for(u in O)p=O[u],u=="dangerouslySetInnerHTML"?_=p:u=="children"||(u in h)||u=="value"&&("defaultValue"in h)||u=="checked"&&("defaultChecked"in h)||Ee(e,u,null,p,s);for(u in k=1&a.__u,h)p=h[u],u=="children"?c=p:u=="dangerouslySetInnerHTML"?f=p:u=="value"?b=p:u=="checked"?g=p:l&&typeof p!="function"||!(O[u]!==p||k&&p!=null)||Ee(e,u,p,O[u],s);f?(l||_&&(f.__html==_.__html||f.__html==e.innerHTML)||(e.innerHTML=f.__html),t.__k=[]):(_&&(e.textContent=""),(E=="foreignObject"||s=="http://www.w3.org/1998/Math/MathML"&&xn.test(E))&&(s="http://www.w3.org/1999/xhtml"),Ot(m,Ae(c)?c:[c],t,a,o,s,i,r,i?i[0]:a.__k&&ae(a,0),l,d),i&&i.some(re)),l&&E!="textarea"||(u="value",E=="progress"&&b==null?e.removeAttribute(u):b==null||b===e[u]&&(E!="progress"||b)||Ee(e,u,b,O[u],s),u="checked",g!=null&&g!=e[u]&&Ee(e,u,g,O[u],s))}else O===h||l&&e.data==h||(e.data=h);return e}function Je(e,t,a,o){try{typeof e=="function"?t?t.__x=e(t)||1:o&&(o=o.__c||o.__e)&&(t=o.__x)&&(o.__x=null,typeof t=="function"?t():e(null)):e.current=t}catch(s){y.__e(s,a)}}function Qe(e,t,a){var o,s,i,r;if(y.unmount&&y.unmount(e),!(o=e.ref)||o.current&&o.current!=e.__e||Je(o,null,t,e),o=e.__c){if(o.componentWillUnmount)try{o.componentWillUnmount()}catch(l){y.__e(l,t)}o.__P=o.__n=null}if(o=e.__k)for(r=0;r<o.length;r++)o[r]&&Qe(o[r],t,typeof e.type!="function"||a&&!e.props.__P);!a&&(o=e.__c)&&(o=o.__z)&&(s=Ye(o,i=[]))&&(o==e.__e&&i.some(re),re(s),re(o)),(o=e.__e)&&(a||re(o),o.__e&&(o.__e=null)),e.__e=e.__c=e.__=null}function $n(e,t,a){return this.constructor(e,a)}function et(e,t){var a,o,s,i;y.__&&y.__(e,t),t.nodeType==9&&(t=t.documentElement),o=(a=e&&32&e.__u)?null:t.__k,t.__k=Ie(N,{children:[e]}),s=[],i=[],Ze(t,t.__k,o||xe,xe,t.namespaceURI,o?null:t.firstChild?It.call(t.childNodes):null,s,o?o.__e:t.firstChild,a,i),Bt(s,t.__k,i),t.__k.props.children=null}function Be(e){function t(a){var o,s;return this.getChildContext||(o=new Set,(s={})[t.__c]=this,this.getChildContext=function(){return s},this.shouldComponentUpdate=function(i){this.props.value!=i.value&&o.forEach(function(r){r.__g|=4,qe(r)})},this.sub=function(i){o.add(i);var r=i.componentWillUnmount;i.componentWillUnmount=function(){o.delete(i),r&&r.call(i)}}),a.children}return t.__c="__cC"+Tt++,t.__=e,t.Provider=(t.Consumer=function(a,o){return a.children(o)}).contextType=t,t}y={__e:function(e,t,a,o){for(var s,i,r;t=t.__;)if((s=t.__c)&&!(1&s.__g)){s.__g|=4;try{if((r=(i=s.constructor)&&i.getDerivedStateFromError)&&s.setState(i.getDerivedStateFromError(e)),s.componentDidCatch&&(s.componentDidCatch(e,o||{}),r=1),r&&8&s.__g)return void(s.__g|=2)}catch(l){e=l}}throw Ce=0,e}},Nt=0,Cn=function(e){return e!=null&&e.constructor===he},ne.prototype.setState=function(e,t){var a=this.__s;a&&a!=this.state||(a=this.__s=le({},this.state)),typeof e=="function"&&(e=e(le({},a),this.props)),e&&(le(a,e),this.__v&&(t&&this.__k.push(t),qe(this)))},ne.prototype.forceUpdate=function(e){this.__v&&(this.__g|=4,e&&this.__h.push(e),qe(this))},ne.prototype.render=N,te=[],Ce=0,St=function(e,t){return e.__v.__b-t.__v.__b},Te=Symbol(),Et=/(PointerCapture)$|Capture$/i,Xe=0,je={},Tt=0;var fe,I,tt,$t,nt=Object.is,ve=0,Ht=[],at=[],R=y,{__b:Dt,__r:Pt,diffed:Mt,__c:Ft,unmount:Lt,__:Vt}=R;function $e(e,t){R.__h&&R.__h(I,e,ve||t),ve=0;var a=I.__H||(I.__H={__:[],__h:[]});return e>=a.__.length&&a.__.push({}),a.__[e]}function C(e){return ve=1,Gt(Kt,e)}function Gt(e,t,a){var o=$e(fe++,2);if(o.t=e,!o.__c&&(o.__=[a?a(t):Kt(void 0,t),function(i){var r=o.__N?o.__N[0]:o.__[0],l=o.t(r,i);nt(r,l)||(o.__N=[l,o.__[1]],o.__c.setState({}))}],o.__c=I,!I.__f)){I.__f=!0;var s=I.shouldComponentUpdate;I.shouldComponentUpdate=function(i,r,l){var d=this.__H;if(!d)return!0;var m=!1,u=this.props!=i;if(d.__.some(function(_){_.__N&&(m=!0,nt(_.__[0],_.__N[0])||(u=!0))}),s){var f=s.call(this,i,r,l);return m?f||u:f}return!m||u}}return o.__}function K(e,t){var a=$e(fe++,3);!R.__s&&zt(a.__H,t)&&(a.__P=!0,a.__=e,a.u=t,I.__H.__h.push(a))}function De(e){return ve=5,q(function(){return{current:e}},[])}function q(e,t){var a=$e(fe++,7);return zt(a.__H,t)&&(a.__=e(),a.__H=t),a.__}function st(e,t){return ve=8,q(function(){return e},t)}function Pe(e){var t=I.context[e.__c],a=$e(fe++,9);return a.c=e,t?(a.__==null&&(a.__=!0,t.sub(I)),t.props.value):e.__}function Dn(){var e;do{for(;e=at.shift();)try{ye(e)}catch(a){R.__e(a,{__:(e=e.__P)&&e.__v})}for(;e=Ht.shift();){var t=e.__H;if(e.__P&&t)try{t.__h.some(ye),t.__h.some(ot),t.__h=[]}catch(a){t.__h=[],R.__e(a,e.__v)}}}while(at.length)}R.__b=function(e){I=null,Dt&&Dt(e)},R.__=function(e,t){e&&t.__k&&t.__k.__m&&(e.__m=t.__k.__m),Vt&&Vt(e,t)},R.__r=function(e){Pt&&Pt(e),fe=0;var t=(I=e.__c).__H;t&&(tt==I?I.__h=[]:(t.__h.some(ye),t.__h.some(ot),fe=0),t.__h=[],t.__.some(function(a){a.__N&&(a.__=a.__N),a.u=a.__N=void 0})),tt=I},R.diffed=function(e){Mt&&Mt(e);var t=e.__c;t&&t.__H&&(t.__H.__h.length&&Wt(Ht.push(t)),t.__H.__.some(function(a){a.u&&(a.__H=a.u)})),tt=I=null},R.__c=function(e,t){t.some(function(a){try{a.__h.some(ye),a.__h=a.__h.filter(function(o){return!o.__||ot(o)})}catch(o){a.__h=[function(){throw o}]}}),Ft&&Ft(e,t)},R.unmount=function(e){Lt&&Lt(e);var t,a,o=e.__c;o&&o.__H&&(o.__H.__.some(function(s){try{if(s.__P&&s.__c){if(a===void 0){for(a=e.__;a&&(!a.__c||!a.__c.__P);)a=a.__;a=a&&a.__c}s.__P=a,Wt(at.push(s))}else ye(s)}catch(i){t=i}}),o.__H=void 0,t&&R.__e(t,o.__v))};var Ut=typeof requestAnimationFrame=="function";function Pn(e){var t,a=function(){clearTimeout(o),Ut&&cancelAnimationFrame(t),setTimeout(e)},o=setTimeout(a,35);Ut&&(t=requestAnimationFrame(a))}function Wt(e){e!=1&&$t==R.requestAnimationFrame||(($t=R.requestAnimationFrame)||Pn)(Dn)}function ye(e){var t=I,a=e.__c;typeof a=="function"&&(e.__c=void 0,a()),I=t}function ot(e){var t=I;e.__c=e.__(),I=t}function zt(e,t){return!e||e.length!=t.length||t.some(function(a,o){return!nt(a,e[o])})}function Kt(e,t){return typeof t=="function"?t(e):t}var jt=Object.assign;var Ln=/^(-|f[lo].*[^se]$|g.{5,}[^ps]$|z|o[pr]|(W.{5})?[lL]i.*(t|mp)$|an|(bo|s).{4}Im|sca|m.{6}[ds]|ta|c.*[st]$|wido|ini|asp|fill|st)/;var Vn=Symbol.for("react.element"),Un=/^(?:accent|alignment|arabic|baseline|cap|clip(?!PathU)|color|dominant|fill|flood|font|glyph(?!R)|horiz|image(?!S)|letter|lighting|marker(?!H|W|U)|overline|paint|pointer|shape|stop|strikethrough|stroke|text(?!L)|transform|underline|unicode|units|v|vector|vert|word|writing|x(?!C))[A-Z]/,Wn=/[A-Z0-9]/g,Hn=typeof document<"u";var Gn=function(e){return/fil|che|rad/.test(e)};function Xt(e,t,a){return t.__k==null&&(t.textContent=""),et(e,t),typeof a=="function"&&a(),e?e.__c:null}ne.prototype.isReactComponent=!0,["componentWillMount","componentWillReceiveProps","componentWillUpdate"].forEach(function(e){Object.defineProperty(ne.prototype,e,{configurable:!0,get:function(){return this["UNSAFE_"+e]},set:function(t){Object.defineProperty(this,e,{configurable:!0,writable:!0,value:t})}})});var qt=y.event;y.event=function(e){return qt&&(e=qt(e)),e.persist=function(){},e.isPropagationStopped=function(){return this.cancelBubble},e.isDefaultPrevented=function(){return this.defaultPrevented},e.nativeEvent=e};var zn={configurable:!0,get:function(){return this.class}},Yt=y.vnode;y.vnode=function(e){if(typeof e.type=="string")(function(o){var{props:s,type:i}=o,r={},l=i.indexOf("-")==-1;for(var d in s){var m=s[d];if(!(d=="value"&&("defaultValue"in s)&&m==null||Hn&&d=="children"&&i=="noscript"||d=="class"||d=="className")){if(d=="style"&&m&&m.constructor==Object){var u=void 0;for(var f in m)typeof m[f]!="number"||Ln.test(f)||(u||(u=m=jt({},m)),m[f]+="px")}else if(d=="defaultValue"&&"value"in s&&s.value==null)d="value";else if(d=="download"&&m===!0)m="";else if(d=="translate"&&m==="no")m=!1;else if(d[0]=="o"&&d[1]=="n"){var _=d.toLowerCase();_=="ondoubleclick"?d="ondblclick":_!="onchange"||i!="input"&&i!="textarea"||Gn(s.type)?_=="onfocus"?d="onfocusin":_=="onblur"&&(d="onfocusout"):_=d="oninput",_=="oninput"&&r[d=_]&&(d="oninputCapture")}else l&&Un.test(d)?d=d.replace(Wn,"-$&").toLowerCase():m===null&&(m=void 0);r[d]=m}}i=="select"&&(r.multiple&&Array.isArray(r.value)&&(r.value=Re(s.children).forEach(function(c){c.props.selected=r.value.indexOf(c.props.value)!=-1})),r.defaultValue!=null&&(r.value=Re(s.children).forEach(function(c){c.props.selected=r.multiple?r.defaultValue.indexOf(c.props.value)!=-1:r.defaultValue==c.props.value}))),s.class&&!s.className?(r.class=s.class,Object.defineProperty(r,"className",zn)):s.className&&(r.class=r.className=s.className),o.props=r})(e);else if(typeof e.type=="function"&&(("ref"in e.props)&&("prototype"in e.type)&&e.type.prototype.render&&(e.ref=e.props.ref,delete e.props.ref),e.type.defaultProps)){var t=jt({},e.props);for(var a in e.type.defaultProps)t[a]===void 0&&(t[a]=e.type.defaultProps[a]);e.props=t}e.ref&&!("ref"in e.props)&&Object.defineProperty(e.props,"ref",{value:e.ref,configurable:!0,writable:!0}),e.$$typeof=Vn,Yt&&Yt(e)};function Zt(e){return!!e.__k&&(et(null,e),!0)}function Jt(e){return{render:function(t){Xt(t,e)},unmount:function(){Zt(e)}}}class Y{static YOU="you";static BLOCKED="blocked";static RUNNING="running";static PARKED="parked";static DONE="done";static ORDER=[this.YOU,this.BLOCKED,this.RUNNING,this.PARKED,this.DONE]}class H{static REQUEST="request";static DECISION="decision";static ASSIGN="assign";static NOTE="note";static DESIGN="design";static COMMIT="commit";static PR="pr";static CI="ci";static REVIEW="review";static FIX="fix";static MERGE="merge";static RELEASE="release";static HANDOFF="handoff";static MSG="msg";static FLOW="flow";static AGENT="agent"}class Z{static GITHUB="github";static GITLAB="gitlab";static HOSTS=new Set([this.GITHUB,this.GITLAB])}class x{static ROLE_MAX=60;static HARNESS_CLAUDE="Claude Code";static DEFAULT_OWNER="Owner";static LOGO_MAX_BYTES=102400;static MANIFEST_FILE=".agents/vulcan.manifest.json";static CI_ACTOR="CI";static ACTIVE_GAP_MS=1800000;static UNSORTED="Unsorted";static DEFAULT_OUT=".agents/local/reports/board.html";static DEFAULT_DAYS=7;static HOUR_MS=3600000;static DAY_MS=24*x.HOUR_MS;static TEMPLATE="templates/board.html";static DATA_MARKER="<\!--BOARD_DATA-->";static TOKENS_MARKER="<\!--BOARD_TOKENS-->";static GH_TIMEOUT_MS=15000;static GH_LIMIT=30;static PROJECT_PATH=/^[\w.-]+(?:\/[\w.-]+)+$/;static GITLAB_DEFAULT_HOST="gitlab.com";static GITLAB_HOST=/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*(?::\d{1,5})?$/;static GITLAB_JOB_PIPELINES=10;static HARNESS_ASKS=new Set(["idle_prompt","permission_prompt","elicitation_dialog"]);static WORK_KINDS=[H.ASSIGN,H.DESIGN,H.COMMIT,H.PR,H.FIX,H.NOTE];static PROGRESS_KINDS=[H.COMMIT,H.PR,H.FIX,H.MERGE,H.RELEASE,H.HANDOFF]}class oe{static EN="en";static VI="vi"}class U{static NOT_AGENTS=new Set([x.CI_ACTOR,"reviewer"]);static APPROXIMATE_SOURCE=/ước lượng/;static EARLIER_HOURS=24;static DONE_DAYS=7;static STALE_HOURS=2;static IDLE_TEXT=/^rảnh/}class L{static STAGES=["Đề xuất","Anh duyệt","Thiết kế","Code","PR + CI","Review","Merge","Phát hành","Bàn giao"];static STATE_TEXT={you:"Cần anh",blocked:"Bị chặn",running:"Đang chạy",parked:"st.parked",done:"Xong"};static KIND_TEXT={request:"đề xuất",decision:"quyết định",assign:"giao việc",note:"ghi chú",design:"thiết kế",commit:"code",pr:"PR",ci:"CI",review:"review",fix:"sửa",merge:"merge",release:"phát hành",handoff:"bàn giao",msg:"tin nhắn",flow:"k.flow",agent:"k.agent"};static GROUPS=[{key:"you",label:"g.you",swatch:"var(--ink)",open:!0},{key:"blocked",label:"g.blocked",swatch:"var(--fail)",open:!0},{key:"running",label:"g.running",swatch:"var(--accent)",open:!0},{key:"parked",label:"g.parked",swatch:"var(--line-2)",open:!1},{key:"done",label:"g.done",swatch:"var(--ok)",open:!1}];static STATE_ORDER=["you","blocked","running","parked","done"]}class we{static PILL={working:"Đang làm",you:"Chờ anh",idle:"Rảnh",blocked:"Bị chặn"};static WORD={working:"đang làm",you:"chờ anh",idle:"rảnh",blocked:"bị chặn"}}var Me=Be({t:(e)=>e,now:0}),S=()=>Pe(Me),Fe=()=>Pe(Me).t;var Qt={"session-start":"lt.sessionStart","subagent-stop":"lt.subagent",usage:"lt.usage",commit:"lt.commit",pr:"lt.pr",decision:"lt.decision",flow:"lt.flow",deploy:"lt.release","needs-owner":"lt.ask"},Kn=new Set(["usage","session-start"]);class Le{static textOf(e){let{event:t,translate:a}=e,o;if(t.kind==="decision"&&t.choice)o=a(`lt.${t.choice}`);else if(t.kind==="note")o=a(t.needsOwner?"lt.ask":"lt.note");else if(t.kind==="msg"&&t.incoming)o=t.from?`${a("lt.gotFrom")} ${t.from}`:a("lt.got");else if(t.kind==="msg"&&t.to)o=`${a("lt.msgTo")} ${t.to}`;else o=a(`lt.${t.kind}`);return`${t.actor} ${o}${t.summary?`: ${t.summary}`:""}`}static activityOf(e){let{activity:t,translate:a}=e,o;if(t.type==="msg-sent")o=t.peer?`${a("lt.msgTo")} ${t.peer}`:a("lt.msg");else if(t.type==="msg-received")o=t.peer?`${a("lt.gotFrom")} ${t.peer}`:a("lt.got");else o=Qt[t.type]?a(Qt[t.type]):"";let s=Kn.has(t.type)?"":t.summary;return o&&s?`${o}: ${s}`:o||s}}var jn=60000;class T{static clock(e){let t=new Date(e.iso);return Number.isNaN(t.getTime())?"--:--":t.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit",hour12:!1})}static ago(e){let{translate:t}=e,a=Math.max(0,Math.round((e.now-new Date(e.iso).getTime())/jn));if(a<1)return t("vừa xong");if(a<60)return`${a}${t(" phút")}`;let o=Math.floor(a/60);if(o<24)return`${o}${t(" giờ")}${a%60?` ${a%60}${t(" phút")}`:""}`;return`${Math.floor(o/24)}${t(" ngày")}`}static isSameDay(e){return new Date(e.iso).toDateString()===new Date(e.now).toDateString()}static isWithin(e){return e.now-Date.parse(e.iso)<e.days*x.DAY_MS}static isApproximate(e){return U.APPROXIMATE_SOURCE.test(e.source??"")}}var qn=Symbol.for("pv"),Yn=0;function n(e,t,a,o,s,i){t||(t={});var r,l,d=t;if("ref"in d&&typeof e!="function")for(l in d={},t)l=="ref"?r=t[l]:d[l]=t[l];var m={type:e,props:d,key:a,ref:r,__k:null,__:null,__b:0,__e:null,__c:null,constructor:qn,__v:--Yn,__i:-1,__u:0};return(s||i)&&(m.__source=s,m.__self=i),y.vnode&&y.vnode(m),m}var tn={bun:{d:"M6 30C6 18.5 12.4 12 20 12s14 6.5 14 18c0 3.3-2.2 5-5 5H11c-2.8 0-5-1.7-5-5z",eyes:[[15,23.4],[25,23.4]],mouth:[20,28.4],cheeks:[[11.4,27.2],[28.6,27.2]]},flame:{d:"M20 4.5c2.2 5.2 6.4 7.6 9.6 12.2 2.6 3.7 3.9 7 3.9 10.3 0 5.6-5.6 9-13.5 9S6.5 32.6 6.5 27c0-4.2 2-7.6 4.6-10.4.6 2.4 1.8 3.8 3.4 4.4-.6-6.4 1.8-11.6 5.5-16.5z",eyes:[[15.2,25.4],[24.8,25.4]],mouth:[20,30],cheeks:[[11.4,28.8],[28.6,28.8]]},ember:{d:"M7.5 27.5c0-8 5.8-13.5 12.8-13.5S33 19.6 33 26.8c0 5.6-5 8.7-12.6 8.7S7.5 33 7.5 27.5z",eyes:[[15.4,25.2],[25,25.2]],mouth:[20.2,29.8],cheeks:[[11.6,28.6],[28.8,28.6]]},rock:{d:"M8.5 31.5 6.8 23.6l4.4-8.2 8-4.2 9.2 2.2 5 7.2v8.6l-4.8 6.3H13.2z",eyes:[[15,24.6],[24.6,24.6]],mouth:[19.8,29.4],cheeks:[[11,28.2],[28.4,28.2]]},banana:{d:"M5.6 18.6c-.9-2 1.6-3.6 3.2-2.2 3.4 3.2 7.2 4.6 11.2 4.6s7.8-1.4 11.2-4.6c1.6-1.4 4.1.2 3.2 2.2-3 8.4-8.6 14.4-14.4 14.4S8.6 27 5.6 18.6z",eyes:[[15.4,25.6],[24.6,25.6]],mouth:[20,29.4],cheeks:[[11.8,27.6],[28.2,27.6]]}},en=["#F5B83D","#EF5B3A","#8FD16F","#5BB6E8","#B28DE0","#F28DB2"];var Xn=(e)=>{let{state:t}=e;return n("g",{className:t==="working"?"m-squint":void 0,children:e.shape.eyes.map(([a,o],s)=>{let i=s===0?1:-1;if(t==="idle")return n("path",{d:`M${a-2.4} ${o}q2.4 1.8 4.8 0`,className:"m-o m-line"},a);return n("g",{children:[n("circle",{cx:a,cy:o,r:2.3,className:"m-ink"}),n("circle",{cx:a+0.8,cy:o-0.8,r:0.8,fill:"#fff"}),t==="you"?n("path",{d:`M${a-2.6*i} ${o-4.2}l${4*i} -1`,className:"m-o m-line"}):null,t==="blocked"?n("path",{d:`M${a-2.2*i} ${o-3.2}l${4*i} -1.4`,className:"m-o m-line"}):null]},a)})})},Zn=(e)=>{let[t,a]=e.at;if(e.state==="working")return n("path",{d:`M${t-2.2} ${a-0.4}q2.2 1.4 4.4 0`,className:"m-o m-line"});if(e.state==="you")return n("ellipse",{cx:t,cy:a+0.2,rx:1.8,ry:1.4,className:"m-ink"});if(e.state==="blocked")return n("path",{d:`M${t-2.8} ${a+0.8}q1.4-1.5 2.8 0t2.8 0`,className:"m-o m-line m-bad"});return n("ellipse",{cx:t,cy:a+0.2,rx:1.4,ry:1,className:"m-ink"})},Ve=(e)=>n(N,{children:[n("path",{d:e.shape.d,fill:e.fill,className:"m-o",strokeWidth:2.2}),n(Xn,{shape:e.shape,state:e.state}),e.shape.cheeks.map(([t,a])=>n("ellipse",{cx:t,cy:a,rx:2.4,ry:1.5,fill:"#FF8A80"},t)),n(Zn,{at:e.shape.mouth,state:e.state})]}),Jn=(e)=>n("g",{transform:"translate(8,3)",children:n("g",{className:"m-hoe",children:[n("path",{d:"M22.5 18.5 41 37",strokeWidth:4.2,className:"m-o m-line"}),n("path",{d:"M22.5 18.5 41 37",stroke:"#B9783F",strokeWidth:2.2,strokeLinecap:"round"}),n("path",{d:"M38.6 34.6 44.4 33.2 45.6 40.2 41.2 41.6z",fill:"#A9B4BF",className:"m-o",strokeWidth:1.6}),n("circle",{cx:25,cy:21,r:2.6,fill:e.fill,className:"m-o",strokeWidth:1.6}),n("circle",{cx:29.4,cy:25.4,r:2.6,fill:e.fill,className:"m-o",strokeWidth:1.6})]})});class se{static shapeOf(e){let t=e.shapes[e.name];return t in tn?t:"bun"}static colorOf(e){let t=0;for(let a of e.name)t=t*31+a.charCodeAt(0)>>>0;return en[t%en.length]}}var Ue=(e)=>{let t=tn[e.shape],a=se.colorOf({name:e.name});return n("svg",{viewBox:"-6 -16 68 60",className:"bot","aria-hidden":"true",children:[e.state==="working"?n(N,{children:[n("ellipse",{cx:47,cy:40.5,rx:10,ry:3,fill:"#8B5A2B",className:"m-o",strokeWidth:1.6}),n("path",{d:"M39 40.5c3-4 13-4 16 0",fill:"#A0703F",className:"m-o",strokeWidth:1.6}),n("g",{className:"m-dig",children:n(Ve,{shape:t,state:"working",fill:a})}),n(Jn,{fill:a}),n("circle",{cx:50,cy:39,r:1.6,fill:"#8B5A2B",className:"m-o m-clod",strokeWidth:0.8}),n("circle",{cx:51,cy:39.5,r:1.2,fill:"#8B5A2B",className:"m-o m-clod m-c2",strokeWidth:0.8}),n("circle",{cx:48.5,cy:39,r:1.1,fill:"#8B5A2B",className:"m-o m-clod m-c3",strokeWidth:0.8})]}):null,e.state==="idle"?n(N,{children:[n("ellipse",{cx:20,cy:36.8,rx:14,ry:1.8,className:"m-ink m-shadow"}),n("g",{className:"m-sleep",children:[n(Ve,{shape:t,state:"idle",fill:"#8E8FA3"}),n("circle",{cx:24.5,cy:29,r:2.6,fill:"#BFE6FF",className:"m-o m-snot",strokeWidth:0.9})]}),n("text",{x:31,y:10,className:"m-zz",children:"z"}),n("text",{x:31,y:10,className:"m-zz m-z2",children:"z"}),n("text",{x:31,y:10,className:"m-zz m-z3",children:"Z"})]}):null,e.state==="you"?n(N,{children:[n("g",{className:"m-bubble",children:[n("path",{d:"M26 -10h18a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4h-9l-5 4 1-4h-5a4 4 0 0 1-4-4v-10a4 4 0 0 1 4-4z",fill:"#F6D33C",className:"m-o",strokeWidth:1.8}),n("text",{x:35,y:5,textAnchor:"middle",className:"m-q",children:"?"})]}),n("g",{className:"m-lean",children:[n(Ve,{shape:t,state:"you",fill:a}),n("g",{className:"m-wave",children:n("circle",{cx:35.4,cy:22,r:2.7,fill:a,className:"m-o",strokeWidth:1.6})})]})]}):null,e.state==="blocked"?n(N,{children:[n(Ve,{shape:t,state:"blocked",fill:a}),n("path",{d:"M7.6 13.4c1.3 1.8 2 2.8 2 3.8a2 2 0 0 1-4 0c0-1 .7-2 2-3.8z",fill:"#BFE6FF",className:"m-o",strokeWidth:0.9}),n("circle",{cx:34,cy:7.4,r:3.4,fill:"var(--fail)",className:"m-o",strokeWidth:1.2}),n("path",{d:"M34 5.6v2.2",stroke:"#fff",strokeWidth:1.2,strokeLinecap:"round"}),n("circle",{cx:34,cy:9.3,r:0.5,fill:"#fff"})]}):null]})};var it={you:"ask",blocked:"ask",working:"work",idle:"idle"},We=(e)=>n("div",{className:"a-line",children:[n("span",{className:"c-k",children:e.label})," ",n("span",{className:"c-v",children:e.children})]}),Qn=(e)=>{let{t,now:a}=S(),{row:o,card:s}=e,i=(f)=>T.clock({iso:f}),r=[s.role,s.lane?`${t("ag.under")} ${s.lane}`:void 0,s.harness,s.model].filter(Boolean).join(" · "),l=s.since?` · ${T.ago({iso:s.since,now:a,translate:t})}`:"",d=n("span",{className:"c-face",children:n(Ue,{state:o.st,name:o.n,shape:e.shape})}),m=n("span",{className:`c-badge b-${it[o.st]}`,children:`${t(we.PILL[o.st])}${l}`}),u={"data-agent":o.n,tabIndex:0,"aria-pressed":e.picked,onClick:()=>e.onPick(o.n),onKeyDown:(f)=>{if(f.key==="Enter"||f.key===" ")f.preventDefault(),e.onPick(o.n)}};if(e.compact)return n("div",{className:`c-card c-compact cell ${o.st}${e.picked?" sel":""}`,role:"button",...u,children:[d,n("div",{className:"c-grow",children:[n("div",{className:"c-top",children:[n("span",{className:"c-nm",children:o.n}),m]}),s.workingOn?n("div",{className:"c-id",children:s.workingOn.flow.id}):null]}),o.st==="you"?n("span",{className:"c-ask",role:"img","aria-label":t("ag.asking"),title:t("ag.asking")}):null]});return n("div",{className:`c-card cell ${o.st}${e.picked?" sel":""}`,role:"button",...u,children:[n("div",{className:"c-head",children:[d,n("div",{className:"c-grow",children:[n("div",{className:"c-top",children:[n("span",{className:"c-nm",children:o.n}),m]}),r?n("div",{className:"c-role",children:r}):null]})]}),n("div",{className:"c-body",children:[s.workingOn?n(We,{label:t("ag.working"),children:[s.workingOn.flow.title," ",n("small",{children:s.workingOn.flow.id})]}):null,o.ask?n(We,{label:t("ag.asking"),children:`"${o.ask}"`}):null,s.activity?n(We,{label:t("ag.latest"),children:[Le.activityOf({activity:s.activity,translate:t})," ",n("small",{children:i(s.activity.ts)})]}):null,s.message?n(We,{label:t("ag.message"),children:[Le.textOf({event:s.message,translate:t})," ",n("small",{children:i(s.message.ts)})]}):null]}),n("div",{className:"c-foot",children:[n("span",{children:[t("ag.prs")," ",n("b",{children:s.prs})]}),n("span",{children:[t("ag.pending")," ",n("b",{children:s.pending})]}),n("span",{children:[n("b",{children:s.today})," ",t("ag.today")]})]})]})},nn=(e)=>{let{t,now:a}=S(),[o,s]=C(!1),i=a-U.EARLIER_HOURS*x.HOUR_MS,r=(u)=>u.lastAt!==null&&Date.parse(u.lastAt)>=i,l=e.rows.filter(r),d=e.rows.filter((u)=>!r(u)),m=(u)=>n(Qn,{row:u,card:e.cards[u.n],shape:se.shapeOf({name:u.n,shapes:e.shapes}),picked:e.picked===u.n,compact:!e.details,onPick:e.onPick},u.n);return n("section",{className:"c-pane",id:"dock","aria-label":t("Các agent đang chạy"),children:[n("div",{className:"c-ph",children:[n("h2",{children:t("pn.agents")}),n("span",{className:"c-n num",children:l.length}),n("button",{className:"btn c-tg",type:"button","aria-pressed":e.details,onClick:()=>e.onDetails(!e.details),children:t("ag.details")})]}),n("div",{className:"c-scroll",children:[e.rows.length===0?n("p",{className:"c-empty",children:t("chưa có agent")}):null,l.map(m),d.length>0?n("button",{className:"btn c-loose",type:"button","aria-expanded":o,onClick:()=>s(!o),children:`${t("ag.earlier")} (${d.length})`}):null,o?d.map(m):null]})]})};class X{static safe(e){let{value:t}=e;if(t===void 0)return;if(e.image===!0)return/^(?:https:\/\/|data:image\/)/.test(t)?t:void 0;return/^https?:\/\//.test(t)?t:void 0}}class rt{static UNKNOWN="unknown";static UNNAMED_PREFIX="claude:";static isNamed(e){return e.actor!==this.UNKNOWN&&!e.actor.startsWith(this.UNNAMED_PREFIX)}}class P{static byTime(e,t){if(e.ts!==t.ts)return e.ts<t.ts?-1:1;return e.stage-t.stage}static involves(e){return e.view.holder===e.name||e.view.evs.some((t)=>t.actor===e.name||t.to===e.name)}static linesOf(e){return e.flow.events.filter((t)=>e.showAll||!t.plumbing)}static eventsOf(e){return e.data.flows.flatMap((t)=>P.linesOf({flow:t,showAll:e.showAll}))}static flowsOf(e){let t=[];for(let a of e.data.flows){let o=P.linesOf({flow:a,showAll:e.showAll}).sort(P.byTime),s=o.find((i)=>i.id===a.lastId)??o.at(-1);if(s===void 0)continue;t.push({flow:a,holder:a.holder,evs:o,last:s,lastAsk:o.find((i)=>i.id===a.askId),noWork:!o.some((i)=>!i.plumbing&&i.kind!=="flow"),newCount:o.filter((i)=>i.ts>e.lastSeen).length})}return t}static rowsOf(e){let{data:t,flows:a,events:o,translate:s}=e,i=t.agents,r=(u)=>u!==""&&u!==t.owner&&!U.NOT_AGENTS.has(u)&&rt.isNamed({actor:u}),l=t.roster??[],d=(u)=>l.includes(u)?l.indexOf(u):l.length;return[...new Set([...Object.keys(i).filter(r),...o.filter((u)=>!Z.HOSTS.has(u.source)&&r(u.actor)).map((u)=>u.actor)])].map((u)=>{let f=i[u],_=o.filter((h)=>h.actor===u&&!h.incoming).sort(P.byTime).at(-1),c=a.find((h)=>h.flow.state==="you"&&h.evs.findLast((E)=>E.actor!==t.owner)?.actor===u),p=a.find((h)=>h.flow.state==="blocked"&&h.holder===u),b=a.find((h)=>h.flow.state==="running"&&h.holder===u),g=[f?.checkedAt,_?.ts].filter((h)=>h!==void 0).sort().at(-1)??null,w=g===null||e.now-Date.parse(g)>x.ACTIVE_GAP_MS,k=P.stateOf({doc:f,blockedFlow:p,youFlow:c,runFlow:b,quiet:w}),O=P.saidOf({st:k,doc:f,lastLine:_,youFlow:c,translate:s});return{n:u,lastAt:g,st:k,...k==="you"&&c?.lastAsk?{ask:c.lastAsk.summary}:{},flow:(p??c)?.flow.id??b?.flow.id??_?.flowId??null,...O,key:`${_?.id??_?.ts??""}|${f?.checkedAt??""}|${f?.current??""}`}}).sort((u,f)=>d(u.n)-d(f.n)||u.n.localeCompare(f.n))}static stateOf(e){if(e.blockedFlow)return"blocked";if(e.youFlow)return"you";return!e.quiet&&(e.doc?.state==="working"||e.runFlow)?"working":"idle"}static saidOf(e){let{st:t,doc:a,lastLine:o,youFlow:s,translate:i}=e,r=(m)=>m?Date.parse(m)||0:0,l=(m,u)=>({text:u,ts:m.ts,approx:T.isApproximate({source:m.source})}),d;if(t==="you"&&s?.lastAsk)d=l(s.lastAsk,`${i("chờ anh: ")}${s.lastAsk.summary}`);else if(a?.current&&(!o||r(a.checkedAt)>r(o.ts)))d={text:a.current,ts:a.since,approx:!1};else if(o)d=l(o,o.summary);else d={text:a?.current===""||a===void 0?i("chưa có việc"):a.current,ts:a?.since??null,approx:!1};return t==="idle"&&!U.IDLE_TEXT.test(d.text)?{...d,text:`${i("rảnh · ")}${d.text}`}:d}}class B{static endsOf(e){let{message:t}=e;return t.incoming?{sender:t.from,receiver:t.actor}:{sender:t.actor,receiver:t.to}}static labelOf(e){let{pr:t}=e;return`${t.repo??""}${t.source===Z.GITLAB?"!":"#"}${t.n}`}static prHref(e){let{pr:t}=e;if(X.safe({value:t.link??void 0}))return t.link??void 0;return t.source!==Z.GITLAB&&t.repo&&/^[\w.-]+\/[\w.-]+$/.test(t.repo)?`https://github.com/${t.repo}/pull/${t.n}`:void 0}static prsOf(e){let{events:t}=e,a={};for(let o of t){if(!o.ref?.pr)continue;let s=a[`${o.ref.repo??""}#${o.ref.pr}`]??={repo:o.ref.repo,source:o.source,n:o.ref.pr,flow:o.flowId,ci:null,link:null,merged:!1,closed:!1};s.by??=o.kind==="pr"?o.actor:void 0,s.merged||=o.kind==="merge",s.closed||=o.status==="closed",s.ci=o.kind==="ci"?o.status??null:s.ci,s.link=o.link&&/^https?:\/\/.+\/(?:pull|-\/merge_requests)\//.test(o.link)?o.link:s.link}return Object.values(a)}static of(e){let{data:t,events:a,name:o}=e,s=a.filter((i)=>i.kind==="msg").filter((i)=>{let{sender:r,receiver:l}=B.endsOf({data:t,message:i});return r===o||l===o}).sort(P.byTime);return{mine:a.filter((i)=>i.actor===o).sort(P.byTime),open:B.prsOf({events:a}).filter((i)=>i.by===o&&!i.merged&&!i.closed),pending:B.pendingOf({data:t,messages:s,name:o})}}static isDelivered(e){let{message:t}=e;return t.incoming===!0||e.events.some((a)=>a.incoming===!0&&a.actor===t.to&&a.summary===t.summary)}static pendingOf(e){let{data:t,messages:a,name:o}=e,s=(l)=>B.endsOf({data:t,message:l}),i=a.filter((l)=>s(l).sender===o).at(-1)?.ts??"",r=new Set;return a.filter((l)=>{let{sender:d,receiver:m}=s(l),u=`${d}|${m}|${l.summary}|${l.ts.slice(0,16)}`;if(m!==o||l.ts<=i||r.has(u))return!1;return r.add(u),!0})}}var ea=/[.!?](\s|$)/,an=140,ta=3;class j{static sentenceOf(e){let t=(e.text??"").trim(),a=ea.exec(t),o=a===null?t:t.slice(0,a.index+1);return o.length>an?`${o.slice(0,an-1).trimEnd()}…`:o}static itemOf(e){let{view:t}=e,{flow:a}=t,o=(i)=>({done:(i??[]).filter((r)=>r.done).length,total:(i??[]).length}),s=t.evs.filter((i)=>!i.plumbing&&!U.NOT_AGENTS.has(i.actor)).map((i)=>i.actor);return{now:j.sentenceOf({text:a.next??a.why}),waiting:a.state==="you"||a.state==="blocked"?a.next??t.lastAsk?.summary:void 0,steps:o(a.steps),checks:o(a.checks),prs:B.prsOf({events:t.evs}).filter((i)=>!i.merged&&!i.closed).map((i)=>({label:B.labelOf({pr:i}),ci:i.ci})),people:[...new Set([t.holder,...s])],updates:t.evs.filter((i)=>i.kind==="flow").length,deploys:[...new Set(t.evs.filter((i)=>i.kind==="release").map((i)=>i.summary))].slice(-ta)}}static daysLeft(e){let t=new Date(e.now);return t.setHours(0,0,0,0),Math.round((new Date(`${e.due}T00:00:00`).getTime()-t.getTime())/x.DAY_MS)}static agentOf(e){let{data:t,events:a,views:o,row:s,doc:i,now:r}=e,l=a.filter((f)=>f.actor===s.n&&!f.plumbing),d=B.of({data:t,events:a,name:s.n}),u=((f)=>f.reduce((_,c)=>_===void 0||c.ts>=_.ts?c:_,void 0))(a.filter((f)=>f.kind==="msg"&&B.endsOf({data:t,message:f}).sender===s.n));return{workingOn:s.st==="idle"||s.flow===x.UNSORTED?void 0:o.find((f)=>f.flow.id===s.flow),activity:i?.latest,message:u?.ts===i?.latest?.ts?void 0:u,prs:d.open.length,pending:d.pending.length,today:l.filter((f)=>T.isSameDay({iso:f.ts,now:r})).length,since:s.st==="idle"&&i?.state==="working"?s.lastAt??i.since:i?.since,role:t.roles?.[s.n],lane:t.lanes?.[s.n],model:i?.model,harness:i?.harness}}}var na=(e)=>e.status==="fail"||e.status==="blocked",He=(e)=>{let{t}=S();return n("svg",{className:`mk ${e.bad?"x":"v"}`,viewBox:"0 0 10 10",role:"img","aria-label":e.bad?t("lỗi"):t("đạt"),children:n("path",{d:e.bad?"M2.5 2.5l5 5M7.5 2.5l-5 5":"M2 5.4l2 2 4-4.8",fill:"none",stroke:"currentColor",strokeWidth:"1.6",strokeLinecap:"round",strokeLinejoin:"round"})})},on=(e)=>n("span",{className:"c-bar",children:n("span",{style:{width:`${Math.round(e.done/e.total*100)}%`}})}),lt=(e)=>{let{items:t}=e;if(t===void 0||t.length===0)return null;return n("div",{className:"ckl",children:n("ul",{children:t.map((a,o)=>n("li",{className:a.done?"on":void 0,children:a.text},`${o}:${a.text}`))})})},aa=(e)=>{let{event:t}=e;if(t.incoming)return t.from?n(N,{children:[" ← ",n("b",{children:t.from})]}):null;return t.to?n(N,{children:[" → ",n("b",{children:t.to})]}):null},ct=(e)=>{let{t}=S(),{event:a}=e,o=T.isApproximate({source:a.source}),s=X.safe({value:a.link}),i=L.KIND_TEXT[a.kind],r="";if(o)r=t("giờ ước lượng");else if(a.source===Z.GITHUB)r="GitHub";else if(a.source===Z.GITLAB)r="GitLab";return n("li",{className:`ev${na(a)?" fail":""}`,children:[n("span",{className:"tm",children:[o?"≈":"",T.clock({iso:a.ts})]}),n("div",{children:[e.chip,n("div",{className:"who",children:[n("b",{children:a.actor}),n(aa,{event:a}),` · ${i?t(i):a.kind}${a.attempt&&a.attempt>1?`${t(" lần ")}${a.attempt}`:""}`]}),n("div",{className:"sm",children:a.summary}),s||r?n("div",{children:[s?n("a",{className:"lk",href:X.safe({value:a.link}),target:"_blank",rel:"noopener",children:s.replace(/^https:\/\/github\.com\//,"")}):null,s&&r?" · ":null,r?n("span",{className:"src",children:r}):null]}):null]})]})};var sn={decision:"ms.decision",merge:"ms.merge",release:"ms.deploy"},rn=5,oa=200,sa=(e)=>{if(e.stage===e.cur)return"st cur";return e.stage<e.cur?"st done":"st"},ie=(e)=>n("div",{className:"d-sec",children:[n("h3",{children:e.title}),e.children]}),ln=(e)=>{let{t}=S(),{tokens:a}=e;if(a===void 0)return null;let o=(r)=>r.toLocaleString("en-US"),s=[t("tk.input"),t("tk.output"),t("tk.cacheRead"),t("tk.cacheWrite")],i=(r)=>n("tr",{children:[n("th",{scope:"row",children:r.name}),n("td",{children:o(r.row.input)}),n("td",{children:o(r.row.output)}),n("td",{children:o(r.row.cacheRead)}),n("td",{children:o(r.row.cacheWrite)})]},r.name);return n(ie,{title:t("tk.title"),children:n("table",{className:"d-tokens",children:[n("thead",{children:n("tr",{children:[n("th",{scope:"col"}),s.map((r)=>n("th",{scope:"col",children:r},r))]})}),n("tbody",{children:[i({name:t("tk.total"),row:{name:"",...a}}),a.agents.length>1?a.agents.map((r)=>i({name:r.name,row:r})):null,a.models.length>1?a.models.map((r)=>i({name:r.name,row:r})):null]})]})})},ia=(e)=>{let{t}=S(),a=e.view.evs.filter((o,s)=>s===0||(o.kind in sn)).map((o,s)=>({event:o,tag:s===0?"ms.open":sn[o.kind]})).reverse();return n("div",{className:"d-up",children:a.map(({event:o,tag:s},i)=>n("div",{className:`d-u${i===0?" last":""}`,children:[n("time",{children:T.clock({iso:o.ts})}),n("span",{className:"d-tag",children:t(s)}),o.summary]},o.id))})},ra=(e)=>{let{t}=S();return n("div",{id:"dBody",className:"d-body",children:[n("h2",{children:t("it.unsorted")}),n("p",{className:"d-empty",children:t("it.unsortedNote")}),n(ln,{tokens:e.view.flow.tokens}),n("ul",{className:"evs",children:[...e.view.evs].reverse().slice(0,oa).map((a)=>n(ct,{event:a},a.id))})]})},la=(e)=>{let{t}=S(),{view:a}=e,{flow:o}=a,s=j.itemOf({view:a});return n("div",{id:"dBody",className:"d-body",children:[n("h2",{children:o.title}),n("div",{className:"d-meta",children:[n("span",{className:"c-id",children:o.id}),o.tracker?n("span",{className:"c-ref",children:o.tracker}):null,o.due?n("span",{children:`${t("fl.due")} ${o.due}`}):null,n("span",{children:[t("it.holder"),": ",n("span",{className:"d-who",children:a.holder})]})]}),a.noWork?null:n(N,{children:[n("div",{className:"d-stages",children:L.STAGES.map((i,r)=>n("span",{title:t(i),className:sa({stage:r,cur:o.cur})},i))}),n("div",{className:"d-stl",children:[n("span",{children:t(L.STAGES[0])}),n("b",{children:t(L.STAGES[o.cur])}),n("span",{children:t(L.STAGES[L.STAGES.length-1])})]})]}),o.context||o.apps?n(ie,{title:t("dt.whatItIs"),children:[o.context?n("p",{children:o.context}):null,o.apps?n("div",{className:"c-chips",children:o.apps.map((i)=>n("span",{children:i},i))}):null]}):null,o.steps&&o.steps.length>0?n(ie,{title:`${t("fl.steps")} · ${s.steps.done}/${s.steps.total}`,children:[n(on,{...s.steps}),n(lt,{items:o.steps})]}):null,o.checks&&o.checks.length>0?n(ie,{title:`${t("fl.checks")}${o.tracker?` · ${o.tracker}`:""}`,children:n(lt,{items:o.checks})}):null,s.waiting?n("div",{className:"d-sec d-waiting",children:[n("span",{className:"d-k",children:t("it.waiting")}),n("span",{children:s.waiting})]}):null,a.noWork?n("p",{className:"d-empty",children:t("nw.empty")}):null,n(ln,{tokens:o.tokens}),n(ie,{title:t("dt.milestones"),children:n(ia,{view:a})}),n("button",{className:"btn d-all",type:"button","aria-pressed":e.everything,onClick:()=>e.onEverything(!e.everything),children:`${t("dt.all")} (${a.evs.length})`}),e.everything?n("ul",{className:"evs",children:a.evs.map((i)=>n(ct,{event:i},i.id))}):null]})},ca=(e)=>{let{t,now:a}=S(),{row:o,card:s,data:i}=e,r=B.of({data:i,events:e.events,name:o.n}),l=(d)=>T.clock({iso:d});return n("div",{id:"dBody",className:"d-body d-agent",children:[n("div",{className:"d-agenthead",children:[n(Ue,{state:o.st,name:o.n,shape:e.shape}),n("div",{children:[n("h2",{id:"popName",children:o.n}),n("div",{className:"d-meta",children:[n("span",{className:`c-badge b-${it[o.st]}`,children:t(we.PILL[o.st])}),s.since?n("span",{children:`${t("từ ")}${l(s.since)} · ${T.ago({iso:s.since,now:a,translate:t})}`}):null]})]})]}),n(ie,{title:t("5 sự kiện gần nhất"),children:r.mine.length===0?n("p",{className:"d-empty",children:t("Chưa có sự kiện nào của agent này.")}):n("ul",{className:"d-list",children:r.mine.slice(-rn).reverse().map((d)=>n("li",{children:[n("time",{children:l(d.ts)}),d.flowId?n("button",{className:"btn chip",type:"button",onClick:()=>e.onFlow(d.flowId),children:d.flowId}):null,d.summary]},d.id))})}),n(ie,{title:`${t("PR đang mở (")}${r.open.length})`,children:r.open.length===0?n("p",{className:"d-empty",children:t("Không có PR nào đang mở.")}):n("ul",{className:"d-list",children:r.open.map((d)=>n("li",{children:[n("a",{href:X.safe({value:B.prHref({pr:d})}),target:"_blank",rel:"noopener",children:B.labelOf({pr:d})}),d.ci?n(He,{bad:d.ci==="fail"}):null,d.flow]},`${d.repo}#${d.n}`))})}),n(ie,{title:`${t("ag.notReplied")} (${r.pending.length})`,children:r.pending.length===0?n("p",{className:"d-empty",children:t("Không có tin nào đang chờ.")}):n("ul",{className:"d-list",children:r.pending.slice(-rn).reverse().map((d)=>{let{sender:m,receiver:u}=B.endsOf({data:i,message:d});return n("li",{children:[n("time",{children:l(d.ts)}),`${m===o.n?`→ ${u??"?"}`:`← ${m??"?"}`}: ${d.summary}`,n("span",{className:"d-note",children:B.isDelivered({message:d,events:e.events})?`${t("ag.delivered")} · ${t("ag.notRepliedYet")}`:t("ag.notRepliedYet")})]},d.id)})})})]})},cn=(e)=>{let{t}=S(),{detail:a}=e,o=a?.kind==="flow"?e.views.find((i)=>i.flow.id===a.id):void 0,s=a?.kind==="agent"?e.rows.find((i)=>i.n===a.name):void 0;return n("section",{className:"c-pane c-p3",id:"detail","aria-label":t("Chi tiết luồng"),hidden:o===void 0&&s===void 0,children:[n("div",{className:"c-ph",children:[n("span",{className:"c-pt",children:t("pn.detail")}),n("button",{className:"c-x",type:"button",title:t("Đóng"),"aria-label":t("Đóng"),onClick:e.onClose,children:"✕"})]}),n("div",{className:"c-scroll",children:[o&&o.flow.id===x.UNSORTED?n(ra,{view:o}):null,o&&o.flow.id!==x.UNSORTED?n(la,{view:o,everything:e.everything,onEverything:e.onEverything}):null,s?n(ca,{row:s,card:e.cards[s.n],data:e.data,events:e.events,shape:se.shapeOf({name:s.n,shapes:e.data.shapes}),onFlow:e.onFlow}):null]})]})};var M={fill:"none",stroke:"currentColor",strokeWidth:1.5},dn={light:n("svg",{viewBox:"0 0 20 20","aria-hidden":"true",children:[n("circle",{cx:"10",cy:"10",r:"3.6",...M}),n("path",{d:"M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4",...M,strokeLinecap:"round"})]}),dark:n("svg",{viewBox:"0 0 20 20","aria-hidden":"true",children:n("path",{d:"M16.5 12.4A7 7 0 0 1 7.6 3.5a7 7 0 1 0 8.9 8.9Z",...M,strokeLinejoin:"round"})}),system:n("svg",{viewBox:"0 0 20 20","aria-hidden":"true",children:[n("rect",{x:"2.5",y:"3.5",width:"15",height:"10",rx:"1.5",...M}),n("path",{d:"M7 17h6M10 13.5V17",...M,strokeLinecap:"round"})]})},un=()=>n("svg",{className:"chev",viewBox:"0 0 12 12","aria-hidden":"true",children:n("path",{d:"M3 4.5l3 3 3-3",...M})}),mn=(e)=>n("svg",{className:`sort${e.order?" on":""}`,viewBox:"0 0 10 12","aria-hidden":"true",children:[e.order==="descending"?null:n("path",{d:"M2.5 5 5 2.5 7.5 5",...M}),e.order==="ascending"?null:n("path",{d:"M2.5 7 5 9.5 7.5 7",...M})]}),ce={viewBox:"0 0 16 16","aria-hidden":!0},J={eye:n("svg",{...ce,children:[n("path",{d:"M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8Z",...M}),n("circle",{cx:"8",cy:"8",r:"2",...M})]}),more:n("svg",{...ce,children:[n("circle",{cx:"3.5",cy:"8",r:"1.2",fill:"currentColor"}),n("circle",{cx:"8",cy:"8",r:"1.2",fill:"currentColor"}),n("circle",{cx:"12.5",cy:"8",r:"1.2",fill:"currentColor"})]}),filter:n("svg",{...ce,children:n("path",{d:"M2.5 4h11M4.5 8h7M6.5 12h3",...M,strokeLinecap:"round"})}),cards:n("svg",{...ce,children:[n("rect",{x:"2.5",y:"2.5",width:"11",height:"4.5",rx:"1",...M}),n("rect",{x:"2.5",y:"9",width:"11",height:"4.5",rx:"1",...M})]}),compact:n("svg",{...ce,children:n("path",{d:"M2.5 4h11M2.5 8h11M2.5 12h11",...M,strokeLinecap:"round"})}),table:n("svg",{...ce,children:[n("rect",{x:"2.5",y:"2.5",width:"11",height:"11",rx:"1",...M}),n("path",{d:"M2.5 6.5h11M2.5 10h11M6.5 6.5v7",...M})]}),down:n("svg",{...ce,className:"dn",children:n("path",{d:"M5 6.5 8 9.5l3-3",...M,strokeLinecap:"round",strokeLinejoin:"round"})})},Ge=(e)=>n("svg",{className:`sm s-${e.state}`,viewBox:"0 0 14 14","aria-hidden":"true",children:[e.state==="you"?n(N,{children:[n("circle",{cx:"7",cy:"7",r:"5.5",fill:"none",stroke:"currentColor",strokeWidth:"1.5"}),n("circle",{cx:"7",cy:"7",r:"2.5",fill:"currentColor"})]}):null,e.state==="blocked"?n("rect",{x:"2.2",y:"2.2",width:"9.6",height:"9.6",rx:"2",fill:"currentColor"}):null,e.state==="running"?n(N,{children:[n("circle",{cx:"7",cy:"7",r:"5.5",fill:"none",stroke:"currentColor",strokeWidth:"1.5"}),n("path",{d:"M7 3.2a3.8 3.8 0 0 1 0 7.6Z",fill:"currentColor"})]}):null,e.state==="parked"?n("circle",{cx:"7",cy:"7",r:"5.5",fill:"none",stroke:"currentColor",strokeWidth:"1.5",strokeDasharray:"2.2 2"}):null,e.state==="done"?n(N,{children:[n("circle",{cx:"7",cy:"7",r:"6.2",fill:"currentColor"}),n("path",{d:"m4.4 7.2 1.8 1.8 3.4-3.6",fill:"none",stroke:"var(--bg)",strokeWidth:"1.5",strokeLinecap:"round",strokeLinejoin:"round"})]}):null]});var ke=["light","dark","system"],da={light:"sáng",dark:"tối",system:"theo máy"},fn=(e)=>{let t=Fe(),a=`${t("Giao diện: ")}${t(da[e.theme])}`,o=`${t("lang.label")}: ${t(`lang.${e.language}`)}`,s=T.clock({iso:e.lastSeen}),[i,r]=C(!1);return n("header",{className:`bar${i?" menu-open":""}`,children:[n("span",{className:"mark",id:"mark",children:e.logo?n("img",{src:X.safe({value:e.logo,image:!0}),alt:""}):null}),n("span",{className:"brule","aria-hidden":"true"}),n("h1",{id:"boardTitle",children:e.title}),e.live===void 0?null:n("span",{className:`fresh live-${e.live}`,id:"fresh",children:[n("span",{className:"fresh-dot","aria-hidden":"true"}),n("span",{className:"fresh-text",children:t(`live.${e.live}`)})]}),n("span",{className:"spacer"}),n("button",{className:`since${e.newCount>0?" has-new":""}`,type:"button",id:"bSeen",title:`${t("Từ lần xem trước lúc ")}${s}: ${e.newCount}${t(" sự kiện mới")}
+${e.sources.join(`
+`)}`,"aria-label":`${e.newCount} ${t("hd.new")} ${s}. ${t("Đánh dấu đã xem")}`,onClick:e.onSeen,children:[n("span",{className:"since-dot","aria-hidden":"true"}),n("b",{className:"num",children:e.newCount})," ",t("hd.new")," ",n("span",{className:"num",children:s})]}),n("button",{className:"ib more",type:"button","aria-label":t("hd.more"),"aria-expanded":i,onClick:()=>r(!i),children:J.more}),n("span",{className:"tools",children:[n("button",{className:"ib",type:"button",id:"bPlumb","aria-pressed":e.showPlumbing,title:t("pl.tip"),onClick:e.onPlumbing,children:[J.eye,n("span",{className:"lbl",children:t("pl.all")})]}),n("button",{className:"ib lang",type:"button",id:"bLang","aria-label":o,title:o,onClick:e.onLanguage,children:[e.language==="en"?"VI":"EN",n("span",{className:"lbl","aria-hidden":"true",children:t(`lang.${e.language==="en"?"vi":"en"}`)})]}),n("button",{className:"ib theme",type:"button",id:"bTheme","aria-label":`${a}${t(". Bấm để đổi")}`,title:a,onClick:e.onTheme,children:[dn[e.theme],n("span",{className:"lbl","aria-hidden":"true",children:a})]}),n("button",{className:"ib",type:"button",id:"bKeys","aria-label":t("Phím tắt"),"aria-expanded":e.keysOpen,onClick:e.onKeys,children:["?",n("span",{className:"lbl","aria-hidden":"true",children:t("Phím tắt")})]})]})]})};var ua=[Y.DONE,Y.PARKED],ma=U.STALE_HOURS*x.HOUR_MS;class D{static lastAt(e){return e.flow.events.reduce((t,a)=>!a.plumbing&&a.ts>t?a.ts:t,"")}static isStale(e){let{flow:t}=e,a=D.lastAt({flow:t});return!ua.includes(t.state)&&(t.steps??[]).some((o)=>!o.done)&&a!==""&&e.now-Date.parse(a)>=ma}static tokensOf(e){let{tokens:t}=e.flow;return t===void 0?void 0:t.input+t.output+t.cacheRead+t.cacheWrite}static reposOf(e){return[...new Set(e.views.flatMap((t)=>t.flow.repo===void 0?[]:[t.flow.repo]))].sort()}static listOf(e){let{filter:t,now:a}=e;return e.views.filter((o)=>o.flow.id!==x.UNSORTED&&(o.flow.state!==Y.DONE||T.isWithin({iso:o.last.ts,now:a,days:U.DONE_DAYS}))&&(t.agent===null||P.involves({view:o,name:t.agent}))&&(t.repo===null||o.flow.repo===t.repo)&&(t.state===null||o.flow.state===t.state)&&(!t.staleOnly||D.isStale({flow:o.flow,now:a})))}static valueOf(e){let{flow:t}=e.view;switch(e.column){case"code":return t.id;case"title":return t.title;case"stage":return e.view.noWork?void 0:t.cur;case"state":return Y.ORDER.indexOf(t.state);case"holder":return e.view.holder;case"steps":{let a=t.steps??[];return a.length===0?void 0:a.filter((o)=>o.done).length/a.length}case"pr":return B.prsOf({events:e.view.evs}).map((a)=>B.labelOf({pr:a})).at(0);case"tokens":return D.tokensOf({flow:t});case"due":return t.due;default:return D.lastAt({flow:t})||void 0}}static sortOf(e){let{sort:t}=e,a=(s)=>D.lastAt({flow:s.flow});if(t===void 0)return[...e.views].sort((s,i)=>Number(i.flow.state===Y.YOU)-Number(s.flow.state===Y.YOU)||a(i).localeCompare(a(s)));let o=t.descending?-1:1;return[...e.views].sort((s,i)=>{let r=D.valueOf({view:s,column:t.column}),l=D.valueOf({view:i,column:t.column});if(r===void 0||l===void 0)return Number(r===void 0)-Number(l===void 0);let d=typeof r==="number"&&typeof l==="number"?r-l:String(r).localeCompare(String(l),void 0,{numeric:!0});return o*d})}}var dt=["cards","compact","table"],fa=2,pa=12,pn=["code","title","stage","state","holder","steps","pr","tokens","due","updated"],_a=new Set(["tokens"]),ga=new Intl.NumberFormat("en-US",{notation:"compact",maximumSignificantDigits:3}),ha={cards:J.cards,compact:J.compact,table:J.table},ut=(e)=>n("span",{className:"segs","aria-hidden":"true",children:e.total>pa?n("span",{className:"seg-bar",children:n("span",{style:{width:`${Math.round(e.done/e.total*100)}%`}})}):Array.from({length:e.total},(t,a)=>n("span",{className:a<e.done?"on":void 0},a))}),ya=(e)=>{let{t,now:a}=S();if(e.due===void 0)return n("span",{className:"c-badge b-idle",children:t("it.noDue")});let o=j.daysLeft({due:e.due,now:a}),s=`${o} ${t(o===1?"it.dayLeft":"it.daysLeft")}`;if(o<0)s=t("it.overdue");return n("span",{className:`c-badge ${o<=fa?"b-ask":"b-idle"}`,children:`${t("fl.due")} ${e.due} · ${s}`})},mt=(e)=>{let{t}=S(),{view:a}=e;return n("span",{className:"c-badge b-stage",children:a.noWork?t("nw.chip"):t(L.STAGES[a.flow.cur])})},va=(e)=>{let{t}=S();return n("span",{className:`state st-${e.state}`,children:[n(Ge,{state:e.state}),t(L.STATE_TEXT[e.state])]})},ft=(e)=>{let{t}=S();return n("span",{className:`who${e.holds?" h":""}`,children:[n("i",{style:{background:se.colorOf({name:e.name})}}),e.name,e.holds?n("span",{className:"sr",children:` ${t("it.holds")}`}):null]})},_n=(e)=>`${e.t("it.staleTip")} ${U.STALE_HOURS}${e.t(" giờ")}`,pt=()=>{let{t:e}=S();return n("span",{className:"c-badge b-stale",title:_n({t:e}),children:e("it.stale")})},_t=(e)=>{let t=De(null);return K(()=>{if(e.selected)t.current?.scrollIntoView({block:"nearest"})},[e.selected]),{ref:(a)=>{t.current=a},"data-id":e.id,tabIndex:0,"aria-selected":e.selected,onClick:()=>e.onSelect(e.id),onKeyDown:(a)=>{if(a.key==="Enter"&&a.target===a.currentTarget)a.preventDefault(),e.onSelect(e.id)}}},gn=(e)=>{let{t}=S();return n("span",{className:"c-prs",children:e.prs.map((a)=>n("span",{className:"c-pr",children:[a.label,a.ci===null?null:n("b",{className:a.ci==="fail"?"bad":"good",children:[n(He,{bad:a.ci==="fail"}),`CI ${t(a.ci==="fail"?"lỗi":"đạt")}`]})]},a.label))})},wa=(e)=>{let{t,now:a}=S(),{view:o,card:s}=e,{flow:i}=o,r=(d)=>T.clock({iso:d}),l=_t({id:i.id,selected:e.selected,onSelect:e.onSelect});return n("div",{className:`c-card row${e.selected?" sel":""}`,role:"button",...l,children:[n("div",{className:"c-head",children:[n("span",{className:"c-id",children:i.id}),i.tracker?n("span",{className:"c-ref",children:i.tracker}):null,n(mt,{view:o}),D.isStale({flow:i,now:a})?n(pt,{}):null,o.newCount>0?n("span",{className:"unread",title:`${o.newCount}${t(" sự kiện mới")}`}):null,n("span",{className:"c-grow"}),n(ya,{due:i.due})]}),n("div",{className:"c-title",children:i.title}),s.now?n("div",{className:"c-now",children:`${t("it.now")}: ${s.now}`}):null,n("div",{className:"c-meta",children:[s.steps.total>0?n("span",{className:"m",children:[n("span",{className:"k",children:t("fl.steps")}),n(ut,{...s.steps}),n("b",{className:"num",children:`${s.steps.done}/${s.steps.total}`})]}):null,s.checks.total>0?n("span",{className:"m",children:[n("span",{className:"k",children:t("it.checks")}),n("b",{className:"num",children:`${s.checks.done}/${s.checks.total}`})]}):null,s.prs.length>0?n(gn,{prs:s.prs}):null,i.apps?n("span",{className:"c-apps",children:i.apps.map((d)=>n("span",{children:d},d))}):null]}),n("div",{className:"c-people",children:n("span",{className:"c-chips",children:s.people.map((d,m)=>n(ft,{name:d,holds:m===0},d))})}),s.waiting?n("div",{className:"c-wait",children:[n("span",{className:"k",children:t("it.waiting")})," ",s.waiting]}):null,n("div",{className:"c-foot",children:[n("span",{children:[t("it.started")," ",n("b",{children:r(o.evs[0].ts)})]}),n("span",{children:[t("it.updates")," ",n("b",{children:s.updates})]}),s.deploys.length>0?n("span",{children:[t("it.deploys")," ",n("b",{children:s.deploys.join(", ")})]}):null,n("span",{children:[t("it.latest")," ",n("b",{children:r(o.last.ts)})]})]})]})},hn=(e)=>{let{t,now:a}=S(),o=D.lastAt({flow:e.view.flow});return n("time",{className:"c-ago",dateTime:o,title:T.clock({iso:o}),children:T.ago({iso:o,now:a,translate:t})})},ka=(e)=>{let{t,now:a}=S(),{view:o}=e,s=j.itemOf({view:o}).steps,i=_t({id:o.flow.id,selected:e.selected,onSelect:e.onSelect});return n("div",{className:`c-line row${e.selected?" sel":""}`,role:"button",...i,children:[n(Ge,{state:o.flow.state}),n("span",{className:"c-id",children:o.flow.id}),n("span",{className:"c-lt",title:o.flow.title,children:o.flow.title}),n("span",{className:"c-lm",children:[D.isStale({flow:o.flow,now:a})?n(pt,{}):null,n(mt,{view:o})]}),n("span",{className:"c-ls",title:t("fl.steps"),children:s.total>0?n(N,{children:[n(ut,{...s}),n("span",{className:"num",children:`${s.done}/${s.total}`})]}):null}),n(ft,{name:o.holder}),n(hn,{view:o})]})},ba=(e)=>{let{t}=S();return n(N,{children:L.GROUPS.map((a)=>{let o=e.views.filter((i)=>i.flow.state===a.key).sort((i,r)=>a.key==="you"||a.key==="blocked"?i.last.ts.localeCompare(r.last.ts):r.last.ts.localeCompare(i.last.ts)),s=e.open[a.key]??a.open;return n("section",{className:"c-group",children:[n("button",{className:"c-gh",type:"button","aria-expanded":s,onClick:()=>e.onToggle(a.key),children:[n(un,{}),n(Ge,{state:a.key}),n("span",{children:t(a.label)}),n("span",{className:"c-n num",children:o.length})]}),s&&o.length===0?n("p",{className:"c-empty",children:a.key==="you"?t("Không có gì chờ anh."):t("Trống.")}):null,s?o.map((i)=>e.compact?n(ka,{view:i,selected:e.selected===i.flow.id,onSelect:e.onSelect},i.flow.id):n(wa,{view:i,card:j.itemOf({view:i}),selected:e.selected===i.flow.id,onSelect:e.onSelect},i.flow.id)):null]},a.key)})})},Na=(e)=>{let{now:t}=S(),{view:a}=e,{flow:o}=a,s=j.itemOf({view:a}),i=D.tokensOf({flow:o}),r=_t({id:o.id,selected:e.selected,onSelect:e.onSelect});return n("tr",{className:`row${e.selected?" sel":""}`,...r,children:[n("td",{className:"c-id",children:o.id}),n("td",{className:"t-title",children:n("div",{children:[n("span",{title:o.title,children:o.title}),D.isStale({flow:o,now:t})?n(pt,{}):null]})}),n("td",{children:n(mt,{view:a})}),n("td",{children:n(va,{state:o.state})}),n("td",{children:n(ft,{name:a.holder})}),n("td",{children:s.steps.total>0?n("span",{className:"t-steps",children:[n(ut,{...s.steps}),n("span",{className:"num",children:`${s.steps.done}/${s.steps.total}`})]}):null}),n("td",{children:s.prs.length>0?n(gn,{prs:s.prs}):null}),n("td",{className:"num",title:i===void 0?void 0:i.toLocaleString("en-US"),children:i===void 0?"":ga.format(i)}),n("td",{className:"num",children:o.due??""}),n("td",{children:n(hn,{view:a})})]})},Sa=(e)=>{let{t}=S(),[a,o]=C(void 0),s=D.sortOf({views:e.views,sort:a}),i=(r)=>o(a?.column===r?{column:r,descending:!a.descending}:{column:r,descending:r==="updated"||r==="tokens"});return n("div",{className:"t-wrap",children:n("table",{className:"t-work",children:[n("colgroup",{children:pn.map((r)=>n("col",{className:`w-${r}`},r))}),n("thead",{children:n("tr",{children:pn.map((r)=>{let l=a?.column===r,d;if(l)d=a.descending?"descending":"ascending";return n("th",{scope:"col","aria-sort":d,className:_a.has(r)?"num":void 0,children:n("button",{type:"button","data-column":r,onClick:()=>i(r),children:[t(`col.${r}`),n(mn,{order:d})]})},r)})})}),n("tbody",{children:s.map((r)=>n(Na,{view:r,selected:e.selected===r.flow.id,onSelect:e.onSelect},r.flow.id))})]})})},Ea=(e)=>{let{t}=S(),{filter:a}=e,o=D.reposOf({views:e.views}),s=a.agent!==null||a.repo!==null||a.state!==null||a.staleOnly,i=(r)=>n("label",{className:`c-field pill${r.value===null?"":" on"}`,children:[n("span",{children:r.label}),n("select",{value:r.value??"",onChange:(l)=>r.onChange(l.currentTarget.value||null),children:[n("option",{value:"",children:t("ft.all")}),r.options.map((l)=>n("option",{value:l.value,children:l.text},l.value))]}),J.down]});return n("div",{className:`c-tools${e.open?" open":""}`,role:"group","aria-label":t("ft.label"),children:[n("div",{className:"sheet-head",children:[n("b",{children:t("ft.label")}),n("button",{className:"btn-text",type:"button",onClick:e.onClose,children:t("ft.done")})]}),i({label:t("ft.agent"),value:a.agent,options:e.agents.map((r)=>({value:r,text:r})),onChange:(r)=>e.onFilter({...a,agent:r})}),o.length>0?i({label:t("ft.repo"),value:a.repo,options:o.map((r)=>({value:r,text:r})),onChange:(r)=>e.onFilter({...a,repo:r})}):null,i({label:t("ft.state"),value:a.state,options:Y.ORDER.map((r)=>({value:r,text:t(L.STATE_TEXT[r])})),onChange:(r)=>e.onFilter({...a,state:r})}),n("button",{className:"pill stale-pill",type:"button","aria-pressed":a.staleOnly,title:_n({t}),onClick:()=>e.onFilter({...a,staleOnly:!a.staleOnly}),children:[t("it.stale")," ",n("b",{className:"num",children:e.staleCount})]}),s?n("button",{className:"btn-text",type:"button",onClick:()=>e.onFilter({agent:null,repo:null,state:null,staleOnly:!1}),children:t("ft.clear")}):null]})},yn=(e)=>{let{t,now:a}=S(),[o,s]=C({repo:null,state:null,staleOnly:!1}),[i,r]=C(!1),l={...o,agent:e.agent},d=[l.agent,l.repo,l.state].filter((p)=>p!==null).length+Number(l.staleOnly),m=D.listOf({views:e.views,filter:{agent:null,repo:null,state:null,staleOnly:!1},now:a}),u=D.listOf({views:e.views,filter:l,now:a}),f=e.views.find((p)=>p.flow.id===x.UNSORTED&&(e.agent===null||P.involves({view:p,name:e.agent}))),_=(p)=>{let{agent:b,...g}=p;if(s(g),b!==e.agent)e.onAgent(b)},c=null;if(m.length===0)c=n("p",{className:"c-empty",children:t("Chưa có luồng nào. Bật events.log, hoặc ghi một dòng bằng vulcan event add.")});else if(u.length===0)c=n("p",{className:"c-empty",children:t("ft.none")});else if(e.view==="table")c=n(Sa,{views:u,selected:e.selected,onSelect:e.onSelect});else c=n(ba,{views:u,compact:e.view==="compact",selected:e.selected,onSelect:e.onSelect,open:e.open,onToggle:e.onToggle});return n("section",{className:"c-pane c-items","aria-label":t("Danh sách luồng"),children:[n("div",{className:"c-ph c-bar2",children:[n("h2",{children:t("pn.items")}),n("span",{className:"c-n num",id:"flowN",children:u.length}),n("div",{className:"seg",role:"group","aria-label":t("vw.label"),children:dt.map((p)=>n("button",{type:"button","data-view":p,"aria-pressed":e.view===p,"aria-label":t(`vw.${p}`),title:t(`vw.${p}`),onClick:()=>e.onView(p),children:[ha[p],n("span",{className:"lbl",children:t(`vw.${p}`)})]},p))}),m.length===0?null:n(N,{children:[n("button",{className:`pill f-btn${d>0?" on":""}`,type:"button","aria-expanded":i,onClick:()=>r(!i),children:[J.filter,t("ft.label"),d>0?n("b",{className:"num",children:d}):null]}),n(Ea,{views:m,agents:e.agents,filter:l,onFilter:_,staleCount:m.filter((p)=>D.isStale({flow:p.flow,now:a})).length,open:i,onClose:()=>r(!1)}),i?n("button",{className:"scrim",type:"button","aria-label":t("Đóng"),onClick:()=>r(!1)}):null]})]}),n("div",{className:"c-scroll",id:"groups",children:[c,f?n("button",{className:"c-loose",type:"button","aria-pressed":e.selected===f.flow.id,onClick:()=>e.onSelect(f.flow.id),children:`${t("it.unsorted")} · ${f.evs.length}`}):null]})]})};var Ta=[["j / k","Luồng sau / trước"],["Enter","Mở chi tiết"],["e","Các bước hoặc mọi sự kiện"],["c","Xem gọn hoặc thẻ"],["Esc","Đóng"],["?","Bảng này"]],vn=(e)=>{let t=Fe();return n("div",{className:"keys",id:"keys",hidden:!e.open,role:"dialog","aria-label":t("Phím tắt"),children:[n("h2",{children:n("span",{children:t("Phím tắt")})}),n("dl",{children:Ta.flatMap(([a,o])=>[n("dt",{children:a},a),n("dd",{children:n("span",{children:t(o)})},o)])})]})};class de{static get(e){try{return localStorage.getItem(e.key)}catch{return null}}static set(e){try{localStorage.setItem(e.key,e.value)}catch{}}static remove(e){try{localStorage.removeItem(e.key)}catch{}}}var pe=(e)=>{let[t,a]=C(()=>{let s=de.get({key:e.key});return e.allowed.find((i)=>i===s)??e.initial}),o=st((s)=>{de.set({key:e.key,value:s}),a(s)},[e.key]);return[t,o]},wn=()=>{let[e,t]=C(Date.now());return K(()=>{let a=setInterval(()=>t(Date.now()),60000);return()=>clearInterval(a)},[]),e},kn=(e)=>{let t=e.data.live?.stream,[a,o]=C("wait");return K(()=>{if(t===void 0)return;let s,i,r=!1,l=0,d=()=>{s=new EventSource(t),s.onmessage=(m)=>{l=0;let u=JSON.parse(m.data);if(u.tooLarge){o("big");return}e.onData(u),o("on")},s.onerror=()=>{if(s?.close(),o("off"),!r)i=setTimeout(d,Math.min(30000,1000*2**l)),l+=1}};return d(),()=>{r=!0,s?.close(),clearTimeout(i)}},[t]),a};var bn={en:{"Xem gọn hoặc thẻ":"Compact or cards","ag.delivered":"delivered","ag.latest":"Latest","ag.notReplied":"Messages not replied yet","ag.notRepliedYet":"not replied yet","col.code":"Code","col.due":"Due","col.holder":"Holder","col.pr":"PR · CI","col.stage":"Stage","col.state":"State","col.steps":"Steps","col.title":"Title","col.tokens":"Tokens","col.updated":"Last update","ft.agent":"Agent","ft.all":"All","ft.clear":"Clear filters","ft.done":"Done","hd.more":"More","hd.new":"new since","ft.label":"Filters","ft.none":"No work item matches these filters.","ft.repo":"Repo","ft.state":"State","it.dayLeft":"day left","it.stale":"Stale","it.staleTip":"Steps open and no event for","lt.flow":"updated the flow","lt.sessionStart":"started a session","lt.subagent":"a subagent finished","lt.usage":"recorded token use","vw.cards":"Cards","vw.compact":"Compact","vw.label":"View","vw.table":"Table","ag.under":"under","ag.earlier":"Earlier","ag.details":"Details","it.unsorted":"Unsorted","it.unsortedNote":"Events that name no flow, newest first."," giờ":" h"," lần ":" try "," ngày":" d"," phút":" min"," sự kiện mới":" new events",". Bấm để đổi":". Click to change","5 sự kiện gần nhất":"Last 5 events","Anh duyệt":"Approval","Bàn giao":"Handoff","Bảng này":"This panel","Bị chặn":"Blocked","Bỏ lọc theo ":"Clear filter for ","Chi tiết luồng":"Flow detail","Chưa có luồng nào. Bật events.log, hoặc ghi một dòng bằng vulcan event add.":"No flows yet. Turn on events.log, or write a line with vulcan event add.","Chưa có sự kiện nào của agent này.":"No events from this agent yet.","Chờ anh":"Waiting on you",Code:"Code","Các agent đang chạy":"Running agents","Các bước hoặc mọi sự kiện":"Stages or all events","Cần anh":"Needs you","Của ":"By ","Danh sách luồng":"Flow list","Giao diện: ":"Theme: ","Không có PR nào đang mở.":"No open pull requests.","Không có gì chờ anh.":"Nothing waits on you.","Không có tin nào đang chờ.":"No message is waiting.","Luồng sau / trước":"Next / previous flow",Merge:"Merge","Mở chi tiết":"Open detail","PR + CI":"PR + CI","PR đang mở (":"Open pull requests (","Phát hành":"Release","Phím tắt":"Shortcuts",Review:"Review",Rảnh:"Idle","Thiết kế":"Design","Trống.":"Empty.","Từ lần xem trước lúc ":"Since your last visit at ",Xong:"Done","ag.asking":"Asking you","ag.message":"Latest message","ag.pending":"Not replied yet","ag.prs":"PRs","ag.today":"events today","ag.working":"Working on","bàn giao":"handoff","bị chặn":"blocked","chưa có agent":"no agents yet","chưa có việc":"no work yet","chờ anh":"waiting on you","chờ anh: ":"waiting on you: ","dt.all":"All events","dt.milestones":"Milestones","dt.whatItIs":"What it is","fl.checks":"Acceptance checks","fl.due":"Due","fl.steps":"Steps","tk.cacheRead":"Cache read","tk.cacheWrite":"Cache write","tk.input":"Input","tk.output":"Output","tk.title":"Tokens","tk.total":"All agents","g.blocked":"Blocked","g.done":"Done this week","g.parked":"Parked","g.running":"Running","g.you":"Needs you","ghi chú":"note","giao việc":"assign","giờ ước lượng":"estimated time","it.apps":"Apps","it.checks":"Acceptance","it.criteria":"criteria","it.daysLeft":"days left","it.deploys":"Deploy","it.done":"done","it.holder":"Holder","it.holds":"holds","it.latest":"latest","it.noDue":"No due date","it.now":"Now","it.overdue":"overdue","it.people":"People","it.prs":"PR","it.started":"Started","it.updates":"Updates","it.waiting":"Waiting on","k.agent":"agent activity","k.flow":"flow title","lang.en":"English","lang.label":"Language","lang.vi":"Tiếng Việt","live.big":"too large to stream: reload","live.off":"disconnected, retrying","live.on":"live","live.wait":"connecting","lt.approve":"approved","lt.ask":"asked the owner","lt.assign":"assigned work","lt.ci":"ran a check","lt.commit":"committed","lt.decision":"decided","lt.design":"designed","lt.fix":"fixed","lt.got":"got a message","lt.gotFrom":"got a message from","lt.handoff":"handed over","lt.merge":"merged","lt.msg":"sent a message","lt.msgTo":"wrote to","lt.note":"noted","lt.park":"parked","lt.pr":"updated a pull request","lt.reject":"rejected","lt.release":"released","lt.request":"requested","lt.review":"reviewed",lỗi:"error","ms.decision":"Decision","ms.deploy":"Deploy","ms.merge":"Merge","ms.open":"Opened","nw.chip":"No work yet","nw.empty":"No work logged yet","phát hành":"release","pl.all":"Show all events","pl.tip":"Sessions starting and stopping, subagents and prompts that only wait are hidden, and so are agents the project did not list; this shows them","pn.agents":"Agents","pn.detail":"Details","pn.items":"Work items","quyết định":"decision",rảnh:"idle","rảnh · ":"idle · ","st.parked":"Parked",sáng:"light",sửa:"fix","theo máy":"system","thiết kế":"design","tin nhắn":"message",to:"to",tối:"dark","từ ":"since ","vừa xong":"just now","Đang chạy":"Running","Đang làm":"Working","Đánh dấu đã xem":"Mark as seen",Đóng:"Close","Đề xuất":"Proposal","đang làm":"working",đạt:"pass","đề xuất":"proposal",đỏ:"red"},vi:{"ag.delivered":"đã nhận","ag.latest":"Mới nhất","ag.notReplied":"Tin nhắn chưa trả lời","ag.notRepliedYet":"chưa trả lời","col.code":"Mã","col.due":"Hạn","col.holder":"Người giữ","col.pr":"PR · CI","col.stage":"Giai đoạn","col.state":"Trạng thái","col.steps":"Bước","col.title":"Tên","col.tokens":"Token","col.updated":"Cập nhật","ft.agent":"Agent","ft.all":"Tất cả","ft.clear":"Bỏ lọc","ft.done":"Xong","hd.more":"Thêm","hd.new":"mới từ","ft.label":"Bộ lọc","ft.none":"Không có việc nào khớp bộ lọc.","ft.repo":"Repo","ft.state":"Trạng thái","it.dayLeft":"ngày nữa","it.stale":"Đứng yên","it.staleTip":"Còn bước mở và không có sự kiện trong","lt.flow":"cập nhật luồng","lt.sessionStart":"mở phiên","lt.subagent":"một subagent xong","lt.usage":"ghi token","vw.cards":"Thẻ","vw.compact":"Gọn","vw.label":"Kiểu xem","vw.table":"Bảng","ag.under":"thuộc","ag.earlier":"Trước đó","ag.details":"Chi tiết","it.unsorted":"Chưa xếp luồng","it.unsortedNote":"Các sự kiện không thuộc luồng nào, mới nhất trước.","ag.asking":"Hỏi anh","ag.message":"Tin nhắn","ag.pending":"Chưa trả lời","ag.prs":"PR","ag.today":"sự kiện hôm nay","ag.working":"Đang làm","dt.all":"Mọi sự kiện","dt.milestones":"Diễn biến","dt.whatItIs":"Đây là gì","fl.checks":"Tiêu chí nghiệm thu","fl.due":"Hạn","fl.steps":"Các bước","tk.cacheRead":"Đọc cache","tk.cacheWrite":"Ghi cache","tk.input":"Đầu vào","tk.output":"Đầu ra","tk.title":"Token","tk.total":"Mọi agent","g.blocked":"Bị chặn / Lỗi","g.done":"Xong trong tuần","g.parked":"Để sau","g.running":"Đang chạy","g.you":"Cần anh","it.apps":"App","it.checks":"Nghiệm thu","it.criteria":"tiêu chí","it.daysLeft":"ngày nữa","it.deploys":"Deploy","it.done":"xong","it.holder":"Giữ việc","it.holds":"giữ","it.latest":"mới nhất","it.noDue":"Chưa có hạn","it.now":"Đang","it.overdue":"quá hạn","it.people":"Người","it.prs":"PR","it.started":"Bắt đầu","it.updates":"Cập nhật","it.waiting":"Đang chờ","k.agent":"hoạt động agent","k.flow":"tên luồng","lang.en":"English","lang.label":"Ngôn ngữ","lang.vi":"Tiếng Việt","live.big":"quá lớn để truyền: tải lại","live.off":"mất kết nối, đang thử lại","live.on":"trực tiếp","live.wait":"đang kết nối","lt.approve":"duyệt","lt.ask":"hỏi chủ","lt.assign":"giao việc","lt.ci":"chạy kiểm tra","lt.commit":"commit","lt.decision":"quyết định","lt.design":"thiết kế","lt.fix":"sửa","lt.got":"nhận tin nhắn","lt.gotFrom":"nhận tin nhắn từ","lt.handoff":"bàn giao","lt.merge":"merge","lt.msg":"gửi tin nhắn","lt.msgTo":"nhắn cho","lt.note":"ghi chú","lt.park":"để sau","lt.pr":"cập nhật pull request","lt.reject":"từ chối","lt.release":"phát hành","lt.request":"đề xuất","lt.review":"review","ms.decision":"Quyết định","ms.deploy":"Deploy","ms.merge":"Merge","ms.open":"Mở việc","nw.chip":"Chưa có việc","nw.empty":"Chưa có việc nào được ghi","pl.all":"Hiện mọi sự kiện","pl.tip":"Phiên bắt đầu và kết thúc, subagent và lời nhắc chỉ để chờ, cùng các agent dự án không liệt kê, đang được ẩn; nút này hiện chúng","pn.agents":"Agent","pn.detail":"Chi tiết","pn.items":"Việc","st.parked":"Để sau",to:"cho"}};class gt{static translate(e){return bn[e.language][e.key]??e.key}}var Ia=["flows","decisions","agents","shapes","roster","lanes","roles","sources","generatedAt","since"],Ca='input,textarea,select,[contenteditable="true"]',Nn=(e)=>{let[t,a]=C(e.data),o=`board:${t.key}:`,[s,i]=pe({key:`${o}lang`,initial:oe.EN,allowed:[oe.EN,oe.VI]}),[r,l]=pe({key:`${o}theme`,initial:"light",allowed:ke}),[d,m]=pe({key:`${o}plumbing`,initial:"0",allowed:["0","1"]}),[u,f]=pe({key:`${o}agentDetails`,initial:"1",allowed:["0","1"]}),[_,c]=pe({key:`${o}view`,initial:"cards",allowed:dt}),[p,b]=C(!1),[g,w]=C(null),[k,O]=C(!1),[h,E]=C(null),[be,ue]=C({}),[G,Q]=C(()=>de.get({key:`${o}lastSeen`})??new Date().toISOString()),F=wn(),W=d==="1",z=kn({data:t,onData:(v)=>a((A)=>({...A,...Object.fromEntries(Ia.map((ge)=>[ge,v[ge]]))}))}),V=q(()=>(v)=>gt.translate({language:s,key:v}),[s]),Tn=q(()=>({t:V,now:F}),[V,F]),_e=q(()=>P.eventsOf({data:t,showAll:W}),[t,W]),ee=q(()=>P.flowsOf({data:t,showAll:W,lastSeen:G}),[t,W,G,F]),me=q(()=>P.rowsOf({data:t,flows:ee,events:_e,translate:V,now:F}),[t,ee,_e,V,F]),ht=q(()=>Object.fromEntries(me.map((v)=>[v.n,j.agentOf({data:t,events:_e,views:ee,row:v,doc:t.agents[v.n],now:F})])),[t,_e,ee,me,F]),yt=g!==null&&(g.kind==="flow"?ee.some((v)=>v.flow.id===g.id):me.some((v)=>v.n===g.name)),ze=(v)=>w({kind:"flow",id:v}),In=(v)=>{if(h===v){E(null),w(null);return}E(v),w({kind:"agent",name:v})};return K(()=>{document.title=t.title,document.documentElement.lang=s},[t.title,s]),K(()=>{if(r==="system")document.documentElement.removeAttribute("data-board-theme");else document.documentElement.setAttribute("data-board-theme",r)},[r]),K(()=>{de.set({key:`${o}lastSeen`,value:G})},[o,G]),K(()=>{let v=(A)=>{if((A.target instanceof Element?A.target:null)?.closest?.(Ca)||A.metaKey||A.ctrlKey||A.altKey)return;let Ne=[...document.querySelectorAll(".row")],vt=g?.kind==="flow"?g.id:null,wt=Ne.findIndex((Se)=>Se.dataset.id===vt);if(A.key==="j"||A.key==="k"){A.preventDefault();let Se=A.key==="j"?Math.min(Ne.length-1,wt+1):Math.max(0,wt-1),kt=Ne[Se]?.dataset.id;if(kt!==void 0)ze(kt),Ne[Se].focus()}else if(A.key==="e"&&vt)O(!k);else if(A.key==="c")c(_==="compact"?"cards":"compact");else if(A.key==="Escape")if(p)b(!1);else w(null);else if(A.key==="?")b(!p)};return document.addEventListener("keydown",v),()=>document.removeEventListener("keydown",v)}),n(Me.Provider,{value:Tn,children:[n("div",{className:"app",children:[n(fn,{title:t.title,logo:t.logo,sources:t.sources,lastSeen:G,newCount:ee.reduce((v,A)=>v+A.newCount,0),onSeen:()=>Q(new Date().toISOString()),showPlumbing:W,onPlumbing:()=>m(W?"0":"1"),language:s,onLanguage:()=>i(s===oe.EN?oe.VI:oe.EN),theme:r,onTheme:()=>l(ke[(ke.indexOf(r)+1)%ke.length]),keysOpen:p,onKeys:()=>b(!p),live:t.live===void 0?void 0:z}),n("main",{className:`c-main${yt?"":" closed"}`,id:"vFlows",children:[n(nn,{rows:me,cards:ht,shapes:t.shapes,picked:h,details:u==="1",onDetails:(v)=>f(v?"1":"0"),onPick:In}),n(yn,{views:ee,agents:me.map((v)=>v.n),view:_,onView:c,agent:h,onAgent:(v)=>{if(E(v),v===null&&g?.kind==="agent")w(null)},selected:g?.kind==="flow"?g.id:null,onSelect:ze,open:be,onToggle:(v)=>ue((A)=>({...A,[v]:!(A[v]??L.GROUPS.find((ge)=>ge.key===v)?.open)}))}),n(cn,{detail:yt?g:null,views:ee,rows:me,cards:ht,data:t,events:_e,everything:k,onEverything:O,onFlow:ze,onClose:()=>w(null)})]})]}),n(vn,{open:p})]})};var Sn=document.getElementById("board-data"),En=document.getElementById("root");if(Sn?.textContent&&En){let e=JSON.parse(Sn.textContent);Jt(En).render(n(Nn,{data:e}))}})();
 </script>
-    <!-- built from 668ffe0eaca0f909d8d3e455bdb6fe7213e5e25bedc2ebfd89cd80bc7d4000e3; run make board-ui after a change to packages/cli/src/board/ui -->
+    <!-- built from ad1a8465b4897f1f58443349a16dae64e1d5506226dcf4119df81ac6b037361b; run make board-ui after a change to packages/cli/src/board/ui -->
   </body>
 </html>

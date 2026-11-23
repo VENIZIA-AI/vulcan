@@ -18,10 +18,9 @@ export const AGENT_TONES: Record<string, string> = {
 };
 
 const Pair = (props: { label: string; children: ReactNode }) => (
-  <>
-    <span className="c-k">{props.label}</span>
-    <span className="c-v">{props.children}</span>
-  </>
+  <div className="a-line">
+    <span className="c-k">{props.label}</span> <span className="c-v">{props.children}</span>
+  </div>
 );
 
 /** One agent: who it is, what it is doing now, what it said last, and how busy it was. A click filters the work to it. */

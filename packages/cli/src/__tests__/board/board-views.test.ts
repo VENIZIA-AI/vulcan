@@ -183,6 +183,62 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
     expect(result.cleared).toBe(5);
   });
 
+  test('390px: one bar line with the secondary controls in a menu, and the filters in one button that opens a sheet', async () => {
+    const result = await run<{
+      barHeight: number;
+      toolsShown: boolean;
+      menuShown: boolean;
+      pillsShown: boolean;
+      sheetShown: boolean;
+      sheetBottom: number;
+      innerHeight: number;
+      states: string[];
+      errors: string[];
+    }>({
+      width: 390,
+      expression: `(async () => {
+        localStorage.clear();
+        ${WAIT}
+        const shown = (node) => node !== null && getComputedStyle(node).display !== 'none';
+        const tools = document.querySelector('.bar .tools');
+        const out = { barHeight: document.querySelector('header.bar').getBoundingClientRect().height, toolsShown: shown(tools) };
+        document.querySelector('.ib.more').click();
+        await wait();
+        out.menuShown = shown(tools);
+        document.querySelector('.ib.more').click();
+        await wait();
+        out.pillsShown = shown(document.querySelector('.c-tools'));
+        document.querySelector('.f-btn').click();
+        await wait();
+        const sheet = document.querySelector('.c-tools');
+        out.sheetShown = shown(sheet);
+        out.sheetBottom = Math.round(sheet.getBoundingClientRect().bottom);
+        out.innerHeight = innerHeight;
+        document.querySelector('.scrim').click();
+        await wait();
+        out.states = [...document.querySelectorAll('#groups .c-gh .sm')].map((mark) => mark.getAttribute('class'));
+        out.errors = window.__errs;
+        localStorage.clear();
+        return JSON.stringify(out);
+      })()`,
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.barHeight).toBeLessThanOrEqual(56);
+    expect(result.toolsShown).toBe(false);
+    expect(result.menuShown).toBe(true);
+    expect(result.pillsShown).toBe(false);
+    expect(result.sheetShown).toBe(true);
+    expect(result.sheetBottom).toBe(result.innerHeight);
+    expect(result.states).toEqual([
+      'sm s-you',
+      'sm s-blocked',
+      'sm s-running',
+      'sm s-parked',
+      'sm s-done',
+    ]);
+  });
+
   for (const width of [1440, 390]) {
     test(`${width}px: no view scrolls the page sideways`, async () => {
       const result = await run<Record<string, number>>({

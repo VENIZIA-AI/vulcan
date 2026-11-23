@@ -29,7 +29,7 @@ export interface IAgentCard {
   workingOn?: IFlowView;
   /** The newest line of the agent of any type. */
   activity?: IBoardActivity;
-  /** The newest message it sent or got, when that is not already the activity. */
+  /** The newest message it sent, when that is not already the activity: a message shows once, under its sender. */
   message?: IBoardViewEvent;
   prs: number;
   pending: number;
@@ -115,9 +115,9 @@ export class BoardCards {
 
     const message = newest(
       events.filter((event) => {
-        const { sender, receiver } = BoardAgentInfo.endsOf({ data, message: event });
-
-        return event.kind === 'msg' && (sender === row.n || receiver === row.n);
+        return (
+          event.kind === 'msg' && BoardAgentInfo.endsOf({ data, message: event }).sender === row.n
+        );
       }),
     );
 

@@ -1,10 +1,13 @@
 import { describe, expect, test } from 'bun:test';
+import type { IBoardData } from '../../../board/common/index.ts';
 import { BoardFold } from '../../../board/fold.ts';
 import { BoardLanguages } from '../../../board/ui/common/constants.ts';
 import type { IBoardViewEvent } from '../../../board/ui/common/types.ts';
 import { BoardI18n } from '../../../board/ui/i18n/translate.ts';
 import { BoardAgentInfo } from '../../../board/ui/state/agent-info.ts';
+import { BoardCards } from '../../../board/ui/state/cards.ts';
 import { BoardLatest } from '../../../board/ui/state/latest.ts';
+import { BoardView } from '../../../board/ui/state/view.ts';
 import { EventLog } from '../../../events/log.ts';
 import { line } from '../log-lines.helper.ts';
 
@@ -137,5 +140,50 @@ describe('a message not replied yet: delivered when the receiver logged it', () 
 
     expect(en('ag.pending')).toBe('Not replied yet');
     expect(vi('ag.pending')).toBe('Chưa trả lời');
+  });
+});
+
+describe('a message shows once on the agents pane, under its sender', () => {
+  test('the sender card has it as its latest message; the receiver card does not repeat it', () => {
+    const sent = line({
+      minute: 5,
+      kind: 'msg-sent',
+      actor: 'web-lead',
+      flow: 'F-1',
+      summary: 'design review at 3 pm',
+      ref: 'to:api-lead',
+    });
+    const log = BoardFold.fromLog({ events: [commit, sent] });
+    const { flows } = BoardFold.fold({ events: log.events, owner: 'Ana' });
+    const data: IBoardData = {
+      title: 't',
+      owner: 'Ana',
+      key: 'k',
+      shapes: {},
+      generatedAt: sent.ts,
+      since: commit.ts,
+      flows,
+      decisions: {},
+      agents: log.agents,
+      sources: [],
+    };
+    const views = BoardView.flowsOf({ data, showAll: false, lastSeen: '' });
+    const events = BoardView.eventsOf({ data, showAll: false });
+    const now = Date.parse(sent.ts);
+    const rows = BoardView.rowsOf({ data, flows: views, events, translate: en, now });
+    const cardOf = (name: string) => {
+      const row = rows.find((one) => one.n === name);
+
+      if (row === undefined) {
+        throw new Error(`no row for ${name}`);
+      }
+
+      return BoardCards.agentOf({ data, events, views, row, doc: data.agents[name], now });
+    };
+
+    expect(cardOf('api-lead').message).toBeUndefined();
+    // The sender's newest line is the message itself, so it is its Latest, not a second row.
+    expect(cardOf('web-lead').activity).toMatchObject({ type: 'msg-sent', peer: 'api-lead' });
+    expect(cardOf('web-lead').message).toBeUndefined();
   });
 });

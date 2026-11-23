@@ -10,20 +10,16 @@ import { BoardTime } from '../state/time.ts';
 import { BoardView } from '../state/view.ts';
 import { BoardWork } from '../state/work.ts';
 import type { IWorkFilter, TWorkColumn, TWorkSort } from '../state/work.ts';
-import { Bar } from './bits.tsx';
-import { Chevron, SortArrow } from './icons.tsx';
+import { Mark } from './bits.tsx';
+import { BoardFace } from './face.tsx';
+import { Chevron, ICONS, SortArrow, StatusMark } from './icons.tsx';
 
 export type TWorkView = 'cards' | 'compact' | 'table';
 export const WORK_VIEWS: TWorkView[] = ['cards', 'compact', 'table'];
 
-const STATE_TONES: Record<string, string> = {
-  you: 'wait',
-  blocked: 'ask',
-  running: 'work',
-  parked: 'idle',
-  done: 'ok',
-};
 const SOON_DAYS = 2;
+/** Up to this many steps a bar draws one segment each; more draw as one bar. */
+const SEGMENTS_MAX = 12;
 const COLUMNS: TWorkColumn[] = [
   'code',
   'title',
@@ -36,20 +32,26 @@ const COLUMNS: TWorkColumn[] = [
   'due',
   'updated',
 ];
-const NUMBER_COLUMNS = new Set<TWorkColumn>(['steps', 'tokens']);
+const NUMBER_COLUMNS = new Set<TWorkColumn>(['tokens']);
 const TOKENS = new Intl.NumberFormat('en-US', { notation: 'compact', maximumSignificantDigits: 3 });
+const VIEW_ICONS: Record<TWorkView, ReactNode> = {
+  cards: ICONS.cards,
+  compact: ICONS.compact,
+  table: ICONS.table,
+};
 
-const Pair = (props: { label: string; children: ReactNode }) => (
-  <>
-    <span className="c-k">{props.label}</span>
-    <span className="c-v">{props.children}</span>
-  </>
-);
-
-const Progress = (props: { done: number; total: number; label: string }) => (
-  <span className="c-v c-mini">
-    <Bar done={props.done} total={props.total} />
-    <span className="num">{`${props.done}/${props.total}`}</span> {props.label}
+/** How far along, one segment a step: `done` of `total` filled. */
+const Segments = (props: { done: number; total: number }) => (
+  <span className="segs" aria-hidden="true">
+    {props.total > SEGMENTS_MAX ? (
+      <span className="seg-bar">
+        <span style={{ width: `${Math.round((props.done / props.total) * 100)}%` }} />
+      </span>
+    ) : (
+      Array.from({ length: props.total }, (_, index) => (
+        <span key={index} className={index < props.done ? 'on' : undefined} />
+      ))
+    )}
   </span>
 );
 
@@ -79,8 +81,33 @@ const Stage = (props: { view: IFlowView }) => {
   const { view } = props;
 
   return (
-    <span className={`c-badge b-${STATE_TONES[view.flow.state]}`}>
+    <span className="c-badge b-stage">
       {view.noWork ? t('nw.chip') : t(BoardTables.STAGES[view.flow.cur])}
+    </span>
+  );
+};
+
+/** The state of a flow as a mark and a word, the same in every view. */
+const State = (props: { state: string }) => {
+  const { t } = useUi();
+
+  return (
+    <span className={`state st-${props.state}`}>
+      <StatusMark state={props.state} />
+      {t(BoardTables.STATE_TEXT[props.state])}
+    </span>
+  );
+};
+
+/** A person or an agent by name, with the dot of its colour. */
+const Who = (props: { name: string; holds?: boolean }) => {
+  const { t } = useUi();
+
+  return (
+    <span className={`who${props.holds ? ' h' : ''}`}>
+      <i style={{ background: BoardFace.colorOf({ name: props.name }) }} />
+      {props.name}
+      {props.holds ? <span className="sr">{` ${t('it.holds')}`}</span> : null}
     </span>
   );
 };
@@ -139,9 +166,10 @@ const PrList = (props: { prs: IItemCard['prs'] }) => {
         <span key={pr.label} className="c-pr">
           {pr.label}
           {pr.ci === null ? null : (
-            <b
-              className={pr.ci === 'fail' ? 'bad' : 'good'}
-            >{`CI ${t(pr.ci === 'fail' ? 'lỗi' : 'đạt')}`}</b>
+            <b className={pr.ci === 'fail' ? 'bad' : 'good'}>
+              <Mark bad={pr.ci === 'fail'} />
+              {`CI ${t(pr.ci === 'fail' ? 'lỗi' : 'đạt')}`}
+            </b>
           )}
         </span>
       ))}
@@ -166,9 +194,9 @@ const ItemCard = (props: IRowProps & { card: IItemCard }) => {
   return (
     <div className={`c-card row${props.selected ? ' sel' : ''}`} role="button" {...pick}>
       <div className="c-head">
-        <Stage view={view} />
         <span className="c-id">{flow.id}</span>
         {flow.tracker ? <span className="c-ref">{flow.tracker}</span> : null}
+        <Stage view={view} />
         {BoardWork.isStale({ flow, now }) ? <Stale /> : null}
         {view.newCount > 0 ? (
           <span className="unread" title={`${view.newCount}${t(' sự kiện mới')}`} />
@@ -178,46 +206,41 @@ const ItemCard = (props: IRowProps & { card: IItemCard }) => {
       </div>
       <div className="c-title">{flow.title}</div>
       {card.now ? <div className="c-now">{`${t('it.now')}: ${card.now}`}</div> : null}
-      <div className="c-wb">
+      <div className="c-meta">
         {card.steps.total > 0 ? (
-          <Pair label={t('fl.steps')}>
-            <Progress {...card.steps} label={t('it.done')} />
-          </Pair>
+          <span className="m">
+            <span className="k">{t('fl.steps')}</span>
+            <Segments {...card.steps} />
+            <b className="num">{`${card.steps.done}/${card.steps.total}`}</b>
+          </span>
         ) : null}
         {card.checks.total > 0 ? (
-          <Pair label={t('it.checks')}>
-            <Progress {...card.checks} label={t('it.criteria')} />
-          </Pair>
+          <span className="m">
+            <span className="k">{t('it.checks')}</span>
+            <b className="num">{`${card.checks.done}/${card.checks.total}`}</b>
+          </span>
         ) : null}
+        {card.prs.length > 0 ? <PrList prs={card.prs} /> : null}
         {flow.apps ? (
-          <Pair label={t('it.apps')}>
-            <span className="c-chips">
-              {flow.apps.map((app) => (
-                <span key={app}>{app}</span>
-              ))}
-            </span>
-          </Pair>
-        ) : null}
-        {card.prs.length > 0 ? (
-          <Pair label={t('it.prs')}>
-            <PrList prs={card.prs} />
-          </Pair>
-        ) : null}
-        <Pair label={t('it.people')}>
-          <span className="c-chips">
-            {card.people.map((person, index) => (
-              <span key={person} className={index === 0 ? 'h' : undefined}>
-                {index === 0 ? `${person} ${t('it.holds')}` : person}
-              </span>
+          <span className="c-apps">
+            {flow.apps.map((app) => (
+              <span key={app}>{app}</span>
             ))}
           </span>
-        </Pair>
-        {card.waiting ? (
-          <Pair label={t('it.waiting')}>
-            <span className="c-wait">{card.waiting}</span>
-          </Pair>
         ) : null}
       </div>
+      <div className="c-people">
+        <span className="c-chips">
+          {card.people.map((person, index) => (
+            <Who key={person} name={person} holds={index === 0} />
+          ))}
+        </span>
+      </div>
+      {card.waiting ? (
+        <div className="c-wait">
+          <span className="k">{t('it.waiting')}</span> {card.waiting}
+        </div>
+      ) : null}
       <div className="c-foot">
         <span>
           {t('it.started')} <b>{clock(view.evs[0].ts)}</b>
@@ -230,7 +253,7 @@ const ItemCard = (props: IRowProps & { card: IItemCard }) => {
             {t('it.deploys')} <b>{card.deploys.join(', ')}</b>
           </span>
         ) : null}
-        <span className="c-r">
+        <span>
           {t('it.latest')} <b>{clock(view.last.ts)}</b>
         </span>
       </div>
@@ -259,6 +282,7 @@ const CompactRow = (props: IRowProps) => {
 
   return (
     <div className={`c-line row${props.selected ? ' sel' : ''}`} role="button" {...pick}>
+      <StatusMark state={view.flow.state} />
       <span className="c-id">{view.flow.id}</span>
       <span className="c-lt" title={view.flow.title}>
         {view.flow.title}
@@ -267,9 +291,15 @@ const CompactRow = (props: IRowProps) => {
         {BoardWork.isStale({ flow: view.flow, now }) ? <Stale /> : null}
         <Stage view={view} />
       </span>
-      <span className="c-ls num" title={t('fl.steps')}>
-        {steps.total > 0 ? `${steps.done}/${steps.total}` : ''}
+      <span className="c-ls" title={t('fl.steps')}>
+        {steps.total > 0 ? (
+          <>
+            <Segments {...steps} />
+            <span className="num">{`${steps.done}/${steps.total}`}</span>
+          </>
+        ) : null}
       </span>
+      <Who name={view.holder} />
       <Updated view={view} />
     </div>
   );
@@ -307,7 +337,7 @@ const Groups = (props: {
               onClick={() => props.onToggle(group.key)}
             >
               <Chevron />
-              <span className="c-dot" style={{ background: group.swatch }} />
+              <StatusMark state={group.key} />
               <span>{t(group.label)}</span>
               <span className="c-n num">{items.length}</span>
             </button>
@@ -345,7 +375,7 @@ const Groups = (props: {
 
 /** One row of the table; a cell with nothing to say is empty. */
 const TableRow = (props: IRowProps) => {
-  const { t, now } = useUi();
+  const { now } = useUi();
   const { view } = props;
   const { flow } = view;
   const card = BoardCards.itemOf({ view });
@@ -365,19 +395,18 @@ const TableRow = (props: IRowProps) => {
         <Stage view={view} />
       </td>
       <td>
-        <span className="t-state">
-          <span
-            className="c-dot"
-            style={{
-              background: BoardTables.GROUPS.find((group) => group.key === flow.state)?.swatch,
-            }}
-          />
-          {t(BoardTables.STATE_TEXT[flow.state])}
-        </span>
+        <State state={flow.state} />
       </td>
-      <td className="t-who">{view.holder}</td>
-      <td className="num">
-        {card.steps.total > 0 ? `${card.steps.done}/${card.steps.total}` : ''}
+      <td>
+        <Who name={view.holder} />
+      </td>
+      <td>
+        {card.steps.total > 0 ? (
+          <span className="t-steps">
+            <Segments {...card.steps} />
+            <span className="num">{`${card.steps.done}/${card.steps.total}`}</span>
+          </span>
+        ) : null}
       </td>
       <td>{card.prs.length > 0 ? <PrList prs={card.prs} /> : null}</td>
       <td className="num" title={tokens === undefined ? undefined : tokens.toLocaleString('en-US')}>
@@ -409,6 +438,11 @@ const WorkTable = (props: {
   return (
     <div className="t-wrap">
       <table className="t-work">
+        <colgroup>
+          {COLUMNS.map((column) => (
+            <col key={column} className={`w-${column}`} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
             {COLUMNS.map((column) => {
@@ -457,6 +491,8 @@ const Filters = (props: {
   filter: IWorkFilter;
   onFilter: (filter: IWorkFilter) => void;
   staleCount: number;
+  open: boolean;
+  onClose: () => void;
 }) => {
   const { t } = useUi();
   const { filter } = props;
@@ -469,7 +505,7 @@ const Filters = (props: {
     options: { value: string; text: string }[];
     onChange: (value: string | null) => void;
   }) => (
-    <label className="c-field">
+    <label className={`c-field pill${opts.value === null ? '' : ' on'}`}>
       <span>{opts.label}</span>
       <select
         value={opts.value ?? ''}
@@ -482,11 +518,18 @@ const Filters = (props: {
           </option>
         ))}
       </select>
+      {ICONS.down}
     </label>
   );
 
   return (
-    <div className="c-tools" role="group" aria-label={t('ft.label')}>
+    <div className={`c-tools${props.open ? ' open' : ''}`} role="group" aria-label={t('ft.label')}>
+      <div className="sheet-head">
+        <b>{t('ft.label')}</b>
+        <button className="btn-text" type="button" onClick={props.onClose}>
+          {t('ft.done')}
+        </button>
+      </div>
       {select({
         label: t('ft.agent'),
         value: filter.agent,
@@ -511,17 +554,17 @@ const Filters = (props: {
         onChange: (state) => props.onFilter({ ...filter, state }),
       })}
       <button
-        className="btn"
+        className="pill stale-pill"
         type="button"
         aria-pressed={filter.staleOnly}
         title={staleTip({ t })}
         onClick={() => props.onFilter({ ...filter, staleOnly: !filter.staleOnly })}
       >
-        {t('it.stale')} <span className="c-n num">{props.staleCount}</span>
+        {t('it.stale')} <b className="num">{props.staleCount}</b>
       </button>
       {any ? (
         <button
-          className="btn btn-text"
+          className="btn-text"
           type="button"
           onClick={() => props.onFilter({ agent: null, repo: null, state: null, staleOnly: false })}
         >
@@ -551,7 +594,11 @@ export const ItemPane = (props: {
     state: null,
     staleOnly: false,
   });
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const filter: IWorkFilter = { ...rest, agent: props.agent };
+  const active =
+    [filter.agent, filter.repo, filter.state].filter((value) => value !== null).length +
+    Number(filter.staleOnly);
   const all = BoardWork.listOf({
     views: props.views,
     filter: { agent: null, repo: null, state: null, staleOnly: false },
@@ -599,12 +646,11 @@ export const ItemPane = (props: {
 
   return (
     <section className="c-pane c-items" aria-label={t('Danh sách luồng')}>
-      <div className="c-ph">
+      <div className="c-ph c-bar2">
         <h2>{t('pn.items')}</h2>
         <span className="c-n num" id="flowN">
           {shown.length}
         </span>
-        <span className="c-grow" />
         <div className="seg" role="group" aria-label={t('vw.label')}>
           {WORK_VIEWS.map((view) => (
             <button
@@ -612,22 +658,47 @@ export const ItemPane = (props: {
               type="button"
               data-view={view}
               aria-pressed={props.view === view}
+              aria-label={t(`vw.${view}`)}
+              title={t(`vw.${view}`)}
               onClick={() => props.onView(view)}
             >
-              {t(`vw.${view}`)}
+              {VIEW_ICONS[view]}
+              <span className="lbl">{t(`vw.${view}`)}</span>
             </button>
           ))}
         </div>
+        {all.length === 0 ? null : (
+          <>
+            <button
+              className={`pill f-btn${active > 0 ? ' on' : ''}`}
+              type="button"
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen(!filtersOpen)}
+            >
+              {ICONS.filter}
+              {t('ft.label')}
+              {active > 0 ? <b className="num">{active}</b> : null}
+            </button>
+            <Filters
+              views={all}
+              agents={props.agents}
+              filter={filter}
+              onFilter={onFilter}
+              staleCount={all.filter((view) => BoardWork.isStale({ flow: view.flow, now })).length}
+              open={filtersOpen}
+              onClose={() => setFiltersOpen(false)}
+            />
+            {filtersOpen ? (
+              <button
+                className="scrim"
+                type="button"
+                aria-label={t('Đóng')}
+                onClick={() => setFiltersOpen(false)}
+              />
+            ) : null}
+          </>
+        )}
       </div>
-      {all.length === 0 ? null : (
-        <Filters
-          views={all}
-          agents={props.agents}
-          filter={filter}
-          onFilter={onFilter}
-          staleCount={all.filter((view) => BoardWork.isStale({ flow: view.flow, now })).length}
-        />
-      )}
       <div className="c-scroll" id="groups">
         {body}
         {loose ? (
