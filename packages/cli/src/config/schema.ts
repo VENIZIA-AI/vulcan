@@ -233,6 +233,21 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       }),
     )
     .default([]),
+  /**
+   * Takes items out of an array the shipped defaults or a rule pack added to, after every layer is in: the key is the dotted
+   * name of the array (`atlas.sources`), the items are the strings of the array or, for an array of objects, their identity
+   * (`presets` by `spec`, `atlas.sources` by `name`). An array not listed here, or an item that is not there, is reported by
+   * `vulcan config --effective`.
+   */
+  remove: z
+    .record(
+      z.string().refine((key) => Object.hasOwn(ConfigConstants.LAYERED_ARRAYS, key), {
+        error: () =>
+          `an array that shipped defaults can add to: ${Object.keys(ConfigConstants.LAYERED_ARRAYS).join(', ')}`,
+      }),
+      z.array(z.string().min(1)),
+    )
+    .optional(),
   /** The folders `vulcan init` and `add` put apps in, as the user named them. */
   layout: z
     .strictObject({

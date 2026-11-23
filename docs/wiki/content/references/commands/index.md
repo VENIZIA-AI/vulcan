@@ -58,6 +58,11 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   Tell VULCAN how you like to work (reply language, how to address you,
                                   tone, habits) in .agents/local/profile.json; no argument runs the form,
                                   show prints it, reset deletes it
+  config --effective | --diff
+                                  --effective prints the config as the commands read it (the shipped defaults, the
+                                  config of each pack, then the project file, merged) with the layer each value
+                                  came from; --diff lists the values of the project file that the shipped layers
+                                  already give; read-only; exit 2 on bad input
   clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--events|--release-candidates|--profile] [--include-fresh] [--yes]
                                   List what an agent left under .agents/local/ (a dry run) and, with
                                   --yes, remove it; --tmp is the default and takes stale items only (--include-fresh
@@ -111,6 +116,8 @@ The following list gives each command, its purpose, its exit codes, and its refe
   Exit codes: `0` on success; `1` when the spec is missing or not renderable, nothing is written, or `.agents/local/` is missing.
 - `profile` ([vulcan profile](/references/commands/profile)): Tell VULCAN how you like to work (language, how to address you, tone, habits); `show` prints it, `reset` deletes it.
   Exit codes: `0` on success; `1` when cancelled, unreadable, not gitignored or on an unknown argument.
+- `config` ([vulcan config](/references/commands/config)): Show the config as the commands read it, merged from the shipped defaults, the config of each pack and the project file; `--diff` lists the values the project file repeats.
+  Exit codes: `0` shown; `1` when the config cannot be loaded; `2` on bad input.
 - `clean` ([vulcan clean](/references/commands/clean)): List what an agent left under `.agents/local/` and remove it with `--yes`.
   Exit codes: `0` on a dry run, a removal or nothing to remove; `1` when an item cannot be removed or on an unknown flag.
 - `commit-check` ([vulcan commit-check](/references/commands/commit-check)): Check a commit message for an agent signature and the project's subject shape, as the `commit-msg` hook that `sync` installs does; nothing is checked until `commit.message` turns a check on.

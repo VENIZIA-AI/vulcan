@@ -226,6 +226,19 @@ export class CommandTable {
       exits:
         '0 on saved, shown, reset or nothing to reset; 1 on cancelled, unreadable profile, .agents/local/ not gitignored, or unknown argument.',
     },
+    [VulcanCommands.CONFIG]: {
+      help: `  config --effective | --diff
+                                  --effective prints the config as the commands read it (the shipped defaults, the
+                                  config of each pack, then the project file, merged) with the layer each value
+                                  came from; --diff lists the values of the project file that the shipped layers
+                                  already give; read-only; exit 2 on bad input`,
+      flags: {
+        '--effective': 'Print the merged config as JSON, with where each value came from',
+        '--diff': 'List the values of the project config that equal what the shipped layers give',
+      },
+      unknownExit: ExitCodes.USAGE,
+      exits: '0 on shown; 1 when the config cannot be loaded; 2 on bad input.',
+    },
     [VulcanCommands.CLEAN]: {
       help: `  clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--events|--release-candidates|--profile] [--include-fresh] [--yes]
                                   List what an agent left under .agents/local/ (a dry run) and, with
