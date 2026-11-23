@@ -89,7 +89,9 @@ describe('vulcan sync and the event hooks', () => {
     const found = eventEntries({ root });
 
     expect(found.map((item) => item.name).sort()).toEqual([...HOOK_EVENTS].sort());
-    expect(found.find((item) => item.name === 'PostToolUse')?.entry.matcher).toBe('SendMessage');
+    expect(found.find((item) => item.name === 'PostToolUse')?.entry.matcher).toBe(
+      'SendMessage|TodoWrite',
+    );
 
     for (const { entry } of found) {
       const [hook] = entry.hooks;
@@ -128,7 +130,9 @@ describe('vulcan sync and the event hooks', () => {
     const after = eventEntries({ root });
 
     expect(after.filter((item) => item.name === 'PostToolUse')).toHaveLength(1);
-    expect(after.find((item) => item.name === 'PostToolUse')?.entry.matcher).toBe('SendMessage');
+    expect(after.find((item) => item.name === 'PostToolUse')?.entry.matcher).toBe(
+      'SendMessage|TodoWrite',
+    );
     expect(after.find((item) => item.name === 'Stop')).toBeUndefined();
   });
 

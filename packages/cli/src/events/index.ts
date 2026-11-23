@@ -3,6 +3,8 @@ export * from './actor.ts';
 export * from './command.ts';
 export * from './flow.ts';
 export * from './flow-id.ts';
+export * from './flow-state.ts';
+export * from './flow-steps.ts';
 export * from './project-key.ts';
 export * from './hook.ts';
 export * from './log.ts';

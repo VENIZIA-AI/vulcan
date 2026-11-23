@@ -2,7 +2,8 @@
  * Event log hook (SessionStart, Stop, SubagentStop, Notification and PostToolUse: a SendMessage is a message,
  * any other tool at most one tick per session every 30 seconds): appends one line to the agent event log
  * (src/events/hook.ts) when the manifest says `events.log` is on. It stores names and short labels only -
- * never a message body, the last reply, a command, a path or anything of a tool's input or result.
+ * never a message body, the last reply, a command, a path or anything of a tool's input or result, except
+ * the step text of a `TodoWrite` call, which becomes the steps of the flow (cleaned and redacted).
  *
  * It fails OPEN and says nothing on stdout: input it cannot read, a missing module or a write that fails
  * pass with a note on stderr, and the agent is never held. It imports only the events module, no config and
@@ -19,11 +20,21 @@ if (process.env.VULCAN_GUARDS === 'off') {
 try {
   const { EventHook } = await import('../../src/events/hook.ts');
   const stdin = await Bun.stdin.text();
+  const input = JSON.parse(stdin);
+  // The board's fold is loaded only for a task list, the one call that must know whether a flow is over.
+  let isOver;
+
+  if (input?.tool_name === 'TodoWrite') {
+    const state = await import('../../src/events/flow-state.ts');
+
+    isOver = state.FlowState.isOver;
+  }
 
   EventHook.run({
     root: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-    input: JSON.parse(stdin),
+    input,
     env: process.env,
+    ...(isOver === undefined ? {} : { isOver }),
   });
 } catch (error) {
   // Input that is not JSON is not echoed: Bun's parse error quotes it.

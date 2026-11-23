@@ -11,11 +11,11 @@ import {
   EventSubcommands,
 } from './common/index.ts';
 import type { IEvent, IEventItem, TEventKind, TEventStatus } from './common/index.ts';
-import { BoardFold } from '../board/fold.ts';
-import { BoardStates } from '../board/common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
+import { FlowState } from './flow-state.ts';
+import { FlowSteps } from './flow-steps.ts';
 import { ProjectKey } from './project-key.ts';
 import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
@@ -24,6 +24,8 @@ import { EventText } from './text.ts';
 const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} <flow id>] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${EventStatuses.values().join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
        vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} [${EventFlags.FLOW} <flow id>] ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.NEXT} <text>] [${EventFlags.DUE} <YYYY-MM-DD>] [${EventFlags.REF} <tracker id>]
          [${EventFlags.STEP} <text> | ${EventFlags.STEP_DONE} <text>]... [${EventFlags.CHECK} <text> | ${EventFlags.CHECK_DONE} <text>]... [${EventFlags.APP} <name>]... [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
+       vulcan event step [${EventFlags.FLOW} <flow id>] [${EventFlags.DONE} <step> | ${EventFlags.TODO} <step>] [${EventFlags.NEXT} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
+         (changes one step of the flow's last flow line, or its next step or context, and keeps every other field)
        vulcan event tail [${EventFlags.SINCE} <time>] [${EventFlags.JSON}] [${EventFlags.DIR} <folder>]
 kinds: ${EventKinds.values().join(', ')}
 A flow line without ${EventFlags.FLOW} makes a new flow and prints its id (VULZ-<project.key>-<number>); give that id to every other line of the flow. Ids are never typed by hand.`;
@@ -52,16 +54,181 @@ export class EventCommand {
 
     if (
       parsed === undefined ||
-      (subcommand !== EventSubcommands.ADD && subcommand !== EventSubcommands.TAIL)
+      (subcommand !== EventSubcommands.ADD &&
+        subcommand !== EventSubcommands.STEP &&
+        subcommand !== EventSubcommands.TAIL)
     ) {
-      process.stderr.write(`event: ${USAGE}\n`);
+      return EventCommand.usage();
+    }
 
-      return ExitCodes.USAGE;
+    if (subcommand === EventSubcommands.STEP) {
+      return parsed.lists.length > 0 || parsed.json
+        ? EventCommand.usage()
+        : EventCommand.step({ cwd: opts.cwd, values: parsed.values });
     }
 
     return subcommand === EventSubcommands.ADD
       ? EventCommand.add({ cwd: opts.cwd, values: parsed.values, lists: parsed.lists })
       : EventCommand.tail({ cwd: opts.cwd, values: parsed.values, json: parsed.json });
+  }
+
+  /** The first of `--context` and `--next` that is given and blank. */
+  private static blankFlag(opts: { values: TFlagValues }): string | undefined {
+    return [EventFlags.CONTEXT, EventFlags.NEXT].find(
+      (flag) => opts.values[flag] !== undefined && opts.values[flag].trim() === '',
+    );
+  }
+
+  private static usage(): number {
+    process.stderr.write(`event: ${USAGE}\n`);
+
+    return ExitCodes.USAGE;
+  }
+
+  /**
+   * One step of a flow, or its next step or context, without restating the lists: the flow's last `flow` line is
+   * copied whole with the change. The flow is `--flow`, else the branch's, and it must have a flow line already.
+   */
+  private static step(opts: { cwd: string; values: TFlagValues }): number {
+    const { values } = opts;
+    const allowed = new Set<string>([
+      EventFlags.FLOW,
+      EventFlags.DONE,
+      EventFlags.TODO,
+      EventFlags.NEXT,
+      EventFlags.CONTEXT,
+      EventFlags.ACTOR,
+      EventFlags.DIR,
+    ]);
+    const text = values[EventFlags.DONE] ?? values[EventFlags.TODO];
+    const fail = (message: string): number => {
+      process.stderr.write(`event: ${message}\n`);
+
+      return ExitCodes.USAGE;
+    };
+    const stray = Object.keys(values).find((flag) => !allowed.has(flag));
+
+    if (stray !== undefined) {
+      return fail(`step does not take ${stray}\n${USAGE}`);
+    }
+
+    if (values[EventFlags.DONE] !== undefined && values[EventFlags.TODO] !== undefined) {
+      return fail(`give ${EventFlags.DONE} or ${EventFlags.TODO}, not both`);
+    }
+
+    if (
+      text === undefined &&
+      values[EventFlags.NEXT] === undefined &&
+      values[EventFlags.CONTEXT] === undefined
+    ) {
+      return fail(
+        `step needs ${EventFlags.DONE}, ${EventFlags.TODO}, ${EventFlags.NEXT} or ${EventFlags.CONTEXT}`,
+      );
+    }
+
+    if (
+      text !== undefined &&
+      (EventText.oneLine({ text, max: EventConstants.ITEM_TEXT_MAX }) === '' ||
+        Array.from(text).length > EventConstants.ITEM_TEXT_MAX)
+    ) {
+      return fail(`the step needs a text of 1 to ${EventConstants.ITEM_TEXT_MAX} characters`);
+    }
+
+    const blank = EventCommand.blankFlag({ values });
+
+    if (blank !== undefined) {
+      return fail(`${blank} needs a short text, or leave it out`);
+    }
+
+    const flow = values[EventFlags.FLOW];
+
+    if (flow !== undefined && !EventFlow.isValid({ flow })) {
+      return fail(
+        `${EventFlags.FLOW} must look like VULZ-ACME-12 (the id the command printed), got '${flow}'`,
+      );
+    }
+
+    const dir = EventCommand.dirOf(opts);
+    const key = EventSettings.keyOf({ root: EventSettings.rootOf({ cwd: opts.cwd }) });
+    const known = EventLog.read({ dir }).events;
+    const placed = EventCommand.flowOf({
+      flow: flow ?? EventFlow.fromBranch({ cwd: opts.cwd }),
+      known,
+      key,
+      isFlow: false,
+      dir,
+      explicit: flow !== undefined,
+    });
+
+    if (!placed.ok) {
+      return placed.code;
+    }
+
+    if (placed.flowId === undefined) {
+      return fail(`no flow: give ${EventFlags.FLOW} <id>, or work on a branch that names one`);
+    }
+
+    const last = FlowSteps.lastLine({ events: known, flowId: placed.flowId, key });
+
+    if (last === undefined) {
+      return fail(
+        `${placed.flowId} has no flow line yet. Write it with: vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} ${EventFlags.FLOW} ${placed.flowId} ${EventFlags.TITLE} <text>`,
+      );
+    }
+
+    const steps =
+      text === undefined
+        ? (last.steps ?? [])
+        : FlowSteps.withStep({
+            steps: last.steps ?? [],
+            text,
+            done: values[EventFlags.DONE] !== undefined,
+          });
+
+    if (steps.length > EventConstants.ITEM_COUNT_MAX) {
+      return fail(`at most ${EventConstants.ITEM_COUNT_MAX} steps, got ${steps.length}`);
+    }
+
+    const actor =
+      values[EventFlags.ACTOR] === undefined
+        ? EventActor.resolve({
+            sessionId: process.env[EventConstants.SESSION_ENV],
+            env: process.env,
+          })
+        : EventActor.clean({ text: values[EventFlags.ACTOR] });
+    const event = FlowSteps.continued({
+      last,
+      steps,
+      actor: actor === '' ? EventConstants.UNKNOWN_ACTOR : actor,
+      source: EventSources.CLI,
+      ...(values[EventFlags.NEXT] === undefined ? {} : { next: values[EventFlags.NEXT] }),
+      ...(values[EventFlags.CONTEXT] === undefined ? {} : { context: values[EventFlags.CONTEXT] }),
+    });
+
+    // A change that changes nothing writes nothing: the id printed is the line that already says it.
+    if (
+      FlowSteps.isSame({ first: event.steps ?? [], second: last.steps ?? [] }) &&
+      event.next === last.next &&
+      event.context === last.context
+    ) {
+      process.stdout.write(`${last.id}\n`);
+
+      return ExitCodes.OK;
+    }
+
+    try {
+      EventLog.append({ dir, event });
+    } catch (error) {
+      process.stderr.write(
+        `event: cannot write the log in ${dir}: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+
+      return ExitCodes.FAILURE;
+    }
+
+    process.stdout.write(`${event.id}\n`);
+
+    return ExitCodes.OK;
   }
 
   /** Flags with a value, and `--json`; `undefined` for anything else (the router has already refused unknown flags). */
@@ -162,12 +329,12 @@ export class EventCommand {
       return ExitCodes.USAGE;
     }
 
-    for (const flag of [EventFlags.CONTEXT, EventFlags.NEXT]) {
-      if (values[flag] !== undefined && values[flag].trim() === '') {
-        process.stderr.write(`event: ${flag} needs a short text, or leave it out\n`);
+    const blank = EventCommand.blankFlag({ values });
 
-        return ExitCodes.USAGE;
-      }
+    if (blank !== undefined) {
+      process.stderr.write(`event: ${blank} needs a short text, or leave it out\n`);
+
+      return ExitCodes.USAGE;
     }
 
     if (flow !== undefined && !EventFlow.isValid({ flow })) {
@@ -320,23 +487,6 @@ export class EventCommand {
   }
 
   /**
-   * Whether the board would show the flow as Done or Parked: the board's own fold decides, so the command and the page
-   * cannot disagree. A merge only the GitHub reader sees is not in the log, so it is not seen here.
-   */
-  private static isOver(opts: { events: IEvent[]; id: string; key: string | undefined }): boolean {
-    const wanted = FlowId.canon({ id: opts.id, key: opts.key });
-    const lines = BoardFold.fromLog({ events: opts.events }).events.map((event) => ({
-      ...event,
-      flowId: FlowId.canon({ id: event.flowId, key: opts.key }),
-    }));
-    const state = BoardFold.fold({ events: lines, owner: '' }).flows.find(
-      (flow) => flow.id === wanted,
-    )?.state;
-
-    return state === BoardStates.DONE || state === BoardStates.PARKED;
-  }
-
-  /**
    * The flow a line belongs to. A flow named with `--flow` must exist (an id is never made up by hand). A flow line that
    * names none either updates the flow of its branch, when the branch names one that exists and is not over, or starts a
    * new flow with the next number. The exit code comes back when the line cannot be written.
@@ -355,7 +505,7 @@ export class EventCommand {
     if (
       flow !== undefined &&
       FlowId.exists({ events: known, id: flow, key }) &&
-      (opts.explicit || !opts.isFlow || !EventCommand.isOver({ events: known, id: flow, key }))
+      (opts.explicit || !opts.isFlow || !FlowState.isOver({ events: known, flowId: flow, key }))
     ) {
       return { ok: true, flowId: flow };
     }

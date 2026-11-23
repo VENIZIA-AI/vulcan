@@ -167,7 +167,7 @@ export class CommandTable {
         '0 on written or serve stopped; 1 when the file cannot be written or serve cannot start; 2 on bad input.',
     },
     [VulcanCommands.EVENT]: {
-      help: `  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] | tail [--since <time>] [--json] [--dir <folder>]
+      help: `  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] | step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] | tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
                                   read it; with events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input`,
@@ -178,6 +178,8 @@ export class CommandTable {
         [EventFlags.KIND]: 'One of the twelve event kinds',
         [EventFlags.SUMMARY]: 'A short label, cut to one line of 200 characters',
         [EventFlags.FLOW]: 'The id of a flow the log already has',
+        [EventFlags.DONE]: 'step: set this step of the flow done (added when it is not there)',
+        [EventFlags.TODO]: 'step: set this step of the flow open (added when it is not there)',
         [EventFlags.STEP]: 'Flow only, repeatable: a step still to do',
         [EventFlags.STEP_DONE]: 'Flow only, repeatable: a step done',
         [EventFlags.CHECK]: 'Flow only, repeatable: an acceptance check still open',
