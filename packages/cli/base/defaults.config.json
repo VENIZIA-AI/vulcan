@@ -49,11 +49,9 @@
         "deny": [
           "Bash(date *-s*)",
           "Bash(date *--set*)",
+          "Bash(git *--output*)",
           "Bash(rg *--pre*)",
           "Bash(rg *--hostname-bin*)",
-          "Bash(git log *--output*)",
-          "Bash(git diff *--output*)",
-          "Bash(git show *--output*)",
           "Bash(git log *--ext-diff*)",
           "Bash(git diff *--ext-diff*)",
           "Bash(git show *--ext-diff*)",

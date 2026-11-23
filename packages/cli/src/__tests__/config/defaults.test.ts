@@ -49,7 +49,7 @@ const effective = async (config: string) => {
 describe('what the base and the venizia pack ship', () => {
   test('the audited read-only allow list, its companion denies, the digest ids and the one acknowledgement', () => {
     expect(base.claude.settings.permissions.allow).toHaveLength(42);
-    expect(base.claude.settings.permissions.deny).toHaveLength(16);
+    expect(base.claude.settings.permissions.deny).toHaveLength(14);
     expect(base.digest?.oftenDropped).toEqual([
       'V-P-07',
       'V-B-03',
@@ -231,9 +231,15 @@ describe('every companion deny matches the flag form it targets', () => {
     'Bash(date *--set*)': ['date --set=2020-01-01'],
     'Bash(rg *--pre*)': ['rg --pre cat foo', 'rg foo --pre=./run.sh'],
     'Bash(rg *--hostname-bin*)': ['rg --hostname-bin ./h foo'],
-    'Bash(git log *--output*)': ['git log --output=out', 'git log -5 --output out'],
-    'Bash(git diff *--output*)': ['git diff --output=out', 'git diff HEAD~1 --output out'],
-    'Bash(git show *--output*)': ['git show --output=out HEAD'],
+    'Bash(git *--output*)': [
+      'git log --output=out',
+      'git log -5 --output out',
+      'git diff --output=out',
+      'git diff HEAD~1 --output out',
+      'git show --output=out HEAD',
+      'git rev-list --output=x HEAD',
+      'git blame --output=x f',
+    ],
     'Bash(git log *--ext-diff*)': ['git log -p --ext-diff'],
     'Bash(git diff *--ext-diff*)': ['git diff --ext-diff'],
     'Bash(git show *--ext-diff*)': ['git show --ext-diff HEAD'],
@@ -304,6 +310,13 @@ describe('every companion deny matches the flag form it targets', () => {
         command,
       ).toBe(false);
     }
+  });
+
+  test('the date deny is not widened to a grouped form: it would refuse `date -u +%s`, which only reads', () => {
+    expect(deny.some((rule) => matches({ rule, command: 'date -u +%s' }))).toBe(false);
+    expect(deny.some((rule) => matches({ rule, command: 'date -d @0 +%s' }))).toBe(false);
+    // `date -us x` (grouped) is a known limit: setting the clock needs root, and it fails without it.
+    expect(deny.some((rule) => matches({ rule, command: 'date -us x' }))).toBe(false);
   });
 
   test('known limits, written down: a flag glued to its value, and an environment prefix, are not seen by a pattern', () => {
