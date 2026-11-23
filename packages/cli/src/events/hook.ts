@@ -1,6 +1,6 @@
 import { RecordValue } from '../common/record.ts';
 import { ClaudeHookEvents, EventConstants, EventKinds, EventSources } from './common/index.ts';
-import type { IEvent, IHookEvent } from './common/index.ts';
+import type { IEvent, IHookEvent, TEventKind } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowSteps } from './flow-steps.ts';
@@ -203,6 +203,58 @@ export class EventHook {
   }
 
   /**
+   * A shell call that committed, opened a pull request or merged one: a line of the fixed label for it, on the flow of the
+   * branch, else the one this session last opened or updated (none when neither is found). The command itself is never
+   * read here; the script gives only its class, and every other shell call writes nothing.
+   */
+  private static logActivity(opts: {
+    dir: string;
+    root: string;
+    input: Record<string, unknown>;
+    env: Record<string, string | undefined>;
+    now?: number;
+    activity?: string;
+  }): IEvent | undefined {
+    const labels: Record<string, { kind: TEventKind; summary: string }> = {
+      commit: { kind: EventKinds.COMMIT, summary: EventConstants.COMMIT_LABEL },
+      'pr-open': { kind: EventKinds.PR, summary: EventConstants.PR_OPEN_LABEL },
+      'pr-merge': { kind: EventKinds.PR, summary: EventConstants.PR_MERGE_LABEL },
+    };
+    const label = opts.activity === undefined ? undefined : labels[opts.activity];
+
+    if (label === undefined) {
+      return undefined;
+    }
+
+    const actor = EventActor.resolve({
+      sessionId: text({ value: opts.input.session_id }),
+      env: opts.env,
+    });
+    const flowId =
+      EventFlow.fromBranch({ cwd: text({ value: opts.input.cwd }) || opts.root }) ??
+      FlowSteps.lastOpenedBy({
+        events: EventLog.read({
+          dir: opts.dir,
+          since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
+        }).events,
+        actor,
+        isOver: () => false,
+      });
+    const event = EventLog.build({
+      kind: label.kind,
+      summary: label.summary,
+      actor,
+      source: EventSources.CLAUDE_HOOK,
+      ...(flowId === undefined ? {} : { flowId }),
+      ...(opts.now === undefined ? {} : { now: opts.now }),
+    });
+
+    EventLog.append({ dir: opts.dir, event });
+
+    return event;
+  }
+
+  /**
    * Logs what a payload stands for, when the manifest says the log is on. Returns the line it wrote.
    * `root` is the project, where the manifest is; the flow comes from the message, else the branch at the
    * payload's `cwd`.
@@ -214,11 +266,24 @@ export class EventHook {
     now?: number;
     /** `FlowState.isOver`, given by the script only for a `TodoWrite` call: it reaches the board, which the other calls do not load. */
     isOver?: TIsOver;
+    /** What a `Bash` call did, as `GitActivity.classify` says it (the script reads the command and passes only the class). */
+    activity?: string;
   }): IEvent | undefined {
     const settings = EventSettings.read({ root: opts.root });
 
     if (!settings.log) {
       return undefined;
+    }
+
+    if (RecordValue.isRecord(opts.input) && opts.input.tool_name === ClaudeHookEvents.BASH_TOOL) {
+      return EventHook.logActivity({
+        dir: EventSettings.dirOf({ root: opts.root, settings }),
+        root: opts.root,
+        input: opts.input,
+        env: opts.env,
+        ...(opts.now === undefined ? {} : { now: opts.now }),
+        ...(opts.activity === undefined ? {} : { activity: opts.activity }),
+      });
     }
 
     if (RecordValue.isRecord(opts.input) && opts.input.tool_name === ClaudeHookEvents.TODO_TOOL) {

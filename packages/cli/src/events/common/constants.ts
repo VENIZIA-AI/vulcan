@@ -102,6 +102,8 @@ export class ClaudeHookEvents {
   static readonly SEND_MESSAGE_TOOL = 'SendMessage';
   /** The task-list tool whose list is mirrored into the steps of the flow. */
   static readonly TODO_TOOL = 'TodoWrite';
+  /** The shell tool: only its class of command (a commit, a pull request opened or merged) is logged, never the command. */
+  static readonly BASH_TOOL = 'Bash';
   /** The notification types that mean an agent waits for a person; `auth_success` does not. */
   static readonly OWNER_NOTIFICATIONS = new Set<string>([
     'permission_prompt',
@@ -136,11 +138,17 @@ export class EventConstants {
   static readonly CONTEXT_MAX = 600;
   /** What a sent message is called when its sender gave no label: the text of a message is never used. */
   static readonly MESSAGE_SENT_LABEL = 'message sent';
+  /** The fixed summaries of the lines the Bash hook writes, and what the Stop hook looks for. */
+  static readonly COMMIT_LABEL = 'commit';
+  static readonly PR_OPEN_LABEL = 'pull request opened';
+  static readonly PR_MERGE_LABEL = 'pull request merge';
   static readonly REF_MAX = 120;
   /** A flow line's lists: how many items, and how long one is. */
   static readonly ITEM_COUNT_MAX = 30;
   /** How far back the task-list mirror looks for the flow's last line: it reads the log on every `TodoWrite`. */
   static readonly MIRROR_DAYS = 3;
+  /** The Stop hook asks git once, and gives up (no block) past this. */
+  static readonly STOP_GIT_TIMEOUT_MS = 2000;
   /** How many of a session's flows are checked for being over before the search gives up. */
   static readonly LAST_OPENED_CHECKS = 5;
   static readonly ITEM_TEXT_MAX = 200;

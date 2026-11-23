@@ -12,8 +12,9 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 const SRC = join(import.meta.dir, '..', '..');
-const HOOK_EVENTS = ['SessionStart', 'SubagentStop', 'Notification', 'PostToolUse'];
+const HOOK_EVENTS = ['SessionStart', 'SubagentStop', 'Notification', 'PostToolUse', 'Stop'];
 const HOOK = 'node_modules/@venizia/vulcan/base/hooks/event.ts';
+const STOP_HOOK = 'node_modules/@venizia/vulcan/base/hooks/board-stop.ts';
 
 const parse = (events: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ events });
 const config = (opts: { events?: string; hooks?: string }) =>
@@ -34,7 +35,9 @@ const settingsOf = (opts: {
 const eventEntries = (opts: { root: string }) =>
   Object.entries(settingsOf(opts).hooks ?? {}).flatMap(([name, entries]) =>
     entries
-      .filter((entry) => entry.hooks.some((hook) => hook.command.includes(HOOK)))
+      .filter((entry) =>
+        entry.hooks.some((hook) => hook.command.includes(HOOK) || hook.command.includes(STOP_HOOK)),
+      )
       .map((entry) => ({ name, entry })),
   );
 
@@ -80,7 +83,7 @@ describe('the manifest', () => {
 });
 
 describe('vulcan sync and the event hooks', () => {
-  test('log: true installs one entry per event, SendMessage only on PostToolUse, fast and fail-open', () => {
+  test('log: true installs one entry per event, SendMessage, TodoWrite and Bash only on PostToolUse, fast and fail-open', () => {
     const root = projectWith({ events: '{ log: true }' });
     const result = sync({ root });
 
@@ -90,13 +93,13 @@ describe('vulcan sync and the event hooks', () => {
 
     expect(found.map((item) => item.name).sort()).toEqual([...HOOK_EVENTS].sort());
     expect(found.find((item) => item.name === 'PostToolUse')?.entry.matcher).toBe(
-      'SendMessage|TodoWrite',
+      'SendMessage|TodoWrite|Bash',
     );
 
-    for (const { entry } of found) {
+    for (const { entry, name } of found) {
       const [hook] = entry.hooks;
 
-      expect(hook.timeout).toBe(5);
+      expect(hook.timeout).toBe(name === 'Stop' ? 10 : 5);
       expect(hook.command).toEndWith('exit 0');
     }
 
@@ -104,7 +107,7 @@ describe('vulcan sync and the event hooks', () => {
     expect(eventEntries({ root })).toHaveLength(HOOK_EVENTS.length);
   });
 
-  test('an old install, whose PostToolUse entry has no matcher and which has a Stop entry, is replaced by the new one: a matcher for SendMessage, no Stop', () => {
+  test('an old install, whose PostToolUse entry has no matcher and which has a Stop entry that ran the event script, is replaced by the new one: a matcher for SendMessage, TodoWrite and Bash, and the board Stop hook', () => {
     const root = projectWith({ events: '{ log: true }' });
 
     sync({ root });
@@ -131,9 +134,13 @@ describe('vulcan sync and the event hooks', () => {
 
     expect(after.filter((item) => item.name === 'PostToolUse')).toHaveLength(1);
     expect(after.find((item) => item.name === 'PostToolUse')?.entry.matcher).toBe(
-      'SendMessage|TodoWrite',
+      'SendMessage|TodoWrite|Bash',
     );
-    expect(after.find((item) => item.name === 'Stop')).toBeUndefined();
+    // The old Stop entry ran the event script; the one now installed is the board's own, and there is only one.
+    const stops = after.filter((item) => item.name === 'Stop');
+
+    expect(stops).toHaveLength(1);
+    expect(stops[0]?.entry.hooks[0]?.command).toContain('hooks/board-stop.ts');
   });
 
   test('log off installs none; a dir alone installs none', () => {

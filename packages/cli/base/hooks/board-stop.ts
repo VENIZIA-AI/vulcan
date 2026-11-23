@@ -1,0 +1,40 @@
+/**
+ * Board hook (Stop): holds the end of a turn once when the board is out of step with the work of the turn (a commit, a
+ * pull request or an edit of tracked files since the flow's last line, or a merge with steps still open) and prints the
+ * exact `vulcan event step` command to run (src/events/stop.ts). Only with `events.log` on.
+ *
+ * It fails OPEN: input it cannot read, a missing module, a git that is slow or absent, any error passes with a note on
+ * stderr and no block. `VULCAN_GUARDS=off` switches it off.
+ */
+
+// A module, so the awaits below are top-level; it has no static import, by design.
+export {};
+
+if (process.env.VULCAN_GUARDS === 'off') {
+  process.exit(0);
+}
+
+try {
+  const { BoardStop } = await import('../../src/events/stop.ts');
+  const { FlowState } = await import('../../src/events/flow-state.ts');
+  const stdin = await Bun.stdin.text();
+  const decision = BoardStop.decide({
+    root: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+    input: JSON.parse(stdin),
+    env: process.env,
+    isOver: FlowState.isOver,
+  });
+
+  if (decision !== undefined) {
+    process.stdout.write(`${JSON.stringify(decision)}\n`);
+  }
+} catch (error) {
+  const reason =
+    error instanceof SyntaxError
+      ? 'unreadable input'
+      : error instanceof Error
+        ? error.message
+        : String(error);
+
+  console.error(`vulcan: the board stop hook failed (${reason}) - the turn ends`);
+}
