@@ -134,13 +134,12 @@ const themeBlockOf = (opts: { config: TResolvedConfig }): { theme?: Record<strin
 
 /** The manifest's `board` block, which `vulcan board` reads: only what the project sets. */
 const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<string, unknown> } => {
-  const { owner, title, logo, hostname, agents, serve } = opts.config.board;
+  const { owner, title, logo, hostname, agents } = opts.config.board;
 
   return owner === undefined &&
     title === undefined &&
     hostname === undefined &&
     logo === undefined &&
-    !serve.autoStart &&
     Object.keys(agents).length === 0
     ? {}
     : {
@@ -150,7 +149,6 @@ const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<strin
           ...(logo === undefined ? {} : { logo }),
           ...(hostname === undefined ? {} : { hostname }),
           ...(Object.keys(agents).length === 0 ? {} : { agents }),
-          ...(serve.autoStart ? { serve: { autoStart: true } } : {}),
         },
       };
 };

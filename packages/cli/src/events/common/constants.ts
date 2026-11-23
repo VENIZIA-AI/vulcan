@@ -204,6 +204,8 @@ export class EventConstants {
   static readonly STALE_FLOW_MS = 2 * 60 * 60 * 1000;
   /** The folder of the events folder that holds, per session, when it was last reminded of a stale flow. */
   static readonly STALE_REMINDER_DIR = '.stale-reminders';
+  /** A reminder file this old (by its modified time) is removed the next time one is written. */
+  static readonly STALE_REMINDER_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
 }
 
 /**

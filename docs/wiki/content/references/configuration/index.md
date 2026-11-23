@@ -816,7 +816,6 @@ The `board` object names what [`vulcan board`](/references/commands/board) puts 
 | `logo` | `string` | none | A path inside the project to an `.svg` file |
 | `hostname` | `string` | `'vulz-board.venizia.ai.localhost'` | The name in the address of `vulcan board serve` |
 | `agents` | `Record<string, Face \| { shape?, lane?, role? }>` | `{}` | The agents of the board |
-| `serve.autoStart` | `boolean` | `false` | Start `vulcan board serve` at session start, when the event log is on and nothing listens on its port |
 
 - `logo` has no leading `/` and no `..` segment; the board also refuses a file that, with links resolved, lies outside the project.
 - `hostname` is lowercase and ends in `.localhost` (a browser resolves it to your own machine by itself). See [vulcan board](/references/commands/board).

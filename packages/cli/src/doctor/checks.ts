@@ -635,16 +635,17 @@ export class ProjectContract {
       ...(stored.ok ? [] : [at(stored.error)]),
       ...unknown.map((key) =>
         at(
-          `unknown key '${key}': this file reads schemaVersion, agents, board.agents, local.tmp and events.dir`,
+          `unknown key '${key}': this file reads schemaVersion, agents, board.agents, board.serve.autoStart, local.tmp and events.dir`,
         ),
       ),
       ...((own.tmp !== undefined ||
         own.boardAgents !== undefined ||
+        own.autoStart !== undefined ||
         EventSettings.localDir({ root: opts.root }) !== undefined) &&
       AgentFiles.isTracked({ root: opts.root, path: file })
         ? [
             at(
-              'git tracks this personal file, which sets board.agents, local.tmp or events.dir - run: git rm --cached .agents/vulcan.local.json',
+              'git tracks this personal file, which sets board.agents, board.serve.autoStart, local.tmp or events.dir - run: git rm --cached .agents/vulcan.local.json',
             ),
           ]
         : []),
@@ -770,13 +771,13 @@ export class ProjectContract {
 
   /** `board.serve.autoStart` with `events.log` off: the session start starts no board then. A note. */
   static checkBoardAutoStart(opts: ICheckContext): IViolation[] {
-    return opts.config.board.serve.autoStart && !opts.config.events.log
+    return LocalSettings.read({ root: opts.root }).autoStart === true && !opts.config.events.log
       ? [
           createViolation({
             check: DoctorChecks.BOARD_AUTOSTART,
             file: opts.configFile,
             message:
-              'board.serve.autoStart is on, but events.log is off, so the session start does not start the board: set events.log to true',
+              'board.serve.autoStart is on in .agents/vulcan.local.json, but events.log is off, so the session start does not start the board: set events.log to true',
           }),
         ]
       : [];

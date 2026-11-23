@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ProjectLayout } from '../common/constants.ts';
 import { GitQueries } from '../hooks/git-queries.ts';
@@ -6,6 +6,7 @@ import { RecordValue } from '../common/record.ts';
 import { EventConstants, EventKinds } from './common/index.ts';
 import type { TIsOver } from './common/index.ts';
 import { FlowId } from './flow-id.ts';
+import { EventText } from './text.ts';
 import { SessionFlow } from './session-flow.ts';
 import type { ISessionFlow } from './session-flow.ts';
 import { EventSettings } from './settings.ts';
@@ -24,8 +25,6 @@ const WORK_KINDS = new Set<string>([
 
 /** The most open steps the reason lists as ready commands. */
 const STEPS_LISTED = 5;
-
-const shellQuote = (opts: { text: string }): string => `'${opts.text.replaceAll("'", "'\\''")}'`;
 
 /**
  * The `Stop` hook: it holds the end of a turn once when the board is out of step with the work of the turn, and says
@@ -165,7 +164,8 @@ export class BoardStop {
 
     try {
       mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, String(now));
+      writeFileSync(file, String(now), { mode: 0o600 });
+      BoardStop.pruneReminders({ dir: dirname(file), now });
     } catch {
       // A reminder that cannot be remembered would repeat every turn: no reminder.
       return undefined;
@@ -184,19 +184,34 @@ export class BoardStop {
     };
   }
 
+  /** Removes the reminder files nobody has touched for `STALE_REMINDER_KEEP_MS`; a file that cannot be read or removed stays. */
+  private static pruneReminders(opts: { dir: string; now: number }): void {
+    try {
+      for (const name of readdirSync(opts.dir)) {
+        const path = join(opts.dir, name);
+
+        if (opts.now - statSync(path).mtimeMs > EventConstants.STALE_REMINDER_KEEP_MS) {
+          unlinkSync(path);
+        }
+      }
+    } catch {
+      // Best effort: an old file is a few bytes.
+    }
+  }
+
   private static reasonOf(opts: {
     flow: string;
     title: string;
     open: { text: string }[];
     why: string;
   }): string {
-    const command = `${ProjectLayout.VULCAN_COMMAND} event step --flow ${opts.flow}`;
+    const command = `${ProjectLayout.VULCAN_COMMAND} event step --flow ${EventText.shellQuote({ text: opts.flow })}`;
     const shown = opts.open.slice(0, STEPS_LISTED);
 
     return [
       `The board is out of step: flow ${opts.flow} (${opts.title}). ${opts.why}.`,
       'Run what applies, then finish your turn:',
-      ...shown.map((step) => `  ${command} --done ${shellQuote({ text: step.text })}`),
+      ...shown.map((step) => `  ${command} --done ${EventText.shellQuote({ text: step.text })}`),
       ...(opts.open.length > shown.length
         ? [`  (${opts.open.length - shown.length} more open steps are in the flow)`]
         : []),

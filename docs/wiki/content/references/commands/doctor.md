@@ -54,7 +54,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `guards` (note) | Notes list each `guard.writes.commands` pattern and `guard.git.askPush` | Change the list in the config |
 | `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `local.tmp` to a short folder and run `vulcan sync`, or check out at a shorter path |
 | `local` (failure) | `local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
-| `board-autostart` (note) | `board.serve.autoStart` is on and `events.log` is off, so no board is started | Set `events.log` to `true`, or turn `autoStart` off |
+| `board-autostart` (note) | `board.serve.autoStart` of `.agents/vulcan.local.json` is on and `events.log` is off, so no board is started | Set `events.log` to `true`, or turn `autoStart` off |
 | `config-defaults` (note) | N values of the config repeat what the shipped defaults give | Run `vulcan config --diff` and delete them |
 | `config-remove` (warning) | A `remove` entry matches nothing, so it does nothing | Delete the entry |
 | `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it, or delete `packages` so it is derived from the workspaces |
@@ -302,7 +302,7 @@ A warning: today's event file is bigger than `events.maxSize` on its own. The re
 
 ### board-autostart
 
-A note: `board.serve.autoStart` is on, but the session start starts the board only when the event log is on too. Set `events.log` to `true` to get the board, or turn `autoStart` off.
+A note: `board.serve.autoStart` is on in `.agents/vulcan.local.json`, but the session start starts the board only when the event log is on too. Set `events.log` to `true` to get the board, or turn `autoStart` off.
 
 ### config-defaults
 

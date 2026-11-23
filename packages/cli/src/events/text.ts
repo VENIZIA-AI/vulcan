@@ -3,6 +3,11 @@ import type { IEventItem } from './common/index.ts';
 
 /** The words that go into a log line: one line, no secret-shaped token, a fixed length. */
 export class EventText {
+  /** `text` as one single-quoted shell word: a quote in it is closed, escaped and reopened. */
+  static shellQuote(opts: { text: string }): string {
+    return `'${opts.text.replaceAll("'", "'\\''")}'`;
+  }
+
   /** `text` with every secret-shaped token replaced. Best effort: the writer keeps secrets out of its summary. */
   static redact(opts: { text: string }): string {
     let text = opts.text;

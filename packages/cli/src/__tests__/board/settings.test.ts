@@ -19,7 +19,6 @@ describe('board in the config', () => {
   test('nothing is set by default', () => {
     expect(VULCAN_CONFIG_SCHEMA.parse({}).board).toEqual({
       agents: {},
-      serve: { autoStart: false },
     });
   });
 

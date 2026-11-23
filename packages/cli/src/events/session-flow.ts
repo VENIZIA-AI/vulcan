@@ -62,7 +62,13 @@ export class SessionFlow {
     const last =
       flowId === undefined ? undefined : FlowSteps.lastLine({ events: known, flowId, key });
 
-    if (flowId === undefined || last === undefined || opts.isOver({ events: known, flowId, key })) {
+    // The id goes into a command the agent may run: only a well-formed flow id is ever named.
+    if (
+      flowId === undefined ||
+      !EventConstants.FLOW_EXACT.test(flowId) ||
+      last === undefined ||
+      opts.isOver({ events: known, flowId, key })
+    ) {
       return undefined;
     }
 

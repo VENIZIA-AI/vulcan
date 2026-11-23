@@ -11,7 +11,11 @@ import { RecordValue } from './record.ts';
  * committed one applies. `vulcan doctor` says what is wrong.
  */
 export class LocalSettings {
-  static read(opts: { root: string }): { tmp?: string; boardAgents?: unknown } {
+  static read(opts: { root: string }): {
+    tmp?: string;
+    boardAgents?: unknown;
+    autoStart?: boolean;
+  } {
     try {
       const file: unknown = JSON.parse(
         readFileSync(join(opts.root, AgentConstants.LOCAL_FILE), 'utf8'),
@@ -20,6 +24,8 @@ export class LocalSettings {
       const board = RecordValue.isRecord(file) ? file['board'] : undefined;
       const tmp = RecordValue.isRecord(local) ? local['tmp'] : undefined;
       const agents = RecordValue.isRecord(board) ? board['agents'] : undefined;
+      const serve = RecordValue.isRecord(board) ? board['serve'] : undefined;
+      const autoStart = RecordValue.isRecord(serve) ? serve['autoStart'] : undefined;
 
       return {
         ...(typeof tmp === 'string' &&
@@ -27,6 +33,7 @@ export class LocalSettings {
           ? { tmp }
           : {}),
         ...(RecordValue.isRecord(agents) ? { boardAgents: agents } : {}),
+        ...(typeof autoStart === 'boolean' ? { autoStart } : {}),
       };
     } catch {
       return {};

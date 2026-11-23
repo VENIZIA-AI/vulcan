@@ -245,6 +245,7 @@ export class BoardCommand {
     try {
       const { url, fallback, note } = await BoardServer.start({
         port,
+        strictPort: args.port !== undefined,
         dir: opts.dir,
         hostname,
         collect,

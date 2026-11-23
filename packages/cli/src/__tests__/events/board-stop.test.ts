@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { GitActivity } from '../../hooks/git-activity.ts';
@@ -109,9 +109,9 @@ describe('the Stop hook decides', () => {
 
     expect(held?.decision).toBe('block');
     expect(held?.reason).toContain(
-      `bun node_modules/.bin/vulcan event step --flow ${FLOW} --done 'Refresh'`,
+      `bun node_modules/.bin/vulcan event step --flow '${FLOW}' --done 'Refresh'`,
     );
-    expect(held?.reason).toContain(`event step --flow ${FLOW} --next with the real state`);
+    expect(held?.reason).toContain(`event step --flow '${FLOW}' --next with the real state`);
     expect(held?.reason).not.toContain('where the work stands');
     expect(held?.reason).not.toContain("--done 'Token'");
 
@@ -247,7 +247,7 @@ describe('a stale flow is reminded once per two hours', () => {
 
     expect(held?.decision).toBe('block');
     expect(held?.reason).toContain('no update for 3 hours and steps are still open');
-    expect(held?.reason).toContain(`event step --flow ${FLOW} --done 'Refresh'`);
+    expect(held?.reason).toContain(`event step --flow '${FLOW}' --done 'Refresh'`);
     expect(stop({ root, now: T0 + HOUR })).toBeUndefined();
   });
 
@@ -284,6 +284,30 @@ describe('a stale flow is reminded once per two hours', () => {
     line({ root: worked, kind: 'commit', summary: 'commit', at: T0 + 2 * HOUR });
     flowLine({ root: worked, at: T0 + 2 * HOUR + 1000 });
     expect(stop({ root: worked, now: T0 + 3 * HOUR })).toBeUndefined();
+  });
+
+  test('a commit alone counts as work: a flow whose last work is a commit an hour ago is not stale', () => {
+    const root = project();
+
+    flowLine({ root, at: T0 });
+    line({ root, kind: 'commit', summary: 'commit', at: T0 + 2 * HOUR + 30 * 60_000 });
+    // The commit also holds this turn on its own (no flow line since); the stale reminder is not the reason.
+    const held = stop({ root, now: T0 + 3 * HOUR });
+
+    expect(held?.reason ?? '').not.toContain('no update for');
+  });
+
+  test('the reminder file is private, named by the actor, and old ones are removed when a new one is written', () => {
+    const root = project();
+    const folder = join(dirOf(root), '.stale-reminders');
+
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, 'old-actor'), '1');
+    utimesSync(join(folder, 'old-actor'), 1, 1);
+    flowLine({ root, at: T0 });
+    expect(stop({ root, now: T0 + 3 * HOUR })?.decision).toBe('block');
+    expect(statSync(join(folder, ACTOR)).mode % 0o1000).toBe(0o600);
+    expect(existsSync(join(folder, 'old-actor'))).toBe(false);
   });
 
   test('no open step, a session with no line in the flow, and an active hook are left alone', () => {
@@ -493,7 +517,7 @@ describe('the scripts', () => {
 
     expect(held.exitCode).toBe(0);
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toContain(`event step --flow ${FLOW}`);
+    expect(parsed.reason).toContain(`event step --flow '${FLOW}'`);
     expect(again.stdout.toString()).toBe('');
     expect(run({ script: 'board-stop.ts', root, input: 'not an object' }).exitCode).toBe(0);
   });

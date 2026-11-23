@@ -672,6 +672,32 @@ describe('vulcan board serve', () => {
     await busy.stop(true);
   });
 
+  test('an explicit port is strict: a busy port is an error, nothing starts on another one (a board started twice at once)', async () => {
+    const { root, dir } = projectWithLog();
+    const busy = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: () => new Response('x') });
+    const port = busy.port ?? 0;
+    const failure = await BoardServer.start({
+      dir,
+      collect: () =>
+        BoardCommand.collect({ root, dir, since: SINCE, args: { repos: [], noGithub: true } }),
+      port,
+      strictPort: true,
+    }).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(Error);
+    expect(String(failure)).toContain('in use');
+    await busy.stop(true);
+  });
+
+  test('every refusal carries the identity header, so a probe knows a VULCAN board without the token', async () => {
+    const { root, dir } = projectWithLog();
+    const server = await startOn({ root, dir, port: 0 });
+    const bare = await fetch(`http://127.0.0.1:${new URL(server.url).port}/`);
+
+    expect(bare.status).toBe(403);
+    expect(bare.headers.get('x-vulcan-board')).toBe('1');
+  });
+
   test('stop closes the port', async () => {
     const { root, dir } = projectWithLog();
     const server = await startOn({ root, dir, port: 0 });

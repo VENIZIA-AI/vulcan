@@ -9,6 +9,8 @@ import { BoardWatch } from './watch.ts';
 
 interface IBoardServerOptions {
   port: number;
+  /** With an explicit `--port`, a busy port is an error and not a fallback to another one. */
+  strictPort?: boolean;
   /** The name of the address; default `BoardServe.DEFAULT_HOSTNAME`. The server still listens on 127.0.0.1 only. */
   hostname?: string;
   /** The events folder to watch; a read of the board happens when it changes. */
@@ -110,7 +112,7 @@ export class BoardServer {
       : { status: 404 };
   }
 
-  /** Starts the server on `port`, or on a free one when it is busy. */
+  /** Starts the server on `port`; when it is busy, on a free one, unless `strictPort` (an explicit `--port`) makes that an error. */
   static async start(
     opts: IBoardServerOptions,
   ): Promise<{ url: string; fallback: string; note?: string }> {
@@ -147,6 +149,7 @@ export class BoardServer {
     } catch (error) {
       if (
         opts.port === 0 ||
+        opts.strictPort === true ||
         !(error instanceof Error) ||
         !('code' in error) ||
         error.code !== 'EADDRINUSE'
@@ -371,7 +374,10 @@ export class BoardServer {
       return BoardServer.openStream({ request, server });
     }
 
-    return new Response(null, { status: verdict.status });
+    return new Response(null, {
+      status: verdict.status,
+      headers: { [BoardServe.IDENTITY_HEADER]: BoardServe.IDENTITY_VALUE },
+    });
   }
 
   private static openStream(opts: { request: Request; server: Server<undefined> }): Response {
