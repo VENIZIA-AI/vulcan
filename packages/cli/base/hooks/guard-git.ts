@@ -28,6 +28,7 @@ try {
   const { GuardDecisions } = await import('../../src/hooks/common/index.ts');
   const { HookDecision } = await import('../../src/hooks/decision.ts');
   const { GitGuard } = await import('../../src/hooks/guard-git.ts');
+  const { FlowGuard } = await import('../../src/hooks/flow-guard.ts');
   const { PackageSwap } = await import('../../src/hooks/package-swap.ts');
   const { RunnerGuard } = await import('../../src/hooks/guard-runner.ts');
   const { WriteGuard } = await import('../../src/hooks/guard-writes.ts');
@@ -35,9 +36,29 @@ try {
   const hookCommand = WriteGuard.parseHookCommand({ text });
   const cwd = hookCommand?.cwd ?? process.cwd();
   const policy = ProjectGuards.readPolicy({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd });
+  // The board's fold is loaded only for a line that names git, gh or glab, in the one project kind that holds the rule.
+  const root = process.env.CLAUDE_PROJECT_DIR ?? cwd;
+  let isOver;
+
+  if (hookCommand && /\b(git|gh|glab)\b/.test(hookCommand.command)) {
+    const state = await import('../../src/events/flow-state.ts');
+
+    isOver = state.FlowState.isOver;
+  }
+
   const hits = hookCommand
     ? [
         ...GitGuard.inspect({ command: hookCommand.command, cwd, askPush: policy.askPush }),
+        ...(isOver === undefined
+          ? []
+          : FlowGuard.inspect({
+              root,
+              command: hookCommand.command,
+              cwd,
+              sessionId: hookCommand.sessionId,
+              env: process.env,
+              isOver,
+            })),
         ...RunnerGuard.inspect({ command: hookCommand.command, cwd, allow: policy.runnersAllow }),
         ...PackageSwap.inspectCommand({ command: hookCommand.command, cwd }),
       ]
