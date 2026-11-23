@@ -545,8 +545,16 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .optional(),
       /** Faces and roles of the board's agents, keyed by agent name; default `{}`. */
       agents: BOARD_AGENTS.default({}),
+      /**
+       * `vulcan board serve` as a service of the session. `autoStart: true` makes the SessionStart hook start the board when
+       * nothing listens on its port (never twice, never waiting); only with `events.log` on. Default `false`: a committed
+       * `true` starts a local server on every machine that opens the project.
+       */
+      serve: z
+        .strictObject({ autoStart: z.boolean().default(false) })
+        .default({ autoStart: false }),
     })
-    .default({ agents: {} }),
+    .default({ agents: {}, serve: { autoStart: false } }),
   /**
    * The code host `vulcan board` reads pull requests, checks and commits from: `github` through `gh` (the default),
    * or `gitlab` through `glab`. `host` names the GitLab server (default `gitlab.com`): a bare host name with an

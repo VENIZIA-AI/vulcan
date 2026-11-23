@@ -20,6 +20,15 @@ try {
   );
 }
 
+// With `board.serve.autoStart` on (and the event log), the board is started when nothing listens on its port: the session does not wait for it.
+try {
+  const { BoardAutoStart } = await import('../../src/board/auto-start.ts');
+
+  await BoardAutoStart.tick({ root: projectRoot });
+} catch (error) {
+  console.error(`vulcan: [session-start] the board was not started: ${error}`);
+}
+
 // At most once a day, the safe part of .agents/local/ is cleaned by a process of its own: the session does not wait for it.
 try {
   const { LocalAutoClean } = await import('../../src/local/auto-clean.ts');
