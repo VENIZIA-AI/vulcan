@@ -1,12 +1,11 @@
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ProjectLayout } from '../common/index.ts';
+import { ProjectLayout } from '../common/constants.ts';
 import { GitQueries } from '../hooks/git-queries.ts';
 import { RecordValue } from '../common/record.ts';
 import { EventConstants, EventKinds } from './common/index.ts';
 import type { TIsOver } from './common/index.ts';
 import { EventActor } from './actor.ts';
-import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
 import { FlowSteps } from './flow-steps.ts';
 import { EventLog } from './log.ts';
@@ -65,13 +64,12 @@ export class BoardStop {
       since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
     }).events;
     const cwd = typeof input.cwd === 'string' && input.cwd !== '' ? input.cwd : opts.root;
-    const flowId =
-      EventFlow.fromBranch({ cwd }) ??
-      FlowSteps.lastOpenedBy({
-        events: known,
-        actor,
-        isOver: (id) => opts.isOver({ events: known, flowId: id, key }),
-      });
+    const flowId = FlowSteps.flowOf({
+      events: known,
+      cwd,
+      actor,
+      isOver: (id) => opts.isOver({ events: known, flowId: id, key }),
+    });
     const last =
       flowId === undefined ? undefined : FlowSteps.lastLine({ events: known, flowId, key });
 

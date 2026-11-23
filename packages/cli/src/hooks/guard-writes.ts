@@ -122,9 +122,14 @@ export class WriteGuard {
     const toolInput = { value: holder.value['tool_input'] };
     const command = isRecord(toolInput) ? toolInput.value['command'] : undefined;
     const cwd = holder.value['cwd'];
+    const sessionId = holder.value['session_id'];
 
     return typeof command === 'string' && command !== ''
-      ? { command, cwd: typeof cwd === 'string' ? cwd : undefined }
+      ? {
+          command,
+          cwd: typeof cwd === 'string' ? cwd : undefined,
+          ...(typeof sessionId === 'string' && sessionId !== '' ? { sessionId } : {}),
+        }
       : undefined;
   }
 

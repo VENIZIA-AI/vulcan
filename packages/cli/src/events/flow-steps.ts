@@ -1,5 +1,6 @@
 import { EventConstants, EventKinds } from './common/index.ts';
 import type { IEvent, IEventItem } from './common/index.ts';
+import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
 import { EventLog } from './log.ts';
 import { EventText } from './text.ts';
@@ -18,6 +19,22 @@ export class FlowSteps {
         event.kind === EventKinds.FLOW &&
         event.flowId !== undefined &&
         FlowId.canon({ id: event.flowId, key: opts.key }) === wanted,
+    );
+  }
+
+  /**
+   * The flow of the work being done, the one resolution every hook shares: the flow the branch at `cwd` names, else the one
+   * this actor last opened or updated that is not over. `undefined` when neither is found.
+   */
+  static flowOf(opts: {
+    events: IEvent[];
+    cwd: string;
+    actor: string;
+    isOver: (flowId: string) => boolean;
+  }): string | undefined {
+    return (
+      EventFlow.fromBranch({ cwd: opts.cwd }) ??
+      FlowSteps.lastOpenedBy({ events: opts.events, actor: opts.actor, isOver: opts.isOver })
     );
   }
 

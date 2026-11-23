@@ -18,6 +18,8 @@ export interface IWriteHit {
 export interface IHookCommand {
   command: string;
   cwd: string | undefined;
+  /** The session of the call, when the host sends one: it names the flow a session last opened. */
+  sessionId?: string;
 }
 
 /** What a guard reads of any tool call: the tool, the file it names, or the Bash command. */

@@ -94,3 +94,15 @@ visualize-pages-simplified:
     steps:
       - 'Pin the earlier `@venizia/vulcan`; its renderer reads the earlier spec.'
   data: 'No stored data changes: a rendered page is a file in `.agents/local/prototypes/`, and it is written again by the next render.'
+flow-required-for-commit:
+  symbols:
+    - events.log
+    - FlowGuard
+  upgrade:
+    steps:
+      - "In a project with `events.log` on, make the flow before the first commit of a piece of work: `bun node_modules/.bin/vulcan event add --kind flow --title '<what this work is>'` prints the id."
+      - 'If the work already has a flow, put `Flow: <id>` in the commit message or the pull request body, or name the branch with that id (for example `feature/VULZ-ACME-12-sign-in`), then run `git commit` or `gh pr create` again. The contents of a `-F` or `--body-file` file are not read, so give the line inline.'
+      - 'A script or CI job that commits or opens pull requests through an agent shell and has no flow: turn `events.log` off for that project, or run it with `VULCAN_GUARDS=off`.'
+  downgrade:
+    steps:
+      - 'Pin the earlier package: the commit is no longer refused for a missing flow.'

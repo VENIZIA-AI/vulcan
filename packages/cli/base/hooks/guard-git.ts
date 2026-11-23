@@ -28,16 +28,44 @@ try {
   const { GuardDecisions } = await import('../../src/hooks/common/index.ts');
   const { HookDecision } = await import('../../src/hooks/decision.ts');
   const { GitGuard } = await import('../../src/hooks/guard-git.ts');
+  const { FlowGuard } = await import('../../src/hooks/flow-guard.ts');
   const { PackageSwap } = await import('../../src/hooks/package-swap.ts');
   const { RunnerGuard } = await import('../../src/hooks/guard-runner.ts');
   const { WriteGuard } = await import('../../src/hooks/guard-writes.ts');
   const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
   const hookCommand = WriteGuard.parseHookCommand({ text });
   const cwd = hookCommand?.cwd ?? process.cwd();
-  const policy = ProjectGuards.readPolicy({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd });
+  const root = process.env.CLAUDE_PROJECT_DIR ?? cwd;
+  const policy = ProjectGuards.readPolicy({ root });
+  // V-P-13 exists only in a project that logs events, and only for a line that names git, gh or glab: a project with the log
+  // off never loads the events module or the board's fold, and a rule that cannot load is no hit, never an ask.
+  let flowHits: Awaited<ReturnType<typeof GitGuard.inspect>> = [];
+
+  if (hookCommand && /\b(git|gh|glab)\b/.test(hookCommand.command)) {
+    try {
+      const { EventSettings } = await import('../../src/events/settings.ts');
+
+      if (EventSettings.read({ root }).log) {
+        const state = await import('../../src/events/flow-state.ts');
+
+        flowHits = FlowGuard.inspect({
+          root,
+          command: hookCommand.command,
+          cwd,
+          sessionId: hookCommand.sessionId,
+          env: process.env,
+          isOver: state.FlowState.isOver,
+        });
+      }
+    } catch {
+      flowHits = [];
+    }
+  }
+
   const hits = hookCommand
     ? [
         ...GitGuard.inspect({ command: hookCommand.command, cwd, askPush: policy.askPush }),
+        ...flowHits,
         ...RunnerGuard.inspect({ command: hookCommand.command, cwd, allow: policy.runnersAllow }),
         ...PackageSwap.inspectCommand({ command: hookCommand.command, cwd }),
       ]
