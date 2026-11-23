@@ -20,10 +20,39 @@ export class EventSettings {
   }
 
   /**
-   * What the manifest says; the log is off, in the project's own folder, when the file, the block or a
+   * What the manifest says, with the folder of this checkout's local file over it; the log is off, in the project's own folder, when the file, the block or a
    * value is missing or is not what sync writes. It never throws: a hook reads it on every event.
    */
   static read(opts: { root: string }): IEventSettings {
+    const settings = EventSettings.readManifest({ root: opts.root });
+    const own = EventSettings.localDir({ root: opts.root });
+
+    // This checkout's own folder (`events.dir` of `.agents/vulcan.local.json`) replaces the manifest's; a value that is not an
+    // absolute path is not used, and the manifest's applies.
+    return own === undefined ? settings : { ...settings, dir: own };
+  }
+
+  /**
+   * The folder this checkout's `.agents/vulcan.local.json` names in `events.dir`, when it is a folder `dirError` accepts;
+   * `undefined` otherwise, and when the file is missing or unreadable. Never throws: the event hook reads it on every event.
+   */
+  static localDir(opts: { root: string }): string | undefined {
+    try {
+      const file: unknown = JSON.parse(
+        readFileSync(join(opts.root, EventConstants.LOCAL_FILE), 'utf8'),
+      );
+      const block = RecordValue.isRecord(file) ? file.events : undefined;
+      const dir = RecordValue.isRecord(block) ? block.dir : undefined;
+
+      return typeof dir === 'string' && EventSettings.dirError({ dir }) === undefined
+        ? dir
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private static readManifest(opts: { root: string }): IEventSettings {
     const file = join(opts.root, EventConstants.MANIFEST_FILE);
 
     if (!existsSync(file)) {

@@ -63,15 +63,18 @@ The log does not grow for ever. When `events.log` is on, or you set a limit, who
 
 ### One folder for every project
 
-By default each project keeps its own log. A coordinator that must read the sessions of several repositories sets `events.dir` to one absolute folder, in each of them:
+By default each project keeps its own log. A coordinator that must read the sessions of several repositories (a hub session above `ignis`, `ardor` and `vulcan`, for example) points them all at one absolute folder. The folder is a path of one machine, so it belongs to the checkout and not to the repository: write it in `.agents/vulcan.local.json`, the gitignored per-checkout file, in each of the repositories:
 
-```ts
-export default {
-  events: { log: true, dir: '/home/me/work/.agents/local/events' },
-};
+```json
+{
+  "schemaVersion": 1,
+  "events": { "dir": "/home/me/work/.agents/local/events" }
+}
 ```
 
-Every hook and every `event add` in those projects then writes there, and `event tail --dir <folder>` reads it from anywhere. `vulcan doctor` warns when a `dir` outside the project does not exist or cannot be written ([events-dir](/references/commands/doctor#events-dir)). The hooks fail open, so without that warning a wrong folder would lose every line without a sound. Only turn this on for a folder you own: every project that names it can write to it. The folder must be on a local disk. One line is one append, which is atomic on a local file system but not on NFS or another network file system, where two sessions can interleave their lines. A reader skips and counts a line it cannot read, and prints no control character, so a damaged or hostile line cannot send an escape sequence to your terminal.
+`sync` keeps this key when it writes your agents. The team setting stays in the committed config: `events: { log: true }` turns the hooks on, with no path in it. Every reader then follows the local folder: the hooks, `event add` and `event tail` (`--dir` still wins for one call), `vulcan board`, `vulcan clean --events` and the retention limits, the token meter, the flow guard and the Stop hook. The local value replaces the committed `events.dir` when both exist, and a value that is not an absolute path is not used: the committed folder, or the project's own, applies, and `vulcan doctor` names the file and the key. `vulcan doctor` also warns when the folder does not exist or cannot be written, against the local file when that is where it came from ([events-dir](/references/commands/doctor)). The manifest, `AGENTS.md` and every other committed output are the same with or without the key, and an agent cannot write the file (it is protected like the manifest).
+
+A committed `events.dir` still works for a team that really shares one path; it is a machine path, which `doctor`'s private-values check may flag.
 
 ## vulcan event add
 

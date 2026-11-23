@@ -632,14 +632,16 @@ export class ProjectContract {
       ...(stored.ok ? [] : [at(stored.error)]),
       ...unknown.map((key) =>
         at(
-          `unknown key '${key}': this file reads schemaVersion, agents, board.agents and local.tmp`,
+          `unknown key '${key}': this file reads schemaVersion, agents, board.agents, local.tmp and events.dir`,
         ),
       ),
-      ...((own.tmp !== undefined || own.boardAgents !== undefined) &&
+      ...((own.tmp !== undefined ||
+        own.boardAgents !== undefined ||
+        EventSettings.localDir({ root: opts.root }) !== undefined) &&
       AgentFiles.isTracked({ root: opts.root, path: file })
         ? [
             at(
-              'git tracks this personal file, which sets board.agents or local.tmp - run: git rm --cached .agents/vulcan.local.json',
+              'git tracks this personal file, which sets board.agents, local.tmp or events.dir - run: git rm --cached .agents/vulcan.local.json',
             ),
           ]
         : []),
@@ -719,7 +721,10 @@ export class ProjectContract {
    * on the first write and is not checked. A warning: the folder belongs to the machine, not to the repository.
    */
   static checkEventsDir(opts: ICheckContext): IViolation[] {
-    const { dir } = opts.config.events;
+    // The folder of this checkout's local file replaces the committed config's; a problem with it is reported against that file.
+    const own = EventSettings.localDir({ root: opts.root });
+    const isOwn = own !== undefined;
+    const dir = own ?? opts.config.events.dir;
 
     if (dir === undefined) {
       return [];
@@ -754,7 +759,7 @@ export class ProjectContract {
       : [
           createViolation({
             check: DoctorChecks.EVENTS_DIR,
-            file: opts.configFile,
+            file: isOwn ? AgentConstants.LOCAL_FILE : opts.configFile,
             message: `events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
           }),
         ];
@@ -765,7 +770,8 @@ export class ProjectContract {
    * removes today's, so nothing else will shrink it: the project raises the limit or writes fewer lines. A warning.
    */
   static checkEventsSize(opts: ICheckContext): IViolation[] {
-    const settings = { ...opts.config.events };
+    const own = EventSettings.localDir({ root: opts.root });
+    const settings = { ...opts.config.events, ...(own === undefined ? {} : { dir: own }) };
 
     if (!EventRetention.isActive({ settings })) {
       return [];

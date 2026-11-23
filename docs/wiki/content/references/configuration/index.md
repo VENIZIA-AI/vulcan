@@ -747,7 +747,7 @@ The `events` object configures the agent event log ([vulcan event](/references/c
 
 `vulcan event add` and `tail` work whatever `log` says.
 
-An own `dir` lets one coordinator read the sessions of several repositories.
+An own `dir` lets one coordinator read the sessions of several repositories. The path is a machine path, so each person sets it in their own `.agents/vulcan.local.json` (`{ "events": { "dir": "/home/me/work/.agents/local/events" } }`), which replaces this key on that machine; see [One folder for every project](/references/commands/event#one-folder-for-every-project).
 
 - `~` and relative paths are refused.
 - It must be on a local disk (appends are not atomic on NFS).
