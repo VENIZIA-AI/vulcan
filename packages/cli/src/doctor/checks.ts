@@ -785,7 +785,7 @@ export class ProjectContract {
       ? [
           createViolation({
             check: DoctorChecks.EVENTS_SIZE,
-            file: own === undefined ? opts.configFile : AgentConstants.LOCAL_FILE,
+            file: opts.configFile,
             message: `today's event file in ${dir} is ${LocalFormat.formatBytes({ bytes: plan.todayBytes })}, over events.maxSize (${settings.maxSize ?? EventConstants.DEFAULT_MAX_SIZE}); nothing is truncated and today's file is never removed - raise maxSize or write fewer events`,
           }),
         ]

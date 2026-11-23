@@ -100,6 +100,7 @@ flow-required-for-commit:
     - FlowGuard
   upgrade:
     steps:
+      - 'The rule applies with `events.log` on and a `project.key` set; a project without a key is not refused. Set `project.key` in the config and run `vulcan sync` to turn the rule on.'
       - "In a project with `events.log` on, make the flow before the first commit of a piece of work: `bun node_modules/.bin/vulcan event add --kind flow --title '<what this work is>'` prints the id."
       - 'If the work already has a flow, put `Flow: <id>` in the commit message or the pull request body, or name the branch with that id (for example `feature/VULZ-ACME-12-sign-in`), then run `git commit` or `gh pr create` again. The contents of a `-F` or `--body-file` file are not read, so give the line inline.'
       - 'A script or CI job that commits or opens pull requests through an agent shell and has no flow: turn `events.log` off for that project, or run it with `VULCAN_GUARDS=off`.'

@@ -1,6 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentConstants } from '../../agents/common/constants.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
@@ -19,13 +18,13 @@ const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date().setHours(12, 0, 0, 0);
 const LOCAL = '.agents/vulcan.local.json';
 const ACTOR = 'pnt-vulcan-1';
-const day = (ago: number): string => EventLog.dayOf({ time: NOW - ago * DAY });
-const git = (cwd: string, ...args: string[]) =>
-  Bun.spawnSync(['git', ...args], { cwd, stdout: 'pipe', stderr: 'pipe' });
+const day = (opts: { ago: number }): string => EventLog.dayOf({ time: NOW - opts.ago * DAY });
+const git = (opts: { cwd: string; args: string[] }) =>
+  Bun.spawnSync(['git', ...opts.args], { cwd: opts.cwd, stdout: 'pipe', stderr: 'pipe' });
 
 /** A git project with the events log on and a shared folder named only in its local file; the folder holds day files of `days` ago. */
 const setup = (opts: { days?: number[]; manifestDir?: string } = {}) => {
-  const dir = mkdtempSync(join(tmpdir(), 'vulcan-shared-events-'));
+  const dir = createProject({ files: {} });
   const root = createProject({
     files: {
       '.agents/vulcan.manifest.json': JSON.stringify({
@@ -38,15 +37,15 @@ const setup = (opts: { days?: number[]; manifestDir?: string } = {}) => {
     },
   });
 
-  git(root, 'init', '-q', '-b', 'develop');
-  git(root, 'config', 'user.email', 'a@example.com');
-  git(root, 'config', 'user.name', 'a');
-  git(root, 'add', '.');
-  git(root, 'commit', '-q', '-m', 'init');
+  git({ cwd: root, args: ['init', '-q', '-b', 'develop'] });
+  git({ cwd: root, args: ['config', 'user.email', 'a@example.com'] });
+  git({ cwd: root, args: ['config', 'user.name', 'a'] });
+  git({ cwd: root, args: ['add', '.'] });
+  git({ cwd: root, args: ['commit', '-q', '-m', 'init'] });
   mkdirSync(join(root, '.agents/local/events'), { recursive: true });
 
   for (const ago of opts.days ?? []) {
-    writeFileSync(join(dir, `${day(ago)}.jsonl`), '{}\n');
+    writeFileSync(join(dir, `${day({ ago })}.jsonl`), '{}\n');
   }
 
   return { root, dir };
@@ -55,26 +54,26 @@ const setup = (opts: { days?: number[]; manifestDir?: string } = {}) => {
 describe('vulcan clean --events with a local events.dir', () => {
   test('it lists and removes the day files of that folder only, by the limits of the manifest', () => {
     const { root, dir } = setup({ days: [60, 5, 0] });
-    const own = join(root, `.agents/local/events/${day(60)}.jsonl`);
+    const own = join(root, `.agents/local/events/${day({ ago: 60 })}.jsonl`);
 
     writeFileSync(own, '{}\n');
 
     const dry = runCli({ args: ['clean', '--events'], cwd: root }).stderr;
 
-    expect(dry).toContain(`${dir}/${day(60)}.jsonl`);
+    expect(dry).toContain(`${dir}/${day({ ago: 60 })}.jsonl`);
     expect(dry).not.toContain(own);
     expect(runCli({ args: ['clean', '--events', '--yes'], cwd: root }).code).toBe(0);
-    expect(existsSync(join(dir, `${day(60)}.jsonl`))).toBe(false);
-    expect(existsSync(join(dir, `${day(5)}.jsonl`))).toBe(true);
-    expect(existsSync(join(dir, `${day(0)}.jsonl`))).toBe(true);
+    expect(existsSync(join(dir, `${day({ ago: 60 })}.jsonl`))).toBe(false);
+    expect(existsSync(join(dir, `${day({ ago: 5 })}.jsonl`))).toBe(true);
+    expect(existsSync(join(dir, `${day({ ago: 0 })}.jsonl`))).toBe(true);
     expect(existsSync(own)).toBe(true);
   });
 
   test('a plan that names a day file of the committed folder, or of any other, is refused', () => {
-    const team = mkdtempSync(join(tmpdir(), 'vulcan-team-events-'));
+    const team = createProject({ files: {} });
     const { root, dir } = setup({ days: [60], manifestDir: team });
 
-    writeFileSync(join(team, `${day(60)}.jsonl`), 'keep');
+    writeFileSync(join(team, `${day({ ago: 60 })}.jsonl`), 'keep');
 
     const entry = (path: string) => ({
       scope: 'events',
@@ -93,15 +92,18 @@ describe('vulcan clean --events with a local events.dir', () => {
     const result = LocalClean.run({
       root,
       plan: {
-        remove: [entry(join(team, `${day(60)}.jsonl`)), entry(join(dir, `${day(60)}.jsonl`))],
+        remove: [
+          entry(join(team, `${day({ ago: 60 })}.jsonl`)),
+          entry(join(dir, `${day({ ago: 60 })}.jsonl`)),
+        ],
         keep: [],
       },
     });
 
     expect(result.removed).toHaveLength(1);
     expect(result.failed).toHaveLength(1);
-    expect(readFileSync(join(team, `${day(60)}.jsonl`), 'utf8')).toBe('keep');
-    expect(existsSync(join(dir, `${day(60)}.jsonl`))).toBe(false);
+    expect(readFileSync(join(team, `${day({ ago: 60 })}.jsonl`), 'utf8')).toBe('keep');
+    expect(existsSync(join(dir, `${day({ ago: 60 })}.jsonl`))).toBe(false);
   });
 });
 
@@ -111,9 +113,9 @@ describe('the other readers of the local folder', () => {
     const result = AutoCleanRun.run({ root, now: NOW });
 
     expect(result.files).toBe(1);
-    expect(existsSync(join(dir, `${day(60)}.jsonl`))).toBe(false);
-    expect(existsSync(join(dir, `${day(3)}.jsonl`))).toBe(true);
-    expect(existsSync(join(dir, `${day(0)}.jsonl`))).toBe(true);
+    expect(existsSync(join(dir, `${day({ ago: 60 })}.jsonl`))).toBe(false);
+    expect(existsSync(join(dir, `${day({ ago: 3 })}.jsonl`))).toBe(true);
+    expect(existsSync(join(dir, `${day({ ago: 0 })}.jsonl`))).toBe(true);
   });
 
   test('the Stop hook reads the flow and the commit lines from it', () => {
@@ -162,7 +164,7 @@ describe('the other readers of the local folder', () => {
 });
 
 describe('doctor and the local folder', () => {
-  test('events-size names the local file when the folder came from it', () => {
+  test('events-size reports against the config, where maxSize lives, with the local folder it measured', () => {
     const { root, dir } = setup();
 
     writeFileSync(join(dir, `${EventLog.dayOf({ time: Date.now() })}.jsonl`), 'x'.repeat(4096));
@@ -173,12 +175,12 @@ describe('doctor and the local folder', () => {
       configFile: '.configs/vulcan.config.mts',
     });
 
-    expect(hit?.file).toBe(LOCAL);
+    expect(hit?.file).toBe('.configs/vulcan.config.mts');
     expect(hit?.message).toContain(dir);
   });
 
-  test('events-size of a committed folder is still reported against the config', () => {
-    const team = mkdtempSync(join(tmpdir(), 'vulcan-team-events-'));
+  test('events-size of a committed folder is reported against the config too', () => {
+    const team = createProject({ files: {} });
     const root = createProject({ files: { '.agents/vulcan.manifest.json': '{}' } });
 
     writeFileSync(join(team, `${EventLog.dayOf({ time: Date.now() })}.jsonl`), 'x'.repeat(4096));

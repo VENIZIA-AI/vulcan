@@ -34,9 +34,7 @@ export class FlowGuard {
     try {
       const settings = EventSettings.read({ root: opts.root });
 
-      // A project that logs events but has no `project.key` cannot make a flow (`vulcan event add --kind flow` refuses): the
-      // rule would ask for what cannot be done, so it does not exist until the key is set.
-      if (!settings.log || EventSettings.keyOf({ root: opts.root }) === undefined) {
+      if (!settings.log) {
         return [];
       }
 
@@ -52,14 +50,20 @@ export class FlowGuard {
         return [];
       }
 
+      // A project that logs events but has no `project.key` cannot make a flow (`vulcan event add --kind flow` refuses): the
+      // rule would ask for what cannot be done, so it does not exist until the key is set. Read only for a commit or a pull request.
+      const key = EventSettings.keyOf({ root: opts.root });
       const cwd = opts.cwd ?? opts.root;
       const actor = EventActor.resolve({ sessionId: opts.sessionId, env: opts.env });
 
-      if (actor === EventConstants.UNKNOWN_ACTOR || EventFlow.isMerging({ cwd })) {
+      if (
+        key === undefined ||
+        actor === EventConstants.UNKNOWN_ACTOR ||
+        EventFlow.isMerging({ cwd })
+      ) {
         return [];
       }
 
-      const key = EventSettings.keyOf({ root: opts.root });
       const known = EventLog.read({
         dir: EventSettings.dirOf({ root: opts.root, settings }),
         since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
