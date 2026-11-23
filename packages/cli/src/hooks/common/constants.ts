@@ -88,6 +88,9 @@ export class HookConstants {
     '$XDG_RUNTIME_DIR/**',
     '$CLAUDE_CONFIG_DIR/projects/*/memory/**',
     '~/.claude/projects/*/memory/**',
+    // Plan mode writes its plan file here (Claude Code 2.1.330 reads `plans` under its config folder); the file is Markdown no tool runs.
+    '$CLAUDE_CONFIG_DIR/plans/**',
+    '~/.claude/plans/**',
     '/dev/null',
     '/dev/stdout',
     '/dev/stderr',

@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { join } from 'node:path';
@@ -9,6 +9,8 @@ import { runCli } from '../run.helper.ts';
 import { wire } from './wire.helper.ts';
 
 afterAll(removeProjects);
+// Each test starts a few `vulcan` processes: on a loaded runner five seconds is not enough, and the CLI path is what is under test.
+setDefaultTimeout(30_000);
 
 const project = (opts: { log?: boolean } = {}): string =>
   createProject({
