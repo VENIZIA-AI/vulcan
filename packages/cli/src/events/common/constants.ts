@@ -35,6 +35,13 @@ export class EventSources {
   static readonly CLI = 'cli';
 }
 
+/** What a shell call did that the board should know; the Bash hook writes a fixed line for each. */
+export class GitActivities extends ConstClass {
+  static readonly COMMIT = 'commit';
+  static readonly PR_OPEN = 'pr-open';
+  static readonly PR_MERGE = 'pr-merge';
+}
+
 export class EventSubcommands {
   static readonly ADD = 'add';
   static readonly TAIL = 'tail';
@@ -102,6 +109,8 @@ export class ClaudeHookEvents {
   static readonly SEND_MESSAGE_TOOL = 'SendMessage';
   /** The task-list tool whose list is mirrored into the steps of the flow. */
   static readonly TODO_TOOL = 'TodoWrite';
+  /** The shell tool: only its class of command (a commit, a pull request opened or merged) is logged, never the command. */
+  static readonly BASH_TOOL = 'Bash';
   /** The notification types that mean an agent waits for a person; `auth_success` does not. */
   static readonly OWNER_NOTIFICATIONS = new Set<string>([
     'permission_prompt',
@@ -136,6 +145,10 @@ export class EventConstants {
   static readonly CONTEXT_MAX = 600;
   /** What a sent message is called when its sender gave no label: the text of a message is never used. */
   static readonly MESSAGE_SENT_LABEL = 'message sent';
+  /** The fixed summaries of the lines the Bash hook writes, and what the Stop hook looks for. */
+  static readonly COMMIT_LABEL = 'commit';
+  static readonly PR_OPEN_LABEL = 'pull request opened';
+  static readonly PR_MERGE_LABEL = 'pull request merge';
   static readonly REF_MAX = 120;
   /** A flow line's lists: how many items, and how long one is. */
   static readonly ITEM_COUNT_MAX = 30;

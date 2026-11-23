@@ -12,7 +12,9 @@ const runQuery: IGitRunner = (opts) => GitQueries.run(opts);
 const GIT_OPTIONS_WITH_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace']);
 
 /** The subcommand of a `git` line and the words after it, past `-C <dir>`, `-c k=v` and the like. */
-const gitCall = (opts: { args: string[] }): { sub: string; rest: string[]; dir?: string } => {
+export const gitCall = (opts: {
+  args: string[];
+}): { sub: string; rest: string[]; dir?: string } => {
   let index = 0;
   let dir: string | undefined;
 
@@ -270,7 +272,9 @@ const GH_CREATE_OPTIONS_WITH_VALUE = new Set([
 ]);
 
 /** The group, the action and the words after them of a `gh` line, past options such as `-R <repo>`. */
-const ghCall = (opts: { args: string[] }): { group: string; action: string; rest: string[] } => {
+export const ghCall = (opts: {
+  args: string[];
+}): { group: string; action: string; rest: string[] } => {
   const names: string[] = [];
   let index = 0;
 
