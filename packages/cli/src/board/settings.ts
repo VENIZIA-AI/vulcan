@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { LocalSettings } from '../common/local-settings.ts';
 import { RecordValue } from '../common/record.ts';
 import { BoardConstants, BoardServe, ProviderTypes } from './common/index.ts';
 import type { IBoardProvider } from './common/index.ts';
@@ -176,8 +177,19 @@ export class BoardSettings {
       manifest = {};
     }
 
+    const own = LocalSettings.read({ root: opts.root }).agents;
+    const block =
+      RecordValue.isRecord(manifest) && RecordValue.isRecord(manifest.board) ? manifest.board : {};
+
     return BoardSettings.resolve({
-      manifest,
+      // This checkout's `board.agents` replaces the committed roster; the manifest itself is never written with it.
+      manifest:
+        own === undefined
+          ? manifest
+          : {
+              ...(RecordValue.isRecord(manifest) ? manifest : {}),
+              board: { ...block, agents: own },
+            },
       gitUser: (opts.readGitUser ?? (() => BoardSettings.gitUserOf({ root: opts.root })))(),
       readLogo: (path) => BoardLogo.read({ root: opts.root, path }),
     });

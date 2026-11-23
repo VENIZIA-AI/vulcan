@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { LOCAL_AGENTS_FILE, LocalChoice } from '../agents/index.ts';
 import { ProjectLayout } from '../common/index.ts';
+import { LocalSettings } from '../common/local-settings.ts';
 import { HookConstants } from '../hooks/common/index.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { LaunchSettings } from './claude-launch.ts';
@@ -42,8 +43,8 @@ export class LocalPlan {
   /** The developer's stored agents: written when the machine just chose, reported unchanged when it was read. */
   static planChoice(opts: { root: string; agents: string[] }): ISyncAction {
     const path = join(opts.root, LOCAL_AGENTS_FILE);
-    const text = LocalChoice.render({ agents: opts.agents });
     const before = existsSync(path) ? readFileSync(path, 'utf8') : undefined;
+    const text = LocalChoice.render({ agents: opts.agents, previous: before });
 
     if (before === text) {
       return { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE };
@@ -78,7 +79,10 @@ export class LocalPlan {
     const isMade = existsSync(tmp);
 
     return [
-      ...planIgnoreLine({ root: opts.root, line: `/${relative(opts.root, tmp)}/` }),
+      // A folder this checkout names itself is listed in `.git/info/exclude` (`ExcludePlan`), never in the committed file.
+      ...(LocalSettings.read({ root: opts.root }).tmp === undefined
+        ? planIgnoreLine({ root: opts.root, line: `/${relative(opts.root, tmp)}/` })
+        : []),
       {
         path: tmp,
         status: isMade ? SyncStatuses.UNCHANGED : SyncStatuses.CREATED,

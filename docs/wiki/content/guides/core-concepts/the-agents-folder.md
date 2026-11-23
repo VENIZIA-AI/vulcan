@@ -14,7 +14,7 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 ├── skills/                   tracked   the project's own skills (optional)
 ├── hooks/                    tracked   scripts of the project's own hooks (optional)
 ├── vulcan.manifest.json      tracked   written by vulcan sync; atlas and the hooks read it
-├── vulcan.local.json         ignored   the agents you chose on this machine
+├── vulcan.local.json         ignored   the agents you chose on this machine, and your own board.agents and local.tmp
 ├── plans/                    ignored   plans an agent saved for you
 ├── specs/                    tracked   lane-L cards from plan-a-change (optional)
 └── local/                    ignored   what an agent creates while it works

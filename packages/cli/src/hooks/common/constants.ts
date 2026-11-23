@@ -40,6 +40,7 @@ export class HookConstants {
   static readonly PROTECTED_FILES = [
     '.agents/vulcan.manifest.json',
     '.configs/vulcan.config.*',
+    '.agents/vulcan.local.json',
     '.claude/settings.json',
     '.claude/settings.local.json',
     '.agents/local/claude.launch.settings.json',

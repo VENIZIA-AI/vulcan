@@ -1,4 +1,5 @@
 import { relative } from 'node:path';
+import { LocalSettings } from '../common/local-settings.ts';
 import { ConfigLoader } from '../config/index.ts';
 import { ProjectContract } from './checks.ts';
 import { SkillLint } from './skills.ts';
@@ -92,7 +93,10 @@ export class DoctorRunner {
       ...ProjectContract.checkEventsDir(context),
       ...ProjectContract.checkEventsSize(context),
       ...ProjectContract.checkProjectKey(context),
-      ...ProjectContract.checkBrowserSocket({ root: opts.root, tmp: context.config.local.tmp }),
+      ...ProjectContract.checkBrowserSocket({
+        root: opts.root,
+        tmp: LocalSettings.read({ root: opts.root }).tmp ?? context.config.local.tmp,
+      }),
       ...ProjectContract.checkSkillTriggers(context),
       ...ProjectContract.checkFormat(context),
       ...ProjectContract.checkLocalWorkspace(context),

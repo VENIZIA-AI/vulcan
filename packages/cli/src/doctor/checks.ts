@@ -35,6 +35,7 @@ import { CLAUDE_LAUNCH_FILE } from '../sync/claude-launch.ts';
 import { PrivateValues } from './private-values.ts';
 import { ReplySwitch, OwnerConstants, OwnerReplySwitch, OwnerProfile } from '../owner/index.ts';
 import { SkillCatalog, VersionFolders } from '@venizia/vulcan-atlas';
+import { LocalSettings } from '../common/local-settings.ts';
 import { HookConstants, ProjectTmp } from '../hooks/index.ts';
 import { DoctorChecks, DoctorConstants, PrivateValueKinds } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -620,16 +621,28 @@ export class ProjectContract {
   /** The developer's stored agents must parse and name known agents; a broken file would otherwise hide as a default. */
   static checkAgents(opts: ICheckContext): IViolation[] {
     const stored = LocalChoice.read({ root: opts.root });
+    const file = '.agents/vulcan.local.json';
+    const at = (message: string): IViolation =>
+      createViolation({ check: DoctorChecks.AGENTS, file, message });
+    const own = LocalSettings.read({ root: opts.root });
+    const unknown = LocalChoice.unknownKeys({ root: opts.root });
 
-    return stored.ok
-      ? []
-      : [
-          createViolation({
-            check: DoctorChecks.AGENTS,
-            file: '.agents/vulcan.local.json',
-            message: stored.error,
-          }),
-        ];
+    return [
+      ...(stored.ok ? [] : [at(stored.error)]),
+      ...unknown.map((key) =>
+        at(
+          `unknown key '${key}': this file reads schemaVersion, agents, board.agents and local.tmp`,
+        ),
+      ),
+      ...((own.tmp !== undefined || own.agents !== undefined) &&
+      AgentFiles.isTracked({ root: opts.root, path: file })
+        ? [
+            at(
+              'git tracks this personal file, which sets board.agents or local.tmp - run: git rm --cached .agents/vulcan.local.json',
+            ),
+          ]
+        : []),
+    ];
   }
 
   /**
@@ -1011,7 +1024,7 @@ export class ProjectContract {
   static checkLocalWorkspace(opts: ICheckContext): IViolation[] {
     return LocalPlan.planWorkspace({
       root: opts.root,
-      tmp: ProjectTmp.configuredOf({ tmp: opts.config.local.tmp }),
+      tmp: ProjectTmp.effectiveOf({ root: opts.root, tmp: opts.config.local.tmp }),
     })
       .filter((action) => action.status !== SyncStatuses.UNCHANGED)
       .map((action) =>
@@ -1152,7 +1165,7 @@ export class ProjectContract {
    * not set the key gets the warning of `checkBrowserSocket`.
    */
   static checkTmpFolder(opts: ICheckContext): IViolation[] {
-    const { tmp } = opts.config.local;
+    const tmp = LocalSettings.read({ root: opts.root }).tmp ?? opts.config.local.tmp;
 
     if (tmp === undefined) {
       return [];

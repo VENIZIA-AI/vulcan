@@ -38,7 +38,7 @@ export class AgentRenderers extends ConstClass {
 }
 
 export class AgentConstants {
-  /** The per-developer choice: gitignored, written by sync, never by hand. */
+  /** The per-developer file: gitignored. `sync` writes the agents; a person may add `board.agents` and `local.tmp` by hand, and `sync` keeps them. */
   static readonly LOCAL_FILE = '.agents/vulcan.local.json';
   static readonly LOCAL_SCHEMA_VERSION = 1;
   static readonly LOCAL_NOTE = 'by vulcan sync - your agents on this machine; not committed';

@@ -1,6 +1,7 @@
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { LayoutFolder } from '../common/layout-folder.ts';
+import { LocalSettings } from '../common/local-settings.ts';
 import { RecordValue } from '../common/record.ts';
 import { HookConstants } from './common/index.ts';
 import { ProjectGuards } from './project-guards.ts';
@@ -11,10 +12,17 @@ const shellQuote = (opts: { text: string }): string => `'${opts.text.replaceAll(
 export class ProjectTmp {
   /**
    * The folder the project names for its temporary files, relative to its root: `local.tmp` of the committed manifest
-   * (which `vulcan sync` renders from the config), read here so a hook needs no config loader. A missing manifest, a
+   * (which `vulcan sync` renders from the config), read here so a hook needs no config loader, unless this checkout's
+   * `.agents/vulcan.local.json` sets `local.tmp`, which replaces it. A missing manifest, a
    * missing key or a value that is not a layout folder gives the default, `.agents/local/tmp`.
    */
   static relativeOf(opts: { root: string }): string {
+    const own = LocalSettings.read({ root: opts.root }).tmp;
+
+    if (own !== undefined) {
+      return own;
+    }
+
     try {
       const manifest: unknown = JSON.parse(
         readFileSync(join(opts.root, ProjectGuards.MANIFEST_FILE), 'utf8'),
@@ -29,6 +37,13 @@ export class ProjectTmp {
     } catch {
       return HookConstants.PROJECT_TMP;
     }
+  }
+
+  /** The same for a caller that writes something uncommitted (`sync`'s folder and ignore line, `doctor`): this checkout's own `local.tmp` first. */
+  static effectiveOf(opts: { root: string; tmp: string | undefined }): string {
+    return (
+      LocalSettings.read({ root: opts.root }).tmp ?? ProjectTmp.configuredOf({ tmp: opts.tmp })
+    );
   }
 
   /** What a caller that holds the config passes as `tmp`: the key, or the default when the project does not set it (never the manifest, which `sync` has not rewritten yet). */

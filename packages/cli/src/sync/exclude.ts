@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { dirname, join, resolve } from 'node:path';
 import { AgentExclude } from '../agents/index.ts';
 import { BASE_DIRECTORY } from '../common/index.ts';
+import { LocalSettings } from '../common/local-settings.ts';
 import { SyncConstants, SyncStatuses } from './common/index.ts';
 import type { ISyncAction } from './common/index.ts';
 
@@ -58,10 +59,17 @@ export class ExcludePlan {
 
     const path = resolve(opts.root, location);
     const prefix = git({ root: opts.root, args: ['rev-parse', '--show-prefix'] }) ?? '';
-    const anchored = AgentExclude.excludePathsOf({
-      agents: opts.agents,
-      skillNames: ExcludePlan.shippedSkillNames(),
-    }).map((group) => ({
+    const ownTmp = LocalSettings.read({ root: opts.root }).tmp;
+    const anchored = [
+      ...AgentExclude.excludePathsOf({
+        agents: opts.agents,
+        skillNames: ExcludePlan.shippedSkillNames(),
+      }),
+      // The tmp folder this checkout names in its local file: its ignore line is this clone's, not the project's.
+      ...(ownTmp === undefined
+        ? []
+        : [{ title: 'the tmp folder of this checkout, local.tmp', paths: [`/${ownTmp}/`] }]),
+    ].map((group) => ({
       ...group,
       paths: group.paths.map((item) => `/${prefix}${item.slice(1)}`),
     }));

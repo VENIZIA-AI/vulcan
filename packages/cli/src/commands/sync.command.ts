@@ -121,7 +121,7 @@ export class SyncFlow {
       ...stored,
       ...LocalPlan.planWorkspace({
         root: opts.cwd,
-        tmp: ProjectTmp.configuredOf({ tmp: loaded.config.local.tmp }),
+        tmp: ProjectTmp.effectiveOf({ root: opts.cwd, tmp: loaded.config.local.tmp }),
       }),
       ...ExcludePlan.plan({ root: opts.cwd, agents: resolved.agents }),
       ...CommitHookPlan.plan({ root: opts.cwd, config: loaded.config }),
