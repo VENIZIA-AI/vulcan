@@ -93,6 +93,7 @@ export class DoctorRunner {
       ...ProjectContract.checkEventsDir(context),
       ...ProjectContract.checkEventsSize(context),
       ...ProjectContract.checkProjectKey(context),
+      ...ProjectContract.checkWorkspacePackages(context),
       ...ProjectContract.checkBrowserSocket({
         root: opts.root,
         tmp: LocalSettings.read({ root: opts.root }).tmp ?? context.config.local.tmp,

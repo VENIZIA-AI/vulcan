@@ -237,9 +237,9 @@ export default {
 
 ## packages
 
-The `packages` array defines monorepo packages in release order. Manifest rendering, release checks, and atlas symbol searches read this list.
+The `packages` array defines monorepo packages in release order. **Leave the key out and VULCAN derives it** from the root `package.json` `workspaces` (an array, or the object form with `packages`) and the `package.json` of each member: an entry is `{ dir, name, path }` with the member's `name`, its folder as `path`, and `dir` that folder with `/` as `-`, in the order of the paths (a member with no valid `name`, or whose folder cannot be a `dir`, is left out; `vulcan config --effective` shows the result and says it came from `workspaces`). Write the key, even as `[]`, and it is the list exactly: use it when the release order matters or a member needs `aliases`, `retired`, `kind` or a `dir` of its own. `vulcan doctor` warns about a workspace member a written list does not name. Manifest rendering, release checks, and atlas symbol searches read this list.
 
-`vulcan sync` writes the package list into `.agents/vulcan.manifest.json`. If `package.json` declares workspaces while `packages` is empty, `vulcan doctor` reports a `[scaffold]` violation. `vulcan doctor` also runs the `[tags]` check to verify tags against package directories and aliases.
+`vulcan sync` writes the package list into `.agents/vulcan.manifest.json`. If `package.json` declares workspaces while `packages` is empty and none could be derived, `vulcan doctor` reports a `[scaffold]` violation. `vulcan doctor` also runs the `[tags]` check to verify tags against package directories and aliases.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|

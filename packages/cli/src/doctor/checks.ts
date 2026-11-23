@@ -13,7 +13,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
 import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
 import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
-import { ProjectPackages } from '../config/index.ts';
+import { ProjectPackages, WorkspacePackages } from '../config/index.ts';
 import { ProjectKey } from '../events/project-key.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules, RulePacks, RuleParser, RuleSlots } from '../rules/index.ts';
@@ -531,7 +531,7 @@ export class ProjectContract {
           check: DoctorChecks.SCAFFOLD,
           file: opts.configFile,
           message:
-            'package.json declares workspaces but the config lists no packages - add packages: [{ dir, name, path }] in release order',
+            'package.json declares workspaces but the config lists no packages and none could be derived - give each workspace member a package.json with a name, or add packages: [{ dir, name, path }] in release order',
         }),
       );
     }
@@ -761,6 +761,32 @@ export class ProjectContract {
             check: DoctorChecks.EVENTS_DIR,
             file: isOwn ? AgentConstants.LOCAL_FILE : opts.configFile,
             message: `events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
+          }),
+        ];
+  }
+
+  /**
+   * A workspace member of the root `package.json` that the config's `packages` list does not name: a package every table
+   * keyed by `packages` (release tags, versions, the atlas) then misses. A list that is derived from the workspaces
+   * has none; the warning is for a list the project wrote. Retired entries count as named. A warning.
+   */
+  static checkWorkspacePackages(opts: ICheckContext): IViolation[] {
+    const named = new Set(
+      ProjectPackages.resolve({ config: opts.config }).map((entry) =>
+        entry.path.replace(/\/+$/, ''),
+      ),
+    );
+    const missing = WorkspacePackages.derive({ root: opts.root }).filter(
+      (entry) => !named.has(entry.path),
+    );
+
+    return missing.length === 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.WORKSPACE_PACKAGES,
+            file: opts.configFile,
+            message: `${missing.length} workspace member(s) of the root package.json are not in packages: ${missing.map((entry) => `${entry.name} (${entry.path})`).join(', ')}. Add them, or delete \`packages\` so it is derived from the workspaces`,
           }),
         ];
   }
