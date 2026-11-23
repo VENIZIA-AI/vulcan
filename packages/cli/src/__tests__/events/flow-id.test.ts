@@ -63,14 +63,15 @@ describe('a flow made by the command', () => {
     expect(existsSync(events(root))).toBe(false);
   });
 
-  test('the number goes above every older F-n of the log, and a flow line on the branch of a flow updates it', () => {
+  test('the number goes above every older F-n of the log, and a flow line on the branch of a flow is a new flow', () => {
     const root = project({ key: 'ACME', seeds: ['F-9', 'F-12'], branch: 'feature/F-12-x' });
-    const update = cli({ root, args: ['add', '--kind', 'flow', '--title', 'Renamed'] });
+    const onBranch = cli({ root, args: ['add', '--kind', 'flow', '--title', 'New'] });
     const off = project({ key: 'ACME', seeds: ['F-9', 'F-12'] });
     const made = cli({ root: off, args: ['add', '--kind', 'flow', '--title', 'New'] });
 
-    expect(update.code, update.stderr).toBe(0);
-    expect(flowIds(root)).toEqual(['F-12']);
+    expect(onBranch.code, onBranch.stderr).toBe(0);
+    expect(onBranch.stdout.trim()).toBe('VULZ-ACME-13');
+    expect(flowIds(root)).toEqual(['VULZ-ACME-13']);
     expect(made.stdout.trim()).toBe('VULZ-ACME-13');
   });
 });
@@ -271,7 +272,7 @@ describe('the claims are not part of the log', () => {
   });
 });
 
-describe('a flow line on the branch of a flow that is over makes a new flow', () => {
+describe('a flow line on the branch of a flow, open or over, makes a new flow', () => {
   const log = (
     lines: {
       kind: 'commit' | 'pr' | 'decision';
@@ -307,32 +308,24 @@ describe('a flow line on the branch of a flow that is over makes a new flow', ()
     return cli({ root, args: ['add', '--kind', 'flow', '--title', 'T'] }).stdout.trim();
   };
 
-  test('open: the flow is updated; merged, parked or rejected: a new flow with the next number', () => {
-    expect(made([{ kind: 'commit' }])).toBe('VULZ-ACME-4');
-    expect(made([{ kind: 'pr', ref: 'merged:9' }])).toBe('VULZ-ACME-5');
-    expect(made([{ kind: 'decision', status: 'park' }])).toBe('VULZ-ACME-5');
-    expect(made([{ kind: 'decision', status: 'reject' }])).toBe('VULZ-ACME-5');
-    expect(made([{ kind: 'decision', status: 'approve' }])).toBe('VULZ-ACME-4');
-  });
-
-  test('it is the board that says so: merged:#9 closes as merged:9 does, and an approval after a park reopens', () => {
-    expect(made([{ kind: 'pr', ref: 'merged:#9' }])).toBe('VULZ-ACME-5');
-    expect(
-      made([
+  test('open, merged, parked, rejected or reopened: a flow line with no --flow is a new flow with the next number', () => {
+    const cases: Parameters<typeof log>[0][] = [
+      [{ kind: 'commit' }],
+      [{ kind: 'pr', ref: 'merged:9' }],
+      [{ kind: 'pr', ref: 'merged:#9' }],
+      [{ kind: 'decision', status: 'park' }],
+      [{ kind: 'decision', status: 'reject' }],
+      [{ kind: 'decision', status: 'approve' }],
+      [
         { kind: 'decision', status: 'park' },
         { kind: 'decision', status: 'approve' },
-      ]),
-    ).toBe('VULZ-ACME-4');
-    expect(
-      made([
-        { kind: 'decision', status: 'approve' },
-        { kind: 'decision', status: 'reject' },
-      ]),
-    ).toBe('VULZ-ACME-5');
-  });
+      ],
+      [{ kind: 'pr', ref: 'merged:9' }, { kind: 'commit' }],
+    ];
 
-  test('work after the merge reopens it, so the flow is updated again', () => {
-    expect(made([{ kind: 'pr', ref: 'merged:9' }, { kind: 'commit' }])).toBe('VULZ-ACME-4');
+    for (const lines of cases) {
+      expect(made(lines)).toBe('VULZ-ACME-5');
+    }
   });
 
   test('--flow names a flow that is over on purpose, and is taken', () => {

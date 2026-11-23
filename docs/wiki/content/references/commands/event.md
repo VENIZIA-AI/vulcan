@@ -148,6 +148,8 @@ $ bun node_modules/.bin/vulcan event add --kind flow --title "Bảng việc cho 
 VULZ-ACME-12
 ```
 
+A flow line with no `--flow` always makes a new flow, whatever branch you are on: the branch id only places the other lines (a commit, a step, a pull request) and is what the guards read. To change a flow that exists, give `--flow <id>` (the line then replaces the flow's heading and lists whole) or use [`vulcan event step`](#vulcan-event-step).
+
 A number is claimed by creating a small file for it, `.flow-ids/<key>-<number>`, in the events folder: only one process can create a given file, so two agents asking at the same moment never get the same id, and it stays so even after the retention dropped the day the flow was on. The project needs `project.key` in its config (and `vulcan sync`); without it the command refuses and says so. To change the title or any other field of that flow later, give the id it printed:
 
 Add `--context` and `--next` so that the detail pane can be read at once:
