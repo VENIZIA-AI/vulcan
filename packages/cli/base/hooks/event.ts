@@ -1,10 +1,12 @@
 /**
- * Event log hook (SessionStart, Stop, SubagentStop, Notification and PostToolUse: a SendMessage is a message,
- * any other tool at most one tick per session every 30 seconds): appends one line to the agent event log
+ * Event log hook (SessionStart, Stop, SubagentStop, Notification and PostToolUse: a SendMessage is a message, any
+ * other tool at most one tick per session every 30 seconds): appends one line to the agent event log
  * (src/events/hook.ts) when the manifest says `events.log` is on. It stores names and short labels only -
  * never a message body, the last reply, a command, a path or anything of a tool's input or result, except
  * the step text of a `TodoWrite` call, which becomes the steps of the flow (cleaned and redacted), and the class
- * of a `Bash` call (a commit, a pull request opened or merged: the command is read here only to classify it and never logged).
+ * of a `Bash` call (a commit, a pull request opened or merged: the command is read here only to classify it and never
+ * logged), and, at a subagent's stop, the transcript of that subagent, of which only the ids, the model and the token
+ * counts are read and stored.
  *
  * It fails OPEN and says nothing on stdout: input it cannot read, a missing module or a write that fails
  * pass with a note on stderr, and the agent is never held. It imports only the events module, no config and
@@ -51,13 +53,35 @@ try {
     }
   }
 
+  const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+
   EventHook.run({
-    root: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+    root,
     input,
     env: process.env,
     ...(isOver === undefined ? {} : { isOver }),
     ...(activity === undefined ? {} : { activity }),
   });
+
+  // A subagent that stopped: its tokens go to the log, on the flow of its parent session. A meter that fails is its own note
+  // and never undoes the line already written.
+  if (input?.hook_event_name === 'SubagentStop') {
+    try {
+      const meter = await import('../../src/events/usage.ts');
+      const state = await import('../../src/events/flow-state.ts');
+
+      meter.UsageMeter.recordSubagent({
+        root,
+        input,
+        env: process.env,
+        isOver: state.FlowState.isOver,
+      });
+    } catch (error) {
+      console.error(
+        `vulcan: the token meter failed (${error instanceof Error ? error.message : String(error)})`,
+      );
+    }
+  }
 } catch (error) {
   // Input that is not JSON is not echoed: Bun's parse error quotes it.
   const reason =

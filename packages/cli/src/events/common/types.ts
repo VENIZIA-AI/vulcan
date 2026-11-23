@@ -14,6 +14,23 @@ export interface IEventItem {
   done: boolean;
 }
 
+/** The tokens of a `usage` line: four counts, the model that used them, and the subagent type when a subagent did. */
+export interface IEventUsage {
+  model: string;
+  /** Only a subagent's tokens have one: its `agent_type`. */
+  agent?: string;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+
+/** Where the meter stopped reading a transcript: the byte after the last whole line read, and the last message counted. */
+export interface IEventMark {
+  offset: number;
+  message?: string;
+}
+
 /** One line of the log. Field order is the order on disk. */
 export interface IEvent {
   id: string;
@@ -42,6 +59,9 @@ export interface IEvent {
   due?: string;
   /** Only a `session-start` the Claude Code hook wrote has one: the model of the session. */
   model?: string;
+  /** Only a `usage` line has them: the tokens, and where the transcript was read to. */
+  usage?: IEventUsage;
+  mark?: IEventMark;
   /** Only a `needs-owner` the Claude Code hook wrote has one: the notification type that raised it. */
   notification?: string;
   source: string;

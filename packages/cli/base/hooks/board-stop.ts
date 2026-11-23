@@ -1,5 +1,6 @@
 /**
- * Board hook (Stop): holds the end of a turn once when the board is out of step with the work of the turn (a commit, a
+ * Board hook (Stop): first records the tokens of the turn as `usage` lines (src/events/usage.ts; numbers and a model only),
+ * then holds the end of a turn once when the board is out of step with the work of the turn (a commit, a
  * pull request or an edit of tracked files since the flow's last line, or a merge with steps still open) and prints the
  * exact `vulcan event step` command to run (src/events/stop.ts). Only with `events.log` on.
  *
@@ -17,10 +18,25 @@ if (process.env.VULCAN_GUARDS === 'off') {
 try {
   const { BoardStop } = await import('../../src/events/stop.ts');
   const { FlowState } = await import('../../src/events/flow-state.ts');
+  const { UsageMeter } = await import('../../src/events/usage.ts');
   const stdin = await Bun.stdin.text();
+  const input = JSON.parse(stdin);
+  const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+
+  // The tokens of the turn go to the log first, whatever the board says next. A meter that fails never holds the turn.
+  try {
+    if (typeof input === 'object' && input !== null) {
+      UsageMeter.recordSession({ root, input, env: process.env, isOver: FlowState.isOver });
+    }
+  } catch (error) {
+    console.error(
+      `vulcan: the token meter failed (${error instanceof Error ? error.message : String(error)})`,
+    );
+  }
+
   const decision = BoardStop.decide({
-    root: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-    input: JSON.parse(stdin),
+    root,
+    input,
     env: process.env,
     isOver: FlowState.isOver,
   });

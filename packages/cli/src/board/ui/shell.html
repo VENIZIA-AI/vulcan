@@ -1118,6 +1118,26 @@
         flex: none;
         margin: 0 0 8px;
       }
+      .d-tokens {
+        width: 100%;
+        border-collapse: collapse;
+        font-variant-numeric: tabular-nums;
+      }
+      .d-tokens th,
+      .d-tokens td {
+        padding: 4px 0 4px 10px;
+        text-align: right;
+        border-bottom: 1px dashed var(--line);
+        font-weight: 400;
+      }
+      .d-tokens thead th {
+        color: var(--muted);
+      }
+      .d-tokens th[scope='row'] {
+        padding-left: 0;
+        text-align: left;
+        color: var(--ink);
+      }
       .d-sec .ckl ul {
         margin: 0;
         padding: 0;
