@@ -200,6 +200,10 @@ export class EventConstants {
   static readonly SESSION_ENV = 'CLAUDE_CODE_SESSION_ID';
   static readonly CONFIG_DIR_ENV = 'CLAUDE_CONFIG_DIR';
   static readonly DAY_MS = 24 * 60 * 60 * 1000;
+  /** A flow with open steps and no line of work for this long gets a reminder from the Stop hook, once per period per session. */
+  static readonly STALE_FLOW_MS = 2 * 60 * 60 * 1000;
+  /** The folder of the events folder that holds, per session, when it was last reminded of a stale flow. */
+  static readonly STALE_REMINDER_DIR = '.stale-reminders';
 }
 
 /**

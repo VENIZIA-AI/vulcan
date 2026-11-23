@@ -235,6 +235,71 @@ describe('the edit signal belongs to a session that is in the flow', () => {
   });
 });
 
+describe('a stale flow is reminded once per two hours', () => {
+  const HOUR = 60 * 60 * 1000;
+
+  test('open steps and no work line for two hours hold the turn, with the hours and the commands', () => {
+    const root = project();
+
+    flowLine({ root, at: T0 });
+
+    const held = stop({ root, now: T0 + 3 * HOUR });
+
+    expect(held?.decision).toBe('block');
+    expect(held?.reason).toContain('no update for 3 hours and steps are still open');
+    expect(held?.reason).toContain(`event step --flow ${FLOW} --done 'Refresh'`);
+    expect(stop({ root, now: T0 + HOUR })).toBeUndefined();
+  });
+
+  test('no nag: once reminded, the session is left alone for two hours, then reminded again', () => {
+    const root = project();
+
+    flowLine({ root, at: T0 });
+    expect(stop({ root, now: T0 + 3 * HOUR })?.decision).toBe('block');
+    expect(stop({ root, now: T0 + 3 * HOUR + 60_000 })).toBeUndefined();
+    expect(stop({ root, now: T0 + 4 * HOUR })).toBeUndefined();
+    expect(stop({ root, now: T0 + 5 * HOUR + 60_000 })?.decision).toBe('block');
+  });
+
+  test('a line of work resets it; a usage line, which the Stop hook writes itself, does not', () => {
+    const root = project();
+
+    flowLine({ root, at: T0 });
+    write({
+      root,
+      event: EventLog.build({
+        kind: 'usage',
+        summary: 'tokens',
+        actor: ACTOR,
+        source: 'claude-hook',
+        flowId: FLOW,
+        now: T0 + 2 * HOUR + 59 * 60_000,
+      }),
+    });
+    expect(stop({ root, now: T0 + 3 * HOUR })?.decision).toBe('block');
+
+    const worked = project();
+
+    flowLine({ root: worked, at: T0 });
+    line({ root: worked, kind: 'commit', summary: 'commit', at: T0 + 2 * HOUR });
+    flowLine({ root: worked, at: T0 + 2 * HOUR + 1000 });
+    expect(stop({ root: worked, now: T0 + 3 * HOUR })).toBeUndefined();
+  });
+
+  test('no open step, a session with no line in the flow, and an active hook are left alone', () => {
+    const done = project({});
+
+    flowLine({ root: done, at: T0, steps: [{ text: 'A', done: true }] });
+    expect(stop({ root: done, now: T0 + 3 * HOUR })).toBeUndefined();
+
+    const root = project();
+
+    flowLine({ root, at: T0 });
+    expect(stop({ root, actor: 'assistant-1', now: T0 + 3 * HOUR })).toBeUndefined();
+    expect(stop({ root, active: true, now: T0 + 3 * HOUR })).toBeUndefined();
+  });
+});
+
 describe('BoardStop.editedSince in a real repository', () => {
   const git = (root: string, ...args: string[]) =>
     Bun.spawnSync(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
