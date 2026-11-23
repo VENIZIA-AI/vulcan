@@ -43,8 +43,6 @@ export class BoardSettings {
     manifest: unknown;
     gitUser: string | undefined;
     readLogo: (path: string) => string | undefined;
-    /** What the roster is called in a note when it is not the manifest's `board.agents`. */
-    agentsFrom?: string;
   }): IBoardSettings {
     const manifest = RecordValue.isRecord(opts.manifest) ? opts.manifest : {};
     const block = RecordValue.isRecord(manifest.board) ? manifest.board : {};
@@ -60,7 +58,7 @@ export class BoardSettings {
     const logo = logoPath === undefined ? undefined : opts.readLogo(logoPath);
 
     if (problem !== undefined) {
-      notes.push(`${opts.agentsFrom ?? 'board.agents'} is not used: ${problem}`);
+      notes.push(`board.agents is not used: ${problem}`);
     }
 
     if (logoPath !== undefined && logo === undefined) {
@@ -180,22 +178,31 @@ export class BoardSettings {
       manifest = {};
     }
 
-    const own = LocalSettings.read({ root: opts.root }).agents;
+    const own = LocalSettings.read({ root: opts.root }).boardAgents;
+    const checked = own === undefined ? undefined : BOARD_AGENTS.safeParse(own);
     const block =
       RecordValue.isRecord(manifest) && RecordValue.isRecord(manifest.board) ? manifest.board : {};
-
-    return BoardSettings.resolve({
-      // This checkout's `board.agents` replaces the committed roster; the manifest itself is never written with it.
-      manifest:
-        own === undefined
-          ? manifest
-          : {
-              ...(RecordValue.isRecord(manifest) ? manifest : {}),
-              board: { ...block, agents: own },
-            },
+    const settings = BoardSettings.resolve({
+      // This checkout's roster replaces the committed one only when it is valid; the manifest is never written with it.
+      manifest: checked?.success
+        ? {
+            ...(RecordValue.isRecord(manifest) ? manifest : {}),
+            board: { ...block, agents: checked.data },
+          }
+        : manifest,
       gitUser: (opts.readGitUser ?? (() => BoardSettings.gitUserOf({ root: opts.root })))(),
       readLogo: (path) => BoardLogo.read({ root: opts.root, path }),
-      ...(own === undefined ? {} : { agentsFrom: `board.agents in ${AgentConstants.LOCAL_FILE}` }),
     });
+    const issue = checked === undefined || checked.success ? undefined : checked.error.issues[0];
+
+    return issue === undefined
+      ? settings
+      : {
+          ...settings,
+          notes: [
+            ...settings.notes,
+            `board.agents in ${AgentConstants.LOCAL_FILE} is not used: ${[issue.path.join('.'), issue.message].filter(Boolean).join(': ')}`,
+          ],
+        };
   }
 }

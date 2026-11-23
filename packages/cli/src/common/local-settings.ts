@@ -10,7 +10,7 @@ import { RecordValue } from './record.ts';
  * folder: a value it cannot use is left out and the committed one applies. `vulcan doctor` says what is wrong.
  */
 export class LocalSettings {
-  static read(opts: { root: string }): { tmp?: string; agents?: unknown } {
+  static read(opts: { root: string }): { tmp?: string; boardAgents?: unknown } {
     try {
       const file: unknown = JSON.parse(
         readFileSync(join(opts.root, AgentConstants.LOCAL_FILE), 'utf8'),
@@ -25,7 +25,7 @@ export class LocalSettings {
         LayoutFolder.layoutFolderProblem({ folder: tmp }) === undefined
           ? { tmp }
           : {}),
-        ...(RecordValue.isRecord(agents) ? { agents } : {}),
+        ...(RecordValue.isRecord(agents) ? { boardAgents: agents } : {}),
       };
     } catch {
       return {};

@@ -67,7 +67,9 @@ export class LocalChoice {
       const file: unknown = JSON.parse(readFileSync(join(opts.root, LOCAL_AGENTS_FILE), 'utf8'));
 
       return RecordValue.isRecord(file)
-        ? Object.keys(file).filter((key) => ![...OWNED_KEYS, 'board', 'local'].includes(key))
+        ? Object.keys(file).filter(
+            (key) => key !== '$generated' && !Object.hasOwn(LOCAL_SCHEMA.shape, key),
+          )
         : [];
     } catch {
       return [];

@@ -18,6 +18,7 @@ import { ProjectKey } from '../events/project-key.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules, RulePacks, RuleParser, RuleSlots } from '../rules/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
+import { AgentConstants } from '../agents/common/index.ts';
 import { AgentScopes, AgentSelection, AgentTable, LocalChoice } from '../agents/index.ts';
 import { CommitHook, CommitHookStates } from '../commit/index.ts';
 import { EventConstants } from '../events/common/index.ts';
@@ -634,7 +635,7 @@ export class ProjectContract {
           `unknown key '${key}': this file reads schemaVersion, agents, board.agents and local.tmp`,
         ),
       ),
-      ...((own.tmp !== undefined || own.agents !== undefined) &&
+      ...((own.tmp !== undefined || own.boardAgents !== undefined) &&
       AgentFiles.isTracked({ root: opts.root, path: file })
         ? [
             at(
@@ -1024,7 +1025,7 @@ export class ProjectContract {
   static checkLocalWorkspace(opts: ICheckContext): IViolation[] {
     return LocalPlan.planWorkspace({
       root: opts.root,
-      tmp: ProjectTmp.effectiveOf({ root: opts.root, tmp: opts.config.local.tmp }),
+      tmp: ProjectTmp.configuredOf({ tmp: opts.config.local.tmp }),
     })
       .filter((action) => action.status !== SyncStatuses.UNCHANGED)
       .map((action) =>
@@ -1165,7 +1166,8 @@ export class ProjectContract {
    * not set the key gets the warning of `checkBrowserSocket`.
    */
   static checkTmpFolder(opts: ICheckContext): IViolation[] {
-    const tmp = LocalSettings.read({ root: opts.root }).tmp ?? opts.config.local.tmp;
+    const own = LocalSettings.read({ root: opts.root }).tmp;
+    const tmp = own ?? opts.config.local.tmp;
 
     if (tmp === undefined) {
       return [];
@@ -1204,7 +1206,7 @@ export class ProjectContract {
     return problems.map((problem) =>
       createViolation({
         check: DoctorChecks.LOCAL,
-        file: opts.configFile,
+        file: own === undefined ? opts.configFile : AgentConstants.LOCAL_FILE,
         message: `local.tmp '${tmp}': ${problem}`,
       }),
     );

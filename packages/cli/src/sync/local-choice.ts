@@ -2,7 +2,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { LOCAL_AGENTS_FILE, LocalChoice } from '../agents/index.ts';
 import { ProjectLayout } from '../common/index.ts';
-import { LocalSettings } from '../common/local-settings.ts';
 import { HookConstants } from '../hooks/common/index.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { LaunchSettings } from './claude-launch.ts';
@@ -66,31 +65,32 @@ export class LocalPlan {
   }
 
   /**
-   * The folder `local.tmp` names, when it is not the default one: made and gitignored (a name is never hidden, so
-   * it is never under the `.agents/local/` that is ignored whole). The default folder is one of the layout's.
+   * `opts.tmp` is the committed `local.tmp` (or the default). Its folder is gitignored in the committed `.gitignore`
+   * whoever runs sync: a name is never hidden, so it is never under the `.agents/local/` that is ignored whole. The
+   * folder this checkout names in its local file (else the same one) is only made; its ignore line is in
+   * `.git/info/exclude` (`ExcludePlan`). The default folder is one of the layout's.
    */
   static planTmp(opts: { root: string; tmp?: string }): ISyncAction[] {
-    const tmp = ProjectTmp.projectOf(opts);
-
-    if (tmp === join(opts.root, HookConstants.PROJECT_TMP)) {
-      return [];
-    }
-
+    const configured = ProjectTmp.configuredOf({ tmp: opts.tmp });
+    const committed = join(opts.root, configured);
+    const tmp = join(opts.root, ProjectTmp.effectiveOf({ root: opts.root, tmp: configured }));
+    const isDefault = (folder: string): boolean =>
+      folder === join(opts.root, HookConstants.PROJECT_TMP);
     const isMade = existsSync(tmp);
+    const made: ISyncAction = {
+      path: tmp,
+      status: isMade ? SyncStatuses.UNCHANGED : SyncStatuses.CREATED,
+      ...(isMade ? {} : { note: 'the project tmp folder, local.tmp' }),
+      apply: () => {
+        mkdirSync(tmp, { recursive: true });
+      },
+    };
 
     return [
-      // A folder this checkout names itself is listed in `.git/info/exclude` (`ExcludePlan`), never in the committed file.
-      ...(LocalSettings.read({ root: opts.root }).tmp === undefined
-        ? planIgnoreLine({ root: opts.root, line: `/${relative(opts.root, tmp)}/` })
-        : []),
-      {
-        path: tmp,
-        status: isMade ? SyncStatuses.UNCHANGED : SyncStatuses.CREATED,
-        ...(isMade ? {} : { note: 'the project tmp folder, local.tmp' }),
-        apply: () => {
-          mkdirSync(tmp, { recursive: true });
-        },
-      },
+      ...(isDefault(committed)
+        ? []
+        : planIgnoreLine({ root: opts.root, line: `/${relative(opts.root, committed)}/` })),
+      ...(isDefault(tmp) ? [] : [made]),
     ];
   }
 
@@ -107,7 +107,13 @@ export class LocalPlan {
     return [
       ...planIgnoreLine({ root: opts.root, line: `${ProjectLayout.LOCAL_DIRECTORY}/` }),
       ...LocalPlan.planTmp(opts),
-      ...LaunchSettings.planClaude(opts),
+      ...LaunchSettings.planClaude({
+        root: opts.root,
+        tmp: ProjectTmp.effectiveOf({
+          root: opts.root,
+          tmp: ProjectTmp.configuredOf({ tmp: opts.tmp }),
+        }),
+      }),
       {
         path: directory,
         status: missing.length === 0 ? SyncStatuses.UNCHANGED : SyncStatuses.CREATED,

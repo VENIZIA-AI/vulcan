@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { LOCAL_AGENTS_FILE, LocalChoice } from '../../agents/index.ts';
 import { LocalSettings } from '../../common/local-settings.ts';
@@ -44,7 +44,7 @@ describe('the local file reads board.agents and local.tmp', () => {
     const root = projectWith({ local: { board: { agents: ROSTER }, local: { tmp: 't' } } });
 
     expect(LocalChoice.read({ root })).toEqual({ ok: true, agents: undefined });
-    expect(LocalSettings.read({ root })).toEqual({ tmp: 't', agents: ROSTER });
+    expect(LocalSettings.read({ root })).toEqual({ tmp: 't', boardAgents: ROSTER });
   });
 
   test('a value that cannot be used is named by file and key, and the hooks leave it out', () => {
@@ -55,7 +55,7 @@ describe('the local file reads board.agents and local.tmp', () => {
       [
         { board: { agents: { a: { lane: 'b' } } } },
         /vulcan\.local\.json: board\.agents\.a\.lane/,
-        { agents: { a: { lane: 'b' } } },
+        { boardAgents: { a: { lane: 'b' } } },
       ],
     ];
 
@@ -132,15 +132,20 @@ describe('precedence: the local value replaces the whole key', () => {
     expect(team.roster).toEqual(['umbra', 'aurora']);
   });
 
-  test('a roster with a bad entry is not used and the board says why', () => {
-    const root = projectWith({
-      manifest: { name: 'Acme', board: { agents: { umbra: 'ember' } } },
-      local: { board: { agents: { a: { lane: 'a' } } } },
-    });
+  test('a broken local roster keeps the committed one, and the board names the file', () => {
+    const manifest = { name: 'Acme', board: { agents: { umbra: 'ember' } } };
 
-    expect(BoardSettings.read({ root }).notes.join('\n')).toContain(
-      'board.agents in .agents/vulcan.local.json is not used',
-    );
+    for (const agents of [{ a: { lane: 'a' } }, { a: 'nope' }]) {
+      const settings = BoardSettings.read({
+        root: projectWith({ manifest, local: { board: { agents } } }),
+      });
+
+      expect(settings.roster).toEqual(['umbra']);
+      expect(settings.shapes).toEqual({ umbra: 'ember' });
+      expect(settings.notes.join('\n')).toContain(
+        'board.agents in .agents/vulcan.local.json is not used',
+      );
+    }
   });
 });
 
@@ -170,30 +175,45 @@ describe('vulcan sync with a local file', () => {
     expect(sync(root).code).toBe(0);
     expect(readFileSync(join(root, '.git/info/exclude'), 'utf8')).toContain('/t/');
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).not.toContain('/t/');
-    expect(Bun.file(join(root, 't')).size).toBeDefined();
+    expect(statSync(join(root, 't')).isDirectory()).toBe(true);
     expect(git(root, 'check-ignore', '-q', 't/x').exitCode).toBe(0);
   });
 
   test('a broken local value stops sync and writes nothing', () => {
     const root = projectWith({ local: { local: { tmp: '../out' } } });
+    const before = readFileSync(join(root, MANIFEST), 'utf8');
     const result = sync(root);
 
     expect(result.code).not.toBe(0);
     expect(result.stderr).toContain('local.tmp');
+    expect(readFileSync(join(root, MANIFEST), 'utf8')).toBe(before);
+    expect(existsSync(join(root, '.agents/local/claude.launch.settings.json'))).toBe(false);
+    expect(existsSync(join(root, '..t')) || existsSync(join(root, '../out'))).toBe(false);
   });
 
-  test('the manifest and AGENTS.md are the same with and without a local file', () => {
-    const plain = projectWith({});
-    const own = projectWith({ local: { board: { agents: ROSTER }, local: { tmp: 't' } } });
+  test('the manifest, AGENTS.md and .gitignore are the same with and without a local file', () => {
+    const team = {
+      '.configs/vulcan.config.mts':
+        "export default { name: 'acme', local: { tmp: 'tmp' }, board: { agents: { umbra: 'ember' } } };\n",
+      '.gitignore': 'node_modules/\n',
+    };
+    const plain = projectWith({ files: team });
+    const own = projectWith({
+      files: team,
+      local: { board: { agents: ROSTER }, local: { tmp: 't' } },
+    });
 
     for (const root of [plain, own]) {
       mkdirSync(join(root, '.agents'), { recursive: true });
       expect(sync(root).code).toBe(0);
     }
 
-    for (const file of [MANIFEST, 'AGENTS.md']) {
+    for (const file of [MANIFEST, 'AGENTS.md', '.gitignore']) {
       expect(readFileSync(join(own, file), 'utf8')).toBe(readFileSync(join(plain, file), 'utf8'));
     }
+
+    expect(readFileSync(join(own, '.gitignore'), 'utf8')).toContain('/tmp/');
+    expect(statSync(join(own, 't')).isDirectory()).toBe(true);
   });
 });
 
@@ -204,5 +224,17 @@ describe('vulcan doctor', () => {
 
     expect(result.stderr + result.stdout).toContain('local.tmp');
     expect(result.stderr + result.stdout).toContain(LOCAL_AGENTS_FILE);
+  });
+
+  test('a problem of a tmp folder from the local file is reported against that file', () => {
+    const root = projectWith({ local: { local: { tmp: 'shared' } } });
+    const violations = ProjectContract.checkTmpFolder({
+      root,
+      config: VULCAN_CONFIG_SCHEMA.parse({ layout: { shared: 'shared' } }),
+      configFile: '.configs/vulcan.config.mts',
+    });
+
+    expect(violations.length).toBeGreaterThan(0);
+    expect(violations.every((violation) => violation.file === LOCAL_AGENTS_FILE)).toBe(true);
   });
 });
