@@ -35,7 +35,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "SendMessage",
+        "matcher": "SendMessage|TodoWrite",
         "hooks": [
           {
             "type": "command",

@@ -102,6 +102,14 @@ Run from a subfolder, the command uses the project of that folder: the nearest f
 
 Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not a flow id or that no line of the log carries, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or one that makes a new flow when the project has no `project.key`, or with an empty or blank `--context` or `--next`, or with a `--summary`, a `--title`, `--why`, `--context` or `--next` on any other kind, an unknown flag, a flag given twice).
 
+## vulcan event step
+
+```text
+vulcan event step [--flow <flow id>] [--done <step> | --todo <step>] [--next <text>] [--context <text>] [--actor <name>] [--dir <folder>]
+```
+
+Changes one step of a flow without restating the lists. It copies the flow's last `flow` line whole (title, reason, context, next step, steps, checks, apps and due day) and writes it again with the change, so the log format stays as it is. `--done` sets the step done and `--todo` opens it; a step that is not in the list is added at the end, and a step is matched by its text. `--next` or `--context` alone, with no step flag, writes a line that says where the flow stands. The flow is `--flow`, else the id in the branch name. Exit `2` when the flow has no flow line yet (the message names the command that writes it), when both `--done` and `--todo` are given, when nothing to change is given, when the step text is empty or over 200 characters, or when the list would pass 30 steps. It prints the id of the line.
+
 ## vulcan event tail
 
 ```text
@@ -112,16 +120,17 @@ It prints the events at or after `--since`, oldest first. `--since` takes anythi
 
 ## What the Claude Code hooks log
 
-`sync` installs one hook per event (four of them: `PostToolUse` only for the `SendMessage` tool). Each runs `base/hooks/event.ts`, reads the payload from stdin and writes at most one line. The payload fields are those of Claude Code 2.1.317.
+`sync` installs one hook per event (four of them: `PostToolUse` only for the `SendMessage` and `TodoWrite` tools). Each runs `base/hooks/event.ts`, reads the payload from stdin and writes at most one line. The payload fields are those of Claude Code 2.1.317.
 
 | Claude Code event | Logged as | Summary | Read from the payload |
 |---|---|---|---|
 | `SessionStart` | `session-start` | the `source` and the `model`; the model is also stored in `model` | `source`, `model` |
 | `SubagentStop` | `subagent-stop` | the `agent_type` and the `agent_id` | `agent_type`, `agent_id` |
 | `Notification` | `needs-owner`, for `permission_prompt`, `idle_prompt` and `elicitation_dialog` | the notification `title`, else its type; the type is also stored in `notification` | `notification_type`, `title` |
+| `PostToolUse` of `TodoWrite` | a `flow` line: the last flow line of the flow, copied whole, with the task list as its steps | the `content` and `status` of each task: a `completed` task is a done step, any other an open one |
 | `PostToolUse` of `SendMessage` | `msg-sent` | the sender's own `summary` label, else the fixed text `message sent`. The text of the message is never used | `tool_input.to`, `tool_input.summary`; the first line of `tool_input.message` only to look for `Flow: F-n` |
 
-A turn that ends (`Stop`) and a tool that is used (`PostToolUse` of any tool but `SendMessage`) are not logged: a `session-stop` line of the fixed text `turn ended` and a `tool-tick` line at most every 30 seconds would be over half of the lines of a busy log, and neither carries anything but the fact itself. The board still reads such lines in a log that holds them, until the age limit removes them.
+The `TodoWrite` hook writes only when there is a flow (the branch's, else the one this session last opened or updated in the last three days) with a flow line, and only when the list differs from that line's steps; an empty list never clears them. A turn that ends (`Stop`) and a tool that is used (`PostToolUse` of any tool but `SendMessage` and `TodoWrite`) are not logged: a `session-stop` line of the fixed text `turn ended` and a `tool-tick` line at most every 30 seconds would be over half of the lines of a busy log, and neither carries anything but the fact itself. The board still reads such lines in a log that holds them, until the age limit removes them.
 
 `msg-received` has no hook: Claude Code runs none when a message arrives, and VULCAN does not read transcripts to find out. A reader gets it from the sender's `msg-sent`, or an agent writes it with `event add`. `commit` and `pr` are written with `event add` too.
 
@@ -166,7 +175,7 @@ The hook takes about 10 to 25 ms per event on a developer machine (a bare `bun` 
 
 ## What is never stored
 
-Summaries only. The log never holds a message body, the last reply of an agent (`last_assistant_message`), a notification `message`, a tool command or its output, a file path, or a transcript. Text that is stored passes through a redaction first: GitHub, GitLab, npm, Slack, AWS and Google API keys, `sk-` and Stripe `sk_live_`/`sk_test_` keys, `Bearer` and `Basic` credentials, Hugging Face, DigitalOcean, Shopify and SendGrid tokens, JSON web tokens, private-key headers, long hex and base64 runs, the value of an `Authorization` header of any scheme, the values of a `Cookie` or `Set-Cookie` header, a password on a command line (after `--password`, `--http-password`, `--ftp-password`, `--token`, `--secret`, `--api-key` or `--key`, curl's user flag, `-p` joined to its value for the MySQL and MariaDB clients, `-p` of sshpass and of a docker, podman or az login, `-a` of redis-cli, `-P` of sqlcmd, `aws configure set` of a secret; not a variable such as `$NAME`), a Slack webhook path, the `sig=` of a shared access URL, `user:password@` in a URL (the user may be empty) and the key of a DSN, and the value of any `name=value`, `name: value` or `"name": "value"` whose name contains `key`, `token`, `secret`, `password`, `passwd`, `pwd` or `credential`, or has `pw`, `pass` or `passphrase` as a whole part (not when the value is a switch such as `true`, `off` or `1`), or after "the password is", become `[redacted]`. Only the start of a long text is read, a few times the length that is kept, so a long line costs no more than a short one. That is a net for slips, not a promise: a label that a person or an agent writes should not contain a secret in the first place.
+Summaries only. The one tool input it reads is the task text of `TodoWrite`, which becomes the steps of the flow. The log never holds a message body, the last reply of an agent (`last_assistant_message`), a notification `message`, a tool command or its output, a file path, or a transcript. Text that is stored passes through a redaction first: GitHub, GitLab, npm, Slack, AWS and Google API keys, `sk-` and Stripe `sk_live_`/`sk_test_` keys, `Bearer` and `Basic` credentials, Hugging Face, DigitalOcean, Shopify and SendGrid tokens, JSON web tokens, private-key headers, long hex and base64 runs, the value of an `Authorization` header of any scheme, the values of a `Cookie` or `Set-Cookie` header, a password on a command line (after `--password`, `--http-password`, `--ftp-password`, `--token`, `--secret`, `--api-key` or `--key`, curl's user flag, `-p` joined to its value for the MySQL and MariaDB clients, `-p` of sshpass and of a docker, podman or az login, `-a` of redis-cli, `-P` of sqlcmd, `aws configure set` of a secret; not a variable such as `$NAME`), a Slack webhook path, the `sig=` of a shared access URL, `user:password@` in a URL (the user may be empty) and the key of a DSN, and the value of any `name=value`, `name: value` or `"name": "value"` whose name contains `key`, `token`, `secret`, `password`, `passwd`, `pwd` or `credential`, or has `pw`, `pass` or `passphrase` as a whole part (not when the value is a switch such as `true`, `off` or `1`), or after "the password is", become `[redacted]`. Only the start of a long text is read, a few times the length that is kept, so a long line costs no more than a short one. That is a net for slips, not a promise: a label that a person or an agent writes should not contain a secret in the first place.
 
 ## Other agents
 

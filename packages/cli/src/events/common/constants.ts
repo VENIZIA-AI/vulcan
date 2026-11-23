@@ -38,6 +38,7 @@ export class EventSources {
 export class EventSubcommands {
   static readonly ADD = 'add';
   static readonly TAIL = 'tail';
+  static readonly STEP = 'step';
 }
 
 export class EventFlags {
@@ -61,6 +62,9 @@ export class EventFlags {
   static readonly DIR = '--dir';
   static readonly SINCE = '--since';
   static readonly JSON = '--json';
+  /** `vulcan event step`: the step's text, set done or open. */
+  static readonly DONE = '--done';
+  static readonly TODO = '--todo';
 
   /** Every flag the command knows: a list value that is one of them is a flag with its value missing. */
   static readonly KNOWN = new Set<string>([
@@ -83,6 +87,8 @@ export class EventFlags {
     this.DIR,
     this.SINCE,
     this.JSON,
+    this.DONE,
+    this.TODO,
   ]);
 }
 
@@ -94,6 +100,8 @@ export class ClaudeHookEvents {
   static readonly POST_TOOL_USE = 'PostToolUse';
   /** The cross-session tool whose calls are logged as `msg-sent`. */
   static readonly SEND_MESSAGE_TOOL = 'SendMessage';
+  /** The task-list tool whose list is mirrored into the steps of the flow. */
+  static readonly TODO_TOOL = 'TodoWrite';
   /** The notification types that mean an agent waits for a person; `auth_success` does not. */
   static readonly OWNER_NOTIFICATIONS = new Set<string>([
     'permission_prompt',
@@ -131,6 +139,8 @@ export class EventConstants {
   static readonly REF_MAX = 120;
   /** A flow line's lists: how many items, and how long one is. */
   static readonly ITEM_COUNT_MAX = 30;
+  /** How far back the task-list mirror looks for the flow's last line: it reads the log on every `TodoWrite`. */
+  static readonly MIRROR_DAYS = 3;
   static readonly ITEM_TEXT_MAX = 200;
   static readonly APP_COUNT_MAX = 12;
   static readonly APP_TEXT_MAX = 40;

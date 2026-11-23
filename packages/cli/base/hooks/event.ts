@@ -2,7 +2,8 @@
  * Event log hook (SessionStart, Stop, SubagentStop, Notification and PostToolUse: a SendMessage is a message,
  * any other tool at most one tick per session every 30 seconds): appends one line to the agent event log
  * (src/events/hook.ts) when the manifest says `events.log` is on. It stores names and short labels only -
- * never a message body, the last reply, a command, a path or anything of a tool's input or result.
+ * never a message body, the last reply, a command, a path or anything of a tool's input or result, except
+ * the step text of a `TodoWrite` call, which becomes the steps of the flow (cleaned and redacted).
  *
  * It fails OPEN and says nothing on stdout: input it cannot read, a missing module or a write that fails
  * pass with a note on stderr, and the agent is never held. It imports only the events module, no config and

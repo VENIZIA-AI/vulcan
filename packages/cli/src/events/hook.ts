@@ -3,6 +3,7 @@ import { ClaudeHookEvents, EventConstants, EventKinds, EventSources } from './co
 import type { IEvent, IHookEvent } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
+import { FlowSteps } from './flow-steps.ts';
 import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 import { EventText } from './text.ts';
@@ -17,7 +18,9 @@ export class EventHook {
    * read: `source` and `model` of a session start, `agent_type` and `agent_id` of a subagent stop,
    * `notification_type` and `title` of a notification, and `to` and `summary` of a SendMessage call (the label the
    * sender gave it, or a fixed one). A turn that ends and a tool that is used are not events.
-   * `last_assistant_message`, the text of a message, `tool_response`, `tool_input` and every command stay unread.
+   * `last_assistant_message`, the text of a message, `tool_response`, every command and every other part of a tool's
+   * input stay unread. The one exception is the step text of a `TodoWrite` call (`mirrorTodos`): the `content` and
+   * `status` of each task, cleaned and redacted like every text of the log.
    */
   static map(opts: { input: unknown }): IHookEvent | undefined {
     const { input } = opts;
@@ -116,6 +119,65 @@ export class EventHook {
   }
 
   /**
+   * The task list of a `TodoWrite` call as the steps of the flow: a completed task is a done step, any other an open one,
+   * and the list replaces the steps. The flow is the branch's at the payload's `cwd`, else the one this session last opened
+   * or updated; with none, or with no flow line yet, nothing is written. A list that is empty, or the same as the last
+   * line's steps, writes nothing, so a burst of calls is one line. The rest of the last flow line is copied forward.
+   */
+  private static mirrorTodos(opts: {
+    dir: string;
+    root: string;
+    input: Record<string, unknown>;
+    env: Record<string, string | undefined>;
+    now?: number;
+  }): IEvent | undefined {
+    const call = opts.input.tool_input;
+    const todos = RecordValue.isRecord(call) && Array.isArray(call.todos) ? call.todos : [];
+    const steps = EventText.items({
+      items: todos.flatMap((todo: unknown) =>
+        RecordValue.isRecord(todo)
+          ? [{ text: text({ value: todo.content }), done: todo.status === 'completed' }]
+          : [],
+      ),
+      max: EventConstants.ITEM_TEXT_MAX,
+      count: EventConstants.ITEM_COUNT_MAX,
+    });
+
+    if (steps.length === 0) {
+      return undefined;
+    }
+
+    const actor = EventActor.resolve({
+      sessionId: text({ value: opts.input.session_id }),
+      env: opts.env,
+    });
+    const known = EventLog.read({
+      dir: opts.dir,
+      since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
+    }).events;
+    const flowId =
+      EventFlow.fromBranch({ cwd: text({ value: opts.input.cwd }) || opts.root }) ??
+      FlowSteps.lastOpenedBy({ events: known, actor });
+    const last = flowId === undefined ? undefined : FlowSteps.lastLine({ events: known, flowId });
+
+    if (last === undefined || FlowSteps.isSame({ first: steps, second: last.steps ?? [] })) {
+      return undefined;
+    }
+
+    const event = FlowSteps.continued({
+      last,
+      steps,
+      actor,
+      source: EventSources.CLAUDE_HOOK,
+      ...(opts.now === undefined ? {} : { now: opts.now }),
+    });
+
+    EventLog.append({ dir: opts.dir, event });
+
+    return event;
+  }
+
+  /**
    * Logs what a payload stands for, when the manifest says the log is on. Returns the line it wrote.
    * `root` is the project, where the manifest is; the flow comes from the message, else the branch at the
    * payload's `cwd`.
@@ -130,6 +192,16 @@ export class EventHook {
 
     if (!settings.log) {
       return undefined;
+    }
+
+    if (RecordValue.isRecord(opts.input) && opts.input.tool_name === ClaudeHookEvents.TODO_TOOL) {
+      return EventHook.mirrorTodos({
+        dir: EventSettings.dirOf({ root: opts.root, settings }),
+        root: opts.root,
+        input: opts.input,
+        env: opts.env,
+        ...(opts.now === undefined ? {} : { now: opts.now }),
+      });
     }
 
     const mapped = EventHook.map({ input: opts.input });
