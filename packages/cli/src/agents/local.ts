@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { RecordValue } from '../common/record.ts';
 import { BOARD_AGENTS } from '../board/schema.ts';
+import { EventSettings } from '../events/settings.ts';
 import { AgentConstants } from './common/index.ts';
 import type { TLocalChoice } from './common/index.ts';
 import { AgentTable } from './table.ts';
@@ -17,6 +18,21 @@ const LOCAL_SCHEMA = z.object({
   agents: z.array(z.string()).optional(),
   /** The roster of the board for this checkout; it replaces `board.agents` of the committed config. */
   board: z.strictObject({ agents: BOARD_AGENTS.optional() }).optional(),
+  /** `dir` replaces `events.dir` of the committed config: an absolute folder, such as one shared by several repositories. */
+  events: z
+    .strictObject({
+      dir: z
+        .string()
+        .superRefine((dir, context) => {
+          const message = EventSettings.dirError({ dir });
+
+          if (message !== undefined) {
+            context.addIssue({ code: 'custom', message });
+          }
+        })
+        .optional(),
+    })
+    .optional(),
   /** `tmp` replaces `local.tmp` of the committed config. */
   local: z
     .strictObject({

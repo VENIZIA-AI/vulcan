@@ -61,6 +61,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'commit-check', link: '/references/commands/commit-check' },
       { text: 'event', link: '/references/commands/event' },
       { text: 'board', link: '/references/commands/board' },
+      { text: 'config', link: '/references/commands/config' },
       { text: 'clean', link: '/references/commands/clean' },
       { text: 'changelog', link: '/references/commands/changelog' },
       { text: 'migrate', link: '/references/commands/migrate' },
