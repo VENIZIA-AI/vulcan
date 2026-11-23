@@ -29,7 +29,17 @@ export const sampleData = (opts: { base?: number } = {}): IBoardData => {
       };
     }),
     decisions,
-    agents: log.agents,
+    agents: Object.fromEntries(
+      Object.entries(log.agents).map(([name, agent]) => [
+        name,
+        agent.latest === undefined
+          ? agent
+          : {
+              ...agent,
+              latest: { ...agent.latest, id: `${name}:${agent.latest.ts}:${agent.latest.type}` },
+            },
+      ]),
+    ),
     sources: ['event log: 18 line(s) in .agents/local/events', 'github: left out (--no-github)'],
   };
 };

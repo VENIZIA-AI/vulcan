@@ -220,6 +220,11 @@ export class BrowserPage {
       method: 'Emulation.setDeviceMetricsOverride',
       params: { width: run.width, height: 900, deviceScaleFactor: 1, mobile: run.width < 500 },
     });
+    // The page counts days in the time zone the test counts them in (bun test runs in UTC), or a due day is off by one near midnight.
+    await BrowserPage.send({
+      method: 'Emulation.setTimezoneOverride',
+      params: { timezoneId: Intl.DateTimeFormat().resolvedOptions().timeZone },
+    });
     await BrowserPage.send({
       method: 'Emulation.setEmulatedMedia',
       params: {

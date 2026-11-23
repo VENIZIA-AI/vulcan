@@ -1,8 +1,10 @@
+import { useRef, useState } from 'react';
+import { usePopover } from '../hooks.ts';
 import type { TLiveState } from '../hooks.ts';
 import { useT } from '../i18n/context.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardUrl } from '../url.ts';
-import { THEME_ICONS } from './icons.tsx';
+import { ICONS, THEME_ICONS } from './icons.tsx';
 
 export type TTheme = 'light' | 'dark' | 'system';
 export const THEMES: TTheme[] = ['light', 'dark', 'system'];
@@ -30,70 +32,111 @@ export const Header = (props: IHeaderProps) => {
   const t = useT();
   const themeLabel = `${t('Giao diện: ')}${t(THEME_NAMES[props.theme])}`;
   const langLabel = `${t('lang.label')}: ${t(`lang.${props.language}`)}`;
+  const clock = BoardTime.clock({ iso: props.lastSeen });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const moreButton = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLSpanElement>(null);
+  const closeMenu = (): void => {
+    setMenuOpen(false);
+    moreButton.current?.focus();
+  };
+  const choose = (action: () => void) => (): void => {
+    action();
+
+    if (menuOpen) {
+      closeMenu();
+    }
+  };
+
+  usePopover({ open: menuOpen, panel: menu, trigger: moreButton, onClose: closeMenu });
 
   return (
-    <header className="bar">
+    <header className={`bar${menuOpen ? ' menu-open' : ''}`}>
       <span className="mark" id="mark">
         {props.logo ? <img src={BoardUrl.safe({ value: props.logo, image: true })} alt="" /> : null}
       </span>
       <span className="brule" aria-hidden="true" />
       <h1 id="boardTitle">{props.title}</h1>
-      <span className="spacer" />
-      <span className="since" id="since" title={props.sources.join('\n')}>
-        <span id="sinceTxt">
-          {t('Từ lần xem trước lúc ')}
-          <b>{BoardTime.clock({ iso: props.lastSeen })}</b>: <b>{props.newCount}</b>
-          {t(' sự kiện mới')}
+      {props.live === undefined ? null : (
+        <span className={`fresh live-${props.live}`} id="fresh">
+          <span className="fresh-dot" aria-hidden="true" />
+          <span className="fresh-text">{t(`live.${props.live}`)}</span>
         </span>
+      )}
+      <span className="spacer" />
+      <button
+        className={`since${props.newCount > 0 ? ' has-new' : ''}`}
+        type="button"
+        id="bSeen"
+        title={`${t('Từ lần xem trước lúc ')}${clock}: ${props.newCount}${t(' sự kiện mới')}\n${props.sources.join('\n')}`}
+        aria-label={`${props.newCount} ${t('hd.new')} ${clock}. ${t('Đánh dấu đã xem')}`}
+        onClick={props.onSeen}
+      >
+        <span className="since-dot" aria-hidden="true" />
+        <b className="num">{props.newCount}</b> {t('hd.new')} <span className="num">{clock}</span>
+      </button>
+      <button
+        ref={moreButton}
+        className="ib more"
+        type="button"
+        aria-label={t('hd.more')}
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen(!menuOpen)}
+      >
+        {ICONS.more}
+      </button>
+      <span className="tools" ref={menu}>
+        <button
+          className="ib"
+          type="button"
+          id="bPlumb"
+          aria-pressed={props.showPlumbing}
+          title={t('pl.tip')}
+          onClick={choose(props.onPlumbing)}
+        >
+          {ICONS.eye}
+          <span className="lbl">{t('pl.all')}</span>
+        </button>
+        <button
+          className="ib lang"
+          type="button"
+          id="bLang"
+          aria-label={langLabel}
+          title={langLabel}
+          onClick={choose(props.onLanguage)}
+        >
+          {props.language === 'en' ? 'VI' : 'EN'}
+          <span className="lbl" aria-hidden="true">
+            {t(`lang.${props.language === 'en' ? 'vi' : 'en'}`)}
+          </span>
+        </button>
+        <button
+          className="ib theme"
+          type="button"
+          id="bTheme"
+          aria-label={`${themeLabel}${t('. Bấm để đổi')}`}
+          title={themeLabel}
+          onClick={choose(props.onTheme)}
+        >
+          {THEME_ICONS[props.theme]}
+          <span className="lbl" aria-hidden="true">
+            {themeLabel}
+          </span>
+        </button>
+        <button
+          className="ib"
+          type="button"
+          id="bKeys"
+          aria-label={t('Phím tắt')}
+          aria-expanded={props.keysOpen}
+          onClick={choose(props.onKeys)}
+        >
+          ?
+          <span className="lbl" aria-hidden="true">
+            {t('Phím tắt')}
+          </span>
+        </button>
       </span>
-      <button className="btn" type="button" id="bSeen" onClick={props.onSeen}>
-        <span>{t('Đánh dấu đã xem')}</span>
-      </button>
-      <span className="fresh" id="fresh">
-        {props.live === undefined ? null : (
-          <span className={props.live === 'on' ? undefined : 'st'}>{t(`live.${props.live}`)}</span>
-        )}
-      </span>
-      <button
-        className="btn"
-        type="button"
-        id="bPlumb"
-        aria-pressed={props.showPlumbing}
-        title={t('pl.tip')}
-        onClick={props.onPlumbing}
-      >
-        <span>{t('pl.all')}</span>
-      </button>
-      <button
-        className="btn lang"
-        type="button"
-        id="bLang"
-        aria-label={langLabel}
-        title={langLabel}
-        onClick={props.onLanguage}
-      >
-        {props.language === 'en' ? 'VI' : 'EN'}
-      </button>
-      <button
-        className="btn sq theme"
-        type="button"
-        id="bTheme"
-        aria-label={`${themeLabel}${t('. Bấm để đổi')}`}
-        title={themeLabel}
-        onClick={props.onTheme}
-      >
-        {THEME_ICONS[props.theme]}
-      </button>
-      <button
-        className="btn sq"
-        type="button"
-        id="bKeys"
-        aria-label={t('Phím tắt')}
-        aria-expanded={props.keysOpen}
-        onClick={props.onKeys}
-      >
-        ?
-      </button>
     </header>
   );
 };

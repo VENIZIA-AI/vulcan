@@ -116,3 +116,73 @@ export const useReplay = (opts: {
     first.current = false;
   }, [opts.trigger]);
 };
+
+const FOCUSABLE = 'button, select, input, a[href], [tabindex]:not([tabindex="-1"])';
+
+/**
+ * A menu or a sheet while it is open: focus moves to its first control, Esc and a press outside it close it (Esc
+ * before any other key handler of the page), and with `trap` Tab stays inside it. `onClose` returns the focus.
+ */
+export const usePopover = (opts: {
+  open: boolean;
+  panel: { current: HTMLElement | null };
+  trigger: { current: HTMLElement | null };
+  onClose: () => void;
+  trap?: boolean;
+}): void => {
+  useEffect(() => {
+    const panel = opts.panel.current;
+
+    if (!opts.open || panel === null) {
+      return undefined;
+    }
+
+    const controls = (): HTMLElement[] =>
+      [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+        (control) => control.offsetParent !== null,
+      );
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        opts.onClose();
+
+        return;
+      }
+
+      const list = controls();
+
+      if (opts.trap !== true || event.key !== 'Tab' || list.length === 0) {
+        return;
+      }
+
+      const at = list.indexOf(
+        document.activeElement instanceof HTMLElement ? document.activeElement : list[0],
+      );
+      const next = event.shiftKey ? (at <= 0 ? list.length - 1 : at - 1) : (at + 1) % list.length;
+
+      event.preventDefault();
+      list[next].focus();
+    };
+    const onPress = (event: PointerEvent): void => {
+      const target = event.target;
+
+      if (
+        target instanceof Node &&
+        !panel.contains(target) &&
+        !opts.trigger.current?.contains(target)
+      ) {
+        opts.onClose();
+      }
+    };
+
+    controls()[0]?.focus();
+    window.addEventListener('keydown', onKey, true);
+    document.addEventListener('pointerdown', onPress);
+
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('pointerdown', onPress);
+    };
+  }, [opts.open]);
+};
