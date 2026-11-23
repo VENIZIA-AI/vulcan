@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { AgentConstants } from '../agents/common/constants.ts';
+import { LocalSettings } from '../common/local-settings.ts';
 import { RecordValue } from '../common/record.ts';
 import { BoardConstants, BoardServe, ProviderTypes } from './common/index.ts';
 import type { IBoardProvider } from './common/index.ts';
@@ -176,10 +178,31 @@ export class BoardSettings {
       manifest = {};
     }
 
-    return BoardSettings.resolve({
-      manifest,
+    const own = LocalSettings.read({ root: opts.root }).boardAgents;
+    const checked = own === undefined ? undefined : BOARD_AGENTS.safeParse(own);
+    const block =
+      RecordValue.isRecord(manifest) && RecordValue.isRecord(manifest.board) ? manifest.board : {};
+    const settings = BoardSettings.resolve({
+      // This checkout's roster replaces the committed one only when it is valid; the manifest is never written with it.
+      manifest: checked?.success
+        ? {
+            ...(RecordValue.isRecord(manifest) ? manifest : {}),
+            board: { ...block, agents: checked.data },
+          }
+        : manifest,
       gitUser: (opts.readGitUser ?? (() => BoardSettings.gitUserOf({ root: opts.root })))(),
       readLogo: (path) => BoardLogo.read({ root: opts.root, path }),
     });
+    const issue = checked === undefined || checked.success ? undefined : checked.error.issues[0];
+
+    return issue === undefined
+      ? settings
+      : {
+          ...settings,
+          notes: [
+            ...settings.notes,
+            `board.agents in ${AgentConstants.LOCAL_FILE} is not used: ${[issue.path.join('.'), issue.message].filter(Boolean).join(': ')}`,
+          ],
+        };
   }
 }

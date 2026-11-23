@@ -18,6 +18,7 @@ import { ProjectKey } from '../events/project-key.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules, RulePacks, RuleParser, RuleSlots } from '../rules/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
+import { AgentConstants } from '../agents/common/index.ts';
 import { AgentScopes, AgentSelection, AgentTable, LocalChoice } from '../agents/index.ts';
 import { CommitHook, CommitHookStates } from '../commit/index.ts';
 import { EventConstants } from '../events/common/index.ts';
@@ -35,6 +36,7 @@ import { CLAUDE_LAUNCH_FILE } from '../sync/claude-launch.ts';
 import { PrivateValues } from './private-values.ts';
 import { ReplySwitch, OwnerConstants, OwnerReplySwitch, OwnerProfile } from '../owner/index.ts';
 import { SkillCatalog, VersionFolders } from '@venizia/vulcan-atlas';
+import { LocalSettings } from '../common/local-settings.ts';
 import { HookConstants, ProjectTmp } from '../hooks/index.ts';
 import { DoctorChecks, DoctorConstants, PrivateValueKinds } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -620,16 +622,28 @@ export class ProjectContract {
   /** The developer's stored agents must parse and name known agents; a broken file would otherwise hide as a default. */
   static checkAgents(opts: ICheckContext): IViolation[] {
     const stored = LocalChoice.read({ root: opts.root });
+    const file = '.agents/vulcan.local.json';
+    const at = (message: string): IViolation =>
+      createViolation({ check: DoctorChecks.AGENTS, file, message });
+    const own = LocalSettings.read({ root: opts.root });
+    const unknown = LocalChoice.unknownKeys({ root: opts.root });
 
-    return stored.ok
-      ? []
-      : [
-          createViolation({
-            check: DoctorChecks.AGENTS,
-            file: '.agents/vulcan.local.json',
-            message: stored.error,
-          }),
-        ];
+    return [
+      ...(stored.ok ? [] : [at(stored.error)]),
+      ...unknown.map((key) =>
+        at(
+          `unknown key '${key}': this file reads schemaVersion, agents, board.agents and local.tmp`,
+        ),
+      ),
+      ...((own.tmp !== undefined || own.boardAgents !== undefined) &&
+      AgentFiles.isTracked({ root: opts.root, path: file })
+        ? [
+            at(
+              'git tracks this personal file, which sets board.agents or local.tmp - run: git rm --cached .agents/vulcan.local.json',
+            ),
+          ]
+        : []),
+    ];
   }
 
   /**
@@ -1152,7 +1166,8 @@ export class ProjectContract {
    * not set the key gets the warning of `checkBrowserSocket`.
    */
   static checkTmpFolder(opts: ICheckContext): IViolation[] {
-    const { tmp } = opts.config.local;
+    const own = LocalSettings.read({ root: opts.root }).tmp;
+    const tmp = own ?? opts.config.local.tmp;
 
     if (tmp === undefined) {
       return [];
@@ -1191,7 +1206,7 @@ export class ProjectContract {
     return problems.map((problem) =>
       createViolation({
         check: DoctorChecks.LOCAL,
-        file: opts.configFile,
+        file: own === undefined ? opts.configFile : AgentConstants.LOCAL_FILE,
         message: `local.tmp '${tmp}': ${problem}`,
       }),
     );
