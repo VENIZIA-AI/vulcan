@@ -141,14 +141,14 @@ describe('the pack gives the stack its guard and commit defaults', () => {
     const stale = project(
       "export default { name: 'acme', remove: { 'atlas.sources': ['ghost'] } };\n",
     );
-    const result = await DoctorRunner.runNotes({ root: repeats });
-    const repeatsNotes = JSON.stringify(result);
-    const result2 = await DoctorRunner.runNotes({ root: clean });
-    const cleanNotes = JSON.stringify(result2);
-    const result3 = await DoctorRunner.runWarnings({ root: stale });
-    const staleWarnings = JSON.stringify(result3);
-    const result4 = await DoctorRunner.runWarnings({ root: clean });
-    const cleanWarnings = JSON.stringify(result4);
+    const repeatsFound = await DoctorRunner.runNotes({ root: repeats });
+    const cleanFound = await DoctorRunner.runNotes({ root: clean });
+    const staleFound = await DoctorRunner.runWarnings({ root: stale });
+    const cleanWarned = await DoctorRunner.runWarnings({ root: clean });
+    const repeatsNotes = JSON.stringify(repeatsFound);
+    const cleanNotes = JSON.stringify(cleanFound);
+    const staleWarnings = JSON.stringify(staleFound);
+    const cleanWarnings = JSON.stringify(cleanWarned);
 
     expect(repeatsNotes).toContain('1 value(s) of this config repeat what VULCAN ships');
     expect(repeatsNotes).toContain('config --diff');
