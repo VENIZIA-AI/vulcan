@@ -154,11 +154,9 @@ export class EventConstants {
   /** The fixed summary of a `usage` line. */
   static readonly USAGE_LABEL = 'tokens';
   /** What the usage meter reads of a transcript it meets for the first time: a longer one is marked at its end and counts nothing. */
-  static readonly USAGE_FIRST_READ_MAX = 16 * 1024 * 1024;
+  static readonly USAGE_FIRST_READ_MAX = 128 * 1024 * 1024;
   /** The model named on a `usage` line that only moves the mark (a transcript too long to read the first time). */
   static readonly USAGE_NO_MODEL = 'none';
-  /** How far back the meter looks for the mark of a transcript. */
-  static readonly USAGE_MARK_DAYS = 2;
   static readonly REF_MAX = 120;
   /** A flow line's lists: how many items, and how long one is. */
   static readonly ITEM_COUNT_MAX = 30;

@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, statSync, truncateSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { BoardFold } from '../../board/fold.ts';
@@ -35,30 +35,42 @@ const assistant = (opts: {
   top?: ICounts;
   iterations?: (ICounts & { type?: string; model?: string })[];
   text?: string;
+  session?: string;
+  sidechain?: boolean;
 }): string =>
-  `${JSON.stringify(
-    wire({
-      type: 'assistant',
-      uuid: `u-${opts.id}-${Math.random()}`,
-      message: {
-        id: opts.id,
-        model: opts.model ?? 'claude-sonnet-5-5',
-        content: [{ type: 'text', text: opts.text ?? 'hello' }],
-        usage: {
-          ...counts(opts.top ?? {}),
-          ...(opts.iterations === undefined
-            ? {}
-            : {
-                iterations: opts.iterations.map((iteration) => ({
-                  ...counts(iteration),
-                  type: iteration.type ?? 'message',
-                  ...(iteration.model === undefined ? {} : { model: iteration.model }),
-                })),
-              }),
-        },
-      },
-    }),
-  )}\n`;
+  `${JSON.stringify({
+    type: 'assistant',
+    uuid: `u-${opts.id}-${Math.random()}`,
+    timestamp: new Date().toISOString(),
+    ...(opts.session === undefined ? {} : { sessionId: opts.session }),
+    ...(opts.sidechain === undefined ? {} : { isSidechain: opts.sidechain }),
+    message: {
+      id: opts.id,
+      model: opts.model ?? 'claude-sonnet-5-5',
+      content: [{ type: 'text', text: opts.text ?? 'hello' }],
+      usage: wire({
+        ...counts(opts.top ?? {}),
+        ...(opts.iterations === undefined
+          ? {}
+          : {
+              iterations: opts.iterations.map((iteration) => ({
+                ...counts(iteration),
+                type: iteration.type ?? 'message',
+                ...(iteration.model === undefined ? {} : { model: iteration.model }),
+              })),
+            }),
+      }),
+    },
+  })}\n`;
+/** A user line: the first one of a session starts it; one with `forkedFrom` was copied from another. */
+const user = (opts: { session: string; forked?: boolean }): string =>
+  `${JSON.stringify({
+    type: 'user',
+    sessionId: opts.session,
+    timestamp: new Date().toISOString(),
+    ...(opts.forked === true ? { forkedFrom: { sessionId: 'old' } } : {}),
+    message: { role: 'user', content: 'a SECRET prompt' },
+  })}\n`;
 const userLine = `${JSON.stringify({ type: 'user', message: { role: 'user', content: 'a SECRET prompt' } })}\n`;
 
 const project = (opts: { log?: boolean } = {}): string =>
@@ -91,12 +103,18 @@ const record = (opts: {
   ref?: string;
   flowId?: string;
   now?: number;
+  session?: string;
+  side?: 'main' | 'sub';
 }) =>
   UsageMeter.record({
     dir: dirOf(opts.root),
     file: opts.file,
     ref: opts.ref ?? 'transcript:t1',
     actor: ACTOR,
+    known: EventLog.read({ dir: dirOf(opts.root) }).events,
+    windowDays: 30,
+    ...(opts.session === undefined ? {} : { session: opts.session }),
+    ...(opts.side === undefined ? {} : { side: opts.side }),
     ...(opts.flowId === undefined ? {} : { flowId: opts.flowId }),
     ...(opts.now === undefined ? {} : { now: opts.now }),
   });
@@ -277,10 +295,9 @@ describe('UsageMeter.record: the lines and the mark', () => {
     const root = project();
     const file = join(root, 't.jsonl');
 
-    writeFileSync(
-      file,
-      assistant({ id: 'm1', top: { in: 1, out: 10 }, text: 'x'.repeat(16 * 1024 * 1024) }),
-    );
+    writeFileSync(file, assistant({ id: 'm1', top: { in: 1, out: 10 } }));
+    // A sparse file past 128 MB: only its size is read on this path.
+    truncateSync(file, 129 * 1024 * 1024);
 
     const [mark] = record({ root, file });
 
@@ -291,10 +308,64 @@ describe('UsageMeter.record: the lines and the mark', () => {
       cacheRead: 0,
       cacheWrite: 0,
     });
-    expect(mark?.mark?.offset).toBeGreaterThan(16 * 1024 * 1024);
+    expect(mark?.mark?.offset).toBe(129 * 1024 * 1024);
 
-    appendFileSync(file, assistant({ id: 'm2', top: { in: 3, out: 30 } }));
+    appendFileSync(file, `\n${assistant({ id: 'm2', top: { in: 3, out: 30 } })}`);
     expect(record({ root, file }).map((line) => line.usage?.output)).toEqual([30]);
+  });
+
+  test('a transcript of 16 MB is read whole now, within the 128 MB limit', () => {
+    const root = project();
+    const file = join(root, 't.jsonl');
+
+    writeFileSync(
+      file,
+      assistant({ id: 'm1', top: { in: 1, out: 10 }, text: 'x'.repeat(16 * 1024 * 1024) }),
+    );
+    expect(record({ root, file }).map((line) => line.usage?.output)).toEqual([10]);
+  });
+
+  test('a mark older than two days is found: an idle session resumed counts only what is new', () => {
+    const root = project();
+    const file = join(root, 't.jsonl');
+    const day = 24 * 60 * 60 * 1000;
+
+    writeFileSync(file, assistant({ id: 'm1', top: { in: 1, out: 10 } }));
+    record({ root, file, now: Date.now() - 10 * day });
+    appendFileSync(file, assistant({ id: 'm2', top: { in: 2, out: 20 } }));
+    expect(record({ root, file }).map((line) => line.usage?.output)).toEqual([20]);
+  });
+
+  test('a transcript whose first line is older than the window and has no mark is only marked at its end', () => {
+    const root = project();
+    const file = join(root, 't.jsonl');
+
+    writeFileSync(
+      file,
+      `${JSON.stringify({ type: 'user', timestamp: '2020-01-01T00:00:00Z', sessionId: 's' })}\n${assistant({ id: 'm1', top: { in: 1, out: 10 } })}`,
+    );
+
+    const lines = record({ root, file });
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.usage?.model).toBe('none');
+    expect(lines[0]?.mark?.offset).toBe(statSync(file).size);
+  });
+
+  test('a file shorter than its mark is read again from its start as a first sight', () => {
+    const root = project();
+    const file = join(root, 't.jsonl');
+
+    writeFileSync(
+      file,
+      `${user({ session: 's1' })}${assistant({ id: 'm1', top: { in: 1, out: 10 } })}${assistant({ id: 'm2', top: { in: 1, out: 20 } })}`,
+    );
+    record({ root, file, session: 's1' });
+    writeFileSync(
+      file,
+      `${user({ session: 's1' })}${assistant({ id: 'm3', top: { in: 1, out: 7 } })}`,
+    );
+    expect(record({ root, file, session: 's1' }).map((line) => line.usage?.output)).toEqual([7]);
   });
 
   test('no file, no tokens and a line with no flow write what they should', () => {
@@ -318,6 +389,68 @@ describe('UsageMeter.record: the lines and the mark', () => {
     record({ root, file: a, ref: 'transcript:a' });
     expect(record({ root, file: b, ref: 'transcript:b' })).toHaveLength(1);
     expect(record({ root, file: a, ref: 'transcript:a' })).toEqual([]);
+  });
+});
+
+describe('what a read counts and what it does not', () => {
+  test('history copied into the file (another session, or forkedFrom) is not counted: only what follows the first own user line', () => {
+    const file = join(project(), 't.jsonl');
+
+    writeFileSync(
+      file,
+      assistant({ id: 'old1', top: { in: 1, out: 1000 }, session: 'old' }) +
+        user({ session: 'old' }) +
+        user({ session: 'new', forked: true }) +
+        assistant({ id: 'old2', top: { in: 1, out: 2000 }, session: 'new' }) +
+        user({ session: 'new' }) +
+        assistant({ id: 'own1', top: { in: 3, out: 30 }, session: 'new' }),
+    );
+    expect(
+      UsageMeter.tail({ file, offset: 0, own: 'new' }).byModel.get('claude-sonnet-5-5')?.output,
+    ).toBe(30);
+  });
+
+  test('a transcript with no user line of its own is counted whole', () => {
+    const file = join(project(), 't.jsonl');
+
+    writeFileSync(
+      file,
+      assistant({ id: 'a', top: { in: 1, out: 5 } }) +
+        assistant({ id: 'b', top: { in: 1, out: 6 } }),
+    );
+    expect(
+      UsageMeter.tail({ file, offset: 0, own: 'new' }).byModel.get('claude-sonnet-5-5')?.output,
+    ).toBe(11);
+  });
+
+  test('a session read drops the lines of subagents, and a subagent read keeps only them', () => {
+    const file = join(project(), 't.jsonl');
+
+    writeFileSync(
+      file,
+      assistant({ id: 'main1', top: { in: 1, out: 10 } }) +
+        assistant({ id: 'side1', top: { in: 1, out: 500 }, sidechain: true }),
+    );
+    expect(UsageMeter.tail({ file, offset: 0 }).byModel.get('claude-sonnet-5-5')?.output).toBe(10);
+    expect(
+      UsageMeter.tail({ file, offset: 0, side: 'sub' }).byModel.get('claude-sonnet-5-5')?.output,
+    ).toBe(500);
+  });
+
+  test('a message repeated over lines counts at the largest line of each count, not the first', () => {
+    const file = join(project(), 't.jsonl');
+
+    writeFileSync(
+      file,
+      assistant({ id: 'm1', top: { in: 1, out: 4 } }) +
+        assistant({ id: 'm1', top: { in: 1, out: 9, read: 50 } }),
+    );
+    expect(UsageMeter.tail({ file, offset: 0 }).byModel.get('claude-sonnet-5-5')).toEqual({
+      input: 1,
+      output: 9,
+      cacheRead: 50,
+      cacheWrite: 0,
+    });
   });
 });
 
@@ -397,7 +530,7 @@ describe('the hooks that record', () => {
     openFlow(root);
     writeFileSync(
       file,
-      assistant({ id: 'a1', model: 'claude-haiku-5-5', top: { in: 9, out: 90 } }),
+      assistant({ id: 'a1', model: 'claude-haiku-5-5', top: { in: 9, out: 90 }, sidechain: true }),
     );
 
     const child = run({
