@@ -150,6 +150,15 @@ describe('the pack gives the stack its guard and commit defaults', () => {
     const staleWarnings = JSON.stringify(staleFound);
     const cleanWarnings = JSON.stringify(cleanWarned);
 
+    const auto = project(
+      "export default { name: 'acme', board: { serve: { autoStart: true } } };\n",
+    );
+    const autoFound = await DoctorRunner.runNotes({ root: auto });
+
+    expect(JSON.stringify(autoFound)).toContain(
+      'board.serve.autoStart is on, but events.log is off',
+    );
+    expect(cleanNotes).not.toContain('autoStart');
     expect(repeatsNotes).toContain('1 value(s) of this config repeat what VULCAN ships');
     expect(repeatsNotes).toContain('config --diff');
     expect(cleanNotes).not.toContain('repeat what VULCAN ships');

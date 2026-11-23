@@ -65,7 +65,7 @@ export class BoardAutoStart {
 
       mkdirSync(folder, { recursive: true });
 
-      const log = openSync(join(folder, BoardServe.AUTO_LOG), 'a');
+      const log = openSync(join(folder, BoardServe.AUTO_LOG), 'a', 0o600);
       const env = { ...process.env };
 
       for (const name of Object.keys(env)) {

@@ -768,6 +768,20 @@ export class ProjectContract {
         ];
   }
 
+  /** `board.serve.autoStart` with `events.log` off: the session start starts no board then. A note. */
+  static checkBoardAutoStart(opts: ICheckContext): IViolation[] {
+    return opts.config.board.serve.autoStart && !opts.config.events.log
+      ? [
+          createViolation({
+            check: DoctorChecks.BOARD_AUTOSTART,
+            file: opts.configFile,
+            message:
+              'board.serve.autoStart is on, but events.log is off, so the session start does not start the board: set events.log to true',
+          }),
+        ]
+      : [];
+  }
+
   /** Lines of the config that repeat what the shipped layers give: how many, and the command that lists them. A note. */
   static checkConfigDefaults(opts: ICheckContext): IViolation[] {
     if (opts.layers === undefined) {

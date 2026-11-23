@@ -69,6 +69,7 @@ export class DoctorRunner {
 
     return [
       ...ProjectContract.checkConfigDefaults(context),
+      ...ProjectContract.checkBoardAutoStart(context),
       ...ProjectContract.checkAtlasBlock(context),
       ...ProjectContract.checkAcknowledgedValues(context),
       ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
