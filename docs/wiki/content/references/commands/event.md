@@ -88,7 +88,7 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 
 - `--kind`: one of the thirteen kinds. `deploy` says something went live (`--summary "block 10" --flow <id>`); a board shows it as a milestone of its flow and, like a merge, counts it as Done until later work reopens the flow.
 - `--summary`: a short label (not on a `flow` line: it takes `--title`). It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]`.
-- `--flow`: the id of a flow that the log already has: `VULZ-<key>-<number>`, as the command printed it when the flow was made, or an older `F-<number>`. An id no line carries is refused, with the recent flows listed. Without it, the flow is read from the branch, when its name has a flow id segment such as `feature/VULZ-ACME-12-events-log`; a `flow` line with no `--flow` and no open flow on its branch makes a new flow (a flow the board would show as Done or Parked is over: the command asks the board's own rules, so the two agree; a merge only GitHub knows of is not in the log, and is not seen here).
+- `--flow`: the id of a flow that the log already has: `VULZ-<key>-<number>`, as the command printed it when the flow was made, or an older `F-<number>`. An id no line carries is refused, with the recent flows listed. Without it, a line that is not a `flow` line takes the flow its branch names, when the branch name has a flow id segment such as `feature/VULZ-ACME-12-events-log`; a `flow` line with no `--flow` is always a new flow, whatever the branch. Give `--flow` to change the heading or the lists of a flow that exists.
 - `--ref`: a commit, a PR number, a recipient; on a `flow` line, the id of the flow in a tracker (`TICKET-12`). On a `pr` line, `merged:12` says pull request 12 was merged.
 - `--status`: `approve`, `park` or `reject`. Required on a `decision`, refused on any other kind. The owner's answer to a flow, written by whoever relays it.
 - `--title`: only for `--kind flow`, where it is required: the title of the flow, in the language of the owner. Same limits as `--summary`.
@@ -148,9 +148,7 @@ $ bun node_modules/.bin/vulcan event add --kind flow --title "Bảng việc cho 
 VULZ-ACME-12
 ```
 
-A flow line with no `--flow` always makes a new flow, whatever branch you are on: the branch id only places the other lines (a commit, a step, a pull request) and is what the guards read. To change a flow that exists, give `--flow <id>` (the line then replaces the flow's heading and lists whole) or use [`vulcan event step`](#vulcan-event-step).
-
-A number is claimed by creating a small file for it, `.flow-ids/<key>-<number>`, in the events folder: only one process can create a given file, so two agents asking at the same moment never get the same id, and it stays so even after the retention dropped the day the flow was on. The project needs `project.key` in its config (and `vulcan sync`); without it the command refuses and says so. To change the title or any other field of that flow later, give the id it printed:
+A number is claimed by creating a small file for it, `.flow-ids/<key>-<number>`, in the events folder: only one process can create a given file, so two agents asking at the same moment never get the same id, and it stays so even after the retention dropped the day the flow was on. The project needs `project.key` in its config (and `vulcan sync`); without it the command refuses and says so. A flow line with no `--flow` always makes a new flow, whatever branch you are on: the branch id only places the other lines (a commit, a step, a pull request) and is what the guards read. To change the title or any other field of a flow that exists, give the id it printed (the line then replaces the heading and the lists whole), or use [`vulcan event step`](#vulcan-event-step) for one step:
 
 Add `--context` and `--next` so that the detail pane can be read at once:
 

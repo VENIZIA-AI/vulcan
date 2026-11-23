@@ -308,25 +308,29 @@ describe('a flow line on the branch of a flow, open or over, makes a new flow', 
     return cli({ root, args: ['add', '--kind', 'flow', '--title', 'T'] }).stdout.trim();
   };
 
-  test('open, merged, parked, rejected or reopened: a flow line with no --flow is a new flow with the next number', () => {
-    const cases: Parameters<typeof log>[0][] = [
-      [{ kind: 'commit' }],
-      [{ kind: 'pr', ref: 'merged:9' }],
-      [{ kind: 'pr', ref: 'merged:#9' }],
-      [{ kind: 'decision', status: 'park' }],
-      [{ kind: 'decision', status: 'reject' }],
-      [{ kind: 'decision', status: 'approve' }],
+  const CASES: [string, Parameters<typeof log>[0]][] = [
+    ['open', [{ kind: 'commit' }]],
+    ['merged', [{ kind: 'pr', ref: 'merged:9' }]],
+    ['merged with a #', [{ kind: 'pr', ref: 'merged:#9' }]],
+    ['parked', [{ kind: 'decision', status: 'park' }]],
+    ['rejected', [{ kind: 'decision', status: 'reject' }]],
+    ['approved', [{ kind: 'decision', status: 'approve' }]],
+    [
+      'reopened by an approval after a park',
       [
         { kind: 'decision', status: 'park' },
         { kind: 'decision', status: 'approve' },
       ],
-      [{ kind: 'pr', ref: 'merged:9' }, { kind: 'commit' }],
-    ];
+    ],
+    ['reopened by work after the merge', [{ kind: 'pr', ref: 'merged:9' }, { kind: 'commit' }]],
+  ];
 
-    for (const lines of cases) {
+  test.each(CASES)(
+    '%s: a flow line with no --flow is a new flow with the next number',
+    (_label, lines) => {
       expect(made(lines)).toBe('VULZ-ACME-5');
-    }
-  });
+    },
+  );
 
   test('--flow names a flow that is over on purpose, and is taken', () => {
     const root = createProject({
