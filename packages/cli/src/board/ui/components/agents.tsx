@@ -18,10 +18,9 @@ export const AGENT_TONES: Record<string, string> = {
 };
 
 const Pair = (props: { label: string; children: ReactNode }) => (
-  <>
-    <span className="c-k">{props.label}</span>
-    <span className="c-v">{props.children}</span>
-  </>
+  <div className="a-line">
+    <span className="c-k">{props.label}</span> <span className="c-v">{props.children}</span>
+  </div>
 );
 
 /** One agent: who it is, what it is doing now, what it said last, and how busy it was. A click filters the work to it. */
@@ -110,9 +109,10 @@ const AgentCard = (props: {
           </Pair>
         ) : null}
         {row.ask ? <Pair label={t('ag.asking')}>{`"${row.ask}"`}</Pair> : null}
-        {card.action ? (
-          <Pair label={t(card.workingOn ? 'ag.action' : 'ag.lastTime')}>
-            {card.action.summary} <small>{clock(card.action.ts)}</small>
+        {card.activity ? (
+          <Pair label={t('ag.latest')}>
+            {BoardLatest.activityOf({ activity: card.activity, translate: t })}{' '}
+            <small>{clock(card.activity.ts)}</small>
           </Pair>
         ) : null}
         {card.message ? (
@@ -132,7 +132,6 @@ const AgentCard = (props: {
         <span>
           <b>{card.today}</b> {t('ag.today')}
         </span>
-        {card.last ? <span className="c-r">{clock(card.last)}</span> : null}
       </div>
     </div>
   );
@@ -170,7 +169,8 @@ export const AgentPane = (props: {
   return (
     <section className="c-pane" id="dock" aria-label={t('Các agent đang chạy')}>
       <div className="c-ph">
-        {t('pn.agents')} <span className="c-n">{recent.length}</span>
+        <h2>{t('pn.agents')}</h2>
+        <span className="c-n num">{recent.length}</span>
         <button
           className="btn c-tg"
           type="button"

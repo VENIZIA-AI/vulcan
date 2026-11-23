@@ -25,6 +25,8 @@ const TOKEN_PROPERTIES: Record<string, string> = {
   'wait-soft': 'wait-soft',
   fail: 'fail',
   'fail-soft': 'fail-soft',
+  info: 'info',
+  'info-soft': 'info-soft',
   // The greys of the board's panes (ThemeTokens.SURFACES), written beside the tokens.
   head: 'head',
   soft: 'soft',

@@ -39,7 +39,7 @@ const EXPRESSION = `(async () => {
   out.afterEarlier = [...document.querySelectorAll('#dock [data-agent]')].map((c) => c.dataset.agent);
   if (earlier) { earlier.click(); await wait(); }
   out.cards = Object.fromEntries([...document.querySelectorAll('#dock [data-agent]')].map((c) => [c.dataset.agent, c.innerText]));
-  out.groups = Object.fromEntries([...document.querySelectorAll('#groups .c-group')].map((g) => [g.querySelector('.c-gh').textContent.split(' · ')[0].trim(), g.querySelector('.c-gh').textContent]));
+  out.groups = Object.fromEntries([...document.querySelectorAll('#groups .c-group')].map((g) => [g.querySelector('.c-gh span:not(.c-dot):not(.c-n)').textContent, '· ' + g.querySelector('.c-gh .c-n').textContent]));
   out.rowIds = [...document.querySelectorAll('#groups .row')].map((r) => r.dataset.id);
   out.groupsText = document.getElementById('groups').innerText;
   const loose = document.querySelector('#groups .c-loose');
@@ -96,16 +96,16 @@ describe.skipIf(!hasBrowser)('a busy multi-agent day, in a real browser', () => 
   test('the cards tell the truth: a few unanswered messages, working after the stop, a lane label', async () => {
     const { cards } = await run(1440);
 
-    expect(cards['pnt-web-1']).toMatch(/Unanswered\s*3\b/);
+    expect(cards['pnt-web-1']).toMatch(/Not replied yet\s*3\b/);
     expect(cards['pnt-web-1']).not.toMatch(/Idle/);
     expect(cards['acme-late']).toMatch(/Idle/);
     expect(cards['acme-late']).not.toMatch(/Working/);
-    expect(cards['acme-forge']).toMatch(/Unanswered\s*0\b/);
+    expect(cards['acme-forge']).toMatch(/Not replied yet\s*0\b/);
     expect(cards['pnt-api-1']).toContain('under acme-api');
     expect(cards['acme-api']).toContain('Backend');
 
     for (const [name, text] of Object.entries(cards)) {
-      const count = Number(/Unanswered\s*(\d+)/.exec(text)?.[1]);
+      const count = Number(/Not replied yet\s*(\d+)/.exec(text)?.[1]);
 
       expect(count, name).toBeLessThanOrEqual(REAL_DAY.UNANSWERED);
     }

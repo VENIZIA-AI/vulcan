@@ -1,5 +1,5 @@
 import { BoardConstants } from '../../common/index.ts';
-import type { IBoardAgent, IBoardData } from '../../common/index.ts';
+import type { IBoardActivity, IBoardAgent, IBoardData } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
 import type { IAgentRow, IBoardViewEvent, IFlowView } from '../common/types.ts';
 import { BoardAgentInfo } from './agent-info.ts';
@@ -8,6 +8,8 @@ import { BoardTime } from './time.ts';
 const SENTENCE_END = /[.!?](\s|$)/;
 const NOW_MAX = 140;
 const RECENT_DEPLOYS = 3;
+/** The log types of a message line, written out: the page bundle must not take the events constants. */
+const MESSAGE_TYPES = new Set<string>(['msg-sent', 'msg-received']);
 
 /** What a work item card says beyond the flow itself. */
 export interface IItemCard {
@@ -27,13 +29,13 @@ export interface IItemCard {
 /** What an agent card says beyond its row. */
 export interface IAgentCard {
   workingOn?: IFlowView;
-  action?: IBoardViewEvent;
+  /** The newest line of the agent of any type. */
+  activity?: IBoardActivity;
+  /** The newest message it sent, when that is not already the activity: a message shows once, under its sender. */
   message?: IBoardViewEvent;
   prs: number;
   pending: number;
   today: number;
-  /** When it was last heard from. */
-  last?: string;
   since?: string;
   role?: string;
   /** The agent it works under, from `board.agents`. */
@@ -85,6 +87,21 @@ export class BoardCards {
     };
   }
 
+  /** Whether the line is the agent's latest activity: a message line with the same id, or of the same moment. */
+  static isActivity(opts: {
+    activity: IBoardActivity | undefined;
+    event: IBoardViewEvent | undefined;
+  }): boolean {
+    const { activity, event } = opts;
+
+    return (
+      activity !== undefined &&
+      event !== undefined &&
+      MESSAGE_TYPES.has(activity.type) &&
+      (activity.id === event.id || activity.ts === event.ts)
+    );
+  }
+
   /** Whole days from today to the due day: negative when it is past. Local days, as a person counts them. */
   static daysLeft(opts: { due: string; now: number }): number {
     const today = new Date(opts.now);
@@ -113,23 +130,26 @@ export class BoardCards {
         undefined,
       );
 
+    const message = newest(
+      events.filter((event) => {
+        return (
+          event.kind === 'msg' && BoardAgentInfo.endsOf({ data, message: event }).sender === row.n
+        );
+      }),
+    );
+
     return {
       workingOn:
         row.st === 'idle' || row.flow === BoardConstants.UNSORTED
           ? undefined
           : views.find((view) => view.flow.id === row.flow),
-      action: newest(mine.filter((event) => event.kind !== 'msg' && event.kind !== 'flow')),
-      message: newest(
-        events.filter((event) => {
-          const { sender, receiver } = BoardAgentInfo.endsOf({ data, message: event });
-
-          return event.kind === 'msg' && (sender === row.n || receiver === row.n);
-        }),
-      ),
+      activity: doc?.latest,
+      message: BoardCards.isActivity({ activity: doc?.latest, event: message })
+        ? undefined
+        : message,
       prs: info.open.length,
       pending: info.pending.length,
       today: mine.filter((event) => BoardTime.isSameDay({ iso: event.ts, now })).length,
-      last: doc?.checkedAt,
       // An idle agent that its record still calls working has been idle since it was last heard from.
       since: row.st === 'idle' && doc?.state === 'working' ? (row.lastAt ?? doc.since) : doc?.since,
       role: data.roles?.[row.n],

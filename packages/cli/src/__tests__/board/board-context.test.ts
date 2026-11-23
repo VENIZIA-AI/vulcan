@@ -238,7 +238,7 @@ const EXPRESSION = `(async () => {
   };
   document.querySelector('#dock [data-agent="agent-a-1"]').click();
   await wait();
-  const section = [...document.querySelectorAll('#dBody .d-sec')].find((one) => /nswered/.test(one.querySelector('h4').textContent));
+  const section = [...document.querySelectorAll('#dBody .d-sec')].find((one) => /not replied/.test(one.querySelector('h3').textContent));
   out.pending = [...section.querySelectorAll('li')].map((li) => li.textContent);
   document.querySelector('#dock [data-agent="agent-a-1"]').click();
   await wait();
@@ -335,7 +335,9 @@ describe.skipIf(!hasBrowser)(
       const { pending } = await run({ dark: false, width: 1440 });
 
       expect(pending.join('\n')).not.toContain('undefined');
-      expect(pending.some((entry) => /← agent-b-1: reply$/.test(entry))).toBe(true);
+      expect(pending.some((entry) => /← agent-b-1: reply/.test(entry))).toBe(true);
+      // Delivered: agent-a-1 logged the reply as got; the words never suggest it was not received.
+      expect(pending[0]).toMatch(/delivered · not replied yet$/);
       // It sent "status label" before the reply came, so the reply is the only one it has not answered.
       expect(pending).toHaveLength(1);
       expect(pending.some((entry) => /→ agent-b-1/.test(entry))).toBe(false);

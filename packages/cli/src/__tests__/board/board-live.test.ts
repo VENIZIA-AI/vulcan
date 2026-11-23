@@ -90,7 +90,7 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
               selected: window.__selected,
               agents: [...document.querySelectorAll('#dock [data-agent]')].map((c) => c.dataset.agent),
               flows: [...document.querySelectorAll('.row')].map((row) => row.dataset.id),
-              stillSelected: document.querySelector('.row[aria-selected="true"]')?.dataset.id,
+              stillSelected: document.querySelector('.row[aria-current="true"]')?.dataset.id,
               inCard: await (async () => {
                 document.querySelector('#dock [data-agent][data-agent="brand-new-agent"]').click();
                 await new Promise((resolve) => setTimeout(resolve, 100));

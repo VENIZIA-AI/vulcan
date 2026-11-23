@@ -14,6 +14,8 @@ export class BoardUiConstants {
   static readonly EARLIER_HOURS = 24;
   /** How many days a finished flow stays in the Done group. */
   static readonly DONE_DAYS = 7;
+  /** A flow with a step still open and no line for this long is stale. */
+  static readonly STALE_HOURS = 2;
   /** The state text of an idle agent already says it. */
   static readonly IDLE_TEXT = /^rảnh/;
 }

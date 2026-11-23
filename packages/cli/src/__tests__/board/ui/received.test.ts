@@ -58,23 +58,34 @@ const dataOf = (opts: { received: boolean }) => {
   };
 };
 
-describe('a message an agent got is not a line of its own', () => {
-  test('it moves neither the state nor the time nor the stretch of the agent', () => {
-    const without = dataOf({ received: false }).agents.quiet;
+describe('a message an agent got is its newest activity', () => {
+  test('it moves the time and the state of the agent, and is what the agent did last', () => {
     const received = dataOf({ received: true }).agents.quiet;
 
-    expect(received).toEqual(without);
+    expect(received.state).toBe('working');
+    expect(received.checkedAt).toBe(new Date(NOW - 5 * 60_000).toISOString());
+    expect(received.latest).toMatchObject({ type: 'msg-received', summary: 'ping', peer: 'lead' });
+    // What it works on stays its own work: a message says it is busy, not on what.
+    expect(received.current).toBe('a step');
   });
 
-  test('an agent that has been quiet for hours stays idle and stays out of the day after it got a message', () => {
+  test('an agent quiet for hours that just got a message is working, heard from minutes ago', () => {
     const data = dataOf({ received: true });
     const flows = BoardView.flowsOf({ data, showAll: false, lastSeen: '' });
     const events = BoardView.eventsOf({ data, showAll: false });
     const rows = BoardView.rowsOf({ data, flows, events, translate: (key) => key, now: NOW });
     const quiet = rows.find((row) => row.n === 'quiet');
 
-    expect(quiet?.st).toBe('idle');
-    // Its last word is its own commit, hours ago, not the ping of five minutes ago.
-    expect(Date.parse(quiet?.lastAt ?? '')).toBeLessThan(NOW - 60 * 60_000);
+    expect(quiet?.st).toBe('working');
+    expect(Date.parse(quiet?.lastAt ?? '')).toBe(NOW - 5 * 60_000);
+  });
+
+  test('without the message the agent stays idle, its last word its own commit', () => {
+    const data = dataOf({ received: false });
+    const flows = BoardView.flowsOf({ data, showAll: false, lastSeen: '' });
+    const events = BoardView.eventsOf({ data, showAll: false });
+    const rows = BoardView.rowsOf({ data, flows, events, translate: (key) => key, now: NOW });
+
+    expect(rows.find((row) => row.n === 'quiet')?.st).toBe('idle');
   });
 });

@@ -132,6 +132,20 @@ export interface IBoardAgent {
   /** What the session start said of the session: the model, and the harness that wrote it. Never made up. */
   model?: string;
   harness?: string;
+  /** The newest line of the agent of any kind (a message sent or got, a flow line, a commit, a usage line, a subagent stop). */
+  latest?: IBoardActivity;
+}
+
+/** One line of an agent as its card tells it: the log's type of line, its time and words, and the other end of a message. */
+export interface IBoardActivity {
+  /** The id of the log line. */
+  id: string;
+  type: string;
+  ts: string;
+  summary: string;
+  flowId?: string;
+  /** Who a sent message went to, or who a received one came from. */
+  peer?: string;
 }
 
 export interface IBoardData {

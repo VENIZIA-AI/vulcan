@@ -4,6 +4,7 @@ const KEYS: [string, string][] = [
   ['j / k', 'Luồng sau / trước'],
   ['Enter', 'Mở chi tiết'],
   ['e', 'Các bước hoặc mọi sự kiện'],
+  ['c', 'Xem gọn hoặc thẻ'],
   ['Esc', 'Đóng'],
   ['?', 'Bảng này'],
 ];

@@ -32,7 +32,7 @@ const stageClass = (opts: { stage: number; cur: number }): string => {
 
 const Section = (props: { title: string; children: ReactNode }) => (
   <div className="d-sec">
-    <h4>{props.title}</h4>
+    <h3>{props.title}</h3>
     {props.children}
   </div>
 );
@@ -293,7 +293,7 @@ const AgentDetail = (props: {
           </ul>
         )}
       </Section>
-      <Section title={`${t('Tin nhắn chưa có trả lời (')}${info.pending.length})`}>
+      <Section title={`${t('ag.notReplied')} (${info.pending.length})`}>
         {info.pending.length === 0 ? (
           <p className="d-empty">{t('Không có tin nào đang chờ.')}</p>
         ) : (
@@ -308,6 +308,11 @@ const AgentDetail = (props: {
                   <li key={message.id}>
                     <time>{clock(message.ts)}</time>
                     {`${sender === row.n ? `→ ${receiver ?? '?'}` : `← ${sender ?? '?'}`}: ${message.summary}`}
+                    <span className="d-note">
+                      {BoardAgentInfo.isDelivered({ message, events: props.events })
+                        ? `${t('ag.delivered')} · ${t('ag.notRepliedYet')}`
+                        : t('ag.notRepliedYet')}
+                    </span>
                   </li>
                 );
               })}
@@ -348,7 +353,7 @@ export const Detail = (props: {
       hidden={view === undefined && row === undefined}
     >
       <div className="c-ph">
-        {t('pn.detail')}
+        <span className="c-pt">{t('pn.detail')}</span>
         <button
           className="c-x"
           type="button"

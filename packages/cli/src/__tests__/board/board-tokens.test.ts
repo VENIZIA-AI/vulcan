@@ -74,13 +74,13 @@ const EXPRESSION = `(async () => {
   document.querySelector('.row[data-id="F-1"]').click();
   await wait();
   const table = document.querySelector('.d-tokens');
-  out.heading = table.closest('.d-sec').querySelector('h4').textContent;
+  out.heading = table.closest('.d-sec').querySelector('h3').textContent;
   out.head = [...table.querySelectorAll('thead th')].map((c) => c.textContent);
   out.rows = [...table.querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => c.textContent));
   document.getElementById('bLang').click();
   await wait();
   out.vi = {
-    heading: document.querySelector('.d-tokens').closest('.d-sec').querySelector('h4').textContent,
+    heading: document.querySelector('.d-tokens').closest('.d-sec').querySelector('h3').textContent,
     head: [...document.querySelectorAll('.d-tokens thead th')].map((c) => c.textContent),
   };
   document.getElementById('bLang').click();

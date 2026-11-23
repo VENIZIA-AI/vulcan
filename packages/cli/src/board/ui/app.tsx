@@ -7,13 +7,15 @@ import { Detail } from './components/detail.tsx';
 import type { TDetail } from './components/detail.tsx';
 import { Header, THEMES } from './components/header.tsx';
 import type { TTheme } from './components/header.tsx';
-import { ItemPane } from './components/items.tsx';
+import { ItemPane, WORK_VIEWS } from './components/items.tsx';
+import type { TWorkView } from './components/items.tsx';
 import { Keys } from './components/keys.tsx';
 import { useLive, useNow, useStored } from './hooks.ts';
 import { UiContext } from './i18n/context.ts';
 import { BoardI18n } from './i18n/translate.ts';
 import { BoardCards } from './state/cards.ts';
 import { BoardView } from './state/view.ts';
+import { BoardWork } from './state/work.ts';
 import { BoardStorage } from './storage.ts';
 
 /** What a snapshot of `vulcan board serve` replaces; the title, owner, key and logo stay as the page loaded them. */
@@ -54,6 +56,17 @@ export const App = (props: { data: IBoardData }) => {
     initial: '1',
     allowed: ['0', '1'],
   });
+  const [workView, setWorkView] = useStored<TWorkView>({
+    key: `${prefix}view`,
+    initial: 'cards',
+    allowed: WORK_VIEWS,
+  });
+  const [sortKey, setSortKey] = useStored<string>({
+    key: `${prefix}sort`,
+    initial: BoardWork.sortKeyOf({ sort: undefined }),
+    allowed: BoardWork.sortKeys(),
+  });
+  const sort = useMemo(() => BoardWork.sortFromKey({ key: sortKey }), [sortKey]);
   const [keysOpen, setKeysOpen] = useState(false);
   const [detail, setDetail] = useState<TDetail | null>(null);
   const [everything, setEverything] = useState(false);
@@ -156,6 +169,8 @@ export const App = (props: { data: IBoardData }) => {
         }
       } else if (event.key === 'e' && selected) {
         setEverything(!everything);
+      } else if (event.key === 'c') {
+        setWorkView(workView === 'compact' ? 'cards' : 'compact');
       } else if (event.key === 'Escape') {
         if (keysOpen) {
           setKeysOpen(false);
@@ -206,6 +221,11 @@ export const App = (props: { data: IBoardData }) => {
           />
           <ItemPane
             views={flows}
+            agents={rows.map((row) => row.n)}
+            view={workView}
+            onView={setWorkView}
+            sort={sort}
+            onSort={(next) => setSortKey(BoardWork.sortKeyOf({ sort: next }))}
             agent={agent}
             onAgent={(name) => {
               setAgent(name);
