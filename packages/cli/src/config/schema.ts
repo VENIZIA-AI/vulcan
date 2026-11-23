@@ -605,12 +605,13 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   /** The session-start digest: the rule IDs it repeats as "the rules sessions drop most" - base or the project's own. */
   digest: z
     .strictObject({
-      /** Rule IDs the digest repeats as dropped most, each matching the rule ID pattern; default the shipped list of base rules. */
-      oftenDropped: z
-        .array(z.string().regex(ConfigConstants.RULE_ID_PATTERN))
-        .default(ConfigConstants.DEFAULT_OFTEN_DROPPED),
+      /**
+       * Rule IDs the digest repeats as dropped most, each matching the rule ID pattern. The list the project writes is added to
+       * the shipped one (`base/defaults.config.json`, then the packs'); `remove` takes ids out of the sum.
+       */
+      oftenDropped: z.array(z.string().regex(ConfigConstants.RULE_ID_PATTERN)).default([]),
     })
-    .default({ oftenDropped: ConfigConstants.DEFAULT_OFTEN_DROPPED }),
+    .default({ oftenDropped: [] }),
   /** The report contract for answers to the project's owners; English and `advise` by default. */
   owner: OWNER_SCHEMA,
   /**

@@ -25,6 +25,20 @@
       "retired": false
     }
   ],
+  "presets": [
+    {
+      "spec": "ignis",
+      "side": "backend",
+      "summary": "IGNIS: a backend app on Bun",
+      "lib": "IGNIS: a shared library"
+    },
+    {
+      "spec": "ardor",
+      "side": "frontend",
+      "summary": "ARDOR: a frontend app on Vite and React",
+      "lib": "ARDOR: a shared feature package"
+    }
+  ],
   "knowledge": {
     "bundle": ".agents/knowledge",
     "wiki": "docs/wiki/content",
@@ -84,6 +98,18 @@
       "V-C-21": "1a0dd74e"
     }
   },
+  "sources": [
+    {
+      "name": "ignis",
+      "repo": "VENIZIA-AI/ignis",
+      "ref": "develop"
+    },
+    {
+      "name": "ardor",
+      "repo": "VENIZIA-AI/ardor",
+      "ref": "develop"
+    }
+  ],
   "atlas": {
     "index": {
       "keys": ["RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ="]

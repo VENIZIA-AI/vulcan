@@ -1360,23 +1360,24 @@ export class ProjectContract {
               message: `${mild.length === 1 ? 'holds' : `${mild.length} files hold`} only addresses or machine paths: ${mild.map((finding) => `${finding.file} (${kindsOf(finding.counts)})`).join(', ')} (not shown); remove them, or record the decision in ${where}`,
             }),
           ]),
-      ...unmatched.map((entry) =>
-        createViolation({
-          check: DoctorChecks.PRIVATE_VALUES,
-          file: opts.configFile,
-          message: `${where}: "${entry.path}"${entry.kinds === undefined ? '' : ` (${entry.kinds.join(', ')})`} matches no file that holds such a value: remove the entry, or it covers files added later`,
-        }),
-      ),
+      ...unmatched
+        .filter((entry) => entry.standing !== true)
+        .map((entry) =>
+          createViolation({
+            check: DoctorChecks.PRIVATE_VALUES,
+            file: opts.configFile,
+            message: `${where}: "${entry.path}"${entry.kinds === undefined ? '' : ` (${entry.kinds.join(', ')})`} matches no file that holds such a value: remove the entry, or it covers files added later`,
+          }),
+        ),
     ];
   }
 
   /** What the project acknowledged, in one note: how many files hold values it decided to keep. It scans only when something is acknowledged. */
   static checkAcknowledgedValues(opts: ICheckContext): IViolation[] {
     const acknowledged = opts.config.doctor.privateValues.acknowledged;
-    const { acknowledgedFiles } =
-      acknowledged.length === 0
-        ? { acknowledgedFiles: 0 }
-        : PrivateValues.scan({ root: opts.root, acknowledged });
+    const { acknowledgedFiles } = acknowledged.every((entry) => entry.standing === true)
+      ? { acknowledgedFiles: 0 }
+      : PrivateValues.scan({ root: opts.root, acknowledged });
 
     return acknowledgedFiles === 0
       ? []

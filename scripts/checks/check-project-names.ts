@@ -15,9 +15,12 @@ const SOURCE_GLOBS = [
   'packages/*/src/**/*.{ts,mts,html,css,md}',
   'packages/cli/base/**/*.{md,js,mjs,ts,mts,mk,json,sh}',
 ];
-/** The registry of published presets is data that names the frameworks by design; nothing else is exempt. */
+/**
+ * The registry of published presets and the config of the `venizia` rule pack are data that name the frameworks by design
+ * (a pack is the stack's own); nothing else is exempt.
+ */
 const EXEMPT =
-  /\/(__tests__|fixtures)\/|\/packages\/atlas\/src\/tools\/common\/official-presets\.ts$/;
+  /\/(__tests__|fixtures)\/|\/packages\/atlas\/src\/tools\/common\/official-presets\.ts$|\/packages\/cli\/base\/packs\/venizia\.config\.json$/;
 
 const readRoot = (opts: { argv: string[] }): string => {
   const index = opts.argv.indexOf('--root');

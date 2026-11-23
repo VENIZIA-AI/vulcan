@@ -35,6 +35,8 @@ export default {
     { dir: 'atlas', name: '@venizia/vulcan-atlas' },
     { dir: 'cli', name: '@venizia/vulcan' },
   ],
+  // The venizia pack adds the three repositories of the stack as atlas sources; this one is the repository itself.
+  remove: { 'atlas.sources': ['vulcan'] },
   atlas: {
     // One tag per release train, named like IGNIS and ARDOR name theirs (`<name>-v<version>`), so one tag ruleset,
     // `*-v*`, covers all three repositories.

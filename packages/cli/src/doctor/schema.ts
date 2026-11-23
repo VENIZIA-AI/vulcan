@@ -21,6 +21,8 @@ const ACKNOWLEDGEMENT = z.strictObject({
   kinds: z.array(KIND).min(1).optional(),
   /** Why the private values may stay in these files; trimmed, at least one character. */
   reason: z.string().trim().min(1),
+  /** A standing decision, such as the ones VULCAN ships: not reported when it matches no file, and it alone does not start the acknowledged-files note. */
+  standing: z.boolean().optional(),
 });
 
 export const DOCTOR_SCHEMA = z.strictObject({
