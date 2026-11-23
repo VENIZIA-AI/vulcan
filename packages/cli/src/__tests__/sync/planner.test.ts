@@ -82,7 +82,8 @@ describe('.claude/settings.json', () => {
     const settings = readSettings({ root });
 
     expect(settings.model).toBe('opus');
-    expect(settings.permissions.allow).toEqual(['Bash(ls)']);
+    expect(settings.permissions.allow[0]).toBe('Bash(ls)');
+    expect(settings.permissions.allow).toContain('Bash(rg:*)');
     expect(settings.permissions.deny).toContain('Bash(git commit:*)');
     expect(settings.hooks.SessionStart).toBeDefined();
     expect(settings.hooks.PreToolUse).toBeDefined();
@@ -147,7 +148,7 @@ describe('.claude/settings.json', () => {
     }
   });
 
-  test('on-user-word adds no deny list', () => {
+  test('on-user-word adds no git deny, only the companion denies of the allowed tools', () => {
     const root = createProject({
       files: {
         ...READ_ONLY_PROJECT,
@@ -156,7 +157,10 @@ describe('.claude/settings.json', () => {
     });
 
     runSync({ root });
-    expect(readSettings({ root }).permissions?.deny).toBeUndefined();
+    const deny: string[] = readSettings({ root }).permissions.deny;
+
+    expect(deny).toContain('Bash(rg *--pre*)');
+    expect(deny.filter((rule) => /git (commit|push|add|checkout|reset)/.test(rule))).toEqual([]);
   });
 
   test('claude.settings hooks are appended after the shipped ones', () => {
@@ -185,7 +189,12 @@ describe('.claude/settings.json', () => {
       "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
     );
     expect(runSync({ root }).stderr).toContain('replaced');
-    expect(readSettings({ root }).permissions?.deny).toBeUndefined();
+
+    const deny: string[] = readSettings({ root }).permissions.deny;
+
+    // The git denies of the slot go; the companion denies of the shipped allow list stay.
+    expect(deny).not.toContain('Bash(git commit:*)');
+    expect(deny).toContain('Bash(rg *--pre*)');
   });
 
   test('a hook removed from claude.settings is removed from the settings', () => {
@@ -220,7 +229,9 @@ describe('.claude/settings.json', () => {
     const shared = readSettings({ root });
 
     expect(shared.env).toEqual({ CI: '1' });
-    expect(shared.permissions.allow).toEqual(['Bash(ls)', 'Bash(make test)']);
+    expect(shared.permissions.allow.slice(0, 1)).toEqual(['Bash(ls)']);
+    expect(shared.permissions.allow).toContain('Bash(make test)');
+    expect(shared.permissions.allow).toContain('Bash(rg:*)');
 
     writeFileSync(
       join(root, '.configs/vulcan.config.mts'),
@@ -230,7 +241,9 @@ describe('.claude/settings.json', () => {
     const after = readSettings({ root });
 
     expect(after.env).toBeUndefined();
-    expect(after.permissions.allow).toEqual(['Bash(ls)']);
+    expect(after.permissions.allow).not.toContain('Bash(make test)');
+    expect(after.permissions.allow).toContain('Bash(rg:*)');
+    expect(after.permissions.allow[0]).toBe('Bash(ls)');
     expect(after.model).toBe('opus');
   });
 

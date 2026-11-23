@@ -3,10 +3,23 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AtlasBlock, GeneratedBlock, RulesBlock } from '../../agents/index.ts';
 import { BASE_DIRECTORY } from '../../common/index.ts';
-import { ConfigConstants } from '../../config/index.ts';
+import { ConfigLayers } from '../../config/index.ts';
 import { RulePacks, RuleParser, RuleSlots } from '../../rules/index.ts';
 
 const row = (id: string, text: string): string => `| ${id} | ${text} | SOFT |`;
+
+/** The ids the digest repeats by default: the base defaults file's list. */
+const BASE_OFTEN_DROPPED: string[] = (() => {
+  const [layer] = ConfigLayers.shipped({ packs: [] }).layers;
+  const digest: unknown = layer?.value.digest;
+
+  return typeof digest === 'object' &&
+    digest !== null &&
+    'oftenDropped' in digest &&
+    Array.isArray(digest.oftenDropped)
+    ? digest.oftenDropped.map(String)
+    : [];
+})();
 
 const BASE_ROWS = [
   ...RuleParser.extractRows({ markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8') }),
@@ -135,7 +148,7 @@ describe('RulesBlock.render', () => {
         command: 'bun node_modules/.bin/vulcan',
       }),
       tmp: '.agents/local/tmp',
-      oftenDropped: [...ConfigConstants.DEFAULT_OFTEN_DROPPED],
+      oftenDropped: [...BASE_OFTEN_DROPPED],
     });
 
     expect(Buffer.byteLength(block)).toBeLessThanOrEqual(RulesBlock.MAX_BYTES);
@@ -143,7 +156,7 @@ describe('RulesBlock.render', () => {
     expect(block).toContain('- V-W-06: ');
 
     // Every default rule is there, and no line is cut.
-    for (const id of ConfigConstants.DEFAULT_OFTEN_DROPPED) {
+    for (const id of BASE_OFTEN_DROPPED) {
       expect(block, id).toContain(`- ${id}: `);
     }
 

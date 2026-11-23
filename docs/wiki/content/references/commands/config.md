@@ -32,7 +32,16 @@ Exit codes: `0` shown; `1` when the config cannot be loaded; `2` on bad input (n
 - `base/defaults.config.json` in the package: what suits any project.
 - `base/packs/<name>.config.json`: what suits the stack of that rule pack.
 
-Only a plain object (a literal or JSON) is merged into; a key named `__proto__` stays a key, which the schema refuses. A shipped layer may set only `claude`, `presets`, `atlas`, `digest`, `guard`, `commit`, `doctor` and `knowledge`, and every value is checked by the schema of the project config; a layer that is not valid stops the command that loads the config and is named by its own file (`base/packs/<name>.config.json`) with the problem; reinstall the package, do not upgrade. In this release both files are empty, so nothing changes for a project.
+Only a plain object (a literal or JSON) is merged into; a key named `__proto__` stays a key, which the schema refuses. A shipped layer may set only `claude`, `presets`, `atlas`, `digest`, `guard`, `commit`, `doctor` and `knowledge`, and every value is checked by the schema of the project config; a layer that is not valid stops the command that loads the config and is named by its own file (`base/packs/<name>.config.json`) with the problem; reinstall the package, do not upgrade.
+
+## What the shipped layers hold
+
+| Layer | Holds |
+|---|---|
+| `base/defaults.config.json` | the read-only allow list for Claude Code (46 lines: 32 commands that only read, 14 git read subcommands) with its 24 companion denies for the flags that run a program or write a file (`rg --pre`, `sort --output`, `git diff --ext-diff`, `git cat-file --filters`...); the 11 rule ids the session digest repeats (`digest.oftenDropped`); one standing acknowledgement, `**/Dockerfile*` for kind `machine-path` (container paths such as `/home/app`) |
+| `base/packs/venizia.config.json` | the presets `ignis` and `ardor`, the atlas sources `ignis`, `ardor` and `vulcan`, and five allow lines that run the stack's project scripts: `bun run typecheck`, `bun run test`, `bun run lint`, `bun test`, `bun check` |
+
+The base denies no git write: a project that wants that picks the `read-only` choice of rule `V-W-01`, or lists its own denies. An allow rule cannot stop a shell redirect (`jq ... > file`) or a flag glued to its value (`sort -ofile`); the write guards cover those. To take a shipped line out: `remove: { 'claude.settings.permissions.allow': ['Bash(ps:*)'] }`; `vulcan config --effective` shows what is in, and `--diff` which of your lines repeat it.
 
 ## See also
 

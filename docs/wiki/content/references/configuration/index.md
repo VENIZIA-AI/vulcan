@@ -469,7 +469,7 @@ To configure external repositories, see the [atlas sources reference](/reference
 
 ## claude
 
-The `claude` object provides team-shared assistant configuration. `vulcan sync` merges `claude.settings` into `.claude/settings.json` over personal keys.
+The `claude` object provides team-shared assistant configuration. VULCAN ships a read-only allow list and its companion denies for every project, and the `venizia` pack adds five script lines (see [vulcan config](/references/commands/config#what-the-shipped-layers-hold)); `permissions.allow` and `permissions.deny` you write are added to them. `vulcan sync` merges `claude.settings` into `.claude/settings.json` over personal keys.
 
 `vulcan sync` records applied settings in `.claude/vulcan-managed.json`. When you remove a key from `claude.settings`, the next run of `vulcan sync` removes that key from `.claude/settings.json`.
 
@@ -499,7 +499,7 @@ The `digest` object configures which rule IDs `vulcan sync` names, one line each
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-C-02', 'V-C-09', 'V-C-10', 'V-P-08', 'V-B-07', 'V-B-09']` | Rule IDs the rules block names, most important first |
+| `oftenDropped` | `string[]` | `[]`, added to the shipped list `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-C-02', 'V-C-09', 'V-C-10', 'V-P-08', 'V-B-07', 'V-B-09']` | Rule IDs the rules block names, most important first; yours come after the shipped ones, and `remove: { 'digest.oftenDropped': [...] }` takes ids out |
 
 Every rule ID in `oftenDropped` must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
 
@@ -508,8 +508,9 @@ import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
   digest: {
-    oftenDropped: ['V-B-03', 'V-P-06', 'V-B-07'],
+    oftenDropped: ['P-02'],
   },
+  remove: { 'digest.oftenDropped': ['V-C-02'] },
 } satisfies VulcanConfig;
 ```
 
@@ -773,13 +774,13 @@ The `doctor` object tells [`vulcan doctor`](/references/commands/doctor#private-
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `privateValues.acknowledged` | `Array<{ path, kinds?, reason }>` | `[]` | Files that may keep private values, each with a reason |
+| `privateValues.acknowledged` | `Array<{ path, kinds?, reason, standing? }>` | the shipped `**/Dockerfile*` row for `machine-path` | Files that may keep private values, each with a reason |
 
 - `path` is a glob relative to the repo root (no absolute path, no `..`).
 - `kinds` is some of `private-key`, `token`, `url-credentials`, `ipv4`, `machine-path` (all when absent).
 - `reason` is required and not blank.
 
-An acknowledged file is counted in one summary line, never dropped silently.
+An acknowledged file is counted in one summary line, never dropped silently. A row marked `standing: true`, such as the Dockerfile row VULCAN ships, is not reported when it matches no file and does not start the summary on its own.
 
 ## local
 

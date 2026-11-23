@@ -312,7 +312,7 @@ describe('the merge and the schema', () => {
     );
   });
 
-  test('with the shipped layers empty, the merge is the project config and nothing else', async () => {
+  test('the shipped layers are the base and each pack in order, under the project object', async () => {
     const root = createProject({
       files: {
         '.configs/vulcan.config.mts': "export default { name: 'acme', packs: ['venizia'] };\n",
@@ -321,7 +321,7 @@ describe('the merge and the schema', () => {
     const loaded = await ConfigLoader.load({ root });
 
     expect(loaded.ok).toBe(true);
-    expect(loaded.ok ? loaded.layers.merge.value : undefined).toEqual({
+    expect(loaded.ok ? loaded.layers.project : undefined).toEqual({
       name: 'acme',
       packs: ['venizia'],
     });
@@ -332,7 +332,7 @@ describe('the merge and the schema', () => {
   });
 });
 
-describe('with the shipped layers empty, the config is exactly what the schema gave before', () => {
+describe('a project object alone, through the merge, is exactly what the schema gives it directly', () => {
   const duplicate = { name: 'acme', repo: 'o/a' };
   const configs: Record<string, Record<string, unknown>> = {
     'a team app config': {
@@ -388,9 +388,9 @@ describe('with the shipped layers empty, the config is exactly what the schema g
 
   test.each(Object.keys(configs))('%s parses to the same config as without layers', (label) => {
     const project = configs[label] ?? {};
-    const { merge } = ConfigLoader.layered({ project });
+    const { value } = ConfigLayers.merge({ layers: [layer('project', project)] });
 
-    expect(VULCAN_CONFIG_SCHEMA.parse(merge.value)).toEqual(VULCAN_CONFIG_SCHEMA.parse(project));
+    expect(VULCAN_CONFIG_SCHEMA.parse(value)).toEqual(VULCAN_CONFIG_SCHEMA.parse(project));
   });
 });
 
@@ -426,12 +426,13 @@ describe('vulcan config', () => {
 
     expect(result.code).toBe(0);
     expect(out.config.name).toBe('acme');
-    expect(out.config.digest.oftenDropped.length).toBeGreaterThan(0);
+    expect(out.config.digest.oftenDropped).toHaveLength(11);
+    expect(out.from['digest.oftenDropped[V-P-07]']).toBe('base');
     expect(out.from.name).toBe('project');
     expect(out.unmatchedRemove).toEqual(['atlas.sources: ghost']);
   });
 
-  test('--diff says nothing repeats while the shipped layers are empty', () => {
+  test('--diff says nothing repeats when the project writes none of what the shipped layers give', () => {
     const result = runCli({ args: ['config', '--diff'], cwd: project() });
 
     expect(result.code).toBe(0);

@@ -82,7 +82,7 @@ describe('the Atlas and rules blocks in AGENTS.md', () => {
       join(root, '.configs/vulcan.config.mts'),
       CONFIG.replace("'read-only'", "'on-user-word'").replace(
         '  atlas:',
-        "  digest: { oftenDropped: ['V-B-03'] },\n  atlas:",
+        "  remove: { 'digest.oftenDropped': ['V-P-07'] },\n  atlas:",
       ),
     );
     sync({ root });
