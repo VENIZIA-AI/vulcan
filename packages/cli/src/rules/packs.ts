@@ -17,6 +17,15 @@ export class RulePacks {
       : [];
   }
 
+  /** The config a pack ships next to its rules (`<name>.config.json`), as parsed JSON; `undefined` when it has none. A name that is no shipped pack has none. */
+  static configOf(opts: { name: string }): unknown {
+    const file = join(PACKS_DIRECTORY, `${opts.name}.config.json`);
+
+    return RulePacks.names().includes(opts.name) && existsSync(file)
+      ? JSON.parse(readFileSync(file, 'utf8'))
+      : undefined;
+  }
+
   /** Where a pack's rules are, from the project root's `node_modules`, as the rules block names it. */
   static pathOf(opts: { name: string }): string {
     return `node_modules/@venizia/vulcan/base/packs/${opts.name}.md`;

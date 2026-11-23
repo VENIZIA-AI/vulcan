@@ -40,6 +40,18 @@ export class ConfigConstants {
   static readonly DEFAULT_KNOWLEDGE_BUNDLE = '.agents/knowledge';
   static readonly RULE_ID_PATTERN = /^(?:[A-Z]+-)?[A-Z]-\d{2}$/;
   /** The rules a session drops most, printed at every session start unless the project lists its own. */
+  /**
+   * The arrays a shipped layer may add to and a project may `remove` from, each with the field that names an item of an array
+   * of objects, or the fields that together name it (an acknowledgement is its `path` and its `kinds`, written `path|kind,kind`); `undefined`: the items are strings, named by themselves. One list for the merge and for the schema.
+   */
+  static readonly LAYERED_ARRAYS: Readonly<Record<string, string | string[] | undefined>> = {
+    'claude.settings.permissions.allow': undefined,
+    'claude.settings.permissions.deny': undefined,
+    presets: 'spec',
+    'atlas.sources': 'name',
+    'digest.oftenDropped': undefined,
+    'doctor.privateValues.acknowledged': ['path', 'kinds'],
+  };
   static readonly DEFAULT_OFTEN_DROPPED = [
     'V-P-07',
     'V-B-03',

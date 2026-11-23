@@ -4,9 +4,18 @@ import { pathToFileURL } from 'node:url';
 import { ConfigConstants } from './common/index.ts';
 import { VULCAN_CONFIG_SCHEMA } from './schema.ts';
 import type { TResolvedConfig } from './schema.ts';
+import { RecordValue } from '../common/record.ts';
+import { ConfigLayers } from './layers.ts';
+import type { IConfigLayer, IConfigMerge } from './layers.ts';
 
 type TLoadResult =
-  | { ok: true; file: string; config: TResolvedConfig }
+  | {
+      ok: true;
+      file: string;
+      config: TResolvedConfig;
+      /** The project's own object, the layers below it and the merge the config was parsed from: what `vulcan config` shows. */
+      layers: { project: Record<string, unknown>; below: IConfigLayer[]; merge: IConfigMerge };
+    }
   | { ok: false; file?: string; error: string };
 
 const describeError = (opts: { error: unknown }): string =>
@@ -40,6 +49,43 @@ export class ConfigLoader {
     const file = join(opts.root, ConfigConstants.DIRECTORY, ConfigConstants.FILE);
 
     return existsSync(file) ? file : undefined;
+  }
+
+  /**
+   * The project's config object merged over the shipped layers (the defaults, then each pack it turns on): what the schema
+   * is given. `layers` is for a test, which gives its own; the command `vulcan config` shows the merge.
+   */
+  static layered(opts: { project: unknown; layers?: IConfigLayer[] }): {
+    merge: IConfigMerge;
+    below: IConfigLayer[];
+    problems: string[];
+  } {
+    const project = RecordValue.isRecord(opts.project) ? opts.project : {};
+    const packs = Array.isArray(project.packs)
+      ? project.packs.filter((name: unknown): name is string => typeof name === 'string')
+      : [];
+    const shipped =
+      opts.layers === undefined
+        ? ConfigLayers.shipped({ packs })
+        : { layers: opts.layers, problems: [] };
+    const remove = RecordValue.isRecord(project.remove)
+      ? Object.fromEntries(
+          Object.entries(project.remove).flatMap(([key, items]) =>
+            Array.isArray(items)
+              ? [[key, items.filter((item: unknown): item is string => typeof item === 'string')]]
+              : [],
+          ),
+        )
+      : undefined;
+
+    return {
+      merge: ConfigLayers.merge({
+        layers: [...shipped.layers, { name: 'project', value: project }],
+        ...(remove === undefined ? {} : { remove }),
+      }),
+      below: shipped.layers,
+      problems: shipped.problems,
+    };
   }
 
   static async load(opts: { root: string }): Promise<TLoadResult> {
@@ -78,7 +124,20 @@ export class ConfigLoader {
       };
     }
 
-    const parsed = VULCAN_CONFIG_SCHEMA.safeParse(loaded.default);
+    const layered = ConfigLoader.layered({ project: loaded.default });
+
+    if (layered.problems.length > 0) {
+      return {
+        ok: false,
+        file,
+        error: `${shown}: shipped config\n${layered.problems.map((problem) => `  ${problem}`).join('\n')}`,
+      };
+    }
+
+    // Only an object is layered; anything else goes to the schema as it is, which says what is wrong with it.
+    const parsed = VULCAN_CONFIG_SCHEMA.safeParse(
+      RecordValue.isRecord(loaded.default) ? layered.merge.value : loaded.default,
+    );
 
     if (!parsed.success) {
       const issues = parsed.error.issues
@@ -95,6 +154,15 @@ export class ConfigLoader {
       return { ok: false, file, error: `${shown}: invalid config\n${issues}` };
     }
 
-    return { ok: true, file, config: parsed.data };
+    return {
+      ok: true,
+      file,
+      config: parsed.data,
+      layers: {
+        project: RecordValue.isRecord(loaded.default) ? loaded.default : {},
+        below: layered.below,
+        merge: layered.merge,
+      },
+    };
   }
 }

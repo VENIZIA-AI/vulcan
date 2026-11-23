@@ -17,6 +17,7 @@ export class VulcanCommands {
   static readonly BOARD = 'board';
   static readonly EVENT = 'event';
   static readonly CHANGELOG = 'changelog';
+  static readonly CONFIG = 'config';
   static readonly RUNNERS = 'runners';
   static readonly MIGRATE = 'migrate';
   static readonly X = 'x';

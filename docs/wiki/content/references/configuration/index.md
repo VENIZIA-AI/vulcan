@@ -121,6 +121,8 @@ export default {
 } satisfies VulcanConfig;
 ```
 
+`packs` also brings the config of the pack: `base/packs/<name>.config.json` is merged under the project file. See [vulcan config](/references/commands/config#the-merge) for the merge rules and `remove`.
+
 ## rules
 
 The `rules` map assigns choices to base rule slots. `vulcan sync` updates generated assistant settings and session digests from these choices.
