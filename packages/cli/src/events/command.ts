@@ -14,7 +14,6 @@ import type { IEvent, IEventItem, TEventKind, TEventStatus } from './common/inde
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
-import { FlowState } from './flow-state.ts';
 import { FlowSteps } from './flow-steps.ts';
 import { ProjectKey } from './project-key.ts';
 import { EventLog } from './log.ts';
@@ -365,7 +364,8 @@ export class EventCommand {
     const dir = EventCommand.dirOf(opts);
     const key = EventSettings.keyOf({ root: EventSettings.rootOf({ cwd: opts.cwd }) });
     const known = EventLog.read({ dir }).events;
-    const named = flow ?? EventFlow.fromBranch({ cwd: opts.cwd });
+    // A flow line with no `--flow` is a new flow, whatever the branch: the branch id only places the other lines of a flow.
+    const named = flow ?? (isFlow ? undefined : EventFlow.fromBranch({ cwd: opts.cwd }));
     const placed = EventCommand.flowOf({
       flow: named,
       known,
@@ -488,8 +488,8 @@ export class EventCommand {
 
   /**
    * The flow a line belongs to. A flow named with `--flow` must exist (an id is never made up by hand). A flow line that
-   * names none either updates the flow of its branch, when the branch names one that exists and is not over, or starts a
-   * new flow with the next number. The exit code comes back when the line cannot be written.
+   * names none starts a new flow with the next number; any other line without `--flow` goes to the flow its branch names,
+   * when that exists. The exit code comes back when the line cannot be written.
    */
   private static flowOf(opts: {
     flow: string | undefined;
@@ -501,12 +501,7 @@ export class EventCommand {
   }): { ok: true; flowId: string | undefined } | { ok: false; code: number } {
     const { flow, known, key } = opts;
 
-    // The flow of the branch is taken only while it is open: work on a merged or parked flow's branch is a new flow.
-    if (
-      flow !== undefined &&
-      FlowId.exists({ events: known, id: flow, key }) &&
-      (opts.explicit || !opts.isFlow || !FlowState.isOver({ events: known, flowId: flow, key }))
-    ) {
+    if (flow !== undefined && FlowId.exists({ events: known, id: flow, key })) {
       return { ok: true, flowId: flow };
     }
 
