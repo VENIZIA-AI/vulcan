@@ -49,7 +49,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `format` (warning) | Root `bunfig.toml` has `[fmt]` with `flavor = "oxfmt"`; no `package.json` defines `fmt`; no oxfmt config is left | Add the section, rename the script, delete the config or the copy |
 | `commit-hook` (warning) | `commit.message` has a check on and this clone's `commit-msg` hook is missing, stale or skips `vulcan commit-check` | Run `bun node_modules/.bin/vulcan sync`; for your own hook, add the line the warning shows |
 | `events-size` (warning) | Today's event file alone is over `events.maxSize` | Raise `maxSize` or write fewer events |
-| `events-dir` (warning) | `events.dir` names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
+| `events-dir` (warning) | `events.dir` (from the config, or from `.agents/vulcan.local.json`, which replaces it) names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
 | `profile` (warning) | `.agents/local/profile.json` cannot be read, is not ignored by git, or is tracked by git | Fix or delete the file and run the profile form again; ignore `.agents/local/` or untrack the file |
 | `guards` (note) | Notes list each `guard.writes.commands` pattern and `guard.git.askPush` | Change the list in the config |
 | `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `local.tmp` to a short folder and run `vulcan sync`, or check out at a shorter path |
@@ -298,10 +298,16 @@ A warning: today's event file is bigger than `events.maxSize` on its own. The re
 
 ### events-dir
 
-A warning, not a violation: the folder belongs to the machine, and a CI checkout may not have it. It appears only when `events.dir` ([the event log](/references/commands/event#one-folder-for-every-project)) is set to a folder outside the project. The event hooks fail open, so a folder they cannot write loses every line without a message; this warning is where it shows. A `dir` inside the project is made on the first write and is not checked.
+A warning, not a violation: the folder belongs to the machine, and a CI checkout may not have it. It appears only when `events.dir` ([the event log](/references/commands/event#one-folder-for-every-project)), in the config or in your `.agents/vulcan.local.json`, is set to a folder outside the project; the line names the file the folder came from. The event hooks fail open, so a folder they cannot write loses every line without a message; this warning is where it shows. A `dir` inside the project is made on the first write and is not checked.
 
 ```text
   warning [events-dir] .configs/vulcan.config.mts: events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
+```
+
+The same folder set in the local file is reported against it:
+
+```text
+  warning [events-dir] .agents/vulcan.local.json: events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
 ```
 
 | Message | Fix |

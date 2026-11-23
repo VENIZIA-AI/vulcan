@@ -72,6 +72,12 @@ describe('FlowGuard: a commit or a pull request needs a flow, in a project that 
     expect(inspect({ root: project(), command })).toEqual([]);
   });
 
+  test('a project that logs events but has no project.key cannot make a flow, so it is not refused', () => {
+    const root = project({ manifest: JSON.stringify({ events: { log: true } }) });
+
+    expect(inspect({ root, command: 'git commit -m x' })).toEqual([]);
+  });
+
   test('with events.log off, or no manifest, the rule does not exist', () => {
     expect(inspect({ root: project({ log: false }), command: 'git commit -m x' })).toEqual([]);
     expect(

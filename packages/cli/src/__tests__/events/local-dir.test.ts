@@ -1,6 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentConstants } from '../../agents/common/constants.ts';
 import { LocalChoice } from '../../agents/index.ts';
@@ -24,7 +23,7 @@ afterAll(removeProjects);
 const MANIFEST = '.agents/vulcan.manifest.json';
 const LOCAL = '.agents/vulcan.local.json';
 const ACTOR = 'pnt-vulcan-1';
-const shared = (): string => mkdtempSync(join(tmpdir(), 'vulcan-shared-events-'));
+const shared = (): string => createProject({ files: {} });
 
 const project = (opts: { events?: object; local?: unknown } = {}): string =>
   createProject({
