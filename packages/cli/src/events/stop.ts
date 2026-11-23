@@ -5,11 +5,8 @@ import { GitQueries } from '../hooks/git-queries.ts';
 import { RecordValue } from '../common/record.ts';
 import { EventConstants, EventKinds } from './common/index.ts';
 import type { TIsOver } from './common/index.ts';
-import { EventActor } from './actor.ts';
 import { FlowId } from './flow-id.ts';
-import { FlowSteps } from './flow-steps.ts';
-import { EventLog } from './log.ts';
-import { EventSettings } from './settings.ts';
+import { SessionFlow } from './session-flow.ts';
 
 /** Whether a tracked file of the project was modified after a time (milliseconds). */
 type TEdited = (opts: { root: string; since: number }) => boolean;
@@ -43,39 +40,19 @@ export class BoardStop {
       return undefined;
     }
 
-    const settings = EventSettings.read({ root: opts.root });
-
-    if (!settings.log) {
-      return undefined;
-    }
-
-    const actor = EventActor.resolve({
-      sessionId: typeof input.session_id === 'string' ? input.session_id : undefined,
+    const found = SessionFlow.of({
+      root: opts.root,
+      input,
       env: opts.env,
+      isOver: opts.isOver,
+      ...(opts.now === undefined ? {} : { now: opts.now }),
     });
 
-    if (actor === EventConstants.UNKNOWN_ACTOR) {
+    if (found === undefined) {
       return undefined;
     }
 
-    const key = EventSettings.keyOf({ root: opts.root });
-    const known = EventLog.read({
-      dir: EventSettings.dirOf({ root: opts.root, settings }),
-      since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
-    }).events;
-    const cwd = typeof input.cwd === 'string' && input.cwd !== '' ? input.cwd : opts.root;
-    const flowId = FlowSteps.flowOf({
-      events: known,
-      cwd,
-      actor,
-      isOver: (id) => opts.isOver({ events: known, flowId: id, key }),
-    });
-    const last =
-      flowId === undefined ? undefined : FlowSteps.lastLine({ events: known, flowId, key });
-
-    if (flowId === undefined || last === undefined || opts.isOver({ events: known, flowId, key })) {
-      return undefined;
-    }
+    const { actor, key, known, flowId, last } = found;
 
     const since = Date.parse(last.ts);
     const wanted = FlowId.canon({ id: flowId, key });

@@ -100,7 +100,7 @@ The blocks can make `AGENTS.md` pass 100 lines. When it is one of `okf.contents.
 
 ## The event hooks
 
-When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `SubagentStart`, `SubagentStop`, `Notification` and `PostToolUse` (only the `SendMessage` tool, so no process starts for any other tool call) to `.claude/settings.json`; a `Stop` hook and a `PostToolUse` hook for every tool are not installed, and `sync` removes one it finds. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.
+When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `SubagentStart`, `SubagentStop`, `Notification` and `PostToolUse` (only the `SendMessage` tool, so no process starts for any other tool call), and a `UserPromptSubmit` hook that adds the flow and its open steps to a turn a user prompt starts to `.claude/settings.json`; a `Stop` hook and a `PostToolUse` hook for every tool are not installed, and `sync` removes one it finds. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.
 
 ## The commit-msg hook
 

@@ -124,7 +124,7 @@ It prints the events at or after `--since`, oldest first. `--since` takes anythi
 
 ## What the Claude Code hooks log
 
-`sync` installs one hook per event (six of them: `PostToolUse` only for the `SendMessage`, `TodoWrite` and `Bash` tools). Five run `base/hooks/event.ts`, read the payload from stdin and write at most one line; the sixth, `Stop`, runs `base/hooks/board-stop.ts` and writes nothing (see [The Stop hook](#the-stop-hook)). The payload fields are those of Claude Code 2.1.317.
+`sync` installs one hook per event (seven of them: `PostToolUse` only for the `SendMessage`, `TodoWrite` and `Bash` tools). Five run `base/hooks/event.ts`, read the payload from stdin and write at most one line; the sixth, `Stop`, runs `base/hooks/board-stop.ts` and writes nothing (see [The Stop hook](#the-stop-hook)); the seventh, `UserPromptSubmit`, runs `base/hooks/board-context.ts` (see [The prompt context](#the-prompt-context)). The payload fields are those of Claude Code 2.1.317.
 
 | Claude Code event | Logged as | Summary | Read from the payload |
 |---|---|---|---|
@@ -178,6 +178,12 @@ A flow id is `VULZ-<key>-<number>`: the key is the project's `project.key`, and 
 ### Fast and never in the way
 
 The hook takes about 10 to 25 ms per event on a developer machine (a bare `bun` start is most of it). It loads no config and no schema. It always exits `0` and prints nothing on stdout: a payload it cannot read or a folder it cannot write is a note on stderr and a line that is not logged, and a missing bun or a missing `node_modules/@venizia/vulcan` is silent. `VULCAN_GUARDS=off` switches it off. It also checks the manifest on every event, so a project that turns `log` off stops logging before the next `sync` removes the entries.
+
+### The prompt context
+
+At the start of a turn that a user prompt begins, the `UserPromptSubmit` hook (`board-context.ts`) adds a short block to what the agent sees: the flow of the session (the branch's, else the one the session last opened or updated, and not over), at most five of its open steps, each cut to 80 characters, and the exact `vulcan event step --flow <id> --done '<step>'` command. It prints nothing when there is no flow, the flow is over, or `events.log` is off, never reads the prompt, and never fails the turn.
+
+It reaches only turns that a user prompt starts. A turn that a peer or a cross-session message starts may not fire `UserPromptSubmit`, so [the Stop hook](#the-stop-hook) stays the guarantee. Claude Code only: the other agents' hook files are not changed.
 
 ### The Stop hook
 

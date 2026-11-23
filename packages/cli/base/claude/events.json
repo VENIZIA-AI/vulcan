@@ -66,6 +66,17 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "unset BUN_OPTIONS NODE_OPTIONS; for n in $(env | sed -n 's/^\\(BUN_CONFIG_[A-Za-z0-9_]*\\|BUN_INSPECT[A-Za-z0-9_]*\\)=.*/\\1/p'); do unset \"$n\"; done; f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/board-context.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun --no-env-file --config=/dev/null \"$f\"; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

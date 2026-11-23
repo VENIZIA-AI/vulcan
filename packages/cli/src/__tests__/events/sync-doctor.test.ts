@@ -12,9 +12,18 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 const SRC = join(import.meta.dir, '..', '..');
-const HOOK_EVENTS = ['SessionStart', 'SubagentStart', 'SubagentStop', 'Notification', 'PostToolUse', 'Stop'];
+const HOOK_EVENTS = [
+  'SessionStart',
+  'SubagentStart',
+  'SubagentStop',
+  'Notification',
+  'PostToolUse',
+  'Stop',
+  'UserPromptSubmit',
+];
 const HOOK = 'node_modules/@venizia/vulcan/base/hooks/event.ts';
 const STOP_HOOK = 'node_modules/@venizia/vulcan/base/hooks/board-stop.ts';
+const CONTEXT_HOOK = 'node_modules/@venizia/vulcan/base/hooks/board-context.ts';
 
 const parse = (events: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ events });
 const config = (opts: { events?: string; hooks?: string }) =>
@@ -36,7 +45,12 @@ const eventEntries = (opts: { root: string }) =>
   Object.entries(settingsOf(opts).hooks ?? {}).flatMap(([name, entries]) =>
     entries
       .filter((entry) =>
-        entry.hooks.some((hook) => hook.command.includes(HOOK) || hook.command.includes(STOP_HOOK)),
+        entry.hooks.some(
+          (hook) =>
+            hook.command.includes(HOOK) ||
+            hook.command.includes(STOP_HOOK) ||
+            hook.command.includes(CONTEXT_HOOK),
+        ),
       )
       .map((entry) => ({ name, entry })),
   );
