@@ -6,11 +6,11 @@ description: Reference for atlas CLI commands, MCP server setup, and manifest re
 # atlas
 
 atlas is the MCP search server and project-memory tool shipped with VULCAN.
-It runs as `vulcan x atlas <command>`.
+It runs as `vulcan atlas <command>`.
 Use atlas to search documentation, read sections, look up exported symbols, and inspect releases.
 
 ```text
-$ bun node_modules/.bin/vulcan x atlas help
+$ bun node_modules/.bin/vulcan atlas help
 usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|api|symbols|releases|changelogs check> | migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose] | migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] | help
 ```
 
@@ -55,7 +55,7 @@ The server answers `initialize` and `tools/list` as soon as it starts, in well u
 - **A source is served from its last good index at once.** The server records each source it built in `.agents/local/cache/atlas/status.json`. On the next start it answers from that index immediately and checks the remote in a child process; when the child finishes, the fresh index replaces the old one in place. A source with a recorded index is therefore never "still being indexed" for the calls that wait, and a remote that is down keeps the last good index (the failure is recorded and named in the notice, not reported as unserved). The older index is served only while a fresh start would serve the same thing: the same source, a complete set of this atlas's index format, and, for docs pinned to the installed version, the tag the installed packages decide now. After an upgrade of a package or of atlas the source builds from nothing, and `migrate` and `tools` always wait for the fresh build.
 - **A call waits, then says what it left out.** A `search`, `get`, `symbol`, `version` or `changes` call waits up to 20 seconds for the sources still being indexed, then answers from the ones that are ready. The answer carries `notServed`: how many sources are ready (`ready: { count, total }`, the project counted on both sides), for each source that is building the seconds spent and the seconds a build usually takes (`building`), the ones served from an older commit or tag while they refresh, or that could not be refreshed (`stale`), the ones that failed with the reason, what the answer covers, and `retryInSeconds` (the time left by the usual duration, 30 when none was recorded, never under 5). A source that failed never stops the others or the server; an error from a call names it too. `presets` needs no source and never waits.
 - **`instructions` is a snapshot.** It lists a source that is still being indexed as `INDEXING`, but a client reads it once, so rely on `notServed` in the answers.
-- **`vulcan x atlas status` and `vulcan doctor`.** `status` prints what the last server run recorded for each source (state, seconds, the usual build time, the last error) and exits 1 when a source was never served or has been building for over ten minutes in a server that still runs (a build left by a closed session is not hung); `vulcan doctor` warns about those and about a failed refresh. A server started with `--cache-dir` leaves `.agents/local/atlas-cache-base` so both find its record.
+- **`vulcan atlas status` and `vulcan project doctor`.** `status` prints what the last server run recorded for each source (state, seconds, the usual build time, the last error) and exits 1 when a source was never served or has been building for over ten minutes in a server that still runs (a build left by a closed session is not hung); `vulcan project doctor` warns about those and about a failed refresh. A server started with `--cache-dir` leaves `.agents/local/atlas-cache-base` so both find its record.
 - **Settings.** `VULCAN_ATLAS_CALL_WAIT_SECONDS` (default `20`), `VULCAN_ATLAS_INDEX_JOBS` (builds at once) and `VULCAN_ATLAS_INDEX_TIMEOUT_SECONDS` (default `600`; a source that takes longer is stopped and reported as failed).
 
 ### Options
@@ -81,9 +81,9 @@ atlas performs a git partial clone and sparse checkout under `.agents/local/cach
 ### Terminal versus client execution
 
 The usage shortcut applies only with no arguments at all and stdin a TTY.
-Running `vulcan x atlas` with no arguments prints usage and exits with code 0.
+Running `vulcan atlas` with no arguments prints usage and exits with code 0.
 Flags `--help` and `-h` also print usage and exit with code 0.
-Running `vulcan x atlas --root .` at a terminal starts the server because arguments are present.
+Running `vulcan atlas --root .` at a terminal starts the server because arguments are present.
 When an MCP client launches atlas, stdin is a pipe.
 atlas then starts the MCP server over stdio and answers JSON-RPC requests.
 
@@ -94,8 +94,8 @@ If you start atlas outside a VULCAN project without `--source`, it exits with co
 The example below was run outside any project:
 
 ```text
-$ bun node_modules/.bin/vulcan x atlas tools
-vulcan-atlas: nothing to serve at /tmp/wiki-empty - run in a project (`vulcan sync` writes .agents/atlas.manifest.json), or pass --source <owner/repo>@<ref>
+$ bun node_modules/.bin/vulcan atlas tools
+vulcan-atlas: nothing to serve at /tmp/wiki-empty - run in a project (`vulcan project sync` writes .agents/atlas.manifest.json), or pass --source <owner/repo>@<ref>
 usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | index --out <dir> | index keygen | pull [--source <name>] [--cache-dir <dir>] | tools [--root <dir>] | <surface|api|symbols|releases> | help
 ```
 
@@ -105,12 +105,12 @@ You can also provide `--source`.
 ## What atlas reads
 
 atlas reads only the project manifest, never the configuration file.
-Through `vulcan x`, the manifest is rendered fresh from configuration on each run (`VULCAN_MANIFEST`).
-The command [vulcan sync](/references/commands/sync) writes the committed copy.
+Through `vulcan atlas` or `vulcan okf`, the manifest is rendered fresh from configuration on each run (`VULCAN_MANIFEST`).
+The command [vulcan project sync](/references/commands/sync) writes the committed copy.
 
 ### Manifest fields
 
-atlas reads the following fields from `.agents/atlas.manifest.json`. The file is generated by `vulcan sync`; its first key, `$generated`, only says so, and atlas ignores it.
+atlas reads the following fields from `.agents/atlas.manifest.json`. The file is generated by `vulcan project sync`; its first key, `$generated`, only says so, and atlas ignores it.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
@@ -136,10 +136,10 @@ Notes on the fields:
 
 ## Tools
 
-To inspect the tools the server offers without an MCP client, run `vulcan x atlas tools`:
+To inspect the tools the server offers without an MCP client, run `vulcan atlas tools`:
 
 ```text
-$ bun node_modules/.bin/vulcan x atlas tools
+$ bun node_modules/.bin/vulcan atlas tools
 search   When the user asks how something works in my-product and ignis, or about this project's conventions, search here before you answer from memory
 get      After `search`, read the hit here before you rely on it
 symbol   Before you import or call an export of my-product and ignis, get its real signature, import path and source line here instead of recalling it
@@ -173,20 +173,20 @@ Skills: a request matches one, load it before you answer. A workflow question co
 
 The first paragraph alone carries the corpora, the rule and the four triggers in at most 512 characters, because some clients keep only that much; the second says that a question about how to build something here must `search` first, and that a plan never says "check atlas" for a step not done; a third lists the project's skills, one line each with its "Use when" trigger (cut at about 110 characters), and says to load a matching skill before answering, a workflow question included; the whole text stays under 2 KB.
 
-The skill lines are read from disk each time a client connects: the shipped skills of the installed `@venizia/vulcan` (`node_modules/@venizia/vulcan/base/skills`) and your own in `.agents/skills`, the set `vulcan sync` links, a project skill that shadows a shipped name left out. A skill you add, rename or delete shows on the next connect; nothing is written by hand and `AGENTS.md` does not grow. Start a skill's `description` with what it does, then a `Use when ...` sentence; `vulcan doctor` warns, without failing, about one with no such sentence.
+The skill lines are read from disk each time a client connects: the shipped skills of the installed `@venizia/vulcan` (`node_modules/@venizia/vulcan/base/skills`) and your own in `.agents/skills`, the set `vulcan project sync` links, a project skill that shadows a shipped name left out. A skill you add, rename or delete shows on the next connect; nothing is written by hand and `AGENTS.md` does not grow. Start a skill's `description` with what it does, then a `Use when ...` sentence; `vulcan project doctor` warns, without failing, about one with no such sentence.
 
 The lines after them say how each source was reached; a source that is offline or unavailable is named there. The session-start digest repeats the corpora and the rule in an "Atlas" block, and the base rule `V-P-07` states it ([Rules](/references/rules)).
 
-Which agents show these instructions to the model is recorded per agent in `vulcan agents list` (`instructionsSurfaced`).
+Which agents show these instructions to the model is recorded per agent in `vulcan agent list` (`instructionsSurfaced`).
 
 
 For tool arguments and reply schemas, see the [atlas tools reference](/references/atlas/tools).
 
 ## Pull
 
-To see what atlas reads, run `vulcan x atlas status` (`--root <dir>` for another project). It lists the sources the project declares and, for each `@venizia/*` package the app declares, the copy atlas reads its symbols from (the first one found, nearest the root) with its version and folder, then every other copy found, and says when the versions differ. It reads the disk only; whether a source's docs are pinned to the installed version or follow their ref is in the answer of the `version` tool.
+To see what atlas reads, run `vulcan atlas status` (`--root <dir>` for another project). It lists the sources the project declares and, for each `@venizia/*` package the app declares, the copy atlas reads its symbols from (the first one found, nearest the root) with its version and folder, then every other copy found, and says when the versions differ. It reads the disk only; whether a source's docs are pinned to the installed version or follow their ref is in the answer of the `version` tool.
 
-To fetch external sources, run `vulcan x atlas pull`.
+To fetch external sources, run `vulcan atlas pull`.
 Inside a project, it fetches sources declared in the manifest plus any `--source` arguments.
 Sources come only from the manifest and `--source`; no user-level file is read.
 To fetch a single named source, pass `--source <name>`. `--warm` fetches and indexes only what the cache lacks (`pull` otherwise builds again); the server runs `pull --warm --json --only <name>` in a child process for each source it indexes in the background.
@@ -196,7 +196,7 @@ For source caching and configuration details, see the [atlas sources reference](
 
 ## Index
 
-`vulcan x atlas index --out <dir>` builds the search index of HEAD of the repository it runs in and signs it.
+`vulcan atlas index --out <dir>` builds the search index of HEAD of the repository it runs in and signs it.
 It writes two files, named by the commit:
 
 | File | Holds |
@@ -216,13 +216,13 @@ The index is built from the tracked files of the commit, in a scratch worktree u
 
 Without a key the command writes nothing and says so.
 
-`vulcan x atlas index keygen` writes a key pair.
+`vulcan atlas index keygen` writes a key pair.
 The private key goes to `.agents/local/atlas-index.key` with mode 0600, and only while `.agents/local/` is gitignored; it never overwrites a key.
 The public key is printed, together with the command that stores the private key as the Actions secret `ATLAS_INDEX_KEY`.
 
 ### Publishing from CI
 
-`vulcan x atlas index publish` builds the pair of HEAD and attaches it to the release `atlas-index` of the repository named by `GITHUB_REPOSITORY`.
+`vulcan atlas index publish` builds the pair of HEAD and attaches it to the release `atlas-index` of the repository named by `GITHUB_REPOSITORY`.
 The composite action `VENIZIA-AI/vulcan/.github/actions/atlas-index` runs it as one step of a job that has already installed the project:
 
 ```yaml
@@ -264,7 +264,7 @@ Two ways to make it:
 - **A step of the same job.** Give the action a `ref` after the push: `with: { ref: <the tag> }`.
 - **A manual run.** Add a `workflow_dispatch` trigger with a `ref` input and hand that input to the action as its `ref`; start it on the default branch or `develop`, because GitHub runs a manual run with the workflow file of the ref it starts on: `gh workflow run <workflow>.yml --ref develop -f ref=v0.4.6` (in VULCAN the job is picked too: `gh workflow run deploy-docs.yml --ref develop -f job=atlas-index -f ref=v0.4.6`).
 
-The action then publishes the pair of that tag or branch instead of HEAD (`vulcan x atlas index publish --ref <name>`, which the action runs). Only a manual run may give a `ref`. The name must be the plain name of a tag or a branch of the checkout: a commit hash, `HEAD`, a `refs/` path, an option or a revision expression such as `develop~1` is refused before git is asked anything, and so is a name whose commit is on neither the default branch nor `develop`. The `ref` is never checked out as the workflow's checkout; the pair is built in a scratch worktree of its commit, after the check.
+The action then publishes the pair of that tag or branch instead of HEAD (`vulcan atlas index publish --ref <name>`, which the action runs). Only a manual run may give a `ref`. The name must be the plain name of a tag or a branch of the checkout: a commit hash, `HEAD`, a `refs/` path, an option or a revision expression such as `develop~1` is refused before git is asked anything, and so is a name whose commit is on neither the default branch nor `develop`. The `ref` is never checked out as the workflow's checkout; the pair is built in a scratch worktree of its commit, after the check.
 
 What it does, in order: builds and signs the pair; makes the release `atlas-index` if it is not there (a pre-release that is not the latest release; its tag is made once and never moved); removes any older pair of the same commit; uploads the gz and then the envelope; prunes.
 Every URL comes from `GITHUB_REPOSITORY`: the action has no input that names another repository, and the token goes to the API host and to the upload host the API names only if it is the API's own.
@@ -283,20 +283,20 @@ An MCP server lives as long as the agent session that started it, often for days
 - **The project itself** recomputes its release table when its HEAD or one of its tags changed (its search index already follows the files).
 - **A failure keeps what was served.** An offline machine or a down remote leaves the source on its cache, and the server logs one line to stderr.
 
-`VULCAN_ATLAS_REFRESH_SECONDS` sets the interval in seconds (default `300`); `0` turns the refresh off, so a server serves what its start resolved. The `instructions` text a client received at the start (the commit it names for each source) is not rewritten; ask `version` for the current releases. `vulcan x atlas pull` still refreshes the cache by hand, and a running server picks the new commit up within the interval.
+`VULCAN_ATLAS_REFRESH_SECONDS` sets the interval in seconds (default `300`); `0` turns the refresh off, so a server serves what its start resolved. The `instructions` text a client received at the start (the commit it names for each source) is not rewritten; ask `version` for the current releases. `vulcan atlas pull` still refreshes the cache by hand, and a running server picks the new commit up within the interval.
 
 ## Surface
 
-To manage the public API surface snapshot, use `vulcan x atlas surface`:
+To manage the public API surface snapshot, use `vulcan atlas surface`:
 
 ```text
-$ bun node_modules/.bin/vulcan x atlas surface
-usage: vulcan x atlas surface gen|check
+$ bun node_modules/.bin/vulcan atlas surface
+usage: vulcan atlas surface gen|check
 ```
 
 Running bare `surface` prints the usage line and exits with code 2.
-`vulcan x atlas surface gen` writes `.agents/knowledge/reference/public-surface.md` and prints `wrote <path>`.
-`vulcan x atlas surface check` verifies the snapshot against current built declaration files.
+`vulcan atlas surface gen` writes `.agents/knowledge/reference/public-surface.md` and prints `wrote <path>`.
+`vulcan atlas surface check` verifies the snapshot against current built declaration files.
 It prints a fresh, stale or not set up line.
 `surface check` fails with exit code 1 when the file is missing, and says no public surface is committed yet and to run `surface gen` once; it does not call that stale.
 It also fails, as stale, when exported symbols were added, removed, or changed kind.
@@ -305,11 +305,11 @@ It finds them from each package's `exports` field, not a fixed `dist/`.
 
 ## API reference
 
-To write the API reference of the project's packages, run `vulcan x atlas api`:
+To write the API reference of the project's packages, run `vulcan atlas api`:
 
 ```text
-$ bun node_modules/.bin/vulcan x atlas api
-usage: vulcan x atlas api gen|check | undocumented [--package <dir, name or path>]...
+$ bun node_modules/.bin/vulcan atlas api
+usage: vulcan atlas api gen|check | undocumented [--package <dir, name or path>]...
 ```
 
 `api gen` writes `references/api/<entry>.md` under the wiki directory of the manifest (`knowledge.wiki`), one page for each `exports` entry (`@scope/name/subpath` becomes `scope-name-subpath.md`) and an `index.md` that counts the exports and the ones with TSDoc. An export is listed once, on the entry that declares it (the most specific entry of the package that owns its source file); an entry that only re-exports it names that entry in a short list at the end of its page. A page lists every export it declares by name with its kind, its TSDoc as prose, its declaration without that comment (members keep theirs) and the source file (no line number, so the check fails only when the API or its TSDoc changes); the exports with no TSDoc are named at the top. An export whose TSDoc says `@internal` is left out of the page and of its counts. A re-export of a third-party declaration shows its signature only. The pages are generated: link to them from a guide and never edit them. A page that no longer matches the declarations, or a generated page for an entry that was removed, is rewritten or deleted by the next `gen`. A file in the folder that `gen` did not write (it carries the generated note) is never touched.
@@ -322,10 +322,10 @@ The text on a page comes from the comment as written. Markup the comment did not
 
 ## Symbols
 
-To inspect what the `symbol` tool reads, run `vulcan x atlas symbols`:
+To inspect what the `symbol` tool reads, run `vulcan atlas symbols`:
 
 ```text
-$ bun node_modules/.bin/vulcan x atlas symbols
+$ bun node_modules/.bin/vulcan atlas symbols
 {
   "generatedFrom": "dist",
   "packages": [
@@ -350,10 +350,10 @@ When no live package exists, `symbols`, `surface gen` and a `surface check` of a
 
 ## Releases
 
-To inspect what the `version` and `changes` tools read, run `vulcan x atlas releases`:
+To inspect what the `version` and `changes` tools read, run `vulcan atlas releases`:
 
 ```text
-$ bun node_modules/.bin/vulcan x atlas releases
+$ bun node_modules/.bin/vulcan atlas releases
 {
   "livePackages": [
     "api"
@@ -380,7 +380,7 @@ A changelog entry can also carry a `migration:` block in its frontmatter, and th
 
 ## Changelogs
 
-`vulcan x atlas changelogs check` (or `vulcan changelog check`) validates the `migration:` blocks of the entries in `knowledge.changelogs`.
+`vulcan atlas changelogs check` (or `vulcan check changelog`) validates the `migration:` blocks of the entries in `knowledge.changelogs`.
 It exits `0` when every entry conforms and `1` when one does not, printing `<file>: <message>` for each problem on stderr; any other subcommand exits `2`.
 
 - **Shape**: each item has `id` (lower-case words joined by `-`, unique across the folder), `symbols` (at least one export name, `Name.member` or module specifier), `upgrade` and `downgrade` (each `before` and `after`, or `steps`; only an `upgrade` may hold `steps` together with `before` and `after`), and optionally `data` and `codemod`.
@@ -406,7 +406,7 @@ When an atlas tool has nothing to read, it answers with an error whose message e
   - Fix: Install git and restart atlas.
 - **`changes`**: `no dated changelog entries: the manifest declares no changelog directory - set knowledge.changelogs; atlas reads files named YYYY-MM-DD-<slug>.md from it` (the message goes on to describe the file layout)
   - Meaning: Manifest does not declare `knowledge.changelogs`.
-  - Fix: Set `knowledge.changelogs` in configuration and run `vulcan sync`.
+  - Fix: Set `knowledge.changelogs` in configuration and run `vulcan project sync`.
 - **`changes`**: `no dated changelog entries in <dir> - atlas reads files named YYYY-MM-DD-<slug>.md from it` (the message goes on to describe the file layout)
   - Meaning: Changelog directory contains no dated files.
   - Fix: Add dated changelog files with `packages:` frontmatter.

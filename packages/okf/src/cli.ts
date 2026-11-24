@@ -12,7 +12,7 @@ class OkfCommands extends ConstClass {
   static readonly COVERAGE = 'coverage';
 }
 
-const USAGE = 'usage: vulcan x okf <check|gen|coverage>';
+const USAGE = 'usage: vulcan okf <check|gen|coverage>';
 
 const [command, ...rest] = process.argv.slice(2);
 

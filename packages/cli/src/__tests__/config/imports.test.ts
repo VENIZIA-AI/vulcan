@@ -76,7 +76,7 @@ describe('ConfigImports.localModules', () => {
       },
     });
 
-    runCli({ args: ['sync'], cwd: root });
+    runCli({ args: ['project', 'sync'], cwd: root });
 
     expect(readFileSync(join(root, '.agents/local/vulcan.manifest.json'), 'utf8')).toContain(
       '.configs/vulcan/claude.mts',
@@ -87,10 +87,10 @@ describe('ConfigImports.localModules', () => {
   });
 });
 
-describe('vulcan init writes the config split', () => {
+describe('vulcan project init writes the config split', () => {
   test('the config and its modules, which load, are in order, and leave the packages to the workspaces', async () => {
     const root = createProject({ files: { 'package.json': '{ "name": "demo" }' } });
-    const run = runCli({ args: ['init', '--key', 'DEMO'], cwd: root });
+    const run = runCli({ args: ['project', 'init', '--key', 'DEMO'], cwd: root });
     const loaded = await ConfigLoader.load({ root });
 
     expect(run.code, run.stderr).toBe(0);
@@ -285,7 +285,7 @@ describe('ConfigImports.scan: what the guards cannot protect', () => {
 
   test('sync and doctor warn about such a module', async () => {
     const root = createProject({ files: { ...SPLIT, 'package.json': '{ "name": "demo" }' } });
-    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const run = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
     const warnings = await DoctorRunner.runWarnings({ root });
 
     expect(run.stderr).toContain('warning   src/shared.ts: a module of the config');

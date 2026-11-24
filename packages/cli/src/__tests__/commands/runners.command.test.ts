@@ -45,8 +45,9 @@ describe('RunnersCheck.scan', () => {
         'README.md':
           '# App\n\nRun `bun x --no-install ardor codemod` first.\n\n```sh\nbunx devz lint\n```\n',
         Makefile: 'lint:\n\t@npx ignis-build-info\n',
-        '.github/workflows/ci.yml': 'jobs:\n  a:\n    steps:\n      - run: pnpm dlx vulcan sync\n',
-        'package.json': '{ "scripts": { "x": "bun x vulcan x okf check" } }\n',
+        '.github/workflows/ci.yml':
+          'jobs:\n  a:\n    steps:\n      - run: pnpm dlx vulcan project sync\n',
+        'package.json': '{ "scripts": { "x": "bun x vulcan okf check" } }\n',
       },
     });
 
@@ -67,7 +68,7 @@ describe('RunnersCheck.scan', () => {
           guard: { runners: { allow: ['shadcn'] } },
         }),
         'README.md':
-          'bun x @venizia/vulcan@0.4.10 init\nbunx shadcn@latest add button\nbun node_modules/.bin/vulcan sync\nnode_modules/.bin/ardor codemod\n',
+          'bun x @venizia/vulcan@0.4.10 init\nbunx shadcn@latest add button\nbun node_modules/.bin/vulcan project sync\nnode_modules/.bin/ardor codemod\n',
       },
     });
 
@@ -108,10 +109,10 @@ describe('RunnersCheck.scan', () => {
   });
 });
 
-describe('vulcan runners check', () => {
+describe('vulcan check runners', () => {
   test('exits 1 and prints file:line, the command and the safe forms; exits 0 when clean', () => {
     const dirty = repository({ files: { 'README.md': 'Run bun x ardor now\n\n    bunx ardor\n' } });
-    const result = runCli({ args: ['runners', 'check'], cwd: dirty });
+    const result = runCli({ args: ['check', 'runners'], cwd: dirty });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('README.md:3');
@@ -119,7 +120,7 @@ describe('vulcan runners check', () => {
 
     const clean = repository({ files: { 'README.md': 'bun run ardor\n' } });
 
-    expect(runCli({ args: ['runners', 'check'], cwd: clean }).code).toBe(0);
+    expect(runCli({ args: ['check', 'runners'], cwd: clean }).code).toBe(0);
   });
 
   test('anything but check is a usage error', () => {
@@ -142,11 +143,11 @@ describe('the allow-list of the project, under the launch environment that holds
       },
     });
 
-  test('vulcan runners check reads the list whatever the environment holds', () => {
+  test('vulcan check runners reads the list whatever the environment holds', () => {
     const root = project();
 
-    expect(runCli({ args: ['runners', 'check'], cwd: root }).code).toBe(0);
-    expect(runCli({ args: ['runners', 'check'], cwd: root, env: HELD }).code).toBe(0);
+    expect(runCli({ args: ['check', 'runners'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['check', 'runners'], cwd: root, env: HELD }).code).toBe(0);
     expect(RunnersCheck.scan({ root }).findings).toEqual([]);
   });
 
@@ -161,7 +162,7 @@ describe('the allow-list of the project, under the launch environment that holds
       },
     });
 
-    expect(runCli({ args: ['runners', 'check'], cwd: root, env: HELD }).code).toBe(1);
+    expect(runCli({ args: ['check', 'runners'], cwd: root, env: HELD }).code).toBe(1);
   });
 
   test('the live hook still ignores the list under that environment, and honours it without', () => {

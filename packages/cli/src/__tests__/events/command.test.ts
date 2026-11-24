@@ -365,7 +365,7 @@ describe('vulcan event tail', () => {
   });
 });
 
-describe('vulcan event add --kind flow', () => {
+describe('vulcan flow add', () => {
   const dir = (root: string): string => join(root, '.agents/local/events');
 
   test('writes a flow line: the title is its summary, the reason is why, in the words given', () => {

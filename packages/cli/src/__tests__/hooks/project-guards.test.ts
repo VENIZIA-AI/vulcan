@@ -550,7 +550,7 @@ describe('a project with a config and no local manifest is a clone that did not 
 
     expect(policy.asks).toBe('deny');
     expect(policy.outside).toBe('deny');
-    expect(policy.asksNote).toContain('run bun node_modules/.bin/vulcan sync');
+    expect(policy.asksNote).toContain('run bun node_modules/.bin/vulcan project sync');
     expect(policy.commands).toEqual([]);
   });
 
@@ -582,7 +582,7 @@ describe('a project with a config and no local manifest is a clone that did not 
     expect(synced.outside).toBe('ask');
   });
 
-  test('the guard-outside hook denies a write outside the project in such a clone, and `vulcan sync` passes', () => {
+  test('the guard-outside hook denies a write outside the project in such a clone, and `vulcan project sync` passes', () => {
     const root = createProject({ files: { [CONFIG]: 'export default {};\n' } });
     const input = fileToolEvent({ tool: 'Write', path: '/srv/vulcan-fixture/x.txt', cwd: root });
     const run = spawnSyncBounded({

@@ -9,7 +9,7 @@ const SUBCOMMANDS = ['list', 'add', 'remove', 'setup'];
 const DRY_RUN_FLAG = '--dry-run';
 
 const fail = (opts: { message: string }): number => {
-  process.stderr.write(`vulcan agents: ${opts.message}\n`);
+  process.stderr.write(`vulcan agent: ${opts.message}\n`);
 
   return ExitCodes.FAILURE;
 };
@@ -85,7 +85,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
   if (subcommand === 'setup') {
     if (process.stdin.isTTY !== true) {
       return fail({
-        message: `setup asks questions and needs a terminal - without one use 'vulcan agents add|remove <ids>' or 'vulcan sync ${AgentConstants.FLAG} <list>'`,
+        message: `setup asks questions and needs a terminal - without one use 'vulcan agent add|remove <ids>' or 'vulcan project sync ${AgentConstants.FLAG} <list>'`,
       });
     }
 
@@ -101,7 +101,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
   const parsed = AgentSelection.parseList({ value });
 
   if (!parsed.ok) {
-    return fail({ message: parsed.error.replace(/^vulcan sync: /, '') });
+    return fail({ message: parsed.error.replace(/^vulcan project sync: /, '') });
   }
 
   if (parsed.agents.length === 0) {
@@ -122,7 +122,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
 
   if (skipped.length > 0) {
     process.stderr.write(
-      `vulcan agents: ${subcommand === 'add' ? 'already chosen' : 'not chosen'}: ${skipped.join(', ')}\n`,
+      `vulcan agent: ${subcommand === 'add' ? 'already chosen' : 'not chosen'}: ${skipped.join(', ')}\n`,
     );
   }
 

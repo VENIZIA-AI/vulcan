@@ -73,7 +73,7 @@ export class EventFlags {
   static readonly DIR = '--dir';
   static readonly SINCE = '--since';
   static readonly JSON = '--json';
-  /** `vulcan event step`: the step's text, set done or open. */
+  /** `vulcan flow step`: the step's text, set done or open. */
   static readonly DONE = '--done';
   static readonly TODO = '--todo';
 
@@ -146,7 +146,7 @@ export class EventConstants {
   static readonly MANIFEST_FILE = '.agents/local/vulcan.manifest.json';
   /** The per-checkout file; the same path as `AgentConstants.LOCAL_FILE`, kept here because the event hook loads no other module (a test holds them equal). */
   static readonly LOCAL_FILE = '.agents/local/profile.json';
-  /** The file of the releases before 0.5.0; read when the profile has no such key, until `vulcan sync` has moved its keys. */
+  /** The file of the releases before 0.5.0; read when the profile has no such key, until `vulcan project sync` has moved its keys. */
   static readonly LEGACY_LOCAL_FILE = '.agents/vulcan.local.json';
   /** A day file of the log: `<local day>.jsonl`; the capture is the day. */
   static readonly DAY_FILE = /^(\d{4}-\d{2}-\d{2})\.jsonl$/;

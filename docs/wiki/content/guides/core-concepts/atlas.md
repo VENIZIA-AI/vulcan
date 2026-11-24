@@ -7,7 +7,7 @@ description: Give your agent search over your project docs, knowledge and code, 
 
 atlas is an MCP server. It indexes your wiki, changelogs and knowledge bundle. It reads your exported symbols and release history.
 
-`vulcan sync` writes the `.mcp.json` entry for the agents that read it (Claude Code, omp, Copilot CLI), and the other agents get an entry in their own file. Check it is there:
+`vulcan project sync` writes the `.mcp.json` entry for the agents that read it (Claude Code, omp, Copilot CLI), and the other agents get an entry in their own file. Check it is there:
 
 ```json
 {
@@ -28,7 +28,7 @@ You do not need to tell the agent to use them. The server's instructions and the
 
 Before you use atlas, confirm these preconditions:
 
-- Run `vulcan sync` so it writes `.agents/atlas.manifest.json`. atlas reads that manifest and never imports your configuration file directly.
+- Run `vulcan project sync` so it writes `.agents/atlas.manifest.json`. atlas reads that manifest and never imports your configuration file directly.
 - To use `symbol`, build your packages first. atlas reads their exported `.d.ts` declaration files.
 - To use `version` and `changes`, tag your releases in git. Your changelog directory must hold files named `YYYY-MM-DD-<slug>.md`, each declaring `packages:` frontmatter. See [Adopt VULCAN](/guides/get-started/adopt-vulcan).
 
@@ -63,7 +63,7 @@ atlas: {
 },
 ```
 
-Run `vulcan sync` to register the new source in the manifest.
+Run `vulcan project sync` to register the new source in the manifest.
 Without git on the machine, a GitHub `owner/repo` source comes as a tarball with no release history.
 The cache lives inside the project, in `.agents/local/cache/` (gitignored); `--cache-dir <dir>` puts it elsewhere. atlas writes nothing outside the project directory.
 For cache layouts, authentication, and source settings, see [atlas sources](/references/atlas/sources).
@@ -79,16 +79,16 @@ When atlas cannot find data for a tool call, it returns an explanation:
 | `no releases: no tag matches <pattern> in this ref's history` | No git tags match the configured tag pattern in this branch. | Tag releases matching `tagPattern`, or update the pattern. |
 | `no release history: <name> was fetched without git` | The remote source was fetched as a tarball without git history. | Install git on the machine to fetch release history. |
 | `no dated changelog entries ...` | The directory lacks files named `YYYY-MM-DD-<slug>.md` with `packages:` frontmatter, or none is declared. | Add `packages:` frontmatter to `YYYY-MM-DD-<slug>.md` files, or set `knowledge.changelogs`. |
-| `vulcan-atlas: nothing to serve at <dir>` | The directory has no manifest and no sources were provided. atlas exits with code 2. | Run `vulcan sync`, or pass `--source <owner/repo>@<ref>`. |
+| `vulcan-atlas: nothing to serve at <dir>` | The directory has no manifest and no sources were provided. atlas exits with code 2. | Run `vulcan project sync`, or pass `--source <owner/repo>@<ref>`. |
 
 A project with no documentation of its own finds nothing until you declare a source. atlas does not read `node_modules` for documentation.
 
 ## Verify
 
-To view the tools atlas provides, run `vulcan x atlas tools`:
+To view the tools atlas provides, run `vulcan atlas tools`:
 
 ```text
-$ bun node_modules/.bin/vulcan x atlas tools
+$ bun node_modules/.bin/vulcan atlas tools
 search   When the user asks how something works in demo-app, how to build something in it, or about this project's conventions, search here before you answer from memory
 get      After `search`, read the hit here before you rely on it
 symbol   Before you import or call an export of demo-app, get its real signature, import path and source line here instead of recalling it
@@ -98,7 +98,7 @@ migrate  When the user asks what to change to upgrade or roll back a @venizia/* 
 presets  When you are asked to create a new app or package in demo-app, ask here which preset and which exact command to use before you write any file
 ```
 
-`vulcan x atlas tools` lists the eight tools, with the descriptions your agent sees. It does not start the server.
+`vulcan atlas tools` lists the eight tools, with the descriptions your agent sees. It does not start the server.
 The descriptions name your project, here `demo-app`.
 For a real check, restart the agent session and ask it to search.
 
@@ -106,9 +106,9 @@ For a real check, restart the agent session and ask it to search.
 
 A repository that others read as a source can publish a signed copy of its index, one per commit. A project that lists it as a source then downloads that copy, checks it, and skips building it; a miss or a failed check builds it as before. Set it up once:
 
-1. **Make a key pair.** `bun node_modules/.bin/vulcan x atlas index keygen` writes the private key to `.agents/local/atlas-index.key` (mode 0600, only while `.agents/local/` is gitignored) and prints the public key.
+1. **Make a key pair.** `bun node_modules/.bin/vulcan atlas index keygen` writes the private key to `.agents/local/atlas-index.key` (mode 0600, only while `.agents/local/` is gitignored) and prints the public key.
 2. **Store the private key as an Actions secret, then delete the file.** `gh secret set ATLAS_INDEX_KEY < .agents/local/atlas-index.key`, then `rm .agents/local/atlas-index.key`. The key lives nowhere else. Protect the default branch and `develop` (a pull request to change them): the workflow that holds the key runs from those branches.
-3. **List the public key in the config.** `atlas: { index: { keys: ['<the public key>'] } }` in `.configs/vulcan.config.mts`, then `vulcan sync` and commit the manifest.
+3. **List the public key in the config.** `atlas: { index: { keys: ['<the public key>'] } }` in `.configs/vulcan.config.mts`, then `vulcan project sync` and commit the manifest.
 4. **Add the workflow.** The workflow of [the atlas reference](/references/atlas/#publishing-from-ci): a push to the default branch or `develop`, `contents: write`, a checkout with `fetch-depth: 0`, and the action `VENIZIA-AI/vulcan/.github/actions/atlas-index`, pinned to a commit.
 5. **Check the release.** After the first push, the release `atlas-index` of the repository holds `<sha>.atlas.json` and `<sha>.atlas.gz`.
 

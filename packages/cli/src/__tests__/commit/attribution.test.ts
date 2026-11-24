@@ -34,7 +34,7 @@ const repo = (opts: { signature?: string; files?: Record<string, string> }): str
 
 const sync = (opts: { root: string; agents?: string; extra?: string[] }) =>
   runCli({
-    args: ['sync', '--agents', opts.agents ?? 'claude', ...(opts.extra ?? [])],
+    args: ['project', 'sync', '--agents', opts.agents ?? 'claude', ...(opts.extra ?? [])],
     cwd: opts.root,
     env: hermeticEnv(),
   });

@@ -61,7 +61,7 @@ export class SyncFlow {
 
   /**
    * The whole sync. `cleanup` names agents whose adapters are taken back even when no stored choice
-   * says so (`vulcan agents remove`); an agent stored before and left out of a new explicit list is
+   * says so (`vulcan agent remove`); an agent stored before and left out of a new explicit list is
    * taken back too.
    */
   static async run(opts: ICommandContext & { cleanup?: string[] }): Promise<number> {
@@ -76,7 +76,7 @@ export class SyncFlow {
     const loaded = await ConfigLoader.load({ root: opts.cwd });
 
     if (!loaded.ok) {
-      process.stderr.write(`vulcan sync: ${loaded.error}\n`);
+      process.stderr.write(`vulcan project sync: ${loaded.error}\n`);
 
       return ExitCodes.FAILURE;
     }

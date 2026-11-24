@@ -52,7 +52,7 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     expect(viz.success).toBe(false);
     expect(viz.error?.issues[0]?.path).toEqual(['okf', 'viz']);
     expect(viz.error?.issues[0]?.message).toContain('delete this key');
-    expect(viz.error?.issues[0]?.message).toContain('vulcan x okf viz');
+    expect(viz.error?.issues[0]?.message).toContain('vulcan okf viz');
     expect(viz.error?.issues[0]?.message).toContain('okf.brand');
     expect(sections.error?.issues[0]?.path).toEqual(['okf', 'sections']);
     expect(sections.error?.issues[0]?.message).toContain('delete this key');

@@ -134,7 +134,9 @@ const readScriptNames = (opts: { file: string }): string[] | undefined => {
   }
 };
 
-const CANONICAL_ATLAS_ARGS = ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
+const CANONICAL_ATLAS_ARGS = ['node_modules/.bin/vulcan', 'atlas', 'mcp', '--root', '.'];
+/** The entry of the release before the scopes: it still runs, so it is out of date and not a different server. */
+const PREVIOUS_ATLAS_ARGS = ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
 /** What sync wrote before V-S-08: it can run a copy bunx cached, so it is stale and not merely different. */
 const LEGACY_ATLAS_ARGS = ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
 
@@ -200,7 +202,7 @@ export class ProjectContract {
         createViolation({
           check: DoctorChecks.LAYOUT,
           file: path,
-          message: `missing - run '${ProjectLayout.VULCAN_COMMAND} init'`,
+          message: `missing - run '${ProjectLayout.VULCAN_COMMAND} project init'`,
         }),
       );
   }
@@ -347,7 +349,7 @@ export class ProjectContract {
             createViolation({
               check: DoctorChecks.ADAPTERS,
               file: relative(opts.root, absent[0].path),
-              message: `not synced yet - run '${ProjectLayout.VULCAN_COMMAND} sync' (make vulcan-sync) first`,
+              message: `not synced yet - run '${ProjectLayout.VULCAN_COMMAND} project sync' (make vulcan-sync) first`,
             }),
           ];
 
@@ -360,7 +362,7 @@ export class ProjectContract {
           message:
             action.status === SyncStatuses.SKIPPED
               ? (action.note ?? 'skipped by sync')
-              : `stale (${action.status}) - run '${ProjectLayout.VULCAN_COMMAND} sync'`,
+              : `stale (${action.status}) - run '${ProjectLayout.VULCAN_COMMAND} project sync'`,
         }),
       ),
     ];
@@ -375,7 +377,7 @@ export class ProjectContract {
       .filter((action) => action.status !== SyncStatuses.UNCHANGED)
       .map((action) => {
         const file = relative(opts.root, action.path);
-        const sync = `run '${ProjectLayout.VULCAN_COMMAND} sync'`;
+        const sync = `run '${ProjectLayout.VULCAN_COMMAND} project sync'`;
         const isCommitted = file !== ManifestConstants.FILE;
         const fix = isCommitted ? `${sync} and commit it` : sync;
         const temporary =
@@ -649,13 +651,13 @@ export class ProjectContract {
 
   /**
    * The `commit-msg` hook of this clone, when the project turned a commit check on: a missing or out-of-date
-   * one is fixed by `vulcan sync`; one that is not ours and does not call the check, or one a project with
+   * one is fixed by `vulcan project sync`; one that is not ours and does not call the check, or one a project with
    * `core.hooksPath` owns, is told the line to add. Per clone, so a warning and never a violation.
    */
   static checkCommitHook(opts: ICheckContext): IViolation[] {
     const status = CommitHook.stateOf({ root: opts.root, config: opts.config });
     const file = relative(opts.root, status.path);
-    const fix = `run '${ProjectLayout.VULCAN_COMMAND} sync' (make vulcan-sync)`;
+    const fix = `run '${ProjectLayout.VULCAN_COMMAND} project sync' (make vulcan-sync)`;
 
     switch (status.state) {
       case CommitHookStates.MISSING: {
@@ -767,7 +769,7 @@ export class ProjectContract {
   /**
    * An atlas source the last server run could not build, could not refresh (an older index is served), or has been building
    * for over ten minutes in a server that is still running: the agents of this project read the `.d.ts` files by hand
-   * until it is served. A warning with what `vulcan x atlas status` prints; a build left by a closed session is not one.
+   * until it is served. A warning with what `vulcan atlas status` prints; a build left by a closed session is not one.
    */
   static checkAtlasSources(opts: ICheckContext): IViolation[] {
     const problems = AtlasStatus.problemsOf({ root: opts.root }).filter(
@@ -782,15 +784,13 @@ export class ProjectContract {
             file: AtlasStatus.recordFileOf({ root: opts.root }),
             message: `an atlas source is not served as it should be: ${problems
               .map((problem) => `${problem.source}: ${problem.type} (${problem.detail})`)
-              .join(
-                ' | ',
-              )} - run \`${ProjectLayout.VULCAN_COMMAND} x atlas status\` for the record`,
+              .join(' | ')} - run \`${ProjectLayout.VULCAN_COMMAND} atlas status\` for the record`,
           }),
         ];
   }
 
   /**
-   * The root `package.json` runs `vulcan sync` in no install script (`prepare` or `postinstall`, directly or as `make vulcan-sync`):
+   * The root `package.json` runs `vulcan project sync` in no install script (`prepare` or `postinstall`, directly or as `make vulcan-sync`):
    * a clone that has not run it has no manifest and no hooks, and `bun install` is where one is expected to get them. A note,
    * for a project that has a root `package.json`.
    */
@@ -802,24 +802,34 @@ export class ProjectContract {
     }
 
     const scripts: unknown = manifest['scripts'];
-    const runsSync = (name: string): boolean => {
+    const scriptOf = (name: string): string | undefined => {
       const script = RecordValue.isRecord(scripts) ? scripts[name] : undefined;
 
-      return (
-        typeof script === 'string' &&
-        ['vulcan sync', 'vulcan-sync'].some((text) => script.includes(text))
-      );
+      return typeof script === 'string' ? script : undefined;
     };
+    const names = ['prepare', 'postinstall'];
+    const isCurrent = (script: string | undefined): boolean =>
+      script !== undefined &&
+      (['vulcan project sync', 'vulcan-sync'].some((text) => script.includes(text)) ||
+        /vulcan\s+project\s+sync\b/.test(script));
+    // The old name still runs in this release, but the script of a project is the form doctor prints now.
+    const isOld = (script: string | undefined): boolean =>
+      script !== undefined && !isCurrent(script) && /vulcan\s+sync\b/.test(script);
+    const fix = `set "prepare": "${ProjectLayout.PREPARE_SCRIPT.replaceAll('"', '\\"')}" in scripts`;
 
-    return runsSync('prepare') || runsSync('postinstall')
-      ? []
-      : [
-          createViolation({
-            check: DoctorChecks.PREPARE,
-            file: 'package.json',
-            message: `no install script runs vulcan sync: a fresh clone has no hooks until someone runs it; add "prepare": "${ProjectLayout.PREPARE_SCRIPT.replaceAll('"', '\\"')}" to scripts`,
-          }),
-        ];
+    if (names.some((name) => isCurrent(scriptOf(name)))) {
+      return [];
+    }
+
+    return [
+      createViolation({
+        check: DoctorChecks.PREPARE,
+        file: 'package.json',
+        message: names.some((name) => isOld(scriptOf(name)))
+          ? `the install script still uses the old \`sync\` name (no \`project\` before it), which still works in this release and goes in the next: ${fix}`
+          : `no install script runs vulcan project sync: a fresh clone has no hooks until someone runs it; ${fix}`,
+      }),
+    ];
   }
 
   /** Git tracks `.claude/settings.json`: it is generated by sync in every clone, so a committed copy goes stale and drifts. A warning with the git command. */
@@ -829,7 +839,7 @@ export class ProjectContract {
           createViolation({
             check: DoctorChecks.CLAUDE_SETTINGS,
             file: ProjectLayout.CLAUDE_SETTINGS_FILE,
-            message: `git tracks this file, which \`vulcan sync\` writes in every clone: run git rm --cached ${ProjectLayout.CLAUDE_SETTINGS_FILE} (sync keeps it out of git from then on)`,
+            message: `git tracks this file, which \`vulcan project sync\` writes in every clone: run git rm --cached ${ProjectLayout.CLAUDE_SETTINGS_FILE} (sync keeps it out of git from then on)`,
           }),
         ]
       : [];
@@ -863,7 +873,7 @@ export class ProjectContract {
           createViolation({
             check: DoctorChecks.CONFIG_DEFAULTS,
             file: opts.configFile,
-            message: `${same.length} value(s) of this config repeat what VULCAN ships: run \`${ProjectLayout.VULCAN_COMMAND} config --diff\` to list them, then delete them`,
+            message: `${same.length} value(s) of this config repeat what VULCAN ships: run \`${ProjectLayout.VULCAN_COMMAND} config diff\` to list them, then delete them`,
           }),
         ];
   }
@@ -968,7 +978,7 @@ export class ProjectContract {
           mcpWarning({
             file: MCP_FILE,
             message:
-              'untracked and not ignored, so a clean-tree check (a release) refuses to run. Add `/.mcp.json` to .gitignore, or run `vulcan sync` at the top level of the repository, which lists it in .git/info/exclude.',
+              'untracked and not ignored, so a clean-tree check (a release) refuses to run. Add `/.mcp.json` to .gitignore, or run `vulcan project sync` at the top level of the repository, which lists it in .git/info/exclude.',
           }),
         );
       }
@@ -1003,13 +1013,24 @@ export class ProjectContract {
           );
         } else if (
           Array.isArray(args) &&
+          args.length === PREVIOUS_ATLAS_ARGS.length &&
+          args.every((arg, index) => arg === PREVIOUS_ATLAS_ARGS[index])
+        ) {
+          warnings.push(
+            mcpWarning({
+              file: MCP_FILE,
+              message: `the atlas entry is out of date: it starts the server with the old \`x atlas\` form, which is \`atlas\` now (the old name still works in this release) - run '${ProjectLayout.VULCAN_COMMAND} project sync' to rewrite it as ${MCP_SERVER_HINT}`,
+            }),
+          );
+        } else if (
+          Array.isArray(args) &&
           args.length === LEGACY_ATLAS_ARGS.length &&
           args.every((arg, index) => arg === LEGACY_ATLAS_ARGS[index])
         ) {
           warnings.push(
             mcpWarning({
               file: MCP_FILE,
-              message: `the atlas entry is out of date: it starts the server through bunx, which can run a copy it cached when the bin is not linked there - run '${ProjectLayout.VULCAN_COMMAND} sync' to rewrite it as ${MCP_SERVER_HINT}`,
+              message: `the atlas entry is out of date: it starts the server through bunx, which can run a copy it cached when the bin is not linked there - run '${ProjectLayout.VULCAN_COMMAND} project sync' to rewrite it as ${MCP_SERVER_HINT}`,
             }),
           );
         } else if (!isCanonical) {
@@ -1040,7 +1061,7 @@ export class ProjectContract {
       warnings.push(
         mcpWarning({
           file: CLAUDE_SETTINGS_FILE,
-          message: `enabledMcpjsonServers does not include atlas (has: ${has}): Claude asks before using the server - run vulcan sync`,
+          message: `enabledMcpjsonServers does not include atlas (has: ${has}): Claude asks before using the server - run vulcan project sync`,
         }),
       );
     }
@@ -1159,7 +1180,7 @@ export class ProjectContract {
           createViolation({
             check: DoctorChecks.AGENTS,
             file: 'AGENTS.md',
-            message: `the Atlas or rules block of AGENTS.md is missing or out of date - run '${ProjectLayout.VULCAN_COMMAND} sync'`,
+            message: `the Atlas or rules block of AGENTS.md is missing or out of date - run '${ProjectLayout.VULCAN_COMMAND} project sync'`,
           }),
         ];
   }
@@ -1188,7 +1209,7 @@ export class ProjectContract {
         createViolation({
           check: DoctorChecks.LOCAL,
           file: relative(opts.root, action.path) || '.',
-          message: `${action.note ?? 'out of date'} - run 'bun node_modules/.bin/vulcan sync'`,
+          message: `${action.note ?? 'out of date'} - run 'bun node_modules/.bin/vulcan project sync'`,
         }),
       );
   }
@@ -1217,7 +1238,7 @@ export class ProjectContract {
           check: DoctorChecks.PROFILE,
           file: OwnerConstants.PROFILE_FILE,
           message:
-            'git does not ignore this personal file - add .agents/local/ to .gitignore (vulcan sync does it)',
+            'git does not ignore this personal file - add .agents/local/ to .gitignore (vulcan project sync does it)',
         }),
       );
     }
@@ -1297,7 +1318,7 @@ export class ProjectContract {
       createViolation({
         check: DoctorChecks.LOCAL,
         file: ProjectLayout.LOCAL_DIRECTORY,
-        message: `${stale.length} ${stale.length === 1 ? 'entry has' : 'entries have'} outlived ${stale.length === 1 ? 'its' : 'their'} use (${LocalFormat.formatBytes({ bytes })}): ${groups.map(([group, count]) => `${count} ${group}`).join(', ')}; run: vulcan clean ${scopes.map((scope) => `--${scope}`).join(' ')} --yes (without --yes it lists each one)`,
+        message: `${stale.length} ${stale.length === 1 ? 'entry has' : 'entries have'} outlived ${stale.length === 1 ? 'its' : 'their'} use (${LocalFormat.formatBytes({ bytes })}): ${groups.map(([group, count]) => `${count} ${group}`).join(', ')}; run: vulcan project clean ${scopes.map((scope) => `--${scope}`).join(' ')} --yes (without --yes it lists each one)`,
       }),
     ];
   }
@@ -1394,7 +1415,7 @@ export class ProjectContract {
       createViolation({
         check: DoctorChecks.LOCAL,
         file: HookConstants.PROJECT_TMP,
-        message: `the temp folder ${folder} is too deep for a browser: Chrome's socket path would be ${length} characters (${BrowserSocket.longest()} below it) and the limit is ${BrowserSocket.PATH_MAX}, so a browser started with this folder exits with "${BrowserSocket.ERROR}". Set \`local.tmp\` in the config to a short folder of the project (for example \`tmp\`) and run \`vulcan sync\`, or move the checkout to a path of ${spare} characters or fewer`,
+        message: `the temp folder ${folder} is too deep for a browser: Chrome's socket path would be ${length} characters (${BrowserSocket.longest()} below it) and the limit is ${BrowserSocket.PATH_MAX}, so a browser started with this folder exits with "${BrowserSocket.ERROR}". Set \`local.tmp\` in the config to a short folder of the project (for example \`tmp\`) and run \`vulcan project sync\`, or move the checkout to a path of ${spare} characters or fewer`,
       }),
     ];
   }
@@ -1409,7 +1430,7 @@ export class ProjectContract {
           createViolation({
             check: DoctorChecks.PROJECT_KEY,
             file: opts.configFile,
-            message: `the event log is on and project.key is not set, so no flow can be created: add project: { key: 'KEY' } (${ProjectKey.MESSAGE}), then run vulcan sync`,
+            message: `the event log is on and project.key is not set, so no flow can be created: add project: { key: 'KEY' } (${ProjectKey.MESSAGE}), then run vulcan project sync`,
           }),
         ]
       : [];

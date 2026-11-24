@@ -161,7 +161,7 @@ export const DEFAULT_CHROME = {
     info: 'for information',
   },
   actions: 'Do these, in order',
-  footer: 'Static page by vulcan visualize; it loads nothing.',
+  footer: 'Static page by vulcan page new; it loads nothing.',
   flow: 'How it flows',
   legend: 'Legend',
   play: 'Play',

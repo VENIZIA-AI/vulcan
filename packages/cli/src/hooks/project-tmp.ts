@@ -12,7 +12,7 @@ const shellQuote = (opts: { text: string }): string => `'${opts.text.replaceAll(
 export class ProjectTmp {
   /**
    * The folder the project names for its temporary files, relative to its root: `local.tmp` of the committed manifest
-   * (which `vulcan sync` renders from the config), read here so a hook needs no config loader, unless this checkout's
+   * (which `vulcan project sync` renders from the config), read here so a hook needs no config loader, unless this checkout's
    * `.agents/local/profile.json` sets `local.tmp`, which replaces it. A missing manifest, a
    * missing key or a value that is not a layout folder gives the default, `.agents/tmp`.
    */
@@ -53,7 +53,7 @@ export class ProjectTmp {
 
   /**
    * Where a session's temporary files go, absolute: the guard, the session digest, the session-start export,
-   * `vulcan clean` and the scratch of `add` all call this. `tmp` is the config's `local.tmp` for a caller that
+   * `vulcan project clean` and the scratch of `add` all call this. `tmp` is the config's `local.tmp` for a caller that
    * has just read the config (`sync`, which writes the manifest after it plans the folder); the others leave it
    * out and get the manifest's.
    */

@@ -464,7 +464,7 @@ export class ProjectTheme {
   }
 
   /**
-   * The accent seeds of the project's `theme` in the manifest, for the pages `vulcan visualize` makes. A missing file, or a
+   * The accent seeds of the project's `theme` in the manifest, for the pages `vulcan page new` makes. A missing file, or a
    * manifest with no `theme`, is the default preset.
    */
   static readManifestTheme(opts: { root: string }): { theme?: IThemeInput; warning?: string } {

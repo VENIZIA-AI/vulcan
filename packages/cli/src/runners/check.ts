@@ -33,7 +33,7 @@ const MARKDOWN = /\.mdx?$/i;
 const BINARY_EXTENSION = /\.(png|jpe?g|gif|webp|ico|pdf|woff2?|ttf|eot|zip|gz|tgz|wasm|mp4|mov)$/i;
 
 /**
- * `vulcan runners check`: no tracked file of the project may run an unscoped package through `bunx`, `bun x`, `npx`,
+ * `vulcan check runners`: no tracked file of the project may run an unscoped package through `bunx`, `bun x`, `npx`,
  * `pnpm dlx`, `pnpx` or `yarn dlx`, with or without `--no-install`. A scoped package (`@scope/name`) passes. A name npm owns for somebody else would be fetched and run
  * wherever the bin is not linked, and bun runs a copy an earlier bare bunx saved even under `--no-install`. The safe
  * form is `bun node_modules/.bin/<bin>` from the project root (or a make target); `bun run <bin>` is a fallback.

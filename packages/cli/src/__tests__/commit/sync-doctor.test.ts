@@ -26,14 +26,14 @@ const repo = (opts: { commit?: string }): string => {
 
 const sync = (opts: { root: string; extra?: string[] }) =>
   runCli({
-    args: ['sync', '--agents', 'claude', ...(opts.extra ?? [])],
+    args: ['project', 'sync', '--agents', 'claude', ...(opts.extra ?? [])],
     cwd: opts.root,
     env: hermeticEnv(),
   });
 
 const hook = (opts: { root: string }): string => join(opts.root, '.git/hooks/commit-msg');
 
-describe('vulcan sync and the commit-msg hook', () => {
+describe('vulcan project sync and the commit-msg hook', () => {
   test('a project that denies agent signatures gets the hook and the manifest block', () => {
     const root = repo({ commit: DENY });
     const result = sync({ root });
@@ -41,7 +41,7 @@ describe('vulcan sync and the commit-msg hook', () => {
     expect(result.code, result.stderr).toBe(0);
     expect(result.stderr).toMatch(/created\s+\.git\/hooks\/commit-msg/);
     expect(readFileSync(hook({ root }), 'utf8')).toContain(
-      'node_modules/.bin/vulcan" commit-check',
+      'node_modules/.bin/vulcan" check commit',
     );
     expect(
       JSON.parse(readFileSync(join(root, '.agents/local/vulcan.manifest.json'), 'utf8')).commit,
@@ -77,7 +77,7 @@ describe('vulcan sync and the commit-msg hook', () => {
     const result = sync({ root });
 
     expect(result.stderr).toMatch(/skipped\s+\.git\/hooks\/commit-msg/);
-    expect(result.stderr).toContain('bun node_modules/.bin/vulcan commit-check "$1"');
+    expect(result.stderr).toContain('bun node_modules/.bin/vulcan check commit "$1"');
     expect(readFileSync(hook({ root }), 'utf8')).toBe('#!/bin/sh\necho mine\n');
   });
 
@@ -94,7 +94,7 @@ describe('vulcan sync and the commit-msg hook', () => {
   });
 });
 
-describe('vulcan doctor and the commit-msg hook', () => {
+describe('vulcan project doctor and the commit-msg hook', () => {
   const warningsOf = async (opts: { root: string }): Promise<string[]> => {
     const warnings = await DoctorRunner.runWarnings({ root: opts.root });
 
@@ -108,7 +108,7 @@ describe('vulcan doctor and the commit-msg hook', () => {
     const [message] = await warningsOf({ root });
 
     expect(message).toContain('not installed');
-    expect(message).toContain('vulcan sync');
+    expect(message).toContain('vulcan project sync');
 
     sync({ root });
 
@@ -125,7 +125,7 @@ describe('vulcan doctor and the commit-msg hook', () => {
 
     const [message] = await warningsOf({ root });
 
-    expect(message).toContain('bun node_modules/.bin/vulcan commit-check "$1"');
+    expect(message).toContain('bun node_modules/.bin/vulcan check commit "$1"');
   });
 
   test('a hook that belongs to another project does not read as one that skips the check', async () => {

@@ -268,7 +268,7 @@ const PROJECT = {
   'src/long.ts': 'export const a = 1;\n'.repeat(401),
 };
 
-describe('vulcan layout check', () => {
+describe('vulcan check layout', () => {
   test('reads the tracked files from disk: a link is skipped, the line count is exact', () => {
     const root = repository({ files: PROJECT });
 
@@ -281,7 +281,7 @@ describe('vulcan layout check', () => {
 
   test('exits 1 on new findings, writes the baseline, then exits 0 with each finding as info', () => {
     const root = repository({ files: PROJECT });
-    const first = runCli({ args: ['layout', 'check'], cwd: root });
+    const first = runCli({ args: ['check', 'layout'], cwd: root });
 
     expect(first.code).toBe(1);
     expect(first.stderr).toContain(
@@ -290,38 +290,38 @@ describe('vulcan layout check', () => {
     expect(first.stderr).toContain('warning [mixed-folder] src:');
     expect(first.stderr).toContain('warning [long-file] src/long.ts: 401 lines');
     expect(first.stderr).toContain(
-      'vulcan layout: 3 new, 0 in the baseline, 0 stale baseline entries',
+      'vulcan check layout: 3 new, 0 in the baseline, 0 stale baseline entries',
     );
 
-    const write = runCli({ args: ['layout', 'check', '--write-baseline'], cwd: root });
+    const write = runCli({ args: ['check', 'layout', '--write-baseline'], cwd: root });
 
     expect(write.code).toBe(0);
     expect(write.stdout).toContain('wrote 3 finding(s) to .configs/layout-baseline.json');
 
-    const second = runCli({ args: ['layout', 'check'], cwd: root });
+    const second = runCli({ args: ['check', 'layout'], cwd: root });
 
     expect(second.code).toBe(0);
     expect(second.stderr).toContain('info [long-file] src/long.ts: 401 lines');
     expect(second.stderr).toContain(
-      'vulcan layout: 0 new, 3 in the baseline, 0 stale baseline entries',
+      'vulcan check layout: 0 new, 3 in the baseline, 0 stale baseline entries',
     );
   });
 
   test('exits 2 on bad arguments, 1 outside a git work tree and on a baseline that is not valid', () => {
     const root = repository({ files: PROJECT });
     const outside = runCli({
-      args: ['layout', 'check'],
+      args: ['check', 'layout'],
       cwd: createProject({ files: { '.configs/vulcan.config.mts': 'export default {};\n' } }),
     });
 
-    expect(runCli({ args: ['layout'], cwd: root }).code).toBe(2);
-    expect(runCli({ args: ['layout', 'check', '--fix'], cwd: root }).code).toBe(2);
+    expect(runCli({ args: ['check'], cwd: root }).code).toBe(2);
+    expect(runCli({ args: ['check', 'layout', '--fix'], cwd: root }).code).toBe(2);
     expect(outside.code).toBe(1);
     expect(outside.stderr).toContain('is not in a git work tree');
 
     writeFileSync(join(root, '.configs/layout-baseline.json'), '{');
 
-    expect(runCli({ args: ['layout', 'check'], cwd: root }).code).toBe(1);
+    expect(runCli({ args: ['check', 'layout'], cwd: root }).code).toBe(1);
   });
 
   test('reads a listing of more than 1 MB', () => {
@@ -391,13 +391,13 @@ describe('vulcan layout check', () => {
     const staleNotes = await DoctorRunner.runNotes({ root, env: {} });
 
     expect(ofLayout(staleNotes)).toEqual([
-      '.configs/layout-baseline.json: 1 baseline entry matches nothing any more: run `bun node_modules/.bin/vulcan layout check --write-baseline`',
+      '.configs/layout-baseline.json: 1 baseline entry matches nothing any more: run `bun node_modules/.bin/vulcan check layout --write-baseline`',
     ]);
     const openWarnings = await DoctorRunner.runWarnings({ root });
 
     expect(ofLayout(openWarnings)).toHaveLength(3);
 
-    runCli({ args: ['layout', 'check', '--write-baseline'], cwd: root });
+    runCli({ args: ['check', 'layout', '--write-baseline'], cwd: root });
 
     const adoptedWarnings = await DoctorRunner.runWarnings({ root });
 

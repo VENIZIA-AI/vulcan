@@ -13,7 +13,7 @@ export class AutoCleanRun {
   /**
    * Removes: `tmp/` entries past their days and browser leftovers an hour old (scope `tmp`, state stale), release
    * candidates whose version is tagged (state shipped), and event day files past the limits of `events`. A worktree
-   * or a clone is never scanned, let alone removed: those stay with `vulcan clean --yes` and the warnings of `vulcan doctor`.
+   * or a clone is never scanned, let alone removed: those stay with `vulcan project clean --yes` and the warnings of `vulcan project doctor`.
    * Writes the stamp with what went, for the next session to say once.
    */
   static run(opts: { root: string; now?: number }): { files: number; bytes: number } {
@@ -23,7 +23,7 @@ export class AutoCleanRun {
       now,
       only: [CleanScopes.TMP, CleanScopes.RELEASE_CANDIDATES],
     });
-    // A folder that holds a repository (a clone, a worktree) is somebody's work: only `vulcan clean --yes` takes it, with its checks.
+    // A folder that holds a repository (a clone, a worktree) is somebody's work: only `vulcan project clean --yes` takes it, with its checks.
     const remove = scanned.filter(
       (entry) =>
         entry.removable &&

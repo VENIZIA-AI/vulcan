@@ -13,7 +13,7 @@ const PROJECT = {
 const SHIPPED = ['build-a-feature', 'docs-update', 'docs-writing', 'research'];
 
 const sync = (opts: { root: string; agents: string }) =>
-  runCli({ args: ['sync', '--agents', opts.agents], cwd: opts.root });
+  runCli({ args: ['project', 'sync', '--agents', opts.agents], cwd: opts.root });
 
 const isLink = (opts: { path: string }): boolean =>
   existsSync(opts.path) && lstatSync(opts.path).isSymbolicLink();
@@ -136,7 +136,7 @@ describe('shipped skills for the agents that read .agents/skills', () => {
 
   test('--dry-run writes none of it', () => {
     const root = createProject({ files: PROJECT });
-    const result = runCli({ args: ['sync', '--dry-run', '--agents', 'omp'], cwd: root });
+    const result = runCli({ args: ['project', 'sync', '--dry-run', '--agents', 'omp'], cwd: root });
 
     expect(result.stderr).toContain('would create  .agents/skills/docs-update');
     expect(existsSync(join(root, '.agents/skills'))).toBe(false);

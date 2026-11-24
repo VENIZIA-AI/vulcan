@@ -59,7 +59,7 @@ const open = (root: string): string =>
     ],
   }).stdout.trim();
 
-describe('vulcan event step', () => {
+describe('vulcan flow step', () => {
   test('changes one step and keeps every other field of the flow line', () => {
     const root = project();
     const id = open(root);

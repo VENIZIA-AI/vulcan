@@ -15,7 +15,7 @@ import type { IOfficialPreset } from './common';
 
 const DESCRIPTION =
   'Lists the presets this project can create from, the folder each one lands in and the exact ' +
-  '`vulcan add` command for the `kind` you ask (app by default, lib for a library other apps import, shared ' +
+  '`vulcan package add` command for the `kind` you ask (app by default, lib for a library other apps import, shared ' +
   'for a side-neutral package other apps import): the ' +
   'presets this project recorded first, then the official ones it has not used yet, marked ' +
   '`inProject: false`. When no preset fits the kind it says so plainly: then ask the user, never ' +
@@ -23,7 +23,7 @@ const DESCRIPTION =
 
 const INPUT_JSON_SCHEMA = z.toJSONSchema(PresetsInputSchema);
 
-const ADD = 'bun node_modules/.bin/vulcan add';
+const ADD = 'bun node_modules/.bin/vulcan package add';
 const NO_HAND_WRITING = 'do not hand-write package.json, tsconfig or scripts';
 
 interface IPresetEntry {
@@ -201,7 +201,7 @@ const LIBRARY_KINDS: TLibraryKind[] = [LibraryKinds.LIB, LibraryKinds.SHARED];
 
 export class PresetsTool {
   /**
-   * The presets of this project for the kind asked, from the manifest `vulcan sync` renders: nothing is
+   * The presets of this project for the kind asked, from the manifest `vulcan project sync` renders: nothing is
    * read from `node_modules`. The recorded presets come first; the official ones the project has not
    * used follow, marked `inProject: false`, so an agent never concludes that no frontend preset exists
    * because the project has none yet. A kind no preset makes is said plainly, never filled with an app
@@ -230,7 +230,7 @@ export class PresetsTool {
           return {
             kind,
             presets: [],
-            note: `no preset makes a ${kind} (vulcan add makes apps, libs and shared packages): ask the user how it should be made; ${NO_HAND_WRITING}, and do not use an app, lib or shared preset for it`,
+            note: `no preset makes a ${kind} (vulcan package add makes apps, libs and shared packages): ask the user how it should be made; ${NO_HAND_WRITING}, and do not use an app, lib or shared preset for it`,
           };
         }
 

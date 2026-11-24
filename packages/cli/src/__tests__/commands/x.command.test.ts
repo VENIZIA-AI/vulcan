@@ -31,17 +31,17 @@ describe('vulcan x', () => {
       const result = runCli({ args: ['x', flag], cwd: tmpdir() });
 
       expect(result.code, flag).toBe(0);
-      expect(result.stdout, flag).toContain('x <tool> [args...]');
-      expect(result.stdout, flag).toContain('okf, atlas');
+      expect(result.stdout, flag).toContain('okf <args...> | atlas <args...>');
+      expect(result.stdout, flag).toContain('(okf, atlas)');
       expect(result.stderr, flag).not.toContain('unknown tool');
     }
   });
 
   test('--help after the tool goes to the tool', () => {
-    const result = runCli({ args: ['x', 'okf', '--help'], cwd: tmpdir() });
+    const result = runCli({ args: ['okf', '--help'], cwd: tmpdir() });
 
-    expect(result.stdout).not.toContain('x <tool> [args...]');
-    expect(result.stdout + result.stderr).toContain('vulcan x okf');
+    expect(result.stdout).not.toContain('okf <args...> | atlas <args...>');
+    expect(result.stdout + result.stderr).toContain('vulcan okf');
   });
 
   test('no tool exits 1 with the list', () => {
@@ -49,14 +49,14 @@ describe('vulcan x', () => {
   });
 
   test("the tool's exit code passes through unchanged (okf usage error is 2)", () => {
-    const result = runCli({ args: ['x', 'okf'], cwd: tmpdir() });
+    const result = runCli({ args: ['okf'], cwd: tmpdir() });
 
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain('usage: vulcan x okf');
+    expect(result.stderr).toContain('usage: vulcan okf');
   });
 
   test('vulcan itself writes nothing to stdout - MCP owns it', () => {
-    expect(runCli({ args: ['x', 'okf', 'nope'], cwd: tmpdir() }).stdout).toBe('');
+    expect(runCli({ args: ['okf', 'nope'], cwd: tmpdir() }).stdout).toBe('');
   });
 
   const atlasBin = ToolRunner.resolveBin({ name: VulcanTools.ATLAS });
@@ -71,7 +71,7 @@ describe('vulcan x', () => {
           '.agents/knowledge/index.md': '# Probe\n',
         },
       });
-      const child = Bun.spawn([process.execPath, CLI, 'x', 'atlas', 'mcp'], {
+      const child = Bun.spawn([process.execPath, CLI, 'atlas', 'mcp'], {
         cwd: root,
         stdin: 'pipe',
         stdout: 'pipe',
@@ -112,7 +112,7 @@ describe('vulcan x', () => {
     'x atlas mcp outside any project, with no source, exits 2 and says how to get one',
     () => {
       const result = runCli({
-        args: ['x', 'atlas', 'mcp'],
+        args: ['atlas', 'mcp'],
         cwd: tmpdir(),
       });
 
@@ -158,7 +158,7 @@ describe('ToolRunner.buildEnvironment', () => {
     const root = createProject({
       files: { '.configs/vulcan.config.mts': 'export default { nope: 1 };\n' },
     });
-    const result = runCli({ args: ['x', 'okf', 'check'], cwd: root });
+    const result = runCli({ args: ['okf', 'check'], cwd: root });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('invalid config');

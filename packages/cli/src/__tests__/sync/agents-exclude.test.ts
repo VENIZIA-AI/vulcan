@@ -23,7 +23,7 @@ const repo = (opts: { files?: Record<string, string> } = {}): string => {
 };
 
 const sync = (opts: { root: string; agents: string }) =>
-  runCli({ args: ['sync', '--agents', opts.agents], cwd: opts.root });
+  runCli({ args: ['project', 'sync', '--agents', opts.agents], cwd: opts.root });
 
 const exclude = (opts: { root: string }): string =>
   readFileSync(join(opts.root, '.git/info/exclude'), 'utf8');
@@ -111,7 +111,10 @@ describe('the chosen agents go to .git/info/exclude', () => {
 
   test('--dry-run writes nothing', () => {
     const root = repo();
-    const result = runCli({ args: ['sync', '--dry-run', '--agents', 'cursor'], cwd: root });
+    const result = runCli({
+      args: ['project', 'sync', '--dry-run', '--agents', 'cursor'],
+      cwd: root,
+    });
 
     expect(result.stderr).toMatch(/would (create|replace)\s+\.git\/info\/exclude/);
     expect(exclude({ root })).not.toContain('vulcan:start');

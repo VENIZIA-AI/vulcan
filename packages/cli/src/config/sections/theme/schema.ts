@@ -7,10 +7,10 @@ const TOKEN_COLOUR = z.string().regex(ThemeTokens.COLOUR, 'a hex colour like #8a
 
 export const THEME_SECTION = {
   /**
-   * The colour the project is known by: `vulcan visualize` takes the accent of its pages from here (the spec's own
+   * The colour the project is known by: `vulcan page new` takes the accent of its pages from here (the spec's own
    * `accent` wins). `accent` is the colour for marks and fills; `accentDark` is the same on dark grounds (derived
    * when absent); `accentText` is a darker accent for text, when `accent` is too light to be read as text.
-   * `vulcan sync` copies it to the manifest, where the generator reads it.
+   * `vulcan project sync` copies it to the manifest, where the generator reads it.
    */
   theme: z
     .strictObject({

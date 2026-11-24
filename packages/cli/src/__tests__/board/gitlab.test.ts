@@ -415,7 +415,7 @@ describe('provider in the config and the manifest', () => {
   });
 });
 
-describe('vulcan board with provider gitlab', () => {
+describe('vulcan board show with provider gitlab', () => {
   const projectOn = (provider: unknown): string =>
     createProject({
       files: {
@@ -425,7 +425,7 @@ describe('vulcan board with provider gitlab', () => {
     });
   const board = (opts: { root: string; args: string[]; path: string }) =>
     runCli({
-      args: ['board', '--since', '2026-11-01', ...opts.args],
+      args: ['board', 'show', '--since', '2026-11-01', ...opts.args],
       cwd: opts.root,
       env: { ...hermeticEnv(), PATH: opts.path },
     });

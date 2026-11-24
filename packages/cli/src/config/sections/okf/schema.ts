@@ -47,9 +47,9 @@ export const OKF_SECTION = {
         .default({ files: ['AGENTS.md', '.agents/rules.md'] }),
       /** How the project's name is written in prose, for the brand rule of `okf check`; absent means the root package name without scope, upper-cased. */
       brand: z.string().optional(),
-      /** Removed with `vulcan x okf viz`: the key is refused with what to do. */
+      /** Removed with `vulcan okf viz`: the key is refused with what to do. */
       viz: REMOVED_OKF_KEY({
-        fix: 'delete this key; `vulcan x okf viz` and `make okf-viz` are gone with no replacement, and the brand it carried is now `okf.brand`',
+        fix: 'delete this key; `vulcan okf viz` and `make okf-viz` are gone with no replacement, and the brand it carried is now `okf.brand`',
       }),
       /** Removed with the explorer, the only thing that read it. */
       sections: REMOVED_OKF_KEY({ fix: 'delete this key; only the removed explorer read it' }),

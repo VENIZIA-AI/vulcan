@@ -133,7 +133,7 @@ export class UpgradeTarget {
 
       if (installed !== undefined && CreateConstants.PRERELEASE_PATTERN.test(installed)) {
         process.stderr.write(
-          `vulcan upgrade: ${installed} is installed, a prerelease; ${UpgradeFlags.STABLE} installs the latest stable release and ${UpgradeFlags.NIGHTLY} keeps the prerelease line\n`,
+          `vulcan project upgrade: ${installed} is installed, a prerelease; ${UpgradeFlags.STABLE} installs the latest stable release and ${UpgradeFlags.NIGHTLY} keeps the prerelease line\n`,
         );
       }
 
@@ -145,7 +145,7 @@ export class UpgradeTarget {
 
     if (target === undefined) {
       process.stderr.write(
-        `vulcan upgrade: ${UpgradeFlags.NIGHTLY} could not read the dist-tags of ${PACKAGE_NAME} - pass a version instead\n`,
+        `vulcan project upgrade: ${UpgradeFlags.NIGHTLY} could not read the dist-tags of ${PACKAGE_NAME} - pass a version instead\n`,
       );
     }
 
@@ -161,7 +161,7 @@ export class UpgradeTarget {
 
     if (!existsSync(bin)) {
       process.stderr.write(
-        `vulcan upgrade: no installed vulcan at ${bin} - the install did not complete\n`,
+        `vulcan project upgrade: no installed vulcan at ${bin} - the install did not complete\n`,
       );
 
       return ExitCodes.FAILURE;
@@ -180,7 +180,7 @@ export class UpgradeTarget {
 export const runUpgradeCommand = async (opts: ICommandContext): Promise<number> => {
   if (opts.args.includes(UpgradeFlags.STABLE) && opts.args.includes(UpgradeFlags.NIGHTLY)) {
     process.stderr.write(
-      `vulcan upgrade: ${UpgradeFlags.STABLE} and ${UpgradeFlags.NIGHTLY} cannot be combined - pick one\n`,
+      `vulcan project upgrade: ${UpgradeFlags.STABLE} and ${UpgradeFlags.NIGHTLY} cannot be combined - pick one\n`,
     );
 
     return ExitCodes.FAILURE;
@@ -200,7 +200,7 @@ export const runUpgradeCommand = async (opts: ICommandContext): Promise<number> 
   }
 
   if (SubProcess.isInstallSkipped()) {
-    process.stderr.write('  skipped  vulcan sync (VULCAN_NO_INSTALL)\n');
+    process.stderr.write('  skipped  vulcan project sync (VULCAN_NO_INSTALL)\n');
 
     return ExitCodes.OK;
   }

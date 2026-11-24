@@ -41,7 +41,7 @@ describe('the launch file of an earlier release', () => {
 
     expect(found).toHaveLength(1);
     expect(found[0]?.message).toContain('no longer used');
-    expect(found[0]?.message).toContain('vulcan sync');
+    expect(found[0]?.message).toContain('vulcan project sync');
     apply({ root });
     expect(existsSync(join(root, LAUNCH))).toBe(false);
     expect(ProjectContract.checkLocalWorkspace({ root, config: CONFIG, configFile: '' })).toEqual(

@@ -31,7 +31,7 @@ Copy it into your reply and tick each box when its criterion holds:
 - [ ] 3. Interface approved   - the user said yes to the interface and the seams to test (lane L: the design pass done)
 - [ ] 4. Slices planned       - each slice names one behaviour, its seam, its files
 - [ ] 5. Slices built         - every slice went red, then green; every import came from `symbol`
-- [ ] 6. Checks green         - typecheck, lint, test, vulcan doctor passed; the real behaviour shown
+- [ ] 6. Checks green         - typecheck, lint, test, vulcan project doctor passed; the real behaviour shown
 - [ ] 7. Docs and knowledge current - Docs impact delivered, the docs gates green, each changed fact in the bundle
 - [ ] 8. Diff reviewed        - checked against the rules and reviewed as the lane asks, findings dispositioned, summary given with what was skipped
 ```
@@ -61,7 +61,7 @@ For each layer the feature touches, find how this project already does it:
 | How a feature of this kind is organised (routes, controllers, services, repositories, datasources, pages) | `search` with the kind and the layer, then `get` on the best hits |
 | The project's own concepts and decisions | `search` with `corpus: "knowledge"` |
 | A helper, hook or utility you were about to write by hand | `intent` with the need in plain words ("wait 500 ms", "react to a media query"); a hit gives the import line and an example, a miss is recorded in the plan before anything is hand-written |
-| A new app or a shared package | `presets`, then the exact `vulcan add` command it returns |
+| A new app or a shared package | `presets`, then the exact `vulcan package add` command it returns |
 | What changed in a release you depend on | `changes`, `version` |
 
 A knowledge page under `.agents/knowledge/packages/` is a summary of what a package is; the way
@@ -120,7 +120,7 @@ Done when every slice went red, then green.
 
 ## 6. Check
 
-Run the app's `typecheck`, `lint` and `test`, then `bun node_modules/.bin/vulcan doctor` from the project root, and read each
+Run the app's `typecheck`, `lint` and `test`, then `bun node_modules/.bin/vulcan project doctor` from the project root, and read each
 output. Then show the real behaviour: start the app and call the endpoint, or open the page, and
 paste what came back.
 
@@ -134,7 +134,7 @@ topic, writes the changelog entry when the change affects users of the published
 fact about the project that changed - a new concept, a decision, a gotcha - goes into the knowledge
 bundle in the same change. The reviewer sees the docs in the diff.
 
-Done when the docs gates (`vulcan doctor`, `vulcan x okf check --strict`, the project's own docs build)
+Done when the docs gates (`vulcan project doctor`, `vulcan okf check --strict`, the project's own docs build)
 are green and the bundle matches the change.
 
 ## 8. Review and hand over

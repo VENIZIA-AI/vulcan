@@ -50,7 +50,7 @@ Write boundaries govern modifications to repository history, database state, dep
 Security rules safeguard credentials, validate boundary inputs, protect telemetry, and isolate external payloads:
 
 - `V-S-01` - Keep secrets and personal data out of code, tests, documentation, logs, errors and telemetry; log identifiers, not payloads; place placeholder keys in `.env.example`.
-  - Enforced by: SOFT - `vulcan doctor` warns on private values (the `private-values` check)
+  - Enforced by: SOFT - `vulcan project doctor` warns on private values (the `private-values` check)
 - `V-S-02` - Never weaken authentication or authorization checks to resolve errors or simplify implementations.
   - Enforced by: SOFT
 - `V-S-03` - Validate all boundary inputs; treat external payloads as hostile until fully verified.
@@ -62,7 +62,7 @@ Security rules safeguard credentials, validate boundary inputs, protect telemetr
 - `V-S-06` - Never send repository content to external services outside the system.
   - Enforced by: SOFT
 - `V-S-08` - Never run an unscoped package by name: no bunx, bun x, npx or pnpm dlx of a name the project does not own, with or without --no-install. Run the bin as `bun node_modules/.bin/<bin>` from the project root, or through a make target; `bun run <bin>` only as a fallback. `@venizia/*` and `guard.runners.allow` are fine.
-  - Enforced by: HARD in Claude Code, Codex, Antigravity, omp and pi: `guard-git` denies the command (the `--no-install` form passes only for a linked bin); `vulcan runners check` reads the tracked files. Any other agent has this rule only
+  - Enforced by: HARD in Claude Code, Codex, Antigravity, omp and pi: `guard-git` denies the command (the `--no-install` form passes only for a linked bin); `vulcan check runners` reads the tracked files. Any other agent has this rule only
 
 ## Process (P)
 
@@ -86,7 +86,7 @@ Process rules establish reading requirements, design review gates, scope boundar
   - Enforced by: SOFT
 - `V-P-12` - Delegate mechanical work to a smaller-model subagent, keep judgment, and put the goal, files, "no git writes", report shape and the rules digest in every brief (template: `delegation-brief.md` in the shipped references).
   - Enforced by: SOFT - the brief; a subagent-start hook where the tool has one
-- `V-P-13` - Only in a project with `events.log` on: when you start work that belongs to a flow, make the flow first: log a `flow` event with no `--flow`, in the owner's language, with a title the owner reads, a one-line reason, a short context and the next step (`vulcan event add --kind flow --title ... --why ... --context ... --next ...`). VULCAN gives the flow its id, `VULZ-<project.key>-<number>`, and prints it; use it on every other line of the flow, and never type or invent one. Lists and fields: `--step`, `--step-done`, `--check`, `--check-done`, `--app`, `--due`, `--ref`; to change a flow, log a new `flow` line with `--flow <id>` that repeats every list and field that still holds. Log a `deploy` line when something goes live.
+- `V-P-13` - Only in a project with `events.log` on: when you start work that belongs to a flow, make the flow first: log a `flow` event with no `--flow`, in the owner's language, with a title the owner reads, a one-line reason, a short context and the next step (`vulcan flow add --title ... --why ... --context ... --next ...`). VULCAN gives the flow its id, `VULZ-<project.key>-<number>`, and prints it; use it on every other line of the flow, and never type or invent one. Lists and fields: `--step`, `--step-done`, `--check`, `--check-done`, `--app`, `--due`, `--ref`; to change a flow, log a new `flow` line with `--flow <id>` that repeats every list and field that still holds. Log a `deploy` line when something goes live.
   - Enforced by: SOFT
 
 ## Build and quality (B)
@@ -94,7 +94,7 @@ Process rules establish reading requirements, design review gates, scope boundar
 Build rules require test-driven workflows, command output verification, zero warning gates, and suite integrity:
 
 - `V-B-02` - Ensure all lint and test gates pass with zero warnings before completion.
-  - Enforced by: SOFT - the project's own pre-commit, if it has one, runs `vulcan doctor` and lint
+  - Enforced by: SOFT - the project's own pre-commit, if it has one, runs `vulcan project doctor` and lint
 - `V-B-03` - Run commands and read real output before making claims; provide evidence first.
   - Enforced by: SOFT
 - `V-B-04` - Write the failing test first. Never pass tests by deleting cases, skipping checks, or relaxing types.
@@ -106,7 +106,7 @@ Build rules require test-driven workflows, command output verification, zero war
 
 ### Where agent files live, and when they go
 
-`vulcan sync` creates these directories under `.agents/local/` and gitignores the folder. Nothing an agent creates goes outside the project.
+`vulcan project sync` creates these directories under `.agents/local/` and gitignores the folder. Nothing an agent creates goes outside the project.
 
 | Directory | Holds | Removed when |
 |---|---|---|
@@ -118,7 +118,7 @@ Build rules require test-driven workflows, command output verification, zero war
 | `reports/` | long reports a message points to (V-P-11) | the user deletes them |
 | `prototypes/` | static HTML pages a skill writes | the user deletes them |
 
-For `profile.json`, see [the personal profile](/references/configuration/#the-personal-profile). [`vulcan clean`](/references/commands/clean) lists and removes what has outlived its use. What the agent tool writes for itself (its task output, its memory) is outside what VULCAN controls. The scratchpad folder it offers is not: it is a system temp directory.
+For `profile.json`, see [the personal profile](/references/configuration/#the-personal-profile). [`vulcan project clean`](/references/commands/clean) lists and removes what has outlived its use. What the agent tool writes for itself (its task output, its memory) is outside what VULCAN controls. The scratchpad folder it offers is not: it is a system temp directory.
 
 ## Code and writing (C)
 
@@ -147,7 +147,7 @@ Code and writing rules define TypeScript standards, parameter limits, naming pat
 
 ## Rule packs
 
-A rule pack is a file of rules for one stack, shipped in `@venizia/vulcan` under `base/packs/`. It is not part of the base rules every project gets: a project follows it by listing it in `.configs/vulcan.config.*`, and `vulcan sync` then names it in the rules block of `AGENTS.md` and records its rule hashes in the manifest.
+A rule pack is a file of rules for one stack, shipped in `@venizia/vulcan` under `base/packs/`. It is not part of the base rules every project gets: a project follows it by listing it in `.configs/vulcan.config.*`, and `vulcan project sync` then names it in the rules block of `AGENTS.md` and records its rule hashes in the manifest.
 
 ```ts
 export default {
@@ -155,7 +155,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-The `venizia` pack holds the five rules that bind the Venizia stack (Bun, `devz`, the vite builders, the house lint rules). They keep the IDs they had in the base rules, and `vulcan doctor` accepts a citation of one only in a project that follows the pack, and says which pack holds it otherwise.
+The `venizia` pack holds the five rules that bind the Venizia stack (Bun, `devz`, the vite builders, the house lint rules). They keep the IDs they had in the base rules, and `vulcan project doctor` accepts a citation of one only in a project that follows the pack, and says which pack holds it otherwise.
 
 - `V-B-05` - Give every app, backend and frontend, the same seven scripts: `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`. The work lives in `.configs/builders/` or in `devz` (`devz lint`, `devz lint --fix`, `devz clean`), never in the `package.json` string. An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`; every other config lives in `.configs/{lints,formatters,builders}/`. No `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`. A library package keeps Makefile targets `build`, `typecheck`, `lint`, `lint-fix`, `test`, `clean`.
   - Enforced by: SOFT
@@ -234,18 +234,18 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-When a slot has no choice, `vulcan doctor` reports a violation during the `rule-slots` check:
+When a slot has no choice, `vulcan project doctor` reports a violation during the `rule-slots` check:
 
 ```text
-$ bun node_modules/.bin/vulcan doctor
+$ bun node_modules/.bin/vulcan project doctor
   [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
-vulcan doctor: 1 violation(s)
+vulcan project doctor: 1 violation(s)
 ```
 
 ## Your own rules
 
 Projects define project-specific rules in `.agents/rules.md`.
-`vulcan init` generates a starter `.agents/rules.md` file:
+`vulcan project init` generates a starter `.agents/rules.md` file:
 
 ```markdown
 # Rules - demo-app (extensions)
@@ -259,12 +259,12 @@ so the two never collide; never give a project rule a `V-` ID.
 Project rules can reference base rules to declare extensions, such as `Extends V-W-01`.
 Every `V-` reference in `.agents/rules.md` must point to an active base rule.
 
-When `.agents/rules.md` references an unknown base rule identifier, `vulcan doctor` reports a violation:
+When `.agents/rules.md` references an unknown base rule identifier, `vulcan project doctor` reports a violation:
 
 ```text
-$ bun node_modules/.bin/vulcan doctor
+$ bun node_modules/.bin/vulcan project doctor
   [rule-ids] .agents/rules.md: V-Z-99 is not a base rule - give the extension a bare ID
-vulcan doctor: 1 violation(s)
+vulcan project doctor: 1 violation(s)
 ```
 
 ## How agents see the rules
@@ -273,7 +273,7 @@ Agents receive the rules through a generated block of `AGENTS.md`, a short sessi
 
 ### The rules block of AGENTS.md
 
-`vulcan sync` writes the block `vulcan:rules` into the committed `AGENTS.md`. It holds, one line each, the whole first sentence of the rule, and at most 6 KB: the slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go (`V-B-08`), and the rules of `digest.oftenDropped` that fit, in order. A line is the first sentence of the rule, taken from the rule file, so it cannot drift from it; the full text stays in `node_modules/@venizia/vulcan/base/rules.md` and `.agents/rules.md`. `vulcan doctor` notes a block that is out of date.
+`vulcan project sync` writes the block `vulcan:rules` into the committed `AGENTS.md`. It holds, one line each, the whole first sentence of the rule, and at most 6 KB: the slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go (`V-B-08`), and the rules of `digest.oftenDropped` that fit, in order. A line is the first sentence of the rule, taken from the rule file, so it cannot drift from it; the full text stays in `node_modules/@venizia/vulcan/base/rules.md` and `.agents/rules.md`. `vulcan project doctor` notes a block that is out of date.
 
 Claude Code reads `AGENTS.md` through `CLAUDE.md` (`@AGENTS.md`) and omp reads it itself; both quoted the block in a real run. For pi, Codex, Antigravity, Cursor and Copilot the block is where the rules would arrive, as they read `AGENTS.md`; that was not run for them.
 
@@ -291,7 +291,7 @@ The rules are in AGENTS.md ("Rules that must not be skipped"); the full text is 
 ...
 ```
 
-To customize which rules the block names, define `digest.oftenDropped` in `.configs/vulcan.config.mts` and run `vulcan sync`:
+To customize which rules the block names, define `digest.oftenDropped` in `.configs/vulcan.config.mts` and run `vulcan project sync`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -306,8 +306,8 @@ export default {
 ### Manifest per-rule hashes
 
 The local manifest `.agents/local/vulcan.manifest.json` tracks eight-character SHA-256 hashes for each base rule.
-When you run [vulcan sync](/references/commands/sync), VULCAN compares installed base rules against the manifest hashes.
-If an upstream update adds, changes, or removes a base rule, `vulcan sync` reports the change.
+When you run [vulcan project sync](/references/commands/sync), VULCAN compares installed base rules against the manifest hashes.
+If an upstream update adds, changes, or removes a base rule, `vulcan project sync` reports the change.
 Recording hashes in the committed manifest ensures rule updates are visible in code reviews.
 
 ## See also

@@ -20,6 +20,7 @@ const monorepo = (): string => {
 
   runCli({
     args: [
+      'project',
       'init',
       '--preset',
       WITH_LIB,
@@ -41,7 +42,7 @@ const monorepo = (): string => {
   return join(parent, 'p');
 };
 
-describe.skipIf(!hasScript)('vulcan init asks with menus in a terminal', () => {
+describe.skipIf(!hasScript)('vulcan project init asks with menus in a terminal', () => {
   const initSteps = [
     { waitFor: 'Project name', send: `my-product${KEYS.ENTER}` },
     { waitFor: 'Backend folder', send: `services${KEYS.ENTER}` },
@@ -53,7 +54,7 @@ describe.skipIf(!hasScript)('vulcan init asks with menus in a terminal', () => {
   test('typed names, then a summary, then a confirm, then the same project the flags build', async () => {
     const parent = createProject({ files: {} });
     const result = await driveTerminal({
-      args: ['init', '--preset', BACKEND, '--key', 'TEST'],
+      args: ['project', 'init', '--preset', BACKEND, '--key', 'TEST'],
       cwd: parent,
       env: ENV,
       steps: [
@@ -76,7 +77,7 @@ describe.skipIf(!hasScript)('vulcan init asks with menus in a terminal', () => {
   test('answering no at the summary writes nothing', async () => {
     const parent = createProject({ files: {} });
     const result = await driveTerminal({
-      args: ['init', '--preset', BACKEND, '--key', 'TEST'],
+      args: ['project', 'init', '--preset', BACKEND, '--key', 'TEST'],
       cwd: parent,
       env: ENV,
       steps: [...initSteps, { waitFor: WRITE, send: `n${KEYS.ENTER}` }],
@@ -90,7 +91,7 @@ describe.skipIf(!hasScript)('vulcan init asks with menus in a terminal', () => {
   test('a name that is not one is refused where it is typed, nothing is created', async () => {
     const parent = createProject({ files: {} });
     const result = await driveTerminal({
-      args: ['init', '--preset', BACKEND, '--key', 'TEST'],
+      args: ['project', 'init', '--preset', BACKEND, '--key', 'TEST'],
       cwd: parent,
       env: ENV,
       steps: [
@@ -108,7 +109,7 @@ describe.skipIf(!hasScript)('the preset is picked or typed when --preset is miss
   test('init --preset with no value picks an official preset or types another one', async () => {
     const parent = createProject({ files: {} });
     const result = await driveTerminal({
-      args: ['init', '--key', 'TEST', '--preset'],
+      args: ['project', 'init', '--key', 'TEST', '--preset'],
       cwd: parent,
       env: ENV,
       steps: [
@@ -135,7 +136,7 @@ describe.skipIf(!hasScript)('the preset is picked or typed when --preset is miss
   test('add lists the presets the project recorded, with what each builds', async () => {
     const root = monorepo();
     const result = await driveTerminal({
-      args: ['add'],
+      args: ['package', 'add'],
       cwd: root,
       env: ENV,
       steps: [
@@ -156,18 +157,18 @@ describe.skipIf(!hasScript)('the preset is picked or typed when --preset is miss
 
   test('without a terminal a missing --preset is still the same error', () => {
     const root = monorepo();
-    const result = runCli({ args: ['add'], cwd: root, env: { VULCAN_NO_INSTALL: '1' } });
+    const result = runCli({ args: ['package', 'add'], cwd: root, env: { VULCAN_NO_INSTALL: '1' } });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('--preset needs a value');
   });
 });
 
-describe.skipIf(!hasScript)('vulcan add asks with menus in a terminal', () => {
+describe.skipIf(!hasScript)('vulcan package add asks with menus in a terminal', () => {
   test('kind is a select, the folder a select of the existing ones, then summary and confirm', async () => {
     const root = monorepo();
     const result = await driveTerminal({
-      args: ['add', '--preset', WITH_LIB],
+      args: ['package', 'add', '--preset', WITH_LIB],
       cwd: root,
       env: ENV,
       steps: [
@@ -188,7 +189,7 @@ describe.skipIf(!hasScript)('vulcan add asks with menus in a terminal', () => {
   test('New folder... opens a text input for the folder', async () => {
     const root = monorepo();
     const result = await driveTerminal({
-      args: ['add', '--preset', WITH_LIB],
+      args: ['package', 'add', '--preset', WITH_LIB],
       cwd: root,
       env: ENV,
       steps: [
@@ -207,7 +208,7 @@ describe.skipIf(!hasScript)('vulcan add asks with menus in a terminal', () => {
   test('an app keeps the side folder of the config without asking for it', async () => {
     const root = monorepo();
     const result = await driveTerminal({
-      args: ['add', '--preset', WITH_LIB],
+      args: ['package', 'add', '--preset', WITH_LIB],
       cwd: root,
       env: ENV,
       steps: [
@@ -226,7 +227,7 @@ describe.skipIf(!hasScript)('vulcan add asks with menus in a terminal', () => {
   test('cancelling the kind menu stops with the two commands that would do it', async () => {
     const root = monorepo();
     const result = await driveTerminal({
-      args: ['add', '--preset', WITH_LIB],
+      args: ['package', 'add', '--preset', WITH_LIB],
       cwd: root,
       env: ENV,
       steps: [{ waitFor: 'What do you want to create?', send: KEYS.CTRL_C }],
@@ -240,7 +241,7 @@ describe.skipIf(!hasScript)('vulcan add asks with menus in a terminal', () => {
   test('no at the summary writes nothing', async () => {
     const root = monorepo();
     const result = await driveTerminal({
-      args: ['add', '--preset', WITH_LIB],
+      args: ['package', 'add', '--preset', WITH_LIB],
       cwd: root,
       env: ENV,
       steps: [

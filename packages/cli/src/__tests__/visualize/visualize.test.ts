@@ -619,7 +619,7 @@ describe('SpecPage.write', () => {
   });
 });
 
-describe('vulcan visualize', () => {
+describe('vulcan page new', () => {
   const setup = (): { root: string; spec: string } => {
     const root = createProject({
       files: { '.gitignore': '.agents/local/\n', 'package.json': '{}' },
@@ -633,7 +633,7 @@ describe('vulcan visualize', () => {
 
   test('writes the page, prints its path, and says which checks ran and which did not', () => {
     const { root, spec } = setup();
-    const result = runCli({ args: ['visualize', spec], cwd: root });
+    const result = runCli({ args: ['page', 'new', spec], cwd: root });
 
     expect(result.code).toBe(0);
     expect(result.stdout.trim()).toBe(join(root, '.agents/local/prototypes/status.html'));
@@ -645,7 +645,9 @@ describe('vulcan visualize', () => {
   test('--out names the page; a bad spec writes nothing and lists every problem; the last good page stays', () => {
     const { root, spec } = setup();
 
-    expect(runCli({ args: ['visualize', spec, '--out', 'Round Status'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['page', 'new', spec, '--out', 'Round Status'], cwd: root }).code).toBe(
+      0,
+    );
     expect(existsSync(join(root, '.agents/local/prototypes/round-status.html'))).toBe(true);
 
     writeFileSync(
@@ -654,7 +656,10 @@ describe('vulcan visualize', () => {
     );
 
     const before = readFileSync(join(root, '.agents/local/prototypes/round-status.html'), 'utf8');
-    const result = runCli({ args: ['visualize', 'bad.json', '--out', 'round-status'], cwd: root });
+    const result = runCli({
+      args: ['page', 'new', 'bad.json', '--out', 'round-status'],
+      cwd: root,
+    });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('nothing was written');
@@ -672,11 +677,11 @@ describe('vulcan visualize', () => {
     writeFileSync(join(root, '.json'), JSON.stringify(fullSpec()));
 
     for (const args of [
-      ['visualize', 'folder.json'],
-      ['visualize', spec, '--out'],
-      ['visualize', spec, '--out', '--schema'],
-      ['visualize', spec, '--out', 'a', '--out', 'b'],
-      ['visualize', '.json'],
+      ['page', 'new', 'folder.json'],
+      ['page', 'new', spec, '--out'],
+      ['page', 'new', spec, '--out', '--schema'],
+      ['page', 'new', spec, '--out', 'a', '--out', 'b'],
+      ['page', 'new', '.json'],
     ]) {
       const result = runCli({ args, cwd: root });
 
@@ -689,7 +694,7 @@ describe('vulcan visualize', () => {
   });
 
   test('--schema prints the JSON Schema and needs no project', () => {
-    const result = runCli({ args: ['visualize', '--schema'], cwd: createProject({ files: {} }) });
+    const result = runCli({ args: ['page', 'schema'], cwd: createProject({ files: {} }) });
 
     expect(result.code).toBe(0);
     expect(JSON.parse(result.stdout).properties.verdict.type).toBe('string');
@@ -699,13 +704,13 @@ describe('vulcan visualize', () => {
     const { root } = setup();
     const bare = createProject({ files: { 'a.json': JSON.stringify(fullSpec()) } });
 
-    expect(runCli({ args: ['visualize', 'missing.json'], cwd: root }).stderr).toContain(
+    expect(runCli({ args: ['page', 'new', 'missing.json'], cwd: root }).stderr).toContain(
       'is not a file',
     );
-    expect(runCli({ args: ['visualize'], cwd: root }).code).toBe(1);
-    expect(runCli({ args: ['visualize', 'a.json'], cwd: bare }).stderr).toContain(
-      'run vulcan sync first',
+    expect(runCli({ args: ['page', 'new'], cwd: root }).code).toBe(1);
+    expect(runCli({ args: ['page', 'new', 'a.json'], cwd: bare }).stderr).toContain(
+      'run vulcan project sync first',
     );
-    expect(runCli({ args: ['visualize', 'a.json', '--bogus'], cwd: root }).code).not.toBe(0);
+    expect(runCli({ args: ['page', 'new', 'a.json', '--bogus'], cwd: root }).code).not.toBe(0);
   });
 });

@@ -14,7 +14,7 @@ export class CommitHookStates {
   static readonly OFF = 'off';
   static readonly NOT_GIT = 'not-git';
   static readonly MISSING = 'missing';
-  /** The hook calls `vulcan commit-check`: ours and current, or the developer's own wiring. */
+  /** The hook calls `vulcan check commit`: ours and current, or the developer's own wiring. */
   static readonly WIRED = 'wired';
   static readonly STALE = 'stale';
   /** A hook that is not ours and does not call the check: the developer adds the line. */

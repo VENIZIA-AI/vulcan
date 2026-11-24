@@ -21,7 +21,7 @@ New project: read [Start a new project](#start-a-new-project). Repository you al
 A framework ships its app template as a preset. One command turns it into a monorepo with its first app, already checked. Run it where the project folder should go; the project does not exist yet, so call the package by its full name:
 
 ```bash
-bun x @venizia/vulcan init --preset ignis
+bun x @venizia/vulcan project init --preset ignis
 ```
 
 > In a terminal that can draw menus, every question is a menu, not a typed answer; see [Interactive prompts](/references/prompts). The samples below show what a plain terminal (`TERM=dumb`) asks.
@@ -41,12 +41,12 @@ The project key names the project's flows (`VULZ-MYPROD-12`); Enter takes the on
 
 1. `bun install`
 2. `git init -b develop` (the project is a git repository on `develop`)
-3. `vulcan sync`
+3. `vulcan project sync`
 4. the preset's own checks (their names come from the preset)
-5. `vulcan doctor`
-6. `vulcan x okf check --strict`
+5. `vulcan project doctor`
+6. `vulcan okf check --strict`
 
-It stops at the first failing step. The one exception is `git init`: if git is missing, `init` prints the command to run yourself and goes on. The first `vulcan sync` of a project asks which coding agents you use on this machine. The `detected` line shows what it found, so yours differs; press Enter to accept it, or type your list. When you are asked again later, Enter keeps your earlier choice instead:
+It stops at the first failing step. The one exception is `git init`: if git is missing, `init` prints the command to run yourself and goes on. The first `vulcan project sync` of a project asks which coding agents you use on this machine. The `detected` line shows what it found, so yours differs; press Enter to accept it, or type your list. When you are asked again later, Enter keeps your earlier choice instead:
 
 ```text
 Which coding agents do you use in this project? (comma-separated; Enter accepts the detected list: claude, omp)
@@ -60,7 +60,7 @@ The answer is stored in `.agents/local/profile.json`, which stays on your machin
 Without a terminal (CI, scripts), pass each answer as a flag:
 
 ```bash
-bun x @venizia/vulcan init --preset ignis --project my-product --backend-dir services --app core-api --shared-dir libs
+bun x @venizia/vulcan project init --preset ignis --project my-product --backend-dir services --app core-api --shared-dir libs
 ```
 
 | Question | Flag |
@@ -74,7 +74,7 @@ bun x @venizia/vulcan init --preset ignis --project my-product --backend-dir ser
 
 A name with fewer than 2 letters or digits is an error that asks for `--key`; otherwise the key is made from the project name, with a note.
 
-A missing flag is an error that names it (`vulcan init: missing --app (Name of the first app) - names are never chosen for you`). Without a terminal there is no agents question either: `sync` writes the Claude files and prints one line saying how to choose (`vulcan sync --agents claude,omp`).
+A missing flag is an error that names it (`vulcan project init: missing --app (Name of the first app) - names are never chosen for you`). Without a terminal there is no agents question either: `sync` writes the Claude files and prints one line saying how to choose (`vulcan project sync --agents claude,omp`).
 
 The project it creates (the files `init` and `sync` wrote, without `.git`, `node_modules` and the lockfile):
 
@@ -116,7 +116,7 @@ Everything under `services/core-api/` comes from the preset (the list shows its 
 When every step passes, `init` prints the next step (the lines depend on the preset):
 
 ```text
-vulcan doctor: OK
+vulcan project doctor: OK
 check: OK - OKF v0.2 + house rules - N files, N concepts
 Done. Next:
   cd my-product && make dev
@@ -130,17 +130,17 @@ For every file and message, see the [init reference](/references/commands/init#c
 
 ### Add more apps
 
-Run `vulcan add` at the monorepo root. `--app` adds another backend, or a frontend that proxies `/api` to a backend; `--lib` adds a library other apps import:
+Run `vulcan package add` at the monorepo root. `--app` adds another backend, or a frontend that proxies `/api` to a backend; `--lib` adds a library other apps import:
 
 ```bash
-bun node_modules/.bin/vulcan add --preset ignis --app api2
-bun node_modules/.bin/vulcan add --preset ignis --lib billing
+bun node_modules/.bin/vulcan package add --preset ignis --app api2
+bun node_modules/.bin/vulcan package add --preset ignis --lib billing
 ```
 
 In a terminal `add` asks what to create. Without one, give `--app` or `--lib`. A frontend also needs `--api <backend app>` or `--no-api` when there is no terminal, for example:
 
 ```bash
-bun node_modules/.bin/vulcan add --preset ardor --app web --frontend-dir apps --api core-api
+bun node_modules/.bin/vulcan package add --preset ardor --app web --frontend-dir apps --api core-api
 ```
 
 See the [add reference](/references/commands/add).
@@ -158,14 +158,14 @@ bun add -d --exact @venizia/vulcan @venizia/dev-configs
 `--exact` pins the version, so an upgrade is a step you take.
 
 Every lint configuration builds on `@venizia/dev-configs`.
-The `style` check in `vulcan doctor` requires `@venizia/dev-configs` in `package.json`.
+The `style` check in `vulcan project doctor` requires `@venizia/dev-configs` in `package.json`.
 
 **Check:** Open `package.json` and confirm both packages appear under `devDependencies`.
 
 ## 2. Scaffold with init
 
 ```bash
-bun node_modules/.bin/vulcan init
+bun node_modules/.bin/vulcan project init
 ```
 
 `init` writes `AGENTS.md`, `.agents/rules.md`, `.agents/knowledge/index.md`, `.configs/vulcan.config.mts`, the lint configs under `.configs/lints/`, `.dockerignore`, `bunfig.toml` and a `Makefile` (with a hint instead when you already have one). It also appends the agent entries (including `.agents/local/`) to `.gitignore`, installs the lint tools with `bun add -d`, and ends with a numbered list of what is left to do.
@@ -197,11 +197,11 @@ For all configuration options, see the [configuration reference](/references/con
 ## 4. Synchronize adapters
 
 ```bash
-bun node_modules/.bin/vulcan sync
+bun node_modules/.bin/vulcan project sync
 ```
 
 ```text
-$ bun node_modules/.bin/vulcan sync
+$ bun node_modules/.bin/vulcan project sync
   created   CLAUDE.md
   created   .claude/settings.json (shipped, slot and claude.settings over personal keys)
   created   .claude/skills/build-a-feature
@@ -225,7 +225,7 @@ $ bun node_modules/.bin/vulcan sync
   replaced  .git/info/exclude
 ```
 
-The starter config suggests `claude` (`agents: ['claude']`), so `sync` takes that, in a terminal or not, and stores it in `.agents/local/profile.json` without asking. A project made with `init --preset` has no suggestion, so its first `sync` asks ([Start a new project](#start-a-new-project)). Change the choice later with [`vulcan agents`](/references/commands/agents).
+The starter config suggests `claude` (`agents: ['claude']`), so `sync` takes that, in a terminal or not, and stores it in `.agents/local/profile.json` without asking. A project made with `init --preset` has no suggestion, so its first `sync` asks ([Start a new project](#start-a-new-project)). Change the choice later with [`vulcan agent`](/references/commands/agents).
 A `CLAUDE.md` that already exists, one `bun init` wrote included, is left alone and reported as `skipped`; delete it to let `sync` write `@AGENTS.md`.
 `init` already added `CLAUDE.md`, `CLAUDE.*.md`, `.claude/`, `.agents/plans` and `.agents/local/` to `.gitignore`, and `sync` lists the files it wrote for your agents in `.git/info/exclude`.
 These adapter files stay local on each machine.
@@ -237,30 +237,30 @@ For details on adapter generation, see the [sync reference](/references/commands
 ## 5. Verify with doctor
 
 ```bash
-bun node_modules/.bin/vulcan doctor
+bun node_modules/.bin/vulcan project doctor
 ```
 
-To check your setup, run `vulcan doctor` until all violations resolve.
+To check your setup, run `vulcan project doctor` until all violations resolve.
 If you skipped editing `.agents/knowledge/index.md`, the command reports a scaffold violation:
 
 ```text
-$ bun node_modules/.bin/vulcan doctor
+$ bun node_modules/.bin/vulcan project doctor
   [scaffold] .agents/knowledge/index.md: still the scaffold - describe the project, then delete the vulcan:scaffold line
-vulcan doctor: 1 violation(s)
+vulcan project doctor: 1 violation(s)
 ```
 
 `doctor` can also print `warning` and `info` lines before the count; they do not fail the check.
-Running `vulcan doctor` before `vulcan sync` also reports not-synced lines for adapters and the manifest.
+Running `vulcan project doctor` before `vulcan project sync` also reports not-synced lines for adapters and the manifest.
 Once all violations resolve, doctor reports OK:
 
 ```text
-$ bun node_modules/.bin/vulcan doctor
-vulcan doctor: OK
+$ bun node_modules/.bin/vulcan project doctor
+vulcan project doctor: OK
 ```
 
 For individual check details and remediation, see the [doctor reference](/references/commands/doctor).
 
-**Check:** The command prints `vulcan doctor: OK` and exits with code 0.
+**Check:** The command prints `vulcan project doctor: OK` and exits with code 0.
 
 ## If your project already has...
 
@@ -287,32 +287,32 @@ On a clean checkout in CI, run install, sync, and doctor in order:
 
 ```bash
 bun install --frozen-lockfile
-bun node_modules/.bin/vulcan sync
-bun node_modules/.bin/vulcan doctor
+bun node_modules/.bin/vulcan project sync
+bun node_modules/.bin/vulcan project doctor
 ```
 
-Running `vulcan doctor` before `vulcan sync` fails because gitignored adapters do not exist yet.
+Running `vulcan project doctor` before `vulcan project sync` fails because gitignored adapters do not exist yet.
 
 With no terminal and no stored choice, `sync` takes `claude` and says so. The choice of agents lives in the gitignored `.agents/local/profile.json`, so a CI checkout never has it: a project whose config lists no `agents` gets only the Claude adapters in CI. Pass `--agents <list>` to `sync` to get others.
 For CI details and output capture, see the [doctor reference](/references/commands/doctor).
 
 ## Upgrade later
 
-Pass the target version to `vulcan upgrade`:
+Pass the target version to `vulcan project upgrade`:
 
 ```bash
-bun node_modules/.bin/vulcan upgrade 0.4.5
+bun node_modules/.bin/vulcan project upgrade 0.4.5
 ```
 
-Without a version argument, `vulcan upgrade` installs the stable `latest` release. Add `--nightly` to take the newest of `latest` and `next`, which can be a prerelease:
+Without a version argument, `vulcan project upgrade` installs the stable `latest` release. Add `--nightly` to take the newest of `latest` and `next`, which can be a prerelease:
 
 ```bash
-bun node_modules/.bin/vulcan upgrade --nightly
+bun node_modules/.bin/vulcan project upgrade --nightly
 ```
 
 From an installed prerelease, `latest` can be an older version, so a plain `upgrade` prints a note first; `--stable` is the name of that default, and `--nightly` keeps the prerelease line.
 
-The command installs the target release and runs `vulcan sync` with the newly installed CLI.
+The command installs the target release and runs `vulcan project sync` with the newly installed CLI.
 Commit `.agents/atlas.manifest.json` and `.agents/vulcan.manifest.json` if they changed.
 For all available commands, see the [commands reference](/references/commands/).
 

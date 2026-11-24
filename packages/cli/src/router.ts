@@ -1,4 +1,5 @@
 import { COMMAND_LOADERS } from './commands/index.ts';
+import { CommandScopes } from './commands/scopes.ts';
 import { CommandTable } from './commands/table.ts';
 import type { IAcceptedArgs } from './commands/table.ts';
 import { ExitCodes, VulcanCommands } from './common/index.ts';
@@ -49,8 +50,35 @@ const runHelp = async (opts: { cwd: string }): Promise<number> => {
 };
 
 export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<number> => {
-  const [first, ...args] = opts.argv;
+  const [scope, asked] = opts.argv;
+
+  // `okf` and `atlas` hand a help flag to the tool; every other scope shows its own usage.
+  if (
+    scope !== undefined &&
+    !['okf', 'atlas'].includes(scope) &&
+    CommandScopes.scopes().includes(scope) &&
+    HELP_ALIASES.has(asked ?? '')
+  ) {
+    process.stdout.write(CommandTable.scopeHelp({ scope }));
+
+    return ExitCodes.OK;
+  }
+
+  const resolution = CommandScopes.resolve({ argv: opts.argv });
+
+  if (resolution?.type === 'refused') {
+    process.stderr.write(`${resolution.message}\n`);
+
+    return resolution.exit;
+  }
+
+  if (resolution?.type === 'forwarded') {
+    process.stderr.write(`${resolution.notice} (the old name still works in this release only)\n`);
+  }
+
+  const [first, ...args] = resolution?.type === 'run' ? resolution.argv : opts.argv;
   const name = resolveCommandName({ first });
+  const label = resolution?.type === 'run' ? resolution.label : name;
   const load = COMMAND_LOADERS[name];
 
   if (load === undefined) {
@@ -77,7 +105,7 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
 
     if (unknown !== undefined) {
       process.stderr.write(
-        `vulcan ${name}: unknown argument '${unknown}' - run 'bun node_modules/.bin/vulcan help'\n`,
+        `vulcan ${label}: unknown argument '${unknown}' - run 'bun node_modules/.bin/vulcan help'\n`,
       );
 
       return accepted.unknownExit ?? ExitCodes.FAILURE;

@@ -92,19 +92,19 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
   });
 
   test.each([
-    'bun run vulcan sync',
+    'bun run vulcan project sync',
     'bun run ardor',
     './node_modules/.bin/ardor codemod',
-    'bun x --no-install vulcan sync',
-    'bun x --bun --no-install vulcan sync',
+    'bun x --no-install vulcan project sync',
+    'bun x --bun --no-install vulcan project sync',
     'bun x @venizia/vulcan@0.4.10 init',
-    'bunx @venizia/vulcan init',
+    'bunx @venizia/vulcan project init',
     'npx @acme/tool run',
     "npx -c 'echo hi'",
     "npm exec -c 'echo hi'",
     "npm exec --call 'echo hi'",
     'bun x --package @venizia/ardor ardor codemod',
-    'npx @venizia/vulcan init',
+    'npx @venizia/vulcan project init',
     'bun add -d @venizia/vulcan',
     'bun test',
     'git status',
@@ -123,8 +123,10 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
 
     mkdirSync(nested, { recursive: true });
 
-    expect(refusedBy({ command: 'bun x --no-install vulcan sync', cwd: root })).toEqual([]);
-    expect(refusedBy({ command: 'bun x --no-install vulcan sync', cwd: nested })).toEqual([]);
+    expect(refusedBy({ command: 'bun x --no-install vulcan project sync', cwd: root })).toEqual([]);
+    expect(refusedBy({ command: 'bun x --no-install vulcan project sync', cwd: nested })).toEqual(
+      [],
+    );
     // a bin no folder above holds (the test folder lives inside a checkout that has vulcan and devz linked)
     expect(refusedBy({ command: 'bun x --no-install no-such-bin-xyz sync', cwd: root })).toEqual([
       'V-S-08:deny',

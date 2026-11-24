@@ -195,7 +195,7 @@ test('a page the generator owns is not read: its declarations are the source typ
   const generated = [
     '# Api',
     '',
-    '> Generated from the built declarations by `vulcan x atlas api gen` - do not edit.',
+    '> Generated from the built declarations by `vulcan atlas api gen` - do not edit.',
     '',
     '```ts',
     'declare function f(value: any): never;',

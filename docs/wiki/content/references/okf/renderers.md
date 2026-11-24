@@ -144,10 +144,10 @@ When you omit `seeAlso`, okf appends a default link if that concept exists in th
 
 If you provide an explicit `seeAlso` string, okf prints your text as given.
 
-To run generation, run `vulcan x okf gen`:
+To run generation, run `vulcan okf gen`:
 
 ```text
-$ bun node_modules/.bin/vulcan x okf gen
+$ bun node_modules/.bin/vulcan okf gen
 gen: wrote .agents/knowledge/reference/makefile-targets.md
 ```
 
@@ -176,7 +176,7 @@ Only `id` and `collect` are required.
 - `collect`: Extracts facts from source files. Its signature is `({ context }) => facts`.
 - `render`: Generates one or more complete files. It returns `{ path, content }` or an array of them, with `path` relative to the bundle. Its signature is `({ context, facts }) => IRenderedFile | IRenderedFile[]`.
 - `region`: Generates markdown content for a managed region block. Its signature is `({ context, facts }) => string`.
-- `coverage`: Reports facts to `vulcan x okf coverage`. Its signature is `({ facts }) => { name, count }`.
+- `coverage`: Reports facts to `vulcan okf coverage`. Its signature is `({ facts }) => { name, count }`.
 
 The `context` object provides repository paths, source scanners, and formatting helpers:
 - `context.root`: Absolute path to the repository root.
@@ -214,7 +214,7 @@ okf: module '<id>' replaces the built-in renderer
 ## Regions
 
 A managed region is a marked block inside a markdown file.
-When you run `vulcan x okf gen`, okf rewrites the content between the markers.
+When you run `vulcan okf gen`, okf rewrites the content between the markers.
 Content outside the markers remains untouched.
 
 To configure a region, add an entry to `okf.regions`:
@@ -295,10 +295,10 @@ If exclusions or denylists remove all matched directories, okf also reports a pr
 coverage: axis '<name>' (<path>) has no directory left after exclude/denylist
 ```
 
-To inspect coverage, run `vulcan x okf coverage`:
+To inspect coverage, run `vulcan okf coverage`:
 
 ```text
-$ bun node_modules/.bin/vulcan x okf coverage
+$ bun node_modules/.bin/vulcan okf coverage
 
 COVERAGE - 2 curated concepts
 
@@ -317,7 +317,7 @@ structural: 0/0  100%
 ```
 
 The shown outputs come from a project with only `makefile-targets` configured and no coverage axes.
-Structural gaps fail under `vulcan x okf check --strict`.
+Structural gaps fail under `vulcan okf check --strict`.
 
 ## Contents lists
 
@@ -351,7 +351,7 @@ okf places the contents list immediately after frontmatter and the `# ` document
 <!-- okf:generated:contents end -->
 ```
 
-Under `vulcan x okf check --strict`, missing or stale contents lists fail verification.
+Under `vulcan okf check --strict`, missing or stale contents lists fail verification.
 
 ## brand
 

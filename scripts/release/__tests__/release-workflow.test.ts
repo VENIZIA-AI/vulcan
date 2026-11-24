@@ -137,7 +137,10 @@ const createRemote = (): { root: string; checkout: string } => {
   const checkout = join(root, 'checkout');
 
   roots.push(root);
-  git({ args: ['init', '--quiet', '--bare', '--initial-branch=develop', origin], cwd: root });
+  git({
+    args: ['init', '--quiet', '--bare', '--initial-branch=develop', origin],
+    cwd: root,
+  });
   git({ args: ['clone', '--quiet', origin, checkout], cwd: root });
   writeFile({
     path: join(checkout, 'packages', 'cli', 'package.json'),
@@ -457,7 +460,10 @@ const createStableRemote = (): { root: string; checkout: string; origin: string 
   const checkout = join(root, 'checkout');
 
   roots.push(root);
-  git({ args: ['init', '--quiet', '--bare', '--initial-branch=main', origin], cwd: root });
+  git({
+    args: ['init', '--quiet', '--bare', '--initial-branch=main', origin],
+    cwd: root,
+  });
   git({ args: ['clone', '--quiet', origin, checkout], cwd: root });
   writeFile({
     path: join(checkout, 'packages', 'cli', 'package.json'),
@@ -736,7 +742,7 @@ describe('package-release.yml: the job graph', () => {
       'utf8',
     );
 
-    expect(text).toContain('vulcan changelog check --history --base "$CHANGELOG_BASE"');
+    expect(text).toContain('vulcan check changelog --history --base "$CHANGELOG_BASE"');
   });
 
   test('the environments: the stable approval is release-approval, the publish identity is npm-release, the rest have none', () => {

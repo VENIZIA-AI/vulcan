@@ -77,7 +77,7 @@ describe('ConfigLoader.unreadableNote', () => {
 
     expect(note).toContain(NOTE);
     expect(note).toContain('aKeyOfANewerRelease');
-    expect(note).toContain('vulcan upgrade');
+    expect(note).toContain('vulcan project upgrade');
   });
 
   test('a load error of several lines is told by its head, not by its second line', async () => {

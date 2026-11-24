@@ -5,11 +5,11 @@ import { LayoutBaseline } from '../layout/baseline.ts';
 import { LayoutCheck } from '../layout/check.ts';
 import { LayoutConstants } from '../layout/common/index.ts';
 
-const USAGE = 'usage: vulcan layout check [--write-baseline]';
+const USAGE = 'usage: vulcan check layout [--write-baseline]';
 const WRITE_BASELINE_FLAG = '--write-baseline';
 
 /**
- * `vulcan layout check`: prints every layout finding, a `warning` for one the baseline does not hold and an `info` for
+ * `vulcan check layout`: prints every layout finding, a `warning` for one the baseline does not hold and an `info` for
  * one it does, and exits 1 when there is a new one. `--write-baseline` writes every finding into the baseline instead.
  */
 export const runLayoutCommand = async (opts: ICommandContext): Promise<number> => {
@@ -28,7 +28,7 @@ export const runLayoutCommand = async (opts: ICommandContext): Promise<number> =
   const loaded = await ConfigLoader.load({ root: opts.cwd });
 
   if (!loaded.ok) {
-    process.stderr.write(`vulcan layout: ${loaded.error}\n`);
+    process.stderr.write(`vulcan check layout: ${loaded.error}\n`);
 
     return ExitCodes.FAILURE;
   }
@@ -36,13 +36,13 @@ export const runLayoutCommand = async (opts: ICommandContext): Promise<number> =
   const scan = LayoutCheck.scan({ root: opts.cwd, config: loaded.config });
 
   if ('outside' in scan) {
-    process.stderr.write(`vulcan layout: ${opts.cwd} is not in a git work tree\n`);
+    process.stderr.write(`vulcan check layout: ${opts.cwd} is not in a git work tree\n`);
 
     return ExitCodes.FAILURE;
   }
 
   if ('error' in scan) {
-    process.stderr.write(`vulcan layout: ${scan.error}\n`);
+    process.stderr.write(`vulcan check layout: ${scan.error}\n`);
 
     return ExitCodes.FAILURE;
   }
@@ -58,7 +58,7 @@ export const runLayoutCommand = async (opts: ICommandContext): Promise<number> =
   const baseline = LayoutBaseline.read({ root: opts.cwd });
 
   if ('error' in baseline) {
-    process.stderr.write(`vulcan layout: ${baseline.error}\n`);
+    process.stderr.write(`vulcan check layout: ${baseline.error}\n`);
 
     return ExitCodes.FAILURE;
   }
@@ -82,7 +82,7 @@ export const runLayoutCommand = async (opts: ICommandContext): Promise<number> =
   }
 
   process.stderr.write(
-    `vulcan layout: ${split.open.length} new, ${split.accepted.length} in the baseline, ${split.stale.length} stale baseline entr${split.stale.length === 1 ? 'y' : 'ies'}\n`,
+    `vulcan check layout: ${split.open.length} new, ${split.accepted.length} in the baseline, ${split.stale.length} stale baseline entr${split.stale.length === 1 ? 'y' : 'ies'}\n`,
   );
 
   return split.open.length === 0 ? ExitCodes.OK : ExitCodes.FAILURE;

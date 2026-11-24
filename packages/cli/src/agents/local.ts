@@ -193,7 +193,7 @@ export class LocalChoice {
     } catch {
       return {
         ok: false,
-        error: `${LOCAL_AGENTS_FILE} is not valid JSON - fix it (or move it aside), then run: vulcan sync --agents <list>`,
+        error: `${LOCAL_AGENTS_FILE} is not valid JSON - fix it (or move it aside), then run: vulcan project sync --agents <list>`,
       };
     }
 
@@ -203,7 +203,7 @@ export class LocalChoice {
     if (!checked.success) {
       return {
         ok: false,
-        error: `${LOCAL_AGENTS_FILE}: ${[issue?.path.join('.'), issue?.message].filter(Boolean).join(': ')} - fix that key, then run: vulcan sync`,
+        error: `${LOCAL_AGENTS_FILE}: ${[issue?.path.join('.'), issue?.message].filter(Boolean).join(': ')} - fix that key, then run: vulcan project sync`,
       };
     }
 

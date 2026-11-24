@@ -40,7 +40,7 @@ export class CreateConstants {
   /** Tests only: a path that stands in for the `git` executable. */
   static readonly GIT_ENV = EnvVariables.VULCAN_GIT;
   static readonly APPS_BLOCK_START =
-    '// vulcan:apps:start - written by vulcan init and add; edit outside this block';
+    '// vulcan:apps:start - written by vulcan project init and add; edit outside this block';
   static readonly APPS_BLOCK_END = '// vulcan:apps:end';
 }
 

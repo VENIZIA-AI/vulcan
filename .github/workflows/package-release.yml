@@ -154,7 +154,7 @@ jobs:
         if: ${{ needs.plan.outputs.kind == 'stable' && needs.plan.outputs.changelog_base != '' }}
         env:
           CHANGELOG_BASE: ${{ needs.plan.outputs.changelog_base }}
-        run: bun run vulcan changelog check --history --base "$CHANGELOG_BASE"
+        run: bun run vulcan check changelog --history --base "$CHANGELOG_BASE"
 
       # The shared wiki theme is the same in the three wikis (C-21): a release goes out with them in step.
       - name: Shared wiki theme
@@ -173,9 +173,9 @@ jobs:
       # The contract VULCAN ships, checked on VULCAN itself. CI has no adapters yet, so sync first.
       - name: VULCAN contract
         run: |
-          bun run vulcan sync
-          bun run vulcan doctor
-          bun run vulcan x okf check --strict
+          bun run vulcan project sync
+          bun run vulcan project doctor
+          bun run vulcan okf check --strict
 
   # The one human stop, for a stable only: the plan says so, and the job is skipped for a prerelease. It runs after
   # the gates, so the owner never approves a release that fails them, and its name carries the target version. The

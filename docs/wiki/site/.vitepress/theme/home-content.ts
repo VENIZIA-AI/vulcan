@@ -37,7 +37,7 @@ export const HOME: THomeContent = {
     'Guards are checked in Claude Code, omp, pi and Antigravity; Codex, Cursor and Copilot are not verified yet.',
   install: {
     label: 'Install',
-    lines: ['bun add -d --exact @venizia/vulcan', 'bun node_modules/.bin/vulcan init'],
+    lines: ['bun add -d --exact @venizia/vulcan', 'bun node_modules/.bin/vulcan project init'],
   },
   cta: [
     ['Get started', '/guides/get-started/what-is-vulcan'],
@@ -76,10 +76,10 @@ export default {
       note: 'The config of a project. <a href="/references/configuration/">Every key is in the reference.</a>',
     },
     {
-      file: 'vulcan sync',
+      file: 'vulcan project sync',
       type: 'term',
       body: [
-        ['cmd', 'bun node_modules/.bin/vulcan sync --agents claude'],
+        ['cmd', 'bun node_modules/.bin/vulcan project sync --agents claude'],
         ['ok', '  created   CLAUDE.md'],
         [
           'ok',
@@ -96,7 +96,7 @@ export default {
           '  created   .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)',
         ],
       ],
-      note: 'Real output of <code>vulcan sync</code> on a new project, trimmed.',
+      note: 'Real output of <code>vulcan project sync</code> on a new project, trimmed.',
     },
   ],
   stats: [
@@ -157,7 +157,7 @@ export default {
     {
       name: 'doctor',
       title: 'One check',
-      text: 'vulcan doctor checks that the repository follows the contract; vulcan sync keeps every agent file current after an upgrade.',
+      text: 'vulcan project doctor checks that the repository follows the contract; vulcan project sync keeps every agent file current after an upgrade.',
       href: '/references/commands/doctor',
     },
   ],
@@ -167,7 +167,7 @@ export default {
       <p>VULCAN sets up seven coding agents. The guards run on all of them; what has been run is below. NOT VERIFIED means built from the agent's documentation and unit tests, and never run in that agent.</p></div>
     <div class="table-scroll reveal"><table class="status"><thead><tr><th>Agent</th><th>How the guards run</th><th>Checked</th></tr></thead><tbody>
       <tr><td>Claude Code</td><td>hooks in <code>.claude/settings.json</code></td><td><span class="chip chip--ok">Real sessions</span></td></tr>
-      <tr><td>omp</td><td><code>.omp/hooks/pre/vulcan-guards.ts</code>, written by <code>vulcan sync</code></td><td><span class="chip chip--ok">Real model, omp 18.8.9</span></td></tr>
+      <tr><td>omp</td><td><code>.omp/hooks/pre/vulcan-guards.ts</code>, written by <code>vulcan project sync</code></td><td><span class="chip chip--ok">Real model, omp 18.8.9</span></td></tr>
       <tr><td>pi</td><td><code>.pi/extensions/vulcan-guards.ts</code>; pi asks you to trust the project first</td><td><span class="chip">SDK, scripted provider</span></td></tr>
       <tr><td>Antigravity</td><td>an entry in <code>.agents/hooks.json</code></td><td><span class="chip">agy 1.4.7: a deny holds</span></td></tr>
       <tr><td>Codex</td><td><code>.codex/hooks.json</code>; trust it in <code>/hooks</code>; an ask is shown as a deny</td><td><span class="chip chip--no">Not verified</span></td></tr>
@@ -180,7 +180,7 @@ export default {
       title: 'Init',
       text: 'Writes the project layer: rules, knowledge index, config, Makefile. It never overwrites.',
       lines: [
-        ['cmd', 'bun node_modules/.bin/vulcan init'],
+        ['cmd', 'bun node_modules/.bin/vulcan project init'],
         ['ok', '  created  AGENTS.md'],
         ['ok', '  created  .agents/rules.md'],
         ['ok', '  created  .configs/vulcan.config.mts'],
@@ -191,7 +191,7 @@ export default {
       title: 'Sync',
       text: 'Writes what your agents read: adapters, skills, hooks, the atlas entry, the manifest.',
       lines: [
-        ['cmd', 'bun node_modules/.bin/vulcan sync'],
+        ['cmd', 'bun node_modules/.bin/vulcan project sync'],
         ['ok', '  created   .claude/settings.json'],
         ['ok', '  created   .mcp.json'],
         ['ok', '  created   .agents/local/vulcan.manifest.json'],
@@ -203,8 +203,8 @@ export default {
       title: 'Doctor',
       text: 'Checks the result. Exit code 1 on any violation, so it also runs in CI.',
       lines: [
-        ['cmd', 'bun node_modules/.bin/vulcan doctor'],
-        ['ok', 'vulcan doctor: OK'],
+        ['cmd', 'bun node_modules/.bin/vulcan project doctor'],
+        ['ok', 'vulcan project doctor: OK'],
       ],
     },
   ],
@@ -221,7 +221,7 @@ export default {
     'A 1.0 contract: it is on the 0.4 line',
   ],
   maturityHtml:
-    '<b>On the 0.4 line.</b> The config schema and the commands still change between releases, and every release is a patch release, breaking ones included. Each changelog entry says who is affected and what to do. Run <code>vulcan sync</code> after every upgrade.',
+    '<b>On the 0.4 line.</b> The config schema and the commands still change between releases, and every release is a patch release, breaking ones included. Each changelog entry says who is affected and what to do. Run <code>vulcan project sync</code> after every upgrade.',
   closing: {
     title: 'Put your agents on the same page.',
     text: 'Add one devDependency, run three commands, and every agent in the repository reads the same rules.',

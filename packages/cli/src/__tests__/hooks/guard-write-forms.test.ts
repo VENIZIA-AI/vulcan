@@ -473,7 +473,7 @@ describe("Bun's own copy of the installed package, and the bin the owner runs", 
     'cp x node_modules/.bun/other@1/f',
     `cat ${PACKAGE}/package.json`,
     `ls ${STORE}`,
-    'bun node_modules/.bin/vulcan sync',
+    'bun node_modules/.bin/vulcan project sync',
   ])('%s passes', (command) => {
     expect(denied({ root: linked(), command })).toBe(false);
   });

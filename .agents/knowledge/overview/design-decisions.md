@@ -34,4 +34,4 @@ tags: [overview, decisions]
 ## Open
 
 Nothing. okf reads the project's renderers, regions and coverage axes from its config, and
-multi-agent support ships (`vulcan agents`, `sync --agents`, `base/agents.json`).
+multi-agent support ships (`vulcan agent`, `sync --agents`, `base/agents.json`).

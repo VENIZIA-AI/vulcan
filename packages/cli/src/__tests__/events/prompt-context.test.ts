@@ -68,7 +68,7 @@ describe('the prompt context block', () => {
     expect(text).toContain('- Refresh');
     expect(text).not.toContain('- Token');
     expect(text).toContain(
-      `bun node_modules/.bin/vulcan event step --flow '${FLOW}' --done '<step>'`,
+      `bun node_modules/.bin/vulcan flow step --flow '${FLOW}' --done '<step>'`,
     );
     expect(text).not.toContain("--done 'Refresh'");
     expect(text).not.toContain('SECRET');

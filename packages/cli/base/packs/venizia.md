@@ -2,7 +2,7 @@
 
 <!-- Shipped by @venizia/vulcan, never edited in a project. These rules bind the Venizia stack (Bun, devz, the vite
      builders, the house lint rules), so they are not in the base rules: a project turns the pack on with
-     `packs: ['venizia']` in `.configs/vulcan.config.*`, and `vulcan sync` names it in the rules block of AGENTS.md.
+     `packs: ['venizia']` in `.configs/vulcan.config.*`, and `vulcan project sync` names it in the rules block of AGENTS.md.
      The IDs are the ones they had in the base rules and keep their `V-` namespace. -->
 
 Cite by ID. Every rule has "Enforced by".

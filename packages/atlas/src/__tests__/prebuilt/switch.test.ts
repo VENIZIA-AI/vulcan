@@ -31,7 +31,7 @@ afterEach(async () => {
   await fake.stop();
 });
 
-/** A project that reads `acme/src` as a source, with its manifest as `vulcan sync` would write it. */
+/** A project that reads `acme/src` as a source, with its manifest as `vulcan project sync` would write it. */
 const consumer = (opts: { atlas?: Record<string, unknown> }): string => {
   const root = makeTempDirectory({ prefix: 'atlas-consumer-' });
   const manifest = {

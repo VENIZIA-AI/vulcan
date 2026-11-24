@@ -1,5 +1,5 @@
 /**
- * Codex's PreToolUse hook command (`.codex/hooks.json`, written by `vulcan sync`): reads the event Codex
+ * Codex's PreToolUse hook command (`.codex/hooks.json`, written by `vulcan project sync`): reads the event Codex
  * sends (`tool_name`, `tool_input.command`, `cwd`), runs the same guard scripts Claude Code runs through the
  * policy of `base/extensions/vulcan-guards.ts`, and prints Codex's deny. Codex cannot ask about a tool call
  * (an `ask` marks the hook failed and the call continues), so an ask is printed as a deny that says a human
