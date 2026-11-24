@@ -24,6 +24,15 @@ export class ProtectedNames {
     ),
   ];
 
+  /** Each of `files` and every folder above one, lower case: the reach of the modules a config imports. */
+  static reachOf(opts: { files: string[] }): string[] {
+    return opts.files.flatMap((name) => {
+      const parts = name.toLowerCase().split('/');
+
+      return parts.map((_, index) => parts.slice(0, index + 1).join('/'));
+    });
+  }
+
   /** The last name of each of those, lower case: what `find -name` is matched against. */
   static readonly BASENAMES = [
     ...new Set(ProtectedNames.REACH.map((name) => name.slice(name.lastIndexOf('/') + 1))),

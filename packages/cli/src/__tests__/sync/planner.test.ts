@@ -547,8 +547,6 @@ describe('SyncPlanner.plan with the resolved agents', () => {
       join(root, '.mcp.json'),
       join(root, '.omp/hooks/pre/vulcan-guards.ts'),
       join(root, '.agents/local/vulcan.manifest.json'),
-      join(root, '.agents/atlas.manifest.json'),
-      join(root, '.agents/vulcan.manifest.json'),
     ]);
     expect(without.some((action) => action.path === join(root, 'CLAUDE.md'))).toBe(false);
     expect(withClaude.length).toBeGreaterThan(without.length);

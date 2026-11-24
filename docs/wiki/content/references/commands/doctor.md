@@ -186,7 +186,7 @@ When sync skips a file, it reports the reason or `shadows a shipped skill - rena
 
 ### manifest
 
-A missing or outdated `.agents/local/vulcan.manifest.json`, `.agents/atlas.manifest.json` or `.agents/vulcan.manifest.json` triggers this check. The last is a temporary data-only copy of the descriptor, kept until the stable 0.5.0 release because atlas of 0.5.0-6 and before reads a source's manifest only at that path; the message says so, and the fix is the same: run `vulcan sync` and commit it.
+A missing or outdated `.agents/local/vulcan.manifest.json`, `.agents/atlas.manifest.json` or `.agents/vulcan.manifest.json` triggers this check. The last is a temporary data-only copy of the descriptor, kept until the stable 0.5.0 release because atlas of 0.5.0-6 and before reads a source's manifest only at that path; the message says so, and the fix is the same: run `vulcan sync` and commit it. In a repository that publishes no package (no `atlas.index.keys`) only the local manifest is checked: a descriptor left untracked by an earlier sync is a violation that `vulcan sync` fixes by deleting it, and one git tracks is a warning that names `git rm --cached`.
 
 ```text
 $ bun node_modules/.bin/vulcan doctor

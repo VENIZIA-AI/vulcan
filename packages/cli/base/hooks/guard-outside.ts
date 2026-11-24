@@ -43,7 +43,7 @@ try {
   const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
   const input = HookInput.parse({ text });
   const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? input?.cwd ?? process.cwd();
-  const { toolOwnedPaths, outside, asks, asksNote } = ProjectGuards.readPolicy({
+  const { toolOwnedPaths, configModules, outside, asks, asksNote } = ProjectGuards.readPolicy({
     root: projectRoot,
   });
   const isHeld = asks === GuardDecisions.DENY;
@@ -63,7 +63,7 @@ try {
       ),
     );
   } else {
-    const hits = OutsideGuard.inspect({ input, projectRoot, toolOwnedPaths });
+    const hits = OutsideGuard.inspect({ input, projectRoot, toolOwnedPaths, configModules });
 
     if (hits.length > 0) {
       const read = hits.filter((hit) => !hit.isUnread);

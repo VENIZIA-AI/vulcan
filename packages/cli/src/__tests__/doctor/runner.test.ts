@@ -277,15 +277,10 @@ describe('doctor', () => {
     expect(result).toEqual([]);
   });
 
-  test('never synced: one adapters violation, and the missing manifest', async () => {
+  test('never synced: one adapters violation, and the missing manifest (a project that publishes nothing has no descriptor)', async () => {
     const checks = await findChecks({ root: createProject({ files: CONFORMANT }) });
 
-    expect(checks).toEqual([
-      DoctorChecks.ADAPTERS,
-      DoctorChecks.MANIFEST,
-      DoctorChecks.MANIFEST,
-      DoctorChecks.MANIFEST,
-    ]);
+    expect(checks).toEqual([DoctorChecks.ADAPTERS, DoctorChecks.MANIFEST]);
   });
 
   test('a hand-written CLAUDE.md', async () => {

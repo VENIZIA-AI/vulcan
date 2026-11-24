@@ -4,6 +4,7 @@ import { ProviderTypes } from '../board/common/constants.ts';
 import { BunFormatter, EnvVariables } from '../common/index.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { ProjectPackages } from '../config/index.ts';
+import { ConfigImports } from '../config/imports.ts';
 import { GuardDecisions } from '../hooks/common/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules } from '../rules/index.ts';
@@ -47,9 +48,14 @@ const HASH_LENGTH = 8;
 /**
  * The manifest's `guard` block: what the project sets for the guards, as data a hook reads without the config, so a
  * config this VULCAN cannot parse never changes a guard: `outside` and `asks` (when not the default), `toolOwnedPaths`,
- * the commands of guard-writes, the push targets of guard-git, the runners the runner guard accepts.
+ * the commands of guard-writes, the push targets of guard-git, the runners the runner guard accepts, and the modules under
+ * `.configs/` the config imports, which guard-outside protects like the config.
  */
-const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<string, unknown> } => {
+const guardBlockOf = (opts: {
+  config: TResolvedConfig;
+  configModules: string[];
+}): { guard?: Record<string, unknown> } => {
+  const { configModules } = opts;
   const { commands } = opts.config.guard.writes;
   const { askPush } = opts.config.guard.git;
   const { allow } = opts.config.guard.runners;
@@ -70,6 +76,7 @@ const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<strin
     ...(outside === GuardDecisions.ASK ? {} : { outside }),
     ...(asks === GuardDecisions.ASK ? {} : { asks }),
     ...(toolOwnedPaths.length === 0 ? {} : { toolOwnedPaths }),
+    ...(configModules.length === 0 ? {} : { configModules }),
     ...(Object.keys(writes).length === 0 ? {} : { writes }),
     ...(askPush.length === 0 ? {} : { git: { askPush } }),
     ...(allow.length === 0 ? {} : { runners: { allow } }),
@@ -242,6 +249,14 @@ export class ProjectManifest {
     });
   }
 
+  /**
+   * Whether the repository publishes, so other projects read it as an atlas source: it signs the index it publishes
+   * (`atlas.index.keys`). Only such a repository writes the committed descriptor; an app keeps everything in the local manifest.
+   */
+  static publishes(opts: { config: TResolvedConfig }): boolean {
+    return (opts.config.atlas.index?.keys.length ?? 0) > 0;
+  }
+
   /** The committed descriptor: the keys of the manifest that atlas reads, in the same order and with the same values. */
   static renderDescriptor(opts: { root: string; config: TResolvedConfig }): string {
     const whole = ProjectManifest.build(opts);
@@ -302,7 +317,7 @@ export class ProjectManifest {
       // The prebuilt index: the keys a published pair is checked with, and the switch; neither set, nothing is written.
       ...atlasBlockOf({ config }),
       // The commands and push targets the guards ask about beyond their own list; neither set, nothing is written.
-      ...guardBlockOf({ config }),
+      ...guardBlockOf({ config, configModules: ConfigImports.localModules({ root: opts.root }) }),
       // The design tokens: the preset, the seeds the project gave and the resolved set every consumer reads.
       ...themeBlockOf({ config }),
       ...commitBlockOf({ config }),

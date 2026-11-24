@@ -161,9 +161,9 @@ export class ConfigLoader {
       return { ok: false, file, error: `${shown}: invalid config\n${issues}` };
     }
 
-    // Packages the config does not write are the workspace members of the root; a list the project writes, even `[]`, is the list.
+    // Packages the config does not write (or writes as `undefined`, as a split config does) are the workspace members of the root; a list the project writes, even `[]`, is the list.
     const isDerived =
-      RecordValue.isRecord(loaded.default) && !Object.hasOwn(loaded.default, 'packages');
+      RecordValue.isRecord(loaded.default) && loaded.default['packages'] === undefined;
 
     const derived = isDerived ? WorkspacePackages.derive({ root: opts.root }) : undefined;
 

@@ -165,9 +165,12 @@ manifest-local-and-descriptor:
     - ManifestConstants.FILE
     - ManifestConstants.DESCRIPTOR_FILE
     - ProjectConfig.manifestFileOf
+    - ProjectConfig.ownManifestFileOf
+    - ProjectManifest.publishes
   upgrade:
     steps:
       - 'Run `bun node_modules/.bin/vulcan sync`: it writes `.agents/local/vulcan.manifest.json` (gitignored) and `.agents/atlas.manifest.json`, and rewrites `.agents/vulcan.manifest.json` as a data-only copy of the descriptor (the old manifest, with its policy keys, is replaced).'
+      - 'In an app (a repository that publishes no package: its config sets no `atlas.index.keys`), `vulcan sync` writes neither file and deletes one left untracked; if git tracks `.agents/atlas.manifest.json` or `.agents/vulcan.manifest.json`, run `git rm --cached` on it and delete it (`vulcan doctor` warns until you do). The steps below about committing the descriptor are for a repository that publishes.'
       - 'Commit `.agents/atlas.manifest.json` and the rewritten `.agents/vulcan.manifest.json`: keep both tracked until the stable 0.5.0 release; atlas of 0.5.0-6 and before reads the project at `ref` only through the old path. `vulcan doctor` names either one when it is missing or stale.'
       - 'If your wiki config reads `.agents/vulcan.manifest.json` for the theme (`WikiTheme.read`), point it at `.agents/atlas.manifest.json`. A repository that copies the shared wiki theme also takes the new `changelog-prereleases.ts` (`PrereleaseTags`), which reads the descriptor and falls back to the old file; the copies of IGNIS and ARDOR must be updated together with VULCAN.'
       - 'Run `bun node_modules/.bin/vulcan sync` before any CI step that reads the local manifest (the guards, `vulcan doctor`, `vulcan board`): a clone has none until it runs. Replace a CI step that checks `.agents/vulcan.manifest.json` against sync with `git diff --exit-code -- .agents/atlas.manifest.json`.'

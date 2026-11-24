@@ -37,6 +37,14 @@ export class ConfigConstants {
   static readonly DIRECTORY = '.configs';
   /** The one config file name, under `.configs/`. */
   static readonly FILE = 'vulcan.config.mts';
+  /** The modules `vulcan init` splits the config into, under `.configs/`: the index the config imports and one per large section. */
+  static readonly SPLIT_MODULES = [
+    'vulcan/index.mts',
+    'vulcan/claude.mts',
+    'vulcan/doctor.mts',
+    'vulcan/okf.mts',
+    'vulcan/packages.mts',
+  ];
   static readonly DEFAULT_KNOWLEDGE_BUNDLE = '.agents/knowledge';
   static readonly RULE_ID_PATTERN = /^(?:[A-Z]+-)?[A-Z]-\d{2}$/;
   /**

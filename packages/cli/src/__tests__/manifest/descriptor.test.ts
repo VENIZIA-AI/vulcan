@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { git, initRepo } from '../git-repo.helper.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { ProjectContract } from '../../doctor/checks.ts';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
@@ -16,6 +17,7 @@ const CONFIG_TEXT = `export default {
   events: { log: true },
   project: { key: 'ACME' },
   guard: { outside: 'deny' },
+  atlas: { index: { keys: ['RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ='] } },
 };
 `;
 const project = (opts: { legacy?: string } = {}): string =>
@@ -34,6 +36,7 @@ const configOf = (root: string) => {
     events: { log: true },
     project: { key: 'ACME' },
     guard: { outside: 'deny' },
+    atlas: { index: { keys: ['RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ='] } },
   });
 
   return { root, config: parsed };
@@ -116,5 +119,85 @@ describe('the descriptor and the local manifest', () => {
     expect(local?.message).toContain('missing');
     expect(local?.message).not.toContain('commit');
     expect(descriptor?.message).toContain('commit it');
+  });
+});
+
+describe('a repository that publishes no package has no descriptor', () => {
+  const APP_CONFIG = "export default { name: 'shop', guard: { outside: 'deny' } };\n";
+  const app = (files: Record<string, string> = {}): string =>
+    createProject({
+      files: {
+        '.configs/vulcan.config.mts': APP_CONFIG,
+        'package.json': '{ "name": "shop" }',
+        '.gitignore': 'node_modules\n.agents/local/\n',
+        ...files,
+      },
+    });
+  const appConfig = (root: string) => ({
+    root,
+    config: VULCAN_CONFIG_SCHEMA.parse({ name: 'shop', guard: { outside: 'deny' } }),
+    configFile: '.configs/vulcan.config.mts',
+  });
+
+  test('publishing is signing the atlas index: keys, or none', () => {
+    expect(ProjectManifest.publishes({ config: configOf('x').config })).toBe(true);
+    expect(ProjectManifest.publishes({ config: appConfig('x').config })).toBe(false);
+  });
+
+  test('sync writes only the local manifest', () => {
+    const root = app();
+    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+
+    expect(run.code, run.stderr).toBe(0);
+    expect(existsSync(join(root, ManifestConstants.FILE))).toBe(true);
+    expect(existsSync(join(root, ManifestConstants.DESCRIPTOR_FILE))).toBe(false);
+    expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(false);
+    expect(ProjectContract.checkManifest(appConfig(root))).toEqual([]);
+  });
+
+  test('a descriptor left untracked by an earlier sync is deleted; doctor asks for the sync until then', () => {
+    const root = app({
+      [ManifestConstants.DESCRIPTOR_FILE]: '{}\n',
+      [ManifestConstants.LEGACY_FILE]: '{}\n',
+    });
+
+    initRepo({ cwd: root });
+    git({
+      cwd: root,
+      args: [
+        'rm',
+        '-q',
+        '--cached',
+        ManifestConstants.DESCRIPTOR_FILE,
+        ManifestConstants.LEGACY_FILE,
+      ],
+    });
+
+    expect(
+      ProjectContract.checkManifest(appConfig(root)).map((entry) => entry.message),
+    ).toContainEqual(expect.stringContaining('left from an earlier sync'));
+
+    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+
+    expect(run.code, run.stderr).toBe(0);
+    expect(existsSync(join(root, ManifestConstants.DESCRIPTOR_FILE))).toBe(false);
+    expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(false);
+  });
+
+  test('a descriptor git tracks is left, and doctor warns with git rm --cached', () => {
+    const root = app({ [ManifestConstants.DESCRIPTOR_FILE]: '{}\n' });
+
+    initRepo({ cwd: root });
+
+    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+
+    expect(run.code, run.stderr).toBe(0);
+    expect(readFileSync(join(root, ManifestConstants.DESCRIPTOR_FILE), 'utf8')).toBe('{}\n');
+    expect(ProjectContract.checkManifest(appConfig(root))).toEqual([]);
+    expect(
+      ProjectContract.checkTrackedDescriptor(appConfig(root)).map((entry) => entry.message),
+    ).toEqual([
+      `a repository that publishes no package has no descriptor, and git tracks this one: run 'git rm --cached ${ManifestConstants.DESCRIPTOR_FILE}' and delete it`,
+    ]);
   });
 });

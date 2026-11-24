@@ -16,6 +16,8 @@ const PROTECTED = [
   '.agents/local/vulcan.manifest.json',
   '.configs/vulcan.config.mts',
   '.configs/vulcan.config.ts',
+  '.configs/vulcan/claude.mts',
+  '.configs/vulcan/index.mts',
   '.claude/settings.json',
   '.claude/settings.local.json',
   '.agents/local/profile.json',
@@ -133,12 +135,18 @@ describe('guard-outside denies a write to a file the guards read their policy fr
     ).toBeGreaterThan(0);
   });
 
-  test.each(['rm -rf .claude', 'rm -rf .configs', 'rm -r .agents', 'mv .claude gone'])(
-    'removing or moving a folder that holds one of them is denied: %s',
-    (command) => {
-      expect(protectedHitsOf({ root, command }).length).toBeGreaterThan(0);
-    },
-  );
+  test.each([
+    'rm -rf .claude',
+    'rm -rf .configs',
+    'rm -r .agents',
+    'mv .claude gone',
+    'rm -rf .configs/vulcan',
+    'mv .configs/vulcan gone',
+    'rm .configs/vulcan/*.mts',
+    'rm .configs/vulcan/*',
+  ])('removing or moving a folder that holds one of them is denied: %s', (command) => {
+    expect(protectedHitsOf({ root, command }).length).toBeGreaterThan(0);
+  });
 
   test.each([
     'cat .agents/local/vulcan.manifest.json',
@@ -158,6 +166,8 @@ describe('guard-outside denies a write to a file the guards read their policy fr
     'git restore src/a.ts',
     'echo x > .claude/other.json',
     'echo x > .configs/other.mts',
+    'echo x > .configs/lints/eslint.config.mts',
+    'rm .configs/lints/*.mts',
     'echo x > .agents/tmp/a',
     'echo x > .agents/other.json',
     'bun install',
@@ -170,6 +180,59 @@ describe('guard-outside denies a write to a file the guards read their policy fr
 
   test('a path the guard cannot work out is not taken for a protected file by a removal', () => {
     expect(protectedHitsOf({ root, command: 'rm "$UNKNOWN"' })).toEqual([]);
+  });
+});
+
+describe('the modules under .configs/ a config imports are protected like the config', () => {
+  const root = project();
+  const configModules = ['.configs/policy.mts', '.configs/shared/doctor.mts'];
+  const hitsOf = (opts: { command?: string; tool?: string; filePath?: string }) =>
+    OutsideGuard.inspect({
+      input: {
+        tool: opts.tool ?? 'Bash',
+        command: opts.command,
+        cwd: root,
+        filePath: opts.filePath,
+      },
+      projectRoot: root,
+      configModules,
+      env: { HOME: '/nonexistent-home' },
+    }).filter((hit) => hit.isProtected === true);
+
+  test.each(configModules.flatMap((path) => FORMS.map(([form, make]) => ({ path, form, make }))))(
+    '$form on $path',
+    ({ path, make }) => {
+      expect(hitsOf({ command: make(path) }).length).toBeGreaterThan(0);
+    },
+  );
+
+  test.each(['Edit', 'Write', 'MultiEdit'])('the %s tool on one is denied', (tool) => {
+    for (const path of configModules) {
+      expect(hitsOf({ tool, filePath: join(root, path) }).length, path).toBeGreaterThan(0);
+    }
+  });
+
+  test.each(['rm -rf .configs/shared', 'rm .configs/*.mts', 'rm .configs/shared/*'])(
+    'a folder or a pattern that reaches one is denied: %s',
+    (command) => {
+      expect(hitsOf({ command }).length).toBeGreaterThan(0);
+    },
+  );
+
+  test('a module the manifest does not list is not protected', () => {
+    expect(hitsOf({ command: 'echo x > .configs/lints/eslint.config.mts' })).toEqual([]);
+    expect(
+      OutsideGuard.inspect({
+        input: {
+          tool: 'Bash',
+          command: 'echo x > .configs/policy.mts',
+          cwd: root,
+          filePath: undefined,
+        },
+        projectRoot: root,
+        env: { HOME: '/nonexistent-home' },
+      }).filter((hit) => hit.isProtected === true),
+    ).toEqual([]);
   });
 });
 
