@@ -136,3 +136,37 @@ describe('the old names', () => {
     ).toEqual(['commit-check', 'sync', 'x']);
   });
 });
+
+describe('the help names only the public commands', () => {
+  test('every usage line of the help starts with a scope, `help` or `version`', () => {
+    const known = new Set([...CommandScopes.scopes(), 'help', 'version']);
+    // A usage line has two spaces and a word; its continuation lines have more spaces.
+    const first = CommandTable.helpText()
+      .split('\n')
+      .flatMap((line) => (/^ {2}[a-z]/.test(line) ? [/^ {2}([a-z-]+)/.exec(line)?.[1] ?? ''] : []));
+
+    expect(first.filter((word) => !known.has(word))).toEqual([]);
+  });
+});
+
+describe('help of a scope', () => {
+  test("`--help` and `-h` after a scope print that scope's usage and exit 0; okf and atlas keep passing the flag to the tool", () => {
+    for (const [scope, flag] of [
+      ['project', '--help'],
+      ['check', '-h'],
+      ['board', '--help'],
+      ['profile', '-h'],
+    ]) {
+      const result = runCli({ args: [scope, flag], cwd: tmpdir() });
+
+      expect(result.code, `${scope} ${flag}`).toBe(0);
+      expect(result.stdout, `${scope} ${flag}`).toContain(`  ${scope}`);
+      expect(result.stdout).not.toContain('Usage: bun node_modules/.bin/vulcan <command>');
+    }
+
+    expect(runCli({ args: ['project', '--help'], cwd: tmpdir() }).stdout).not.toContain(
+      '  board show',
+    );
+    expect(CommandTable.scopeHelp({ scope: 'agent' })).toContain('  agent [list|add');
+  });
+});

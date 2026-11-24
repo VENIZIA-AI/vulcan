@@ -106,7 +106,7 @@ describe('ProjectConfig.readAtlasProject', () => {
     expect(project.typescriptFrom).toBe(ROOT);
   });
 
-  test('without vulcan atlas/okf it reads the committed manifest at the project root', () => {
+  test('without vulcan atlas it reads the committed manifest at the project root', () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-manifest-'));
 
     roots.push(root);

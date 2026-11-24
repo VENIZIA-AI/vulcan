@@ -75,7 +75,7 @@ describe('RunnerScan: a command that runs an unscoped package', () => {
     ],
     [
       'a runner whose name wraps to the next line of a Markdown paragraph',
-      '(`bun x --no-install\nvulcan atlas/okf atlas mcp`)',
+      '(`bun x --no-install\nvulcan atlas mcp`)',
       'vulcan',
     ],
     ['an allow-listed name with a foreign spec', 'bunx shadcn@npm:ardor add', 'shadcn@npm:ardor'],

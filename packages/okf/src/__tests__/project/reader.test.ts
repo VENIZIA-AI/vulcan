@@ -47,7 +47,7 @@ test('the brand defaults to the root package name without scope and -workspace, 
   expect(OkfProject.read().brand).toBe('ACME');
 });
 
-test('outside vulcan atlas/okf it stops with what to do', () => {
+test('outside vulcan atlas it stops with what to do', () => {
   expect(() => OkfProject.read()).toThrow('okf: no project config - run through `vulcan okf`');
 });
 

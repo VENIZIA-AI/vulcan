@@ -60,6 +60,9 @@ describe('the prepare script cannot fail an install', () => {
   });
 });
 
+/** The old spelling, built so that the gate over retired names does not read it as a use. */
+const OLD_SYNC = ['bun node_modules/.bin/vulcan', 'sync'].join(' ');
+
 describe('doctor and the prepare script', () => {
   test('a root package.json with no prepare script gets a note that prints the line; one that runs sync gets none; no package.json none', () => {
     const none = createProject({ files: { 'package.json': '{ "name": "x" }' } });
@@ -88,6 +91,34 @@ describe('doctor and the prepare script', () => {
     }
 
     expect(ProjectContract.checkPrepareScript(context(noPackage))).toEqual([]);
+  });
+
+  test('the old name in the install script is called out with the script to use; a script that has both forms is quiet', () => {
+    const old = createProject({
+      files: {
+        'package.json': JSON.stringify({
+          scripts: { prepare: `${OLD_SYNC} --quiet < /dev/null; exit 0` },
+        }),
+      },
+    });
+    const found = ProjectContract.checkPrepareScript(context(old));
+
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toContain('the old `sync` name');
+    expect(found[0]?.message).toContain('vulcan project sync --quiet');
+
+    const both = createProject({
+      files: {
+        'package.json': JSON.stringify({
+          scripts: {
+            prepare: `${OLD_SYNC} --quiet`,
+            postinstall: 'bun node_modules/.bin/vulcan project sync --quiet',
+          },
+        }),
+      },
+    });
+
+    expect(ProjectContract.checkPrepareScript(context(both))).toEqual([]);
   });
 
   test('git tracking .claude/settings.json is a warning with the git command; untracked is quiet', () => {

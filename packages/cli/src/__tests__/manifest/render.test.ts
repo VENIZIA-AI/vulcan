@@ -398,7 +398,7 @@ describe('the preset kind of a package in the manifest', () => {
   });
 });
 
-describe('the manifest in sync, doctor and vulcan atlas/okf', () => {
+describe('the manifest in sync, doctor and vulcan atlas', () => {
   const PROJECT = {
     '.configs/vulcan.config.mts': `export default ${JSON.stringify(CONFIG)};\n`,
     'AGENTS.md': '# x\n',
@@ -502,7 +502,7 @@ describe('the manifest in sync, doctor and vulcan atlas/okf', () => {
     expect(result.stderr).toContain("run 'bun node_modules/.bin/vulcan project sync'");
   });
 
-  test('vulcan atlas/okf hands the tool the manifest, rendered fresh', async () => {
+  test('vulcan atlas hands the tool the manifest, rendered fresh', async () => {
     const root = createProject({ files: PROJECT });
     const environment = await ToolRunner.buildEnvironment({ root });
 

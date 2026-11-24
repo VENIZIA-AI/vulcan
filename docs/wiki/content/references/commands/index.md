@@ -15,7 +15,7 @@ Usage: bun node_modules/.bin/vulcan <command>
 
   project init [--key <KEY>]      Scaffold the project layer (never overwrites); --key is the project's flow key
                                   (2 to 8 uppercase letters or digits; a terminal asks, else it is made from the name)
-  init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
+  project init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
        [--shared-dir <path>] [--scope <@scope>] [--key <KEY>]
                                   Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
@@ -90,7 +90,7 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   on or after a date cutover carries one. --history also fails a released folder that
                                   changed since the base, a stable with no folder, and a dated file, dated after
                                   knowledge.datedUntil, that was added or edited.
-  changelog notes --version <X.Y.Z> [--migration]
+  migrate notes --version <X.Y.Z> [--migration]
                                   The release notes of a version folder: the body of its log.md, then the packages.
                                   --migration prints the path of its migration.yaml when that file holds a block,
                                   and nothing when it does not (what a workflow attaches to the Release)

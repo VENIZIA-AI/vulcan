@@ -40,7 +40,7 @@ export class CommandTable {
     [VulcanCommands.INIT]: {
       help: `  project init [--key <KEY>]      Scaffold the project layer (never overwrites); --key is the project's flow key
                                   (2 to 8 uppercase letters or digits; a terminal asks, else it is made from the name)
-  init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
+  project init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
        [--shared-dir <path>] [--scope <@scope>] [--key <KEY>]
                                   Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)`,
@@ -316,7 +316,7 @@ export class CommandTable {
                                   on or after a date cutover carries one. --history also fails a released folder that
                                   changed since the base, a stable with no folder, and a dated file, dated after
                                   knowledge.datedUntil, that was added or edited.
-  changelog notes --version <X.Y.Z> [--migration]
+  migrate notes --version <X.Y.Z> [--migration]
                                   The release notes of a version folder: the body of its log.md, then the packages.
                                   --migration prints the path of its migration.yaml when that file holds a block,
                                   and nothing when it does not (what a workflow attaches to the Release)`,
@@ -386,6 +386,28 @@ export class CommandTable {
       positionals: spec.positionals ?? 0,
       ...(spec.unknownExit === undefined ? {} : { unknownExit: spec.unknownExit }),
     };
+  }
+
+  /** The usage blocks of one scope (`vulcan project --help`): every block of the help that starts with the scope, or names it as a tool. */
+  static scopeHelp(opts: { scope: string }): string {
+    const blocks: string[][] = [];
+
+    for (const line of CommandTable.helpText().split('\n').slice(4)) {
+      if (/^ {2}[a-z]/.test(line)) {
+        blocks.push([line]);
+      } else if (blocks.length > 0) {
+        blocks[blocks.length - 1].push(line);
+      }
+    }
+
+    return `${blocks
+      .filter((block) =>
+        new RegExp(`^ {2}(?:${opts.scope}\\b|[a-z]+ <args\\.\\.\\.> \\| ${opts.scope} <args)`).test(
+          block[0],
+        ),
+      )
+      .map((block) => block.join('\n'))
+      .join('\n')}\n`;
   }
 
   /** What `vulcan help` prints. */

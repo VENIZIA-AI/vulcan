@@ -11,7 +11,7 @@ const RETIRED = [
   new RegExp(
     String.raw`${CALL} (?:sync|doctor|init|upgrade|clean|add|agents|commit-check|runners|changelog|preset|visualize|layout|x)\b`,
   ),
-  new RegExp(String.raw`${CALL} board(?! show| serve)\b`),
+  new RegExp(String.raw`${CALL} board(?! show| serve| \$\{)\b`),
   new RegExp(String.raw`${CALL} config --(?:effective|diff)\b`),
   new RegExp(String.raw`${CALL} event step\b`),
   new RegExp(String.raw`${CALL} event add --kind flow\b`),

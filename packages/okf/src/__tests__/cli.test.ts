@@ -42,7 +42,7 @@ describe('vulcan-okf dispatcher', () => {
   });
 });
 
-describe('outside vulcan atlas/okf', () => {
+describe('outside vulcan atlas', () => {
   test('a command without a project config stops with what to do, never a stack trace', () => {
     const result = run({ args: ['check'] });
 

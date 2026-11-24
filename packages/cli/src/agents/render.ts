@@ -91,7 +91,7 @@ export class McpConfig {
     };
   }
 
-  /** The entry of the release before the scopes (`vulcan atlas/okf atlas mcp`): it still runs, and a sync rewrites it. */
+  /** The entry of the release before the scopes (`x atlas mcp`): it still runs, and a sync rewrites it. */
   static previousAtlasEntry(): { command: string; args: string[] } {
     return {
       command: 'bun',

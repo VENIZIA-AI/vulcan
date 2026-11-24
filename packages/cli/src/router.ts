@@ -50,6 +50,20 @@ const runHelp = async (opts: { cwd: string }): Promise<number> => {
 };
 
 export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<number> => {
+  const [scope, asked] = opts.argv;
+
+  // `okf` and `atlas` hand a help flag to the tool; every other scope shows its own usage.
+  if (
+    scope !== undefined &&
+    !['okf', 'atlas'].includes(scope) &&
+    CommandScopes.scopes().includes(scope) &&
+    HELP_ALIASES.has(asked ?? '')
+  ) {
+    process.stdout.write(CommandTable.scopeHelp({ scope }));
+
+    return ExitCodes.OK;
+  }
+
   const resolution = CommandScopes.resolve({ argv: opts.argv });
 
   if (resolution?.type === 'refused') {
