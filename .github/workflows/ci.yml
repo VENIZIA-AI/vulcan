@@ -115,10 +115,16 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make docs wiki-links-check wiki-anchors-check
 
+      # Some tests read the manifest of this repository, which is local to a clone: write it first.
+      - name: Agent setup (VULCAN)
+        id: sync
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: make vulcan-sync
+
       # The make targets own the test flags (BUN_TEST_FLAGS, default --parallel), so CI and a
       # developer's `make test` run the very same command.
       - name: Test
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
         run: make test
 
       # The packed tarballs, installed alone in an empty project and run.
