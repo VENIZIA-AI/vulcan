@@ -80,3 +80,31 @@ export class TemplatePlaceholders {
     return `${named} ${verb} of a release template (${allowed}).${hint}`;
   }
 }
+
+/** The order `vulcan config format` gives the top-level keys of the config file; a key not listed goes after them, and `remove` always last. */
+export class ConfigKeyOrder {
+  static readonly KEYS: readonly string[] = [
+    'name',
+    'project',
+    'agents',
+    'packs',
+    'rules',
+    'digest',
+    'owner',
+    'layout',
+    'packages',
+    'presets',
+    'guard',
+    'commit',
+    'events',
+    'board',
+    'knowledge',
+    'okf',
+    'atlas',
+    'claude',
+    'doctor',
+    'local',
+    'theme',
+  ];
+  static readonly LAST = 'remove';
+}

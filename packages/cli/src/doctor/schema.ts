@@ -1,5 +1,6 @@
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
+import { LayoutConstants } from '../layout/common/constants.ts';
 import { PrivateValueKinds } from './common/constants.ts';
 import type { TPrivateValueKind } from './common/types.ts';
 
@@ -25,11 +26,27 @@ const ACKNOWLEDGEMENT = z.strictObject({
   standing: z.boolean().optional(),
 });
 
+/** What the layout check reads as a finding; every field has a default. */
+const LAYOUT = z.strictObject({
+  /** A source file with more lines than this is a `long-file` finding; default 400. */
+  maxLines: z.number().int().positive().default(LayoutConstants.DEFAULT_MAX_LINES),
+  /** A folder with at least this many subfolders may keep no loose source file but `index.ts` or `index.tsx`; default 3. */
+  minSubfolders: z.number().int().positive().default(LayoutConstants.DEFAULT_MIN_SUBFOLDERS),
+  /** Role words that end in s and are not plurals, added to the shipped list (`class`, `status`, `alias`...); default none. */
+  pluralAllow: z.array(z.string().min(1)).default([]),
+  /** Globs relative to the repo root of generated files, which `long-file` skips; a file whose header says generated or do not edit is skipped too; default none. */
+  generated: z.array(z.string().min(1)).default([]),
+});
+
 export const DOCTOR_SCHEMA = z.strictObject({
   /** Private values doctor tolerates: `acknowledged` lists files that may keep them, each with a reason; default none. */
   privateValues: z
     .strictObject({ acknowledged: z.array(ACKNOWLEDGEMENT).default([]) })
     .default({ acknowledged: [] }),
+  /** The layout check (`vulcan layout check`, the doctor's `file-layout` warning): the line limit, the subfolder count, the role words that are not plurals and the generated files. */
+  layout: LAYOUT.prefault({}),
 });
+
+export type TLayoutSettings = z.output<typeof LAYOUT>;
 
 export type TPrivateValueAcknowledgement = z.output<typeof ACKNOWLEDGEMENT>;

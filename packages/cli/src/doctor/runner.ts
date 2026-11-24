@@ -2,6 +2,8 @@ import { relative } from 'node:path';
 import { LocalSettings } from '../common/local-settings.ts';
 import { ConfigLoader } from '../config/index.ts';
 import { ProjectContract } from './checks.ts';
+import { ConfigOrderCheck } from './config-order.ts';
+import { FileLayoutCheck } from './file-layout.ts';
 import { SkillLint } from './skills.ts';
 import { TagCheck } from './tags.ts';
 import { DoctorChecks } from './common/index.ts';
@@ -69,10 +71,12 @@ export class DoctorRunner {
 
     return [
       ...ProjectContract.checkConfigDefaults(context),
+      ...ConfigOrderCheck.check(context),
       ...ProjectContract.checkBoardAutoStart(context),
       ...ProjectContract.checkPrepareScript(context),
       ...ProjectContract.checkAtlasBlock(context),
       ...ProjectContract.checkAcknowledgedValues(context),
+      ...FileLayoutCheck.notes(context),
       ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
     ];
   }
@@ -114,6 +118,7 @@ export class DoctorRunner {
       ...ProjectContract.checkStaleLocal(context),
       ...ProjectContract.checkUnknownLocal(context),
       ...ProjectContract.checkPrivateValues(context),
+      ...FileLayoutCheck.warnings(context),
     ];
   }
 }

@@ -59,10 +59,12 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `prepare` (note) | No install script (`prepare` or `postinstall`) of the root `package.json` runs `vulcan sync` (directly or as `make vulcan-sync`), so a fresh clone has no hooks until someone runs it | Add the `prepare` script the note prints (`vulcan init --preset` writes it for a new project) |
 | `claude-settings` (warning) | Git tracks `.claude/settings.json`, which `sync` writes in every clone | `git rm --cached .claude/settings.json`; sync keeps it out of git from then on |
 | `config-defaults` (note) | N values of the config repeat what the shipped defaults give | Run `vulcan config --diff` and delete them |
+| `config-order` (note) | The top-level keys of the config are not in the canonical order | Run `vulcan config format` |
 | `config-remove` (warning) | A `remove` entry matches nothing, so it does nothing | Delete the entry |
 | `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it, or delete `packages` so it is derived from the workspaces |
 | `project-key` (warning) | `events.log` is on and `project.key` is not set, so no flow can be created | Add `project: { key: 'KEY' }` to the config and run `vulcan sync` |
 | `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `doctor.privateValues.acknowledged` |
+| `file-layout` (warning, note) | A file name with a plural role (`user.helpers.ts`), a folder that mixes subfolders with loose source files, or a source file over `doctor.layout.maxLines`, that `.configs/layout-baseline.json` does not hold; what it holds is one note | Rename, move or split, or adopt the findings with `vulcan layout check --write-baseline` |
 | `mcp` (warning) | `.mcp.json` holds the canonical `atlas` entry, is not untracked and unignored, and the Claude settings enable `atlas` | Use the entry the warning shows; ignore `/.mcp.json` or run `vulcan sync` at the top level; run `vulcan sync` |
 | `local` (warning) | Stray entries directly under `.agents/local/` | Move them to `tmp/`, `reports/` or `agents/<name>/` |
 | `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor` | Unset it in a shell the owner works in |
@@ -323,6 +325,10 @@ A note: `board.serve.autoStart` is on in `.agents/local/profile.json`, but the s
 
 A note: the config states values that the shipped layers (the defaults, and the config of each rule pack) already give, so they can be deleted. `vulcan config --diff` lists them by path.
 
+### config-order
+
+A note: the top-level keys of `.configs/vulcan.config.mts` are not in the order `vulcan config format` gives them, and the note names the keys that would move. Run [`vulcan config format`](/references/commands/config#format) to put them in order. A config the command cannot order (a spread, a computed key) gets no note.
+
 ### config-remove
 
 A warning: a `remove` entry names an item that is not in the merged array (it was never there, or the shipped layers no longer add it), so it removes nothing. Delete the entry, or fix the name; `vulcan config --effective` shows what is in the arrays.
@@ -394,6 +400,17 @@ export default {
 ```
 
 `path` is a glob relative to the repo root, `kinds` limits the entry to some kinds (`private-key`, `token`, `url-credentials`, `ipv4`, `machine-path`) and `reason` is required. A kind that the entry does not name still warns. The count is a note, not a warning, so a project that acknowledged everything still prints a plain OK: `2 files acknowledged in doctor.privateValues.acknowledged`. An entry that covers no value at all (a folder that is gone, a kind no file holds) is a warning, because a stale or broad entry would quietly cover files added later. There is no comment that silences a line. Only regular files are read: a submodule, a link to a folder and a link to a file are skipped and never followed.
+
+### file-layout
+
+A warning, not a violation: it prints as `warning [file-layout]`, the exit code stays `0`. It runs [`vulcan layout check`](/references/commands/layout) and prints one line per rule: the path and what to do when one path breaks it, else the count and the first three paths.
+
+```text
+  warning [file-layout] src/user.helpers.ts: plural-suffix: the role "helpers" is plural: name the file user.helper.ts
+  warning [file-layout] 12 paths: long-file: src/a.ts, src/b.ts, src/c.ts and 9 more; run `bun node_modules/.bin/vulcan layout check` for each one and what to do
+```
+
+The findings `.configs/layout-baseline.json` holds are one note (`info [file-layout] .configs/layout-baseline.json: 7 layout finding(s) accepted in the baseline`), and so are its entries that match nothing any more. A baseline that is not valid is one warning that says why.
 
 ### format
 

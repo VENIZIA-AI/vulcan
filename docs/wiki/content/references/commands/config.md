@@ -1,6 +1,6 @@
 ---
 title: vulcan config
-description: Show the config as the commands read it, merged from the shipped defaults, the config of each rule pack and the project file, and list the values the project file repeats.
+description: Show the config as the commands read it, merged from the shipped defaults, the config of each rule pack and the project file, list the values the project file repeats, and put its keys in order.
 ---
 
 # vulcan config
@@ -8,6 +8,7 @@ description: Show the config as the commands read it, merged from the shipped de
 ```text
 vulcan config --effective
 vulcan config --diff
+vulcan config format [--check]
 ```
 
 The commands read one config: the shipped defaults, then the config of each rule pack the project turns on (`packs`), then `.configs/vulcan.config.mts`, merged as plain data and checked by one schema. This command shows that result. It is read-only and works in the project root or below.
@@ -16,6 +17,40 @@ The commands read one config: the shipped defaults, then the config of each rule
 - `--diff` lists the values the project file states that a shipped layer already gives, by the same paths. They can be deleted from the project file. It does not rewrite the file: the config is TypeScript and may hold code.
 
 Exit codes: `0` shown; `1` when the config cannot be loaded; `2` on bad input (neither or both flags, an unknown argument).
+
+## format
+
+`vulcan config format` rewrites `.configs/vulcan.config.mts` so the top-level keys of its default-export object come in one order, the same in every project:
+
+| Group | Keys |
+|---|---|
+| 1. Identity | `name`, `project` |
+| 2. Rules | `agents`, `packs`, `rules`, `digest`, `owner` |
+| 3. Apps and packages | `layout`, `packages`, `presets` |
+| 4. Guards | `guard`, `commit` |
+| 5. Events | `events`, `board` |
+| 6. Knowledge | `knowledge`, `okf`, `atlas` |
+| 7. Tools | `claude`, `doctor`, `local`, `theme` |
+| 8. Opt-outs | `remove`, always last |
+
+A key the list does not name (`provider`, or one a newer VULCAN added) goes after the listed keys and before `remove`, in the order the file had it.
+
+- The file is parsed with TypeScript, never run. The object is the one of `export default { ... }`, also behind `satisfies VulcanConfig`, `as const`, parentheses or `defineConfig(...)`.
+- A key moves with the comments above it, the blank lines before them and the comment after it on its line. The imports, the statements before the export, and the value of each key (a `readdirSync` call, a variable) are not touched. A last key with no comma keeps having none.
+- A file in order is left as it is, byte for byte, so running it twice changes nothing.
+- It refuses, and exits `2` with the reason, when the object has a spread (`...base`) or a computed key (`[name]: ...`), whose keys are known only when the config runs, when the default export is not an object literal, or when a key that must move shares its line with another.
+
+`--check` writes nothing. With the keys in order it prints `the keys of the config are in order` and exits `0`; otherwise it names the keys that move (the fewest whose move puts the rest in order) and the order they take, and exits `1`, for CI. For a config whose keys are `name`, `packages`, `remove`, `rules`, `atlas`:
+
+```text
+$ bun node_modules/.bin/vulcan config format --check
+2 key(s) out of order: rules, atlas; run `bun node_modules/.bin/vulcan config format`
+the order: name, rules, packages, atlas, remove
+```
+
+`vulcan doctor` notes the same as [`config-order`](/references/commands/doctor#config-order).
+
+Exit codes: `0` formatted or already in order; `1` with `--check` when a key would move; `2` on bad input, no `.configs/vulcan.config.mts`, or a config whose keys cannot be ordered.
 
 ## The merge
 
