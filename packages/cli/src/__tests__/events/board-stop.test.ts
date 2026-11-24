@@ -20,6 +20,7 @@ import { wire } from './wire.helper.ts';
 afterAll(removeProjects);
 
 const T0 = Date.parse('2026-11-23T09:00:00Z');
+const MINUTE = 60 * 1000;
 const FLOW = 'VULZ-ACME-1';
 const ACTOR = 'pnt-vulcan-1';
 const HOOKS = join(import.meta.dir, '..', '..', '..', 'base', 'hooks');
@@ -141,12 +142,10 @@ describe('the Stop hook decides', () => {
     const held = stop({ root });
 
     expect(held?.decision).toBe('block');
-    expect(held?.reason).toContain(
-      `bun node_modules/.bin/vulcan flow step --flow '${FLOW}' --done 'Refresh'`,
+    expect(held?.reason).toBe(
+      `The board is out of step for ${FLOW}: run bun node_modules/.bin/vulcan flow step --flow '${FLOW}' --next '<what is done, what comes next>'`,
     );
-    expect(held?.reason).toContain(`flow step --flow '${FLOW}' --next with the real state`);
-    expect(held?.reason).not.toContain('where the work stands');
-    expect(held?.reason).not.toContain("--done 'Token'");
+    expect(held?.reason).not.toContain('--done');
 
     const pr = project();
 
@@ -159,12 +158,26 @@ describe('the Stop hook decides', () => {
     const root = project();
 
     flowLine({ root, at: T0 });
-    editCall({ root, at: T0 + 1000 });
-    expect(stop({ root, edited: true })?.decision).toBe('block');
-    expect(stop({ root, edited: false })).toBeUndefined();
+    editCall({ root, at: T0 + 31 * MINUTE });
+    expect(stop({ root, edited: true, now: T0 + 32 * MINUTE })?.decision).toBe('block');
+    expect(stop({ root, edited: false, now: T0 + 32 * MINUTE })).toBeUndefined();
   });
 
-  test('a merge with steps still open holds it and names the open steps', () => {
+  test('an edit within 30 minutes of the last flow update does not hold, one after 31 minutes does', () => {
+    const soon = project();
+
+    flowLine({ root: soon, at: T0 });
+    editCall({ root: soon, at: T0 + 10 * MINUTE });
+    expect(stop({ root: soon, edited: true, now: T0 + 11 * MINUTE })).toBeUndefined();
+
+    const late = project();
+
+    flowLine({ root: late, at: T0 });
+    editCall({ root: late, at: T0 + 31 * MINUTE });
+    expect(stop({ root: late, edited: true, now: T0 + 32 * MINUTE })?.decision).toBe('block');
+  });
+
+  test('a merge with steps still open holds it', () => {
     const root = project();
 
     flowLine({ root, at: T0 });
@@ -172,33 +185,8 @@ describe('the Stop hook decides', () => {
 
     const held = stop({ root });
 
-    expect(held?.reason).toContain('was merged and steps are still open');
-    expect(held?.reason).toContain("--done 'Refresh'");
-  });
-
-  test('at most five open steps are listed, a quote in a step is closed and reopened', () => {
-    const root = project();
-
-    flowLine({
-      root,
-      at: T0,
-      steps: [
-        ...Array.from({ length: 6 }, (_, at) => ({ text: `step ${at}`, done: false })),
-        { text: "it's quoted", done: false },
-      ],
-    });
-    line({ root, kind: 'commit', summary: 'commit', at: T0 + 1000 });
-
-    const reason = stop({ root })?.reason ?? '';
-
-    expect(reason.match(/--done/g)).toHaveLength(5);
-    expect(reason).toContain('2 more open steps');
-
-    const quoted = project();
-
-    flowLine({ root: quoted, at: T0, steps: [{ text: "it's quoted", done: false }] });
-    line({ root: quoted, kind: 'commit', summary: 'commit', at: T0 + 1000 });
-    expect(stop({ root: quoted })?.reason).toContain(`--done 'it'\\''s quoted'`);
+    expect(held?.reason).toContain(`flow step --flow '${FLOW}' --next`);
+    expect(held?.reason).not.toContain('--done');
   });
 
   test('never twice in a turn, never with the log off, never for another actor or an unknown one, never on a flow that is over', () => {
@@ -252,10 +240,13 @@ describe('the edit signal belongs to a session that is in the flow', () => {
 
     flowLine({ root, at: T0 });
     branch(root);
-    editCall({ root, actor: 'assistant-1', at: T0 + 1000 });
-    editCall({ root, at: T0 + 1000 });
-    expect(stop({ root, actor: 'assistant-1', edited: true })).toBeUndefined();
-    expect(stop({ root, actor: ACTOR, edited: true })?.decision).toBe('block');
+    editCall({ root, actor: 'assistant-1', at: T0 + 31 * MINUTE });
+    editCall({ root, at: T0 + 31 * MINUTE });
+
+    const now = T0 + 32 * MINUTE;
+
+    expect(stop({ root, actor: 'assistant-1', edited: true, now })).toBeUndefined();
+    expect(stop({ root, actor: ACTOR, edited: true, now })?.decision).toBe('block');
   });
 
   test('a branch flow of another actor holds a session only on its own commit or pull request lines', () => {
@@ -284,12 +275,12 @@ describe('an edit counts only when an edit tool of this session ran', () => {
     const root = project();
 
     flowLine({ root, at: T0 });
-    editCall({ root, at: T0 + 1000 });
-    expect(stop({ root, edited: true })?.decision).toBe('block');
-    expect(stop({ root, edited: true, active: true })).toBeUndefined();
+    editCall({ root, at: T0 + 31 * MINUTE });
+    expect(stop({ root, edited: true, now: T0 + 32 * MINUTE })?.decision).toBe('block');
+    expect(stop({ root, edited: true, active: true, now: T0 + 32 * MINUTE })).toBeUndefined();
 
-    flowLine({ root, at: T0 + 2000 });
-    expect(stop({ root, edited: true })).toBeUndefined();
+    flowLine({ root, at: T0 + 33 * MINUTE });
+    expect(stop({ root, edited: true, now: T0 + 34 * MINUTE })).toBeUndefined();
   });
 
   test('no mark, a mark older than the flow line, or an edit tool but no dirty tracked file does not hold', () => {
@@ -349,7 +340,7 @@ describe('an edit counts only when an edit tool of this session ran', () => {
 describe('a stale flow is reminded once per two hours', () => {
   const HOUR = 60 * 60 * 1000;
 
-  test('open steps and no work line for two hours hold the turn, with the hours and the commands', () => {
+  test('open steps and no work line for two hours hold the turn with the one command', () => {
     const root = project();
 
     flowLine({ root, at: T0 });
@@ -357,8 +348,8 @@ describe('a stale flow is reminded once per two hours', () => {
     const held = stop({ root, now: T0 + 3 * HOUR });
 
     expect(held?.decision).toBe('block');
-    expect(held?.reason).toContain('no update for 3 hours and steps are still open');
-    expect(held?.reason).toContain(`flow step --flow '${FLOW}' --done 'Refresh'`);
+    expect(held?.reason).toContain(`flow step --flow '${FLOW}' --next`);
+    expect(held?.reason).not.toContain('--done');
     expect(stop({ root, now: T0 + HOUR })).toBeUndefined();
   });
 
@@ -643,7 +634,7 @@ describe('the scripts', () => {
     git('init', '-q');
     git('add', 'a.txt');
     git('commit', '-q', '-m', 'first');
-    flowLine({ root, at: Date.now() - 5000 });
+    flowLine({ root, at: Date.now() - 40 * MINUTE });
     writeFileSync(join(root, 'a.txt'), 'two\n');
     expect(run({ script: 'board-stop.ts', root, input: stopInput }).stdout.toString()).toBe('');
 
