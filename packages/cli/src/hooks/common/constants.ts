@@ -44,6 +44,7 @@ export class HookConstants {
     '.agents/local/vulcan.manifest.json',
     '.agents/atlas.manifest.json',
     '.configs/vulcan.config.*',
+    '.agents/local/profile.json',
     '.agents/vulcan.local.json',
     '.claude/settings.json',
     '.claude/settings.local.json',

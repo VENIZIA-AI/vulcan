@@ -5,7 +5,7 @@ description: Show, add, remove or re-choose the coding agents you use on this ma
 
 # vulcan agents
 
-Which coding agents you use is your choice on your machine, stored in `.agents/vulcan.local.json` (not committed). `vulcan agents` changes that choice without retyping the whole list, and writes or takes back the adapters that go with it. [`vulcan sync --agents <list>`](/references/commands/sync#choosing-your-agents) is the same thing for scripts.
+Which coding agents you use is your choice on your machine, stored in `.agents/local/profile.json` (not committed). `vulcan agents` changes that choice without retyping the whole list, and writes or takes back the adapters that go with it. [`vulcan sync --agents <list>`](/references/commands/sync#choosing-your-agents) is the same thing for scripts.
 
 | Command | What it does |
 |---|---|
@@ -60,7 +60,7 @@ $ bun node_modules/.bin/vulcan agents add pi
   unchanged .agents/local/vulcan.manifest.json
   unchanged .agents/atlas.manifest.json
   unchanged AGENTS.md
-  replaced  .agents/vulcan.local.json
+  replaced  .agents/local/profile.json
   replaced  .git/info/exclude
   note      pi: Pi loads .pi/mcp.json and .agents/skills only after you trust this project: start pi here and answer the trust prompt.
 ```
@@ -90,7 +90,7 @@ $ bun node_modules/.bin/vulcan agents remove pi
   unchanged .agents/local/vulcan.manifest.json
   unchanged .agents/atlas.manifest.json
   unchanged AGENTS.md
-  replaced  .agents/vulcan.local.json
+  replaced  .agents/local/profile.json
   replaced  .git/info/exclude
 ```
 

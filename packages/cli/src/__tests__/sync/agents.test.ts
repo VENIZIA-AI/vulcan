@@ -13,7 +13,7 @@ const PROJECT = {
   '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
-const LOCAL = '.agents/vulcan.local.json';
+const LOCAL = '.agents/local/profile.json';
 const hasScript = Bun.which('script') !== null;
 
 /** A PATH holding bun and the system tools only, so the agents of the machine running the tests are not detected. */
@@ -149,7 +149,7 @@ describe('vulcan sync with nothing chosen', () => {
     expect(localAgents({ root })).toEqual(['claude', 'cursor']);
   });
 
-  test('the local file is added to .gitignore when there is one, once', () => {
+  test('only .agents/local/ is added to .gitignore, once: the profile is inside it', () => {
     const root = createProject({ files: { ...PROJECT, '.gitignore': 'node_modules/\n' } });
 
     runCli({ args: ['sync', '--agents', 'omp'], cwd: root });
@@ -157,7 +157,7 @@ describe('vulcan sync with nothing chosen', () => {
 
     const ignore = readFileSync(join(root, '.gitignore'), 'utf8');
 
-    expect(ignore).toBe(`node_modules/\n.agents/local/\n${LOCAL}\n`);
+    expect(ignore).toBe('node_modules/\n.agents/local/\n');
   });
 });
 

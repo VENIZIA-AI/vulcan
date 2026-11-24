@@ -12,7 +12,7 @@ afterAll(removeProjects);
 const PRE_UPGRADE = {
   '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
   'AGENTS.md': '# x\n',
-  '.gitignore': 'node_modules/\n.agents/vulcan.local.json\n',
+  '.gitignore': 'node_modules/\n.agents/local/profile.json\n',
 };
 
 describe('upgrading a project from the layout before .agents/local/', () => {
@@ -22,7 +22,7 @@ describe('upgrading a project from the layout before .agents/local/', () => {
 
     expect(result.code).toBe(0);
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\n.agents/vulcan.local.json\n.agents/local/\n',
+      'node_modules/\n.agents/local/profile.json\n.agents/local/\n',
     );
 
     for (const name of ['tmp', 'worktrees', 'clones', 'cache', 'reports', 'prototypes']) {

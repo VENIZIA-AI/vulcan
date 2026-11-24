@@ -17,7 +17,7 @@ type TPortState = 'board' | 'other' | 'free';
 const KEPT_ENV = new Set(['PATH', 'HOME', 'TMPDIR', 'USER', 'LOGNAME', 'SHELL', 'TERM', 'LANG']);
 
 /**
- * `board.serve.autoStart` (in the person's own `.agents/vulcan.local.json`) at the start of a session: with the event log on
+ * `board.serve.autoStart` (in the person's own `.agents/local/profile.json`) at the start of a session: with the event log on
  * and nothing answering on the board's port, `vulcan board serve --port <port>` is started as a detached process of the
  * project's own install (never a lookup on `PATH`) with a trimmed environment, its output going to
  * `.agents/local/tmp/board-serve.log`. An explicit `--port` makes a busy port an error, so a second start (two sessions at

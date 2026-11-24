@@ -1,5 +1,4 @@
 import { AgentConstants, AgentScopes } from './common/index.ts';
-import { LOCAL_AGENTS_FILE } from './local.ts';
 import { AgentTable } from './table.ts';
 
 const EXCLUDE_BLOCK_START =
@@ -66,7 +65,7 @@ export class AgentExclude {
       }
     }
 
-    return [...groups, { title: 'local', paths: [`/${LOCAL_AGENTS_FILE}`] }];
+    return groups;
   }
 
   /**

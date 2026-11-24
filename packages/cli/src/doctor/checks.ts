@@ -625,31 +625,16 @@ export class ProjectContract {
   /** The developer's stored agents must parse and name known agents; a broken file would otherwise hide as a default. */
   static checkAgents(opts: ICheckContext): IViolation[] {
     const stored = LocalChoice.read({ root: opts.root });
-    const file = '.agents/vulcan.local.json';
-    const at = (message: string): IViolation =>
-      createViolation({ check: DoctorChecks.AGENTS, file, message });
-    const own = LocalSettings.read({ root: opts.root });
-    const unknown = LocalChoice.unknownKeys({ root: opts.root });
 
-    return [
-      ...(stored.ok ? [] : [at(stored.error)]),
-      ...unknown.map((key) =>
-        at(
-          `unknown key '${key}': this file reads schemaVersion, agents, board.agents, board.serve.autoStart, local.tmp and events.dir`,
-        ),
-      ),
-      ...((own.tmp !== undefined ||
-        own.boardAgents !== undefined ||
-        own.autoStart !== undefined ||
-        EventSettings.localDir({ root: opts.root }) !== undefined) &&
-      AgentFiles.isTracked({ root: opts.root, path: file })
-        ? [
-            at(
-              'git tracks this personal file, which sets board.agents, board.serve.autoStart, local.tmp or events.dir - run: git rm --cached .agents/vulcan.local.json',
-            ),
-          ]
-        : []),
-    ];
+    return stored.ok
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.AGENTS,
+            file: AgentConstants.LOCAL_FILE,
+            message: stored.error,
+          }),
+        ];
   }
 
   /**
@@ -777,7 +762,7 @@ export class ProjectContract {
             check: DoctorChecks.BOARD_AUTOSTART,
             file: opts.configFile,
             message:
-              'board.serve.autoStart is on in .agents/vulcan.local.json, but events.log is off, so the session start does not start the board: set events.log to true',
+              'board.serve.autoStart is on in .agents/local/profile.json, but events.log is off, so the session start does not start the board: set events.log to true',
           }),
         ]
       : [];

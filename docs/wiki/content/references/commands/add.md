@@ -75,7 +75,7 @@ bun install v1.4.3 (c6da4a4d3)
   replaced  .agents/local/vulcan.manifest.json
   replaced  .agents/atlas.manifest.json
   replaced  AGENTS.md (Atlas block)
-  unchanged .agents/vulcan.local.json
+  unchanged .agents/local/profile.json
   unchanged .git/info/exclude
 $ bun check --no-pretty -p tsconfig.json
 ✓ No type errors in 10 files [188.95ms]
@@ -150,7 +150,7 @@ Checked 239 installs across 278 packages (no changes) [18.00ms]
   replaced  .agents/local/vulcan.manifest.json
   replaced  .agents/atlas.manifest.json
   unchanged AGENTS.md
-  unchanged .agents/vulcan.local.json
+  unchanged .agents/local/profile.json
   unchanged .git/info/exclude
 $ bun check
 ✓ No type errors in 5 files [206.00ms]
@@ -209,7 +209,7 @@ Checked 240 installs across 279 packages (no changes) [19.00ms]
   replaced  .agents/local/vulcan.manifest.json
   replaced  .agents/atlas.manifest.json
   unchanged AGENTS.md
-  unchanged .agents/vulcan.local.json
+  unchanged .agents/local/profile.json
   unchanged .git/info/exclude
 $ bun check
 ✓ No type errors in 3 files [106.20ms]

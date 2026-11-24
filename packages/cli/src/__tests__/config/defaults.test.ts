@@ -153,16 +153,16 @@ describe('the pack gives the stack its guard and commit defaults', () => {
 
     const auto = project("export default { name: 'acme' };\n");
 
-    mkdirSync(join(auto, '.agents'), { recursive: true });
+    mkdirSync(join(auto, '.agents', 'local'), { recursive: true });
     writeFileSync(
-      join(auto, '.agents/vulcan.local.json'),
+      join(auto, '.agents/local/profile.json'),
       JSON.stringify({ schemaVersion: 1, board: { serve: { autoStart: true } } }),
     );
 
     const autoFound = await DoctorRunner.runNotes({ root: auto });
 
     expect(JSON.stringify(autoFound)).toContain(
-      'board.serve.autoStart is on in .agents/vulcan.local.json, but events.log is off',
+      'board.serve.autoStart is on in .agents/local/profile.json, but events.log is off',
     );
     expect(cleanNotes).not.toContain('autoStart');
     expect(repeatsNotes).toContain('1 value(s) of this config repeat what VULCAN ships');

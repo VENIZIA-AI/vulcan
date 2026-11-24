@@ -105,7 +105,7 @@ export class CommandTable {
     [VulcanCommands.SYNC]: {
       help: `  sync [--agents <list>|list] [--dry-run]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
-                                  stored in .agents/vulcan.local.json; --agents list shows the table)`,
+                                  stored in .agents/local/profile.json; --agents list shows the table)`,
       flags: {
         '--dry-run': 'Print planned changes without writing to disk',
       },

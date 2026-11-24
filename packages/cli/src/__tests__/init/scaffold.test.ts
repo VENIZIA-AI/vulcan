@@ -150,7 +150,7 @@ describe('vulcan init', () => {
 
     runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n',
+      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n',
     );
   });
 
@@ -206,7 +206,7 @@ describe('vulcan init', () => {
 
     runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n',
+      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n',
     );
   });
 

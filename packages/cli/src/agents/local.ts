@@ -11,10 +11,11 @@ import { AgentTable } from './table.ts';
 
 export const LOCAL_AGENTS_FILE = AgentConstants.LOCAL_FILE;
 
-/** The keys of the file `sync` writes; any other key is reported by `vulcan doctor` and kept. */
-const OWNED_KEYS = ['$generated', 'schemaVersion', 'agents'];
-const LOCAL_SCHEMA = z.object({
-  schemaVersion: z.literal(AgentConstants.LOCAL_SCHEMA_VERSION),
+/** The keys `sync --agents` owns in the profile; every other key of the file is kept as it is. */
+const OWNED_KEYS = ['schemaVersion', 'agents'];
+
+/** The machine's keys of the profile: the shape the owner's `PROFILE_SCHEMA` and the reader of the choice share. */
+export const MACHINE_KEYS = {
   agents: z.array(z.string()).optional(),
   /** The roster of the board for this checkout; it replaces `board.agents` of the committed config. */
   board: z
@@ -54,6 +55,11 @@ const LOCAL_SCHEMA = z.object({
         .optional(),
     })
     .optional(),
+};
+
+const LOCAL_SCHEMA = z.object({
+  schemaVersion: z.literal(AgentConstants.LOCAL_SCHEMA_VERSION),
+  ...MACHINE_KEYS,
 });
 
 export class LocalChoice {
@@ -61,7 +67,6 @@ export class LocalChoice {
   static render(opts: { agents: string[]; previous?: string }): string {
     return `${JSON.stringify(
       {
-        $generated: AgentConstants.LOCAL_NOTE,
         schemaVersion: AgentConstants.LOCAL_SCHEMA_VERSION,
         agents: opts.agents,
         ...LocalChoice.kept({ text: opts.previous }),
@@ -83,24 +88,65 @@ export class LocalChoice {
     }
   }
 
-  /** The keys of the file that no part of VULCAN reads: a typo such as `boards` would otherwise do nothing, quietly. */
-  static unknownKeys(opts: { root: string }): string[] {
+  /** Whether the JSON file at `file` has an `agents` key; a file that cannot be read has none. */
+  private static hasAgents(opts: { file: string }): boolean {
     try {
-      const file: unknown = JSON.parse(readFileSync(join(opts.root, LOCAL_AGENTS_FILE), 'utf8'));
+      const parsed: unknown = JSON.parse(readFileSync(opts.file, 'utf8'));
 
-      return RecordValue.isRecord(file)
-        ? Object.keys(file).filter(
-            (key) => key !== '$generated' && !Object.hasOwn(LOCAL_SCHEMA.shape, key),
-          )
-        : [];
+      return RecordValue.isRecord(parsed) && Object.hasOwn(parsed, 'agents');
     } catch {
-      return [];
+      return false;
+    }
+  }
+
+  /**
+   * The keys of the file of the earlier release moved into the profile: a key the profile already has keeps the profile's
+   * value (the name of each such key is returned, so the note can say it). The text to write, or `undefined` when the
+   * old file cannot be read.
+   */
+  static migrate(opts: { root: string }): { text: string; kept: string[] } | undefined {
+    try {
+      const old: unknown = JSON.parse(
+        readFileSync(join(opts.root, AgentConstants.LEGACY_LOCAL_FILE), 'utf8'),
+      );
+      const own = join(opts.root, LOCAL_AGENTS_FILE);
+      const current: unknown = existsSync(own) ? JSON.parse(readFileSync(own, 'utf8')) : {};
+
+      if (!RecordValue.isRecord(old) || !RecordValue.isRecord(current)) {
+        return undefined;
+      }
+
+      const moved = Object.entries(old).filter(([key]) => key !== '$generated');
+      const kept = moved
+        .filter(
+          ([key, value]) =>
+            Object.hasOwn(current, key) && JSON.stringify(current[key]) !== JSON.stringify(value),
+        )
+        .map(([key]) => key)
+        .filter((key) => key !== 'schemaVersion');
+      const merged = {
+        schemaVersion: AgentConstants.LOCAL_SCHEMA_VERSION,
+        ...Object.fromEntries(moved),
+        ...current,
+      };
+
+      return { text: `${JSON.stringify(merged, null, 2)}\n`, kept };
+    } catch {
+      return undefined;
     }
   }
 
   /** The developer's stored choice: absent is "not chosen yet", a broken file is an error, never a silent default. */
   static read(opts: { root: string }): TLocalChoice {
-    const file = join(opts.root, LOCAL_AGENTS_FILE);
+    const own = join(opts.root, LOCAL_AGENTS_FILE);
+    const legacy = join(opts.root, AgentConstants.LEGACY_LOCAL_FILE);
+    // The profile first; a machine not yet synced since the upgrade still has its choice in the file of the earlier release.
+    const file =
+      existsSync(own) && LocalChoice.hasAgents({ file: own })
+        ? own
+        : existsSync(legacy)
+          ? legacy
+          : own;
 
     if (!existsSync(file)) {
       return { ok: true, agents: undefined };
@@ -113,7 +159,7 @@ export class LocalChoice {
     } catch {
       return {
         ok: false,
-        error: `${LOCAL_AGENTS_FILE} is not valid JSON - delete it and run: vulcan sync --agents <list>`,
+        error: `${LOCAL_AGENTS_FILE} is not valid JSON - fix it (or move it aside), then run: vulcan sync --agents <list>`,
       };
     }
 
@@ -123,7 +169,7 @@ export class LocalChoice {
     if (!checked.success) {
       return {
         ok: false,
-        error: `${LOCAL_AGENTS_FILE}: ${[issue?.path.join('.'), issue?.message].filter(Boolean).join(': ')} - fix that key, or delete the file and run: vulcan sync --agents <list>`,
+        error: `${LOCAL_AGENTS_FILE}: ${[issue?.path.join('.'), issue?.message].filter(Boolean).join(': ')} - fix that key, then run: vulcan sync`,
       };
     }
 

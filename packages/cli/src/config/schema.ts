@@ -221,7 +221,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   project: z
     .strictObject({ key: z.string().regex(ProjectKey.PATTERN, ProjectKey.MESSAGE) })
     .optional(),
-  /** The project's suggested agents; each developer's own choice lives in `.agents/vulcan.local.json`. */
+  /** The project's suggested agents; each developer's own choice lives in `.agents/local/profile.json`. */
   agents: z.array(CODING_AGENT).optional(),
   /** Choice of each base rule slot, keyed by rule ID (for example `V-W-01`) to the option picked; default `{}`. */
   rules: z.record(z.string().regex(ConfigConstants.RULE_ID_PATTERN), z.string()).default({}),

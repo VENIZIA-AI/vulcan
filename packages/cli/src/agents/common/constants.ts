@@ -38,10 +38,11 @@ export class AgentRenderers extends ConstClass {
 }
 
 export class AgentConstants {
-  /** The per-developer file: gitignored. `sync` writes the agents; a person may add `board.agents` and `local.tmp` by hand, and `sync` keeps them. */
-  static readonly LOCAL_FILE = '.agents/vulcan.local.json';
+  /** The one per-developer file, gitignored with `.agents/local/`: the owner's profile and, in the same file, this machine's `agents`, `board`, `local` and `events` keys. `sync` writes `agents`; a person may add the others by hand, and `sync` keeps them. */
+  static readonly LOCAL_FILE = '.agents/local/profile.json';
+  /** The file of the releases before 0.5.0 that held those keys; read for one release, and `sync` moves its keys into `LOCAL_FILE`. */
+  static readonly LEGACY_LOCAL_FILE = '.agents/vulcan.local.json';
   static readonly LOCAL_SCHEMA_VERSION = 1;
-  static readonly LOCAL_NOTE = 'by vulcan sync - your agents on this machine; not committed';
   static readonly FLAG = '--agents';
   static readonly LIST = 'list';
   static readonly NONE = 'none';

@@ -27,7 +27,7 @@ $ bun node_modules/.bin/vulcan init
   created  .dockerignore
   created  bunfig.toml
   created  Makefile
-  updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans .agents/vulcan.local.json .agents/local/ **/.env **/.env.* !**/.env.example
+  updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans .agents/local/ **/.env **/.env.* !**/.env.example
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
   2. bun node_modules/.bin/vulcan sync && bun node_modules/.bin/vulcan doctor
@@ -147,7 +147,7 @@ CLAUDE.md
 CLAUDE.*.md
 .claude/
 .agents/plans
-.agents/vulcan.local.json
+.agents/local/profile.json
 .agents/local/
 **/.env
 **/.env.*
@@ -278,7 +278,7 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
   created   .agents/local/vulcan.manifest.json
   created   .agents/atlas.manifest.json
   replaced  AGENTS.md (Atlas block)
-  created   .agents/vulcan.local.json
+  created   .agents/local/profile.json
   replaced  .git/info/exclude
 $ bun check
 ✓ No type errors in 5 files [201.02ms]
@@ -305,7 +305,7 @@ Done. Next:
   open http://localhost:3000/api/doc/explorer
 ```
 
-The timings, the `detected` line and the install output differ on your machine. The fetch is one line: the output of `bun add` is kept and printed only when the fetch fails, so it never lands between two questions. The agents question appears because a project made from a preset has no `agents` list in its config for `sync` to take as a suggestion; it is stored in `.agents/vulcan.local.json` ([Choosing your agents](/references/commands/sync#choosing-your-agents)). Without a terminal, `sync` writes the Claude files and prints one line saying how to choose.
+The timings, the `detected` line and the install output differ on your machine. The fetch is one line: the output of `bun add` is kept and printed only when the fetch fails, so it never lands between two questions. The agents question appears because a project made from a preset has no `agents` list in its config for `sync` to take as a suggestion; it is stored in `.agents/local/profile.json` ([Choosing your agents](/references/commands/sync#choosing-your-agents)). Without a terminal, `sync` writes the Claude files and prints one line saying how to choose.
 
 A local preset (`file:<folder>`) works the same, and its side is known at once, so `init` asks the backend or frontend folder second without fetching. The package itself is then written to the catalog as `file:<absolute path>` and `init` prints a `warning:` line about it. With `VULCAN_NO_INSTALL=1` the install, `git init`, `sync` and the checks print as `skipped` instead of running; VULCAN's own tests use that.
 
@@ -356,7 +356,7 @@ $ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.l
 ./.agents/knowledge/index.md
 ./.agents/knowledge/packages/core-api.md
 ./.agents/rules.md
-./.agents/vulcan.local.json
+./.agents/local/profile.json
 ./.agents/local/vulcan.manifest.json
 ./.claude/settings.json
 ./.claude/vulcan-managed.json
@@ -385,7 +385,7 @@ $ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.l
 ./services/core-api/tsconfig.json
 ```
 
-The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/local/vulcan.manifest.json`, `.mcp.json`, `CLAUDE.md`, `.claude/`, and the `.claude/skills/*` links, which `find -type f` does not list) are in the tree too.
+The files `sync` wrote (`.agents/local/profile.json`, `.agents/local/vulcan.manifest.json`, `.mcp.json`, `CLAUDE.md`, `.claude/`, and the `.claude/skills/*` links, which `find -type f` does not list) are in the tree too.
 
 | File | What it holds |
 |---|---|
@@ -395,7 +395,7 @@ The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/local/vulcan.manif
 | `.dockerignore` | The build context of a Dockerfile built from the root |
 | `bunfig.toml` | The same file the scaffold above writes: `telemetry = false` and the `[fmt]` section. Edit it freely |
 | `AGENTS.md`, `.agents/rules.md` | The same layer as [the scaffold above](#generated-files) |
-| `.agents/local/vulcan.manifest.json`, `.agents/vulcan.local.json`, `.mcp.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes (see below) |
+| `.agents/local/vulcan.manifest.json`, `.agents/local/profile.json`, `.mcp.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes (see below) |
 | `.configs/vulcan.config.mts` | `name`, `layout`, one `packages` entry per app, and the preset's `atlas` sources |
 | `.agents/knowledge/` | An index and one concept per app |
 | `<shared>/.gitkeep` | Keeps the shared folder in git |

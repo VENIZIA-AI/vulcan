@@ -316,7 +316,6 @@ describe('vulcan init --preset', () => {
       '.git',
       '.claude',
       '.agents/plans',
-      '.agents/vulcan.local.json',
       'CLAUDE.md',
       '.cursor/mcp.json',
       '.codex/config.toml',

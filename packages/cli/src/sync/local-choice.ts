@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { LOCAL_AGENTS_FILE, LocalChoice } from '../agents/index.ts';
+import { AgentConstants } from '../agents/common/constants.ts';
 import { ProjectLayout } from '../common/index.ts';
 import { HookConstants } from '../hooks/common/index.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
@@ -55,16 +56,72 @@ export class LocalPlan {
     return {
       path,
       status: before === undefined ? SyncStatuses.CREATED : SyncStatuses.REPLACED,
+      // Rendered again when it runs: the move of the old file's keys may have written the profile since this was planned.
       apply: () => {
         mkdirSync(dirname(path), { recursive: true });
-        writeFileSync(path, text);
+        writeFileSync(
+          path,
+          LocalChoice.render({
+            agents: opts.agents,
+            ...(existsSync(path) ? { previous: readFileSync(path, 'utf8') } : {}),
+          }),
+          { mode: 0o600 },
+        );
       },
     };
   }
 
-  /** The one line sync adds to a committed `.gitignore`; a project without one is left alone. */
-  static planIgnore(opts: { root: string }): ISyncAction[] {
-    return planIgnoreLine({ root: opts.root, line: LOCAL_AGENTS_FILE });
+  /**
+   * The file of the releases before 0.5.0 (`.agents/vulcan.local.json`): its keys move into the profile, the profile's own
+   * value winning where both have one, and the file is removed when git does not track it. A tracked file, or one that git could not
+   * be asked about, stays and the note says what to do (sync runs no git write).
+   */
+  static planLegacyLocal(opts: { root: string }): ISyncAction[] {
+    const path = join(opts.root, AgentConstants.LEGACY_LOCAL_FILE);
+
+    if (!existsSync(path)) {
+      return [];
+    }
+
+    const state = AgentFiles.trackState({
+      root: opts.root,
+      path: AgentConstants.LEGACY_LOCAL_FILE,
+    });
+    const moved = LocalChoice.migrate({ root: opts.root });
+    const target = join(opts.root, LOCAL_AGENTS_FILE);
+
+    if (state !== 'untracked' || moved === undefined) {
+      return [
+        {
+          path,
+          status: SyncStatuses.SKIPPED,
+          note:
+            moved === undefined
+              ? `${AgentConstants.LEGACY_LOCAL_FILE} cannot be read: fix or delete it, its keys belong in ${LOCAL_AGENTS_FILE}`
+              : state === 'tracked'
+                ? `its keys belong in ${LOCAL_AGENTS_FILE} now and git tracks this file: run git rm ${AgentConstants.LEGACY_LOCAL_FILE}`
+                : `its keys belong in ${LOCAL_AGENTS_FILE} now, but git could not say whether it tracks this file: delete it by hand`,
+          apply: NO_CHANGE,
+        },
+      ];
+    }
+
+    return [
+      {
+        path,
+        status: SyncStatuses.REMOVED,
+        note: `its keys moved into ${LOCAL_AGENTS_FILE}${moved.kept.length === 0 ? '' : `; the profile's own value was kept for ${moved.kept.join(', ')}`}`,
+        apply: () => {
+          const text = LocalChoice.migrate({ root: opts.root })?.text;
+
+          if (text !== undefined) {
+            mkdirSync(dirname(target), { recursive: true });
+            writeFileSync(target, text, { mode: 0o600 });
+            rmSync(path, { force: true });
+          }
+        },
+      },
+    ];
   }
 
   /**
@@ -143,6 +200,7 @@ export class LocalPlan {
 
     return [
       ...planIgnoreLine({ root: opts.root, line: `${ProjectLayout.LOCAL_DIRECTORY}/` }),
+      ...LocalPlan.planLegacyLocal({ root: opts.root }),
       ...LocalPlan.planTmp(opts),
       ...LocalPlan.planLegacyLaunch({ root: opts.root }),
       {

@@ -45,16 +45,16 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `style` | Packages declare `@venizia/dev-configs` and lint configuration files import the shared style | Add `@venizia/dev-configs` as a devDependency and import it in lint configuration files |
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
 | `apps` | Each `backend`, `frontend`, `shared` folder of `layout` is a workspace; each package is in a listed folder (`other` too) | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
-| `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
+| `agents` | The stored agents file parses and names only known agents | Fix the key it names in `.agents/local/profile.json`, then run `vulcan sync --agents <list>` |
 | `format` (warning) | Root `bunfig.toml` has `[fmt]` with `flavor = "oxfmt"`; no `package.json` defines `fmt`; no oxfmt config is left | Add the section, rename the script, delete the config or the copy |
 | `commit-hook` (warning) | `commit.message` has a check on and this clone's `commit-msg` hook is missing, stale or skips `vulcan commit-check` | Run `bun node_modules/.bin/vulcan sync`; for your own hook, add the line the warning shows |
 | `events-size` (warning) | Today's event file alone is over `events.maxSize` | Raise `maxSize` or write fewer events |
-| `events-dir` (warning) | `events.dir` (from the config, or from `.agents/vulcan.local.json`, which replaces it) names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
-| `profile` (warning) | `.agents/local/profile.json` cannot be read, is not ignored by git, or is tracked by git | Fix or delete the file and run the profile form again; ignore `.agents/local/` or untrack the file |
+| `events-dir` (warning) | `events.dir` (from the config, or from `.agents/local/profile.json`, which replaces it) names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
+| `profile` (warning) | `.agents/local/profile.json` cannot be read (an unknown key is refused: the file takes the profile keys and `agents`, `board`, `local`, `events`), is not ignored by git, or is tracked by git | Fix or delete the file and run the profile form again; ignore `.agents/local/` or untrack the file |
 | `guards` (note) | Notes list each `guard.writes.commands` pattern and `guard.git.askPush` | Change the list in the config |
 | `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `local.tmp` to a short folder and run `vulcan sync`, or check out at a shorter path |
 | `local` (failure) | `local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
-| `board-autostart` (note) | `board.serve.autoStart` of `.agents/vulcan.local.json` is on and `events.log` is off, so no board is started | Set `events.log` to `true`, or turn `autoStart` off |
+| `board-autostart` (note) | `board.serve.autoStart` of `.agents/local/profile.json` is on and `events.log` is off, so no board is started | Set `events.log` to `true`, or turn `autoStart` off |
 | `config-defaults` (note) | N values of the config repeat what the shipped defaults give | Run `vulcan config --diff` and delete them |
 | `config-remove` (warning) | A `remove` entry matches nothing, so it does nothing | Delete the entry |
 | `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it, or delete `packages` so it is derived from the workspaces |
@@ -236,11 +236,11 @@ The check reports `package.json declares workspaces but the config lists no pack
 
 ### agents
 
-`.agents/vulcan.local.json`, the file where `sync` stores your agents, must be valid JSON and name only known agents. A broken file is a violation instead of a silent default. Delete it and run `vulcan sync --agents <list>`. The `adapters` check looks at the adapters of the agents you chose, so a machine that chose `omp` is not asked for `CLAUDE.md`.
+`.agents/local/profile.json`, the file where `sync` stores your agents, must be valid JSON and name only known agents. A broken file is a violation instead of a silent default. Fix the key it names, then run `vulcan sync --agents <list>`; the file also holds your profile, so do not delete it for this. The `adapters` check looks at the adapters of the agents you chose, so a machine that chose `omp` is not asked for `CLAUDE.md`.
 
 ```text
 $ bun node_modules/.bin/vulcan doctor
-  [agents] .agents/vulcan.local.json: .agents/vulcan.local.json is not valid JSON - delete it and run: vulcan sync --agents <list>
+  [agents] .agents/local/profile.json: .agents/local/profile.json is not valid JSON - fix it (or move it aside), then run: vulcan sync --agents <list>
 vulcan doctor: 1 violation(s)
 ```
 
@@ -302,7 +302,7 @@ A warning: today's event file is bigger than `events.maxSize` on its own. The re
 
 ### board-autostart
 
-A note: `board.serve.autoStart` is on in `.agents/vulcan.local.json`, but the session start starts the board only when the event log is on too. Set `events.log` to `true` to get the board, or turn `autoStart` off.
+A note: `board.serve.autoStart` is on in `.agents/local/profile.json`, but the session start starts the board only when the event log is on too. Set `events.log` to `true` to get the board, or turn `autoStart` off.
 
 ### config-defaults
 
@@ -324,7 +324,7 @@ Add the entries, or delete the `packages` key. Second: a workspace member that c
 
 ### events-dir
 
-A warning, not a violation: the folder belongs to the machine, and a CI checkout may not have it. It appears only when `events.dir` ([the event log](/references/commands/event#one-folder-for-every-project)), in the config or in your `.agents/vulcan.local.json`, is set to a folder outside the project; the line names the file the folder came from. The event hooks fail open, so a folder they cannot write loses every line without a message; this warning is where it shows. A `dir` inside the project is made on the first write and is not checked.
+A warning, not a violation: the folder belongs to the machine, and a CI checkout may not have it. It appears only when `events.dir` ([the event log](/references/commands/event#one-folder-for-every-project)), in the config or in your `.agents/local/profile.json`, is set to a folder outside the project; the line names the file the folder came from. The event hooks fail open, so a folder they cannot write loses every line without a message; this warning is where it shows. A `dir` inside the project is made on the first write and is not checked.
 
 ```text
   warning [events-dir] .configs/vulcan.config.mts: events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
@@ -333,7 +333,7 @@ A warning, not a violation: the folder belongs to the machine, and a CI checkout
 The same folder set in the local file is reported against it:
 
 ```text
-  warning [events-dir] .agents/vulcan.local.json: events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
+  warning [events-dir] .agents/local/profile.json: events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
 ```
 
 | Message | Fix |

@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
@@ -236,6 +236,22 @@ export const runProfileCommand = async (opts: ICommandContext): Promise<number> 
   if (!opts.args.includes(YES_FLAG)) {
     process.stderr.write(
       `vulcan profile: would delete ${OwnerConstants.PROFILE_FILE} (add --yes)\n`,
+    );
+
+    return ExitCodes.OK;
+  }
+
+  // This machine's keys (the agents it chose, its board roster, tmp folder and events folder) are not the owner's answers: they stay.
+  const machine = OwnerProfile.machineKeysOf({ root: opts.cwd });
+
+  if (Object.keys(machine).length > 0) {
+    writeFileSync(
+      file,
+      `${JSON.stringify({ schemaVersion: OwnerConstants.PROFILE_SCHEMA_VERSION, ...machine }, null, 2)}\n`,
+      { mode: 0o600 },
+    );
+    process.stderr.write(
+      `vulcan profile: reset the owner's answers in ${OwnerConstants.PROFILE_FILE}; ${Object.keys(machine).join(', ')} of this machine were kept\n`,
     );
 
     return ExitCodes.OK;

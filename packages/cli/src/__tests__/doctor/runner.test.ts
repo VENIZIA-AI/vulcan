@@ -589,7 +589,7 @@ describe('doctor: apps', () => {
 describe('doctor: agents', () => {
   test('a broken local choice file is a violation that says how to fix it', async () => {
     const root = createSyncedProject({
-      files: { ...CONFORMANT, '.agents/vulcan.local.json': '{ nope' },
+      files: { ...CONFORMANT, '.agents/local/profile.json': '{ nope' },
     });
     const result = await DoctorRunner.runChecks({ root });
     const agents = result.filter((violation) => violation.check === DoctorChecks.AGENTS);
@@ -597,9 +597,9 @@ describe('doctor: agents', () => {
     expect(agents).toEqual([
       {
         check: DoctorChecks.AGENTS,
-        file: '.agents/vulcan.local.json',
+        file: '.agents/local/profile.json',
         message:
-          '.agents/vulcan.local.json is not valid JSON - delete it and run: vulcan sync --agents <list>',
+          '.agents/local/profile.json is not valid JSON - fix it (or move it aside), then run: vulcan sync --agents <list>',
       },
     ]);
   });
@@ -608,7 +608,7 @@ describe('doctor: agents', () => {
     const root = createProject({
       files: {
         ...CONFORMANT,
-        '.agents/vulcan.local.json': LocalChoice.render({ agents: ['omp'] }),
+        '.agents/local/profile.json': LocalChoice.render({ agents: ['omp'] }),
       },
     });
 
@@ -840,7 +840,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
 
     if (opts.agents !== undefined) {
       writeFileSync(
-        join(root, '.agents/vulcan.local.json'),
+        join(root, '.agents/local/profile.json'),
         LocalChoice.render({ agents: opts.agents }),
       );
     }

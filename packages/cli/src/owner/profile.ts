@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { MACHINE_KEYS } from '../agents/local.ts';
+import { RecordValue } from '../common/record.ts';
 import { OwnerConstants } from './constants.ts';
 import { PROFILE_SCHEMA } from './schema.ts';
 import type { TProfile } from './schema.ts';
@@ -86,6 +88,23 @@ export class OwnerProfile {
     );
   }
 
+  /** The machine's keys of the file as it is now: what a write of the owner's keys must not drop. */
+  static machineKeysOf(opts: { root: string }): Record<string, unknown> {
+    try {
+      const file: unknown = JSON.parse(
+        readFileSync(join(opts.root, OwnerConstants.PROFILE_FILE), 'utf8'),
+      );
+
+      return RecordValue.isRecord(file)
+        ? Object.fromEntries(
+            Object.entries(file).filter(([key]) => Object.hasOwn(MACHINE_KEYS, key)),
+          )
+        : {};
+    } catch {
+      return {};
+    }
+  }
+
   /** The profile as the file holds it. */
   static render(opts: { profile: TProfile }): string {
     return `${JSON.stringify(opts.profile, null, 2)}\n`;
@@ -99,7 +118,13 @@ export class OwnerProfile {
     root: string;
     profile: unknown;
   }): { ok: true } | { ok: false; error: string } {
-    const parsed = PROFILE_SCHEMA.safeParse(opts.profile);
+    // The form knows the owner's keys only: this machine's keys (`agents`, `board`, `local`, `events`) of the file stay.
+    const kept = OwnerProfile.machineKeysOf({ root: opts.root });
+    const parsed = PROFILE_SCHEMA.safeParse(
+      typeof opts.profile === 'object' && opts.profile !== null
+        ? { ...kept, ...opts.profile }
+        : opts.profile,
+    );
 
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues[0]?.message ?? 'not a profile' };
