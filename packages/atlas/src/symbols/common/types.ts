@@ -1,5 +1,15 @@
 import type { IPackageMapEntry } from '@/common/package-map';
 
+/** A public static member of an exported class, ranked by `intent` as `Class.member`. */
+export interface ISymbolMember {
+  name: string;
+  /** Names and types only, never a body, an initializer or a default value. */
+  signature: string;
+  line: number;
+  /** Its own TSDoc, without comment markers; empty when there is none. */
+  doc: string;
+}
+
 /** Where the symbols of a package were read from, in a remote source. */
 export interface ISymbolOrigin {
   /** The version of the package whose declarations these are. */
@@ -38,6 +48,10 @@ export interface ISymbolRecord {
   doc?: string;
   /** Names of exported symbols the declaration refers to. */
   uses?: string[];
+  /** Present and true when the declaration lives in another package: this entry re-exports it. */
+  reExported?: true;
+  /** The public static members of an exported class. */
+  members?: ISymbolMember[];
 }
 
 /** What `search` adds beside its hits when the query is one identifier the table knows - no signature, no docs, so the reply budget barely moves. */
@@ -65,4 +79,6 @@ export interface ISymbolIndex {
   isEmpty(): boolean;
   lookup(opts: { name: string; package?: string }): ISymbolRecord[];
   suggest(opts: { name: string; limit?: number }): string[];
+  /** Every record, for the tool that ranks them by what they are for. */
+  all(): ISymbolRecord[];
 }

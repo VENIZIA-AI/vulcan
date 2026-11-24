@@ -30,6 +30,16 @@ export class AtlasStatus {
       : [];
   }
 
+  /** The record's file, relative to the project when inside it: where the project's atlas keeps it (a custom cache folder included). */
+  static recordFileOf(opts: { root: string; cacheDir?: string }): string {
+    const file = SourceStatus.fileOf({
+      cacheBase: SourceStatus.cacheBaseOf({ root: opts.root, cacheDir: opts.cacheDir }),
+    });
+    const inside = relative(opts.root, file);
+
+    return inside.startsWith('..') ? file : inside;
+  }
+
   /** What is worth a warning in the record of the declared sources, decided from the records. */
   static problemsOf(opts: {
     root: string;
@@ -70,13 +80,13 @@ export class AtlasStatus {
         const note =
           problem === undefined
             ? ''
-            : problem.kind === 'refresh-failed'
+            : problem.type === 'refresh-failed'
               ? ` - the last check failed and the older index is served: ${problem.detail}`
-              : problem.kind === 'hung' || problem.kind === 'abandoned'
+              : problem.type === 'hung' || problem.type === 'abandoned'
                 ? ` - ${problem.detail}`
                 : '';
 
-        return `- ${name}: ${entry.state} for ${ago} s${usual}${entry.error === undefined || problem?.kind === 'refresh-failed' ? '' : `; last error: ${entry.error}`}${note}`;
+        return `- ${name}: ${entry.state} for ${ago} s${usual}${entry.error === undefined || problem?.type === 'refresh-failed' ? '' : `; last error: ${entry.error}`}${note}`;
       });
   }
 

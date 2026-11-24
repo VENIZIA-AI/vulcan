@@ -16,6 +16,15 @@ export const SymbolInputSchema = z.object({
   package: z.string().min(1).optional(),
 });
 
+export const IntentInputSchema = z.object({
+  /** The need in plain words: "wait 500 ms", "react to a media query". */
+  query: z.string().min(1).max(500),
+  limit: z.number().int().min(1).max(10).optional(),
+  /** The npm name of the package to look in. */
+  package: z.string().min(1).optional(),
+  source: z.string().min(1).optional(),
+});
+
 export const PresetsInputSchema = z.object({
   /** What is being created; `app` when omitted. `lib` is a library other apps import, `shared` a side-neutral package. */
   kind: z.string().min(1).optional(),

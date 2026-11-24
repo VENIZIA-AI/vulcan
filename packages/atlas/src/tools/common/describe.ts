@@ -10,6 +10,10 @@ export class ToolTriggers {
     return `Before you import or call an export of ${opts.projects ?? FALLBACK_PROJECTS}, get its real signature, import path and source line here instead of recalling it.`;
   }
 
+  static intent(opts: { projects?: string }): string {
+    return `When you are about to write a helper, a hook or a utility by hand, or the user asks how to do something with ${opts.projects ?? FALLBACK_PROJECTS}, say the need in plain words here first: it names the export that already does it.`;
+  }
+
   static search(opts: { projects?: string }): string {
     return `When the user asks how something works in ${opts.projects ?? FALLBACK_PROJECTS}, how to build something in it, or about this project's conventions, search here before you answer from memory.`;
   }
