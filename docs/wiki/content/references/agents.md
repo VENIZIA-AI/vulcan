@@ -57,8 +57,6 @@ What the hook does not reach: Claude Code's own task-output files, its MCP serve
 
 **A long checkout path.** The session-start hook points `TMPDIR` of every command at `<project>/.agents/local/tmp`. A browser puts a unix socket in that folder (`org.chromium.Chromium.XXXXXX/SingletonSocket` for Chromium, the longest name; 45 characters more), and a socket path is at most 107 characters, so a project path of about 45 characters or more makes the browser, started by Playwright for example, exit with `Socket path too long`. `vulcan doctor` warns about it. Set `local.tmp` in the config, or in your own `.agents/vulcan.local.json` when the team should not share it, to a short folder of the project (for example `tmp`) and run `vulcan sync`: the hooks, `vulcan clean` and `vulcan add` use it, and `vulcan doctor` fails when even that folder is too deep.
 
-**Worktrees.** A session in `.agents/local/worktrees/<name>` counts as inside when its `CLAUDE_CODE_TMPDIR` is under the `.agents/local` of that worktree or under the `.agents/local` of the checkout the worktree hangs from, and under no other folder above it.
-
 ## Detecting your agents
 
 The first `sync` in a terminal looks for each agent on the machine: a binary on `PATH`, a folder in your home, a folder in the project. It only pre-selects; you confirm.

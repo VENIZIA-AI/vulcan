@@ -28,7 +28,7 @@ const-classes-extend-const-class:
   downgrade:
     steps:
       - 'Pin the earlier package and put `X.SCHEME_SET` and `X.isValid` back where you replaced them.'
-loader-variables-dropped:
+launch-file-and-loader-variables:
   symbols:
     - BUN_OPTIONS
     - NODE_OPTIONS
@@ -150,7 +150,6 @@ claude-launch-file-dropped:
   symbols:
     - LaunchSettings
     - ClaudeLaunch
-    - CLAUDE_CODE_TMPDIR
   upgrade:
     steps:
       - 'Stop starting Claude Code with `claude --settings .agents/local/claude.launch.settings.json`: start it as you start any project (nothing replaces the flag); remove it from your shell alias or script.'

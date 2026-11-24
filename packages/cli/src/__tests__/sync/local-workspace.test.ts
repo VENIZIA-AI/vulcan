@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
@@ -45,6 +45,16 @@ describe('the launch file of an earlier release', () => {
     expect(ProjectContract.checkLocalWorkspace({ root, config: CONFIG, configFile: '' })).toEqual(
       [],
     );
+  });
+
+  test('a symlinked .agents/local: the leftover is removed where the link leads, and the link stays', () => {
+    const root = createProject({ files: { 'elsewhere/claude.launch.settings.json': '{}\n' } });
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    symlinkSync(join(root, 'elsewhere'), join(root, '.agents/local'));
+    apply({ root });
+    expect(existsSync(join(root, 'elsewhere/claude.launch.settings.json'))).toBe(false);
+    expect(lstatSync(join(root, '.agents/local')).isSymbolicLink()).toBe(true);
   });
 
   test('a leftover that git tracks is never removed, and the note names the git command', () => {
