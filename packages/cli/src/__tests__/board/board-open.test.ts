@@ -20,7 +20,7 @@ const serveWithOpener = async (opts: {
   during: (run: { cwd: string; targets: string[]; stdout: () => string }) => Promise<void>;
 }): Promise<IServeRun> => {
   const cwd = createProject({
-    files: { '.agents/vulcan.manifest.json': '{}', '.git/HEAD': 'ref: refs/heads/x\n' },
+    files: { '.agents/local/vulcan.manifest.json': '{}', '.git/HEAD': 'ref: refs/heads/x\n' },
   });
   const targets: string[] = [];
   let stdout = '';

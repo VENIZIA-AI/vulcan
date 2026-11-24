@@ -54,7 +54,7 @@ describe('the manifest and the hook reader', () => {
 
   test('the reader returns a valid key, and nothing for a missing, damaged or wrong one', () => {
     const rootWith = (manifest: string) =>
-      createProject({ files: { '.agents/vulcan.manifest.json': manifest } });
+      createProject({ files: { '.agents/local/vulcan.manifest.json': manifest } });
 
     expect(EventSettings.keyOf({ root: rootWith('{"project":{"key":"ACME"}}') })).toBe('ACME');
     expect(EventSettings.keyOf({ root: rootWith('{"project":{"key":"acme"}}') })).toBeUndefined();

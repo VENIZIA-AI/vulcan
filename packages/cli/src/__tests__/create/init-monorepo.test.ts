@@ -209,7 +209,9 @@ describe('vulcan init --preset', () => {
     runCli({ args: ['sync', '--agents', 'none'], cwd: root });
 
     const config = readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8');
-    const manifest = JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8'));
+    const manifest = JSON.parse(
+      readFileSync(join(root, '.agents/local/vulcan.manifest.json'), 'utf8'),
+    );
     const spec = `file:${relative(root, BACKEND)}`;
 
     expect(config).toContain(`"spec": "${spec}"`);
@@ -235,7 +237,9 @@ describe('vulcan init --preset', () => {
 
     runCli({ args: ['sync', '--agents', 'none'], cwd: root });
 
-    const manifest = JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8'));
+    const manifest = JSON.parse(
+      readFileSync(join(root, '.agents/local/vulcan.manifest.json'), 'utf8'),
+    );
 
     expect(manifest.presets).toHaveLength(1);
     expect(manifest.presets[0].lib).toBe('A fixture library.');

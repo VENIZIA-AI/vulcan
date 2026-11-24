@@ -386,7 +386,7 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
     const handle = handlerOf();
 
     for (const path of [
-      '.agents/vulcan.manifest.json',
+      '.agents/local/vulcan.manifest.json',
       '.configs/vulcan.config.mts',
       '.claude/settings.json',
       '.claude/settings.local.json',
@@ -402,7 +402,7 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
     }
 
     const viaBash = await handle(
-      bash("sed -i 's/deny/ask/' .agents/vulcan.manifest.json"),
+      bash("sed -i 's/deny/ask/' .agents/local/vulcan.manifest.json"),
       contextOf({ cwd: root, hasUI: true, answer: true }),
     );
     const next = await handle(

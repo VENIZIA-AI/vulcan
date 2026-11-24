@@ -925,6 +925,26 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     expect(existsSync(join(root, '.agents/local/not-a-browser/x.txt'))).toBe(true);
   });
 
+  test('the local manifest is a known file: never listed as unknown, and no clean mode removes it', async () => {
+    const root = repository();
+
+    file({ root, path: 'vulcan.manifest.json', text: '{}' });
+    expect(LocalScan.unknown({ root }).map((entry) => entry.name)).not.toContain(
+      'vulcan.manifest.json',
+    );
+
+    for (const args of [
+      ['clean', '--yes'],
+      ['clean', '--all', '--yes'],
+      ['clean', '--tmp', '--yes'],
+    ]) {
+      runCli({ args, cwd: root });
+      expect(existsSync(join(root, '.agents/local/vulcan.manifest.json')), args.join(' ')).toBe(
+        true,
+      );
+    }
+  });
+
   test('doctor warns about entries it does not know, by name and size, and never removes them', async () => {
     const root = repository();
 
@@ -1075,7 +1095,7 @@ describe('vulcan clean --events and the configured log', () => {
     const root = repository();
 
     writeFileSync(
-      join(root, '.agents/vulcan.manifest.json'),
+      join(root, '.agents/local/vulcan.manifest.json'),
       JSON.stringify({ events: { log: true, dir, ...opts.manifest } }),
     );
 

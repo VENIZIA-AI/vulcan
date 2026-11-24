@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { CommandView, GitGuard, ProjectGuards, WriteGuard } from '../../hooks/index.ts';
 import type { IGitRunner, IProjectCommandCheck } from '../../hooks/index.ts';
+import { fileToolEvent } from '../hook-event.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 /** What a project with no guard block in its manifest gets. */
@@ -262,7 +263,7 @@ describe('ProjectGuards.matchesBranch', () => {
 const manifestWith = (opts: { guard: unknown }): string =>
   createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify({ schemaVersion: 1, guard: opts.guard }),
+      '.agents/local/vulcan.manifest.json': JSON.stringify({ schemaVersion: 1, guard: opts.guard }),
     },
   });
 
@@ -394,7 +395,7 @@ describe('ProjectGuards.readPolicy', () => {
       env: {},
     });
     const broken = ProjectGuards.readPolicy({
-      root: createProject({ files: { '.agents/vulcan.manifest.json': '{ nope' } }),
+      root: createProject({ files: { '.agents/local/vulcan.manifest.json': '{ nope' } }),
       env: {},
     });
 
@@ -409,7 +410,7 @@ describe('ProjectGuards.readPolicy', () => {
   test('a manifest that exists and cannot be read holds every ask and keeps nothing else', () => {
     for (const text of ['{ nope', '', '<<<<<<< HEAD\n{}\n>>>>>>> x', '[]', 'null', '"deny"']) {
       const policy = ProjectGuards.readPolicy({
-        root: createProject({ files: { '.agents/vulcan.manifest.json': text } }),
+        root: createProject({ files: { '.agents/local/vulcan.manifest.json': text } }),
         env: {},
       });
 
@@ -535,5 +536,71 @@ describe('the hooks read the manifest', () => {
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('ignoring');
     expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+});
+
+describe('a project with a config and no local manifest is a clone that did not sync', () => {
+  const CONFIG = '.configs/vulcan.config.mts';
+  const policyOf = (files: Record<string, string>) =>
+    ProjectGuards.readPolicy({ root: createProject({ files }), env: {} });
+
+  test('every ask and every outside write is a deny, with the note that names the repair', () => {
+    const policy = policyOf({ [CONFIG]: 'export default {};\n' });
+
+    expect(policy.asks).toBe('deny');
+    expect(policy.outside).toBe('deny');
+    expect(policy.asksNote).toContain('run bun node_modules/.bin/vulcan sync');
+    expect(policy.commands).toEqual([]);
+  });
+
+  test('only the manifest of an earlier release is no help: the same hold, and its patterns are not read', () => {
+    const policy = policyOf({
+      [CONFIG]: 'export default {};\n',
+      '.agents/vulcan.manifest.json': JSON.stringify({
+        guard: {
+          writes: { commands: [{ rule: 'V-W-03', what: 'x', pattern: 'make deploy' }] },
+        },
+      }),
+    });
+
+    expect(policy.asks).toBe('deny');
+    expect(policy.outside).toBe('deny');
+    expect(policy.commands).toEqual([]);
+  });
+
+  test('with no config at all nothing changes, and with the manifest the manifest decides', () => {
+    expect(policyOf({})).toEqual(EMPTY_POLICY);
+    expect(policyOf({ 'package.json': '{}' })).toEqual(EMPTY_POLICY);
+
+    const synced = policyOf({
+      [CONFIG]: 'export default {};\n',
+      '.agents/local/vulcan.manifest.json': '{ "schemaVersion": 1 }\n',
+    });
+
+    expect(synced.asks).toBe('ask');
+    expect(synced.outside).toBe('ask');
+  });
+
+  test('the guard-outside hook denies a write outside the project in such a clone, and `vulcan sync` passes', () => {
+    const root = createProject({ files: { [CONFIG]: 'export default {};\n' } });
+    const input = fileToolEvent({ tool: 'Write', path: '/srv/vulcan-fixture/x.txt', cwd: root });
+    const run = spawnSyncBounded({
+      cmd: [
+        process.execPath,
+        join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-outside.ts'),
+      ],
+      cwd: root,
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: root,
+        VULCAN_GUARD_ASKS: '',
+        VULCAN_GUARD_OUTSIDE: '',
+      },
+      stdin: new TextEncoder().encode(input),
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+
+    expect(run.stdout.toString()).toContain('"permissionDecision":"deny"');
   });
 });

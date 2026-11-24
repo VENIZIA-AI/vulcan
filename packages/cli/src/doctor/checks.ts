@@ -335,7 +335,7 @@ export class ProjectContract {
       agents: AgentSelection.resolveQuietly({ root: opts.root, configAgents: opts.config.agents }),
     })
       .filter((action) => action.status !== SyncStatuses.UNCHANGED)
-      .filter((action) => action.path !== join(opts.root, ManifestConstants.FILE));
+      .filter((action) => !SyncPlanner.manifestPaths({ root: opts.root }).includes(action.path));
     const absent = pending.filter((action) => action.status === SyncStatuses.CREATED);
     const differing = pending.filter((action) => action.status !== SyncStatuses.CREATED);
 
@@ -371,24 +371,25 @@ export class ProjectContract {
    * A hand-edited one, or one without the `$generated` note, is not.
    */
   static checkManifest(opts: ICheckContext): IViolation[] {
-    const action = SyncPlanner.planManifest({ root: opts.root, config: opts.config });
+    return SyncPlanner.planManifest({ root: opts.root, config: opts.config })
+      .filter((action) => action.status !== SyncStatuses.UNCHANGED)
+      .map((action) => {
+        const file = relative(opts.root, action.path);
+        const sync = `run '${ProjectLayout.VULCAN_COMMAND} sync'`;
+        const isCommitted = file === ManifestConstants.DESCRIPTOR_FILE;
+        const fix = isCommitted ? `${sync} and commit it` : sync;
 
-    if (action.status === SyncStatuses.UNCHANGED) {
-      return [];
-    }
-
-    const fix = `run '${ProjectLayout.VULCAN_COMMAND} sync' and commit it`;
-
-    return [
-      createViolation({
-        check: DoctorChecks.MANIFEST,
-        file: ManifestConstants.FILE,
-        message:
-          action.status === SyncStatuses.CREATED
-            ? `missing - ${fix}`
-            : `stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and ${fix}`,
-      }),
-    ];
+        return createViolation({
+          check: DoctorChecks.MANIFEST,
+          file,
+          message:
+            action.note !== undefined
+              ? `${action.note}${action.status === SyncStatuses.REMOVED ? ` - ${sync}` : ''}`
+              : action.status === SyncStatuses.CREATED
+                ? `missing - ${fix}`
+                : `stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and ${fix}`,
+        });
+      });
   }
 
   /**

@@ -113,9 +113,9 @@ const describe = (opts: { source: IAtlasSource }): string =>
 
 /** The source as its manifest describes it - data, never its config: a fetched repository's code never runs. */
 const projectOf = (opts: { checkout: string; source: IAtlasSource }): IAtlasProject => {
-  const file = join(opts.checkout, MANIFEST_FILE);
+  const file = ProjectConfig.manifestFileOf({ dir: opts.checkout });
 
-  if (!existsSync(file)) {
+  if (file === undefined) {
     throw new Error(
       `atlas: ${describe(opts)} has no ${MANIFEST_FILE} - its maintainers run \`vulcan sync\` and commit it`,
     );
@@ -224,7 +224,12 @@ const hasLostChangelogs = (opts: { cacheRoot: string; sha: string }): boolean =>
     const checkout = SourceCache.checkoutOf(opts);
     const project = ProjectConfig.toAtlasProject({
       root: checkout,
-      manifest: JSON.parse(readFileSync(join(checkout, MANIFEST_FILE), 'utf8')),
+      manifest: JSON.parse(
+        readFileSync(
+          ProjectConfig.manifestFileOf({ dir: checkout }) ?? join(checkout, MANIFEST_FILE),
+          'utf8',
+        ),
+      ),
     });
 
     return (committedEntriesOf({ checkout, project }) ?? 0) > 0;

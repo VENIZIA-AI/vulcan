@@ -198,7 +198,8 @@ installed @venizia/vulcan@0.4.8 with binaries:
   unchanged .claude/skills/ship
   unchanged .claude/skills/visualize-work
   unchanged .mcp.json
-  unchanged .agents/vulcan.manifest.json
+  unchanged .agents/local/vulcan.manifest.json
+  unchanged .agents/atlas.manifest.json
   unchanged AGENTS.md
   unchanged .agents/vulcan.local.json
   unchanged .git/info/exclude

@@ -105,12 +105,17 @@ export class LocalPlan {
       return [];
     }
 
-    if (AgentFiles.isTracked({ root: opts.root, path: LEGACY_LAUNCH_FILE })) {
+    const state = AgentFiles.trackState({ root: opts.root, path: LEGACY_LAUNCH_FILE });
+
+    if (state !== 'untracked') {
       return [
         {
           path,
           status: SyncStatuses.SKIPPED,
-          note: `the Claude Code launch file is no longer used and git tracks it: run git rm --cached ${LEGACY_LAUNCH_FILE}, then delete it`,
+          note:
+            state === 'tracked'
+              ? `the Claude Code launch file is no longer used and git tracks it: run git rm --cached ${LEGACY_LAUNCH_FILE}, then delete it`
+              : `the Claude Code launch file is no longer used, but git could not say whether it tracks it: remove it by hand`,
           apply: NO_CHANGE,
         },
       ];

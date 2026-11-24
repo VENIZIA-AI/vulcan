@@ -21,7 +21,8 @@ You write configuration and rules, VULCAN generates agent adapters and the manif
 | `.claude/skills/*` | `vulcan sync` | No (gitignored) | Claude Code |
 | `.agents/vulcan.local.json` | `vulcan sync`, `vulcan agents` | No (gitignored) | `vulcan sync`, `vulcan doctor` |
 | `.agents/local/` | Agents and `vulcan sync` (creates the folders) | No (gitignored) | Agents, `vulcan clean` |
-| `.agents/vulcan.manifest.json` | `vulcan sync` | Yes | atlas, `vulcan doctor` |
+| `.agents/atlas.manifest.json` | `vulcan sync` | Yes | atlas, the wiki build |
+| `.agents/local/vulcan.manifest.json` | `vulcan sync` | No (each clone writes its own) | the hooks, the board, `vulcan doctor` |
 
 `vulcan init` appends `CLAUDE.md`, `CLAUDE.*.md`, `.claude/`, `.agents/plans`, `.agents/vulcan.local.json` and `.agents/local/` to `.gitignore`. For the files `sync` writes for the other agents you chose, it keeps a list in your clone's `.git/info/exclude`, so the committed `.gitignore` does not change with each developer's choice.
 
@@ -57,7 +58,7 @@ Extensions must avoid naming collisions with shipped identifiers:
 
 ## The manifest
 
-atlas reads `.agents/vulcan.manifest.json` directly to discover metadata and packages. atlas never evaluates `.configs/vulcan.config.*` and never runs project code.
+atlas reads `.agents/atlas.manifest.json` directly to discover metadata and packages. atlas never evaluates `.configs/vulcan.config.*` and never runs project code.
 
 The manifest carries the following fields:
 

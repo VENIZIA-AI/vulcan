@@ -74,7 +74,7 @@ sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop', pin: 'ref' 
 
 You can declare external sources in two places:
 
-- Project configuration: Add sources under `atlas.sources`. `vulcan sync` writes them to `.agents/vulcan.manifest.json`.
+- Project configuration: Add sources under `atlas.sources`. `vulcan sync` writes them to `.agents/atlas.manifest.json`.
 - Command line flag: Pass `--source <value>` or `--source=<value>` when starting atlas.
 
 The `--source` flag accepts an `owner/repo` path or a git URL.
@@ -227,7 +227,7 @@ A source is not served when it hits any of these conditions:
 - Tarball over `atlas.limits.download`: `atlas: the tarball of <owner>/<repo> at <sha> is over atlas.limits.download (<bytes> bytes) - raise it in the vulcan config if the source is meant to be that large`
 - Git URL without git: `atlas: source '<name>' (<repo>@<ref>) needs git on this machine - only an owner/repo source has a tarball path`
 - Short commit hash without git: `atlas: source '<name>' (<repo>@<ref>) - a short commit hash needs git on this machine; give all 40 characters`
-- Missing manifest: `atlas: source '<name>' (<repo>@<ref>) has no .agents/vulcan.manifest.json - its maintainers run \`vulcan sync\` and commit it`
+- Missing manifest: `atlas: source '<name>' (<repo>@<ref>) has no .agents/atlas.manifest.json (nor the .agents/vulcan.manifest.json of an older release) - its maintainers run \`vulcan sync\` and commit it`
 - Changelog entries lost: `atlas: source '<name>' (<repo>@<ref>) commits <n> dated entries in <folder>, but the checkout holds none, so its release table holds no changelog entry` or `... has <n> dated entries in <folder>, but its release table holds none`
 - Incompatible manifest: `atlas: the manifest is schemaVersion <n>; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan`
 

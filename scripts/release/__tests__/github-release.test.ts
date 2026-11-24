@@ -57,7 +57,7 @@ const fixture = (): string => {
     root,
     message: '[#1] feat(a): the first',
     files: {
-      '.agents/vulcan.manifest.json': `${JSON.stringify({
+      '.agents/atlas.manifest.json': `${JSON.stringify({
         release: { tagPattern: 'vulcan-v<version>', legacyTagPatterns: ['v<version>'] },
         knowledge: { changelogs: 'docs/changelogs' },
         packages: [{ name: '@x/okf' }, { name: '@x/cli' }],
@@ -429,7 +429,7 @@ describe('GithubRelease.manifestOf', () => {
     const root = scratch();
 
     mkdirSync(join(root, '.agents'), { recursive: true });
-    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{"packages":[]}\n');
+    writeFileSync(join(root, '.agents', 'atlas.manifest.json'), '{"packages":[]}\n');
 
     expect(() => GithubRelease.manifestOf({ cwd: root })).toThrow('release.tagPattern');
     expect(GithubRelease.manifestOf({ cwd: fixture() }).packages).toEqual(['@x/okf', '@x/cli']);
@@ -440,7 +440,7 @@ describe('GithubRelease.manifestOf', () => {
 
     mkdirSync(join(root, '.agents'), { recursive: true });
     writeFileSync(
-      join(root, '.agents', 'vulcan.manifest.json'),
+      join(root, '.agents', 'atlas.manifest.json'),
       JSON.stringify({
         release: { tagPattern: 'vulcan-v<version>' },
         knowledge: { changelogs: 'docs/changelogs', migrationFrom: '0.4.5' },

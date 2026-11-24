@@ -31,6 +31,8 @@ describe('the launch file of an earlier release', () => {
     const root = createProject({
       files: { '.gitignore': '.agents/local/\n', [LAUNCH]: '{"env":{}}\n' },
     });
+
+    Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
     const found = ProjectContract.checkLocalWorkspace({
       root,
       config: CONFIG,
@@ -49,6 +51,8 @@ describe('the launch file of an earlier release', () => {
 
   test('a symlinked .agents/local: the leftover is removed where the link leads, and the link stays', () => {
     const root = createProject({ files: { 'elsewhere/claude.launch.settings.json': '{}\n' } });
+
+    Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
 
     mkdirSync(join(root, '.agents'), { recursive: true });
     symlinkSync(join(root, 'elsewhere'), join(root, '.agents/local'));

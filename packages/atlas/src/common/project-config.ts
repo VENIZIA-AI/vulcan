@@ -8,8 +8,13 @@ import { WireValue } from './wire';
 import { LibraryKinds, PackageKinds, SourcePins } from './constants';
 import type { TAppSide, TLibraryKind, TPackageKind, TSourcePin } from './types';
 
-/** The project manifest (Project Contract v1, C1) - what atlas reads, and nothing else. */
-export const MANIFEST_FILE = '.agents/vulcan.manifest.json';
+/** The project's descriptor (Project Contract v1, C1): committed and generated, it holds what atlas reads, and nothing else. */
+export const MANIFEST_FILE = '.agents/atlas.manifest.json';
+/**
+ * The one manifest file of VULCAN before 0.5.0, committed. A source pinned to an older ref still has only this one, so atlas
+ * reads it when the descriptor is missing. Removed after one release.
+ */
+export const LEGACY_MANIFEST_FILE = '.agents/vulcan.manifest.json';
 const MANIFEST_ENV = 'VULCAN_MANIFEST';
 const ROOT_ENV = 'VULCAN_PROJECT_ROOT';
 /** The manifest versions this atlas reads (V2); outside it, it says which VULCAN to upgrade to. */
@@ -327,19 +332,29 @@ export class ProjectConfig {
     };
   }
 
+  /** The descriptor of a folder, else the manifest of an older release; `undefined` when it has neither. */
+  static manifestFileOf(opts: { dir: string }): string | undefined {
+    return [MANIFEST_FILE, LEGACY_MANIFEST_FILE]
+      .map((file) => join(opts.dir, file))
+      .find((file) => existsSync(file));
+  }
+
   /** Whether `root` is a project: `vulcan x` handed its manifest over, or it carries one. */
   static hasAtlasProject(opts: { root?: string } = {}): boolean {
     const root = projectRoot(opts);
 
-    return handedManifest({ root }) !== undefined || existsSync(join(root, MANIFEST_FILE));
+    return (
+      handedManifest({ root }) !== undefined ||
+      ProjectConfig.manifestFileOf({ dir: root }) !== undefined
+    );
   }
 
   /** The project's manifest: the one `vulcan x` rendered fresh, else the committed file. */
   static readAtlasProject(opts: { root?: string } = {}): IAtlasProject {
     const root = projectRoot(opts);
-    const file = join(root, MANIFEST_FILE);
+    const file = ProjectConfig.manifestFileOf({ dir: root });
     const text =
-      handedManifest({ root }) ?? (existsSync(file) ? readFileSync(file, 'utf8') : undefined);
+      handedManifest({ root }) ?? (file === undefined ? undefined : readFileSync(file, 'utf8'));
 
     if (text === undefined) {
       throw new Error(`atlas: no project manifest (${MANIFEST_FILE}) - run \`vulcan sync\``);

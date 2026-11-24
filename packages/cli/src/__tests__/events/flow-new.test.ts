@@ -11,7 +11,7 @@ afterAll(removeProjects);
 const project = (): string =>
   createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify({
+      '.agents/local/vulcan.manifest.json': JSON.stringify({
         project: { key: 'ACME' },
         events: { log: true },
       }),

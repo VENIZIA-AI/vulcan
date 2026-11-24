@@ -419,7 +419,7 @@ describe('vulcan board with provider gitlab', () => {
   const projectOn = (provider: unknown): string =>
     createProject({
       files: {
-        '.agents/vulcan.manifest.json': JSON.stringify({ provider }),
+        '.agents/local/vulcan.manifest.json': JSON.stringify({ provider }),
         '.git/HEAD': 'ref: refs/heads/x\n',
       },
     });

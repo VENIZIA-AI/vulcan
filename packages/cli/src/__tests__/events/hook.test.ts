@@ -14,7 +14,7 @@ const SESSION = 'abcdef12-3456-7890-abcd-ef1234567890';
 const project = (opts: { events?: object; files?: Record<string, string> }): string =>
   createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify(
+      '.agents/local/vulcan.manifest.json': JSON.stringify(
         opts.events === undefined ? {} : { events: opts.events },
       ),
       ...opts.files,
@@ -188,7 +188,7 @@ describe('EventHook.run: what is no longer logged', () => {
       ).toBeUndefined();
     }
 
-    expect(existsSync(join(root, '.agents/local'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/events'))).toBe(false);
   });
 
   test('a SendMessage is still a msg-sent line', () => {
@@ -425,7 +425,7 @@ describe('the hook script', () => {
 describe('EventHook.run: the notification type is kept, so a title does not hide where the line came from', () => {
   test('a needs-owner line from the hook carries its notification type; one written by hand carries none', () => {
     const root = createProject({
-      files: { '.agents/vulcan.manifest.json': JSON.stringify({ events: { log: true } }) },
+      files: { '.agents/local/vulcan.manifest.json': JSON.stringify({ events: { log: true } }) },
     });
     const written = EventHook.run({
       root,

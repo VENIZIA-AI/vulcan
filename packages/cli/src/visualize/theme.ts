@@ -403,39 +403,47 @@ export class ProjectTheme {
   }
 
   /**
-   * The `theme` block of the manifest of the folder the command runs in. No config file is loaded and nothing is
-   * requested: a missing file, or a manifest with no `theme`, gives no block and no warning.
+   * One manifest file as text: `undefined` for a missing file, a symlink (the folder or the file), a device or a huge one. The
+   * manifest is a small file inside the project, so nothing else is read.
    */
-  static readManifestBlock(opts: { root: string }): { block?: object; warning?: string } {
-    let text: string;
-
+  private static readSmallFile(opts: { directory: string; name: string }): string | undefined {
     try {
-      const directory = join(opts.root, '.agents');
-      const file = join(directory, 'vulcan.manifest.json');
-      const folder = lstatSync(directory);
+      const file = join(opts.directory, opts.name);
+      const folder = lstatSync(opts.directory);
       const entry = lstatSync(file);
 
-      // A symlink (the folder or the file), a device or a huge file is not read: the manifest is a small file inside the project.
-      if (
-        !folder.isDirectory() ||
-        !entry.isFile() ||
-        entry.size > ProjectTheme.MAX_MANIFEST_BYTES
-      ) {
-        return {};
-      }
-
-      text = readFileSync(file, 'utf8');
+      return folder.isDirectory() && entry.isFile() && entry.size <= ProjectTheme.MAX_MANIFEST_BYTES
+        ? readFileSync(file, 'utf8')
+        : undefined;
     } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * The `theme` block of the manifest of the folder the command runs in: the local manifest, else the committed descriptor
+   * (a clone that did not sync has only that). No config file is loaded and nothing is requested: a missing file, or a
+   * manifest with no `theme`, gives no block and no warning.
+   */
+  static readManifestBlock(opts: { root: string }): { block?: object; warning?: string } {
+    const found = [
+      { directory: join(opts.root, '.agents', 'local'), name: 'vulcan.manifest.json' },
+      { directory: join(opts.root, '.agents'), name: 'atlas.manifest.json' },
+    ]
+      .map((candidate) => ({ ...candidate, text: ProjectTheme.readSmallFile(candidate) }))
+      .find((candidate) => candidate.text !== undefined);
+
+    if (found?.text === undefined) {
       return {};
     }
 
     let manifest: unknown;
 
     try {
-      manifest = JSON.parse(text);
+      manifest = JSON.parse(found.text);
     } catch {
       return {
-        warning: '.agents/vulcan.manifest.json is not valid JSON, so the default colour is used',
+        warning: `.agents/${found.directory.endsWith('local') ? 'local/' : ''}${found.name} is not valid JSON, so the default colour is used`,
       };
     }
 

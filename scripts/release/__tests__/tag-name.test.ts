@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const WORKFLOW = readFileSync(join(ROOT, '.github', 'workflows', 'package-release.yml'), 'utf8');
-const MANIFEST = JSON.parse(readFileSync(join(ROOT, '.agents', 'vulcan.manifest.json'), 'utf8'));
+const MANIFEST = JSON.parse(readFileSync(join(ROOT, '.agents', 'atlas.manifest.json'), 'utf8'));
 
 /** The tag the workflow names for a version: its TAG_NAME line with the version put in. */
 const tagFor = (opts: { version: string }): string => {

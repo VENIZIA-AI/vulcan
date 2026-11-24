@@ -507,7 +507,9 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     expect(environment.ok).toBe(true);
 
     if (environment.ok) {
-      expect(environment.env.VULCAN_MANIFEST).toBe(render({ root, config: CONFIG }));
+      expect(environment.env.VULCAN_MANIFEST).toBe(
+        ProjectManifest.renderDescriptor({ root, config: VULCAN_CONFIG_SCHEMA.parse(CONFIG) }),
+      );
       expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).toContain('@x/kernel');
     }
   });

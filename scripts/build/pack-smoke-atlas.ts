@@ -50,7 +50,7 @@ const SOURCE_MANIFEST = {
 };
 
 const SOURCE_FILES: Record<string, string> = {
-  '.agents/vulcan.manifest.json': `${JSON.stringify(SOURCE_MANIFEST, null, 2)}\n`,
+  '.agents/atlas.manifest.json': `${JSON.stringify(SOURCE_MANIFEST, null, 2)}\n`,
   '.agents/knowledge/overview/bootstrap.md':
     '---\ntype: Concept\ntitle: Application bootstrap\ndescription: How the application boots.\n---\n\nThe application bootstrap starts the kernel.\n',
 };

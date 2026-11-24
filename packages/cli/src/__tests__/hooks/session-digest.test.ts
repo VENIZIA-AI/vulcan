@@ -29,6 +29,20 @@ describe('SessionDigest.build', () => {
     expect(digest).toContain('node_modules/@venizia/vulcan/base/rules.md');
   });
 
+  test('a project with no local manifest says so once, with the command; with the manifest there is no such section', async () => {
+    const missing = createProject({ files: { '.configs/vulcan.config.mts': CONFIG } });
+    const present = createProject({
+      files: { '.configs/vulcan.config.mts': CONFIG, '.agents/local/vulcan.manifest.json': '{}' },
+    });
+
+    const result = await SessionDigest.build({ projectRoot: missing });
+    expect(result).toContain('## Setup missing');
+    const result2 = await SessionDigest.build({ projectRoot: missing });
+    expect(result2).toContain('bun node_modules/.bin/vulcan sync');
+    const result3 = await SessionDigest.build({ projectRoot: present });
+    expect(result3).not.toContain('Setup missing');
+  });
+
   test('tells the agent to keep scratch in $TMPDIR, not in the scratchpad the tool offers, and has no launch warning', async () => {
     const digest = await SessionDigest.build({
       projectRoot: createProject({ files: { '.configs/vulcan.config.mts': CONFIG } }),

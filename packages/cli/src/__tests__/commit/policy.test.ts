@@ -12,7 +12,7 @@ const manifestOf = (opts: { root: string; config: object }): Record<string, unkn
   );
 
 const projectWithManifest = (opts: { manifest: object }): string =>
-  createProject({ files: { '.agents/vulcan.manifest.json': JSON.stringify(opts.manifest) } });
+  createProject({ files: { '.agents/local/vulcan.manifest.json': JSON.stringify(opts.manifest) } });
 
 describe('AgentSignaturePolicies', () => {
   test('two values, and isValid reads them', () => {
@@ -153,6 +153,26 @@ describe('the manifest carries commit only when a check is on', () => {
   });
 });
 
+describe('CommitPolicy.read in a clone that did not sync', () => {
+  test('a config and no local manifest refuse agent signatures; no config changes nothing; the earlier manifest is not read', () => {
+    const unsynced = createProject({
+      files: { '.configs/vulcan.config.mts': 'export default {};\n' },
+    });
+    const legacyOnly = createProject({
+      files: {
+        '.configs/vulcan.config.mts': 'export default {};\n',
+        '.agents/vulcan.manifest.json': JSON.stringify({
+          commit: { message: { agent: { signature: 'allow' } } },
+        }),
+      },
+    });
+
+    expect(CommitPolicy.read({ root: unsynced })?.agentSignature).toBe('deny');
+    expect(CommitPolicy.read({ root: legacyOnly })?.agentSignature).toBe('deny');
+    expect(CommitPolicy.read({ root: createProject({ files: {} }) })).toBeUndefined();
+  });
+});
+
 describe('CommitPolicy.read', () => {
   test('no manifest, or a manifest without the block, means nothing is configured', () => {
     expect(CommitPolicy.read({ root: createProject({ files: {} }) })).toBeUndefined();
@@ -201,7 +221,7 @@ describe('CommitPolicy.read', () => {
   });
 
   test('a manifest that is not JSON is ignored', () => {
-    const root = createProject({ files: { '.agents/vulcan.manifest.json': '{ nope' } });
+    const root = createProject({ files: { '.agents/local/vulcan.manifest.json': '{ nope' } });
 
     expect(CommitPolicy.read({ root })).toBeUndefined();
   });

@@ -131,7 +131,7 @@ describe('BoardServer.check: who may read the board', () => {
 
 const projectWithLog = (): { root: string; dir: string } => {
   const root = createProject({
-    files: { '.agents/vulcan.manifest.json': '{}', '.git/HEAD': 'ref: refs/heads/x\n' },
+    files: { '.agents/local/vulcan.manifest.json': '{}', '.git/HEAD': 'ref: refs/heads/x\n' },
   });
   const dir = join(root, '.agents/local/events');
 
@@ -325,7 +325,7 @@ describe('BoardServer.openFile: the page the program that opens the browser is g
   test('a folder that cannot be made gives no file and no throw', async () => {
     const { root } = projectWithLog();
 
-    await start({ openFolder: join(root, '.agents/vulcan.manifest.json/inner') });
+    await start({ openFolder: join(root, '.agents/local/vulcan.manifest.json/inner') });
 
     expect(BoardServer.openFile()).toBeUndefined();
   });
@@ -435,7 +435,7 @@ describe('vulcan board serve', () => {
   });
 
   test('a log that does not exist yet is an empty board, and the first line of it arrives', async () => {
-    const root = createProject({ files: { '.agents/vulcan.manifest.json': '{}' } });
+    const root = createProject({ files: { '.agents/local/vulcan.manifest.json': '{}' } });
     const dir = join(root, '.agents/local/events');
     const server = await startOn({ root, dir, port: 0 });
     const stream = await openStream({ url: server.url.replace('/?', '/stream?') });

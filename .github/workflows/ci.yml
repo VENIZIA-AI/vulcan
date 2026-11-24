@@ -68,10 +68,13 @@ jobs:
         if: ${{ !cancelled() && steps.atlas.outcome == 'success' }}
         run: make vulcan-sync
 
-      # The manifest is generated: a committed copy that differs from what sync wrote is stale or edited by hand.
-      - name: Committed manifest matches sync
+      # The descriptor atlas reads is generated and committed: a copy that differs from what sync wrote is stale or edited by hand.
+      # The manifest the hooks read is local to each clone and not committed.
+      - name: Committed descriptor matches sync
         if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
-        run: git diff --exit-code -- .agents/vulcan.manifest.json
+        run: |
+          git ls-files --error-unmatch .agents/atlas.manifest.json
+          git diff --exit-code -- .agents/atlas.manifest.json
 
       - name: Agent setup checks (VULCAN doctor)
         if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
@@ -114,10 +117,16 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make docs wiki-links-check wiki-anchors-check
 
+      # Some tests read the manifest of this repository, which is local to a clone: write it first.
+      - name: Agent setup (VULCAN)
+        id: sync
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: make vulcan-sync
+
       # The make targets own the test flags (BUN_TEST_FLAGS, default --parallel), so CI and a
       # developer's `make test` run the very same command.
       - name: Test
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
         run: make test
 
       # The packed tarballs, installed alone in an empty project and run.

@@ -76,7 +76,7 @@ const userLine = `${JSON.stringify({ type: 'user', message: { role: 'user', cont
 const project = (opts: { log?: boolean } = {}): string =>
   createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify({
+      '.agents/local/vulcan.manifest.json': JSON.stringify({
         project: { key: 'ACME' },
         events: { log: opts.log ?? true },
       }),

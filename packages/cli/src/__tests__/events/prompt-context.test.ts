@@ -17,7 +17,7 @@ const project = (
 ) => {
   const root = createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify({
+      '.agents/local/vulcan.manifest.json': JSON.stringify({
         project: { key: 'ACME' },
         events: { log: opts.log ?? true },
       }),
@@ -121,7 +121,7 @@ describe('the prompt context block', () => {
       build({
         root: createProject({
           files: {
-            '.agents/vulcan.manifest.json': JSON.stringify({
+            '.agents/local/vulcan.manifest.json': JSON.stringify({
               project: { key: 'ACME' },
               events: { log: true },
             }),

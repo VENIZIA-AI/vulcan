@@ -51,53 +51,6 @@
     "legacyTagPatterns": ["v<version>"],
     "ignoreTags": []
   },
-  "rules": {
-    "project": ".agents/rules.md",
-    "base": {
-      "V-W-01": "e5aa2a56",
-      "V-W-02": "cfecfb70",
-      "V-W-03": "f5e0ca7d",
-      "V-W-06": "702a1f5d",
-      "V-S-01": "0983d35b",
-      "V-S-02": "01b4171f",
-      "V-S-03": "5ed13d6b",
-      "V-S-04": "807f8de3",
-      "V-S-05": "6f53b96f",
-      "V-S-06": "db487b5d",
-      "V-S-08": "cd77a0bd",
-      "V-P-02": "b7800a0f",
-      "V-P-04": "ed62089c",
-      "V-P-05": "1879ed2c",
-      "V-P-06": "248b065d",
-      "V-P-07": "74bacf06",
-      "V-P-08": "04fd5606",
-      "V-P-10": "247d60d9",
-      "V-P-11": "0e2949fa",
-      "V-P-12": "885a5fc5",
-      "V-P-13": "7f6e707e",
-      "V-B-02": "dd299607",
-      "V-B-03": "da8e7490",
-      "V-B-04": "d845bcc8",
-      "V-B-07": "d1d096e7",
-      "V-B-08": "cd251a88",
-      "V-C-01": "ae67ab67",
-      "V-C-02": "e7c0ed0a",
-      "V-C-04": "bb21d93f",
-      "V-C-06": "86fbe95e",
-      "V-C-09": "304a01dc",
-      "V-C-10": "bef6881a",
-      "V-C-11": "cde70f76",
-      "V-C-13": "4daf793a",
-      "V-C-14": "50c285f2",
-      "V-C-18": "aaf8d03c",
-      "V-B-05": "1ac4fbaa",
-      "V-B-09": "7a0bcb27",
-      "V-C-07": "d62b8cb5",
-      "V-C-08": "1ef42746",
-      "V-C-20": "ca184ba4",
-      "V-C-21": "1a0dd74e"
-    }
-  },
   "sources": [
     {
       "name": "ignis",
@@ -113,24 +66,6 @@
   "atlas": {
     "index": {
       "keys": ["RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ="]
-    }
-  },
-  "guard": {
-    "outside": "deny",
-    "writes": {
-      "commands": [
-        {
-          "rule": "V-W-03",
-          "what": "writing a GitHub environment, secret, ruleset, protection or permission, or approving a deployment",
-          "pattern": "\\bgh\\s+api\\b(?=[^\\n]*\\b(?:environments|actions/secrets|actions/variables|actions/permissions|rulesets|branches/\\S+/protection|collaborators|pending_deployments)\\b)(?=[^\\n]*\\s(?:-X\\s*(?:POST|PUT|PATCH|DELETE)|-f|-F|--field|--raw-field|--input)\\b)",
-          "ignoreCase": true
-        },
-        {
-          "rule": "V-W-03",
-          "what": "writing a GitHub Actions secret or variable",
-          "pattern": "\\bgh\\s+(?:secret|variable)\\s+(?:set|delete|remove)\\b"
-        }
-      ]
     }
   },
   "theme": {
@@ -184,22 +119,5 @@
     "font": "'Inter Display', system-ui, -apple-system, 'Segoe UI', sans-serif",
     "mono": "'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace",
     "radius": "4px"
-  },
-  "commit": {
-    "message": {
-      "agent": {
-        "signature": "deny"
-      }
-    }
-  },
-  "board": {
-    "owner": "Phát",
-    "title": "VENIZIA Board",
-    "logo": ".configs/board-logo.svg",
-    "agents": {
-      "pnt-ignis-1": "flame",
-      "pnt-ardor-1": "ember",
-      "pnt-vulcan-1": "rock"
-    }
   }
 }

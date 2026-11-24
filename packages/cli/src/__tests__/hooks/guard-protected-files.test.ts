@@ -12,7 +12,7 @@ const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-out
 
 /** The files the guards read their policy from, as the project root sees them. */
 const PROTECTED = [
-  '.agents/vulcan.manifest.json',
+  '.agents/local/vulcan.manifest.json',
   '.configs/vulcan.config.mts',
   '.configs/vulcan.config.ts',
   '.claude/settings.json',
@@ -105,7 +105,7 @@ describe('guard-outside denies a write to a file the guards read their policy fr
   test.each([
     '.claude/Settings.local.json',
     '.Claude/settings.json',
-    '.AGENTS/Vulcan.Manifest.JSON',
+    '.AGENTS/Local/Vulcan.Manifest.JSON',
     '.configs/VULCAN.CONFIG.MTS',
     'Node_Modules/@Venizia/Vulcan/base/hooks/guard-outside.ts',
   ])('the path is compared without regard to case: %s', (path) => {
@@ -115,10 +115,13 @@ describe('guard-outside denies a write to a file the guards read their policy fr
 
   test('a symbolic link to one of them names it: a write through the link is denied', () => {
     const linked = createProject({
-      files: { 'package.json': '{}', '.agents/vulcan.manifest.json': '{}' },
+      files: { 'package.json': '{}', '.agents/local/vulcan.manifest.json': '{}' },
     });
 
-    symlinkSync(join(linked, '.agents', 'vulcan.manifest.json'), join(linked, 'innocent.json'));
+    symlinkSync(
+      join(linked, '.agents', 'local', 'vulcan.manifest.json'),
+      join(linked, 'innocent.json'),
+    );
 
     expect(
       protectedHitsOf({ root: linked, command: 'echo x > innocent.json' }).length,
@@ -136,10 +139,10 @@ describe('guard-outside denies a write to a file the guards read their policy fr
   );
 
   test.each([
-    'cat .agents/vulcan.manifest.json',
-    'grep asks .agents/vulcan.manifest.json',
-    'sed -n 1p .agents/vulcan.manifest.json',
-    'sed s/a/b/ .agents/vulcan.manifest.json',
+    'cat .agents/local/vulcan.manifest.json',
+    'grep asks .agents/local/vulcan.manifest.json',
+    'sed -n 1p .agents/local/vulcan.manifest.json',
+    'sed s/a/b/ .agents/local/vulcan.manifest.json',
     'cp .claude/settings.json other',
     'ls .claude',
     'rm src/index.ts',
@@ -158,7 +161,7 @@ describe('guard-outside denies a write to a file the guards read their policy fr
     'bun install',
     'bun node_modules/.bin/vulcan sync',
     'bun node_modules/.bin/vulcan sync --app apps/web',
-    'perl -e 1 .agents/vulcan.manifest.json',
+    'perl -e 1 .agents/local/vulcan.manifest.json',
   ])('a command that does not change one is left alone: %s', (command) => {
     expect(protectedHitsOf({ root, command })).toEqual([]);
   });
@@ -222,9 +225,9 @@ describe('the hook answers with a deny, whatever the project sets', () => {
   );
 
   test.each([
-    'echo x > .agents/vulcan.manifest.json',
-    "sed -i 's/deny/ask/' .agents/vulcan.manifest.json",
-    'rm .agents/vulcan.manifest.json',
+    'echo x > .agents/local/vulcan.manifest.json',
+    "sed -i 's/deny/ask/' .agents/local/vulcan.manifest.json",
+    'rm .agents/local/vulcan.manifest.json',
     'echo x | tee .claude/settings.local.json',
     'cp other .configs/vulcan.config.mts',
     'mv other node_modules/@venizia/vulcan/base/hooks/guard-git.ts',
@@ -244,14 +247,16 @@ describe('the hook answers with a deny, whatever the project sets', () => {
     const root = createProject({
       files: {
         'package.json': '{}',
-        '.agents/vulcan.manifest.json': JSON.stringify({ guard: { outside: 'ask', asks: 'ask' } }),
+        '.agents/local/vulcan.manifest.json': JSON.stringify({
+          guard: { outside: 'ask', asks: 'ask' },
+        }),
       },
     });
     const result = answerOf({
       root,
       stdin: toolEvent({
         tool: 'Bash',
-        input: { command: "sed -i 's/deny/ask/' .agents/vulcan.manifest.json" },
+        input: { command: "sed -i 's/deny/ask/' .agents/local/vulcan.manifest.json" },
         cwd: root,
       }),
     });
@@ -263,7 +268,7 @@ describe('the hook answers with a deny, whatever the project sets', () => {
     const root = createProject({
       files: {
         'package.json': '{}',
-        '.agents/vulcan.manifest.json': JSON.stringify({ guard: { toolOwnedPaths: ['**'] } }),
+        '.agents/local/vulcan.manifest.json': JSON.stringify({ guard: { toolOwnedPaths: ['**'] } }),
       },
     });
 

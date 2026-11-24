@@ -163,6 +163,10 @@ jobs:
       - name: Dependency catalog
         run: make catalog-check
 
+      # Some tests read the manifest of this repository, which is local to a clone: write it first.
+      - name: Agent setup (VULCAN)
+        run: make vulcan-sync
+
       - name: Test
         run: make test
 

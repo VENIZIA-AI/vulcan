@@ -141,7 +141,7 @@ pack-guard-and-commit-defaults:
       - "Run `bun node_modules/.bin/vulcan config --effective`: with `packs: ['venizia']`, `config.guard.outside` is `deny` and `config.commit.message.agent.signature` is `deny` unless you wrote otherwise."
       - "To keep the earlier behaviour, write `guard: { outside: 'ask' }` and `commit: { message: { agent: { signature: 'allow' } } }` in the config; the project value wins over the pack."
       - 'If you wrote the same values as the pack, delete them: `bun node_modules/.bin/vulcan config --diff` lists them.'
-      - 'Run `bun node_modules/.bin/vulcan sync` and commit `.agents/vulcan.manifest.json` and `.claude/settings.json`: with the signature denied, sync blanks the attribution Claude Code adds to a commit and a pull request.'
+      - 'Run `bun node_modules/.bin/vulcan sync` and commit what git tracks that it changed (`.agents/atlas.manifest.json`, and `.claude/settings.json` where the project commits it): with the signature denied, sync blanks the attribution Claude Code adds to a commit and a pull request.'
       - 'Every clone runs `bun node_modules/.bin/vulcan sync` once, which installs the commit-msg hook that refuses a signature.'
   downgrade:
     steps:
@@ -160,3 +160,20 @@ claude-launch-file-dropped:
     steps:
       - 'Pin the earlier package and run `bun node_modules/.bin/vulcan sync`: it writes the launch file again.'
   data: "Claude Code's own task-output files, the scratchpad it offers and its MCP servers use /tmp/claude-<uid> unless you export CLAUDE_CODE_TMPDIR in your shell. Commands the agent runs still use the project tmp folder (the session start exports TMPDIR), and guard-outside refuses a write into the offered scratchpad."
+manifest-local-and-descriptor:
+  symbols:
+    - ManifestConstants.FILE
+    - ManifestConstants.DESCRIPTOR_FILE
+    - ProjectConfig.manifestFileOf
+  upgrade:
+    steps:
+      - 'Run `bun node_modules/.bin/vulcan sync`: it writes `.agents/local/vulcan.manifest.json` (gitignored) and `.agents/atlas.manifest.json`, and removes `.agents/vulcan.manifest.json` when git does not track it.'
+      - 'If git tracks `.agents/vulcan.manifest.json`, run `git rm .agents/vulcan.manifest.json` (it removes the file and the index entry), then commit `.agents/atlas.manifest.json`: `vulcan doctor` names the old file until you do.'
+      - 'If your wiki config reads `.agents/vulcan.manifest.json` for the theme (`WikiTheme.read`), point it at `.agents/atlas.manifest.json`. A repository that copies the shared wiki theme also takes the new `changelog-prereleases.ts` (`PrereleaseTags`), which reads the descriptor and falls back to the old file; the copies of IGNIS and ARDOR must be updated together with VULCAN.'
+      - 'Run `bun node_modules/.bin/vulcan sync` before any CI step that reads the local manifest (the guards, `vulcan doctor`, `vulcan board`): a clone has none until it runs. Replace a CI step that checks `.agents/vulcan.manifest.json` against sync with `git diff --exit-code -- .agents/atlas.manifest.json`.'
+      - 'A script that reads `.agents/vulcan.manifest.json` reads `.agents/atlas.manifest.json` (packages, knowledge, release) or `.agents/local/vulcan.manifest.json` (everything else).'
+      - 'A repository that other projects read through atlas commits the descriptor before those projects upgrade; until then atlas reads its old manifest file from the ref they pin, for this release only.'
+  downgrade:
+    steps:
+      - 'Pin the earlier packages and run `bun node_modules/.bin/vulcan sync`: it writes `.agents/vulcan.manifest.json` again; commit it and delete `.agents/atlas.manifest.json`.'
+  data: 'A clone with no local manifest (a fresh clone, or one just upgraded) is held until `vulcan sync` runs: every call that would ask is denied, writes outside the project are refused and agent signatures in a commit message are refused. `vulcan sync` itself passes. Without a config file nothing is held.'

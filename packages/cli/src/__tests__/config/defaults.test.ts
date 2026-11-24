@@ -129,7 +129,8 @@ describe('the pack gives the stack its guard and commit defaults', () => {
 
     expect(runCli({ args: ['sync', '--agents', 'claude'], cwd: root }).code).toBe(0);
     expect(
-      JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8')).guard.outside,
+      JSON.parse(readFileSync(join(root, '.agents/local/vulcan.manifest.json'), 'utf8')).guard
+        .outside,
     ).toBe('deny');
   });
 

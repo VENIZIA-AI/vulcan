@@ -259,7 +259,8 @@ describe('BUN_OPTIONS and the other loader names do not reach a guard', () => {
     expect(existsSync(marker)).toBe(false);
     expect(readFileSync(seen, 'utf8').trim()).toBe('');
 
-    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{ nope');
+    mkdirSync(join(root, '.agents', 'local'), { recursive: true });
+    writeFileSync(join(root, '.agents', 'local', 'vulcan.manifest.json'), '{ nope');
     writeFileSync(
       join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks', 'antigravity-guards.ts'),
       'process.exit(3);',

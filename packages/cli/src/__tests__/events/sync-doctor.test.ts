@@ -174,7 +174,7 @@ describe('vulcan sync and the event hooks', () => {
 
     expect(eventEntries({ root: dirOnly })).toHaveLength(0);
     expect(
-      JSON.parse(readFileSync(join(dirOnly, '.agents/vulcan.manifest.json'), 'utf8')).events,
+      JSON.parse(readFileSync(join(dirOnly, '.agents/local/vulcan.manifest.json'), 'utf8')).events,
     ).toEqual({ log: false, dir: '/shared/events' });
   });
 

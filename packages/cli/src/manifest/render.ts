@@ -10,8 +10,26 @@ import { BaseRules } from '../rules/index.ts';
 import { ThemeTokens } from '../theme/index.ts';
 
 export class ManifestConstants {
-  /** Committed; what atlas reads from a project - local or fetched - and nothing else. */
-  static readonly FILE = '.agents/vulcan.manifest.json';
+  /** Local, not committed: the whole manifest, which every hook, the board and the doctor read. Each clone writes its own with `vulcan sync`. */
+  static readonly FILE = '.agents/local/vulcan.manifest.json';
+  /** Committed and generated: the part of the manifest that readers of a checkout need without running `vulcan sync` (atlas, the wiki build). */
+  static readonly DESCRIPTOR_FILE = '.agents/atlas.manifest.json';
+  /** The one file of earlier releases; atlas still reads it from an older ref for one release, and `sync` removes a copy git does not track. */
+  static readonly LEGACY_FILE = '.agents/vulcan.manifest.json';
+  /** The keys of the descriptor: what `ProjectConfig` of atlas reads from a manifest, and the resolved theme the wiki build takes its colours from. */
+  static readonly DESCRIPTOR_KEYS = [
+    '$generated',
+    'schemaVersion',
+    'name',
+    'packages',
+    'layout',
+    'presets',
+    'knowledge',
+    'release',
+    'sources',
+    'atlas',
+    'theme',
+  ];
   static readonly SCHEMA_VERSION = 1;
   static readonly PROJECT_RULES = '.agents/rules.md';
   static readonly ENV = EnvVariables.VULCAN_MANIFEST;
@@ -178,7 +196,7 @@ const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<strin
   return Object.keys(block).length === 0 ? {} : { atlas: block };
 };
 
-/** Renders `.agents/vulcan.manifest.json` from the config and the base rule hashes; written by `vulcan sync`. */
+/** Renders `.agents/local/vulcan.manifest.json` from the config and the base rule hashes; written by `vulcan sync`. */
 export class ProjectManifest {
   /** `@acme/shop-workspace` gives `shop`; a project with no package name takes its directory's. */
   static projectNameOf(opts: { root: string; config: TResolvedConfig }): string {
@@ -210,10 +228,30 @@ export class ProjectManifest {
   }
 
   /**
-   * The project manifest (Project Contract v1, C1): data only, rendered from the config with a fixed
-   * key order, so the committed file is byte-stable and a stale one shows as a diff.
+   * The local manifest (Project Contract v1, C1): data only, rendered from the config with a fixed key order, so a stale
+   * one shows as a diff. Not committed: every clone writes it with `vulcan sync`.
    */
   static render(opts: { root: string; config: TResolvedConfig }): string {
+    return BunFormatter.format({
+      text: `${JSON.stringify(ProjectManifest.build(opts), null, 2)}\n`,
+      file: ManifestConstants.FILE,
+    });
+  }
+
+  /** The committed descriptor: the keys of the manifest that atlas reads, in the same order and with the same values. */
+  static renderDescriptor(opts: { root: string; config: TResolvedConfig }): string {
+    const whole = ProjectManifest.build(opts);
+    const descriptor = Object.fromEntries(
+      Object.entries(whole).filter(([key]) => ManifestConstants.DESCRIPTOR_KEYS.includes(key)),
+    );
+
+    return BunFormatter.format({
+      text: `${JSON.stringify(descriptor, null, 2)}\n`,
+      file: ManifestConstants.DESCRIPTOR_FILE,
+    });
+  }
+
+  private static build(opts: { root: string; config: TResolvedConfig }): Record<string, unknown> {
     const { config } = opts;
     const { wiki, changelogs, migrationFrom, datedUntil, siteUrl, codemodCommand } =
       config.knowledge;
@@ -276,9 +314,6 @@ export class ProjectManifest {
       ...(config.project === undefined ? {} : { project: { key: config.project.key } }),
     };
 
-    return BunFormatter.format({
-      text: `${JSON.stringify(manifest, null, 2)}\n`,
-      file: ManifestConstants.FILE,
-    });
+    return manifest;
   }
 }

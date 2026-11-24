@@ -66,7 +66,7 @@ describe('the limits of the event log in the config', () => {
     const read = (events: object) =>
       EventSettings.read({
         root: createProject({
-          files: { '.agents/vulcan.manifest.json': JSON.stringify({ events }) },
+          files: { '.agents/local/vulcan.manifest.json': JSON.stringify({ events }) },
         }),
       });
 

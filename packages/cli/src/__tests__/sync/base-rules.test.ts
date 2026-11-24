@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
 import { BaseRulesDiff } from '../../sync/index.ts';
@@ -39,6 +39,28 @@ const createUpgradedProject = (): string => {
 
   return root;
 };
+
+describe('the base diff after an upgrade, when only the manifest of the earlier release exists', () => {
+  test('the hashes come from the old file, so the first sync still reports what changed', () => {
+    const root = createProject({ files: PROJECT });
+
+    runSync({ root });
+
+    const file = join(root, ManifestConstants.FILE);
+    const manifest = JSON.parse(readFileSync(file, 'utf8'));
+
+    manifest.rules.base = { 'V-W-02': '00000000', 'V-W-99': 'ffffffff' };
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(join(root, ManifestConstants.LEGACY_FILE), JSON.stringify(manifest));
+    rmSync(file);
+
+    const changes = BaseRulesDiff.diff({ root }).map((change) => change.id);
+
+    expect(changes).toContain('V-W-02');
+    expect(changes).toContain('V-W-99');
+    expect(changes).toContain('V-C-02');
+  });
+});
 
 describe('the base diff', () => {
   test('a first sync, with no manifest yet, prints no diff', () => {

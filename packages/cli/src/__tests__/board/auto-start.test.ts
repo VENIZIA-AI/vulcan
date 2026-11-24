@@ -15,7 +15,7 @@ const FAKE =
 const project = (opts: { autoStart?: boolean; log?: boolean }): string =>
   createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify({ events: { log: opts.log ?? true } }),
+      '.agents/local/vulcan.manifest.json': JSON.stringify({ events: { log: opts.log ?? true } }),
       '.agents/vulcan.local.json': JSON.stringify({
         schemaVersion: 1,
         ...(opts.autoStart === undefined

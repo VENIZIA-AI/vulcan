@@ -15,7 +15,8 @@ The manifest is always written.
 | Agent instructions | `CLAUDE.md` | No (gitignored adapter) | `@AGENTS.md` import line |
 | Claude settings | `.claude/settings.json` | No (gitignored adapter) | Shipped settings, slot choices, `claude.settings` (project hooks included), and personal settings |
 | Skill links | `.claude/skills/<name>` | No (gitignored adapter) | Symbolic links to shipped and project skills |
-| Project manifest | `.agents/vulcan.manifest.json` | Yes (committed manifest) | Project configuration and base rule hashes |
+| Atlas descriptor | `.agents/atlas.manifest.json` | Yes (committed, generated) | What atlas and the wiki build read: name, packages, layout, presets, knowledge, release, sources, atlas, theme |
+| Local manifest | `.agents/local/vulcan.manifest.json` | No (gitignored; each clone writes its own) | Project configuration the hooks, board and doctor read, and base rule hashes |
 | Managed overlay | `.claude/vulcan-managed.json` | No (gitignored adapter) | Managed overlay record of settings written by VULCAN |
 
 ## Options
@@ -164,7 +165,8 @@ $ bun node_modules/.bin/vulcan sync
   created   .claude/skills/ship
   created   .claude/skills/visualize-work
   created   .mcp.json
-  created   .agents/vulcan.manifest.json
+  created   .agents/local/vulcan.manifest.json
+  created   .agents/atlas.manifest.json
   replaced  AGENTS.md (Atlas block)
   created   .agents/vulcan.local.json
   created   .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
@@ -191,7 +193,8 @@ $ bun node_modules/.bin/vulcan sync
   unchanged .claude/skills/ship
   unchanged .claude/skills/visualize-work
   unchanged .mcp.json
-  unchanged .agents/vulcan.manifest.json
+  unchanged .agents/local/vulcan.manifest.json
+  unchanged .agents/atlas.manifest.json
   unchanged AGENTS.md
   unchanged .agents/vulcan.local.json
   unchanged .agents/local
@@ -247,7 +250,8 @@ The settings and the manifest are what change; the skill lines and the lines tha
 ```text
 $ bun node_modules/.bin/vulcan sync
   replaced  .claude/settings.json (shipped, slot and claude.settings over personal keys)
-  replaced  .agents/vulcan.manifest.json
+  replaced  .agents/local/vulcan.manifest.json
+  replaced  .agents/atlas.manifest.json
 ```
 
 ## Dry run
@@ -270,7 +274,8 @@ $ bun node_modules/.bin/vulcan sync --dry-run
   would create  .claude/skills/ship
   would create  .claude/skills/visualize-work
   would create  .mcp.json
-  would create  .agents/vulcan.manifest.json
+  would create  .agents/local/vulcan.manifest.json
+  would create  .agents/atlas.manifest.json
   would replace AGENTS.md (Atlas block)
   would create  .agents/vulcan.local.json
   would create  .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
@@ -290,9 +295,9 @@ To review adapter verification rules, see the [doctor reference](/references/com
 
 ## The project manifest
 
-`vulcan sync` renders `.agents/vulcan.manifest.json` from your project configuration.
+`vulcan sync` renders `.agents/local/vulcan.manifest.json` from your project configuration.
 The manifest is committed to version control.
-atlas reads `.agents/vulcan.manifest.json` directly and never executes `.configs/vulcan.config.mts`.
+atlas reads `.agents/atlas.manifest.json` directly and never executes `.configs/vulcan.config.mts`.
 This allows atlas to inspect local and remote git repositories without evaluating project TypeScript code.
 
 The committed manifest records resolved project metadata:

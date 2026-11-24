@@ -23,7 +23,7 @@ import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 afterAll(removeProjects);
 isolateOwnerReplySwitch();
 
-const MANIFEST = '.agents/vulcan.manifest.json';
+const MANIFEST = '.agents/local/vulcan.manifest.json';
 const manifestWith = (tmp: unknown): string => JSON.stringify({ schemaVersion: 1, local: { tmp } });
 const projectWith = (tmp: unknown): string =>
   createProject({ files: { [MANIFEST]: manifestWith(tmp), '.agents/rules.md': '' } });

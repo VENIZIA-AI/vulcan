@@ -74,7 +74,9 @@ describe('the wiki takes the venizia palette from the manifest theme, value for 
   });
 
   test('the committed manifest carries the same theme, and shared tokens.css declares none of these', () => {
-    const fromManifest = WikiTheme.read({ manifest: join(ROOT, '.agents/vulcan.manifest.json') });
+    const fromManifest = WikiTheme.read({
+      manifest: join(ROOT, '.agents/atlas.manifest.json'),
+    });
     const declared = declarations({ css: TOKENS_CSS, marker: ':root {' });
 
     expect(WikiTheme.css({ theme: fromManifest, accent2: '#c48a5a' })).toBe(css);

@@ -18,8 +18,8 @@ const projectWith = (manifest: string | undefined): string => {
   roots.push(root);
 
   if (manifest !== undefined) {
-    mkdirSync(join(root, '.agents'), { recursive: true });
-    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), manifest);
+    mkdirSync(join(root, '.agents', 'local'), { recursive: true });
+    writeFileSync(join(root, '.agents', 'local', 'vulcan.manifest.json'), manifest);
   }
 
   return root;
@@ -247,17 +247,36 @@ describe('the manifest theme is read from the folder the command runs in (C14)',
     expect(ProjectTheme.readManifestTheme({ root: projectWith(undefined) })).toEqual({});
   });
 
+  test('a clone with only the committed descriptor takes the theme from it; the local manifest wins when both exist', () => {
+    const only = projectWith(undefined);
+
+    mkdirSync(join(only, '.agents'), { recursive: true });
+    writeFileSync(
+      join(only, '.agents', 'atlas.manifest.json'),
+      JSON.stringify({ theme: { accent: '#112233' } }),
+    );
+    expect(ProjectTheme.readManifestTheme({ root: only }).theme?.accent).toBe('#112233');
+
+    mkdirSync(join(only, '.agents', 'local'), { recursive: true });
+    writeFileSync(
+      join(only, '.agents', 'local', 'vulcan.manifest.json'),
+      JSON.stringify({ theme: { accent: '#445566' } }),
+    );
+    expect(ProjectTheme.readManifestTheme({ root: only }).theme?.accent).toBe('#445566');
+  });
+
   test('a manifest that is a symlink, or sits in a symlinked folder, is not read', () => {
     const real = projectWith(JSON.stringify({ theme: { accent: '#8a5a20' } }));
     const linkedFile = projectWith(undefined);
     const linkedFolder = projectWith(undefined);
 
-    mkdirSync(join(linkedFile, '.agents'), { recursive: true });
+    mkdirSync(join(linkedFile, '.agents', 'local'), { recursive: true });
     symlinkSync(
-      join(real, '.agents', 'vulcan.manifest.json'),
-      join(linkedFile, '.agents', 'vulcan.manifest.json'),
+      join(real, '.agents', 'local', 'vulcan.manifest.json'),
+      join(linkedFile, '.agents', 'local', 'vulcan.manifest.json'),
     );
-    symlinkSync(join(real, '.agents'), join(linkedFolder, '.agents'));
+    mkdirSync(join(linkedFolder, '.agents'), { recursive: true });
+    symlinkSync(join(real, '.agents', 'local'), join(linkedFolder, '.agents', 'local'));
 
     expect(ProjectTheme.readManifestTheme({ root: real }).theme?.accent).toBe('#8a5a20');
     expect(ProjectTheme.readManifestTheme({ root: linkedFile })).toEqual({});

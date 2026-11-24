@@ -275,7 +275,8 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
   created   .claude/skills/ship
   created   .claude/skills/visualize-work
   created   .mcp.json
-  created   .agents/vulcan.manifest.json
+  created   .agents/local/vulcan.manifest.json
+  created   .agents/atlas.manifest.json
   replaced  AGENTS.md (Atlas block)
   created   .agents/vulcan.local.json
   replaced  .git/info/exclude
@@ -356,7 +357,7 @@ $ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.l
 ./.agents/knowledge/packages/core-api.md
 ./.agents/rules.md
 ./.agents/vulcan.local.json
-./.agents/vulcan.manifest.json
+./.agents/local/vulcan.manifest.json
 ./.claude/settings.json
 ./.claude/vulcan-managed.json
 ./.configs/vulcan.config.mts
@@ -384,7 +385,7 @@ $ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.l
 ./services/core-api/tsconfig.json
 ```
 
-The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/vulcan.manifest.json`, `.mcp.json`, `CLAUDE.md`, `.claude/`, and the `.claude/skills/*` links, which `find -type f` does not list) are in the tree too.
+The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/local/vulcan.manifest.json`, `.mcp.json`, `CLAUDE.md`, `.claude/`, and the `.claude/skills/*` links, which `find -type f` does not list) are in the tree too.
 
 | File | What it holds |
 |---|---|
@@ -394,7 +395,7 @@ The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/vulcan.manifest.js
 | `.dockerignore` | The build context of a Dockerfile built from the root |
 | `bunfig.toml` | The same file the scaffold above writes: `telemetry = false` and the `[fmt]` section. Edit it freely |
 | `AGENTS.md`, `.agents/rules.md` | The same layer as [the scaffold above](#generated-files) |
-| `.agents/vulcan.manifest.json`, `.agents/vulcan.local.json`, `.mcp.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes (see below) |
+| `.agents/local/vulcan.manifest.json`, `.agents/vulcan.local.json`, `.mcp.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes (see below) |
 | `.configs/vulcan.config.mts` | `name`, `layout`, one `packages` entry per app, and the preset's `atlas` sources |
 | `.agents/knowledge/` | An index and one concept per app |
 | `<shared>/.gitkeep` | Keeps the shared folder in git |

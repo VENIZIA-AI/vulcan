@@ -72,7 +72,8 @@ bun install v1.4.3 (c6da4a4d3)
   unchanged .claude/skills/ship
   unchanged .claude/skills/visualize-work
   unchanged .mcp.json
-  replaced  .agents/vulcan.manifest.json
+  replaced  .agents/local/vulcan.manifest.json
+  replaced  .agents/atlas.manifest.json
   replaced  AGENTS.md (Atlas block)
   unchanged .agents/vulcan.local.json
   unchanged .git/info/exclude
@@ -146,7 +147,8 @@ Checked 239 installs across 278 packages (no changes) [18.00ms]
   unchanged .claude/skills/ship
   unchanged .claude/skills/visualize-work
   unchanged .mcp.json
-  replaced  .agents/vulcan.manifest.json
+  replaced  .agents/local/vulcan.manifest.json
+  replaced  .agents/atlas.manifest.json
   unchanged AGENTS.md
   unchanged .agents/vulcan.local.json
   unchanged .git/info/exclude
@@ -204,7 +206,8 @@ Checked 240 installs across 279 packages (no changes) [19.00ms]
   unchanged .claude/skills/ship
   unchanged .claude/skills/visualize-work
   unchanged .mcp.json
-  replaced  .agents/vulcan.manifest.json
+  replaced  .agents/local/vulcan.manifest.json
+  replaced  .agents/atlas.manifest.json
   unchanged AGENTS.md
   unchanged .agents/vulcan.local.json
   unchanged .git/info/exclude

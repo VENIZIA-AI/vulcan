@@ -15,7 +15,7 @@ setDefaultTimeout(30_000);
 const project = (opts: { log?: boolean } = {}): string =>
   createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify({
+      '.agents/local/vulcan.manifest.json': JSON.stringify({
         project: { key: 'ACME' },
         events: { log: opts.log ?? true },
       }),

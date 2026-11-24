@@ -585,7 +585,7 @@ describe('ReleasePlan.main: --merge-trial', () => {
     writeFileSync(join(root, 'shared.txt'), 'one\n');
     mkdirSync(join(root, '.agents'), { recursive: true });
     writeFileSync(
-      join(root, '.agents', 'vulcan.manifest.json'),
+      join(root, '.agents', 'atlas.manifest.json'),
       `${JSON.stringify({
         release: { tagPattern: 'vulcan-v<version>' },
         knowledge: { changelogs: 'docs/changelogs' },
@@ -743,7 +743,7 @@ describe('ReleasePlan.main: a stable and the changelog', () => {
       `${JSON.stringify({ name: '@x/cli', version: '0.1.0-0' }, null, 2)}\n`,
     );
     writeFileSync(
-      join(root, '.agents', 'vulcan.manifest.json'),
+      join(root, '.agents', 'atlas.manifest.json'),
       `${JSON.stringify({
         release: { tagPattern: 'vulcan-v<version>' },
         knowledge: { changelogs: 'docs/changelogs' },
@@ -772,7 +772,7 @@ describe('ReleasePlan: the changelog of a stable (C3, A5)', () => {
 
     mkdirSync(join(root, '.agents'), { recursive: true });
     writeFileSync(
-      join(root, '.agents', 'vulcan.manifest.json'),
+      join(root, '.agents', 'atlas.manifest.json'),
       JSON.stringify({
         release: { tagPattern: 'vulcan-v<version>' },
         knowledge: {

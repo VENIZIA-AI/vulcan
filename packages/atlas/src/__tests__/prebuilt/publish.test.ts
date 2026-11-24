@@ -420,7 +420,12 @@ describe('the release tag is not a release (C25)', () => {
     const { work } = makeSourceRepository();
     const project = ProjectConfig.toAtlasProject({
       root: work,
-      manifest: JSON.parse(readFileSync(join(work, MANIFEST_FILE), 'utf8')),
+      manifest: JSON.parse(
+        readFileSync(
+          ProjectConfig.manifestFileOf({ dir: work }) ?? join(work, MANIFEST_FILE),
+          'utf8',
+        ),
+      ),
     });
     const before = JSON.stringify(ReleaseCompute.compute({ project }));
 

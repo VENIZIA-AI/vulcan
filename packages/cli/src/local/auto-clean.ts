@@ -35,7 +35,7 @@ export class LocalAutoClean {
 
     try {
       const manifest: unknown = JSON.parse(
-        readFileSync(join(opts.root, '.agents/vulcan.manifest.json'), 'utf8'),
+        readFileSync(join(opts.root, '.agents/local/vulcan.manifest.json'), 'utf8'),
       );
       const local = RecordValue.isRecord(manifest) ? manifest.local : undefined;
 

@@ -407,7 +407,9 @@ describe('vulcan add --preset', () => {
 
     runCli({ args: ['sync', '--agents', 'none'], cwd: root });
 
-    const manifest = JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8'));
+    const manifest = JSON.parse(
+      readFileSync(join(root, '.agents/local/vulcan.manifest.json'), 'utf8'),
+    );
 
     expect(manifest.presets.map((item: { side: string }) => item.side)).toEqual([
       'backend',

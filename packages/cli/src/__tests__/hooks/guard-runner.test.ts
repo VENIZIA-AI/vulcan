@@ -234,7 +234,7 @@ describe('the guard-git hook runs it, for every agent that runs that script', ()
     const root = projectWithBins({
       bins: [],
       files: {
-        '.agents/vulcan.manifest.json': JSON.stringify({
+        '.agents/local/vulcan.manifest.json': JSON.stringify({
           schemaVersion: 1,
           guard: { runners: { allow: ['shadcn'] } },
         }),
