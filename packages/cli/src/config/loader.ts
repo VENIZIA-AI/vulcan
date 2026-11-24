@@ -16,7 +16,13 @@ type TLoadResult =
       file: string;
       config: TResolvedConfig;
       /** The project's own object, the layers below it and the merge the config was parsed from: what `vulcan config` shows. */
-      layers: { project: Record<string, unknown>; below: IConfigLayer[]; merge: IConfigMerge };
+      layers: {
+        project: Record<string, unknown>;
+        /** The default export as the file wrote it: the shape and the order of its keys, before the groups were made flat. */
+        file: Record<string, unknown>;
+        below: IConfigLayer[];
+        merge: IConfigMerge;
+      };
     }
   | { ok: false; file?: string; error: string };
 
@@ -202,6 +208,7 @@ export class ConfigLoader {
       config: derived === undefined ? parsed.data : { ...parsed.data, packages: derived.packages },
       layers: {
         project: RecordValue.isRecord(written) ? written : {},
+        file: RecordValue.isRecord(loaded.default) ? loaded.default : {},
         below: layered.below,
         merge: layered.merge,
       },

@@ -115,7 +115,7 @@ export class ConfigGroups {
     };
 
     return Object.entries(opts.value).flatMap(([group, inner]) => {
-      const rule = allowed[group];
+      const rule = Object.hasOwn(allowed, group) ? allowed[group] : undefined;
 
       if (rule === undefined) {
         return [group];
@@ -197,7 +197,10 @@ export class ConfigGroups {
       if (group === 'knowledge') {
         const { okf, atlas, ...own } = value;
 
-        flat['knowledge'] = own;
+        // An empty `knowledge` (the pack writes one) sets nothing: the schema's defaults stand, as when the key is left out.
+        if (Object.keys(own).length > 0) {
+          flat['knowledge'] = own;
+        }
 
         if ('okf' in value) {
           flat['okf'] = okf;

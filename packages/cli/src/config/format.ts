@@ -63,49 +63,149 @@ export class ConfigFormat {
   /** The text of the config with the keys of its default-export object in the order of `ConfigKeyOrder`; the same text when they are in order already. */
   static format(opts: { text: string; root: string }): TConfigFormatResult {
     const typescript = TypeScriptCompiler.load({ from: opts.root });
-    const source = typescript.createSourceFile(
-      'vulcan.config.mts',
-      opts.text,
-      typescript.ScriptTarget.Latest,
-      true,
-      typescript.ScriptKind.TS,
-    );
+    const parse = (text: string): TSourceFile =>
+      typescript.createSourceFile(
+        'vulcan.config.mts',
+        text,
+        typescript.ScriptTarget.Latest,
+        true,
+        typescript.ScriptKind.TS,
+      );
+    let source = parse(opts.text);
     const found = ConfigFormat.findObject({ typescript, source });
 
     if ('reason' in found) {
       return { ok: false, reason: found.reason };
     }
 
-    const keys: string[] = [];
+    const keysOf = (object: TObjectLiteral, label: string): string[] | { reason: string } => {
+      const keys: string[] = [];
 
-    for (const property of found.object.properties) {
-      const key = ConfigFormat.keyOf({ typescript, property });
+      for (const property of object.properties) {
+        const key = ConfigFormat.keyOf({ typescript, property });
 
-      if (typeof key !== 'string') {
-        return { ok: false, reason: key.reason };
+        if (typeof key !== 'string') {
+          return { reason: label === '' ? key.reason : `in \`${label}\`: ${key.reason}` };
+        }
+
+        keys.push(key);
       }
 
-      keys.push(key);
+      return keys;
+    };
+    const topKeys = keysOf(found.object, '');
+
+    if ('reason' in topKeys) {
+      return { ok: false, reason: topKeys.reason };
     }
 
+    const isFlat = ConfigKeyOrder.isFlatShape({ keys: topKeys });
+    const top = ConfigFormat.reorder({
+      typescript,
+      source,
+      object: found.object,
+      keys: topKeys,
+      rank: (key) =>
+        isFlat ? ConfigKeyOrder.rankOf({ key }) : ConfigKeyOrder.groupRankOf({ key }),
+      label: '',
+    });
+
+    if (!top.ok) {
+      return top;
+    }
+
+    let text = top.text;
+    const moved = [...top.moved];
+
+    // Inside a group of a grouped file, the keys of the groups written as object literals (a module the group names is not touched).
+    for (const group of isFlat ? [] : ConfigKeyOrder.GROUPS.filter((name) => name !== 'guard')) {
+      source = parse(text);
+
+      const object = ConfigFormat.findObject({ typescript, source });
+      const inner =
+        'reason' in object
+          ? undefined
+          : ConfigFormat.groupObject({ typescript, object: object.object, group });
+
+      if (inner === undefined) {
+        continue;
+      }
+
+      const keys = keysOf(inner, group);
+
+      if ('reason' in keys) {
+        return { ok: false, reason: keys.reason };
+      }
+
+      const ordered = ConfigFormat.reorder({
+        typescript,
+        source,
+        object: inner,
+        keys,
+        rank: (key) => ConfigKeyOrder.innerRankOf({ group, key }),
+        label: group,
+      });
+
+      if (!ordered.ok) {
+        return ordered;
+      }
+
+      text = ordered.text;
+      moved.push(...ordered.moved.map((key) => `${group}.${key}`));
+    }
+
+    return { ok: true, text: moved.length === 0 ? opts.text : text, keys: top.keys, moved };
+  }
+
+  /** The object literal that is the value of the property `group` of the default export, or `undefined` when it is not a literal. */
+  private static groupObject(opts: {
+    typescript: TTypeScript;
+    object: TObjectLiteral;
+    group: string;
+  }): TObjectLiteral | undefined {
+    const { typescript } = opts;
+    const property = opts.object.properties.find(
+      (entry) =>
+        typescript.isPropertyAssignment(entry) &&
+        (typescript.isIdentifier(entry.name) || typescript.isStringLiteral(entry.name)) &&
+        entry.name.text === opts.group,
+    );
+
+    return property !== undefined &&
+      typescript.isPropertyAssignment(property) &&
+      typescript.isObjectLiteralExpression(property.initializer)
+      ? property.initializer
+      : undefined;
+  }
+
+  /** One object's properties in the order of `rank`, each with its comments; the text is the same when they are in order already. */
+  private static reorder(opts: {
+    typescript: TTypeScript;
+    source: TSourceFile;
+    object: TObjectLiteral;
+    keys: string[];
+    rank: (key: string) => number;
+    label: string;
+  }): { ok: true; text: string; keys: string[]; moved: string[] } | { ok: false; reason: string } {
+    const { typescript, source, keys } = opts;
     const order = keys
       .map((key, index) => ({ key, index }))
-      .sort(
-        (left, right) =>
-          ConfigKeyOrder.rankOf({ key: left.key }) - ConfigKeyOrder.rankOf({ key: right.key }),
-      );
+      .sort((left, right) => opts.rank(left.key) - opts.rank(right.key));
     const target = new Map(order.map((entry, position) => [entry.index, position]));
     const kept = findIncreasingRun({ sequence: keys.map((_, index) => target.get(index) ?? 0) });
     const moved = order.filter((entry) => !kept.has(entry.index)).map((entry) => entry.key);
 
     if (moved.length === 0) {
-      return { ok: true, text: opts.text, keys, moved };
+      return { ok: true, text: source.text, keys, moved };
     }
 
-    const cut = ConfigFormat.cut({ typescript, source, object: found.object, keys });
+    const cut = ConfigFormat.cut({ typescript, source, object: opts.object, keys });
 
     if ('reason' in cut) {
-      return { ok: false, reason: cut.reason };
+      return {
+        ok: false,
+        reason: opts.label === '' ? cut.reason : `in \`${opts.label}\`: ${cut.reason}`,
+      };
     }
 
     const last = cut.segments[cut.segments.length - 1];

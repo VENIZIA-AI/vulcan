@@ -33,6 +33,19 @@ Exit codes: `0` shown; `1` when the config cannot be loaded; `2` on bad input (n
 | 7. Tools | `claude`, `doctor`, `local`, `theme` |
 | 8. Opt-outs | `remove`, always last |
 
+That is the order of the flat file of the earlier releases. A file written in the groups (`project`, `agent`, `guard`, `board`, `knowledge`, `check`, `common`) has the groups in that order, and inside each group its keys in this order (`guard` keeps its keys as written):
+
+| Group | Keys |
+|---|---|
+| `project` | `name`, `key`, `layout`, `packages`, `presets` |
+| `agent` | `list`, `packs`, `rules`, `digest`, `owner`, `claude` |
+| `board` | `events`, `page`, `provider` |
+| `knowledge` | `bundle`, `wiki`, `changelogs`, `migrationFrom`, `codemodCommand`, `datedUntil`, `siteUrl`, `okf`, `atlas` |
+| `check` | `doctor`, `commit`, `layout` |
+| `common` | `theme`, `local`, `remove` (last) |
+
+`--check` and `config-order` name an inner key with its group (`agent.list`). A group whose value is an imported module or a variable is not touched; a group with a spread or a computed key is refused with the group named, and so is one whose first key is on the line of `{`.
+
 A key the list does not name (`provider`, or one a newer VULCAN added) goes after the listed keys and before `remove`, in the order the file had it.
 
 - The file is parsed with TypeScript, never run. The object is the one of `export default { ... }`, also behind `satisfies VulcanConfig`, `as const`, parentheses or `defineConfig(...)`.
