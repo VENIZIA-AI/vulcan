@@ -4,7 +4,7 @@ import { readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
-import type { TLayoutSettings } from '../../doctor/schema.ts';
+import type { TLayoutSettings } from '../../config/sections/doctor/index.ts';
 import { LayoutBaseline } from '../../layout/baseline.ts';
 import { LayoutCheck } from '../../layout/check.ts';
 import type { ILayoutFileText } from '../../layout/common/index.ts';

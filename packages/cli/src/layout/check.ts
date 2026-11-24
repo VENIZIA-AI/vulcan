@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { LayoutFolder, LayoutKeys } from '../common/layout-folder.ts';
 import { ProjectPackages } from '../config/packages.ts';
 import type { TResolvedConfig } from '../config/schema.ts';
-import type { TLayoutSettings } from '../doctor/schema.ts';
+import type { TLayoutSettings } from '../config/sections/doctor/index.ts';
 import { HookConstants } from '../hooks/common/index.ts';
 import { GitQueries } from '../hooks/git-queries.ts';
 import { LayoutConstants, LayoutRules } from './common/index.ts';

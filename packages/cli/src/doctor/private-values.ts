@@ -5,7 +5,7 @@ import { GitFiles } from '../common/git-files.ts';
 import { EventSecrets } from '../events/common/constants.ts';
 import { PrivateValueKinds, PrivateValueScan } from './common/constants.ts';
 import type { TPrivateValueKind } from './common/types.ts';
-import type { TPrivateValueAcknowledgement } from './schema.ts';
+import type { TPrivateValueAcknowledgement } from '../config/sections/doctor/index.ts';
 
 type TCounts = Partial<Record<TPrivateValueKind, number>>;
 

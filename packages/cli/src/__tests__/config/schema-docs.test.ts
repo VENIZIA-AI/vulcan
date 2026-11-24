@@ -9,7 +9,6 @@ const SCHEMA_FILES = [
   ...new Glob('config/**/schema.ts').scanSync({ cwd: SOURCE_ROOT }),
   'owner/schema.ts',
   'board/schema.ts',
-  'doctor/schema.ts',
 ].toSorted();
 /** Every documented key today: a file the scan stops reading drops keys, and the count shows it. */
 const DOCUMENTED_KEYS = 172;

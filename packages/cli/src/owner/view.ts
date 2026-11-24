@@ -1,5 +1,6 @@
 import { OwnerConstants, OwnerEnforcement, OwnerLabelModes } from './constants.ts';
-import type { TOwnerConfig, TOwnerLabelSet, TProfile } from './schema.ts';
+import type { TOwnerConfig } from '../config/sections/owner/index.ts';
+import type { TOwnerLabelSet, TProfile } from './schema.ts';
 
 /** What one person's replies follow: the project's contract with that person's own settings laid over it. */
 export interface IOwnerView {
