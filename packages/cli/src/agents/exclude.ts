@@ -1,3 +1,4 @@
+import { LOCAL_AGENTS_FILE } from './local.ts';
 import { AgentConstants, AgentScopes } from './common/index.ts';
 import { AgentTable } from './table.ts';
 
@@ -65,7 +66,7 @@ export class AgentExclude {
       }
     }
 
-    return groups;
+    return [...groups, { title: 'local', paths: [`/${LOCAL_AGENTS_FILE}`] }];
   }
 
   /**

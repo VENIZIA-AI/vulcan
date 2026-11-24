@@ -218,9 +218,10 @@ export class CommandTable {
       help: `  profile [show|edit|reset [--yes]]
                                   Tell VULCAN how you like to work (reply language, how to address you,
                                   tone, habits) in .agents/local/profile.json; no argument runs the form,
-                                  show prints it, reset deletes it`,
+                                  show prints it, reset removes your answers`,
       flags: {
-        '--yes': 'With reset: delete .agents/local/profile.json',
+        '--yes':
+          "With reset: remove your answers; this machine's valid keys (agents, board, local, events) stay, and the file goes only when none is left",
       },
       positionals: 1,
       exits:
@@ -253,7 +254,8 @@ export class CommandTable {
         '--cache': 'Remove what atlas fetched; it rebuilds',
         '--reports': 'Remove reports/; kept unless named',
         '--prototypes': 'Remove prototypes/; kept unless named',
-        '--profile': 'Remove profile.json; kept unless named',
+        '--profile':
+          "Reset profile.json like 'vulcan profile reset': your answers go, this machine's keys stay; kept unless named",
         '--events': 'Remove event day files past the events limits; only when named',
         '--release-candidates':
           'Remove release-candidate folders whose version tag exists; only when named',

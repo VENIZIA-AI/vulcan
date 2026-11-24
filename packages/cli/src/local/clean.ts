@@ -1,3 +1,4 @@
+import { OwnerProfile } from '../owner/profile.ts';
 import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, rmSync, unlinkSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
@@ -62,6 +63,13 @@ const removeEntry = (opts: { root: string; entry: ILocalEntry }): string | undef
   try {
     if (entry.isSymlink) {
       unlinkSync(entry.path);
+
+      return undefined;
+    }
+
+    // The profile also holds this machine's keys: `clean --profile` resets the owner's answers like `vulcan profile reset`.
+    if (entry.scope === CleanScopes.PROFILE) {
+      OwnerProfile.reset({ root: opts.root });
 
       return undefined;
     }

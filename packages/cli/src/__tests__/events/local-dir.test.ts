@@ -51,6 +51,7 @@ const readdirSyncSafe = (dir: string): string[] => {
 describe('events.dir in the local file replaces the manifest value', () => {
   test('the path of the local file is the one the agents code names', () => {
     expect(EventConstants.LOCAL_FILE).toBe(AgentConstants.LOCAL_FILE);
+    expect(EventConstants.LEGACY_LOCAL_FILE).toBe(AgentConstants.LEGACY_LOCAL_FILE);
   });
 
   test('read and dirOf: local over manifest, with the log off too, and --dir over both', () => {

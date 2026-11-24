@@ -8,12 +8,12 @@ const EXCLUDE_BLOCK_END = '# vulcan:end';
 describe('AgentExclude.excludePathsOf', () => {
   const SKILLS = ['build-a-feature', 'docs-update', 'docs-writing', 'research'];
 
-  test('lists nothing for a machine that chose no agent: the profile is under .agents/local, which .gitignore holds', () => {
+  test('always lists the profile, so a project with no .gitignore never shows it in git status', () => {
     expect(
       AgentExclude.excludePathsOf({ agents: [], skillNames: SKILLS }).flatMap(
         (group) => group.paths,
       ),
-    ).toEqual([]);
+    ).toEqual(['/.agents/local/profile.json']);
   });
 
   test('claude: the shim and the folder', () => {

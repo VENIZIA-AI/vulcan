@@ -44,7 +44,7 @@ describe('the chosen agents go to .git/info/exclude', () => {
     expect(block).toContain('# vulcan:start');
     expect(block).toContain('/.cursor/mcp.json');
     expect(block).toContain('/.agents/skills/docs-update');
-    expect(block).not.toContain('profile.json');
+    expect(block).toContain('/.agents/local/profile.json');
     expect(block).not.toContain('CLAUDE.md');
     expect(existsSync(join(root, '.gitignore'))).toBe(false);
     expect(status({ root })).not.toContain('.cursor');

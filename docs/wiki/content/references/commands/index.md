@@ -57,7 +57,7 @@ Usage: bun node_modules/.bin/vulcan <command>
   profile [show|edit|reset [--yes]]
                                   Tell VULCAN how you like to work (reply language, how to address you,
                                   tone, habits) in .agents/local/profile.json; no argument runs the form,
-                                  show prints it, reset deletes it
+                                  show prints it, reset removes your answers
   config --effective | --diff
                                   --effective prints the config as the commands read it (the shipped defaults, the
                                   config of each pack, then the project file, merged) with the layer each value

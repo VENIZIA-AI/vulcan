@@ -1122,7 +1122,7 @@ export class ProjectContract {
         createViolation({
           check: DoctorChecks.PROFILE,
           file: OwnerConstants.PROFILE_FILE,
-          message: `${read.error} - fix it or delete it and run the profile form again`,
+          message: `${read.error} - fix the key it names; the file also holds this machine's keys (agents, board, local, events), so 'vulcan profile reset --yes' keeps the valid ones and drops a broken one`,
         }),
       );
     }
