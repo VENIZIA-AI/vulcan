@@ -744,7 +744,12 @@ export class ShellWrites {
   }
 
   /** `find` with `-delete`, or `-exec` of a program that writes, deletes what it finds under its folders. */
-  private static addFind(opts: { args: string[]; base: string; targets: IWriteTarget[] }): void {
+  private static addFind(opts: {
+    args: string[];
+    base: string;
+    targets: IWriteTarget[];
+    configModules: string[];
+  }): void {
     const { args, base, targets } = opts;
     const isDeleting = args.includes('-delete') || ShellWrites.findRunsWriter({ args });
 
@@ -762,7 +767,12 @@ export class ShellWrites {
         ['-o', '-or', '!', '-not', '(', '-path', '-ipath', '-regex'].includes(word),
       );
 
-    if (isNarrow && !names.some((pattern) => ProtectedNames.isNameReachable({ pattern }))) {
+    if (
+      isNarrow &&
+      !names.some((pattern) =>
+        ProtectedNames.isNameReachable({ pattern, configModules: opts.configModules }),
+      )
+    ) {
       return;
     }
 
@@ -793,7 +803,13 @@ export class ShellWrites {
   }
 
   /** The words a simple command would create or write, with a name for what writes them. */
-  static targetsOf(opts: { command: ISimpleCommand; base: string; tmp: string }): IWriteTarget[] {
+  static targetsOf(opts: {
+    command: ISimpleCommand;
+    base: string;
+    tmp: string;
+    /** The modules the config imports (`guard.configModules`): a `find -name` of one of their names reaches them. */
+    configModules?: string[];
+  }): IWriteTarget[] {
     const program = ShellParser.programOf({ command: opts.command });
     const name = ShellParser.basenameOf({ word: program.name });
     const { base } = opts;
@@ -909,7 +925,7 @@ export class ShellWrites {
     } else if (name === 'unzip') {
       ShellWrites.addUnzip({ args, base, targets });
     } else if (name === 'find') {
-      ShellWrites.addFind({ args, base, targets });
+      ShellWrites.addFind({ args, base, targets, configModules: opts.configModules ?? [] });
     } else if (name === 'dd') {
       const output = args.find((word) => word.startsWith('of='));
 

@@ -6,6 +6,7 @@ import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { ProjectPackages } from '../config/index.ts';
 import { ConfigImports } from '../config/imports.ts';
 import { GuardDecisions } from '../hooks/common/index.ts';
+import { AgentFiles } from '../sync/agent-files.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules } from '../rules/index.ts';
 import { ThemeTokens } from '../theme/index.ts';
@@ -243,7 +244,12 @@ export class ProjectManifest {
    * The local manifest (Project Contract v1, C1): data only, rendered from the config with a fixed key order, so a stale
    * one shows as a diff. Not committed: every clone writes it with `vulcan project sync`.
    */
-  static render(opts: { root: string; config: TResolvedConfig }): string {
+  static render(opts: {
+    root: string;
+    config: TResolvedConfig;
+    /** The modules of the config under `.configs/` (`ConfigImports.localModules`), when the caller scanned them already. */
+    configModules?: string[];
+  }): string {
     return BunFormatter.format({
       text: `${JSON.stringify(ProjectManifest.build(opts), null, 2)}\n`,
       file: ManifestConstants.FILE,
@@ -252,15 +258,22 @@ export class ProjectManifest {
 
   /**
    * Whether the repository publishes, so other projects read it as an atlas source: it signs the index it publishes
-   * (`atlas.index.keys`). Only such a repository writes the committed descriptor; an app keeps everything in the local manifest.
+   * (`atlas.index.keys`), or git already tracks its descriptor (a source that signs nothing is read through that file).
+   * Only such a repository writes the committed descriptor; an app keeps everything in the local manifest.
    */
-  static publishes(opts: { config: TResolvedConfig }): boolean {
-    return (opts.config.atlas.index?.keys.length ?? 0) > 0;
+  static publishes(opts: { root: string; config: TResolvedConfig }): boolean {
+    return (
+      (opts.config.atlas.index?.keys.length ?? 0) > 0 ||
+      // A state git cannot give (not a repository, a broken index) counts as tracked: a descriptor is never dropped on a guess.
+      AgentFiles.trackState({ root: opts.root, path: ManifestConstants.DESCRIPTOR_FILE }) !==
+        'untracked'
+    );
   }
 
   /** The committed descriptor: the keys of the manifest that atlas reads, in the same order and with the same values. */
   static renderDescriptor(opts: { root: string; config: TResolvedConfig }): string {
-    const whole = ProjectManifest.build(opts);
+    // The descriptor holds no guard block, so the modules of the config are not read.
+    const whole = ProjectManifest.build({ ...opts, configModules: [] });
     const descriptor = Object.fromEntries(
       Object.entries(whole).filter(([key]) => ManifestConstants.DESCRIPTOR_KEYS.includes(key)),
     );
@@ -271,7 +284,12 @@ export class ProjectManifest {
     });
   }
 
-  private static build(opts: { root: string; config: TResolvedConfig }): Record<string, unknown> {
+  private static build(opts: {
+    root: string;
+    config: TResolvedConfig;
+    /** The modules of the config under `.configs/` (`ConfigImports.localModules`), when the caller scanned them already. */
+    configModules?: string[];
+  }): Record<string, unknown> {
     const { config } = opts;
     const { wiki, changelogs, migrationFrom, datedUntil, siteUrl, codemodCommand } =
       config.knowledge;
@@ -318,7 +336,10 @@ export class ProjectManifest {
       // The prebuilt index: the keys a published pair is checked with, and the switch; neither set, nothing is written.
       ...atlasBlockOf({ config }),
       // The commands and push targets the guards ask about beyond their own list; neither set, nothing is written.
-      ...guardBlockOf({ config, configModules: ConfigImports.localModules({ root: opts.root }) }),
+      ...guardBlockOf({
+        config,
+        configModules: opts.configModules ?? ConfigImports.localModules({ root: opts.root }),
+      }),
       // The design tokens: the preset, the seeds the project gave and the resolved set every consumer reads.
       ...themeBlockOf({ config }),
       ...commitBlockOf({ config }),

@@ -80,6 +80,56 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
     });
   });
 
+  test('the table: the code column fits the whole id, three digits or a long key, with the id as title, and a long holder leaves the columns fixed', async () => {
+    const longIds = ['VULZ-BANA-140', 'VULZ-BANA-175', 'VULZ-VULCAN-1234'];
+    const wide = {
+      ...data,
+      flows: data.flows.slice(0, longIds.length).map((flow, index) => ({
+        ...flow,
+        id: longIds[index] ?? flow.id,
+      })),
+    };
+    const raw = await BrowserPage.measure<string>({
+      html: BoardPage.render({ data: wide }),
+      width: 1440,
+      dark: false,
+      expression: `(async () => {
+        localStorage.clear();
+        ${WAIT}
+        document.querySelector('[data-view="table"]').click();
+        await wait();
+        const cells = [...document.querySelectorAll('.t-work td.c-id')];
+        const holder = document.querySelector('.t-work th:nth-child(5)');
+        const before = holder.getBoundingClientRect().width;
+        document.querySelector('.t-work tbody tr td:nth-child(5)').append(' a-holder-name-much-longer-than-its-column-can-show');
+        await wait();
+        const holderKept = holder.getBoundingClientRect().width === before;
+        localStorage.clear();
+        return JSON.stringify({ holderKept, cells: cells.map((cell) => ({
+          text: cell.textContent,
+          title: cell.title,
+          clipped: cell.scrollWidth > cell.clientWidth,
+        })) });
+      })()`,
+    });
+    const {
+      cells,
+      holderKept,
+    }: {
+      cells: { text: string; title: string; clipped: boolean }[];
+      holderKept: boolean;
+    } = JSON.parse(raw);
+
+    expect(cells.length).toBe(longIds.length);
+    expect(holderKept).toBe(true);
+
+    for (const cell of cells) {
+      expect(longIds).toContain(cell.text);
+      expect(cell.title).toBe(cell.text);
+      expect(cell.clipped).toBe(false);
+    }
+  });
+
   test('the table: ten columns in order, a header click sorts with aria-sort, and j moves through its rows', async () => {
     const result = await run<{
       headers: string[];

@@ -374,10 +374,7 @@ export class ProjectContract {
    */
   static checkManifest(opts: ICheckContext): IViolation[] {
     return SyncPlanner.planManifest({ root: opts.root, config: opts.config })
-      .filter(
-        (action) =>
-          action.status !== SyncStatuses.UNCHANGED && action.status !== SyncStatuses.SKIPPED,
-      )
+      .filter((action) => action.status !== SyncStatuses.UNCHANGED)
       .map((action) => {
         const file = relative(opts.root, action.path);
         const sync = `run '${ProjectLayout.VULCAN_COMMAND} project sync'`;
@@ -405,19 +402,6 @@ export class ProjectContract {
               : `stale against the config, or edited by hand${temporary} - the manifest is generated, never edit it: edit .configs/vulcan.config.* and ${fix}`,
         });
       });
-  }
-
-  /** A descriptor git tracks in a repository that publishes no package: sync leaves it, and the warning names the command that untracks it. A warning. */
-  static checkTrackedDescriptor(opts: ICheckContext): IViolation[] {
-    return SyncPlanner.planManifest({ root: opts.root, config: opts.config })
-      .filter((action) => action.status === SyncStatuses.SKIPPED)
-      .map((action) =>
-        createViolation({
-          check: DoctorChecks.MANIFEST,
-          file: relative(opts.root, action.path),
-          message: action.note ?? '',
-        }),
-      );
   }
 
   /**

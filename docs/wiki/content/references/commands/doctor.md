@@ -59,6 +59,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `prepare` (note) | No install script (`prepare` or `postinstall`) of the root `package.json` runs `vulcan project sync` (directly or as `make vulcan-sync`), so a fresh clone has no hooks until someone runs it | Add the `prepare` script the note prints (`vulcan project init --preset` writes it for a new project) |
 | `claude-settings` (warning) | Git tracks `.claude/settings.json`, which `sync` writes in every clone | `git rm --cached .claude/settings.json`; sync keeps it out of git from then on |
 | `config-defaults` (note) | N values of the config repeat what the shipped defaults give | Run `vulcan config diff` and delete them |
+| `config-modules` (warning) | A module of the config the guards cannot protect: the config file or a module that is or leads outside `.configs/` (a relative import, a link, a package of this repository such as a workspace member or a `file:` dependency), a module reached through an alias, a specifier that names nothing the project has, or a file that cannot be read | Move it under `.configs/` and import it by a relative path |
 | `config-order` (note) | The top-level keys of the config are not in the canonical order | Run `vulcan config format` |
 | `config-remove` (warning) | A `remove` entry matches nothing, so it does nothing | Delete the entry |
 | `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it, or delete `packages` so it is derived from the workspaces |
@@ -186,7 +187,7 @@ When sync skips a file, it reports the reason or `shadows a shipped skill - rena
 
 ### manifest
 
-A missing or outdated `.agents/local/vulcan.manifest.json`, `.agents/atlas.manifest.json` or `.agents/vulcan.manifest.json` triggers this check. The last is a temporary data-only copy of the descriptor, kept until the stable 0.5.0 release because atlas of 0.5.0-6 and before reads a source's manifest only at that path; the message says so, and the fix is the same: run `vulcan project sync` and commit it. In a repository that publishes no package (no `atlas.index.keys`) only the local manifest is checked: a descriptor left untracked by an earlier sync is a violation that `vulcan project sync` fixes by deleting it, and one git tracks is a warning that names `git rm --cached`.
+A missing or outdated `.agents/local/vulcan.manifest.json`, `.agents/atlas.manifest.json` or `.agents/vulcan.manifest.json` triggers this check. The last is a temporary data-only copy of the descriptor, kept until the stable 0.5.0 release because atlas of 0.5.0-6 and before reads a source's manifest only at that path; the message says so, and the fix is the same: run `vulcan project sync` and commit it. In a repository that publishes nothing (no `atlas.index.keys`, and git tracks no descriptor) only the local manifest is checked, and a descriptor left untracked by an earlier sync is a violation that `vulcan project sync` fixes by deleting it. A descriptor git tracks makes the repository a source: it is checked like the rest, and doctor never asks to untrack it. When git cannot say (not a repository, a broken index), the descriptor counts as tracked.
 
 ```text
 $ bun node_modules/.bin/vulcan project doctor
@@ -324,6 +325,10 @@ A note: `board.serve.autoStart` is on in `.agents/local/profile.json`, but the s
 ### config-defaults
 
 A note: the config states values that the shipped layers (the defaults, and the config of each rule pack) already give, so they can be deleted. `vulcan config diff` lists them by path.
+
+### config-modules
+
+A warning, also printed by `vulcan project sync`: the guards protect `.configs/vulcan.config.*` and every module under `.configs/` the config imports, and nothing else. A module the config reaches outside `.configs/`, at any depth, through a relative import, an alias of the root `tsconfig.json` `paths` or of the root `package.json` `imports`, or a link whose target is elsewhere, can be edited by an agent to change the policy, and one warning names it. So does a specifier that names no file of the project and no package the project installs or declares: the guard cannot tell what it is. A package whose installed folder is the project's own code (a workspace member, a `file:`, `link:` or `portal:` dependency), or one declared with such a protocol and not installed, is a local module too. The config file is named when it is a link out of `.configs/`, a module reached through an alias when the alias leads into `.configs/` as well (the guard protects the file, the import should say which one: import it by a relative path), and a file that cannot be read or resolved. Only imports that bring a value are read: `import type` and `export type` are left out. The message ends with `move it under .configs/ so the guard protects it`, or `import it by a relative path`.
 
 ### config-order
 

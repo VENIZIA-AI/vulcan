@@ -3,7 +3,7 @@ import { LocalSettings } from '../common/local-settings.ts';
 import { ConfigLoader } from '../config/index.ts';
 import { ProjectContract } from './checks.ts';
 import type { ICheckContext } from './checks.ts';
-import { ConfigOrderCheck } from './config-order.ts';
+import { ConfigModulesCheck, ConfigOrderCheck } from './config-order.ts';
 import { FileLayoutCheck } from './file-layout.ts';
 import { SkillLint } from './skills.ts';
 import { TagCheck } from './tags.ts';
@@ -134,7 +134,7 @@ export class DoctorRunner {
 
     return [
       ...ProjectContract.checkStaleRemove(context),
-      ...ProjectContract.checkTrackedDescriptor(context),
+      ...ConfigModulesCheck.check(context),
       ...ProjectContract.checkClaudeSettingsTracked(context),
       ...ProjectContract.checkAtlasSources(context),
       ...ProjectContract.checkMcpAtlas(context),
