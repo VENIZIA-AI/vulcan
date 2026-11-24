@@ -80,6 +80,47 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
     });
   });
 
+  test('the table: the code column fits the whole id, three digits or a long key, and keeps the id as its title', async () => {
+    const longIds = ['VULZ-BANA-140', 'VULZ-BANA-175', 'VULZ-VULCAN-1234'];
+    const wide = {
+      ...data,
+      flows: data.flows.slice(0, longIds.length).map((flow, index) => ({
+        ...flow,
+        id: longIds[index] ?? flow.id,
+      })),
+    };
+    const raw = await BrowserPage.measure<string>({
+      html: BoardPage.render({ data: wide }),
+      width: 1440,
+      dark: false,
+      expression: `(async () => {
+        localStorage.clear();
+        ${WAIT}
+        document.querySelector('[data-view="table"]').click();
+        await wait();
+        const cells = [...document.querySelectorAll('.t-work td.c-id')];
+        localStorage.clear();
+        return JSON.stringify(cells.map((cell) => ({
+          text: cell.textContent,
+          title: cell.title,
+          clipped: cell.scrollWidth > cell.clientWidth,
+          visible: getComputedStyle(cell).textOverflow === 'clip',
+        })));
+      })()`,
+    });
+    const cells: { text: string; title: string; clipped: boolean; visible: boolean }[] =
+      JSON.parse(raw);
+
+    expect(cells.length).toBe(longIds.length);
+
+    for (const cell of cells) {
+      expect(longIds).toContain(cell.text);
+      expect(cell.title).toBe(cell.text);
+      expect(cell.clipped).toBe(false);
+      expect(cell.visible).toBe(true);
+    }
+  });
+
   test('the table: ten columns in order, a header click sorts with aria-sort, and j moves through its rows', async () => {
     const result = await run<{
       headers: string[];

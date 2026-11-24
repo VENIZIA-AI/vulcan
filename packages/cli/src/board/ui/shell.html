@@ -876,13 +876,13 @@
       .t-work {
         width: 100%;
         min-width: 1080px;
-        table-layout: fixed;
+        table-layout: auto;
         border-collapse: separate;
         border-spacing: 0;
         font-size: 13px;
       }
       .w-code {
-        width: 120px;
+        width: 1%;
       }
       .w-stage {
         width: 92px;
@@ -960,12 +960,19 @@
         text-overflow: ellipsis;
         vertical-align: middle;
       }
+      .t-work td.c-id {
+        overflow: visible;
+        text-overflow: clip;
+      }
       .t-work td:first-child,
       .t-work th:first-child button {
         padding-left: 16px;
       }
       .t-work .num {
         text-align: right;
+      }
+      .t-work td.t-title {
+        max-width: 0;
       }
       .t-title div {
         display: flex;
