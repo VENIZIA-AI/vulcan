@@ -95,7 +95,7 @@ A project installs only `@venizia/vulcan`. The other two ship inside it as depen
 ./.agents/rules.md                      # committed: project-specific rules
 ./.agents/atlas.manifest.json                # committed: what atlas reads, written by sync
 ./.agents/local/vulcan.manifest.json         # gitignored: what the hooks read, written by sync
-./.agents/vulcan.local.json             # gitignored: the coding agents you chose on this machine
+./.agents/local/profile.json             # gitignored: the coding agents you chose on this machine
 ./.agents/local/                        # gitignored: scratch, worktrees, reports, profile (vulcan clean)
 ./CLAUDE.md                             # gitignored: agent adapter pointing to AGENTS.md
 ./.claude/settings.json                 # gitignored: merged settings and registered hooks

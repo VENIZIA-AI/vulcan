@@ -14,7 +14,6 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 ├── skills/                   tracked   the project's own skills (optional)
 ├── hooks/                    tracked   scripts of the project's own hooks (optional)
 ├── atlas.manifest.json       tracked   written by vulcan sync; atlas and the wiki build read it
-├── vulcan.local.json         ignored   the agents you chose on this machine, and your own board.agents and local.tmp
 ├── plans/                    ignored   plans an agent saved for you
 ├── specs/                    tracked   lane-L cards from plan-a-change (optional)
 └── local/                    ignored   what an agent creates while it works
@@ -33,7 +32,7 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 
 `plans/` is created and ignored by init. `specs/` is the default folder where plan-a-change writes lane-L cards. It is not created and not ignored, so cards are tracked unless the project adds it to `.gitignore`.
 
-`vulcan init` puts `.agents/plans`, `.agents/vulcan.local.json`, `.agents/local/`, the secret patterns (`**/.env`, `**/.env.*`, with `!**/.env.example` kept) in `.gitignore`. `sync` writes the manifest and the folders below.
+`vulcan init` puts `.agents/plans`, `.agents/local/`, the secret patterns (`**/.env`, `**/.env.*`, with `!**/.env.example` kept) in `.gitignore`. `sync` writes the manifest and the folders below.
 
 ## What is tracked
 

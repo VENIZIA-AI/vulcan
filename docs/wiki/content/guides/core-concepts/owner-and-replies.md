@@ -56,7 +56,7 @@ export default {
 
 ## Set your own profile
 
-Run `vulcan profile` to set your language, form of address, tone and detail. The answers go in `.agents/local/profile.json`, inside the project and gitignored. Use `vulcan profile show` to read the file and `vulcan profile reset --yes` to delete it. A profile cannot switch the shape card off when the project shows it. See [vulcan profile](/references/commands/profile).
+Run `vulcan profile` to set your language, form of address, tone and detail. The answers go in `.agents/local/profile.json`, inside the project and gitignored. Use `vulcan profile show` to read the file and `vulcan profile reset --yes` to remove your answers (the keys this machine keeps in the same file, such as your choice of agents, stay). A profile cannot switch the shape card off when the project shows it. See [vulcan profile](/references/commands/profile).
 
 ## What the model is told
 

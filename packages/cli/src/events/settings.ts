@@ -27,29 +27,32 @@ export class EventSettings {
     const settings = EventSettings.readManifest({ root: opts.root });
     const own = EventSettings.localDir({ root: opts.root });
 
-    // This checkout's own folder (`events.dir` of `.agents/vulcan.local.json`) replaces the manifest's; a value that is not an
+    // This checkout's own folder (`events.dir` of the profile) replaces the manifest's; a value that is not an
     // absolute path is not used, and the manifest's applies.
     return own === undefined ? settings : { ...settings, dir: own };
   }
 
   /**
-   * The folder this checkout's `.agents/vulcan.local.json` names in `events.dir`, when it is a folder `dirError` accepts;
-   * `undefined` otherwise, and when the file is missing or unreadable. Never throws: the event hook reads it on every event.
+   * The folder this checkout's profile (`.agents/local/profile.json`) names in `events.dir`, when it is a folder `dirError`
+   * accepts, else the one the file of the releases before 0.5.0 names; `undefined` when neither does. Never throws: the event hook
+   * reads it on every event.
    */
   static localDir(opts: { root: string }): string | undefined {
-    try {
-      const file: unknown = JSON.parse(
-        readFileSync(join(opts.root, EventConstants.LOCAL_FILE), 'utf8'),
-      );
-      const block = RecordValue.isRecord(file) ? file.events : undefined;
-      const dir = RecordValue.isRecord(block) ? block.dir : undefined;
+    for (const name of [EventConstants.LOCAL_FILE, EventConstants.LEGACY_LOCAL_FILE]) {
+      try {
+        const file: unknown = JSON.parse(readFileSync(join(opts.root, name), 'utf8'));
+        const block = RecordValue.isRecord(file) ? file.events : undefined;
+        const dir = RecordValue.isRecord(block) ? block.dir : undefined;
 
-      return typeof dir === 'string' && EventSettings.dirError({ dir }) === undefined
-        ? dir
-        : undefined;
-    } catch {
-      return undefined;
+        if (typeof dir === 'string' && EventSettings.dirError({ dir }) === undefined) {
+          return dir;
+        }
+      } catch {
+        // A missing or unreadable file has no folder to name.
+      }
     }
+
+    return undefined;
   }
 
   private static readManifest(opts: { root: string }): IEventSettings {

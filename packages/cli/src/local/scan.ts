@@ -562,7 +562,7 @@ export class LocalScan {
         removable: true,
         isSymlink: stat.isSymbolicLink(),
         registered: false,
-        note: '',
+        note: 'your answers only: the keys of this machine (agents, board, local, events) stay',
       });
     }
 

@@ -8,12 +8,12 @@ const EXCLUDE_BLOCK_END = '# vulcan:end';
 describe('AgentExclude.excludePathsOf', () => {
   const SKILLS = ['build-a-feature', 'docs-update', 'docs-writing', 'research'];
 
-  test('always lists the local choice file', () => {
+  test('always lists the profile, so a project with no .gitignore never shows it in git status', () => {
     expect(
       AgentExclude.excludePathsOf({ agents: [], skillNames: SKILLS }).flatMap(
         (group) => group.paths,
       ),
-    ).toEqual(['/.agents/vulcan.local.json']);
+    ).toEqual(['/.agents/local/profile.json']);
   });
 
   test('claude: the shim and the folder', () => {
@@ -101,7 +101,7 @@ describe('AgentExclude.renderBlock', () => {
     const block = AgentExclude.renderBlock({
       groups: [
         { title: 'cursor', paths: ['/.cursor/mcp.json'] },
-        { title: 'local', paths: ['/.agents/vulcan.local.json'] },
+        { title: 'local', paths: ['/.agents/local/profile.json'] },
       ],
     });
 
@@ -111,7 +111,7 @@ describe('AgentExclude.renderBlock', () => {
         '# cursor',
         '/.cursor/mcp.json',
         '# local',
-        '/.agents/vulcan.local.json',
+        '/.agents/local/profile.json',
         EXCLUDE_BLOCK_END,
         '',
       ].join('\n'),

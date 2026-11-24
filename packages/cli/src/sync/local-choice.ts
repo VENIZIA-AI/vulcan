@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { LOCAL_AGENTS_FILE, LocalChoice } from '../agents/index.ts';
+import { AgentConstants } from '../agents/common/constants.ts';
+import { OwnerProfile } from '../owner/profile.ts';
 import { ProjectLayout } from '../common/index.ts';
 import { HookConstants } from '../hooks/common/index.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
@@ -45,6 +47,16 @@ export class LocalPlan {
   /** The developer's stored agents: written when the machine just chose, reported unchanged when it was read. */
   static planChoice(opts: { root: string; agents: string[] }): ISyncAction {
     const path = join(opts.root, LOCAL_AGENTS_FILE);
+
+    if (OwnerProfile.linkedAt({ root: opts.root }) !== undefined) {
+      return {
+        path,
+        status: SyncStatuses.SKIPPED,
+        note: `${LOCAL_AGENTS_FILE} (or .agents/local) is a symlink: the choice was not written`,
+        apply: NO_CHANGE,
+      };
+    }
+
     const before = existsSync(path) ? readFileSync(path, 'utf8') : undefined;
     const text = LocalChoice.render({ agents: opts.agents, previous: before });
 
@@ -55,16 +67,107 @@ export class LocalPlan {
     return {
       path,
       status: before === undefined ? SyncStatuses.CREATED : SyncStatuses.REPLACED,
+      // Rendered again when it runs: the move of the old file's keys may have written the profile since this was planned.
       apply: () => {
         mkdirSync(dirname(path), { recursive: true });
-        writeFileSync(path, text);
+        writeFileSync(
+          path,
+          LocalChoice.render({
+            agents: opts.agents,
+            ...(existsSync(path) ? { previous: readFileSync(path, 'utf8') } : {}),
+          }),
+          { mode: 0o600 },
+        );
       },
     };
   }
 
-  /** The one line sync adds to a committed `.gitignore`; a project without one is left alone. */
-  static planIgnore(opts: { root: string }): ISyncAction[] {
-    return planIgnoreLine({ root: opts.root, line: LOCAL_AGENTS_FILE });
+  /**
+   * The file of the releases before 0.5.0 (`.agents/vulcan.local.json`): its machine keys move into the profile first (the
+   * profile's own value winning where both have one, one level down for `board`, `local` and `events`), and only then is the
+   * file removed: when git does not track it and it holds no key the profile does not know. A tracked file, one git could not
+   * be asked about, or one with an unknown key stays, and the note says what to do (sync runs no git write).
+   */
+  static planLegacyLocal(opts: { root: string }): ISyncAction[] {
+    const path = join(opts.root, AgentConstants.LEGACY_LOCAL_FILE);
+
+    if (!existsSync(path)) {
+      return [];
+    }
+
+    const target = join(opts.root, LOCAL_AGENTS_FILE);
+    const moved = LocalChoice.migrate({ root: opts.root });
+
+    if ('failed' in moved) {
+      return [
+        {
+          path: moved.failed === 'old' ? path : target,
+          status: SyncStatuses.SKIPPED,
+          note:
+            moved.failed === 'old'
+              ? `${AgentConstants.LEGACY_LOCAL_FILE} cannot be read as JSON: fix or delete it, its keys belong in ${LOCAL_AGENTS_FILE}`
+              : `${LOCAL_AGENTS_FILE} cannot be read as JSON, so the keys of ${AgentConstants.LEGACY_LOCAL_FILE} were not moved: fix the profile, then run sync again`,
+          apply: NO_CHANGE,
+        },
+      ];
+    }
+
+    if (OwnerProfile.linkedAt({ root: opts.root }) !== undefined) {
+      return [
+        {
+          path: target,
+          status: SyncStatuses.SKIPPED,
+          note: `${LOCAL_AGENTS_FILE} (or .agents/local) is a symlink: nothing was moved or written`,
+          apply: NO_CHANGE,
+        },
+      ];
+    }
+
+    const state = AgentFiles.trackState({
+      root: opts.root,
+      path: AgentConstants.LEGACY_LOCAL_FILE,
+    });
+    const isRemoved = state === 'untracked' && moved.left.length === 0;
+    const saying = [
+      `its keys moved into ${LOCAL_AGENTS_FILE}`,
+      ...(moved.kept.length === 0
+        ? []
+        : [`the profile's own value was kept for ${moved.kept.join(', ')}`]),
+      ...(moved.left.length === 0
+        ? []
+        : [
+            `${moved.left.join(', ')} ${moved.left.length === 1 ? 'is' : 'are'} not ${moved.left.length === 1 ? 'a key' : 'keys'} the profile takes, so the file stays: fix or delete ${moved.left.length === 1 ? 'it' : 'them'}`,
+          ]),
+      ...(state === 'tracked'
+        ? [
+            `git tracks this file: run git rm --cached ${AgentConstants.LEGACY_LOCAL_FILE}, then delete it`,
+          ]
+        : state === 'unknown'
+          ? ['git could not say whether it tracks this file: delete it by hand']
+          : []),
+    ].join('; ');
+
+    return [
+      {
+        path,
+        status: isRemoved ? SyncStatuses.REMOVED : SyncStatuses.REPLACED,
+        note: saying,
+        apply: () => {
+          const again = LocalChoice.migrate({ root: opts.root });
+
+          if (!('text' in again)) {
+            return;
+          }
+
+          mkdirSync(dirname(target), { recursive: true });
+          writeFileSync(target, again.text, { mode: 0o600 });
+
+          if (isRemoved) {
+            rmSync(path, { force: true });
+          }
+        },
+      },
+    ];
   }
 
   /**
@@ -143,6 +246,7 @@ export class LocalPlan {
 
     return [
       ...planIgnoreLine({ root: opts.root, line: `${ProjectLayout.LOCAL_DIRECTORY}/` }),
+      ...LocalPlan.planLegacyLocal({ root: opts.root }),
       ...LocalPlan.planTmp(opts),
       ...LocalPlan.planLegacyLaunch({ root: opts.root }),
       {

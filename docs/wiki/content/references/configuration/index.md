@@ -95,7 +95,7 @@ export default {
 
 ## agents
 
-An optional list of agents the project suggests. Each developer's own choice lives in `.agents/vulcan.local.json` (see [`vulcan sync`](/references/commands/sync#choosing-your-agents)); this list is used only when a machine has not chosen yet. `vulcan init` does not write it. Accepted ids: `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity`, `pi`.
+An optional list of agents the project suggests. Each developer's own choice lives in `.agents/local/profile.json` (see [`vulcan sync`](/references/commands/sync#choosing-your-agents)); this list is used only when a machine has not chosen yet. `vulcan init` does not write it. Accepted ids: `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity`, `pi`.
 
 When `claude` is chosen, `vulcan sync` writes `CLAUDE.md`, `.claude/settings.json`, and links skills in `.claude/skills/`. The `vulcan doctor` command checks these generated files with the `[adapters]` label.
 
@@ -750,7 +750,7 @@ The `events` object configures the agent event log ([vulcan event](/references/c
 
 `vulcan event add` and `tail` work whatever `log` says.
 
-An own `dir` lets one coordinator read the sessions of several repositories. The path is a machine path, so each person sets it in their own `.agents/vulcan.local.json` (`{ "events": { "dir": "/home/me/work/.agents/local/events" } }`), which replaces this key on that machine; see [One folder for every project](/references/commands/event#one-folder-for-every-project).
+An own `dir` lets one coordinator read the sessions of several repositories. The path is a machine path, so each person sets it in their own `.agents/local/profile.json` (`{ "events": { "dir": "/home/me/work/.agents/local/events" } }`), which replaces this key on that machine; see [One folder for every project](/references/commands/event#one-folder-for-every-project).
 
 - `~` and relative paths are refused.
 - It must be on a local disk (appends are not atomic on NFS).

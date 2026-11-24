@@ -16,7 +16,7 @@ afterAll(removeProjects);
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date().setHours(12, 0, 0, 0);
-const LOCAL = '.agents/vulcan.local.json';
+const LOCAL = '.agents/local/profile.json';
 const ACTOR = 'pnt-vulcan-1';
 const day = (opts: { ago: number }): string => EventLog.dayOf({ time: NOW - opts.ago * DAY });
 const git = (opts: { cwd: string; args: string[] }) =>
@@ -206,7 +206,7 @@ describe('vulcan sync and an invalid local events.dir', () => {
     const result = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
     expect(result.code).not.toBe(0);
-    expect(result.stderr).toContain('vulcan.local.json');
+    expect(result.stderr).toContain('profile.json');
     expect(result.stderr).toContain('events.dir');
     expect(existsSync(join(root, '.agents/local/vulcan.manifest.json'))).toBe(false);
   });

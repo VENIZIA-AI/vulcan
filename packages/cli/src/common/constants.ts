@@ -64,7 +64,6 @@ export class ProjectLayout {
     'CLAUDE.*.md',
     '.claude/',
     '.agents/plans',
-    '.agents/vulcan.local.json',
     '.agents/local/',
     ...ProjectLayout.SECRET_PATTERNS,
   ];

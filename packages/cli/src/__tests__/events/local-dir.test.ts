@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { AgentConstants } from '../../agents/common/constants.ts';
 import { LocalChoice } from '../../agents/index.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { OwnerProfile } from '../../owner/index.ts';
 import { ProjectContract } from '../../doctor/checks.ts';
 import {
   EventConstants,
@@ -21,7 +22,7 @@ import { wire } from './wire.helper.ts';
 afterAll(removeProjects);
 
 const MANIFEST = '.agents/local/vulcan.manifest.json';
-const LOCAL = '.agents/vulcan.local.json';
+const LOCAL = '.agents/local/profile.json';
 const ACTOR = 'pnt-vulcan-1';
 const shared = (): string => createProject({ files: {} });
 
@@ -50,6 +51,7 @@ const readdirSyncSafe = (dir: string): string[] => {
 describe('events.dir in the local file replaces the manifest value', () => {
   test('the path of the local file is the one the agents code names', () => {
     expect(EventConstants.LOCAL_FILE).toBe(AgentConstants.LOCAL_FILE);
+    expect(EventConstants.LEGACY_LOCAL_FILE).toBe(AgentConstants.LEGACY_LOCAL_FILE);
   });
 
   test('read and dirOf: local over manifest, with the log off too, and --dir over both', () => {
@@ -228,7 +230,7 @@ describe('the local file and doctor', () => {
     const read = LocalChoice.read({ root });
 
     expect(read.ok).toBe(false);
-    expect(read.ok ? '' : read.error).toContain('vulcan.local.json: events.dir');
+    expect(read.ok ? '' : read.error).toContain('profile.json: events.dir');
     expect(EventSettings.dirOf({ root })).toBe(team);
 
     const messages = ProjectContract.checkAgents(ctx(root)).map((violation) => violation.message);
@@ -239,7 +241,10 @@ describe('the local file and doctor', () => {
   test('the key is known to the file, and a mistyped one is not', () => {
     const root = project({ local: { events: { dir: shared() }, event: {} } });
 
-    expect(LocalChoice.unknownKeys({ root })).toEqual(['event']);
+    const profile = OwnerProfile.read({ root });
+
+    expect(profile.ok).toBe(false);
+    expect(profile.ok ? '' : profile.error).toContain('event');
   });
 
   test('sync keeps the key and leaves the manifest as it is without it', () => {

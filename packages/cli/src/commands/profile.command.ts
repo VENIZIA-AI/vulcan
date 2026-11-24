@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync } from 'node:fs';
 import { join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
@@ -233,16 +233,25 @@ export const runProfileCommand = async (opts: ICommandContext): Promise<number> 
     return ExitCodes.FAILURE;
   }
 
+  const machine = OwnerProfile.machineKeysOf({ root: opts.cwd });
+  const keeps = Object.keys(machine.kept);
+
   if (!opts.args.includes(YES_FLAG)) {
     process.stderr.write(
-      `vulcan profile: would delete ${OwnerConstants.PROFILE_FILE} (add --yes)\n`,
+      `vulcan profile: would remove your answers from ${OwnerConstants.PROFILE_FILE}${keeps.length === 0 ? ' (the file goes)' : `, and keep ${keeps.join(', ')} of this machine`}${machine.dropped.length === 0 ? '' : `; ${machine.dropped.join(', ')} ${machine.dropped.length === 1 ? 'is' : 'are'} not valid and would be dropped`} (add --yes)\n`,
     );
 
     return ExitCodes.OK;
   }
 
-  rmSync(file);
-  process.stderr.write(`vulcan profile: deleted ${OwnerConstants.PROFILE_FILE}\n`);
+  // This machine's keys (the agents it chose, its board roster, tmp folder and events folder) are not the owner's answers: the valid ones stay.
+  const done = OwnerProfile.reset({ root: opts.cwd });
+
+  process.stderr.write(
+    done.isDeleted
+      ? `vulcan profile: deleted ${OwnerConstants.PROFILE_FILE}${done.dropped.length === 0 ? '' : `; ${done.dropped.join(', ')} of this machine was not valid and was dropped`}\n`
+      : `vulcan profile: reset the owner's answers in ${OwnerConstants.PROFILE_FILE}; ${done.kept.join(', ')} of this machine were kept${done.dropped.length === 0 ? '' : `; ${done.dropped.join(', ')} was not valid and was dropped`}\n`,
+  );
 
   return ExitCodes.OK;
 };

@@ -1,5 +1,5 @@
-import { AgentConstants, AgentScopes } from './common/index.ts';
 import { LOCAL_AGENTS_FILE } from './local.ts';
+import { AgentConstants, AgentScopes } from './common/index.ts';
 import { AgentTable } from './table.ts';
 
 const EXCLUDE_BLOCK_START =

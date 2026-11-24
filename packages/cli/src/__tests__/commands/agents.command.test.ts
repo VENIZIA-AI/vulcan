@@ -13,7 +13,7 @@ const PROJECT = {
   '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
-const LOCAL = '.agents/vulcan.local.json';
+const LOCAL = '.agents/local/profile.json';
 const hasScript = Bun.which('script') !== null;
 
 const ENV = hermeticEnv();

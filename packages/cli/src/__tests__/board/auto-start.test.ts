@@ -16,7 +16,7 @@ const project = (opts: { autoStart?: boolean; log?: boolean }): string =>
   createProject({
     files: {
       '.agents/local/vulcan.manifest.json': JSON.stringify({ events: { log: opts.log ?? true } }),
-      '.agents/vulcan.local.json': JSON.stringify({
+      '.agents/local/profile.json': JSON.stringify({
         schemaVersion: 1,
         ...(opts.autoStart === undefined
           ? {}
@@ -55,7 +55,7 @@ describe('board.serve.autoStart is a personal setting', () => {
   test('the local file accepts it as a boolean and refuses anything else under board.serve', () => {
     const ok = createProject({
       files: {
-        '.agents/vulcan.local.json': JSON.stringify({
+        '.agents/local/profile.json': JSON.stringify({
           schemaVersion: 1,
           board: { serve: { autoStart: true } },
         }),
@@ -63,7 +63,7 @@ describe('board.serve.autoStart is a personal setting', () => {
     });
     const bad = createProject({
       files: {
-        '.agents/vulcan.local.json': JSON.stringify({
+        '.agents/local/profile.json': JSON.stringify({
           schemaVersion: 1,
           board: { serve: { autoStart: 'yes' } },
         }),

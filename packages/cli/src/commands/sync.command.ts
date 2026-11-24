@@ -109,10 +109,7 @@ export class SyncFlow {
     // The stored choice is listed whether it was just written or only read; a machine that has not chosen stores nothing.
     const stored =
       resolved.writeLocal || resolved.source === 'local'
-        ? [
-            LocalPlan.planChoice({ root: opts.cwd, agents: resolved.agents }),
-            ...(resolved.writeLocal ? LocalPlan.planIgnore({ root: opts.cwd }) : []),
-          ]
+        ? [LocalPlan.planChoice({ root: opts.cwd, agents: resolved.agents })]
         : [];
     const actions = [
       ...AgentRemoval.plan({ root: opts.cwd, removed, remaining: resolved.agents }),

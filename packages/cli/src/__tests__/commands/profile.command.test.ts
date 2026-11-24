@@ -155,7 +155,7 @@ describe('vulcan profile', () => {
 
     const dry = profile({ root, args: ['reset'] });
 
-    expect(dry.stderr).toContain('would delete');
+    expect(dry.stderr).toContain('would remove your answers');
     expect(existsSync(join(root, FILE))).toBe(true);
     expect(profile({ root, args: ['reset', '--yes'] }).stderr).toContain('deleted');
     expect(existsSync(join(root, FILE))).toBe(false);

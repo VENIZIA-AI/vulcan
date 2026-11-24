@@ -12,7 +12,7 @@ const PROJECT = {
   '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
-const LOCAL = '.agents/vulcan.local.json';
+const LOCAL = '.agents/local/profile.json';
 
 /** A PATH holding bun and the system tools only, so the agents of the machine running the tests are not detected. */
 const barePath = (): string => {

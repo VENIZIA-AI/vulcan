@@ -1,6 +1,16 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
+import { MACHINE_KEYS } from '../agents/local.ts';
+import { RecordValue } from '../common/record.ts';
 import { OwnerConstants } from './constants.ts';
 import { PROFILE_SCHEMA } from './schema.ts';
 import type { TProfile } from './schema.ts';
@@ -86,6 +96,65 @@ export class OwnerProfile {
     );
   }
 
+  /**
+   * The machine's keys of the file as it is now, each one checked on its own against its schema: `kept` holds the valid
+   * ones, `dropped` names the keys that are not valid (a write or a reset must not carry a broken key forward).
+   */
+  static machineKeysOf(opts: { root: string }): {
+    kept: Record<string, unknown>;
+    dropped: string[];
+  } {
+    try {
+      const file: unknown = JSON.parse(
+        readFileSync(join(opts.root, OwnerConstants.PROFILE_FILE), 'utf8'),
+      );
+      const found = RecordValue.isRecord(file)
+        ? Object.entries(file).filter(([key]) => Object.hasOwn(MACHINE_KEYS, key))
+        : [];
+      const checked = found.map(([key, value]) => ({
+        key,
+        value,
+        isValid:
+          Object.entries(MACHINE_KEYS)
+            .find(([name]) => name === key)?.[1]
+            ?.safeParse(value).success === true,
+      }));
+
+      return {
+        kept: Object.fromEntries(
+          checked.filter((item) => item.isValid).map((item) => [item.key, item.value]),
+        ),
+        dropped: checked.filter((item) => !item.isValid).map((item) => item.key),
+      };
+    } catch {
+      return { kept: {}, dropped: [] };
+    }
+  }
+
+  /**
+   * The owner's answers removed from the profile: the machine's valid keys stay (a file with none is deleted), and a machine key
+   * that is not valid is dropped and named, so a broken `events.dir` cannot keep the form and the reset going in a circle.
+   * Never follows a symlink: the caller checks `linkedAt` first.
+   */
+  static reset(opts: { root: string }): { kept: string[]; dropped: string[]; isDeleted: boolean } {
+    const file = join(opts.root, OwnerConstants.PROFILE_FILE);
+    const { kept, dropped } = OwnerProfile.machineKeysOf(opts);
+
+    if (Object.keys(kept).length === 0) {
+      rmSync(file, { force: true });
+
+      return { kept: [], dropped, isDeleted: true };
+    }
+
+    writeFileSync(
+      file,
+      `${JSON.stringify({ schemaVersion: OwnerConstants.PROFILE_SCHEMA_VERSION, ...kept }, null, 2)}\n`,
+      { mode: 0o600 },
+    );
+
+    return { kept: Object.keys(kept), dropped, isDeleted: false };
+  }
+
   /** The profile as the file holds it. */
   static render(opts: { profile: TProfile }): string {
     return `${JSON.stringify(opts.profile, null, 2)}\n`;
@@ -99,7 +168,13 @@ export class OwnerProfile {
     root: string;
     profile: unknown;
   }): { ok: true } | { ok: false; error: string } {
-    const parsed = PROFILE_SCHEMA.safeParse(opts.profile);
+    // The form knows the owner's keys only: this machine's keys (`agents`, `board`, `local`, `events`) of the file stay.
+    const { kept } = OwnerProfile.machineKeysOf({ root: opts.root });
+    const parsed = PROFILE_SCHEMA.safeParse(
+      typeof opts.profile === 'object' && opts.profile !== null
+        ? { ...kept, ...opts.profile }
+        : opts.profile,
+    );
 
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues[0]?.message ?? 'not a profile' };

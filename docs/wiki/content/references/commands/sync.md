@@ -23,7 +23,7 @@ The manifest is always written.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `--agents <list>` | string | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/vulcan.local.json` |
+| `--agents <list>` | string | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/local/profile.json` |
 | `--dry-run` | boolean | false | Print planned changes without writing to disk |
 
 `--agents list` prints the table of agents and writes nothing. In a terminal, `--agents` with no value asks again.
@@ -44,7 +44,7 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
 ? Agents > claude,omp
 ```
 
-The answer is stored in `.agents/vulcan.local.json`, which is gitignored, and every later `sync` uses it without asking. On the first question an empty answer (Enter) takes the detected list. When you ask again (`vulcan sync --agents` with no value, or `vulcan agents setup`), the question shows `chosen before:` and Enter keeps that choice; to change it, type the new list, or `none`. Without a terminal, give the list: `vulcan sync --agents claude,omp` (`none` writes only `AGENTS.md`-level files).
+The answer is stored in `.agents/local/profile.json`, which is gitignored, and every later `sync` uses it without asking. On the first question an empty answer (Enter) takes the detected list. When you ask again (`vulcan sync --agents` with no value, or `vulcan agents setup`), the question shows `chosen before:` and Enter keeps that choice; to change it, type the new list, or `none`. Without a terminal, give the list: `vulcan sync --agents claude,omp` (`none` writes only `AGENTS.md`-level files).
 
 The order that decides the list is: the `--agents` flag; the stored file; the `agents` list in the project's config, when it has one; then the question. When nothing is known and there is no terminal, `sync` writes the Claude files and prints one line saying how to choose; it stores nothing. A project that already has `CLAUDE.md` or `.claude/` gets no special treatment: its first `sync` asks like any other. What each chosen agent gets from `sync`:
 
@@ -139,7 +139,6 @@ Which agents you use is your choice, so the committed `.gitignore` cannot list y
 /.agents/skills/report-back
 /.agents/skills/review-a-change
 # local
-/.agents/vulcan.local.json
 # vulcan:end
 ```
 
@@ -168,7 +167,7 @@ $ bun node_modules/.bin/vulcan sync
   created   .agents/local/vulcan.manifest.json
   created   .agents/atlas.manifest.json
   replaced  AGENTS.md (Atlas block)
-  created   .agents/vulcan.local.json
+  created   .agents/local/profile.json
   created   .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
   replaced  .git/info/exclude
 ```
@@ -196,7 +195,7 @@ $ bun node_modules/.bin/vulcan sync
   unchanged .agents/local/vulcan.manifest.json
   unchanged .agents/atlas.manifest.json
   unchanged AGENTS.md
-  unchanged .agents/vulcan.local.json
+  unchanged .agents/local/profile.json
   unchanged .agents/local
   unchanged .git/info/exclude
 ```
@@ -277,7 +276,7 @@ $ bun node_modules/.bin/vulcan sync --dry-run
   would create  .agents/local/vulcan.manifest.json
   would create  .agents/atlas.manifest.json
   would replace AGENTS.md (Atlas block)
-  would create  .agents/vulcan.local.json
+  would create  .agents/local/profile.json
   would create  .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
   would replace .git/info/exclude
 ```

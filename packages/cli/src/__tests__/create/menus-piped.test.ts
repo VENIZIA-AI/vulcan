@@ -33,7 +33,7 @@ describe.skipIf(!hasScript)('a menu that is fed piped lines stops instead of wai
     expect(result.plain).toContain('reads key presses, not lines');
     expect(result.plain).toContain('TERM=dumb');
     expect(result.plain).toContain('--agents');
-    expect(existsSync(join(root, '.agents/vulcan.local.json'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/profile.json'))).toBe(false);
   });
 
   test('a text prompt: the typed name followed by LF stops the command, nothing is written', async () => {
@@ -66,7 +66,7 @@ describe.skipIf(!hasScript)('a menu that is fed piped lines stops instead of wai
     });
 
     expect(menu.code).toBe(0);
-    expect(readFileSync(join(root, '.agents/vulcan.local.json'), 'utf8')).toContain('agents');
+    expect(readFileSync(join(root, '.agents/local/profile.json'), 'utf8')).toContain('agents');
 
     const plain = createProject({ files: PROJECT });
     const piped = await driveTerminal({

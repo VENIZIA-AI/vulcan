@@ -33,7 +33,7 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   anything differs or is missing
   sync [--agents <list>|list] [--dry-run]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
-                                  stored in .agents/vulcan.local.json; --agents list shows the table)
+                                  stored in .agents/local/profile.json; --agents list shows the table)
   agents [list|add <ids>|remove <ids>|setup] [--dry-run]
                                   See, add, remove or re-choose the coding agents you use on this machine
   doctor                          Check the project follows VULCAN; exit 1 on any violation
@@ -57,7 +57,7 @@ Usage: bun node_modules/.bin/vulcan <command>
   profile [show|edit|reset [--yes]]
                                   Tell VULCAN how you like to work (reply language, how to address you,
                                   tone, habits) in .agents/local/profile.json; no argument runs the form,
-                                  show prints it, reset deletes it
+                                  show prints it, reset removes your answers
   config --effective | --diff
                                   --effective prints the config as the commands read it (the shipped defaults, the
                                   config of each pack, then the project file, merged) with the layer each value
@@ -201,7 +201,7 @@ installed @venizia/vulcan@0.4.8 with binaries:
   unchanged .agents/local/vulcan.manifest.json
   unchanged .agents/atlas.manifest.json
   unchanged AGENTS.md
-  unchanged .agents/vulcan.local.json
+  unchanged .agents/local/profile.json
   unchanged .git/info/exclude
 ```
 

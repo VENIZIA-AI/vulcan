@@ -5,7 +5,7 @@ description: The coding agents VULCAN sets up, what each one reads, what vulcan 
 
 # Coding agents
 
-VULCAN sets up seven coding agents (eight entries, because Copilot is two products). You choose the ones you use on your own machine ([`vulcan sync`](/references/commands/sync#choosing-your-agents), [`vulcan agents`](/references/commands/agents)); the choice is stored in `.agents/vulcan.local.json` and is never committed. The same file may hold `board.agents` (the board's roster) and `local.tmp` (a short temporary folder), in the config's own shape; on your machine each replaces the committed value of the same key, and `vulcan sync` keeps them. `AGENTS.md` is the one file every project commits, and it is the file all of these agents read, except Claude Code, which reads it through a `CLAUDE.md` shim.
+VULCAN sets up seven coding agents (eight entries, because Copilot is two products). You choose the ones you use on your own machine ([`vulcan sync`](/references/commands/sync#choosing-your-agents), [`vulcan agents`](/references/commands/agents)); the choice is stored in `.agents/local/profile.json` and is never committed. The same file may hold `board.agents` (the board's roster) and `local.tmp` (a short temporary folder), in the config's own shape; on your machine each replaces the committed value of the same key, and `vulcan sync` keeps them. `AGENTS.md` is the one file every project commits, and it is the file all of these agents read, except Claude Code, which reads it through a `CLAUDE.md` shim.
 
 The table below is the content of `base/agents.json`, the table `sync` is driven by.
 
@@ -55,7 +55,7 @@ What the hook does not reach: Claude Code's own task-output files, its MCP serve
 
 `vulcan doctor` warns when the folder is missing, and `vulcan sync` fixes it. The folder is a task scratch folder: remove what you made when the task ends; `vulcan clean` lists what is older than a day.
 
-**A long checkout path.** The session-start hook points `TMPDIR` of every command at `<project>/.agents/local/tmp`. A browser puts a unix socket in that folder (`org.chromium.Chromium.XXXXXX/SingletonSocket` for Chromium, the longest name; 45 characters more), and a socket path is at most 107 characters, so a project path of about 45 characters or more makes the browser, started by Playwright for example, exit with `Socket path too long`. `vulcan doctor` warns about it. Set `local.tmp` in the config, or in your own `.agents/vulcan.local.json` when the team should not share it, to a short folder of the project (for example `tmp`) and run `vulcan sync`: the hooks, `vulcan clean` and `vulcan add` use it, and `vulcan doctor` fails when even that folder is too deep.
+**A long checkout path.** The session-start hook points `TMPDIR` of every command at `<project>/.agents/local/tmp`. A browser puts a unix socket in that folder (`org.chromium.Chromium.XXXXXX/SingletonSocket` for Chromium, the longest name; 45 characters more), and a socket path is at most 107 characters, so a project path of about 45 characters or more makes the browser, started by Playwright for example, exit with `Socket path too long`. `vulcan doctor` warns about it. Set `local.tmp` in the config, or in your own `.agents/local/profile.json` when the team should not share it, to a short folder of the project (for example `tmp`) and run `vulcan sync`: the hooks, `vulcan clean` and `vulcan add` use it, and `vulcan doctor` fails when even that folder is too deep.
 
 ## Detecting your agents
 

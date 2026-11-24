@@ -55,7 +55,7 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
 ? Agents > claude
 ```
 
-The answer is stored in `.agents/vulcan.local.json`, which stays on your machine. It decides which adapter files `sync` writes ([Choosing your agents](/references/commands/sync#choosing-your-agents)).
+The answer is stored in `.agents/local/profile.json`, which stays on your machine. It decides which adapter files `sync` writes ([Choosing your agents](/references/commands/sync#choosing-your-agents)).
 
 Without a terminal (CI, scripts), pass each answer as a flag:
 
@@ -83,7 +83,7 @@ $ cd my-product && find . -type f -not -path './.git/*' -not -path '*/node_modul
 ./.agents/knowledge/index.md
 ./.agents/knowledge/packages/core-api.md
 ./.agents/rules.md
-./.agents/vulcan.local.json
+./.agents/local/profile.json
 ./.agents/local/vulcan.manifest.json
 ./.claude/settings.json
 ./.claude/vulcan-managed.json
@@ -112,7 +112,7 @@ $ cd my-product && find . -type f -not -path './.git/*' -not -path '*/node_modul
 ./services/core-api/tsconfig.json
 ```
 
-Everything under `services/core-api/` comes from the preset (the list shows its shape; the exact files come from the preset you pick). The rest is the VULCAN layer. `sync` also creates the scratch folder `.agents/local/` (gitignored). `.agents/vulcan.local.json` exists only after you chose your agents.
+Everything under `services/core-api/` comes from the preset (the list shows its shape; the exact files come from the preset you pick). The rest is the VULCAN layer. `sync` also creates the scratch folder `.agents/local/` (gitignored). `.agents/local/profile.json` exists only after you chose your agents.
 When every step passes, `init` prints the next step (the lines depend on the preset):
 
 ```text
@@ -219,14 +219,14 @@ $ bun node_modules/.bin/vulcan sync
   created   .agents/local/vulcan.manifest.json
   created   .agents/atlas.manifest.json
   replaced  AGENTS.md (Atlas block)
-  created   .agents/vulcan.local.json
+  created   .agents/local/profile.json
   created   .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
   replaced  .git/info/exclude
 ```
 
-The starter config suggests `claude` (`agents: ['claude']`), so `sync` takes that, in a terminal or not, and stores it in `.agents/vulcan.local.json` without asking. A project made with `init --preset` has no suggestion, so its first `sync` asks ([Start a new project](#start-a-new-project)). Change the choice later with [`vulcan agents`](/references/commands/agents).
+The starter config suggests `claude` (`agents: ['claude']`), so `sync` takes that, in a terminal or not, and stores it in `.agents/local/profile.json` without asking. A project made with `init --preset` has no suggestion, so its first `sync` asks ([Start a new project](#start-a-new-project)). Change the choice later with [`vulcan agents`](/references/commands/agents).
 A `CLAUDE.md` that already exists, one `bun init` wrote included, is left alone and reported as `skipped`; delete it to let `sync` write `@AGENTS.md`.
-`init` already added `CLAUDE.md`, `CLAUDE.*.md`, `.claude/`, `.agents/plans`, `.agents/vulcan.local.json` and `.agents/local/` to `.gitignore`, and `sync` lists the files it wrote for your agents in `.git/info/exclude`.
+`init` already added `CLAUDE.md`, `CLAUDE.*.md`, `.claude/`, `.agents/plans` and `.agents/local/` to `.gitignore`, and `sync` lists the files it wrote for your agents in `.git/info/exclude`.
 These adapter files stay local on each machine.
 Commit `.agents/atlas.manifest.json` and the Atlas block `sync` wrote into `AGENTS.md` to version control; `.agents/local/vulcan.manifest.json` stays on your machine.
 For details on adapter generation, see the [sync reference](/references/commands/sync).
@@ -292,7 +292,7 @@ bun node_modules/.bin/vulcan doctor
 
 Running `vulcan doctor` before `vulcan sync` fails because gitignored adapters do not exist yet.
 
-With no terminal and no stored choice, `sync` takes `claude` and says so. The choice of agents lives in the gitignored `.agents/vulcan.local.json`, so a CI checkout never has it: a project whose config lists no `agents` gets only the Claude adapters in CI. Pass `--agents <list>` to `sync` to get others.
+With no terminal and no stored choice, `sync` takes `claude` and says so. The choice of agents lives in the gitignored `.agents/local/profile.json`, so a CI checkout never has it: a project whose config lists no `agents` gets only the Claude adapters in CI. Pass `--agents <list>` to `sync` to get others.
 For CI details and output capture, see the [doctor reference](/references/commands/doctor).
 
 ## Upgrade later

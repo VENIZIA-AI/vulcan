@@ -18,7 +18,7 @@ Run it at the project root: it works on the `.agents/local/` of the current fold
 | `--include-fresh` | `tmp/`, `clones/` | also the items not stale yet |
 | `--all` | the four above | never `reports/`, `prototypes/`, `events/`, `release-candidates/` or the profile |
 | `--events` | the event log | only when named: the day files past the limits |
-| `--reports`, `--prototypes`, `--profile` | `reports/`, `prototypes/`, `profile.json` | only when named; they are kept until you delete them |
+| `--reports`, `--prototypes`, `--profile` | `reports/`, `prototypes/`, `profile.json` (your answers only, as `vulcan profile reset`: this machine's keys stay) | only when named; they are kept until you delete them |
 | `--release-candidates` | `release-candidates/` | only when named: a folder whose version is tagged |
 | `--yes` | | removes what the dry run listed |
 

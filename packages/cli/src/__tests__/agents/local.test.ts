@@ -8,16 +8,34 @@ afterAll(removeProjects);
 
 describe('the local choice file', () => {
   test('lives next to the manifest and is named once', () => {
-    expect(LOCAL_AGENTS_FILE).toBe('.agents/vulcan.local.json');
+    expect(LOCAL_AGENTS_FILE).toBe('.agents/local/profile.json');
   });
 
-  test('renders a generated note, the schema version and the agents', () => {
+  test('renders the schema version and the agents, and keeps every other key of the profile', () => {
     expect(JSON.parse(LocalChoice.render({ agents: ['claude', 'omp'] }))).toEqual({
-      $generated: 'by vulcan sync - your agents on this machine; not committed',
       schemaVersion: 1,
       agents: ['claude', 'omp'],
     });
     expect(LocalChoice.render({ agents: [] }).endsWith('\n')).toBe(true);
+    expect(
+      JSON.parse(
+        LocalChoice.render({
+          agents: ['claude'],
+          previous: JSON.stringify({
+            schemaVersion: 1,
+            language: 'vi',
+            tone: 'terse',
+            events: { dir: '/x' },
+          }),
+        }),
+      ),
+    ).toEqual({
+      schemaVersion: 1,
+      agents: ['claude'],
+      language: 'vi',
+      tone: 'terse',
+      events: { dir: '/x' },
+    });
   });
 
   test('absent reads as no choice', () => {
@@ -30,7 +48,7 @@ describe('the local choice file', () => {
   test('a written file reads back, an empty list included', () => {
     const root = createProject({ files: {} });
 
-    mkdirSync(join(root, '.agents'));
+    mkdirSync(join(root, '.agents', 'local'), { recursive: true });
 
     for (const agents of [['claude'], ['omp', 'pi'], []]) {
       const file = join(root, LOCAL_AGENTS_FILE);
@@ -51,7 +69,7 @@ describe('the local choice file', () => {
 
     expect(LocalChoice.read({ root: broken })).toEqual({
       ok: false,
-      error: `${LOCAL_AGENTS_FILE} is not valid JSON - delete it and run: vulcan sync --agents <list>`,
+      error: `${LOCAL_AGENTS_FILE} is not valid JSON - fix it (or move it aside), then run: vulcan sync --agents <list>`,
     });
 
     const result = LocalChoice.read({ root: unknown });

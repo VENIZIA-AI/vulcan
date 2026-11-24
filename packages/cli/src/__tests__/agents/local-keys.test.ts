@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { LOCAL_AGENTS_FILE, LocalChoice } from '../../agents/index.ts';
+import { OwnerProfile } from '../../owner/index.ts';
 import { LocalSettings } from '../../common/local-settings.ts';
 import { BoardSettings } from '../../board/settings.ts';
 import { ProjectContract } from '../../doctor/checks.ts';
@@ -49,12 +50,12 @@ describe('the local file reads board.agents and local.tmp', () => {
 
   test('a value that cannot be used is named by file and key, and the hooks leave it out', () => {
     const cases: [object, RegExp, object][] = [
-      [{ local: { tmp: '../out' } }, /vulcan\.local\.json: local\.tmp/, {}],
-      [{ local: { tmp: 't', extra: 1 } }, /vulcan\.local\.json: local/, { tmp: 't' }],
-      [{ board: { agents: { a: 'nope' } } }, /vulcan\.local\.json: board\.agents\.a/, {}],
+      [{ local: { tmp: '../out' } }, /profile\.json: local\.tmp/, {}],
+      [{ local: { tmp: 't', extra: 1 } }, /profile\.json: local/, { tmp: 't' }],
+      [{ board: { agents: { a: 'nope' } } }, /profile\.json: board\.agents\.a/, {}],
       [
         { board: { agents: { a: { lane: 'b' } } } },
-        /vulcan\.local\.json: board\.agents\.a\.lane/,
+        /profile\.json: board\.agents\.a\.lane/,
         { boardAgents: { a: { lane: 'b' } } },
       ],
     ];
@@ -77,19 +78,21 @@ describe('the local file reads board.agents and local.tmp', () => {
     expect(LocalSettings.read({ root })).toEqual({});
   });
 
-  test('an unknown top-level key is reported by doctor and does not stop the file', () => {
+  test('an unknown top-level key is reported by doctor (the profile is strict) and does not stop the choice', () => {
     const root = projectWith({ local: { agents: ['claude'], boards: {} } });
+    const profile = OwnerProfile.read({ root });
 
     expect(LocalChoice.read({ root })).toEqual({ ok: true, agents: ['claude'] });
-    expect(LocalChoice.unknownKeys({ root })).toEqual(['boards']);
+    expect(profile.ok).toBe(false);
+    expect(profile.ok ? '' : profile.error).toContain('boards');
 
-    const messages = ProjectContract.checkAgents({
+    const messages = ProjectContract.checkProfile({
       root,
       config: VULCAN_CONFIG_SCHEMA.parse({}),
       configFile: '.configs/vulcan.config.mts',
     }).map((violation) => violation.message);
 
-    expect(messages.join('\n')).toContain("unknown key 'boards'");
+    expect(messages.join('\n')).toContain('boards');
   });
 });
 
@@ -143,7 +146,7 @@ describe('precedence: the local value replaces the whole key', () => {
       expect(settings.roster).toEqual(['umbra']);
       expect(settings.shapes).toEqual({ umbra: 'ember' });
       expect(settings.notes.join('\n')).toContain(
-        'board.agents in .agents/vulcan.local.json is not used',
+        'board.agents in .agents/local/profile.json is not used',
       );
     }
   });
