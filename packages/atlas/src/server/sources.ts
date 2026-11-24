@@ -262,8 +262,13 @@ export class SourcesServer {
       opts2.source.mode === 'repository'
         ? repositoryTarget(opts2)
         : remoteTarget({ entry: opts2.entry, served: opts2.source, cwd: opts.cwd, resolve });
+    const targetOf = new Map<string, IRefreshTarget>();
     const targets = opts.sources.flatMap((source, index): IRefreshTarget[] => {
       const target = makeTarget({ entry: stores[index], source });
+
+      if (target !== undefined) {
+        targetOf.set(source.name, target);
+      }
 
       return target === undefined ? [] : [target];
     });
@@ -280,7 +285,34 @@ export class SourcesServer {
       boot?.declared.findIndex((source) => source.name === name) ?? -1;
 
     boot?.listen({
-      onReady: ({ resolved }) => {
+      onReady: ({ resolved, isReplacement }) => {
+        const existing = stores.find((store) => store.name === resolved.name);
+
+        // The source was served from its last good index: the fresh one replaces its stores in place.
+        if (isReplacement === true && existing !== undefined) {
+          existing.replace(storesOf({ source: resolved, cwd: opts.cwd }));
+          served.splice(
+            served.findIndex((entry) => entry.name === resolved.name),
+            1,
+            resolved,
+          );
+
+          // The refresh target compares against what it was given: a new one, so the next look does not rebuild what just landed.
+          const next = makeTarget({ entry: existing, source: resolved });
+          const old = targetOf.get(resolved.name);
+
+          if (old !== undefined) {
+            targets.splice(targets.indexOf(old), 1);
+          }
+
+          if (next !== undefined) {
+            targets.push(next);
+            targetOf.set(resolved.name, next);
+          }
+
+          return;
+        }
+
         const entry = liveEntry({ initial: storesOf({ source: resolved, cwd: opts.cwd }) });
         const target = makeTarget({ entry, source: resolved });
 
@@ -292,6 +324,7 @@ export class SourcesServer {
 
         if (target !== undefined) {
           targets.push(target);
+          targetOf.set(resolved.name, target);
         }
       },
     });

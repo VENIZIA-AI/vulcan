@@ -1,3 +1,4 @@
+import { AtlasStatus } from '@venizia/vulcan-atlas';
 import { Glob } from 'bun';
 import { spawnSync } from 'node:child_process';
 import {
@@ -752,6 +753,31 @@ export class ProjectContract {
             check: DoctorChecks.EVENTS_DIR,
             file: isOwn ? AgentConstants.LOCAL_FILE : opts.configFile,
             message: `events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
+          }),
+        ];
+  }
+
+  /**
+   * An atlas source the last server run could not build, could not refresh (an older index is served), or has been building
+   * for over ten minutes in a server that is still running: the agents of this project read the `.d.ts` files by hand
+   * until it is served. A warning with what `vulcan x atlas status` prints; a build left by a closed session is not one.
+   */
+  static checkAtlasSources(opts: ICheckContext): IViolation[] {
+    const problems = AtlasStatus.problemsOf({ root: opts.root }).filter(
+      (problem) => problem.kind !== 'abandoned',
+    );
+
+    return problems.length === 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.ATLAS_SOURCE,
+            file: '.agents/local/cache/atlas/status.json',
+            message: `an atlas source is not served as it should be: ${problems
+              .map((problem) => `${problem.source}: ${problem.kind} (${problem.detail})`)
+              .join(
+                ' | ',
+              )} - run \`${ProjectLayout.VULCAN_COMMAND} x atlas status\` for the record`,
           }),
         ];
   }
