@@ -393,6 +393,8 @@ describe('guard-outside denies a vulcan command that writes the config', () => {
     'vulcan config format',
     './node_modules/.bin/vulcan config format',
     'bun run vulcan config format',
+    'bunx @venizia/vulcan@0.5.0-8 config codemod config-groups . --write',
+    'bunx vulcan@0.5.0-8 config format',
     'bun node_modules/.bin/vulcan config codemod config-groups . --write',
     'bun node_modules/.bin/vulcan config codemod config-groups . --split --write',
     'ls && bun node_modules/.bin/vulcan config format; ls',

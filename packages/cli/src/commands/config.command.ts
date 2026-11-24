@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve, sep } from 'node:path';
 import { ExitCodes, ProjectLayout } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { ConfigGroups, ConfigLayers, ConfigLoader } from '../config/index.ts';
+import { ConfigConstants, ConfigGroups, ConfigLayers, ConfigLoader } from '../config/index.ts';
 import { ConfigCodemod } from '../config/codemod.ts';
 import { ConfigFormat } from '../config/format.ts';
 
@@ -63,20 +63,41 @@ const runFormat = async (opts: ICommandContext): Promise<number> => {
 };
 
 /**
- * `vulcan config codemod config-groups [<dir>] [--write] [--split] [--reverse]`, and `--list`: the rewrite of the config into the
- * seven groups, or back. Without `--write` it only says what it would write; `migrate apply` runs it with `--write`.
+ * `vulcan config codemod config-groups [<dir>] [--write] [--split]`, and `--list`: the rewrite of the config into the seven groups.
+ * Without `--write` it only says what it would write; `migrate apply` runs it with `--write`. It reads and writes under `.configs/` of the
+ * folder, and deletes only under `.configs/vulcan/`: a path that leaves them, by `..` or by a link, is refused before a file is touched.
  */
+/** Whether `path` of `root`, with every link in it followed, is inside `folder` of `root` (a path that does not exist yet counts by its nearest folder). */
+const isInside = (opts: { root: string; path: string; folder: string }): boolean => {
+  const base = join(opts.root, opts.folder);
+  let at = resolve(opts.root, opts.path);
+
+  while (!existsSync(at) && dirname(at) !== at) {
+    at = dirname(at);
+  }
+
+  if (!existsSync(base)) {
+    return resolve(opts.root, opts.path).startsWith(`${resolve(base)}${sep}`);
+  }
+
+  const real = realpathSync(at);
+  const folder = realpathSync(base);
+
+  return (
+    resolve(opts.root, opts.path).startsWith(`${resolve(base)}${sep}`) &&
+    (real === folder || real.startsWith(`${folder}${sep}`))
+  );
+};
+
 const runCodemod = (opts: ICommandContext): number => {
   const rest = opts.args.slice(1);
   const flags = rest.filter((word) => word.startsWith('-'));
   const words = rest.filter((word) => !word.startsWith('-'));
-  const unknown = flags.filter(
-    (flag) => !['--list', '--write', '--split', '--reverse'].includes(flag),
-  );
+  const unknown = flags.filter((flag) => !['--list', '--write', '--split'].includes(flag));
 
   if (unknown.length > 0 || words.length > 2) {
     process.stderr.write(
-      `vulcan config codemod: ${ConfigCodemod.NAME} [<dir>] [--write] [--split] [--reverse] | --list\n`,
+      `vulcan config codemod: ${ConfigCodemod.NAME} [<dir>] [--write] [--split] | --list\n`,
     );
 
     return ExitCodes.USAGE;
@@ -84,7 +105,7 @@ const runCodemod = (opts: ICommandContext): number => {
 
   if (flags.includes('--list')) {
     process.stdout.write(
-      `${ConfigCodemod.NAME}  the keys of the config in the seven groups (--split: one module per group; --reverse: back to the flat file)\n`,
+      `${ConfigCodemod.NAME}  the keys of the config in the seven groups (--split: one module per group)\n`,
     );
 
     return ExitCodes.OK;
@@ -103,10 +124,12 @@ const runCodemod = (opts: ICommandContext): number => {
   const root = resolve(opts.cwd, directory);
   const result = ConfigCodemod.run({
     root,
+    // A file whose real path is outside the folder it is read from (a link out of `.configs/`) is not read.
     read: (path) =>
-      existsSync(join(root, path)) ? readFileSync(join(root, path), 'utf8') : undefined,
+      existsSync(join(root, path)) && isInside({ root, path, folder: ConfigConstants.DIRECTORY })
+        ? readFileSync(join(root, path), 'utf8')
+        : undefined,
     split: flags.includes('--split'),
-    reverse: flags.includes('--reverse'),
   });
 
   if (!result.ok) {
@@ -116,6 +139,25 @@ const runCodemod = (opts: ICommandContext): number => {
   }
 
   const isWriting = flags.includes('--write');
+  const outside = result.changes.find(
+    (change) =>
+      !isInside({
+        root,
+        path: change.path,
+        folder:
+          change.text === undefined
+            ? `${ConfigConstants.DIRECTORY}/vulcan`
+            : ConfigConstants.DIRECTORY,
+      }),
+  );
+
+  if (outside !== undefined) {
+    process.stderr.write(
+      `vulcan config codemod: nothing was written: ${outside.path} is ${outside.text === undefined ? 'not under .configs/vulcan/, where it deletes' : 'not under .configs/, where it writes'}\n`,
+    );
+
+    return ExitCodes.USAGE;
+  }
 
   for (const note of result.notes) {
     process.stdout.write(`${note}\n`);

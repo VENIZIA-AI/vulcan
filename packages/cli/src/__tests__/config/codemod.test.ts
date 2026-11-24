@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ConfigCodemod } from '../../config/codemod.ts';
 import type { IFileChange, TCodemodResult } from '../../config/codemod.ts';
@@ -294,7 +294,7 @@ describe('config-groups: a split of the 0.5.0 scaffold', () => {
       'export default { project, agent, knowledge, check } satisfies VulcanConfig;',
     );
     expect(textOf({ changes, path: '.configs/vulcan/agent.mts' })).toContain(
-      "export const agent = {\n  list: ['claude'],\n  rules: { 'V-W-01': 'on-user-word' },\n  claude: {\n    settings: { env: {} },\n  },\n} satisfies VulcanConfig.Agent;",
+      "export const agent = {\n  list: ['claude'],\n  rules: { 'V-W-01': 'on-user-word' },\n  // What Claude may run.\n  claude: {\n    settings: { env: {} },\n  },\n} satisfies VulcanConfig.Agent;",
     );
     expect(textOf({ changes, path: '.configs/vulcan/knowledge.mts' })).toContain(
       "okf: { brand: 'Demo' }",
@@ -351,7 +351,13 @@ describe('config-groups: a split of the 0.5.0 scaffold', () => {
       '} satisfies VulcanConfig;',
       '',
     ].join('\n');
-    const { changes } = ok(ConfigCodemod.run({ root: '/x', read: () => text, split: true }));
+    const { changes } = ok(
+      ConfigCodemod.run({
+        root: '/x',
+        read: (path) => (path === CONFIG ? text : undefined),
+        split: true,
+      }),
+    );
 
     expect(textOf({ changes, path: '.configs/vulcan/knowledge.mts' })).toContain(
       "import { bundle } from '../paths.mts';",
@@ -360,42 +366,17 @@ describe('config-groups: a split of the 0.5.0 scaffold', () => {
   });
 });
 
-describe('config-groups --reverse', () => {
-  test('the groups of literals back to the flat file, in the flat order', () => {
-    const grouped = ok(
-      ConfigCodemod.run({
-        root: '/x',
-        read: () => "export default {\n  agents: ['claude'],\n  theme: {},\n  rules: {},\n};\n",
-      }),
-    );
-    const text = textOf({ changes: grouped.changes, path: CONFIG });
-    const back = ok(ConfigCodemod.run({ root: '/x', read: () => text, reverse: true }));
-    const flat = textOf({ changes: back.changes, path: CONFIG });
-
-    expect(flat.indexOf('agents:')).toBeLessThan(flat.indexOf('rules:'));
-    expect(flat.indexOf('rules:')).toBeLessThan(flat.indexOf('theme:'));
-    expect(flat).toContain("agents: ['claude'],");
-  });
-
-  test('a group the flat file wraps in an object is refused with the file to restore', () => {
-    const text = "export default {\n  project: {\n    key: 'A',\n  },\n};\n";
-    const result = ConfigCodemod.run({ root: '/x', read: () => text, reverse: true });
-
-    expect(result.ok).toBe(false);
-    expect(result.ok ? '' : result.reason).toContain('restore the earlier file with git');
-  });
-});
-
 describe('vulcan config codemod', () => {
   const run = (root: string, args: string[]) =>
     runCli({ args: ['config', 'codemod', ...args], cwd: root });
 
-  test('--list names the codemod; an unknown name or option is a usage error', () => {
+  test('--list names the codemod; an unknown name or option (--reverse included) is a usage error', () => {
     const root = createProject({ files: {} });
 
     expect(run(root, ['--list']).stdout).toContain('config-groups');
     expect(run(root, ['nope']).code).toBe(2);
     expect(run(root, ['config-groups', '--bad']).code).toBe(2);
+    expect(run(root, ['config-groups', '.', '--reverse']).code).toBe(2);
   });
 
   test('without --write it lists and writes nothing; with --write it writes; a second run has nothing to do', () => {
@@ -435,5 +416,164 @@ describe('vulcan config codemod', () => {
     expect(readFileSync(join(root, 'app/.configs/vulcan.config.mts'), 'utf8')).toContain(
       "from './vulcan/index.mts'",
     );
+  });
+});
+
+/** The number of comment lines (`//` and block comments) in the given texts: what a codemod must not lose. */
+const commentsIn = (texts: (string | undefined)[]): number =>
+  texts.reduce((sum, text) => sum + (text?.match(/(^|\s)\/\/|\/\*/g)?.length ?? 0), 0);
+
+describe('config-groups --split: nothing a user wrote is lost or deleted', () => {
+  const FIXTURE = {
+    ...SPLIT,
+    [CONFIG]: `// The header.
+import type { VulcanConfig } from '@venizia/vulcan';
+import { claude, doctor, okf, packages } from './vulcan/index.mts';
+
+// Why the config is split.
+export default {
+  project: { key: 'DEMO' },
+  agents: ['claude'],
+  // The guard's own comment,
+  // over two lines.
+  guard: {
+    outside: 'deny',
+  },
+  packages,
+  okf,
+  claude,
+  doctor,
+} satisfies VulcanConfig;
+`,
+  };
+
+  test("every comment is kept: the header, the one above export default, the guard's and the one above a folded const", () => {
+    const before = files(FIXTURE);
+    const { changes } = ok(
+      ConfigCodemod.run({ root: before.root, read: before.read, split: true }),
+    );
+    const out = changes.filter((change) => change.text !== undefined).map((change) => change.text);
+    const text = out.join('\n');
+    const inCount = commentsIn(Object.values(FIXTURE));
+
+    expect(text).toContain('// The header.');
+    expect(text).toContain('// Why the config is split.');
+    expect(text).toContain("// The guard's own comment,\n// over two lines.\nexport const guard =");
+    expect(text).toContain('// What Claude may run.');
+    expect(commentsIn(out)).toBe(inCount);
+  });
+
+  test('a single file keeps every comment too', () => {
+    const before = files(FIXTURE);
+    const { changes } = ok(ConfigCodemod.run({ root: before.root, read: before.read }));
+    const after = changes.map((change) => change.text);
+
+    // Only the main file and the type of each module change: the modules' comments stay in their files.
+    expect(commentsIn(after)).toBe(commentsIn([FIXTURE[CONFIG], ...Object.values(SPLIT).slice(1)]));
+  });
+
+  test('no group starts with a blank line after its brace', () => {
+    const before = files({
+      [CONFIG]: 'export default {\n  agents: [],\n\n  // A.\n  rules: {},\n\n  theme: {},\n};\n',
+    });
+    const { changes } = ok(ConfigCodemod.run({ root: before.root, read: before.read }));
+
+    expect(textOf({ changes, path: CONFIG })).not.toMatch(/\{\n\n/);
+  });
+
+  const refused = (
+    extra: Record<string, string>,
+  ): { reason: string; read: ReturnType<typeof files>['read'] } => {
+    const before = files({ ...FIXTURE, ...extra });
+    const result = ConfigCodemod.run({ root: before.root, read: before.read, split: true });
+
+    return { reason: result.ok ? '' : result.reason, read: before.read };
+  };
+
+  test('a file outside .configs/vulcan/ is never folded or deleted', () => {
+    const { reason } = refused({
+      '.configs/vulcan/index.mts':
+        "export { claude } from '../../../shared/claude.mts';\nexport { doctor } from './doctor.mts';\nexport { okf } from './okf.mts';\nexport { packages } from './packages.mts';\n",
+    });
+
+    expect(reason).toContain('is not under .configs/vulcan/');
+  });
+
+  test('a module with an extra export, a local name or a statement is refused with its line', () => {
+    const extra = refused({
+      '.configs/vulcan/claude.mts':
+        "import type { VulcanConfig } from '@venizia/vulcan';\n\nexport const ALLOW = ['a'];\nexport const claude = {} satisfies NonNullable<VulcanConfig['claude']>;\n",
+    });
+    const local = refused({
+      '.configs/vulcan/claude.mts':
+        "import type { VulcanConfig } from '@venizia/vulcan';\n\nconst base = { a: 1 };\nexport const claude = { ...base } satisfies NonNullable<VulcanConfig['claude']>;\n",
+    });
+    const reexports = refused({
+      '.configs/vulcan/index.mts':
+        "export { claude } from './claude.mts';\nexport { doctor } from './doctor.mts';\nexport { okf } from './okf.mts';\nexport { packages } from './packages.mts';\nexport const extra = 1;\n",
+    });
+
+    expect(extra.reason).toContain('holds more than the type import and `claude`');
+    expect(extra.reason).toContain('line 3');
+    expect(local.reason).toContain('line 3');
+    expect(local.reason).toContain('const base');
+    expect(reexports.reason).toContain('has more than re-exports');
+    expect(reexports.reason).toContain('line 5');
+  });
+
+  test('an index that exports a name the run does not fold is refused', () => {
+    const { reason } = refused({
+      '.configs/vulcan/index.mts':
+        "export { claude } from './claude.mts';\nexport { doctor } from './doctor.mts';\nexport { okf } from './okf.mts';\nexport { packages } from './packages.mts';\nexport { mine } from './mine.mts';\n",
+    });
+
+    expect(reason).toContain('exports `mine`, which this run does not fold');
+  });
+
+  test('a module file of a group that is already there and is not folded is never overwritten', () => {
+    const { reason } = refused({
+      '.configs/vulcan/agent.mts': 'export const agent = { mine: 1 };\n',
+    });
+
+    expect(reason).toContain(
+      '.configs/vulcan/agent.mts exists and is not one of the modules this run folds',
+    );
+  });
+});
+
+describe('vulcan config codemod --split --write: what it deletes', () => {
+  const run = (root: string, args: string[]) =>
+    runCli({ args: ['config', 'codemod', ...args], cwd: root });
+
+  test('a file outside the project that an import names is left alone, exit 2, nothing written', () => {
+    const parent = createProject({
+      files: {
+        'shared/claude.mts': 'export const claude = { settings: {} };\n',
+        'app/package.json': '{}',
+        'app/.configs/vulcan.config.mts':
+          "import { claude } from './vulcan/index.mts';\n\nexport default {\n  agents: ['claude'],\n  claude,\n};\n",
+        'app/.configs/vulcan/index.mts': "export { claude } from '../../../shared/claude.mts';\n",
+      },
+    });
+    const result = run(join(parent, 'app'), ['config-groups', '.', '--split', '--write']);
+
+    expect(result.code).toBe(2);
+    expect(existsSync(join(parent, 'shared/claude.mts'))).toBe(true);
+    expect(existsSync(join(parent, 'app/.configs/vulcan/agent.mts'))).toBe(false);
+  });
+
+  test('a module that is a link to a file outside .configs/vulcan/ is not read, so nothing is folded or deleted', () => {
+    const root = createProject({
+      files: { ...SPLIT, 'shared.mts': 'export const claude = { settings: {} };\n' },
+    });
+
+    rmSync(join(root, '.configs/vulcan/claude.mts'));
+    symlinkSync(join(root, 'shared.mts'), join(root, '.configs/vulcan/claude.mts'));
+
+    const result = run(root, ['config-groups', '.', '--split', '--write']);
+
+    expect(result.code).toBe(2);
+    expect(existsSync(join(root, 'shared.mts'))).toBe(true);
+    expect(existsSync(join(root, '.configs/vulcan/agent.mts'))).toBe(false);
   });
 });

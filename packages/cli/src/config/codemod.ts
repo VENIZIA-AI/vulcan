@@ -121,7 +121,6 @@ export class ConfigCodemod {
     /** The text of a file by path relative to `root`, or `undefined` when it is not there. */
     read: (path: string) => string | undefined;
     split?: boolean;
-    reverse?: boolean;
   }): TCodemodResult {
     const text = opts.read(CONFIG_PATH);
 
@@ -167,12 +166,6 @@ export class ConfigCodemod {
 
     const context = { typescript, source, object: found.object, keys, segments: cut.segments };
     const isFlat = ConfigKeyOrder.isFlatShape({ keys });
-
-    if (opts.reverse === true) {
-      return isFlat
-        ? { ok: true, changes: [], notes: ['the config is flat already: nothing to do'] }
-        : ConfigCodemod.reverse({ ...context, prefix: cut.prefix, suffix: cut.suffix });
-    }
 
     if (!isFlat && opts.split !== true) {
       return { ok: true, changes: [], notes: ['the config is in groups already: nothing to do'] };
@@ -577,10 +570,33 @@ export class ConfigCodemod {
     }));
   }
 
-  /** An item as lines, moved from the column it came from to `column`. */
-  private static render(opts: { item: IItem; column: number; body?: string }): string {
+  /**
+   * An item as lines, moved from the column it came from to `column`. `comment` is the comment a folded module had above its const:
+   * it goes below the item's own comments. The first item of a group starts on its line, with no blank line after `{`.
+   */
+  private static render(opts: {
+    item: IItem;
+    column: number;
+    body?: string;
+    comment?: string;
+    isFirst?: boolean;
+  }): string {
     const by = opts.column - opts.item.column;
-    const leading = shift({ text: opts.item.leading, by, first: true });
+    let leading = shift({ text: opts.item.leading, by, first: true });
+
+    if (opts.comment !== undefined && opts.comment !== '') {
+      const indent = ' '.repeat(opts.column);
+
+      leading = `${leading.replace(/[ \t]*$/, '')}${opts.comment
+        .split('\n')
+        .map((line) => `${indent}${line.trim()}\n`)
+        .join('')}${indent}`;
+    }
+
+    if (opts.isFirst === true) {
+      leading = leading.replace(/^\n+/, '');
+    }
+
     const body = shift({ text: opts.body ?? opts.item.body, by, first: false });
 
     return `${leading}${body},${opts.item.trailing}`;
@@ -601,7 +617,11 @@ export class ConfigCodemod {
       }
 
       parts.push(`  ${group}: {\n`);
-      parts.push(...items.map((item) => ConfigCodemod.render({ item, column: GROUP_COLUMN })));
+      parts.push(
+        ...items.map((item, index) =>
+          ConfigCodemod.render({ item, column: GROUP_COLUMN, isFirst: index === 0 }),
+        ),
+      );
       parts.push('  },\n');
     }
 
@@ -679,12 +699,13 @@ export class ConfigCodemod {
     }
 
     const folded = new Set<string>();
+    const foldedNames = new Set<string>();
     const changes: IFileChange[] = [];
     const written: string[] = [];
     const exports: string[] = [];
 
     for (const { group, items } of ConfigCodemod.grouped({ items: opts.items })) {
-      const bodies = new Map<IItem, string>();
+      const bodies = new Map<IItem, { body: string; comment: string }>();
 
       for (const item of items) {
         const binding = item.identifier === undefined ? undefined : bindings.get(item.identifier);
@@ -706,10 +727,11 @@ export class ConfigCodemod {
           return { ok: false, reason: `\`${item.key}\`: ${value.reason}` };
         }
 
-        bodies.set(
-          item,
-          `${item.key}: ${shift({ text: value.text, by: MODULE_COLUMN, first: false })}`,
-        );
+        foldedNames.add(binding.name);
+        bodies.set(item, {
+          body: `${item.key}: ${shift({ text: value.text, by: MODULE_COLUMN, first: false })}`,
+          comment: value.comment,
+        });
       }
 
       const used = [...bindings.values()].filter(
@@ -717,7 +739,7 @@ export class ConfigCodemod {
           !ConfigCodemod.isModule({ specifier: binding.specifier }) &&
           !ConfigCodemod.isVulcanType({ statement: binding.statement }) &&
           items.some((item) =>
-            new RegExp(`\\b${binding.name}\\b`).test(`${bodies.get(item) ?? item.body}`),
+            new RegExp(`\\b${binding.name}\\b`).test(`${bodies.get(item)?.body ?? item.body}`),
           ),
       );
       const lines = [
@@ -733,38 +755,69 @@ export class ConfigCodemod {
       if (group === 'guard') {
         const [only] = items;
 
+        const comment = shift({ text: only.leading, by: -TOP_COLUMN, first: true }).trimEnd();
+
         lines.push(
-          `export const guard = ${shift({ text: only.value ?? 'undefined', by: -TOP_COLUMN, first: false })} satisfies ${GROUP_TYPE[group]};`,
+          `${comment === '' ? '' : `${comment}\n`}export const guard = ${shift({ text: only.value ?? 'undefined', by: -TOP_COLUMN, first: false })} satisfies ${GROUP_TYPE[group]};`,
         );
       } else {
         lines.push(`export const ${group} = {`);
         lines.push(
-          ...items.map((item) =>
-            ConfigCodemod.render({ item, column: MODULE_COLUMN, body: bodies.get(item) }).replace(
-              /\n$/,
-              '',
-            ),
+          ...items.map((item, index) =>
+            ConfigCodemod.render({
+              item,
+              column: MODULE_COLUMN,
+              body: bodies.get(item)?.body,
+              comment: bodies.get(item)?.comment,
+              isFirst: index === 0,
+            }).replace(/\n$/, ''),
           ),
         );
         lines.push(`} satisfies ${GROUP_TYPE[group]};`);
       }
 
       const path = `${MODULES_DIRECTORY}/${group}.mts`;
+      const next = `${lines.join('\n')}\n`;
+      const existing = opts.opts.read(path);
 
-      changes.push({ path, text: `${lines.join('\n')}\n` });
+      // A file that is already there and is not what this run writes is somebody's: it is never overwritten.
+      if (existing !== undefined && existing !== next) {
+        return {
+          ok: false,
+          reason: `${path} exists and is not one of the modules this run folds: move it away or merge it by hand, then run the codemod again`,
+        };
+      }
+
+      changes.push({ path, text: next });
       written.push(group);
       exports.push(`export { ${group} } from './${group}.mts';`);
     }
 
+    const index = ConfigCodemod.indexRefusal({
+      typescript,
+      text: opts.opts.read(`${MODULES_DIRECTORY}/index.mts`),
+      folded: foldedNames,
+    });
+
+    if (index !== undefined) {
+      return { ok: false, reason: index };
+    }
+
     const first = source.statements[0];
-    const header =
-      first === undefined
+    const exported = source.statements.find((statement) =>
+      typescript.isExportAssignment(statement),
+    );
+    const trivia = (statement: typeof first | undefined): string =>
+      statement === undefined
         ? ''
-        : source.text.slice(first.getFullStart(), first.getStart(source)).trimStart();
+        : source.text.slice(statement.getFullStart(), statement.getStart(source)).trim();
+    // The comment at the top of the file, and the one above `export default` when it is not the same.
+    const header = trivia(first);
+    const above = exported === first ? '' : trivia(exported);
 
     changes.unshift({
       path: CONFIG_PATH,
-      text: `${header}import type { VulcanConfig } from '@venizia/vulcan';\nimport { ${written.join(', ')} } from './vulcan/index.mts';\n\nexport default { ${ConfigKeyOrder.GROUPS.filter((group) => written.includes(group)).join(', ')} } satisfies VulcanConfig;\n`,
+      text: `${header === '' ? '' : `${header}\n`}import type { VulcanConfig } from '@venizia/vulcan';\nimport { ${written.join(', ')} } from './vulcan/index.mts';\n\n${above === '' ? '' : `${above}\n`}export default { ${ConfigKeyOrder.GROUPS.filter((group) => written.includes(group)).join(', ')} } satisfies VulcanConfig;\n`,
     });
     changes.push({ path: `${MODULES_DIRECTORY}/index.mts`, text: `${exports.join('\n')}\n` });
 
@@ -802,7 +855,30 @@ export class ConfigCodemod {
     );
   }
 
-  /** The value a module of the old split exports as `name`: through `export { name } from './x.mts'` and `satisfies`, `as` and a type on the const. */
+  /** Whether a path, as the config's folder reaches it, is a file of `.configs/vulcan/`: the only place the codemod folds and deletes from. */
+  private static isContained(opts: { path: string }): boolean {
+    const normal = posix.normalize(opts.path);
+
+    return normal.startsWith(`${MODULES_DIRECTORY}/`) && !normal.split('/').includes('..');
+  }
+
+  /** The line (1-based) and the first words of a statement: what a refusal names. */
+  private static whereOf(opts: {
+    source: TSourceFile;
+    statement: { getStart: (s: TSourceFile) => number; getText: (s: TSourceFile) => string };
+  }): string {
+    const { line } = opts.source.getLineAndCharacterOfPosition(
+      opts.statement.getStart(opts.source),
+    );
+
+    return `line ${line + 1}: \`${opts.statement.getText(opts.source).split('\n')[0].slice(0, 70)}\``;
+  }
+
+  /**
+   * The value a module of the old split exports as `name`, with the comment above it: through `export { name } from './x.mts'`.
+   * Only a file of `.configs/vulcan/` that holds nothing but the type import and that one exported const is folded: a module with
+   * another export, a local name or a statement would lose it, so it is refused with its line.
+   */
   private static moduleValue(opts: {
     typescript: TTypeScript;
     read: (path: string) => string | undefined;
@@ -810,8 +886,15 @@ export class ConfigCodemod {
     name: string;
     folded: Set<string>;
     depth: number;
-  }): { text: string } | { reason: string } {
+  }): { text: string; comment: string } | { reason: string } {
     const { typescript } = opts;
+
+    if (!ConfigCodemod.isContained({ path: opts.path })) {
+      return {
+        reason: `${posix.normalize(opts.path)} is not under ${MODULES_DIRECTORY}/: the codemod folds and deletes only files there; put its value in the config by hand, or move the file there`,
+      };
+    }
+
     const text = opts.read(opts.path);
 
     if (text === undefined || opts.depth > 3) {
@@ -825,52 +908,84 @@ export class ConfigCodemod {
       true,
       typescript.ScriptKind.TS,
     );
-
-    for (const statement of source.statements) {
-      if (
+    const isTypeImport = (statement: (typeof source.statements)[number]): boolean =>
+      typescript.isImportDeclaration(statement) &&
+      /^import type \{ VulcanConfig \}/.test(statement.getText(source));
+    const exporting = source.statements.find(
+      (statement) =>
         typescript.isExportDeclaration(statement) &&
         statement.moduleSpecifier !== undefined &&
         statement.exportClause !== undefined &&
         typescript.isNamedExports(statement.exportClause) &&
-        statement.exportClause.elements.some((element) => element.name.text === opts.name)
+        statement.exportClause.elements.some((element) => element.name.text === opts.name),
+    );
+
+    if (exporting !== undefined && typescript.isExportDeclaration(exporting)) {
+      // A file that only re-exports (an index): nothing else may live in it.
+      const stray = source.statements.find(
+        (statement) =>
+          !isTypeImport(statement) &&
+          !(typescript.isExportDeclaration(statement) && statement.moduleSpecifier !== undefined),
+      );
+
+      if (stray !== undefined) {
+        return {
+          reason: `${opts.path} has more than re-exports (${ConfigCodemod.whereOf({ source, statement: stray })}): folding the modules would lose it`,
+        };
+      }
+
+      opts.folded.add(opts.path);
+
+      return ConfigCodemod.moduleValue({
+        ...opts,
+        path: posix.join(
+          posix.dirname(opts.path),
+          exporting.moduleSpecifier !== undefined &&
+            typescript.isStringLiteral(exporting.moduleSpecifier)
+            ? exporting.moduleSpecifier.text
+            : '',
+        ),
+        depth: opts.depth + 1,
+      });
+    }
+
+    for (const statement of source.statements) {
+      if (!typescript.isVariableStatement(statement)) {
+        continue;
+      }
+
+      const declaration = statement.declarationList.declarations.find(
+        (entry) => typescript.isIdentifier(entry.name) && entry.name.text === opts.name,
+      );
+
+      if (declaration === undefined || declaration.initializer === undefined) {
+        continue;
+      }
+
+      const stray = source.statements.find((other) => other !== statement && !isTypeImport(other));
+
+      if (stray !== undefined || statement.declarationList.declarations.length !== 1) {
+        return {
+          reason: `${opts.path} holds more than the type import and \`${opts.name}\` (${ConfigCodemod.whereOf({ source, statement: stray ?? statement })}): another export, a local name or a statement would be lost, so it is not folded; move that out by hand first`,
+        };
+      }
+
+      let init = declaration.initializer;
+
+      while (
+        typescript.isSatisfiesExpression(init) ||
+        typescript.isAsExpression(init) ||
+        typescript.isParenthesizedExpression(init)
       ) {
-        opts.folded.add(opts.path);
-
-        return ConfigCodemod.moduleValue({
-          ...opts,
-          path: posix.join(
-            posix.dirname(opts.path),
-            typescript.isStringLiteral(statement.moduleSpecifier)
-              ? statement.moduleSpecifier.text
-              : '',
-          ),
-          depth: opts.depth + 1,
-        });
+        init = init.expression;
       }
 
-      if (typescript.isVariableStatement(statement)) {
-        for (const declaration of statement.declarationList.declarations) {
-          if (
-            typescript.isIdentifier(declaration.name) &&
-            declaration.name.text === opts.name &&
-            declaration.initializer !== undefined
-          ) {
-            let init = declaration.initializer;
+      opts.folded.add(opts.path);
 
-            while (
-              typescript.isSatisfiesExpression(init) ||
-              typescript.isAsExpression(init) ||
-              typescript.isParenthesizedExpression(init)
-            ) {
-              init = init.expression;
-            }
-
-            opts.folded.add(opts.path);
-
-            return { text: init.getText(source) };
-          }
-        }
-      }
+      return {
+        text: init.getText(source),
+        comment: source.text.slice(statement.getFullStart(), statement.getStart(source)).trim(),
+      };
     }
 
     return {
@@ -878,117 +993,53 @@ export class ConfigCodemod {
     };
   }
 
-  // ----- back to the flat file -----
-
-  private static reverse(opts: {
+  /**
+   * Why the `index.mts` that is there cannot be replaced by the one of the groups, or `undefined`: it exports only the names this run
+   * folded, through `export { x } from`.
+   */
+  private static indexRefusal(opts: {
     typescript: TTypeScript;
-    source: TSourceFile;
-    object: TObjectLiteral;
-    keys: string[];
-    segments: IPropertySegment[];
-    prefix: string;
-    suffix: string;
-  }): TCodemodResult {
-    const items = ConfigCodemod.itemsOfGrouped(opts);
-
-    if ('reason' in items) {
-      return { ok: false, reason: items.reason };
+    text: string | undefined;
+    folded: Set<string>;
+  }): string | undefined {
+    if (opts.text === undefined) {
+      return undefined;
     }
 
-    const has = (group: string, key: string): boolean =>
-      items.items.some((item) => item.group === group && item.key === key);
-
-    if (has('check', 'doctor') && has('check', 'layout')) {
-      return {
-        ok: false,
-        reason:
-          '`check.doctor` and `check.layout` both exist: the flat `doctor` holds both, merge them by hand',
-      };
-    }
-
-    const out: string[] = [];
-    const flatKeys = new Map<string, string>();
-
-    for (const item of items.items) {
-      const found = Object.entries(PLACE).find(
-        ([, place]) => place.group === item.group && place.key === item.key,
-      );
-      let flat = found?.[0];
-
-      if (item.group === 'guard') {
-        flat = 'guard';
-      } else if (item.group === 'knowledge' && !['okf', 'atlas'].includes(item.key)) {
-        flat = 'knowledge';
-      } else if (item.group === 'check' && item.key === 'doctor') {
-        flat = 'doctor';
-      } else if (item.group === 'check' && item.key === 'layout') {
-        flat = 'doctor';
-      } else if (item.group === 'common' && item.key === 'remove') {
-        flat = 'remove';
-      } else if (item.group === 'project' && item.key === 'key') {
-        flat = 'project';
-      }
-
-      if (flat === undefined) {
-        return { ok: false, reason: `\`${item.group}.${item.key}\` has no flat key` };
-      }
-
-      flatKeys.set(`${item.group}.${item.key}`, flat);
-    }
-
-    const needsWrap = items.items.filter(
-      (item) =>
-        (item.group === 'knowledge' && !['okf', 'atlas'].includes(item.key)) ||
-        (item.group === 'project' && item.key === 'key') ||
-        (item.group === 'check' && item.key === 'layout'),
+    const { typescript } = opts;
+    const source = typescript.createSourceFile(
+      'index.mts',
+      opts.text,
+      typescript.ScriptTarget.Latest,
+      true,
+      typescript.ScriptKind.TS,
     );
 
-    if (needsWrap.length > 0) {
-      return {
-        ok: false,
-        reason:
-          'the flat file wraps `knowledge`, `project.key` and `check.layout` in objects: restore the earlier file with git (the reverse of these three is not written)',
-      };
+    for (const statement of source.statements) {
+      if (
+        typescript.isImportDeclaration(statement) &&
+        /^import type/.test(statement.getText(source))
+      ) {
+        continue;
+      }
+
+      if (
+        !typescript.isExportDeclaration(statement) ||
+        statement.exportClause === undefined ||
+        !typescript.isNamedExports(statement.exportClause)
+      ) {
+        return `${MODULES_DIRECTORY}/index.mts has more than re-exports (${ConfigCodemod.whereOf({ source, statement })}): it would be replaced, so it is left: merge it by hand`;
+      }
+
+      const unknown = statement.exportClause.elements.find(
+        (element) => !opts.folded.has(element.name.text),
+      );
+
+      if (unknown !== undefined) {
+        return `${MODULES_DIRECTORY}/index.mts exports \`${unknown.name.text}\`, which this run does not fold: it would be lost, so nothing is written`;
+      }
     }
 
-    for (const item of items.items) {
-      const flat = flatKeys.get(`${item.group}.${item.key}`) ?? item.key;
-      const place = Object.entries(PLACE).find(
-        ([, entry]) => entry.group === item.group && entry.key === item.key,
-      );
-      const from = place?.[1].key ?? item.key;
-      const body =
-        flat === item.key || item.group === 'guard' || from === flat
-          ? item.body
-          : item.body.replace(new RegExp(`^${from}\\b`), flat);
-
-      out.push(
-        ConfigCodemod.render({
-          item: { ...item, body },
-          column: TOP_COLUMN,
-        }),
-      );
-    }
-
-    const ordered = out
-      .map((text, index) => ({
-        text,
-        key: flatKeys.get(`${items.items[index].group}.${items.items[index].key}`) ?? '',
-      }))
-      .sort(
-        (left, right) =>
-          ConfigKeyOrder.rankOf({ key: left.key }) - ConfigKeyOrder.rankOf({ key: right.key }),
-      );
-
-    return {
-      ok: true,
-      changes: [
-        {
-          path: CONFIG_PATH,
-          text: `${opts.prefix}${ordered.map((entry) => entry.text).join('')}${opts.suffix}`,
-        },
-      ],
-      notes: [`${CONFIG_PATH}: the keys are flat again`],
-    };
+    return undefined;
   }
 }

@@ -575,7 +575,6 @@ export class ShellWrites {
     return [];
   }
 
-  /** A source word whose name this check cannot tell: a pattern, an expansion, `.`, `..`, or (for `rsync`) a trailing slash, which copies what is inside. */
   /**
    * The files a `vulcan` command writes that the guards protect: the config for `config format` (it writes unless it is given `--check`)
    * and for `config codemod ... --write`, with the first module for the codemod. The program is `vulcan` itself, or `bun`, `node` or
@@ -585,7 +584,11 @@ export class ShellWrites {
     const at =
       opts.name === 'vulcan'
         ? -1
-        : opts.args.slice(0, 3).findIndex((word) => ShellParser.basenameOf({ word }) === 'vulcan');
+        : opts.args
+            .slice(0, 3)
+            .findIndex(
+              (word) => ShellParser.basenameOf({ word }).replace(/@[^/]*$/, '') === 'vulcan',
+            );
 
     if (
       opts.name !== 'vulcan' &&
@@ -611,6 +614,7 @@ export class ShellWrites {
       : [];
   }
 
+  /** A source word whose name this check cannot tell: a pattern, an expansion, `.`, `..`, or (for `rsync`) a trailing slash, which copies what is inside. */
   private static isUnknownName(opts: { word: string; isRsync: boolean }): boolean {
     const bare = opts.word.replace(/\/+$/, '');
     const last = bare.slice(bare.lastIndexOf('/') + 1);

@@ -9,7 +9,7 @@ description: Show the config as the commands read it, merged from the shipped de
 vulcan config effective
 vulcan config diff
 vulcan config format [--check]
-vulcan config codemod config-groups [<dir>] [--write] [--split] [--reverse]
+vulcan config codemod config-groups [<dir>] [--write] [--split]
 vulcan config codemod --list
 ```
 
@@ -78,13 +78,14 @@ Exit codes: `0` formatted or already in order; `1` with `--check` when a key wou
 | none | Lists what it would write (`would write  .configs/vulcan.config.mts`) and writes nothing |
 | `--write` | Writes the files, and deletes the modules it folds in |
 | `--split` | One module per group under `.configs/vulcan/` (`project.mts`, `agent.mts`, ...) and a config that composes them; the modules of the old split (`claude.mts`, `doctor.mts`, `okf.mts`, `packages.mts`) are folded into the groups and deleted, and an import a value uses is carried into the module one folder deeper |
-| `--reverse` | The groups of object literals back to the flat file; it refuses `knowledge`, `project.key` and `check.layout` (the flat file wraps them in objects: restore the earlier file with git) |
 | `--list` | Names the codemod |
 | `<dir>` | The project folder; default `.` |
 
 Without `--split`, the file stays one file and a module of the old split keeps its file; its type becomes the group's (`VulcanConfig['claude']` is `VulcanConfig.Agent['claude']`, `['doctor']` is `VulcanConfig.Check['doctor']`, `['okf']` is `VulcanConfig.Knowledge['okf']`, `['packages']` is `VulcanConfig.Project['packages']`). A key moves with the comment above it; a comment after the closing brace of `project` or `knowledge` goes after its last key. The remove paths are renamed to the group paths.
 
-It refuses, with the reason and nothing written (exit `2`), a config with a spread or a computed key, a key that is not a config key, `doctor` with a `layout` key, `knowledge` as a variable beside `okf` or `atlas`, an object on one line that holds a comment, and, with `--split`, a statement besides the imports and `export default`. A config in groups already has nothing to do (`--split` still makes the modules of a grouped file).
+It refuses, with the reason and nothing written (exit `2`), a config with a spread or a computed key, a key that is not a config key, `doctor` with a `layout` key, `knowledge` as a variable beside `okf` or `atlas`, an object on one line that holds a comment, and, with `--split`: a statement besides the imports and `export default`; a module that is not under `.configs/vulcan/` (or is a link out of it); a module that holds more than the type import and its one exported const (another export, a local name, a statement: the reason names the line); an `index.mts` with more than re-exports of what the run folds; and a `.configs/vulcan/<group>.mts` that is already there and is not what the run writes. It deletes only the modules it folded, only under `.configs/vulcan/`, and keeps every comment: the file's header, the one above `export default`, the one above a key, and the one above a folded const.
+
+There is no way back: the downgrade is to restore the earlier config from git. A config in groups already has nothing to do (`--split` still makes the modules of a grouped file).
 
 **Agents do not run it.** The guards deny a `vulcan` command that writes the config or its modules: `config format` without `--check` and `config codemod ... --write`. The read-only forms stay allowed: `config format --check`, `config codemod` without `--write`, `--list`. The owner runs the writing forms.
 
