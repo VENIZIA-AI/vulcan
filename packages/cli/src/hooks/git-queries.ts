@@ -88,6 +88,10 @@ export class GitQueries {
     program?: string;
     args: string[];
     cwd: string | undefined;
+    /** The most bytes of output read; the default of `spawnSync` (1 MiB) when absent. A longer answer is no answer. */
+    maxBuffer?: number;
+    /** Give the output as written; without it the output is trimmed. */
+    raw?: true;
   }): string | undefined {
     const program = opts.program ?? 'git';
 
@@ -106,8 +110,13 @@ export class GitQueries {
       encoding: 'utf8',
       timeout: HookConstants.QUERY_TIMEOUT_MS,
       env: GitQueries.environment(),
+      ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
     });
 
-    return result.status === 0 ? result.stdout.trim() : undefined;
+    if (result.status !== 0) {
+      return undefined;
+    }
+
+    return opts.raw === true ? result.stdout : result.stdout.trim();
   }
 }

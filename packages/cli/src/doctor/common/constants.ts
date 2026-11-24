@@ -62,6 +62,10 @@ export class DoctorChecks {
   static readonly WORKSPACE_PACKAGES = 'workspace-packages';
   /** Tracked files holding keys, tokens, URL credentials, IPv4 or machine paths: a warning; the count of acknowledged files: a note. */
   static readonly PRIVATE_VALUES = 'private-values';
+  /** Top-level keys of the config out of the order `vulcan config format` gives them; a note. */
+  static readonly CONFIG_ORDER = 'config-order';
+  /** Plural role suffixes, folders mixing subfolders and loose files, long source files: a warning per rule for what the layout baseline does not hold; a note for what it does. */
+  static readonly FILE_LAYOUT = 'file-layout';
 }
 
 /** What `vulcan doctor` looks for in committed files. */

@@ -2,6 +2,9 @@ import { relative } from 'node:path';
 import { LocalSettings } from '../common/local-settings.ts';
 import { ConfigLoader } from '../config/index.ts';
 import { ProjectContract } from './checks.ts';
+import type { ICheckContext } from './checks.ts';
+import { ConfigOrderCheck } from './config-order.ts';
+import { FileLayoutCheck } from './file-layout.ts';
 import { SkillLint } from './skills.ts';
 import { TagCheck } from './tags.ts';
 import { DoctorChecks } from './common/index.ts';
@@ -48,27 +51,76 @@ export class DoctorRunner {
     ];
   }
 
+  /** The context of the warnings and the notes, or `undefined` when the config does not load (the checks report it). */
+  private static async contextOf(opts: { root: string }): Promise<ICheckContext | undefined> {
+    const loaded = await ConfigLoader.load({ root: opts.root });
+
+    return loaded.ok
+      ? {
+          root: opts.root,
+          config: loaded.config,
+          configFile: relative(opts.root, loaded.file),
+          layers: loaded.layers,
+        }
+      : undefined;
+  }
+
+  /** What `vulcan doctor` prints: the violations, the warnings and the notes, with the config loaded and the layout check run once. */
+  static async runReport(opts: {
+    root: string;
+    /** The environment of the shell running doctor; defaults to the process environment. */
+    env?: Record<string, string | undefined>;
+  }): Promise<{ violations: IViolation[]; warnings: IViolation[]; notes: IViolation[] }> {
+    const violations = await DoctorRunner.runChecks({ root: opts.root });
+    const context = await DoctorRunner.contextOf({ root: opts.root });
+
+    if (context === undefined) {
+      return { violations, warnings: [], notes: [] };
+    }
+
+    const layout = FileLayoutCheck.check(context);
+
+    return {
+      violations,
+      warnings: [...DoctorRunner.warningsOf({ context }), ...layout.warnings],
+      notes: [...DoctorRunner.notesOf({ context, env: opts.env }), ...layout.notes],
+    };
+  }
+
   /** Notes that never fail the doctor: what a project could change, one line each. */
   static async runNotes(opts: {
     root: string;
     /** The environment of the shell running doctor; defaults to the process environment. */
     env?: Record<string, string | undefined>;
   }): Promise<IViolation[]> {
-    const loaded = await ConfigLoader.load({ root: opts.root });
+    const context = await DoctorRunner.contextOf({ root: opts.root });
 
-    if (!loaded.ok) {
-      return [];
-    }
+    return context === undefined
+      ? []
+      : [
+          ...DoctorRunner.notesOf({ context, env: opts.env }),
+          ...FileLayoutCheck.check(context).notes,
+        ];
+  }
 
-    const context = {
-      root: opts.root,
-      config: loaded.config,
-      configFile: relative(opts.root, loaded.file),
-      layers: loaded.layers,
-    };
+  /** Warnings: louder than a note, still never a failure - a security gap a project made earlier may carry. */
+  static async runWarnings(opts: { root: string }): Promise<IViolation[]> {
+    const context = await DoctorRunner.contextOf({ root: opts.root });
+
+    return context === undefined
+      ? []
+      : [...DoctorRunner.warningsOf({ context }), ...FileLayoutCheck.check(context).warnings];
+  }
+
+  private static notesOf(opts: {
+    context: ICheckContext;
+    env: Record<string, string | undefined> | undefined;
+  }): IViolation[] {
+    const { context } = opts;
 
     return [
       ...ProjectContract.checkConfigDefaults(context),
+      ...ConfigOrderCheck.check(context),
       ...ProjectContract.checkBoardAutoStart(context),
       ...ProjectContract.checkPrepareScript(context),
       ...ProjectContract.checkAtlasBlock(context),
@@ -77,20 +129,8 @@ export class DoctorRunner {
     ];
   }
 
-  /** Warnings: louder than a note, still never a failure - a security gap a project made earlier may carry. */
-  static async runWarnings(opts: { root: string }): Promise<IViolation[]> {
-    const loaded = await ConfigLoader.load({ root: opts.root });
-
-    if (!loaded.ok) {
-      return [];
-    }
-
-    const context = {
-      root: opts.root,
-      config: loaded.config,
-      configFile: relative(opts.root, loaded.file),
-      layers: loaded.layers,
-    };
+  private static warningsOf(opts: { context: ICheckContext }): IViolation[] {
+    const { context } = opts;
 
     return [
       ...ProjectContract.checkStaleRemove(context),
@@ -103,8 +143,8 @@ export class DoctorRunner {
       ...ProjectContract.checkProjectKey(context),
       ...ProjectContract.checkWorkspacePackages(context),
       ...ProjectContract.checkBrowserSocket({
-        root: opts.root,
-        tmp: LocalSettings.read({ root: opts.root }).tmp ?? context.config.local.tmp,
+        root: context.root,
+        tmp: LocalSettings.read({ root: context.root }).tmp ?? context.config.local.tmp,
       }),
       ...ProjectContract.checkSkillTriggers(context),
       ...ProjectContract.checkFormat(context),

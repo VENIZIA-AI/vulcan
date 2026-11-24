@@ -66,6 +66,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'changelog', link: '/references/commands/changelog' },
       { text: 'migrate', link: '/references/commands/migrate' },
       { text: 'runners', link: '/references/commands/runners' },
+      { text: 'layout', link: '/references/commands/layout' },
       { text: 'preset', link: '/references/commands/preset' },
       { text: 'profile', link: '/references/commands/profile' },
       { text: 'visualize', link: '/references/commands/visualize' },

@@ -6,3 +6,4 @@ export { SkillCatalog } from './skills/index';
 export { VersionFolders } from './changelogs/version-folder';
 export type { ISkillEntry } from './skills/index';
 export { AtlasStatus } from './cli/status';
+export { TypeScriptCompiler } from './common/compiler';

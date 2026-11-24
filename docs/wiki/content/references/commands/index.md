@@ -63,6 +63,10 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   config of each pack, then the project file, merged) with the layer each value
                                   came from; --diff lists the values of the project file that the shipped layers
                                   already give; read-only; exit 2 on bad input
+  config format [--check]
+                                  Put the top-level keys of .configs/vulcan.config.mts in the canonical order, each
+                                  with its comments; --check writes nothing and exits 1 when a key would move; exit 2
+                                  when the keys cannot be ordered (a spread, a computed key, no object literal)
   clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--events|--release-candidates|--profile] [--include-fresh] [--yes]
                                   List what an agent left under .agents/local/ (a dry run) and, with
                                   --yes, remove it; --tmp is the default and takes stale items only (--include-fresh
@@ -75,6 +79,11 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   (a name npm gives to someone else would be fetched and run). A scoped package
                                   and the names of guard.runners.allow pass; tests, lockfiles, build output and
                                   frozen history (dated entries, released version folders) are not read
+  layout check [--write-baseline]
+                                  List the layout findings of the package and layout folders (doctor.layout): a
+                                  plural role in a file name, a folder that mixes subfolders and loose files, a
+                                  source file over doctor.layout.maxLines; what .configs/layout-baseline.json
+                                  holds is info, the rest warns; --write-baseline writes every finding into it
   changelog check [--history --base <ref>]
                                   Check the changelog: a version folder changelogs/<X.Y.Z>/{log.md, migration.yaml}
                                   has a block for every Breaking and Deprecated item; a dated Breaking Change entry
@@ -116,7 +125,7 @@ The following list gives each command, its purpose, its exit codes, and its refe
   Exit codes: `0` on success; `1` when the spec is missing or not renderable, nothing is written, or `.agents/local/` is missing.
 - `profile` ([vulcan profile](/references/commands/profile)): Tell VULCAN how you like to work (language, how to address you, tone, habits); `show` prints it, `reset` deletes it.
   Exit codes: `0` on success; `1` when cancelled, unreadable, not gitignored or on an unknown argument.
-- `config` ([vulcan config](/references/commands/config)): Show the config as the commands read it, merged from the shipped defaults, the config of each pack and the project file; `--diff` lists the values the project file repeats.
+- `config` ([vulcan config](/references/commands/config)): Show the config as the commands read it, merged from the shipped defaults, the config of each pack and the project file; `--diff` lists the values the project file repeats; `config format` puts the top-level keys of the config file in the canonical order.
   Exit codes: `0` shown; `1` when the config cannot be loaded; `2` on bad input.
 - `clean` ([vulcan clean](/references/commands/clean)): List what an agent left under `.agents/local/` and remove it with `--yes`.
   Exit codes: `0` on a dry run, a removal or nothing to remove; `1` when an item cannot be removed or on an unknown flag.
@@ -136,6 +145,8 @@ The following list gives each command, its purpose, its exit codes, and its refe
   Exit codes: `0` when a plan is printed or `apply` ran; `1` when the plan cannot be made, `apply` is refused or a codemod fails, or the tool is missing; `2` for a subcommand other than `plan` or `apply`, a missing `--to`, an unknown flag, a flag with no value or a flag of the other subcommand.
 - `runners` ([vulcan runners](/references/commands/runners)): `runners check` lists every tracked file that runs an unscoped package fetched by name (rule `V-S-08`).
   Exit codes: `0` when there is none; `1` when a file runs one; `2` for any other arguments or when git cannot list the files.
+- `layout` ([vulcan layout](/references/commands/layout)): `layout check` lists the file names with a plural role, the folders that mix subfolders and loose files and the long source files of the package and layout folders; `--write-baseline` adopts them.
+  Exit codes: `0` when every finding is in the baseline or the baseline was written; `1` on a new finding or when the check cannot run (the config, the baseline, a folder outside git, a listing git does not give); `2` on bad arguments.
 - `x` ([x](#x)): Run a shipped tool (`okf` or `atlas`) at the pinned package version.
   Exit codes: `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool.
 - `help`: Print usage information and available command options (`--help` and `-h` are aliases).

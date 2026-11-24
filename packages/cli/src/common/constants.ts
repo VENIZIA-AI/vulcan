@@ -19,6 +19,7 @@ export class VulcanCommands {
   static readonly CHANGELOG = 'changelog';
   static readonly CONFIG = 'config';
   static readonly RUNNERS = 'runners';
+  static readonly LAYOUT = 'layout';
   static readonly MIGRATE = 'migrate';
   static readonly X = 'x';
   static readonly HELP = 'help';

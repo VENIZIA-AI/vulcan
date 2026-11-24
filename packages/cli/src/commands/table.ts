@@ -233,13 +233,20 @@ export class CommandTable {
                                   --effective prints the config as the commands read it (the shipped defaults, the
                                   config of each pack, then the project file, merged) with the layer each value
                                   came from; --diff lists the values of the project file that the shipped layers
-                                  already give; read-only; exit 2 on bad input`,
+                                  already give; read-only; exit 2 on bad input
+  config format [--check]
+                                  Put the top-level keys of .configs/vulcan.config.mts in the canonical order, each
+                                  with its comments; --check writes nothing and exits 1 when a key would move; exit 2
+                                  when the keys cannot be ordered (a spread, a computed key, no object literal)`,
       flags: {
         '--effective': 'Print the merged config as JSON, with where each value came from',
         '--diff': 'List the values of the project config that equal what the shipped layers give',
+        '--check': 'format only: write nothing; exit 1 and name the keys that would move',
       },
+      positionals: 1,
       unknownExit: ExitCodes.USAGE,
-      exits: '0 on shown; 1 when the config cannot be loaded; 2 on bad input.',
+      exits:
+        '0 on shown, formatted or already in order; 1 when the config cannot be loaded, or with --check when a key would move; 2 on bad input or a config whose keys cannot be ordered.',
     },
     [VulcanCommands.CLEAN]: {
       help: `  clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--events|--release-candidates|--profile] [--include-fresh] [--yes]
@@ -289,6 +296,21 @@ export class CommandTable {
       unknownExit: ExitCodes.USAGE,
       exits:
         '0 when no file runs one; 1 when one does (file:line, the command and the safe forms); 2 for any other argument or a folder git cannot list.',
+    },
+    [VulcanCommands.LAYOUT]: {
+      help: `  layout check [--write-baseline]
+                                  List the layout findings of the package and layout folders (doctor.layout): a
+                                  plural role in a file name, a folder that mixes subfolders and loose files, a
+                                  source file over doctor.layout.maxLines; what .configs/layout-baseline.json
+                                  holds is info, the rest warns; --write-baseline writes every finding into it`,
+      flags: {
+        '--write-baseline':
+          'Write every finding into .configs/layout-baseline.json instead of listing them',
+      },
+      positionals: 1,
+      unknownExit: ExitCodes.USAGE,
+      exits:
+        '0 when every finding is in the baseline (or the baseline was written); 1 when one is not, or the check cannot run (the config, the baseline, a folder outside git, a listing git does not give); 2 on bad arguments.',
     },
     [VulcanCommands.CHANGELOG]: {
       help: `  changelog check [--history --base <ref>]

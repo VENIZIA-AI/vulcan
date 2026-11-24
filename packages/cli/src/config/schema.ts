@@ -570,8 +570,8 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       path: ['host'],
     })
     .default({ type: ProviderTypes.GITHUB }),
-  /** What `vulcan doctor` is told: `privateValues.acknowledged` lists the files that may keep private values, each with a `reason`. */
-  doctor: DOCTOR_SCHEMA.default({ privateValues: { acknowledged: [] } }),
+  /** What `vulcan doctor` is told: `privateValues.acknowledged` lists the files that may keep private values, each with a `reason`; `layout` sets the layout check. */
+  doctor: DOCTOR_SCHEMA.prefault({}),
   /** Team-shared Claude settings (permissions, env, enabledPlugins...), merged by sync over personal keys. */
   claude: z
     .strictObject({
