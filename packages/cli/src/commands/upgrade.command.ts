@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { ExitCodes, JsonValue, PACKAGE_NAME, UpgradeFlags } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { CreateConstants } from '../create/common/index.ts';
+import { CommandScopes } from './scopes.ts';
 import { SubProcess } from '../create/process.ts';
 
 /** `latest` is the stable channel: never a prerelease. */
@@ -167,10 +168,13 @@ export class UpgradeTarget {
       return ExitCodes.FAILURE;
     }
 
-    const child = Bun.spawn([process.execPath, bin, 'sync'], {
-      cwd: opts.cwd,
-      stdio: ['inherit', 'inherit', 'inherit'],
-    });
+    const child = Bun.spawn(
+      [process.execPath, bin, ...CommandScopes.argvOf({ scope: 'project', action: 'sync' })],
+      {
+        cwd: opts.cwd,
+        stdio: ['inherit', 'inherit', 'inherit'],
+      },
+    );
 
     return child.exited;
   }

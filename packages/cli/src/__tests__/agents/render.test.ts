@@ -85,7 +85,7 @@ describe('McpConfig.mergeServers (mcpServers)', () => {
       { command: 'bun', args: ['x', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'] },
       {
         command: 'node',
-        args: ['/old/node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '/old'],
+        args: ['/old/node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '/old'], // retired-form: an entry of the release before the scopes
       },
       {
         command: 'bun',
@@ -102,7 +102,7 @@ describe('McpConfig.mergeServers (mcpServers)', () => {
       },
       {
         command: 'bun',
-        args: ['/old/node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '/elsewhere'],
+        args: ['/old/node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '/elsewhere'], // retired-form: an entry of the release before the scopes
       },
     ]) {
       const before = `${JSON.stringify({ mcpServers: { atlas: mine } }, null, 2)}\n`;

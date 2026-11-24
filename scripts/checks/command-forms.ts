@@ -15,10 +15,15 @@ const RETIRED = [
   new RegExp(String.raw`${CALL} config --(?:effective|diff)\b`),
   new RegExp(String.raw`${CALL} event step\b`),
   new RegExp(String.raw`${CALL} event add --kind flow\b`),
+  // A child of the installed bin by a retired name: `[bin, 'doctor']`, `[join(root, 'node_modules', '.bin', 'vulcan'), 'sync']`.
+  /(?:\bbin|'vulcan'\)|\.bin\/vulcan['"`]?)\s*,\s*'(?:sync|doctor|init|upgrade|clean|add|agents|commit-check|runners|changelog|preset|visualize|layout|x)'/,
 ];
 /** What keeps the old words on purpose: the table that maps them, the test that pins it, the frozen history, the wiki theme shared with the other repositories (its hashes are in SHARED.json), binaries and lock files. */
 const SKIPPED =
   /^(?:packages\/cli\/src\/commands\/scopes\.ts|packages\/cli\/src\/__tests__\/commands\/scopes\.test\.ts|scripts\/checks\/command-forms\.ts|scripts\/checks\/__tests__\/command-forms\.test\.ts|packages\/cli\/src\/(?:commands\/x\.command|__tests__\/commands\/x\.command\.test)\.ts|docs\/wiki\/content\/changelogs\/|docs\/wiki\/site\/\.vitepress\/theme\/shared\/|bun\.lock|node_modules\/|\.agents\/local\/)|\.(?:png|svg|ico|woff2?|jpg|webp)$/;
+
+/** A line that names a retired form on purpose (what an earlier release wrote and a sync still recognises) says so with this marker. */
+const ALLOWED = 'retired-form:';
 
 export interface ICommandFormHit {
   file: string;
@@ -35,7 +40,7 @@ export class CommandForms {
         text
           .split('\n')
           .flatMap((line, index) =>
-            RETIRED.some((pattern) => pattern.test(line))
+            !line.includes(ALLOWED) && RETIRED.some((pattern) => pattern.test(line))
               ? [{ file, line: index + 1, text: line.trim().slice(0, 140) }]
               : [],
           ),

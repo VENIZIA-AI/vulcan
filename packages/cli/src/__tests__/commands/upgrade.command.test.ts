@@ -204,7 +204,7 @@ test('after the install, sync runs from the NEWLY installed CLI, not the one alr
   chmodSync(join(root, 'node_modules', '.bin', 'vulcan'), 0o755);
   const result = await UpgradeTarget.runInstalledSync({ cwd: root });
   expect(result).toBe(0);
-  expect(readFileSync(join(root, 'sync-ran.txt'), 'utf8')).toBe('sync');
+  expect(readFileSync(join(root, 'sync-ran.txt'), 'utf8')).toBe('project sync');
 });
 
 test('no installed CLI after the install: exit 1, never a fallback to the old code', async () => {

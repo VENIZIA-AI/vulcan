@@ -653,12 +653,7 @@ export class AppScaffold {
     for (const step of [
       () => SubProcess.runBun({ cwd, args: ['install'], label: 'bun install' }),
       // The installed CLI syncs, so the project is wired to the version it pins.
-      () =>
-        SubProcess.runBun({
-          cwd,
-          args: [join(cwd, 'node_modules', '.bin', 'vulcan'), 'sync'],
-          label: 'vulcan project sync',
-        }),
+      () => SubProcess.runVulcan({ cwd: cwd, root: cwd, scope: 'project', action: 'sync' }),
       () =>
         AppChecks.run({ root: cwd, appDirectory: join(cwd, folder, app), checks: preset.checks }),
     ]) {

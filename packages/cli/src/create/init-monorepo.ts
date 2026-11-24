@@ -395,12 +395,7 @@ const runCreate = async (opts: {
     () => SubProcess.runBun({ cwd: root, args: ['install'], label: 'bun install' }),
     () => SubProcess.runGitInit({ cwd: root }),
     // The installed CLI syncs, so the project is wired to the version it pins.
-    () =>
-      SubProcess.runBun({
-        cwd: root,
-        args: [join(root, 'node_modules', '.bin', 'vulcan'), 'sync'],
-        label: 'vulcan project sync',
-      }),
+    () => SubProcess.runVulcan({ cwd: root, root: root, scope: 'project', action: 'sync' }),
     () =>
       AppChecks.run({
         root,

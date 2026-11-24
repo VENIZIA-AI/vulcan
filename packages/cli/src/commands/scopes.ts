@@ -88,6 +88,25 @@ export class CommandScopes {
     x: { replacement: 'okf ... or atlas ...', forwards: true },
   };
 
+  /**
+   * The argv of a public command, `[scope, action]`, for a place that starts the installed `vulcan` as a child: it takes the words from this
+   * table, so a command that moves cannot leave a spawn behind that the router answers with a notice or a refusal. A pair the
+   * table does not know throws.
+   */
+  static argvOf(opts: { scope: string; action: string }): string[] {
+    const known =
+      TOOL_SCOPES.has(opts.scope) ||
+      CommandScopes.COMMANDS.some(
+        (entry) => entry.scope === opts.scope && entry.action === opts.action,
+      );
+
+    if (!known) {
+      throw new Error(`vulcan: no command '${opts.scope} ${opts.action}' in the scope table`);
+    }
+
+    return [opts.scope, opts.action];
+  }
+
   static scopes(): string[] {
     return [
       ...new Set([

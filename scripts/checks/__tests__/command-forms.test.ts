@@ -15,6 +15,9 @@ describe('the retired command forms', () => {
     'vulcan event step --flow X',
     'vulcan event add --kind flow --title t',
     '`${ProjectLayout.VULCAN_COMMAND} sync`',
+    "[bin, 'doctor'],",
+    "[bin, 'x', 'okf', 'check', '--strict'],",
+    "args: [join(root, 'node_modules', '.bin', 'vulcan'), 'sync'],",
   ])('%s is found', (text) => {
     expect(scan(text)).toHaveLength(1);
   });
@@ -30,6 +33,9 @@ describe('the retired command forms', () => {
     'vulcan migrate notes',
     'vulcan check commit',
     'vulcan config effective',
+    "[bin, 'project', 'doctor'],",
+    "[bin, 'okf', 'check', '--strict'],",
+    "['add', '-d', '--exact', 'x']",
   ])('%s is the new form and is not', (text) => {
     expect(scan(text)).toEqual([]);
   });
