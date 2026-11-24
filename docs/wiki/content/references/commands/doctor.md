@@ -181,7 +181,7 @@ When sync skips a file, it reports the reason or `shadows a shipped skill - rena
 
 ### manifest
 
-A missing or outdated `.agents/local/vulcan.manifest.json` file triggers this check.
+A missing or outdated `.agents/local/vulcan.manifest.json` or `.agents/atlas.manifest.json` file triggers this check, and so does a copy of the old `.agents/vulcan.manifest.json` that git still tracks.
 
 ```text
 $ bun node_modules/.bin/vulcan doctor

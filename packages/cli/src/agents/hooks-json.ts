@@ -23,12 +23,13 @@ const DENY_ON_CRASH = JSON.stringify({
 
 /**
  * Succeeds when the environment or the manifest (the hooks file's folder is `.agents`) holds every ask: `VULCAN_GUARD_ASKS=deny`,
- * `guard.asks: 'deny'`, or a manifest that exists and does not parse as an object.
+ * `guard.asks: 'deny'`, a manifest that exists and does not parse as an object, or no manifest in a project that has a config.
  */
 const IS_HELD = [
   'm="$PWD/local/vulcan.manifest.json";',
   '[ "$VULCAN_GUARD_ASKS" = deny ]',
   `|| { [ -f "$m" ] && ! M="$m" bun --no-env-file --config=/dev/null -e 'const v = JSON.parse(require("node:fs").readFileSync(process.env.M, "utf8")); if (typeof v !== "object" || v === null || Array.isArray(v)) process.exit(1)' >/dev/null 2>&1; }`,
+  '|| { [ ! -f "$m" ] && ls "$PWD"/../.configs/vulcan.config.* >/dev/null 2>&1; }',
   `|| grep -Eq '"asks" *: *"deny"' "$m" 2>/dev/null;`,
 ].join(' ');
 

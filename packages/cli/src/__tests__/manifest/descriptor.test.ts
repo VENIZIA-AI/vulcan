@@ -77,6 +77,9 @@ describe('the descriptor and the local manifest', () => {
 
   test('a manifest of the earlier release that git does not track is removed by sync', () => {
     const root = project({ legacy: '{"old":true}\n' });
+
+    Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
+
     const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
     expect(run.code, run.stderr).toBe(0);
@@ -104,7 +107,19 @@ describe('the descriptor and the local manifest', () => {
     }).filter((entry) => entry.file === ManifestConstants.LEGACY_FILE);
 
     expect(found).toHaveLength(1);
-    expect(found[0]?.message).toContain('git rm --cached .agents/vulcan.manifest.json');
+    expect(found[0]?.message).toContain('git rm .agents/vulcan.manifest.json');
+  });
+
+  test('where git cannot say (not a repository) the old file is left alone and the note says so', () => {
+    const root = project({ legacy: '{"old":true}\n' });
+    const action = SyncPlanner.planManifest(configOf(root)).find(
+      (entry) => entry.path === join(root, ManifestConstants.LEGACY_FILE),
+    );
+
+    expect(action?.status).toBe('skipped');
+    expect(action?.note).toContain('could not say');
+    action?.apply();
+    expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(true);
   });
 
   test('doctor asks for the descriptor to be committed and the local manifest only to be synced', () => {

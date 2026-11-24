@@ -247,6 +247,24 @@ describe('the manifest theme is read from the folder the command runs in (C14)',
     expect(ProjectTheme.readManifestTheme({ root: projectWith(undefined) })).toEqual({});
   });
 
+  test('a clone with only the committed descriptor takes the theme from it; the local manifest wins when both exist', () => {
+    const only = projectWith(undefined);
+
+    mkdirSync(join(only, '.agents'), { recursive: true });
+    writeFileSync(
+      join(only, '.agents', 'atlas.manifest.json'),
+      JSON.stringify({ theme: { accent: '#112233' } }),
+    );
+    expect(ProjectTheme.readManifestTheme({ root: only }).theme?.accent).toBe('#112233');
+
+    mkdirSync(join(only, '.agents', 'local'), { recursive: true });
+    writeFileSync(
+      join(only, '.agents', 'local', 'vulcan.manifest.json'),
+      JSON.stringify({ theme: { accent: '#445566' } }),
+    );
+    expect(ProjectTheme.readManifestTheme({ root: only }).theme?.accent).toBe('#445566');
+  });
+
   test('a manifest that is a symlink, or sits in a symlinked folder, is not read', () => {
     const real = projectWith(JSON.stringify({ theme: { accent: '#8a5a20' } }));
     const linkedFile = projectWith(undefined);

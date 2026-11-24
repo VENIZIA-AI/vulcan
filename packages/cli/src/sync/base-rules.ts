@@ -12,11 +12,16 @@ const toRuleText = (opts: { row: string }): string =>
     .replace(/^\|[^|]*\|\s*/, '')
     .replace(/\s*\|$/, '');
 
-/** The hashes the committed manifest recorded; none before a first sync or when it is unreadable. */
+/**
+ * The hashes the last sync recorded: those of the local manifest, else of the manifest of an earlier release (the first sync
+ * after an upgrade still reports the rules that changed); none before a first sync or when it is unreadable.
+ */
 const readSyncedHashes = (opts: { root: string }): Record<string, unknown> => {
-  const file = join(opts.root, ManifestConstants.FILE);
+  const file = [ManifestConstants.FILE, ManifestConstants.LEGACY_FILE]
+    .map((name) => join(opts.root, name))
+    .find((path) => existsSync(path));
 
-  if (!existsSync(file)) {
+  if (file === undefined) {
     return {};
   }
 
@@ -36,7 +41,7 @@ const readSyncedHashes = (opts: { root: string }): Record<string, unknown> => {
 };
 
 export class BaseRulesDiff {
-  /** V3: each base rule added, changed or removed since the committed manifest's last sync. */
+  /** V3: each base rule added, changed or removed since the last sync recorded in the manifest. */
   static diff(opts: { root: string; packs?: string[] }): IBaseRuleChange[] {
     const synced = readSyncedHashes(opts);
 

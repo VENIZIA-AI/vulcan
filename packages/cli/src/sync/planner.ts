@@ -299,23 +299,27 @@ export class SyncPlanner {
    */
   static planManifest(opts: { root: string; config: TResolvedConfig }): ISyncAction[] {
     const legacy = join(opts.root, ManifestConstants.LEGACY_FILE);
+    const state = AgentFiles.trackState({ root: opts.root, path: ManifestConstants.LEGACY_FILE });
     const legacyAction: ISyncAction[] = !existsSync(legacy)
       ? []
-      : AgentFiles.isTracked({ root: opts.root, path: ManifestConstants.LEGACY_FILE })
+      : state === 'untracked'
         ? [
-            {
-              path: legacy,
-              status: SyncStatuses.SKIPPED,
-              note: `the manifest moved to ${ManifestConstants.FILE} (policy, not committed) and ${ManifestConstants.DESCRIPTOR_FILE} (what atlas reads, committed), and git tracks the old file: run git rm --cached ${ManifestConstants.LEGACY_FILE}, then delete it`,
-              apply: NO_CHANGE,
-            },
-          ]
-        : [
             {
               path: legacy,
               status: SyncStatuses.REMOVED,
               note: 'the manifest of an earlier release is no longer used',
               apply: () => rmSync(legacy, { force: true }),
+            },
+          ]
+        : [
+            {
+              path: legacy,
+              status: SyncStatuses.SKIPPED,
+              note:
+                state === 'tracked'
+                  ? `the manifest moved to ${ManifestConstants.FILE} (policy, not committed) and ${ManifestConstants.DESCRIPTOR_FILE} (what atlas reads, committed), and git tracks the old file: run git rm ${ManifestConstants.LEGACY_FILE}, then commit the descriptor`
+                  : `${ManifestConstants.LEGACY_FILE} is no longer used, but git could not say whether it tracks it: remove it by hand`,
+              apply: NO_CHANGE,
             },
           ];
 

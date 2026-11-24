@@ -255,19 +255,27 @@ export class AgentFiles {
       : AgentFiles.planGuardExtension(opts);
   }
 
+  /**
+   * What git says of a path: `tracked` (exit 0), `untracked` (exit 1), or `unknown` when git failed (exit 128: not a
+   * repository, a broken index) or could not run. A caller that deletes asks for `untracked`, never for "not tracked".
+   */
+  static trackState(opts: { root: string; path: string }): 'tracked' | 'untracked' | 'unknown' {
+    try {
+      const { exitCode } = Bun.spawnSync(['git', 'ls-files', '--error-unmatch', opts.path], {
+        cwd: opts.root,
+        stdout: 'ignore',
+        stderr: 'ignore',
+      });
+
+      return exitCode === 0 ? 'tracked' : exitCode === 1 ? 'untracked' : 'unknown';
+    } catch {
+      return 'unknown';
+    }
+  }
+
   /** A file git tracks cannot be hidden by an exclude entry, and a per-developer edit would show as a diff. */
   static isTracked(opts: { root: string; path: string }): boolean {
-    try {
-      return (
-        Bun.spawnSync(['git', 'ls-files', '--error-unmatch', opts.path], {
-          cwd: opts.root,
-          stdout: 'ignore',
-          stderr: 'ignore',
-        }).exitCode === 0
-      );
-    } catch {
-      return false;
-    }
+    return AgentFiles.trackState(opts) === 'tracked';
   }
 
   /** The MCP files and guard files of every chosen agent, in table order; the shared `.mcp.json` once, at its first reader. */

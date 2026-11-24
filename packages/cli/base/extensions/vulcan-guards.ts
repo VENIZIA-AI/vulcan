@@ -11,7 +11,7 @@
 // Only node: modules are imported, so any host that loads TypeScript can load it.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 class Tools {
@@ -143,7 +143,7 @@ const rootOf = (opts: { cwd: string }): string => {
 
 /**
  * Whether every ask is a deny in the project at `root`: the launch environment says `VULCAN_GUARD_ASKS=deny`, the manifest sets
- * `guard.asks` to `deny`, or the manifest exists and cannot be read. No manifest means asks stay asks.
+ * `guard.asks` to `deny`, or the manifest exists and cannot be read. No manifest in a project that has a config is held too; no config at all means asks stay asks.
  */
 const isHeldIn = (opts: { root: string }): boolean => {
   if (process.env.VULCAN_GUARD_ASKS === Answers.DENY) {
@@ -153,7 +153,14 @@ const isHeldIn = (opts: { root: string }): boolean => {
   const file = join(opts.root, MANIFEST_FILE);
 
   if (!existsSync(file)) {
-    return false;
+    // A project with a config and no local manifest is a clone that did not sync: held like an unreadable manifest.
+    try {
+      return readdirSync(join(opts.root, '.configs')).some((name) =>
+        name.startsWith('vulcan.config.'),
+      );
+    } catch {
+      return false;
+    }
   }
 
   try {

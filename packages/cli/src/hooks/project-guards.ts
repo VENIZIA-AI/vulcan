@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 
@@ -76,11 +76,11 @@ const commandOf = (opts: { value: unknown }): IProjectCommandCheck | undefined =
 };
 
 export class ProjectGuards {
-  /** The committed manifest, which a hook reads instead of the config. */
+  /** The local manifest, which a hook reads instead of the config. */
   static readonly MANIFEST_FILE = GUARD_MANIFEST_FILE;
 
   /**
-   * The commands and push targets a project lists, from the committed manifest (`vulcan sync` renders
+   * The commands and push targets a project lists, from the local manifest (`vulcan sync` renders
    * them from the config), so a hook reads them with no config loader and no zod. A project with no
    * manifest, or none of the block, has none; an entry that cannot be used is skipped, said once on
    * stderr, and the others stay.
@@ -110,6 +110,17 @@ export class ProjectGuards {
     };
   }
 
+  /** Whether the project at `root` has a config file (`.configs/vulcan.config.*`): a project with none has no policy to miss. */
+  static hasConfig(opts: { root: string }): boolean {
+    try {
+      return readdirSync(join(opts.root, '.configs')).some((name) =>
+        name.startsWith('vulcan.config.'),
+      );
+    } catch {
+      return false;
+    }
+  }
+
   /** What the manifest sets, before the launch environment tightens it. A manifest that exists and cannot be read holds every ask. */
   private static readManifest(opts: { root: string }): IGuardPolicy {
     const path = join(opts.root, GUARD_MANIFEST_FILE);
@@ -128,7 +139,15 @@ export class ProjectGuards {
     };
 
     if (!existsSync(path)) {
-      return empty;
+      // A project that has a config but no local manifest is a clone that did not sync: it is held like an unreadable one.
+      return ProjectGuards.hasConfig({ root: opts.root })
+        ? {
+            ...empty,
+            asks: GuardDecisions.DENY,
+            outside: GuardDecisions.DENY,
+            asksNote: HookConstants.MANIFEST_MISSING,
+          }
+        : empty;
     }
 
     let manifest: unknown;

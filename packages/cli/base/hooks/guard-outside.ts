@@ -196,6 +196,19 @@ try {
 
     isHeldOnCrash = process.env.VULCAN_GUARD_ASKS === 'deny';
 
+    if (!isHeldOnCrash && !existsSync(file)) {
+      // No local manifest in a project that has a config: a clone that did not sync is held like an unreadable manifest.
+      const { readdirSync } = await import('node:fs');
+
+      try {
+        isHeldOnCrash = readdirSync(`${root}/.configs`).some((name) =>
+          name.startsWith('vulcan.config.'),
+        );
+      } catch {
+        // No .configs folder: no config, nothing to hold.
+      }
+    }
+
     if (!isHeldOnCrash && existsSync(file)) {
       try {
         const manifest: unknown = JSON.parse(readFileSync(file, 'utf8'));

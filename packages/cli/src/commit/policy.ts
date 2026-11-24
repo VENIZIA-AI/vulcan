@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
+import { ProjectGuards } from '../hooks/project-guards.ts';
 import { CommitAgents } from './agents.ts';
 import { AgentSignaturePolicies } from './common/index.ts';
 import type { ICommitPolicy, ICommitSubject, TAgentSignaturePolicy } from './common/index.ts';
@@ -16,7 +17,19 @@ export class CommitPolicy {
     const file = join(opts.root, MANIFEST_FILE);
 
     if (!existsSync(file)) {
-      return undefined;
+      // A project with a config and no local manifest is a clone that did not sync: no signature passes until it does.
+      if (!ProjectGuards.hasConfig({ root: opts.root })) {
+        return undefined;
+      }
+
+      console.error(
+        `[CommitPolicy.read] ${MANIFEST_FILE} is missing: agent signatures are refused until you run vulcan sync`,
+      );
+
+      return {
+        agentSignature: CommitPolicy.policyOf({ value: AgentSignaturePolicies.DENY }),
+        agents: CommitAgents.read({ extra: [], allow: [] }),
+      };
     }
 
     let manifest: unknown;

@@ -35,7 +35,7 @@ export class SessionDigest {
             '',
             '## Setup missing',
             '',
-            `The local manifest is missing, so the guards run on their defaults: run \`${ProjectLayout.VULCAN_COMMAND} sync\` (or \`bun install\`) and restart the session.`,
+            `The local manifest is missing, so every call that would need a confirmation is denied until you run \`${ProjectLayout.VULCAN_COMMAND} sync\` (that command passes).`,
           ]
         : []),
       '',

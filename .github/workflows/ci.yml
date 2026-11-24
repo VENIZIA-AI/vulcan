@@ -72,7 +72,9 @@ jobs:
       # The manifest the hooks read is local to each clone and not committed.
       - name: Committed descriptor matches sync
         if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
-        run: git diff --exit-code -- .agents/atlas.manifest.json
+        run: |
+          git ls-files --error-unmatch .agents/atlas.manifest.json
+          git diff --exit-code -- .agents/atlas.manifest.json
 
       - name: Agent setup checks (VULCAN doctor)
         if: ${{ !cancelled() && steps.sync.outcome == 'success' }}

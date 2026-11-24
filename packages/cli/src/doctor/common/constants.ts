@@ -18,7 +18,7 @@ export class DoctorChecks {
   static readonly ADAPTERS = 'adapters';
   /** Packages declare @venizia/dev-configs and lint configs import the shared style; a miss is an error. */
   static readonly STYLE = 'style';
-  /** The committed .agents/local/vulcan.manifest.json against the config; a missing or outdated one is an error. */
+  /** The local manifest and the committed descriptor against the config; a missing or outdated one is an error. */
   static readonly MANIFEST = 'manifest';
   /** Version folders under the changelog directory while the installed vulcan predates the atlas that reads them; an error. */
   static readonly CHANGELOG_FOLDERS = 'changelog-folders';

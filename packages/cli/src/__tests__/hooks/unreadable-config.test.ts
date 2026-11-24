@@ -128,8 +128,35 @@ describe('the guard-outside hook with a config that does not parse', () => {
     expect(decisionOf(result).decision).toBe('deny');
   });
 
-  test('with no manifest guard block the default is ask, config or no config', async () => {
-    const variants: Record<string, string>[] = [{}, { '.configs/vulcan.config.mts': UNREADABLE }];
+  test('with no manifest at all the default is ask without a config; with a config it is a deny, the clone has not synced', async () => {
+    const bare = createProject({ files: {} });
+    const bareResult = await runHook({
+      hook: 'guard-outside',
+      stdin: writeOutside({ root: bare }),
+      root: bare,
+    });
+
+    expect(decisionOf(bareResult).decision).toBe('ask');
+    expect(bareResult.stderr).toBe('');
+
+    const unsynced = createProject({ files: { '.configs/vulcan.config.mts': UNREADABLE } });
+    const result = await runHook({
+      hook: 'guard-outside',
+      stdin: writeOutside({ root: unsynced }),
+      root: unsynced,
+    });
+
+    expect(decisionOf(result).decision).toBe('deny');
+  });
+
+  test('with a manifest that has no guard block the default is ask, config or no config', async () => {
+    const variants: Record<string, string>[] = [
+      { '.agents/local/vulcan.manifest.json': '{ "schemaVersion": 1 }\n' },
+      {
+        '.agents/local/vulcan.manifest.json': '{ "schemaVersion": 1 }\n',
+        '.configs/vulcan.config.mts': UNREADABLE,
+      },
+    ];
 
     for (const files of variants) {
       const root = createProject({ files });
