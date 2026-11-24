@@ -3,7 +3,6 @@ export * from './base-rules.ts';
 export * from './planner.ts';
 export * from './settings.ts';
 export * from './local-choice.ts';
-export * from './claude-launch.ts';
 export * from './agent-files.ts';
 export * from './agents-block.ts';
 export * from './exclude.ts';

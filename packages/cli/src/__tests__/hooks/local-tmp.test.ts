@@ -14,7 +14,6 @@ import { ProjectContract } from '../../doctor/checks.ts';
 import { HookConstants, ProjectTmp } from '../../hooks/index.ts';
 import { CleanScopes, LocalScan } from '../../local/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
-import { ClaudeLaunch, CLAUDE_LAUNCH_FILE } from '../../sync/claude-launch.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -128,17 +127,6 @@ describe('the five readers follow the key', () => {
     expect(text).not.toContain(root);
   });
 
-  test('a Claude Code session with CLAUDE_CODE_TMPDIR on it is inside the project', () => {
-    const root = projectWith('t');
-
-    expect(ClaudeLaunch.tmpOf({ root, env: { CLAUDE_CODE_TMPDIR: join(root, 't') } }).state).toBe(
-      'inside',
-    );
-    expect(ClaudeLaunch.tmpOf({ root, env: { CLAUDE_CODE_TMPDIR: '/var/tmp/other' } }).state).toBe(
-      'outside',
-    );
-  });
-
   test('vulcan clean takes the old files of it, not of the default folder', () => {
     const root = projectWith('t');
     const old = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
@@ -173,21 +161,17 @@ describe('vulcan sync with local.tmp', () => {
     },
   });
 
-  test('makes the folder, ignores it, points the launch file at it, and the next run changes nothing', () => {
+  test('makes the folder, ignores it, writes no launch file, and the next run changes nothing', () => {
     const first = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
     expect(first.code, first.stderr).toBe(0);
     expect(existsSync(join(root, 't'))).toBe(true);
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain('/t/');
-    expect(JSON.parse(readFileSync(join(root, CLAUDE_LAUNCH_FILE), 'utf8')).env).toEqual({
-      TMPDIR: join(root, 't'),
-      CLAUDE_CODE_TMPDIR: join(root, 't'),
-    });
+    expect(existsSync(join(root, '.agents/local/claude.launch.settings.json'))).toBe(false);
     expect(JSON.parse(readFileSync(join(root, MANIFEST), 'utf8')).local).toEqual({ tmp: 't' });
 
     const second = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
-    expect(second.stdout + second.stderr).not.toContain('names another folder');
     expect(second.stdout + second.stderr).not.toMatch(/\n\s+(created|replaced)\s+.*\bt\b/);
   });
 });
@@ -268,22 +252,8 @@ describe('the review of local.tmp', () => {
     const again = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
     expect(again.code, again.stderr).toBe(0);
-    expect(JSON.parse(readFileSync(join(root, CLAUDE_LAUNCH_FILE), 'utf8')).env.TMPDIR).toBe(
-      join(root, '.agents/local/tmp'),
-    );
-  });
-
-  test('a worktree of a checkout whose project names its folder is inside the project', () => {
-    const checkout = projectWith('t');
-    const worktree = join(checkout, '.agents/local/worktrees/feature');
-
-    mkdirSync(join(worktree, '.agents'), { recursive: true });
-    writeFileSync(join(worktree, MANIFEST), manifestWith('t'));
-
-    expect(
-      ClaudeLaunch.tmpOf({ root: worktree, env: { CLAUDE_CODE_TMPDIR: join(checkout, 't') } })
-        .state,
-    ).toBe('inside');
+    expect(existsSync(join(root, '.agents/local/tmp'))).toBe(true);
+    expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain('.agents/local/');
   });
 
   test('the guard-outside answer names the folder the project uses', async () => {
@@ -344,11 +314,10 @@ describe('the review of local.tmp', () => {
   });
 
   test('the browser warning is for a project without the key; with the key only checkTmpFolder speaks', () => {
-    const root = createProject({ files: { [CLAUDE_LAUNCH_FILE]: '{}\n' } });
+    const root = createProject({ files: {} });
     const deep = join(root, 'd'.repeat(80));
 
     mkdirSync(join(deep, '.agents/local'), { recursive: true });
-    writeFileSync(join(deep, CLAUDE_LAUNCH_FILE), '{}\n');
 
     expect(ProjectContract.checkBrowserSocket({ root: deep })).toHaveLength(1);
     expect(ProjectContract.checkBrowserSocket({ root: deep, tmp: 'tmp' })).toEqual([]);

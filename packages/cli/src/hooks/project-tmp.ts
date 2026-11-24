@@ -52,9 +52,9 @@ export class ProjectTmp {
   }
 
   /**
-   * Where a session's temporary files go, absolute: the guard, the session digest, the session-start export, the launch
-   * file, `vulcan clean` and the scratch of `add` all call this. `tmp` is the config's `local.tmp` for a caller that
-   * has just read the config (`sync`, which writes the manifest after it plans the launch file); the others leave it
+   * Where a session's temporary files go, absolute: the guard, the session digest, the session-start export,
+   * `vulcan clean` and the scratch of `add` all call this. `tmp` is the config's `local.tmp` for a caller that
+   * has just read the config (`sync`, which writes the manifest after it plans the folder); the others leave it
    * out and get the manifest's.
    */
   static projectOf(opts: { root: string; tmp?: string }): string {
@@ -65,7 +65,7 @@ export class ProjectTmp {
    * Makes every Bash command of a Claude Code session run with `TMPDIR` in the project. Claude Code hands a
    * SessionStart hook a file (`CLAUDE_ENV_FILE`) and sources it before each Bash command, so one `export`
    * there is enough: `mktemp`, bun, node and every script a command starts then use the project folder. It
-   * does not move Claude Code's own task-output files or an MCP server (those need the launch file), and
+   * does not move Claude Code's own task-output files or an MCP server (those need the variable in the launch environment), and
    * `TMPDIR` in the project's settings `env` is not applied by Claude Code, which is why this is a hook.
    * Returns whether it wrote; with no file (another agent, a run outside Claude Code) it does nothing. A
    * path with a line break is refused: a line of shell must never be made from a folder name.

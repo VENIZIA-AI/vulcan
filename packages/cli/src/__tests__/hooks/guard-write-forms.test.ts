@@ -31,7 +31,6 @@ const isSilent = (command: string): boolean => hitsOf({ root, command }).length 
 /** Folders that hold a file the guards read, with the name of one such file in each. */
 const FOLDERS: [string, string][] = [
   ['.agents', 'vulcan.manifest.json'],
-  ['.agents/local', 'claude.launch.settings.json'],
   ['.claude', 'settings.json'],
   ['.claude', 'settings.local.json'],
   ['.configs', 'vulcan.config.mts'],
@@ -109,7 +108,7 @@ describe('names this check cannot tell, put into the folder of a protected file'
 
   test.each(
     FORMS.flatMap(([form, make]) =>
-      ['.agents/local', '.claude', '.configs', '.codex', '.agents'].map((folder) => ({
+      ['.claude', '.configs', '.codex', '.agents'].map((folder) => ({
         form,
         command: make(folder),
       })),
@@ -201,7 +200,7 @@ describe('find runs a writer over a protected file', () => {
     'find .claude -ok mv {} /tmp/ ;',
     'find .claude -exec shred -u {} ;',
     "find .agents -name 'hooks.json' -exec rsync /tmp/x {} ;",
-    "find .agents/local -name '*.json' -exec sed --in-place s/a/b/ {} +",
+    "find .agents -name '*.json' -exec sed --in-place s/a/b/ {} +",
   ])('%s is denied', (command) => {
     expect(isDenied(command)).toBe(true);
   });
@@ -222,10 +221,9 @@ describe('find runs a writer over a protected file', () => {
 
 describe('a pattern in a removal reaches a protected file', () => {
   test.each([
-    'rm -rf .agents/local/*',
-    'rm .agents/local/claude.*',
-    'rm .agents/local/c*',
-    'rm -f .agents/local/claude.launch.settings.js?n',
+    'rm -rf .agents/*',
+    'rm .agents/vulcan.*',
+    'rm .agents/v*',
     'rm -rf .claude/*',
     'rm .claude/settings.*',
     'rm .claude/settings.local.json .claude/s*',
@@ -240,14 +238,14 @@ describe('a pattern in a removal reaches a protected file', () => {
     'rm -rf .omp/hooks/pre/*',
     'rm -rf .pi/extensions/*',
     'cd .claude && rm -rf *',
-    'cd .agents/local && rm claude.*',
+    'cd .agents && rm vulcan.*',
     'unlink .claude/settings.*',
     'shred -u .claude/*',
     'git rm .claude/*',
     'mv .claude/* dist/',
     'sed -i s/a/b/ .claude/*.json',
     'truncate -s 0 .claude/settings.*',
-    'perl -pi -e s/a/b/ .agents/local/claude.*',
+    'perl -pi -e s/a/b/ .agents/vulcan.*',
   ])('%s is denied', (command) => {
     expect(isDenied(command)).toBe(true);
   });
@@ -269,12 +267,12 @@ describe('a pattern in a removal reaches a protected file', () => {
 
 describe('find and git clean delete a protected file', () => {
   test.each([
-    "find .agents/local -name '*.json' -delete",
+    "find .agents -name '*.json' -delete",
     "find .claude -name 'settings*' -delete",
     "find . -name '*.json' -delete",
-    "find . -name 'claude.*' -delete",
+    "find . -name 'vulcan.*' -delete",
     "find . -iname 'SETTINGS.JSON' -delete",
-    'find .agents/local -delete',
+    'find .agents -delete',
     'find .claude -type f -delete',
     'find . -type f -delete',
     'find . -delete',

@@ -28,13 +28,12 @@ description: What lives in .agents, which parts git tracks, which parts are loca
     ├── events/                         the agent event log (on demand)
     ├── release-candidates/             builds made to test a release (on demand)
     ├── profile.json                    how you like to work (vulcan profile)
-    ├── claude.launch.settings.json     the file to start Claude Code with (vulcan sync)
     └── auto-clean.json                 when the automatic clean last ran, and what it removed
 ```
 
 `plans/` is created and ignored by init. `specs/` is the default folder where plan-a-change writes lane-L cards. It is not created and not ignored, so cards are tracked unless the project adds it to `.gitignore`.
 
-`vulcan init` puts `.agents/plans`, `.agents/vulcan.local.json`, `.agents/local/`, the secret patterns (`**/.env`, `**/.env.*`, with `!**/.env.example` kept) in `.gitignore`. `sync` writes the Claude Code launch file, the manifest and the folders below.
+`vulcan init` puts `.agents/plans`, `.agents/vulcan.local.json`, `.agents/local/`, the secret patterns (`**/.env`, `**/.env.*`, with `!**/.env.example` kept) in `.gitignore`. `sync` writes the manifest and the folders below.
 
 ## What is tracked
 

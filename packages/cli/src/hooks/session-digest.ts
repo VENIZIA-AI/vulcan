@@ -1,10 +1,9 @@
 import { ConfigLoader } from '../config/index.ts';
 import { OWNER_SCHEMA, OwnerCard, OwnerProfile, OwnerView, ReplySwitch } from '../owner/index.ts';
-import { ClaudeLaunch } from '../sync/claude-launch.ts';
 
 /**
  * Builds the digest printed at session start by the session-start hook: what only this session knows - a config
- * problem, a launch warning, how to answer this owner. The rules themselves are the block of AGENTS.md
+ * problem, where scratch goes, how to answer this owner. The rules themselves are the block of AGENTS.md
  * (`RulesBlock`), which every agent reads, Claude Code through CLAUDE.md.
  */
 export class SessionDigest {
@@ -18,10 +17,6 @@ export class SessionDigest {
   }): Promise<string> {
     const loaded = await ConfigLoader.load({ root: opts.projectRoot });
     const configNote = ConfigLoader.unreadableNote({ loaded });
-    const launchWarning = ClaudeLaunch.missWarning({
-      root: opts.projectRoot,
-      env: opts.env ?? process.env,
-    });
     const lines = [
       '# VULCAN session',
       '',
@@ -29,7 +24,8 @@ export class SessionDigest {
       ...(configNote === undefined
         ? []
         : ['', '## Config problem', '', `This session: ${configNote}.`]),
-      ...(launchWarning === undefined ? [] : ['', '## Launch warning', '', launchWarning]),
+      '',
+      "Use the project tmp folder (`$TMPDIR`) for scratch files, not the tool's offered scratchpad in /tmp; guard-outside refuses that.",
     ];
 
     // A session whose reader is an agent: the owner's shape and the person's profile are not its business.

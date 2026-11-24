@@ -29,6 +29,17 @@ describe('SessionDigest.build', () => {
     expect(digest).toContain('node_modules/@venizia/vulcan/base/rules.md');
   });
 
+  test('tells the agent to keep scratch in $TMPDIR, not in the scratchpad the tool offers, and has no launch warning', async () => {
+    const digest = await SessionDigest.build({
+      projectRoot: createProject({ files: { '.configs/vulcan.config.mts': CONFIG } }),
+      env: { CLAUDE_PROJECT_DIR: '/x', CLAUDE_CODE_TMPDIR: '/tmp' },
+    });
+
+    expect(digest).toContain("not the tool's offered scratchpad in /tmp");
+    expect(digest).toContain('guard-outside refuses that');
+    expect(digest).not.toContain('Launch warning');
+  });
+
   test("holds no rule row, no project rule, no minimap and no Atlas block: those are AGENTS.md's", async () => {
     const digest = await SessionDigest.build({
       projectRoot: createProject({

@@ -270,7 +270,7 @@ const matchesAny = (opts: { path: string; patterns: string[] }): boolean =>
 
 /**
  * The folder a bare `mktemp` uses in the command: the `TMPDIR` this hook runs with (Claude Code started
- * with the launch file or the variables), else the project's own folder when Claude Code's session-start
+ * with the variable in its environment), else the project's own folder when Claude Code's session-start
  * hook exports it (`CLAUDE_PROJECT_DIR` is set only by Claude Code), else the system temp directory.
  */
 const commandTmpdirOf = (opts: { env: TEnvironment; projectRoot: string }): string => {

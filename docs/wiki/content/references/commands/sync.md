@@ -119,7 +119,7 @@ A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you ch
 
 ## The temp folder
 
-`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/`, and writes `.agents/local/claude.launch.settings.json` for this checkout: `TMPDIR` and `CLAUDE_CODE_TMPDIR` set to `.agents/local/tmp` (or the folder `local.tmp` names, which `sync` also creates and gitignores), to start Claude Code with `claude --settings .agents/local/claude.launch.settings.json`. The session-start hook it registers also exports `TMPDIR` into every Bash command. What each route moves, and what still needs the launch file, is in [Temporary files](/references/agents#temporary-files).
+`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/`, and creates the folder `local.tmp` names, when the config sets one, and gitignores it. The session-start hook it registers exports `TMPDIR` into every Bash command. A `.agents/local/claude.launch.settings.json` left by an earlier release is removed when git does not track it. What the hook moves, and what it does not, is in [Temporary files](/references/agents#temporary-files).
 
 ## Keeping the adapters out of git
 
@@ -167,12 +167,11 @@ $ bun node_modules/.bin/vulcan sync
   created   .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)
   created   .agents/vulcan.local.json
-  created   .agents/local/claude.launch.settings.json (the Claude Code launch file is missing)
   created   .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
   replaced  .git/info/exclude
 ```
 
-The last five lines are the Atlas block in `AGENTS.md`, the file that stores your choice of agents, the Claude Code launch file, the scratch folder `.agents/local/`, and the ignore list in your clone (a project that is not a git repository gets no `.git/info/exclude` line).
+The last four lines are the Atlas block in `AGENTS.md`, the file that stores your choice of agents, the scratch folder `.agents/local/`, and the ignore list in your clone (a project that is not a git repository gets no `.git/info/exclude` line).
 
 Running `vulcan sync` again on an up-to-date repository makes no changes:
 
@@ -274,7 +273,6 @@ $ bun node_modules/.bin/vulcan sync --dry-run
   would create  .agents/vulcan.manifest.json
   would replace AGENTS.md (Atlas block)
   would create  .agents/vulcan.local.json
-  would create  .agents/local/claude.launch.settings.json (the Claude Code launch file is missing)
   would create  .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
   would replace .git/info/exclude
 ```

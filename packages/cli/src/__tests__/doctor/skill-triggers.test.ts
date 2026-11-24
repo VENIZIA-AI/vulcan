@@ -1,11 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { Bunfig } from '../../create/bunfig.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { SocketWarning } from './socket-warning.helper.ts';
-import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -27,9 +24,6 @@ const project = (opts: { description: string }) => {
       }),
     },
   });
-
-  // What sync leaves in the local folder: the launch file names this very checkout.
-  writeFileSync(join(root, CLAUDE_LAUNCH_FILE), LaunchSettings.renderClaude({ root }));
 
   return root;
 };
