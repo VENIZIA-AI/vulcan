@@ -379,7 +379,9 @@ const TableRow = (props: IRowProps) => {
 
   return (
     <tr className={`row${props.selected ? ' sel' : ''}`} {...pick}>
-      <td className="c-id">{flow.id}</td>
+      <td className="c-id" title={flow.id}>
+        {flow.id}
+      </td>
       <td className="t-title">
         <div>
           <span title={flow.title}>{flow.title}</span>
