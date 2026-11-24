@@ -35,10 +35,16 @@ export const runLayoutCommand = async (opts: ICommandContext): Promise<number> =
 
   const scan = LayoutCheck.scan({ root: opts.cwd, config: loaded.config });
 
+  if ('outside' in scan) {
+    process.stderr.write(`vulcan layout: ${opts.cwd} is not in a git work tree\n`);
+
+    return ExitCodes.FAILURE;
+  }
+
   if ('error' in scan) {
     process.stderr.write(`vulcan layout: ${scan.error}\n`);
 
-    return ExitCodes.USAGE;
+    return ExitCodes.FAILURE;
   }
 
   if (rest.length === 1) {
@@ -54,7 +60,7 @@ export const runLayoutCommand = async (opts: ICommandContext): Promise<number> =
   if ('error' in baseline) {
     process.stderr.write(`vulcan layout: ${baseline.error}\n`);
 
-    return ExitCodes.USAGE;
+    return ExitCodes.FAILURE;
   }
 
   const split = LayoutBaseline.split({ findings: scan.findings, entries: baseline.entries });

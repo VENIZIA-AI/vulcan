@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, symlinkSync } from 'node:fs';
+import { readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
@@ -307,20 +307,62 @@ describe('vulcan layout check', () => {
     );
   });
 
-  test('exits 2 on bad arguments and outside a git repository', () => {
+  test('exits 2 on bad arguments, 1 outside a git work tree and on a baseline that is not valid', () => {
     const root = repository({ files: PROJECT });
+    const outside = runCli({
+      args: ['layout', 'check'],
+      cwd: createProject({ files: { '.configs/vulcan.config.mts': 'export default {};\n' } }),
+    });
 
     expect(runCli({ args: ['layout'], cwd: root }).code).toBe(2);
     expect(runCli({ args: ['layout', 'check', '--fix'], cwd: root }).code).toBe(2);
-    expect(
-      runCli({
-        args: ['layout', 'check'],
-        cwd: createProject({ files: { '.configs/vulcan.config.mts': 'export default {};\n' } }),
-      }).code,
-    ).toBe(2);
+    expect(outside.code).toBe(1);
+    expect(outside.stderr).toContain('is not in a git work tree');
+
+    writeFileSync(join(root, '.configs/layout-baseline.json'), '{');
+
+    expect(runCli({ args: ['layout', 'check'], cwd: root }).code).toBe(1);
   });
 
-  test('the doctor says nothing of a folder git cannot list', async () => {
+  test('reads a listing of more than 1 MB', () => {
+    const root = repository({ files: { 'README.md': '' } });
+    const stem = 'a'.repeat(200);
+    const blob = spawnSync('git', ['hash-object', '-w', '--stdin'], { cwd: root, input: '' })
+      .stdout.toString()
+      .trim();
+    const entries = Array.from(
+      { length: 6000 },
+      (_, index) => `100644 ${blob}\tsrc/${stem}${index}.ts`,
+    );
+
+    spawnSync('git', ['update-index', '--index-info'], {
+      cwd: root,
+      input: `${entries.join('\n')}\n`,
+    });
+
+    const tracked = LayoutCheck.trackedFiles({ root });
+    const listing = spawnSync('git', ['ls-files', '-z'], {
+      cwd: root,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+
+    expect(listing.stdout.length).toBeGreaterThan(1024 * 1024);
+    expect('files' in tracked && tracked.files.length).toBe(6001);
+  });
+
+  test('the doctor warns, naming the cause, when git gives no listing in a work tree', async () => {
+    const root = repository({ files: PROJECT });
+
+    writeFileSync(join(root, '.git/index'), 'not an index');
+
+    const warnings = await DoctorRunner.runWarnings({ root });
+
+    expect(
+      warnings.filter((entry) => entry.check === 'file-layout').map((entry) => entry.message),
+    ).toEqual([expect.stringContaining('git ls-files gave no listing')]);
+  });
+
+  test('the doctor says nothing outside a git work tree', async () => {
     const root = createProject({ files: PROJECT });
     const warnings = await DoctorRunner.runWarnings({ root });
 
@@ -346,19 +388,23 @@ describe('vulcan layout check', () => {
       findings: [{ rule: 'long-file', path: 'src/gone.ts', message: '' }],
     });
 
-    const result2 = await DoctorRunner.runNotes({ root, env: {} });
-    expect(ofLayout(result2)).toEqual([
+    const staleNotes = await DoctorRunner.runNotes({ root, env: {} });
+
+    expect(ofLayout(staleNotes)).toEqual([
       '.configs/layout-baseline.json: 1 baseline entry matches nothing any more: run `bun node_modules/.bin/vulcan layout check --write-baseline`',
     ]);
-    const result3 = await DoctorRunner.runWarnings({ root });
-    expect(ofLayout(result3)).toHaveLength(3);
+    const openWarnings = await DoctorRunner.runWarnings({ root });
+
+    expect(ofLayout(openWarnings)).toHaveLength(3);
 
     runCli({ args: ['layout', 'check', '--write-baseline'], cwd: root });
 
-    const result4 = await DoctorRunner.runWarnings({ root });
-    expect(ofLayout(result4)).toEqual([]);
-    const result5 = await DoctorRunner.runNotes({ root, env: {} });
-    expect(ofLayout(result5)).toEqual([
+    const adoptedWarnings = await DoctorRunner.runWarnings({ root });
+
+    expect(ofLayout(adoptedWarnings)).toEqual([]);
+    const adoptedNotes = await DoctorRunner.runNotes({ root, env: {} });
+
+    expect(ofLayout(adoptedNotes)).toEqual([
       '.configs/layout-baseline.json: 3 layout finding(s) accepted in the baseline',
     ]);
   });

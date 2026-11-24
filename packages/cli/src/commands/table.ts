@@ -310,7 +310,7 @@ export class CommandTable {
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
       exits:
-        '0 when every finding is in the baseline (or the baseline was written); 1 when one is not, or the config cannot be loaded; 2 on bad input, a baseline that is not valid, or a folder git cannot list.',
+        '0 when every finding is in the baseline (or the baseline was written); 1 when one is not, or the check cannot run (the config, the baseline, a folder outside git, a listing git does not give); 2 on bad arguments.',
     },
     [VulcanCommands.CHANGELOG]: {
       help: `  changelog check [--history --base <ref>]

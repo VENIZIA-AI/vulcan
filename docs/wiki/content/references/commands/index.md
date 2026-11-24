@@ -146,7 +146,7 @@ The following list gives each command, its purpose, its exit codes, and its refe
 - `runners` ([vulcan runners](/references/commands/runners)): `runners check` lists every tracked file that runs an unscoped package fetched by name (rule `V-S-08`).
   Exit codes: `0` when there is none; `1` when a file runs one; `2` for any other arguments or when git cannot list the files.
 - `layout` ([vulcan layout](/references/commands/layout)): `layout check` lists the file names with a plural role, the folders that mix subfolders and loose files and the long source files of the package and layout folders; `--write-baseline` adopts them.
-  Exit codes: `0` when every finding is in the baseline or the baseline was written; `1` on a new finding or a config that cannot be loaded; `2` on bad input, a baseline that is not valid, or when git cannot list the files.
+  Exit codes: `0` when every finding is in the baseline or the baseline was written; `1` on a new finding or when the check cannot run (the config, the baseline, a folder outside git, a listing git does not give); `2` on bad arguments.
 - `x` ([x](#x)): Run a shipped tool (`okf` or `atlas`) at the pinned package version.
   Exit codes: `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool.
 - `help`: Print usage information and available command options (`--help` and `-h` are aliases).

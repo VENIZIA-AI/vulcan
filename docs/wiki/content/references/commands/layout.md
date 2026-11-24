@@ -74,8 +74,8 @@ vulcan layout: 2 new, 1 in the baseline, 0 stale baseline entries
 ## Exit codes
 
 - `0`: Every finding is in the baseline, or `--write-baseline` wrote it.
-- `1`: At least one finding the baseline does not hold, or the config cannot be loaded.
-- `2`: The arguments are not `check [--write-baseline]`, the baseline is not valid, or git cannot list the files.
+- `1`: At least one finding the baseline does not hold, or the check cannot run: the config cannot be loaded, the baseline is not valid, the folder is not in a git work tree, or `git ls-files` gave no listing (git failed, took over 5 s, or listed over 256 MB).
+- `2`: The arguments are not `check [--write-baseline]`.
 
 ## See also
 

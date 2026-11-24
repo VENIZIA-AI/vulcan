@@ -410,7 +410,7 @@ A warning, not a violation: it prints as `warning [file-layout]`, the exit code 
   warning [file-layout] 12 paths: long-file: src/a.ts, src/b.ts, src/c.ts and 9 more; run `bun node_modules/.bin/vulcan layout check` for each one and what to do
 ```
 
-The findings `.configs/layout-baseline.json` holds are one note (`info [file-layout] .configs/layout-baseline.json: 7 layout finding(s) accepted in the baseline`), and so are its entries that match nothing any more. A baseline that is not valid is one warning that says why.
+The findings `.configs/layout-baseline.json` holds are one note (`info [file-layout] .configs/layout-baseline.json: 7 layout finding(s) accepted in the baseline`), and so are its entries that match nothing any more. Outside a git work tree the check says nothing; a listing git does not give, or a baseline that is not valid, is one warning that says why.
 
 ### format
 

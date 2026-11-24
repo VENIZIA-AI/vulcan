@@ -14,6 +14,8 @@ export class LayoutConstants {
   /** The baseline a project adopts the check with, from the root. */
   static readonly BASELINE_FILE = '.configs/layout-baseline.json';
   static readonly DEFAULT_MAX_LINES = 400;
+  /** The most bytes of `git ls-files -z` output read: a monorepo of 30,000 files lists about 2.5 MB. */
+  static readonly MAX_LISTING_BYTES = 256 * 1024 * 1024;
   static readonly DEFAULT_MIN_SUBFOLDERS = 3;
   /** The folder name the source roots fall back to when the config names no package and no layout folder. */
   static readonly SOURCE_FOLDER = 'src';

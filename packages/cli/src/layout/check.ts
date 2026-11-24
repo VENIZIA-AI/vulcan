@@ -5,6 +5,7 @@ import { LayoutFolder, LayoutKeys } from '../common/layout-folder.ts';
 import { ProjectPackages } from '../config/packages.ts';
 import type { TResolvedConfig } from '../config/schema.ts';
 import type { TLayoutSettings } from '../doctor/schema.ts';
+import { HookConstants } from '../hooks/common/index.ts';
 import { GitQueries } from '../hooks/git-queries.ts';
 import { LayoutConstants, LayoutRules } from './common/index.ts';
 import type { ILayoutFinding, ILayoutFileText } from './common/index.ts';
@@ -194,11 +195,28 @@ export class LayoutCheck {
     return [...found];
   }
 
-  /** The files git tracks in `root`, read inert; `undefined` when git cannot list them. */
-  static trackedFiles(opts: { root: string }): string[] | undefined {
-    const listed = GitQueries.run({ args: ['ls-files', '-z'], cwd: opts.root });
+  /** The files git tracks in `root`, read inert; `outside` when `root` is not in a git work tree, `error` when git does not list them. */
+  static trackedFiles(opts: {
+    root: string;
+  }): { files: string[] } | { outside: true } | { error: string } {
+    const inside = GitQueries.run({ args: ['rev-parse', '--is-inside-work-tree'], cwd: opts.root });
 
-    return listed?.split('\0').filter((file) => file !== '');
+    if (inside !== 'true') {
+      return { outside: true };
+    }
+
+    const listed = GitQueries.run({
+      args: ['ls-files', '-z'],
+      cwd: opts.root,
+      maxBuffer: LayoutConstants.MAX_LISTING_BYTES,
+      raw: true,
+    });
+
+    return listed === undefined
+      ? {
+          error: `git ls-files gave no listing in ${opts.root} (git failed, took over ${HookConstants.QUERY_TIMEOUT_MS / 1000} s, or listed over ${LayoutConstants.MAX_LISTING_BYTES / 1024 / 1024} MB)`,
+        }
+      : { files: listed.split('\0').filter((file) => file !== '') };
   }
 
   /** The line count and the first lines of a tracked regular file; `undefined` for a link, a folder or a missing file. */
@@ -225,12 +243,14 @@ export class LayoutCheck {
   static scan(opts: {
     root: string;
     config: TResolvedConfig;
-  }): { findings: ILayoutFinding[] } | { error: string } {
-    const files = LayoutCheck.trackedFiles({ root: opts.root });
+  }): { findings: ILayoutFinding[] } | { outside: true } | { error: string } {
+    const tracked = LayoutCheck.trackedFiles({ root: opts.root });
 
-    if (files === undefined) {
-      return { error: `git cannot list the files of ${opts.root}` };
+    if (!('files' in tracked)) {
+      return tracked;
     }
+
+    const { files } = tracked;
 
     return {
       findings: LayoutCheck.check({
