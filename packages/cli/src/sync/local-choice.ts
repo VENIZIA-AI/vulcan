@@ -202,7 +202,20 @@ export class LocalPlan {
     };
 
     return [
-      ...planIgnoreLine({ root: opts.root, line: `/${relative(opts.root, committed)}/` }),
+      ...planIgnoreLine({
+        root: opts.root,
+        line: `/${relative(opts.root, committed)}/`,
+        // A line that already ignores the folder, whole or from its parent: no near-duplicate is added.
+        covered: [
+          relative(opts.root, committed),
+          `${relative(opts.root, committed)}/`,
+          `/${relative(opts.root, committed)}`,
+          '.agents/',
+          '.agents',
+          '/.agents/',
+          '/.agents',
+        ],
+      }),
       made,
     ];
   }

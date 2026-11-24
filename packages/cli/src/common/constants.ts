@@ -74,6 +74,7 @@ export class ProjectLayout {
     '.claude/',
     '.agents/plans',
     '.agents/local/',
+    '.agents/tmp/',
     ...ProjectLayout.SECRET_PATTERNS,
   ];
   /** Everything an agent creates while it works lives under here, gitignored: nothing goes outside the project. */

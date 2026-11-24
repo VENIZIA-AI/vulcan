@@ -138,6 +138,21 @@ describe('LocalPlan.planWorkspace', () => {
     ).toEqual([]);
   });
 
+  test('a parent folder line or the bare folder name already covers the tmp folder: no near-duplicate is added', () => {
+    for (const line of ['.agents/', '/.agents/', '.agents/tmp', '.agents/tmp/', '/.agents/tmp']) {
+      const root = createProject({
+        files: { '.gitignore': `.agents/local/\n.claude/\n${line}\n` },
+      });
+
+      expect(
+        LocalPlan.planWorkspace({ root })
+          .filter((action) => action.path.endsWith('.gitignore'))
+          .map((action) => action.note),
+        line,
+      ).toEqual([]);
+    }
+  });
+
   test('every directory declares when it goes, and the agent-created ones are removed', () => {
     const lifetimes = Object.fromEntries(
       ProjectLayout.LOCAL_LAYOUT.map((entry) => [entry.name, entry.lifetime]),
@@ -158,5 +173,6 @@ describe('LocalPlan.planWorkspace', () => {
 
   test('the generated .gitignore of a new project lists it', () => {
     expect(ProjectLayout.GITIGNORE_ENTRIES).toContain('.agents/local/');
+    expect(ProjectLayout.GITIGNORE_ENTRIES).toContain('.agents/tmp/');
   });
 });
