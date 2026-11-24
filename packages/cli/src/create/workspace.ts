@@ -1,4 +1,5 @@
-import { relative, resolve } from 'node:path';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { join, relative, resolve, sep } from 'node:path';
 import { ProjectLayout } from '../common/constants.ts';
 import { RecordValue } from '../common/record.ts';
 import { ProjectScaffold } from '../init/index.ts';
@@ -311,13 +312,52 @@ export class AppsBlock {
    * The block is JSON that `add` reads back with `JSON.parse`, so `bun fmt` must not rewrite it
    * (it would drop the key quotes): `prettier-ignore` is honoured by both of its flavors.
    */
-  static render(opts: { block: IAppsBlock }): string {
+  static render(opts: {
+    block: IAppsBlock;
+    /** `export const apps`, for a module another module of the config imports it from. */ isExported?: boolean;
+  }): string {
     return [
       CreateConstants.APPS_BLOCK_START,
       '// prettier-ignore',
-      `const apps = ${JSON.stringify(opts.block, null, 2)};`,
+      `${opts.isExported === true ? 'export ' : ''}const apps = ${JSON.stringify(opts.block, null, 2)};`,
       CreateConstants.APPS_BLOCK_END,
     ].join('\n');
+  }
+
+  /**
+   * Where the block is: in the config file, or in `.configs/vulcan/project.mts` (what `vulcan project init --preset` writes). Only files
+   * under `.configs/` are read, with every link followed; `undefined` when neither holds the markers.
+   */
+  static locate(opts: {
+    root: string;
+    configFile: string;
+  }): { path: string; source: string } | { outside: string } | undefined {
+    const folder = join(realpathSync(opts.root), '.configs');
+    let outside: string | undefined;
+    const candidates = [relative(opts.root, opts.configFile), `.configs/vulcan/project.mts`];
+
+    for (const path of candidates) {
+      const file = join(opts.root, path);
+
+      if (!existsSync(file)) {
+        continue;
+      }
+
+      const real = realpathSync(file);
+
+      if (!real.startsWith(`${folder}${sep}`)) {
+        outside = path;
+        continue;
+      }
+
+      const source = readFileSync(file, 'utf8');
+
+      if (source.includes(CreateConstants.APPS_BLOCK_START)) {
+        return { path, source };
+      }
+    }
+
+    return outside === undefined ? undefined : { outside };
   }
 
   /** Only the text between the markers is rewritten; undefined when the user edited them away. */
@@ -332,7 +372,10 @@ export class AppsBlock {
     const before = opts.source.slice(0, start);
     const after = opts.source.slice(end + CreateConstants.APPS_BLOCK_END.length);
 
-    return `${before}${AppsBlock.render({ block: opts.block })}${after}`;
+    // The declaration stays as the file had it: `export const apps` when another module imports it.
+    const isExported = opts.source.slice(start, end).includes('export const apps = ');
+
+    return `${before}${AppsBlock.render({ block: opts.block, isExported })}${after}`;
   }
 
   /** What the markers hold now, so `add` extends it instead of rebuilding it from the resolved config. */
@@ -431,23 +474,63 @@ export class WorkspaceDocs {
     ].join('\n');
   }
 
-  static renderVulcanConfig(opts: { project: string; key: string; block: IAppsBlock }): string {
+  /**
+   * The config of a new monorepo as `vulcan project init` writes it: the config that composes the seven groups, one module per group in
+   * `.configs/vulcan/`, and the apps block (`vulcan package add` rewrites it) in `project.mts`, exported for `knowledge.mts`.
+   */
+  static renderSplitConfig(opts: {
+    project: string;
+    key: string;
+    block: IAppsBlock;
+  }): { path: string; content: string }[] {
+    const head = "import type { VulcanConfig } from '@venizia/vulcan';\n\n";
+    const empty = (group: string, type: string): string =>
+      `${head}export const ${group} = {} satisfies ${type};\n`;
+
     return [
-      "import type { VulcanConfig } from '@venizia/vulcan';",
-      '',
-      AppsBlock.render({ block: opts.block }),
-      '',
-      'export default {',
-      `  name: '${opts.project}',`,
-      `  project: { key: '${opts.key}' },`,
-      "  rules: { 'V-W-01': 'on-user-word' },",
-      '  layout: apps.layout,',
-      '  packages: apps.packages,',
-      '  presets: apps.presets,',
-      '  atlas: { sources: apps.sources },',
-      '} satisfies VulcanConfig;',
-      '',
-    ].join('\n');
+      {
+        path: '.configs/vulcan.config.mts',
+        content:
+          "import type { VulcanConfig } from '@venizia/vulcan';\nimport { agent, board, check, common, guard, knowledge, project } from './vulcan/index.mts';\n\nexport default {\n  project,\n  agent,\n  guard,\n  board,\n  knowledge,\n  check,\n  common,\n} satisfies VulcanConfig;\n",
+      },
+      {
+        path: '.configs/vulcan/index.mts',
+        content:
+          "export { project } from './project.mts';\nexport { agent } from './agent.mts';\nexport { guard } from './guard.mts';\nexport { board } from './board.mts';\nexport { knowledge } from './knowledge.mts';\nexport { check } from './check.mts';\nexport { common } from './common.mts';\n",
+      },
+      {
+        path: '.configs/vulcan/project.mts',
+        content: [
+          "import type { VulcanConfig } from '@venizia/vulcan';",
+          '',
+          AppsBlock.render({ block: opts.block, isExported: true }),
+          '',
+          'export const project = {',
+          `  name: '${opts.project}',`,
+          `  key: '${opts.key}',`,
+          '  layout: apps.layout,',
+          '  packages: apps.packages,',
+          '  presets: apps.presets,',
+          '} satisfies VulcanConfig.Project;',
+          '',
+        ].join('\n'),
+      },
+      {
+        path: '.configs/vulcan/agent.mts',
+        content: `${head}export const agent = {\n  rules: { 'V-W-01': 'on-user-word' },\n} satisfies VulcanConfig.Agent;\n`,
+      },
+      {
+        path: '.configs/vulcan/knowledge.mts',
+        content: `${head.replace('\n\n', "\nimport { apps } from './project.mts';\n\n")}export const knowledge = {\n  atlas: { sources: apps.sources },\n} satisfies VulcanConfig.Knowledge;\n`,
+      },
+      {
+        path: '.configs/vulcan/guard.mts',
+        content: empty('guard', 'NonNullable<VulcanConfig.Guard>'),
+      },
+      { path: '.configs/vulcan/board.mts', content: empty('board', 'VulcanConfig.Board') },
+      { path: '.configs/vulcan/check.mts', content: empty('check', 'VulcanConfig.Check') },
+      { path: '.configs/vulcan/common.mts', content: empty('common', 'VulcanConfig.Common') },
+    ];
   }
 
   /** The catalog entry a `file:` preset writes only works on this machine; say so. */

@@ -31,7 +31,7 @@ const nameOf = (opts: { root: string; path: string }): string =>
   JSON.parse(readFileSync(join(opts.root, opts.path, 'package.json'), 'utf8')).name;
 
 const registered = (opts: { root: string }): string =>
-  readFileSync(join(opts.root, '.configs/vulcan.config.mts'), 'utf8');
+  readFileSync(join(opts.root, '.configs/vulcan/project.mts'), 'utf8');
 
 const monorepo = (opts: { scope?: string } = {}): string => {
   const parent = createProject({ files: {} });

@@ -226,7 +226,7 @@ describe('where it goes', () => {
 describe('the package name', () => {
   const scoped = (opts: { names: string[]; project?: string }): string => {
     const root = monorepo({ project: opts.project });
-    const config = join(root, '.configs/vulcan.config.mts');
+    const config = join(root, '.configs/vulcan/project.mts');
 
     // Libraries already in the folder, as a project that has them would hold them.
     for (const name of opts.names) {
@@ -422,7 +422,9 @@ describe('add asks which kind when neither flag is given', () => {
     expect(result.stderr).toContain(
       `bun node_modules/.bin/vulcan package add --preset ${WITH_LIB} --lib <name>`,
     );
-    expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).not.toContain('billing');
+    expect(readFileSync(join(root, '.configs/vulcan/project.mts'), 'utf8')).not.toContain(
+      'billing',
+    );
   });
 
   describe.skipIf(!hasScript)('in a terminal', () => {

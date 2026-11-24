@@ -509,7 +509,11 @@ export class AppScaffold {
       apiUrl = api.apiUrl;
     }
 
-    const source = readFileSync(loaded.file, 'utf8');
+    // The block is in the config, or in the project module of a split config: whichever holds the markers is read and rewritten.
+    const found = AppsBlock.locate({ root: cwd, configFile: loaded.file });
+    const outside = found !== undefined && 'outside' in found ? found.outside : undefined;
+    const blockPath = found !== undefined && 'path' in found ? found.path : configPath;
+    const source = found !== undefined && 'source' in found ? found.source : '';
     const entry = { dir: app, name: packageOfApp, path: `${folder}/${app}` };
     const knownSources = new Set(config.atlas.sources.map((known) => known.name));
     const newSources = preset.atlas.filter((candidate) => !knownSources.has(candidate.name));
@@ -519,9 +523,11 @@ export class AppScaffold {
     if (!parsed.ok) {
       return AddFailure.fail({
         message: [
-          parsed.reason === AppsBlockProblems.MISSING
-            ? `the vulcan:apps block is gone from ${configPath} - add by hand:`
-            : `the vulcan:apps block in ${configPath} is not the JSON vulcan wrote - add by hand:`,
+          outside !== undefined
+            ? `${outside} is outside .configs (a link out of it): the vulcan:apps block is not read from it - add by hand:`
+            : parsed.reason === AppsBlockProblems.MISSING
+              ? `the vulcan:apps block is gone from ${configPath} and .configs/vulcan/project.mts - add by hand:`
+              : `the vulcan:apps block in ${blockPath} is not the JSON vulcan wrote - add by hand:`,
           ...literal({ side, folders: grown, app: entry, sources: newSources }),
         ].join('\n'),
       });
@@ -624,7 +630,7 @@ export class AppScaffold {
       path: 'package.json',
       content: ManifestJson.render({ value: nextManifest }),
     });
-    ProjectFile.write({ root: cwd, path: configPath, content: nextConfig });
+    ProjectFile.write({ root: cwd, path: blockPath, content: nextConfig });
     ProjectFile.write({
       root: cwd,
       path: `${KNOWLEDGE_DIRECTORY}/packages/${app}.md`,

@@ -82,7 +82,7 @@ describe.skipIf(!hasScript)('vulcan project init --preset in a terminal', () => 
 
     expect(existsSync(join(root, 'services/core-api/package.json'))).toBe(true);
     expect(existsSync(join(root, 'libs/.gitkeep'))).toBe(true);
-    expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).toContain(
+    expect(readFileSync(join(root, '.configs/vulcan/project.mts'), 'utf8')).toContain(
       '"backend": "services"',
     );
     expect(output).toContain('cd my-product && make dev');

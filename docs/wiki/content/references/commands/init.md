@@ -25,10 +25,13 @@ $ bun node_modules/.bin/vulcan project init
   created  .configs/lints/eslint.config.mjs
   created  .configs/vulcan.config.mts
   created  .configs/vulcan/index.mts
-  created  .configs/vulcan/claude.mts
-  created  .configs/vulcan/doctor.mts
-  created  .configs/vulcan/okf.mts
-  created  .configs/vulcan/packages.mts
+  created  .configs/vulcan/project.mts
+  created  .configs/vulcan/agent.mts
+  created  .configs/vulcan/guard.mts
+  created  .configs/vulcan/board.mts
+  created  .configs/vulcan/knowledge.mts
+  created  .configs/vulcan/check.mts
+  created  .configs/vulcan/common.mts
   created  .dockerignore
   created  bunfig.toml
   created  Makefile

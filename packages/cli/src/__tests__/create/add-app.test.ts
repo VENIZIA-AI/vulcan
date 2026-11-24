@@ -1,5 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { ConfigLoader, ProjectPackages } from '../../config/index.ts';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
@@ -162,7 +170,7 @@ describe('vulcan package add --preset', () => {
 
     expect(manifest.workspaces.packages).toEqual(['services/*', 'web/*']);
 
-    const config = readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8');
+    const config = readFileSync(join(root, '.configs/vulcan/project.mts'), 'utf8');
 
     expect(config).toContain('"frontend": "web"');
     expect(config).toContain('"backend": "services"');
@@ -207,9 +215,12 @@ describe('vulcan package add --preset', () => {
 
   test('edited-away block markers: refused with the lines to add by hand', () => {
     const root = monorepo();
-    const edited = "export default { name: 'p', layout: { backend: 'services' } };\n";
+    const edited = readFileSync(join(root, '.configs/vulcan/project.mts'), 'utf8').replace(
+      '// vulcan:apps:start',
+      '// gone',
+    );
 
-    writeFileSync(join(root, '.configs/vulcan.config.mts'), edited);
+    writeFileSync(join(root, '.configs/vulcan/project.mts'), edited);
     const before = readFileSync(join(root, 'package.json'), 'utf8');
     const result = runCli({
       args: ['package', 'add', '--preset', BACKEND, '--app', 'worker'],
@@ -219,18 +230,18 @@ describe('vulcan package add --preset', () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(
-      'the vulcan:apps block is gone from .configs/vulcan.config.mts - add by hand:',
+      'the vulcan:apps block is gone from .configs/vulcan.config.mts and .configs/vulcan/project.mts - add by hand:',
     );
     expect(result.stderr).toContain("{ dir: 'worker', name: 'worker', path: 'services/worker' }");
     expect(existsSync(join(root, 'services/worker'))).toBe(false);
-    expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).toBe(edited);
+    expect(readFileSync(join(root, '.configs/vulcan/project.mts'), 'utf8')).toBe(edited);
     expect(readFileSync(join(root, 'package.json'), 'utf8')).toBe(before);
     expect(existsSync(join(root, '.agents/knowledge/packages/worker.md'))).toBe(false);
   });
 
   test('a block that is no longer JSON is refused and the config is left as it was', () => {
     const root = monorepo();
-    const configPath = join(root, '.configs/vulcan.config.mts');
+    const configPath = join(root, '.configs/vulcan/project.mts');
     const edited = readFileSync(configPath, 'utf8').replace('"layout"', 'layout');
 
     writeFileSync(configPath, edited);
@@ -476,7 +487,7 @@ describe('vulcan package add --preset', () => {
 
   test('a block without the presets list is refused and the config is left as it was', () => {
     const root = monorepo();
-    const configPath = join(root, '.configs/vulcan.config.mts');
+    const configPath = join(root, '.configs/vulcan/project.mts');
     const edited = readFileSync(configPath, 'utf8').replace('"presets"', '"others"');
 
     writeFileSync(configPath, edited);
@@ -609,7 +620,7 @@ describe('vulcan package add --preset', () => {
 
     expect(result.code, result.stderr).toBe(0);
     expect(existsSync(join(root, 'apps/worker/package.json'))).toBe(true);
-    const config = readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8');
+    const config = readFileSync(join(root, '.configs/vulcan/project.mts'), 'utf8');
 
     expect(config).toContain('"services",');
     expect(config).toContain('"apps"');
@@ -669,17 +680,22 @@ describe('vulcan package add --preset', () => {
   });
   test('packages, sources and layout the user added outside the markers are not copied into the block', async () => {
     const root = monorepo();
-    const configPath = join(root, '.configs/vulcan.config.mts');
+    const configPath = join(root, '.configs/vulcan/project.mts');
     const edited = readFileSync(configPath, 'utf8')
       .replace('layout: apps.layout,', "layout: { ...apps.layout, shared: 'libs' },")
       .replace(
         'packages: apps.packages,',
         "packages: [...apps.packages, { dir: 'worker', name: 'worker', path: 'services/worker' }],",
-      )
-      .replace(
+      );
+    const knowledgePath = join(root, '.configs/vulcan/knowledge.mts');
+
+    writeFileSync(
+      knowledgePath,
+      readFileSync(knowledgePath, 'utf8').replace(
         'atlas: { sources: apps.sources },',
         "atlas: { sources: [...apps.sources, { name: 'extra', repo: 'example/extra', ref: 'main' }] },",
-      );
+      ),
+    );
     const manifest = readManifest({ root });
 
     writeFileSync(configPath, edited);
@@ -917,5 +933,174 @@ describe('vulcan package add --preset', () => {
     expect(result.code).toBe(0);
     expect(result.stderr).toContain(`file:${FRONTEND_PATH}`);
     expect(result.stderr).toContain('not portable');
+  });
+});
+
+describe('the vulcan:apps block of a split monorepo', () => {
+  const CONFIG = '.configs/vulcan.config.mts';
+  const PROJECT = '.configs/vulcan/project.mts';
+  const WITH_LIB = `file:${join(FIXTURES, 'preset-with-lib')}`;
+
+  test('add --app and add --lib rewrite project.mts, leave the config file alone, and package diff reads it', () => {
+    const root = monorepo({ backend: WITH_LIB });
+    const config = readFileSync(join(root, CONFIG), 'utf8');
+    const project = readFileSync(join(root, PROJECT), 'utf8');
+
+    expect(project).toContain('vulcan:apps:start');
+    expect(config).not.toContain('vulcan:apps:start');
+
+    const app = runCli({
+      args: ['package', 'add', '--preset', WITH_LIB, '--app', 'worker'],
+      cwd: root,
+      env: ENV,
+    });
+    const lib = runCli({
+      args: ['package', 'add', '--preset', WITH_LIB, '--lib', 'billing', '--dir', 'libs'],
+      cwd: root,
+      env: ENV,
+    });
+    const after = readFileSync(join(root, PROJECT), 'utf8');
+
+    expect(app.code, app.stderr).toBe(0);
+    expect(lib.code, lib.stderr).toBe(0);
+    expect(after).toContain('"dir": "worker"');
+    expect(after).toContain('"dir": "billing"');
+    expect(after).toContain('export const apps = ');
+    expect(readFileSync(join(root, CONFIG), 'utf8')).toBe(config);
+
+    const diff = runCli({ args: ['package', 'diff', 'worker'], cwd: root, env: ENV });
+
+    expect(diff.stderr).not.toContain('apps block');
+  });
+
+  test('a block in the config file itself is still found and rewritten there', () => {
+    const root = monorepo();
+    const block = readFileSync(join(root, PROJECT), 'utf8');
+    const start = block.indexOf('// vulcan:apps:start');
+    const end = block.indexOf('// vulcan:apps:end') + '// vulcan:apps:end'.length;
+    const moved = block.slice(start, end).replace('export const apps', 'const apps');
+
+    writeFileSync(
+      join(root, PROJECT),
+      `${block.slice(0, start)}${block.slice(end)}`
+        .replace('apps.layout', "{ backend: 'services' }")
+        .replace('apps.packages', '[]')
+        .replace('apps.presets', '[]'),
+    );
+    writeFileSync(
+      join(root, '.configs/vulcan/knowledge.mts'),
+      "import type { VulcanConfig } from '@venizia/vulcan';\n\nexport const knowledge = {} satisfies VulcanConfig.Knowledge;\n",
+    );
+    writeFileSync(join(root, CONFIG), `${readFileSync(join(root, CONFIG), 'utf8')}\n${moved}\n`);
+
+    const result = runCli({
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(readFileSync(join(root, CONFIG), 'utf8')).toContain('"dir": "worker"');
+  });
+
+  test('a project module that is a link out of .configs/ is not read: the block is refused as missing', () => {
+    const root = monorepo();
+    const outside = join(root, 'elsewhere.mts');
+
+    writeFileSync(outside, readFileSync(join(root, PROJECT), 'utf8'));
+    rmSync(join(root, PROJECT));
+    mkdirSync(join(root, '.configs/vulcan'), { recursive: true });
+    symlinkSync(outside, join(root, PROJECT));
+
+    const result = runCli({
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('.configs/vulcan/project.mts is outside .configs');
+    expect(readFileSync(outside, 'utf8')).not.toContain('"dir": "worker"');
+  });
+
+  test('config codemod --split moves the block to project.mts: the config resolves the same, and package add --lib works right after', async () => {
+    const root = monorepo({ backend: WITH_LIB });
+    const project = readFileSync(join(root, PROJECT), 'utf8');
+    const start = project.indexOf('// vulcan:apps:start');
+    const end = project.indexOf('// vulcan:apps:end') + '// vulcan:apps:end'.length;
+    const block = project.slice(start, end).replace('export const apps', 'const apps');
+
+    rmSync(join(root, '.configs/vulcan'), { recursive: true });
+    writeFileSync(
+      join(root, CONFIG),
+      [
+        "import type { VulcanConfig } from '@venizia/vulcan';",
+        '',
+        block,
+        '',
+        '// The project.',
+        'export default {',
+        "  name: 'p',",
+        "  project: { key: 'TEST' },",
+        '  layout: apps.layout,',
+        '  packages: apps.packages,',
+        '  presets: apps.presets,',
+        '  atlas: { sources: apps.sources },',
+        "  rules: { 'V-W-01': 'on-user-word' },",
+        '} satisfies VulcanConfig;',
+        '',
+      ].join('\n'),
+    );
+
+    const before = await ConfigLoader.load({ root });
+    const result = runCli({
+      args: ['config', 'codemod', 'config-groups', '.', '--split', '--write'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(readFileSync(join(root, PROJECT), 'utf8')).toContain('export const apps = ');
+    expect(readFileSync(join(root, CONFIG), 'utf8')).not.toContain('vulcan:apps:start');
+    expect(readFileSync(join(root, '.configs/vulcan/knowledge.mts'), 'utf8')).toContain(
+      "import { apps } from './project.mts';",
+    );
+    expect(readFileSync(join(root, CONFIG), 'utf8')).toContain('// The project.');
+
+    const after = await ConfigLoader.load({ root });
+
+    if (!before.ok || !after.ok) {
+      throw new Error(before.ok ? String(!after.ok && after.error) : before.error);
+    }
+
+    expect(after.config).toEqual(before.config);
+
+    const config = readFileSync(join(root, CONFIG), 'utf8');
+    const lib = runCli({
+      args: ['package', 'add', '--preset', WITH_LIB, '--lib', 'billing', '--dir', 'libs'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(lib.code, lib.stderr).toBe(0);
+    expect(readFileSync(join(root, PROJECT), 'utf8')).toContain('"dir": "billing"');
+    expect(readFileSync(join(root, CONFIG), 'utf8')).toBe(config);
+  });
+
+  test('a .configs that is a link out of the project is not read, and the refusal says so', () => {
+    const root = monorepo();
+    const real = join(root, 'elsewhere-configs');
+
+    renameSync(join(root, '.configs'), real);
+    symlinkSync(real, join(root, '.configs'));
+
+    const result = runCli({
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('is outside .configs');
   });
 });

@@ -36,6 +36,11 @@ const BLOCK: IAppsBlock = {
   sources: [{ name: 'widget', repo: 'example/widget', ref: 'develop' }],
 };
 
+/** The module of a new monorepo that holds the apps block: `.configs/vulcan/project.mts`. */
+const projectModule = (opts: { project: string; key: string; block: IAppsBlock }): string =>
+  WorkspaceDocs.renderSplitConfig(opts).find((file) => file.path === '.configs/vulcan/project.mts')
+    ?.content ?? '';
+
 describe('workspace planners', () => {
   test('root manifest: private, workspaces, catalog, vulcan pinned exactly', () => {
     const manifest = JSON.parse(
@@ -296,9 +301,9 @@ describe('workspace planners', () => {
   });
 
   test('the config reads the recorded presets from the block', () => {
-    expect(
-      WorkspaceDocs.renderVulcanConfig({ project: 'my-product', key: 'TEST', block: BLOCK }),
-    ).toContain('presets: apps.presets,');
+    expect(projectModule({ project: 'my-product', key: 'TEST', block: BLOCK })).toContain(
+      'presets: apps.presets,',
+    );
   });
 
   test('a block records the presets its apps came from and reads back as written; one without the presets list is not a block', () => {
@@ -413,14 +418,10 @@ describe('workspace planners', () => {
   });
 
   test('config block round-trips through AppsBlock.replace', () => {
-    const source = WorkspaceDocs.renderVulcanConfig({
-      project: 'my-product',
-      key: 'TEST',
-      block: BLOCK,
-    });
+    const source = projectModule({ project: 'my-product', key: 'TEST', block: BLOCK });
 
     expect(source).toContain("name: 'my-product'");
-    expect(source).toContain('satisfies VulcanConfig');
+    expect(source).toContain('satisfies VulcanConfig.Project');
 
     const next = AppsBlock.replace({
       source,
@@ -432,21 +433,22 @@ describe('workspace planners', () => {
   });
 
   test('the config init writes leaves the agents to each developer', () => {
-    expect(
-      WorkspaceDocs.renderVulcanConfig({ project: 'my-product', key: 'TEST', block: BLOCK }),
-    ).not.toContain('agents');
+    expect(projectModule({ project: 'my-product', key: 'TEST', block: BLOCK })).not.toContain(
+      'agents',
+    );
   });
 
   test('AppsBlock.replace keeps what the user wrote outside the markers', () => {
-    const source = WorkspaceDocs.renderVulcanConfig({
-      project: 'my-product',
-      key: 'TEST',
-      block: BLOCK,
-    }).replace('  layout: apps.layout,', "  agents: ['claude', 'codex'],\n  layout: apps.layout,");
+    const source = projectModule({ project: 'my-product', key: 'TEST', block: BLOCK }).replace(
+      '  layout: apps.layout,',
+      "  agents: ['claude', 'codex'],\n  layout: apps.layout,",
+    );
     const next = AppsBlock.replace({ source, block: { ...BLOCK, packages: [] } });
 
     expect(next).toContain("agents: ['claude', 'codex']");
     expect(next).toContain('"packages": []');
+    // The block is exported for knowledge.mts, and a rewrite keeps it so.
+    expect(next).toContain('export const apps = ');
   });
 
   test('AppsBlock.replace returns undefined when the markers are gone', () => {
@@ -454,11 +456,7 @@ describe('workspace planners', () => {
   });
 
   test('AppsBlock.replace returns undefined when the markers are swapped', () => {
-    const source = WorkspaceDocs.renderVulcanConfig({
-      project: 'my-product',
-      key: 'TEST',
-      block: BLOCK,
-    });
+    const source = projectModule({ project: 'my-product', key: 'TEST', block: BLOCK });
     const swapped = source
       .replace('// vulcan:apps:end', '// TMP')
       .replace(/\/\/ vulcan:apps:start[^\n]*/, '// vulcan:apps:end')

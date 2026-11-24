@@ -54,7 +54,7 @@ const add = (opts: { root: string; preset?: string; args: string[] }) =>
 
 const blockOf = (opts: { root: string }) => {
   const parsed = AppsBlock.parse({
-    source: readFileSync(join(opts.root, '.configs/vulcan.config.mts'), 'utf8'),
+    source: readFileSync(join(opts.root, '.configs/vulcan/project.mts'), 'utf8'),
   });
 
   if (!parsed.ok) {
@@ -148,7 +148,7 @@ describe('vulcan package add --shared with a preset that has no shared kind', ()
       preset: WITH_LIB,
       args: ['--backend-dir', 'services', '--app', 'core-api', '--shared-dir', 'libs'],
     });
-    const before = readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8');
+    const before = readFileSync(join(root, '.configs/vulcan/project.mts'), 'utf8');
     const result = add({ root, preset: WITH_LIB, args: ['--shared', 'x'] });
 
     expect(result.code).toBe(1);
@@ -157,7 +157,7 @@ describe('vulcan package add --shared with a preset that has no shared kind', ()
       'no preset known to this project or to the official list has one',
     );
     expect(existsSync(join(root, 'libs/x'))).toBe(false);
-    expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).toBe(before);
+    expect(readFileSync(join(root, '.configs/vulcan/project.mts'), 'utf8')).toBe(before);
   });
 
   test('names the recorded preset that has a shared kind, with the exact command', () => {
@@ -228,7 +228,7 @@ describe('vulcan package add --shared names the official presets that have a sha
 
   test('it is listed once when the project recorded the same package with a shared kind', async () => {
     const root = libProject();
-    const config = join(root, '.configs/vulcan.config.mts');
+    const config = join(root, '.configs/vulcan/project.mts');
     const records = JSON.stringify(
       [{ spec: '@venizia/forge@1.2.3', side: 'backend', summary: 's', shared: 'Mine.' }],
       null,

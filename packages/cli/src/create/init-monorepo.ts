@@ -166,11 +166,9 @@ const writeMonorepo = (opts: {
     sources: preset.atlas,
   };
 
-  ProjectFile.write({
-    root,
-    path: '.configs/vulcan.config.mts',
-    content: WorkspaceDocs.renderVulcanConfig({ project, key, block }),
-  });
+  for (const file of WorkspaceDocs.renderSplitConfig({ project, key, block })) {
+    ProjectFile.write({ root, path: file.path, content: file.content });
+  }
   ProjectFile.write({
     root,
     path: '.agents/knowledge/index.md',

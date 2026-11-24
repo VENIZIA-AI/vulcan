@@ -10,6 +10,7 @@ afterAll(removeProjects);
 const hasScript = Bun.which('script') !== null;
 const ENV = { VULCAN_NO_INSTALL: '1', TERM: 'dumb' };
 const BACKEND = join(import.meta.dir, '..', 'fixtures', 'preset-backend');
+const PROJECT_MODULE = '.configs/vulcan/project.mts';
 const CONFIG = '.configs/vulcan.config.mts';
 
 const app = (name: string, extra: Record<string, string> = {}): string =>
@@ -24,7 +25,7 @@ describe('vulcan project init: the project key', () => {
 
     expect(result.code, result.stderr).toBe(0);
     expect(result.stderr).toContain('project key ACMESHOP, made from the name');
-    expect(readFileSync(join(root, CONFIG), 'utf8')).toContain("project: { key: 'ACMESHOP' }");
+    expect(readFileSync(join(root, PROJECT_MODULE), 'utf8')).toContain("key: 'ACMESHOP'");
   });
 
   test('--key wins over the name', () => {
@@ -33,7 +34,7 @@ describe('vulcan project init: the project key', () => {
 
     expect(result.code, result.stderr).toBe(0);
     expect(result.stderr).not.toContain('made from the name');
-    expect(readFileSync(join(root, CONFIG), 'utf8')).toContain("project: { key: 'ACME' }");
+    expect(readFileSync(join(root, PROJECT_MODULE), 'utf8')).toContain("key: 'ACME'");
   });
 
   test.each(['acme', 'B', 'TOOLONGKEY', 'BA-NA'])(
@@ -87,9 +88,9 @@ describe('vulcan project init: the project key', () => {
 
     expect(result.code, result.stderr).toBe(0);
     expect(result.stderr).toContain('project key MYPRODUC');
-    expect(readFileSync(join(parent, 'my-product', CONFIG), 'utf8')).toContain(
-      "project: { key: 'MYPRODUC' }",
-    );
+    expect(
+      readFileSync(join(parent, 'my-product', '.configs/vulcan/project.mts'), 'utf8'),
+    ).toContain("key: 'MYPRODUC'");
   });
 });
 
@@ -116,13 +117,13 @@ describe.skipIf(!hasScript)('vulcan project init in a terminal asks for the key'
     const { root, result } = await asked({ send: [''] });
 
     expect(result.code).toBe(0);
-    expect(readFileSync(join(root, CONFIG), 'utf8')).toContain("project: { key: 'ACMESHOP' }");
+    expect(readFileSync(join(root, PROJECT_MODULE), 'utf8')).toContain("key: 'ACMESHOP'");
   });
 
   test('a typed key is taken, in capitals; one that is not a key is asked again', async () => {
     const { root, result } = await asked({ send: ['x!', 'acme'] });
 
     expect(result.code).toBe(0);
-    expect(readFileSync(join(root, CONFIG), 'utf8')).toContain("project: { key: 'ACME' }");
+    expect(readFileSync(join(root, PROJECT_MODULE), 'utf8')).toContain("key: 'ACME'");
   });
 });

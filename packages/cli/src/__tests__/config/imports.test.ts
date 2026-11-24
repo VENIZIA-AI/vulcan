@@ -95,13 +95,17 @@ describe('vulcan project init writes the config split', () => {
 
     expect(run.code, run.stderr).toBe(0);
     expect(ConfigImports.localModules({ root })).toEqual([
-      '.configs/vulcan/claude.mts',
-      '.configs/vulcan/doctor.mts',
+      '.configs/vulcan/agent.mts',
+      '.configs/vulcan/board.mts',
+      '.configs/vulcan/check.mts',
+      '.configs/vulcan/common.mts',
+      '.configs/vulcan/guard.mts',
       '.configs/vulcan/index.mts',
-      '.configs/vulcan/okf.mts',
-      '.configs/vulcan/packages.mts',
+      '.configs/vulcan/knowledge.mts',
+      '.configs/vulcan/project.mts',
     ]);
     expect(loaded.ok && loaded.config.project).toEqual({ key: 'DEMO' });
+    expect(loaded.ok && loaded.config.agents).toEqual(['claude']);
     expect(loaded.ok && loaded.layers.merge.from.packages).toBe('workspaces');
     expect(runCli({ args: ['config', 'format', '--check'], cwd: root }).code).toBe(0);
   });
