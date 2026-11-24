@@ -3,6 +3,7 @@ import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
+import { PrivateValueScan } from '../../doctor/common/index.ts';
 import { PrivateValues } from '../../doctor/private-values.ts';
 import { git, initRepo } from '../git-repo.helper.ts';
 import { hermeticEnv } from '../hermetic.helper.ts';
@@ -46,6 +47,21 @@ describe('PrivateValues.scan: what counts', () => {
     expect(countsOf({ root, file: 'url.txt' })).toEqual({ 'url-credentials': 1 });
     expect(countsOf({ root, file: 'ip.txt' })).toEqual({ ipv4: 2 });
     expect(countsOf({ root, file: 'path.md' })).toEqual({ 'machine-path': 3 });
+  });
+
+  test('an address stands on its own; numbers in SVG path data, versions and placeholders are not addresses', () => {
+    const matchesOf = (text: string): string[] =>
+      [...text.matchAll(PrivateValueScan.IPV4)].map((match) => match[0]);
+
+    expect(matchesOf('10.0.0.1')).toEqual(['10.0.0.1']);
+    expect(matchesOf('host: 192.168.1.10;')).toEqual(['192.168.1.10']);
+    expect(matchesOf('http://127.0.0.1:8080/')).toEqual(['127.0.0.1']);
+    expect(matchesOf('(10.0.0.1)')).toEqual(['10.0.0.1']);
+    expect(
+      matchesOf("'M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5'"),
+    ).toEqual([]);
+    expect(matchesOf('d="M1.2.3.4 c0.5.25.25.5,1.1.1.1-2.2.2.2 L1.2.3.4z"')).toEqual([]);
+    expect(matchesOf('1.2.3.4.5 0.5.0 1.2.3.4a v1.2.3.4 192.168.1.x 256.1.1.1')).toEqual([]);
   });
 
   test('prose about Bearer authentication is not a token, a Bearer credential is', () => {
