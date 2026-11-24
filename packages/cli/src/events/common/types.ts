@@ -69,7 +69,7 @@ export interface IEvent {
   source: string;
 }
 
-/** The manifest's `events` block, as `vulcan sync` writes it. */
+/** The manifest's `events` block, as `vulcan project sync` writes it. */
 /** How much of the log is kept: whole day files are removed, oldest first, past any of these. */
 export interface IEventLimits {
   maxBytes: number;

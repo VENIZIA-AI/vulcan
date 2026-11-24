@@ -6,28 +6,28 @@ description: Validate, generate and inspect the coverage of knowledge bundles in
 # okf
 
 `okf` manages knowledge bundles in Open Knowledge Format (OKF) v0.2.
-You run commands through `vulcan x okf <command>`. Run it at the project root: it reads `.configs/vulcan.config.mts` of the current folder, and without that file `okf` stops with the error `okf: no project config`.
+You run commands through `vulcan okf <command>`. Run it at the project root: it reads `.configs/vulcan.config.mts` of the current folder, and without that file `okf` stops with the error `okf: no project config`.
 
 | Command | What it does | Exit codes |
 |---|---|---|
-| `vulcan x okf check` | Validate the bundle against OKF v0.2 conformance rules | `0` (pass), `1` (conformance error) |
-| `vulcan x okf check --strict` | Check OKF v0.2 conformance and project house rules | `0` (pass), `1` (rule violation) |
-| `vulcan x okf gen` | Regenerate source-derived pages, regions, and contents lists | `0` (success), `1` (generation failure) |
-| `vulcan x okf coverage [--min <n>]` | Report source coverage and evaluate coverage threshold gates | `0` (pass), `1` (gate failure, project error, bad frontmatter), `2` (invalid `--min`) |
+| `vulcan okf check` | Validate the bundle against OKF v0.2 conformance rules | `0` (pass), `1` (conformance error) |
+| `vulcan okf check --strict` | Check OKF v0.2 conformance and project house rules | `0` (pass), `1` (rule violation) |
+| `vulcan okf gen` | Regenerate source-derived pages, regions, and contents lists | `0` (success), `1` (generation failure) |
+| `vulcan okf coverage [--min <n>]` | Report source coverage and evaluate coverage threshold gates | `0` (pass), `1` (gate failure, project error, bad frontmatter), `2` (invalid `--min`) |
 
 Running an invalid command or omitting the command prints usage and exits with code `2`.
 
 To run the basic conformance check:
 
 ```text
-$ bun node_modules/.bin/vulcan x okf check
+$ bun node_modules/.bin/vulcan okf check
 check: OK - OKF v0.2 - 2 files, 1 concepts
 ```
 
 To run conformance checks with house rules:
 
 ```text
-$ bun node_modules/.bin/vulcan x okf check --strict
+$ bun node_modules/.bin/vulcan okf check --strict
 check: OK - OKF v0.2 + house rules - 2 files, 1 concepts
 ```
 
@@ -74,7 +74,7 @@ Reserved files `index.md` and `log.md` do not count as concepts.
 
 ## check
 
-Run `vulcan x okf check` to validate the knowledge bundle against OKF v0.2 conformance rules.
+Run `vulcan okf check` to validate the knowledge bundle against OKF v0.2 conformance rules.
 Guidance warnings print to standard error.
 
 The check validates concepts, root and nested index files, log headings, and trust metadata:
@@ -143,19 +143,19 @@ House style rules run over every markdown file in the bundle, index and log incl
    When a managed region is out of date:
 
    ```text
-   freshness: region '<id>' is stale - run `vulcan x okf gen`
+   freshness: region '<id>' is stale - run `vulcan okf gen`
    ```
 
 5. Generated reference pages: Whole generated pages must match current renderer output:
 
    ```text
-   freshness: <path> is stale - run `vulcan x okf gen`
+   freshness: <path> is stale - run `vulcan okf gen`
    ```
 
 6. Contents lists: Long agent-read files must have fresh contents lists:
 
    ```text
-   contents: <file> has no fresh contents list - run `vulcan x okf gen`
+   contents: <file> has no fresh contents list - run `vulcan okf gen`
    ```
 
    The check covers every bundle `.md` file except `log.md`, generated files, and renderer-owned pages.
@@ -184,7 +184,7 @@ House style rules run over every markdown file in the bundle, index and log incl
 
    `as const`, `import { A as B }`, `export { A as B }` and `import * as ns` are not casts. Strings, template literals and comments are taken out before the rules run, so an `as` in a SQL template, a JSDoc comment or prose is not read, and neither is anything outside a fence. The check scans the code rather than parsing it, because an example is often a fragment; code inside a `${}` of a template is still code.
 
-   Two kinds of content are left out: a page that carries the note a generator writes (a blockquote that starts `Generated` and ends `do not edit.`, as `vulcan x atlas api gen` writes), and everything between `<!-- okf:generated:<id> start -->` and `end` markers. For a signature a page quotes from the source, wrap it in `<!-- docs-code: off -->` and `<!-- docs-code: on -->`. The marker is for a quoted source signature, never an example: the check prints every page that uses it with a count (`check: docs-code off - 3 region(s) in 2 page(s): <page> (2), ...`), and warns about an off region that holds a function body, a call or a statement (`docs-code: <file>:<line>: a docs-code off region holds a function body - off is for a quoted source signature, never an example`).
+   Two kinds of content are left out: a page that carries the note a generator writes (a blockquote that starts `Generated` and ends `do not edit.`, as `vulcan atlas api gen` writes), and everything between `<!-- okf:generated:<id> start -->` and `end` markers. For a signature a page quotes from the source, wrap it in `<!-- docs-code: off -->` and `<!-- docs-code: on -->`. The marker is for a quoted source signature, never an example: the check prints every page that uses it with a count (`check: docs-code off - 3 region(s) in 2 page(s): <page> (2), ...`), and warns about an off region that holds a function body, a call or a statement (`docs-code: <file>:<line>: a docs-code off region holds a function body - off is for a quoted source signature, never an example`).
 
    The same run prints warnings, which never fail it, about the shape of the tables of the wiki:
    - `docs-table: <file>:<line>: a cell of <n> characters (over 120) - a heading and a short table, or a list`
@@ -192,13 +192,13 @@ House style rules run over every markdown file in the bundle, index and log incl
 
 ## gen
 
-Run `vulcan x okf gen` to regenerate source-derived content across the knowledge bundle.
+Run `vulcan okf gen` to regenerate source-derived content across the knowledge bundle.
 Whole files and managed regions render in memory first.
 Contents lists are written last.
 If a renderer fails, `gen` stops before writing any files.
 
 ```text
-$ bun node_modules/.bin/vulcan x okf gen
+$ bun node_modules/.bin/vulcan okf gen
 gen: wrote .agents/knowledge/reference/makefile-targets.md
 ```
 
@@ -233,10 +233,10 @@ To configure built-in or custom renderers, see [okf renderers](/references/okf/r
 
 ## coverage
 
-Run `vulcan x okf coverage` to report bundle documentation coverage against project source code.
+Run `vulcan okf coverage` to report bundle documentation coverage against project source code.
 
 ```text
-$ bun node_modules/.bin/vulcan x okf coverage
+$ bun node_modules/.bin/vulcan okf coverage
 
 COVERAGE - 2 curated concepts
 

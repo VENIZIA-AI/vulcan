@@ -118,7 +118,7 @@ describe('the five readers follow the key', () => {
       },
     });
 
-    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'none'], cwd: root });
 
     const text = readFileSync(join(root, 'AGENTS.md'), 'utf8');
 
@@ -127,7 +127,7 @@ describe('the five readers follow the key', () => {
     expect(text).not.toContain(root);
   });
 
-  test('vulcan clean takes the old files of it, not of the default folder', () => {
+  test('vulcan project clean takes the old files of it, not of the default folder', () => {
     const root = projectWith('t');
     const old = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
 
@@ -144,7 +144,7 @@ describe('the five readers follow the key', () => {
     expect(found).not.toContain(join(root, '.agents/tmp/ignored'));
   });
 
-  test('the scratch of vulcan add is made in it', async () => {
+  test('the scratch of vulcan package add is made in it', async () => {
     const root = projectWith('t');
     const seen = await PresetScratch.withScratch({ root, run: async (scratch) => scratch });
 
@@ -152,7 +152,7 @@ describe('the five readers follow the key', () => {
   });
 });
 
-describe('vulcan sync with local.tmp', () => {
+describe('vulcan project sync with local.tmp', () => {
   const root = createProject({
     files: {
       '.configs/vulcan.config.mts': CONFIG,
@@ -162,7 +162,7 @@ describe('vulcan sync with local.tmp', () => {
   });
 
   test('makes the folder, ignores it, writes no launch file, and the next run changes nothing', () => {
-    const first = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const first = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     expect(first.code, first.stderr).toBe(0);
     expect(existsSync(join(root, 't'))).toBe(true);
@@ -170,13 +170,13 @@ describe('vulcan sync with local.tmp', () => {
     expect(existsSync(join(root, '.agents/local/claude.launch.settings.json'))).toBe(false);
     expect(JSON.parse(readFileSync(join(root, MANIFEST), 'utf8')).local).toEqual({ tmp: 't' });
 
-    const second = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const second = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     expect(second.stdout + second.stderr).not.toMatch(/\n\s+(created|replaced)\s+.*\bt\b/);
   });
 });
 
-describe('vulcan doctor: local.tmp that cannot hold a browser socket', () => {
+describe('vulcan project doctor: local.tmp that cannot hold a browser socket', () => {
   const contextOf = (opts: { root: string; tmp: string }) => ({
     root: opts.root,
     config: VULCAN_CONFIG_SCHEMA.parse({ local: { tmp: opts.tmp } }),
@@ -209,7 +209,7 @@ describe('vulcan doctor: local.tmp that cannot hold a browser socket', () => {
 describe('the review of local.tmp', () => {
   const old = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
 
-  test('vulcan clean removes the old files of the folder, and not those of a folder it does not own', () => {
+  test('vulcan project clean removes the old files of the folder, and not those of a folder it does not own', () => {
     const root = projectWith('t');
 
     for (const folder of ['t/old']) {
@@ -221,7 +221,7 @@ describe('the review of local.tmp', () => {
 
     mkdirSync(join(root, '.agents/local'), { recursive: true });
 
-    const result = runCli({ args: ['clean', '--tmp', '--yes'], cwd: root });
+    const result = runCli({ args: ['project', 'clean', '--tmp', '--yes'], cwd: root });
 
     expect(result.code, result.stderr).toBe(0);
     expect(existsSync(join(root, 't/old'))).toBe(false);
@@ -246,10 +246,10 @@ describe('the review of local.tmp', () => {
       },
     });
 
-    runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
     writeFileSync(join(root, '.configs/vulcan.config.mts'), "export default { name: 'acme' };\n");
 
-    const again = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const again = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     expect(again.code, again.stderr).toBe(0);
     expect(existsSync(join(root, '.agents/tmp'))).toBe(true);

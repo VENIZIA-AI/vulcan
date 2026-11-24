@@ -130,14 +130,14 @@ describe('the guards that ask on a crash fail closed when the package or bun is 
   const REPAIRS = [
     'bun install',
     'bun i --frozen-lockfile',
-    'bun node_modules/.bin/vulcan sync',
-    'bun node_modules/.bin/vulcan sync --app apps/web',
+    'bun node_modules/.bin/vulcan project sync',
+    'bun node_modules/.bin/vulcan project sync --app apps/web',
   ];
   const NOT_REPAIRS = [
     'bun install && git push',
-    'bun node_modules/.bin/vulcan sync; git push',
-    'bun node_modules/.bin/vulcan sync $(git push)',
-    'bun node_modules/.bin/vulcan sync | git apply',
+    'bun node_modules/.bin/vulcan project sync; git push',
+    'bun node_modules/.bin/vulcan project sync $(git push)',
+    'bun node_modules/.bin/vulcan project sync | git apply',
   ];
 
   const [git] = askingHooks().filter((hook) => hook.command.includes('guard-git.ts'));
@@ -276,7 +276,7 @@ describe('a hook that is gone from an installed package', () => {
         expect(result.stderr).toContain(
           `the ${name} hook is not in this node_modules/@venizia/vulcan`,
         );
-        expect(result.stderr).toContain('vulcan sync');
+        expect(result.stderr).toContain('vulcan project sync');
       }
     },
   );
@@ -291,13 +291,13 @@ describe('a hook that is gone from an installed package', () => {
 
       expect(result.code, command).toBe(2);
       expect(result.stderr).toContain('VULCAN guards unavailable');
-      expect(result.stderr).toContain('vulcan sync');
+      expect(result.stderr).toContain('vulcan project sync');
     }
 
     expect(runHook({ command: git.command, root, stdin: BASH_INPUT('git status') }).code).toBe(2);
     expect(runHook({ command: git.command, root, stdin: BASH_INPUT('ls') }).code).toBe(0);
 
-    for (const command of ['bun install', 'bun node_modules/.bin/vulcan sync']) {
+    for (const command of ['bun install', 'bun node_modules/.bin/vulcan project sync']) {
       expect(
         runHook({ command: outside.command, root, stdin: BASH_INPUT(command) }).code,
         command,

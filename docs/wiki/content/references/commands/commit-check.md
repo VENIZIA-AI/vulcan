@@ -1,21 +1,21 @@
 ---
-title: vulcan commit-check
-description: Check a commit message for an agent signature and, when the project asks, for its subject shape. The commit-msg hook that vulcan sync installs runs it.
+title: vulcan check commit
+description: Check a commit message for an agent signature and, when the project asks, for its subject shape. The commit-msg hook that vulcan project sync installs runs it.
 ---
 
-# vulcan commit-check
+# vulcan check commit
 
-`vulcan commit-check` rejects a commit message that signs the commit as an agent, and checks the one-line subject shape when your project gives one. Nothing is checked until the project turns a check on.
+`vulcan check commit` rejects a commit message that signs the commit as an agent, and checks the one-line subject shape when your project gives one. Nothing is checked until the project turns a check on.
 
 ```text
-$ bun node_modules/.bin/vulcan commit-check .git/COMMIT_EDITMSG
+$ bun node_modules/.bin/vulcan check commit .git/COMMIT_EDITMSG
 commit-check: 1 problem(s) in the commit message:
   commit message, line 3: "Co-Authored-By: Claude <noreply@anthropic.com>" signs the commit as an agent; remove the line
 ```
 
 ## Turn it on
 
-Add the key to `.configs/vulcan.config.mts`, then run `vulcan sync`:
+Add the key to `.configs/vulcan.config.mts`, then run `vulcan project sync`:
 
 ```ts
 export default {
@@ -27,7 +27,7 @@ export default {
 
 ## Claude Code's own attribution
 
-With `agent.signature: 'deny'`, `vulcan sync` also turns off the attribution that Claude Code adds itself, so the signature is not written in the first place. It adds this to the managed `.claude/settings.json`:
+With `agent.signature: 'deny'`, `vulcan project sync` also turns off the attribution that Claude Code adds itself, so the signature is not written in the first place. It adds this to the managed `.claude/settings.json`:
 
 ```json
 { "attribution": { "commit": "", "pr": "", "sessionUrl": false } }
@@ -92,24 +92,24 @@ commit: {
 
 ## The hook
 
-`vulcan sync` installs `commit-msg` in your clone when a check is on. Git runs it for every commit, so it covers each coding agent and a person committing by hand.
+`vulcan project sync` installs `commit-msg` in your clone when a check is on. Git runs it for every commit, so it covers each coding agent and a person committing by hand.
 
 | Your clone | What sync does |
 |---|---|
 | No `commit-msg` hook | Writes `.git/hooks/commit-msg` (a linked worktree shares the hooks of its repository) |
 | A hook written by sync | Updates it when the template changed; removes it when you turn every check off |
 | A hook written by sync for another project of the same repository | Leaves it. The repository's one `commit-msg` hook belongs to its writer: `sync` prints `skipped` and whose it is |
-| A hook of yours | Leaves it. `sync` prints `skipped` and the line to add: `bun node_modules/.bin/vulcan commit-check "$1"` |
+| A hook of yours | Leaves it. `sync` prints `skipped` and the line to add: `bun node_modules/.bin/vulcan check commit "$1"` |
 | `core.hooksPath` set (for example `.githooks`) | Writes nothing there. `sync` prints the same line for that folder's `commit-msg` hook |
 | A symbolic link in the hook's place | Leaves it and says so |
-| A project folder whose name holds a line break or another control character | Writes nothing. `sync` prints `skipped` with the reason, and `vulcan doctor` reports the hook as not running the check |
+| A project folder whose name holds a line break or another control character | Writes nothing. `sync` prints `skipped` with the reason, and `vulcan project doctor` reports the hook as not running the check |
 
 sync never overwrites a hook it did not write; it knows its own by the marker on the second line, which also names the project folder it was written for (`[]` for the top of the repository, `[apps/web]` for a project below it); a hook with a marker for another folder is another project's and is never rewritten or removed. A hook from an earlier release has no folder and counts as the top level's. The hook that sync writes lets the commit through, with a note on stderr, when bun is not installed, `node_modules/@venizia/vulcan` is found neither in the project folder nor above it up to the git top level, or the installed vulcan has no `commit-check` command (an older branch). A hook that blocks every commit of a fresh clone does more harm than the gap. That promise covers the hook sync writes: a hook of your own that calls the command, such as VULCAN's own `.githooks/commit-msg`, blocks on any failure unless you write it to pass. `git commit --no-verify` skips it, as it skips any hook, so this is a check against drift, not a sandbox. Run the check in CI with `--range` to catch what a skipped hook let through.
 
-`vulcan doctor` warns when a check is on and the hook is missing, out of date, or not calling the command ([commit-hook](/references/commands/doctor#commit-hook)).
+`vulcan project doctor` warns when a check is on and the hook is missing, out of date, or not calling the command ([commit-hook](/references/commands/doctor#commit-hook)).
 
 ## See also
 
-- [vulcan sync](/references/commands/sync#the-commit-msg-hook): when the hook is written
-- [vulcan doctor](/references/commands/doctor#commit-hook): the warning
+- [vulcan project sync](/references/commands/sync#the-commit-msg-hook): when the hook is written
+- [vulcan project doctor](/references/commands/doctor#commit-hook): the warning
 - [Configuration](/references/configuration/#commit): the `commit` key

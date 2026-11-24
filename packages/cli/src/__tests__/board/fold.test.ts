@@ -32,7 +32,7 @@ const flowOf = (opts: {
 /** Pull request 70, on branch feature/F-9-board: opened, CI red then green, one round of changes requested, then approved. */
 const PR_JSON = {
   number: 70,
-  title: 'vulcan board',
+  title: 'vulcan board show',
   author: { login: 'pnt-vulcan-1' },
   headRefName: 'feature/F-9-board',
   body: 'The board.\n\nFlow: F-9',
@@ -528,7 +528,7 @@ describe('BoardGithub.eventsOf', () => {
       'review:pass',
     ]);
     expect(events[0]).toMatchObject({
-      summary: '#70 vulcan board',
+      summary: '#70 vulcan board show',
       actor: 'pnt-vulcan-1',
       link: 'https://github.com/VENIZIA-AI/vulcan/pull/70',
       ref: { repo: 'VENIZIA-AI/vulcan', pr: 70 },

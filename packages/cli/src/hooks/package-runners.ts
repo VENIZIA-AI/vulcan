@@ -29,8 +29,8 @@ const bare = (opts: { word: string }): string => opts.word.replace(/^["'`]+|["'`
 const unquoted = (opts: { word: string }): string => opts.word.replace(/^["']+|["']+$/g, '');
 
 /**
- * The one table of the programs that fetch a package by name and run it, read by the runner guard, by `vulcan runners
- * check` and by the script guard that follows the program `npx` runs. A flag is read the way that fails closed: the switches
+ * The one table of the programs that fetch a package by name and run it, read by the runner guard, by `vulcan check
+ * runners` and by the script guard that follows the program `npx` runs. A flag is read the way that fails closed: the switches
  * below take no value, and any other flag without `=` takes the next word, so a flag this table does not know can hide
  * neither the package (the last word it took is read as the name) nor a second runner.
  */

@@ -41,7 +41,7 @@ export class ContentsFiles {
       })
       .map(
         (file) =>
-          `contents: ${shown({ file })} has no fresh contents list - run \`vulcan x okf gen\``,
+          `contents: ${shown({ file })} has no fresh contents list - run \`vulcan okf gen\``,
       );
   }
 

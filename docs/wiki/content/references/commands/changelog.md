@@ -1,19 +1,19 @@
 ---
-title: vulcan changelog
+title: vulcan check changelog
 description: Check a project's changelog against its format, and print the release notes of a version.
 ---
 
-# vulcan changelog
+# vulcan check changelog
 
-`vulcan changelog` has two subcommands. `check` is the gate over the changelog of the project: its dated entries, its version folders and the `migration` blocks they carry. `notes` prints what a GitHub Release of one version shows.
+`vulcan check changelog` is the gate over the changelog of the project: its dated entries, its version folders and the `migration` blocks they carry. `notes` prints what a GitHub Release of one version shows.
 
-Both run atlas's `changelogs` command at the pinned version ([`vulcan x atlas changelogs`](/references/atlas/)) over the folder `knowledge.changelogs` names. Run them from the project root.
+Both run atlas's `changelogs` command at the pinned version ([`vulcan atlas changelogs`](/references/atlas/)) over the folder `knowledge.changelogs` names. Run them from the project root.
 
 ## Synopsis
 
 ```text
-vulcan changelog check [--history --base <ref>]
-vulcan changelog notes --version <X.Y.Z> [--migration]
+vulcan check changelog [--history --base <ref>]
+vulcan migrate notes --version <X.Y.Z> [--migration]
 ```
 
 - `check`: Reads the working tree and prints each problem as `<file>: <message>` on stderr.
@@ -21,17 +21,17 @@ vulcan changelog notes --version <X.Y.Z> [--migration]
 - `notes --version <X.Y.Z>`: Prints the notes of `changelogs/<X.Y.Z>/log.md`. The version must be written `X.Y.Z`.
 - `notes --version <X.Y.Z> --migration`: Prints the absolute path of that folder's `migration.yaml` when it holds a block, and nothing when it is absent, empty or `{}`.
 
-Any other form prints `usage: vulcan changelog check [--history --base <ref>] | notes --version <X.Y.Z> [--migration]` on stderr and exits `2`. That includes no subcommand, an unknown one, `--history` without `--base`, and a version that is not `X.Y.Z`.
+Any other form prints `usage: vulcan check changelog [--history --base <ref>] | notes --version <X.Y.Z> [--migration]` on stderr and exits `2`. That includes no subcommand, an unknown one, `--history` without `--base`, and a version that is not `X.Y.Z`.
 
 ## Examples
 
 From the project root:
 
 ```bash
-bun node_modules/.bin/vulcan changelog check
-bun node_modules/.bin/vulcan changelog check --history --base origin/develop
-bun node_modules/.bin/vulcan changelog notes --version 0.4.10
-bun node_modules/.bin/vulcan changelog notes --version 0.4.10 --migration
+bun node_modules/.bin/vulcan check changelog
+bun node_modules/.bin/vulcan check changelog --history --base origin/develop
+bun node_modules/.bin/vulcan migrate notes --version 0.4.10
+bun node_modules/.bin/vulcan migrate notes --version 0.4.10 --migration
 ```
 
 The command takes no `--app`: it reads the one changelog of the project, wherever its apps are. CI runs the second form on a pull request, with the branch it will merge into as the base. The default check runs no git.
@@ -67,7 +67,7 @@ The files are in `knowledge.changelogs`. With no such folder the check has nothi
 The body of `changelogs/<X.Y.Z>/log.md` without its frontmatter, then a `## Packages` list with a link to each live package of the project at that version. A `log.md` with no body prints `No change for users of the packages in this release.` instead of the body.
 
 ```text
-$ bun node_modules/.bin/vulcan changelog notes --version 0.4.10 | tail -5
+$ bun node_modules/.bin/vulcan migrate notes --version 0.4.10 | tail -5
 ## Packages
 
 - [@venizia/vulcan-okf@0.4.10](https://www.npmjs.com/package/@venizia/vulcan-okf/v/0.4.10)

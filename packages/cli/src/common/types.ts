@@ -33,7 +33,7 @@ export class ConstClass {
   }
 }
 
-/** Where `vulcan x` finds a tool: the npm package and the bin it declares. */
+/** Where `vulcan atlas` or `vulcan okf` finds a tool: the npm package and the bin it declares. */
 export interface IToolPackage {
   packageName: string;
   binName: string;

@@ -39,7 +39,7 @@ const initInTerminal = (opts: { answers: string[] }) => {
   const parent = createProject({ files: {} });
   const { code, output } = runInTerminal({
     cwd: parent,
-    args: ['init', '--preset', `file:${BACKEND}`, '--key', 'TEST'],
+    args: ['project', 'init', '--preset', `file:${BACKEND}`, '--key', 'TEST'],
     answers: opts.answers,
     env: { VULCAN_NO_INSTALL: '1' },
   });
@@ -65,7 +65,7 @@ const isAscending = (opts: { values: number[] }): boolean =>
     (value, index) => value >= 0 && (index === 0 || value > opts.values[index - 1]),
   );
 
-describe.skipIf(!hasScript)('vulcan init --preset in a terminal', () => {
+describe.skipIf(!hasScript)('vulcan project init --preset in a terminal', () => {
   test('the four prompts build the same project the flags build', () => {
     const { root, code, output } = initInTerminal({ answers: ANSWERS });
 
@@ -97,12 +97,13 @@ describe.skipIf(!hasScript)('vulcan init --preset in a terminal', () => {
   });
 });
 
-describe.skipIf(!hasScript)('vulcan init --preset <npm package> in a terminal', () => {
+describe.skipIf(!hasScript)('vulcan project init --preset <npm package> in a terminal', () => {
   const initNpm = (opts: { answers: string[] }) => {
     const parent = createProject({ files: {} });
     const { code, output } = runInTerminal({
       cwd: parent,
       args: [
+        'project',
         'init',
         '--preset',
         `@fixture/backend@file:${packFolder({ folder: BACKEND })}`,
@@ -162,7 +163,14 @@ describe.skipIf(!hasScript)('vulcan init --preset <npm package> in a terminal', 
     const parent = createProject({ files: {} });
     const { code, output } = runInTerminal({
       cwd: parent,
-      args: ['init', '--preset', '@fixture/missing@file:/no/such/folder.tgz', '--key', 'TEST'],
+      args: [
+        'project',
+        'init',
+        '--preset',
+        '@fixture/missing@file:/no/such/folder.tgz',
+        '--key',
+        'TEST',
+      ],
       answers: ['my-product'],
       env: { VULCAN_BUN: bunForNpmPreset() },
     });
@@ -174,11 +182,12 @@ describe.skipIf(!hasScript)('vulcan init --preset <npm package> in a terminal', 
   });
 });
 
-describe.skipIf(!hasScript)('vulcan add --preset <npm package> in a terminal', () => {
+describe.skipIf(!hasScript)('vulcan package add --preset <npm package> in a terminal', () => {
   test('fetches quietly, then asks folder and app name', () => {
     const parent = createProject({ files: {} });
     const created = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `file:${BACKEND}`,
@@ -198,7 +207,12 @@ describe.skipIf(!hasScript)('vulcan add --preset <npm package> in a terminal', (
     const root = join(parent, 'my-product');
     const { code, output } = runInTerminal({
       cwd: root,
-      args: ['add', '--preset', `@fixture/backend@file:${packFolder({ folder: BACKEND })}`],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        `@fixture/backend@file:${packFolder({ folder: BACKEND })}`,
+      ],
       answers: ['', 'second-api'],
       env: { VULCAN_BUN: bunForNpmPreset() },
     });

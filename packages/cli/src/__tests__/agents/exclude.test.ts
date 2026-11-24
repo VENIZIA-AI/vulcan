@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { AgentExclude } from '../../agents/index.ts';
 
 const EXCLUDE_BLOCK_START =
-  '# vulcan:start - written by vulcan sync for the agents you chose; do not edit';
+  '# vulcan:start - written by vulcan project sync for the agents you chose; do not edit';
 const EXCLUDE_BLOCK_END = '# vulcan:end';
 
 describe('AgentExclude.excludePathsOf', () => {

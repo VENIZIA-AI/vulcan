@@ -35,26 +35,26 @@ The knowledge bundle lives at `.agents/knowledge/` by default:
 |---|---|---|
 | `index.md` | Root bundle entry point | Carries no frontmatter except `okf_version` at root |
 | `<section>/<name>.md` | Curated concepts | Requires YAML frontmatter with a non-empty `type` |
-| `reference/` | Generated reference pages | Derived from source code by `vulcan x okf gen` |
+| `reference/` | Generated reference pages | Derived from source code by `vulcan okf gen` |
 
 ## Checking it
 
-Run `vulcan x okf check` to validate conformance to the Open Knowledge Format v0.2 specification.
+Run `vulcan okf check` to validate conformance to the Open Knowledge Format v0.2 specification.
 Both commands exit with code 0 on success and exit with code 1 on errors.
 
 | Command | What a failure looks like |
 |---|---|
-| `vulcan x okf check` | `.agents/knowledge/overview/example.md: §11.2 missing or empty top-level type` |
-| `vulcan x okf check --strict` | `.agents/knowledge/overview/example.md: broken link -> /overview/missing.md` |
+| `vulcan okf check` | `.agents/knowledge/overview/example.md: §11.2 missing or empty top-level type` |
+| `vulcan okf check --strict` | `.agents/knowledge/overview/example.md: broken link -> /overview/missing.md` |
 
 What each one checks:
 
-- `vulcan x okf check` validates OKF conformance. Every concept needs parseable frontmatter with a non-empty `type`. `index.md` carries no frontmatter except `okf_version` at the root. Soft guidance (status, timestamps, actors) prints as warnings and does not fail.
-- `vulcan x okf check --strict` adds the project house rules. It checks link resolution, brand casing, hyphen style, structural coverage, and generation freshness.
+- `vulcan okf check` validates OKF conformance. Every concept needs parseable frontmatter with a non-empty `type`. `index.md` carries no frontmatter except `okf_version` at the root. Soft guidance (status, timestamps, actors) prints as warnings and does not fail.
+- `vulcan okf check --strict` adds the project house rules. It checks link resolution, brand casing, hyphen style, structural coverage, and generation freshness.
 
 ## Generated pages
 
-`vulcan x okf gen` derives reference pages from source code, rendering only what `okf.renderers` lists (default `[]`).
+`vulcan okf gen` derives reference pages from source code, rendering only what `okf.renderers` lists (default `[]`).
 To enable `makefile-targets`, add the config line:
 
 ```ts
@@ -71,7 +71,7 @@ For built-in renderers and custom modules, see [okf renderers](/references/okf/r
 
 ## Coverage
 
-`vulcan x okf coverage` audits curated concepts against directory axes configured under `okf.coverage`.
+`vulcan okf coverage` audits curated concepts against directory axes configured under `okf.coverage`.
 With no axes configured (default `[]`), the report prints `structural: 0/0 100%` because zero directories are expected.
 For axis configuration and threshold gates, see the [okf reference](/references/okf/).
 
@@ -80,7 +80,7 @@ For axis configuration and threshold gates, see the [okf reference](/references/
 Rule `V-P-04` requires updating the knowledge bundle whenever code changes a fact.
 
 To audit concepts against repository code, ask your agent to audit the knowledge bundle.
-The `docs-update` skill does it, and `vulcan doctor` must pass before starting.
+The `docs-update` skill does it, and `vulcan project doctor` must pass before starting.
 
 The skill audits concepts against code, treating source code as ground truth.
 Every finding cites a `file:line` witness.
@@ -88,9 +88,9 @@ The skill reports confirmed changes and does not commit edits.
 
 Before finishing, the skill runs three validation gates:
 
-1. `vulcan x okf gen`
-2. `vulcan x okf check --strict`
-3. `vulcan x okf coverage --min 100`
+1. `vulcan okf gen`
+2. `vulcan okf check --strict`
+3. `vulcan okf coverage --min 100`
 
 ## See also
 

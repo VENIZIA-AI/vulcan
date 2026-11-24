@@ -152,9 +152,9 @@ describe('precedence: the local value replaces the whole key', () => {
   });
 });
 
-describe('vulcan sync with a local file', () => {
+describe('vulcan project sync with a local file', () => {
   const sync = (root: string, agents = 'claude') =>
-    runCli({ args: ['sync', '--agents', agents], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', agents], cwd: root });
 
   test('keeps board and local when it writes the agents, and writes nothing else of them', () => {
     const root = projectWith({ local: { board: { agents: ROSTER }, local: { tmp: 't' } } });
@@ -220,10 +220,10 @@ describe('vulcan sync with a local file', () => {
   });
 });
 
-describe('vulcan doctor', () => {
+describe('vulcan project doctor', () => {
   test('names the file and the key of a broken local value', () => {
     const root = projectWith({ local: { local: { tmp: '../out' } } });
-    const result = runCli({ args: ['doctor'], cwd: root });
+    const result = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(result.stderr + result.stdout).toContain('local.tmp');
     expect(result.stderr + result.stdout).toContain(LOCAL_AGENTS_FILE);

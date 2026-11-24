@@ -174,7 +174,7 @@ A record can also carry these fields:
 | `truncated` | `true` when something was left out of `declaration` to stay within that budget |
 | `declarationOf` | The specifier of an earlier match that has the same declaration, which is then not repeated |
 
-A remote source answers with the declarations of the copy the app has installed, read again when the installed version changes while the server runs (a bump, a `bun install`). Check `origin` when a signature looks old: a different version than the one you run means another copy was read, and `vulcan x atlas status` lists every copy.
+A remote source answers with the declarations of the copy the app has installed, read again when the installed version changes while the server runs (a bump, a `bun install`). Check `origin` when a signature looks old: a different version than the one you run means another copy was read, and `vulcan atlas status` lists every copy.
 
 With `external`, `file` points inside `node_modules`, an install detail and not repository source. `declaration` holds its TSDoc, its members, and the declarations of the exported symbols it uses, nearest first.
 
@@ -325,7 +325,7 @@ to must be a YYYY-MM-DD date when no package is given; got '0.2.0-16'
 | `from` | String | The installed version | The version the app runs now |
 | `app` | String | The server's working directory | The app directory to scan |
 
-The reply holds `app`, `plans` (one for each package), `skipped` and, when a source atlas serves could not be served, `notServed`: the sources still indexing or failed, with the reason, and what the answer covers. A plan that holds no entry or no structured step is not a clean result when `notServed` is present. `skipped`: an installed package the release table cannot place (a local build, a version that was never released) is listed there with the reason while the other packages are planned. `unserved` lists the installed packages no atlas source serves, by name (VULCAN itself is one in a project that does not list it as a source); the Markdown plan prints them as one line. Naming such a package with `package` is an error instead, which points to `atlas.sources` and `vulcan x atlas pull`. A plan holds:
+The reply holds `app`, `plans` (one for each package), `skipped` and, when a source atlas serves could not be served, `notServed`: the sources still indexing or failed, with the reason, and what the answer covers. A plan that holds no entry or no structured step is not a clean result when `notServed` is present. `skipped`: an installed package the release table cannot place (a local build, a version that was never released) is listed there with the reason while the other packages are planned. `unserved` lists the installed packages no atlas source serves, by name (VULCAN itself is one in a project that does not list it as a source); the Markdown plan prints them as one line. Naming such a package with `package` is an error instead, which points to `atlas.sources` and `vulcan atlas pull`. A plan holds:
 
 - `package`, `from`, `to`: the move.
 - `direction`: `upgrade`, `downgrade`, or `none` when both versions are the same.
@@ -340,11 +340,11 @@ The reply holds `app`, `plans` (one for each package), `skipped` and, when a sou
 
 The scan reads static imports in `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs` and `.cjs` files, skipping `node_modules`, `dist`, `build`, `coverage` and folders that start with a dot: named, aliased, namespace and default imports, re-exports and `export *`, and a string `import()` of a module-specifier symbol. It does not scan `require()` calls or destructured namespaces, so an empty `touches` means no static import was found, not that the code is safe. It matches by name, without types, so a local that shadows an import is counted. A missing `app` directory is an error naming it.
 
-An entry that names several packages is in the plan of each. `vulcan migrate plan` and `vulcan x atlas migrate plan` print the same answer as Markdown or, with `--format json`, as this JSON.
+An entry that names several packages is in the plan of each. `vulcan migrate plan` and `vulcan atlas migrate plan` print the same answer as Markdown or, with `--format json`, as this JSON.
 
 ## presets
 
-`presets` answers "how do I create a new app or package here" from the manifest `vulcan sync` renders: which preset makes it, which folder it lands in, and the exact `vulcan add` command. An agent asked to create something calls it before it writes a file.
+`presets` answers "how do I create a new app or package here" from the manifest `vulcan project sync` renders: which preset makes it, which folder it lands in, and the exact `vulcan package add` command. An agent asked to create something calls it before it writes a file.
 
 The answer lists the presets this project recorded first (`inProject: true`), then the official presets it has not used yet (`inProject: false`): `ignis` (a backend app, a library other apps import) and `ardor` (a frontend app, a feature package other apps import). A shared kind (a side-neutral package) is listed for an official preset only after that preset publishes one. A project that only ever made a backend therefore still learns that an ARDOR frontend exists, with its command.
 
@@ -367,7 +367,7 @@ For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `com
       "side": "backend",
       "summary": "An IGNIS API on Bun.",
       "folder": "services",
-      "command": "bun node_modules/.bin/vulcan add --preset ignis --app web2",
+      "command": "bun node_modules/.bin/vulcan package add --preset ignis --app web2",
       "inProject": true
     },
     {
@@ -375,7 +375,7 @@ For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `com
       "side": "frontend",
       "summary": "ARDOR: a frontend app on Vite and React (official; not yet in this project)",
       "folder": null,
-      "command": "bun node_modules/.bin/vulcan add --preset ardor --app web2 --frontend-dir <folder> --api <backend app> | --no-api",
+      "command": "bun node_modules/.bin/vulcan package add --preset ardor --app web2 --frontend-dir <folder> --api <backend app> | --no-api",
       "inProject": false
     }
   ]
@@ -384,7 +384,7 @@ For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `com
 
 A recorded preset of the same package (`ignis`, `@venizia/ignis`, `ignis@0.3.5`) replaces the official entry, so a preset is listed once. When no entry is in the project, a `note` says so. When nothing fits the kind, `presets` is empty and a `note` says what to do instead. The tool never offers an app preset for a library or a shared package, or a command that does not exist:
 
-- A kind other than `app`, `lib` or `shared`: `no preset makes a <kind> (vulcan add makes apps, libs and shared packages): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app, lib or shared preset for it`
+- A kind other than `app`, `lib` or `shared`: `no preset makes a <kind> (vulcan package add makes apps, libs and shared packages): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app, lib or shared preset for it`
 - The project recorded no preset: `this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use`
 - No recorded preset makes the kind or side: `no recorded preset makes a <lib, shared or side>: the entries are the official ones, marked inProject false; ask the user which to use, and do not hand-write package.json, tsconfig or scripts`
 - No preset at all makes the kind (a `shared` ask while no recorded preset has a shared kind and no official one has published it): `no preset makes a shared: ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app preset for it`
@@ -418,10 +418,10 @@ In repository mode, the `initialize` reply names the server `<project>-atlas`:
 
 An agent discovers available tools by sending a `tools/list` request.
 The server returns tool definitions containing `name`, `description`, and `inputSchema`.
-To inspect tool declarations without an MCP client, run `vulcan x atlas tools`:
+To inspect tool declarations without an MCP client, run `vulcan atlas tools`:
 
 ```text
-$ bun node_modules/.bin/vulcan x atlas tools
+$ bun node_modules/.bin/vulcan atlas tools
 search   When the user asks how something works in demo-app, how to build something in it, or about this project's conventions, search here before you answer from memory
 get      After `search`, read the hit here before you rely on it
 intent   When you are about to write a helper, a hook or a utility by hand, or the user asks how to do something with demo-app, say the need in plain words here first: it names the export that already does it

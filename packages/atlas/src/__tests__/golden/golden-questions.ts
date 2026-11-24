@@ -78,7 +78,10 @@ export const GOLDEN_QUESTIONS: IGoldenQuestion[] = [
     project: GoldenProjects.VULCAN,
     ask: {
       tool: 'search',
-      args: { query: 'strict schema upgrade order config unknown key vulcan sync', limit: 10 },
+      args: {
+        query: 'strict schema upgrade order config unknown key vulcan project sync',
+        limit: 10,
+      },
     },
     holds: [
       'The schema is strict.',

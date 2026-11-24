@@ -45,7 +45,7 @@ describe('BrowserSocket', () => {
   });
 });
 
-describe('vulcan doctor: the project tmp folder and a browser socket', () => {
+describe('vulcan project doctor: the project tmp folder and a browser socket', () => {
   test('a deep checkout: the warning names the folder, the length, the limit and the shorter path', async () => {
     const root = deepProject();
     const folder = join(root, TMP);

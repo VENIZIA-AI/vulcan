@@ -47,8 +47,8 @@ test('the brand defaults to the root package name without scope and -workspace, 
   expect(OkfProject.read().brand).toBe('ACME');
 });
 
-test('outside vulcan x it stops with what to do', () => {
-  expect(() => OkfProject.read()).toThrow('okf: no project config - run through `vulcan x okf`');
+test('outside vulcan atlas it stops with what to do', () => {
+  expect(() => OkfProject.read()).toThrow('okf: no project config - run through `vulcan okf`');
 });
 
 test('one read per process: the same handoff gives back the same project', () => {
@@ -68,7 +68,7 @@ test('a VULCAN_CONFIG that is empty or not JSON stops with what to do', () => {
     process.env.VULCAN_PROJECT_ROOT = ROOT;
 
     expect(() => OkfProject.read()).toThrow(
-      'okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan x`',
+      'okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan atlas` or `vulcan okf`',
     );
   }
 });

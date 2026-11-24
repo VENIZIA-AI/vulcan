@@ -62,8 +62,8 @@ const isAlive = (opts: { pid: number }): boolean => {
 
 /**
  * What a server remembers about its sources between starts, in one small file beside the cache (`atlas/status.json`),
- * so a server that starts can answer from the last good index while it checks the remote again, and `vulcan x atlas
- * status` and `vulcan doctor` can say what happened. A file that is missing, unreadable or of another version reads as
+ * so a server that starts can answer from the last good index while it checks the remote again, and `vulcan atlas
+ * status` and `vulcan project doctor` can say what happened. A file that is missing, unreadable or of another version reads as
  * empty: it is a hint, never a source of truth, and it never stops a start. What cannot be read or written is logged.
  */
 export class SourceStatus {

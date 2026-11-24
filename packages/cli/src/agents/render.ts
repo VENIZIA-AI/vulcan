@@ -25,6 +25,7 @@ export class McpConfig {
 
     if (
       JSON.stringify(entry) === JSON.stringify(McpConfig.canonicalAtlasEntry()) ||
+      JSON.stringify(entry) === JSON.stringify(McpConfig.previousAtlasEntry()) ||
       JSON.stringify(entry) === JSON.stringify(McpConfig.legacyAtlasEntry())
     ) {
       return true;
@@ -32,13 +33,16 @@ export class McpConfig {
 
     const keys = Object.keys(entry).filter((key) => key !== 'type');
     const [bin, ...rest] = entry.args;
-    const root = rest[4];
+    // `atlas mcp --root <root>` now, `x atlas mcp --root <root>` before the scopes: both are sync's own.
+    const isPrevious = rest.slice(0, 4).join(' ') === 'x atlas mcp --root';
+    const isCurrent = rest.slice(0, 3).join(' ') === 'atlas mcp --root';
+    const root = isPrevious ? rest[4] : rest[3];
 
     return (
       keys.length === 2 &&
       (entry.type === undefined || entry.type === 'stdio') &&
-      entry.args.length === 6 &&
-      rest.slice(0, 4).join(' ') === 'x atlas mcp --root' &&
+      entry.args.length === (isPrevious ? 6 : 5) &&
+      (isPrevious || isCurrent) &&
       typeof root === 'string' &&
       bin === join(root, 'node_modules', '.bin', 'vulcan')
     );
@@ -66,7 +70,6 @@ export class McpConfig {
       command: 'bun',
       args: [
         join(opts.root, 'node_modules', '.bin', 'vulcan'),
-        'x',
         'atlas',
         'mcp',
         '--root',
@@ -84,11 +87,19 @@ export class McpConfig {
   static canonicalAtlasEntry(): { command: string; args: string[] } {
     return {
       command: 'bun',
+      args: ['node_modules/.bin/vulcan', 'atlas', 'mcp', '--root', '.'],
+    };
+  }
+
+  /** The entry of the release before the scopes (`x atlas mcp`): it still runs, and a sync rewrites it. */
+  static previousAtlasEntry(): { command: string; args: string[] } {
+    return {
+      command: 'bun',
       args: ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
     };
   }
 
-  /** The entry earlier versions wrote: recognised as sync's own, so a sync rewrites it, and named stale by `vulcan doctor`. */
+  /** The entry earlier versions wrote: recognised as sync's own, so a sync rewrites it, and named stale by `vulcan project doctor`. */
   static legacyAtlasEntry(): { command: string; args: string[] } {
     return {
       command: 'bun',

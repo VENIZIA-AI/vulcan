@@ -6,8 +6,8 @@ description: Show the config as the commands read it, merged from the shipped de
 # vulcan config
 
 ```text
-vulcan config --effective
-vulcan config --diff
+vulcan config effective
+vulcan config diff
 vulcan config format [--check]
 ```
 
@@ -48,7 +48,7 @@ $ bun node_modules/.bin/vulcan config format --check
 the order: name, rules, packages, atlas, remove
 ```
 
-`vulcan doctor` notes the same as [`config-order`](/references/commands/doctor#config-order).
+`vulcan project doctor` notes the same as [`config-order`](/references/commands/doctor#config-order).
 
 Exit codes: `0` formatted or already in order; `1` with `--check` when a key would move; `2` on bad input, no `.configs/vulcan.config.mts`, or a config whose keys cannot be ordered.
 
@@ -85,7 +85,7 @@ The base denies no git write: a project that wants that picks the `read-only` ch
 - The coreutils of some systems (uutils) accept a unique prefix of a long option, so a pattern for a long flag may be sidestepped on them; ripgrep and the git read subcommands reject prefixes, which the patterns rely on. Reads of `/proc/<pid>/environ` and `jq env` can show environment values; restricting which paths a command reads is out of scope for an allow list.
 - The `rg --pre` and `--hostname-bin` denies stop a program being named on the command line (ripgrep does not accept a prefix of those flags).
 
-To take a shipped line out: `remove: { 'claude.settings.permissions.allow': ['Bash(date:*)'] }`, or `deny` for a shipped deny that refuses a command your own allow line used to permit; `vulcan config --effective` shows what is in, and `--diff` which of your lines repeat it.
+To take a shipped line out: `remove: { 'claude.settings.permissions.allow': ['Bash(date:*)'] }`, or `deny` for a shipped deny that refuses a command your own allow line used to permit; `vulcan config effective` shows what is in, and `--diff` which of your lines repeat it.
 
 ## See also
 

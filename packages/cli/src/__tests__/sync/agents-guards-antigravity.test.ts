@@ -14,7 +14,7 @@ const PROJECT = {
 const HOOKS = '.agents/hooks.json';
 
 const sync = (opts: { root: string; agents: string }) =>
-  runCli({ args: ['sync', '--agents', opts.agents], cwd: opts.root });
+  runCli({ args: ['project', 'sync', '--agents', opts.agents], cwd: opts.root });
 
 const hooksOf = (opts: { root: string }): Record<string, unknown> =>
   JSON.parse(readFileSync(join(opts.root, HOOKS), 'utf8'));

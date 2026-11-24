@@ -53,5 +53,5 @@ export class AgentConstants {
   /** The extension template sync copies for an agent whose `guards` kind is `extension`, under the package's base. */
   static readonly GUARD_EXTENSION_TEMPLATE = 'extensions/vulcan-guards.ts';
   /** The first line of the template: a file that starts with it is sync's, to rewrite or remove. */
-  static readonly GUARD_EXTENSION_MARKER = '// Written by `vulcan sync`';
+  static readonly GUARD_EXTENSION_MARKER = '// Written by `vulcan project sync`';
 }

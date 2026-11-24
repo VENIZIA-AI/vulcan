@@ -40,7 +40,7 @@ const CHECKS = [
   "no network, no font, no image, a policy that allows only the page's own style and script",
 ];
 
-/** Validates a JSON spec and renders it as one static HTML page; used by `vulcan visualize`. */
+/** Validates a JSON spec and renders it as one static HTML page; used by `vulcan page new`. */
 export class SpecPage {
   /** Spec text to a page: parse, validate, cross-check, render, size gate. Nothing is written here. */
   static renderText(opts: { text: string; context?: IRenderContext }): TRenderResult {
@@ -166,7 +166,7 @@ export class SpecPage {
     if (local === undefined) {
       return {
         ok: false,
-        error: `no .agents/local/ in ${opts.root} (or it is a symlink, or resolves outside the project) - run vulcan sync first`,
+        error: `no .agents/local/ in ${opts.root} (or it is a symlink, or resolves outside the project) - run vulcan project sync first`,
       };
     }
 

@@ -20,14 +20,14 @@ Coding agents start every session with no memory of your rules and facts, and ev
 
 ```bash
 bun add -d --exact @venizia/vulcan
-bun node_modules/.bin/vulcan init
-bun node_modules/.bin/vulcan sync
-bun node_modules/.bin/vulcan doctor
+bun node_modules/.bin/vulcan project init
+bun node_modules/.bin/vulcan project sync
+bun node_modules/.bin/vulcan project doctor
 ```
 
 `doctor` fails with `[scaffold]` until you describe the project in `.agents/knowledge/index.md` and delete the `vulcan:scaffold` line; it is the first item `init` lists under `left to do`.
 
-`init` writes the project layer, `sync` writes the files your agents read, and `doctor` checks the result. Upgrades are one version bump and another `sync` (`vulcan upgrade` does both).
+`init` writes the project layer, `sync` writes the files your agents read, and `doctor` checks the result. Upgrades are one version bump and another `sync` (`vulcan project upgrade` does both).
 
 > [!NOTE]
 > VULCAN needs Bun 1.4.4 or newer and is built for [VENIZIA](https://venizia.ai) projects.
@@ -40,13 +40,13 @@ bun node_modules/.bin/vulcan doctor
 | Part | What it does | Where to read more |
 |---|---|---|
 | [Base rules](/guides/core-concepts/rules-and-slots) | 36 rules in five groups that the agent reads at session start | `node_modules/@venizia/vulcan/base/rules.md`, `.agents/rules.md` |
-| [Guards](/guides/core-concepts/hooks-and-guards) | Hooks that ask or refuse before a risky command | `vulcan sync` and `guard` in the config |
-| [Skills](/references/skills) | 11 workflows an agent loads when the task matches | `vulcan sync` links them |
+| [Guards](/guides/core-concepts/hooks-and-guards) | Hooks that ask or refuse before a risky command | `vulcan project sync` and `guard` in the config |
+| [Skills](/references/skills) | 11 workflows an agent loads when the task matches | `vulcan project sync` links them |
 | [The owner and the reply shape](/guides/core-concepts/owner-and-replies) | The agent answers its owner in a fixed shape, in the owner's language | `owner` in the config, `vulcan profile` |
 | [Work items](/guides/core-concepts/work-items) | A template for a unit of work a person can read and a fresh agent can do | `base/references/work-item.md` |
-| [Knowledge bundle](/guides/core-concepts/knowledge-bundle) | Markdown facts about your project, checked in Open Knowledge Format v0.2 | `vulcan x okf` |
-| [atlas](/guides/core-concepts/atlas) | An MCP server with 8 tools that searches your docs, changelogs and symbols | `vulcan x atlas mcp` |
-| [doctor](/references/commands/doctor) | Checks that the repository follows the contract | `vulcan doctor` |
+| [Knowledge bundle](/guides/core-concepts/knowledge-bundle) | Markdown facts about your project, checked in Open Knowledge Format v0.2 | `vulcan okf` |
+| [atlas](/guides/core-concepts/atlas) | An MCP server with 8 tools that searches your docs, changelogs and symbols | `vulcan atlas mcp` |
+| [doctor](/references/commands/doctor) | Checks that the repository follows the contract | `vulcan project doctor` |
 
 More on the rows:
 
@@ -56,11 +56,11 @@ More on the rows:
 - Skills: plan, build, fix, review, report, ship, research, retro, docs.
 - atlas: it also searches the docs, changelogs and symbols of other projects.
 
-Also in the box: `vulcan add` makes an app or a library other apps import from a framework preset, `vulcan preset diff` shows where an app drifted from its preset, `vulcan clean` removes what agents left under `.agents/local/`, and `vulcan visualize` makes a small HTML page from a JSON spec ([commands](/references/commands/)).
+Also in the box: `vulcan package add` makes an app or a library other apps import from a framework preset, `vulcan package diff` shows where an app drifted from its preset, `vulcan project clean` removes what agents left under `.agents/local/`, and `vulcan page new` makes a small HTML page from a JSON spec ([commands](/references/commands/)).
 
 ## How mature it is
 
-VULCAN is on the 0.4 line. The config schema and the commands still change between releases, and every release is a patch release, breaking ones included, so each changelog entry says who is affected and what to do. Run `vulcan sync` after every upgrade.
+VULCAN is on the 0.4 line. The config schema and the commands still change between releases, and every release is a patch release, breaking ones included, so each changelog entry says who is affected and what to do. Run `vulcan project sync` after every upgrade.
 
 What has been run, and what has not:
 
@@ -87,7 +87,7 @@ A project installs only `@venizia/vulcan`. The other two ship inside it as depen
 
 ## What a project looks like
 
-`vulcan init` and `vulcan sync` add these files to a single-package repository. The list drops `bun.lock`, `package.json` and the `.claude/skills/*` links, and `sync` also edits the atlas block of `AGENTS.md`.
+`vulcan project init` and `vulcan project sync` add these files to a single-package repository. The list drops `bun.lock`, `package.json` and the `.claude/skills/*` links, and `sync` also edits the atlas block of `AGENTS.md`.
 
 ```text
 ./.agents/knowledge/index.md            # committed: root of the knowledge bundle
@@ -96,7 +96,7 @@ A project installs only `@venizia/vulcan`. The other two ship inside it as depen
 ./.agents/atlas.manifest.json                # committed: what atlas reads, written by sync
 ./.agents/local/vulcan.manifest.json         # gitignored: what the hooks read, written by sync
 ./.agents/local/profile.json             # gitignored: the coding agents you chose on this machine
-./.agents/local/                        # gitignored: scratch, worktrees, reports, profile (vulcan clean)
+./.agents/local/                        # gitignored: scratch, worktrees, reports, profile (vulcan project clean)
 ./CLAUDE.md                             # gitignored: agent adapter pointing to AGENTS.md
 ./.claude/settings.json                 # gitignored: merged settings and registered hooks
 ./.claude/vulcan-managed.json           # gitignored: record of applied settings
@@ -115,8 +115,8 @@ A monorepo keeps the lint configs in each app instead of the root. Each agent yo
 
 ```bash
 # edit .configs/vulcan.config.mts
-bun node_modules/.bin/vulcan sync
-bun node_modules/.bin/vulcan doctor
+bun node_modules/.bin/vulcan project sync
+bun node_modules/.bin/vulcan project doctor
 ```
 
 ## What VULCAN does not do

@@ -202,7 +202,7 @@ describe('WorkspacePackages.derive', () => {
 });
 
 describe('the loader: packages the config does not write are derived, a list it writes is the list', () => {
-  test('an absent key is derived, and `vulcan config --effective` says so', async () => {
+  test('an absent key is derived, and `vulcan config effective` says so', async () => {
     const root = monorepo();
     const loaded = await ConfigLoader.load({ root });
 
@@ -213,7 +213,7 @@ describe('the loader: packages the config does not write are derived, a list it 
     ]);
     expect(loaded.ok ? loaded.layers.merge.from.packages : undefined).toBe('workspaces');
 
-    const out = JSON.parse(runCli({ args: ['config', '--effective'], cwd: root }).stdout);
+    const out = JSON.parse(runCli({ args: ['config', 'effective'], cwd: root }).stdout);
 
     expect(out.config.packages).toHaveLength(3);
     expect(out.from.packages).toBe('workspaces');

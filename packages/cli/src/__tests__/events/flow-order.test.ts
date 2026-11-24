@@ -19,7 +19,7 @@ const project = (): string =>
   });
 const cli = (opts: { root: string; args: string[] }) =>
   runCli({
-    args: ['event', ...opts.args],
+    args: opts.args,
     cwd: opts.root,
     env: { ...hermeticEnv(), VULCAN_ACTOR: 'pnt-vulcan-1' },
   });
@@ -30,7 +30,7 @@ const flowsOf = (root: string) =>
 const open = (opts: { root: string; extra?: string[] }): string =>
   cli({
     root: opts.root,
-    args: ['add', '--kind', 'flow', '--title', 'Sign in', '--step', 'Token', ...(opts.extra ?? [])],
+    args: ['flow', 'add', '--title', 'Sign in', '--step', 'Token', ...(opts.extra ?? [])],
   }).stdout.trim();
 
 describe('the order of a flow', () => {
@@ -49,14 +49,14 @@ describe('the order of a flow', () => {
 
     expect(flowsOf(root).at(-1)?.order).toBe(7);
 
-    cli({ root, args: ['step', '--flow', id, '--order', '4', '--order', '5'] });
+    cli({ root, args: ['flow', 'step', '--flow', id, '--order', '4', '--order', '5'] });
     expect(flowsOf(root).at(-1)?.order).toBe(5);
   });
 
   test('step --order changes only the order, and the line keeps its steps and title', () => {
     const root = project();
     const id = open({ root, extra: ['--order', '1'] });
-    const done = cli({ root, args: ['step', '--flow', id, '--order', '6'] });
+    const done = cli({ root, args: ['flow', 'step', '--flow', id, '--order', '6'] });
     const last = flowsOf(root).at(-1);
 
     expect(done.code).toBe(0);
@@ -69,20 +69,20 @@ describe('the order of a flow', () => {
     const root = project();
     const id = open({ root, extra: ['--order', '3'] });
 
-    cli({ root, args: ['step', '--flow', id, '--done', 'Token'] });
-    cli({ root, args: ['step', '--flow', id, '--next', 'review'] });
+    cli({ root, args: ['flow', 'step', '--flow', id, '--done', 'Token'] });
+    cli({ root, args: ['flow', 'step', '--flow', id, '--next', 'review'] });
     expect(flowsOf(root).at(-1)?.order).toBe(3);
 
     const before = flowsOf(root).length;
 
-    cli({ root, args: ['step', '--flow', id, '--order', '3'] });
+    cli({ root, args: ['flow', 'step', '--flow', id, '--order', '3'] });
     expect(flowsOf(root)).toHaveLength(before);
   });
 
   test('--order none clears it', () => {
     const root = project();
     const id = open({ root, extra: ['--order', '3'] });
-    const cleared = cli({ root, args: ['step', '--flow', id, '--order', 'none'] });
+    const cleared = cli({ root, args: ['flow', 'step', '--flow', id, '--order', 'none'] });
 
     expect(cleared.code).toBe(0);
     expect(flowsOf(root).at(-1)?.order).toBeUndefined();
@@ -94,14 +94,13 @@ describe('the order of a flow', () => {
     const id = open({ root });
 
     for (const value of ['0', '-1', '1.5', 'abc', '']) {
-      expect(cli({ root, args: ['step', '--flow', id, '--order', value] }).code).toBe(2);
+      expect(cli({ root, args: ['flow', 'step', '--flow', id, '--order', value] }).code).toBe(2);
     }
 
+    expect(cli({ root, args: ['flow', 'add', '--title', 'X', '--order', 'abc'] }).code).toBe(2);
     expect(
-      cli({ root, args: ['add', '--kind', 'flow', '--title', 'X', '--order', 'abc'] }).code,
-    ).toBe(2);
-    expect(
-      cli({ root, args: ['add', '--kind', 'note', '--summary', 'x', '--order', '2'] }).code,
+      cli({ root, args: ['event', 'add', '--kind', 'note', '--summary', 'x', '--order', '2'] })
+        .code,
     ).toBe(2);
     expect(flowsOf(root)).toHaveLength(1);
   });

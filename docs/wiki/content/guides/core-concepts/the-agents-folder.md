@@ -13,7 +13,7 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 ├── knowledge/                tracked   the facts: the knowledge bundle
 ├── skills/                   tracked   the project's own skills (optional)
 ├── hooks/                    tracked   scripts of the project's own hooks (optional)
-├── atlas.manifest.json       tracked   written by vulcan sync; atlas and the wiki build read it
+├── atlas.manifest.json       tracked   written by vulcan project sync; atlas and the wiki build read it
 ├── vulcan.manifest.json      tracked   a temporary copy of it for atlas of 0.5.0-6 and before; goes with the stable release
 ├── plans/                    ignored   plans an agent saved for you
 ├── specs/                    tracked   lane-L cards from plan-a-change (optional)
@@ -23,7 +23,7 @@ description: What lives in .agents, which parts git tracks, which parts are loca
     ├── clones/                         clones made for research
     ├── cache/                          the atlas source cache
     ├── reports/                        reports an agent wrote
-    ├── prototypes/                     throwaway prototypes and vulcan visualize pages
+    ├── prototypes/                     throwaway prototypes and vulcan page new pages
     ├── agents/                         one agent's own state: notes, staged copies, scratch that outlives a session (on demand)
     ├── events/                         the agent event log (on demand)
     ├── release-candidates/             builds made to test a release (on demand)
@@ -33,7 +33,7 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 
 `plans/` is created and ignored by init. `specs/` is the default folder where plan-a-change writes lane-L cards. It is not created and not ignored, so cards are tracked unless the project adds it to `.gitignore`.
 
-`vulcan init` puts `.agents/plans`, `.agents/local/`, the secret patterns (`**/.env`, `**/.env.*`, with `!**/.env.example` kept) in `.gitignore`. `sync` writes the manifest and the folders below.
+`vulcan project init` puts `.agents/plans`, `.agents/local/`, the secret patterns (`**/.env`, `**/.env.*`, with `!**/.env.example` kept) in `.gitignore`. `sync` writes the manifest and the folders below.
 
 ## What is tracked
 
@@ -42,25 +42,25 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 | `rules.md` | You | The project's rules, next to the base rules every VULCAN project inherits |
 | `knowledge/` | You and the okf tools | The facts about the project, in a bundle agents and atlas read |
 | `skills/`, `hooks/` | You | Skills and hook scripts that belong to the project; `sync` links the skills into `.claude/skills/` |
-| `atlas.manifest.json` | `vulcan sync` | What atlas reads: name, packages, layout, presets, knowledge, release, sources. Never edit it; `doctor` fails a stale one |
-| `vulcan.manifest.json` | `vulcan sync` | A temporary data-only copy of `atlas.manifest.json`, kept until the stable 0.5.0 release for atlas of 0.5.0-6 and before |
-| `local/vulcan.manifest.json` | `vulcan sync` | The resolved project in full: rule hashes and the settings the hooks, the board and `doctor` read. Gitignored; each clone writes its own |
+| `atlas.manifest.json` | `vulcan project sync` | What atlas reads: name, packages, layout, presets, knowledge, release, sources. Never edit it; `doctor` fails a stale one |
+| `vulcan.manifest.json` | `vulcan project sync` | A temporary data-only copy of `atlas.manifest.json`, kept until the stable 0.5.0 release for atlas of 0.5.0-6 and before |
+| `local/vulcan.manifest.json` | `vulcan project sync` | The resolved project in full: rule hashes and the settings the hooks, the board and `doctor` read. Gitignored; each clone writes its own |
 
 ## What is in local/ and when it goes
 
-Every folder of `local/` has a lifetime, and one command takes it back. `vulcan clean` is a dry run until you add `--yes`.
+Every folder of `local/` has a lifetime, and one command takes it back. `vulcan project clean` is a dry run until you add `--yes`.
 
 | Folder | Created | Goes when | Taken by |
 |---|---|---|---|
-| `tmp/` | by `sync` | The task ends. `doctor` warns after a day | `vulcan clean --tmp` (the default) |
-| `worktrees/` | by `sync` | Its branch is merged or gone. `doctor` warns | `vulcan clean --worktrees`, merged or gone branches with no uncommitted work only |
-| `clones/` | by `sync` | The research is reported. `doctor` warns after 14 days | `vulcan clean --clones` |
-| `cache/` | by `sync` | You ask; it rebuilds | `vulcan clean --cache` |
-| `reports/` | by `sync` | You delete it | `vulcan clean --reports` |
-| `prototypes/` | by `sync` | You delete it | `vulcan clean --prototypes` |
-| `agents/` | on first write | You delete it | Nothing: `vulcan clean` never takes it |
-| `events/` | on first write | You delete it | `vulcan clean --events` |
-| `release-candidates/` | on first write | The release ships | `vulcan clean --release-candidates`, tagged versions only |
+| `tmp/` | by `sync` | The task ends. `doctor` warns after a day | `vulcan project clean --tmp` (the default) |
+| `worktrees/` | by `sync` | Its branch is merged or gone. `doctor` warns | `vulcan project clean --worktrees`, merged or gone branches with no uncommitted work only |
+| `clones/` | by `sync` | The research is reported. `doctor` warns after 14 days | `vulcan project clean --clones` |
+| `cache/` | by `sync` | You ask; it rebuilds | `vulcan project clean --cache` |
+| `reports/` | by `sync` | You delete it | `vulcan project clean --reports` |
+| `prototypes/` | by `sync` | You delete it | `vulcan project clean --prototypes` |
+| `agents/` | on first write | You delete it | Nothing: `vulcan project clean` never takes it |
+| `events/` | on first write | You delete it | `vulcan project clean --events` |
+| `release-candidates/` | on first write | The release ships | `vulcan project clean --release-candidates`, tagged versions only |
 
 About two of these rows:
 
@@ -71,7 +71,7 @@ About two of these rows:
 
 ## The automatic clean
 
-You do not have to run `vulcan clean` for the safe part. At most once a day per project, the session-start hook starts a clean in a process of its own, so the session never waits (the hook only reads a stamp, `auto-clean.json`, and a manifest). It removes four things and nothing else:
+You do not have to run `vulcan project clean` for the safe part. At most once a day per project, the session-start hook starts a clean in a process of its own, so the session never waits (the hook only reads a stamp, `auto-clean.json`, and a manifest). It removes four things and nothing else:
 
 | What | When |
 |---|---|
@@ -82,11 +82,11 @@ You do not have to run `vulcan clean` for the safe part. At most once a day per 
 
 A `tmp/` folder that holds a repository stays: a `.git` folder or file anywhere inside it (a scratch clone, a `git worktree add` into `tmp/`; a `.git` inside `node_modules` does not count) is somebody's work.
 
-It never removes a worktree or a clone, wherever it sits, and never touches the cache, `reports/`, `prototypes/` or anything it does not know: a wrong guess there loses work, so those stay with `vulcan clean --yes` and the warnings of `vulcan doctor`. When a run removed something, the next session prints one line on stderr, such as `vulcan: cleaned 12.0 MB from .agents/local`. Set `local: { autoClean: false }` in the config to turn it off, or `VULCAN_AUTO_CLEAN=off` for one shell. A shared events folder outside the project is kept by whichever session starts first.
+It never removes a worktree or a clone, wherever it sits, and never touches the cache, `reports/`, `prototypes/` or anything it does not know: a wrong guess there loses work, so those stay with `vulcan project clean --yes` and the warnings of `vulcan project doctor`. When a run removed something, the next session prints one line on stderr, such as `vulcan: cleaned 12.0 MB from .agents/local`. Set `local: { autoClean: false }` in the config to turn it off, or `VULCAN_AUTO_CLEAN=off` for one shell. A shared events folder outside the project is kept by whichever session starts first.
 
 ## What doctor says
 
-`vulcan doctor` never deletes anything. It warns about:
+`vulcan project doctor` never deletes anything. It warns about:
 
 - an entry that has outlived its use (old `tmp/`, a worktree of a merged branch, an old clone, a shipped release candidate), with the command that takes it;
 - an entry directly under `.agents/local/` that is not in the tree above. Put scratch in `tmp/`, what you want to keep in `reports/`, and what one agent keeps for itself in `agents/<name>/`; nothing removes the unknown entry. A script the team relies on does not belong here: put it in the tracked tree (`scripts/`), where it gets review and history;
@@ -95,12 +95,12 @@ It never removes a worktree or a clone, wherever it sits, and never touches the 
 
 ## A browser's scratch folders
 
-Headless Chrome puts a folder `com.google.Chrome.XXXXXX` in the temp folder it is given, and leaves it when it is killed. The temp folder of VULCAN's own browser tests is a folder in the project where Chrome's socket path fits (107 characters at most), and the test removes the folders its browser made. The helper gives each run a folder of its own inside it when the path is short enough, and removes it whole at the end, so two runs at once never touch each other's files; when there is no room for that, it removes only the folder its own Chrome made (Chrome names it in a link in the run's own profile), and the small folders Chrome also makes stay. Folders left directly under `.agents/local/` by an earlier run or by another tool, `com.google.Chrome.*` and `org.chromium.Chromium.*`, with or without a leading dot, are taken by `vulcan clean --tmp` once they are an hour old.
+Headless Chrome puts a folder `com.google.Chrome.XXXXXX` in the temp folder it is given, and leaves it when it is killed. The temp folder of VULCAN's own browser tests is a folder in the project where Chrome's socket path fits (107 characters at most), and the test removes the folders its browser made. The helper gives each run a folder of its own inside it when the path is short enough, and removes it whole at the end, so two runs at once never touch each other's files; when there is no room for that, it removes only the folder its own Chrome made (Chrome names it in a link in the run's own profile), and the small folders Chrome also makes stay. Folders left directly under `.agents/local/` by an earlier run or by another tool, `com.google.Chrome.*` and `org.chromium.Chromium.*`, with or without a leading dot, are taken by `vulcan project clean --tmp` once they are an hour old.
 
 ## See also
 
 - [The project layer](/guides/core-concepts/the-project-layer): who owns which file
-- [vulcan clean](/references/commands/clean): the flags and the safety rules
-- [vulcan doctor](/references/commands/doctor): the warnings
+- [vulcan project clean](/references/commands/clean): the flags and the safety rules
+- [vulcan project doctor](/references/commands/doctor): the warnings
 - [vulcan event](/references/commands/event): the event log in `events/`
-- [vulcan board](/references/commands/board): the page it writes to `reports/board.html`
+- [vulcan board show](/references/commands/board): the page it writes to `reports/board.html`

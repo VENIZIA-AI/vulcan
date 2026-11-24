@@ -171,7 +171,7 @@ jobs:
       - name: Install
         run: bun install
 
-      # `vulcan x atlas` runs atlas's built dist.
+      # `vulcan atlas` runs atlas's built dist.
       - name: Build atlas
         run: make atlas
 

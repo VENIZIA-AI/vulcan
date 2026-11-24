@@ -47,11 +47,11 @@ A pair for another commit, another repository or another format is never used: a
 
 An ed25519 key pair per repository.
 
-- **The private key** is the Actions secret `ATLAS_INDEX_KEY`, and exists nowhere else. `vulcan x atlas index keygen` writes it under `.agents/local/` only while that folder is gitignored, never over an existing key, and prints only the public key.
+- **The private key** is the Actions secret `ATLAS_INDEX_KEY`, and exists nowhere else. `vulcan atlas index keygen` writes it under `.agents/local/` only while that folder is gitignored, never over an existing key, and prints only the public key.
 - **The public keys** are `atlas.index.keys` in the config, written to the manifest. A reader takes the keys from the manifest of the ref it serves, also for a pinned older tag: a tag older than the keys has none of its own, and its pair is not used unless the ref's keys signed it.
 - **No keys, no download.** A repository whose manifest lists none is built by its readers, always.
 
-To rotate a key: make a new pair, store the new private key as the secret, replace the list (or add the new key beside the old one for the overlap), run `vulcan sync` and commit. A pair signed by a key that is no longer listed stops verifying at once, and its readers build the index themselves until CI has published the commit again with the new key. The pairs of old release tags are not signed again.
+To rotate a key: make a new pair, store the new private key as the secret, replace the list (or add the new key beside the old one for the overlap), run `vulcan project sync` and commit. A pair signed by a key that is no longer listed stops verifying at once, and its readers build the index themselves until CI has published the commit again with the new key. The pairs of old release tags are not signed again.
 
 ## The limit of the trust
 

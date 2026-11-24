@@ -77,7 +77,7 @@ describe('changelogs', () => {
     const result = run({ args: ['changelogs', 'migrate'], cwd: makeTempDirectory() });
 
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain('usage: vulcan x atlas changelogs check');
+    expect(result.stderr).toContain('usage: vulcan atlas changelogs check');
   });
 });
 

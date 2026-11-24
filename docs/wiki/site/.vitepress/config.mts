@@ -4,7 +4,7 @@ import { writeChangelogFeed } from './theme/shared/changelog-loader.ts';
 import { venziaCodeTheme } from './theme/shared/code-theme.ts';
 import { WikiTheme } from './theme/shared/wiki-theme.ts';
 
-// The colours of the wiki are the project's resolved theme, as `vulcan sync` wrote it to the committed descriptor.
+// The colours of the wiki are the project's resolved theme, as `vulcan project sync` wrote it to the committed descriptor.
 const THEME = WikiTheme.read({
   manifest: new URL('../../../../.agents/atlas.manifest.json', import.meta.url).pathname,
 });

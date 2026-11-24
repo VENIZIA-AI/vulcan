@@ -7,7 +7,7 @@ const CODEX_BLOCK_END = '# vulcan:atlas:end';
 const ROOT = '/work/demo';
 const ENTRY = {
   command: 'bun',
-  args: [`${ROOT}/node_modules/.bin/vulcan`, 'x', 'atlas', 'mcp', '--root', ROOT],
+  args: [`${ROOT}/node_modules/.bin/vulcan`, 'atlas', 'mcp', '--root', ROOT],
 };
 
 describe('McpConfig.atlasServerEntry', () => {
@@ -191,7 +191,7 @@ describe('McpConfig.mergeCodexToml', () => {
       CODEX_BLOCK_START,
       '[mcp_servers.atlas]',
       'command = "bun"',
-      `args = ["${ROOT}/node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "${ROOT}"]`,
+      `args = ["${ROOT}/node_modules/.bin/vulcan", "atlas", "mcp", "--root", "${ROOT}"]`,
       CODEX_BLOCK_END,
       '',
     ].join('\n');

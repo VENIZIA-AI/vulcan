@@ -33,7 +33,7 @@ export class InstalledPackages {
   }
 
   /**
-   * Every installed copy of `name` under `roots` with its version, nearest the root first. `vulcan x atlas status`
+   * Every installed copy of `name` under `roots` with its version, nearest the root first. `vulcan atlas status`
    * names the first copy; `symbol` reads it when it has a version, else the newest release npm published (a later
    * copy that has a version is not used).
    */

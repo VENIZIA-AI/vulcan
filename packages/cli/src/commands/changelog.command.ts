@@ -4,10 +4,10 @@ import { runXCommand } from './x.command.ts';
 
 const SUBCOMMAND = 'check';
 const NOTES = 'notes';
-const USAGE = `usage: vulcan changelog ${SUBCOMMAND} [--history --base <ref>] | ${NOTES} --version <X.Y.Z> [--migration]`;
+const USAGE = `usage: vulcan check changelog [--history --base <ref>] | vulcan migrate notes --version <X.Y.Z> [--migration]`;
 
 /**
- * `vulcan changelog check` and `vulcan changelog notes`: atlas's `changelogs` command run at the pinned version, over this
+ * `vulcan check changelog` and `vulcan migrate notes`: atlas's `changelogs` command run at the pinned version, over this
  * project's entries.
  */
 export const runChangelogCommand = (opts: ICommandContext): Promise<number> => {

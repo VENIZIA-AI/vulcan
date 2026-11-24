@@ -6,7 +6,7 @@ import { EventConstants } from './common/index.ts';
 import type { IEventSettings } from './common/index.ts';
 import { EventRetention } from './retention.ts';
 
-/** Where the log is and whether the Claude Code hooks write it: the `events` block of the manifest `vulcan sync` wrote. */
+/** Where the log is and whether the Claude Code hooks write it: the `events` block of the manifest `vulcan project sync` wrote. */
 export class EventSettings {
   /** Why `dir` cannot be the shared folder, or `undefined` when it can. */
   static dirError(opts: { dir: string }): string | undefined {

@@ -10,7 +10,7 @@ const MANIFEST_FILE = '.agents/local/vulcan.manifest.json';
 
 export class CommitPolicy {
   /**
-   * The checks the project turned on, from the manifest `vulcan sync` wrote; undefined when the
+   * The checks the project turned on, from the manifest `vulcan project sync` wrote; undefined when the
    * project turned none on, or when the block is not what sync writes (a note says so, and nothing is checked).
    */
   static read(opts: { root: string }): ICommitPolicy | undefined {
@@ -23,7 +23,7 @@ export class CommitPolicy {
       }
 
       console.error(
-        `[CommitPolicy.read] ${MANIFEST_FILE} is missing: agent signatures are refused until you run vulcan sync`,
+        `[CommitPolicy.read] ${MANIFEST_FILE} is missing: agent signatures are refused until you run vulcan project sync`,
       );
 
       return {
@@ -55,7 +55,7 @@ export class CommitPolicy {
 
     if (policy === undefined) {
       console.error(
-        `[CommitPolicy.read] ignoring commit.message in ${MANIFEST_FILE}: not the shape vulcan sync writes - run vulcan sync`,
+        `[CommitPolicy.read] ignoring commit.message in ${MANIFEST_FILE}: not the shape vulcan project sync writes - run vulcan project sync`,
       );
     }
 

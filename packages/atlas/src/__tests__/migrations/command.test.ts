@@ -167,7 +167,7 @@ describe('MigrateCommand.run', () => {
       const result = await run({ args });
 
       expect(result.code, args.join(' ')).toBe(2);
-      expect(result.err, args.join(' ')).toContain('usage: vulcan x atlas migrate plan');
+      expect(result.err, args.join(' ')).toContain('usage: vulcan atlas migrate plan');
     }
   });
 

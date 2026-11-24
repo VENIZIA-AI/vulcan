@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
-/** The `[fmt]` section `vulcan init` writes to the project root. */
+/** The `[fmt]` section `vulcan project init` writes to the project root. */
 const BUNFIG =
   '[fmt]\nprintWidth = 100\nsingleQuote = true\narrowParens = "always"\nflavor = "oxfmt"\n';
 

@@ -407,7 +407,7 @@ describe('a broken shipped layer', () => {
 
     expect(note).toContain('base/packs/venizia.config.json');
     expect(note).toContain('digest.oftenDropped: Invalid input');
-    expect(note).not.toContain('vulcan upgrade');
+    expect(note).not.toContain('vulcan project upgrade');
   });
 });
 
@@ -421,7 +421,7 @@ describe('vulcan config', () => {
     });
 
   test('--effective prints the config, where each value came from, and the remove entries that matched nothing', () => {
-    const result = runCli({ args: ['config', '--effective'], cwd: project() });
+    const result = runCli({ args: ['config', 'effective'], cwd: project() });
     const out = JSON.parse(result.stdout);
 
     expect(result.code).toBe(0);
@@ -433,7 +433,7 @@ describe('vulcan config', () => {
   });
 
   test('--diff says nothing repeats when the project writes none of what the shipped layers give', () => {
-    const result = runCli({ args: ['config', '--diff'], cwd: project() });
+    const result = runCli({ args: ['config', 'diff'], cwd: project() });
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('nothing in the project config equals the shipped defaults');
@@ -443,13 +443,13 @@ describe('vulcan config', () => {
     const root = project();
 
     expect(runCli({ args: ['config'], cwd: root }).code).toBe(2);
-    expect(runCli({ args: ['config', '--effective', '--diff'], cwd: root }).code).toBe(2);
-    expect(runCli({ args: ['config', '--effective', 'x'], cwd: root }).code).toBe(2);
+    expect(runCli({ args: ['config', 'effective', '--diff'], cwd: root }).code).toBe(2);
+    expect(runCli({ args: ['config', 'effective', 'x'], cwd: root }).code).toBe(2);
 
     const broken = createProject({
       files: { '.configs/vulcan.config.mts': 'export default { nope: 1 };\n' },
     });
 
-    expect(runCli({ args: ['config', '--effective'], cwd: broken }).code).toBe(1);
+    expect(runCli({ args: ['config', 'effective'], cwd: broken }).code).toBe(1);
   });
 });

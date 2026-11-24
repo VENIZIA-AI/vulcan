@@ -145,7 +145,7 @@ describe('every reader of the events folder follows it', () => {
       }),
     });
 
-    const result = runCli({ args: ['board', '--no-github', '--out', out], cwd: root });
+    const result = runCli({ args: ['board', 'show', '--no-github', '--out', out], cwd: root });
 
     expect(result.code, result.stderr).toBe(0);
     expect(readFileSync(out, 'utf8')).toContain('A flow of the shared folder');
@@ -257,7 +257,7 @@ describe('the local file and doctor', () => {
     for (const root of [plain, withLocal]) {
       mkdirSync(join(root, '.configs'), { recursive: true });
       writeFileSync(join(root, '.configs/vulcan.config.mts'), config);
-      expect(runCli({ args: ['sync', '--agents', 'claude'], cwd: root }).code).toBe(0);
+      expect(runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root }).code).toBe(0);
     }
 
     expect(readFileSync(join(withLocal, MANIFEST), 'utf8')).toBe(

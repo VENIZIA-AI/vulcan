@@ -84,7 +84,7 @@ export class MigrateRegistry {
 
     if (published?.versions.includes(opts.to) === true) {
       throw ToolErrors.invalidParams(
-        `${name}@${opts.to} is published to npm but the atlas does not know it: the atlas source's ref is behind the registry; move the ref (atlas.sources) and run \`vulcan x atlas pull\`. The newest the atlas knows is ${known[0]}`,
+        `${name}@${opts.to} is published to npm but the atlas does not know it: the atlas source's ref is behind the registry; move the ref (atlas.sources) and run \`vulcan atlas pull\`. The newest the atlas knows is ${known[0]}`,
       );
     }
   }
@@ -112,7 +112,7 @@ export class MigrateRegistry {
           return;
         }
 
-        plan.behind = `the atlas source's ref is behind npm ${opts.to} ${version} (the atlas resolves ${opts.to} to ${plan.to}): this plan stops short of it. Move the ref (atlas.sources), run \`vulcan x atlas pull\` and plan again`;
+        plan.behind = `the atlas source's ref is behind npm ${opts.to} ${version} (the atlas resolves ${opts.to} to ${plan.to}): this plan stops short of it. Move the ref (atlas.sources), run \`vulcan atlas pull\` and plan again`;
       }),
     );
   }

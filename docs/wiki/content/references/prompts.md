@@ -5,7 +5,7 @@ description: How init, add, sync and agents ask in a terminal that can draw menu
 
 # Interactive prompts
 
-In a terminal, `vulcan init`, `vulcan add`, `vulcan sync` and `vulcan agents setup` ask with menus. You pick with the keyboard; you type only where there is nothing to pick from.
+In a terminal, `vulcan project init`, `vulcan package add`, `vulcan project sync` and `vulcan agent setup` ask with menus. You pick with the keyboard; you type only where there is nothing to pick from.
 
 The menus are drawn when stdin and stdout are both a terminal and `TERM` is not `dumb`. In any other case (a pipe, a redirect, CI, `TERM=dumb`) the commands ask the plain, line-based questions they always asked, and with no terminal at all they take flags or stop with a clear error. They never wait for a key that cannot come.
 
@@ -35,14 +35,14 @@ The menus are drawn when stdin and stdout are both a terminal and `TERM` is not 
 
 Scripts pass **flags** (`--agents`, `--project`, `--app`, `--lib`, `--preset` and the folder flags): nothing is asked, with or without a terminal.
 
-A menu reads **key presses**, not lines. Piping answers into a command that runs under a pseudo-terminal (`script -qec 'vulcan add' /dev/null`, `expect`) hands it lines ending in LF, and a menu takes only CR (what Enter sends) as Enter. The command stops at once with `this menu reads key presses, not lines` and the way out (flags, or `TERM=dumb`), exit code `1`. To drive a command through a pty with piped lines, set `TERM=dumb`: the plain line questions run.
+A menu reads **key presses**, not lines. Piping answers into a command that runs under a pseudo-terminal (`script -qec 'vulcan package add' /dev/null`, `expect`) hands it lines ending in LF, and a menu takes only CR (what Enter sends) as Enter. The command stops at once with `this menu reads key presses, not lines` and the way out (flags, or `TERM=dumb`), exit code `1`. To drive a command through a pty with piped lines, set `TERM=dumb`: the plain line questions run.
 
 ```bash
 printf 'my-product
 services
 core-api
 libs
-' | TERM=dumb script -qec 'bun node_modules/.bin/vulcan init --preset ignis' /dev/null
+' | TERM=dumb script -qec 'bun node_modules/.bin/vulcan project init --preset ignis' /dev/null
 ```
 
 To press keys in a test, send CR for Enter (`

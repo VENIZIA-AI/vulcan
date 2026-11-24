@@ -7,7 +7,7 @@ import { ChangelogCheck } from './check';
 import { ChangelogHistory } from './history';
 
 const USAGE =
-  'usage: vulcan x atlas changelogs check [--history --base <ref>] | notes --version <X.Y.Z> [--migration]';
+  'usage: vulcan atlas changelogs check [--history --base <ref>] | notes --version <X.Y.Z> [--migration]';
 
 /**
  * `changelogs notes --version <X.Y.Z>`: the release notes of a version folder (its `log.md` and the packages of the
@@ -61,7 +61,7 @@ const runNotes = (opts: { args: string[] }): number => {
   return 0;
 };
 
-/** `vulcan x atlas changelogs check`: the gate over the changelog entries' `migration` blocks. */
+/** `vulcan atlas changelogs check`: the gate over the changelog entries' `migration` blocks. */
 export const runChangelogsCommand = (opts: { command?: string; args?: string[] }): number => {
   const args = opts.args ?? [];
 

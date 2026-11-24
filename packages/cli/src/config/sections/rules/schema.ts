@@ -17,7 +17,7 @@ export const RULES_SECTION = {
    * Takes items out of an array the shipped defaults or a rule pack added to, after every layer is in: the key is the dotted
    * name of the array (`atlas.sources`), the items are the strings of the array or, for an array of objects, their identity
    * (`presets` by `spec`, `atlas.sources` by `name`). An array not listed here, or an item that is not there, is reported by
-   * `vulcan config --effective`.
+   * `vulcan config effective`.
    */
   remove: z
     .record(
