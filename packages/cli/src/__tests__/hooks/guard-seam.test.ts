@@ -25,7 +25,7 @@ const runGuard = async (opts: { guard: TGuard; command: string }) => {
     ),
     stdout: 'pipe',
     stderr: 'pipe',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: root, TMPDIR: join(root, '.agents/local/tmp') },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: root, TMPDIR: join(root, '.agents/tmp') },
     timeout: SPAWN_TIMEOUT_MS,
     killSignal: 'SIGKILL',
   });

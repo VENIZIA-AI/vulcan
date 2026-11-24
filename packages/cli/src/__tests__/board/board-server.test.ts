@@ -218,7 +218,7 @@ describe('BoardServer.openFile: the page the program that opens the browser is g
     new URL(server.url).searchParams.get(BoardServe.TOKEN_PARAM) ?? '';
   const start = async (opts: { openFileTtlMs?: number; openFolder?: string } = {}) => {
     const { root, dir } = projectWithLog();
-    const openFolder = opts.openFolder ?? join(root, '.agents/local/tmp');
+    const openFolder = opts.openFolder ?? join(root, '.agents/tmp');
     const server = await BoardServer.start({
       port: 0,
       dir,

@@ -78,7 +78,7 @@ describe('RulesBlock.render', () => {
   const input = {
     rows,
     slotLines: ['- V-W-01: this project: `on-user-word` - Git writes happen on the word.'],
-    tmp: '.agents/local/tmp',
+    tmp: '.agents/tmp',
     oftenDropped: ['V-P-07', 'V-B-03', 'V-X-99'],
   };
 
@@ -97,8 +97,8 @@ describe('RulesBlock.render', () => {
     for (const id of ['V-W-02', 'V-W-03', 'V-W-06', 'V-P-07', 'V-B-03']) {
       expect(block, id).toContain(`- ${id}: `);
     }
-    expect(block).toContain('go in `.agents/local/tmp`, never /tmp');
-    expect(block).toContain('export TMPDIR="$PWD/.agents/local/tmp"');
+    expect(block).toContain('go in `.agents/tmp`, never /tmp');
+    expect(block).toContain('export TMPDIR="$PWD/.agents/tmp"');
   });
 
   test('an often-dropped ID that no rule file holds is left out, not printed empty', () => {
@@ -153,7 +153,7 @@ describe('RulesBlock.render', () => {
         choices: { 'V-W-01': 'on-user-word' },
         command: 'bun node_modules/.bin/vulcan',
       }),
-      tmp: '.agents/local/tmp',
+      tmp: '.agents/tmp',
       oftenDropped: [...BASE_OFTEN_DROPPED],
     });
 

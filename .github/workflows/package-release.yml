@@ -65,7 +65,7 @@ env:
   PUBLISH_ORDER: 'okf atlas cli'
   # The tarballs bun packs and the validation checks, and the publish then publishes: one folder inside the workspace.
   # Absolute, because npm reads `.agents/x/y.tgz` as a package spec and `/abs/y.tgz` as a file.
-  TARBALLS: ${{ github.workspace }}/.agents/local/tmp/release-tarballs
+  TARBALLS: ${{ github.workspace }}/.agents/tmp/release-tarballs
 
 jobs:
   # What this dispatch would release, from the bump and the ref, before anything is built: the target version, its

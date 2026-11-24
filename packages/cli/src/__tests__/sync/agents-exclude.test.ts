@@ -197,7 +197,7 @@ describe('a project inside another git repository', () => {
     sync({ root, agents: 'claude' });
 
     const before = exclude({ root });
-    const scratch = nestedApp({ root, path: '.agents/local/tmp/smoke/demo' });
+    const scratch = nestedApp({ root, path: '.agents/tmp/smoke/demo' });
 
     sync({ root: scratch, agents: 'claude' });
 

@@ -41,7 +41,7 @@ script or a `curl` against the running thing; a replay of a captured request or 
 commits (`git bisect run <the loop>`). A bug in a UI is reproduced in a real browser, at mobile and at
 desktop width, before any code is read.
 
-A script for the loop goes in a file under `.agents/local/tmp/<task>/` and runs by its literal path, with literal paths in its redirects (V-B-08): the guards deny a call they cannot read.
+A script for the loop goes in a file under `.agents/tmp/<task>/` and runs by its literal path, with literal paths in its redirects (V-B-08): the guards deny a call they cannot read.
 
 If you cannot build a loop, stop and say what is missing (access, data, an environment). Do not proceed
 on theory.
@@ -81,6 +81,6 @@ test that cannot fail. A test that passes before the fix tests nothing.
 
 ## 6. Clean up and report
 
-Remove every `[DEBUG-<id>]` line with one search, delete scratch files from `.agents/local/tmp/`, and
+Remove every `[DEBUG-<id>]` line with one search, delete scratch files from `.agents/tmp/`, and
 check `git status` shows only the fix and its test. Put the confirmed hypothesis in the commit message or
 the pull request text, and say what was ruled out. Report with the `report-back` skill.

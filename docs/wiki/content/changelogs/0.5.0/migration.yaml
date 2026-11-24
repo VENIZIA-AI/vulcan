@@ -52,7 +52,7 @@ guards-read-more-write-forms:
   upgrade:
     steps:
       - 'Run archive extractions in a subfolder instead of the project root: `tar xf a.tar -C dist`, `unzip a.zip -d dist`. A copy, a move, an install, a link or an extraction into the folder of a protected file now asks.'
-      - 'Clear `.agents/local/tmp/*` and not `.agents/local/*`: a pattern or `find -delete` or `git clean -x` that can reach a protected file now asks.'
+      - 'Clear `.agents/tmp/*` and not `.agents/local/*`: a pattern or `find -delete` or `git clean -x` that can reach a protected file now asks.'
       - 'Expect a question for `sed -i`, `perl -pi`, `truncate`, `tar`, `unzip` and `git init` outside the project, and for an edit in place of a protected file. Codex and Cursor cannot ask on a tool call, so there it is a denial: run the command yourself in a terminal.'
       - 'Do not write `.codex/hooks.json`, `.agents/hooks.json`, `.omp/hooks/pre/vulcan-guards.ts` or `.pi/extensions/vulcan-guards.ts` from an agent: `vulcan sync` writes them.'
   downgrade:
@@ -154,8 +154,8 @@ claude-launch-file-dropped:
     steps:
       - 'Stop starting Claude Code with `claude --settings .agents/local/claude.launch.settings.json`: start it as you start any project (nothing replaces the flag); remove it from your shell alias or script.'
       - 'Run `bun node_modules/.bin/vulcan sync`: it deletes a leftover `.agents/local/claude.launch.settings.json` that git does not track. If git tracks it, run `git rm --cached .agents/local/claude.launch.settings.json` and delete it.'
-      - 'To keep Claude Code''s own task-output and MCP temp files in the project, export `CLAUDE_CODE_TMPDIR="$PWD/.agents/local/tmp"` in your own shell before you start it; VULCAN no longer writes a file for this.'
-      - 'A script or a Makefile that reads `.agents/local/claude.launch.settings.json` loses the file: read `.agents/local/tmp` (or your `local.tmp` folder) instead.'
+      - 'To keep Claude Code''s own task-output and MCP temp files in the project, export `CLAUDE_CODE_TMPDIR="$PWD/.agents/tmp"` in your own shell before you start it; VULCAN no longer writes a file for this.'
+      - 'A script or a Makefile that reads `.agents/local/claude.launch.settings.json` loses the file: read `.agents/tmp` (or your `local.tmp` folder) instead.'
   downgrade:
     steps:
       - 'Pin the earlier package and run `bun node_modules/.bin/vulcan sync`: it writes the launch file again.'
@@ -176,7 +176,7 @@ manifest-local-and-descriptor:
   downgrade:
     steps:
       - 'Pin the earlier packages and run `bun node_modules/.bin/vulcan sync`: it writes `.agents/vulcan.manifest.json` again; commit it and delete `.agents/atlas.manifest.json`.'
-  data: 'A clone with no local manifest (a fresh clone, or one just upgraded) is held until `vulcan sync` runs: every call that would ask is denied, writes outside the project are refused and agent signatures in a commit message are refused. `vulcan sync` itself passes. Without a config file nothing is held.'
+  data: 'An atlas source read at `ref: develop` (`pin: ref`, or no installed copy of the package) by a project still on 0.5.0-6 or earlier finds no `.agents/vulcan.manifest.json` once the source has moved to the descriptor, and is reported as not served: such readers need the VULCAN of this release (a project that pins `installed`, the default, reads the release tag and is not affected). A clone with no local manifest (a fresh clone, or one just upgraded) is held until `vulcan sync` runs: every call that would ask is denied, writes outside the project are refused and agent signatures in a commit message are refused. `vulcan sync` itself passes. Without a config file nothing is held.'
 local-json-folds-into-profile:
   symbols:
     - LocalChoice.unknownKeys
@@ -206,3 +206,17 @@ claude-settings-never-committed:
     steps:
       - 'Pin the earlier package, run `vulcan sync`, and either remove the `/.claude/settings.json` line from `.gitignore` or run `git add -f .claude/settings.json` to commit it again if your team wants it shared.'
   data: 'A fresh clone has no `.claude/settings.json`, so no hook runs and no guard is active, until `bun install` (with the `prepare` script) or `vulcan sync` has run. AGENTS.md says so in its first line of rules.'
+tmp-default-agents-tmp:
+  symbols:
+    - HookConstants.PROJECT_TMP
+    - ProjectLayout.TMP_DIRECTORY
+  upgrade:
+    steps:
+      - 'Run `bun node_modules/.bin/vulcan sync`: it creates `.agents/tmp` and adds `/.agents/tmp/` to a committed `.gitignore`. Commit that `.gitignore` change.'
+      - 'Change every script, Makefile, workflow and doc that names `.agents/local/tmp` to `.agents/tmp` (`grep -rn ".agents/local/tmp" .`). Rule V-B-08 names the new folder; the session start exports `TMPDIR` to it.'
+      - 'A project that set `local.tmp` only to shorten the browser socket path can delete the key: the default is shorter now.'
+      - 'Remove `.agents/local/tmp` when it holds nothing you need: `bun node_modules/.bin/vulcan clean --tmp --yes` takes its stale items, and the folder is yours to delete.'
+  downgrade:
+    steps:
+      - 'Pin the earlier package, run `vulcan sync`, and move what you need from `.agents/tmp` to `.agents/local/tmp`; remove the `/.agents/tmp/` line from `.gitignore`.'
+  data: 'Scratch files already in `.agents/local/tmp` stay where they are; new ones go to `.agents/tmp`, so a script that looks in the old folder for a file made after the upgrade finds none.'

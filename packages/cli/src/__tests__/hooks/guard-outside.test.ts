@@ -79,7 +79,7 @@ describe('mktemp where the temp folder is inside the project', () => {
 
   test('a TMPDIR inside the project (the launch route) is the folder mktemp uses; one outside is not', () => {
     expect(
-      bash({ command: 'mktemp -d', env: { ...ENV, TMPDIR: join(PROJECT, '.agents/local/tmp') } }),
+      bash({ command: 'mktemp -d', env: { ...ENV, TMPDIR: join(PROJECT, '.agents/tmp') } }),
     ).toEqual([]);
     expect(bash({ command: 'mktemp -d', env: { ...ENV, TMPDIR: '/var/tmp' } }).length).toBe(1);
   });
@@ -191,14 +191,14 @@ describe('OutsideGuard.inspect flags what a review found', () => {
 
 describe('OutsideGuard.inspect passes', () => {
   test.each([
-    'mkdir -p .agents/local/tmp/a',
+    'mkdir -p .agents/tmp/a',
     'echo hi > out.txt',
     'cp a.txt b.txt',
     'git worktree add .agents/local/worktrees/topic -b topic',
     'git clone https://example.test/r.git .agents/local/clones/r',
-    'mktemp -d -p .agents/local/tmp',
-    'mktemp .agents/local/tmp/work.XXXX',
-    'TMPDIR=.agents/local/tmp bun test',
+    'mktemp -d -p .agents/tmp',
+    'mktemp .agents/tmp/work.XXXX',
+    'TMPDIR=.agents/tmp bun test',
     'echo hi > /dev/null',
     'make build 2>&1 | tee build.log',
     'ls /tmp',
@@ -237,7 +237,7 @@ describe('$PWD is the folder the command runs in', () => {
     { command: 'export TMPDIR=$PWD/x', name: '$PWD and a folder' },
     { command: 'export TMPDIR=${PWD}/x', name: '${PWD} and a folder' },
     { command: 'export TMPDIR=$PWD/../x', name: 'one step up that stays in the project' },
-    { command: 'export TMPDIR=$PWD/../../.agents/local/tmp', name: 'two steps up, still inside' },
+    { command: 'export TMPDIR=$PWD/../../.agents/tmp', name: 'two steps up, still inside' },
   ])('$name passes from a subfolder', ({ command }) => {
     expect(bash({ command, cwd: DEEP })).toEqual([]);
   });
@@ -419,7 +419,7 @@ describe('the agent tool scratchpad', () => {
   });
 
   test('a path inside the project is not flagged', () => {
-    expect(hitsOf({ command: 'mkdir -p .agents/local/tmp/x' })).toEqual([]);
+    expect(hitsOf({ command: 'mkdir -p .agents/tmp/x' })).toEqual([]);
   });
 });
 
@@ -848,7 +848,7 @@ describe('OutsideGuard.inspect says which hits it could not read', () => {
     'cd /etc && cd $w && echo x > out-$t.log',
     'cd /etc && f=$(date) && echo x > $f',
     'cd /etc && for p in a b; do f=/home/u/$(date).txt; echo x > $f; done',
-    'echo x > .agents/local/tmp/$t.log',
+    'echo x > .agents/tmp/$t.log',
     'echo x > out-$t.log',
     'cd src && echo x > $f',
   ])('%s has no folder it can read outside the project: unread', (command) => {
@@ -962,16 +962,16 @@ describe('a write target with a brace list is checked branch by branch', () => {
 
 describe('OutsideGuard.inspect reads the literal assignments of the line before it gives up', () => {
   test.each([
-    'S=.agents/local/tmp/x; echo hi > $S/a',
-    'S=.agents/local/tmp/x\necho hi > "$S/a"',
-    'export X=.agents/local/tmp/y; echo hi > $X/a',
-    'export X=.agents/local/tmp/y Y=z; echo hi > $X/$Y',
-    'X=.agents/local/tmp/y; export X; echo hi > "$X/a"',
-    'S=.agents/local/tmp; T=$S/x; echo hi > $T/a.log',
+    'S=.agents/tmp/x; echo hi > $S/a',
+    'S=.agents/tmp/x\necho hi > "$S/a"',
+    'export X=.agents/tmp/y; echo hi > $X/a',
+    'export X=.agents/tmp/y Y=z; echo hi > $X/$Y',
+    'X=.agents/tmp/y; export X; echo hi > "$X/a"',
+    'S=.agents/tmp; T=$S/x; echo hi > $T/a.log',
     'S=a; T=${S}/b; echo hi > $T',
     'for i in 1 2; do echo hi > f$i.log; done',
     'for i in 1 2; do echo hi > $i.log; done',
-    'for i in a b; do\n  echo hi > .agents/local/tmp/x/$i.log\ndone',
+    'for i in a b; do\n  echo hi > .agents/tmp/x/$i.log\ndone',
     'for i in 1 2; do for j in a b; do echo hi > $i$j.log; done; done',
     'for i in 1 2; do echo hi >> out/$i.log 2>&1; done',
     'for i in 1 2; do cp a out/$i.txt; done',
@@ -1291,7 +1291,7 @@ describe('OutsideGuard.inspect and the links a line makes', () => {
     'cp -s a b',
     'cp -r a b; echo x > c',
     'mv a b',
-    'ln -sf .agents/local/tmp/x fresh-name; echo y > .agents/local/tmp/z',
+    'ln -sf .agents/tmp/x fresh-name; echo y > .agents/tmp/z',
   ])(
     '%s passes: a symbolic link is read once it exists, and nothing goes through the new name',
     (command) => {

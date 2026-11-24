@@ -203,7 +203,7 @@ It writes two files, named by the commit:
 | `<sha>.atlas.json` | An envelope: the payload as base64, and an ed25519 signature over those exact bytes |
 
 The payload names the index format, the commit, the repository (`owner/name`, lowercase), the size of the decompressed index, the sha256 of the gz, the fingerprint of the repository's tags, and the release table.
-The index is built from the tracked files of the commit, in a scratch worktree under `.agents/local/tmp/`, so an untracked, ignored or edited file never reaches it; the rows are the ones `pull` builds for the same commit.
+The index is built from the tracked files of the commit, in a scratch worktree under `.agents/tmp/`, so an untracked, ignored or edited file never reaches it; the rows are the ones `pull` builds for the same commit.
 
 | Flag | Default | Meaning |
 |---|---|---|

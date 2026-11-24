@@ -62,10 +62,10 @@ export class HookConstants {
   /** Branches no agent deletes or force-pushes (V-W-06). */
   static readonly PROTECTED_BRANCHES = new Set(['develop', 'main']);
   /**
-   * Where a session's temporary files go, from the project root: `ProjectLayout.LOCAL_DIRECTORY` and `tmp`.
+   * Where a session's temporary files go by default, from the project root: `ProjectLayout.TMP_DIRECTORY`.
    * Spelt out here because the blocking hooks import nothing that reads the package (a test holds the two equal).
    */
-  static readonly PROJECT_TMP = '.agents/local/tmp';
+  static readonly PROJECT_TMP = '.agents/tmp';
   /**
    * The scratchpad folder an agent tool offers a session sits under the system temp directory (Claude Code:
    * `/tmp/claude-<uid>/<project>/<session>/scratchpad`), so guard-outside denies a write there instead of asking.

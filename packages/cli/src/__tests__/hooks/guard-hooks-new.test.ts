@@ -163,7 +163,7 @@ describe('the guard-outside hook', () => {
     expect(decision.permissionDecision).toBe('deny');
     expect(decision.permissionDecisionReason).toContain('V-B-08');
     expect(decision.permissionDecisionReason).toContain('scratchpad');
-    expect(decision.permissionDecisionReason).toContain('.agents/local/tmp/');
+    expect(decision.permissionDecisionReason).toContain('.agents/tmp/');
   });
 
   test('a deny wins when one call touches the scratchpad and another outside path', async () => {
@@ -224,15 +224,15 @@ describe('the guard-outside hook', () => {
       expect(decision.permissionDecisionReason).toContain('V-B-08');
       expect(decision.permissionDecisionReason).toContain('could not be read');
       expect(decision.permissionDecisionReason).toContain('literal path');
-      expect(decision.permissionDecisionReason).toContain('.agents/local/tmp/<task>/');
+      expect(decision.permissionDecisionReason).toContain('.agents/tmp/<task>/');
       expect(decision.permissionDecisionReason).not.toContain('Confirm only if');
     },
   );
 
   test.each([
-    'S=.agents/local/tmp/x; echo x > $S/a',
-    'export X=.agents/local/tmp/y; echo x > $X/a',
-    'for i in 1 2; do echo x > .agents/local/tmp/f$i.log; done',
+    'S=.agents/tmp/x; echo x > $S/a',
+    'export X=.agents/tmp/y; echo x > $X/a',
+    'for i in 1 2; do echo x > .agents/tmp/f$i.log; done',
   ])('is silent for a variable it can resolve to a folder of the project: %s', async (command) => {
     const result = await runHook({
       hook: 'guard-outside',
@@ -281,7 +281,7 @@ describe('the guard-outside hook', () => {
     const result = await runHook({
       hook: 'guard-outside',
       root,
-      stdin: bash({ command: 'ln -s node_modules/.bin/vulcan .agents/local/tmp/v', cwd: root }),
+      stdin: bash({ command: 'ln -s node_modules/.bin/vulcan .agents/tmp/v', cwd: root }),
     });
 
     expect(result).toEqual({ code: 0, stdout: '' });
@@ -291,7 +291,7 @@ describe('the guard-outside hook', () => {
     const result = await runHook({
       hook: 'guard-outside',
       root,
-      stdin: bash({ command: 'mkdir -p .agents/local/tmp/x', cwd: root }),
+      stdin: bash({ command: 'mkdir -p .agents/tmp/x', cwd: root }),
     });
     expect(result).toEqual({ code: 0, stdout: '' });
     const result3 = await runHook({
@@ -340,7 +340,7 @@ describe('the guard-outside hook with guard.outside set', () => {
     expect(decision.permissionDecision).toBe('deny');
     expect(decision.permissionDecisionReason).toContain('V-B-08');
     expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test');
-    expect(decision.permissionDecisionReason).toContain('.agents/local/tmp/');
+    expect(decision.permissionDecisionReason).toContain('.agents/tmp/');
     expect(decision.permissionDecisionReason).toContain('guard.toolOwnedPaths');
     expect(decision.permissionDecisionReason).toContain('Nothing was written');
     expect(decision.permissionDecisionReason).not.toContain('confirm only if');
@@ -365,7 +365,7 @@ describe('the guard-outside hook with guard.outside set', () => {
     const inside = await runHook({
       hook: 'guard-outside',
       root: denyRoot,
-      stdin: bash({ command: 'mkdir -p .agents/local/tmp/x', cwd: denyRoot }),
+      stdin: bash({ command: 'mkdir -p .agents/tmp/x', cwd: denyRoot }),
     });
 
     expect(listed).toEqual({ code: 0, stdout: '' });

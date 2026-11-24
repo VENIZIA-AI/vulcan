@@ -32,7 +32,7 @@ const pair = PrebuiltKeys.generatePair();
 const checkout = (): { work: string; out: string; bare: string; url: string } => {
   const source = makeSourceRepository();
 
-  return { ...source, out: join(source.work, '.agents/local/tmp/pair') };
+  return { ...source, out: join(source.work, '.agents/tmp/pair') };
 };
 
 const files = (opts: { out: string }): string[] =>
@@ -90,15 +90,13 @@ describe('atlas index: build and sign the index of HEAD (C5)', () => {
 
     const built = IndexPair.build({
       root: shallow,
-      out: join(shallow, '.agents/local/tmp/pair'),
+      out: join(shallow, '.agents/tmp/pair'),
       repo: 'acme/src',
       privateKey: pair.privateKey,
       atlasVersion: '9.9.9',
     });
 
-    expect(files({ out: join(shallow, '.agents/local/tmp/pair') })).toContain(
-      `${built.sha}.atlas.gz`,
-    );
+    expect(files({ out: join(shallow, '.agents/tmp/pair') })).toContain(`${built.sha}.atlas.gz`);
     // Part of the history: the pair says so, and a reader computes the release table itself.
     expect(payloadOf({ envelope: readFileSync(built.envelope, 'utf8') }).history).toBe(false);
   });

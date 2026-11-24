@@ -410,7 +410,7 @@ describe('publishing a pair (C21, C23)', () => {
 
   test('the scratch folder is gone afterwards', async () => {
     await publish();
-    expect(() => readFileSync(join(work, '.agents/local/tmp/atlas-index-out', 'x'))).toThrow();
+    expect(() => readFileSync(join(work, '.agents/tmp/atlas-index-out', 'x'))).toThrow();
     expect(git({ cwd: work, args: ['worktree', 'list'] }).split('\n')).toHaveLength(1);
   });
 });

@@ -108,7 +108,7 @@ describe('precedence: the local value replaces the whole key', () => {
     expect(ProjectTmp.relativeOf({ root: own })).toBe('mine');
     expect(ProjectTmp.projectOf({ root: own })).toBe(join(own, 'mine'));
     expect(ProjectTmp.relativeOf({ root: team })).toBe('team');
-    expect(ProjectTmp.relativeOf({ root: none })).toBe('.agents/local/tmp');
+    expect(ProjectTmp.relativeOf({ root: none })).toBe('.agents/tmp');
     expect(ProjectTmp.effectiveOf({ root: own, tmp: 'team' })).toBe('mine');
     expect(ProjectTmp.effectiveOf({ root: team, tmp: 'team' })).toBe('team');
   });

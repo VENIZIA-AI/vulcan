@@ -221,7 +221,7 @@ describe('building the pair of a commit other than HEAD', () => {
 
   test('IndexPair.build with a commit names the pair by that commit and indexes that commit, not HEAD', () => {
     const { work, first, head } = repository();
-    const out = join(work, '.agents/local/tmp/pair');
+    const out = join(work, '.agents/tmp/pair');
     const built = IndexPair.build({
       root: work,
       out,
@@ -238,7 +238,7 @@ describe('building the pair of a commit other than HEAD', () => {
 
   test('a commit the repository does not have is refused, and nothing is written', () => {
     const { work } = repository();
-    const out = join(work, '.agents/local/tmp/pair');
+    const out = join(work, '.agents/tmp/pair');
 
     expect(() =>
       IndexPair.build({

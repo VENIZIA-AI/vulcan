@@ -83,7 +83,7 @@ describe('vulcan board serve --open', () => {
     expect(run.code).toBe(0);
     expect(token).toMatch(/^[0-9a-f]{32}$/);
     expect(run.targets).toHaveLength(1);
-    expect(run.targets[0].startsWith(join(run.cwd, '.agents/local/tmp'))).toBe(true);
+    expect(run.targets[0].startsWith(join(run.cwd, '.agents/tmp'))).toBe(true);
     expect(run.targets[0]).toMatch(/board-open-[^/]+\/index\.html$/);
     expect(run.targets[0]).not.toContain(token);
     expect(exists).toBe(true);

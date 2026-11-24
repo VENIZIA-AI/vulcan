@@ -22,12 +22,14 @@ describe('upgrading a project from the layout before .agents/local/', () => {
 
     expect(result.code).toBe(0);
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\n.agents/local/profile.json\n.agents/local/\n/.claude/settings.json\n',
+      'node_modules/\n.agents/local/profile.json\n.agents/local/\n/.claude/settings.json\n/.agents/tmp/\n',
     );
 
-    for (const name of ['tmp', 'worktrees', 'clones', 'cache', 'reports', 'prototypes']) {
+    for (const name of ['worktrees', 'clones', 'cache', 'reports', 'prototypes']) {
       expect(existsSync(join(root, '.agents/local', name))).toBe(true);
     }
+
+    expect(existsSync(join(root, '.agents/tmp'))).toBe(true);
   });
 
   test('a second sync changes nothing in the workspace or the gitignore', () => {

@@ -35,7 +35,7 @@ export const makeFixturePair = (
 ): IFixturePair => {
   const work = opts.work ?? makeSourceRepository().work;
   const keys = opts.keys ?? PrebuiltKeys.generatePair();
-  const out = join(work, '.agents/local/tmp/pair');
+  const out = join(work, '.agents/tmp/pair');
   const built = IndexPair.build({
     root: work,
     out,

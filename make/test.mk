@@ -10,7 +10,7 @@ TEST_ENV_atlas := NODE_ENV=test APP_ENV_LOGGER_LEVEL=warn IGNIS_ROOT=../../../ig
 # taken for part of this repository, and the empty `.git` marker is where bun's own ignore lookup stops
 # (it would otherwise read this repository's .gitignore, which ignores .agents/local/, and `bun fmt`
 # in a test project would then see no files).
-TEST_TMP := $(CURDIR)/.agents/local/tmp/tests
+TEST_TMP := $(CURDIR)/.agents/tmp/tests
 TEST_TMP_ENV := TMPDIR=$(TEST_TMP) GIT_CEILING_DIRECTORIES=$(TEST_TMP)
 
 TEST_TARGETS := $(addprefix test-,$(PACKAGES))

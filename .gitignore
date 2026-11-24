@@ -115,3 +115,4 @@ node_modules.zip
 
 # Everything an agent creates while it works: scratch, worktrees, clones, cache, prototypes
 .agents/local/
+/.agents/tmp/

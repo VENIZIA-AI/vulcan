@@ -5,7 +5,7 @@ export class PrebuiltConstants {
   /** Where `atlas index keygen` writes the private key: inside the project, gitignored. */
   static readonly KEY_FILE = '.agents/local/atlas-index.key';
   /** Where `atlas index` builds its scratch worktree. */
-  static readonly SCRATCH_DIRECTORY = '.agents/local/tmp';
+  static readonly SCRATCH_DIRECTORY = '.agents/tmp';
   /** `<sha>.atlas.gz`: the gzip of the commit's `index.sqlite`, and nothing else. */
   static readonly INDEX_SUFFIX = '.atlas.gz';
   /** `<sha>.atlas.json`: the signed envelope that describes the gz. */
@@ -67,7 +67,7 @@ export class PublishConstants {
   static readonly MAX_PAIRS = 300;
   /** A pair with one asset missing is left alone for this long (a run may be uploading it), then removed. */
   static readonly ORPHAN_AGE_MS = 24 * 60 * 60 * 1000;
-  static readonly SCRATCH_OUT = '.agents/local/tmp/atlas-index-out';
+  static readonly SCRATCH_OUT = '.agents/tmp/atlas-index-out';
   /** What a ref given to a manual run may look like: a plain tag or branch name, never an option or a revision expression. */
   static readonly REF_NAME = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
   /** A name that reads as a commit hash is a hash, not a tag or a branch: refused. */

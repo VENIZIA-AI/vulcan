@@ -35,7 +35,7 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 - Always denies a write into the scratchpad folder the agent tool offers.
 - Asks, never denies, about what it cannot read.
 
-Around them, `session-start` prints a short digest (a config problem, a launch warning, how to answer the owner) into the session and, in Claude Code, exports `TMPDIR` (the project's `.agents/local/tmp`) into every Bash command ([Temporary files](/references/agents#temporary-files)), and `subagent-start` gives every subagent a small rules card. The shape of replies to the owner is a card in that digest, not a check ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
+Around them, `session-start` prints a short digest (a config problem, a launch warning, how to answer the owner) into the session and, in Claude Code, exports `TMPDIR` (the project's `.agents/tmp`) into every Bash command ([Temporary files](/references/agents#temporary-files)), and `subagent-start` gives every subagent a small rules card. The shape of replies to the owner is a card in that digest, not a check ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
 
 The guards protect `.agents/local/vulcan.manifest.json` and `.agents/atlas.manifest.json` from an agent's writes: `vulcan sync` rewrites them from the config, and `vulcan doctor` fails a copy that is stale or edited by hand ([The generated manifest](/references/hooks/#the-generated-manifest)).
 

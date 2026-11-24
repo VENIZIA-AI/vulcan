@@ -32,7 +32,7 @@ describe('a repository that git would read as an option', () => {
       reachable: false,
     });
     expect(() =>
-      GitRepository.updateClone({ url: '--version', gitDir: '.agents/local/tmp/none' }),
+      GitRepository.updateClone({ url: '--version', gitDir: '.agents/tmp/none' }),
     ).toThrow("the repository must not start with '-'");
   });
 });

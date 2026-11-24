@@ -28,7 +28,7 @@ Full text, cited by ID: `node_modules/@venizia/vulcan/base/rules.md` (V-*) and `
 - V-W-02: Never write to a database. Write the migration file, hand over.
 - V-W-03: Never deploy or hot-apply (kubectl apply, docker compose up, restarts).
 - V-W-06: Approval has a card. Shared writes follow four action classes.
-- V-B-08: Scratch and temporary files go in `.agents/local/tmp`, never /tmp or the scratchpad folder a tool offers. Claude Code sets `TMPDIR` to it; elsewhere `export TMPDIR="$PWD/.agents/local/tmp"` from the project root.
+- V-B-08: Scratch and temporary files go in `.agents/tmp`, never /tmp or the scratchpad folder a tool offers. Claude Code sets `TMPDIR` to it; elsewhere `export TMPDIR="$PWD/.agents/tmp"` from the project root.
 - V-P-07: Facts come from atlas, not memory. Before you use an API of the project's framework or of its own packages, look it up with atlas (`symbol`, `search`, `version`, `changes`).
 - V-B-03: Run it, read real output, then claim. Evidence before assertions.
 - V-P-05: Partner, not stenographer. Wrong instruction → say so with reasoning + better option; human decides.
