@@ -767,7 +767,7 @@ export class ConfigCodemod {
       const isUsingApps =
         blockText !== undefined &&
         group !== 'project' &&
-        items.some((item) => /\bapps\b/.test(bodies.get(item)?.body ?? item.body));
+        items.some((item) => ConfigCodemod.readsApps({ text: bodies.get(item)?.body ?? item.body }));
       const lines = [
         "import type { VulcanConfig } from '@venizia/vulcan';",
         ...(isUsingApps ? ["import { apps } from './project.mts';"] : []),
@@ -849,7 +849,23 @@ export class ConfigCodemod {
     const trivia = (statement: typeof first | undefined): string =>
       statement === undefined
         ? ''
-        : source.text.slice(statement.getFullStart(), statement.getStart(source)).trim();
+        : outsideBlock({
+            from: statement.getFullStart(),
+            to: statement.getStart(source),
+          }).trim();
+    // The comment text of a range, without what lies between the block's markers (they travel with the block to `project.mts`).
+    const outsideBlock = (range: { from: number; to: number }): string =>
+      !hasBlock
+        ? source.text.slice(range.from, range.to)
+        : [
+            range.from < markerStart
+              ? source.text.slice(range.from, Math.min(range.to, markerStart))
+              : '',
+            range.to > blockEnd ? source.text.slice(Math.max(range.from, blockEnd), range.to) : '',
+          ]
+            .map((part) => part.trim())
+            .filter((part) => part !== '')
+            .join('\n');
     // The comment at the top of the file, and the one above `export default` when it is not the same.
     const header = trivia(first);
     const above = exported === first ? '' : trivia(exported);
@@ -875,6 +891,15 @@ export class ConfigCodemod {
         ...[...folded].map((path) => `${path}: folded into the groups, deleted`),
       ],
     };
+  }
+
+  /** Whether the text refers to the identifier `apps`: not the word inside a string, a comment or after a dot. */
+  private static readsApps(opts: { text: string }): boolean {
+    const bare = opts.text
+      .replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, '')
+      .replace(/'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`/g, '""');
+
+    return /(?<![.\w$])apps\b(?!\s*:)/.test(bare);
   }
 
   private static isModule(opts: { specifier: string }): boolean {

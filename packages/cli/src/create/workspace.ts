@@ -331,8 +331,9 @@ export class AppsBlock {
   static locate(opts: {
     root: string;
     configFile: string;
-  }): { path: string; source: string } | undefined {
-    const folder = join(opts.root, '.configs');
+  }): { path: string; source: string } | { outside: string } | undefined {
+    const folder = join(realpathSync(opts.root), '.configs');
+    let outside: string | undefined;
     const candidates = [relative(opts.root, opts.configFile), `.configs/vulcan/project.mts`];
 
     for (const path of candidates) {
@@ -343,9 +344,9 @@ export class AppsBlock {
       }
 
       const real = realpathSync(file);
-      const inside = existsSync(folder) && real.startsWith(`${realpathSync(folder)}${sep}`);
 
-      if (!inside) {
+      if (!real.startsWith(`${folder}${sep}`)) {
+        outside = path;
         continue;
       }
 
@@ -356,7 +357,7 @@ export class AppsBlock {
       }
     }
 
-    return undefined;
+    return outside === undefined ? undefined : { outside };
   }
 
   /** Only the text between the markers is rewritten; undefined when the user edited them away. */

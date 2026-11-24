@@ -195,14 +195,17 @@ export class LibraryScaffold {
     }
 
     const found = AppsBlock.locate({ root: cwd, configFile: opts.configFile });
-    const blockPath = found?.path ?? opts.configPath;
-    const source = found?.source ?? '';
+    const outside = found !== undefined && 'outside' in found ? found.outside : undefined;
+    const blockPath = found !== undefined && 'path' in found ? found.path : opts.configPath;
+    const source = found !== undefined && 'source' in found ? found.source : '';
     const parsed = AppsBlock.parse({ source });
 
     if (!parsed.ok) {
       return AddFailure.fail({
         message:
-          parsed.reason === AppsBlockProblems.MISSING
+          outside !== undefined
+            ? `${outside} is outside .configs (a link out of it): the vulcan:apps block is not read from it - add the package by hand: { dir: '${libName}', name: '${named.name}', path: '${path}', kind: 'lib' }`
+            : parsed.reason === AppsBlockProblems.MISSING
             ? `the vulcan:apps block is gone from ${opts.configPath} and .configs/vulcan/project.mts - add the package by hand: { dir: '${libName}', name: '${named.name}', path: '${path}', kind: 'lib' }`
             : `the vulcan:apps block in ${blockPath} is not the JSON vulcan wrote - add the package by hand: { dir: '${libName}', name: '${named.name}', path: '${path}', kind: 'lib' }`,
       });

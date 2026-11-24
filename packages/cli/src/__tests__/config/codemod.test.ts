@@ -602,3 +602,62 @@ export default {
     expect(result.ok ? '' : result.reason).toContain('no `project` group');
   });
 });
+
+describe('config-groups --split: the markers stay with the block', () => {
+  const BLOCK = `// vulcan:apps:start - written by vulcan project init and add; edit outside this block
+// prettier-ignore
+const apps = { "layout": {}, "packages": [], "presets": [], "sources": [] };
+// vulcan:apps:end`;
+  const DEFAULT = `export default {
+  name: 'p',
+  layout: apps.layout,
+  packages: apps.packages,
+  presets: apps.presets,
+  atlas: { sources: apps.sources, paths: ['apps/*'] },
+} satisfies VulcanConfig;
+`;
+  const TYPE = "import type { VulcanConfig } from '@venizia/vulcan';\n";
+  const split = (text: string) => {
+    const result = ConfigCodemod.run({
+      root: '/x',
+      read: (path) => (path === CONFIG ? text : undefined),
+      split: true,
+    });
+
+    return ok(result).changes;
+  };
+
+  test('the usual init --preset config: no marker text is left above export default', () => {
+    const changes = split(`${TYPE}\n${BLOCK}\n\n${DEFAULT}`);
+    const config = textOf({ changes, path: CONFIG });
+
+    expect(config).not.toContain('vulcan:apps');
+    expect(config).not.toContain('prettier-ignore');
+    expect(textOf({ changes, path: '.configs/vulcan/project.mts' })).toContain('// vulcan:apps:end');
+  });
+
+  test('the block as the first statement: its markers and prettier-ignore do not land in the config', () => {
+    const changes = split(`// The header.\n${BLOCK}\n\n// Above the default.\n${TYPE}\n${DEFAULT}`);
+    const config = textOf({ changes, path: CONFIG });
+
+    expect(config).not.toContain('vulcan:apps');
+    expect(config).not.toContain('prettier-ignore');
+    expect(config).toContain('// The header.');
+  });
+
+  test('a comment above export default that is not the marker is kept', () => {
+    const config = textOf({
+      changes: split(`${TYPE}\n${BLOCK}\n\n// Mine.\n${DEFAULT}`),
+      path: CONFIG,
+    });
+
+    expect(config).toContain('// Mine.');
+    expect(config).not.toContain('vulcan:apps');
+  });
+
+  test('a group imports apps only when it reads the identifier, not the word in a string', () => {
+    const changes = split(`${TYPE}\n${BLOCK}\n\nexport default {\n  name: 'p',\n  layout: apps.layout,\n  atlas: { paths: ['apps/*'] },\n} satisfies VulcanConfig;\n`);
+
+    expect(textOf({ changes, path: '.configs/vulcan/knowledge.mts' })).not.toContain('./project.mts');
+  });
+});

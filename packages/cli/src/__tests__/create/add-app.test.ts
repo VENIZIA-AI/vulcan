@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigLoader, ProjectPackages } from '../../config/index.ts';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
@@ -1011,7 +1011,7 @@ describe('the vulcan:apps block of a split monorepo', () => {
     });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('the vulcan:apps block is gone from');
+    expect(result.stderr).toContain('.configs/vulcan/project.mts is outside .configs');
     expect(readFileSync(outside, 'utf8')).not.toContain('"dir": "worker"');
   });
 
@@ -1077,5 +1077,22 @@ describe('the vulcan:apps block of a split monorepo', () => {
     expect(lib.code, lib.stderr).toBe(0);
     expect(readFileSync(join(root, PROJECT), 'utf8')).toContain('"dir": "billing"');
     expect(readFileSync(join(root, CONFIG), 'utf8')).toBe(config);
+  });
+
+  test('a .configs that is a link out of the project is not read, and the refusal says so', () => {
+    const root = monorepo();
+    const real = join(root, 'elsewhere-configs');
+
+    renameSync(join(root, '.configs'), real);
+    symlinkSync(real, join(root, '.configs'));
+
+    const result = runCli({
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('is outside .configs');
   });
 });
