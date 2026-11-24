@@ -33,13 +33,16 @@ const headerCommentOf = (opts: { head: string }): string => {
 /** The singular of a plural role word, or `undefined` when the word is not a plural. */
 const singularOf = (opts: { word: string; allowed: Set<string> }): string | undefined => {
   const { word } = opts;
-  const irregular = LayoutConstants.IRREGULAR_PLURALS[word];
 
-  if (irregular !== undefined) {
-    return irregular;
+  if (opts.allowed.has(word)) {
+    return undefined;
   }
 
-  if (!word.endsWith('s') || word.length < 3 || opts.allowed.has(word)) {
+  if (Object.hasOwn(LayoutConstants.IRREGULAR_PLURALS, word)) {
+    return LayoutConstants.IRREGULAR_PLURALS[word];
+  }
+
+  if (!word.endsWith('s') || word.length < 3) {
     return undefined;
   }
 

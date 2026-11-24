@@ -70,8 +70,11 @@ describe('LayoutCheck.check: plural-suffix', () => {
           'src/news.feeds.ts',
           'src/app.news.ts',
           'src/README.helpers.md',
+          'src/x.statuses.ts',
+          'src/y.constructor.ts',
+          'src/z.toString.ts',
         ],
-        settings: { pluralAllow: ['news', 'feeds'] },
+        settings: { pluralAllow: ['news', 'feeds', 'statuses'] },
       }),
     ).toEqual([]);
   });
@@ -96,6 +99,24 @@ describe('LayoutCheck.check: mixed-folder', () => {
     expect(
       findingsOf({ files: [...folders, 'src/main.ts'], settings: { minSubfolders: 4 } }),
     ).toEqual([]);
+  });
+
+  test('a root inside another root counts its files once, under the outer root', () => {
+    const files = [
+      'backends/api/src/a/x.ts',
+      'backends/api/src/b/x.ts',
+      'backends/api/src/c/x.ts',
+      'backends/api/src/main.ts',
+      'backends/api/src/user.helpers.ts',
+    ];
+
+    expect(findingsOf({ files, roots: ['backends', 'backends/api'] })).toEqual([
+      'mixed-folder backends/api/src',
+      'plural-suffix backends/api/src/user.helpers.ts',
+    ]);
+    expect(findingsOf({ files, roots: ['backends/api', 'backends'] })).toEqual(
+      findingsOf({ files, roots: ['backends', 'backends/api'] }),
+    );
   });
 
   test('only folders under a root are read', () => {

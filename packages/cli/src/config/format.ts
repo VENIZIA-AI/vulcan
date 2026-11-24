@@ -32,16 +32,6 @@ type TExportAssignment = ReturnType<TTypeScript['factory']['createExportAssignme
 
 type TFound = { object: TObjectLiteral } | { reason: string };
 
-const rankOf = (opts: { key: string }): number => {
-  if (opts.key === ConfigKeyOrder.LAST) {
-    return ConfigKeyOrder.KEYS.length + 1;
-  }
-
-  const index = ConfigKeyOrder.KEYS.indexOf(opts.key);
-
-  return index === -1 ? ConfigKeyOrder.KEYS.length : index;
-};
-
 /** The indexes of `sequence` that make its longest strictly increasing run, in order. */
 const findIncreasingRun = (opts: { sequence: number[] }): Set<number> => {
   const { sequence } = opts;
@@ -100,7 +90,10 @@ export class ConfigFormat {
 
     const order = keys
       .map((key, index) => ({ key, index }))
-      .sort((left, right) => rankOf({ key: left.key }) - rankOf({ key: right.key }));
+      .sort(
+        (left, right) =>
+          ConfigKeyOrder.rankOf({ key: left.key }) - ConfigKeyOrder.rankOf({ key: right.key }),
+      );
     const target = new Map(order.map((entry, position) => [entry.index, position]));
     const kept = findIncreasingRun({ sequence: keys.map((_, index) => target.get(index) ?? 0) });
     const moved = order.filter((entry) => !kept.has(entry.index)).map((entry) => entry.key);

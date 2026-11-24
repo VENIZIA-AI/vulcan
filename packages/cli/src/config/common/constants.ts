@@ -107,4 +107,24 @@ export class ConfigKeyOrder {
     'theme',
   ];
   static readonly LAST = 'remove';
+
+  /** Where a key goes: its index in `KEYS`, after them when it is not listed, and `remove` last. */
+  static rankOf(opts: { key: string }): number {
+    if (opts.key === ConfigKeyOrder.LAST) {
+      return ConfigKeyOrder.KEYS.length + 1;
+    }
+
+    const index = ConfigKeyOrder.KEYS.indexOf(opts.key);
+
+    return index === -1 ? ConfigKeyOrder.KEYS.length : index;
+  }
+
+  /** Whether `keys` are in the order already. */
+  static isOrdered(opts: { keys: string[] }): boolean {
+    return opts.keys.every(
+      (key, index) =>
+        index === 0 ||
+        ConfigKeyOrder.rankOf({ key: opts.keys[index - 1] }) <= ConfigKeyOrder.rankOf({ key }),
+    );
+  }
 }
