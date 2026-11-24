@@ -139,9 +139,14 @@ describe('a repository that publishes no package has no descriptor', () => {
     configFile: '.configs/vulcan.config.mts',
   });
 
-  test('publishing is signing the atlas index: keys, or none', () => {
-    expect(ProjectManifest.publishes({ config: configOf('x').config })).toBe(true);
-    expect(ProjectManifest.publishes({ config: appConfig('x').config })).toBe(false);
+  test('publishing is signing the atlas index, or tracking the descriptor already', () => {
+    const tracked = app({ [ManifestConstants.DESCRIPTOR_FILE]: '{}\n' });
+
+    initRepo({ cwd: tracked });
+
+    expect(ProjectManifest.publishes(configOf(app()))).toBe(true);
+    expect(ProjectManifest.publishes(appConfig(app()))).toBe(false);
+    expect(ProjectManifest.publishes(appConfig(tracked))).toBe(true);
   });
 
   test('sync writes only the local manifest', () => {
@@ -184,20 +189,20 @@ describe('a repository that publishes no package has no descriptor', () => {
     expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(false);
   });
 
-  test('a descriptor git tracks is left, and doctor warns with git rm --cached', () => {
+  test('a source with no signing keys that tracks its descriptor keeps it written, and doctor never asks to untrack it', () => {
     const root = app({ [ManifestConstants.DESCRIPTOR_FILE]: '{}\n' });
 
     initRepo({ cwd: root });
 
     const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const descriptor = JSON.parse(
+      readFileSync(join(root, ManifestConstants.DESCRIPTOR_FILE), 'utf8'),
+    );
 
     expect(run.code, run.stderr).toBe(0);
-    expect(readFileSync(join(root, ManifestConstants.DESCRIPTOR_FILE), 'utf8')).toBe('{}\n');
+    expect(descriptor.name).toBe('shop');
+    expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(true);
     expect(ProjectContract.checkManifest(appConfig(root))).toEqual([]);
-    expect(
-      ProjectContract.checkTrackedDescriptor(appConfig(root)).map((entry) => entry.message),
-    ).toEqual([
-      `a repository that publishes no package has no descriptor, and git tracks this one: run 'git rm --cached ${ManifestConstants.DESCRIPTOR_FILE}' and delete it`,
-    ]);
+    expect(run.stderr).not.toContain('git rm --cached');
   });
 });

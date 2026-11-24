@@ -1,3 +1,4 @@
+import { ConfigImports } from '../config/imports.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { relative } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
@@ -148,6 +149,10 @@ export class SyncFlow {
 
     for (const { id, change, text } of changes) {
       process.stderr.write(`  ${change.padEnd(width)} ${[id, text].filter(Boolean).join(' ')}\n`);
+    }
+
+    for (const problem of ConfigImports.scan({ root: opts.cwd }).problems) {
+      process.stderr.write(`  ${'warning'.padEnd(width)} ${problem.file}: ${problem.message}\n`);
     }
 
     for (const { agent, note } of AgentFiles.agentNotes({ agents: resolved.agents })) {

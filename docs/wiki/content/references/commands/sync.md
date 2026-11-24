@@ -15,12 +15,12 @@ The manifest is always written.
 | Agent instructions | `CLAUDE.md` | No (gitignored adapter) | `@AGENTS.md` import line |
 | Claude settings | `.claude/settings.json` | No (gitignored adapter) | Shipped settings, slot choices, `claude.settings` (project hooks included), and personal settings |
 | Skill links | `.claude/skills/<name>` | No (gitignored adapter) | Symbolic links to shipped and project skills |
-| Atlas descriptor | `.agents/atlas.manifest.json` | Yes (committed, generated); only in a repository that publishes (it sets `atlas.index.keys`) | What atlas and the wiki build read: name, packages, layout, presets, knowledge, release, sources, atlas, theme |
+| Atlas descriptor | `.agents/atlas.manifest.json` | Yes (committed, generated); only in a repository that publishes (it sets `atlas.index.keys`, or git tracks the file) | What atlas and the wiki build read: name, packages, layout, presets, knowledge, release, sources, atlas, theme |
 | Descriptor copy (temporary) | `.agents/vulcan.manifest.json` | Yes (committed, generated); only in a repository that publishes | The same text as the descriptor, kept until the stable 0.5.0 release: atlas of 0.5.0-6 and before finds a source's manifest only at this path |
 | Local manifest | `.agents/local/vulcan.manifest.json` | No (gitignored; each clone writes its own) | Project configuration the hooks, board and doctor read, and base rule hashes |
 | Managed overlay | `.claude/vulcan-managed.json` | No (gitignored adapter) | Managed overlay record of settings written by VULCAN |
 
-An app, a repository that publishes no package (its config sets no `atlas.index.keys`), gets no descriptor and no copy: everything stays in `.agents/local/vulcan.manifest.json`, and atlas reads its own project from there. A descriptor or a copy left from an earlier sync is deleted when git does not track it; when git does, `sync` leaves it and `vulcan doctor` warns with the `git rm --cached` command.
+Only a repository that publishes (its config sets `atlas.index.keys`, or git already tracks `.agents/atlas.manifest.json`) gets the descriptor and the copy. An app gets neither: everything stays in `.agents/local/vulcan.manifest.json`, and atlas reads its own project from there. A descriptor or a copy left untracked by an earlier sync is deleted; one git tracks is never touched. A new atlas source that signs nothing commits its descriptor once: set `atlas.index.keys`, run `vulcan sync`, and commit `.agents/atlas.manifest.json`; from then on git tracking it keeps `sync` writing it, keys or not.
 
 ## Options
 

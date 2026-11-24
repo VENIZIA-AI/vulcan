@@ -72,7 +72,7 @@ export default {
 
 - A `packages` that is `undefined` counts as not written: the packages are derived from the workspaces, as when the key is left out.
 - `vulcan config format` orders the keys of the file; the values are names, so the modules are not touched.
-- The guards protect every module under `.configs/vulcan/`, and every other file under `.configs/` the config imports, as they protect the config ([hooks](/references/hooks/#the-files-the-guards-protect)). A module outside `.configs/` is not protected: keep the modules there.
+- The guards protect every module under `.configs/vulcan/`, and every other file under `.configs/` the config imports, as they protect the config ([hooks](/references/hooks/#the-files-the-guards-protect)). A module outside `.configs/` is not protected, and `vulcan sync` and `vulcan doctor` warn about it: keep the modules there.
 
 The schema is strict. An unknown key causes an error during `vulcan doctor`:
 

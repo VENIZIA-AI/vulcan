@@ -6,6 +6,7 @@ import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { ProjectPackages } from '../config/index.ts';
 import { ConfigImports } from '../config/imports.ts';
 import { GuardDecisions } from '../hooks/common/index.ts';
+import { GitQueries } from '../hooks/git-queries.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules } from '../rules/index.ts';
 import { ThemeTokens } from '../theme/index.ts';
@@ -251,10 +252,17 @@ export class ProjectManifest {
 
   /**
    * Whether the repository publishes, so other projects read it as an atlas source: it signs the index it publishes
-   * (`atlas.index.keys`). Only such a repository writes the committed descriptor; an app keeps everything in the local manifest.
+   * (`atlas.index.keys`), or git already tracks its descriptor (a source that signs nothing is read through that file).
+   * Only such a repository writes the committed descriptor; an app keeps everything in the local manifest.
    */
-  static publishes(opts: { config: TResolvedConfig }): boolean {
-    return (opts.config.atlas.index?.keys.length ?? 0) > 0;
+  static publishes(opts: { root: string; config: TResolvedConfig }): boolean {
+    return (
+      (opts.config.atlas.index?.keys.length ?? 0) > 0 ||
+      GitQueries.run({
+        args: ['ls-files', '--error-unmatch', '--', ManifestConstants.DESCRIPTOR_FILE],
+        cwd: opts.root,
+      }) !== undefined
+    );
   }
 
   /** The committed descriptor: the keys of the manifest that atlas reads, in the same order and with the same values. */

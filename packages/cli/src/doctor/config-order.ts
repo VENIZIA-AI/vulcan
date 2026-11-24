@@ -3,9 +3,21 @@ import { join } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
 import { ConfigKeyOrder } from '../config/common/index.ts';
 import { ConfigFormat } from '../config/format.ts';
+import { ConfigImports } from '../config/imports.ts';
 import type { ICheckContext } from './checks.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
+
+/** The modules of the config the guards cannot protect, one warning each. A warning. */
+export class ConfigModulesCheck {
+  static check(opts: ICheckContext): IViolation[] {
+    return ConfigImports.scan({ root: opts.root }).problems.map((problem) => ({
+      check: DoctorChecks.CONFIG_MODULES,
+      file: problem.file,
+      message: problem.message,
+    }));
+  }
+}
 
 export class ConfigOrderCheck {
   /**

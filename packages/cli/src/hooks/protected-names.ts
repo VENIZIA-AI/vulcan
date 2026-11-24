@@ -38,10 +38,13 @@ export class ProtectedNames {
     ...new Set(ProtectedNames.REACH.map((name) => name.slice(name.lastIndexOf('/') + 1))),
   ];
 
-  /** Whether a `find -name` pattern can match the name of a protected file or of a folder that holds one. */
-  static isNameReachable(opts: { pattern: string }): boolean {
+  /** Whether a `find -name` pattern can match the name of a protected file, of a folder that holds one, or of a module the config imports. */
+  static isNameReachable(opts: { pattern: string; configModules?: string[] }): boolean {
     const glob = new Bun.Glob(opts.pattern.toLowerCase());
+    const modules = ProtectedNames.reachOf({ files: opts.configModules ?? [] }).map((name) =>
+      name.slice(name.lastIndexOf('/') + 1),
+    );
 
-    return ProtectedNames.BASENAMES.some((name) => glob.match(name));
+    return [...ProtectedNames.BASENAMES, ...modules].some((name) => glob.match(name));
   }
 }
