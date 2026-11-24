@@ -216,7 +216,7 @@ describe('the loader: packages the config does not write are derived, a list it 
     const out = JSON.parse(runCli({ args: ['config', 'effective'], cwd: root }).stdout);
 
     expect(out.config.packages).toHaveLength(3);
-    expect(out.from.packages).toBe('workspaces');
+    expect(out.from['project.packages']).toBe('workspaces');
   });
 
   test('packages: [] keeps none, and a written list is exactly the list', async () => {

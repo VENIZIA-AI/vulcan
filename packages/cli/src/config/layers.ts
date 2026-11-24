@@ -4,6 +4,7 @@ import { BASE_DIRECTORY } from '../common/paths.ts';
 import { RecordValue } from '../common/record.ts';
 import { RulePacks } from '../rules/packs.ts';
 import { ConfigConstants } from './common/index.ts';
+import { ConfigGroups } from './groups.ts';
 import { VULCAN_CONFIG_SCHEMA } from './schema.ts';
 
 /** One layer of the config: the shipped defaults, a pack's config, or the project's own file. */
@@ -38,7 +39,6 @@ const SHIPPED_MASK = {
   doctor: true,
   knowledge: true,
 } as const;
-const SHIPPED_KEYS = Object.keys(SHIPPED_MASK);
 
 /** Whether a value is a plain object: a literal or `JSON.parse`, never a `Date`, a class instance or an array. */
 const isPlain = (value: unknown): value is Record<string, unknown> => {
@@ -89,8 +89,12 @@ export class ConfigLayers {
         const value = given.load();
         const message = ConfigLayers.checkShipped({ value });
 
+        // A shipped file is written in groups, like a project's; the layers are merged flat, as the schema reads them.
         if (message === undefined) {
-          layers.push({ name: given.name, value: isPlain(value) ? value : {} });
+          layers.push({
+            name: given.name,
+            value: isPlain(value) ? ConfigGroups.toFlat({ value }).flat : {},
+          });
         } else {
           problems.push({ file: given.file, message });
         }
@@ -131,13 +135,19 @@ export class ConfigLayers {
       return 'must be an object';
     }
 
-    const stray = Object.keys(opts.value).filter((key) => !SHIPPED_KEYS.includes(key));
+    const stray = ConfigGroups.strayOfShipped({ value: opts.value });
 
     if (stray.length > 0) {
-      return `${stray.join(', ')} cannot be set by shipped defaults (one of ${SHIPPED_KEYS.join(', ')})`;
+      return `${stray.join(', ')} cannot be set by shipped defaults (a project's own facts are not defaults)`;
     }
 
-    const parsed = VULCAN_CONFIG_SCHEMA.pick(SHIPPED_MASK).safeParse(opts.value);
+    const { flat, issues } = ConfigGroups.toFlat({ value: opts.value });
+
+    if (issues.length > 0) {
+      return issues[0];
+    }
+
+    const parsed = VULCAN_CONFIG_SCHEMA.pick(SHIPPED_MASK).safeParse(flat);
 
     if (parsed.success) {
       return undefined;
@@ -145,7 +155,7 @@ export class ConfigLayers {
 
     const issue = parsed.error.issues[0];
 
-    return `${issue?.path.join('.') ?? ''}: ${issue?.message ?? 'not valid'}`;
+    return `${ConfigGroups.groupedPathOf({ path: issue?.path.join('.') ?? '' })}: ${issue?.message ?? 'not valid'}`;
   }
 
   /** Merges the layers in order (the last layer wins a scalar) and applies `remove`. */

@@ -1,6 +1,6 @@
 import { ExitCodes, ProjectLayout } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { ConfigLayers, ConfigLoader } from '../config/index.ts';
+import { ConfigGroups, ConfigLayers, ConfigLoader } from '../config/index.ts';
 import { ConfigFormat } from '../config/format.ts';
 
 const EFFECTIVE_FLAG = '--effective';
@@ -91,8 +91,15 @@ export const runConfigCommand = async (opts: ICommandContext): Promise<number> =
       `${JSON.stringify(
         {
           config: loaded.config,
-          from: loaded.layers.merge.from,
-          unmatchedRemove: loaded.layers.merge.unmatched,
+          from: Object.fromEntries(
+            Object.entries(loaded.layers.merge.from).map(([path, layer]) => [
+              ConfigGroups.groupedPathOf({ path }),
+              layer,
+            ]),
+          ),
+          unmatchedRemove: loaded.layers.merge.unmatched.map((entry) =>
+            ConfigGroups.groupedEntryOf({ entry }),
+          ),
         },
         null,
         2,
@@ -110,7 +117,7 @@ export const runConfigCommand = async (opts: ICommandContext): Promise<number> =
   process.stdout.write(
     same.length === 0
       ? 'nothing in the project config equals the shipped defaults\n'
-      : `${same.length} value(s) of the project config equal the shipped defaults; delete them:\n${same.map((path) => `  ${path}`).join('\n')}\n`,
+      : `${same.length} value(s) of the project config equal the shipped defaults; delete them:\n${same.map((path) => `  ${ConfigGroups.groupedPathOf({ path })}`).join('\n')}\n`,
   );
 
   return ExitCodes.OK;

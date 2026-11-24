@@ -280,9 +280,25 @@ describe('the shipped layers', () => {
     expect(ConfigLayers.checkShipped({ value: [] })).toContain('must be an object');
     expect(
       ConfigLayers.checkShipped({
-        value: { digest: { oftenDropped: ['V-P-07'] }, presets: [] },
+        value: { agent: { digest: { oftenDropped: ['V-P-07'] } }, project: { presets: [] } },
       }),
     ).toBeUndefined();
+    // A project's own facts are not defaults: the stray keys are named by their grouped path.
+    expect(
+      ConfigLayers.checkShipped({
+        value: { project: { name: 'x', presets: [] }, agent: { list: [], claude: {} }, board: {} },
+      }),
+    ).toBe(
+      "project.name, agent.list, board cannot be set by shipped defaults (a project's own facts are not defaults)",
+    );
+    expect(ConfigLayers.checkShipped({ value: { knowledge: { okf: {} } } })).toContain(
+      'knowledge.okf',
+    );
+    expect(ConfigLayers.checkShipped({ value: { check: { doctor: { nope: 1 } } } })).toContain(
+      'check.doctor',
+    );
+    // The flat shape is not a shipped shape.
+    expect(ConfigLayers.checkShipped({ value: { digest: {} } })).toContain('digest');
   });
 });
 
@@ -427,9 +443,9 @@ describe('vulcan config', () => {
     expect(result.code).toBe(0);
     expect(out.config.name).toBe('acme');
     expect(out.config.digest.oftenDropped).toHaveLength(11);
-    expect(out.from['digest.oftenDropped[V-P-07]']).toBe('base');
-    expect(out.from.name).toBe('project');
-    expect(out.unmatchedRemove).toEqual(['atlas.sources: ghost']);
+    expect(out.from['agent.digest.oftenDropped[V-P-07]']).toBe('base');
+    expect(out.from['project.name']).toBe('project');
+    expect(out.unmatchedRemove).toEqual(['knowledge.atlas.sources: ghost']);
   });
 
   test('--diff says nothing repeats when the project writes none of what the shipped layers give', () => {
