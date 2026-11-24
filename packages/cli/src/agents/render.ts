@@ -95,7 +95,7 @@ export class McpConfig {
   static previousAtlasEntry(): { command: string; args: string[] } {
     return {
       command: 'bun',
-      args: ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+      args: ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '.'], // retired-form: the entry of the release before the scopes
     };
   }
 
@@ -103,7 +103,7 @@ export class McpConfig {
   static legacyAtlasEntry(): { command: string; args: string[] } {
     return {
       command: 'bun',
-      args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+      args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'], // retired-form: the entry an earlier release wrote, which a sync still recognises
     };
   }
 

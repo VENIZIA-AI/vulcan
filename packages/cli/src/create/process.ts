@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+import { CommandScopes } from '../commands/scopes.ts';
 import { ExitCodes } from '../common/index.ts';
 import { CreateConstants } from './common/index.ts';
 
@@ -67,6 +69,28 @@ export class SubProcess {
       command: [SubProcess.bunExecutable(), ...opts.args],
       label: opts.label,
       quiet: opts.quiet,
+    });
+  }
+
+  /**
+   * The `vulcan` the project installed, run as a child by its public name (`project sync`, `project doctor`, `okf check --strict`): a
+   * child of the version the project pins, never this process's own code. The words come from `CommandScopes`.
+   */
+  static async runVulcan(opts: {
+    cwd: string;
+    root: string;
+    scope: string;
+    action: string;
+    args?: string[];
+  }): Promise<number> {
+    return SubProcess.runBun({
+      cwd: opts.cwd,
+      args: [
+        join(opts.root, 'node_modules', '.bin', 'vulcan'),
+        ...CommandScopes.argvOf({ scope: opts.scope, action: opts.action }),
+        ...(opts.args ?? []),
+      ],
+      label: `vulcan ${opts.scope} ${opts.action}${(opts.args ?? []).map((arg) => ` ${arg}`).join('')}`,
     });
   }
 

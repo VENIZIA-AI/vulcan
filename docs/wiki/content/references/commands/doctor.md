@@ -275,7 +275,7 @@ Warnings (the same level as [format](#format): exit code `0`, `vulcan project do
 Anything else is a warning that shows the expected entry: a file that is not JSON, the server under another name (`ignis-atlas`, which Claude does not enable automatically), an `atlas` entry with another root (`--root ../ignis` serves another project's knowledge and only works where the folders sit side by side), or settings that do not enable `atlas`.
 
 ```text
-  warning [mcp] .mcp.json: the atlas entry is { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }
+  warning [mcp] .mcp.json: the atlas entry is { "command": "bun", "args": ["node_modules/.bin/vulcan", "atlas", "mcp", "--root", "../ignis"] }, expected "atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "atlas", "mcp", "--root", "."] }
   warning [mcp] .claude/settings.json: enabledMcpjsonServers does not include atlas (has: ignis-knowledge): Claude asks before using the server - run vulcan project sync
 ```
 

@@ -15,10 +15,19 @@ const RETIRED = [
   new RegExp(String.raw`${CALL} config --(?:effective|diff)\b`),
   new RegExp(String.raw`${CALL} event step\b`),
   new RegExp(String.raw`${CALL} event add --kind flow\b`),
+  // A child of the installed bin by a retired name: `[bin, 'doctor']`, `[join(root, 'node_modules', '.bin', 'vulcan'), 'sync']`.
+  /(?:\bbin|'vulcan'\)|\.bin\/vulcan['"`]?)\s*,\s*'(?:sync|doctor|init|upgrade|clean|add|agents|commit-check|runners|changelog|preset|visualize|layout|x)'/,
+  // The same list with the program quoted (`'vulcan', 'x', 'atlas'`, `"vulcan","sync"`), the old `.mcp.json` pair (`"x", "atlas"`), and a command constant passed as an argument.
+  /['"]vulcan['"]\s*,\s*['"](?:sync|doctor|init|upgrade|clean|add|agents|commit-check|runners|changelog|preset|visualize|layout|x)['"]/,
+  /['"]x['"]\s*,\s*['"](?:atlas|okf)['"]/,
+  /(?:\bbin|'vulcan'\)|\.bin\/vulcan['"`]?)\s*,\s*VulcanCommands\./,
 ];
 /** What keeps the old words on purpose: the table that maps them, the test that pins it, the frozen history, the wiki theme shared with the other repositories (its hashes are in SHARED.json), binaries and lock files. */
 const SKIPPED =
   /^(?:packages\/cli\/src\/commands\/scopes\.ts|packages\/cli\/src\/__tests__\/commands\/scopes\.test\.ts|scripts\/checks\/command-forms\.ts|scripts\/checks\/__tests__\/command-forms\.test\.ts|packages\/cli\/src\/(?:commands\/x\.command|__tests__\/commands\/x\.command\.test)\.ts|docs\/wiki\/content\/changelogs\/|docs\/wiki\/site\/\.vitepress\/theme\/shared\/|bun\.lock|node_modules\/|\.agents\/local\/)|\.(?:png|svg|ico|woff2?|jpg|webp)$/;
+
+/** A line that names a retired form on purpose (what an earlier release wrote and a sync still recognises) says so in a `//` comment with a reason; the test of this gate lists every use. */
+const ALLOWED = /\/\/\s*retired-form:\s*\S/;
 
 export interface ICommandFormHit {
   file: string;
@@ -35,11 +44,24 @@ export class CommandForms {
         text
           .split('\n')
           .flatMap((line, index) =>
-            RETIRED.some((pattern) => pattern.test(line))
+            !ALLOWED.test(line) && RETIRED.some((pattern) => pattern.test(line))
               ? [{ file, line: index + 1, text: line.trim().slice(0, 140) }]
               : [],
           ),
       );
+  }
+
+  /** How many lines of each file carry the opt-out: the test pins the list, so a new one fails until it is listed there. */
+  static allowedUses(opts: { files: { file: string; text: string }[] }): Record<string, number> {
+    return Object.fromEntries(
+      opts.files
+        .filter(({ file }) => !SKIPPED.test(file))
+        .map(({ file, text }) => [
+          file,
+          text.split('\n').filter((line) => ALLOWED.test(line)).length,
+        ])
+        .filter(([, count]) => count !== 0),
+    );
   }
 
   static tracked(): { file: string; text: string }[] {

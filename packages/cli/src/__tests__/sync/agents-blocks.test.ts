@@ -11,7 +11,7 @@ afterAll(removeProjects);
 
 const MCP = JSON.stringify({
   mcpServers: {
-    atlas: { command: 'bun', args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp'] },
+    atlas: { command: 'bun', args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp'] }, // retired-form: the entry an earlier release wrote, which a sync still recognises
   },
 });
 const CONFIG = [

@@ -904,7 +904,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
       mcpServers: {
         atlas: {
           command: 'bun',
-          args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+          args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'], // retired-form: the entry an earlier release wrote, which a sync still recognises
         },
       },
     });

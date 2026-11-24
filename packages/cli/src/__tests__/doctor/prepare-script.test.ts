@@ -61,7 +61,7 @@ describe('the prepare script cannot fail an install', () => {
 });
 
 /** The old spelling, built so that the gate over retired names does not read it as a use. */
-const OLD_SYNC = ['bun node_modules/.bin/vulcan', 'sync'].join(' ');
+const OLD_SYNC = ['bun node_modules/.bin/vulcan', 'sync'].join(' '); // retired-form: the old spelling the doctor still reads
 
 describe('doctor and the prepare script', () => {
   test('a root package.json with no prepare script gets a note that prints the line; one that runs sync gets none; no package.json none', () => {

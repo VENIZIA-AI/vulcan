@@ -207,6 +207,21 @@ test('after the install, sync runs from the NEWLY installed CLI, not the one alr
   expect(readFileSync(join(root, 'sync-ran.txt'), 'utf8')).toBe('sync');
 });
 
+test('the installed CLI of the target can be a 0.4.x one: it has `sync` and no `project`, and the upgrade still syncs', async () => {
+  const root = createProject({
+    files: {
+      'node_modules/.bin/vulcan':
+        "#!/usr/bin/env bun\nconst [command] = process.argv.slice(2);\nif (command !== 'sync') {\n  console.error(`vulcan: unknown command '${command}'`);\n  process.exit(1);\n}\nawait Bun.write('sync-ran.txt', 'old');\n",
+    },
+  });
+
+  chmodSync(join(root, 'node_modules', '.bin', 'vulcan'), 0o755);
+
+  const result = await UpgradeTarget.runInstalledSync({ cwd: root });
+  expect(result).toBe(0);
+  expect(readFileSync(join(root, 'sync-ran.txt'), 'utf8')).toBe('old');
+});
+
 test('no installed CLI after the install: exit 1, never a fallback to the old code', async () => {
   const root = createProject({ files: {} });
 

@@ -167,7 +167,9 @@ export class UpgradeTarget {
       return ExitCodes.FAILURE;
     }
 
-    const child = Bun.spawn([process.execPath, bin, 'sync'], {
+    // The installed bin is the target of the upgrade, and it can predate the scopes (0.4.x has `sync` and no `project`; 0.5.0 forwards `sync`).
+    const args = [process.execPath, bin, 'sync']; // retired-form: the installed bin may predate the scopes
+    const child = Bun.spawn(args, {
       cwd: opts.cwd,
       stdio: ['inherit', 'inherit', 'inherit'],
     });

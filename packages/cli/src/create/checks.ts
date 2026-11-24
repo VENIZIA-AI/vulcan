@@ -1,5 +1,4 @@
-import { join } from 'node:path';
-import { ExitCodes, ProjectLayout } from '../common/index.ts';
+import { ExitCodes } from '../common/index.ts';
 import { SubProcess } from './process.ts';
 
 export class AppChecks {
@@ -25,17 +24,11 @@ export class AppChecks {
       }
     }
 
-    const bin = join(opts.root, 'node_modules', '.bin', 'vulcan');
-
-    for (const args of [
-      [bin, 'doctor'],
-      [bin, 'x', 'okf', 'check', '--strict'],
+    for (const check of [
+      { scope: 'project', action: 'doctor', args: [] },
+      { scope: 'okf', action: 'check', args: ['--strict'] },
     ]) {
-      const code = await SubProcess.runBun({
-        cwd: opts.root,
-        args,
-        label: `${ProjectLayout.VULCAN_COMMAND} ${args.slice(1).join(' ')}`,
-      });
+      const code = await SubProcess.runVulcan({ cwd: opts.root, root: opts.root, ...check });
 
       if (code !== ExitCodes.OK) {
         return code;

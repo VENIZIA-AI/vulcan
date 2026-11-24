@@ -15,6 +15,9 @@ describe('the retired command forms', () => {
     'vulcan event step --flow X',
     'vulcan event add --kind flow --title t',
     '`${ProjectLayout.VULCAN_COMMAND} sync`',
+    "[bin, 'doctor'],",
+    "[bin, 'x', 'okf', 'check', '--strict'],",
+    "args: [join(root, 'node_modules', '.bin', 'vulcan'), 'sync'],",
   ])('%s is found', (text) => {
     expect(scan(text)).toHaveLength(1);
   });
@@ -30,6 +33,9 @@ describe('the retired command forms', () => {
     'vulcan migrate notes',
     'vulcan check commit',
     'vulcan config effective',
+    "[bin, 'project', 'doctor'],",
+    "[bin, 'okf', 'check', '--strict'],",
+    "['add', '-d', '--exact', 'x']",
   ])('%s is the new form and is not', (text) => {
     expect(scan(text)).toEqual([]);
   });
@@ -44,5 +50,27 @@ describe('the retired command forms', () => {
     expect(scan('fine\nrun vulcan upgrade now')).toEqual([
       { file: 'docs/a.md', line: 2, text: 'run vulcan upgrade now' },
     ]);
+  });
+
+  test('the opt-out needs a comment with a reason, and every line that uses it is listed here', () => {
+    expect(scan("const a = [bin, 'doctor']; // retired-form: because")).toEqual([]);
+    expect(scan("const a = [bin, 'doctor']; // retired-form:")).toHaveLength(1);
+    expect(scan("const a = [bin, 'doctor']; retired-form: because")).toHaveLength(1);
+    expect(scan("const a = ['vulcan', 'x', 'atlas'];")).toHaveLength(1);
+    expect(scan('"vulcan","sync"')).toHaveLength(1);
+    expect(scan('"args": ["x", "atlas", "mcp"]')).toHaveLength(1);
+    expect(scan('[bin, VulcanCommands.SYNC]')).toHaveLength(1);
+
+    // A new use fails here until it is listed: each is a place that must keep an old form (an entry an earlier release wrote, the old spelling a doctor reads, the bin an upgrade installs).
+    expect(CommandForms.allowedUses({ files: CommandForms.tracked() })).toEqual({
+      'packages/cli/src/__tests__/agents/render.test.ts': 4,
+      'packages/cli/src/__tests__/doctor/prepare-script.test.ts': 1,
+      'packages/cli/src/__tests__/doctor/runner.test.ts': 1,
+      'packages/cli/src/__tests__/sync/agents-blocks.test.ts': 1,
+      'packages/cli/src/__tests__/sync/mcp-json.test.ts': 2,
+      'packages/cli/src/agents/render.ts': 2,
+      'packages/cli/src/commands/upgrade.command.ts': 1,
+      'packages/cli/src/doctor/checks.ts': 2,
+    });
   });
 });
