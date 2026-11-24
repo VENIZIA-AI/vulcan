@@ -7,6 +7,7 @@ import type { TResolvedConfig } from './schema.ts';
 import { RecordValue } from '../common/record.ts';
 import { ConfigLayers } from './layers.ts';
 import { WorkspacePackages } from './workspaces.ts';
+import { ConfigGroups } from './groups.ts';
 import type { IConfigLayer, IConfigMerge, IShippedProblem } from './layers.ts';
 
 type TLoadResult =
@@ -128,7 +129,24 @@ export class ConfigLoader {
       };
     }
 
-    const layered = ConfigLoader.layered({ project: loaded.default });
+    // The file is written in groups or flat; the rest of the load reads the flat one.
+    let written: unknown = loaded.default;
+
+    if (RecordValue.isRecord(written) && !ConfigGroups.isFlat({ value: written })) {
+      const grouped = ConfigGroups.toFlat({ value: written });
+
+      if (grouped.issues.length > 0) {
+        return {
+          ok: false,
+          file,
+          error: `${shown}: invalid config\n${grouped.issues.map((issue) => `  ${issue}`).join('\n')}`,
+        };
+      }
+
+      written = grouped.flat;
+    }
+
+    const layered = ConfigLoader.layered({ project: written });
 
     // A shipped layer that is not valid is named by its own file, with the real problem: it is not the project's file.
     const broken = layered.problems[0];
@@ -143,7 +161,7 @@ export class ConfigLoader {
 
     // Only an object is layered; anything else goes to the schema as it is, which says what is wrong with it.
     const parsed = VULCAN_CONFIG_SCHEMA.safeParse(
-      RecordValue.isRecord(loaded.default) ? layered.merge.value : loaded.default,
+      RecordValue.isRecord(written) ? layered.merge.value : written,
     );
 
     if (!parsed.success) {
@@ -162,8 +180,7 @@ export class ConfigLoader {
     }
 
     // Packages the config does not write (or writes as `undefined`, as a split config does) are the workspace members of the root; a list the project writes, even `[]`, is the list.
-    const isDerived =
-      RecordValue.isRecord(loaded.default) && loaded.default['packages'] === undefined;
+    const isDerived = RecordValue.isRecord(written) && written['packages'] === undefined;
 
     const derived = isDerived ? WorkspacePackages.derive({ root: opts.root }) : undefined;
 
@@ -184,7 +201,7 @@ export class ConfigLoader {
       file,
       config: derived === undefined ? parsed.data : { ...parsed.data, packages: derived.packages },
       layers: {
-        project: RecordValue.isRecord(loaded.default) ? loaded.default : {},
+        project: RecordValue.isRecord(written) ? written : {},
         below: layered.below,
         merge: layered.merge,
       },

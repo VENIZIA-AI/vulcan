@@ -49,10 +49,10 @@ Both shapes load the same way: the config is a module, and what it imports is re
   vulcan.config.mts       project, agents, rules, and the sections by name
   vulcan/
     index.mts             export { claude } from './claude.mts'; ...
-    claude.mts            export const claude = { ... } satisfies NonNullable<VulcanConfig['claude']>;
-    doctor.mts            export const doctor = { ... } satisfies NonNullable<VulcanConfig['doctor']>;
-    okf.mts               export const okf = { ... } satisfies NonNullable<VulcanConfig['okf']>;
-    packages.mts          export const packages: VulcanConfig['packages'] = undefined;
+    claude.mts            export const claude = { ... } satisfies NonNullable<VulcanConfig.Agent['claude']>;
+    doctor.mts            export const doctor = { ... } satisfies NonNullable<VulcanConfig.Check['doctor']>;
+    okf.mts               export const okf = { ... } satisfies NonNullable<VulcanConfig.Knowledge['okf']>;
+    packages.mts          export const packages: VulcanConfig.Project['packages'] = undefined;
 ```
 
 ```ts
@@ -70,6 +70,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
+- A split module is typed by its group: `VulcanConfig.Agent['claude']`, `VulcanConfig.Check['doctor']`, `VulcanConfig.Knowledge['okf']`, `VulcanConfig.Project['packages']`. `VulcanConfig['claude']` no longer type-checks, because `VulcanConfig` is the grouped shape or the flat one; the flat file of the earlier releases is read until the release that refuses it.
 - A `packages` that is `undefined` counts as not written: the packages are derived from the workspaces, as when the key is left out.
 - `vulcan config format` orders the keys of the file; the values are names, so the modules are not touched.
 - The guards protect every module under `.configs/vulcan/`, and every other file under `.configs/` the config imports, as they protect the config ([hooks](/references/hooks/#the-files-the-guards-protect)). A module outside `.configs/` is not protected, and `vulcan project sync` and `vulcan project doctor` warn about it: keep the modules there.

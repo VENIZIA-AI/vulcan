@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import type { TResolvedConfig, VulcanConfig } from '../../index.ts';
+import type { TFlatConfig, TResolvedConfig } from '../../index.ts';
 import { FROZEN_CONFIG_SCHEMA } from './frozen-schema.helper.ts';
 
 /** True only when the two types are identical, optional against `| undefined` included. */
@@ -12,7 +12,7 @@ type TIsEqual<Left, Right> =
     ? true
     : false;
 
-const INPUT_UNCHANGED: TIsEqual<VulcanConfig, z.input<typeof FROZEN_CONFIG_SCHEMA>> = true;
+const INPUT_UNCHANGED: TIsEqual<TFlatConfig, z.input<typeof FROZEN_CONFIG_SCHEMA>> = true;
 const OUTPUT_UNCHANGED: TIsEqual<TResolvedConfig, z.output<typeof FROZEN_CONFIG_SCHEMA>> = true;
 
 const REPO_ROOT = join(import.meta.dir, '..', '..', '..', '..', '..');
