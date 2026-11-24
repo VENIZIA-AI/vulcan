@@ -384,3 +384,36 @@ describe('the hook answers with a deny, whatever the project sets', () => {
     ).toBe('');
   });
 });
+
+describe('guard-outside denies a vulcan command that writes the config', () => {
+  const root = project();
+
+  test.each([
+    'bun node_modules/.bin/vulcan config format',
+    'vulcan config format',
+    './node_modules/.bin/vulcan config format',
+    'bun run vulcan config format',
+    'bunx @venizia/vulcan@0.5.0-8 config codemod config-groups . --write',
+    'bunx vulcan@0.5.0-8 config format',
+    'bun node_modules/.bin/vulcan config codemod config-groups . --write',
+    'bun node_modules/.bin/vulcan config codemod config-groups . --split --write',
+    'ls && bun node_modules/.bin/vulcan config format; ls',
+  ])('%s', (command) => {
+    expect(protectedHitsOf({ root, command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'bun node_modules/.bin/vulcan config format --check',
+    'bun node_modules/.bin/vulcan config codemod config-groups .',
+    'bun node_modules/.bin/vulcan config codemod config-groups . --split',
+    'bun node_modules/.bin/vulcan config codemod --list',
+    'bun node_modules/.bin/vulcan config effective',
+    'bun node_modules/.bin/vulcan config diff',
+    'bun node_modules/.bin/vulcan project doctor',
+    'bun node_modules/.bin/vulcan check layout',
+    'echo config format',
+    'bun test config format',
+  ])('the read-only form stays allowed: %s', (command) => {
+    expect(protectedHitsOf({ root, command }), command).toEqual([]);
+  });
+});

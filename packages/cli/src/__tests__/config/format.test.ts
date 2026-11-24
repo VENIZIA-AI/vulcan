@@ -311,23 +311,6 @@ describe('a grouped file', () => {
     expect(reasonOf({ text: spread })).toContain('spread');
   });
 
-  test('the file the loader reads is judged in order by its own keys, whatever the flat config is', () => {
-    expect(
-      ConfigKeyOrder.isOrderedFile({
-        value: { project: { name: 'a', key: 'A' }, agent: { list: [] } },
-      }),
-    ).toBe(true);
-    expect(ConfigKeyOrder.isOrderedFile({ value: { agent: {}, project: {} } })).toBe(false);
-    expect(ConfigKeyOrder.isOrderedFile({ value: { agent: { claude: {}, list: [] } } })).toBe(
-      false,
-    );
-    expect(
-      ConfigKeyOrder.isOrderedFile({ value: { guard: { outside: 'deny', asks: 'ask' } } }),
-    ).toBe(true);
-    expect(ConfigKeyOrder.isOrderedFile({ value: { name: 'a', agents: [] } })).toBe(true);
-    expect(ConfigKeyOrder.isOrderedFile({ value: { agents: [], name: 'a' } })).toBe(false);
-  });
-
   test('the inner orders list every key of every group, and nothing the group does not have', () => {
     const schema = VULCAN_CONFIG_SCHEMA.shape;
     const knowledge = [

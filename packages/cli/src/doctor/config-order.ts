@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
-import { ConfigKeyOrder } from '../config/common/index.ts';
 import { ConfigFormat } from '../config/format.ts';
 import { ConfigImports } from '../config/imports.ts';
 import type { ICheckContext } from './checks.ts';
@@ -21,14 +20,10 @@ export class ConfigModulesCheck {
 
 export class ConfigOrderCheck {
   /**
-   * The keys of the config file that `vulcan config format` would move; nothing when it cannot order them. The keys of the
-   * loaded object are read first, so a config in order never loads the compiler. A note.
+   * The keys of the config file that `vulcan config format` would move; nothing when it cannot order them. The text is judged, not
+   * the loaded object: a spread or a repeated key shows in the object as something the file does not say. A note.
    */
   static check(opts: ICheckContext): IViolation[] {
-    if (opts.layers !== undefined && ConfigKeyOrder.isOrderedFile({ value: opts.layers.file })) {
-      return [];
-    }
-
     let result;
 
     try {
