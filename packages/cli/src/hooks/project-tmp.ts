@@ -65,7 +65,7 @@ export class ProjectTmp {
    * Makes every Bash command of a Claude Code session run with `TMPDIR` in the project. Claude Code hands a
    * SessionStart hook a file (`CLAUDE_ENV_FILE`) and sources it before each Bash command, so one `export`
    * there is enough: `mktemp`, bun, node and every script a command starts then use the project folder. It
-   * does not move Claude Code's own task-output files or an MCP server (those need `CLAUDE_CODE_TMPDIR` in the launch environment), and
+   * does not move Claude Code's own task-output files or an MCP server (those need the variable in the launch environment), and
    * `TMPDIR` in the project's settings `env` is not applied by Claude Code, which is why this is a hook.
    * Returns whether it wrote; with no file (another agent, a run outside Claude Code) it does nothing. A
    * path with a line break is refused: a line of shell must never be made from a folder name.
