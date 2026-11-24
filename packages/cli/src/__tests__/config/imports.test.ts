@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, readFileSync, symlinkSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigImports } from '../../config/imports.ts';
 import { ConfigLoader } from '../../config/index.ts';
@@ -140,7 +140,18 @@ describe('ConfigImports.scan: what the guards cannot protect', () => {
     const scan = ConfigImports.scan({ root });
 
     expect(scan.modules).toEqual(['.configs/policy.mts', '.configs/vulcan/claude.mts']);
-    expect(scan.problems.map((problem) => problem.file)).toEqual(['src/app.ts']);
+    expect(scan.problems.map((problem) => problem.message)).toEqual([
+      expect.stringContaining(
+        "imports .configs/vulcan/claude.mts through the alias '@cfg/claude': import it by a relative path",
+      ),
+      expect.stringContaining(
+        "imports .configs/policy.mts through the alias '#policy': import it by a relative path",
+      ),
+      expect.stringContaining(
+        "imports src/app.ts through the alias '~/app.ts': import it by a relative path",
+      ),
+      expect.stringContaining('a module of the config outside .configs/'),
+    ]);
   });
 
   test('a specifier that names nothing known is named; an installed or declared package and a built-in are not', () => {
@@ -186,6 +197,65 @@ describe('ConfigImports.scan: what the guards cannot protect', () => {
     ]);
     expect(scan.problems.map((problem) => problem.message)).toEqual([
       expect.stringContaining('(a link to shared/outside.mts) outside .configs/'),
+    ]);
+  });
+
+  test('a package of this repository (a workspace member, a link) is a local module; one declared with a local protocol but not installed is named', () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.mts': config(
+          "import { a } from '@acme/policy';\nimport { b } from 'local-rules';\nimport type { T } from '@acme/types';",
+        ),
+        'packages/policy/package.json': '{ "name": "@acme/policy" }',
+        'packages/policy/index.ts': 'export const a = 1;\n',
+        'package.json': JSON.stringify({
+          name: 'demo',
+          dependencies: { 'local-rules': 'file:./rules', '@acme/types': 'workspace:*' },
+        }),
+      },
+    });
+
+    mkdirSync(join(root, 'node_modules/@acme'), { recursive: true });
+    symlinkSync(join(root, 'packages/policy'), join(root, 'node_modules/@acme/policy'));
+
+    expect(ConfigImports.scan({ root }).problems.map((problem) => problem.message)).toEqual([
+      expect.stringContaining(
+        "imports '@acme/policy', a package of this repository (packages/policy)",
+      ),
+      expect.stringContaining(
+        "imports 'local-rules', a package of this repository (declared as file:./rules, not installed)",
+      ),
+    ]);
+  });
+
+  test('a config file that is a link out of .configs/ is named', () => {
+    const root = createProject({ files: { 'shared/vulcan.config.mts': config('') } });
+
+    mkdirSync(join(root, '.configs'), { recursive: true });
+    symlinkSync(join(root, 'shared/vulcan.config.mts'), join(root, '.configs/vulcan.config.mts'));
+
+    expect(ConfigImports.scan({ root }).problems.map((problem) => problem.message)).toEqual([
+      expect.stringContaining('is a link to shared/vulcan.config.mts, outside .configs/'),
+    ]);
+  });
+
+  test('a module that cannot be read is a warning, not a crash', () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.mts': config("import { a } from './vulcan/locked.mts';"),
+        '.configs/vulcan/locked.mts': 'export const a = 1;\n',
+      },
+    });
+
+    chmodSync(join(root, '.configs/vulcan/locked.mts'), 0o000);
+
+    const scan = ConfigImports.scan({ root });
+
+    chmodSync(join(root, '.configs/vulcan/locked.mts'), 0o644);
+
+    expect(scan.modules).toEqual(['.configs/vulcan/locked.mts']);
+    expect(scan.problems.map((problem) => problem.message)).toEqual([
+      expect.stringContaining('cannot be read'),
     ]);
   });
 

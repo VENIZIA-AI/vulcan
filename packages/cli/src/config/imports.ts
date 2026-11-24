@@ -4,6 +4,7 @@ import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { ConfigConstants } from './common/index.ts';
+import { ImportSpecifiers } from './import-specifiers.ts';
 import { ConfigLoader } from './loader.ts';
 
 /** What an import may name without its extension, in the order a runtime tries them. */
@@ -70,9 +71,19 @@ const firstTargetOf = (opts: { value: unknown }): string | undefined => {
 interface IAliases {
   paths: { pattern: string; targets: string[]; base: string }[];
   imports: Record<string, unknown>;
-  /** The packages the root package.json declares: a package not installed yet is still a package. */
-  declared: Set<string>;
+  /** The packages the root package.json declares, each with its version or protocol (`file:`, `workspace:`...). */
+  declared: Map<string, string>;
 }
+
+/** What a specifier names: a file of the project (and the alias it went through), a package, a package of this repository, or nothing known. */
+type TResolved =
+  | { found: 'file'; path: string; alias?: string }
+  | { found: 'package' }
+  | { found: 'local-package'; where: string }
+  | { found: 'unknown' };
+
+/** A version that makes a package the project's own code: a folder, a link or a member of the workspace. */
+const LOCAL_PROTOCOL = /^(?:file|link|workspace|portal):/;
 
 const readJson = (opts: { path: string }): unknown => {
   try {
@@ -81,6 +92,9 @@ const readJson = (opts: { path: string }): unknown => {
     return undefined;
   }
 };
+
+const errorText = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
 /** A specifier mapped through a `*` pattern (`@/*` to `src/*`), or `undefined` when the pattern does not match. */
 const mapPattern = (opts: {
@@ -119,9 +133,10 @@ export class ConfigImports {
   }
 
   /**
-   * The modules of the config and what the guards cannot protect: a module reached outside `.configs/` (a relative import, an
-   * alias of the root tsconfig `paths` or package.json `imports`, a link that leads out), and a specifier that names neither a
-   * file of the project nor an installed package. The files are read with the TypeScript pre-processor, never run.
+   * The modules of the config and what the guards cannot protect: the config file or a module reached outside `.configs/`
+   * (a relative import, a link that leads out, a package of this repository), a module reached through an alias of the root
+   * tsconfig `paths` or package.json `imports`, a specifier that names nothing the project has, and a file that cannot be
+   * read. Only imports that bring a value are followed; the files are parsed, never run.
    */
   static scan(opts: { root: string }): { modules: string[]; problems: IConfigModuleProblem[] } {
     const root = existsSync(opts.root) ? realpathSync(opts.root) : opts.root;
@@ -139,48 +154,99 @@ export class ConfigImports {
     const isUnder = (path: string): boolean => path.startsWith(`${configs}${sep}`);
     const modules = new Set<string>();
     const problems: IConfigModuleProblem[] = [];
+    const realOf = (path: string): string | undefined => {
+      try {
+        return realpathSync(path);
+      } catch (error) {
+        problems.push({
+          file: shown(path),
+          message: `cannot be resolved (${errorText(error)}): the guard cannot tell where it is`,
+        });
+
+        return undefined;
+      }
+    };
+    const configReal = realOf(config);
+
+    if (configReal !== undefined && configReal !== config && !isUnder(configReal)) {
+      problems.push({
+        file: shown(config),
+        message: `is a link to ${shown(configReal)}, outside .configs/: an agent can change the policy through it; move the file under .configs/ so the guard protects it`,
+      });
+    }
+
     const seen = new Set<string>([config]);
     const pending = [config];
 
-    for (let file = pending.pop(); file !== undefined; file = pending.pop()) {
-      const { importedFiles } = typescript.preProcessFile(readFileSync(file, 'utf8'), true, true);
+    for (let current = pending.pop(); current !== undefined; current = pending.pop()) {
+      let specifiers: string[];
 
-      for (const { fileName: specifier } of importedFiles) {
-        const found = ConfigImports.resolveSpecifier({ root, from: file, specifier, aliases });
+      try {
+        specifiers = ImportSpecifiers.of({ typescript, text: readFileSync(current, 'utf8') });
+      } catch (error) {
+        problems.push({
+          file: shown(current),
+          message: `cannot be read (${errorText(error)}): the guard cannot tell what it imports`,
+        });
+        continue;
+      }
 
-        if (found === 'package') {
+      for (const specifier of specifiers) {
+        const resolved = ConfigImports.resolveSpecifier({
+          root,
+          from: current,
+          specifier,
+          aliases,
+        });
+
+        if (resolved.found === 'package') {
           continue;
         }
 
-        if (found === undefined) {
+        if (resolved.found === 'unknown') {
           problems.push({
-            file: shown(file),
+            file: shown(current),
             message: `imports '${specifier}', which names no file of the project and no installed package: the guard cannot tell what it is; ${MOVE} and import it by a relative path`,
           });
           continue;
         }
 
-        if (seen.has(found)) {
+        if (resolved.found === 'local-package') {
+          problems.push({
+            file: shown(current),
+            message: `imports '${specifier}', a package of this repository (${resolved.where}): an agent can change the policy through it; ${MOVE} and import it by a relative path`,
+          });
           continue;
         }
 
-        seen.add(found);
-        pending.push(found);
-
-        const real = realpathSync(found);
-
-        if (isUnder(found)) {
-          modules.add(shown(found));
+        if (resolved.alias !== undefined) {
+          problems.push({
+            file: shown(current),
+            message: `imports ${shown(resolved.path)} through the alias '${resolved.alias}': import it by a relative path, so the guard reads the same file the runtime loads`,
+          });
         }
 
-        if (isUnder(real)) {
+        if (seen.has(resolved.path)) {
+          continue;
+        }
+
+        seen.add(resolved.path);
+        pending.push(resolved.path);
+
+        const real = realOf(resolved.path);
+
+        if (isUnder(resolved.path)) {
+          modules.add(shown(resolved.path));
+        }
+
+        if (real !== undefined && isUnder(real)) {
           modules.add(shown(real));
         }
 
-        if (!isUnder(found) || !isUnder(real)) {
+        if (real !== undefined && (!isUnder(resolved.path) || !isUnder(real))) {
           problems.push({
-            file: shown(found),
-            message: `a module of the config${real === found ? '' : ` (a link to ${shown(real)})`} outside .configs/, reached from ${shown(file)}: an agent can change the policy through it; ${MOVE}`,
+            file: shown(resolved.path),
+            message: `a module of the config${real === resolved.path ? '' : ` (a link to ${shown(real)})`} outside .configs/, reached from ${shown(current)}: an agent can change the policy through it; ${MOVE}`,
           });
         }
       }
@@ -213,33 +279,44 @@ export class ConfigImports {
           }))
         : [],
       imports: RecordValue.isRecord(imports) ? imports : {},
-      declared: new Set(
+      declared: new Map(
         ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'].flatMap(
           (field) => {
             const block = RecordValue.isRecord(manifest) ? manifest[field] : undefined;
 
-            return RecordValue.isRecord(block) ? Object.keys(block) : [];
+            return RecordValue.isRecord(block)
+              ? Object.entries(block).map(([name, version]): [string, string] => [
+                  name,
+                  typeof version === 'string' ? version : '',
+                ])
+              : [];
           },
         ),
       ),
     };
   }
 
-  /** The file a specifier names (its lexical path), `package` for an installed package or a built-in, `undefined` when it names nothing known. */
   private static resolveSpecifier(opts: {
     root: string;
     from: string;
     specifier: string;
     aliases: IAliases;
-  }): string | 'package' | undefined {
+  }): TResolved {
     const { specifier, aliases } = opts;
+    const fileOf = (base: string, alias?: string): TResolved => {
+      const path = resolveFile({ base });
+
+      return path === undefined
+        ? { found: 'unknown' }
+        : { found: 'file', path, ...(alias === undefined ? {} : { alias }) };
+    };
 
     if (specifier.startsWith('./') || specifier.startsWith('../')) {
-      return resolveFile({ base: resolve(dirname(opts.from), specifier) });
+      return fileOf(resolve(dirname(opts.from), specifier));
     }
 
     if (specifier.startsWith('node:') || builtinModules.includes(specifier)) {
-      return 'package';
+      return { found: 'package' };
     }
 
     if (specifier.startsWith('#')) {
@@ -250,45 +327,68 @@ export class ConfigImports {
 
         if (mapped !== undefined) {
           return mapped.startsWith('./')
-            ? resolveFile({ base: resolve(opts.root, mapped) })
-            : undefined;
+            ? fileOf(resolve(opts.root, mapped), specifier)
+            : { found: 'unknown' };
         }
       }
 
-      return undefined;
+      return { found: 'unknown' };
     }
 
     for (const { pattern, targets, base } of aliases.paths) {
       for (const target of targets) {
         const mapped = mapPattern({ pattern, target, specifier });
-        const file =
+        const path =
           mapped === undefined ? undefined : resolveFile({ base: resolve(base, mapped) });
 
-        if (file !== undefined) {
-          return file;
+        if (path !== undefined) {
+          return { found: 'file', path, alias: specifier };
         }
       }
+    }
+
+    if (!PACKAGE_SPECIFIER.test(specifier)) {
+      return { found: 'unknown' };
     }
 
     const name = specifier.startsWith('@')
       ? specifier.split('/').slice(0, 2).join('/')
       : (specifier.split('/')[0] ?? '');
+    const installed = ConfigImports.installedOf({ from: opts.root, name });
+    const declared = aliases.declared.get(name);
 
-    return PACKAGE_SPECIFIER.test(specifier) &&
-      (aliases.declared.has(name) || ConfigImports.isInstalled({ from: opts.root, name }))
-      ? 'package'
-      : undefined;
+    if (installed !== undefined) {
+      // A package whose folder is the project's own code (a workspace member, a `file:` or `link:` dependency) is a local module.
+      return installed.startsWith(`${opts.root}${sep}`) &&
+        !installed.split(sep).includes('node_modules')
+        ? { found: 'local-package', where: relative(opts.root, installed).split(sep).join('/') }
+        : { found: 'package' };
+    }
+
+    if (declared !== undefined) {
+      return LOCAL_PROTOCOL.test(declared)
+        ? { found: 'local-package', where: `declared as ${declared}, not installed` }
+        : { found: 'package' };
+    }
+
+    return { found: 'unknown' };
   }
 
-  /** Whether `name` is installed in a `node_modules` of `from` or of a folder above it, as a runtime looks one up. */
-  private static isInstalled(opts: { from: string; name: string }): boolean {
+  /** The real folder of `name` in a `node_modules` of `from` or of a folder above it, as a runtime looks one up; `undefined` when none. */
+  private static installedOf(opts: { from: string; name: string }): string | undefined {
     for (let directory = opts.from; ; directory = dirname(directory)) {
-      if (existsSync(join(directory, 'node_modules', opts.name, 'package.json'))) {
-        return true;
+      const folder = join(directory, 'node_modules', opts.name);
+
+      if (existsSync(join(folder, 'package.json'))) {
+        try {
+          return realpathSync(folder);
+        } catch {
+          return folder;
+        }
       }
 
       if (dirname(directory) === directory) {
-        return false;
+        return undefined;
       }
     }
   }

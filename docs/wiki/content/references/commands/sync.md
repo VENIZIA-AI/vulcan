@@ -20,7 +20,7 @@ The manifest is always written.
 | Local manifest | `.agents/local/vulcan.manifest.json` | No (gitignored; each clone writes its own) | Project configuration the hooks, board and doctor read, and base rule hashes |
 | Managed overlay | `.claude/vulcan-managed.json` | No (gitignored adapter) | Managed overlay record of settings written by VULCAN |
 
-Only a repository that publishes (its config sets `atlas.index.keys`, or git already tracks `.agents/atlas.manifest.json`) gets the descriptor and the copy. An app gets neither: everything stays in `.agents/local/vulcan.manifest.json`, and atlas reads its own project from there. A descriptor or a copy left untracked by an earlier sync is deleted; one git tracks is never touched. A new atlas source that signs nothing commits its descriptor once: set `atlas.index.keys`, run `vulcan sync`, and commit `.agents/atlas.manifest.json`; from then on git tracking it keeps `sync` writing it, keys or not.
+Only a repository that publishes (its config sets `atlas.index.keys`, or git already tracks `.agents/atlas.manifest.json`) gets the descriptor and the copy. An app gets neither: everything stays in `.agents/local/vulcan.manifest.json`, and atlas reads its own project from there. A descriptor or a copy left untracked by an earlier sync is deleted; one git tracks, or one git cannot tell about (not a repository, a broken index), is never touched, and such a repository counts as publishing. A new atlas source that signs nothing commits its descriptor once: set `atlas.index.keys`, run `vulcan sync`, and commit `.agents/atlas.manifest.json`; from then on git tracking it keeps `sync` writing it, keys or not.
 
 ## Options
 

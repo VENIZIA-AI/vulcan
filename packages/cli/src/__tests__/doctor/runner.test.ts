@@ -7,6 +7,7 @@ import { Bunfig } from '../../create/bunfig.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
+import { initRepo } from '../git-repo.helper.ts';
 
 afterAll(removeProjects);
 isolateOwnerReplySwitch();
@@ -278,9 +279,20 @@ describe('doctor', () => {
   });
 
   test('never synced: one adapters violation, and the missing manifest (a project that publishes nothing has no descriptor)', async () => {
-    const checks = await findChecks({ root: createProject({ files: CONFORMANT }) });
+    const root = createProject({ files: CONFORMANT });
 
-    expect(checks).toEqual([DoctorChecks.ADAPTERS, DoctorChecks.MANIFEST]);
+    initRepo({ cwd: root });
+
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.ADAPTERS, DoctorChecks.MANIFEST]);
+    // Outside a repository git cannot say whether the descriptor is tracked: it is kept, so it is missing too.
+    const result2 = await findChecks({ root: createProject({ files: CONFORMANT }) });
+    expect(result2).toEqual([
+      DoctorChecks.ADAPTERS,
+      DoctorChecks.MANIFEST,
+      DoctorChecks.MANIFEST,
+      DoctorChecks.MANIFEST,
+    ]);
   });
 
   test('a hand-written CLAUDE.md', async () => {

@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { git, initRepo } from '../git-repo.helper.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
@@ -145,12 +145,21 @@ describe('a repository that publishes no package has no descriptor', () => {
     initRepo({ cwd: tracked });
 
     expect(ProjectManifest.publishes(configOf(app()))).toBe(true);
-    expect(ProjectManifest.publishes(appConfig(app()))).toBe(false);
+    const untracked = app();
+
+    initRepo({ cwd: untracked });
+
+    expect(ProjectManifest.publishes(appConfig(untracked))).toBe(false);
+    // Not a repository: git cannot say, so the descriptor is kept written, never dropped on a guess.
+    expect(ProjectManifest.publishes(appConfig(app()))).toBe(true);
     expect(ProjectManifest.publishes(appConfig(tracked))).toBe(true);
   });
 
   test('sync writes only the local manifest', () => {
     const root = app();
+
+    initRepo({ cwd: root });
+
     const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
     expect(run.code, run.stderr).toBe(0);
@@ -187,6 +196,19 @@ describe('a repository that publishes no package has no descriptor', () => {
     expect(run.code, run.stderr).toBe(0);
     expect(existsSync(join(root, ManifestConstants.DESCRIPTOR_FILE))).toBe(false);
     expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(false);
+  });
+
+  test('a descriptor is never deleted when git cannot say whether it is tracked', () => {
+    const root = app({ [ManifestConstants.DESCRIPTOR_FILE]: '{}\n' });
+
+    initRepo({ cwd: root });
+    git({ cwd: root, args: ['rm', '-q', '--cached', ManifestConstants.DESCRIPTOR_FILE] });
+    writeFileSync(join(root, '.git', 'index'), 'not an index');
+
+    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+
+    expect(run.code, run.stderr).toBe(0);
+    expect(existsSync(join(root, ManifestConstants.DESCRIPTOR_FILE))).toBe(true);
   });
 
   test('a source with no signing keys that tracks its descriptor keeps it written, and doctor never asks to untrack it', () => {

@@ -113,9 +113,16 @@ export class SyncFlow {
       resolved.writeLocal || resolved.source === 'local'
         ? [LocalPlan.planChoice({ root: opts.cwd, agents: resolved.agents })]
         : [];
+    // The modules of the config are read once: the manifest records them, and the warnings below name what they leave unprotected.
+    const configImports = ConfigImports.scan({ root: opts.cwd });
     const actions = [
       ...AgentRemoval.plan({ root: opts.cwd, removed, remaining: resolved.agents }),
-      ...SyncPlanner.plan({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
+      ...SyncPlanner.plan({
+        root: opts.cwd,
+        config: loaded.config,
+        agents: resolved.agents,
+        configModules: configImports.modules,
+      }),
       ...AgentsBlockPlan.plan({ root: opts.cwd, config: loaded.config }),
       ...stored,
       ...LocalPlan.planWorkspace({
@@ -151,7 +158,7 @@ export class SyncFlow {
       process.stderr.write(`  ${change.padEnd(width)} ${[id, text].filter(Boolean).join(' ')}\n`);
     }
 
-    for (const problem of ConfigImports.scan({ root: opts.cwd }).problems) {
+    for (const problem of configImports.problems) {
       process.stderr.write(`  ${'warning'.padEnd(width)} ${problem.file}: ${problem.message}\n`);
     }
 

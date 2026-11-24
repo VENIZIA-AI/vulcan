@@ -299,7 +299,12 @@ export class SyncPlanner {
    * 0.5.0-6 and before finds a source's manifest only there. Elsewhere the two are not written, and one left untracked
    * from an earlier sync is removed; a tracked one is left as it is.
    */
-  static planManifest(opts: { root: string; config: TResolvedConfig }): ISyncAction[] {
+  static planManifest(opts: {
+    root: string;
+    config: TResolvedConfig;
+    /** The modules of the config, when the caller scanned them already (`vulcan sync` scans once). */
+    configModules?: string[];
+  }): ISyncAction[] {
     const local = SyncPlanner.planFile({
       root: opts.root,
       file: ManifestConstants.FILE,
@@ -336,7 +341,9 @@ export class SyncPlanner {
   private static planLeftover(opts: { root: string; file: string }): ISyncAction[] {
     const path = join(opts.root, opts.file);
 
-    return !existsSync(path) || AgentFiles.isTracked({ root: opts.root, path: opts.file })
+    // Only what git says is untracked is removed: a state git cannot give is never a reason to delete.
+    return !existsSync(path) ||
+      AgentFiles.trackState({ root: opts.root, path: opts.file }) !== 'untracked'
       ? []
       : [
           {
@@ -363,6 +370,8 @@ export class SyncPlanner {
     config: TResolvedConfig;
     /** The agents this machine chose (`AgentSelection.resolve`); only Claude has adapters until the renderers land. */
     agents: string[];
+    /** The modules of the config, when the caller scanned them already. */
+    configModules?: string[];
   }): ISyncAction[] {
     return [
       ...(opts.agents.includes(CodingAgents.CLAUDE)
