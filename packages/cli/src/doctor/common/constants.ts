@@ -64,6 +64,8 @@ export class DoctorChecks {
   static readonly PRIVATE_VALUES = 'private-values';
   /** Top-level keys of the config out of the order `vulcan config format` gives them; a note. */
   static readonly CONFIG_ORDER = 'config-order';
+  /** A module of the config the guards cannot protect: reached outside `.configs/`, through a link that leads out, or by a specifier that names nothing known; a warning. */
+  static readonly CONFIG_MODULES = 'config-modules';
   /** Plural role suffixes, folders mixing subfolders and loose files, long source files: a warning per rule for what the layout baseline does not hold; a note for what it does. */
   static readonly FILE_LAYOUT = 'file-layout';
 }

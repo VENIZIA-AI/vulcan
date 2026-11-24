@@ -13,6 +13,7 @@ import { dirname, join } from 'node:path';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
+import { initRepo } from '../git-repo.helper.ts';
 
 afterAll(removeProjects);
 
@@ -528,6 +529,9 @@ describe('SyncPlanner.plan with the resolved agents', () => {
     if (!loaded.ok) {
       throw new Error(loaded.error);
     }
+
+    // A repository with no descriptor tracked: an app, which gets the local manifest only.
+    initRepo({ cwd: root });
 
     const without = SyncPlanner.plan({ root, config: loaded.config, agents: ['omp'] });
     const withClaude = SyncPlanner.plan({ root, config: loaded.config, agents: ['claude', 'omp'] });
