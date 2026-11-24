@@ -359,8 +359,8 @@ export class ConfigImports {
 
     if (installed !== undefined) {
       // A package whose folder is the project's own code (a workspace member, a `file:` or `link:` dependency) is a local module.
-      return installed.startsWith(`${opts.root}${sep}`) &&
-        !installed.split(sep).includes('node_modules')
+      // Inside the root or not: a project that is a folder of a monorepo gets the members of the workspace through links above it.
+      return !installed.split(sep).includes('node_modules')
         ? { found: 'local-package', where: relative(opts.root, installed).split(sep).join('/') }
         : { found: 'package' };
     }

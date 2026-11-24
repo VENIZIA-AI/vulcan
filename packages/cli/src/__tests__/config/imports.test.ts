@@ -228,6 +228,30 @@ describe('ConfigImports.scan: what the guards cannot protect', () => {
     ]);
   });
 
+  test('in a project that is a folder of a monorepo, a workspace member linked from above is a local module', () => {
+    const monorepo = createProject({
+      files: {
+        'apps/web/.configs/vulcan.config.mts': config("import { a } from '@acme/policy';"),
+        'apps/web/package.json': '{ "name": "web" }',
+        'packages/policy/package.json': '{ "name": "@acme/policy" }',
+        'packages/policy/index.ts': 'export const a = 1;\n',
+      },
+    });
+
+    mkdirSync(join(monorepo, 'node_modules/@acme'), { recursive: true });
+    symlinkSync(join(monorepo, 'packages/policy'), join(monorepo, 'node_modules/@acme/policy'));
+
+    expect(
+      ConfigImports.scan({ root: join(monorepo, 'apps/web') }).problems.map(
+        (problem) => problem.message,
+      ),
+    ).toEqual([
+      expect.stringContaining(
+        "imports '@acme/policy', a package of this repository (../../packages/policy)",
+      ),
+    ]);
+  });
+
   test('a config file that is a link out of .configs/ is named', () => {
     const root = createProject({ files: { 'shared/vulcan.config.mts': config('') } });
 
