@@ -755,8 +755,9 @@ export class ProjectContract {
   }
 
   /**
-   * The root `package.json` runs no `vulcan sync` in `prepare`: a clone that has not run it has no manifest and no hooks, and
-   * `bun install` is where one is expected to get them. A note, for a project that has a root `package.json`.
+   * The root `package.json` runs `vulcan sync` in no install script (`prepare` or `postinstall`, directly or as `make vulcan-sync`):
+   * a clone that has not run it has no manifest and no hooks, and `bun install` is where one is expected to get them. A note,
+   * for a project that has a root `package.json`.
    */
   static checkPrepareScript(opts: ICheckContext): IViolation[] {
     const manifest = readJsonObject({ file: join(opts.root, 'package.json') });
@@ -766,15 +767,22 @@ export class ProjectContract {
     }
 
     const scripts: unknown = manifest['scripts'];
-    const prepare = RecordValue.isRecord(scripts) ? scripts['prepare'] : undefined;
+    const runsSync = (name: string): boolean => {
+      const script = RecordValue.isRecord(scripts) ? scripts[name] : undefined;
 
-    return typeof prepare === 'string' && prepare.includes('vulcan sync')
+      return (
+        typeof script === 'string' &&
+        ['vulcan sync', 'vulcan-sync'].some((text) => script.includes(text))
+      );
+    };
+
+    return runsSync('prepare') || runsSync('postinstall')
       ? []
       : [
           createViolation({
             check: DoctorChecks.PREPARE,
             file: 'package.json',
-            message: `no \`prepare\` script runs \`vulcan sync\`, so a fresh clone has no manifest and no guard until someone runs it: add "prepare": "${ProjectLayout.PREPARE_SCRIPT.replaceAll('"', '\\"')}" to scripts`,
+            message: `no install script runs vulcan sync: a fresh clone has no hooks until someone runs it; add "prepare": "${ProjectLayout.PREPARE_SCRIPT.replaceAll('"', '\\"')}" to scripts`,
           }),
         ];
   }

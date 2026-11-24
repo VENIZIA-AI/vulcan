@@ -197,11 +197,12 @@ claude-settings-never-committed:
     - ProjectContract.checkClaudeSettingsTracked
   upgrade:
     steps:
-      - 'Run `bun node_modules/.bin/vulcan sync`: it adds `/.claude/settings.json` to a committed `.gitignore` that does not already ignore `.claude/`.'
-      - 'If git tracks `.claude/settings.json`, run `git rm --cached .claude/settings.json` and commit: `vulcan doctor` names it until you do. Every clone then writes its own copy with `vulcan sync`.'
-      - 'Add the `prepare` script to the root `package.json` (`vulcan doctor` prints it): `bun install` then runs `vulcan sync` in a fresh clone, so the hooks are there before anyone works. It reads no terminal and always exits 0.'
+      - 'Run `bun node_modules/.bin/vulcan sync`: it adds `/.claude/settings.json` to a committed `.gitignore` that does not already ignore `.claude/`. Commit that `.gitignore` change.'
+      - 'If git tracks `.claude/settings.json`, run `git rm --cached .claude/settings.json` and commit: `vulcan doctor` names it until you do. A teammate who pulls that commit loses their local `.claude/settings.json` (git removes the file), so their hooks stay off until they run `bun install` (with the `prepare` script) or `bun node_modules/.bin/vulcan sync`.'
+      - 'Add the `prepare` script to the root `package.json` (`vulcan doctor` prints it; `vulcan init --preset` writes it for a new project): `bun install` then runs `vulcan sync` in a fresh clone. It reads no terminal and always exits 0; it needs a POSIX `sh`, so Windows is untested.'
+      - 'A machine with no stored choice of agents and no terminal takes `claude`: users of Codex, omp or pi run `bun node_modules/.bin/vulcan sync --agents <list>` once.'
       - 'Run `vulcan sync` (or `bun install`) in CI before any step that reads the manifest or runs a hook.'
   downgrade:
     steps:
-      - 'Pin the earlier package, run `vulcan sync`, and commit `.claude/settings.json` again if your team wants it shared.'
-  data: 'A fresh clone has no `.claude/settings.json`, so no hook runs, until `bun install` (with the `prepare` script) or `vulcan sync` has run. AGENTS.md says so in its first line of rules.'
+      - 'Pin the earlier package, run `vulcan sync`, and either remove the `/.claude/settings.json` line from `.gitignore` or run `git add -f .claude/settings.json` to commit it again if your team wants it shared.'
+  data: 'A fresh clone has no `.claude/settings.json`, so no hook runs and no guard is active, until `bun install` (with the `prepare` script) or `vulcan sync` has run. AGENTS.md says so in its first line of rules.'

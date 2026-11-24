@@ -31,7 +31,7 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   a shared package) against the file the package has (same, differs,
                                   missing); --full prints the unified diffs, --check exits 1 when
                                   anything differs or is missing
-  sync [--agents <list>|list] [--dry-run]
+  sync [--agents <list>|list] [--dry-run] [--quiet]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/local/profile.json; --agents list shows the table)
   agents [list|add <ids>|remove <ids>|setup] [--dry-run]

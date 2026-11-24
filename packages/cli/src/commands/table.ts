@@ -103,11 +103,12 @@ export class CommandTable {
         '0 when a report is printed (with --check, and nothing differs); 1 on --check with a difference or missing file, or any refusal.',
     },
     [VulcanCommands.SYNC]: {
-      help: `  sync [--agents <list>|list] [--dry-run]
+      help: `  sync [--agents <list>|list] [--dry-run] [--quiet]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/local/profile.json; --agents list shows the table)`,
       flags: {
         '--dry-run': 'Print planned changes without writing to disk',
+        '--quiet': 'Print only what changed and the notes, not every file that stayed as it was',
       },
       values: {
         [AgentConstants.FLAG]: 'The agents to write adapters for, comma-separated, none, or list',

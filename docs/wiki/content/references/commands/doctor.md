@@ -55,7 +55,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `local.tmp` to a short folder and run `vulcan sync`, or check out at a shorter path |
 | `local` (failure) | `local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
 | `board-autostart` (note) | `board.serve.autoStart` of `.agents/local/profile.json` is on and `events.log` is off, so no board is started | Set `events.log` to `true`, or turn `autoStart` off |
-| `prepare` (note) | The root `package.json` has no `prepare` script that runs `vulcan sync`, so a fresh clone has no manifest and no hooks until someone runs it | Add the script `init` writes (it reads no terminal and cannot fail an install) |
+| `prepare` (note) | No install script (`prepare` or `postinstall`) of the root `package.json` runs `vulcan sync` (directly or as `make vulcan-sync`), so a fresh clone has no hooks until someone runs it | Add the `prepare` script the note prints (`vulcan init --preset` writes it for a new project) |
 | `claude-settings` (warning) | Git tracks `.claude/settings.json`, which `sync` writes in every clone | `git rm --cached .claude/settings.json`; sync keeps it out of git from then on |
 | `config-defaults` (note) | N values of the config repeat what the shipped defaults give | Run `vulcan config --diff` and delete them |
 | `config-remove` (warning) | A `remove` entry matches nothing, so it does nothing | Delete the entry |
@@ -304,7 +304,7 @@ A warning: today's event file is bigger than `events.maxSize` on its own. The re
 
 ### prepare
 
-A note: the root `package.json` of a project has no `prepare` script that runs `vulcan sync`. `bun install` runs `prepare`, so with the script a fresh clone gets its local manifest, its hooks and its adapters from the install; without it, until someone runs `vulcan sync` the hooks hold every ask as a deny (the manifest is missing) and the guards of the other agents are not installed. The script `vulcan init` writes is `bun node_modules/.bin/vulcan sync < /dev/null`, guarded: it does nothing when the bin is not installed, prints a note when sync fails, always exits 0, and never stops at the question about agents (it reads no terminal, so a machine that has not chosen takes `claude` and says how to choose).
+A note: no install script of the root `package.json` runs `vulcan sync`. `bun install` runs `prepare` (and `postinstall`), and `.claude/settings.json` is never committed, so a fresh clone has NO hooks at all until sync has run: with the script, `bun install` is enough; without it, someone must run `vulcan sync`, and until then no guard is active (the first line of the rules block in `AGENTS.md` says so). The script `vulcan init --preset` writes into a new project (`vulcan init` in an existing directory leaves your `package.json` alone, so this note prints the line to add) is `bun node_modules/.bin/vulcan sync --quiet < /dev/null`, guarded: it does nothing when the bin is not installed, prints a note when sync fails, always exits 0, and reads no terminal, so it never stops at the question about agents (a machine that has not chosen takes `claude`; users of Codex, omp or pi run `vulcan sync --agents <list>` once). Known limit: the script is POSIX `sh`, so on Windows it is untested.
 
 ### claude-settings
 

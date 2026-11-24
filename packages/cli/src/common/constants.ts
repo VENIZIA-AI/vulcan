@@ -65,7 +65,7 @@ export class ProjectLayout {
    * never stops at the question about agents.
    */
   static readonly PREPARE_SCRIPT =
-    "if [ -f node_modules/.bin/vulcan ]; then bun node_modules/.bin/vulcan sync < /dev/null || echo 'vulcan: sync did not finish: run bun node_modules/.bin/vulcan sync'; else echo 'vulcan: not installed yet: run bun install'; fi; exit 0";
+    "if [ -f node_modules/.bin/vulcan ]; then bun node_modules/.bin/vulcan sync --quiet < /dev/null || echo 'vulcan: sync did not finish: run bun node_modules/.bin/vulcan sync'; else echo 'vulcan: not installed yet: run bun install'; fi; exit 0";
   static readonly CLAUDE_SETTINGS_FILE = '.claude/settings.json';
   static readonly GITIGNORE_ENTRIES = [
     'CLAUDE.md',

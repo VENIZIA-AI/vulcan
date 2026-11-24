@@ -111,7 +111,7 @@ describe('AgentSelection.resolve: nothing known', () => {
       hint: NO_TTY_HINT,
     });
     expect(NO_TTY_HINT).toBe(
-      'vulcan sync: no agents chosen on this machine - wrote the Claude files as before; to choose, run: vulcan sync --agents claude,omp (or none)',
+      'vulcan sync: no agents chosen on this machine - wrote the Claude files as before; if you use Codex, omp, pi or another agent, run once: vulcan sync --agents claude,omp (or none)',
     );
     expect(asked).toEqual([]);
   });

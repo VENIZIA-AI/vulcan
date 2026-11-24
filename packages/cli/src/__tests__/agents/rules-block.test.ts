@@ -87,7 +87,7 @@ describe('RulesBlock.render', () => {
 
     // Before the rules: an agent that reads AGENTS.md without hooks learns that no guard is active until sync has run.
     expect(block).toContain(
-      'Before you work: run `bun install` (or `bun node_modules/.bin/vulcan sync`). Until it has run, no guard is active.',
+      'Before you work: run `bun node_modules/.bin/vulcan sync` (`bun install` runs it when the `package.json` has the `prepare` script; add `--agents <list>` if you do not use Claude Code). Until it has run, no guard is active.',
     );
     expect(block.indexOf('Before you work')).toBeLessThan(block.indexOf('- V-W-'));
 

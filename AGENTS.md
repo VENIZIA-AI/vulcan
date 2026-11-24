@@ -21,7 +21,7 @@ Both rule files and the bundle are mandatory, for every agent, on every task.
 
 Full text, cited by ID: `node_modules/@venizia/vulcan/base/rules.md` (V-*) and `.agents/rules.md`.
 
-**Before you work: run `bun install` (or `bun node_modules/.bin/vulcan sync`). Until it has run, no guard is active.**
+**Before you work: run `bun node_modules/.bin/vulcan sync` (`bun install` runs it when the `package.json` has the `prepare` script; add `--agents <list>` if you do not use Claude Code). Until it has run, no guard is active.**
 
 - V-W-01: this project: `on-user-word` - Git writes happen only on the user's word, in this conversation.
 - Pack `venizia` (`node_modules/@venizia/vulcan/base/packs/venizia.md`): this project follows it - V-B-05, V-B-09, V-C-07, V-C-08, V-C-20, V-C-21.
