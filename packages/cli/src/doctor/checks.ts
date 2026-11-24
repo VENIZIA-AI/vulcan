@@ -771,7 +771,7 @@ export class ProjectContract {
           createViolation({
             check: DoctorChecks.EVENTS_DIR,
             file: isOwn ? AgentConstants.LOCAL_FILE : opts.configFile,
-            message: `events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
+            message: `board.events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
           }),
         ];
   }
@@ -1394,7 +1394,7 @@ export class ProjectContract {
       createViolation({
         check: DoctorChecks.LOCAL,
         file: own === undefined ? opts.configFile : AgentConstants.LOCAL_FILE,
-        message: `local.tmp '${tmp}': ${problem}`,
+        message: `common.local.tmp '${tmp}': ${problem}`,
       }),
     );
   }

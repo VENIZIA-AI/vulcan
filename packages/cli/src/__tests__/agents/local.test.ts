@@ -14,7 +14,7 @@ describe('the local choice file', () => {
   test('renders the schema version and the agents, and keeps every other key of the profile', () => {
     expect(JSON.parse(LocalChoice.render({ agents: ['claude', 'omp'] }))).toEqual({
       schemaVersion: 1,
-      agents: ['claude', 'omp'],
+      agent: { list: ['claude', 'omp'] },
     });
     expect(LocalChoice.render({ agents: [] }).endsWith('\n')).toBe(true);
     expect(
@@ -25,16 +25,17 @@ describe('the local choice file', () => {
             schemaVersion: 1,
             language: 'vi',
             tone: 'terse',
-            events: { dir: '/x' },
+            board: { events: { dir: '/x' } },
+            agent: { list: ['old'], other: 1 },
           }),
         }),
       ),
     ).toEqual({
       schemaVersion: 1,
-      agents: ['claude'],
+      agent: { list: ['claude'], other: 1 },
       language: 'vi',
       tone: 'terse',
-      events: { dir: '/x' },
+      board: { events: { dir: '/x' } },
     });
   });
 
@@ -63,7 +64,10 @@ describe('the local choice file', () => {
     const broken = createProject({ files: { [LOCAL_AGENTS_FILE]: '{ nope' } });
     const unknown = createProject({
       files: {
-        [LOCAL_AGENTS_FILE]: JSON.stringify({ schemaVersion: 1, agents: ['claude', 'vim'] }),
+        [LOCAL_AGENTS_FILE]: JSON.stringify({
+          schemaVersion: 1,
+          agent: { list: ['claude', 'vim'] },
+        }),
       },
     });
 

@@ -57,7 +57,10 @@ describe('events.dir in the local file replaces the manifest value', () => {
   test('read and dirOf: local over manifest, with the log off too, and --dir over both', () => {
     const own = shared();
     const team = shared();
-    const root = project({ events: { log: false, dir: team }, local: { events: { dir: own } } });
+    const root = project({
+      events: { log: false, dir: team },
+      local: { board: { events: { dir: own } } },
+    });
 
     expect(EventSettings.read({ root })).toEqual({ log: false, dir: own });
     expect(EventSettings.dirOf({ root })).toBe(own);
@@ -66,10 +69,10 @@ describe('events.dir in the local file replaces the manifest value', () => {
   });
 
   test.each([
-    ['a relative path', { events: { dir: 'events' } }],
-    ['a ~ path', { events: { dir: '~/events' } }],
-    ['a NUL', { events: { dir: '/a\0b' } }],
-    ['a number', { events: { dir: 7 } }],
+    ['a relative path', { board: { events: { dir: 'events' } } }],
+    ['a ~ path', { board: { events: { dir: '~/events' } } }],
+    ['a NUL', { board: { events: { dir: '/a\0b' } } }],
+    ['a number', { board: { events: { dir: 7 } } }],
     ['a broken file', undefined],
   ])('%s falls back to the manifest', (_label, local) => {
     const team = shared();
@@ -93,7 +96,7 @@ describe('events.dir in the local file replaces the manifest value', () => {
 describe('every reader of the events folder follows it', () => {
   test('vulcan event add writes there and vulcan event tail reads there', () => {
     const own = shared();
-    const root = project({ local: { events: { dir: own } } });
+    const root = project({ local: { board: { events: { dir: own } } } });
     const added = runCli({
       args: [
         'event',
@@ -117,7 +120,7 @@ describe('every reader of the events folder follows it', () => {
 
   test('the hooks write there', () => {
     const own = shared();
-    const root = project({ local: { events: { dir: own } } });
+    const root = project({ local: { board: { events: { dir: own } } } });
     const line = EventHook.run({
       root,
       input: wire({ hookEventName: 'SessionStart', source: 'startup', model: 'm' }),
@@ -131,7 +134,7 @@ describe('every reader of the events folder follows it', () => {
 
   test('the board reads there', () => {
     const own = shared();
-    const root = project({ local: { events: { dir: own } } });
+    const root = project({ local: { board: { events: { dir: own } } } });
     const out = join(root, 'board.html');
 
     EventLog.append({
@@ -153,7 +156,7 @@ describe('every reader of the events folder follows it', () => {
 
   test('the flow guard and the usage meter use it', () => {
     const own = shared();
-    const root = project({ local: { events: { dir: own } } });
+    const root = project({ local: { board: { events: { dir: own } } } });
     const ask = () =>
       FlowGuard.inspect({
         root,
@@ -207,7 +210,7 @@ describe('the local file and doctor', () => {
   });
 
   test('a folder that is not there is reported against the local file, a committed one against the config', () => {
-    const root = project({ local: { events: { dir: '/does/not/exist/events' } } });
+    const root = project({ local: { board: { events: { dir: '/does/not/exist/events' } } } });
     const [own] = ProjectContract.checkEventsDir(ctx(root));
 
     expect(own?.file).toBe(LOCAL);
@@ -225,12 +228,12 @@ describe('the local file and doctor', () => {
     const team = shared();
     const root = project({
       events: { log: true, dir: team },
-      local: { events: { dir: 'relative/events' } },
+      local: { board: { events: { dir: 'relative/events' } } },
     });
     const read = LocalChoice.read({ root });
 
     expect(read.ok).toBe(false);
-    expect(read.ok ? '' : read.error).toContain('profile.json: events.dir');
+    expect(read.ok ? '' : read.error).toContain('profile.json: board.events.dir');
     expect(EventSettings.dirOf({ root })).toBe(team);
 
     const messages = ProjectContract.checkAgents(ctx(root)).map((violation) => violation.message);
@@ -239,7 +242,7 @@ describe('the local file and doctor', () => {
   });
 
   test('the key is known to the file, and a mistyped one is not', () => {
-    const root = project({ local: { events: { dir: shared() }, event: {} } });
+    const root = project({ local: { board: { events: { dir: shared() } }, event: {} } });
 
     const profile = OwnerProfile.read({ root });
 
@@ -250,7 +253,10 @@ describe('the local file and doctor', () => {
   test('sync keeps the key and leaves the manifest as it is without it', () => {
     const own = shared();
     const plain = project({ events: { log: true } });
-    const withLocal = project({ events: { log: true }, local: { events: { dir: own } } });
+    const withLocal = project({
+      events: { log: true },
+      local: { board: { events: { dir: own } } },
+    });
     const config =
       "export default { name: 'acme', project: { key: 'ACME' }, events: { log: true } };\n";
 
@@ -263,6 +269,8 @@ describe('the local file and doctor', () => {
     expect(readFileSync(join(withLocal, MANIFEST), 'utf8')).toBe(
       readFileSync(join(plain, MANIFEST), 'utf8'),
     );
-    expect(JSON.parse(readFileSync(join(withLocal, LOCAL), 'utf8')).events).toEqual({ dir: own });
+    expect(JSON.parse(readFileSync(join(withLocal, LOCAL), 'utf8')).board.events).toEqual({
+      dir: own,
+    });
   });
 });

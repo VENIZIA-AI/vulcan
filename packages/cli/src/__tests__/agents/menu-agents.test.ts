@@ -24,7 +24,7 @@ const barePath = (): string => {
 };
 
 const storedAgents = (opts: { root: string }): string[] =>
-  JSON.parse(readFileSync(join(opts.root, LOCAL), 'utf8')).agents;
+  JSON.parse(readFileSync(join(opts.root, LOCAL), 'utf8')).agent?.list;
 
 describe.skipIf(!hasScript)('vulcan project sync asks the agents as a checkbox menu', () => {
   const env = (opts: { home: string }): Record<string, string> => ({

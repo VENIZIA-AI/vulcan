@@ -2,6 +2,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join, relative } from 'node:path';
 import { LOCAL_AGENTS_FILE, LocalChoice } from '../agents/index.ts';
 import { AgentConstants } from '../agents/common/constants.ts';
+import { ProfileKeys } from '../agents/profile-keys.ts';
+import { RecordValue } from '../common/record.ts';
 import { OwnerProfile } from '../owner/profile.ts';
 import { ProjectLayout } from '../common/index.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
@@ -92,6 +94,63 @@ export class LocalPlan {
         );
       },
     };
+  }
+
+  /**
+   * The old machine keys of the profile at their new paths, once (`agents` is `agent.list`, `board.agents` is `board.page.agents`, `events` is
+   * `board.events`, `local` is `common.local`): the profile is a file kept on this machine, so the move is in place and nothing reads the old
+   * keys afterwards. A value already at the new path stays and is named; a key the move cannot place stays where it is, named. A profile that
+   * cannot be read as JSON, or is a link, is left as it is.
+   */
+  static planProfileKeys(opts: { root: string }): ISyncAction[] {
+    const path = join(opts.root, LOCAL_AGENTS_FILE);
+
+    if (!existsSync(path)) {
+      return [];
+    }
+
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(readFileSync(path, 'utf8'));
+    } catch {
+      return [];
+    }
+
+    if (!RecordValue.isRecord(parsed) || !ProfileKeys.isOld({ value: parsed })) {
+      return [];
+    }
+
+    const moved = ProfileKeys.toNew({ value: parsed });
+    const saying = [
+      `keys moved to the groups: ${moved.moved.join(', ')}`,
+      ...(moved.kept.length === 0
+        ? []
+        : [`the value already there was kept for ${moved.kept.join(', ')}`]),
+      ...(moved.left.length === 0 ? [] : [`${moved.left.join(', ')} not placed: fix or delete`]),
+    ].join('; ');
+
+    if (OwnerProfile.linkedAt({ root: opts.root }) !== undefined) {
+      return [
+        {
+          path,
+          status: SyncStatuses.SKIPPED,
+          note: `${LOCAL_AGENTS_FILE} (or .agents/local) is a symlink: its keys were not moved`,
+          apply: NO_CHANGE,
+        },
+      ];
+    }
+
+    return [
+      {
+        path,
+        status: SyncStatuses.REPLACED,
+        note: saying,
+        apply: () => {
+          writeFileSync(path, `${JSON.stringify(moved.value, null, 2)}\n`, { mode: 0o600 });
+        },
+      },
+    ];
   }
 
   /**

@@ -201,7 +201,7 @@ export class BoardSettings {
           ...settings,
           notes: [
             ...settings.notes,
-            `board.agents in ${AgentConstants.LOCAL_FILE} is not used: ${[issue.path.join('.'), issue.message].filter(Boolean).join(': ')}`,
+            `board.page.agents in ${AgentConstants.LOCAL_FILE} is not used: ${[issue.path.join('.'), issue.message].filter(Boolean).join(': ')}`,
           ],
         };
   }

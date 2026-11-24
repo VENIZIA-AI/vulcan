@@ -33,7 +33,7 @@ export class EventSettings {
   }
 
   /**
-   * The folder this checkout's profile (`.agents/local/profile.json`) names in `events.dir`, when it is a folder `dirError`
+   * The folder this checkout's profile (`.agents/local/profile.json`) names in `board.events.dir`, when it is a folder `dirError`
    * accepts, else the one the file of the releases before 0.5.0 names; `undefined` when neither does. Never throws: the event hook
    * reads it on every event.
    */
@@ -41,7 +41,16 @@ export class EventSettings {
     for (const name of [EventConstants.LOCAL_FILE, EventConstants.LEGACY_LOCAL_FILE]) {
       try {
         const file: unknown = JSON.parse(readFileSync(join(opts.root, name), 'utf8'));
-        const block = RecordValue.isRecord(file) ? file.events : undefined;
+        const board = RecordValue.isRecord(file) ? file.board : undefined;
+        // The profile has it at `board.events`; the file of the releases before 0.5.0 at `events`.
+        const block =
+          name === EventConstants.LEGACY_LOCAL_FILE
+            ? RecordValue.isRecord(file)
+              ? file.events
+              : undefined
+            : RecordValue.isRecord(board)
+              ? board.events
+              : undefined;
         const dir = RecordValue.isRecord(block) ? block.dir : undefined;
 
         if (typeof dir === 'string' && EventSettings.dirError({ dir }) === undefined) {

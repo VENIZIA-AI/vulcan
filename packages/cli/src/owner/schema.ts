@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MACHINE_KEYS } from '../agents/local.ts';
+import { MACHINE_KEYS, REMOVED_MACHINE_KEYS } from '../agents/local.ts';
 import {
   OwnerConstants,
   OwnerDetails,
@@ -87,10 +87,11 @@ export const OWNER_LABEL_SET = z.strictObject({
 
 /**
  * `.agents/local/profile.json`: the one per-developer file. What one developer told VULCAN about how to work with them, and
- * this machine's own keys (`agents`, `board`, `local`, `events`: the shapes of `MACHINE_KEYS`), which `vulcan project sync` and the hooks read.
+ * this machine's own keys (`agent`, `board`, `common`: the shapes of `MACHINE_KEYS`, in the groups of the config), which `vulcan project sync` and the hooks read.
  */
 export const PROFILE_SCHEMA = z.strictObject({
   ...MACHINE_KEYS,
+  ...REMOVED_MACHINE_KEYS,
   /** Version of the profile file format; must be `1`. */
   schemaVersion: z.literal(OwnerConstants.PROFILE_SCHEMA_VERSION),
   /** Reply language; labels for it come from `labels` below. A language that is not English with none has its labels written by the agent, and only the structure is checked. */
