@@ -14,6 +14,7 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 ├── skills/                   tracked   the project's own skills (optional)
 ├── hooks/                    tracked   scripts of the project's own hooks (optional)
 ├── atlas.manifest.json       tracked   written by vulcan sync; atlas and the wiki build read it
+├── vulcan.manifest.json      tracked   a temporary copy of it for atlas of 0.5.0-6 and before; goes with the stable release
 ├── plans/                    ignored   plans an agent saved for you
 ├── specs/                    tracked   lane-L cards from plan-a-change (optional)
 └── local/                    ignored   what an agent creates while it works
@@ -42,6 +43,7 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 | `knowledge/` | You and the okf tools | The facts about the project, in a bundle agents and atlas read |
 | `skills/`, `hooks/` | You | Skills and hook scripts that belong to the project; `sync` links the skills into `.claude/skills/` |
 | `atlas.manifest.json` | `vulcan sync` | What atlas reads: name, packages, layout, presets, knowledge, release, sources. Never edit it; `doctor` fails a stale one |
+| `vulcan.manifest.json` | `vulcan sync` | A temporary data-only copy of `atlas.manifest.json`, kept until the stable 0.5.0 release for atlas of 0.5.0-6 and before |
 | `local/vulcan.manifest.json` | `vulcan sync` | The resolved project in full: rule hashes and the settings the hooks, the board and `doctor` read. Gitignored; each clone writes its own |
 
 ## What is in local/ and when it goes
