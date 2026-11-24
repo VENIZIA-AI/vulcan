@@ -193,18 +193,25 @@ export class LocalChoice {
   }
 
   /** The developer's stored choice: absent is "not chosen yet", a broken file is an error, never a silent default. */
-  static read(opts: { root: string }): TLocalChoice {
+  static read(opts: {
+    root: string;
+    /** The profile as it will be after `sync` has moved its keys, for a dry run that has not written it. */
+    profile?: Record<string, unknown>;
+  }): TLocalChoice {
     // The profile first; a machine not yet synced since the upgrade still has its choice in the file of the earlier release.
-    const file = LocalChoice.choiceFile(opts);
+    const file =
+      opts.profile === undefined
+        ? LocalChoice.choiceFile(opts)
+        : join(opts.root, LOCAL_AGENTS_FILE);
 
-    if (!existsSync(file)) {
+    if (opts.profile === undefined && !existsSync(file)) {
       return { ok: true, agents: undefined };
     }
 
     let parsed: unknown;
 
     try {
-      parsed = JSON.parse(readFileSync(file, 'utf8'));
+      parsed = opts.profile ?? JSON.parse(readFileSync(file, 'utf8'));
     } catch {
       return {
         ok: false,

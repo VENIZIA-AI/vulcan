@@ -86,9 +86,15 @@ export class SyncFlow {
     const isDryRun = opts.args.includes(DRY_RUN_FLAG);
     const profileMoves = LocalPlan.planProfileKeys({ root: opts.cwd });
 
-    if (!isDryRun) {
-      for (const move of profileMoves) {
+    const movedProfile = isDryRun ? LocalPlan.movedProfile({ root: opts.cwd }) : undefined;
+
+    // What the move did, or could not do, is said before anything can fail on the profile.
+    for (const move of profileMoves) {
+      if (!isDryRun) {
         move.apply();
+        process.stderr.write(
+          `vulcan project sync: ${relative(opts.cwd, move.path)}: ${move.note ?? 'moved'}\n`,
+        );
       }
     }
 
@@ -96,6 +102,7 @@ export class SyncFlow {
       root: opts.cwd,
       flag,
       configAgents: loaded.config.agents,
+      ...(movedProfile === undefined ? {} : { profile: movedProfile }),
       interactive: process.stdin.isTTY === true,
       detected: AgentDetection.detect({
         root: opts.cwd,
@@ -110,7 +117,10 @@ export class SyncFlow {
       return ExitCodes.FAILURE;
     }
 
-    const previous = LocalChoice.read({ root: opts.cwd });
+    const previous = LocalChoice.read({
+      root: opts.cwd,
+      ...(movedProfile === undefined ? {} : { profile: movedProfile }),
+    });
     const dropped =
       resolved.source === 'flag' || resolved.source === 'asked'
         ? (previous.ok ? (previous.agents ?? []) : []).filter((id) => !resolved.agents.includes(id))

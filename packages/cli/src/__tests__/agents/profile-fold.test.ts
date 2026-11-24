@@ -6,6 +6,8 @@ import { LocalChoice } from '../../agents/index.ts';
 import { LocalSettings } from '../../common/local-settings.ts';
 import { EventSettings } from '../../events/index.ts';
 import { OwnerProfile } from '../../owner/index.ts';
+import { ProjectContract } from '../../doctor/checks.ts';
+import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { LocalPlan } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -115,7 +117,7 @@ describe('sync moves the keys of the old file into the profile', () => {
 
     const [action] = LocalPlan.planLegacyLocal({ root: tracked });
 
-    expect(action?.status).toBe('replaced');
+    expect(action?.status).toBe('unchanged');
     expect(action?.note).toContain(`git rm --cached ${LEGACY}`);
     action?.apply();
     expect(existsSync(join(tracked, LEGACY))).toBe(true);
@@ -129,7 +131,7 @@ describe('sync moves the keys of the old file into the profile', () => {
     const notGit = withOld();
     const [action] = LocalPlan.planLegacyLocal({ root: notGit });
 
-    expect(action?.status).toBe('replaced');
+    expect(action?.status).toBe('unchanged');
     expect(action?.note).toContain('could not say');
     action?.apply();
     expect(existsSync(join(notGit, LEGACY))).toBe(true);
@@ -184,7 +186,7 @@ describe('sync moves the keys of the old file into the profile', () => {
 
     const [action] = LocalPlan.planLegacyLocal({ root });
 
-    expect(action?.status).toBe('replaced');
+    expect(action?.status).toBe('unchanged');
     expect(action?.note).toContain('boards');
     action?.apply();
     expect(existsSync(join(root, LEGACY))).toBe(true);
@@ -453,5 +455,73 @@ describe('sync moves the old machine keys of the profile to the groups, once', (
 
     expect(readFileSync(join(root, PROFILE), 'utf8')).toBe(before);
     expect(run.stdout + run.stderr).toContain('profile.json');
+  });
+
+  test('`vulcan profile reset --yes` on a profile sync has not moved keeps its machine keys, at their new paths', () => {
+    const root = withProfile({ ...OLD_PROFILE, tone: 'terse' });
+
+    writeFileSync(join(root, '.gitignore'), '.agents/local/\nnode_modules\n');
+
+    const run = runCli({ args: ['profile', 'reset', '--yes'], cwd: root });
+
+    expect(run.code, run.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8'))).toEqual({
+      schemaVersion: 1,
+      agent: { list: ['claude'] },
+      board: {
+        page: { agents: { bun: 'flame' } },
+        serve: { autoStart: true },
+        events: { dir: '/srv/vulcan-fixture/events' },
+      },
+      common: { local: { tmp: 't' } },
+    });
+  });
+
+  test('doctor tells an old key to run sync, not to reset', () => {
+    const root = withProfile({ schemaVersion: 1, agents: ['claude'] });
+    const messages = ProjectContract.checkProfile({
+      root,
+      config: VULCAN_CONFIG_SCHEMA.parse({}),
+      configFile: '.configs/vulcan.config.mts',
+    }).map((violation) => violation.message);
+
+    expect(messages.join('\n')).toContain('run vulcan project sync to move it');
+    expect(messages.join('\n')).not.toContain('profile reset');
+  });
+
+  test('the note of the move is printed before anything can fail, and a profile with an unplaceable key still says what it moved', () => {
+    const root = withProfile({
+      schemaVersion: 1,
+      agents: ['claude'],
+      agent: { list: ['omp'] },
+      board: { typo: 1 },
+    });
+    const run = runCli({ args: ['project', 'sync'], cwd: root });
+
+    expect(run.stderr).toContain('the value already there was kept for agent.list');
+    expect(run.stderr).toContain('board.typo not placed');
+  });
+
+  test('--dry-run on an old profile lists the move and resolves the choice against it: exit 0, nothing written', () => {
+    const root = withProfile(OLD_PROFILE);
+    const before = readFileSync(join(root, PROFILE), 'utf8');
+    const run = runCli({ args: ['project', 'sync', '--dry-run'], cwd: root });
+
+    expect(run.code, run.stderr).toBe(0);
+    expect(run.stderr).toContain('profile.json');
+    expect(readFileSync(join(root, PROFILE), 'utf8')).toBe(before);
+  });
+
+  test('the note of a symlinked old profile is printed first', () => {
+    const root = createProject({
+      files: { ...PROJECT, 'elsewhere/profile.json': JSON.stringify(OLD_PROFILE) },
+    });
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    symlinkSync(join(root, 'elsewhere'), join(root, '.agents', 'local'));
+
+    const run = runCli({ args: ['project', 'sync'], cwd: root });
+
+    expect(run.stderr).toContain('is a symlink: its keys were not moved');
   });
 });

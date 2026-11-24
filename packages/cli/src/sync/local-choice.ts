@@ -96,6 +96,19 @@ export class LocalPlan {
     };
   }
 
+  /** The profile as the move will write it, when it is old and can be read: what a dry run reads instead of the file. */
+  static movedProfile(opts: { root: string }): Record<string, unknown> | undefined {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(join(opts.root, LOCAL_AGENTS_FILE), 'utf8'));
+
+      return RecordValue.isRecord(parsed) && ProfileKeys.isOld({ value: parsed })
+        ? ProfileKeys.toNew({ value: parsed }).value
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   /**
    * The old machine keys of the profile at their new paths, once (`agents` is `agent.list`, `board.agents` is `board.page.agents`, `events` is
    * `board.events`, `local` is `common.local`): the profile is a file kept on this machine, so the move is in place and nothing reads the old
@@ -221,7 +234,8 @@ export class LocalPlan {
     return [
       {
         path,
-        status: isRemoved ? SyncStatuses.REMOVED : SyncStatuses.REPLACED,
+        // The old file is only read: when it stays, it is as it was, and what changes is the profile (named in the note).
+        status: isRemoved ? SyncStatuses.REMOVED : SyncStatuses.UNCHANGED,
         note: saying,
         apply: () => {
           const again = LocalChoice.migrate({ root: opts.root });
@@ -254,7 +268,7 @@ export class LocalPlan {
     const made: ISyncAction = {
       path: tmp,
       status: isMade ? SyncStatuses.UNCHANGED : SyncStatuses.CREATED,
-      ...(isMade ? {} : { note: 'the project tmp folder, local.tmp' }),
+      ...(isMade ? {} : { note: 'the project tmp folder, common.local.tmp' }),
       apply: () => {
         mkdirSync(tmp, { recursive: true });
       },
