@@ -13,7 +13,13 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
 import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
 import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
-import { ConfigLayers, ProjectPackages, WorkspacePackages, pathKeyOf } from '../config/index.ts';
+import {
+  ConfigGroups,
+  ConfigLayers,
+  ProjectPackages,
+  WorkspacePackages,
+  pathKeyOf,
+} from '../config/index.ts';
 import type { IConfigLayer, IConfigMerge } from '../config/index.ts';
 import { ProjectKey } from '../events/project-key.ts';
 import type { TResolvedConfig } from '../config/index.ts';
@@ -884,7 +890,7 @@ export class ProjectContract {
       createViolation({
         check: DoctorChecks.CONFIG_REMOVE,
         file: opts.configFile,
-        message: `remove: ${entry} matches nothing, so it does nothing: delete it`,
+        message: `remove: ${ConfigGroups.groupedEntryOf({ entry })} matches nothing, so it does nothing: delete it`,
       }),
     );
   }

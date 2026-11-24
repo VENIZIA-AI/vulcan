@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { ConfigGroups, VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import type { TFlatConfig, TResolvedConfig } from '../../index.ts';
 import { FROZEN_CONFIG_SCHEMA } from './frozen-schema.helper.ts';
 
@@ -20,14 +20,18 @@ const BASE = join(import.meta.dir, '..', '..', '..', 'base');
 
 const readJson = (opts: { path: string }): unknown => JSON.parse(readFileSync(opts.path, 'utf8'));
 
+const flatOf = (opts: { path: string }): unknown =>
+  ConfigGroups.toFlat({ value: readJson({ path: opts.path }) as Record<string, unknown> }).flat;
+
 const projectConfig = await import(join(REPO_ROOT, '.configs', 'vulcan.config.mts'));
 
 /** Configs that parse: every section set at least once. */
 const VALID: Record<string, unknown> = {
   empty: {},
   'this repository': projectConfig.default,
-  'shipped defaults': readJson({ path: join(BASE, 'defaults.config.json') }),
-  'venizia pack': readJson({ path: join(BASE, 'packs', 'venizia.config.json') }),
+  // The shipped files are written in groups; the frozen schema is the flat one.
+  'shipped defaults': flatOf({ path: join(BASE, 'defaults.config.json') }),
+  'venizia pack': flatOf({ path: join(BASE, 'packs', 'venizia.config.json') }),
   'every section': {
     name: 'demo',
     project: { key: 'DEMO' },

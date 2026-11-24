@@ -1,54 +1,62 @@
 {
-  "claude": {
-    "settings": {
-      "permissions": {
-        "allow": [
-          "Bash(bun run typecheck:*)",
-          "Bash(bun run test:*)",
-          "Bash(bun run lint:*)",
-          "Bash(bun test:*)",
-          "Bash(bun check:*)"
-        ]
+  "agent": {
+    "claude": {
+      "settings": {
+        "permissions": {
+          "allow": [
+            "Bash(bun run typecheck:*)",
+            "Bash(bun run test:*)",
+            "Bash(bun run lint:*)",
+            "Bash(bun test:*)",
+            "Bash(bun check:*)"
+          ]
+        }
       }
     }
   },
-  "presets": [
-    {
-      "spec": "ignis",
-      "side": "backend",
-      "summary": "IGNIS: a backend app on Bun",
-      "lib": "IGNIS: a shared library"
-    },
-    {
-      "spec": "ardor",
-      "side": "frontend",
-      "summary": "ARDOR: a frontend app on Vite and React",
-      "lib": "ARDOR: a shared feature package"
-    }
-  ],
-  "atlas": {
-    "sources": [
+  "project": {
+    "presets": [
       {
-        "name": "ignis",
-        "repo": "VENIZIA-AI/ignis"
+        "spec": "ignis",
+        "side": "backend",
+        "summary": "IGNIS: a backend app on Bun",
+        "lib": "IGNIS: a shared library"
       },
       {
-        "name": "ardor",
-        "repo": "VENIZIA-AI/ardor"
-      },
-      {
-        "name": "vulcan",
-        "repo": "VENIZIA-AI/vulcan"
+        "spec": "ardor",
+        "side": "frontend",
+        "summary": "ARDOR: a frontend app on Vite and React",
+        "lib": "ARDOR: a shared feature package"
       }
     ]
+  },
+  "knowledge": {
+    "atlas": {
+      "sources": [
+        {
+          "name": "ignis",
+          "repo": "VENIZIA-AI/ignis"
+        },
+        {
+          "name": "ardor",
+          "repo": "VENIZIA-AI/ardor"
+        },
+        {
+          "name": "vulcan",
+          "repo": "VENIZIA-AI/vulcan"
+        }
+      ]
+    }
   },
   "guard": {
     "outside": "deny"
   },
-  "commit": {
-    "message": {
-      "agent": {
-        "signature": "deny"
+  "check": {
+    "commit": {
+      "message": {
+        "agent": {
+          "signature": "deny"
+        }
       }
     }
   }

@@ -182,3 +182,49 @@ describe('the group types', () => {
     expect([project, agent, board, knowledge, check, common, wrong].length).toBe(7);
   });
 });
+
+describe('ConfigGroups paths', () => {
+  test('a flat path and its grouped path are each other, whole path, bracket and all', () => {
+    const pairs = [
+      ['name', 'project.name'],
+      ['project.key', 'project.key'],
+      ['agents', 'agent.list'],
+      ['presets', 'project.presets'],
+      ['board.title', 'board.page.title'],
+      ['events.log', 'board.events.log'],
+      ['atlas.sources[ignis]', 'knowledge.atlas.sources[ignis]'],
+      ['okf.brand', 'knowledge.okf.brand'],
+      ['knowledge.bundle', 'knowledge.bundle'],
+      ['doctor.layout.maxLines', 'check.layout.maxLines'],
+      ['doctor.privateValues.acknowledged', 'check.doctor.privateValues.acknowledged'],
+      ['claude.settings.permissions.allow', 'agent.claude.settings.permissions.allow'],
+      ['guard.outside', 'guard.outside'],
+      ['theme.accent', 'common.theme.accent'],
+    ];
+
+    for (const [flat, grouped] of pairs) {
+      expect(ConfigGroups.groupedPathOf({ path: flat }), flat).toBe(grouped);
+      expect(ConfigGroups.flatPathOf({ path: grouped }), grouped).toBe(flat);
+    }
+
+    expect(ConfigGroups.groupedEntryOf({ entry: 'atlas.sources: ghost' })).toBe(
+      'knowledge.atlas.sources: ghost',
+    );
+  });
+
+  test('common.remove names its arrays by the grouped path and loads as the flat ones', () => {
+    const { flat } = ConfigGroups.toFlat({
+      value: {
+        common: { remove: { 'knowledge.atlas.sources': ['ignis'], 'project.presets': ['x'] } },
+      },
+    });
+
+    expect(flat['remove']).toEqual({ 'atlas.sources': ['ignis'], presets: ['x'] });
+  });
+
+  test('check.doctor.layout is refused: the layout check is check.layout', () => {
+    const { issues } = ConfigGroups.toFlat({ value: { check: { doctor: { layout: {} } } } });
+
+    expect(issues).toEqual(['check.doctor.layout: the layout check is `check.layout`']);
+  });
+});

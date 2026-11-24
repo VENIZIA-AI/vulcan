@@ -168,7 +168,7 @@ describe('the pack gives the stack its guard and commit defaults', () => {
     expect(repeatsNotes).toContain('1 value(s) of this config repeat what VULCAN ships');
     expect(repeatsNotes).toContain('config diff');
     expect(cleanNotes).not.toContain('repeat what VULCAN ships');
-    expect(staleWarnings).toContain('remove: atlas.sources: ghost matches nothing');
+    expect(staleWarnings).toContain('remove: knowledge.atlas.sources: ghost matches nothing');
     expect(cleanWarnings).not.toContain('matches nothing');
   });
 });

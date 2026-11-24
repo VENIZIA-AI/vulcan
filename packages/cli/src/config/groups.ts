@@ -48,6 +48,91 @@ export class ConfigGroups {
   /** `knowledge` keeps its own keys and takes `okf` and `atlas`; `guard` is the key `guard`. */
   static readonly KNOWLEDGE_TOOLS: readonly string[] = ['okf', 'atlas'];
 
+  /**
+   * Each flat prefix and the grouped one it has (`atlas` is `knowledge.atlas`, `doctor.layout` is `check.layout`, `board` is
+   * `board.page`): the one table that `flatPathOf` and `groupedPathOf` read, the longest prefix first.
+   */
+  private static prefixes(): { flat: string; grouped: string }[] {
+    return [
+      ...Object.entries(ConfigGroups.GROUPS).flatMap(([group, keys]) =>
+        Object.entries(keys).map(([key, target]) => ({
+          flat: target.inner === undefined ? target.to : `${target.to}.${target.inner}`,
+          grouped: `${group}.${key}`,
+        })),
+      ),
+      { flat: 'knowledge', grouped: 'knowledge' },
+      { flat: 'okf', grouped: 'knowledge.okf' },
+      { flat: 'atlas', grouped: 'knowledge.atlas' },
+      { flat: 'guard', grouped: 'guard' },
+    ].sort((left, right) => right.flat.length - left.flat.length);
+  }
+
+  private static retarget(opts: { path: string; from: 'flat' | 'grouped' }): string {
+    const to = opts.from === 'flat' ? 'grouped' : 'flat';
+    const own = ConfigGroups.prefixes()
+      .map((entry) => ({ from: entry[opts.from], to: entry[to] }))
+      .sort((left, right) => right.from.length - left.from.length)
+      .find(
+        (entry) =>
+          opts.path === entry.from ||
+          opts.path.startsWith(`${entry.from}.`) ||
+          opts.path.startsWith(`${entry.from}[`),
+      );
+
+    return own === undefined ? opts.path : `${own.to}${opts.path.slice(own.from.length)}`;
+  }
+
+  /** The grouped path of a flat dotted path (`atlas.sources[x]` is `knowledge.atlas.sources[x]`): what a message shows. */
+  static groupedPathOf(opts: { path: string }): string {
+    return ConfigGroups.retarget({ path: opts.path, from: 'flat' });
+  }
+
+  /** An entry of the form `<path>: <what>` (a `remove` that matched nothing) with the path in its grouped form. */
+  static groupedEntryOf(opts: { entry: string }): string {
+    const at = opts.entry.indexOf(': ');
+
+    return at === -1
+      ? opts.entry
+      : `${ConfigGroups.groupedPathOf({ path: opts.entry.slice(0, at) })}${opts.entry.slice(at)}`;
+  }
+
+  /** The flat dotted path of a grouped one: where the merge and `remove` look. */
+  static flatPathOf(opts: { path: string }): string {
+    return ConfigGroups.retarget({ path: opts.path, from: 'grouped' });
+  }
+
+  /**
+   * The grouped paths a shipped layer (the defaults, a pack) may set, as a rule on the top key and, for a mixed group, the key inside:
+   * what is generic or stack specific. A project's own facts (its name, layout, packages, owner, packs, agents) are not defaults.
+   */
+  static strayOfShipped(opts: { value: Record<string, unknown> }): string[] {
+    const allowed: Record<string, string[] | true> = {
+      guard: true,
+      check: true,
+      project: ['presets'],
+      agent: ['claude', 'digest'],
+      knowledge: true,
+    };
+
+    return Object.entries(opts.value).flatMap(([group, inner]) => {
+      const rule = allowed[group];
+
+      if (rule === undefined) {
+        return [group];
+      }
+
+      if (rule === true || !RecordValue.isRecord(inner)) {
+        return group === 'knowledge' && RecordValue.isRecord(inner) && 'okf' in inner
+          ? [`${group}.okf`]
+          : [];
+      }
+
+      return Object.keys(inner)
+        .filter((key) => !rule.includes(key))
+        .map((key) => `${group}.${key}`);
+    });
+  }
+
   static names(): string[] {
     return ['project', 'agent', 'guard', 'board', 'knowledge', 'check', 'common'];
   }
@@ -137,7 +222,28 @@ export class ConfigGroups {
           continue;
         }
 
-        put(target.to, target.inner, inner);
+        if (
+          group === 'check' &&
+          key === 'doctor' &&
+          RecordValue.isRecord(inner) &&
+          'layout' in inner
+        ) {
+          issues.push('check.doctor.layout: the layout check is `check.layout`');
+          continue;
+        }
+
+        put(
+          target.to,
+          target.inner,
+          group === 'common' && key === 'remove' && RecordValue.isRecord(inner)
+            ? Object.fromEntries(
+                Object.entries(inner).map(([path, items]) => [
+                  ConfigGroups.flatPathOf({ path }),
+                  items,
+                ]),
+              )
+            : inner,
+        );
       }
     }
 
