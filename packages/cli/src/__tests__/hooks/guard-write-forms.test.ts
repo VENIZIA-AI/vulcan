@@ -31,6 +31,7 @@ const isSilent = (command: string): boolean => hitsOf({ root, command }).length 
 /** Folders that hold a file the guards read, with the name of one such file in each. */
 const FOLDERS: [string, string][] = [
   ['.agents', 'atlas.manifest.json'],
+  ['.agents', 'vulcan.manifest.json'],
   ['.agents/local', 'vulcan.manifest.json'],
   ['.claude', 'settings.json'],
   ['.claude', 'settings.local.json'],

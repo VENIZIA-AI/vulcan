@@ -16,6 +16,7 @@ The manifest is always written.
 | Claude settings | `.claude/settings.json` | No (gitignored adapter) | Shipped settings, slot choices, `claude.settings` (project hooks included), and personal settings |
 | Skill links | `.claude/skills/<name>` | No (gitignored adapter) | Symbolic links to shipped and project skills |
 | Atlas descriptor | `.agents/atlas.manifest.json` | Yes (committed, generated) | What atlas and the wiki build read: name, packages, layout, presets, knowledge, release, sources, atlas, theme |
+| Descriptor copy (temporary) | `.agents/vulcan.manifest.json` | Yes (committed, generated) | The same text as the descriptor, kept until the stable 0.5.0 release: atlas of 0.5.0-6 and before finds a source's manifest only at this path |
 | Local manifest | `.agents/local/vulcan.manifest.json` | No (gitignored; each clone writes its own) | Project configuration the hooks, board and doctor read, and base rule hashes |
 | Managed overlay | `.claude/vulcan-managed.json` | No (gitignored adapter) | Managed overlay record of settings written by VULCAN |
 
@@ -167,6 +168,7 @@ $ bun node_modules/.bin/vulcan sync
   created   .mcp.json
   created   .agents/local/vulcan.manifest.json
   created   .agents/atlas.manifest.json
+  created   .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)
   created   .agents/local/profile.json
   created   .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
@@ -195,6 +197,7 @@ $ bun node_modules/.bin/vulcan sync
   unchanged .mcp.json
   unchanged .agents/local/vulcan.manifest.json
   unchanged .agents/atlas.manifest.json
+  unchanged .agents/vulcan.manifest.json
   unchanged AGENTS.md
   unchanged .agents/local/profile.json
   unchanged .agents/local
@@ -252,6 +255,7 @@ $ bun node_modules/.bin/vulcan sync
   replaced  .claude/settings.json (shipped, slot and claude.settings over personal keys)
   replaced  .agents/local/vulcan.manifest.json
   replaced  .agents/atlas.manifest.json
+  replaced  .agents/vulcan.manifest.json
 ```
 
 ## Dry run
@@ -276,6 +280,7 @@ $ bun node_modules/.bin/vulcan sync --dry-run
   would create  .mcp.json
   would create  .agents/local/vulcan.manifest.json
   would create  .agents/atlas.manifest.json
+  would create  .agents/vulcan.manifest.json
   would replace AGENTS.md (Atlas block)
   would create  .agents/local/profile.json
   would create  .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)

@@ -37,7 +37,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `skills` (shipped names) | Project skills avoid names reserved by shipped skills | Rename the colliding skill directory under `.agents/skills/` |
 | `make` | The project `Makefile` includes `vulcan.mk` and avoids shipped target names | Add the `-include` line or rename conflicting project make targets |
 | `adapters` | Generated files, settings and links match configuration; the `AGENTS.md` blocks are present and current | Run `bun node_modules/.bin/vulcan sync` |
-| `manifest` | `.agents/local/vulcan.manifest.json` and the committed `.agents/atlas.manifest.json` match the project configuration; a copy of the old `.agents/vulcan.manifest.json` that git tracks is named | Run `bun node_modules/.bin/vulcan sync` and commit the descriptor; `git rm --cached .agents/vulcan.manifest.json` for the old file |
+| `manifest` | `.agents/local/vulcan.manifest.json`, the committed `.agents/atlas.manifest.json` and the temporary data-only copy of it at `.agents/vulcan.manifest.json` (kept until the stable 0.5.0 release, for atlas of 0.5.0-6 and before) match the project configuration | Run `bun node_modules/.bin/vulcan sync` and commit the descriptor and the copy |
 | `changelog-folders` | A project with version folders under its changelog directory has a vulcan installed whose atlas reads them | Install the vulcan version the message names |
 | `tags` | Git tags matching `atlas.tagPattern` resolve to declared packages | Declare the package, add an alias, or add the tag to `atlas.ignoreTags` |
 | `skills` (warning) | A skill's description has no "Use when" part, so atlas cannot tell an agent when to load it; never a failure | Start the description with when to use the skill |
@@ -183,7 +183,7 @@ When sync skips a file, it reports the reason or `shadows a shipped skill - rena
 
 ### manifest
 
-A missing or outdated `.agents/local/vulcan.manifest.json` or `.agents/atlas.manifest.json` file triggers this check, and so does a copy of the old `.agents/vulcan.manifest.json` that git still tracks.
+A missing or outdated `.agents/local/vulcan.manifest.json`, `.agents/atlas.manifest.json` or `.agents/vulcan.manifest.json` triggers this check. The last is a temporary data-only copy of the descriptor, kept until the stable 0.5.0 release because atlas of 0.5.0-6 and before reads a source's manifest only at that path; the message says so, and the fix is the same: run `vulcan sync` and commit it.
 
 ```text
 $ bun node_modules/.bin/vulcan doctor

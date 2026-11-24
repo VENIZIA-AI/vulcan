@@ -43,6 +43,8 @@ export class HookConstants {
   static readonly PROTECTED_FILES = [
     '.agents/local/vulcan.manifest.json',
     '.agents/atlas.manifest.json',
+    // The temporary copy of the descriptor: for atlas of 0.5.0-6 and before it is the committed trust anchor (`atlas.index.keys`, `sources`). Removed with the stable release.
+    '.agents/vulcan.manifest.json',
     '.configs/vulcan.config.*',
     '.agents/local/profile.json',
     '.agents/vulcan.local.json',

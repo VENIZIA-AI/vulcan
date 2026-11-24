@@ -12,6 +12,7 @@ const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-out
 
 /** The files the guards read their policy from, as the project root sees them. */
 const PROTECTED = [
+  '.agents/vulcan.manifest.json',
   '.agents/local/vulcan.manifest.json',
   '.configs/vulcan.config.mts',
   '.configs/vulcan.config.ts',
