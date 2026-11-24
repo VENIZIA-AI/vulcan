@@ -40,37 +40,42 @@ export default defineConfig({
 
 Both shapes load the same way: the config is a module, and what it imports is read with it.
 
-**One file.** Every key in `.configs/vulcan.config.mts`, as above. A small project, and a monorepo made by `vulcan project init --preset` (whose apps block `vulcan package add` rewrites in that file), keep this shape.
+**One file.** Every group in `.configs/vulcan.config.mts`, as above. A monorepo made by `vulcan project init --preset` has this shape, written in groups (its apps block, which `vulcan package add` rewrites, stays in that file), and so can any project.
 
-**Split.** What `vulcan project init` writes: the small top-level keys stay in the file, and each large section is a module of `.configs/vulcan/` that `satisfies` its slice of `VulcanConfig`, re-exported by `.configs/vulcan/index.mts`:
+**Split.** What `vulcan project init` writes: one module per group in `.configs/vulcan/`, each `satisfies` its group type, re-exported by `.configs/vulcan/index.mts`, and a config that composes them:
 
 ```text
 .configs/
-  vulcan.config.mts       project, agents, rules, and the sections by name
+  vulcan.config.mts       export default { project, agent, guard, board, knowledge, check, common } satisfies VulcanConfig;
   vulcan/
-    index.mts             export { claude } from './claude.mts'; ...
-    claude.mts            export const claude = { ... } satisfies NonNullable<VulcanConfig.Agent['claude']>;
-    doctor.mts            export const doctor = { ... } satisfies NonNullable<VulcanConfig.Check['doctor']>;
-    okf.mts               export const okf = { ... } satisfies NonNullable<VulcanConfig.Knowledge['okf']>;
-    packages.mts          export const packages: VulcanConfig.Project['packages'] = undefined;
+    index.mts             export { project } from './project.mts'; ...
+    project.mts           export const project = { key: 'ACME' } satisfies VulcanConfig.Project;
+    agent.mts             export const agent = { list: ['claude'], rules: { ... } } satisfies VulcanConfig.Agent;
+    guard.mts             export const guard = {} satisfies NonNullable<VulcanConfig.Guard>;
+    board.mts             export const board = {} satisfies VulcanConfig.Board;
+    knowledge.mts         export const knowledge = {} satisfies VulcanConfig.Knowledge;
+    check.mts             export const check = {} satisfies VulcanConfig.Check;
+    common.mts            export const common = {} satisfies VulcanConfig.Common;
 ```
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
-import { claude, doctor, okf, packages } from './vulcan/index.mts';
+import { agent, board, check, common, guard, knowledge, project } from './vulcan/index.mts';
 
 export default {
-  project: { key: 'ACME' },
-  agents: ['claude'],
-  rules: { 'V-W-01': 'on-user-word' },
-  packages,
-  okf,
-  claude,
-  doctor,
+  project,
+  agent,
+  guard,
+  board,
+  knowledge,
+  check,
+  common,
 } satisfies VulcanConfig;
 ```
 
-- A split module is typed by its group: `VulcanConfig.Agent['claude']`, `VulcanConfig.Check['doctor']`, `VulcanConfig.Knowledge['okf']`, `VulcanConfig.Project['packages']`. `VulcanConfig['claude']` no longer type-checks, because `VulcanConfig` is the grouped shape or the flat one; the flat file of the earlier releases is read until the release that refuses it.
+`vulcan config codemod config-groups --split --write` makes the same shape from an existing config, with its values and comments.
+
+- A module is typed by its group (`VulcanConfig.Project`, `.Agent`, `.Guard`, `.Board`, `.Knowledge`, `.Check`, `.Common`); a module of the 0.5.0-7 and -8 scaffolds typed `VulcanConfig['claude']` (or `['doctor']`, `['okf']`, `['packages']`) is typed `VulcanConfig.Agent['claude']`, `VulcanConfig.Check['doctor']`, `VulcanConfig.Knowledge['okf']`, `VulcanConfig.Project['packages']` now: the old form no longer type-checks, because `VulcanConfig` is the grouped shape or the flat one; the flat file of the earlier releases is read until the release that refuses it.
 - A `packages` that is `undefined` counts as not written: the packages are derived from the workspaces, as when the key is left out.
 - `vulcan config format` orders the keys of the file; the values are names, so the modules are not touched.
 - The guards protect every module under `.configs/vulcan/`, and every other file under `.configs/` the config imports, as they protect the config ([hooks](/references/hooks/#the-files-the-guards-protect)). A module outside `.configs/` is not protected, and `vulcan project sync` and `vulcan project doctor` warn about it: keep the modules there.

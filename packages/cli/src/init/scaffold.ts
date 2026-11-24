@@ -164,7 +164,7 @@ export class ProjectScaffold {
     const config = ConfigLoader.findFile({ root });
 
     if (config === undefined) {
-      // The config is split: the small keys in the file, each large section in a module of .configs/vulcan/.
+      // The config is split: the file composes the seven groups, each a module of .configs/vulcan/.
       for (const template of [ConfigConstants.FILE, ...ConfigConstants.SPLIT_MODULES]) {
         entries.push(
           writeIfAbsent({
