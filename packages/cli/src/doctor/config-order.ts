@@ -25,10 +25,7 @@ export class ConfigOrderCheck {
    * loaded object are read first, so a config in order never loads the compiler. A note.
    */
   static check(opts: ICheckContext): IViolation[] {
-    if (
-      opts.layers !== undefined &&
-      ConfigKeyOrder.isOrdered({ keys: Object.keys(opts.layers.project) })
-    ) {
+    if (opts.layers !== undefined && ConfigKeyOrder.isOrderedFile({ value: opts.layers.file })) {
       return [];
     }
 

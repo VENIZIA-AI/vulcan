@@ -53,7 +53,13 @@ export interface ICheckContext {
   config: TResolvedConfig;
   configFile: string;
   /** The project's own object, the shipped layers below it and the merge, when the caller loaded them: the two config-layer checks need them. */
-  layers?: { project: Record<string, unknown>; below: IConfigLayer[]; merge: IConfigMerge };
+  layers?: {
+    project: Record<string, unknown>;
+    /** The default export as the file wrote it (see `ConfigLoader.load`). */
+    file: Record<string, unknown>;
+    below: IConfigLayer[];
+    merge: IConfigMerge;
+  };
 }
 
 const createViolation = (opts: {

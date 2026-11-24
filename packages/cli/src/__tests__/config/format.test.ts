@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigKeyOrder } from '../../config/common/index.ts';
+import { ConfigGroups } from '../../config/groups.ts';
 import { ConfigFormat } from '../../config/format.ts';
 import type { TConfigFormatResult } from '../../config/format.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
@@ -231,5 +232,148 @@ describe('vulcan config format', () => {
       root: config({ text: "export default {\n  name: 'demo',\n  rules: {},\n};\n" }),
     });
     expect(result).toEqual([]);
+  });
+});
+
+describe('a grouped file', () => {
+  const GROUPED = [
+    'export default {',
+    '  // The tools.',
+    '  knowledge: {',
+    '    atlas: { prebuilt: false },',
+    "    bundle: '.agents/knowledge', // where",
+    '    okf: {},',
+    '  },',
+    '  common: {',
+    '    remove: {},',
+    '    theme: {},',
+    '  },',
+    '  agent: {',
+    '    claude: {},',
+    "    list: ['claude'],",
+    '  },',
+    '  project: {',
+    "    key: 'A',",
+    "    name: 'a',",
+    '  },',
+    '  guard: { outside: "deny", asks: "ask" },',
+    '};',
+    '',
+  ].join('\n');
+
+  test('its groups and the keys inside each are put in order, with their comments', () => {
+    const result = format({ text: GROUPED });
+
+    expect(result.ok).toBe(true);
+    expect(result.ok ? result.keys : []).toEqual([
+      'project',
+      'agent',
+      'guard',
+      'knowledge',
+      'common',
+    ]);
+
+    const text = result.ok ? result.text : '';
+
+    expect(text.indexOf("name: 'a'")).toBeLessThan(text.indexOf("key: 'A'"));
+    expect(text.indexOf('list:')).toBeLessThan(text.indexOf('claude: {}'));
+    expect(text.indexOf("bundle: '.agents/knowledge', // where")).toBeLessThan(
+      text.indexOf('okf:'),
+    );
+    expect(text.indexOf('okf:')).toBeLessThan(text.indexOf('atlas:'));
+    expect(text.indexOf('theme: {}')).toBeLessThan(text.indexOf('remove: {}'));
+    expect(text).toContain('// The tools.\n  knowledge: {');
+    // `guard` keeps its keys as written.
+    expect(text).toContain('guard: { outside: "deny", asks: "ask" }');
+  });
+
+  test('it is in order after the format, and the moved keys are named by their group', () => {
+    const first = format({ text: GROUPED });
+    const text = first.ok ? first.text : '';
+
+    expect(format({ text })).toMatchObject({ ok: true, moved: [] });
+    expect(first.ok ? first.moved : []).toEqual(
+      expect.arrayContaining(['project.name', 'agent.list', 'knowledge.atlas', 'common.theme']),
+    );
+  });
+
+  test('a group that is a module or a variable is left as it is; a spread in a group is refused with the group named', () => {
+    const module =
+      'export default {\n  common,\n  agent: claude,\n  project: {\n    name: "a",\n    key: "A",\n  },\n};\n';
+    const spread = 'export default {\n  project: {\n    key: "A",\n    ...rest,\n  },\n};\n';
+
+    expect(reasonOf({ text: module })).toBe('');
+    expect(formatted({ text: module })).toContain('agent: claude');
+    expect(
+      reasonOf({ text: 'export default {\n  project: { key: "A", name: "a" },\n};\n' }),
+    ).toContain('in `project`: the first key is on the line of `{`');
+    expect(reasonOf({ text: spread })).toContain('in `project`');
+    expect(reasonOf({ text: spread })).toContain('spread');
+  });
+
+  test('the file the loader reads is judged in order by its own keys, whatever the flat config is', () => {
+    expect(
+      ConfigKeyOrder.isOrderedFile({
+        value: { project: { name: 'a', key: 'A' }, agent: { list: [] } },
+      }),
+    ).toBe(true);
+    expect(ConfigKeyOrder.isOrderedFile({ value: { agent: {}, project: {} } })).toBe(false);
+    expect(ConfigKeyOrder.isOrderedFile({ value: { agent: { claude: {}, list: [] } } })).toBe(
+      false,
+    );
+    expect(
+      ConfigKeyOrder.isOrderedFile({ value: { guard: { outside: 'deny', asks: 'ask' } } }),
+    ).toBe(true);
+    expect(ConfigKeyOrder.isOrderedFile({ value: { name: 'a', agents: [] } })).toBe(true);
+    expect(ConfigKeyOrder.isOrderedFile({ value: { agents: [], name: 'a' } })).toBe(false);
+  });
+
+  test('the inner orders list every key of every group, and nothing the group does not have', () => {
+    const schema = VULCAN_CONFIG_SCHEMA.shape;
+    const knowledge = [
+      ...Object.keys(
+        (schema.knowledge as unknown as { def: { innerType: { shape: object } } }).def.innerType
+          .shape,
+      ),
+      'okf',
+      'atlas',
+    ].sort();
+
+    expect([...(ConfigKeyOrder.INNER['knowledge'] ?? [])].sort()).toEqual(knowledge);
+    expect(ConfigKeyOrder.INNER['project']).toEqual([
+      'name',
+      'key',
+      'layout',
+      'packages',
+      'presets',
+    ]);
+    expect([...ConfigKeyOrder.GROUPS]).toEqual(ConfigGroups.names());
+  });
+});
+
+describe('doctor and a grouped file', () => {
+  test('an out-of-order grouped file is named once with its group keys; an in-order one is quiet', async () => {
+    const out = createProject({
+      files: {
+        [CONFIG]:
+          "export default {\n  agent: {\n    claude: {},\n    list: ['claude'],\n  },\n};\n",
+      },
+    });
+    const ok = createProject({
+      files: {
+        [CONFIG]:
+          "export default {\n  agent: {\n    list: ['claude'],\n    claude: {},\n  },\n};\n",
+      },
+    });
+    const messages = async (root: string): Promise<string[]> => {
+      const notes = await DoctorRunner.runNotes({ root, env: {} });
+
+      return notes.filter((note) => note.check === 'config-order').map((note) => note.message);
+    };
+
+    const result = await messages(out);
+    expect(result[0]).toContain('agent.list');
+    const result2 = await messages(ok);
+    expect(result2).toEqual([]);
   });
 });

@@ -135,4 +135,87 @@ export class ConfigKeyOrder {
         ConfigKeyOrder.rankOf({ key: opts.keys[index - 1] }) <= ConfigKeyOrder.rankOf({ key }),
     );
   }
+
+  /** The seven groups of a grouped file, in order. */
+  static readonly GROUPS: readonly string[] = [
+    'project',
+    'agent',
+    'guard',
+    'board',
+    'knowledge',
+    'check',
+    'common',
+  ];
+
+  /** The keys of each group in order (`guard` is not listed: its keys stay as written); a key not listed goes after them, `remove` last. */
+  static readonly INNER: Readonly<Record<string, readonly string[]>> = {
+    project: ['name', 'key', 'layout', 'packages', 'presets'],
+    agent: ['list', 'packs', 'rules', 'digest', 'owner', 'claude'],
+    board: ['events', 'page', 'provider'],
+    knowledge: [
+      'bundle',
+      'wiki',
+      'changelogs',
+      'migrationFrom',
+      'codemodCommand',
+      'datedUntil',
+      'siteUrl',
+      'okf',
+      'atlas',
+    ],
+    check: ['doctor', 'commit', 'layout'],
+    common: ['theme', 'local', 'remove'],
+  };
+
+  /** Whether the top-level keys are the flat shape's (any key that is not a group). */
+  static isFlatShape(opts: { keys: string[] }): boolean {
+    return opts.keys.some((key) => !ConfigKeyOrder.GROUPS.includes(key));
+  }
+
+  /** Where a top-level key goes in a grouped file. */
+  static groupRankOf(opts: { key: string }): number {
+    const index = ConfigKeyOrder.GROUPS.indexOf(opts.key);
+
+    return index === -1 ? ConfigKeyOrder.GROUPS.length : index;
+  }
+
+  /** Where a key goes inside a group; `remove` is last in every group that has it. */
+  static innerRankOf(opts: { group: string; key: string }): number {
+    const keys = ConfigKeyOrder.INNER[opts.group] ?? [];
+
+    if (opts.key === ConfigKeyOrder.LAST) {
+      return keys.length + 1;
+    }
+
+    const index = keys.indexOf(opts.key);
+
+    return index === -1 ? keys.length : index;
+  }
+
+  /** Whether a config object, as the file wrote it, is in order: its top-level keys and, in a grouped file, the keys of each group. */
+  static isOrderedFile(opts: { value: Record<string, unknown> }): boolean {
+    const keys = Object.keys(opts.value);
+
+    if (ConfigKeyOrder.isFlatShape({ keys })) {
+      return ConfigKeyOrder.isOrdered({ keys });
+    }
+
+    const isSorted = (sequence: number[]): boolean =>
+      sequence.every((rank, index) => index === 0 || sequence[index - 1] <= rank);
+
+    return (
+      isSorted(keys.map((key) => ConfigKeyOrder.groupRankOf({ key }))) &&
+      keys.every((group) => {
+        const inner = opts.value[group];
+
+        return (
+          typeof inner !== 'object' ||
+          inner === null ||
+          Array.isArray(inner) ||
+          group === 'guard' ||
+          isSorted(Object.keys(inner).map((key) => ConfigKeyOrder.innerRankOf({ group, key })))
+        );
+      })
+    );
+  }
 }

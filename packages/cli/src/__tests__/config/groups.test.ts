@@ -228,3 +228,21 @@ describe('ConfigGroups paths', () => {
     expect(issues).toEqual(['check.doctor.layout: the layout check is `check.layout`']);
   });
 });
+
+describe('toFlat and the shipped mask: the small cases', () => {
+  test('an empty knowledge group sets nothing, and one with a key or a tool does', () => {
+    expect(ConfigGroups.toFlat({ value: { knowledge: {} } }).flat).toEqual({});
+    expect(ConfigGroups.toFlat({ value: { knowledge: { bundle: 'b' } } }).flat).toEqual({
+      knowledge: { bundle: 'b' },
+    });
+    expect(ConfigGroups.toFlat({ value: { knowledge: { okf: {} } } }).flat).toEqual({ okf: {} });
+  });
+
+  test('a shipped key named like something on Object.prototype is a stray with a clean message', () => {
+    for (const key of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
+      const value = JSON.parse(`{ "${key}": {} }`);
+
+      expect(ConfigGroups.strayOfShipped({ value }), key).toEqual([key]);
+    }
+  });
+});
