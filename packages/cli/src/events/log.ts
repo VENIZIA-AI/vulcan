@@ -53,7 +53,7 @@ export class EventLog {
     checks?: IEventItem[];
     apps?: string[];
     due?: string;
-    order?: number;
+    order?: number | null;
     model?: string;
     notification?: string;
     usage?: IEventUsage;
@@ -115,7 +115,7 @@ export class EventLog {
       ...(checks.length === 0 ? {} : { checks }),
       ...(apps.length === 0 ? {} : { apps }),
       ...(opts.due !== undefined && EventText.isDay({ value: opts.due }) ? { due: opts.due } : {}),
-      ...(placed === undefined ? {} : { order: placed }),
+      ...(opts.order === null ? { order: null } : placed === undefined ? {} : { order: placed }),
       ...(model === '' ? {} : { model }),
       ...(opts.usage === undefined ? {} : { usage: EventLog.usageOf({ value: opts.usage }) }),
       ...(opts.mark === undefined ? {} : { mark: EventLog.markOf({ value: opts.mark }) }),
@@ -359,7 +359,7 @@ export class EventLog {
       // A due day that is no day is dropped, and only it: the line is still a line.
       ...(typeof due === 'string' && EventText.isDay({ value: due }) ? { due } : {}),
       // An order that is not a positive whole number is dropped, and only it.
-      ...(kept === undefined ? {} : { order: kept }),
+      ...(order === null ? { order: null } : kept === undefined ? {} : { order: kept }),
       ...(model === undefined ? {} : { model: text(model, EventConstants.MODEL_MAX) }),
       ...(keptUsage === undefined ? {} : { usage: keptUsage }),
       ...(keptMark === undefined ? {} : { mark: keptMark }),

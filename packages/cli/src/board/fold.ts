@@ -95,12 +95,17 @@ export class BoardFold {
       const core = lines.filter((event) => event.plumbing !== true && event.isTitle !== true);
       const titles = [...lines].sort(byTime).filter((event) => event.isTitle === true);
       const last = titles.at(-1);
-      // A flow line with no steps keeps the list of the newest one before it that has them.
-      const carried = titles.findLast((event) => event.steps !== undefined)?.steps;
+      // A flow line with no steps, or no order, keeps those of the newest one before it that has them.
+      const steps = last?.steps ?? titles.findLast((event) => event.steps !== undefined)?.steps;
+      const order = last?.order ?? titles.findLast((event) => event.order !== undefined)?.order;
       const named =
-        last === undefined || last.steps !== undefined || carried === undefined
-          ? last
-          : { ...last, steps: carried };
+        last === undefined
+          ? undefined
+          : {
+              ...last,
+              ...(steps === undefined ? {} : { steps }),
+              ...(order === undefined ? {} : { order }),
+            };
 
       if (core.length === 0) {
         flows.push(BoardFold.quietFlow({ id, lines: quiet, named }));
@@ -505,7 +510,7 @@ export class BoardFold {
           ...(named.checks === undefined ? {} : { checks: named.checks }),
           ...(named.apps === undefined ? {} : { apps: named.apps }),
           ...(named.due === undefined ? {} : { due: named.due }),
-          ...(named.order === undefined ? {} : { order: named.order }),
+          ...(named.order === undefined || named.order === null ? {} : { order: named.order }),
           ...(named.tracker === undefined ? {} : { tracker: named.tracker }),
         };
   }

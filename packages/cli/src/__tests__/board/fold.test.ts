@@ -1151,7 +1151,7 @@ describe('BoardFold.fromLog: a tool tick', () => {
 });
 
 describe('BoardFold.fold: the work order of a flow', () => {
-  const flowLine = (opts: { minute: number; order?: number }) =>
+  const flowLine = (opts: { minute: number; order?: number | null }) =>
     line({
       minute: opts.minute,
       kind: 'flow',
@@ -1161,12 +1161,25 @@ describe('BoardFold.fold: the work order of a flow', () => {
       ...(opts.order === undefined ? {} : { order: opts.order }),
     });
 
-  test('the newest flow line gives the order, and a newer line without one drops it', () => {
+  test('the newest flow line that has an order gives it, and a retitle without one keeps it', () => {
     const first = flowLine({ minute: 1, order: 4 });
     const second = flowLine({ minute: 2, order: 2 });
-    const third = flowLine({ minute: 3 });
+    const retitle = flowLine({ minute: 3 });
 
     expect(flowOf({ id: 'F-1', lines: [first, second] }).order).toBe(2);
-    expect(flowOf({ id: 'F-1', lines: [first, second, third] }).order).toBeUndefined();
+    expect(flowOf({ id: 'F-1', lines: [first, second, retitle] }).order).toBe(2);
+  });
+
+  test('null clears it, and a later retitle stays cleared', () => {
+    const set = flowLine({ minute: 1, order: 4 });
+    const cleared = flowLine({ minute: 2, order: null });
+    const retitle = flowLine({ minute: 3 });
+
+    expect(flowOf({ id: 'F-1', lines: [set, cleared] }).order).toBeUndefined();
+    expect(flowOf({ id: 'F-1', lines: [set, cleared, retitle] }).order).toBeUndefined();
+    expect(
+      flowOf({ id: 'F-1', lines: [set, cleared, retitle, flowLine({ minute: 4, order: 7 })] })
+        .order,
+    ).toBe(7);
   });
 });

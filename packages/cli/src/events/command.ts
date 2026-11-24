@@ -23,7 +23,7 @@ import { EventText } from './text.ts';
 const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} <flow id>] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${EventStatuses.values().join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
        vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} [${EventFlags.FLOW} <flow id>] ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.NEXT} <text>] [${EventFlags.DUE} <YYYY-MM-DD>] [${EventFlags.ORDER} <n>] [${EventFlags.REF} <tracker id>]
          [${EventFlags.STEP} <text> | ${EventFlags.STEP_DONE} <text>]... [${EventFlags.CHECK} <text> | ${EventFlags.CHECK_DONE} <text>]... [${EventFlags.APP} <name>]... [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
-       vulcan flow step [${EventFlags.FLOW} <flow id>] [${EventFlags.DONE} <step> | ${EventFlags.TODO} <step>] [${EventFlags.NEXT} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
+       vulcan flow step [${EventFlags.FLOW} <flow id>] [${EventFlags.DONE} <step> | ${EventFlags.TODO} <step>] [${EventFlags.NEXT} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.ORDER} <n>|${EventFlags.ORDER_NONE}] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
          (changes one step of the flow's last flow line, or its next step or context, and keeps every other field)
        vulcan event tail [${EventFlags.SINCE} <time>] [${EventFlags.JSON}] [${EventFlags.DIR} <folder>]
 kinds: ${EventKinds.values().join(', ')}
@@ -218,7 +218,7 @@ export class EventCommand {
       FlowSteps.isSame({ first: event.steps ?? [], second: last.steps ?? [] }) &&
       event.next === last.next &&
       event.context === last.context &&
-      event.order === last.order
+      (event.order ?? undefined) === (last.order ?? undefined)
     ) {
       process.stdout.write(`${last.id}\n`);
 
@@ -344,6 +344,14 @@ export class EventCommand {
       return ExitCodes.USAGE;
     }
 
+    if (items.order === null && flow === undefined) {
+      process.stderr.write(
+        `event: ${EventFlags.ORDER} ${EventFlags.ORDER_NONE} clears the order of a flow that exists: give ${EventFlags.FLOW} <flow id>\n`,
+      );
+
+      return ExitCodes.USAGE;
+    }
+
     const blank = EventCommand.blankFlag({ values });
 
     if (blank !== undefined) {
@@ -449,7 +457,13 @@ export class EventCommand {
     order: string | undefined;
     isFlow: boolean;
   }):
-    | { ok: true; steps: IEventItem[]; checks: IEventItem[]; apps: string[]; order?: number }
+    | {
+        ok: true;
+        steps: IEventItem[];
+        checks: IEventItem[];
+        apps: string[];
+        order?: number | null;
+      }
     | { ok: false; message: string } {
     const steps: IEventItem[] = [];
     const checks: IEventItem[] = [];
@@ -515,7 +529,7 @@ export class EventCommand {
       steps,
       checks,
       apps,
-      ...(order.value === undefined || order.value === null ? {} : { order: order.value }),
+      ...(order.value === undefined ? {} : { order: order.value }),
     };
   }
 

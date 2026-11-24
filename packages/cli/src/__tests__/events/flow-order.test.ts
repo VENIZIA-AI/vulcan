@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { join } from 'node:path';
-import { EventLog } from '../../events/index.ts';
+import { BoardFold } from '../../board/fold.ts';
+import { EventLog, FlowSteps } from '../../events/index.ts';
 import { hermeticEnv } from '../hermetic.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -23,6 +24,7 @@ const cli = (opts: { root: string; args: string[] }) =>
     cwd: opts.root,
     env: { ...hermeticEnv(), VULCAN_ACTOR: 'pnt-vulcan-1' },
   });
+const linesOf = (root: string) => EventLog.read({ dir: join(root, '.agents/local/events') }).events;
 const flowsOf = (root: string) =>
   EventLog.read({ dir: join(root, '.agents/local/events') }).events.filter(
     (line) => line.kind === 'flow',
@@ -85,8 +87,53 @@ describe('the order of a flow', () => {
     const cleared = cli({ root, args: ['flow', 'step', '--flow', id, '--order', 'none'] });
 
     expect(cleared.code).toBe(0);
-    expect(flowsOf(root).at(-1)?.order).toBeUndefined();
+    expect(flowsOf(root).at(-1)?.order).toBeNull();
     expect(flowsOf(root).at(-1)?.steps).toEqual([{ text: 'Token', done: false }]);
+  });
+
+  test('a retitle without --order keeps the order, --order none clears it, and a retitle after that stays cleared', () => {
+    const root = project();
+    const id = open({ root, extra: ['--order', '3'] });
+    const orderOf = () => linesOf(root).filter((line) => line.flowId === id);
+
+    cli({ root, args: ['flow', 'add', '--flow', id, '--title', 'Sign in again'] });
+    cli({ root, args: ['flow', 'step', '--flow', id, '--done', 'Token'] });
+
+    expect(FlowSteps.lastLine({ events: linesOf(root), flowId: id })?.order).toBe(3);
+
+    const board = BoardFold.fold({
+      events: BoardFold.fromLog({ events: linesOf(root) }).events,
+      owner: 'Ana',
+    });
+
+    expect(board.flows.find((flow) => flow.id === id)?.order).toBe(3);
+
+    cli({ root, args: ['flow', 'add', '--flow', id, '--title', 'Sign in v3', '--order', 'none'] });
+    expect(orderOf().at(-1)?.order).toBeNull();
+
+    cli({ root, args: ['flow', 'add', '--flow', id, '--title', 'Sign in v4'] });
+    cli({ root, args: ['flow', 'step', '--flow', id, '--todo', 'More'] });
+
+    const after = BoardFold.fold({
+      events: BoardFold.fromLog({ events: linesOf(root) }).events,
+      owner: 'Ana',
+    });
+
+    expect(after.flows.find((flow) => flow.id === id)?.order).toBeUndefined();
+    expect(orderOf().at(-1)?.order).not.toBe(3);
+  });
+
+  test('--order none on a new flow is refused, and on a flow with no order it writes nothing', () => {
+    const root = project();
+
+    expect(cli({ root, args: ['flow', 'add', '--title', 'X', '--order', 'none'] }).code).toBe(2);
+    expect(flowsOf(root)).toHaveLength(0);
+
+    const id = open({ root });
+    const before = flowsOf(root).length;
+
+    expect(cli({ root, args: ['flow', 'step', '--flow', id, '--order', 'none'] }).code).toBe(0);
+    expect(flowsOf(root)).toHaveLength(before);
   });
 
   test('a value that is not a positive whole number is refused, and so is --order on another line', () => {

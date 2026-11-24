@@ -16,7 +16,7 @@ export const line = (opts: {
   why?: string;
   context?: string;
   next?: string;
-  order?: number;
+  order?: number | null;
   notification?: string;
   source?: string;
 }): IEvent =>
