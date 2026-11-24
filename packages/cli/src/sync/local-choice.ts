@@ -201,8 +201,20 @@ export class LocalPlan {
       },
     };
 
+    const folder = relative(opts.root, committed);
+    // The folder the default names is `.agents/tmp`: its parent, `.agents`, is only a cover when the committed folder is under it.
+    const parent = dirname(ProjectLayout.TMP_DIRECTORY);
+    const parents = folder.startsWith(`${parent}/`)
+      ? [parent, `${parent}/`, `/${parent}`, `/${parent}/`]
+      : [];
+
     return [
-      ...planIgnoreLine({ root: opts.root, line: `/${relative(opts.root, committed)}/` }),
+      ...planIgnoreLine({
+        root: opts.root,
+        line: `/${folder}/`,
+        // A line that already ignores the folder, whole or from its parent: no near-duplicate is added.
+        covered: [folder, `${folder}/`, `/${folder}`, ...parents],
+      }),
       made,
     ];
   }

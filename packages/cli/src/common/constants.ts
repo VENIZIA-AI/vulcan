@@ -67,6 +67,8 @@ export class ProjectLayout {
    */
   static readonly PREPARE_SCRIPT =
     "if [ -f node_modules/.bin/vulcan ]; then bun node_modules/.bin/vulcan project sync --quiet < /dev/null || echo 'vulcan: sync did not finish: run bun node_modules/.bin/vulcan project sync'; else echo 'vulcan: not installed yet: run bun install'; fi; exit 0";
+  /** The default scratch folder of a session: short, so a browser's socket path fits, and outside `.agents/local/`. `local.tmp` replaces it. */
+  static readonly TMP_DIRECTORY = '.agents/tmp';
   static readonly CLAUDE_SETTINGS_FILE = '.claude/settings.json';
   static readonly GITIGNORE_ENTRIES = [
     'CLAUDE.md',
@@ -74,12 +76,11 @@ export class ProjectLayout {
     '.claude/',
     '.agents/plans',
     '.agents/local/',
+    `${ProjectLayout.TMP_DIRECTORY}/`,
     ...ProjectLayout.SECRET_PATTERNS,
   ];
   /** Everything an agent creates while it works lives under here, gitignored: nothing goes outside the project. */
   static readonly LOCAL_DIRECTORY = '.agents/local';
-  /** The default scratch folder of a session: short, so a browser's socket path fits, and outside `.agents/local/`. `local.tmp` replaces it. */
-  static readonly TMP_DIRECTORY = '.agents/tmp';
   /** Each directory under it, with when it goes: the one list `sync`, `doctor` and `clean` read. */
   static readonly LOCAL_LAYOUT = [
     { name: 'tmp', lifetime: 'task', removedWhen: 'the task ends', staleAfterDays: 1 },

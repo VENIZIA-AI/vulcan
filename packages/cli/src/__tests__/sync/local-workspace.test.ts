@@ -138,6 +138,45 @@ describe('LocalPlan.planWorkspace', () => {
     ).toEqual([]);
   });
 
+  test('a custom local.tmp outside .agents is not covered by an .agents line; one under .agents is', () => {
+    const outside = createProject({ files: { '.gitignore': '.agents/\n.agents\n/.agents/\n' } });
+    const inside = createProject({ files: { '.gitignore': '.agents/\n' } });
+    const notes = (root: string, tmp: string) =>
+      LocalPlan.planTmp({ root, tmp })
+        .filter((action) => action.path.endsWith('.gitignore'))
+        .map((action) => action.note);
+
+    expect(notes(outside, 'tmp')).toEqual(['added /tmp/']);
+    expect(notes(inside, '.agents/work')).toEqual([]);
+  });
+
+  test('.agents/* with a negation does not cover the tmp folder, and the bare name without a slash does', () => {
+    const negated = createProject({ files: { '.gitignore': '.agents/*\n!.agents/tmp/\n' } });
+    const bare = createProject({ files: { '.gitignore': '.agents/tmp\n' } });
+    const notes = (root: string) =>
+      LocalPlan.planTmp({ root })
+        .filter((action) => action.path.endsWith('.gitignore'))
+        .map((action) => action.note);
+
+    expect(notes(negated)).toEqual(['added /.agents/tmp/']);
+    expect(notes(bare)).toEqual([]);
+  });
+
+  test('a parent folder line or the bare folder name already covers the tmp folder: no near-duplicate is added', () => {
+    for (const line of ['.agents/', '/.agents/', '.agents/tmp', '.agents/tmp/', '/.agents/tmp']) {
+      const root = createProject({
+        files: { '.gitignore': `.agents/local/\n.claude/\n${line}\n` },
+      });
+
+      expect(
+        LocalPlan.planWorkspace({ root })
+          .filter((action) => action.path.endsWith('.gitignore'))
+          .map((action) => action.note),
+        line,
+      ).toEqual([]);
+    }
+  });
+
   test('every directory declares when it goes, and the agent-created ones are removed', () => {
     const lifetimes = Object.fromEntries(
       ProjectLayout.LOCAL_LAYOUT.map((entry) => [entry.name, entry.lifetime]),
@@ -158,5 +197,6 @@ describe('LocalPlan.planWorkspace', () => {
 
   test('the generated .gitignore of a new project lists it', () => {
     expect(ProjectLayout.GITIGNORE_ENTRIES).toContain('.agents/local/');
+    expect(ProjectLayout.GITIGNORE_ENTRIES).toContain('.agents/tmp/');
   });
 });
