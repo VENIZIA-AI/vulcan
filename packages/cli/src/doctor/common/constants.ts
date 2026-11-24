@@ -78,9 +78,9 @@ export class PrivateValueKinds extends ConstClass {
 }
 
 export class PrivateValueScan {
-  /** An address, not part of a longer dotted number. */
+  /** An address standing on its own: no letter, digit, `_`, `.`, `-` or `,` touches it, so numbers of SVG path data and versions are not one. */
   static readonly IPV4 =
-    /(?<![\d.])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])/g;
+    /(?<![\w.,-])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\w.,-])/g;
   /** Loopback, any, broadcast and the three documentation ranges: no machine is named. */
   static readonly ALLOWED_IPV4 = [
     /^127\./,
