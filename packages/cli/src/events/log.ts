@@ -53,6 +53,7 @@ export class EventLog {
     checks?: IEventItem[];
     apps?: string[];
     due?: string;
+    order?: number | null;
     model?: string;
     notification?: string;
     usage?: IEventUsage;
@@ -87,6 +88,7 @@ export class EventLog {
       max: EventConstants.ITEM_TEXT_MAX,
       count: EventConstants.ITEM_COUNT_MAX,
     });
+    const placed = EventLog.orderOf({ value: opts.order });
     const apps = EventText.items({
       items: (opts.apps ?? []).map((text) => ({ text, done: false })),
       max: EventConstants.APP_TEXT_MAX,
@@ -113,6 +115,7 @@ export class EventLog {
       ...(checks.length === 0 ? {} : { checks }),
       ...(apps.length === 0 ? {} : { apps }),
       ...(opts.due !== undefined && EventText.isDay({ value: opts.due }) ? { due: opts.due } : {}),
+      ...(opts.order === null ? { order: null } : placed === undefined ? {} : { order: placed }),
       ...(model === '' ? {} : { model }),
       ...(opts.usage === undefined ? {} : { usage: EventLog.usageOf({ value: opts.usage }) }),
       ...(opts.mark === undefined ? {} : { mark: EventLog.markOf({ value: opts.mark }) }),
@@ -180,6 +183,13 @@ export class EventLog {
     );
 
     return { events, skipped };
+  }
+
+  /** A place in the work order as the log keeps it: a positive whole number; anything else is nothing. */
+  static orderOf(opts: { value: unknown }): number | undefined {
+    return typeof opts.value === 'number' && Number.isSafeInteger(opts.value) && opts.value > 0
+      ? opts.value
+      : undefined;
   }
 
   /** A count as the log keeps it: a whole number of at least 0; anything else is 0. */
@@ -290,6 +300,7 @@ export class EventLog {
       checks,
       apps,
       due,
+      order,
       model,
       usage,
       mark,
@@ -326,6 +337,7 @@ export class EventLog {
     const keptSteps = EventLog.itemsOf({ value: steps });
     const keptChecks = EventLog.itemsOf({ value: checks });
     const keptApps = EventLog.appsOf({ value: apps });
+    const kept = EventLog.orderOf({ value: order });
     const keptUsage = EventLog.usageOf({ value: usage });
     const keptMark = EventLog.markOf({ value: mark });
 
@@ -346,6 +358,8 @@ export class EventLog {
       ...(keptApps.length === 0 ? {} : { apps: keptApps }),
       // A due day that is no day is dropped, and only it: the line is still a line.
       ...(typeof due === 'string' && EventText.isDay({ value: due }) ? { due } : {}),
+      // An order that is not a positive whole number is dropped, and only it.
+      ...(order === null ? { order: null } : kept === undefined ? {} : { order: kept }),
       ...(model === undefined ? {} : { model: text(model, EventConstants.MODEL_MAX) }),
       ...(keptUsage === undefined ? {} : { usage: keptUsage }),
       ...(keptMark === undefined ? {} : { mark: keptMark }),

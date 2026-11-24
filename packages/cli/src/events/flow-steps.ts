@@ -13,7 +13,8 @@ export class FlowSteps {
   /**
    * The newest `flow` line of the flow, or `undefined` when the log has none. A line that has no `steps` (the writer
    * leaves the field out when there is none) keeps the list of the newest line before it that has them, so a title-only
-   * line does not empty the list.
+   * line does not empty the list. The same goes for `order`: a line without it keeps the newest earlier one, and `null`
+   * (written by `--order none`) is the one value that clears it.
    */
   static lastLine(opts: { events: IEvent[]; flowId: string; key?: string }): IEvent | undefined {
     const wanted = FlowId.canon({ id: opts.flowId, key: opts.key });
@@ -24,11 +25,19 @@ export class FlowSteps {
         FlowId.canon({ id: event.flowId, key: opts.key }) === wanted,
     );
     const last = lines.at(-1);
-    const carried = lines.findLast((event) => event.steps !== undefined)?.steps;
 
-    return last === undefined || last.steps !== undefined || carried === undefined
-      ? last
-      : { ...last, steps: carried };
+    if (last === undefined) {
+      return undefined;
+    }
+
+    const steps = last.steps ?? lines.findLast((event) => event.steps !== undefined)?.steps;
+    const order = last.order ?? lines.findLast((event) => event.order !== undefined)?.order;
+
+    return {
+      ...last,
+      ...(steps === undefined ? {} : { steps }),
+      ...(order === undefined ? {} : { order }),
+    };
   }
 
   /**
@@ -129,9 +138,17 @@ export class FlowSteps {
     source: string;
     next?: string;
     context?: string;
+    /** A new place in the work order; `null` clears it; left out, the line keeps its own. */
+    order?: number | null;
     now?: number;
   }): IEvent {
     const { last } = opts;
+    let order = opts.order === undefined ? last.order : opts.order;
+
+    // Nothing to clear when the flow has no order.
+    if (order === null && (last.order === undefined || last.order === null)) {
+      order = undefined;
+    }
 
     return EventLog.build({
       kind: EventKinds.FLOW,
@@ -149,6 +166,7 @@ export class FlowSteps {
       ...(last.checks === undefined ? {} : { checks: last.checks }),
       ...(last.apps === undefined ? {} : { apps: last.apps }),
       ...(last.due === undefined ? {} : { due: last.due }),
+      ...(order === undefined ? {} : { order }),
       ...(opts.now === undefined ? {} : { now: opts.now }),
     });
   }

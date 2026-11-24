@@ -671,6 +671,11 @@
         color: var(--muted);
         white-space: nowrap;
       }
+      .c-order {
+        margin-right: 6px;
+        font-weight: 600;
+        color: var(--ink);
+      }
       .c-ref {
         color: var(--accent-text);
         font-weight: 600;
@@ -875,11 +880,14 @@
       }
       .t-work {
         width: 100%;
-        min-width: 1080px;
+        min-width: 1100px;
         table-layout: fixed;
         border-collapse: separate;
         border-spacing: 0;
         font-size: 13px;
+      }
+      .w-order {
+        width: 64px;
       }
       .w-code {
         font: 13px var(--mono);
@@ -960,6 +968,9 @@
         overflow: hidden;
         text-overflow: ellipsis;
         vertical-align: middle;
+      }
+      .t-work td.c-order-cell {
+        font: 600 13px var(--mono);
       }
       .t-work td:first-child,
       .t-work th:first-child button {

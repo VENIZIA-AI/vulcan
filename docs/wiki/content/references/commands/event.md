@@ -48,6 +48,7 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 - `steps`, `checks`: only on a `flow`: a list of `{ "text": ..., "done": true|false }`, at most 30 items of 200 characters: what is to be done, and what must hold (acceptance). A line that carries steps restates the whole list; a line with none (the field is left out) keeps the list of the newest line before it that has them, so a title-only line never empties it.
 - `apps`: only on a `flow`: the apps or modules it touches, at most 12 names of 40 characters.
 - `due`: only on a `flow`: the day it is due, `YYYY-MM-DD`.
+- `order`: only on a `flow`: its place in the work order, a positive whole number. A line without it is valid and keeps the earlier order; `null` (written by `--order none`) clears it; any other value that is not a positive whole number is dropped.
 - `model`: only on a `session-start` the Claude Code hook wrote: the model of the session.
 - `usage`, `mark`: only on a `usage` line the Claude Code hooks wrote: the tokens (`model`, `input`, `output`, `cacheRead`, `cacheWrite`, and `agent` for a subagent), and where the transcript was read to. See [Token usage](#token-usage).
 - `ref`: a commit, a PR, `to:<recipient>` for a message sent or `from:<sender>` for one received; absent when there is none. A recipient that is an address keeps its scheme and the last part of its path (`to:uds:3326301.sock`), never the folders.
@@ -80,7 +81,7 @@ A committed `events.dir` still works for a team that really shares one path; it 
 
 ```text
 vulcan event add --kind <kind> --summary <text> [--flow <flow id>] [--ref <ref>] [--status approve|park|reject] [--actor <name>] [--dir <folder>]
-vulcan flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--due <YYYY-MM-DD>] [--ref <tracker id>]
+vulcan flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--due <YYYY-MM-DD>] [--order <n>|none] [--ref <tracker id>]
          [--step <text> | --step-done <text>]... [--check <text> | --check-done <text>]... [--app <name>]... [--actor <name>] [--dir <folder>]
 ```
 
@@ -99,6 +100,7 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 - `--check`, `--check-done`: as the steps, for the acceptance checks.
 - `--app`: only for `--kind flow`, optional, repeatable: an app or module the flow touches, 1 to 40 characters, at most 12.
 - `--due`: only for `--kind flow`, optional: the day it is due, `YYYY-MM-DD`, a day that exists.
+- `--order`: only for `flow add`, optional: the place of the flow in the work order, a positive whole number. The board's table sorts by it. Given twice, the last value wins. A line without `--order` keeps the order the flow had, so a retitle does not lose it; `--order none`, only for a flow that exists (`--flow`), clears it.
 - `--actor`: who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session, when a person or a peer gave it (a name Claude Code made up from the folder, a counter or a clash does not count; when several of its session files hold the session id, the one of a live process, then the newest), else `claude:` and the start of the session id, else `unknown`. A name that starts with `claude:` is reserved for unnamed sessions: the board shows no agent for it.
 - `--dir`: the folder, for this call: `--dir` over `events.dir` over `.agents/local/events`. A relative path is relative to where you run the command.
 
@@ -109,10 +111,10 @@ Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unk
 ## vulcan flow step
 
 ```text
-vulcan flow step [--flow <flow id>] [--done <step> | --todo <step>] [--next <text>] [--context <text>] [--actor <name>] [--dir <folder>]
+vulcan flow step [--flow <flow id>] [--done <step> | --todo <step>] [--next <text>] [--context <text>] [--order <n>|none] [--actor <name>] [--dir <folder>]
 ```
 
-Changes one step of a flow without restating the lists. It copies the flow's last `flow` line whole (title, reason, context, next step, steps, checks, apps and due day) and writes it again with the change, so the log format stays as it is. `--done` sets the step done and `--todo` opens it; a step that is not in the list is added at the end, and a step is matched by its text. `--next` or `--context` alone, with no step flag, writes a line that says where the flow stands. The flow is `--flow`, else the id in the branch name. Exit `2` when the flow has no flow line yet (the message names the command that writes it), when both `--done` and `--todo` are given, when nothing to change is given, when the step text is empty or over 200 characters, or when the list would pass 30 steps. The steps it edits are those of the flow's newest `flow` line: a `flow` line that you write for the same id with `vulcan flow add --flow <id>` replaces the whole list only when it carries `--step` flags; one with none keeps the list, and a later `step` goes on it. A change that changes nothing writes nothing and prints the id of the line that already says it. `--json` is not accepted. It prints the id of the line.
+Changes one step of a flow without restating the lists. It copies the flow's last `flow` line whole (title, reason, context, next step, steps, checks, apps and due day) and writes it again with the change, so the log format stays as it is. `--done` sets the step done and `--todo` opens it; a step that is not in the list is added at the end, and a step is matched by its text. `--next` or `--context` alone, with no step flag, writes a line that says where the flow stands. `--order <n>` sets the place of the flow in the work order and `--order none` clears it (the last value wins when it is repeated); a step or a text change keeps the order the line had. The flow is `--flow`, else the id in the branch name. Exit `2` when the flow has no flow line yet (the message names the command that writes it), when both `--done` and `--todo` are given, when nothing to change is given, when the step text is empty or over 200 characters, or when the list would pass 30 steps. The steps it edits are those of the flow's newest `flow` line: a `flow` line that you write for the same id with `vulcan flow add --flow <id>` replaces the whole list only when it carries `--step` flags; one with none keeps the list, and a later `step` goes on it. A change that changes nothing writes nothing and prints the id of the line that already says it. `--json` is not accepted. It prints the id of the line.
 
 ## vulcan event tail
 

@@ -7,6 +7,7 @@ import { BoardTime } from './time.ts';
 import { BoardView } from './view.ts';
 
 export type TWorkColumn =
+  | 'order'
   | 'code'
   | 'title'
   | 'stage'
@@ -18,11 +19,15 @@ export type TWorkColumn =
   | 'due'
   | 'updated';
 
-/** A column and its direction; `undefined` is the default order: needs you first, then the latest update. */
+/**
+ * A column and its direction; `undefined` is the default order: active flows before parked and done ones, then the work
+ * order (a flow with none is last), then needs you first, then the latest update.
+ */
 export type TWorkSort = { column: TWorkColumn; descending: boolean } | undefined;
 
 /** The table columns, in their order. */
 export const WORK_COLUMNS: TWorkColumn[] = [
+  'order',
   'code',
   'title',
   'stage',
@@ -45,6 +50,8 @@ export interface IWorkFilter {
 
 /** States where a quiet flow is expected: it waits on the owner, or it is over. */
 const NEVER_STALE: string[] = [BoardStates.YOU, BoardStates.DONE, BoardStates.PARKED];
+/** States whose flows keep their number but sort after the active ones. */
+const SETTLED: string[] = [BoardStates.DONE, BoardStates.PARKED];
 /** Columns whose first click sorts the largest or newest first. */
 const DESCENDING_FIRST = new Set<TWorkColumn>(['tokens', 'updated']);
 const DEFAULT_SORT = 'default';
@@ -117,6 +124,10 @@ export class BoardWork {
     const { flow } = opts.view;
 
     switch (opts.column) {
+      case 'order': {
+        return flow.order;
+      }
+
       case 'code': {
         return flow.id;
       }
@@ -166,18 +177,27 @@ export class BoardWork {
   }
 
   /**
-   * The default order (needs you first, then the latest update), then by the column when one is set. Each key is
-   * worked out once; a value that is missing or empty is last in both directions, and ties keep the default order.
+   * The default order (active before settled, the work order with none last, needs you first, then the latest update),
+   * then by the column when one is set. Each key is worked out once; a value that is missing or empty is last in both
+   * directions, and ties keep the default order.
    */
   static sortOf(opts: { views: IFlowView[]; sort: TWorkSort }): IFlowView[] {
     const { sort } = opts;
     const byDefault = opts.views
       .map((view) => ({
         view,
+        settled: Number(SETTLED.includes(view.flow.state)),
+        order: view.flow.order ?? Number.POSITIVE_INFINITY,
         you: Number(view.flow.state === BoardStates.YOU),
         updated: BoardWork.updatedAt({ view }),
       }))
-      .sort((left, right) => right.you - left.you || right.updated.localeCompare(left.updated))
+      .sort(
+        (left, right) =>
+          left.settled - right.settled ||
+          (left.order === right.order ? 0 : left.order < right.order ? -1 : 1) ||
+          right.you - left.you ||
+          right.updated.localeCompare(left.updated),
+      )
       .map((entry) => entry.view);
 
     if (sort === undefined) {

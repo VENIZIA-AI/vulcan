@@ -115,6 +115,31 @@ describe('BoardWork.sortOf: the table order', () => {
     expect(ids(BoardWork.sortOf({ views, sort: undefined }))).toEqual(['F-10', 'F-3', 'F-2']);
   });
 
+  test('by order: active before parked and done, the order ascending with none last, then needs you, then the latest update', () => {
+    const ordered = [
+      viewOf(flowOf({ id: 'F-1', order: 2, events: [event({ ts: at(5) })] })),
+      viewOf(flowOf({ id: 'F-2', events: [event({ ts: at(1) })] })),
+      viewOf(flowOf({ id: 'F-3', order: 1, state: 'parked', events: [event({ ts: at(1) })] })),
+      viewOf(flowOf({ id: 'F-4', order: 1, events: [event({ ts: at(9) })] })),
+      viewOf(flowOf({ id: 'F-5', order: 1, events: [event({ ts: at(2) })] })),
+      viewOf(flowOf({ id: 'F-6', state: 'you', events: [event({ ts: at(8) })] })),
+      viewOf(flowOf({ id: 'F-7', order: 9, state: 'done', events: [event({ ts: at(1) })] })),
+    ];
+
+    expect(ids(BoardWork.sortOf({ views: ordered, sort: undefined }))).toEqual([
+      'F-5',
+      'F-4',
+      'F-1',
+      'F-6',
+      'F-2',
+      'F-3',
+      'F-7',
+    ]);
+    expect(
+      ids(BoardWork.sortOf({ views: ordered, sort: { column: 'order', descending: false } })),
+    ).toEqual(['F-5', 'F-4', 'F-3', 'F-1', 'F-7', 'F-6', 'F-2']);
+  });
+
   test('a column sorts up and down; codes sort by their number', () => {
     expect(ids(BoardWork.sortOf({ views, sort: { column: 'code', descending: false } }))).toEqual([
       'F-2',

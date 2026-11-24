@@ -168,7 +168,7 @@ export class CommandTable {
         '0 on written or serve stopped; 1 when the file cannot be written or serve cannot start; 2 on bad input.',
     },
     [VulcanCommands.EVENT]: {
-      help: `  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] | flow step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] | event tail [--since <time>] [--json] [--dir <folder>]
+      help: `  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] [--order <n>|none] | flow step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] [--order <n>|none] | event tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
                                   read it; with events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input`,
@@ -187,6 +187,8 @@ export class CommandTable {
         [EventFlags.CHECK_DONE]: 'Flow only, repeatable: an acceptance check done',
         [EventFlags.APP]: 'Flow only, repeatable: an app or module the flow touches',
         [EventFlags.DUE]: 'Flow only: the day it is due, YYYY-MM-DD',
+        [EventFlags.ORDER]:
+          'Flow only: its place in the work order, a positive whole number (step: none clears it)',
         [EventFlags.REF]: 'A commit, a PR number, a recipient, or a tracker id',
         [EventFlags.STATUS]: 'approve, park or reject; required on a decision',
         [EventFlags.TITLE]: 'Flow only, required: the title of the flow',
