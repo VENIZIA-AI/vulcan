@@ -12,12 +12,12 @@ const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'session-s
 
 describe('ProjectTmp.projectOf', () => {
   test('is the tmp folder of the local layout every other command reads', () => {
-    expect(HookConstants.PROJECT_TMP).toBe(`${ProjectLayout.LOCAL_DIRECTORY}/tmp`);
+    expect(HookConstants.PROJECT_TMP).toBe(ProjectLayout.TMP_DIRECTORY);
     expect(ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name)).toContain('tmp');
   });
 
-  test('is .agents/local/tmp of the project, absolute', () => {
-    expect(ProjectTmp.projectOf({ root: '/work/acme' })).toBe('/work/acme/.agents/local/tmp');
+  test('is .agents/tmp of the project, absolute', () => {
+    expect(ProjectTmp.projectOf({ root: '/work/acme' })).toBe('/work/acme/.agents/tmp');
   });
 });
 
@@ -32,9 +32,9 @@ describe('ProjectTmp.exportProjectTmp', () => {
 
     expect(ProjectTmp.exportProjectTmp({ root, envFile })).toBe(true);
     expect(readFileSync(envFile, 'utf8')).toBe(
-      `export KEEP=1\nexport TMPDIR='${join(root, '.agents/local/tmp')}'\n`,
+      `export KEEP=1\nexport TMPDIR='${join(root, '.agents/tmp')}'\n`,
     );
-    expect(existsSync(join(root, '.agents/local/tmp'))).toBe(true);
+    expect(existsSync(join(root, '.agents/tmp'))).toBe(true);
   });
 
   test('does nothing without a file: another agent, or a run outside Claude Code', () => {
@@ -42,7 +42,7 @@ describe('ProjectTmp.exportProjectTmp', () => {
 
     expect(ProjectTmp.exportProjectTmp({ root, envFile: undefined })).toBe(false);
     expect(ProjectTmp.exportProjectTmp({ root, envFile: '' })).toBe(false);
-    expect(existsSync(join(root, '.agents/local/tmp'))).toBe(false);
+    expect(existsSync(join(root, '.agents/tmp'))).toBe(false);
   });
 
   test('the line is shell-safe: a path with a space or a quote still gives that exact folder', () => {
@@ -58,7 +58,7 @@ describe('ProjectTmp.exportProjectTmp', () => {
       stdout: 'pipe',
     });
 
-    expect(shell.stdout.toString()).toBe(join(root, '.agents/local/tmp'));
+    expect(shell.stdout.toString()).toBe(join(root, '.agents/tmp'));
   });
 
   test('a path with a newline is refused, not written: a line of shell must never come from a folder name', () => {
@@ -87,8 +87,8 @@ describe('ProjectTmp.exportProjectTmp', () => {
     });
     const [made, tmpdir] = shell.stdout.toString().trim().split('\n');
 
-    expect(made.startsWith(join(root, '.agents/local/tmp'))).toBe(true);
-    expect(tmpdir).toBe(join(root, '.agents/local/tmp'));
+    expect(made.startsWith(join(root, '.agents/tmp'))).toBe(true);
+    expect(tmpdir).toBe(join(root, '.agents/tmp'));
   });
 });
 
@@ -109,9 +109,7 @@ describe('the session-start hook', () => {
 
     expect(child.exitCode).toBe(0);
     expect(child.stdout.toString()).toContain('# VULCAN session');
-    expect(readFileSync(envFile, 'utf8')).toBe(
-      `export TMPDIR='${join(root, '.agents/local/tmp')}'\n`,
-    );
+    expect(readFileSync(envFile, 'utf8')).toBe(`export TMPDIR='${join(root, '.agents/tmp')}'\n`);
   });
 
   test('without CLAUDE_ENV_FILE it only prints the digest', () => {
@@ -123,6 +121,6 @@ describe('the session-start hook', () => {
     const child = spawnSyncBounded({ cmd: [process.execPath, HOOK], env, stdout: 'pipe' });
 
     expect(child.exitCode).toBe(0);
-    expect(existsSync(join(root, '.agents/local/tmp'))).toBe(false);
+    expect(existsSync(join(root, '.agents/tmp'))).toBe(false);
   });
 });

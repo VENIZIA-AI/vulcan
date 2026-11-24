@@ -83,15 +83,18 @@ describe('LocalPlan.planWorkspace', () => {
     apply({ root });
 
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\n.agents/local/\n/.claude/settings.json\n',
+      'node_modules/\n.agents/local/\n/.claude/settings.json\n/.agents/tmp/\n',
     );
 
     for (const entry of ProjectLayout.LOCAL_LAYOUT) {
       // On-demand folders (events, release-candidates) appear when something writes there, not on sync.
+      // `tmp` is the scratch folder `.agents/tmp` now, not a folder of `.agents/local`.
       expect(existsSync(join(root, '.agents/local', entry.name)), entry.name).toBe(
-        !('onDemand' in entry),
+        !('onDemand' in entry) && entry.name !== 'tmp',
       );
     }
+
+    expect(existsSync(join(root, '.agents/tmp'))).toBe(true);
   });
 
   test('a second run changes nothing', () => {
@@ -99,7 +102,10 @@ describe('LocalPlan.planWorkspace', () => {
 
     apply({ root });
 
-    expect(LocalPlan.planWorkspace({ root }).map((action) => action.status)).toEqual(['unchanged']);
+    expect(LocalPlan.planWorkspace({ root }).map((action) => action.status)).toEqual([
+      'unchanged',
+      'unchanged',
+    ]);
   });
 
   test('a project without a .gitignore keeps none, and still gets the directories', () => {
@@ -108,7 +114,7 @@ describe('LocalPlan.planWorkspace', () => {
     apply({ root });
 
     expect(existsSync(join(root, '.gitignore'))).toBe(false);
-    expect(existsSync(join(root, '.agents/local/tmp'))).toBe(true);
+    expect(existsSync(join(root, '.agents/tmp'))).toBe(true);
   });
 
   test('a line already there is not added twice', () => {
@@ -119,9 +125,11 @@ describe('LocalPlan.planWorkspace', () => {
       LocalPlan.planWorkspace({ root })
         .filter((action) => action.path.endsWith('.gitignore'))
         .map((action) => action.note),
-    ).toEqual(['added /.claude/settings.json']);
+    ).toEqual(['added /.claude/settings.json', 'added /.agents/tmp/']);
 
-    const covered = createProject({ files: { '.gitignore': '.agents/local/\n.claude/\n' } });
+    const covered = createProject({
+      files: { '.gitignore': '.agents/local/\n.claude/\n/.agents/tmp/\n' },
+    });
 
     expect(
       LocalPlan.planWorkspace({ root: covered }).filter((action) =>

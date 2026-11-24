@@ -14,7 +14,7 @@ export class ProjectTmp {
    * The folder the project names for its temporary files, relative to its root: `local.tmp` of the committed manifest
    * (which `vulcan sync` renders from the config), read here so a hook needs no config loader, unless this checkout's
    * `.agents/local/profile.json` sets `local.tmp`, which replaces it. A missing manifest, a
-   * missing key or a value that is not a layout folder gives the default, `.agents/local/tmp`.
+   * missing key or a value that is not a layout folder gives the default, `.agents/tmp`.
    */
   static relativeOf(opts: { root: string }): string {
     const own = LocalSettings.read({ root: opts.root }).tmp;

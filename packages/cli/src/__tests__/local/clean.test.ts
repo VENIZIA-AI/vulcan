@@ -40,9 +40,11 @@ const repository = (): string => {
     },
   });
 
-  for (const name of ['tmp', 'worktrees', 'clones', 'cache', 'reports', 'prototypes']) {
+  for (const name of ['worktrees', 'clones', 'cache', 'reports', 'prototypes']) {
     mkdirSync(join(root, '.agents/local', name), { recursive: true });
   }
+
+  mkdirSync(join(root, '.agents/tmp'), { recursive: true });
 
   git({ cwd: root, args: ['init', '-q', '-b', 'develop'] });
   git({ cwd: root, args: ['config', 'user.email', 'a@example.com'] });
@@ -53,15 +55,21 @@ const repository = (): string => {
   return root;
 };
 
+/** The folder a path of the scan is relative to: the scratch folder `.agents/tmp` for `tmp/...`, else `.agents/local`. */
+const anchorOf = (opts: { root: string; path: string }): string =>
+  opts.path === 'tmp' || opts.path.startsWith('tmp/')
+    ? join(opts.root, '.agents')
+    : join(opts.root, '.agents/local');
+
 const file = (opts: { root: string; path: string; text?: string; ageDays?: number }): void => {
-  const target = join(opts.root, '.agents/local', opts.path);
+  const target = join(anchorOf(opts), opts.path);
 
   mkdirSync(join(target, '..'), { recursive: true });
   writeFileSync(target, opts.text ?? 'x');
 
   if (opts.ageDays !== undefined) {
     const then = new Date(Date.now() - opts.ageDays * DAY);
-    const local = join(opts.root, '.agents/local');
+    const local = anchorOf(opts);
 
     utimesSync(target, then, then);
 
@@ -113,7 +121,7 @@ describe('LocalScan.scan', () => {
     file({ root, path: 'tmp/fresh/a.txt', text: 'hello' });
     file({ root, path: 'tmp/old/a.txt', text: 'hello', ageDays: 3 });
     utimesSync(
-      join(root, '.agents/local/tmp/old'),
+      join(root, '.agents/tmp/old'),
       new Date(Date.now() - 3 * DAY),
       new Date(Date.now() - 3 * DAY),
     );
@@ -189,7 +197,7 @@ describe('LocalScan.scan', () => {
 
     file({ root, path: 'tmp/long-task/deep/out.log', text: 'still writing' });
     utimesSync(
-      join(root, '.agents/local/tmp/long-task'),
+      join(root, '.agents/tmp/long-task'),
       new Date(Date.now() - 5 * DAY),
       new Date(Date.now() - 5 * DAY),
     );
@@ -219,13 +227,13 @@ describe('a link can never move clean out of the project', () => {
 
     expect(LocalScan.localRootOf({ root })).toBeUndefined();
     expect(LocalScan.scan({ root })).toEqual([]);
-    expect(LocalScan.isInside({ root, path: join(root, '.agents/local/tmp/x') })).toBe(false);
+    expect(LocalScan.isInside({ root, path: join(root, '.agents/tmp/x') })).toBe(false);
 
     const entry = {
       scope: 'tmp',
       name: 'x',
       where: 'tmp/x',
-      path: join(root, '.agents/local/tmp/x'),
+      path: join(root, '.agents/tmp/x'),
       bytes: 1,
       ageMs: 0,
       state: 'ok',
@@ -251,8 +259,8 @@ describe('a link can never move clean out of the project', () => {
     const root = repository();
     const outside = createProject({ files: { 'a.txt': 'x' } });
 
-    rmSync(join(root, '.agents/local/tmp'), { recursive: true });
-    writeFileSync(join(root, '.agents/local/tmp'), 'not a folder');
+    rmSync(join(root, '.agents/tmp'), { recursive: true });
+    writeFileSync(join(root, '.agents/tmp'), 'not a folder');
     rmSync(join(root, '.agents/local/clones'), { recursive: true });
     symlinkSync(outside, join(root, '.agents/local/clones'));
 
@@ -364,13 +372,13 @@ describe('LocalClean.plan and runClean', () => {
     const root = repository();
     const outside = createProject({ files: { 'keep.txt': 'precious' } });
 
-    symlinkSync(outside, join(root, '.agents/local/tmp/link'));
+    symlinkSync(outside, join(root, '.agents/tmp/link'));
 
     const plan = LocalClean.plan({ root, scopes: ['tmp'], includeFresh: true });
     const result = LocalClean.run({ root, plan });
 
     expect(result.removed).toHaveLength(1);
-    expect(existsSync(join(root, '.agents/local/tmp/link'))).toBe(false);
+    expect(existsSync(join(root, '.agents/tmp/link'))).toBe(false);
     expect(readFileSync(join(outside, 'keep.txt'), 'utf8')).toBe('precious');
   });
 
@@ -380,7 +388,7 @@ describe('LocalClean.plan and runClean', () => {
 
     expect(LocalScan.isInside({ root, path: join(outside, 'keep.txt') })).toBe(false);
     expect(LocalScan.isInside({ root, path: join(root, 'package.json') })).toBe(false);
-    expect(LocalScan.isInside({ root, path: join(root, '.agents/local/tmp/a') })).toBe(true);
+    expect(LocalScan.isInside({ root, path: join(root, '.agents/tmp/a') })).toBe(true);
 
     const entry = {
       scope: 'tmp',
@@ -415,7 +423,7 @@ describe('vulcan clean', () => {
     expect(result.stderr).toContain('dry run');
     expect(result.stderr).toContain('tmp/job');
     expect(result.stderr).toContain('would remove 1 item(s)');
-    expect(existsSync(join(root, '.agents/local/tmp/job'))).toBe(true);
+    expect(existsSync(join(root, '.agents/tmp/job'))).toBe(true);
   });
 
   test('--yes removes the default scope (tmp) and leaves the other scopes', () => {
@@ -429,7 +437,7 @@ describe('vulcan clean', () => {
 
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('removed 1 item(s)');
-    expect(existsSync(join(root, '.agents/local/tmp/job'))).toBe(false);
+    expect(existsSync(join(root, '.agents/tmp/job'))).toBe(false);
     expect(existsSync(join(root, '.agents/local/cache/k'))).toBe(true);
     expect(existsSync(join(root, '.agents/local/reports/r.md'))).toBe(true);
   });
@@ -483,8 +491,8 @@ describe('vulcan clean', () => {
 
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('in use');
-    expect(existsSync(join(root, '.agents/local/tmp/claude-1000/tasks/out.txt'))).toBe(true);
-    expect(existsSync(join(root, '.agents/local/tmp/b945'))).toBe(false);
+    expect(existsSync(join(root, '.agents/tmp/claude-1000/tasks/out.txt'))).toBe(true);
+    expect(existsSync(join(root, '.agents/tmp/b945'))).toBe(false);
     expect(existsSync(join(root, '.agents/local/cache/atlas'))).toBe(false);
   });
 
@@ -498,13 +506,13 @@ describe('vulcan clean', () => {
     expect(kept.code).toBe(0);
     expect(kept.stderr).toContain('kept tmp/live');
     expect(kept.stderr).toContain('--include-fresh');
-    expect(existsSync(join(root, '.agents/local/tmp/live'))).toBe(true);
+    expect(existsSync(join(root, '.agents/tmp/live'))).toBe(true);
 
     const taken = runCli({ args: ['clean', '--include-fresh', '--yes'], cwd: root });
 
     expect(taken.code).toBe(0);
     expect(taken.stderr).toContain('removed 1 item(s)');
-    expect(existsSync(join(root, '.agents/local/tmp/live'))).toBe(false);
+    expect(existsSync(join(root, '.agents/tmp/live'))).toBe(false);
   });
 
   test('--all --yes sweeps what can be recreated and keeps reports; --reports names them', () => {
@@ -549,7 +557,7 @@ describe('doctor and what an agent left behind', () => {
 
     file({ root, path: 'tmp/old/a.txt', ageDays: 3 });
     utimesSync(
-      join(root, '.agents/local/tmp/old'),
+      join(root, '.agents/tmp/old'),
       new Date(Date.now() - 3 * DAY),
       new Date(Date.now() - 3 * DAY),
     );
@@ -571,7 +579,7 @@ describe('doctor and what an agent left behind', () => {
     for (let index = 0; index < 40; index++) {
       file({ root, path: `tmp/old-${index}/a.txt`, ageDays: 3 });
       utimesSync(
-        join(root, `.agents/local/tmp/old-${index}`),
+        join(root, `.agents/tmp/old-${index}`),
         new Date(Date.now() - 3 * DAY),
         new Date(Date.now() - 3 * DAY),
       );

@@ -641,8 +641,8 @@ Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manage
 ### guard.outside
 
 - `ask` leaves the call to the owner.
-- `deny` refuses the write and nothing is written; the answer names the path and `.agents/local/tmp/`.
-- A line the guard cannot read (a program or a redirect target named by a variable it cannot work out) is denied in both modes, never asked, with the way to write it again: a literal path, or the script in a file under `.agents/local/tmp/<task>/` run by its literal path, with literal paths in its own redirects. Literal assignments of the same line (`S=dir; ... > $S/a`, `export X=dir`, `for i in 1 2`) are worked out first.
+- `deny` refuses the write and nothing is written; the answer names the path and `.agents/tmp/`.
+- A line the guard cannot read (a program or a redirect target named by a variable it cannot work out) is denied in both modes, never asked, with the way to write it again: a literal path, or the script in a file under `.agents/tmp/<task>/` run by its literal path, with literal paths in its own redirects. Literal assignments of the same line (`S=dir; ... > $S/a`, `export X=dir`, `for i in 1 2`) are worked out first.
 - Set `deny` where the agent runs in an auto mode, because an ask can be approved there without the owner seeing it.
 - `VULCAN_GUARD_OUTSIDE=deny` in the launch environment holds it too, and the manifest cannot loosen it.
 - A path in `toolOwnedPaths` still passes in both modes, except a file the guards read their policy from, which is always denied.
@@ -789,7 +789,7 @@ The `local` object configures what VULCAN keeps tidy in `.agents/local/` by itse
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `autoClean` | `boolean` | `true` | The session-start hook cleans the safe part of `.agents/local/` by itself, at most once a day |
-| `tmp` | `string` | `.agents/local/tmp` | A folder of the project, written from its root, for the temporary files of a session |
+| `tmp` | `string` | `.agents/tmp` | A folder of the project, written from its root, for the temporary files of a session |
 
 ### local.autoClean
 
@@ -923,7 +923,7 @@ The variables the cli reads. The atlas server has variables of its own (`VULCAN_
 - `VULCAN_BUN`, `VULCAN_GIT`, read by `init`, `add`: Replace the `bun` and `git` those commands run; for tests
 - `VULCAN_DIST_TAGS`, read by `upgrade`: The dist-tags as JSON in place of the registry read of `--nightly`; for tests
 - `CLAUDE_PROJECT_DIR`, read by the hooks: The project root, set by Claude Code (and by the pi guards extension when it runs a guard script); without it the hooks use the working directory
-- `CLAUDE_ENV_FILE`, read by the session-start hook: The file Claude Code hands a start hook to export variables from; the hook appends `export TMPDIR=<project>/.agents/local/tmp` (or the `local.tmp` folder)
+- `CLAUDE_ENV_FILE`, read by the session-start hook: The file Claude Code hands a start hook to export variables from; the hook appends `export TMPDIR=<project>/.agents/tmp` (or the `local.tmp` folder)
 - `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CONFIG_DIR`, read by the event hook: The session id, and the folder whose `sessions/*.json` names the session (default `~/.claude`), to find the session's name
 
 ## See also

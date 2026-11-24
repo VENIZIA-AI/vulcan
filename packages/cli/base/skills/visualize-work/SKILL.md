@@ -51,7 +51,7 @@ Done when you can say the question in one sentence and name the kind.
 
 ## 2. Write the spec
 
-Put it in `.agents/local/tmp/<name>.json`. The fields, their limits and a worked spec are in
+Put it in `.agents/tmp/<name>.json`. The fields, their limits and a worked spec are in
 [references/spec.md](references/spec.md); `bun node_modules/.bin/vulcan visualize --schema` (from the project root) prints the schema.
 The rules that make a page worth opening:
 
@@ -126,7 +126,7 @@ Done when each arrow has a verb and each evidence row has a label you can defend
 ## 3. Render
 
 ```
-bun node_modules/.bin/vulcan visualize .agents/local/tmp/<name>.json --out <name>
+bun node_modules/.bin/vulcan visualize .agents/tmp/<name>.json --out <name>
 ```
 
 It validates the spec (shape, limits, unique ids, every arrow and step pointing at a box, one box per cell),
@@ -162,4 +162,4 @@ Done when you report which checks ran and which did not.
 
 Give the full path of the page and one line on what it shows, with the `report-back` skill. Do not publish
 it, upload it or serve it beyond a local check. Pages stay in `.agents/local/prototypes/` until the owner
-deletes them; remove your spec from `.agents/local/tmp/` when you are done (V-B-08).
+deletes them; remove your spec from `.agents/tmp/` when you are done (V-B-08).

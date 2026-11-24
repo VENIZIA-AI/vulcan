@@ -181,7 +181,7 @@ describe('the owner cards in the digest', () => {
     const block = RulesBlock.render({
       rows: [],
       slotLines: [],
-      tmp: '.agents/local/tmp',
+      tmp: '.agents/tmp',
       oftenDropped: [],
     });
 

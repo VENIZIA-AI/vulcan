@@ -4,7 +4,7 @@ import { request } from 'node:http';
 import { join } from 'node:path';
 import { LocalSettings } from '../common/local-settings.ts';
 import { EventSettings } from '../events/settings.ts';
-import { HookConstants } from '../hooks/common/constants.ts';
+import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { BoardFlags, BoardServe } from './common/index.ts';
 
 /** What `tick` did, for a test and for the note the hook prints. */
@@ -20,7 +20,7 @@ const KEPT_ENV = new Set(['PATH', 'HOME', 'TMPDIR', 'USER', 'LOGNAME', 'SHELL', 
  * `board.serve.autoStart` (in the person's own `.agents/local/profile.json`) at the start of a session: with the event log on
  * and nothing answering on the board's port, `vulcan board serve --port <port>` is started as a detached process of the
  * project's own install (never a lookup on `PATH`) with a trimmed environment, its output going to
- * `.agents/local/tmp/board-serve.log`. An explicit `--port` makes a busy port an error, so a second start (two sessions at
+ * `.agents/tmp/board-serve.log`. An explicit `--port` makes a busy port an error, so a second start (two sessions at
  * once) exits and leaves no board on another port. Another program on the port is not touched: one line says so. It never
  * waits for the board and never throws.
  */
@@ -65,7 +65,7 @@ export class BoardAutoStart {
     }
 
     const port = opts.port ?? BoardServe.DEFAULT_PORT;
-    const folder = join(opts.root, HookConstants.PROJECT_TMP);
+    const folder = ProjectTmp.projectOf({ root: opts.root });
     const state = await BoardAutoStart.portState({ port });
 
     if (state === 'board') {

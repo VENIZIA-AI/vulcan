@@ -157,7 +157,7 @@ describe('vulcan sync with nothing chosen', () => {
 
     const ignore = readFileSync(join(root, '.gitignore'), 'utf8');
 
-    expect(ignore).toBe('node_modules/\n.agents/local/\n/.claude/settings.json\n');
+    expect(ignore).toBe('node_modules/\n.agents/local/\n/.claude/settings.json\n/.agents/tmp/\n');
   });
 });
 

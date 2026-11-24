@@ -17,7 +17,7 @@ const removeIfEmpty = (opts: { directory: string }): void => {
 export class PresetScratch {
   /**
    * An npm preset is read from node_modules, so it is installed into a scratch folder apart from the
-   * project's own files, under `.agents/local/tmp/` (nothing goes outside the project): every refusal that depends on what the package says happens before anything is written.
+   * project's own files, under `.agents/tmp/` (nothing goes outside the project): every refusal that depends on what the package says happens before anything is written.
    * One line says what is fetched; bun's own output would land between the questions, so it is kept
    * and shown only when the install fails.
    */
@@ -41,7 +41,7 @@ export class PresetScratch {
 
   /**
    * The scratch folder lives as long as the flow: the located preset's files are copied from it. It is
-   * made under `<root>/.agents/local/tmp/`, and the folders made for it go with it when they are empty.
+   * made under `<root>/.agents/tmp/`, and the folders made for it go with it when they are empty.
    */
   static async withScratch<TResult>(opts: {
     root: string;

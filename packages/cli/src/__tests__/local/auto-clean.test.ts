@@ -39,9 +39,11 @@ const project = (opts: { manifest?: object } = {}): string => {
     },
   });
 
-  for (const name of ['tmp', 'worktrees', 'clones', 'cache', 'reports', 'prototypes']) {
+  for (const name of ['worktrees', 'clones', 'cache', 'reports', 'prototypes']) {
     mkdirSync(join(root, '.agents/local', name), { recursive: true });
   }
+
+  mkdirSync(join(root, '.agents/tmp'), { recursive: true });
 
   git({ cwd: root, args: ['init', '-q', '-b', 'develop'] });
   git({ cwd: root, args: ['config', 'user.email', 'a@example.com'] });
@@ -51,8 +53,14 @@ const project = (opts: { manifest?: object } = {}): string => {
 
   return root;
 };
+/** A path of the scan is relative to `.agents/local`, except `tmp/...`, which is the scratch folder `.agents/tmp`. */
+const placeOf = (opts: { root: string; path: string }): string =>
+  opts.path === 'tmp' || opts.path.startsWith('tmp/')
+    ? join(opts.root, '.agents', opts.path)
+    : join(opts.root, '.agents/local', opts.path);
+
 const put = (opts: { root: string; path: string; text?: string; ago?: number }): void => {
-  const target = join(opts.root, '.agents/local', opts.path);
+  const target = placeOf(opts);
 
   mkdirSync(join(target, '..'), { recursive: true });
   writeFileSync(target, opts.text ?? 'x'.repeat(2048));
@@ -63,7 +71,7 @@ const put = (opts: { root: string; path: string; text?: string; ago?: number }):
     utimesSync(target, then, then);
 
     for (const parent of [join(target, '..')]) {
-      if (!parent.endsWith('.agents/local')) {
+      if (!parent.endsWith('.agents/local') && !parent.endsWith('.agents')) {
         utimesSync(parent, then, then);
       }
     }
@@ -81,8 +89,7 @@ const ageTree = (opts: { path: string; ago: number }): void => {
 
   utimesSync(opts.path, then, then);
 };
-const has = (opts: { root: string; path: string }): boolean =>
-  existsSync(join(opts.root, '.agents/local', opts.path));
+const has = (opts: { root: string; path: string }): boolean => existsSync(placeOf(opts));
 
 describe('LocalAutoClean.tick: once a day, only when asked for', () => {
   const starts = (): { calls: string[]; start: (o: { root: string }) => void } => {
@@ -160,7 +167,7 @@ describe('LocalAutoClean.tick: once a day, only when asked for', () => {
   test('a manifest that is not JSON, or says nothing about it, leaves the clean on', () => {
     const spy = starts();
     const root = createProject({
-      files: { '.agents/local/vulcan.manifest.json': '{ nope', '.agents/local/tmp/.keep': '' },
+      files: { '.agents/local/vulcan.manifest.json': '{ nope', '.agents/tmp/.keep': '' },
     });
 
     LocalAutoClean.tick({ root, now: NOW, env: {}, start: spy.start });
@@ -337,39 +344,39 @@ describe('AutoCleanRun.run: the safe part, and nothing else', () => {
 
     // A scratch clone with a commit that was never pushed.
     put({ root, path: 'tmp/clone/README.md', ago: old });
-    git({ cwd: join(root, '.agents/local/tmp/clone'), args: ['init', '-q', '-b', 'main'] });
+    git({ cwd: join(root, '.agents/tmp/clone'), args: ['init', '-q', '-b', 'main'] });
     git({
-      cwd: join(root, '.agents/local/tmp/clone'),
+      cwd: join(root, '.agents/tmp/clone'),
       args: ['config', 'user.email', 'a@example.com'],
     });
-    git({ cwd: join(root, '.agents/local/tmp/clone'), args: ['config', 'user.name', 'a'] });
-    git({ cwd: join(root, '.agents/local/tmp/clone'), args: ['add', '.'] });
+    git({ cwd: join(root, '.agents/tmp/clone'), args: ['config', 'user.name', 'a'] });
+    git({ cwd: join(root, '.agents/tmp/clone'), args: ['add', '.'] });
     git({
-      cwd: join(root, '.agents/local/tmp/clone'),
+      cwd: join(root, '.agents/tmp/clone'),
       args: ['commit', '-q', '-m', 'unpushed work'],
     });
     // A worktree added straight into tmp: its .git is a file.
     git({
       cwd: root,
-      args: ['worktree', 'add', '-q', join(root, '.agents/local/tmp/wt'), '-b', 'wt'],
+      args: ['worktree', 'add', '-q', join(root, '.agents/tmp/wt'), '-b', 'wt'],
     });
     // A repository two levels down.
     put({ root, path: 'tmp/outer/inner/file.txt', ago: old });
-    git({ cwd: join(root, '.agents/local/tmp/outer/inner'), args: ['init', '-q'] });
+    git({ cwd: join(root, '.agents/tmp/outer/inner'), args: ['init', '-q'] });
     // Stale scratch that holds no repository; a .git inside node_modules is a package's, not work.
     put({ root, path: 'tmp/plain/a.txt', ago: old });
     put({ root, path: 'tmp/pkg/node_modules/dep/.git/HEAD', ago: old });
 
     for (const path of ['tmp/clone', 'tmp/wt', 'tmp/outer', 'tmp/plain', 'tmp/pkg']) {
-      ageTree({ path: join(root, '.agents/local', path), ago: old });
+      ageTree({ path: placeOf({ root, path }), ago: old });
     }
 
     AutoCleanRun.run({ root, now: NOW });
 
     expect(has({ root, path: 'tmp/clone/.git' })).toBe(true);
-    expect(
-      git({ cwd: join(root, '.agents/local/tmp/clone'), args: ['log', '--format=%s'] }).trim(),
-    ).toBe('unpushed work');
+    expect(git({ cwd: join(root, '.agents/tmp/clone'), args: ['log', '--format=%s'] }).trim()).toBe(
+      'unpushed work',
+    );
     expect(has({ root, path: 'tmp/wt/.git' })).toBe(true);
     expect(git({ cwd: root, args: ['worktree', 'list'] })).toContain('tmp/wt');
     expect(has({ root, path: 'tmp/outer/inner/.git' })).toBe(true);

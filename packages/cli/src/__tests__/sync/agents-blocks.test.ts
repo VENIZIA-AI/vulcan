@@ -69,7 +69,7 @@ describe('the Atlas and rules blocks in AGENTS.md', () => {
     expect(text.indexOf('vulcan:rules:start')).toBeLessThan(text.indexOf('vulcan:atlas:start'));
     expect(text.indexOf('vulcan:atlas:end')).toBeLessThan(text.indexOf('## Commands'));
     expect(block).toContain('- V-W-01: this project: `read-only`');
-    expect(block).toContain('`.agents/local/tmp`');
+    expect(block).toContain('`.agents/tmp`');
     expect(block).not.toContain(root);
     expect(Buffer.byteLength(block)).toBeLessThanOrEqual(RulesBlock.MAX_BYTES);
   });

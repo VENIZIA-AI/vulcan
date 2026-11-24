@@ -9,7 +9,7 @@ afterAll(removeProjects);
 const project = (): string => {
   const root = createProject({ files: { 'package.json': '{}', 'src/a.ts': 'x' } });
 
-  for (const folder of ['.agents/local/tmp', '.claude', '.configs', '.codex', 'dist']) {
+  for (const folder of ['.agents/tmp', '.claude', '.configs', '.codex', 'dist']) {
     mkdirSync(join(root, folder), { recursive: true });
   }
 
@@ -69,11 +69,11 @@ describe('a copy, a move, an install or a link into the folder of a protected fi
 
   test.each([
     'cp notes.md .claude/',
-    'cp notes.md .agents/local/tmp/',
-    'cp -t .agents/local/tmp notes.md',
+    'cp notes.md .agents/tmp/',
+    'cp -t .agents/tmp notes.md',
     'install -m 644 notes.md -t .configs',
     'mv notes.md .codex/',
-    'rsync -a srcdir .agents/local/tmp/',
+    'rsync -a srcdir .agents/tmp/',
     'cp .claude/settings.json dist/',
     'mv a b',
     'cp a b dist/',
@@ -120,7 +120,7 @@ describe('names this check cannot tell, put into the folder of a protected file'
   });
 
   test.each([
-    'cp $f .agents/local/tmp/',
+    'cp $f .agents/tmp/',
     'cp -a srcdir/. dist/',
     'cp -aT srcdir dist',
     'rsync -a srcdir/ dist/',
@@ -215,7 +215,7 @@ describe('find runs a writer over a protected file', () => {
     'find .claude -exec sed -n 1p {} ;',
     'find .claude -exec perl -ne print {} ;',
     "find .claude -name '*.log' -exec truncate -s0 {} ;",
-    'find .agents/local/tmp -exec truncate -s0 {} ;',
+    'find .agents/tmp -exec truncate -s0 {} ;',
   ])('%s passes', (command) => {
     expect(isSilent(command)).toBe(true);
   });
@@ -256,8 +256,8 @@ describe('a pattern in a removal reaches a protected file', () => {
     'rm -rf src/*',
     'rm -rf *',
     'rm -rf dist/*',
-    'rm -rf .agents/local/tmp/*',
-    'rm -rf .agents/local/tmp/x*',
+    'rm -rf .agents/tmp/*',
+    'rm -rf .agents/tmp/x*',
     'rm .claude/nothing-*',
     'rm -rf ./*',
     'rm -f *.log',
@@ -299,8 +299,8 @@ describe('find and git clean delete a protected file', () => {
 
   test.each([
     "find . -name '*.log' -delete",
-    "find .agents/local/tmp -name '*.log' -delete",
-    'find .agents/local/tmp -delete',
+    "find .agents/tmp -name '*.log' -delete",
+    'find .agents/tmp -delete',
     "find src -name '*.json' -delete",
     'find src -delete',
     'find dist -type f -delete',

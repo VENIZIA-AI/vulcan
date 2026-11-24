@@ -458,91 +458,95 @@ export class LocalScan {
       }
 
       const isEvents = layout.name === CleanScopes.EVENTS;
-      const directory = homes[layout.name] ?? join(local, layout.name);
+      // The scratch folder of an earlier release, `.agents/local/tmp`, is listed with the new one until nothing is left in it.
+      const directories = [
+        ...new Set([
+          homes[layout.name] ?? join(local, layout.name),
+          ...(layout.name === CleanScopes.TMP ? [join(local, layout.name)] : []),
+        ]),
+      ].filter((path) => isRealDirectory({ path }));
 
-      if (!isRealDirectory({ path: directory })) {
-        continue;
-      }
+      for (const directory of directories) {
+        for (const name of readdirSync(directory)) {
+          if (name === '.gitkeep') {
+            continue;
+          }
 
-      for (const name of readdirSync(directory)) {
-        if (name === '.gitkeep') {
-          continue;
-        }
+          const path = join(directory, name);
+          const stat = lstatSync(path);
+          const ageMs = now - newestModifiedAt({ path });
+          const staleAfter =
+            'staleAfterDays' in layout ? layout.staleAfterDays * LocalConstants.DAY_MS : undefined;
+          let state: string = LocalStates.OK;
+          let removable = true;
+          let isRegistered = false;
+          let note = '';
 
-        const path = join(directory, name);
-        const stat = lstatSync(path);
-        const ageMs = now - newestModifiedAt({ path });
-        const staleAfter =
-          'staleAfterDays' in layout ? layout.staleAfterDays * LocalConstants.DAY_MS : undefined;
-        let state: string = LocalStates.OK;
-        let removable = true;
-        let isRegistered = false;
-        let note = '';
+          if (layout.name === CleanScopes.WORKTREES) {
+            const verdict = classifyWorktree({
+              root: opts.root,
+              real: stat.isSymbolicLink() ? resolve(path) : realpathSync(path),
+              registered,
+            });
 
-        if (layout.name === CleanScopes.WORKTREES) {
-          const verdict = classifyWorktree({
-            root: opts.root,
-            real: stat.isSymbolicLink() ? resolve(path) : realpathSync(path),
-            registered,
-          });
+            ({ state, removable, registered: isRegistered, note } = verdict);
+          } else if (layout.name === CleanScopes.EVENTS) {
+            // Day files are removed by the limits of `events` (age, count, size), never all at once and never today's.
+            const goes = eventPlan?.remove.find((file) => file.name === name);
 
-          ({ state, removable, registered: isRegistered, note } = verdict);
-        } else if (layout.name === CleanScopes.EVENTS) {
-          // Day files are removed by the limits of `events` (age, count, size), never all at once and never today's.
-          const goes = eventPlan?.remove.find((file) => file.name === name);
+            ({ removable, note } =
+              goes === undefined
+                ? {
+                    removable: false,
+                    note: 'within the limits of events (maxSize, maxFiles, maxAgeDays)',
+                  }
+                : { removable: true, note: goes.reason });
+          } else if (layout.name === CleanScopes.RELEASE_CANDIDATES) {
+            // A candidate is named by its version: once that version is tagged the release has shipped.
+            const isShipped =
+              ReleaseTags.isVersion({ name }) &&
+              ReleaseTags.isTagged({ root: opts.root, version: name });
 
-          ({ removable, note } =
-            goes === undefined
+            ({ state, removable, note } = isShipped
               ? {
-                  removable: false,
-                  note: 'within the limits of events (maxSize, maxFiles, maxAgeDays)',
+                  state: LocalStates.SHIPPED,
+                  removable: true,
+                  note: `version ${name} is tagged: the release shipped`,
                 }
-              : { removable: true, note: goes.reason });
-        } else if (layout.name === CleanScopes.RELEASE_CANDIDATES) {
-          // A candidate is named by its version: once that version is tagged the release has shipped.
-          const isShipped =
-            ReleaseTags.isVersion({ name }) &&
-            ReleaseTags.isTagged({ root: opts.root, version: name });
+              : {
+                  state: LocalStates.OK,
+                  removable: false,
+                  note: ReleaseTags.isVersion({ name })
+                    ? `version ${name} is not tagged yet`
+                    : `${name} is not a version (1.2.3, v1.2.3 or 1.2.3-rc.1): kept`,
+                });
+          } else if (staleAfter !== undefined && ageMs > staleAfter) {
+            state = LocalStates.STALE;
+          }
 
-          ({ state, removable, note } = isShipped
-            ? {
-                state: LocalStates.SHIPPED,
-                removable: true,
-                note: `version ${name} is tagged: the release shipped`,
-              }
-            : {
-                state: LocalStates.OK,
-                removable: false,
-                note: ReleaseTags.isVersion({ name })
-                  ? `version ${name} is not tagged yet`
-                  : `${name} is not a version (1.2.3, v1.2.3 or 1.2.3-rc.1): kept`,
-              });
-        } else if (staleAfter !== undefined && ageMs > staleAfter) {
-          state = LocalStates.STALE;
+          const inUse = LocalProtected.noteOf({ scope: layout.name, name });
+
+          if (inUse !== undefined) {
+            // Not stale either: it is in use, and doctor must not tell anyone to clean what clean never takes.
+            ({ state, removable, note } = { state: LocalStates.OK, removable: false, note: inUse });
+          }
+
+          entries.push({
+            scope: layout.name,
+            name,
+            // An event log kept outside the project is named by its whole path.
+            where: isEvents && isEventsOutside ? path : `${layout.name}/${name}`,
+            path,
+            bytes: sizeOf({ path }),
+            ageMs,
+            state,
+            removable,
+            isSymlink: stat.isSymbolicLink(),
+            registered: isRegistered,
+            note,
+            ...(isEvents && isEventsOutside ? { outside: true } : {}),
+          });
         }
-
-        const inUse = LocalProtected.noteOf({ scope: layout.name, name });
-
-        if (inUse !== undefined) {
-          // Not stale either: it is in use, and doctor must not tell anyone to clean what clean never takes.
-          ({ state, removable, note } = { state: LocalStates.OK, removable: false, note: inUse });
-        }
-
-        entries.push({
-          scope: layout.name,
-          name,
-          // An event log kept outside the project is named by its whole path.
-          where: isEvents && isEventsOutside ? path : `${layout.name}/${name}`,
-          path,
-          bytes: sizeOf({ path }),
-          ageMs,
-          state,
-          removable,
-          isSymlink: stat.isSymbolicLink(),
-          registered: isRegistered,
-          note,
-          ...(isEvents && isEventsOutside ? { outside: true } : {}),
-        });
       }
     }
 

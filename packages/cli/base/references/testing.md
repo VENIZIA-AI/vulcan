@@ -36,7 +36,7 @@ layout you would choose. The level follows the claim:
   literal, the spec, or a worked example computed by hand.
 - Horizontal slicing: all the tests first, then all the code. Work in vertical slices.
 - A hand-written state in place of the transition: a test of a state machine edge must produce the edge.
-  The check: remove the one line that sets the flag, in a copy of the file under `.agents/local/tmp/` or
+  The check: remove the one line that sets the flag, in a copy of the file under `.agents/tmp/` or
   by hand and put it back by hand (never with a git command that discards edits, V-W-01), and run the
   test again; if it is still green, the test is decoration.
 - A test that cannot go red.
@@ -50,7 +50,7 @@ generic fetcher: it is easier to fake and easier to read.
 
 ## Fixtures and environment
 
-Fixtures are data. A test makes its own temp folder under the project's `.agents/local/tmp/` and removes
+Fixtures are data. A test makes its own temp folder under the project's `.agents/tmp/` and removes
 it; it runs alone and in any order. The environment is scrubbed: no test depends on a variable of the
 machine. Anything a test writes beyond its temp folder (a log, telemetry, state) goes where an environment
 variable says, and the test sets that variable to its own temp folder, so test output never lands in real

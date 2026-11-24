@@ -120,7 +120,7 @@ describe('the symbols of a remote source follow the package the app has installe
     symlinkSync(current, join(cwd, 'node_modules/@x/kit'));
     // a throwaway tree that holds an older install
     write({
-      root: join(cwd, '.agents/local/tmp/probe/node_modules/@x/kit'),
+      root: join(cwd, '.agents/tmp/probe/node_modules/@x/kit'),
       files: kit({ version: '0.8.0', signature: 'name: any' }),
     });
 

@@ -303,7 +303,7 @@ describe('vulcan preset diff', () => {
     // Tests never reach the network: the fetch is refused, and the scratch folder it made is gone.
     expect(fetched.code).toBe(1);
     expect(fetched.stderr).toContain('an npm preset needs an install');
-    const scratch = join(root, '.agents/local/tmp');
+    const scratch = join(root, '.agents/tmp');
 
     expect(existsSync(scratch) ? readdirSync(scratch) : []).toEqual([]);
   });

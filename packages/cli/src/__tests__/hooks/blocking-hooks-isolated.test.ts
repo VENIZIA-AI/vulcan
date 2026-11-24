@@ -111,7 +111,7 @@ describe('the blocking hooks do not depend on config, rules, the digest or zod',
     const outside = await run({ hook: 'guard-outside', payload: bash('mkdir /var/tmp/x-vulcan') });
     const inside = await run({
       hook: 'guard-outside',
-      payload: bash('mkdir -p .agents/local/tmp/a'),
+      payload: bash('mkdir -p .agents/tmp/a'),
     });
 
     expect(decisionOf(outside.stdout)).toBe('ask');

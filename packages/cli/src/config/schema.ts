@@ -780,7 +780,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       /** `true` lets the session-start hook clean the safe part of `.agents/local/` at most once a day; default `true`. */
       autoClean: z.boolean().default(true),
       /**
-       * A folder of the project, from its root, for the temporary files of a session (default `.agents/local/tmp`). A
+       * A folder of the project, from its root, for the temporary files of a session (default `.agents/tmp`). A
        * browser puts a socket below it and fails past 107 characters of path, so a deep checkout can name a short one (`t`).
        * Written like a layout folder: 1 to 4 plain lower-case segments, never absolute, never climbing. `vulcan sync`
        * creates it and gitignores it.

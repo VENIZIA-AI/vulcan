@@ -109,7 +109,7 @@ describe('the board started by a session', () => {
     expect(seen.env).not.toContain('VULCAN_ACTOR');
     expect(seen.env).not.toContain('SOME_API_KEY');
     expect(seen.env).toContain('PATH');
-    expect(statSync(join(root, '.agents/local/tmp/board-serve.log')).mode % 0o1000).toBe(0o600);
+    expect(statSync(join(root, '.agents/tmp/board-serve.log')).mode % 0o1000).toBe(0o600);
   });
 
   test('a VULCAN board already answers: nothing is started, twice never', async () => {
@@ -132,7 +132,7 @@ describe('the board started by a session', () => {
     await server.stop(true);
     await Bun.sleep(100);
     expect(existsSync(join(root, 'started.txt'))).toBe(false);
-    expect(readFileSync(join(root, '.agents/local/tmp/board-serve.log'), 'utf8')).toContain(
+    expect(readFileSync(join(root, '.agents/tmp/board-serve.log'), 'utf8')).toContain(
       'is held by something that is not a VULCAN board',
     );
   });
@@ -159,7 +159,7 @@ describe('the board started by a session', () => {
 
     const result = await BoardAutoStart.tick({ root, port: 1 });
     expect(result).toBe('off');
-    expect(existsSync(join(root, '.agents/local/tmp'))).toBe(false);
+    expect(existsSync(join(root, '.agents/tmp'))).toBe(false);
   });
 
   test('the real command with a busy explicit port exits non-zero and says it cannot serve (the race loser leaves no orphan)', async () => {

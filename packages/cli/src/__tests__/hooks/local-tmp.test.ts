@@ -49,7 +49,7 @@ describe('local.tmp in the config', () => {
 
   test('the key is optional, and the default is the folder of the layout', () => {
     expect(VULCAN_CONFIG_SCHEMA.parse({}).local.tmp).toBeUndefined();
-    expect(HookConstants.PROJECT_TMP).toBe('.agents/local/tmp');
+    expect(HookConstants.PROJECT_TMP).toBe('.agents/tmp');
   });
 });
 
@@ -72,11 +72,11 @@ describe('local.tmp in the manifest', () => {
 });
 
 describe('ProjectTmp.projectOf, the one method', () => {
-  test('without the key it is .agents/local/tmp', () => {
+  test('without the key it is .agents/tmp', () => {
     const root = createProject({ files: { [MANIFEST]: '{"schemaVersion":1}' } });
 
-    expect(ProjectTmp.projectOf({ root })).toBe(join(root, '.agents/local/tmp'));
-    expect(ProjectTmp.projectOf({ root: '/work/acme' })).toBe('/work/acme/.agents/local/tmp');
+    expect(ProjectTmp.projectOf({ root })).toBe(join(root, '.agents/tmp'));
+    expect(ProjectTmp.projectOf({ root: '/work/acme' })).toBe('/work/acme/.agents/tmp');
   });
 
   test('with the key in the manifest it is that folder of the project', () => {
@@ -89,7 +89,7 @@ describe('ProjectTmp.projectOf, the one method', () => {
     for (const tmp of ['../outside', '/tmp/x', 42, '']) {
       const root = projectWith(tmp);
 
-      expect(ProjectTmp.projectOf({ root })).toBe(join(root, '.agents/local/tmp'));
+      expect(ProjectTmp.projectOf({ root })).toBe(join(root, '.agents/tmp'));
     }
   });
 
@@ -131,7 +131,7 @@ describe('the five readers follow the key', () => {
     const root = projectWith('t');
     const old = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
 
-    for (const folder of ['t/old', '.agents/local/tmp/ignored']) {
+    for (const folder of ['t/old', '.agents/tmp/ignored']) {
       mkdirSync(join(root, folder), { recursive: true });
       writeFileSync(join(root, folder, 'a.txt'), 'x');
       utimesSync(join(root, folder, 'a.txt'), old, old);
@@ -141,7 +141,7 @@ describe('the five readers follow the key', () => {
     const found = LocalScan.scan({ root, only: [CleanScopes.TMP] }).map((entry) => entry.path);
 
     expect(found).toContain(join(root, 't/old'));
-    expect(found).not.toContain(join(root, '.agents/local/tmp/ignored'));
+    expect(found).not.toContain(join(root, '.agents/tmp/ignored'));
   });
 
   test('the scratch of vulcan add is made in it', async () => {
@@ -252,7 +252,7 @@ describe('the review of local.tmp', () => {
     const again = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
     expect(again.code, again.stderr).toBe(0);
-    expect(existsSync(join(root, '.agents/local/tmp'))).toBe(true);
+    expect(existsSync(join(root, '.agents/tmp'))).toBe(true);
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain('.agents/local/');
   });
 

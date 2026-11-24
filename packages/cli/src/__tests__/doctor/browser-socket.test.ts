@@ -9,7 +9,7 @@ import { createProject, removeProjects } from '../project.helper.ts';
 afterAll(removeProjects);
 
 const CONFIG = "export default { rules: { 'V-W-01': 'on-user-word' } };\n";
-const TMP = '.agents/local/tmp';
+const TMP = '.agents/tmp';
 
 /** A root whose socket path in the project tmp folder is exactly `length` characters. */
 const rootFor = (opts: { length: number }): string => {

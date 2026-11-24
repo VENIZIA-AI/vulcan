@@ -4,7 +4,6 @@ import { LOCAL_AGENTS_FILE, LocalChoice } from '../agents/index.ts';
 import { AgentConstants } from '../agents/common/constants.ts';
 import { OwnerProfile } from '../owner/profile.ts';
 import { ProjectLayout } from '../common/index.ts';
-import { HookConstants } from '../hooks/common/index.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { AgentFiles } from './agent-files.ts';
 import { SyncStatuses } from './common/index.ts';
@@ -184,17 +183,14 @@ export class LocalPlan {
   }
 
   /**
-   * `opts.tmp` is the committed `local.tmp` (or the default). Its folder is gitignored in the committed `.gitignore`
-   * whoever runs sync: a name is never hidden, so it is never under the `.agents/local/` that is ignored whole. The
-   * folder this checkout names in its local file (else the same one) is only made; its ignore line is in
-   * `.git/info/exclude` (`ExcludePlan`). The default folder is one of the layout's.
+   * `opts.tmp` is the committed `local.tmp` (or the default, `.agents/tmp`). Its folder is gitignored in the committed
+   * `.gitignore` whoever runs sync: it is never under the `.agents/local/` that is ignored whole. The folder this checkout names
+   * in its local file (else the same one) is made; its ignore line is in `.git/info/exclude` (`ExcludePlan`).
    */
   static planTmp(opts: { root: string; tmp?: string }): ISyncAction[] {
     const configured = ProjectTmp.configuredOf({ tmp: opts.tmp });
     const committed = join(opts.root, configured);
     const tmp = join(opts.root, ProjectTmp.effectiveOf({ root: opts.root, tmp: configured }));
-    const isDefault = (folder: string): boolean =>
-      folder === join(opts.root, HookConstants.PROJECT_TMP);
     const isMade = existsSync(tmp);
     const made: ISyncAction = {
       path: tmp,
@@ -206,10 +202,8 @@ export class LocalPlan {
     };
 
     return [
-      ...(isDefault(committed)
-        ? []
-        : planIgnoreLine({ root: opts.root, line: `/${relative(opts.root, committed)}/` })),
-      ...(isDefault(tmp) ? [] : [made]),
+      ...planIgnoreLine({ root: opts.root, line: `/${relative(opts.root, committed)}/` }),
+      made,
     ];
   }
 
@@ -253,8 +247,10 @@ export class LocalPlan {
    */
   static planWorkspace(opts: { root: string; tmp?: string }): ISyncAction[] {
     const directory = join(opts.root, ProjectLayout.LOCAL_DIRECTORY);
+    // `tmp` is the scratch folder of `planTmp` now (`.agents/tmp`, or `local.tmp`): `.agents/local/tmp` of an earlier release is left alone.
     const missing = ProjectLayout.LOCAL_LAYOUT.filter((entry) => !('onDemand' in entry))
       .map((entry) => entry.name)
+      .filter((name) => name !== 'tmp')
       .filter((name) => !existsSync(join(directory, name)));
 
     return [

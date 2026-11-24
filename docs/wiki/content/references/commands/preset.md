@@ -36,7 +36,7 @@ The output for an app names the folder "the app": `missing in the app`, `(the ap
 | `--full` | Print the unified diff under each file that differs: `-` is the package's line, `+` the preset's |
 | `--check` | Exit `1` when a file differs or is missing, for CI; without it the exit code is `0` after any report |
 
-- `--preset` forms: a bare `name` is read from the app's or the monorepo's `node_modules`; `name@range` is fetched into a scratch folder under `.agents/local/tmp/` (network) and removed afterwards; `file:<path>` reads a checkout.
+- `--preset` forms: a bare `name` is read from the app's or the monorepo's `node_modules`; `name@range` is fetched into a scratch folder under `.agents/tmp/` (network) and removed afterwards; `file:<path>` reads a checkout.
 - `--api`, `--no-api`: a frontend app whose preset files use the proxy target needs one of them, as it did when `add` made the app; the proxy target cannot be recovered from the app. A library or a shared package has no proxy target, so either flag stops the command.
 
 ## What each line says

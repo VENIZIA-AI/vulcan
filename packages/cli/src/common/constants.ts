@@ -77,6 +77,8 @@ export class ProjectLayout {
   ];
   /** Everything an agent creates while it works lives under here, gitignored: nothing goes outside the project. */
   static readonly LOCAL_DIRECTORY = '.agents/local';
+  /** The default scratch folder of a session: short, so a browser's socket path fits, and outside `.agents/local/`. `local.tmp` replaces it. */
+  static readonly TMP_DIRECTORY = '.agents/tmp';
   /** Each directory under it, with when it goes: the one list `sync`, `doctor` and `clean` read. */
   static readonly LOCAL_LAYOUT = [
     { name: 'tmp', lifetime: 'task', removedWhen: 'the task ends', staleAfterDays: 1 },

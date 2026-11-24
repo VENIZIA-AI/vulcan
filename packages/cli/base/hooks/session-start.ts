@@ -1,7 +1,7 @@
 /**
  * SessionStart hook: prints what only this session knows - a config problem, where scratch goes, the owner card (src/hooks/session-digest.ts). The rules are the block of AGENTS.md.
  * Stdout becomes session context. With `VULCAN_OWNER_REPLY=off` the owner shape and profile cards are left out.
- * It also exports `TMPDIR` (the project's `.agents/local/tmp`) into the file Claude Code sources before each Bash command.
+ * It also exports `TMPDIR` (the project's `.agents/tmp`) into the file Claude Code sources before each Bash command.
  */
 import { ProjectTmp, SessionDigest } from '../../src/hooks/index.ts';
 

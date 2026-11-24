@@ -96,7 +96,7 @@ export class Gates {
 }
 
 const runMake = (command: IGateCommand): { code: number; tail: string } => {
-  const scratch = process.env.TMPDIR ?? join(ROOT, '.agents', 'local', 'tmp');
+  const scratch = process.env.TMPDIR ?? join(ROOT, '.agents', 'tmp');
 
   mkdirSync(scratch, { recursive: true });
 
