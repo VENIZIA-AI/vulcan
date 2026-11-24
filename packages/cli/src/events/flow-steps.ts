@@ -10,16 +10,25 @@ import { EventText } from './text.ts';
  * out is dropped), so a change to one step is a copy of the last flow line with the new steps; the log format stays.
  */
 export class FlowSteps {
-  /** The newest `flow` line of the flow, or `undefined` when the log has none. */
+  /**
+   * The newest `flow` line of the flow, or `undefined` when the log has none. A line that has no `steps` (the writer
+   * leaves the field out when there is none) keeps the list of the newest line before it that has them, so a title-only
+   * line does not empty the list.
+   */
   static lastLine(opts: { events: IEvent[]; flowId: string; key?: string }): IEvent | undefined {
     const wanted = FlowId.canon({ id: opts.flowId, key: opts.key });
-
-    return opts.events.findLast(
+    const lines = opts.events.filter(
       (event) =>
         event.kind === EventKinds.FLOW &&
         event.flowId !== undefined &&
         FlowId.canon({ id: event.flowId, key: opts.key }) === wanted,
     );
+    const last = lines.at(-1);
+    const carried = lines.findLast((event) => event.steps !== undefined)?.steps;
+
+    return last === undefined || last.steps !== undefined || carried === undefined
+      ? last
+      : { ...last, steps: carried };
   }
 
   /**

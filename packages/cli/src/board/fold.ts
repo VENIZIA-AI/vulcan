@@ -93,7 +93,14 @@ export class BoardFold {
       // title and the reason, the newest by time winning.
       const quiet = lines.filter((event) => event.plumbing === true || event.isTitle === true);
       const core = lines.filter((event) => event.plumbing !== true && event.isTitle !== true);
-      const named = [...lines].sort(byTime).findLast((event) => event.isTitle === true);
+      const titles = [...lines].sort(byTime).filter((event) => event.isTitle === true);
+      const last = titles.at(-1);
+      // A flow line with no steps keeps the list of the newest one before it that has them.
+      const carried = titles.findLast((event) => event.steps !== undefined)?.steps;
+      const named =
+        last === undefined || last.steps !== undefined || carried === undefined
+          ? last
+          : { ...last, steps: carried };
 
       if (core.length === 0) {
         flows.push(BoardFold.quietFlow({ id, lines: quiet, named }));

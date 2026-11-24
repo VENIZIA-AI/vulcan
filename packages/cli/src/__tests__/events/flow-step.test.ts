@@ -413,7 +413,7 @@ describe('the hook script with a task list', () => {
   });
 });
 
-describe('vulcan event step keeps the steps it does not name', () => {
+describe('a flow step keeps the steps it does not name', () => {
   const FIVE = ['One', 'Two', 'Three', 'Four', 'Five'];
   const openFive = (root: string): string =>
     cli({
@@ -472,7 +472,24 @@ describe('vulcan event step keeps the steps it does not name', () => {
     ]);
   });
 
-  test('a flow line written for the same id replaces the list whole, and a step then goes on that list', () => {
+  test('two title-only flow lines after five steps leave the list alone, and a step then makes six', () => {
+    const root = project();
+    const id = openFive(root);
+
+    cli({ root, args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in again'] });
+    cli({ root, args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in once more'] });
+    cli({ root, args: ['step', '--flow', id, '--todo', 'Six'] });
+
+    const last = linesOf(root)
+      .filter((line) => line.kind === 'flow')
+      .at(-1);
+
+    expect(last?.summary).toBe('Sign in once more');
+    expect(last?.steps?.map((step) => step.text)).toEqual([...FIVE, 'Six']);
+    expect(last?.steps?.slice(0, 2).map((step) => step.done)).toEqual([true, true]);
+  });
+
+  test('a flow line that carries steps replaces the list, and a title-only line after it keeps that list', () => {
     const root = project();
     const id = openFive(root);
 
@@ -480,6 +497,7 @@ describe('vulcan event step keeps the steps it does not name', () => {
       root,
       args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in', '--step', 'Only'],
     });
+    cli({ root, args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in v2'] });
     cli({ root, args: ['step', '--flow', id, '--todo', 'Next'] });
 
     expect(stepsOf(root)).toEqual(['Only', 'Next']);
