@@ -22,9 +22,9 @@ const RETIRED = [
   /['"]x['"]\s*,\s*['"](?:atlas|okf)['"]/,
   /(?:\bbin|'vulcan'\)|\.bin\/vulcan['"`]?)\s*,\s*VulcanCommands\./,
 ];
-/** What keeps the old words on purpose: the table that maps them, the test that pins it, the frozen history, the wiki theme shared with the other repositories (its hashes are in SHARED.json), binaries and lock files. */
+/** What keeps the old words on purpose: the table that maps them, the test that pins it, the frozen history, binaries and lock files. */
 const SKIPPED =
-  /^(?:packages\/cli\/src\/commands\/scopes\.ts|packages\/cli\/src\/__tests__\/commands\/scopes\.test\.ts|scripts\/checks\/command-forms\.ts|scripts\/checks\/__tests__\/command-forms\.test\.ts|packages\/cli\/src\/(?:commands\/x\.command|__tests__\/commands\/x\.command\.test)\.ts|docs\/wiki\/content\/changelogs\/|docs\/wiki\/site\/\.vitepress\/theme\/shared\/|bun\.lock|node_modules\/|\.agents\/local\/)|\.(?:png|svg|ico|woff2?|jpg|webp)$/;
+  /^(?:packages\/cli\/src\/commands\/scopes\.ts|packages\/cli\/src\/__tests__\/commands\/scopes\.test\.ts|scripts\/checks\/command-forms\.ts|scripts\/checks\/__tests__\/command-forms\.test\.ts|packages\/cli\/src\/(?:commands\/x\.command|__tests__\/commands\/x\.command\.test)\.ts|docs\/wiki\/content\/changelogs\/|bun\.lock|node_modules\/|\.agents\/local\/)|\.(?:png|svg|ico|woff2?|jpg|webp)$/;
 
 /** A line that names a retired form on purpose (what an earlier release wrote and a sync still recognises) says so in a `//` comment with a reason; the test of this gate lists every use. */
 const ALLOWED = /\/\/\s*retired-form:\s*\S/;

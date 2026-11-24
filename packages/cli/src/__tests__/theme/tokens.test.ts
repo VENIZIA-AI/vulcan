@@ -91,7 +91,7 @@ describe('the wiki takes the venizia palette from the manifest theme, value for 
 
     writeFileSync(path, '{}');
     expect(() => WikiTheme.read({ manifest: path })).toThrow(
-      'with @venizia/vulcan 0.4.10-3 or later',
+      'sync of @venizia/vulcan 0.4.10-3 or later',
     );
     rmSync(path);
   });
