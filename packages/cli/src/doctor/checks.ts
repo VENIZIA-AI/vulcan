@@ -372,7 +372,10 @@ export class ProjectContract {
    */
   static checkManifest(opts: ICheckContext): IViolation[] {
     return SyncPlanner.planManifest({ root: opts.root, config: opts.config })
-      .filter((action) => action.status !== SyncStatuses.UNCHANGED)
+      .filter(
+        (action) =>
+          action.status !== SyncStatuses.UNCHANGED && action.status !== SyncStatuses.SKIPPED,
+      )
       .map((action) => {
         const file = relative(opts.root, action.path);
         const sync = `run '${ProjectLayout.VULCAN_COMMAND} sync'`;
@@ -383,6 +386,14 @@ export class ProjectContract {
             ? ' (a temporary copy of the descriptor for atlas of 0.5.0-6 and before, kept until the stable 0.5.0 release)'
             : '';
 
+        if (action.status === SyncStatuses.REMOVED) {
+          return createViolation({
+            check: DoctorChecks.MANIFEST,
+            file,
+            message: `left from an earlier sync: a repository that publishes no package has no descriptor - ${sync}, which deletes it`,
+          });
+        }
+
         return createViolation({
           check: DoctorChecks.MANIFEST,
           file,
@@ -392,6 +403,19 @@ export class ProjectContract {
               : `stale against the config, or edited by hand${temporary} - the manifest is generated, never edit it: edit .configs/vulcan.config.* and ${fix}`,
         });
       });
+  }
+
+  /** A descriptor git tracks in a repository that publishes no package: sync leaves it, and the warning names the command that untracks it. A warning. */
+  static checkTrackedDescriptor(opts: ICheckContext): IViolation[] {
+    return SyncPlanner.planManifest({ root: opts.root, config: opts.config })
+      .filter((action) => action.status === SyncStatuses.SKIPPED)
+      .map((action) =>
+        createViolation({
+          check: DoctorChecks.MANIFEST,
+          file: relative(opts.root, action.path),
+          message: action.note ?? '',
+        }),
+      );
   }
 
   /**

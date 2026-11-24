@@ -164,17 +164,16 @@ export class ProjectScaffold {
     const config = ConfigLoader.findFile({ root });
 
     if (config === undefined) {
-      entries.push(
-        writeIfAbsent({
-          root,
-          path: join(ConfigConstants.DIRECTORY, ConfigConstants.FILE),
-          content: ProjectScaffold.renderTemplate({
-            template: ConfigConstants.FILE,
-            name,
-            key: opts.key,
+      // The config is split: the small keys in the file, each large section in a module of .configs/vulcan/.
+      for (const template of [ConfigConstants.FILE, ...ConfigConstants.SPLIT_MODULES]) {
+        entries.push(
+          writeIfAbsent({
+            root,
+            path: join(ConfigConstants.DIRECTORY, template),
+            content: ProjectScaffold.renderTemplate({ template, name, key: opts.key }),
           }),
-        }),
-      );
+        );
+      }
     } else {
       entries.push({ status: InitStatuses.KEPT, subject: relative(root, config) });
     }

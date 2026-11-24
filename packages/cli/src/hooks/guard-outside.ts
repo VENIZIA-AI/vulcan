@@ -144,6 +144,8 @@ const isProtectedFile = (opts: {
   root: string;
   mode: TProtectedMode;
   store?: IPackageStore;
+  /** The local modules the config imports (`guard.configModules` of the manifest), relative to the root. */
+  extra: string[];
 }): boolean => {
   if (opts.mode === 'folder' && opts.path === opts.root) {
     return true;
@@ -155,7 +157,9 @@ const isProtectedFile = (opts: {
 
   // Without regard to case: on a case-insensitive file system `.claude/Settings.local.json` is the real file.
   const relative = opts.path.slice(opts.root.length + 1).toLowerCase();
-  const globs = HookConstants.PROTECTED_FILES.map((pattern) => pattern.toLowerCase());
+  const globs = [...HookConstants.PROTECTED_FILES, ...opts.extra].map((pattern) =>
+    pattern.toLowerCase(),
+  );
 
   if (globs.some((pattern) => new Bun.Glob(pattern).match(relative))) {
     return true;
@@ -211,7 +215,7 @@ const GLOB_CHARACTER = /[*?[]/;
  * A name that starts with a dot is matched only by a segment that starts with one, as the shell does; the installed package is left out,
  * as for `rm -rf node_modules`.
  */
-const globReachesProtected = (opts: { glob: string; root: string }): boolean => {
+const globReachesProtected = (opts: { glob: string; root: string; extra: string[] }): boolean => {
   if (!isInside({ path: opts.glob, root: opts.root })) {
     return false;
   }
@@ -219,20 +223,25 @@ const globReachesProtected = (opts: { glob: string; root: string }): boolean => 
   const relative = opts.glob.slice(opts.root.length + 1).toLowerCase();
   const segments = relative.split('/').filter((segment) => segment !== '');
 
-  return ProtectedNames.REACH.some((name) => {
-    const names = name.split('/');
+  return [...ProtectedNames.REACH, ...ProtectedNames.reachOf({ files: opts.extra })].some(
+    (name) => {
+      const names = name.split('/');
+      // A `**` part takes every name below the folders before it.
+      const deep = names.indexOf('**');
+      const fixed = deep === -1 ? names : names.slice(0, deep);
 
-    return (
-      names.length === segments.length &&
-      segments.every((segment, index) => {
-        const part = names[index] ?? '';
+      return (
+        (deep === -1 ? names.length === segments.length : segments.length > fixed.length) &&
+        fixed.every((part, index) => {
+          const segment = segments[index] ?? '';
 
-        return (
-          (!part.startsWith('.') || segment.startsWith('.')) && new Bun.Glob(segment).match(part)
-        );
-      })
-    );
-  });
+          return (
+            (!part.startsWith('.') || segment.startsWith('.')) && new Bun.Glob(segment).match(part)
+          );
+        })
+      );
+    },
+  );
 };
 
 /**
@@ -295,6 +304,8 @@ export class OutsideGuard {
     input: IManifestHookInput;
     projectRoot: string;
     toolOwnedPaths?: string[];
+    /** The local modules the config imports, relative to the root (`guard.configModules` of the manifest): protected like the config. */
+    configModules?: string[];
     home?: string;
     env?: TEnvironment;
   }): IOutsideHit[] {
@@ -302,6 +313,10 @@ export class OutsideGuard {
     const home = opts.home ?? env.HOME ?? '';
     const root = realOf({ path: resolve(opts.projectRoot) }) ?? resolve(opts.projectRoot);
     const store = packageStoreOf({ root });
+    // A name is matched as a glob: a bracket or a star in a module's name stands for itself.
+    const extra = (opts.configModules ?? []).map((file) =>
+      file.replace(/[*?[\]{}]/g, (character) => `\\${character}`),
+    );
     const patterns = allowPatterns({
       patterns: [...HookConstants.TOOL_OWNED_PATHS, ...(opts.toolOwnedPaths ?? [])],
       home,
@@ -449,6 +464,7 @@ export class OutsideGuard {
           globReachesProtected({
             glob: `${real === '/' ? '' : real}/${pattern.slice(folder.length)}`,
             root,
+            extra,
           });
 
         if (reaches) {
@@ -602,8 +618,8 @@ export class OutsideGuard {
               : 'file';
 
       if (
-        isProtectedFile({ path, root, mode, store }) ||
-        isProtectedFile({ path: resolve(written), root, mode, store })
+        isProtectedFile({ path, root, mode, store, extra }) ||
+        isProtectedFile({ path: resolve(written), root, mode, store, extra })
       ) {
         hits.push({
           path,

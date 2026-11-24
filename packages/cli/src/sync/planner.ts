@@ -293,19 +293,32 @@ export class SyncPlanner {
   }
 
   /**
-   * The manifests (Project Contract v1, C1), rendered from the config: the local manifest every hook reads, the descriptor
-   * atlas reads (committed), and, until the stable 0.5.0 release, a copy of the descriptor at the path of earlier releases,
-   * `.agents/vulcan.manifest.json` (committed too): atlas of 0.5.0-6 and before finds a source's manifest only there.
+   * The manifests (Project Contract v1, C1), rendered from the config: the local manifest every hook reads, and in a
+   * repository that publishes (`ProjectManifest.publishes`) the descriptor atlas reads (committed) and, until the stable
+   * 0.5.0 release, a copy of it at the path of earlier releases, `.agents/vulcan.manifest.json` (committed too): atlas of
+   * 0.5.0-6 and before finds a source's manifest only there. Elsewhere the two are not written: one left from an earlier
+   * sync is removed when git does not track it, and named with the command that untracks it when git does.
    */
   static planManifest(opts: { root: string; config: TResolvedConfig }): ISyncAction[] {
+    const local = SyncPlanner.planFile({
+      root: opts.root,
+      file: ManifestConstants.FILE,
+      text: ProjectManifest.render(opts),
+    });
+
+    if (!ProjectManifest.publishes({ config: opts.config })) {
+      return [
+        local,
+        ...[ManifestConstants.DESCRIPTOR_FILE, ManifestConstants.LEGACY_FILE].flatMap((file) =>
+          SyncPlanner.planLeftover({ root: opts.root, file }),
+        ),
+      ];
+    }
+
     const descriptor = ProjectManifest.renderDescriptor(opts);
 
     return [
-      SyncPlanner.planFile({
-        root: opts.root,
-        file: ManifestConstants.FILE,
-        text: ProjectManifest.render(opts),
-      }),
+      local,
       SyncPlanner.planFile({
         root: opts.root,
         file: ManifestConstants.DESCRIPTOR_FILE,
@@ -317,6 +330,33 @@ export class SyncPlanner {
         text: descriptor,
       }),
     ];
+  }
+
+  /** A descriptor a repository that does not publish carries from an earlier sync: removed, or, when git tracks it, left with the way to untrack it. */
+  private static planLeftover(opts: { root: string; file: string }): ISyncAction[] {
+    const path = join(opts.root, opts.file);
+
+    if (!existsSync(path)) {
+      return [];
+    }
+
+    return AgentFiles.isTracked({ root: opts.root, path: opts.file })
+      ? [
+          {
+            path,
+            status: SyncStatuses.SKIPPED,
+            note: `a repository that publishes no package has no descriptor, and git tracks this one: run 'git rm --cached ${opts.file}' and delete it`,
+            apply: NO_CHANGE,
+          },
+        ]
+      : [
+          {
+            path,
+            status: SyncStatuses.REMOVED,
+            note: 'a repository that publishes no package has no descriptor',
+            apply: () => rmSync(path),
+          },
+        ];
   }
 
   /** The paths of the manifest actions, so a check of the adapters can leave them to the manifest check. */

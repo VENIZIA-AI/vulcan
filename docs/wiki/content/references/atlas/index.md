@@ -68,7 +68,7 @@ The server answers `initialize` and `tools/list` as soon as it starts, in well u
 
 With `--no-prebuilt`, every source's index is built here (see [the prebuilt index](/references/atlas/sources#prebuilt-index)).
 
-To ensure atlas finds `.agents/atlas.manifest.json`, pin `--root .` in `.mcp.json`.
+To ensure atlas finds `.agents/atlas.manifest.json`, pin `--root .` in `.mcp.json`. A project that publishes nothing has no descriptor: atlas reads its own project from `.agents/local/vulcan.manifest.json` then.
 Without `--root`, atlas uses the current working directory of the launching process.
 If an editor starts in a subdirectory, atlas fails to locate the project manifest.
 

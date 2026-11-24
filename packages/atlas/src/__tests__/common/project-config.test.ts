@@ -22,7 +22,7 @@ describe('ProjectConfig.manifestFileOf', () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-manifest-'));
 
     roots.push(root);
-    mkdirSync(join(root, '.agents'), { recursive: true });
+    mkdirSync(join(root, '.agents', 'local'), { recursive: true });
 
     for (const file of files) {
       writeFileSync(join(root, '.agents', file), '{}');
@@ -41,6 +41,27 @@ describe('ProjectConfig.manifestFileOf', () => {
       '.agents/vulcan.manifest.json',
     );
     expect(ProjectConfig.manifestFileOf({ dir: folder([]) })).toBeUndefined();
+  });
+
+  test('its own project with no descriptor (it publishes nothing) is read from the local manifest; a fetched source never is', () => {
+    const root = folder(['local/vulcan.manifest.json']);
+
+    writeFileSync(
+      join(root, '.agents', 'local', 'vulcan.manifest.json'),
+      JSON.stringify({ schemaVersion: 1, name: 'shop', packages: [] }),
+    );
+
+    expect(ProjectConfig.manifestFileOf({ dir: root })).toBeUndefined();
+    expect(ProjectConfig.ownManifestFileOf({ dir: root })).toEndWith(
+      '.agents/local/vulcan.manifest.json',
+    );
+    expect(ProjectConfig.hasAtlasProject({ root })).toBe(true);
+    expect(ProjectConfig.readAtlasProject({ root }).name).toBe('shop');
+    expect(
+      ProjectConfig.ownManifestFileOf({
+        dir: folder(['atlas.manifest.json', 'local/vulcan.manifest.json']),
+      }),
+    ).toEndWith('.agents/atlas.manifest.json');
   });
 });
 

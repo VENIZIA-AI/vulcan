@@ -36,6 +36,44 @@ export default defineConfig({
 });
 ```
 
+### One file, or split into modules
+
+Both shapes load the same way: the config is a module, and what it imports is read with it.
+
+**One file.** Every key in `.configs/vulcan.config.mts`, as above. A small project, and a monorepo made by `vulcan init --preset` (whose apps block `vulcan add` rewrites in that file), keep this shape.
+
+**Split.** What `vulcan init` writes: the small top-level keys stay in the file, and each large section is a module of `.configs/vulcan/` that `satisfies` its slice of `VulcanConfig`, re-exported by `.configs/vulcan/index.mts`:
+
+```text
+.configs/
+  vulcan.config.mts       project, agents, rules, and the sections by name
+  vulcan/
+    index.mts             export { claude } from './claude.mts'; ...
+    claude.mts            export const claude = { ... } satisfies NonNullable<VulcanConfig['claude']>;
+    doctor.mts            export const doctor = { ... } satisfies NonNullable<VulcanConfig['doctor']>;
+    okf.mts               export const okf = { ... } satisfies NonNullable<VulcanConfig['okf']>;
+    packages.mts          export const packages: VulcanConfig['packages'] = undefined;
+```
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+import { claude, doctor, okf, packages } from './vulcan/index.mts';
+
+export default {
+  project: { key: 'ACME' },
+  agents: ['claude'],
+  rules: { 'V-W-01': 'on-user-word' },
+  packages,
+  okf,
+  claude,
+  doctor,
+} satisfies VulcanConfig;
+```
+
+- A `packages` that is `undefined` counts as not written: the packages are derived from the workspaces, as when the key is left out.
+- `vulcan config format` orders the keys of the file; the values are names, so the modules are not touched.
+- The guards protect every module under `.configs/vulcan/`, and every other file under `.configs/` the config imports, as they protect the config ([hooks](/references/hooks/#the-files-the-guards-protect)). A module outside `.configs/` is not protected: keep the modules there.
+
 The schema is strict. An unknown key causes an error during `vulcan doctor`:
 
 ```text

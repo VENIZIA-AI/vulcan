@@ -13,6 +13,7 @@ const EMPTY_POLICY = {
   outside: 'ask',
   asks: 'ask',
   toolOwnedPaths: [],
+  configModules: [],
   runnersAllow: [],
 };
 

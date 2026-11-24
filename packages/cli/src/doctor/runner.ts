@@ -134,6 +134,7 @@ export class DoctorRunner {
 
     return [
       ...ProjectContract.checkStaleRemove(context),
+      ...ProjectContract.checkTrackedDescriptor(context),
       ...ProjectContract.checkClaudeSettingsTracked(context),
       ...ProjectContract.checkAtlasSources(context),
       ...ProjectContract.checkMcpAtlas(context),

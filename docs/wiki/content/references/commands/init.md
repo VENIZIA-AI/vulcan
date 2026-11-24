@@ -24,6 +24,11 @@ $ bun node_modules/.bin/vulcan init
   created  .configs/lints/oxlint.config.mts
   created  .configs/lints/eslint.config.mjs
   created  .configs/vulcan.config.mts
+  created  .configs/vulcan/index.mts
+  created  .configs/vulcan/claude.mts
+  created  .configs/vulcan/doctor.mts
+  created  .configs/vulcan/okf.mts
+  created  .configs/vulcan/packages.mts
   created  .dockerignore
   created  bunfig.toml
   created  Makefile
@@ -32,6 +37,8 @@ left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
   2. bun node_modules/.bin/vulcan sync && bun node_modules/.bin/vulcan doctor
 ```
+
+The config comes split: `.configs/vulcan.config.mts` holds the small keys and imports the large sections from the modules of `.configs/vulcan/` (see [one file, or split into modules](/references/configuration/#one-file-or-split-into-modules)). With a config already there, none of them is written.
 
 When a package needs installing, `installing <packages>` appears between the file lines and `left to do:`, followed by the output of `bun add -d`.
 

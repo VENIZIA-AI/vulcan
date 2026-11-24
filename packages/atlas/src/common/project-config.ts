@@ -15,6 +15,8 @@ export const MANIFEST_FILE = '.agents/atlas.manifest.json';
  * reads it when the descriptor is missing. Removed after one release.
  */
 export const LEGACY_MANIFEST_FILE = '.agents/vulcan.manifest.json';
+/** The manifest `vulcan sync` writes in every clone, not committed: what atlas reads of its own project when the project publishes nothing and so has no descriptor. */
+export const LOCAL_MANIFEST_FILE = '.agents/local/vulcan.manifest.json';
 const MANIFEST_ENV = 'VULCAN_MANIFEST';
 const ROOT_ENV = 'VULCAN_PROJECT_ROOT';
 /** The manifest versions this atlas reads (V2); outside it, it says which VULCAN to upgrade to. */
@@ -345,14 +347,21 @@ export class ProjectConfig {
 
     return (
       handedManifest({ root }) !== undefined ||
-      ProjectConfig.manifestFileOf({ dir: root }) !== undefined
+      ProjectConfig.ownManifestFileOf({ dir: root }) !== undefined
     );
   }
 
-  /** The project's manifest: the one `vulcan x` rendered fresh, else the committed file. */
+  /** The manifest of the project atlas runs in: its descriptor or the file of an older release, else its local manifest (a project that publishes nothing has only that). */
+  static ownManifestFileOf(opts: { dir: string }): string | undefined {
+    const local = join(opts.dir, LOCAL_MANIFEST_FILE);
+
+    return ProjectConfig.manifestFileOf(opts) ?? (existsSync(local) ? local : undefined);
+  }
+
+  /** The project's manifest: the one `vulcan x` rendered fresh, else the committed file, else the local one. */
   static readAtlasProject(opts: { root?: string } = {}): IAtlasProject {
     const root = projectRoot(opts);
-    const file = ProjectConfig.manifestFileOf({ dir: root });
+    const file = ProjectConfig.ownManifestFileOf({ dir: root });
     const text =
       handedManifest({ root }) ?? (file === undefined ? undefined : readFileSync(file, 'utf8'));
 

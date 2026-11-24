@@ -24,6 +24,8 @@ interface IGuardPolicy {
   asksNote?: string;
   /** `guard.toolOwnedPaths`: stores a tool manages itself, which guard-outside lets through. */
   toolOwnedPaths: string[];
+  /** `guard.configModules`: the local modules under `.configs/` the config imports, which guard-outside protects like the config. */
+  configModules: string[];
   /** `guard.runners.allow`: the package names bunx, `bun x`, npx and `pnpm dlx` may run beyond `@venizia/*`. */
   runnersAllow: string[];
 }
@@ -130,6 +132,7 @@ export class ProjectGuards {
       outside: GuardDecisions.ASK,
       asks: GuardDecisions.ASK,
       toolOwnedPaths: [],
+      configModules: [],
       runnersAllow: [],
     };
     const unreadable: IGuardPolicy = {
@@ -199,6 +202,7 @@ export class ProjectGuards {
       asks: guard.value['asks'] === GuardDecisions.DENY ? GuardDecisions.DENY : GuardDecisions.ASK,
       asksNote: guard.value['asks'] === GuardDecisions.DENY ? HookConstants.HELD_ASK : undefined,
       toolOwnedPaths: words(owned),
+      configModules: words(guard.value['configModules']),
       runnersAllow: isRecord(runners) ? words(runners.value['allow']) : [],
     };
   }

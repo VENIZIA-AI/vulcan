@@ -46,6 +46,8 @@ export class HookConstants {
     // The temporary copy of the descriptor: for atlas of 0.5.0-6 and before it is the committed trust anchor (`atlas.index.keys`, `sources`). Removed with the stable release.
     '.agents/vulcan.manifest.json',
     '.configs/vulcan.config.*',
+    // A config split into modules keeps them here: each is policy as much as the config file.
+    '.configs/vulcan/**',
     '.agents/local/profile.json',
     '.agents/vulcan.local.json',
     '.claude/settings.json',
