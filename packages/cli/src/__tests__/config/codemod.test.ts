@@ -577,3 +577,28 @@ describe('vulcan config codemod --split --write: what it deletes', () => {
     expect(existsSync(join(root, '.configs/vulcan/agent.mts'))).toBe(false);
   });
 });
+
+describe('config-groups --split: the vulcan:apps block', () => {
+  test('a block with no project group to sit in is refused, nothing written', () => {
+    const text = `import type { VulcanConfig } from '@venizia/vulcan';
+
+// vulcan:apps:start - written by vulcan project init and add; edit outside this block
+// prettier-ignore
+const apps = { "layout": {} };
+// vulcan:apps:end
+
+export default {
+  agents: ['claude'],
+  atlas: { sources: apps.sources },
+} satisfies VulcanConfig;
+`;
+    const result = ConfigCodemod.run({
+      root: '/x',
+      read: (path) => (path === CONFIG ? text : undefined),
+      split: true,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? '' : result.reason).toContain('no `project` group');
+  });
+});

@@ -11,6 +11,10 @@ import type {
 } from './format.ts';
 import { ConfigGroups } from './groups.ts';
 
+/** The markers of the block `vulcan package add` rewrites (`CreateConstants.APPS_BLOCK_START` begins with the first; the create layer imports this one, so it is not imported here). */
+const APPS_BLOCK_START = '// vulcan:apps:start';
+const APPS_BLOCK_END = '// vulcan:apps:end';
+
 /** One file the codemod writes (`text`) or deletes (no `text`), by path relative to the project root. */
 export interface IFileChange {
   path: string;
@@ -660,10 +664,28 @@ export class ConfigCodemod {
     const imports = source.statements.filter((statement) =>
       typescript.isImportDeclaration(statement),
     );
+    // The `vulcan:apps` block (what `vulcan package add` rewrites) moves, whole, to `project.mts` as `export const apps`.
+    const markerStart = source.text.indexOf(APPS_BLOCK_START);
+    const markerEnd = source.text.indexOf(APPS_BLOCK_END);
+    const hasBlock = markerStart !== -1 && markerEnd > markerStart;
+    const blockEnd = hasBlock ? markerEnd + APPS_BLOCK_END.length : -1;
+    const inBlock = (statement: (typeof source.statements)[number]): boolean =>
+      hasBlock && statement.getStart(source) >= markerStart && statement.end <= blockEnd;
     const others = source.statements.filter(
       (statement) =>
-        !typescript.isImportDeclaration(statement) && !typescript.isExportAssignment(statement),
+        !typescript.isImportDeclaration(statement) &&
+        !typescript.isExportAssignment(statement) &&
+        !inBlock(statement),
     );
+    const blockText = hasBlock ? source.text.slice(markerStart, blockEnd) : undefined;
+
+    if (blockText !== undefined && !/^\s*const apps = /m.test(blockText)) {
+      return {
+        ok: false,
+        reason:
+          'the `vulcan:apps` block does not declare `const apps`: fix the block by hand, then run the codemod again',
+      };
+    }
 
     if (others.length > 0) {
       return {
@@ -742,8 +764,13 @@ export class ConfigCodemod {
             new RegExp(`\\b${binding.name}\\b`).test(`${bodies.get(item)?.body ?? item.body}`),
           ),
       );
+      const isUsingApps =
+        blockText !== undefined &&
+        group !== 'project' &&
+        items.some((item) => /\bapps\b/.test(bodies.get(item)?.body ?? item.body));
       const lines = [
         "import type { VulcanConfig } from '@venizia/vulcan';",
+        ...(isUsingApps ? ["import { apps } from './project.mts';"] : []),
         ...[
           ...new Set(
             used.map((binding) => ConfigCodemod.carried({ statement: binding.statement })),
@@ -751,6 +778,10 @@ export class ConfigCodemod {
         ],
         '',
       ];
+
+      if (group === 'project' && blockText !== undefined) {
+        lines.push(blockText.replace(/^(\s*)const apps = /m, '$1export const apps = '), '');
+      }
 
       if (group === 'guard') {
         const [only] = items;
@@ -791,6 +822,14 @@ export class ConfigCodemod {
       changes.push({ path, text: next });
       written.push(group);
       exports.push(`export { ${group} } from './${group}.mts';`);
+    }
+
+    if (blockText !== undefined && !written.includes('project')) {
+      return {
+        ok: false,
+        reason:
+          'the `vulcan:apps` block has no `project` group to sit in: add `project: { ... }` that reads it, then run the codemod again',
+      };
     }
 
     const index = ConfigCodemod.indexRefusal({

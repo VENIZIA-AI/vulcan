@@ -1014,4 +1014,68 @@ describe('the vulcan:apps block of a split monorepo', () => {
     expect(result.stderr).toContain('the vulcan:apps block is gone from');
     expect(readFileSync(outside, 'utf8')).not.toContain('"dir": "worker"');
   });
+
+  test('config codemod --split moves the block to project.mts: the config resolves the same, and package add --lib works right after', async () => {
+    const root = monorepo({ backend: WITH_LIB });
+    const project = readFileSync(join(root, PROJECT), 'utf8');
+    const start = project.indexOf('// vulcan:apps:start');
+    const end = project.indexOf('// vulcan:apps:end') + '// vulcan:apps:end'.length;
+    const block = project.slice(start, end).replace('export const apps', 'const apps');
+
+    rmSync(join(root, '.configs/vulcan'), { recursive: true });
+    writeFileSync(
+      join(root, CONFIG),
+      [
+        "import type { VulcanConfig } from '@venizia/vulcan';",
+        '',
+        block,
+        '',
+        '// The project.',
+        'export default {',
+        "  name: 'p',",
+        "  project: { key: 'TEST' },",
+        '  layout: apps.layout,',
+        '  packages: apps.packages,',
+        '  presets: apps.presets,',
+        '  atlas: { sources: apps.sources },',
+        "  rules: { 'V-W-01': 'on-user-word' },",
+        '} satisfies VulcanConfig;',
+        '',
+      ].join('\n'),
+    );
+
+    const before = await ConfigLoader.load({ root });
+    const result = runCli({
+      args: ['config', 'codemod', 'config-groups', '.', '--split', '--write'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(readFileSync(join(root, PROJECT), 'utf8')).toContain('export const apps = ');
+    expect(readFileSync(join(root, CONFIG), 'utf8')).not.toContain('vulcan:apps:start');
+    expect(readFileSync(join(root, '.configs/vulcan/knowledge.mts'), 'utf8')).toContain(
+      "import { apps } from './project.mts';",
+    );
+    expect(readFileSync(join(root, CONFIG), 'utf8')).toContain('// The project.');
+
+    const after = await ConfigLoader.load({ root });
+
+    if (!before.ok || !after.ok) {
+      throw new Error(before.ok ? String(!after.ok && after.error) : before.error);
+    }
+
+    expect(after.config).toEqual(before.config);
+
+    const config = readFileSync(join(root, CONFIG), 'utf8');
+    const lib = runCli({
+      args: ['package', 'add', '--preset', WITH_LIB, '--lib', 'billing', '--dir', 'libs'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(lib.code, lib.stderr).toBe(0);
+    expect(readFileSync(join(root, PROJECT), 'utf8')).toContain('"dir": "billing"');
+    expect(readFileSync(join(root, CONFIG), 'utf8')).toBe(config);
+  });
 });
