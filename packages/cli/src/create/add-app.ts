@@ -526,8 +526,8 @@ export class AppScaffold {
           outside !== undefined
             ? `${outside} is outside .configs (a link out of it): the vulcan:apps block is not read from it - add by hand:`
             : parsed.reason === AppsBlockProblems.MISSING
-            ? `the vulcan:apps block is gone from ${configPath} and .configs/vulcan/project.mts - add by hand:`
-            : `the vulcan:apps block in ${blockPath} is not the JSON vulcan wrote - add by hand:`,
+              ? `the vulcan:apps block is gone from ${configPath} and .configs/vulcan/project.mts - add by hand:`
+              : `the vulcan:apps block in ${blockPath} is not the JSON vulcan wrote - add by hand:`,
           ...literal({ side, folders: grown, app: entry, sources: newSources }),
         ].join('\n'),
       });

@@ -633,7 +633,9 @@ const apps = { "layout": {}, "packages": [], "presets": [], "sources": [] };
 
     expect(config).not.toContain('vulcan:apps');
     expect(config).not.toContain('prettier-ignore');
-    expect(textOf({ changes, path: '.configs/vulcan/project.mts' })).toContain('// vulcan:apps:end');
+    expect(textOf({ changes, path: '.configs/vulcan/project.mts' })).toContain(
+      '// vulcan:apps:end',
+    );
   });
 
   test('the block as the first statement: its markers and prettier-ignore do not land in the config', () => {
@@ -656,8 +658,12 @@ const apps = { "layout": {}, "packages": [], "presets": [], "sources": [] };
   });
 
   test('a group imports apps only when it reads the identifier, not the word in a string', () => {
-    const changes = split(`${TYPE}\n${BLOCK}\n\nexport default {\n  name: 'p',\n  layout: apps.layout,\n  atlas: { paths: ['apps/*'] },\n} satisfies VulcanConfig;\n`);
+    const changes = split(
+      `${TYPE}\n${BLOCK}\n\nexport default {\n  name: 'p',\n  layout: apps.layout,\n  atlas: { paths: ['apps/*'] },\n} satisfies VulcanConfig;\n`,
+    );
 
-    expect(textOf({ changes, path: '.configs/vulcan/knowledge.mts' })).not.toContain('./project.mts');
+    expect(textOf({ changes, path: '.configs/vulcan/knowledge.mts' })).not.toContain(
+      './project.mts',
+    );
   });
 });

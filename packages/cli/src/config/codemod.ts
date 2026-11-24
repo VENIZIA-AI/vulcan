@@ -767,7 +767,9 @@ export class ConfigCodemod {
       const isUsingApps =
         blockText !== undefined &&
         group !== 'project' &&
-        items.some((item) => ConfigCodemod.readsApps({ text: bodies.get(item)?.body ?? item.body }));
+        items.some((item) =>
+          ConfigCodemod.readsApps({ text: bodies.get(item)?.body ?? item.body }),
+        );
       const lines = [
         "import type { VulcanConfig } from '@venizia/vulcan';",
         ...(isUsingApps ? ["import { apps } from './project.mts';"] : []),
@@ -846,13 +848,6 @@ export class ConfigCodemod {
     const exported = source.statements.find((statement) =>
       typescript.isExportAssignment(statement),
     );
-    const trivia = (statement: typeof first | undefined): string =>
-      statement === undefined
-        ? ''
-        : outsideBlock({
-            from: statement.getFullStart(),
-            to: statement.getStart(source),
-          }).trim();
     // The comment text of a range, without what lies between the block's markers (they travel with the block to `project.mts`).
     const outsideBlock = (range: { from: number; to: number }): string =>
       !hasBlock
@@ -866,6 +861,13 @@ export class ConfigCodemod {
             .map((part) => part.trim())
             .filter((part) => part !== '')
             .join('\n');
+    const trivia = (statement: typeof first | undefined): string =>
+      statement === undefined
+        ? ''
+        : outsideBlock({
+            from: statement.getFullStart(),
+            to: statement.getStart(source),
+          }).trim();
     // The comment at the top of the file, and the one above `export default` when it is not the same.
     const header = trivia(first);
     const above = exported === first ? '' : trivia(exported);
