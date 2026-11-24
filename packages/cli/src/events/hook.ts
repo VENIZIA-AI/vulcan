@@ -11,6 +11,7 @@ import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowSteps } from './flow-steps.ts';
 import { EventLog } from './log.ts';
+import { SessionMark } from './session-mark.ts';
 import { EventSettings } from './settings.ts';
 import { EventText } from './text.ts';
 
@@ -236,6 +237,34 @@ export class EventHook {
   }
 
   /**
+   * A file edit by a tool of this session: the time goes to the session's file of `OWN_EDIT_DIR`, so the Stop hook counts
+   * only the edits of this session in a working tree that other sessions share. No path and no content is read, and no line
+   * is logged. A subagent's edit marks its parent session, whose work it is. An unknown actor and a failed call mark nothing.
+   */
+  private static markEdit(opts: {
+    dir: string;
+    input: Record<string, unknown>;
+    env: Record<string, string | undefined>;
+    now?: number;
+  }): void {
+    const actor = EventActor.resolve({
+      sessionId: text({ value: opts.input.session_id }),
+      env: opts.env,
+    });
+
+    if (actor === EventConstants.UNKNOWN_ACTOR || EventHook.hasFailed({ input: opts.input })) {
+      return;
+    }
+
+    SessionMark.write({
+      dir: opts.dir,
+      folder: EventConstants.OWN_EDIT_DIR,
+      actor,
+      now: opts.now ?? Date.now(),
+    });
+  }
+
+  /**
    * A shell call that committed, opened a pull request or merged one: a line of the fixed label for it, on the flow of the
    * branch, else the one this session last opened or updated (none when neither is found). The command itself is never
    * read here; the script gives only its class, and every other shell call writes nothing.
@@ -319,6 +348,20 @@ export class EventHook {
     const settings = EventSettings.read({ root: opts.root });
 
     if (!settings.log) {
+      return undefined;
+    }
+
+    if (
+      RecordValue.isRecord(opts.input) &&
+      ClaudeHookEvents.EDIT_TOOLS.has(text({ value: opts.input.tool_name }))
+    ) {
+      EventHook.markEdit({
+        dir: EventSettings.dirOf({ root: opts.root, settings }),
+        input: opts.input,
+        env: opts.env,
+        ...(opts.now === undefined ? {} : { now: opts.now }),
+      });
+
       return undefined;
     }
 

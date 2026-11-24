@@ -1,7 +1,8 @@
 /**
  * Board hook (Stop): first records the tokens of the turn as `usage` lines (src/events/usage.ts; numbers and a model only),
  * then holds the end of a turn once when the board is out of step with the work of the turn (a commit, a
- * pull request or an edit of tracked files since the flow's last line, or a merge with steps still open) and prints the
+ * pull request, or an edit tool of this session and an edit of tracked files, since the flow's last line, or a merge with
+ * steps still open) and prints the
  * exact `vulcan event step` command to run (src/events/stop.ts). Only with `events.log` on.
  *
  * It fails OPEN: input it cannot read, a missing module, a git that is slow or absent, any error passes with a note on

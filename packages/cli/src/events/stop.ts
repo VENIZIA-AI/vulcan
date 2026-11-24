@@ -1,5 +1,5 @@
-import { mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { statSync } from 'node:fs';
+import { join } from 'node:path';
 import { ProjectLayout } from '../common/constants.ts';
 import { GitQueries } from '../hooks/git-queries.ts';
 import { RecordValue } from '../common/record.ts';
@@ -9,6 +9,7 @@ import { FlowId } from './flow-id.ts';
 import { EventText } from './text.ts';
 import { SessionFlow } from './session-flow.ts';
 import type { ISessionFlow } from './session-flow.ts';
+import { SessionMark } from './session-mark.ts';
 import { EventSettings } from './settings.ts';
 
 /** Whether a tracked file of the project was modified after a time (milliseconds). */
@@ -30,9 +31,9 @@ const STEPS_LISTED = 5;
  * The `Stop` hook: it holds the end of a turn once when the board is out of step with the work of the turn, and says
  * the exact `vulcan event step` command that puts it right. Out of step means, for the flow of the session (the
  * branch's, else the one it last opened or updated, and not over), that since the flow's last `flow` line the session
- * committed or opened a pull request, or tracked files were edited, or a pull request of the flow was merged while steps
- * are still open. It never blocks twice in a turn (`stop_hook_active`), never with `events.log` off, and any problem
- * reading the log, the clock or git is no block.
+ * committed or opened a pull request, or an edit tool of the session ran and tracked files were edited, or a pull
+ * request of the flow was merged while steps are still open. It never blocks twice in a turn (`stop_hook_active`), never
+ * with `events.log` off, and any problem reading the log, the edit mark, the clock or git is no block.
  */
 export class BoardStop {
   /** The JSON the hook prints to hold the turn, or `undefined` to let it end. */
@@ -90,15 +91,22 @@ export class BoardStop {
       };
     }
 
-    // The working tree is shared by every session of a checkout, so an edit is this session's only when it already has a line in the flow.
     const isInFlow = known.some(
       (event) =>
         event.actor === actor &&
         event.flowId !== undefined &&
         FlowId.canon({ id: event.flowId, key }) === wanted,
     );
+    // The working tree is shared by every session of a checkout: a dirty file counts only after an edit tool of this session ran.
+    const ownEdit = SessionMark.read({
+      dir: EventSettings.dirOf({ root: opts.root }),
+      folder: EventConstants.OWN_EDIT_DIR,
+      actor,
+    });
+    const isEdited =
+      isInFlow && ownEdit !== undefined && ownEdit > since && edited({ root: opts.root, since });
 
-    if (acts.length > 0 || (isInFlow && edited({ root: opts.root, since }))) {
+    if (acts.length > 0 || isEdited) {
       return {
         decision: 'block',
         reason: BoardStop.reasonOf({
@@ -146,26 +154,17 @@ export class BoardStop {
       return undefined;
     }
 
-    const file = join(
-      EventSettings.dirOf({ root: opts.root }),
-      EventConstants.STALE_REMINDER_DIR,
-      actor.replace(/[^A-Za-z0-9._-]/g, '_'),
-    );
+    const dir = EventSettings.dirOf({ root: opts.root });
+    const before = SessionMark.read({ dir, folder: EventConstants.STALE_REMINDER_DIR, actor });
 
-    try {
-      const before = Number(readFileSync(file, 'utf8'));
-
-      if (Number.isFinite(before) && now - before < EventConstants.STALE_FLOW_MS) {
-        return undefined;
-      }
-    } catch {
-      // No reminder yet: this is the first one.
+    if (before !== undefined && now - before < EventConstants.STALE_FLOW_MS) {
+      return undefined;
     }
 
     try {
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, String(now), { mode: 0o600 });
-      BoardStop.pruneReminders({ dir: dirname(file), now });
+      SessionMark.write({ dir, folder: EventConstants.STALE_REMINDER_DIR, actor, now });
+      SessionMark.prune({ dir, folder: EventConstants.STALE_REMINDER_DIR, now });
+      SessionMark.prune({ dir, folder: EventConstants.OWN_EDIT_DIR, now });
     } catch {
       // A reminder that cannot be remembered would repeat every turn: no reminder.
       return undefined;
@@ -182,21 +181,6 @@ export class BoardStop {
         why: `The flow has had no update for ${hours} hours and steps are still open. Tick what is done, say what comes next, or park or close the flow`,
       }),
     };
-  }
-
-  /** Removes the reminder files nobody has touched for `STALE_REMINDER_KEEP_MS`; a file that cannot be read or removed stays. */
-  private static pruneReminders(opts: { dir: string; now: number }): void {
-    try {
-      for (const name of readdirSync(opts.dir)) {
-        const path = join(opts.dir, name);
-
-        if (opts.now - statSync(path).mtimeMs > EventConstants.STALE_REMINDER_KEEP_MS) {
-          unlinkSync(path);
-        }
-      }
-    } catch {
-      // Best effort: an old file is a few bytes.
-    }
   }
 
   private static reasonOf(opts: {
