@@ -157,7 +157,7 @@ describe('vulcan sync with nothing chosen', () => {
 
     const ignore = readFileSync(join(root, '.gitignore'), 'utf8');
 
-    expect(ignore).toBe('node_modules/\n.agents/local/\n');
+    expect(ignore).toBe('node_modules/\n.agents/local/\n/.claude/settings.json\n');
   });
 });
 
@@ -231,5 +231,22 @@ describe.skipIf(!hasScript)('vulcan sync in a terminal', () => {
     });
 
     expect(again.output).not.toContain('Which coding agents');
+  });
+});
+
+describe('vulcan sync --quiet', () => {
+  test('prints what changed and the notes, and not the rows of files that stayed as they were', () => {
+    const root = createProject({ files: { ...PROJECT, '.gitignore': 'node_modules/\n' } });
+
+    runCli({ args: ['sync', '--agents', 'omp'], cwd: root });
+
+    const again = runCli({ args: ['sync', '--agents', 'omp', '--quiet'], cwd: root });
+    const first = createProject({ files: { ...PROJECT, '.gitignore': 'node_modules/\n' } });
+    const created = runCli({ args: ['sync', '--agents', 'omp', '--quiet'], cwd: first });
+
+    expect(again.code).toBe(0);
+    expect(again.stderr).not.toContain('unchanged');
+    expect(created.stderr).toContain('created');
+    expect(created.stderr).not.toContain('unchanged');
   });
 });

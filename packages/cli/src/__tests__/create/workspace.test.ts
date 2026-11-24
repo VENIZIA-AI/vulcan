@@ -7,6 +7,7 @@ import {
   PresetRecord,
 } from '../../create/workspace.ts';
 import { OkfFrontmatter } from '@venizia/vulcan-okf';
+import { ProjectLayout } from '../../common/constants.ts';
 import { Bunfig } from '../../create/bunfig.ts';
 import { checkManifests } from '../format.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -50,7 +51,10 @@ describe('workspace planners', () => {
       name: 'my-product',
       private: true,
       workspaces: { packages: ['services/*', 'libs/*'], catalog: { hono: '^4' } },
-      scripts: { dev: "bun run --filter '*' server:dev" },
+      scripts: {
+        dev: "bun run --filter '*' server:dev",
+        prepare: ProjectLayout.PREPARE_SCRIPT,
+      },
       devDependencies: { '@venizia/vulcan': '0.3.0' },
     });
   });

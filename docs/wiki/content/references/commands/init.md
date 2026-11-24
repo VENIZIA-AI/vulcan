@@ -120,6 +120,8 @@ In this second run, `Makefile` produces no line because the include line already
 ### Workspaces projects
 
 If `package.json` declares `workspaces`, `vulcan init` omits the two lint configs at the root.
+
+A project made with `--preset` gets a `prepare` script in its root `package.json`, so `bun install` runs `vulcan sync` in every fresh clone (the script reads no terminal and cannot fail the install). `vulcan init` in an existing directory leaves your `package.json` alone: `vulcan doctor` notes the missing script and prints the line.
 The command prints status `skipped` with the reason:
 
 ```text

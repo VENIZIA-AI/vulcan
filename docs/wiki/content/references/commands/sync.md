@@ -23,6 +23,7 @@ The manifest is always written.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
+| `--quiet` | boolean | off | Print only what changed and the notes, not every file that stayed as it was (the `prepare` script uses it) |
 | `--agents <list>` | string | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/local/profile.json` |
 | `--dry-run` | boolean | false | Print planned changes without writing to disk |
 
@@ -46,7 +47,7 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
 
 The answer is stored in `.agents/local/profile.json`, which is gitignored, and every later `sync` uses it without asking. On the first question an empty answer (Enter) takes the detected list. When you ask again (`vulcan sync --agents` with no value, or `vulcan agents setup`), the question shows `chosen before:` and Enter keeps that choice; to change it, type the new list, or `none`. Without a terminal, give the list: `vulcan sync --agents claude,omp` (`none` writes only `AGENTS.md`-level files).
 
-The order that decides the list is: the `--agents` flag; the stored file; the `agents` list in the project's config, when it has one; then the question. When nothing is known and there is no terminal, `sync` writes the Claude files and prints one line saying how to choose; it stores nothing. A project that already has `CLAUDE.md` or `.claude/` gets no special treatment: its first `sync` asks like any other. What each chosen agent gets from `sync`:
+The order that decides the list is: the `--agents` flag; the stored file; the `agents` list in the project's config, when it has one; then the question. When nothing is known and there is no terminal, `sync` writes the Claude files and prints one line saying how to choose (users of Codex, omp or pi run `vulcan sync --agents <list>` once); it stores nothing. That is also what a `prepare` script does on `bun install`, which reads no terminal. A project that already has `CLAUDE.md` or `.claude/` gets no special treatment: its first `sync` asks like any other. What each chosen agent gets from `sync`:
 
 | Agent | Atlas MCP entry | Where |
 |---|---|---|
@@ -120,7 +121,7 @@ A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you ch
 
 ## The temp folder
 
-`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/`, and creates the folder `local.tmp` names, when the config sets one, and gitignores it. The session-start hook it registers exports `TMPDIR` into every Bash command. A `.agents/local/claude.launch.settings.json` left by an earlier release is removed when git does not track it. What the hook moves, and what it does not, is in [Temporary files](/references/agents#temporary-files).
+`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/` and, unless `.claude/` is already ignored, `/.claude/settings.json` (Claude Code's settings are written in every clone and never committed), and creates the folder `local.tmp` names, when the config sets one, and gitignores it. The session-start hook it registers exports `TMPDIR` into every Bash command. A `.agents/local/claude.launch.settings.json` left by an earlier release is removed when git does not track it. What the hook moves, and what it does not, is in [Temporary files](/references/agents#temporary-files).
 
 ## Keeping the adapters out of git
 

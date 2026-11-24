@@ -3,7 +3,7 @@ import type { TAgentResolution, TAskAgents } from './common/index.ts';
 import { LocalChoice } from './local.ts';
 import { AgentTable } from './table.ts';
 
-export const NO_TTY_HINT = `vulcan sync: no agents chosen on this machine - wrote the Claude files as before; to choose, run: vulcan sync ${AgentConstants.FLAG} ${AgentConstants.EXAMPLE_LIST} (or ${AgentConstants.NONE})`;
+export const NO_TTY_HINT = `vulcan sync: no agents chosen on this machine - wrote the Claude files as before; if you use Codex, omp, pi or another agent, run once: vulcan sync ${AgentConstants.FLAG} ${AgentConstants.EXAMPLE_LIST} (or ${AgentConstants.NONE})`;
 
 type TParsed = { ok: true; agents: string[] } | { ok: false; error: string };
 

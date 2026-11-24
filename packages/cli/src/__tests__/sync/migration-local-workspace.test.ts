@@ -22,7 +22,7 @@ describe('upgrading a project from the layout before .agents/local/', () => {
 
     expect(result.code).toBe(0);
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\n.agents/local/profile.json\n.agents/local/\n',
+      'node_modules/\n.agents/local/profile.json\n.agents/local/\n/.claude/settings.json\n',
     );
 
     for (const name of ['tmp', 'worktrees', 'clones', 'cache', 'reports', 'prototypes']) {

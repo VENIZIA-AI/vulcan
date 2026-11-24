@@ -82,7 +82,9 @@ describe('LocalPlan.planWorkspace', () => {
 
     apply({ root });
 
-    expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe('node_modules/\n.agents/local/\n');
+    expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
+      'node_modules/\n.agents/local/\n/.claude/settings.json\n',
+    );
 
     for (const entry of ProjectLayout.LOCAL_LAYOUT) {
       // On-demand folders (events, release-candidates) appear when something writes there, not on sync.
@@ -112,9 +114,19 @@ describe('LocalPlan.planWorkspace', () => {
   test('a line already there is not added twice', () => {
     const root = createProject({ files: { '.gitignore': '.agents/local/\n' } });
 
-    // The directories are made; the .gitignore line is already there and is left alone.
+    // The directories are made; the .gitignore line is already there and is left alone, and only the Claude settings line is new.
     expect(
-      LocalPlan.planWorkspace({ root }).filter((action) => action.path.endsWith('.gitignore')),
+      LocalPlan.planWorkspace({ root })
+        .filter((action) => action.path.endsWith('.gitignore'))
+        .map((action) => action.note),
+    ).toEqual(['added /.claude/settings.json']);
+
+    const covered = createProject({ files: { '.gitignore': '.agents/local/\n.claude/\n' } });
+
+    expect(
+      LocalPlan.planWorkspace({ root: covered }).filter((action) =>
+        action.path.endsWith('.gitignore'),
+      ),
     ).toEqual([]);
   });
 

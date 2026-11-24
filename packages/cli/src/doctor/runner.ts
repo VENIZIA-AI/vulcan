@@ -70,6 +70,7 @@ export class DoctorRunner {
     return [
       ...ProjectContract.checkConfigDefaults(context),
       ...ProjectContract.checkBoardAutoStart(context),
+      ...ProjectContract.checkPrepareScript(context),
       ...ProjectContract.checkAtlasBlock(context),
       ...ProjectContract.checkAcknowledgedValues(context),
       ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
@@ -93,6 +94,7 @@ export class DoctorRunner {
 
     return [
       ...ProjectContract.checkStaleRemove(context),
+      ...ProjectContract.checkClaudeSettingsTracked(context),
       ...ProjectContract.checkMcpAtlas(context),
       ...ProjectContract.checkCommitHook(context),
       ...ProjectContract.checkEventsDir(context),

@@ -25,6 +25,7 @@ import {
 import { CommitHookPlan } from '../commit/index.ts';
 
 const DRY_RUN_FLAG = '--dry-run';
+const QUIET_FLAG = '--quiet';
 const LABEL_WIDTH = 9;
 
 /** Under --dry-run nothing is written, so a write is labelled as what it would do. */
@@ -127,9 +128,16 @@ export class SyncFlow {
     const changes = BaseRulesDiff.diff({ root: opts.cwd, packs: loaded.config.packs });
     const width = dryRun ? DRY_RUN_LABEL_WIDTH : LABEL_WIDTH;
 
+    const isQuiet = opts.args.includes(QUIET_FLAG);
+
     for (const action of actions) {
       if (!dryRun) {
         action.apply();
+      }
+
+      // `--quiet` (the `prepare` script, run on every install) prints what changed, not every file that stayed as it was.
+      if (isQuiet && action.status === SyncStatuses.UNCHANGED) {
+        continue;
       }
 
       const note = action.note === undefined ? '' : ` (${action.note})`;
