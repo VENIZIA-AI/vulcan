@@ -57,6 +57,8 @@ export interface IEvent {
   apps?: string[];
   /** Only a `flow` has one: the day it is due, `YYYY-MM-DD`. */
   due?: string;
+  /** Only a `flow` has one: its place in the work order, a positive whole number. */
+  order?: number;
   /** Only a `session-start` the Claude Code hook wrote has one: the model of the session. */
   model?: string;
   /** Only a `usage` line has them: the tokens, and where the transcript was read to. */

@@ -1149,3 +1149,24 @@ describe('BoardFold.fromLog: a tool tick', () => {
     ).toBe('idle');
   });
 });
+
+describe('BoardFold.fold: the work order of a flow', () => {
+  const flowLine = (opts: { minute: number; order?: number }) =>
+    line({
+      minute: opts.minute,
+      kind: 'flow',
+      actor: 'pnt-vulcan-1',
+      flow: 'F-1',
+      summary: 'Sign in',
+      ...(opts.order === undefined ? {} : { order: opts.order }),
+    });
+
+  test('the newest flow line gives the order, and a newer line without one drops it', () => {
+    const first = flowLine({ minute: 1, order: 4 });
+    const second = flowLine({ minute: 2, order: 2 });
+    const third = flowLine({ minute: 3 });
+
+    expect(flowOf({ id: 'F-1', lines: [first, second] }).order).toBe(2);
+    expect(flowOf({ id: 'F-1', lines: [first, second, third] }).order).toBeUndefined();
+  });
+});

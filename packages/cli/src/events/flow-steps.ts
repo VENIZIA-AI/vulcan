@@ -120,9 +120,12 @@ export class FlowSteps {
     source: string;
     next?: string;
     context?: string;
+    /** A new place in the work order; `null` clears it; left out, the line keeps its own. */
+    order?: number | null;
     now?: number;
   }): IEvent {
     const { last } = opts;
+    const order = opts.order === undefined ? last.order : (opts.order ?? undefined);
 
     return EventLog.build({
       kind: EventKinds.FLOW,
@@ -140,6 +143,7 @@ export class FlowSteps {
       ...(last.checks === undefined ? {} : { checks: last.checks }),
       ...(last.apps === undefined ? {} : { apps: last.apps }),
       ...(last.due === undefined ? {} : { due: last.due }),
+      ...(order === undefined ? {} : { order }),
       ...(opts.now === undefined ? {} : { now: opts.now }),
     });
   }

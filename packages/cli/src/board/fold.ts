@@ -216,6 +216,7 @@ export class BoardFold {
           ...(line.checks === undefined ? {} : { checks: line.checks }),
           ...(line.apps === undefined ? {} : { apps: line.apps }),
           ...(line.due === undefined ? {} : { due: line.due }),
+          ...(line.order === undefined ? {} : { order: line.order }),
           ...(line.ref === undefined ? {} : { tracker: line.ref }),
         };
       }
@@ -480,6 +481,7 @@ export class BoardFold {
     checks?: IBoardItem[];
     apps?: string[];
     due?: string;
+    order?: number;
     tracker?: string;
   } {
     const { named } = opts;
@@ -496,6 +498,7 @@ export class BoardFold {
           ...(named.checks === undefined ? {} : { checks: named.checks }),
           ...(named.apps === undefined ? {} : { apps: named.apps }),
           ...(named.due === undefined ? {} : { due: named.due }),
+          ...(named.order === undefined ? {} : { order: named.order }),
           ...(named.tracker === undefined ? {} : { tracker: named.tracker }),
         };
   }

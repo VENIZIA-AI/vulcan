@@ -16,6 +16,7 @@ export const line = (opts: {
   why?: string;
   context?: string;
   next?: string;
+  order?: number;
   notification?: string;
   source?: string;
 }): IEvent =>
@@ -30,6 +31,7 @@ export const line = (opts: {
     ...(opts.why === undefined ? {} : { why: opts.why }),
     ...(opts.context === undefined ? {} : { context: opts.context }),
     ...(opts.next === undefined ? {} : { next: opts.next }),
+    ...(opts.order === undefined ? {} : { order: opts.order }),
     ...(opts.notification === undefined ? {} : { notification: opts.notification }),
     now: (opts.base ?? T0) + opts.minute * 60_000,
   });

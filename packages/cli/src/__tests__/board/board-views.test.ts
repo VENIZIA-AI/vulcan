@@ -130,7 +130,7 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
     }
   });
 
-  test('the table: ten columns in order, a header click sorts with aria-sort, and j moves through its rows', async () => {
+  test('the table: eleven columns in order, a header click sorts with aria-sort, and j moves through its rows', async () => {
     const result = await run<{
       headers: string[];
       rows: number;
@@ -171,6 +171,7 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
 
     expect(result.errors).toEqual([]);
     expect(result.headers).toEqual([
+      'Order',
       'Code',
       'Title',
       'Stage',

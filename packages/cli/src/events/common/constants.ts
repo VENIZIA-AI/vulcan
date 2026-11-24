@@ -60,6 +60,9 @@ export class EventFlags {
   static readonly CHECK_DONE = '--check-done';
   static readonly APP = '--app';
   static readonly DUE = '--due';
+  /** Only a `flow`: its place in the work order, a positive whole number, or `none` to clear it. */
+  static readonly ORDER = '--order';
+  static readonly ORDER_NONE = 'none';
   static readonly KIND = '--kind';
   static readonly SUMMARY = '--summary';
   static readonly FLOW = '--flow';
@@ -85,6 +88,7 @@ export class EventFlags {
     this.CHECK_DONE,
     this.APP,
     this.DUE,
+    this.ORDER,
     this.KIND,
     this.SUMMARY,
     this.FLOW,

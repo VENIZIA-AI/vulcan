@@ -1,0 +1,158 @@
+import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
+import { join } from 'node:path';
+import { EventLog } from '../../events/index.ts';
+import { hermeticEnv } from '../hermetic.helper.ts';
+import { createProject, removeProjects } from '../project.helper.ts';
+import { runCli } from '../run.helper.ts';
+
+afterAll(removeProjects);
+setDefaultTimeout(30_000);
+
+const project = (): string =>
+  createProject({
+    files: {
+      '.agents/local/vulcan.manifest.json': JSON.stringify({
+        project: { key: 'ACME' },
+        events: { log: true },
+      }),
+    },
+  });
+const cli = (opts: { root: string; args: string[] }) =>
+  runCli({
+    args: ['event', ...opts.args],
+    cwd: opts.root,
+    env: { ...hermeticEnv(), VULCAN_ACTOR: 'pnt-vulcan-1' },
+  });
+const flowsOf = (root: string) =>
+  EventLog.read({ dir: join(root, '.agents/local/events') }).events.filter(
+    (line) => line.kind === 'flow',
+  );
+const open = (opts: { root: string; extra?: string[] }): string =>
+  cli({
+    root: opts.root,
+    args: ['add', '--kind', 'flow', '--title', 'Sign in', '--step', 'Token', ...(opts.extra ?? [])],
+  }).stdout.trim();
+
+describe('the order of a flow', () => {
+  test('add --order writes it on the flow line, and a flow with none has none', () => {
+    const root = project();
+
+    open({ root, extra: ['--order', '3'] });
+    open({ root });
+
+    expect(flowsOf(root).map((line) => line.order)).toEqual([3, undefined]);
+  });
+
+  test('the last value wins, on add and on step', () => {
+    const root = project();
+    const id = open({ root, extra: ['--order', '2', '--order', '7'] });
+
+    expect(flowsOf(root).at(-1)?.order).toBe(7);
+
+    cli({ root, args: ['step', '--flow', id, '--order', '4', '--order', '5'] });
+    expect(flowsOf(root).at(-1)?.order).toBe(5);
+  });
+
+  test('step --order changes only the order, and the line keeps its steps and title', () => {
+    const root = project();
+    const id = open({ root, extra: ['--order', '1'] });
+    const done = cli({ root, args: ['step', '--flow', id, '--order', '6'] });
+    const last = flowsOf(root).at(-1);
+
+    expect(done.code).toBe(0);
+    expect(last?.order).toBe(6);
+    expect(last?.summary).toBe('Sign in');
+    expect(last?.steps).toEqual([{ text: 'Token', done: false }]);
+  });
+
+  test('a step or a next text keeps the order, and the same order again writes nothing', () => {
+    const root = project();
+    const id = open({ root, extra: ['--order', '3'] });
+
+    cli({ root, args: ['step', '--flow', id, '--done', 'Token'] });
+    cli({ root, args: ['step', '--flow', id, '--next', 'review'] });
+    expect(flowsOf(root).at(-1)?.order).toBe(3);
+
+    const before = flowsOf(root).length;
+
+    cli({ root, args: ['step', '--flow', id, '--order', '3'] });
+    expect(flowsOf(root)).toHaveLength(before);
+  });
+
+  test('--order none clears it', () => {
+    const root = project();
+    const id = open({ root, extra: ['--order', '3'] });
+    const cleared = cli({ root, args: ['step', '--flow', id, '--order', 'none'] });
+
+    expect(cleared.code).toBe(0);
+    expect(flowsOf(root).at(-1)?.order).toBeUndefined();
+    expect(flowsOf(root).at(-1)?.steps).toEqual([{ text: 'Token', done: false }]);
+  });
+
+  test('a value that is not a positive whole number is refused, and so is --order on another line', () => {
+    const root = project();
+    const id = open({ root });
+
+    for (const value of ['0', '-1', '1.5', 'abc', '']) {
+      expect(cli({ root, args: ['step', '--flow', id, '--order', value] }).code).toBe(2);
+    }
+
+    expect(
+      cli({ root, args: ['add', '--kind', 'flow', '--title', 'X', '--order', 'abc'] }).code,
+    ).toBe(2);
+    expect(
+      cli({ root, args: ['add', '--kind', 'note', '--summary', 'x', '--order', '2'] }).code,
+    ).toBe(2);
+    expect(flowsOf(root)).toHaveLength(1);
+  });
+});
+
+describe('the order in the log', () => {
+  test('an old line with no order is valid, and a line keeps a valid order through the file', () => {
+    const old = EventLog.parse({
+      line: JSON.stringify({
+        id: 'a',
+        ts: '2026-11-01T08:00:00.000Z',
+        actor: 'x',
+        kind: 'flow',
+        source: 'cli',
+        summary: 'Old',
+        flowId: 'F-1',
+      }),
+    });
+
+    expect(old?.summary).toBe('Old');
+    expect(old?.order).toBeUndefined();
+
+    const kept = EventLog.parse({
+      line: JSON.stringify(
+        EventLog.build({ kind: 'flow', summary: 'New', actor: 'x', source: 'cli', order: 5 }),
+      ),
+    });
+
+    expect(kept?.order).toBe(5);
+  });
+
+  test('an order that is not a positive whole number is dropped, and the line stays a line', () => {
+    for (const order of [0, -2, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 2]) {
+      expect(
+        EventLog.build({ kind: 'flow', summary: 'A', actor: 'x', source: 'cli', order }).order,
+      ).toBeUndefined();
+    }
+
+    const parsed = EventLog.parse({
+      line: JSON.stringify({
+        id: 'a',
+        ts: '2026-11-01T08:00:00.000Z',
+        actor: 'x',
+        kind: 'flow',
+        source: 'cli',
+        summary: 'A',
+        order: '3',
+      }),
+    });
+
+    expect(parsed?.summary).toBe('A');
+    expect(parsed?.order).toBeUndefined();
+  });
+});

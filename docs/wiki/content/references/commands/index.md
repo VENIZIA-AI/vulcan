@@ -47,7 +47,7 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   .agents/local/reports/board.html; read-only; exit 2 on bad input
   board serve [--port <n>] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
                                   Serve the same page on 127.0.0.1 (default port 4317) and push the new events to the open page, with no reload
-  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] | step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] | tail [--since <time>] [--json] [--dir <folder>]
+  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] [--order <n>] | step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] [--order <n>|none] | tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
                                   read it; with events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input
