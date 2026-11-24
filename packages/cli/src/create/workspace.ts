@@ -259,7 +259,7 @@ const renderAtlasLookups = (opts: { kind: TAppSide | typeof PackageKinds.LIB }):
   '|---|---|',
   ...ATLAS_LOOKUPS[opts.kind].map(([need, call]) => `| ${need} | ${call} |`),
   '| The signature and import path of an export, before you import it | `symbol` with its name |',
-  '| A new app or package | `presets`, then the `vulcan add` command it returns |',
+  '| A new app or package | `presets`, then the `vulcan package add` command it returns |',
   '',
 ];
 

@@ -56,6 +56,8 @@ export interface IBoardEvent {
   checks?: IBoardItem[];
   apps?: string[];
   due?: string;
+  /** Its place in the work order, from the flow line; `null` clears it. */
+  order?: number | null;
   tracker?: string;
   summary: string;
   source: string;
@@ -99,6 +101,7 @@ export interface IBoardFlow {
   checks?: IBoardItem[];
   apps?: string[];
   due?: string;
+  order?: number;
   tracker?: string;
   repo?: string;
   state: TBoardState;

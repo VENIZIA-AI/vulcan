@@ -188,7 +188,7 @@ const planOf = (opts: { plan: IMigrationPlan; verbose: boolean }): string[] => {
   if (plan.entries === 0) {
     // An empty window is the one answer that must not read as a clean one.
     lines.push(
-      `${article} ${plan.direction}: No changelog entry falls between ${plan.from} and ${plan.to} in the release table. That proves nothing about the move: check that the package's source was indexed with its changelog (\`vulcan x atlas releases\`).${source}`,
+      `${article} ${plan.direction}: No changelog entry falls between ${plan.from} and ${plan.to} in the release table. That proves nothing about the move: check that the package's source was indexed with its changelog (\`vulcan atlas releases\`).${source}`,
       '',
     );
   } else {

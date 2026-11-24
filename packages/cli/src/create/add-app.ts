@@ -35,7 +35,7 @@ type TRootManifest = Record<string, unknown>;
 
 const KNOWLEDGE_DIRECTORY = '.agents/knowledge';
 const ROOT_HINT =
-  'run it at the root of a monorepo vulcan init created (no layout in .configs/vulcan.config.*)';
+  'run it at the root of a monorepo vulcan project init created (no layout in .configs/vulcan.config.*)';
 
 const MISSING_API = `missing ${CreateFlags.API} <app> or ${CreateFlags.NO_API}`;
 
@@ -108,7 +108,7 @@ const ADD_KIND_ORDER: TAddKind[] = [PackageKinds.APP, LibraryKinds.LIB, LibraryK
 const kindCommands = (opts: { presetValue: string }): string[] =>
   ADD_KIND_ORDER.map(
     (kind) =>
-      `bun node_modules/.bin/vulcan add --preset ${opts.presetValue} ${ADD_KINDS[kind].flag} <name>`,
+      `bun node_modules/.bin/vulcan package add --preset ${opts.presetValue} ${ADD_KINDS[kind].flag} <name>`,
   );
 
 const NO_BACKEND = ':none';
@@ -153,7 +153,7 @@ const noSharedKindMessage = (opts: {
   ];
   const commands = known.map(
     (spec) =>
-      `bun node_modules/.bin/vulcan add --preset ${spec} ${ADD_KINDS[LibraryKinds.SHARED].flag} ${opts.name}`,
+      `bun node_modules/.bin/vulcan package add --preset ${spec} ${ADD_KINDS[LibraryKinds.SHARED].flag} ${opts.name}`,
   );
 
   return `preset ${opts.located.packageName} has no shared kind (it makes: ${kindsOffered({ located: opts.located }).join(' and ')}); ${
@@ -239,7 +239,7 @@ const askPreset = async (opts: { cwd: string }): Promise<string | null> => {
   const note = ConfigLoader.unreadableNote({ loaded });
 
   if (note !== undefined) {
-    process.stderr.write(`vulcan add: ${note}\n`);
+    process.stderr.write(`vulcan package add: ${note}\n`);
   }
 
   return PresetMenu.askSpec({ recorded: loaded.ok ? (loaded.config.presets ?? []) : [] });
@@ -657,7 +657,7 @@ export class AppScaffold {
         SubProcess.runBun({
           cwd,
           args: [join(cwd, 'node_modules', '.bin', 'vulcan'), 'sync'],
-          label: 'vulcan sync',
+          label: 'vulcan project sync',
         }),
       () =>
         AppChecks.run({ root: cwd, appDirectory: join(cwd, folder, app), checks: preset.checks }),

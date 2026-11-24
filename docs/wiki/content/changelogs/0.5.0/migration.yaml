@@ -35,9 +35,9 @@ launch-file-and-loader-variables:
     - claude.settings
   upgrade:
     steps:
-      - 'Run `bun node_modules/.bin/vulcan sync` in a terminal after upgrading; if `claude.settings.env` in `.configs/vulcan.config.*` sets `BUN_OPTIONS`, `NODE_OPTIONS` or any `BUN_CONFIG_*`, it refuses and names the key.'
+      - 'Run `bun node_modules/.bin/vulcan project sync` in a terminal after upgrading; if `claude.settings.env` in `.configs/vulcan.config.*` sets `BUN_OPTIONS`, `NODE_OPTIONS` or any `BUN_CONFIG_*`, it refuses and names the key.'
       - 'Delete each of those keys from `claude.settings.env` and set it in your shell instead (your shell profile or the command that starts the agent): the hooks no longer pass them on.'
-      - 'Run `bun node_modules/.bin/vulcan sync` again and commit what git tracks that it changed; `.claude/settings.json` and the local manifest are not committed.'
+      - 'Run `bun node_modules/.bin/vulcan project sync` again and commit what git tracks that it changed; `.claude/settings.json` and the local manifest are not committed.'
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, put the keys back in `claude.settings.env` if you want the agent to receive them, and run `bun node_modules/.bin/vulcan sync`.'
@@ -54,7 +54,7 @@ guards-read-more-write-forms:
       - 'Run archive extractions in a subfolder instead of the project root: `tar xf a.tar -C dist`, `unzip a.zip -d dist`. A copy, a move, an install, a link or an extraction into the folder of a protected file now asks.'
       - 'Clear `.agents/tmp/*` and not `.agents/local/*`: a pattern or `find -delete` or `git clean -x` that can reach a protected file now asks.'
       - 'Expect a question for `sed -i`, `perl -pi`, `truncate`, `tar`, `unzip` and `git init` outside the project, and for an edit in place of a protected file. Codex and Cursor cannot ask on a tool call, so there it is a denial: run the command yourself in a terminal.'
-      - 'Do not write `.codex/hooks.json`, `.agents/hooks.json`, `.omp/hooks/pre/vulcan-guards.ts` or `.pi/extensions/vulcan-guards.ts` from an agent: `vulcan sync` writes them.'
+      - 'Do not write `.codex/hooks.json`, `.agents/hooks.json`, `.omp/hooks/pre/vulcan-guards.ts` or `.pi/extensions/vulcan-guards.ts` from an agent: `vulcan project sync` writes them.'
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`; its guards read fewer spellings and ask for none of these.'
@@ -71,7 +71,7 @@ guards-read-more-launchers:
     steps:
       - 'Run `make runners-check` after upgrading: it now fails on a `bun create`, an `npm init` with a package name, an `npm`, `pnpm` or `yarn` `create` or a `bun add -g` in your docs or scripts, as it does for `bunx`.'
       - 'For each one it names, add the package to the project dependencies and run its bin from `node_modules/.bin`, or list it in `guard.runners.allow` in `.configs/vulcan.config.*` (for a scaffolder such as `vite`, the name goes there).'
-      - 'Run `bun node_modules/.bin/vulcan sync` and commit the manifest.'
+      - 'Run `bun node_modules/.bin/vulcan project sync` and commit the manifest.'
       - 'An agent can no longer run a package through `taskset`, `flock`, `runuser`, `parallel`, `su -c`, `script -c` or `find -exec sh -c`: run the package from its bin in `node_modules/.bin` instead.'
   downgrade:
     steps:
@@ -88,7 +88,7 @@ visualize-pages-simplified:
       - 'Delete `titleMuted`, `tiles`, `caption` and `language` from each visualize spec; put key numbers in `findings.numbers`, and set the page language in your owner profile (`vulcan profile`).'
       - 'Shorten each title to 60 characters with no status word, each step name to 40 characters and each step note to 80.'
       - 'Rewrite each decision as `{ question, options, why, detail? }`: a question that ends with `?`, two or three options of `{ label, effect, recommended? }` with exactly one recommended, and a reason; move code out of the question and the labels into `detail`.'
-      - 'Render again with `bun node_modules/.bin/vulcan visualize <spec> --out <name>`.'
+      - 'Render again with `bun node_modules/.bin/vulcan page new <spec> --out <name>`.'
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`; its renderer reads the earlier spec.'
@@ -99,8 +99,8 @@ flow-required-for-commit:
     - FlowGuard
   upgrade:
     steps:
-      - 'The rule applies with `events.log` on and a `project.key` set; a project without a key is not refused. Set `project.key` in the config and run `vulcan sync` to turn the rule on.'
-      - "In a project with `events.log` on, make the flow before the first commit of a piece of work: `bun node_modules/.bin/vulcan event add --kind flow --title '<what this work is>'` prints the id."
+      - 'The rule applies with `events.log` on and a `project.key` set; a project without a key is not refused. Set `project.key` in the config and run `vulcan project sync` to turn the rule on.'
+      - "In a project with `events.log` on, make the flow before the first commit of a piece of work: `bun node_modules/.bin/vulcan flow add --title '<what this work is>'` prints the id."
       - 'If the work already has a flow, put `Flow: <id>` in the commit message or the pull request body, or name the branch with that id (for example `feature/VULZ-ACME-12-sign-in`), then run `git commit` or `gh pr create` again. The contents of a `-F` or `--body-file` file are not read, so give the line inline.'
       - 'A script or CI job that commits or opens pull requests through an agent shell and has no flow: turn `events.log` off for that project, or run it with `VULCAN_GUARDS=off`.'
   downgrade:
@@ -111,9 +111,9 @@ digest-add-replaces-often-dropped:
     - digest.oftenDropped
   upgrade:
     steps:
-      - 'Run `bun node_modules/.bin/vulcan config --effective` and read `config.digest.oftenDropped`: the shipped ids first, then yours.'
+      - 'Run `bun node_modules/.bin/vulcan config effective` and read `config.digest.oftenDropped`: the shipped ids first, then yours.'
       - "If you had put the ids in your own order, the order is gone: the shipped ids come first, then yours. If you listed fewer ids than the 11 shipped ones to drop the rest, delete the list and write `remove: { 'digest.oftenDropped': ['<the ids you do not want>'] }`; keep in `oftenDropped` only ids the shipped list lacks."
-      - 'Run `bun node_modules/.bin/vulcan sync` and commit `AGENTS.md`.'
+      - 'Run `bun node_modules/.bin/vulcan project sync` and commit `AGENTS.md`.'
   downgrade:
     steps:
       - 'Pin the earlier package and list every id you want in `digest.oftenDropped` again: it replaced the default there.'
@@ -124,11 +124,11 @@ config-defaults-from-base-and-pack:
     - atlas.sources
   upgrade:
     steps:
-      - 'Run `bun node_modules/.bin/vulcan config --effective` and read `config.claude.settings.permissions`, `config.presets` and `config.atlas.sources`: they now hold the shipped lines before yours.'
-      - 'Run `bun node_modules/.bin/vulcan config --diff`: it lists the lines of your config that the shipped layers already give. Delete them from the config.'
+      - 'Run `bun node_modules/.bin/vulcan config effective` and read `config.claude.settings.permissions`, `config.presets` and `config.atlas.sources`: they now hold the shipped lines before yours.'
+      - 'Run `bun node_modules/.bin/vulcan config diff`: it lists the lines of your config that the shipped layers already give. Delete them from the config.'
       - "To refuse a shipped line, add `remove: { 'claude.settings.permissions.allow': ['Bash(date:*)'] }` (or `deny`, `presets`, `atlas.sources`). A shipped deny can refuse a command your own allow line used to permit (for example a `git diff --output`): `remove` it from `claude.settings.permissions.deny`."
       - "A repository that uses the venizia pack and is itself one of its atlas sources (IGNIS, ARDOR, VULCAN) adds `remove: { 'atlas.sources': ['<its own name>'] }`, or it lists itself twice."
-      - 'Run `bun node_modules/.bin/vulcan sync`; `.claude/settings.json` is written by sync in every clone and is not committed.'
+      - 'Run `bun node_modules/.bin/vulcan project sync`; `.claude/settings.json` is written by sync in every clone and is not committed.'
   downgrade:
     steps:
       - 'Pin the earlier package and put back the allow, deny, presets and atlas sources lines you deleted.'
@@ -138,11 +138,11 @@ pack-guard-and-commit-defaults:
     - commit.message
   upgrade:
     steps:
-      - "Run `bun node_modules/.bin/vulcan config --effective`: with `packs: ['venizia']`, `config.guard.outside` is `deny` and `config.commit.message.agent.signature` is `deny` unless you wrote otherwise."
+      - "Run `bun node_modules/.bin/vulcan config effective`: with `packs: ['venizia']`, `config.guard.outside` is `deny` and `config.commit.message.agent.signature` is `deny` unless you wrote otherwise."
       - "To keep the earlier behaviour, write `guard: { outside: 'ask' }` and `commit: { message: { agent: { signature: 'allow' } } }` in the config; the project value wins over the pack."
-      - 'If you wrote the same values as the pack, delete them: `bun node_modules/.bin/vulcan config --diff` lists them.'
-      - 'Run `bun node_modules/.bin/vulcan sync` and commit what git tracks that it changed (`.agents/atlas.manifest.json`): with the signature denied, sync blanks the attribution Claude Code adds to a commit and a pull request.'
-      - 'Every clone runs `bun node_modules/.bin/vulcan sync` once, which installs the commit-msg hook that refuses a signature.'
+      - 'If you wrote the same values as the pack, delete them: `bun node_modules/.bin/vulcan config diff` lists them.'
+      - 'Run `bun node_modules/.bin/vulcan project sync` and commit what git tracks that it changed (`.agents/atlas.manifest.json`): with the signature denied, sync blanks the attribution Claude Code adds to a commit and a pull request.'
+      - 'Every clone runs `bun node_modules/.bin/vulcan project sync` once, which installs the commit-msg hook that refuses a signature.'
   downgrade:
     steps:
       - 'Pin the earlier package and write `guard.outside` and the signature value you want in the config.'
@@ -153,7 +153,7 @@ claude-launch-file-dropped:
   upgrade:
     steps:
       - 'Stop starting Claude Code with `claude --settings .agents/local/claude.launch.settings.json`: start it as you start any project (nothing replaces the flag); remove it from your shell alias or script.'
-      - 'Run `bun node_modules/.bin/vulcan sync`: it deletes a leftover `.agents/local/claude.launch.settings.json` that git does not track. If git tracks it, run `git rm --cached .agents/local/claude.launch.settings.json` and delete it.'
+      - 'Run `bun node_modules/.bin/vulcan project sync`: it deletes a leftover `.agents/local/claude.launch.settings.json` that git does not track. If git tracks it, run `git rm --cached .agents/local/claude.launch.settings.json` and delete it.'
       - 'To keep Claude Code''s own task-output and MCP temp files in the project, export `CLAUDE_CODE_TMPDIR="$PWD/.agents/tmp"` in your own shell before you start it; VULCAN no longer writes a file for this.'
       - 'A script or a Makefile that reads `.agents/local/claude.launch.settings.json` loses the file: read `.agents/tmp` (or your `local.tmp` folder) instead.'
   downgrade:
@@ -169,57 +169,71 @@ manifest-local-and-descriptor:
     - ProjectManifest.publishes
   upgrade:
     steps:
-      - 'Run `bun node_modules/.bin/vulcan sync`: it writes `.agents/local/vulcan.manifest.json` (gitignored) and `.agents/atlas.manifest.json`, and rewrites `.agents/vulcan.manifest.json` as a data-only copy of the descriptor (the old manifest, with its policy keys, is replaced).'
-      - 'In an app (a repository that publishes no package: its config sets no `atlas.index.keys`), `vulcan sync` writes neither file and deletes one left untracked; if git tracks `.agents/atlas.manifest.json` or `.agents/vulcan.manifest.json`, run `git rm --cached` on it and delete it (`vulcan doctor` warns until you do). The steps below about committing the descriptor are for a repository that publishes.'
-      - 'Commit `.agents/atlas.manifest.json` and the rewritten `.agents/vulcan.manifest.json`: keep both tracked until the stable 0.5.0 release; atlas of 0.5.0-6 and before reads the project at `ref` only through the old path. `vulcan doctor` names either one when it is missing or stale.'
+      - 'Run `bun node_modules/.bin/vulcan project sync`: it writes `.agents/local/vulcan.manifest.json` (gitignored) and `.agents/atlas.manifest.json`, and rewrites `.agents/vulcan.manifest.json` as a data-only copy of the descriptor (the old manifest, with its policy keys, is replaced).'
+      - 'In an app (a repository that publishes nothing: its config sets no `atlas.index.keys` and git tracks no `.agents/atlas.manifest.json`), `vulcan project sync` writes neither file and deletes one left untracked. A tracked descriptor is never touched and keeps being written, because atlas reads a source through it whether it signs or not; untrack both files yourself only if no project reads this one through atlas. A new source that signs nothing sets `atlas.index.keys` once, runs `vulcan project sync` and commits the descriptor. The steps below about committing the descriptor are for a repository that publishes.'
+      - 'Commit `.agents/atlas.manifest.json` and the rewritten `.agents/vulcan.manifest.json`: keep both tracked until the stable 0.5.0 release; atlas of 0.5.0-6 and before reads the project at `ref` only through the old path. `vulcan project doctor` names either one when it is missing or stale.'
       - 'If your wiki config reads `.agents/vulcan.manifest.json` for the theme (`WikiTheme.read`), point it at `.agents/atlas.manifest.json`. A repository that copies the shared wiki theme also takes the new `changelog-prereleases.ts` (`PrereleaseTags`), which reads the descriptor and falls back to the old file; the copies of IGNIS and ARDOR must be updated together with VULCAN.'
-      - 'Run `bun node_modules/.bin/vulcan sync` before any CI step that reads the local manifest (the guards, `vulcan doctor`, `vulcan board`): a clone has none until it runs. Replace a CI step that checks `.agents/vulcan.manifest.json` against sync with `git diff --exit-code -- .agents/atlas.manifest.json`.'
+      - 'Run `bun node_modules/.bin/vulcan project sync` before any CI step that reads the local manifest (the guards, `vulcan project doctor`, `vulcan board show`): a clone has none until it runs. Replace a CI step that checks `.agents/vulcan.manifest.json` against sync with `git diff --exit-code -- .agents/atlas.manifest.json`.'
       - 'A script that reads `.agents/vulcan.manifest.json` reads `.agents/atlas.manifest.json` (packages, knowledge, release) or `.agents/local/vulcan.manifest.json` (everything else).'
       - 'A repository that other projects read through atlas commits the descriptor before those projects upgrade; until then atlas reads its old manifest file from the ref they pin, for this release only.'
   downgrade:
     steps:
       - 'Pin the earlier packages and run `bun node_modules/.bin/vulcan sync`: it writes the old `.agents/vulcan.manifest.json` again (the full manifest); commit it and delete `.agents/atlas.manifest.json`.'
-  data: 'Atlas of 0.5.0-6 and before reads a source only through `.agents/vulcan.manifest.json`, and resolves the source ref through it before it can pin a release tag: a repository that drops that file makes `vulcan migrate plan` and its atlas source fail for those readers, so the data-only copy stays until the stable release. A clone with no local manifest (a fresh clone, or one just upgraded) is held until `vulcan sync` runs: every call that would ask is denied, writes outside the project are refused and agent signatures in a commit message are refused. `vulcan sync` itself passes. Without a config file nothing is held.'
+  data: 'Atlas of 0.5.0-6 and before reads a source only through `.agents/vulcan.manifest.json`, and resolves the source ref through it before it can pin a release tag: a repository that drops that file makes `vulcan migrate plan` and its atlas source fail for those readers, so the data-only copy stays until the stable release. A clone with no local manifest (a fresh clone, or one just upgraded) is held until `vulcan project sync` runs: every call that would ask is denied, writes outside the project are refused and agent signatures in a commit message are refused. `vulcan project sync` itself passes. Without a config file nothing is held.'
 local-json-folds-into-profile:
   symbols:
     - LocalChoice.unknownKeys
     - AgentConstants.LOCAL_FILE
   upgrade:
     steps:
-      - "Run `bun node_modules/.bin/vulcan sync`: it moves the keys of `.agents/vulcan.local.json` (agents, board, local, events) into `.agents/local/profile.json`, keeps the profile's own value where both have one (`board`, `local` and `events` merge one level down), and deletes the old file when git does not track it and it holds no other key."
-      - 'If git tracks `.agents/vulcan.local.json`, `vulcan sync` moves the keys first and leaves the file; then run `git rm --cached .agents/vulcan.local.json` and delete the file: `vulcan doctor` names it until you do. A key the profile does not take stays in the old file and is named: fix or delete it.'
+      - "Run `bun node_modules/.bin/vulcan project sync`: it moves the keys of `.agents/vulcan.local.json` (agents, board, local, events) into `.agents/local/profile.json`, keeps the profile's own value where both have one (`board`, `local` and `events` merge one level down), and deletes the old file when git does not track it and it holds no other key."
+      - 'If git tracks `.agents/vulcan.local.json`, `vulcan project sync` moves the keys first and leaves the file; then run `git rm --cached .agents/vulcan.local.json` and delete the file: `vulcan project doctor` names it until you do. A key the profile does not take stays in the old file and is named: fix or delete it.'
       - 'A script, an alias or a doc that reads or writes `.agents/vulcan.local.json` uses `.agents/local/profile.json` (the same keys, in the same shape).'
-      - 'Run `bun node_modules/.bin/vulcan doctor`: the profile is strict, so a key it does not know (a typo in `board`, `events`, `local`) is named.'
+      - 'Run `bun node_modules/.bin/vulcan project doctor`: the profile is strict, so a key it does not know (a typo in `board`, `events`, `local`) is named.'
   downgrade:
     steps:
       - 'Pin the earlier package, move `agents`, `board`, `local` and `events` from `.agents/local/profile.json` back into `.agents/vulcan.local.json`, and delete them from the profile: an earlier release refuses unknown keys in the profile.'
-  data: "The profile file now also holds this machine's keys. `vulcan profile reset` (and `vulcan clean --profile`) keeps the valid ones; deleting the file by hand drops your choice of agents, board roster, tmp folder and events folder."
+  data: "The profile file now also holds this machine's keys. `vulcan profile reset` (and `vulcan project clean --profile`) keeps the valid ones; deleting the file by hand drops your choice of agents, board roster, tmp folder and events folder."
 claude-settings-never-committed:
   symbols:
     - ProjectLayout.PREPARE_SCRIPT
     - ProjectContract.checkClaudeSettingsTracked
   upgrade:
     steps:
-      - 'Run `bun node_modules/.bin/vulcan sync`: it adds `/.claude/settings.json` to a committed `.gitignore` that does not already ignore `.claude/`. Commit that `.gitignore` change.'
-      - 'If git tracks `.claude/settings.json`, run `git rm --cached .claude/settings.json` and commit: `vulcan doctor` names it until you do. A teammate who pulls that commit loses their local `.claude/settings.json` (git removes the file), so their hooks stay off until they run `bun install` (with the `prepare` script) or `bun node_modules/.bin/vulcan sync`.'
-      - 'Add the `prepare` script to the root `package.json` (`vulcan doctor` prints it; `vulcan init --preset` writes it for a new project): `bun install` then runs `vulcan sync` in a fresh clone. It reads no terminal and always exits 0; it needs a POSIX `sh`, so Windows is untested.'
-      - 'A machine with no stored choice of agents and no terminal takes `claude`: users of Codex, omp or pi run `bun node_modules/.bin/vulcan sync --agents <list>` once.'
-      - 'Run `vulcan sync` (or `bun install`) in CI before any step that reads the manifest or runs a hook.'
+      - 'Run `bun node_modules/.bin/vulcan project sync`: it adds `/.claude/settings.json` to a committed `.gitignore` that does not already ignore `.claude/`. Commit that `.gitignore` change.'
+      - 'If git tracks `.claude/settings.json`, run `git rm --cached .claude/settings.json` and commit: `vulcan project doctor` names it until you do. A teammate who pulls that commit loses their local `.claude/settings.json` (git removes the file), so their hooks stay off until they run `bun install` (with the `prepare` script) or `bun node_modules/.bin/vulcan project sync`.'
+      - 'Add the `prepare` script to the root `package.json` (`vulcan project doctor` prints it; `vulcan project init --preset` writes it for a new project): `bun install` then runs `vulcan project sync` in a fresh clone. It reads no terminal and always exits 0; it needs a POSIX `sh`, so Windows is untested.'
+      - 'A machine with no stored choice of agents and no terminal takes `claude`: users of Codex, omp or pi run `bun node_modules/.bin/vulcan project sync --agents <list>` once.'
+      - 'Run `vulcan project sync` (or `bun install`) in CI before any step that reads the manifest or runs a hook.'
   downgrade:
     steps:
       - 'Pin the earlier package, run `vulcan sync`, and either remove the `/.claude/settings.json` line from `.gitignore` or run `git add -f .claude/settings.json` to commit it again if your team wants it shared.'
-  data: 'A fresh clone has no `.claude/settings.json`, so no hook runs and no guard is active, until `bun install` (with the `prepare` script) or `vulcan sync` has run. AGENTS.md says so in its first line of rules.'
+  data: 'A fresh clone has no `.claude/settings.json`, so no hook runs and no guard is active, until `bun install` (with the `prepare` script) or `vulcan project sync` has run. AGENTS.md says so in its first line of rules.'
 tmp-default-agents-tmp:
   symbols:
     - HookConstants.PROJECT_TMP
     - ProjectLayout.TMP_DIRECTORY
   upgrade:
     steps:
-      - 'Run `bun node_modules/.bin/vulcan sync`: it creates `.agents/tmp` and adds `/.agents/tmp/` to a committed `.gitignore`. Commit that `.gitignore` change.'
+      - 'Run `bun node_modules/.bin/vulcan project sync`: it creates `.agents/tmp` and adds `/.agents/tmp/` to a committed `.gitignore`. Commit that `.gitignore` change.'
       - 'Change every script, Makefile, workflow and doc that names `.agents/local/tmp` to `.agents/tmp` (`grep -rn ".agents/local/tmp" .`). Rule V-B-08 names the new folder; the session start exports `TMPDIR` to it.'
       - 'A project that set `local.tmp` only to shorten the browser socket path can delete the key: the default is shorter now.'
-      - 'Remove `.agents/local/tmp` when it holds nothing you need: `bun node_modules/.bin/vulcan clean --tmp --yes` takes its stale items, and the folder is yours to delete.'
+      - 'Remove `.agents/local/tmp` when it holds nothing you need: `bun node_modules/.bin/vulcan project clean --tmp --yes` takes its stale items, and the folder is yours to delete.'
   downgrade:
     steps:
       - 'Pin the earlier package, run `vulcan sync`, and move what you need from `.agents/tmp` to `.agents/local/tmp`; remove the `/.agents/tmp/` line from `.gitignore`.'
   data: 'Scratch files already in `.agents/local/tmp` stay where they are; new ones go to `.agents/tmp`, so a script that looks in the old folder for a file made after the upgrade finds none.'
+command-scopes:
+  symbols:
+    - CommandScopes.COMMANDS
+    - CommandScopes.RETIRED
+  upgrade:
+    steps:
+      - 'Run `bun node_modules/.bin/vulcan project sync` once: it rewrites the commit-msg hook (`vulcan check commit`) and the `atlas` entry of `.mcp.json` (`vulcan atlas mcp`). Until you do, the old forms of those three call sites keep working and print a notice.'
+      - 'Change every script, Makefile, workflow, hook and doc that runs `vulcan <command>` to the new form: sync, doctor, init, upgrade, clean become `project <action>`; add becomes `package add`; preset diff becomes `package diff`; agents becomes `agent`; config --effective and --diff become `config effective` and `config diff`; commit-check becomes `check commit`; layout check becomes `check layout`; runners check becomes `check runners`; changelog check becomes `check changelog`; changelog notes becomes `migrate notes`; event add --kind flow and event step become `flow add` and `flow step`; board becomes `board show`; visualize becomes `page new` (`--schema` is `page schema`); `x atlas` and `x okf` become `atlas` and `okf`.'
+      - 'Change the `prepare` script of the root `package.json` to the form `vulcan project doctor` prints (`bun node_modules/.bin/vulcan project sync --quiet ...`); the old script still runs in this release.'
+      - 'Every other retired name exits 2 and names the new form: a CI step that ran one fails until it is changed.'
+  downgrade:
+    steps:
+      - 'Pin the earlier package and use the old names; run `vulcan sync` so the commit-msg hook and the `.mcp.json` entry are written in the old form again.'
+  data: 'A commit-msg hook or an `.mcp.json` entry written by this release calls `vulcan check commit` and `vulcan atlas`; an earlier vulcan does not know them (the hook says so and lets the commit through, the MCP server does not start) until `vulcan project sync` of that version rewrites them.'

@@ -2,10 +2,10 @@ import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { RunnersCheck } from '../runners/check.ts';
 
-const USAGE = 'usage: vulcan runners check';
+const USAGE = 'usage: vulcan check runners';
 
 /**
- * `vulcan runners check`: lists every tracked file that runs an unscoped package through `bunx`, `bun x`, `npx`, `pnpm dlx`
+ * `vulcan check runners`: lists every tracked file that runs an unscoped package through `bunx`, `bun x`, `npx`, `pnpm dlx`
  * or `yarn dlx`, one `file:line` each, and exits 1; exits 0 when there is none.
  */
 export const runRunnersCommand = (opts: ICommandContext): Promise<number> => {
@@ -21,7 +21,7 @@ export const runRunnersCommand = (opts: ICommandContext): Promise<number> => {
     scan = RunnersCheck.scan({ root: opts.cwd });
   } catch (error) {
     process.stderr.write(
-      `vulcan runners: ${error instanceof Error ? error.message : String(error)}\n`,
+      `vulcan check runners: ${error instanceof Error ? error.message : String(error)}\n`,
     );
 
     return Promise.resolve(ExitCodes.USAGE);

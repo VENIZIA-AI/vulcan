@@ -15,7 +15,7 @@ const PROJECT = {
 const DIFF_LINE = /^ {2}(?:added|changed|removed) +V-/m;
 
 const runSync = (opts: { root: string; args?: string[] }) =>
-  runCli({ args: ['sync', ...(opts.args ?? [])], cwd: opts.root });
+  runCli({ args: ['project', 'sync', ...(opts.args ?? [])], cwd: opts.root });
 
 const readBaseHashes = (opts: { root: string }): Record<string, string> =>
   JSON.parse(readFileSync(join(opts.root, ManifestConstants.FILE), 'utf8')).rules.base;

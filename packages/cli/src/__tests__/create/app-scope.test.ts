@@ -13,6 +13,7 @@ const FRONTEND = `file:${join(FIXTURES, 'preset-frontend')}`;
 const ENV = { VULCAN_NO_INSTALL: '1' };
 const hasScript = Bun.which('script') !== null;
 const INIT = [
+  'project',
   'init',
   '--preset',
   BACKEND,
@@ -44,7 +45,7 @@ const monorepo = (opts: { scope?: string } = {}): string => {
   return join(parent, 'p');
 };
 
-describe('vulcan init --scope', () => {
+describe('vulcan project init --scope', () => {
   test('names the first app @scope/<app>; the folder and the registered dir stay bare', () => {
     const root = monorepo({ scope: '@nx-app' });
 
@@ -71,11 +72,11 @@ describe('vulcan init --scope', () => {
   });
 });
 
-describe('vulcan add --app --scope', () => {
+describe('vulcan package add --app --scope', () => {
   test('names the new app @scope/<app> and registers it with a bare dir and folder', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'worker', '--scope', '@nx-app'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker', '--scope', '@nx-app'],
       cwd: root,
       env: ENV,
     });
@@ -90,7 +91,11 @@ describe('vulcan add --app --scope', () => {
   test('without --scope the app is named as before, whatever scope the other apps have', () => {
     const root = monorepo({ scope: '@nx-app' });
 
-    runCli({ args: ['add', '--preset', BACKEND, '--app', 'worker'], cwd: root, env: ENV });
+    runCli({
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker'],
+      cwd: root,
+      env: ENV,
+    });
 
     expect(nameOf({ root, path: 'services/worker' })).toBe('worker');
   });
@@ -99,6 +104,7 @@ describe('vulcan add --app --scope', () => {
     const root = monorepo({ scope: '@nx-app' });
     const result = runCli({
       args: [
+        'package',
         'add',
         '--preset',
         FRONTEND,
@@ -122,7 +128,7 @@ describe('vulcan add --app --scope', () => {
   test('a scope that is not one is refused and nothing is written', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'worker', '--scope', 'nx-app'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker', '--scope', 'nx-app'],
       cwd: root,
       env: ENV,
     });
@@ -135,7 +141,7 @@ describe('vulcan add --app --scope', () => {
   test('a package name that exists already is refused', () => {
     const root = monorepo({ scope: '@nx-app' });
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'core-api2', '--scope', '@nx-app'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'core-api2', '--scope', '@nx-app'],
       cwd: root,
       env: ENV,
     });
@@ -143,7 +149,7 @@ describe('vulcan add --app --scope', () => {
     expect(result.code).toBe(0);
 
     const again = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'core-api2', '--scope', '@nx-app'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'core-api2', '--scope', '@nx-app'],
       cwd: root,
       env: ENV,
     });
@@ -170,7 +176,7 @@ describe.skipIf(!hasScript)(
     test('init: a typed scope names the app, an empty answer leaves it bare', async () => {
       const parent = createProject({ files: {} });
       const result = await driveTerminal({
-        args: ['init', '--preset', BACKEND, '--key', 'TEST'],
+        args: ['project', 'init', '--preset', BACKEND, '--key', 'TEST'],
         cwd: parent,
         env: MENU_ENV,
         steps: [
@@ -194,7 +200,7 @@ describe.skipIf(!hasScript)(
     test('add: Enter on the scope question keeps the bare name', async () => {
       const root = monorepo();
       const result = await driveTerminal({
-        args: ['add', '--preset', BACKEND],
+        args: ['package', 'add', '--preset', BACKEND],
         cwd: root,
         env: MENU_ENV,
         steps: [
@@ -211,7 +217,7 @@ describe.skipIf(!hasScript)(
     test('a scope that is not one is refused where it is typed', async () => {
       const root = monorepo();
       const result = await driveTerminal({
-        args: ['add', '--preset', BACKEND],
+        args: ['package', 'add', '--preset', BACKEND],
         cwd: root,
         env: MENU_ENV,
         steps: [

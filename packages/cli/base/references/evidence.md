@@ -28,7 +28,7 @@ The probe kinds a card names on a claim's line, and what each means:
 | `http` | `curl -i` |
 | `browser` | A real browser view, at mobile and desktop width |
 | `eval` | A skill or rule eval |
-| `gate` | `vulcan doctor`, lint, `okf check` or the project's own gate |
+| `gate` | `vulcan project doctor`, lint, `okf check` or the project's own gate |
 | `read` | A read-back of a file or a configuration |
 | `manual` | Attested by the owner, dated; never enough alone for secrets, auth, money, publishing or deletion |
 

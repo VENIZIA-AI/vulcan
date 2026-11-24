@@ -3,14 +3,14 @@ import { LocalSettings } from '../common/local-settings.ts';
 import { ConfigLoader } from '../config/index.ts';
 import { ProjectContract } from './checks.ts';
 import type { ICheckContext } from './checks.ts';
-import { ConfigOrderCheck } from './config-order.ts';
+import { ConfigModulesCheck, ConfigOrderCheck } from './config-order.ts';
 import { FileLayoutCheck } from './file-layout.ts';
 import { SkillLint } from './skills.ts';
 import { TagCheck } from './tags.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
 
-/** Runs the doctor checks and sorts their findings into violations, notes and warnings; used by `vulcan doctor`. */
+/** Runs the doctor checks and sorts their findings into violations, notes and warnings; used by `vulcan project doctor`. */
 export class DoctorRunner {
   /** Every violation of the VULCAN contract in the project at `root`; empty means conformant. */
   static async runChecks(opts: { root: string }): Promise<IViolation[]> {
@@ -65,7 +65,7 @@ export class DoctorRunner {
       : undefined;
   }
 
-  /** What `vulcan doctor` prints: the violations, the warnings and the notes, with the config loaded and the layout check run once. */
+  /** What `vulcan project doctor` prints: the violations, the warnings and the notes, with the config loaded and the layout check run once. */
   static async runReport(opts: {
     root: string;
     /** The environment of the shell running doctor; defaults to the process environment. */
@@ -134,7 +134,7 @@ export class DoctorRunner {
 
     return [
       ...ProjectContract.checkStaleRemove(context),
-      ...ProjectContract.checkTrackedDescriptor(context),
+      ...ConfigModulesCheck.check(context),
       ...ProjectContract.checkClaudeSettingsTracked(context),
       ...ProjectContract.checkAtlasSources(context),
       ...ProjectContract.checkMcpAtlas(context),

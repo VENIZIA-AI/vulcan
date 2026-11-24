@@ -36,7 +36,7 @@ export class SessionDigest {
             '',
             '## Setup missing',
             '',
-            `The local manifest is missing, so every call that would need a confirmation is denied until you run \`${ProjectLayout.VULCAN_COMMAND} sync\` (that command passes).`,
+            `The local manifest is missing, so every call that would need a confirmation is denied until you run \`${ProjectLayout.VULCAN_COMMAND} project sync\` (that command passes).`,
           ]
         : []),
       '',

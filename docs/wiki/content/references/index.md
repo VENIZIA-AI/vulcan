@@ -60,7 +60,7 @@ Find the exact contract for keys, commands, and messages. The [guides](/guides/)
 <span class="stage-num">1</span>
 <h4>A line from doctor</h4>
 </div>
-<p><a href="/references/commands/doctor">vulcan doctor</a> then <a href="/references/commands/sync">vulcan sync</a></p>
+<p><a href="/references/commands/doctor">vulcan project doctor</a> then <a href="/references/commands/sync">vulcan project sync</a></p>
 <span class="stage-desc">Find the check that failed and the fix.</span>
 </div>
 
@@ -69,7 +69,7 @@ Find the exact contract for keys, commands, and messages. The [guides](/guides/)
 <span class="stage-num">2</span>
 <h4>Setting up a project</h4>
 </div>
-<p><a href="/references/commands/init">vulcan init</a> - <a href="/references/commands/add">vulcan add</a> - <a href="/references/configuration/">Configuration</a> - <a href="/references/rules">Rules</a></p>
+<p><a href="/references/commands/init">vulcan project init</a> - <a href="/references/commands/add">vulcan package add</a> - <a href="/references/configuration/">Configuration</a> - <a href="/references/rules">Rules</a></p>
 <span class="stage-desc">Scaffold project files or a new monorepo, add apps, configure options, and review agent rules.</span>
 </div>
 
@@ -106,7 +106,7 @@ Find the exact contract for keys, commands, and messages. The [guides](/guides/)
 <h4>Shipping an app template</h4>
 </div>
 <p><a href="/references/presets">Presets</a></p>
-<span class="stage-desc">Write the preset a framework ships so vulcan init and add can create its apps.</span>
+<span class="stage-desc">Write the preset a framework ships so vulcan project init and add can create its apps.</span>
 </div>
 
 </div>

@@ -28,10 +28,10 @@ const barePath = (): string => {
 const localAgents = (opts: { root: string }): string[] =>
   JSON.parse(readFileSync(join(opts.root, LOCAL), 'utf8')).agents;
 
-describe('vulcan sync --agents', () => {
+describe('vulcan project sync --agents', () => {
   test('a list is stored in the local file and only those agents get adapters', () => {
     const root = createProject({ files: PROJECT });
-    const result = runCli({ args: ['sync', '--agents', 'omp,pi'], cwd: root });
+    const result = runCli({ args: ['project', 'sync', '--agents', 'omp,pi'], cwd: root });
 
     expect(result.code).toBe(0);
     expect(localAgents({ root })).toEqual(['omp', 'pi']);
@@ -44,7 +44,7 @@ describe('vulcan sync --agents', () => {
   test('claude in the list writes the Claude adapters as before', () => {
     const root = createProject({ files: PROJECT });
 
-    runCli({ args: ['sync', '--agents', 'claude,omp'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'claude,omp'], cwd: root });
 
     expect(localAgents({ root })).toEqual(['claude', 'omp']);
     expect(readFileSync(join(root, 'CLAUDE.md'), 'utf8')).toBe('@AGENTS.md\n');
@@ -54,7 +54,7 @@ describe('vulcan sync --agents', () => {
   test('none writes AGENTS.md-level files only', () => {
     const root = createProject({ files: PROJECT });
 
-    expect(runCli({ args: ['sync', '--agents', 'none'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'sync', '--agents', 'none'], cwd: root }).code).toBe(0);
     expect(localAgents({ root })).toEqual([]);
     expect(existsSync(join(root, 'CLAUDE.md'))).toBe(false);
   });
@@ -62,9 +62,9 @@ describe('vulcan sync --agents', () => {
   test('the next sync with no flag reads the stored choice and prints no hint', () => {
     const root = createProject({ files: PROJECT });
 
-    runCli({ args: ['sync', '--agents', 'omp'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'omp'], cwd: root });
 
-    const again = runCli({ args: ['sync'], cwd: root });
+    const again = runCli({ args: ['project', 'sync'], cwd: root });
 
     expect(again.code).toBe(0);
     expect(again.stderr).not.toContain('no agents chosen');
@@ -74,7 +74,7 @@ describe('vulcan sync --agents', () => {
 
   test('an unknown agent is refused before anything is written', () => {
     const root = createProject({ files: PROJECT });
-    const result = runCli({ args: ['sync', '--agents', 'claude,vim'], cwd: root });
+    const result = runCli({ args: ['project', 'sync', '--agents', 'claude,vim'], cwd: root });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("unknown agent 'vim'");
@@ -84,7 +84,7 @@ describe('vulcan sync --agents', () => {
 
   test('--dry-run says what it would do and writes no local file', () => {
     const root = createProject({ files: PROJECT });
-    const result = runCli({ args: ['sync', '--dry-run', '--agents', 'omp'], cwd: root });
+    const result = runCli({ args: ['project', 'sync', '--dry-run', '--agents', 'omp'], cwd: root });
 
     expect(result.stderr).toContain(`would create  ${LOCAL}`);
     expect(existsSync(join(root, LOCAL))).toBe(false);
@@ -92,7 +92,7 @@ describe('vulcan sync --agents', () => {
 
   test('--agents list prints the table and writes nothing', () => {
     const root = createProject({ files: PROJECT });
-    const result = runCli({ args: ['sync', '--agents', 'list'], cwd: root });
+    const result = runCli({ args: ['project', 'sync', '--agents', 'list'], cwd: root });
 
     expect(result.code).toBe(0);
 
@@ -114,10 +114,10 @@ describe('vulcan sync --agents', () => {
   });
 });
 
-describe('vulcan sync with nothing chosen', () => {
+describe('vulcan project sync with nothing chosen', () => {
   test('without a terminal it writes the Claude files as before, prints one hint and stores nothing', () => {
     const root = createProject({ files: PROJECT });
-    const result = runCli({ args: ['sync'], cwd: root });
+    const result = runCli({ args: ['project', 'sync'], cwd: root });
 
     expect(result.code).toBe(0);
     expect(existsSync(join(root, 'CLAUDE.md'))).toBe(true);
@@ -129,7 +129,7 @@ describe('vulcan sync with nothing chosen', () => {
 
   test('a project that already has Claude files is not assumed to use claude: the hint, nothing stored', () => {
     const root = createProject({ files: { ...PROJECT, 'CLAUDE.md': '@AGENTS.md\n' } });
-    const result = runCli({ args: ['sync'], cwd: root });
+    const result = runCli({ args: ['project', 'sync'], cwd: root });
 
     expect(existsSync(join(root, LOCAL))).toBe(false);
     expect(result.stderr).toContain(NO_TTY_HINT);
@@ -144,7 +144,7 @@ describe('vulcan sync with nothing chosen', () => {
       },
     });
 
-    runCli({ args: ['sync'], cwd: root });
+    runCli({ args: ['project', 'sync'], cwd: root });
 
     expect(localAgents({ root })).toEqual(['claude', 'cursor']);
   });
@@ -152,8 +152,8 @@ describe('vulcan sync with nothing chosen', () => {
   test('only .agents/local/ is added to .gitignore, once: the profile is inside it', () => {
     const root = createProject({ files: { ...PROJECT, '.gitignore': 'node_modules/\n' } });
 
-    runCli({ args: ['sync', '--agents', 'omp'], cwd: root });
-    runCli({ args: ['sync', '--agents', 'omp'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'omp'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'omp'], cwd: root });
 
     const ignore = readFileSync(join(root, '.gitignore'), 'utf8');
 
@@ -161,7 +161,7 @@ describe('vulcan sync with nothing chosen', () => {
   });
 });
 
-describe.skipIf(!hasScript)('vulcan sync in a terminal', () => {
+describe.skipIf(!hasScript)('vulcan project sync in a terminal', () => {
   const runInTerminal = (opts: {
     root: string;
     args: string[];
@@ -188,7 +188,7 @@ describe.skipIf(!hasScript)('vulcan sync in a terminal', () => {
     const home = createProject({ files: { '.codex/config.toml': '' } });
     const { code, output } = runInTerminal({
       root,
-      args: ['sync'],
+      args: ['project', 'sync'],
       answers: ['claude,cursor'],
       env: { HOME: home, PATH: barePath() },
     });
@@ -207,7 +207,12 @@ describe.skipIf(!hasScript)('vulcan sync in a terminal', () => {
     const root = createProject({ files: PROJECT });
     const home = createProject({ files: { '.codex/config.toml': '' } });
 
-    runInTerminal({ root, args: ['sync'], answers: [''], env: { HOME: home, PATH: barePath() } });
+    runInTerminal({
+      root,
+      args: ['project', 'sync'],
+      answers: [''],
+      env: { HOME: home, PATH: barePath() },
+    });
 
     expect(localAgents({ root })).toEqual(['codex']);
   });
@@ -218,14 +223,14 @@ describe.skipIf(!hasScript)('vulcan sync in a terminal', () => {
 
     runInTerminal({
       root,
-      args: ['sync'],
+      args: ['project', 'sync'],
       answers: ['omp'],
       env: { HOME: home, PATH: barePath() },
     });
 
     const again = runInTerminal({
       root,
-      args: ['sync'],
+      args: ['project', 'sync'],
       answers: [],
       env: { HOME: home, PATH: barePath() },
     });
@@ -234,15 +239,15 @@ describe.skipIf(!hasScript)('vulcan sync in a terminal', () => {
   });
 });
 
-describe('vulcan sync --quiet', () => {
+describe('vulcan project sync --quiet', () => {
   test('prints what changed and the notes, and not the rows of files that stayed as they were', () => {
     const root = createProject({ files: { ...PROJECT, '.gitignore': 'node_modules/\n' } });
 
-    runCli({ args: ['sync', '--agents', 'omp'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'omp'], cwd: root });
 
-    const again = runCli({ args: ['sync', '--agents', 'omp', '--quiet'], cwd: root });
+    const again = runCli({ args: ['project', 'sync', '--agents', 'omp', '--quiet'], cwd: root });
     const first = createProject({ files: { ...PROJECT, '.gitignore': 'node_modules/\n' } });
-    const created = runCli({ args: ['sync', '--agents', 'omp', '--quiet'], cwd: first });
+    const created = runCli({ args: ['project', 'sync', '--agents', 'omp', '--quiet'], cwd: first });
 
     expect(again.code).toBe(0);
     expect(again.stderr).not.toContain('unchanged');

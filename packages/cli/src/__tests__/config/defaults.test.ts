@@ -127,7 +127,7 @@ describe('the pack gives the stack its guard and commit defaults', () => {
 
     const root = project("export default { name: 'acme', packs: ['venizia'] };\n");
 
-    expect(runCli({ args: ['sync', '--agents', 'claude'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root }).code).toBe(0);
     expect(
       JSON.parse(readFileSync(join(root, '.agents/local/vulcan.manifest.json'), 'utf8')).guard
         .outside,
@@ -166,7 +166,7 @@ describe('the pack gives the stack its guard and commit defaults', () => {
     );
     expect(cleanNotes).not.toContain('autoStart');
     expect(repeatsNotes).toContain('1 value(s) of this config repeat what VULCAN ships');
-    expect(repeatsNotes).toContain('config --diff');
+    expect(repeatsNotes).toContain('config diff');
     expect(cleanNotes).not.toContain('repeat what VULCAN ships');
     expect(staleWarnings).toContain('remove: atlas.sources: ghost matches nothing');
     expect(cleanWarnings).not.toContain('matches nothing');
@@ -222,7 +222,7 @@ describe('the effective config of a project that writes none of it', () => {
     const root = project(
       "export default { name: 'acme', claude: { settings: { permissions: { allow: ['Bash(ls:*)', 'Bash(mine:*)'] } } } };\n",
     );
-    const out = runCli({ args: ['config', '--diff'], cwd: root }).stdout;
+    const out = runCli({ args: ['config', 'diff'], cwd: root }).stdout;
 
     expect(out).toContain('claude.settings.permissions.allow[Bash(ls:*)]');
     expect(out).not.toContain('Bash(mine:*)');
@@ -231,7 +231,7 @@ describe('the effective config of a project that writes none of it', () => {
   test('sync writes the allow and deny lines into the Claude settings', () => {
     const root = project("export default { name: 'acme' };\n");
 
-    expect(runCli({ args: ['sync', '--agents', 'claude'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root }).code).toBe(0);
 
     const settings = JSON.parse(readFileSync(join(root, '.claude/settings.json'), 'utf8'));
 

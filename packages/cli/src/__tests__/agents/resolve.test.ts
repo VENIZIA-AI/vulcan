@@ -111,7 +111,7 @@ describe('AgentSelection.resolve: nothing known', () => {
       hint: NO_TTY_HINT,
     });
     expect(NO_TTY_HINT).toBe(
-      'vulcan sync: no agents chosen on this machine - wrote the Claude files as before; if you use Codex, omp, pi or another agent, run once: vulcan sync --agents claude,omp (or none)',
+      'vulcan project sync: no agents chosen on this machine - wrote the Claude files as before; if you use Codex, omp, pi or another agent, run once: vulcan project sync --agents claude,omp (or none)',
     );
     expect(asked).toEqual([]);
   });
@@ -153,7 +153,8 @@ describe('AgentSelection.resolve: nothing known', () => {
   test('end of input (null) in a terminal stops without writing', () => {
     expect(resolve({ interactive: true, answer: null }).result).toEqual({
       ok: false,
-      error: 'vulcan sync: no answer - run: vulcan sync --agents claude,omp (or none)',
+      error:
+        'vulcan project sync: no answer - run: vulcan project sync --agents claude,omp (or none)',
     });
   });
 
@@ -178,7 +179,7 @@ describe('AgentSelection.resolve: nothing known', () => {
   test('--agents with no value and no terminal is an error that names the flag', () => {
     expect(resolve({ flag: '', interactive: false }).result).toEqual({
       ok: false,
-      error: 'vulcan sync: --agents needs a list (claude,omp) or none',
+      error: 'vulcan project sync: --agents needs a list (claude,omp) or none',
     });
   });
 });
@@ -189,7 +190,7 @@ describe('AgentSelection.resolve: refusals', () => {
     const answer = resolve({ interactive: true, answer: 'vim' }).result;
 
     expect(!flag.ok && flag.error).toBe(
-      "vulcan sync: unknown agent 'vim' - one of: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none",
+      "vulcan project sync: unknown agent 'vim' - one of: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none",
     );
     expect(!answer.ok && answer.error).toContain("unknown agent 'vim'");
   });
@@ -197,7 +198,7 @@ describe('AgentSelection.resolve: refusals', () => {
   test('none cannot be mixed with agents', () => {
     expect(resolve({ flag: 'none,claude' }).result).toEqual({
       ok: false,
-      error: "vulcan sync: 'none' cannot be combined with other agents",
+      error: "vulcan project sync: 'none' cannot be combined with other agents",
     });
   });
 

@@ -60,6 +60,9 @@ export class EventFlags {
   static readonly CHECK_DONE = '--check-done';
   static readonly APP = '--app';
   static readonly DUE = '--due';
+  /** Only a `flow`: its place in the work order, a positive whole number, or `none` to clear it. */
+  static readonly ORDER = '--order';
+  static readonly ORDER_NONE = 'none';
   static readonly KIND = '--kind';
   static readonly SUMMARY = '--summary';
   static readonly FLOW = '--flow';
@@ -73,7 +76,7 @@ export class EventFlags {
   static readonly DIR = '--dir';
   static readonly SINCE = '--since';
   static readonly JSON = '--json';
-  /** `vulcan event step`: the step's text, set done or open. */
+  /** `vulcan flow step`: the step's text, set done or open. */
   static readonly DONE = '--done';
   static readonly TODO = '--todo';
 
@@ -85,6 +88,7 @@ export class EventFlags {
     this.CHECK_DONE,
     this.APP,
     this.DUE,
+    this.ORDER,
     this.KIND,
     this.SUMMARY,
     this.FLOW,
@@ -146,7 +150,7 @@ export class EventConstants {
   static readonly MANIFEST_FILE = '.agents/local/vulcan.manifest.json';
   /** The per-checkout file; the same path as `AgentConstants.LOCAL_FILE`, kept here because the event hook loads no other module (a test holds them equal). */
   static readonly LOCAL_FILE = '.agents/local/profile.json';
-  /** The file of the releases before 0.5.0; read when the profile has no such key, until `vulcan sync` has moved its keys. */
+  /** The file of the releases before 0.5.0; read when the profile has no such key, until `vulcan project sync` has moved its keys. */
   static readonly LEGACY_LOCAL_FILE = '.agents/vulcan.local.json';
   /** A day file of the log: `<local day>.jsonl`; the capture is the day. */
   static readonly DAY_FILE = /^(\d{4}-\d{2}-\d{2})\.jsonl$/;
@@ -206,6 +210,8 @@ export class EventConstants {
   static readonly DAY_MS = 24 * 60 * 60 * 1000;
   /** A flow with open steps and no line of work for this long gets a reminder from the Stop hook, once per period per session. */
   static readonly STALE_FLOW_MS = 2 * 60 * 60 * 1000;
+  /** The Stop hook holds on the session's own edits only when the flow has had no update for this long before the edit. */
+  static readonly EDIT_HOLD_MS = 30 * 60 * 1000;
   /** The folder of the events folder that holds, per session, when it was last reminded of a stale flow. */
   static readonly STALE_REMINDER_DIR = '.stale-reminders';
   /** A reminder file this old (by its modified time) is removed the next time one is written. */

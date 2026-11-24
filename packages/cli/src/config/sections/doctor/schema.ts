@@ -43,11 +43,11 @@ export const DOCTOR_SCHEMA = z.strictObject({
   privateValues: z
     .strictObject({ acknowledged: z.array(ACKNOWLEDGEMENT).default([]) })
     .default({ acknowledged: [] }),
-  /** The layout check (`vulcan layout check`, the doctor's `file-layout` warning): the line limit, the subfolder count, the role words that are not plurals and the generated files. */
+  /** The layout check (`vulcan check layout`, the doctor's `file-layout` warning): the line limit, the subfolder count, the role words that are not plurals and the generated files. */
   layout: LAYOUT.prefault({}),
 });
 
 export const DOCTOR_SECTION = {
-  /** What `vulcan doctor` is told: `privateValues.acknowledged` lists the files that may keep private values, each with a `reason`; `layout` sets the layout check. */
+  /** What `vulcan project doctor` is told: `privateValues.acknowledged` lists the files that may keep private values, each with a `reason`; `layout` sets the layout check. */
   doctor: DOCTOR_SCHEMA.prefault({}),
 };

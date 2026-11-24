@@ -13,6 +13,7 @@ import { dirname, join } from 'node:path';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
+import { initRepo } from '../git-repo.helper.ts';
 
 afterAll(removeProjects);
 
@@ -23,7 +24,7 @@ const READ_ONLY_PROJECT = {
   'AGENTS.md': '# x\n',
 };
 
-const runSync = (opts: { root: string }) => runCli({ args: ['sync'], cwd: opts.root });
+const runSync = (opts: { root: string }) => runCli({ args: ['project', 'sync'], cwd: opts.root });
 
 const readSettings = (opts: { root: string }) =>
   JSON.parse(readFileSync(join(opts.root, '.claude', 'settings.json'), 'utf8'));
@@ -261,7 +262,9 @@ describe('.claude/settings.json', () => {
 
     expect(second.stderr).toContain('unchanged .claude/settings.json');
     expect(Object.keys(readSettings({ root }))[0]).toBe('$schema');
-    expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain('.claude/settings.json');
+    expect(runCli({ args: ['project', 'doctor'], cwd: root }).stderr).not.toContain(
+      '.claude/settings.json',
+    );
   });
 
   // What an older VULCAN shipped, recorded by its sync; a developer then hand-edited the entry.
@@ -490,19 +493,22 @@ describe('idempotence and output', () => {
   test('--dry-run changes nothing', () => {
     const root = createProject({ files: READ_ONLY_PROJECT });
 
-    runCli({ args: ['sync', '--dry-run'], cwd: root });
+    runCli({ args: ['project', 'sync', '--dry-run'], cwd: root });
     expect(existsSync(join(root, 'CLAUDE.md'))).toBe(false);
   });
 
   test('--dry-run says what it would do, in one column; a real run keeps its labels', () => {
     const root = createProject({ files: READ_ONLY_PROJECT });
-    const dryRun = runCli({ args: ['sync', '--dry-run'], cwd: root }).stderr;
+    const dryRun = runCli({ args: ['project', 'sync', '--dry-run'], cwd: root }).stderr;
 
     expect(dryRun).toContain('  would create  CLAUDE.md\n');
     expect(dryRun).not.toMatch(/^ {2}(?:created|replaced|removed) /m);
 
     // The widest label is 'would replace': every path starts in the same column after it.
-    for (const line of dryRun.trimEnd().split('\n')) {
+    for (const line of dryRun
+      .trimEnd()
+      .split('\n')
+      .filter((entry) => entry.startsWith('  '))) {
       expect(line.slice(15, 17), line).toMatch(/^ \S$/);
     }
 
@@ -528,6 +534,9 @@ describe('SyncPlanner.plan with the resolved agents', () => {
     if (!loaded.ok) {
       throw new Error(loaded.error);
     }
+
+    // A repository with no descriptor tracked: an app, which gets the local manifest only.
+    initRepo({ cwd: root });
 
     const without = SyncPlanner.plan({ root, config: loaded.config, agents: ['omp'] });
     const withClaude = SyncPlanner.plan({ root, config: loaded.config, agents: ['claude', 'omp'] });
@@ -593,8 +602,8 @@ describe('.mcp.json approval for Claude', () => {
       },
     });
 
-    runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
-    runCli({ args: ['agents', 'remove', 'claude'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
+    runCli({ args: ['agent', 'remove', 'claude'], cwd: root });
 
     expect(readSettings({ root }).enabledMcpjsonServers).toEqual(['mine']);
   });

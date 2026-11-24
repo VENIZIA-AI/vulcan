@@ -171,8 +171,8 @@ describe('guard-outside denies a write to a file the guards read their policy fr
     'echo x > .agents/tmp/a',
     'echo x > .agents/other.json',
     'bun install',
-    'bun node_modules/.bin/vulcan sync',
-    'bun node_modules/.bin/vulcan sync --app apps/web',
+    'bun node_modules/.bin/vulcan project sync',
+    'bun node_modules/.bin/vulcan project sync --app apps/web',
     'perl -e 1 .agents/local/vulcan.manifest.json',
   ])('a command that does not change one is left alone: %s', (command) => {
     expect(protectedHitsOf({ root, command })).toEqual([]);
@@ -218,6 +218,30 @@ describe('the modules under .configs/ a config imports are protected like the co
       expect(hitsOf({ command }).length).toBeGreaterThan(0);
     },
   );
+
+  test('find -name of a module name deletes it and is denied; a name no module has is not', () => {
+    expect(hitsOf({ command: 'find .configs -name policy.mts -delete' }).length).toBeGreaterThan(0);
+    expect(hitsOf({ command: "find .configs -name 'doctor.*' -delete" }).length).toBeGreaterThan(0);
+    expect(hitsOf({ command: "find .configs -name '*.log' -delete" })).toEqual([]);
+  });
+
+  test('a module whose name holds glob characters is matched as written', () => {
+    const odd = ['.configs/policy-[a].mts'];
+
+    mkdirSync(join(root, '.configs'), { recursive: true });
+    const oddHits = (command: string) =>
+      OutsideGuard.inspect({
+        input: { tool: 'Bash', command, cwd: root, filePath: undefined },
+        projectRoot: root,
+        configModules: odd,
+        env: { HOME: '/nonexistent-home' },
+      }).filter((hit) => hit.isProtected === true);
+
+    expect(oddHits("echo x > '.configs/policy-[a].mts'").length).toBeGreaterThan(0);
+    expect(oddHits('rm .configs/policy-*.mts').length).toBeGreaterThan(0);
+    expect(oddHits('rm .configs/policy-?a?.mts').length).toBeGreaterThan(0);
+    expect(oddHits('echo x > .configs/policy-a.mts')).toEqual([]);
+  });
 
   test('a module the manifest does not list is not protected', () => {
     expect(hitsOf({ command: 'echo x > .configs/lints/eslint.config.mts' })).toEqual([]);

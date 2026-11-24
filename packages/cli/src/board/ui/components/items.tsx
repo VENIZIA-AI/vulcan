@@ -46,6 +46,10 @@ const Segments = (props: { done: number; total: number }) => (
   </span>
 );
 
+/** A flow's place in the work order, small, before its id; nothing when it has none. */
+const Order = (props: { order: number | undefined }) =>
+  props.order === undefined ? null : <b className="c-order">{props.order}</b>;
+
 const Due = (props: { due: string | undefined }) => {
   const { t, now } = useUi();
 
@@ -185,7 +189,10 @@ const ItemCard = (props: IRowProps & { card: IItemCard }) => {
   return (
     <div className={`c-card row${props.selected ? ' sel' : ''}`} role="button" {...pick}>
       <div className="c-head">
-        <span className="c-id">{flow.id}</span>
+        <span className="c-id">
+          <Order order={flow.order} />
+          {flow.id}
+        </span>
         {flow.tracker ? <span className="c-ref">{flow.tracker}</span> : null}
         <Stage view={view} />
         {BoardWork.isStale({ flow, now }) ? <Stale /> : null}
@@ -274,7 +281,10 @@ const CompactRow = (props: IRowProps) => {
   return (
     <div className={`c-line row${props.selected ? ' sel' : ''}`} role="button" {...pick}>
       <StatusMark state={view.flow.state} />
-      <span className="c-id">{view.flow.id}</span>
+      <span className="c-id">
+        <Order order={view.flow.order} />
+        {view.flow.id}
+      </span>
       <span className="c-lt" title={view.flow.title}>
         {view.flow.title}
       </span>
@@ -379,7 +389,10 @@ const TableRow = (props: IRowProps) => {
 
   return (
     <tr className={`row${props.selected ? ' sel' : ''}`} {...pick}>
-      <td className="c-id">{flow.id}</td>
+      <td className="c-order-cell">{flow.order ?? ''}</td>
+      <td className="c-id" title={flow.id}>
+        {flow.id}
+      </td>
       <td className="t-title">
         <div>
           <span title={flow.title}>{flow.title}</span>

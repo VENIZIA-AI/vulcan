@@ -21,7 +21,7 @@ export class LocalStates {
   static readonly UNKNOWN = 'unknown';
 }
 
-/** What `vulcan clean` can be told to clear. The default is `tmp`; `all` never reaches the kept ones. */
+/** What `vulcan project clean` can be told to clear. The default is `tmp`; `all` never reaches the kept ones. */
 export class CleanScopes extends ConstClass {
   static readonly TMP = 'tmp';
   static readonly WORKTREES = 'worktrees';

@@ -4,9 +4,9 @@ One setup, one workflow and one coding style for every VENIZIA project. Bun-only
 
 ```bash
 bun add -d --exact @venizia/vulcan @venizia/dev-configs
-bun node_modules/.bin/vulcan init
-bun node_modules/.bin/vulcan sync
-bun node_modules/.bin/vulcan doctor
+bun node_modules/.bin/vulcan project init
+bun node_modules/.bin/vulcan project sync
+bun node_modules/.bin/vulcan project doctor
 ```
 
 `doctor` fails with `[scaffold]` until you describe the project in `.agents/knowledge/index.md` and delete the `vulcan:scaffold` line; it is the first item `init` lists under `left to do`.
@@ -39,7 +39,7 @@ flag `bun x` fetches it when `@venizia/vulcan` is not installed yet.
 | `x <tool> [args...]` | Run a shipped tool at the pinned version: `okf`, `atlas`. `x --help` prints the help; `x <tool> --help` goes to the tool |
 | `help`, `version` | `help` prints the usage; `version` prints the installed version |
 
-Diagnostics go to stderr; a command that produces a result prints only that on stdout, and `vulcan x atlas mcp` is a
+Diagnostics go to stderr; a command that produces a result prints only that on stdout, and `vulcan atlas mcp` is a
 clean MCP stdio server.
 
 ## The project config
@@ -59,7 +59,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-An unknown key is an error; every error names the file and the field. The example shows a few keys; each key, with its type and default, is in `docs/wiki/content/references/configuration/index.md`. Three that a new project often wants: `local.tmp` (a short folder for the temporary files of a session, so a browser socket path fits), `theme` (the colours, fonts and radius of the board and the pages VULCAN makes) and `board` (the owner, title, logo and agents of `vulcan board`).
+An unknown key is an error; every error names the file and the field. The example shows a few keys; each key, with its type and default, is in `docs/wiki/content/references/configuration/index.md`. Three that a new project often wants: `local.tmp` (a short folder for the temporary files of a session, so a browser socket path fits), `theme` (the colours, fonts and radius of the board and the pages VULCAN makes) and `board` (the owner, title, logo and agents of `vulcan board show`).
 
 ## What ships (`base/`)
 

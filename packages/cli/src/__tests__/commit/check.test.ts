@@ -10,7 +10,7 @@ afterAll(removeProjects);
 const SIGNED = 'fix(sync): a thing\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n';
 const CLEAN = 'fix(sync): a thing\n\nCo-authored-by: Jane Doe <jane@example.dev>\n';
 
-/** A project whose manifest has the `commit.message` block `vulcan sync` writes. */
+/** A project whose manifest has the `commit.message` block `vulcan project sync` writes. */
 const projectWith = (opts: { message?: object }): string =>
   createProject({
     files:
@@ -28,10 +28,10 @@ const checkFile = (opts: { root: string; message: string }) => {
 
   writeFileSync(file, opts.message);
 
-  return runCli({ args: ['commit-check', file], cwd: opts.root });
+  return runCli({ args: ['check', 'commit', file], cwd: opts.root });
 };
 
-describe('vulcan commit-check <message-file>', () => {
+describe('vulcan check commit <message-file>', () => {
   test('a project that turned nothing on is told so and nothing is checked', () => {
     const result = checkFile({ root: projectWith({}), message: SIGNED });
 
@@ -94,19 +94,19 @@ describe('vulcan commit-check <message-file>', () => {
 
   test('a message file that is not there is a usage error, not a pass', () => {
     const root = projectWith({ message: { agent: { signature: 'deny' } } });
-    const result = runCli({ args: ['commit-check', join(root, 'nope')], cwd: root });
+    const result = runCli({ args: ['check', 'commit', join(root, 'nope')], cwd: root });
 
     expect(result.code).toBe(2);
     expect(result.stderr).toContain('cannot read');
   });
 });
 
-describe('vulcan commit-check --text and --range', () => {
+describe('vulcan check commit --text and --range', () => {
   test('--text checks the message given', () => {
     const root = projectWith({ message: { agent: { signature: 'deny' } } });
 
-    expect(runCli({ args: ['commit-check', '--text', CLEAN], cwd: root }).code).toBe(0);
-    expect(runCli({ args: ['commit-check', '--text', SIGNED], cwd: root }).code).toBe(1);
+    expect(runCli({ args: ['check', 'commit', '--text', CLEAN], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['check', 'commit', '--text', SIGNED], cwd: root }).code).toBe(1);
   });
 
   test('--range checks every commit of the range and names the signed one', () => {
@@ -121,14 +121,14 @@ describe('vulcan commit-check --text and --range', () => {
     git({ cwd: root, args: ['commit', '--allow-empty', '-q', '-m', SIGNED] });
 
     const bad = git({ cwd: root, args: ['rev-parse', '--short', 'HEAD'] });
-    const result = runCli({ args: ['commit-check', '--range', `${base}..HEAD`], cwd: root });
+    const result = runCli({ args: ['check', 'commit', '--range', `${base}..HEAD`], cwd: root });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(`commit ${bad.slice(0, 7)}`);
     expect(result.stderr).toContain('1 problem');
-    expect(runCli({ args: ['commit-check', '--range', `${base}..${base}`], cwd: root }).code).toBe(
-      0,
-    );
+    expect(
+      runCli({ args: ['check', 'commit', '--range', `${base}..${base}`], cwd: root }).code,
+    ).toBe(0);
   });
 
   test('a range git cannot read is a usage error', () => {
@@ -136,7 +136,7 @@ describe('vulcan commit-check --text and --range', () => {
 
     initRepo({ cwd: root });
 
-    const result = runCli({ args: ['commit-check', '--range', 'nope..HEAD'], cwd: root });
+    const result = runCli({ args: ['check', 'commit', '--range', 'nope..HEAD'], cwd: root });
 
     expect(result.code).toBe(2);
     expect(result.stderr).toContain('git log nope..HEAD failed');
@@ -157,8 +157,10 @@ describe('a CRLF message', () => {
     git({ cwd: root, args: ['commit', '--allow-empty', '-q', '--cleanup=verbatim', '-F', 'CRLF'] });
 
     expect(checkFile({ root, message: CRLF }).code).toBe(1);
-    expect(runCli({ args: ['commit-check', '--text', CRLF], cwd: root }).code).toBe(1);
-    expect(runCli({ args: ['commit-check', '--range', `${base}..HEAD`], cwd: root }).code).toBe(1);
+    expect(runCli({ args: ['check', 'commit', '--text', CRLF], cwd: root }).code).toBe(1);
+    expect(runCli({ args: ['check', 'commit', '--range', `${base}..HEAD`], cwd: root }).code).toBe(
+      1,
+    );
   });
 });
 
@@ -179,7 +181,10 @@ describe('--range is a revision, never an option', () => {
     initRepo({ cwd: root });
 
     const target = join(root, 'written-by-git');
-    const result = runCli({ args: ['commit-check', '--range', `--output=${target}`], cwd: root });
+    const result = runCli({
+      args: ['check', 'commit', '--range', `--output=${target}`],
+      cwd: root,
+    });
 
     expect(result.code).toBe(2);
     expect(existsSync(target)).toBe(false);
@@ -192,26 +197,26 @@ describe('the arguments', () => {
   test('bad input is a usage error even when no check is configured', () => {
     const bare = projectWith({});
 
-    expect(runCli({ args: ['commit-check'], cwd: bare }).code).toBe(2);
-    expect(runCli({ args: ['commit-check', '--range'], cwd: bare }).code).toBe(2);
-    expect(runCli({ args: ['commit-check', 'a', 'b'], cwd: bare }).code).toBe(2);
-    expect(runCli({ args: ['commit-check', '--bogus'], cwd: bare }).code).toBe(2);
+    expect(runCli({ args: ['check', 'commit'], cwd: bare }).code).toBe(2);
+    expect(runCli({ args: ['check', 'commit', '--range'], cwd: bare }).code).toBe(2);
+    expect(runCli({ args: ['check', 'commit', 'a', 'b'], cwd: bare }).code).toBe(2);
+    expect(runCli({ args: ['check', 'commit', '--bogus'], cwd: bare }).code).toBe(2);
   });
 
   test('two files are a usage error', () => {
-    expect(runCli({ args: ['commit-check', 'a', 'b'], cwd: root }).code).toBe(2);
+    expect(runCli({ args: ['check', 'commit', 'a', 'b'], cwd: root }).code).toBe(2);
   });
 
   test('exactly one of a file, --text or --range', () => {
-    expect(runCli({ args: ['commit-check'], cwd: root }).code).toBe(2);
-    expect(runCli({ args: ['commit-check', 'a', '--text', 'b'], cwd: root }).code).toBe(2);
-    expect(runCli({ args: ['commit-check', '--text', 'a', '--range', 'b'], cwd: root }).code).toBe(
-      2,
-    );
+    expect(runCli({ args: ['check', 'commit'], cwd: root }).code).toBe(2);
+    expect(runCli({ args: ['check', 'commit', 'a', '--text', 'b'], cwd: root }).code).toBe(2);
+    expect(
+      runCli({ args: ['check', 'commit', '--text', 'a', '--range', 'b'], cwd: root }).code,
+    ).toBe(2);
   });
 
   test('an unknown flag is refused by the router', () => {
-    const result = runCli({ args: ['commit-check', '--all'], cwd: root });
+    const result = runCli({ args: ['check', 'commit', '--all'], cwd: root });
 
     expect(result.code).toBe(2);
     expect(result.stderr).toContain("unknown argument '--all'");
@@ -226,10 +231,10 @@ describe('input is validated before the not-configured exit', () => {
 
     const target = join(bare, 'written-by-git');
 
-    expect(runCli({ args: ['commit-check', join(bare, 'nope')], cwd: bare }).code).toBe(2);
-    expect(runCli({ args: ['commit-check', '--range', 'nope..HEAD'], cwd: bare }).code).toBe(2);
+    expect(runCli({ args: ['check', 'commit', join(bare, 'nope')], cwd: bare }).code).toBe(2);
+    expect(runCli({ args: ['check', 'commit', '--range', 'nope..HEAD'], cwd: bare }).code).toBe(2);
     expect(
-      runCli({ args: ['commit-check', '--range', `--output=${target}`], cwd: bare }).code,
+      runCli({ args: ['check', 'commit', '--range', `--output=${target}`], cwd: bare }).code,
     ).toBe(2);
     expect(existsSync(target)).toBe(false);
   });

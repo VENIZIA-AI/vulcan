@@ -307,7 +307,7 @@ describe('PrivateValues.scan: acknowledgments', () => {
   });
 });
 
-describe('vulcan doctor: the warning', () => {
+describe('vulcan project doctor: the warning', () => {
   test('one warning per file with the kinds and counts, and no text of the value', async () => {
     const root = repository({ 'env/dev.env': `${KEY_HEADER}\nip 10.0.0.9 and 10.0.0.10\n` });
     const result = await DoctorRunner.runWarnings({ root });
@@ -413,8 +413,8 @@ describe('vulcan doctor: the warning', () => {
   test('the warning never changes the exit code: the same project with and without the value ends the same', async () => {
     const clean = repository({ 'a.txt': 'fine\n' });
     const leaky = repository({ 'a.txt': `${KEY_HEADER}\n` });
-    const without = runCli({ args: ['doctor'], cwd: clean, env: hermeticEnv() });
-    const withValue = runCli({ args: ['doctor'], cwd: leaky, env: hermeticEnv() });
+    const without = runCli({ args: ['project', 'doctor'], cwd: clean, env: hermeticEnv() });
+    const withValue = runCli({ args: ['project', 'doctor'], cwd: leaky, env: hermeticEnv() });
 
     expect(withValue.stderr).toContain('warning [private-values] a.txt');
     expect(without.stderr).not.toContain('[private-values]');

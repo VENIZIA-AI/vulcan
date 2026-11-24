@@ -1,11 +1,11 @@
 ---
-title: vulcan clean
+title: vulcan project clean
 description: List and remove what an agent left under .agents/local/ - scratch, worktrees of merged branches, clones, the cache - as a dry run first.
 ---
 
-# vulcan clean
+# vulcan project clean
 
-Everything an agent creates while it works lives under the project's gitignored `.agents/local/` (rule `V-B-08`). `vulcan clean` lists what is there and removes it when its time has come. It is a dry run unless you add `--yes`, and it only ever touches `.agents/local/` of the project it runs in.
+Everything an agent creates while it works lives under the project's gitignored `.agents/local/` (rule `V-B-08`). `vulcan project clean` lists what is there and removes it when its time has come. It is a dry run unless you add `--yes`, and it only ever touches `.agents/local/` of the project it runs in.
 
 Run it at the project root: it works on the `.agents/local/` of the current folder and does not search upward (`board` and `event` do).
 
@@ -36,8 +36,8 @@ A worktree is removed with `git worktree remove`, then `git worktree prune`. A s
 The dry run lists each item with its size and age, then what it would remove:
 
 ```text
-$ bun node_modules/.bin/vulcan clean
-vulcan clean: dry run, nothing is removed (add --yes)
+$ bun node_modules/.bin/vulcan project clean
+vulcan project clean: dry run, nothing is removed (add --yes)
   tmp/job-2  2.9 MB  3d  stale
   kept tmp/job-1  fresh (0m): may be in use; --include-fresh removes it
 would remove 1 item(s), 2.9 MB
@@ -46,14 +46,14 @@ would remove 1 item(s), 2.9 MB
 With `--yes` it removes the stale ones and keeps the rest:
 
 ```text
-$ bun node_modules/.bin/vulcan clean --yes
-vulcan clean: removing
+$ bun node_modules/.bin/vulcan project clean --yes
+vulcan project clean: removing
   tmp/job-2  2.9 MB  3d  stale
   kept tmp/job-1  fresh (0m): may be in use; --include-fresh removes it
 removed 1 item(s), 2.9 MB
 ```
 
-`vulcan doctor` warns about an item that has outlived its use (a `tmp/` item older than a day, a clone older than two weeks, a worktree on a merged or gone branch) with the command that clears it.
+`vulcan project doctor` warns about an item that has outlived its use (a `tmp/` item older than a day, a clone older than two weeks, a worktree on a merged or gone branch) with the command that clears it.
 
 ## The automatic clean
 
@@ -62,7 +62,7 @@ You rarely need this command for the safe part: the session-start hook runs it f
 ## See also
 
 - [The .agents folder](/guides/core-concepts/the-agents-folder): the tree, what is tracked and what expires
-- [vulcan doctor](/references/commands/doctor): the warnings that name what `clean` takes
+- [vulcan project doctor](/references/commands/doctor): the warnings that name what `clean` takes
 - [vulcan event](/references/commands/event): the log in `events/`
 
 ## Exit codes

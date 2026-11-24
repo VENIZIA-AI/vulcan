@@ -427,7 +427,7 @@ describe('MigratePlan.plans', () => {
     expect(result.unserved).toEqual(['@venizia/ghost']);
     expect(result.skipped).toEqual([]);
     expect(() => plan({ app, package: '@venizia/ghost', to: 'latest' })).toThrow(
-      /@venizia\/ghost is not served by any atlas source.*atlas\.sources.*vulcan x atlas pull/s,
+      /@venizia\/ghost is not served by any atlas source.*atlas\.sources.*vulcan atlas pull/s,
     );
   });
 

@@ -50,7 +50,7 @@ export class FlowGuard {
         return [];
       }
 
-      // A project that logs events but has no `project.key` cannot make a flow (`vulcan event add --kind flow` refuses): the
+      // A project that logs events but has no `project.key` cannot make a flow (`vulcan flow add` refuses): the
       // rule would ask for what cannot be done, so it does not exist until the key is set. Read only for a commit or a pull request.
       const key = EventSettings.keyOf({ root: opts.root });
       const cwd = opts.cwd ?? opts.root;
@@ -85,7 +85,7 @@ export class FlowGuard {
           decision: GuardDecisions.DENY,
           rule: 'V-P-13',
           message: `${detail.activity === GitActivities.COMMIT ? 'a commit' : 'a pull request'} with no flow: the branch does not name one and this session has no open flow, so the board cannot place the work`,
-          fix: `if this work already has a flow, put "Flow: <id>" in the message (or name the branch with its id); otherwise make one first with: ${ProjectLayout.VULCAN_COMMAND} event add --kind flow --title '<what this work is>' (it prints the id), then name the branch with that id (for example feature/<id>-<topic>) or put "Flow: <id>" in the message or the pull request body`,
+          fix: `if this work already has a flow, put "Flow: <id>" in the message (or name the branch with its id); otherwise make one first with: ${ProjectLayout.VULCAN_COMMAND} flow add --title '<what this work is>' (it prints the id), then name the branch with that id (for example feature/<id>-<topic>) or put "Flow: <id>" in the message or the pull request body`,
         },
       ];
     } catch {

@@ -22,6 +22,7 @@ const monorepo = (opts: { project?: string; shared?: string } = {}): string => {
 
   runCli({
     args: [
+      'project',
       'init',
       '--preset',
       WITH_LIB,
@@ -48,7 +49,7 @@ const monorepo = (opts: { project?: string; shared?: string } = {}): string => {
 
 const addLib = (opts: { root: string; args: string[]; preset?: string }) =>
   runCli({
-    args: ['add', '--preset', opts.preset ?? WITH_LIB, ...opts.args],
+    args: ['package', 'add', '--preset', opts.preset ?? WITH_LIB, ...opts.args],
     cwd: opts.root,
     env: ENV,
   });
@@ -56,7 +57,7 @@ const addLib = (opts: { root: string; args: string[]; preset?: string }) =>
 const readJson = (opts: { root: string; path: string }) =>
   JSON.parse(readFileSync(join(opts.root, opts.path), 'utf8'));
 
-describe('vulcan add --lib', () => {
+describe('vulcan package add --lib', () => {
   test('every package.json is sorted for bun fmt right after init and after add', () => {
     const root = monorepo();
 
@@ -119,7 +120,7 @@ describe('vulcan add --lib', () => {
     const root = monorepo();
 
     addLib({ root, args: ['--lib', 'billing'] });
-    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'none'], cwd: root });
 
     const manifest = readJson({ root, path: '.agents/local/vulcan.manifest.json' });
 
@@ -162,9 +163,9 @@ describe('vulcan add --lib', () => {
     const root = monorepo();
 
     addLib({ root, args: ['--lib', 'billing'] });
-    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'none'], cwd: root });
 
-    expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain('[apps]');
+    expect(runCli({ args: ['project', 'doctor'], cwd: root }).stderr).not.toContain('[apps]');
   });
 });
 
@@ -203,7 +204,9 @@ describe('where it goes', () => {
     const result = addLib({ root, args: ['--lib', 'billing'] });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('vulcan add: where should billing go? pass --dir <folder>');
+    expect(result.stderr).toContain(
+      'vulcan package add: where should billing go? pass --dir <folder>',
+    );
     expect(existsSync(join(root, 'billing'))).toBe(false);
   });
 
@@ -308,7 +311,7 @@ describe('refusals', () => {
     const result = addLib({ root, preset: APP_ONLY, args: ['--lib', 'billing'] });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('vulcan add: preset @fixture/backend has no lib kind');
+    expect(result.stderr).toContain('vulcan package add: preset @fixture/backend has no lib kind');
     expect(existsSync(join(root, 'libs/billing'))).toBe(false);
   });
 
@@ -408,23 +411,23 @@ describe('add asks which kind when neither flag is given', () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(
-      'vulcan add: say what to create - `--app <name>` (a runnable app), `--lib <name>` (a library other apps import) or `--shared <name>` (a side-neutral package other apps import)',
+      'vulcan package add: say what to create - `--app <name>` (a runnable app), `--lib <name>` (a library other apps import) or `--shared <name>` (a side-neutral package other apps import)',
     );
     expect(result.stderr).toContain(
-      `bun node_modules/.bin/vulcan add --preset ${WITH_LIB} --shared <name>`,
+      `bun node_modules/.bin/vulcan package add --preset ${WITH_LIB} --shared <name>`,
     );
     expect(result.stderr).toContain(
-      `bun node_modules/.bin/vulcan add --preset ${WITH_LIB} --app <name>`,
+      `bun node_modules/.bin/vulcan package add --preset ${WITH_LIB} --app <name>`,
     );
     expect(result.stderr).toContain(
-      `bun node_modules/.bin/vulcan add --preset ${WITH_LIB} --lib <name>`,
+      `bun node_modules/.bin/vulcan package add --preset ${WITH_LIB} --lib <name>`,
     );
     expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).not.toContain('billing');
   });
 
   describe.skipIf(!hasScript)('in a terminal', () => {
     const inTerminal = (opts: { root: string; args: string[]; answers: string[] }) => {
-      const command = [process.execPath, CLI, 'add', ...opts.args]
+      const command = [process.execPath, CLI, 'package', 'add', ...opts.args]
         .map((part) => `'${part.replaceAll("'", "'\\''")}'`)
         .join(' ');
       const child = spawnSyncBounded({

@@ -23,7 +23,7 @@ make/       build, lint, fmt, gates, test, release, help, project (included by e
 ```
 
 - One routing `AGENTS.md` at the root. `CLAUDE.md` is a gitignored file holding only `@AGENTS.md`,
-  written by `vulcan sync`.
+  written by `vulcan project sync`.
 - `.agents/plans/` and `.agents/specs/` are gitignored: saved specs and plans stay local.
 - Each package root holds exactly `.configs/` (`lints/` oxlint and ESLint naming-convention, with an optional `.ignore`; `bun fmt` formats with the
   root `bunfig.toml`, and a `formatters/.ignore` is read by make only), `src/`, `package.json`, `tsconfig.json`, `Makefile` (including

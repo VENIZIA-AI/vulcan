@@ -41,7 +41,7 @@ Copy it into your reply and tick it off, in order:
 
 ## 1. Paths
 
-1. `bun node_modules/.bin/vulcan doctor` passes (run it from the project root), so the manifest is fresh. Fix what it names first.
+1. `bun node_modules/.bin/vulcan project doctor` passes (run it from the project root), so the manifest is fresh. Fix what it names first.
 2. Read `.agents/atlas.manifest.json`. Every path comes from it, never from a layout you expect:
 
 | Key | What it gives you |
@@ -100,8 +100,8 @@ and says so.
 
 ## 6. Gates - validate, fix, repeat
 
-1. `bun node_modules/.bin/vulcan doctor`
-2. `bun node_modules/.bin/vulcan x okf check --strict` - the bundle, the house rules, every changelog
+1. `bun node_modules/.bin/vulcan project doctor`
+2. `bun node_modules/.bin/vulcan okf check --strict` - the bundle, the house rules, every changelog
    entry's `packages:` list.
 3. The project's own docs build, when it has one. Discover it, never assume a target name: the
    targets `.agents/rules.md` names, `make help`, the Makefile and its `*.mk` files (`grep -n '<the
@@ -120,11 +120,11 @@ list, each gate with its result, anything skipped and why. **Do not commit.** Le
 ## Auditing the bundle
 
 Asked to sync, refresh or audit the knowledge bundle - after a refactor, before a release, or when a
-concept may be stale - not once per change. Run `vulcan x okf gen` first (the generated layer heals
+concept may be stale - not once per change. Run `vulcan okf gen` first (the generated layer heals
 itself). Then list the code that changed since the last commit that touched the bundle:
 `LAST=$(git log -1 --format=%H -- <knowledge.bundle>)`, then
 `git log $LAST..HEAD --no-merges --name-only --format= -- <the packages' paths>` (no such commit yet:
 every concept). Re-read each concept whose code changed and fix it from the code, never from docs,
 `AGENTS.md` or memory; every finding cites a `file:line`. A gap with no home gets a concept copied from
 two or three siblings and linked from `index.md`. Then run the gates of step 6 and
-`vulcan x okf coverage --min 100`, and report each correction as was -> is with its witness.
+`vulcan okf coverage --min 100`, and report each correction as was -> is with its witness.

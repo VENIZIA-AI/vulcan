@@ -59,7 +59,7 @@ const open = (root: string): string =>
     ],
   }).stdout.trim();
 
-describe('vulcan event step', () => {
+describe('vulcan flow step', () => {
   test('changes one step and keeps every other field of the flow line', () => {
     const root = project();
     const id = open(root);
@@ -410,5 +410,96 @@ describe('the hook script with a task list', () => {
     expect(child.stdout.toString()).toBe('');
     expect(last?.flowId).toBe(id);
     expect(last?.steps?.at(-1)).toEqual({ text: 'From the script', done: true });
+  });
+});
+
+describe('a flow step keeps the steps it does not name', () => {
+  const FIVE = ['One', 'Two', 'Three', 'Four', 'Five'];
+  const openFive = (root: string): string =>
+    cli({
+      root,
+      args: [
+        'add',
+        '--kind',
+        'flow',
+        '--title',
+        'Sign in',
+        '--step-done',
+        'One',
+        '--step-done',
+        'Two',
+        '--step',
+        'Three',
+        '--step',
+        'Four',
+        '--step',
+        'Five',
+      ],
+    }).stdout.trim();
+  const stepsOf = (root: string): string[] | undefined =>
+    linesOf(root)
+      .filter((line) => line.kind === 'flow')
+      .at(-1)
+      ?.steps?.map((step) => step.text);
+
+  test('--todo with a new text appends it after five steps and keeps the rest in order', () => {
+    const root = project();
+    const id = openFive(root);
+
+    cli({ root, args: ['step', '--flow', id, '--todo', 'Six'] });
+
+    expect(stepsOf(root)).toEqual([...FIVE, 'Six']);
+  });
+
+  test('--done with a new text appends it done, and --todo with an old text only opens it', () => {
+    const root = project();
+    const id = openFive(root);
+
+    cli({ root, args: ['step', '--flow', id, '--done', 'Six'] });
+    cli({ root, args: ['step', '--flow', id, '--todo', 'One'] });
+
+    const last = linesOf(root)
+      .filter((line) => line.kind === 'flow')
+      .at(-1);
+
+    expect(last?.steps).toEqual([
+      { text: 'One', done: false },
+      { text: 'Two', done: true },
+      { text: 'Three', done: false },
+      { text: 'Four', done: false },
+      { text: 'Five', done: false },
+      { text: 'Six', done: true },
+    ]);
+  });
+
+  test('two title-only flow lines after five steps leave the list alone, and a step then makes six', () => {
+    const root = project();
+    const id = openFive(root);
+
+    cli({ root, args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in again'] });
+    cli({ root, args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in once more'] });
+    cli({ root, args: ['step', '--flow', id, '--todo', 'Six'] });
+
+    const last = linesOf(root)
+      .filter((line) => line.kind === 'flow')
+      .at(-1);
+
+    expect(last?.summary).toBe('Sign in once more');
+    expect(last?.steps?.map((step) => step.text)).toEqual([...FIVE, 'Six']);
+    expect(last?.steps?.slice(0, 2).map((step) => step.done)).toEqual([true, true]);
+  });
+
+  test('a flow line that carries steps replaces the list, and a title-only line after it keeps that list', () => {
+    const root = project();
+    const id = openFive(root);
+
+    cli({
+      root,
+      args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in', '--step', 'Only'],
+    });
+    cli({ root, args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in v2'] });
+    cli({ root, args: ['step', '--flow', id, '--todo', 'Next'] });
+
+    expect(stepsOf(root)).toEqual(['Only', 'Next']);
   });
 });

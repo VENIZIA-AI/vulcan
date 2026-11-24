@@ -25,7 +25,7 @@ import { BoardPage } from './page.ts';
 import { BoardServer } from './server.ts';
 
 const SHARED_FLAGS = `[${BoardFlags.OPEN}] [${BoardFlags.SINCE} <date>] [${BoardFlags.DIR} <events folder>] [${BoardFlags.REPO} owner/name]... [${BoardFlags.NO_GITHUB}]`;
-const USAGE = `usage: vulcan board [${BoardFlags.OUT} <file>] ${SHARED_FLAGS}\n       vulcan board ${BoardServe.COMMAND} [${BoardFlags.PORT} <n>] ${SHARED_FLAGS}`;
+const USAGE = `usage: vulcan board show [${BoardFlags.OUT} <file>] ${SHARED_FLAGS}\n       vulcan board ${BoardServe.COMMAND} [${BoardFlags.PORT} <n>] ${SHARED_FLAGS}`;
 
 /** Starts the program that opens the browser; `target` is what it is given, `fallback` what a person is told to open if it fails. */
 type TBoardOpener = (opts: { target: string; fallback: string }) => void;
@@ -41,7 +41,7 @@ interface IBoardArgs {
   noGithub: boolean;
 }
 
-/** `vulcan board`: the flows of a project, from its event log and, when `gh` or `glab` can read them, its pull requests, as one HTML file. */
+/** `vulcan board show`: the flows of a project, from its event log and, when `gh` or `glab` can read them, its pull requests, as one HTML file. */
 export class BoardCommand {
   static async run(opts: ICommandContext & { opener?: TBoardOpener }): Promise<number> {
     const args = BoardCommand.parse({ args: opts.args });

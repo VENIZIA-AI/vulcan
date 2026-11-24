@@ -80,7 +80,127 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
     });
   });
 
-  test('the table: ten columns in order, a header click sorts with aria-sort, and j moves through its rows', async () => {
+  test('the flow details: the long summaries of "All events" wrap in the full width and the text of a row ends above the next row', async () => {
+    const flow = data.flows.find((one) => one.id !== 'Unsorted' && one.events.length > 0);
+    const first = flow?.events[0];
+
+    if (flow === undefined || first === undefined) {
+      throw new Error('the sample day has no flow with events');
+    }
+
+    const summary = `Rà soát từng bảng adoption của IGNIS trong backend và ghi lại mọi chỗ còn dùng đường cũ ${'src/very/long/path/'.repeat(4)}`;
+    const long = {
+      ...data,
+      flows: [
+        {
+          ...flow,
+          title: 'Backend dùng hết IGNIS (bảng adoption IGNIS)',
+          events: Array.from({ length: 30 }, (_, index) => ({
+            ...first,
+            id: `long-${index}`,
+            isTitle: index === 0,
+            summary: `${summary}${index}`,
+          })),
+        },
+      ],
+    };
+    const raw = await BrowserPage.measure<string>({
+      html: BoardPage.render({ data: long }),
+      width: 1440,
+      dark: false,
+      expression: `(async () => {
+        localStorage.clear();
+        ${WAIT}
+        document.querySelector('[data-id="${flow.id}"]').click();
+        await wait();
+        document.querySelector('button.d-all').click();
+        await wait();
+        const nodes = [...document.querySelectorAll('li.ev')];
+        const rows = nodes.map((row) => row.getBoundingClientRect());
+        const textBottom = (row) => {
+          const range = document.createRange();
+
+          range.selectNodeContents(row.children[1].children[1]);
+
+          return range.getBoundingClientRect().bottom;
+        };
+        const texts = nodes.map((row) => row.children[1].children[1].getBoundingClientRect());
+        localStorage.clear();
+        return JSON.stringify({
+          count: rows.length,
+          spilling: nodes.filter((row) => row.scrollHeight > row.clientHeight + 1).length,
+          colliding: nodes.filter((row, index) => index < nodes.length - 1 && textBottom(row) > rows[index + 1].top + 0.5).length,
+          narrowest: Math.min(...texts.map((box) => box.width)),
+          shortest: Math.min(...texts.map((box) => box.height)),
+        });
+      })()`,
+    });
+    const result: {
+      count: number;
+      spilling: number;
+      colliding: number;
+      narrowest: number;
+      shortest: number;
+    } = JSON.parse(raw);
+
+    expect(result.count).toBe(30);
+    expect(result.colliding).toBe(0);
+    expect(result.spilling).toBe(0);
+    expect(result.narrowest).toBeGreaterThan(200);
+    expect(result.shortest).toBeGreaterThan(30);
+  });
+
+  test('the table: the code column fits the whole id, three digits or a long key, with the id as title, and a long holder leaves the columns fixed', async () => {
+    const longIds = ['VULZ-BANA-140', 'VULZ-BANA-175', 'VULZ-VULCAN-1234'];
+    const wide = {
+      ...data,
+      flows: data.flows.slice(0, longIds.length).map((flow, index) => ({
+        ...flow,
+        id: longIds[index] ?? flow.id,
+      })),
+    };
+    const raw = await BrowserPage.measure<string>({
+      html: BoardPage.render({ data: wide }),
+      width: 1440,
+      dark: false,
+      expression: `(async () => {
+        localStorage.clear();
+        ${WAIT}
+        document.querySelector('[data-view="table"]').click();
+        await wait();
+        const cells = [...document.querySelectorAll('.t-work td.c-id')];
+        const holder = document.querySelector('.t-work th:nth-child(5)');
+        const before = holder.getBoundingClientRect().width;
+        document.querySelector('.t-work tbody tr td:nth-child(5)').append(' a-holder-name-much-longer-than-its-column-can-show');
+        await wait();
+        const holderKept = holder.getBoundingClientRect().width === before;
+        localStorage.clear();
+        return JSON.stringify({ holderKept, cells: cells.map((cell) => ({
+          text: cell.textContent,
+          title: cell.title,
+          clipped: cell.scrollWidth > cell.clientWidth,
+        })) });
+      })()`,
+    });
+    const {
+      cells,
+      holderKept,
+    }: {
+      cells: { text: string; title: string; clipped: boolean }[];
+      holderKept: boolean;
+    } = JSON.parse(raw);
+
+    expect(cells.length).toBe(longIds.length);
+    expect(holderKept).toBe(true);
+
+    for (const cell of cells) {
+      expect(longIds).toContain(cell.text);
+      expect(cell.title).toBe(cell.text);
+      expect(cell.clipped).toBe(false);
+    }
+  });
+
+  test('the table: eleven columns in order, a header click sorts with aria-sort, and j moves through its rows', async () => {
     const result = await run<{
       headers: string[];
       rows: number;
@@ -121,6 +241,7 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
 
     expect(result.errors).toEqual([]);
     expect(result.headers).toEqual([
+      'Order',
       'Code',
       'Title',
       'Stage',

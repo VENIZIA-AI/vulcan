@@ -22,7 +22,7 @@ describe.skipIf(!hasScript)('a menu that is fed piped lines stops instead of wai
     const root = createProject({ files: PROJECT });
     const started = Date.now();
     const result = await driveTerminal({
-      args: ['sync'],
+      args: ['project', 'sync'],
       cwd: root,
       env: { ...ENV, HOME: createProject({ files: {} }) },
       steps: [{ waitFor: 'Which coding agents', send: LF }],
@@ -40,7 +40,7 @@ describe.skipIf(!hasScript)('a menu that is fed piped lines stops instead of wai
     const parent = createProject({ files: {} });
     const tmp = createProject({ files: {} });
     const result = await driveTerminal({
-      args: ['init', '--preset', BACKEND],
+      args: ['project', 'init', '--preset', BACKEND],
       cwd: parent,
       env: { ...ENV, TMPDIR: tmp },
       steps: [{ waitFor: 'Project name', send: `my-product${LF}` }],
@@ -59,7 +59,7 @@ describe.skipIf(!hasScript)('a menu that is fed piped lines stops instead of wai
   test('a real Enter (CR) still works, and so does TERM=dumb with piped lines', async () => {
     const root = createProject({ files: PROJECT });
     const menu = await driveTerminal({
-      args: ['sync'],
+      args: ['project', 'sync'],
       cwd: root,
       env: { ...ENV, HOME: createProject({ files: {} }) },
       steps: [{ waitFor: 'Which coding agents', send: KEYS.ENTER }],
@@ -70,7 +70,7 @@ describe.skipIf(!hasScript)('a menu that is fed piped lines stops instead of wai
 
     const plain = createProject({ files: PROJECT });
     const piped = await driveTerminal({
-      args: ['sync'],
+      args: ['project', 'sync'],
       cwd: plain,
       env: { ...ENV, TERM: 'dumb', HOME: createProject({ files: {} }) },
       steps: [{ waitFor: 'Agents >', send: `claude${LF}` }],

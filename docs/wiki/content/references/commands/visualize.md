@@ -1,17 +1,17 @@
 ---
-title: vulcan visualize
+title: vulcan page new
 description: Make one small static HTML page - a status, a flow, a comparison, an explainer, findings with charts - from a JSON spec, in a gitignored folder inside the project, with a slide mode. Nothing is published.
 ---
 
-# vulcan visualize
+# vulcan page new
 
-`vulcan visualize <spec.json>` turns a JSON spec into one self-contained HTML page and writes it to `.agents/local/prototypes/<name>.html` (gitignored, inside the project). The page is for a reader who should understand in one look: a status or a handoff, how something flows or is built, options compared with a pick, a brainstorm, an explanation, a timeline, findings with charts, a decision record. It loads nothing from the network, uses no font file, icon font or image, and is never published; you open the file.
+`vulcan page new <spec.json>` turns a JSON spec into one self-contained HTML page and writes it to `.agents/local/prototypes/<name>.html` (gitignored, inside the project). The page is for a reader who should understand in one look: a status or a handoff, how something flows or is built, options compared with a pick, a brainstorm, an explanation, a timeline, findings with charts, a decision record. It loads nothing from the network, uses no font file, icon font or image, and is never published; you open the file.
 
 | Command | What it does |
 |---|---|
-| `vulcan visualize <spec.json>` | Renders the page; the name is the spec's file name |
-| `vulcan visualize <spec.json> --out <name>` | Names the page (lowercase letters, digits, dashes) |
-| `vulcan visualize --schema` | Prints the spec's JSON Schema; no project is needed |
+| `vulcan page new <spec.json>` | Renders the page; the name is the spec's file name |
+| `vulcan page new <spec.json> --out <name>` | Names the page (lowercase letters, digits, dashes) |
+| `vulcan page schema` | Prints the spec's JSON Schema; no project is needed |
 
 ## What it checks
 
@@ -45,12 +45,12 @@ The look is the one of this wiki: a system font stack and a monospace one, three
 
 ## The colour
 
-The accent is the project's. The page takes the first that exists of: the `accent` of the spec, the [`theme`](/references/configuration/#theme) of the project (copied by `vulcan sync` into `.agents/local/vulcan.manifest.json`, which is the only file the generator reads for it), and the `venizia` preset. A page about another project gives `accent` (and `accentDark`, `accentText`) in its spec. The colours of the states (done, waiting, blocked) are fixed and separate from the accent, and every state also has an icon and a word.
+The accent is the project's. The page takes the first that exists of: the `accent` of the spec, the [`theme`](/references/configuration/#theme) of the project (copied by `vulcan project sync` into `.agents/local/vulcan.manifest.json`, which is the only file the generator reads for it), and the `venizia` preset. A page about another project gives `accent` (and `accentDark`, `accentText`) in its spec. The colours of the states (done, waiting, blocked) are fixed and separate from the accent, and every state also has an icon and a word.
 
 ## Words and language
 
-The page takes the language of your [profile](/references/commands/profile) (`vulcan visualize` reads it), else English; a spec cannot choose the language. The words of the page are bundled in English and Vietnamese; for any other language a spec replaces any word through a `chrome` object, so the [`visualize-work` skill](/references/skills) writes them in your language.
+The page takes the language of your [profile](/references/commands/profile) (`vulcan page new` reads it), else English; a spec cannot choose the language. The words of the page are bundled in English and Vietnamese; for any other language a spec replaces any word through a `chrome` object, so the [`visualize-work` skill](/references/skills) writes them in your language.
 
 ## Exit codes
 
-`0` on success. `1` when the spec is missing, not valid JSON or not renderable (nothing is written, every problem is listed), or when `.agents/local/` is missing, a symlink, or outside the project: run `vulcan sync` first.
+`0` on success. `1` when the spec is missing, not valid JSON or not renderable (nothing is written, every problem is listed), or when `.agents/local/` is missing, a symlink, or outside the project: run `vulcan project sync` first.

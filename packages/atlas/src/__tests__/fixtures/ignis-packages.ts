@@ -38,7 +38,7 @@ export const IGNIS_PACKAGE_MAP = IGNIS_PACKAGES.map((entry) => ({
   aliases: entry.aliases,
 }));
 
-/** IGNIS's manifest as `vulcan sync` will write it - the layout atlas reads from IGNIS. */
+/** IGNIS's manifest as `vulcan project sync` will write it - the layout atlas reads from IGNIS. */
 export const IGNIS_MANIFEST = {
   schemaVersion: 1,
   name: 'ignis',

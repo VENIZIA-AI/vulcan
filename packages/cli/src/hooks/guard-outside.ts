@@ -215,7 +215,8 @@ const GLOB_CHARACTER = /[*?[]/;
  * A name that starts with a dot is matched only by a segment that starts with one, as the shell does; the installed package is left out,
  * as for `rm -rf node_modules`.
  */
-const globReachesProtected = (opts: { glob: string; root: string; extra: string[] }): boolean => {
+/** `modules` are names as written, never escaped: each part is matched by the segment of the glob. */
+const globReachesProtected = (opts: { glob: string; root: string; modules: string[] }): boolean => {
   if (!isInside({ path: opts.glob, root: opts.root })) {
     return false;
   }
@@ -223,7 +224,7 @@ const globReachesProtected = (opts: { glob: string; root: string; extra: string[
   const relative = opts.glob.slice(opts.root.length + 1).toLowerCase();
   const segments = relative.split('/').filter((segment) => segment !== '');
 
-  return [...ProtectedNames.REACH, ...ProtectedNames.reachOf({ files: opts.extra })].some(
+  return [...ProtectedNames.REACH, ...ProtectedNames.reachOf({ files: opts.modules })].some(
     (name) => {
       const names = name.split('/');
       // A `**` part takes every name below the folders before it.
@@ -314,7 +315,8 @@ export class OutsideGuard {
     const root = realOf({ path: resolve(opts.projectRoot) }) ?? resolve(opts.projectRoot);
     const store = packageStoreOf({ root });
     // A name is matched as a glob: a bracket or a star in a module's name stands for itself.
-    const extra = (opts.configModules ?? []).map((file) =>
+    const modules = opts.configModules ?? [];
+    const extra = modules.map((file) =>
       file.replace(/[*?[\]{}]/g, (character) => `\\${character}`),
     );
     const patterns = allowPatterns({
@@ -361,7 +363,12 @@ export class OutsideGuard {
           continue;
         }
 
-        for (const target of ShellWrites.targetsOf({ command, base: folder.base, tmp })) {
+        for (const target of ShellWrites.targetsOf({
+          command,
+          base: folder.base,
+          tmp,
+          configModules: modules,
+        })) {
           // A word that names a `for` variable stands for each of its values in turn.
           for (const vars of loopCombinations({ word: target.word, loops: folder.loops })) {
             targets.push({
@@ -464,7 +471,7 @@ export class OutsideGuard {
           globReachesProtected({
             glob: `${real === '/' ? '' : real}/${pattern.slice(folder.length)}`,
             root,
-            extra,
+            modules,
           });
 
         if (reaches) {

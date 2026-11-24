@@ -15,7 +15,7 @@ export const MANIFEST_FILE = '.agents/atlas.manifest.json';
  * reads it when the descriptor is missing. Removed after one release.
  */
 export const LEGACY_MANIFEST_FILE = '.agents/vulcan.manifest.json';
-/** The manifest `vulcan sync` writes in every clone, not committed: what atlas reads of its own project when the project publishes nothing and so has no descriptor. */
+/** The manifest `vulcan project sync` writes in every clone, not committed: what atlas reads of its own project when the project publishes nothing and so has no descriptor. */
 export const LOCAL_MANIFEST_FILE = '.agents/local/vulcan.manifest.json';
 const MANIFEST_ENV = 'VULCAN_MANIFEST';
 const ROOT_ENV = 'VULCAN_PROJECT_ROOT';
@@ -42,7 +42,7 @@ export interface IAtlasPackage {
   presetKind?: TLibraryKind;
 }
 
-/** A preset an app of the project came from, as `vulcan add --preset` takes it back. */
+/** A preset an app of the project came from, as `vulcan package add --preset` takes it back. */
 export interface IAtlasPreset {
   spec: string;
   side: TAppSide;
@@ -59,7 +59,7 @@ export interface IAtlasProject {
   name: string;
   /** Release order; retired ones included, so their old changelogs and tags stay readable. */
   packages: IAtlasPackage[];
-  /** The folders `vulcan add` puts apps and packages in, each a folder or a list of folders; absent in an older manifest. */
+  /** The folders `vulcan package add` puts apps and packages in, each a folder or a list of folders; absent in an older manifest. */
   layout?: {
     backend?: string | string[];
     frontend?: string | string[];
@@ -210,11 +210,11 @@ const legacyTagPatternsOf = (opts: { value: unknown }): { legacyTagPatterns?: st
   return patterns.length === 0 ? {} : { legacyTagPatterns: patterns };
 };
 
-/** `root` when given (`--root`), else the one `vulcan x` named, else the working directory. */
+/** `root` when given (`--root`), else the one `vulcan atlas` or `vulcan okf` named, else the working directory. */
 const projectRoot = (opts: { root?: string }): string =>
   resolve(opts.root ?? process.env[ROOT_ENV] ?? process.cwd());
 
-/** The manifest `vulcan x` handed over - only for the root it named. */
+/** The manifest `vulcan atlas` or `vulcan okf` handed over - only for the root it named. */
 const handedManifest = (opts: { root: string }): string | undefined =>
   resolve(process.env[ROOT_ENV] ?? process.cwd()) === opts.root
     ? process.env[MANIFEST_ENV]
@@ -227,7 +227,7 @@ export class ProjectConfig {
   }
 
   /**
-   * A project from its manifest (`vulcan sync` rendered it from a validated config): defaults for
+   * A project from its manifest (`vulcan project sync` rendered it from a validated config): defaults for
    * anything absent, every path absolute. A schemaVersion this atlas does not read fails loudly.
    * `source` names a fetched source in an error; a project names itself.
    */
@@ -341,7 +341,7 @@ export class ProjectConfig {
       .find((file) => existsSync(file));
   }
 
-  /** Whether `root` is a project: `vulcan x` handed its manifest over, or it carries one. */
+  /** Whether `root` is a project: `vulcan atlas` or `vulcan okf` handed its manifest over, or it carries one. */
   static hasAtlasProject(opts: { root?: string } = {}): boolean {
     const root = projectRoot(opts);
 
@@ -358,7 +358,7 @@ export class ProjectConfig {
     return ProjectConfig.manifestFileOf(opts) ?? (existsSync(local) ? local : undefined);
   }
 
-  /** The project's manifest: the one `vulcan x` rendered fresh, else the committed file, else the local one. */
+  /** The project's manifest: the one `vulcan atlas` or `vulcan okf` rendered fresh, else the committed file, else the local one. */
   static readAtlasProject(opts: { root?: string } = {}): IAtlasProject {
     const root = projectRoot(opts);
     const file = ProjectConfig.ownManifestFileOf({ dir: root });
@@ -366,7 +366,9 @@ export class ProjectConfig {
       handedManifest({ root }) ?? (file === undefined ? undefined : readFileSync(file, 'utf8'));
 
     if (text === undefined) {
-      throw new Error(`atlas: no project manifest (${MANIFEST_FILE}) - run \`vulcan sync\``);
+      throw new Error(
+        `atlas: no project manifest (${MANIFEST_FILE}) - run \`vulcan project sync\``,
+      );
     }
 
     return ProjectConfig.toAtlasProject({ root, manifest: JSON.parse(text) });

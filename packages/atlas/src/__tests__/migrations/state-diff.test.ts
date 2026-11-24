@@ -779,7 +779,7 @@ describe('a plan to a line the folders do not reach says so', () => {
     const plan = planOf({ made: lines({ withNewFolder: false }), from: '0.4.5', to: '0.5.0-0' });
 
     expect(plan.note).toContain('end at 0.4.5 and hold none for 0.5.0');
-    expect(plan.note).toContain('vulcan x atlas pull');
+    expect(plan.note).toContain('vulcan atlas pull');
   });
 
   test('a folder for 0.5.0 in the history: no note', () => {

@@ -40,7 +40,7 @@ describe('doctor and the atlas sources the last server run recorded', () => {
     expect(failed).toHaveLength(1);
     expect(failed[0]?.check).toBe('atlas-source');
     expect(failed[0]?.message).toContain('ignis: failed (the remote is down)');
-    expect(failed[0]?.message).toContain('x atlas status');
+    expect(failed[0]?.message).toContain('atlas status');
 
     const refresh = ProjectContract.checkAtlasSources(
       context(

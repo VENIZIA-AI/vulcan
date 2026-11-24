@@ -1,5 +1,5 @@
 /**
- * Antigravity's PreToolUse hook command (`.agents/hooks.json`, written by `vulcan sync`): reads the event
+ * Antigravity's PreToolUse hook command (`.agents/hooks.json`, written by `vulcan project sync`): reads the event
  * Antigravity sends (camelCase, `toolCall.name` and `toolCall.args`), runs the same guard scripts Claude Code
  * runs through the policy of `base/extensions/vulcan-guards.ts`, and prints Antigravity's answer:
  * `{ "decision": "allow" | "ask" | "deny", "reason": "..." }`. Input it cannot read is allowed, as in the

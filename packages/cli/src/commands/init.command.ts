@@ -18,7 +18,7 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
   // Without it `bun add` walks up to a parent project and installs there.
   if (!existsSync(join(opts.cwd, 'package.json'))) {
     process.stderr.write(
-      `vulcan init: no package.json in ${opts.cwd} - run 'bun init' first, or use --preset to create a new project\n`,
+      `vulcan project init: no package.json in ${opts.cwd} - run 'bun init' first, or use --preset to create a new project\n`,
     );
 
     return ExitCodes.FAILURE;
@@ -35,7 +35,7 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
     });
 
     if (!choice.ok) {
-      process.stderr.write(`vulcan init: ${choice.error}\n`);
+      process.stderr.write(`vulcan project init: ${choice.error}\n`);
 
       return ExitCodes.USAGE;
     }
@@ -69,7 +69,9 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
     installCode = installExit;
 
     if (installCode !== ExitCodes.OK) {
-      process.stderr.write(`vulcan init: 'bun ${args.join(' ')}' failed - run it yourself\n`);
+      process.stderr.write(
+        `vulcan project init: 'bun ${args.join(' ')}' failed - run it yourself\n`,
+      );
     }
   }
 

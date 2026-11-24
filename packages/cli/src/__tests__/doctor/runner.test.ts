@@ -7,6 +7,7 @@ import { Bunfig } from '../../create/bunfig.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
+import { initRepo } from '../git-repo.helper.ts';
 
 afterAll(removeProjects);
 isolateOwnerReplySwitch();
@@ -26,7 +27,7 @@ const CONFORMANT: Record<string, string> = {
   '.agents/knowledge/index.md': '# k\n',
   Makefile: `${MAKE_INCLUDE}\nbuild:\n\t@echo build\n`,
   '.mcp.json':
-    '{ "mcpServers": { "atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "."] } } }\n',
+    '{ "mcpServers": { "atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "atlas", "mcp", "--root", "."] } } }\n',
   'bunfig.toml': Bunfig.render(),
   ...LINT_CONFIGS,
 };
@@ -34,7 +35,7 @@ const CONFORMANT: Record<string, string> = {
 const createSyncedProject = (opts: { files: Record<string, string> }): string => {
   const root = createProject({ files: opts.files });
 
-  runCli({ args: ['sync'], cwd: root });
+  runCli({ args: ['project', 'sync'], cwd: root });
 
   return root;
 };
@@ -51,14 +52,14 @@ describe('doctor', () => {
 
     const result2 = await DoctorRunner.runChecks({ root });
     expect(result2).toEqual([]);
-    const result = runCli({ args: ['doctor'], cwd: root });
+    const result = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(result.code).toBe(0);
-    expect(result.stderr).toContain('vulcan doctor: OK');
+    expect(result.stderr).toContain('vulcan project doctor: OK');
   });
 
   test('no config: a config violation, exit 1, no stack trace', () => {
-    const result = runCli({ args: ['doctor'], cwd: createProject({ files: {} }) });
+    const result = runCli({ args: ['project', 'doctor'], cwd: createProject({ files: {} }) });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('no .configs/vulcan.config.mts found');
@@ -72,7 +73,7 @@ describe('doctor', () => {
           "export default { packages: [{ dir: 'kernel', name: '@Acme/Kernel' }] };\n",
       },
     });
-    const result = runCli({ args: ['doctor'], cwd: root });
+    const result = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("package name '@Acme/Kernel' is not an npm package name");
@@ -104,7 +105,7 @@ describe('doctor', () => {
         '.agents/rules.md': '| **W-06** | **Extends V-W-06 and V-Z-99.** stay | SOFT |\n',
       },
     });
-    const result = runCli({ args: ['doctor'], cwd: root });
+    const result = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(
@@ -184,7 +185,7 @@ describe('doctor', () => {
       },
     });
 
-    expect(runCli({ args: ['doctor'], cwd: root }).stderr).toContain(
+    expect(runCli({ args: ['project', 'doctor'], cwd: root }).stderr).toContain(
       'W-01 is not a slot - only V-W-01 take a choice',
     );
   });
@@ -259,7 +260,7 @@ describe('doctor', () => {
         'make/knowledge.mk': 'okf-check:\n\t@echo mine\nproject-only:\n\t@echo fine\n',
       },
     });
-    const result = runCli({ args: ['doctor'], cwd: root });
+    const result = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(
@@ -278,9 +279,20 @@ describe('doctor', () => {
   });
 
   test('never synced: one adapters violation, and the missing manifest (a project that publishes nothing has no descriptor)', async () => {
-    const checks = await findChecks({ root: createProject({ files: CONFORMANT }) });
+    const root = createProject({ files: CONFORMANT });
 
-    expect(checks).toEqual([DoctorChecks.ADAPTERS, DoctorChecks.MANIFEST]);
+    initRepo({ cwd: root });
+
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.ADAPTERS, DoctorChecks.MANIFEST]);
+    // Outside a repository git cannot say whether the descriptor is tracked: it is kept, so it is missing too.
+    const result2 = await findChecks({ root: createProject({ files: CONFORMANT }) });
+    expect(result2).toEqual([
+      DoctorChecks.ADAPTERS,
+      DoctorChecks.MANIFEST,
+      DoctorChecks.MANIFEST,
+      DoctorChecks.MANIFEST,
+    ]);
   });
 
   test('a hand-written CLAUDE.md', async () => {
@@ -416,7 +428,7 @@ describe('doctor', () => {
     const root = createProject({
       files: { ...CONFORMANT, '.agents/rules.md': '| V-W-09 | mine | SOFT |\n' },
     });
-    const result = runCli({ args: ['doctor'], cwd: root });
+    const result = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(`[${DoctorChecks.RULE_IDS}]`);
@@ -433,7 +445,7 @@ describe('doctor on a clean checkout', () => {
 
     expect(adapters).toHaveLength(1);
     expect(adapters[0]?.message).toBe(
-      "not synced yet - run 'bun node_modules/.bin/vulcan sync' (make vulcan-sync) first",
+      "not synced yet - run 'bun node_modules/.bin/vulcan project sync' (make vulcan-sync) first",
     );
     expect(adapters[0]?.message).not.toContain('stale');
   });
@@ -599,7 +611,7 @@ describe('doctor: agents', () => {
         check: DoctorChecks.AGENTS,
         file: '.agents/local/profile.json',
         message:
-          '.agents/local/profile.json is not valid JSON - fix it (or move it aside), then run: vulcan sync --agents <list>',
+          '.agents/local/profile.json is not valid JSON - fix it (or move it aside), then run: vulcan project sync --agents <list>',
       },
     ]);
   });
@@ -612,7 +624,7 @@ describe('doctor: agents', () => {
       },
     });
 
-    runCli({ args: ['sync'], cwd: root });
+    runCli({ args: ['project', 'sync'], cwd: root });
 
     const result = await DoctorRunner.runChecks({ root });
     expect(result.map((violation) => violation.check)).not.toContain(DoctorChecks.ADAPTERS);
@@ -810,7 +822,7 @@ describe('doctor: bun fmt (warnings)', () => {
 
   test('doctor prints the warning lines and stays green', () => {
     const root = project({ files: { 'bunfig.toml': null } });
-    const result = runCli({ args: ['doctor'], cwd: root });
+    const result = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(result.code, result.stderr).toBe(0);
     expect(result.stderr).toContain('  warning [format] bunfig.toml: missing - ');
@@ -819,13 +831,13 @@ describe('doctor: bun fmt (warnings)', () => {
 
 describe('doctor: the atlas server is registered the canonical way (warnings)', () => {
   const ENTRY =
-    '"atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "."] }';
+    '"atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "atlas", "mcp", "--root", "."] }';
   const MCP = (opts: { name?: string; root?: string }): string =>
     JSON.stringify({
       mcpServers: {
         [opts.name ?? 'atlas']: {
           command: 'bun',
-          args: ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', opts.root ?? '.'],
+          args: ['node_modules/.bin/vulcan', 'atlas', 'mcp', '--root', opts.root ?? '.'],
         },
       },
     });
@@ -901,7 +913,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
     expect(warnings).toHaveLength(1);
     expect(warnings[0].message).toContain('out of date');
     expect(warnings[0].message).toContain('bunx');
-    expect(warnings[0].message).toContain('vulcan sync');
+    expect(warnings[0].message).toContain('vulcan project sync');
   });
 
   test('an atlas entry that serves another root', async () => {
@@ -909,7 +921,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0].message).toBe(
-      `the atlas entry is { "command": "bun", "args": ["node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected ${ENTRY}`,
+      `the atlas entry is { "command": "bun", "args": ["node_modules/.bin/vulcan", "atlas", "mcp", "--root", "../ignis"] }, expected ${ENTRY}`,
     );
   });
 
@@ -934,7 +946,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
         check: DoctorChecks.MCP,
         file: '.claude/settings.json',
         message:
-          'enabledMcpjsonServers does not include atlas (has: ignis-knowledge): Claude asks before using the server - run vulcan sync',
+          'enabledMcpjsonServers does not include atlas (has: ignis-knowledge): Claude asks before using the server - run vulcan project sync',
       },
     ]);
   });
@@ -949,7 +961,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
 
   test('doctor prints them as warnings and stays green', () => {
     const root = project({ mcp: MCP({ root: '../ignis' }) });
-    const result = runCli({ args: ['doctor'], cwd: root });
+    const result = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(result.code, result.stderr).toBe(0);
     expect(result.stderr).toContain('  warning [mcp] .mcp.json: the atlas entry is');

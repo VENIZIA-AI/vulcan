@@ -6,14 +6,15 @@ import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { ProjectPackages } from '../config/index.ts';
 import { ConfigImports } from '../config/imports.ts';
 import { GuardDecisions } from '../hooks/common/index.ts';
+import { AgentFiles } from '../sync/agent-files.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules } from '../rules/index.ts';
 import { ThemeTokens } from '../theme/index.ts';
 
 export class ManifestConstants {
-  /** Local, not committed: the whole manifest, which every hook, the board and the doctor read. Each clone writes its own with `vulcan sync`. */
+  /** Local, not committed: the whole manifest, which every hook, the board and the doctor read. Each clone writes its own with `vulcan project sync`. */
   static readonly FILE = '.agents/local/vulcan.manifest.json';
-  /** Committed and generated: the part of the manifest that readers of a checkout need without running `vulcan sync` (atlas, the wiki build). */
+  /** Committed and generated: the part of the manifest that readers of a checkout need without running `vulcan project sync` (atlas, the wiki build). */
   static readonly DESCRIPTOR_FILE = '.agents/atlas.manifest.json';
   /**
    * The one file of earlier releases, kept as a DATA-ONLY copy of the descriptor (the same text) until the stable 0.5.0
@@ -40,7 +41,8 @@ export class ManifestConstants {
   static readonly ENV = EnvVariables.VULCAN_MANIFEST;
   /** The first key: a reader sees at once that the file is generated. Readers ignore it. */
   static readonly GENERATED_KEY = '$generated';
-  static readonly GENERATED_NOTE = 'by vulcan sync from .configs/vulcan.config.* - do not edit';
+  static readonly GENERATED_NOTE =
+    'by vulcan project sync from .configs/vulcan.config.* - do not edit';
 }
 
 const HASH_LENGTH = 8;
@@ -121,7 +123,7 @@ const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<str
     : {};
 };
 
-/** The manifest's `local` block, which the hooks and `vulcan clean` read: when the automatic clean is off or the project names its tmp folder. */
+/** The manifest's `local` block, which the hooks and `vulcan project clean` read: when the automatic clean is off or the project names its tmp folder. */
 const localBlockOf = (opts: { config: TResolvedConfig }): { local?: Record<string, unknown> } => {
   const { autoClean, tmp } = opts.config.local;
   const block = {
@@ -161,7 +163,7 @@ const themeBlockOf = (opts: { config: TResolvedConfig }): { theme?: Record<strin
   };
 };
 
-/** The manifest's `board` block, which `vulcan board` reads: only what the project sets. */
+/** The manifest's `board` block, which `vulcan board show` reads: only what the project sets. */
 const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<string, unknown> } => {
   const { owner, title, logo, hostname, agents } = opts.config.board;
 
@@ -182,7 +184,7 @@ const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<strin
       };
 };
 
-/** The manifest's `provider` block, which `vulcan board` reads: written only when the code host is not GitHub. */
+/** The manifest's `provider` block, which `vulcan board show` reads: written only when the code host is not GitHub. */
 const providerBlockOf = (opts: {
   config: TResolvedConfig;
 }): { provider?: Record<string, unknown> } => {
@@ -207,7 +209,7 @@ const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<strin
   return Object.keys(block).length === 0 ? {} : { atlas: block };
 };
 
-/** Renders `.agents/local/vulcan.manifest.json` from the config and the base rule hashes; written by `vulcan sync`. */
+/** Renders `.agents/local/vulcan.manifest.json` from the config and the base rule hashes; written by `vulcan project sync`. */
 export class ProjectManifest {
   /** `@acme/shop-workspace` gives `shop`; a project with no package name takes its directory's. */
   static projectNameOf(opts: { root: string; config: TResolvedConfig }): string {
@@ -240,9 +242,14 @@ export class ProjectManifest {
 
   /**
    * The local manifest (Project Contract v1, C1): data only, rendered from the config with a fixed key order, so a stale
-   * one shows as a diff. Not committed: every clone writes it with `vulcan sync`.
+   * one shows as a diff. Not committed: every clone writes it with `vulcan project sync`.
    */
-  static render(opts: { root: string; config: TResolvedConfig }): string {
+  static render(opts: {
+    root: string;
+    config: TResolvedConfig;
+    /** The modules of the config under `.configs/` (`ConfigImports.localModules`), when the caller scanned them already. */
+    configModules?: string[];
+  }): string {
     return BunFormatter.format({
       text: `${JSON.stringify(ProjectManifest.build(opts), null, 2)}\n`,
       file: ManifestConstants.FILE,
@@ -251,15 +258,22 @@ export class ProjectManifest {
 
   /**
    * Whether the repository publishes, so other projects read it as an atlas source: it signs the index it publishes
-   * (`atlas.index.keys`). Only such a repository writes the committed descriptor; an app keeps everything in the local manifest.
+   * (`atlas.index.keys`), or git already tracks its descriptor (a source that signs nothing is read through that file).
+   * Only such a repository writes the committed descriptor; an app keeps everything in the local manifest.
    */
-  static publishes(opts: { config: TResolvedConfig }): boolean {
-    return (opts.config.atlas.index?.keys.length ?? 0) > 0;
+  static publishes(opts: { root: string; config: TResolvedConfig }): boolean {
+    return (
+      (opts.config.atlas.index?.keys.length ?? 0) > 0 ||
+      // A state git cannot give (not a repository, a broken index) counts as tracked: a descriptor is never dropped on a guess.
+      AgentFiles.trackState({ root: opts.root, path: ManifestConstants.DESCRIPTOR_FILE }) !==
+        'untracked'
+    );
   }
 
   /** The committed descriptor: the keys of the manifest that atlas reads, in the same order and with the same values. */
   static renderDescriptor(opts: { root: string; config: TResolvedConfig }): string {
-    const whole = ProjectManifest.build(opts);
+    // The descriptor holds no guard block, so the modules of the config are not read.
+    const whole = ProjectManifest.build({ ...opts, configModules: [] });
     const descriptor = Object.fromEntries(
       Object.entries(whole).filter(([key]) => ManifestConstants.DESCRIPTOR_KEYS.includes(key)),
     );
@@ -270,7 +284,12 @@ export class ProjectManifest {
     });
   }
 
-  private static build(opts: { root: string; config: TResolvedConfig }): Record<string, unknown> {
+  private static build(opts: {
+    root: string;
+    config: TResolvedConfig;
+    /** The modules of the config under `.configs/` (`ConfigImports.localModules`), when the caller scanned them already. */
+    configModules?: string[];
+  }): Record<string, unknown> {
     const { config } = opts;
     const { wiki, changelogs, migrationFrom, datedUntil, siteUrl, codemodCommand } =
       config.knowledge;
@@ -317,11 +336,14 @@ export class ProjectManifest {
       // The prebuilt index: the keys a published pair is checked with, and the switch; neither set, nothing is written.
       ...atlasBlockOf({ config }),
       // The commands and push targets the guards ask about beyond their own list; neither set, nothing is written.
-      ...guardBlockOf({ config, configModules: ConfigImports.localModules({ root: opts.root }) }),
+      ...guardBlockOf({
+        config,
+        configModules: opts.configModules ?? ConfigImports.localModules({ root: opts.root }),
+      }),
       // The design tokens: the preset, the seeds the project gave and the resolved set every consumer reads.
       ...themeBlockOf({ config }),
       ...commitBlockOf({ config }),
-      // The names and the logo `vulcan board` puts on its page; nothing set, nothing is written.
+      // The names and the logo `vulcan board show` puts on its page; nothing set, nothing is written.
       ...boardBlockOf({ config }),
       // The code host the board reads; GitHub, the default, writes nothing.
       ...providerBlockOf({ config }),

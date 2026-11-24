@@ -33,7 +33,7 @@ const projectWith = (opts: { events?: string; hooks?: string }): string =>
   createProject({ files: { '.configs/vulcan.config.mts': config(opts), 'AGENTS.md': '# x\n' } });
 
 const sync = (opts: { root: string }) =>
-  runCli({ args: ['sync', '--agents', 'claude'], cwd: opts.root, env: hermeticEnv() });
+  runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: opts.root, env: hermeticEnv() });
 
 const settingsOf = (opts: {
   root: string;
@@ -96,7 +96,7 @@ describe('the manifest', () => {
   });
 });
 
-describe('vulcan sync and the event hooks', () => {
+describe('vulcan project sync and the event hooks', () => {
   test('log: true installs one entry per event, SendMessage, TodoWrite, Bash and the edit tools only on PostToolUse, fast and fail-open', () => {
     const root = projectWith({ events: '{ log: true }' });
     const result = sync({ root });
@@ -244,7 +244,7 @@ describe('the hook stays light', () => {
   });
 });
 
-describe('vulcan doctor and events.dir', () => {
+describe('vulcan project doctor and events.dir', () => {
   const warnings = async (opts: { root: string }) => {
     const all = await DoctorRunner.runWarnings({ root: opts.root });
 

@@ -92,7 +92,7 @@ describe('the lists of a flow line reach the flow', () => {
     expect(found.tracker).toBe('PLANE-3054');
   });
 
-  test('a newer flow line that leaves the lists out drops the old ones: nothing stale outlives its line', () => {
+  test('a newer flow line that leaves the due day out drops it, and one that leaves the steps out keeps the earlier steps', () => {
     const { flows } = fold([
       make({
         minute: 0,
@@ -112,7 +112,7 @@ describe('the lists of a flow line reach the flow', () => {
       make({ minute: 6, kind: 'commit', summary: 'code', flow }),
     ]);
 
-    expect(flows[0].steps).toBeUndefined();
+    expect(flows[0].steps).toEqual([{ text: 'one', done: true }]);
     expect(flows[0].due).toBeUndefined();
     expect(flows[0].next).toBe('agent-a opens the pull request');
   });

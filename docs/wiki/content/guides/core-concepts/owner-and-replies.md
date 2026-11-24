@@ -76,7 +76,7 @@ VULCAN_OWNER_REPLY=off claude -p "take item 12, return the four statuses"
 
 That session gets no shape card and no profile card. Only the exact value `off` counts.
 
-Never `export` the variable or put it in the `env` of a settings file: either takes the cards away from your own sessions. `vulcan doctor` warns when it finds that.
+Never `export` the variable or put it in the `env` of a settings file: either takes the cards away from your own sessions. `vulcan project doctor` warns when it finds that.
 
 ## See also
 

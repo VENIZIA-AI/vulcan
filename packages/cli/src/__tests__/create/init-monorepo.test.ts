@@ -25,10 +25,10 @@ const FLAGS = [
   'libs',
 ];
 
-describe('vulcan init --preset', () => {
+describe('vulcan project init --preset', () => {
   test('creates the monorepo with its first app', () => {
     const parent = createProject({ files: {} });
-    const result = runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    const result = runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
     const root = join(parent, 'my-product');
 
     expect(result.code).toBe(0);
@@ -69,7 +69,7 @@ describe('vulcan init --preset', () => {
     );
     expect(readFileSync(join(root, 'Makefile'), 'utf8')).toContain('\ndev:\n\t@bun run dev\n');
     expect(result.stderr).toContain('skipped  bun install');
-    expect(result.stderr).toContain('skipped  vulcan sync');
+    expect(result.stderr).toContain('skipped  vulcan project sync');
     expect(result.stderr).toContain('skipped  git init');
     expect(result.stderr).toContain('skipped  bun run typecheck');
     expect(result.stderr).toContain('cd my-product && make dev');
@@ -77,7 +77,7 @@ describe('vulcan init --preset', () => {
 
   test('the Done message ends with the first app URL, from the preset dev port', () => {
     const parent = createProject({ files: {} });
-    const result = runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    const result = runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     expect(result.stderr).toContain(
       'Done. Next:\n  cd my-product && make dev\n  open http://localhost:3000\n',
@@ -88,7 +88,7 @@ describe('vulcan init --preset', () => {
     const parent = createProject({ files: {} });
     const preset = copyWithUrls({ fixture: BACKEND, urls: ['/api/hello', '/api/doc/explorer'] });
     const flags = FLAGS.map((flag) => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
-    const result = runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
+    const result = runCli({ args: ['project', 'init', ...flags], cwd: parent, env: ENV });
 
     expect(result.code).toBe(0);
     expect(result.stderr).toContain(
@@ -102,7 +102,7 @@ describe('vulcan init --preset', () => {
     const preset = copyWithUrls({ fixture: BACKEND, urls: ['/api/hello'] });
     const flags = FLAGS.map((flag) => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
 
-    runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...flags], cwd: parent, env: ENV });
 
     const manifest = JSON.parse(
       readFileSync(join(parent, 'my-product', 'services/core-api/package.json'), 'utf8'),
@@ -114,7 +114,7 @@ describe('vulcan init --preset', () => {
   test('a preset without urls leaves no vulcan key in the app manifest', () => {
     const parent = createProject({ files: {} });
 
-    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     const manifest = JSON.parse(
       readFileSync(join(parent, 'my-product', 'services/core-api/package.json'), 'utf8'),
@@ -129,7 +129,7 @@ describe('vulcan init --preset', () => {
     const preset = copyWithFields({ fixture: BACKEND, fields: { imports } });
     const flags = FLAGS.map((flag) => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
 
-    runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...flags], cwd: parent, env: ENV });
 
     const manifest = JSON.parse(
       readFileSync(join(parent, 'my-product', 'services/core-api/package.json'), 'utf8'),
@@ -141,7 +141,7 @@ describe('vulcan init --preset', () => {
   test('a preset without imports leaves no imports key in the app manifest', () => {
     const parent = createProject({ files: {} });
 
-    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     const manifest = JSON.parse(
       readFileSync(join(parent, 'my-product', 'services/core-api/package.json'), 'utf8'),
@@ -157,7 +157,7 @@ describe('vulcan init --preset', () => {
       fields: { imports: { 'src/*': './src/*.js' } },
     });
     const flags = FLAGS.map((flag) => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
-    const result = runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
+    const result = runCli({ args: ['project', 'init', ...flags], cwd: parent, env: ENV });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('src/*');
@@ -167,7 +167,7 @@ describe('vulcan init --preset', () => {
   test("the root dev entry runs every app's server:dev, and make dev calls it", () => {
     const parent = createProject({ files: {} });
 
-    expect(runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV }).code).toBe(0);
+    expect(runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV }).code).toBe(0);
 
     const root = join(parent, 'my-product');
     const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
@@ -182,7 +182,7 @@ describe('vulcan init --preset', () => {
   test('an app that lacks server:dev is skipped by the root dev entry, not an error', () => {
     const parent = createProject({ files: {} });
 
-    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     const root = join(parent, 'my-product');
 
@@ -201,12 +201,12 @@ describe('vulcan init --preset', () => {
   test('the preset is recorded in the config block and reaches the manifest with the layout', () => {
     const parent = createProject({ files: {} });
 
-    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     const root = join(parent, 'my-product');
 
     // The sync init runs after a real install is skipped here: run it, as the install would have.
-    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'none'], cwd: root });
 
     const config = readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8');
     const manifest = JSON.parse(
@@ -226,6 +226,7 @@ describe('vulcan init --preset', () => {
 
     runCli({
       args: [
+        'project',
         'init',
         ...FLAGS.map((flag) => (flag === `file:${BACKEND}` ? `file:${withLib}` : flag)),
       ],
@@ -235,7 +236,7 @@ describe('vulcan init --preset', () => {
 
     const root = join(parent, 'my-product');
 
-    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'none'], cwd: root });
 
     const manifest = JSON.parse(
       readFileSync(join(root, '.agents/local/vulcan.manifest.json'), 'utf8'),
@@ -250,6 +251,7 @@ describe('vulcan init --preset', () => {
 
     runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `file:${BACKEND}`,
@@ -275,7 +277,7 @@ describe('vulcan init --preset', () => {
   test('a root bunfig.toml is written with telemetry off, the [fmt] section and no release-age gate', () => {
     const parent = createProject({ files: {} });
 
-    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     const text = readFileSync(join(parent, 'my-product', 'bunfig.toml'), 'utf8');
 
@@ -288,12 +290,12 @@ describe('vulcan init --preset', () => {
   test('what init and sync write passes bun fmt --check over every formatted type', () => {
     const parent = createProject({ files: {} });
 
-    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     const root = join(parent, 'my-product');
 
     Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
-    runCli({ args: ['sync'], cwd: root, env: ENV });
+    runCli({ args: ['project', 'sync'], cwd: root, env: ENV });
 
     const result = checkFiles({ root, glob: FORMATTED_GLOB });
 
@@ -303,7 +305,7 @@ describe('vulcan init --preset', () => {
   test('a root .dockerignore is written: build output, dependencies, agent files', () => {
     const parent = createProject({ files: {} });
 
-    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     const lines = readFileSync(join(parent, 'my-product', '.dockerignore'), 'utf8').split('\n');
 
@@ -349,7 +351,7 @@ describe('vulcan init --preset', () => {
   test('the root .gitignore ignores *.tsbuildinfo', () => {
     const parent = createProject({ files: {} });
 
-    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     const lines = readFileSync(join(parent, 'my-product', '.gitignore'), 'utf8').split('\n');
 
@@ -361,6 +363,7 @@ describe('vulcan init --preset', () => {
     const frontend = join(import.meta.dir, '..', 'fixtures', 'preset-frontend');
     const result = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `file:${frontend}`,
@@ -384,7 +387,7 @@ describe('vulcan init --preset', () => {
   test('a missing git prints what to run and the rest of the flow still runs', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
-      args: ['init', ...FLAGS],
+      args: ['project', 'init', ...FLAGS],
       cwd: parent,
       env: {
         VULCAN_BUN: createFakeCommand({ body: 'exit 0' }),
@@ -402,7 +405,7 @@ describe('vulcan init --preset', () => {
     const parent = createProject({ files: {} });
     const flags = FLAGS.slice(0, -2);
 
-    expect(runCli({ args: ['init', ...flags], cwd: parent, env: ENV }).code).toBe(0);
+    expect(runCli({ args: ['project', 'init', ...flags], cwd: parent, env: ENV }).code).toBe(0);
     expect(
       JSON.parse(readFileSync(join(parent, 'my-product/package.json'), 'utf8')).workspaces.packages,
     ).toEqual(['services/*']);
@@ -411,7 +414,7 @@ describe('vulcan init --preset', () => {
 
   test('a non-empty target folder is refused before anything is written', () => {
     const parent = createProject({ files: { 'my-product/README.md': '# mine\n' } });
-    const result = runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    const result = runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('my-product exists and is not empty');
@@ -423,7 +426,7 @@ describe('vulcan init --preset', () => {
   test('without a TTY a missing name is an error and nothing is written', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
-      args: ['init', '--preset', `file:${BACKEND}`, '--project', 'my-product'],
+      args: ['project', 'init', '--preset', `file:${BACKEND}`, '--project', 'my-product'],
       cwd: parent,
       env: ENV,
     });
@@ -437,6 +440,7 @@ describe('vulcan init --preset', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `file:${BACKEND}`,
@@ -457,7 +461,7 @@ describe('vulcan init --preset', () => {
   test('without a TTY a missing project name is an error and nothing is written', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
-      args: ['init', '--preset', `file:${BACKEND}`],
+      args: ['project', 'init', '--preset', `file:${BACKEND}`],
       cwd: parent,
       env: ENV,
     });
@@ -470,6 +474,7 @@ describe('vulcan init --preset', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `file:${join(parent, 'nowhere')}`,
@@ -492,7 +497,18 @@ describe('vulcan init --preset', () => {
   test('an npm preset cannot be located offline', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
-      args: ['init', '--preset', 'some-name', '--project', 'p', '--key', 'TEST', '--app', 'a'],
+      args: [
+        'project',
+        'init',
+        '--preset',
+        'some-name',
+        '--project',
+        'p',
+        '--key',
+        'TEST',
+        '--app',
+        'a',
+      ],
       cwd: parent,
       env: ENV,
     });
@@ -507,6 +523,7 @@ describe('vulcan init --preset', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `@fixture/backend@file:${packFolder({ folder: BACKEND })}`,
@@ -530,6 +547,7 @@ describe('vulcan init --preset', () => {
     });
     const result = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `@fixture/none@file:${packFolder({ folder: join(parent, 'nopreset') })}`,
@@ -552,6 +570,7 @@ describe('vulcan init --preset', () => {
     const frontend = join(import.meta.dir, '..', 'fixtures', 'preset-frontend');
     const result = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `file:${frontend}`,
@@ -576,6 +595,7 @@ describe('vulcan init --preset', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `file:${BACKEND}`,
@@ -602,6 +622,7 @@ describe('vulcan init --preset', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `file:${BACKEND}`,
@@ -626,7 +647,7 @@ describe('vulcan init --preset', () => {
 
   test('a file: preset warns that the catalog entry is not portable', () => {
     const parent = createProject({ files: {} });
-    const result = runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    const result = runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     expect(result.code).toBe(0);
     expect(result.stderr).toContain(`file:${BACKEND}`);
@@ -638,7 +659,7 @@ describe('the ignore files of a new project', () => {
   test('.gitignore and .dockerignore carry the same secret patterns, and .env.local is ignored', () => {
     const parent = createProject({ files: {} });
 
-    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     const gitignore = readFileSync(join(parent, 'my-product', '.gitignore'), 'utf8').split('\n');
     const dockerignore = readFileSync(join(parent, 'my-product', '.dockerignore'), 'utf8').split(
@@ -658,7 +679,7 @@ describe('the ignore files of a new project', () => {
   test('git agrees: .env.local and .env.production are ignored, .env.example is not', () => {
     const parent = createProject({ files: {} });
 
-    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    runCli({ args: ['project', 'init', ...FLAGS], cwd: parent, env: ENV });
 
     const project = join(parent, 'my-product');
 

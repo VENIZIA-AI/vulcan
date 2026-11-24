@@ -36,7 +36,7 @@ export interface IFolderHistory {
   at(opts: { package: string; version: string; line: string }): TFolderAt;
 }
 
-/** One published version of one package, as `vulcan x atlas releases` reads it off a release commit. */
+/** One published version of one package, as `vulcan atlas releases` reads it off a release commit. */
 export interface IReleaseRecord {
   version: string;
   date: string;

@@ -24,15 +24,12 @@ const WORK_KINDS = new Set<string>([
   EventKinds.DEPLOY,
 ]);
 
-/** The most open steps the reason lists as ready commands. */
-const STEPS_LISTED = 5;
-
 /**
  * The `Stop` hook: it holds the end of a turn once when the board is out of step with the work of the turn, and says
- * the exact `vulcan event step` command that puts it right. Out of step means, for the flow of the session (the
+ * the one `vulcan flow step --next` command that puts it right. Out of step means, for the flow of the session (the
  * branch's, else the one it last opened or updated, and not over), that since the flow's last `flow` line the session
- * committed or opened a pull request, or an edit tool of the session ran and tracked files were edited, or a pull
- * request of the flow was merged while steps are still open. It never blocks twice in a turn (`stop_hook_active`), never
+ * committed or opened a pull request, or an edit tool of the session ran on tracked files more than `EDIT_HOLD_MS`
+ * after that line, or a pull request of the flow was merged while steps are still open. It never blocks twice in a turn (`stop_hook_active`), never
  * with `events.log` off, and any problem reading the log, the edit mark, the clock or git is no block.
  */
 export class BoardStop {
@@ -82,12 +79,7 @@ export class BoardStop {
     if (isMerged && open.length > 0) {
       return {
         decision: 'block',
-        reason: BoardStop.reasonOf({
-          flow: flowId,
-          title: last.summary,
-          open,
-          why: 'A pull request of this flow was merged and steps are still open. Tick each step that is done, or say what is left',
-        }),
+        reason: BoardStop.reasonOf({ flow: flowId }),
       };
     }
 
@@ -104,17 +96,15 @@ export class BoardStop {
       actor,
     });
     const isEdited =
-      isInFlow && ownEdit !== undefined && ownEdit > since && edited({ root: opts.root, since });
+      isInFlow &&
+      ownEdit !== undefined &&
+      ownEdit - since > EventConstants.EDIT_HOLD_MS &&
+      edited({ root: opts.root, since });
 
     if (acts.length > 0 || isEdited) {
       return {
         decision: 'block',
-        reason: BoardStop.reasonOf({
-          flow: flowId,
-          title: last.summary,
-          open,
-          why: 'This turn committed, opened a pull request or edited tracked files, and the flow has had no update since',
-        }),
+        reason: BoardStop.reasonOf({ flow: flowId }),
       };
     }
 
@@ -170,37 +160,16 @@ export class BoardStop {
       return undefined;
     }
 
-    const hours = Math.floor((now - newest) / (60 * 60 * 1000));
-
     return {
       decision: 'block',
-      reason: BoardStop.reasonOf({
-        flow: flowId,
-        title: last.summary,
-        open: opts.open,
-        why: `The flow has had no update for ${hours} hours and steps are still open. Tick what is done, say what comes next, or park or close the flow`,
-      }),
+      reason: BoardStop.reasonOf({ flow: flowId }),
     };
   }
 
-  private static reasonOf(opts: {
-    flow: string;
-    title: string;
-    open: { text: string }[];
-    why: string;
-  }): string {
-    const command = `${ProjectLayout.VULCAN_COMMAND} event step --flow ${EventText.shellQuote({ text: opts.flow })}`;
-    const shown = opts.open.slice(0, STEPS_LISTED);
+  private static reasonOf(opts: { flow: string }): string {
+    const command = `${ProjectLayout.VULCAN_COMMAND} flow step --flow ${EventText.shellQuote({ text: opts.flow })}`;
 
-    return [
-      `The board is out of step: flow ${opts.flow} (${opts.title}). ${opts.why}.`,
-      'Run what applies, then finish your turn:',
-      ...shown.map((step) => `  ${command} --done ${EventText.shellQuote({ text: step.text })}`),
-      ...(opts.open.length > shown.length
-        ? [`  (${opts.open.length - shown.length} more open steps are in the flow)`]
-        : []),
-      `Or run ${command} --next with the real state of the work, in your own words: what is done and what comes next.`,
-    ].join('\n');
+    return `The board is out of step for ${opts.flow}: run ${command} --next '<what is done, what comes next>'`;
   }
 
   /**

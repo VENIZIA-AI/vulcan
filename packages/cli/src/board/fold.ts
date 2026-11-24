@@ -93,7 +93,19 @@ export class BoardFold {
       // title and the reason, the newest by time winning.
       const quiet = lines.filter((event) => event.plumbing === true || event.isTitle === true);
       const core = lines.filter((event) => event.plumbing !== true && event.isTitle !== true);
-      const named = [...lines].sort(byTime).findLast((event) => event.isTitle === true);
+      const titles = [...lines].sort(byTime).filter((event) => event.isTitle === true);
+      const last = titles.at(-1);
+      // A flow line with no steps, or no order, keeps those of the newest one before it that has them.
+      const steps = last?.steps ?? titles.findLast((event) => event.steps !== undefined)?.steps;
+      const order = last?.order ?? titles.findLast((event) => event.order !== undefined)?.order;
+      const named =
+        last === undefined
+          ? undefined
+          : {
+              ...last,
+              ...(steps === undefined ? {} : { steps }),
+              ...(order === undefined ? {} : { order }),
+            };
 
       if (core.length === 0) {
         flows.push(BoardFold.quietFlow({ id, lines: quiet, named }));
@@ -216,6 +228,7 @@ export class BoardFold {
           ...(line.checks === undefined ? {} : { checks: line.checks }),
           ...(line.apps === undefined ? {} : { apps: line.apps }),
           ...(line.due === undefined ? {} : { due: line.due }),
+          ...(line.order === undefined ? {} : { order: line.order }),
           ...(line.ref === undefined ? {} : { tracker: line.ref }),
         };
       }
@@ -480,6 +493,7 @@ export class BoardFold {
     checks?: IBoardItem[];
     apps?: string[];
     due?: string;
+    order?: number;
     tracker?: string;
   } {
     const { named } = opts;
@@ -496,6 +510,7 @@ export class BoardFold {
           ...(named.checks === undefined ? {} : { checks: named.checks }),
           ...(named.apps === undefined ? {} : { apps: named.apps }),
           ...(named.due === undefined ? {} : { due: named.due }),
+          ...(named.order === undefined || named.order === null ? {} : { order: named.order }),
           ...(named.tracker === undefined ? {} : { tracker: named.tracker }),
         };
   }

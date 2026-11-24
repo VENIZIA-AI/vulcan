@@ -1,28 +1,28 @@
 ---
-title: vulcan agents
+title: vulcan agent
 description: Show, add, remove or re-choose the coding agents you use on this machine, and write or take back their adapters.
 ---
 
-# vulcan agents
+# vulcan agent
 
-Which coding agents you use is your choice on your machine, stored in `.agents/local/profile.json` (not committed). `vulcan agents` changes that choice without retyping the whole list, and writes or takes back the adapters that go with it. [`vulcan sync --agents <list>`](/references/commands/sync#choosing-your-agents) is the same thing for scripts.
+Which coding agents you use is your choice on your machine, stored in `.agents/local/profile.json` (not committed). `vulcan agent` changes that choice without retyping the whole list, and writes or takes back the adapters that go with it. [`vulcan project sync --agents <list>`](/references/commands/sync#choosing-your-agents) is the same thing for scripts.
 
 | Command | What it does |
 |---|---|
-| `vulcan agents` or `vulcan agents list` | Prints the chosen and detected agents and a table of every agent. Writes nothing |
-| `vulcan agents add pi,cursor` | Adds to the stored list and writes the adapters of the new agents |
-| `vulcan agents remove cursor` | Removes from the list and takes back what `sync` created for that agent |
-| `vulcan agents setup` | Asks again as a checkbox menu. Needs a terminal |
+| `vulcan agent` or `vulcan agent list` | Prints the chosen and detected agents and a table of every agent. Writes nothing |
+| `vulcan agent add pi,cursor` | Adds to the stored list and writes the adapters of the new agents |
+| `vulcan agent remove cursor` | Removes from the list and takes back what `sync` created for that agent |
+| `vulcan agent setup` | Asks again as a checkbox menu. Needs a terminal |
 
-- `vulcan agents list` prints the agents chosen on this machine, the ones it detected, and the table of every agent with the MCP file and skills folder it reads.
-- `vulcan agents setup` shows your earlier choice ticked (`chosen before`). Enter keeps it, space ticks or unticks, nothing ticked is `none`. A plain terminal takes a typed list instead.
+- `vulcan agent list` prints the agents chosen on this machine, the ones it detected, and the table of every agent with the MCP file and skills folder it reads.
+- `vulcan agent setup` shows your earlier choice ticked (`chosen before`). Enter keeps it, space ticks or unticks, nothing ticked is `none`. A plain terminal takes a typed list instead.
 
 `--dry-run` prints what would change and writes nothing. The ids are `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity` and `pi`; an unknown id is refused, and so is `none` for `add` and `remove` (use `sync --agents none` for an empty list).
 
-`vulcan agents` shows what is chosen and what exists. The `detected` line lists what this machine has, so yours differs:
+`vulcan agent` shows what is chosen and what exists. The `detected` line lists what this machine has, so yours differs:
 
 ```text
-$ bun node_modules/.bin/vulcan agents
+$ bun node_modules/.bin/vulcan agent
 chosen on this machine: claude
 detected: claude, omp, codex, copilot-vscode
 claude          Claude Code          MCP .mcp.json                  skills .claude/skills
@@ -38,7 +38,7 @@ pi              Pi                   MCP .pi/mcp.json               skills .agen
 Adding an agent writes its adapters and prints one line per file (a file that did not change is `unchanged`):
 
 ```text
-$ bun node_modules/.bin/vulcan agents add pi
+$ bun node_modules/.bin/vulcan agent add pi
   unchanged CLAUDE.md
   unchanged .claude/settings.json
   unchanged .claude/skills/build-a-feature
@@ -68,7 +68,7 @@ $ bun node_modules/.bin/vulcan agents add pi
 Removing it takes back what `sync` made for it:
 
 ```text
-$ bun node_modules/.bin/vulcan agents remove pi
+$ bun node_modules/.bin/vulcan agent remove pi
   removed   .pi/mcp.json
   removed   .agents/skills/docs-writing
   removed   .agents/skills/build-a-feature
@@ -94,11 +94,11 @@ $ bun node_modules/.bin/vulcan agents remove pi
   replaced  .git/info/exclude
 ```
 
-An agent that is already chosen (`add`) or not chosen (`remove`) is named on stderr, nothing else happens and the exit code is `0`: `vulcan agents: already chosen: pi`. An id that does not exist exits `1`:
+An agent that is already chosen (`add`) or not chosen (`remove`) is named on stderr, nothing else happens and the exit code is `0`: `vulcan agent: already chosen: pi`. An id that does not exist exits `1`:
 
 ```text
-$ bun node_modules/.bin/vulcan agents add nope
-vulcan agents: unknown agent 'nope' - one of: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
+$ bun node_modules/.bin/vulcan agent add nope
+vulcan agent: unknown agent 'nope' - one of: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
 ```
 
 ## What remove takes back

@@ -70,7 +70,7 @@ describe('VersionNotes', () => {
   });
 });
 
-describe('vulcan changelog notes', () => {
+describe('vulcan migrate notes', () => {
   let root = '';
   let out = '';
   let err = '';

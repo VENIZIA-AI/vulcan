@@ -37,7 +37,7 @@ export const GUARD_SECTION = {
    * runtime dir for locks, git config, the agent tool's memory) with stores a tool in this project
    * manages itself: absolute globs, `~` and `$NAME` allowed. `writes.commands` adds the
    * project's own deploy and migrate commands to what guard-writes asks about (a pattern, matched inside
-   * compound commands too), and `git.askPush` lists the branches a plain `git push` asks about; `vulcan sync`
+   * compound commands too), and `git.askPush` lists the branches a plain `git push` asks about; `vulcan project sync`
    * writes both to the manifest, where the hooks read them, and writes `outside` (when it is `deny`) and
    * `toolOwnedPaths` there too, so a config this VULCAN cannot parse changes no guard. `outside` is what
    * `guard-outside` does with a write outside the project: `ask` (the default) or `deny`. `asks` is the same choice for every guard:
@@ -73,7 +73,7 @@ export const GUARD_SECTION = {
       /** Git guard settings; `askPush` lists the branches a plain `git push` asks about, `*` for any run of characters. Default `[]`. */
       git: z.strictObject({ askPush: z.array(PUSH_TARGET).default([]) }).default({ askPush: [] }),
       /**
-       * The package names `vulcan runners check` and the runner guard accept besides the scoped packages (`@scope/name`,
+       * The package names `vulcan check runners` and the runner guard accept besides the scoped packages (`@scope/name`,
        * which always pass), such as `shadcn`: lower-case words, dots and dashes, or a scoped name. Anything else that
        * `bunx`, `bun x`, `npx`, `pnpx` or `pnpm dlx` would fetch by name is refused. Default `[]`.
        */

@@ -137,7 +137,7 @@ export class EventHook {
   /**
    * The task list of a `TodoWrite` call merged into the steps of the flow, never replacing them: a task that is not yet
    * a step is added, a completed one marks its step done, and nothing is removed or reopened, so what an agent wrote
-   * with `vulcan event step` stays. The flow is the branch's at the payload's `cwd`, else the one this session last
+   * with `vulcan flow step` stays. The flow is the branch's at the payload's `cwd`, else the one this session last
    * opened or updated, both only within `MIRROR_DAYS` of the log; a flow that is over, a flow with no flow line yet, an
    * actor that is not known and a call of a subagent (its payload carries `agent_id`, and it would write its own list
    * over its parent's flow) write nothing. The rest of the last flow line is copied forward. A call that changes no

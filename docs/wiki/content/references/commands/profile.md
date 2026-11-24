@@ -13,7 +13,7 @@ description: Tell VULCAN how you like to work - reply language, how to address y
 | `vulcan profile show` | Prints the file, or says there is none yet |
 | `vulcan profile reset [--yes]` | Says what it would remove; with `--yes` removes your answers from `.agents/local/profile.json` and keeps this machine's valid keys (`agents`, `board`, `local`, `events`); a key of those that is not valid is dropped and named; the file is deleted only when no key is left |
 
-`vulcan init` offers the form once, in a terminal, when the project has no profile. Without a terminal it only prints the command to run.
+`vulcan project init` offers the form once, in a terminal, when the project has no profile. Without a terminal it only prints the command to run.
 
 ## The questions
 
@@ -36,9 +36,9 @@ The form runs as menus in a terminal that can draw them and as plain lines other
 
 ## Where the file lives, and what stops a mistake
 
-- It is saved only when `.gitignore` names `.agents/local/` (`git check-ignore` decides inside a repository); otherwise the command says to run `vulcan sync` first.
+- It is saved only when `.gitignore` names `.agents/local/` (`git check-ignore` decides inside a repository); otherwise the command says to run `vulcan project sync` first.
 - A symlink at the file's place or at `.agents/local` is refused.
-- `vulcan doctor` warns when the file cannot be read, when git would pick it up and when git tracks it.
+- `vulcan project doctor` warns when the file cannot be read, when git would pick it up and when git tracks it.
 
 The fields, and how a profile combines with the project's [`owner` block](/references/configuration/#owner), are in the [configuration reference](/references/configuration/#the-personal-profile).
 
