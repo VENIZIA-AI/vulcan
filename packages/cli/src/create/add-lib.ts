@@ -346,7 +346,7 @@ export class LibraryScaffold {
 
     for (const step of [
       () => SubProcess.runBun({ cwd, args: ['install'], label: 'bun install' }),
-      () => SubProcess.runVulcan({ cwd: cwd, root: cwd, scope: 'project', action: 'sync' }),
+      () => SubProcess.runVulcan({ cwd, root: cwd, scope: 'project', action: 'sync' }),
       () => AppChecks.run({ root: cwd, appDirectory: join(cwd, path), checks: lib.checks }),
     ]) {
       const code = await step();

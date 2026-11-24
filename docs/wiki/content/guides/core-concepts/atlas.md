@@ -14,7 +14,7 @@ atlas is an MCP server. It indexes your wiki, changelogs and knowledge bundle. I
   "mcpServers": {
     "atlas": {
       "command": "bun",
-      "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."]
+      "args": ["node_modules/.bin/vulcan", "atlas", "mcp", "--root", "."]
     }
   }
 }

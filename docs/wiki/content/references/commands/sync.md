@@ -72,7 +72,7 @@ Claude Code, omp and Copilot CLI read one file, the root `.mcp.json`. It is a pe
   "mcpServers": {
     "atlas": {
       "command": "bun",
-      "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."]
+      "args": ["node_modules/.bin/vulcan", "atlas", "mcp", "--root", "."]
     }
   }
 }

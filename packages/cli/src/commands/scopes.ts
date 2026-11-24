@@ -91,7 +91,7 @@ export class CommandScopes {
   /**
    * The argv of a public command, `[scope, action]`, for a place that starts the installed `vulcan` as a child: it takes the words from this
    * table, so a command that moves cannot leave a spawn behind that the router answers with a notice or a refusal. A pair the
-   * table does not know throws.
+   * table does not know throws; so does a pair of `profile` or `migrate plan|apply`, which keep their handlers' own words and are not in the table.
    */
   static argvOf(opts: { scope: string; action: string }): string[] {
     const known =

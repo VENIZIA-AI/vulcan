@@ -80,9 +80,9 @@ describe('McpConfig.mergeServers (mcpServers)', () => {
     for (const mine of [
       {
         command: 'bun',
-        args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.', '--source', 'x'],
+        args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.', '--source', 'x'], // retired-form: the entry an earlier release wrote, which a sync still recognises
       },
-      { command: 'bun', args: ['x', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'] },
+      { command: 'bun', args: ['x', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'] }, // retired-form: the entry an earlier release wrote, which a sync still recognises
       {
         command: 'node',
         args: ['/old/node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '/old'], // retired-form: an entry of the release before the scopes

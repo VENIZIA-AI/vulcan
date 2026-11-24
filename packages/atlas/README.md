@@ -18,7 +18,7 @@ In a project set up with VULCAN, run it through the pinned `vulcan` CLI:
   "mcpServers": {
     "atlas": {
       "command": "bun",
-      "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."]
+      "args": ["node_modules/.bin/vulcan", "atlas", "mcp", "--root", "."]
     }
   }
 }

@@ -17,7 +17,7 @@ const CANONICAL = {
 /** What an earlier sync wrote: it runs a copy bunx cached when the bin is not linked where the editor starts it. */
 const LEGACY = {
   command: 'bun',
-  args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+  args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'], // retired-form: the entry an earlier release wrote, which a sync still recognises
 };
 
 const git = (opts: { root: string; args: string[] }) =>
@@ -66,7 +66,7 @@ describe('an .mcp.json an earlier sync wrote', () => {
   test('an atlas entry the user wrote is still left alone', () => {
     const own = {
       command: 'bun',
-      args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '../ignis'],
+      args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '../ignis'], // retired-form: the entry an earlier release wrote, which a sync still recognises
     };
     const root = repo({ files: { '.mcp.json': JSON.stringify({ mcpServers: { atlas: own } }) } });
 

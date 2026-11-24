@@ -138,7 +138,7 @@ const CANONICAL_ATLAS_ARGS = ['node_modules/.bin/vulcan', 'atlas', 'mcp', '--roo
 /** The entry of the release before the scopes: it still runs, so it is out of date and not a different server. */
 const PREVIOUS_ATLAS_ARGS = ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '.']; // retired-form: the entry of the release before the scopes
 /** What sync wrote before V-S-08: it can run a copy bunx cached, so it is stale and not merely different. */
-const LEGACY_ATLAS_ARGS = ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
+const LEGACY_ATLAS_ARGS = ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.']; // retired-form: the entry an earlier release wrote, which a sync still recognises
 
 const MCP_FILE = '.mcp.json';
 

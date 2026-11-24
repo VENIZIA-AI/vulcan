@@ -41,7 +41,7 @@ To register atlas with an MCP client, add the `atlas` server entry to `.mcp.json
   "mcpServers": {
     "atlas": {
       "command": "bun",
-      "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."]
+      "args": ["node_modules/.bin/vulcan", "atlas", "mcp", "--root", "."]
     }
   }
 }
