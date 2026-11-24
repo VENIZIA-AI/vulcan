@@ -4,7 +4,7 @@ export class EnvVariables {
   static readonly VULCAN_ACTOR = 'VULCAN_ACTOR';
   /** `off` turns the daily automatic clean of `.agents/local/` off for the shell. */
   static readonly VULCAN_AUTO_CLEAN = 'VULCAN_AUTO_CLEAN';
-  /** `off` takes the session out of the owner reply shape; `vulcan doctor` notes it when the shell has it. */
+  /** `off` takes the session out of the owner reply shape; `vulcan project doctor` notes it when the shell has it. */
   static readonly VULCAN_OWNER_REPLY = 'VULCAN_OWNER_REPLY';
   /** `off` switches the guard hooks off for one session. */
   static readonly VULCAN_GUARDS = 'VULCAN_GUARDS';
@@ -14,11 +14,11 @@ export class EnvVariables {
   static readonly VULCAN_GUARD_OUTSIDE = 'VULCAN_GUARD_OUTSIDE';
   /** `1` makes `init`, `add` and `upgrade` print the install, `git init`, `sync` and the checks as skipped; for tests. */
   static readonly VULCAN_NO_INSTALL = 'VULCAN_NO_INSTALL';
-  /** Set by `vulcan x` for okf and atlas: the resolved project config as JSON. */
+  /** Set by `vulcan atlas` or `vulcan okf` for okf and atlas: the resolved project config as JSON. */
   static readonly VULCAN_CONFIG = 'VULCAN_CONFIG';
-  /** Set by `vulcan x` for atlas: the manifest, rendered fresh from the config on each run. */
+  /** Set by `vulcan atlas` or `vulcan okf` for atlas: the manifest, rendered fresh from the config on each run. */
   static readonly VULCAN_MANIFEST = 'VULCAN_MANIFEST';
-  /** Set by `vulcan x` for okf and atlas: the project root. */
+  /** Set by `vulcan atlas` or `vulcan okf` for okf and atlas: the project root. */
   static readonly VULCAN_PROJECT_ROOT = 'VULCAN_PROJECT_ROOT';
   /** Replaces the `bun` that `init` and `add` run; for tests. */
   static readonly VULCAN_BUN = 'VULCAN_BUN';
@@ -34,6 +34,6 @@ export class EnvVariables {
   static readonly CLAUDE_CODE_SESSION_ID = 'CLAUDE_CODE_SESSION_ID';
   /** The folder whose `sessions/*.json` names the sessions (default `~/.claude`), read to find the session's name. */
   static readonly CLAUDE_CONFIG_DIR = 'CLAUDE_CONFIG_DIR';
-  /** Set by Claude Code in the shell of a session it starts; `vulcan doctor` uses it to know it runs inside one. */
+  /** Set by Claude Code in the shell of a session it starts; `vulcan project doctor` uses it to know it runs inside one. */
   static readonly CLAUDECODE = 'CLAUDECODE';
 }

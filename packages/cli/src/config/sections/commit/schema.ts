@@ -10,7 +10,7 @@ const AGENT_NAME = z
 
 export const COMMIT_SECTION = {
   /**
-   * What `vulcan commit-check` looks for in a commit message, and what `vulcan sync` installs the
+   * What `vulcan check commit` looks for in a commit message, and what `vulcan project sync` installs the
    * `commit-msg` hook for, nested by scope. Every check is off until the project turns it on:
    * `message.agent.signature: 'deny'` rejects a trailer or a "generated with" line that names an agent
    * (rule W-00 of a project that has one); `message.agent.names` adds names to the shipped list and

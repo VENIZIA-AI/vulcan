@@ -58,7 +58,7 @@ describe('CommitHookPlan: where the hook goes', () => {
 
     expect(text.startsWith('#!/bin/sh\n')).toBe(true);
     expect(text).toContain('# vulcan:commit-msg');
-    expect(text).toContain('node_modules/.bin/vulcan" commit-check');
+    expect(text).toContain('node_modules/.bin/vulcan" check commit');
     expect(lstatSync(hookFile({ root })).mode & 0o111).not.toBe(0);
     expect(planOf({ root, config: DENY }).map((action) => action.status)).toEqual([
       SyncStatuses.UNCHANGED,
@@ -160,19 +160,19 @@ describe('CommitHookPlan: a hook that is not ours is never overwritten', () => {
     const [action] = planOf({ root, config: DENY });
 
     expect(action.status).toBe(SyncStatuses.SKIPPED);
-    expect(action.note).toContain('bun node_modules/.bin/vulcan commit-check "$1"');
+    expect(action.note).toContain('bun node_modules/.bin/vulcan check commit "$1"');
 
     action.apply();
 
     expect(readFileSync(hookFile({ root }), 'utf8')).toBe(mine);
   });
 
-  test('a hook that already calls vulcan commit-check is theirs and counts as wired', () => {
+  test('a hook that already calls vulcan check commit is theirs and counts as wired', () => {
     const root = repo();
 
     write({
       path: hookFile({ root }),
-      text: '#!/bin/sh\nexec bun run vulcan commit-check "$1"\n',
+      text: '#!/bin/sh\nexec bun run vulcan check commit "$1"\n',
     });
 
     expect(planOf({ root, config: DENY })[0].status).toBe(SyncStatuses.UNCHANGED);
@@ -249,7 +249,7 @@ describe('CommitHookPlan: a project that sets core.hooksPath owns its hooks', ()
 
     expect(action.status).toBe(SyncStatuses.SKIPPED);
     expect(action.note).toContain('core.hooksPath');
-    expect(action.note).toContain('bun node_modules/.bin/vulcan commit-check "$1"');
+    expect(action.note).toContain('bun node_modules/.bin/vulcan check commit "$1"');
 
     action.apply();
 
@@ -259,21 +259,21 @@ describe('CommitHookPlan: a project that sets core.hooksPath owns its hooks', ()
 
   test('a hook there that still runs vulcan by name is stale, whatever its flags', () => {
     for (const line of [
-      'bun x --no-install vulcan commit-check "$1"',
-      'bunx vulcan commit-check "$1"',
-      'bun x vulcan commit-check "$1"',
+      'bun x --no-install vulcan check commit "$1"',
+      'bunx vulcan check commit "$1"',
+      'bun x vulcan check commit "$1"',
     ]) {
       const root = withHooksPath({ hook: `#!/bin/sh\nexec ${line}\n` });
       const status = CommitHook.stateOf({ root, config: DENY });
 
       expect(status.state).toBe(CommitHookStates.LEGACY);
-      expect(status.note).toContain('bun node_modules/.bin/vulcan commit-check "$1"');
+      expect(status.note).toContain('bun node_modules/.bin/vulcan check commit "$1"');
     }
   });
 
   test('a hook there that calls the command is wired', () => {
     const root = withHooksPath({
-      hook: '#!/bin/sh\nexec bun run vulcan commit-check "$1"\n',
+      hook: '#!/bin/sh\nexec bun run vulcan check commit "$1"\n',
     });
 
     expect(planOf({ root, config: DENY })[0].status).toBe(SyncStatuses.UNCHANGED);
@@ -347,13 +347,13 @@ describe('the hook script', () => {
     };
   };
 
-  test('it hands the message file to vulcan commit-check and passes its verdict on', () => {
+  test('it hands the message file to vulcan check commit and passes its verdict on', () => {
     const passed = run({ root: repo(), bun: 'exit 0' });
     const blocked = run({ root: repo(), bun: 'exit 1' });
 
     expect(passed.code).toBe(0);
-    expect(passed.calls).toContain('node_modules/.bin/vulcan commit-check');
-    expect(passed.calls).toMatch(/commit-check \/.*\/MSG/);
+    expect(passed.calls).toContain('node_modules/.bin/vulcan check commit');
+    expect(passed.calls).toMatch(/check commit \/.*\/MSG/);
     expect(blocked.code).toBe(1);
   });
 
@@ -371,11 +371,11 @@ describe('the hook script', () => {
   test('with a vulcan too old to know the command it lets the commit through and says so', () => {
     const result = run({
       root: repo(),
-      bun: "echo \"vulcan: unknown command 'commit-check' - run 'bun run vulcan help'\"; exit 1",
+      bun: "echo \"vulcan: unknown command 'check' - run 'bun run vulcan help'\"; exit 1",
     });
 
     expect(result.code).toBe(0);
-    expect(result.stderr).toContain('has no commit-check command');
+    expect(result.stderr).toContain('has no check commit command');
   });
 
   test('a problem the check reports reaches the person committing', () => {
@@ -404,7 +404,7 @@ describe('the hook script', () => {
     const result = run({ root, top, modulesAt: top, bun: 'exit 1' });
 
     expect(result.code).toBe(1);
-    expect(result.calls).toContain('commit-check');
+    expect(result.calls).toContain('check commit');
   });
 
   test('without bun it lets the commit through and says so', () => {
@@ -423,7 +423,7 @@ describe('the hook script', () => {
   });
 });
 
-describe('CommitHook.stateOf, what vulcan doctor reports', () => {
+describe('CommitHook.stateOf, what vulcan project doctor reports', () => {
   test('missing, wired, stale, hand-made and checks-off are told apart', () => {
     const missing = repo();
 

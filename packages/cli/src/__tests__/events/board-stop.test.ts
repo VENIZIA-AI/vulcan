@@ -143,7 +143,7 @@ describe('the Stop hook decides', () => {
 
     expect(held?.decision).toBe('block');
     expect(held?.reason).toBe(
-      `The board is out of step for ${FLOW}: run bun node_modules/.bin/vulcan event step --flow '${FLOW}' --next '<what is done, what comes next>'`,
+      `The board is out of step for ${FLOW}: run bun node_modules/.bin/vulcan flow step --flow '${FLOW}' --next '<what is done, what comes next>'`,
     );
     expect(held?.reason).not.toContain('--done');
 
@@ -185,7 +185,7 @@ describe('the Stop hook decides', () => {
 
     const held = stop({ root });
 
-    expect(held?.reason).toContain(`event step --flow '${FLOW}' --next`);
+    expect(held?.reason).toContain(`flow step --flow '${FLOW}' --next`);
     expect(held?.reason).not.toContain('--done');
   });
 
@@ -348,7 +348,7 @@ describe('a stale flow is reminded once per two hours', () => {
     const held = stop({ root, now: T0 + 3 * HOUR });
 
     expect(held?.decision).toBe('block');
-    expect(held?.reason).toContain(`event step --flow '${FLOW}' --next`);
+    expect(held?.reason).toContain(`flow step --flow '${FLOW}' --next`);
     expect(held?.reason).not.toContain('--done');
     expect(stop({ root, now: T0 + HOUR })).toBeUndefined();
   });
@@ -619,7 +619,7 @@ describe('the scripts', () => {
 
     expect(held.exitCode).toBe(0);
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toContain(`event step --flow '${FLOW}'`);
+    expect(parsed.reason).toContain(`flow step --flow '${FLOW}'`);
     expect(again.stdout.toString()).toBe('');
     expect(run({ script: 'board-stop.ts', root, input: 'not an object' }).exitCode).toBe(0);
   });

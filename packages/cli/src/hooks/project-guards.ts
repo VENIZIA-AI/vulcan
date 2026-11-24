@@ -82,7 +82,7 @@ export class ProjectGuards {
   static readonly MANIFEST_FILE = GUARD_MANIFEST_FILE;
 
   /**
-   * The commands and push targets a project lists, from the local manifest (`vulcan sync` renders
+   * The commands and push targets a project lists, from the local manifest (`vulcan project sync` renders
    * them from the config), so a hook reads them with no config loader and no zod. A project with no
    * manifest, or none of the block, has none; an entry that cannot be used is skipped, said once on
    * stderr, and the others stay.

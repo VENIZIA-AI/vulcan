@@ -86,7 +86,7 @@ describe('runSymbolsCommand', () => {
     try {
       expect(runSymbolsCommand({ command: 'gen' })).toBe(2);
       expect(error).toHaveBeenCalledWith(
-        "usage: vulcan x atlas symbols (no subcommand: 'gen' is not one)",
+        "usage: vulcan atlas symbols (no subcommand: 'gen' is not one)",
       );
       error.mockClear();
       // A flag gets past the argument check: whatever happens next is not the usage.

@@ -23,7 +23,7 @@ tags: [process, changelog, docs]
 
 Once `knowledge.migrationFrom` is a version, the changelog is one folder per version line,
 `docs/wiki/content/changelogs/<X.Y.Z>/`, and a change is an **item of the folder in progress**: the one with no
-`released:` line, named for the stable the packages are heading to (`vulcan changelog check` says which). A new
+`released:` line, named for the stable the packages are heading to (`vulcan check changelog` says which). A new
 dated file is refused. Dated files `YYYY-MM-DD-<slug>.md` are history: never edit or move one. The sections after
 [A version folder](#a-version-folder) say what an item may contain; the dated template at the end is for a project that
 has not adopted the folders.
@@ -90,7 +90,7 @@ stable is released (the release step writes `released:`).
 Write the page text the way the wiki builds it: no raw `<tag>` outside a code span or fence (it breaks the build), and no
 backtick inside an inline code span.
 
-`vulcan changelog check` is the gate (`--history --base <ref>` also reads git); `vulcan changelog notes --version <X.Y.Z>` prints
+`vulcan check changelog` is the gate (`--history --base <ref>` also reads git); `vulcan migrate notes --version <X.Y.Z>` prints
 what the GitHub Release will show.
 
 ## What goes in the changelog
@@ -136,7 +136,7 @@ The title and the description (one plain sentence) are the entry's card on the i
 
 ## The migration block
 
-A Breaking Change entry (badge text `Breaking Change`; `Breaking` is read as breaking too but reported on entries after the cutover) dated on or after `knowledge.migrationFrom` carries `migration:` in its frontmatter: how an app moves across the change, in both directions. `vulcan changelog check` (part of `make changelog-check`) fails when it is missing or invalid; entries before the cutover are never read.
+A Breaking Change entry (badge text `Breaking Change`; `Breaking` is read as breaking too but reported on entries after the cutover) dated on or after `knowledge.migrationFrom` carries `migration:` in its frontmatter: how an app moves across the change, in both directions. `vulcan check changelog` (part of `make changelog-check`) fails when it is missing or invalid; entries before the cutover are never read.
 
 ```yaml
 migration:

@@ -37,11 +37,11 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 
 Around them, `session-start` prints a short digest (a config problem, a launch warning, how to answer the owner) into the session and, in Claude Code, exports `TMPDIR` (the project's `.agents/tmp`) into every Bash command ([Temporary files](/references/agents#temporary-files)), and `subagent-start` gives every subagent a small rules card. The shape of replies to the owner is a card in that digest, not a check ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
 
-The guards protect `.agents/local/vulcan.manifest.json` and `.agents/atlas.manifest.json` from an agent's writes: `vulcan sync` rewrites them from the config, and `vulcan doctor` fails a copy that is stale or edited by hand ([The generated manifest](/references/hooks/#the-generated-manifest)).
+The guards protect `.agents/local/vulcan.manifest.json` and `.agents/atlas.manifest.json` from an agent's writes: `vulcan project sync` rewrites them from the config, and `vulcan project doctor` fails a copy that is stale or edited by hand ([The generated manifest](/references/hooks/#the-generated-manifest)).
 
 ## Your own deploy and migrate commands
 
-The guards know a fixed list of commands (`kubectl apply`, `docker compose up`, `db:migrate`, and the others). A project whose deploys are `make deploy-develop-*` or whose migrations are `bun run migrate:up` lists them in the config (`guard.writes.commands`), and lists the branches a plain `git push` should ask about (`guard.git.askPush`); `vulcan sync` writes both to the manifest and the guards ask on a match, inside compound commands too. How to write them, and a Claude Code only second layer through `permissions.ask`, are in the [hooks reference](/references/hooks/#your-own-commands).
+The guards know a fixed list of commands (`kubectl apply`, `docker compose up`, `db:migrate`, and the others). A project whose deploys are `make deploy-develop-*` or whose migrations are `bun run migrate:up` lists them in the config (`guard.writes.commands`), and lists the branches a plain `git push` should ask about (`guard.git.askPush`); `vulcan project sync` writes both to the manifest and the guards ask on a match, inside compound commands too. How to write them, and a Claude Code only second layer through `permissions.ask`, are in the [hooks reference](/references/hooks/#your-own-commands).
 
 ## What the guards are not
 
@@ -65,10 +65,10 @@ A broken install must not stop every command, and a guard must not be switched o
 | Agent | How the guards run | Checked |
 |---|---|---|
 | Claude Code | Hooks in `.claude/settings.json` | Real sessions |
-| omp | `.omp/hooks/pre/vulcan-guards.ts`, written by `vulcan sync` | omp 18.8.9 with a real model |
-| pi | `.pi/extensions/vulcan-guards.ts`, written by `vulcan sync` | pi 1.4.0, scripted provider (see below) |
-| Antigravity | A `vulcan-guards` entry in `.agents/hooks.json`, written by `vulcan sync` | `agy` 1.4.7 (see below) |
-| Codex | A hook in `.codex/hooks.json`, written by `vulcan sync` (see below) | **NOT VERIFIED** |
+| omp | `.omp/hooks/pre/vulcan-guards.ts`, written by `vulcan project sync` | omp 18.8.9 with a real model |
+| pi | `.pi/extensions/vulcan-guards.ts`, written by `vulcan project sync` | pi 1.4.0, scripted provider (see below) |
+| Antigravity | A `vulcan-guards` entry in `.agents/hooks.json`, written by `vulcan project sync` | `agy` 1.4.7 (see below) |
+| Codex | A hook in `.codex/hooks.json`, written by `vulcan project sync` (see below) | **NOT VERIFIED** |
 | Cursor | Reads the Claude hooks in `.claude/settings.json` | **NOT VERIFIED** |
 | Copilot (CLI and VS Code) | Reads the Claude hooks in `.claude/settings.json` | **NOT VERIFIED** |
 
@@ -78,11 +78,11 @@ Notes on the table:
 - Antigravity: a `deny` holds; `agy --dangerously-skip-permissions` approves an `ask`.
 - Codex runs its hook after you trust it in `/hooks`. It cannot ask, so an ask is shown as a deny.
 
-NOT VERIFIED means built from the agent's documentation and unit tests, and never run in that agent. omp and pi run the safety guards `guard-git` and `guard-outside`. Choose your agents with `vulcan sync --agents <list>` ([Coding agents](/references/agents)).
+NOT VERIFIED means built from the agent's documentation and unit tests, and never run in that agent. omp and pi run the safety guards `guard-git` and `guard-outside`. Choose your agents with `vulcan project sync --agents <list>` ([Coding agents](/references/agents)).
 
 ## Your own hooks
 
-Put a project hook under `claude.settings.hooks` in `.configs/vulcan.config.mts`, in Claude Code's own settings shape; `vulcan sync` merges it into `.claude/settings.json` next to the shipped ones:
+Put a project hook under `claude.settings.hooks` in `.configs/vulcan.config.mts`, in Claude Code's own settings shape; `vulcan project sync` merges it into `.claude/settings.json` next to the shipped ones:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';

@@ -350,7 +350,7 @@ export class LibraryScaffold {
         SubProcess.runBun({
           cwd,
           args: [join(cwd, 'node_modules', '.bin', 'vulcan'), 'sync'],
-          label: 'vulcan sync',
+          label: 'vulcan project sync',
         }),
       () => AppChecks.run({ root: cwd, appDirectory: join(cwd, path), checks: lib.checks }),
     ]) {

@@ -41,7 +41,7 @@ const LONG_AGENTS_MD = [
 ].join('\n');
 
 const sync = (opts: { root: string; agents?: string }) =>
-  runCli({ args: ['sync', '--agents', opts.agents ?? 'omp'], cwd: opts.root });
+  runCli({ args: ['project', 'sync', '--agents', opts.agents ?? 'omp'], cwd: opts.root });
 
 describe('the Atlas and rules blocks in AGENTS.md', () => {
   test('sync inserts it for every agent, built from the config', () => {
@@ -181,7 +181,7 @@ describe('the Atlas and rules blocks in AGENTS.md', () => {
   test('--dry-run writes nothing', () => {
     const root = project();
 
-    runCli({ args: ['sync', '--dry-run', '--agents', 'omp'], cwd: root });
+    runCli({ args: ['project', 'sync', '--dry-run', '--agents', 'omp'], cwd: root });
 
     expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toBe(AGENTS_MD);
   });
@@ -192,14 +192,14 @@ describe('the Atlas and rules blocks in AGENTS.md', () => {
 
     expect(before.map((note) => note.file)).toContain('AGENTS.md');
     expect(before.find((note) => note.file === 'AGENTS.md')?.message).toBe(
-      "the Atlas or rules block of AGENTS.md is missing or out of date - run 'bun node_modules/.bin/vulcan sync'",
+      "the Atlas or rules block of AGENTS.md is missing or out of date - run 'bun node_modules/.bin/vulcan project sync'",
     );
 
     sync({ root });
 
     const result = await DoctorRunner.runNotes({ root });
     expect(result.map((note) => note.file)).not.toContain('AGENTS.md');
-    expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain('rules block');
+    expect(runCli({ args: ['project', 'doctor'], cwd: root }).stderr).not.toContain('rules block');
   });
 
   test('doctor notes a missing block whether or not a .mcp.json exists', async () => {

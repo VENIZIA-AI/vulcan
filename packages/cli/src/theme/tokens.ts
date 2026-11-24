@@ -160,7 +160,7 @@ export class ThemeTokens {
   }
 
   /**
-   * The resolved tokens that `vulcan sync` wrote to the manifest of `root`, or the default preset when the manifest has
+   * The resolved tokens that `vulcan project sync` wrote to the manifest of `root`, or the default preset when the manifest has
    * none or holds a block this version cannot read (then with a warning to print). Nothing is requested and no config
    * is loaded.
    */

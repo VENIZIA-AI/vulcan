@@ -48,7 +48,7 @@ export class DoctorChecks {
   static readonly PROJECT_KEY = 'project-key';
   /** An atlas source the last server run could not build, or has been building for over ten minutes; a warning. */
   static readonly ATLAS_SOURCE = 'atlas-source';
-  /** The root `package.json` has no `prepare` script that runs `vulcan sync`: a fresh clone has no manifest and no hooks until someone runs it; a note. */
+  /** The root `package.json` has no `prepare` script that runs `vulcan project sync`: a fresh clone has no manifest and no hooks until someone runs it; a note. */
   static readonly PREPARE = 'prepare';
   /** Git tracks `.claude/settings.json`: sync writes it in every clone, so it is never committed; a warning. */
   static readonly CLAUDE_SETTINGS = 'claude-settings';
@@ -70,7 +70,7 @@ export class DoctorChecks {
   static readonly FILE_LAYOUT = 'file-layout';
 }
 
-/** What `vulcan doctor` looks for in committed files. */
+/** What `vulcan project doctor` looks for in committed files. */
 export class PrivateValueKinds extends ConstClass {
   static readonly PRIVATE_KEY = 'private-key';
   static readonly TOKEN = 'token';

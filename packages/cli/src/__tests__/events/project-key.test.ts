@@ -65,7 +65,7 @@ describe('the manifest and the hook reader', () => {
   });
 });
 
-describe('vulcan doctor: the project key', () => {
+describe('vulcan project doctor: the project key', () => {
   const warningsOf = async (config: string): Promise<string[]> => {
     const root = createProject({ files: { '.configs/vulcan.config.mts': config } });
     const warnings = await DoctorRunner.runWarnings({ root });
@@ -78,7 +78,7 @@ describe('vulcan doctor: the project key', () => {
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain("project: { key: 'KEY' }");
-    expect(warnings[0]).toContain('vulcan sync');
+    expect(warnings[0]).toContain('vulcan project sync');
   });
 
   test('the log is on and the key is set: nothing to say', async () => {

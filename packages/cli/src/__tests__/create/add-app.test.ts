@@ -22,6 +22,7 @@ const monorepo = (opts: { backend?: string } = {}): string => {
 
   runCli({
     args: [
+      'project',
       'init',
       '--preset',
       opts.backend ?? BACKEND,
@@ -68,7 +69,7 @@ const outsideBlock = (opts: { source: string }): string => {
   return opts.source.slice(0, start) + opts.source.slice(end + '// vulcan:apps:end'.length);
 };
 
-describe('vulcan add --preset', () => {
+describe('vulcan package add --preset', () => {
   test('every package.json is sorted for bun fmt right after init and after add', () => {
     const root = monorepo();
 
@@ -76,6 +77,7 @@ describe('vulcan add --preset', () => {
 
     const result = runCli({
       args: [
+        'package',
         'add',
         '--preset',
         FRONTEND,
@@ -98,7 +100,17 @@ describe('vulcan add --preset', () => {
   test('{{appPath}} is the new app folder from the root, for a frontend in its own folder', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'apps', '--app', 'web', '--no-api'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        FRONTEND,
+        '--frontend-dir',
+        'apps',
+        '--app',
+        'web',
+        '--no-api',
+      ],
       cwd: root,
       env: ENV,
     });
@@ -114,7 +126,11 @@ describe('vulcan add --preset', () => {
     const file = join(root, '.dockerignore');
 
     writeFileSync(file, 'mine\n');
-    runCli({ args: ['add', '--preset', BACKEND, '--app', 'worker'], cwd: root, env: ENV });
+    runCli({
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker'],
+      cwd: root,
+      env: ENV,
+    });
     expect(readFileSync(file, 'utf8')).toBe('mine\n');
   });
 
@@ -122,6 +138,7 @@ describe('vulcan add --preset', () => {
     const root = monorepo();
     const result = runCli({
       args: [
+        'package',
         'add',
         '--preset',
         FRONTEND,
@@ -159,13 +176,13 @@ describe('vulcan add --preset', () => {
     expect(index).toContain('[core-api](packages/core-api.md) - A fixture backend.');
     expect(existsSync(join(root, '.agents/knowledge/log.md'))).toBe(false);
     expect(result.stderr).toContain('skipped  bun install');
-    expect(result.stderr).toContain('skipped  vulcan sync');
+    expect(result.stderr).toContain('skipped  vulcan project sync');
   });
 
   test('a second backend reuses the folder the user chose and takes the next port', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'worker'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker'],
       cwd: root,
       env: ENV,
     });
@@ -179,7 +196,7 @@ describe('vulcan add --preset', () => {
   test('an app name already taken is refused', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'core-api'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'core-api'],
       cwd: root,
       env: ENV,
     });
@@ -195,7 +212,7 @@ describe('vulcan add --preset', () => {
     writeFileSync(join(root, '.configs/vulcan.config.mts'), edited);
     const before = readFileSync(join(root, 'package.json'), 'utf8');
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'worker'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker'],
       cwd: root,
       env: ENV,
     });
@@ -218,7 +235,7 @@ describe('vulcan add --preset', () => {
 
     writeFileSync(configPath, edited);
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'worker'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker'],
       cwd: root,
       env: ENV,
     });
@@ -238,7 +255,17 @@ describe('vulcan add --preset', () => {
     writeFileSync(manifestPath, JSON.stringify(manifest));
     const before = readFileSync(manifestPath, 'utf8');
     const result = runCli({
-      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        FRONTEND,
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+        '--no-api',
+      ],
       cwd: root,
       env: ENV,
     });
@@ -261,7 +288,7 @@ describe('vulcan add --preset', () => {
     expect(catalogOf({ manifest: readManifest({ root }) }).x).toBe('0.4.6-0');
 
     const result = runCli({
-      args: ['add', '--preset', `file:${preset}`, '--app', 'second-api'],
+      args: ['package', 'add', '--preset', `file:${preset}`, '--app', 'second-api'],
       cwd: root,
       env: ENV,
     });
@@ -286,7 +313,7 @@ describe('vulcan add --preset', () => {
     writeManifest({ root, manifest });
 
     const result = runCli({
-      args: ['add', '--preset', `file:${preset}`, '--app', 'second-api'],
+      args: ['package', 'add', '--preset', `file:${preset}`, '--app', 'second-api'],
       cwd: root,
       env: ENV,
     });
@@ -299,21 +326,31 @@ describe('vulcan add --preset', () => {
   test('outside a monorepo with a layout, add is refused', () => {
     const root = createProject({ files: { 'package.json': '{ "name": "x" }' } });
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'a'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'a'],
       cwd: root,
       env: ENV,
     });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(
-      'vulcan add: run it at the root of a monorepo vulcan init created',
+      'vulcan package add: run it at the root of a monorepo vulcan project init created',
     );
   });
 
   test('add ends with the Next block: make dev and every app at its port', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        FRONTEND,
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+        '--no-api',
+      ],
       cwd: root,
       env: ENV,
     });
@@ -330,6 +367,7 @@ describe('vulcan add --preset', () => {
     const root = monorepo({ backend: `file:${backend}` });
     const result = runCli({
       args: [
+        'package',
         'add',
         '--preset',
         `file:${frontend}`,
@@ -354,7 +392,7 @@ describe('vulcan add --preset', () => {
     const preset = copyWithFields({ fixture: BACKEND_PATH, fields: { imports } });
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', `file:${preset}`, '--app', 'second-api'],
+      args: ['package', 'add', '--preset', `file:${preset}`, '--app', 'second-api'],
       cwd: root,
       env: ENV,
     });
@@ -369,7 +407,11 @@ describe('vulcan add --preset', () => {
   test('a preset without imports leaves no imports key in the new app manifest', () => {
     const root = monorepo();
 
-    runCli({ args: ['add', '--preset', BACKEND, '--app', 'second-api'], cwd: root, env: ENV });
+    runCli({
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
 
     const manifest = JSON.parse(
       readFileSync(join(root, 'services/second-api/package.json'), 'utf8'),
@@ -385,7 +427,7 @@ describe('vulcan add --preset', () => {
     });
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', `file:${preset}`, '--app', 'second-api'],
+      args: ['package', 'add', '--preset', `file:${preset}`, '--app', 'second-api'],
       cwd: root,
       env: ENV,
     });
@@ -398,14 +440,28 @@ describe('vulcan add --preset', () => {
   test('the preset an app comes from is recorded once, and a new kind of preset is added beside it', () => {
     const root = monorepo();
 
-    runCli({ args: ['add', '--preset', BACKEND, '--app', 'second-api'], cwd: root, env: ENV });
     runCli({
-      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
+    runCli({
+      args: [
+        'package',
+        'add',
+        '--preset',
+        FRONTEND,
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+        '--no-api',
+      ],
       cwd: root,
       env: ENV,
     });
 
-    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'none'], cwd: root });
 
     const manifest = JSON.parse(
       readFileSync(join(root, '.agents/local/vulcan.manifest.json'), 'utf8'),
@@ -425,7 +481,7 @@ describe('vulcan add --preset', () => {
 
     writeFileSync(configPath, edited);
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'second-api'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'second-api'],
       cwd: root,
       env: ENV,
     });
@@ -439,7 +495,7 @@ describe('vulcan add --preset', () => {
   test('a new app on a taken port prints the port it was given', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'second-api'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'second-api'],
       cwd: root,
       env: ENV,
     });
@@ -450,7 +506,7 @@ describe('vulcan add --preset', () => {
   test('an npm preset with --app missing is refused before the install is tried', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', '@fixture/none', '--frontend-dir', 'web', '--no-api'],
+      args: ['package', 'add', '--preset', '@fixture/none', '--frontend-dir', 'web', '--no-api'],
       cwd: root,
       env: ENV,
     });
@@ -463,7 +519,16 @@ describe('vulcan add --preset', () => {
   test('an npm preset for a frontend without --api or --no-api is refused before the install', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', '@fixture/none', '--frontend-dir', 'web', '--app', 'admin'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        '@fixture/none',
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+      ],
       cwd: root,
       env: ENV,
     });
@@ -476,7 +541,7 @@ describe('vulcan add --preset', () => {
   test('an npm preset whose side has no folder yet is refused before the install, naming the flag', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', '@fixture/none', '--app', 'admin', '--no-api'],
+      args: ['package', 'add', '--preset', '@fixture/none', '--app', 'admin', '--no-api'],
       cwd: root,
       env: ENV,
     });
@@ -489,7 +554,7 @@ describe('vulcan add --preset', () => {
   test('an npm preset that names nothing about its side is not refused early', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', '@fixture/none', '--app', 'second-api'],
+      args: ['package', 'add', '--preset', '@fixture/none', '--app', 'second-api'],
       cwd: root,
       env: ENV,
     });
@@ -500,7 +565,7 @@ describe('vulcan add --preset', () => {
   test('a frontend without --api or --no-api and no terminal is refused naming both', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin'],
+      args: ['package', 'add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin'],
       cwd: root,
       env: ENV,
     });
@@ -514,6 +579,7 @@ describe('vulcan add --preset', () => {
     const root = monorepo();
     const result = runCli({
       args: [
+        'package',
         'add',
         '--preset',
         FRONTEND,
@@ -536,7 +602,7 @@ describe('vulcan add --preset', () => {
   test('a folder the config does not list yet joins the side as a list', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'apps', '--app', 'worker'],
+      args: ['package', 'add', '--preset', BACKEND, '--backend-dir', 'apps', '--app', 'worker'],
       cwd: root,
       env: ENV,
     });
@@ -551,7 +617,7 @@ describe('vulcan add --preset', () => {
 
   test('neither --app nor --lib is refused with both commands, and nothing is written', () => {
     const root = monorepo();
-    const result = runCli({ args: ['add', '--preset', BACKEND], cwd: root, env: ENV });
+    const result = runCli({ args: ['package', 'add', '--preset', BACKEND], cwd: root, env: ENV });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('say what to create');
@@ -561,7 +627,11 @@ describe('vulcan add --preset', () => {
 
   test('a flag that takes a name but has none is an error naming it', () => {
     const root = monorepo();
-    const result = runCli({ args: ['add', '--preset', BACKEND, '--lib'], cwd: root, env: ENV });
+    const result = runCli({
+      args: ['package', 'add', '--preset', BACKEND, '--lib'],
+      cwd: root,
+      env: ENV,
+    });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('--lib needs a name');
@@ -577,6 +647,7 @@ describe('vulcan add --preset', () => {
     const before = readFileSync(manifestPath, 'utf8');
     const result = runCli({
       args: [
+        'package',
         'add',
         '--preset',
         `@fixture/frontend@file:${packFolder({ folder: FRONTEND_PATH })}`,
@@ -624,7 +695,7 @@ describe('vulcan add --preset', () => {
     });
 
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'billing'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'billing'],
       cwd: root,
       env: ENV,
     });
@@ -669,7 +740,17 @@ describe('vulcan add --preset', () => {
     });
 
     const result = runCli({
-      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        FRONTEND,
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+        '--no-api',
+      ],
       cwd: root,
       env: ENV,
     });
@@ -694,7 +775,17 @@ describe('vulcan add --preset', () => {
     });
 
     const result = runCli({
-      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        FRONTEND,
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+        '--no-api',
+      ],
       cwd: root,
       env: ENV,
     });
@@ -721,7 +812,17 @@ describe('vulcan add --preset', () => {
     });
 
     const result = runCli({
-      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        FRONTEND,
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+        '--no-api',
+      ],
       cwd: root,
       env: ENV,
     });
@@ -740,7 +841,8 @@ describe('vulcan add --preset', () => {
 
     for (const app of ['worker', 'billing']) {
       expect(
-        runCli({ args: ['add', '--preset', BACKEND, '--app', app], cwd: root, env: ENV }).code,
+        runCli({ args: ['package', 'add', '--preset', BACKEND, '--app', app], cwd: root, env: ENV })
+          .code,
       ).toBe(0);
     }
 
@@ -760,7 +862,11 @@ describe('vulcan add --preset', () => {
     const indexPath = join(root, '.agents/knowledge/index.md');
 
     writeFileSync(indexPath, '# p\n\nAll by hand.\n');
-    runCli({ args: ['add', '--preset', BACKEND, '--app', 'worker'], cwd: root, env: ENV });
+    runCli({
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'worker'],
+      cwd: root,
+      env: ENV,
+    });
 
     expect(readFileSync(indexPath, 'utf8')).toBe(
       '# p\n\nAll by hand.\n\n## Apps\n\n- [worker](packages/worker.md) - A fixture backend.\n',
@@ -771,6 +877,7 @@ describe('vulcan add --preset', () => {
     const root = monorepo();
     const result = runCli({
       args: [
+        'package',
         'add',
         '--preset',
         FRONTEND,
@@ -792,7 +899,17 @@ describe('vulcan add --preset', () => {
   test('a file: preset warns that the catalog entry is not portable', () => {
     const root = monorepo();
     const result = runCli({
-      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        FRONTEND,
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+        '--no-api',
+      ],
       cwd: root,
       env: ENV,
     });

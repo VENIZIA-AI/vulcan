@@ -51,18 +51,18 @@ const setup = (opts: { days?: number[]; manifestDir?: string } = {}) => {
   return { root, dir };
 };
 
-describe('vulcan clean --events with a local events.dir', () => {
+describe('vulcan project clean --events with a local events.dir', () => {
   test('it lists and removes the day files of that folder only, by the limits of the manifest', () => {
     const { root, dir } = setup({ days: [60, 5, 0] });
     const own = join(root, `.agents/local/events/${day({ ago: 60 })}.jsonl`);
 
     writeFileSync(own, '{}\n');
 
-    const dry = runCli({ args: ['clean', '--events'], cwd: root }).stderr;
+    const dry = runCli({ args: ['project', 'clean', '--events'], cwd: root }).stderr;
 
     expect(dry).toContain(`${dir}/${day({ ago: 60 })}.jsonl`);
     expect(dry).not.toContain(own);
-    expect(runCli({ args: ['clean', '--events', '--yes'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'clean', '--events', '--yes'], cwd: root }).code).toBe(0);
     expect(existsSync(join(dir, `${day({ ago: 60 })}.jsonl`))).toBe(false);
     expect(existsSync(join(dir, `${day({ ago: 5 })}.jsonl`))).toBe(true);
     expect(existsSync(join(dir, `${day({ ago: 0 })}.jsonl`))).toBe(true);
@@ -159,7 +159,7 @@ describe('the other readers of the local folder', () => {
     });
 
     expect(held?.decision).toBe('block');
-    expect(held?.reason).toContain("event step --flow 'VULZ-ACME-1'");
+    expect(held?.reason).toContain("flow step --flow 'VULZ-ACME-1'");
   });
 });
 
@@ -195,7 +195,7 @@ describe('doctor and the local folder', () => {
   });
 });
 
-describe('vulcan sync and an invalid local events.dir', () => {
+describe('vulcan project sync and an invalid local events.dir', () => {
   test('sync refuses, names the file and the key, and writes nothing; the readers fall back', () => {
     const root = createProject({
       files: {
@@ -203,7 +203,7 @@ describe('vulcan sync and an invalid local events.dir', () => {
         [LOCAL]: JSON.stringify({ schemaVersion: 1, events: { dir: 'relative/events' } }),
       },
     });
-    const result = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const result = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     expect(result.code).not.toBe(0);
     expect(result.stderr).toContain('profile.json');

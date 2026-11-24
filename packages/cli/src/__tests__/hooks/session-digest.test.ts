@@ -38,7 +38,7 @@ describe('SessionDigest.build', () => {
     const result = await SessionDigest.build({ projectRoot: missing });
     expect(result).toContain('## Setup missing');
     const result2 = await SessionDigest.build({ projectRoot: missing });
-    expect(result2).toContain('bun node_modules/.bin/vulcan sync');
+    expect(result2).toContain('bun node_modules/.bin/vulcan project sync');
     const result3 = await SessionDigest.build({ projectRoot: present });
     expect(result3).not.toContain('Setup missing');
   });

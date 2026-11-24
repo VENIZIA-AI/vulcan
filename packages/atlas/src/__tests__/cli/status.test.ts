@@ -49,7 +49,7 @@ const install = (opts: { root: string; version: string }): void =>
     text: JSON.stringify({ name: '@venizia/ignis-helpers', version: opts.version }),
   });
 
-describe('vulcan x atlas status: what the last server run recorded', () => {
+describe('vulcan atlas status: what the last server run recorded', () => {
   const record = (opts: { root: string; name: string; entry: object; at?: string }): void => {
     const path = `${opts.at ?? '.agents/local/cache'}/atlas/status.json`;
     const file = join(opts.root, path);
@@ -157,7 +157,7 @@ describe('vulcan x atlas status: what the last server run recorded', () => {
   });
 });
 
-describe('vulcan x atlas status', () => {
+describe('vulcan atlas status', () => {
   test('names the copy of each package atlas reads, with its version and folder', () => {
     const root = project();
 

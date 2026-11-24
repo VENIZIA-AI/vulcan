@@ -18,15 +18,15 @@ export const runDoctorCommand = async (opts: ICommandContext): Promise<number> =
   }
 
   if (report.violations.length > 0) {
-    process.stderr.write(`vulcan doctor: ${report.violations.length} violation(s)\n`);
+    process.stderr.write(`vulcan project doctor: ${report.violations.length} violation(s)\n`);
 
     return ExitCodes.FAILURE;
   }
 
   process.stderr.write(
     report.warnings.length === 0
-      ? 'vulcan doctor: OK\n'
-      : `vulcan doctor: OK with ${report.warnings.length} warning(s)\n`,
+      ? 'vulcan project doctor: OK\n'
+      : `vulcan project doctor: OK with ${report.warnings.length} warning(s)\n`,
   );
 
   return ExitCodes.OK;

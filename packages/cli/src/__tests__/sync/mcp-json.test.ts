@@ -12,7 +12,7 @@ const PROJECT = {
 };
 const CANONICAL = {
   command: 'bun',
-  args: ['node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+  args: ['node_modules/.bin/vulcan', 'atlas', 'mcp', '--root', '.'],
 };
 /** What an earlier sync wrote: it runs a copy bunx cached when the bin is not linked where the editor starts it. */
 const LEGACY = {
@@ -32,10 +32,10 @@ const repo = (opts: { files?: Record<string, string> } = {}): string => {
 };
 
 const sync = (opts: { root: string; agents: string }) =>
-  runCli({ args: ['sync', '--agents', opts.agents], cwd: opts.root });
+  runCli({ args: ['project', 'sync', '--agents', opts.agents], cwd: opts.root });
 
 const agents = (opts: { root: string; args: string[] }) =>
-  runCli({ args: ['agents', ...opts.args], cwd: opts.root });
+  runCli({ args: ['agent', ...opts.args], cwd: opts.root });
 
 const mcp = (opts: { root: string }) =>
   JSON.parse(readFileSync(join(opts.root, '.mcp.json'), 'utf8'));
@@ -155,7 +155,7 @@ describe('sync writes the root .mcp.json for the agents that read it', () => {
 
   test('--dry-run says what it would write and writes nothing', () => {
     const root = repo();
-    const result = runCli({ args: ['sync', '--agents', 'omp', '--dry-run'], cwd: root });
+    const result = runCli({ args: ['project', 'sync', '--agents', 'omp', '--dry-run'], cwd: root });
 
     expect(result.stderr).toContain('would create  .mcp.json');
     expect(existsSync(join(root, '.mcp.json'))).toBe(false);
@@ -194,7 +194,7 @@ describe('a project that tracks .mcp.json today (the migration)', () => {
 
     sync({ root, agents: 'omp' });
 
-    const result = runCli({ args: ['doctor'], cwd: root });
+    const result = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(result.stderr).not.toContain('[mcp]');
   });
@@ -223,7 +223,7 @@ describe('a project that tracks .mcp.json today (the migration)', () => {
 
     sync({ root, agents: 'cursor' });
 
-    expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain('is tracked');
+    expect(runCli({ args: ['project', 'doctor'], cwd: root }).stderr).not.toContain('is tracked');
   });
 });
 
@@ -301,7 +301,7 @@ describe('doctor on an untracked .mcp.json', () => {
 
     sync({ root, agents: 'omp' });
 
-    expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain(WARNING);
+    expect(runCli({ args: ['project', 'doctor'], cwd: root }).stderr).not.toContain(WARNING);
   });
 
   test('warns when nothing ignores it, and stops once .gitignore lists it', () => {
@@ -310,16 +310,16 @@ describe('doctor on an untracked .mcp.json', () => {
     sync({ root, agents: 'omp' });
     writeFileSync(join(root, '.git/info/exclude'), '');
 
-    expect(runCli({ args: ['doctor'], cwd: root }).stderr).toContain(WARNING);
+    expect(runCli({ args: ['project', 'doctor'], cwd: root }).stderr).toContain(WARNING);
 
     writeFileSync(join(root, '.gitignore'), '/.mcp.json\n');
 
-    expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain(WARNING);
+    expect(runCli({ args: ['project', 'doctor'], cwd: root }).stderr).not.toContain(WARNING);
   });
 
   test('a project that is not a git repository gets no warning', () => {
     const root = createProject({ files: { ...PROJECT, '.mcp.json': '{}\n' } });
 
-    expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain(WARNING);
+    expect(runCli({ args: ['project', 'doctor'], cwd: root }).stderr).not.toContain(WARNING);
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Hands okf a project config the way `vulcan x` does (`VULCAN_CONFIG` + `VULCAN_PROJECT_ROOT`).
+ * Hands okf a project config the way `vulcan atlas` or `vulcan okf` does (`VULCAN_CONFIG` + `VULCAN_PROJECT_ROOT`).
  * Missing sections are fine: the reader applies the same defaults the cli schema does.
  */
 export const useProjectConfig = (opts: { root: string; config: object }): void => {

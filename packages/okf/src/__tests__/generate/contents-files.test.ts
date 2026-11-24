@@ -47,8 +47,8 @@ test('every long agent-read file without a fresh contents list is a problem (pos
   project();
 
   expect(ContentsFiles.collectProblems({ skip: new Set() })).toEqual([
-    'contents: .agents/knowledge/overview/long.md has no fresh contents list - run `vulcan x okf gen`',
-    'contents: AGENTS.md has no fresh contents list - run `vulcan x okf gen`',
+    'contents: .agents/knowledge/overview/long.md has no fresh contents list - run `vulcan okf gen`',
+    'contents: AGENTS.md has no fresh contents list - run `vulcan okf gen`',
   ]);
 });
 
@@ -126,8 +126,8 @@ test('okf.contents.files takes globs: every match gets a list, a literal still w
       problem.includes('SKILL.md'),
     ),
   ).toEqual([
-    'contents: .agents/skills/alpha/SKILL.md has no fresh contents list - run `vulcan x okf gen`',
-    'contents: .agents/skills/beta/SKILL.md has no fresh contents list - run `vulcan x okf gen`',
+    'contents: .agents/skills/alpha/SKILL.md has no fresh contents list - run `vulcan okf gen`',
+    'contents: .agents/skills/beta/SKILL.md has no fresh contents list - run `vulcan okf gen`',
   ]);
   expect(ContentsFiles.write({ skip: new Set() })).toContain('.agents/skills/beta/SKILL.md');
   expect(ContentsFiles.collectProblems({ skip: new Set() })).toEqual([]);

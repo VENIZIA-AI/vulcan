@@ -1,6 +1,6 @@
 /**
  * Board hook (UserPromptSubmit): adds a short block to the turn that a user prompt starts: the flow of the session, its
- * open steps and the exact `vulcan event step` command that ticks one (src/events/prompt-context.ts). Only with `events.log`
+ * open steps and the exact `vulcan flow step` command that ticks one (src/events/prompt-context.ts). Only with `events.log`
  * on, and it never reads the prompt. The turn that a peer or cross-session message starts may not fire this hook, so the
  * Stop hook stays the guarantee.
  *

@@ -1,7 +1,7 @@
 /**
  * config.ts - okf's constants that hold for every project. Everything project-specific (paths,
  * packages, renderers, regions, coverage axes, denylist, the brand)
- * comes from the project config `vulcan x` hands okf - see project/reader.ts.
+ * comes from the project config `vulcan atlas` or `vulcan okf` hands okf - see project/reader.ts.
  */
 
 /** Directories never walked when scanning source. */
@@ -20,4 +20,4 @@ export const PRUNE_DIRS = new Set([
 export const RESERVED_FILES = new Set(['index.md', 'log.md']);
 
 /** What a stale check tells the person: the tool command works in any project, a make target may not exist. */
-export const REGENERATE_HINT = 'run `vulcan x okf gen`';
+export const REGENERATE_HINT = 'run `vulcan okf gen`';

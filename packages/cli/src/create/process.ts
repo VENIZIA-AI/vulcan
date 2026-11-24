@@ -92,7 +92,7 @@ export class SubProcess {
 
     if (code !== ExitCodes.OK) {
       process.stderr.write(
-        `vulcan init: git init did not run - install git, then run: git init -b develop (in ${opts.cwd})\n`,
+        `vulcan project init: git init did not run - install git, then run: git init -b develop (in ${opts.cwd})\n`,
       );
     }
 

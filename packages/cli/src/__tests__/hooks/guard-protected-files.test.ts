@@ -171,8 +171,8 @@ describe('guard-outside denies a write to a file the guards read their policy fr
     'echo x > .agents/tmp/a',
     'echo x > .agents/other.json',
     'bun install',
-    'bun node_modules/.bin/vulcan sync',
-    'bun node_modules/.bin/vulcan sync --app apps/web',
+    'bun node_modules/.bin/vulcan project sync',
+    'bun node_modules/.bin/vulcan project sync --app apps/web',
     'perl -e 1 .agents/local/vulcan.manifest.json',
   ])('a command that does not change one is left alone: %s', (command) => {
     expect(protectedHitsOf({ root, command })).toEqual([]);

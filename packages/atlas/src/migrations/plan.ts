@@ -191,7 +191,7 @@ export class MigratePlan {
 
   /** Why a package has no release: no source declares it - one may have failed (the server's notice says which) or was never pulled. */
   private static notServedReason(opts: { name: string }): string {
-    return `${opts.name} is not served by any atlas source: check atlas.sources in the config and run \`vulcan x atlas pull\`, or see which source failed`;
+    return `${opts.name} is not served by any atlas source: check atlas.sources in the config and run \`vulcan atlas pull\`, or see which source failed`;
   }
 
   private static installedOf(opts: {
@@ -443,7 +443,7 @@ export class MigratePlan {
 
     if (newest !== undefined && Bun.semver.order(line, newest) > 0) {
       notes.push(
-        `the folders of this source end at ${newest} and hold none for ${line}: the steps of ${line} are not in this plan. Check the source's ref in .configs/vulcan.config.* (a branch such as develop), then run \`vulcan x atlas pull\``,
+        `the folders of this source end at ${newest} and hold none for ${line}: the steps of ${line} are not in this plan. Check the source's ref in .configs/vulcan.config.* (a branch such as develop), then run \`vulcan atlas pull\``,
       );
     }
 

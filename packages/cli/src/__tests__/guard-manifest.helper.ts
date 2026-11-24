@@ -1,5 +1,5 @@
 /**
- * The committed manifest a hook reads for what the project set for the guards (`vulcan sync` renders it from
+ * The committed manifest a hook reads for what the project set for the guards (`vulcan project sync` renders it from
  * the config), so a test gives a hook the manifest it would find and no config at all.
  */
 export const GUARD_MANIFEST_FILE = '.agents/local/vulcan.manifest.json';

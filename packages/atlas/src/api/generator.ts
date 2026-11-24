@@ -2,7 +2,7 @@
  * The API reference of a project's packages: one markdown page for each `exports` entry, listing every
  * export with its kind, its TSDoc and its declaration, read from the same symbol records the `symbol`
  * tool serves. The pages go under the wiki, are generated and are never edited; `check` fails when one is
- * stale. Usage: vulcan x atlas api gen|check
+ * stale. Usage: vulcan atlas api gen|check
  */
 import { readdirSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -38,7 +38,7 @@ export class ApiReference {
   static readonly DIRECTORY = 'references/api';
   static readonly INDEX_FILE = 'index.md';
   private static readonly GENERATED_NOTE =
-    'Generated from the built declarations by `vulcan x atlas api gen` - do not edit.';
+    'Generated from the built declarations by `vulcan atlas api gen` - do not edit.';
 
   /** A file this command wrote carries its note; a page someone wrote by hand in the same folder does not. */
   static isGenerated(opts: { text: string }): boolean {
@@ -345,8 +345,7 @@ export class ApiReference {
 
 const directoryOf = (opts: { wiki: string }): string => join(opts.wiki, ApiReference.DIRECTORY);
 
-const USAGE =
-  'usage: vulcan x atlas api gen|check | undocumented [--package <dir, name or path>]...';
+const USAGE = 'usage: vulcan atlas api gen|check | undocumented [--package <dir, name or path>]...';
 
 export const runApiCommand = (opts: { command?: string; args?: string[] }): number => {
   if (opts.command !== 'gen' && opts.command !== 'check' && opts.command !== 'undocumented') {
@@ -359,9 +358,7 @@ export const runApiCommand = (opts: { command?: string; args?: string[] }): numb
   const wiki = project.knowledge.wiki;
 
   if (wiki === undefined) {
-    console.error(
-      'vulcan x atlas api: this project declares no wiki (knowledge.wiki in the config)',
-    );
+    console.error('vulcan atlas api: this project declares no wiki (knowledge.wiki in the config)');
 
     return 1;
   }
@@ -371,8 +368,8 @@ export const runApiCommand = (opts: { command?: string; args?: string[] }): numb
   if (unmatched.length > 0) {
     console.error(
       unmatched.includes('')
-        ? 'vulcan x atlas api: --package needs a value (a package dir, npm name or path)'
-        : `vulcan x atlas api: --package ${unmatched.map((value) => `'${value}'`).join(', ')} matches no package of this project (use its dir, npm name or path)`,
+        ? 'vulcan atlas api: --package needs a value (a package dir, npm name or path)'
+        : `vulcan atlas api: --package ${unmatched.map((value) => `'${value}'`).join(', ')} matches no package of this project (use its dir, npm name or path)`,
     );
 
     return 2;
@@ -386,7 +383,7 @@ export const runApiCommand = (opts: { command?: string; args?: string[] }): numb
   const records = only === undefined ? all : all.filter((record) => only.includes(record.package));
 
   if (records.length === 0) {
-    console.error('vulcan x atlas api: no exports found - build the packages first');
+    console.error('vulcan atlas api: no exports found - build the packages first');
 
     return 1;
   }
@@ -426,7 +423,7 @@ export const runApiCommand = (opts: { command?: string; args?: string[] }): numb
     }
 
     console.error(
-      `stale ${ApiReference.DIRECTORY}: ${stale.join(', ')} - the public API or its TSDoc changed; run \`vulcan x atlas api gen\``,
+      `stale ${ApiReference.DIRECTORY}: ${stale.join(', ')} - the public API or its TSDoc changed; run \`vulcan atlas api gen\``,
     );
 
     return 1;

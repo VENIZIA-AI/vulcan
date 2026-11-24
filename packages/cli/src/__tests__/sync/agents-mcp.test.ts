@@ -13,7 +13,7 @@ const PROJECT = {
 };
 
 const sync = (opts: { root: string; agents: string }) =>
-  runCli({ args: ['sync', '--agents', opts.agents], cwd: opts.root });
+  runCli({ args: ['project', 'sync', '--agents', opts.agents], cwd: opts.root });
 
 const readJson = (opts: { root: string; path: string }) =>
   JSON.parse(readFileSync(join(opts.root, opts.path), 'utf8'));
@@ -57,7 +57,7 @@ describe('a project that moved', () => {
   });
 });
 
-describe('vulcan sync writes the atlas entry where each agent reads it', () => {
+describe('vulcan project sync writes the atlas entry where each agent reads it', () => {
   for (const [agent, path, key] of PROJECT_FILES) {
     test(`${agent}: ${path} under ${key}`, () => {
       const root = createProject({ files: PROJECT });
@@ -164,7 +164,10 @@ describe('vulcan sync writes the atlas entry where each agent reads it', () => {
 
   test('--dry-run writes none of it', () => {
     const root = createProject({ files: PROJECT });
-    const result = runCli({ args: ['sync', '--dry-run', '--agents', 'cursor,codex'], cwd: root });
+    const result = runCli({
+      args: ['project', 'sync', '--dry-run', '--agents', 'cursor,codex'],
+      cwd: root,
+    });
 
     expect(result.stderr).toContain('would create  .cursor/mcp.json');
     expect(existsSync(join(root, '.cursor'))).toBe(false);

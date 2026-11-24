@@ -15,7 +15,7 @@ afterAll(removeProjects);
 const LEGACY = AgentConstants.LEGACY_LOCAL_FILE;
 const PROFILE = AgentConstants.LOCAL_FILE;
 const OLD = {
-  $generated: 'by vulcan sync',
+  $generated: 'by vulcan project sync',
   schemaVersion: 1,
   agents: ['claude', 'omp'],
   board: { agents: { bun: 'flame' }, serve: { autoStart: true } },
@@ -69,7 +69,7 @@ describe('sync moves the keys of the old file into the profile', () => {
 
     git(root);
 
-    const run = runCli({ args: ['sync'], cwd: root });
+    const run = runCli({ args: ['project', 'sync'], cwd: root });
     const profile = JSON.parse(readFileSync(join(root, PROFILE), 'utf8'));
 
     expect(run.code, run.stderr).toBe(0);
@@ -218,7 +218,7 @@ describe('sync moves the keys of the old file into the profile', () => {
     expect(
       LocalPlan.planWorkspace({ root }).some((action) => action.path.endsWith('vulcan.local.json')),
     ).toBe(true);
-    runCli({ args: ['sync'], cwd: root });
+    runCli({ args: ['project', 'sync'], cwd: root });
     expect(
       LocalPlan.planWorkspace({ root }).some((action) => action.path.endsWith('vulcan.local.json')),
     ).toBe(false);
@@ -274,7 +274,7 @@ describe("the profile keeps this machine's keys", () => {
     });
 
     writeFileSync(join(root, '.gitignore'), '.agents/local/\nnode_modules\n');
-    runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     const profile = JSON.parse(readFileSync(join(root, PROFILE), 'utf8'));
 
@@ -314,7 +314,7 @@ describe('reset drops a machine key that is not valid, and names it', () => {
     expect(OwnerProfile.read({ root }).ok).toBe(true);
   });
 
-  test('`vulcan clean --profile --yes` resets like `profile reset`: the answers go, the machine keys stay', () => {
+  test('`vulcan project clean --profile --yes` resets like `profile reset`: the answers go, the machine keys stay', () => {
     const root = createProject({
       files: {
         '.gitignore': '.agents/local/\n',
@@ -322,7 +322,7 @@ describe('reset drops a machine key that is not valid, and names it', () => {
       },
     });
 
-    runCli({ args: ['clean', '--profile', '--yes'], cwd: root });
+    runCli({ args: ['project', 'clean', '--profile', '--yes'], cwd: root });
     expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8'))).toEqual({
       schemaVersion: 1,
       agents: ['claude'],

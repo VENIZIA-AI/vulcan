@@ -143,7 +143,7 @@ describe('runReleasesCommand', () => {
     try {
       expect(runReleasesCommand({ command: 'gen' })).toBe(2);
       expect(error).toHaveBeenCalledWith(
-        "usage: vulcan x atlas releases (no subcommand: 'gen' is not one)",
+        "usage: vulcan atlas releases (no subcommand: 'gen' is not one)",
       );
       error.mockClear();
       // A flag gets past the argument check: whatever happens next (here, no manifest in a test) is not the usage.

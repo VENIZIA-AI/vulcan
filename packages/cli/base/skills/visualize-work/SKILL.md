@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 # Visualize work
 
 A page is for a reader who should understand in one look: a status, a handoff, how something works, options
-compared, a brainstorm, a plan, findings, a decision. You write a small JSON spec; `vulcan visualize` turns it
+compared, a brainstorm, a plan, findings, a decision. You write a small JSON spec; `vulcan page new` turns it
 into one self-contained HTML file in `.agents/local/prototypes/` (gitignored), with a slide mode for walking someone
 through it. The page loads nothing from the network, and nothing is published anywhere: the reader opens the file.
 
@@ -19,7 +19,7 @@ through it. The page loads nothing from the network, and nothing is published an
 ```
 - [ ] 1. Page decided     - one question it answers, the kind that fits it, small enough for one page
 - [ ] 2. Spec written     - the takeaway as the title, a verdict, every arrow a verb, evidence labelled honestly
-- [ ] 3. Rendered         - `vulcan visualize` accepted the spec and said which checks ran
+- [ ] 3. Rendered         - `vulcan page new` accepted the spec and said which checks ran
 - [ ] 4. Looked at        - in a browser at 390 and 1280 px, or reported as not browser-checked
 - [ ] 5. Handed over      - the full path and one line on what the page shows
 ```
@@ -52,7 +52,7 @@ Done when you can say the question in one sentence and name the kind.
 ## 2. Write the spec
 
 Put it in `.agents/tmp/<name>.json`. The fields, their limits and a worked spec are in
-[references/spec.md](references/spec.md); `bun node_modules/.bin/vulcan visualize --schema` (from the project root) prints the schema.
+[references/spec.md](references/spec.md); `bun node_modules/.bin/vulcan page schema` (from the project root) prints the schema.
 The rules that make a page worth opening:
 
 - **The title states the takeaway**, not the topic: "The form saves only inside the project", not "Profile
@@ -92,7 +92,7 @@ The rules that make a page worth opening:
 - **No secrets, no private data** in any field: the page is a file others may open.
 - **The owner's language is one setting**: the page takes the language of the owner's profile (`vulcan profile`), else English; a spec cannot choose it. Write every field of the spec in that language. English and Vietnamese words are bundled; for any other language, translate the words you need into `chrome` (every key is optional) and never invent a label set the owner did not give.
 - **The colour is the project's, not yours**: leave `accent` out. The page uses the project's `theme` (config key,
-  written into the manifest by `vulcan sync`), else the `venizia` preset. Give `accent` (and `accentDark`, `accentText`)
+  written into the manifest by `vulcan project sync`), else the `venizia` preset. Give `accent` (and `accentDark`, `accentText`)
   only when you draw a page about another project from outside it. A colour that fails the contrast checks is
   refused, never swapped; state colours (done, waiting, blocked) are fixed and always carry an icon and a word.
 - **Say where a claim comes from.** A box or step that states how the code works carries a `source`
@@ -126,7 +126,7 @@ Done when each arrow has a verb and each evidence row has a label you can defend
 ## 3. Render
 
 ```
-bun node_modules/.bin/vulcan visualize .agents/tmp/<name>.json --out <name>
+bun node_modules/.bin/vulcan page new .agents/tmp/<name>.json --out <name>
 ```
 
 It validates the spec (shape, limits, unique ids, every arrow and step pointing at a box, one box per cell),

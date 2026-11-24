@@ -84,7 +84,7 @@ export class FlowSteps {
   /**
    * A task list merged into the steps, never replacing them: a task that is not a step is added (done when it is
    * completed), a completed task marks its step done (matched by the cleaned text). Nothing is removed and nothing
-   * is reopened, so what `vulcan event step` or the agent wrote stays. At most `ITEM_COUNT_MAX` steps are kept.
+   * is reopened, so what `vulcan flow step` or the agent wrote stays. At most `ITEM_COUNT_MAX` steps are kept.
    */
   static merged(opts: { steps: IEventItem[]; tasks: IEventItem[] }): IEventItem[] {
     const steps = opts.steps.map((step) => ({ ...step }));

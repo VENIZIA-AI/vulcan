@@ -19,7 +19,7 @@ export interface ISymbolOrigin {
 }
 
 /**
- * One exported symbol as `vulcan x atlas symbols` records it. `file`/`line` name the source
+ * One exported symbol as `vulcan atlas symbols` records it. `file`/`line` name the source
  * declaration, not the `dist` file the generator read - an alias export points at what it aliases.
  */
 export interface ISymbolRecord {

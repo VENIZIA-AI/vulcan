@@ -21,7 +21,7 @@ export const architectureSpec = (): Record<string, unknown> => ({
       {
         label: 'Chủ dự án thấy',
         boxes: [
-          box('v', 'Trang trình bày', 'vulcan visualize'),
+          box('v', 'Trang trình bày', 'vulcan page new'),
           box('c', 'Lệnh vulcan', 'init, sync, doctor'),
           box('w', 'Trang wiki', 'VitePress, ba kho'),
         ],

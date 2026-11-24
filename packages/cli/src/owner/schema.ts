@@ -87,7 +87,7 @@ export const OWNER_LABEL_SET = z.strictObject({
 
 /**
  * `.agents/local/profile.json`: the one per-developer file. What one developer told VULCAN about how to work with them, and
- * this machine's own keys (`agents`, `board`, `local`, `events`: the shapes of `MACHINE_KEYS`), which `vulcan sync` and the hooks read.
+ * this machine's own keys (`agents`, `board`, `local`, `events`: the shapes of `MACHINE_KEYS`), which `vulcan project sync` and the hooks read.
  */
 export const PROFILE_SCHEMA = z.strictObject({
   ...MACHINE_KEYS,

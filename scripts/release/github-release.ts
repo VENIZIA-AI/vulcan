@@ -3,7 +3,7 @@
  *
  *   bun scripts/release/github-release.ts create --tag <tag> --version <v> --kind stable|prerelease
  *
- * A stable whose version has a folder `changelogs/<v>/` is released with the notes `vulcan changelog notes` prints (the
+ * A stable whose version has a folder `changelogs/<v>/` is released with the notes `vulcan migrate notes` prints (the
  * body of its `log.md` and the packages) and, when its `migration.yaml` holds a block, with that file attached as
  * `migration-<v>.yaml`. A stable of a project that keeps dated entries is released with the entries added since the
  * previous stable. It never creates, edits or moves the `atlas-index` release.

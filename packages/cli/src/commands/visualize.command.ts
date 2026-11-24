@@ -9,7 +9,7 @@ const SCHEMA_FLAG = '--schema';
 const OUT_FLAG = '--out';
 
 /**
- * `vulcan visualize <spec.json> [--out <name>]`: one small static HTML page from a JSON spec, written to
+ * `vulcan page new <spec.json> [--out <name>]`: one small static HTML page from a JSON spec, written to
  * `.agents/local/prototypes/` (gitignored). `--schema` prints the spec's JSON Schema. The page needs no
  * network and nothing is published; the command says which of its own checks ran, and that the browser
  * check is the caller's.
@@ -22,7 +22,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
     outAt !== -1 &&
     (out === undefined || out.startsWith('-') || opts.args.lastIndexOf(OUT_FLAG) !== outAt)
   ) {
-    process.stderr.write(`vulcan visualize: ${OUT_FLAG} takes one page name\n`);
+    process.stderr.write(`vulcan page new: ${OUT_FLAG} takes one page name\n`);
 
     return ExitCodes.FAILURE;
   }
@@ -39,7 +39,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
 
   if (specArgument === undefined) {
     process.stderr.write(
-      'vulcan visualize: name the spec file - vulcan visualize <spec.json> [--out <name>], or --schema\n',
+      'vulcan page new: name the spec file - vulcan page new <spec.json> [--out <name>], or --schema\n',
     );
 
     return ExitCodes.FAILURE;
@@ -48,7 +48,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   const specFile = resolve(opts.cwd, specArgument);
 
   if (!statSync(specFile, { throwIfNoEntry: false })?.isFile()) {
-    process.stderr.write(`vulcan visualize: ${specArgument} is not a file\n`);
+    process.stderr.write(`vulcan page new: ${specArgument} is not a file\n`);
 
     return ExitCodes.FAILURE;
   }
@@ -58,7 +58,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
 
   if (name === undefined) {
     process.stderr.write(
-      `vulcan visualize: '${source}' does not give a page name (lowercase letters, digits and dashes) - use ${OUT_FLAG}\n`,
+      `vulcan page new: '${source}' does not give a page name (lowercase letters, digits and dashes) - use ${OUT_FLAG}\n`,
     );
 
     return ExitCodes.FAILURE;
@@ -70,7 +70,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
     text = readFileSync(specFile, 'utf8');
   } catch (error) {
     process.stderr.write(
-      `vulcan visualize: cannot read ${specArgument}: ${error instanceof Error ? error.message : String(error)}\n`,
+      `vulcan page new: cannot read ${specArgument}: ${error instanceof Error ? error.message : String(error)}\n`,
     );
 
     return ExitCodes.FAILURE;
@@ -90,7 +90,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
 
   if (!rendered.ok) {
     process.stderr.write(
-      `vulcan visualize: the spec is not renderable, nothing was written:\n${rendered.problems.map((problem) => `  ${problem}`).join('\n')}\n`,
+      `vulcan page new: the spec is not renderable, nothing was written:\n${rendered.problems.map((problem) => `  ${problem}`).join('\n')}\n`,
     );
 
     return ExitCodes.FAILURE;
@@ -99,7 +99,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   const written = SpecPage.write({ root: opts.cwd, name, html: rendered.page.html });
 
   if (!written.ok) {
-    process.stderr.write(`vulcan visualize: ${written.error}\n`);
+    process.stderr.write(`vulcan page new: ${written.error}\n`);
 
     return ExitCodes.FAILURE;
   }
@@ -115,7 +115,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   }
 
   process.stderr.write(
-    `vulcan visualize: wrote ${written.path} (${(rendered.page.bytes / 1024).toFixed(1)} KB)\nchecks that ran: ${rendered.page.checks.join('; ')}\nnot run here: a browser check at 390 and 1280 px - open the page and look, or say it was not browser-checked\n`,
+    `vulcan page new: wrote ${written.path} (${(rendered.page.bytes / 1024).toFixed(1)} KB)\nchecks that ran: ${rendered.page.checks.join('; ')}\nnot run here: a browser check at 390 and 1280 px - open the page and look, or say it was not browser-checked\n`,
   );
 
   return ExitCodes.OK;

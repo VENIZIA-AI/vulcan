@@ -11,11 +11,11 @@ tags: [architecture, project, contract]
 `.configs/lints/{oxlint,eslint}.config.*`, `.agents/{rules.md,knowledge,skills,hooks}`, and a
 Makefile that `-include`s `vulcan.mk`.
 
-**Written by `vulcan sync`, gitignored:** `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json`
+**Written by `vulcan project sync`, gitignored:** `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json`
 (shipped, slot and `claude.settings` with the project hooks in it, merged over personal keys), the record of what
 it applied (`.claude/vulcan-managed.json`), and the `.claude/skills/` links.
 
-**Checked by `vulcan doctor`:** config, layout, rule IDs (a `V-` ID a project rule
+**Checked by `vulcan project doctor`:** config, layout, rule IDs (a `V-` ID a project rule
 points at - `Extends` or a first cell - is a base rule the base carries), slots, skills
 (none shadowed), make targets, hooks, adapters current, coding style, and that the scaffold is filled in (a workspaces project lists its
 packages; the knowledge index no longer holds the `vulcan:scaffold` line `init` writes), and `apps` (a project with `layout`: every layout folder is a workspace and every package lives in one).

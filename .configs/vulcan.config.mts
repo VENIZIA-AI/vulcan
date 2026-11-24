@@ -1,14 +1,16 @@
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
+  events: { log: true },
+  project: { key: 'VULCAN' },
   agents: ['claude'],
   rules: { 'V-W-01': 'on-user-word' },
   // The Venizia stack's rules (one script set per app, bun for scripts, verb-first names, const classes, await on its own line).
   packs: ['venizia'],
-  // W-00: a commit message never signs the commit as an agent. `vulcan sync` installs the commit-msg hook; CI runs the same check.
-  // The colour of this project's pages (vulcan visualize); the generator has no colour of its own but a neutral slate.
+  // W-00: a commit message never signs the commit as an agent. `vulcan project sync` installs the commit-msg hook; CI runs the same check.
+  // The colour of this project's pages (vulcan page new); the generator has no colour of its own but a neutral slate.
   theme: { accent: '#8a5a20', accentDark: '#dead6a' },
-  // The names on this repository's board page (vulcan board): the owner who answers asks, the title, the logo, and the faces of the Venizia agents.
+  // The names on this repository's board page (vulcan board show): the owner who answers asks, the title, the logo, and the faces of the Venizia agents.
   board: {
     owner: 'Phát',
     title: 'VENIZIA Board',
@@ -23,7 +25,7 @@ export default {
     bundle: '.agents/knowledge',
     wiki: 'docs/wiki/content',
     changelogs: 'docs/wiki/content/changelogs',
-    // The changelog is one folder per version from 0.4.5 on: dated files are history (vulcan changelog check does not read them),
+    // The changelog is one folder per version from 0.4.5 on: dated files are history (vulcan check changelog does not read them),
     // and none may be dated after datedUntil.
     migrationFrom: '0.4.5',
     datedUntil: '2026-11-14',

@@ -3,7 +3,7 @@
  * Symbol table for the Atlas `symbol` tool: every exported symbol of every package `exports`
  * entry, with the kind the public surface records plus a one-line signature and the `file:line`
  * of the declaration in `src/`. Read from the built `.d.ts`, so the packages must be built first.
- * Usage: vulcan x atlas symbols
+ * Usage: vulcan atlas symbols
  */
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
@@ -627,7 +627,7 @@ export class AtlasSymbols {
 export const runSymbolsCommand = (opts: { command?: string }): number => {
   // A flag is ignored, as it always was; a word is a subcommand that does not exist.
   if (opts.command !== undefined && !opts.command.startsWith('-')) {
-    console.error(`usage: vulcan x atlas symbols (no subcommand: '${opts.command}' is not one)`);
+    console.error(`usage: vulcan atlas symbols (no subcommand: '${opts.command}' is not one)`);
 
     return 2;
   }

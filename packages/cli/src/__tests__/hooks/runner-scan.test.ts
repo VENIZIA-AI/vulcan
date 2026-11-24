@@ -75,7 +75,7 @@ describe('RunnerScan: a command that runs an unscoped package', () => {
     ],
     [
       'a runner whose name wraps to the next line of a Markdown paragraph',
-      '(`bun x --no-install\nvulcan x atlas mcp`)',
+      '(`bun x --no-install\nvulcan atlas mcp`)',
       'vulcan',
     ],
     ['an allow-listed name with a foreign spec', 'bunx shadcn@npm:ardor add', 'shadcn@npm:ardor'],
@@ -107,7 +107,7 @@ describe('RunnerScan: a command that runs an unscoped package', () => {
 
 describe('RunnerScan: what is allowed', () => {
   test.each([
-    ['a scoped @venizia package', 'bun x @venizia/vulcan init'],
+    ['a scoped @venizia package', 'bun x @venizia/vulcan project init'],
     ['a scoped package with a version', 'bun x @venizia/vulcan@0.4.10 init'],
     ['a scoped package with the latest tag', 'bun x @venizia/vulcan@latest init'],
     ['a scope that is not venizia', 'bunx @veniziax/foo'],
@@ -178,8 +178,8 @@ describe('RunnerScan: --no-install', () => {
     const noInstall = (text: string): boolean | undefined =>
       RunnerScan.find({ text })[0]?.hasNoInstall;
 
-    expect(noInstall('bun x --no-install vulcan sync')).toBe(true);
-    expect(noInstall('bun x --bun --no-install vulcan sync')).toBe(true);
+    expect(noInstall('bun x --no-install vulcan project sync')).toBe(true);
+    expect(noInstall('bun x --bun --no-install vulcan project sync')).toBe(true);
     expect(noInstall('bun x --no-install=false vulcan')).toBe(false);
     expect(noInstall('bun x --no-install-foo vulcan')).toBe(false);
     expect(noInstall('bun x vulcan --no-install')).toBe(false);

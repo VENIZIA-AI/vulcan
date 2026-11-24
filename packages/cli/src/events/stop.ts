@@ -26,7 +26,7 @@ const WORK_KINDS = new Set<string>([
 
 /**
  * The `Stop` hook: it holds the end of a turn once when the board is out of step with the work of the turn, and says
- * the one `vulcan event step --next` command that puts it right. Out of step means, for the flow of the session (the
+ * the one `vulcan flow step --next` command that puts it right. Out of step means, for the flow of the session (the
  * branch's, else the one it last opened or updated, and not over), that since the flow's last `flow` line the session
  * committed or opened a pull request, or an edit tool of the session ran on tracked files more than `EDIT_HOLD_MS`
  * after that line, or a pull request of the flow was merged while steps are still open. It never blocks twice in a turn (`stop_hook_active`), never
@@ -167,7 +167,7 @@ export class BoardStop {
   }
 
   private static reasonOf(opts: { flow: string }): string {
-    const command = `${ProjectLayout.VULCAN_COMMAND} event step --flow ${EventText.shellQuote({ text: opts.flow })}`;
+    const command = `${ProjectLayout.VULCAN_COMMAND} flow step --flow ${EventText.shellQuote({ text: opts.flow })}`;
 
     return `The board is out of step for ${opts.flow}: run ${command} --next '<what is done, what comes next>'`;
   }

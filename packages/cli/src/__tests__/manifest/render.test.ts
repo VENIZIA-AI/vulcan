@@ -55,7 +55,9 @@ describe('ProjectManifest.render', () => {
       'rules',
       'theme',
     ]);
-    expect(manifest.$generated).toBe('by vulcan sync from .configs/vulcan.config.* - do not edit');
+    expect(manifest.$generated).toBe(
+      'by vulcan project sync from .configs/vulcan.config.* - do not edit',
+    );
     expect(manifest.schemaVersion).toBe(1);
     expect(manifest.name).toBe('acme');
     expect(manifest.packages).toEqual([
@@ -396,7 +398,7 @@ describe('the preset kind of a package in the manifest', () => {
   });
 });
 
-describe('the manifest in sync, doctor and vulcan x', () => {
+describe('the manifest in sync, doctor and vulcan atlas', () => {
   const PROJECT = {
     '.configs/vulcan.config.mts': `export default ${JSON.stringify(CONFIG)};\n`,
     'AGENTS.md': '# x\n',
@@ -405,10 +407,10 @@ describe('the manifest in sync, doctor and vulcan x', () => {
   test('sync writes it, and a second sync leaves it unchanged', () => {
     const root = createProject({ files: PROJECT });
 
-    runCli({ args: ['sync'], cwd: root });
+    runCli({ args: ['project', 'sync'], cwd: root });
 
     expect(existsSync(join(root, ManifestConstants.FILE))).toBe(true);
-    expect(runCli({ args: ['sync'], cwd: root }).stderr).toContain(
+    expect(runCli({ args: ['project', 'sync'], cwd: root }).stderr).toContain(
       `unchanged ${ManifestConstants.FILE}`,
     );
   });
@@ -422,7 +424,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
       },
     });
 
-    runCli({ args: ['sync'], cwd: root });
+    runCli({ args: ['project', 'sync'], cwd: root });
 
     expect(JSON.parse(readFileSync(join(root, ManifestConstants.FILE), 'utf8')).atlas).toEqual({
       index: { keys: [key] },
@@ -434,7 +436,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
   test('doctor fails a manifest the config moved past', async () => {
     const root = createProject({ files: PROJECT });
 
-    runCli({ args: ['sync'], cwd: root });
+    runCli({ args: ['project', 'sync'], cwd: root });
 
     const fresh = await DoctorRunner.runChecks({ root });
 
@@ -442,7 +444,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     // a new process, as doctor runs: this one has the first config module cached.
     writeFileSync(join(root, '.configs/vulcan.config.mts'), "export default { name: 'moved' };\n");
 
-    const stale = runCli({ args: ['doctor'], cwd: root });
+    const stale = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(fresh.map((violation) => violation.check)).not.toContain(DoctorChecks.MANIFEST);
     expect(stale.code).toBe(1);
@@ -453,7 +455,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
   test('a manifest without $generated is not current: doctor flags it as stale', async () => {
     const root = createProject({ files: PROJECT });
 
-    runCli({ args: ['sync'], cwd: root });
+    runCli({ args: ['project', 'sync'], cwd: root });
 
     const path = join(root, ManifestConstants.FILE);
     const { $generated, ...old } = JSON.parse(readFileSync(path, 'utf8'));
@@ -469,13 +471,13 @@ describe('the manifest in sync, doctor and vulcan x', () => {
   test('a sync after a manifest lost its $generated key writes the key back', () => {
     const root = createProject({ files: PROJECT });
 
-    runCli({ args: ['sync'], cwd: root });
+    runCli({ args: ['project', 'sync'], cwd: root });
 
     const path = join(root, ManifestConstants.FILE);
     const { $generated, ...old } = JSON.parse(readFileSync(path, 'utf8'));
 
     writeFileSync(path, `${JSON.stringify(old, null, 2)}\n`);
-    runCli({ args: ['sync'], cwd: root });
+    runCli({ args: ['project', 'sync'], cwd: root });
 
     expect($generated).toBeDefined();
     expect(JSON.parse(readFileSync(path, 'utf8')).$generated).toBe($generated);
@@ -484,7 +486,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
   test('a hand-edited manifest fails C1 and the message says it is generated and how to fix it', () => {
     const root = createProject({ files: PROJECT });
 
-    runCli({ args: ['sync'], cwd: root });
+    runCli({ args: ['project', 'sync'], cwd: root });
 
     const path = join(root, ManifestConstants.FILE);
     const edited = JSON.parse(readFileSync(path, 'utf8'));
@@ -492,15 +494,15 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     edited.name = 'edited-by-hand';
     writeFileSync(path, `${JSON.stringify(edited, null, 2)}\n`);
 
-    const result = runCli({ args: ['doctor'], cwd: root });
+    const result = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(`[${DoctorChecks.MANIFEST}]`);
     expect(result.stderr).toContain('generated');
-    expect(result.stderr).toContain("run 'bun node_modules/.bin/vulcan sync'");
+    expect(result.stderr).toContain("run 'bun node_modules/.bin/vulcan project sync'");
   });
 
-  test('vulcan x hands the tool the manifest, rendered fresh', async () => {
+  test('vulcan atlas hands the tool the manifest, rendered fresh', async () => {
     const root = createProject({ files: PROJECT });
     const environment = await ToolRunner.buildEnvironment({ root });
 

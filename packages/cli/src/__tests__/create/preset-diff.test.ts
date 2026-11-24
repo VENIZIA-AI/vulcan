@@ -30,6 +30,7 @@ const monorepo = (): { root: string; preset: string; files: string } => {
 
   runCli({
     args: [
+      'project',
       'init',
       '--preset',
       `file:${copy}`,
@@ -50,7 +51,7 @@ const monorepo = (): { root: string; preset: string; files: string } => {
 };
 
 const diff = (opts: { root: string; args?: string[] }) =>
-  runCli({ args: ['preset', 'diff', 'core-api', ...(opts.args ?? [])], cwd: opts.root, env: ENV });
+  runCli({ args: ['package', 'diff', 'core-api', ...(opts.args ?? [])], cwd: opts.root, env: ENV });
 
 /** Every file under a folder with its content: what "read-only" is checked against. */
 const snapshot = (opts: { root: string }): Record<string, string> =>
@@ -66,7 +67,7 @@ const snapshot = (opts: { root: string }): Record<string, string> =>
       }),
   );
 
-describe('vulcan preset diff', () => {
+describe('vulcan package diff', () => {
   test('an app just made from its preset has every file the same, and exits 0 even with --check', () => {
     const { root } = monorepo();
     const result = diff({ root, args: ['--check'] });
@@ -188,11 +189,11 @@ describe('vulcan preset diff', () => {
 
   test('refuses an unknown app, a missing app, a preset that is not a preset, outside a monorepo', () => {
     const { root } = monorepo();
-    const unknown = runCli({ args: ['preset', 'diff', 'nope'], cwd: root, env: ENV });
-    const missing = runCli({ args: ['preset', 'diff'], cwd: root, env: ENV });
-    const wrong = runCli({ args: ['preset', 'list'], cwd: root, env: ENV });
+    const unknown = runCli({ args: ['package', 'diff', 'nope'], cwd: root, env: ENV });
+    const missing = runCli({ args: ['package', 'diff'], cwd: root, env: ENV });
+    const wrong = runCli({ args: ['package', 'list'], cwd: root, env: ENV });
     const bare = runCli({
-      args: ['preset', 'diff', 'x'],
+      args: ['package', 'diff', 'x'],
       cwd: createProject({ files: {} }),
       env: ENV,
     });
@@ -202,9 +203,9 @@ describe('vulcan preset diff', () => {
     expect(unknown.stderr).toContain("no app 'nope'");
     expect(unknown.stderr).toContain('core-api');
     expect(missing.code).toBe(1);
-    expect(missing.stderr).toContain('usage: vulcan preset diff <package>');
-    expect(wrong.code).toBe(1);
-    expect(wrong.stderr).toContain('usage: vulcan preset diff <package>');
+    expect(missing.stderr).toContain('usage: vulcan package diff <package>');
+    expect(wrong.code).toBe(2);
+    expect(wrong.stderr).toContain("unknown action 'list' - one of: add, diff");
     expect(bare.code).toBe(1);
     expect(bare.stderr).toContain('run it at the root of a monorepo');
     expect(notPreset.code).toBe(1);
@@ -215,6 +216,7 @@ describe('vulcan preset diff', () => {
     const { root } = monorepo();
     const add = runCli({
       args: [
+        'package',
         'add',
         '--preset',
         FRONTEND,
@@ -231,13 +233,13 @@ describe('vulcan preset diff', () => {
 
     expect(add.code, add.stderr).toBe(0);
 
-    const bare = runCli({ args: ['preset', 'diff', 'web'], cwd: root, env: ENV });
+    const bare = runCli({ args: ['package', 'diff', 'web'], cwd: root, env: ENV });
     const same = runCli({
-      args: ['preset', 'diff', 'web', '--api', 'core-api', '--check'],
+      args: ['package', 'diff', 'web', '--api', 'core-api', '--check'],
       cwd: root,
       env: ENV,
     });
-    const other = runCli({ args: ['preset', 'diff', 'web', '--no-api'], cwd: root, env: ENV });
+    const other = runCli({ args: ['package', 'diff', 'web', '--no-api'], cwd: root, env: ENV });
 
     expect(bare.code).toBe(1);
     expect(bare.stderr).toContain('missing --api <app> or --no-api');
@@ -354,7 +356,11 @@ describe('vulcan preset diff', () => {
 
   test('an unknown flag is refused like every command', () => {
     const { root } = monorepo();
-    const result = runCli({ args: ['preset', 'diff', 'core-api', '--apply'], cwd: root, env: ENV });
+    const result = runCli({
+      args: ['package', 'diff', 'core-api', '--apply'],
+      cwd: root,
+      env: ENV,
+    });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("unknown argument '--apply'");
@@ -375,7 +381,7 @@ interface ILibraryMonorepo {
 
 const addTo = (opts: { root: string; preset: string; args: string[] }) =>
   runCli({
-    args: ['add', '--preset', `file:${opts.preset}`, ...opts.args],
+    args: ['package', 'add', '--preset', `file:${opts.preset}`, ...opts.args],
     cwd: opts.root,
     env: ENV,
   });
@@ -386,6 +392,7 @@ const libraryMonorepo = (): ILibraryMonorepo => {
   const parent = createProject({ files: {} });
   const init = runCli({
     args: [
+      'project',
       'init',
       '--preset',
       `file:${copy}`,
@@ -422,7 +429,7 @@ const libraryMonorepo = (): ILibraryMonorepo => {
 };
 
 const diffPackage = (opts: { root: string; name: string; args?: string[] }) =>
-  runCli({ args: ['preset', 'diff', opts.name, ...(opts.args ?? [])], cwd: opts.root, env: ENV });
+  runCli({ args: ['package', 'diff', opts.name, ...(opts.args ?? [])], cwd: opts.root, env: ENV });
 
 /** Replace the recorded presets in the config block: each record as the config holds it. */
 const recordPresets = (opts: { root: string; records: Record<string, unknown>[] }): void => {
@@ -441,7 +448,7 @@ const record = (opts: {
   shared?: string;
 }): Record<string, unknown> => ({ side: 'backend', summary: 's', ...opts });
 
-describe('vulcan preset diff on a library or a shared package', () => {
+describe('vulcan package diff on a library or a shared package', () => {
   test('a library made by add --lib is the same as the lib kind of its preset, even with --check, and the output says package', () => {
     const { root } = libraryMonorepo();
     const result = diffPackage({ root, name: 'billing', args: ['--check'] });
@@ -627,10 +634,10 @@ describe('vulcan preset diff on a library or a shared package', () => {
 
   test('the usage line names a package', () => {
     const { root } = libraryMonorepo();
-    const result = runCli({ args: ['preset', 'diff'], cwd: root, env: ENV });
+    const result = runCli({ args: ['package', 'diff'], cwd: root, env: ENV });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('usage: vulcan preset diff <package>');
+    expect(result.stderr).toContain('usage: vulcan package diff <package>');
   });
 
   describe('which preset: the recorded one that ships the kind of the package', () => {
