@@ -42,7 +42,9 @@ const git = (root: string, ...args: string[]) =>
 
 describe('the local file reads board.agents and local.tmp', () => {
   test('a file with only the two keys is valid and chooses no agents', () => {
-    const root = projectWith({ local: { board: { agents: ROSTER }, local: { tmp: 't' } } });
+    const root = projectWith({
+      local: { board: { page: { agents: ROSTER } }, common: { local: { tmp: 't' } } },
+    });
 
     expect(LocalChoice.read({ root })).toEqual({ ok: true, agents: undefined });
     expect(LocalSettings.read({ root })).toEqual({ tmp: 't', boardAgents: ROSTER });
@@ -50,12 +52,12 @@ describe('the local file reads board.agents and local.tmp', () => {
 
   test('a value that cannot be used is named by file and key, and the hooks leave it out', () => {
     const cases: [object, RegExp, object][] = [
-      [{ local: { tmp: '../out' } }, /profile\.json: local\.tmp/, {}],
-      [{ local: { tmp: 't', extra: 1 } }, /profile\.json: local/, { tmp: 't' }],
-      [{ board: { agents: { a: 'nope' } } }, /profile\.json: board\.agents\.a/, {}],
+      [{ common: { local: { tmp: '../out' } } }, /profile\.json: common\.local\.tmp/, {}],
+      [{ common: { local: { tmp: 't', extra: 1 } } }, /profile\.json: common\.local/, { tmp: 't' }],
+      [{ board: { page: { agents: { a: 'nope' } } } }, /profile\.json: board\.page\.agents\.a/, {}],
       [
-        { board: { agents: { a: { lane: 'b' } } } },
-        /profile\.json: board\.agents\.a\.lane/,
+        { board: { page: { agents: { a: { lane: 'b' } } } } },
+        /profile\.json: board\.page\.agents\.a\.lane/,
         { boardAgents: { a: { lane: 'b' } } },
       ],
     ];
@@ -79,7 +81,7 @@ describe('the local file reads board.agents and local.tmp', () => {
   });
 
   test('an unknown top-level key is reported by doctor (the profile is strict) and does not stop the choice', () => {
-    const root = projectWith({ local: { agents: ['claude'], boards: {} } });
+    const root = projectWith({ local: { agent: { list: ['claude'] }, boards: {} } });
     const profile = OwnerProfile.read({ root });
 
     expect(LocalChoice.read({ root })).toEqual({ ok: true, agents: ['claude'] });
@@ -100,7 +102,7 @@ describe('precedence: the local value replaces the whole key', () => {
   test('local.tmp: the local folder, else the manifest, else the default', () => {
     const own = projectWith({
       manifest: { schemaVersion: 1, local: { tmp: 'team' } },
-      local: { local: { tmp: 'mine' } },
+      local: { common: { local: { tmp: 'mine' } } },
     });
     const team = projectWith({ manifest: { schemaVersion: 1, local: { tmp: 'team' } } });
     const none = projectWith({});
@@ -116,7 +118,7 @@ describe('precedence: the local value replaces the whole key', () => {
   test('a local folder that is not a layout folder falls back to the manifest', () => {
     const root = projectWith({
       manifest: { schemaVersion: 1, local: { tmp: 'team' } },
-      local: { local: { tmp: '../out' } },
+      local: { common: { local: { tmp: '../out' } } },
     });
 
     expect(ProjectTmp.relativeOf({ root })).toBe('team');
@@ -125,7 +127,7 @@ describe('precedence: the local value replaces the whole key', () => {
   test('board.agents: the local roster replaces the committed one, not merged with it', () => {
     const manifest = { name: 'Acme', board: { agents: { umbra: 'ember', aurora: 'bun' } } };
     const own = BoardSettings.read({
-      root: projectWith({ manifest, local: { board: { agents: ROSTER } } }),
+      root: projectWith({ manifest, local: { board: { page: { agents: ROSTER } } } }),
     });
     const team = BoardSettings.read({ root: projectWith({ manifest }) });
 
@@ -140,13 +142,13 @@ describe('precedence: the local value replaces the whole key', () => {
 
     for (const agents of [{ a: { lane: 'a' } }, { a: 'nope' }]) {
       const settings = BoardSettings.read({
-        root: projectWith({ manifest, local: { board: { agents } } }),
+        root: projectWith({ manifest, local: { board: { page: { agents } } } }),
       });
 
       expect(settings.roster).toEqual(['umbra']);
       expect(settings.shapes).toEqual({ umbra: 'ember' });
       expect(settings.notes.join('\n')).toContain(
-        'board.agents in .agents/local/profile.json is not used',
+        'board.page.agents in .agents/local/profile.json is not used',
       );
     }
   });
@@ -157,20 +159,22 @@ describe('vulcan project sync with a local file', () => {
     runCli({ args: ['project', 'sync', '--agents', agents], cwd: root });
 
   test('keeps board and local when it writes the agents, and writes nothing else of them', () => {
-    const root = projectWith({ local: { board: { agents: ROSTER }, local: { tmp: 't' } } });
+    const root = projectWith({
+      local: { board: { page: { agents: ROSTER } }, common: { local: { tmp: 't' } } },
+    });
     const result = sync(root);
     const after = JSON.parse(readFileSync(join(root, LOCAL_AGENTS_FILE), 'utf8'));
 
     expect(result.code).toBe(0);
-    expect(after.agents).toEqual(['claude']);
-    expect(after.board).toEqual({ agents: ROSTER });
-    expect(after.local).toEqual({ tmp: 't' });
+    expect(after.agent.list).toEqual(['claude']);
+    expect(after.board).toEqual({ page: { agents: ROSTER } });
+    expect(after.common).toEqual({ local: { tmp: 't' } });
     expect(LocalChoice.render({ agents: ['omp'], previous: 'not json' })).toContain('"omp"');
   });
 
   test('a local tmp is made, and its ignore line is in .git/info/exclude, never in .gitignore', () => {
     const root = projectWith({
-      local: { local: { tmp: 't' } },
+      local: { common: { local: { tmp: 't' } } },
       files: { '.gitignore': 'node_modules/\n' },
     });
 
@@ -183,7 +187,7 @@ describe('vulcan project sync with a local file', () => {
   });
 
   test('a broken local value stops sync and writes nothing', () => {
-    const root = projectWith({ local: { local: { tmp: '../out' } } });
+    const root = projectWith({ local: { common: { local: { tmp: '../out' } } } });
     const before = readFileSync(join(root, MANIFEST), 'utf8');
     const result = sync(root);
 
@@ -203,7 +207,7 @@ describe('vulcan project sync with a local file', () => {
     const plain = projectWith({ files: team });
     const own = projectWith({
       files: team,
-      local: { board: { agents: ROSTER }, local: { tmp: 't' } },
+      local: { board: { page: { agents: ROSTER } }, common: { local: { tmp: 't' } } },
     });
 
     for (const root of [plain, own]) {
@@ -222,7 +226,7 @@ describe('vulcan project sync with a local file', () => {
 
 describe('vulcan project doctor', () => {
   test('names the file and the key of a broken local value', () => {
-    const root = projectWith({ local: { local: { tmp: '../out' } } });
+    const root = projectWith({ local: { common: { local: { tmp: '../out' } } } });
     const result = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(result.stderr + result.stdout).toContain('local.tmp');
@@ -230,7 +234,7 @@ describe('vulcan project doctor', () => {
   });
 
   test('a problem of a tmp folder from the local file is reported against that file', () => {
-    const root = projectWith({ local: { local: { tmp: 'shared' } } });
+    const root = projectWith({ local: { common: { local: { tmp: 'shared' } } } });
     const violations = ProjectContract.checkTmpFolder({
       root,
       config: VULCAN_CONFIG_SCHEMA.parse({ layout: { shared: 'shared' } }),

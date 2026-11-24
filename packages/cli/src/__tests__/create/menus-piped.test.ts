@@ -66,7 +66,7 @@ describe.skipIf(!hasScript)('a menu that is fed piped lines stops instead of wai
     });
 
     expect(menu.code).toBe(0);
-    expect(readFileSync(join(root, '.agents/local/profile.json'), 'utf8')).toContain('agents');
+    expect(readFileSync(join(root, '.agents/local/profile.json'), 'utf8')).toContain('"list"');
 
     const plain = createProject({ files: PROJECT });
     const piped = await driveTerminal({

@@ -58,11 +58,16 @@ export class AgentSelection {
     /** `--agents`: undefined when absent, '' when given without a value. */
     flag: string | undefined;
     configAgents: string[] | undefined;
+    /** The profile with its keys moved, in memory (a dry run): read instead of the file. */
+    profile?: Record<string, unknown>;
     interactive: boolean;
     detected: string[];
     ask: TAskAgents;
   }): TAgentResolution {
-    const stored = LocalChoice.read({ root: opts.root });
+    const stored = LocalChoice.read({
+      root: opts.root,
+      ...(opts.profile === undefined ? {} : { profile: opts.profile }),
+    });
 
     if (!stored.ok) {
       return { ok: false, error: `vulcan project sync: ${stored.error}` };

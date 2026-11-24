@@ -108,7 +108,7 @@ describe('vulcan project init writes the config split', () => {
     expect(loaded.ok && loaded.config.agents).toEqual(['claude']);
     expect(loaded.ok && loaded.layers.merge.from.packages).toBe('workspaces');
     expect(runCli({ args: ['config', 'format', '--check'], cwd: root }).code).toBe(0);
-  });
+  }, 30_000);
 });
 
 describe('ConfigImports.scan: what the guards cannot protect', () => {

@@ -26,7 +26,7 @@ const barePath = (): string => {
 };
 
 const localAgents = (opts: { root: string }): string[] =>
-  JSON.parse(readFileSync(join(opts.root, LOCAL), 'utf8')).agents;
+  JSON.parse(readFileSync(join(opts.root, LOCAL), 'utf8')).agent?.list;
 
 describe('vulcan project sync --agents', () => {
   test('a list is stored in the local file and only those agents get adapters', () => {

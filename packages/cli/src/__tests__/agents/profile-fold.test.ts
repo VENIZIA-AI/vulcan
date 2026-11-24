@@ -6,6 +6,8 @@ import { LocalChoice } from '../../agents/index.ts';
 import { LocalSettings } from '../../common/local-settings.ts';
 import { EventSettings } from '../../events/index.ts';
 import { OwnerProfile } from '../../owner/index.ts';
+import { ProjectContract } from '../../doctor/checks.ts';
+import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { LocalPlan } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -50,8 +52,8 @@ describe('the file of the releases before 0.5.0 is still read until sync has mov
     const root = withOld({
       [PROFILE]: JSON.stringify({
         schemaVersion: 1,
-        local: { tmp: 'other' },
-        events: { dir: '/srv/own/events' },
+        common: { local: { tmp: 'other' } },
+        board: { events: { dir: '/srv/own/events' } },
       }),
     });
 
@@ -78,10 +80,13 @@ describe('sync moves the keys of the old file into the profile', () => {
       schemaVersion: 1,
       language: 'vi',
       tone: 'terse',
-      agents: ['claude', 'omp'],
-      board: { agents: { bun: 'flame' }, serve: { autoStart: true } },
-      local: { tmp: 't' },
-      events: { dir: '/srv/vulcan-fixture/events' },
+      agent: { list: ['claude', 'omp'] },
+      board: {
+        page: { agents: { bun: 'flame' } },
+        serve: { autoStart: true },
+        events: { dir: '/srv/vulcan-fixture/events' },
+      },
+      common: { local: { tmp: 't' } },
     });
     expect(profile.$generated).toBeUndefined();
     expect(OwnerProfile.read({ root }).ok).toBe(true);
@@ -89,7 +94,7 @@ describe('sync moves the keys of the old file into the profile', () => {
 
   test('where both have a key the profile value stays, and the note names it', () => {
     const root = withOld({
-      [PROFILE]: JSON.stringify({ schemaVersion: 1, local: { tmp: 'mine' } }),
+      [PROFILE]: JSON.stringify({ schemaVersion: 1, common: { local: { tmp: 'mine' } } }),
     });
 
     git(root);
@@ -97,9 +102,11 @@ describe('sync moves the keys of the old file into the profile', () => {
     const [action] = LocalPlan.planLegacyLocal({ root });
 
     expect(action?.status).toBe('removed');
-    expect(action?.note).toContain('kept for local');
+    expect(action?.note).toContain('kept for common.local.tmp');
     action?.apply();
-    expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8')).local).toEqual({ tmp: 'mine' });
+    expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8')).common.local).toEqual({
+      tmp: 'mine',
+    });
   });
 
   test('a file that git tracks keeps its place: the keys move first, then the note names git rm --cached', () => {
@@ -110,11 +117,11 @@ describe('sync moves the keys of the old file into the profile', () => {
 
     const [action] = LocalPlan.planLegacyLocal({ root: tracked });
 
-    expect(action?.status).toBe('replaced');
+    expect(action?.status).toBe('unchanged');
     expect(action?.note).toContain(`git rm --cached ${LEGACY}`);
     action?.apply();
     expect(existsSync(join(tracked, LEGACY))).toBe(true);
-    expect(JSON.parse(readFileSync(join(tracked, PROFILE), 'utf8')).agents).toEqual([
+    expect(JSON.parse(readFileSync(join(tracked, PROFILE), 'utf8')).agent.list).toEqual([
       'claude',
       'omp',
     ]);
@@ -124,18 +131,20 @@ describe('sync moves the keys of the old file into the profile', () => {
     const notGit = withOld();
     const [action] = LocalPlan.planLegacyLocal({ root: notGit });
 
-    expect(action?.status).toBe('replaced');
+    expect(action?.status).toBe('unchanged');
     expect(action?.note).toContain('could not say');
     action?.apply();
     expect(existsSync(join(notGit, LEGACY))).toBe(true);
-    expect(JSON.parse(readFileSync(join(notGit, PROFILE), 'utf8')).local).toEqual({ tmp: 't' });
+    expect(JSON.parse(readFileSync(join(notGit, PROFILE), 'utf8')).common.local).toEqual({
+      tmp: 't',
+    });
   });
 
-  test('board, local and events merge one level down: a profile with board.serve still takes board.agents from the old file', () => {
+  test('the old keys merge under the new paths: a profile with board.serve still takes the roster from the old file, and its own value wins', () => {
     const root = withOld({
       [PROFILE]: JSON.stringify({
         schemaVersion: 1,
-        board: { serve: { autoStart: false }, agents: { rock: 'ember' } },
+        board: { serve: { autoStart: false }, page: { agents: { rock: 'ember' } } },
       }),
     });
 
@@ -144,22 +153,22 @@ describe('sync moves the keys of the old file into the profile', () => {
     const [action] = LocalPlan.planLegacyLocal({ root });
 
     action?.apply();
-    expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8')).board).toEqual({
-      agents: { rock: 'ember' },
+    expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8')).board).toMatchObject({
+      page: { agents: { rock: 'ember' } },
       serve: { autoStart: false },
     });
-    expect(action?.note).toContain('board.agents');
+    expect(action?.note).toContain('board.page.agents');
     expect(action?.note).toContain('board.serve');
   });
 
-  test('the old board.agents is kept when the profile has board.serve only', () => {
+  test('the old roster is kept when the profile has board.serve only', () => {
     const root = withOld({
       [PROFILE]: JSON.stringify({ schemaVersion: 1, board: { serve: { autoStart: false } } }),
     });
 
     git(root);
     LocalPlan.planLegacyLocal({ root })[0]?.apply();
-    expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8')).board.agents).toEqual({
+    expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8')).board.page.agents).toEqual({
       bun: 'flame',
     });
   });
@@ -177,7 +186,7 @@ describe('sync moves the keys of the old file into the profile', () => {
 
     const [action] = LocalPlan.planLegacyLocal({ root });
 
-    expect(action?.status).toBe('replaced');
+    expect(action?.status).toBe('unchanged');
     expect(action?.note).toContain('boards');
     action?.apply();
     expect(existsSync(join(root, LEGACY))).toBe(true);
@@ -226,32 +235,40 @@ describe('sync moves the keys of the old file into the profile', () => {
 });
 
 describe("the profile keeps this machine's keys", () => {
-  test("`vulcan profile`'s write keeps agents, board, local and events", () => {
+  test("`vulcan profile`'s write keeps agent, board and common", () => {
     const root = createProject({
       files: {
         '.gitignore': '.agents/local/\n',
-        [PROFILE]: JSON.stringify({ schemaVersion: 1, agents: ['claude'], local: { tmp: 't' } }),
+        [PROFILE]: JSON.stringify({
+          schemaVersion: 1,
+          agent: { list: ['claude'] },
+          common: { local: { tmp: 't' } },
+        }),
       },
     });
     const written = OwnerProfile.write({ root, profile: { schemaVersion: 1, tone: 'terse' } });
     const after = JSON.parse(readFileSync(join(root, PROFILE), 'utf8'));
 
     expect(written.ok).toBe(true);
-    expect(after).toMatchObject({ tone: 'terse', agents: ['claude'], local: { tmp: 't' } });
+    expect(after).toMatchObject({
+      tone: 'terse',
+      agent: { list: ['claude'] },
+      common: { local: { tmp: 't' } },
+    });
   });
 
   test("`vulcan profile reset` removes the owner's answers and keeps the machine's keys; with none it deletes the file", () => {
     const kept = createProject({
       files: {
         '.gitignore': '.agents/local/\n',
-        [PROFILE]: JSON.stringify({ schemaVersion: 1, tone: 'terse', agents: ['claude'] }),
+        [PROFILE]: JSON.stringify({ schemaVersion: 1, tone: 'terse', agent: { list: ['claude'] } }),
       },
     });
 
     runCli({ args: ['profile', 'reset', '--yes'], cwd: kept });
     expect(JSON.parse(readFileSync(join(kept, PROFILE), 'utf8'))).toEqual({
       schemaVersion: 1,
-      agents: ['claude'],
+      agent: { list: ['claude'] },
     });
 
     const plain = createProject({
@@ -278,21 +295,21 @@ describe("the profile keeps this machine's keys", () => {
 
     const profile = JSON.parse(readFileSync(join(root, PROFILE), 'utf8'));
 
-    expect(profile).toMatchObject({ agents: ['claude'], language: 'vi', tone: 'terse' });
+    expect(profile).toMatchObject({ agent: { list: ['claude'] }, language: 'vi', tone: 'terse' });
     expect(OwnerProfile.read({ root }).ok).toBe(true);
   });
 });
 
 describe('reset drops a machine key that is not valid, and names it', () => {
-  test('a broken events.dir cannot keep the form and the reset in a circle', () => {
+  test('a broken board.events.dir cannot keep the form and the reset in a circle', () => {
     const root = createProject({
       files: {
         '.gitignore': '.agents/local/\n',
         [PROFILE]: JSON.stringify({
           schemaVersion: 1,
           tone: 'terse',
-          agents: ['claude'],
-          events: { dir: 'relative/path' },
+          agent: { list: ['claude'] },
+          board: { events: { dir: 'relative/path' } },
         }),
       },
     });
@@ -301,15 +318,15 @@ describe('reset drops a machine key that is not valid, and names it', () => {
 
     const dry = runCli({ args: ['profile', 'reset'], cwd: root });
 
-    expect(dry.stderr).toContain('events');
+    expect(dry.stderr).toContain('board');
     expect(dry.stderr).toContain('not valid');
 
     const done = runCli({ args: ['profile', 'reset', '--yes'], cwd: root });
 
-    expect(done.stderr).toContain('events');
+    expect(done.stderr).toContain('board');
     expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8'))).toEqual({
       schemaVersion: 1,
-      agents: ['claude'],
+      agent: { list: ['claude'] },
     });
     expect(OwnerProfile.read({ root }).ok).toBe(true);
   });
@@ -318,14 +335,193 @@ describe('reset drops a machine key that is not valid, and names it', () => {
     const root = createProject({
       files: {
         '.gitignore': '.agents/local/\n',
-        [PROFILE]: JSON.stringify({ schemaVersion: 1, tone: 'terse', agents: ['claude'] }),
+        [PROFILE]: JSON.stringify({ schemaVersion: 1, tone: 'terse', agent: { list: ['claude'] } }),
       },
     });
 
     runCli({ args: ['project', 'clean', '--profile', '--yes'], cwd: root });
     expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8'))).toEqual({
       schemaVersion: 1,
-      agents: ['claude'],
+      agent: { list: ['claude'] },
     });
+  });
+});
+
+describe('sync moves the old machine keys of the profile to the groups, once', () => {
+  const OLD_PROFILE = {
+    schemaVersion: 1,
+    tone: 'terse',
+    agents: ['claude'],
+    board: { agents: { bun: 'flame' }, serve: { autoStart: true } },
+    local: { tmp: 't' },
+    events: { dir: '/srv/vulcan-fixture/events' },
+  };
+  const withProfile = (profile: unknown): string =>
+    createProject({ files: { ...PROJECT, [PROFILE]: JSON.stringify(profile) } });
+
+  test('every old key lands at its new path, the owner keys stay, and nothing reads the old shape afterwards', () => {
+    const root = withProfile(OLD_PROFILE);
+    const before = LocalChoice.read({ root });
+
+    expect(before.ok).toBe(false);
+    expect(before.ok ? '' : before.error).toContain('run vulcan project sync to move it');
+
+    const run = runCli({ args: ['project', 'sync'], cwd: root });
+    const after = JSON.parse(readFileSync(join(root, PROFILE), 'utf8'));
+
+    expect(run.code, run.stderr).toBe(0);
+    expect(after).toEqual({
+      schemaVersion: 1,
+      tone: 'terse',
+      agent: { list: ['claude'] },
+      board: {
+        page: { agents: { bun: 'flame' } },
+        serve: { autoStart: true },
+        events: { dir: '/srv/vulcan-fixture/events' },
+      },
+      common: { local: { tmp: 't' } },
+    });
+    expect(LocalChoice.read({ root })).toEqual({ ok: true, agents: ['claude'] });
+    expect(OwnerProfile.read({ root }).ok).toBe(true);
+    expect(LocalPlan.planProfileKeys({ root })).toEqual([]);
+  });
+
+  test('the old profile is refused by name everywhere until sync has run', () => {
+    const root = withProfile({ schemaVersion: 1, agents: ['claude'] });
+    const owner = OwnerProfile.read({ root });
+
+    expect(owner.ok).toBe(false);
+    expect(owner.ok ? '' : owner.error).toContain('removed: it is agent.list now');
+  });
+
+  test('a value already at the new path stays, and the note names it', () => {
+    const root = withProfile({
+      schemaVersion: 1,
+      agents: ['claude'],
+      agent: { list: ['omp'] },
+    });
+    const [action] = LocalPlan.planProfileKeys({ root });
+
+    expect(action?.note).toContain('the value already there was kept for agent.list');
+    action?.apply();
+    expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8')).agent).toEqual({ list: ['omp'] });
+  });
+
+  test('a board key it cannot place stays where it is, named, and the rest still moves', () => {
+    const root = withProfile({
+      schemaVersion: 1,
+      agents: ['claude'],
+      board: { agents: { bun: 'flame' }, typo: 1 },
+    });
+    const [action] = LocalPlan.planProfileKeys({ root });
+
+    expect(action?.note).toContain('board.typo not placed');
+    action?.apply();
+
+    const after = JSON.parse(readFileSync(join(root, PROFILE), 'utf8'));
+
+    expect(after.board).toEqual({ typo: 1, page: { agents: { bun: 'flame' } } });
+    expect(after.agent).toEqual({ list: ['claude'] });
+  });
+
+  test('a profile in the new shape and one that is not JSON are left as they are', () => {
+    const fresh = withProfile({ schemaVersion: 1, agent: { list: ['claude'] } });
+    const broken = createProject({ files: { ...PROJECT, [PROFILE]: '{ nope' } });
+
+    expect(LocalPlan.planProfileKeys({ root: fresh })).toEqual([]);
+    expect(LocalPlan.planProfileKeys({ root: broken })).toEqual([]);
+  });
+
+  test('a symlinked .agents/local: the keys are not moved', () => {
+    const root = createProject({
+      files: { ...PROJECT, 'elsewhere/profile.json': JSON.stringify(OLD_PROFILE) },
+    });
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    symlinkSync(join(root, 'elsewhere'), join(root, '.agents', 'local'));
+
+    const [action] = LocalPlan.planProfileKeys({ root });
+
+    expect(action?.status).toBe('skipped');
+    expect(JSON.parse(readFileSync(join(root, 'elsewhere/profile.json'), 'utf8')).agents).toEqual([
+      'claude',
+    ]);
+  });
+
+  test('--dry-run lists the move and writes nothing', () => {
+    const root = withProfile(OLD_PROFILE);
+    const before = readFileSync(join(root, PROFILE), 'utf8');
+    const run = runCli({ args: ['project', 'sync', '--dry-run'], cwd: root });
+
+    expect(readFileSync(join(root, PROFILE), 'utf8')).toBe(before);
+    expect(run.stdout + run.stderr).toContain('profile.json');
+  });
+
+  test('`vulcan profile reset --yes` on a profile sync has not moved keeps its machine keys, at their new paths', () => {
+    const root = withProfile({ ...OLD_PROFILE, tone: 'terse' });
+
+    writeFileSync(join(root, '.gitignore'), '.agents/local/\nnode_modules\n');
+
+    const run = runCli({ args: ['profile', 'reset', '--yes'], cwd: root });
+
+    expect(run.code, run.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(join(root, PROFILE), 'utf8'))).toEqual({
+      schemaVersion: 1,
+      agent: { list: ['claude'] },
+      board: {
+        page: { agents: { bun: 'flame' } },
+        serve: { autoStart: true },
+        events: { dir: '/srv/vulcan-fixture/events' },
+      },
+      common: { local: { tmp: 't' } },
+    });
+  });
+
+  test('doctor tells an old key to run sync, not to reset', () => {
+    const root = withProfile({ schemaVersion: 1, agents: ['claude'] });
+    const messages = ProjectContract.checkProfile({
+      root,
+      config: VULCAN_CONFIG_SCHEMA.parse({}),
+      configFile: '.configs/vulcan.config.mts',
+    }).map((violation) => violation.message);
+
+    expect(messages.join('\n')).toContain('run vulcan project sync to move it');
+    expect(messages.join('\n')).not.toContain('profile reset');
+  });
+
+  test('the note of the move is printed before anything can fail, and a profile with an unplaceable key still says what it moved', () => {
+    const root = withProfile({
+      schemaVersion: 1,
+      agents: ['claude'],
+      agent: { list: ['omp'] },
+      board: { typo: 1 },
+    });
+    const run = runCli({ args: ['project', 'sync'], cwd: root });
+
+    expect(run.stderr).toContain('the value already there was kept for agent.list');
+    expect(run.stderr).toContain('board.typo not placed');
+  });
+
+  test('--dry-run on an old profile lists the move and resolves the choice against it: exit 0, nothing written', () => {
+    const root = withProfile(OLD_PROFILE);
+    const before = readFileSync(join(root, PROFILE), 'utf8');
+    const run = runCli({ args: ['project', 'sync', '--dry-run'], cwd: root });
+
+    expect(run.code, run.stderr).toBe(0);
+    expect(run.stderr).toContain('profile.json');
+    expect(readFileSync(join(root, PROFILE), 'utf8')).toBe(before);
+  });
+
+  test('the note of a symlinked old profile is printed first', () => {
+    const root = createProject({
+      files: { ...PROJECT, 'elsewhere/profile.json': JSON.stringify(OLD_PROFILE) },
+    });
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    symlinkSync(join(root, 'elsewhere'), join(root, '.agents', 'local'));
+
+    const run = runCli({ args: ['project', 'sync'], cwd: root });
+
+    expect(run.stderr).toContain('is a symlink: its keys were not moved');
   });
 });

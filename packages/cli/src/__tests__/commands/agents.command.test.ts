@@ -40,7 +40,7 @@ const agents = (opts: { root: string; args: string[] }) =>
   runCli({ args: ['agent', ...opts.args], cwd: opts.root, env: ENV });
 
 const stored = (opts: { root: string }): string[] =>
-  JSON.parse(readFileSync(join(opts.root, LOCAL), 'utf8')).agents;
+  JSON.parse(readFileSync(join(opts.root, LOCAL), 'utf8')).agent?.list;
 
 const exclude = (opts: { root: string }): string =>
   readFileSync(join(opts.root, '.git/info/exclude'), 'utf8');

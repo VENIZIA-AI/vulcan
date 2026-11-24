@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { ProfileKeys } from '../agents/profile-keys.ts';
 import { MACHINE_KEYS } from '../agents/local.ts';
 import { RecordValue } from '../common/record.ts';
 import { OwnerConstants } from './constants.ts';
@@ -108,9 +109,9 @@ export class OwnerProfile {
       const file: unknown = JSON.parse(
         readFileSync(join(opts.root, OwnerConstants.PROFILE_FILE), 'utf8'),
       );
-      const found = RecordValue.isRecord(file)
-        ? Object.entries(file).filter(([key]) => Object.hasOwn(MACHINE_KEYS, key))
-        : [];
+      // A profile `sync` has not moved yet has the old keys: they are read at their new paths, so a reset keeps them.
+      const current = RecordValue.isRecord(file) ? ProfileKeys.toNew({ value: file }).value : {};
+      const found = Object.entries(current).filter(([key]) => Object.hasOwn(MACHINE_KEYS, key));
       const checked = found.map(([key, value]) => ({
         key,
         value,

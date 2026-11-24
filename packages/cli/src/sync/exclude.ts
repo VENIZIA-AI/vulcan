@@ -68,7 +68,7 @@ export class ExcludePlan {
       // The tmp folder this checkout names in its local file: its ignore line is this clone's, not the project's.
       ...(ownTmp === undefined
         ? []
-        : [{ title: 'the tmp folder of this checkout, local.tmp', paths: [`/${ownTmp}/`] }]),
+        : [{ title: 'the tmp folder of this checkout, common.local.tmp', paths: [`/${ownTmp}/`] }]),
     ].map((group) => ({
       ...group,
       paths: group.paths.map((item) => `/${prefix}${item.slice(1)}`),

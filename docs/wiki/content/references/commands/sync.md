@@ -124,6 +124,8 @@ A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you ch
 
 ## The temp folder
 
+The machine keys of `.agents/local/profile.json` are in the groups of the config: `agent.list` (the agents you chose), `board.page.agents` (the roster of the board), `board.events.dir` (an absolute events folder), `common.local.tmp` (the tmp folder) and `board.serve.autoStart`. A profile written before the groups has `agents`, `board.agents`, `events` and `local`: the first `sync` after the upgrade moves each one to its new path, in place and once (a value already at the new path stays and is named; a key it cannot place stays where it is, named; `--dry-run` lists the move and writes nothing). Until it has run, a command that reads the profile refuses the old key and names the new one.
+
 `sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/` and, unless `.claude/` is already ignored, `/.claude/settings.json` (Claude Code's settings are written in every clone and never committed), and creates the folder `local.tmp` names, when the config sets one, and gitignores it. The session-start hook it registers exports `TMPDIR` into every Bash command. A `.agents/local/claude.launch.settings.json` left by an earlier release is removed when git does not track it. What the hook moves, and what it does not, is in [Temporary files](/references/agents#temporary-files).
 
 ## Keeping the adapters out of git

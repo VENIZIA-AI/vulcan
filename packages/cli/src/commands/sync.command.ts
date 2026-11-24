@@ -81,10 +81,28 @@ export class SyncFlow {
       return ExitCodes.FAILURE;
     }
 
+    // The old keys of the profile move to their groups before anything reads the stored choice; a dry run only lists the move (and then
+    // the choice, which is still under the old key, is reported as the error that says to run sync).
+    const isDryRun = opts.args.includes(DRY_RUN_FLAG);
+    const profileMoves = LocalPlan.planProfileKeys({ root: opts.cwd });
+
+    const movedProfile = isDryRun ? LocalPlan.movedProfile({ root: opts.cwd }) : undefined;
+
+    // What the move did, or could not do, is said before anything can fail on the profile.
+    for (const move of profileMoves) {
+      if (!isDryRun) {
+        move.apply();
+        process.stderr.write(
+          `vulcan project sync: ${relative(opts.cwd, move.path)}: ${move.note ?? 'moved'}\n`,
+        );
+      }
+    }
+
     const resolved = await AgentsPrompt.resolveInTerminal({
       root: opts.cwd,
       flag,
       configAgents: loaded.config.agents,
+      ...(movedProfile === undefined ? {} : { profile: movedProfile }),
       interactive: process.stdin.isTTY === true,
       detected: AgentDetection.detect({
         root: opts.cwd,
@@ -99,7 +117,10 @@ export class SyncFlow {
       return ExitCodes.FAILURE;
     }
 
-    const previous = LocalChoice.read({ root: opts.cwd });
+    const previous = LocalChoice.read({
+      root: opts.cwd,
+      ...(movedProfile === undefined ? {} : { profile: movedProfile }),
+    });
     const dropped =
       resolved.source === 'flag' || resolved.source === 'asked'
         ? (previous.ok ? (previous.agents ?? []) : []).filter((id) => !resolved.agents.includes(id))
@@ -107,7 +128,6 @@ export class SyncFlow {
     const removed = [...new Set([...(opts.cleanup ?? []), ...dropped])].filter(
       (id) => !resolved.agents.includes(id),
     );
-    const dryRun = opts.args.includes(DRY_RUN_FLAG);
     // The stored choice is listed whether it was just written or only read; a machine that has not chosen stores nothing.
     const stored =
       resolved.writeLocal || resolved.source === 'local'
@@ -124,6 +144,7 @@ export class SyncFlow {
         configModules: configImports.modules,
       }),
       ...AgentsBlockPlan.plan({ root: opts.cwd, config: loaded.config }),
+      ...profileMoves.map((move) => (isDryRun ? move : { ...move, apply: () => {} })),
       ...stored,
       ...LocalPlan.planWorkspace({
         root: opts.cwd,
@@ -134,12 +155,12 @@ export class SyncFlow {
     ];
     // Read before the manifest action rewrites the hashes it compares against.
     const changes = BaseRulesDiff.diff({ root: opts.cwd, packs: loaded.config.packs });
-    const width = dryRun ? DRY_RUN_LABEL_WIDTH : LABEL_WIDTH;
+    const width = isDryRun ? DRY_RUN_LABEL_WIDTH : LABEL_WIDTH;
 
     const isQuiet = opts.args.includes(QUIET_FLAG);
 
     for (const action of actions) {
-      if (!dryRun) {
+      if (!isDryRun) {
         action.apply();
       }
 
@@ -149,7 +170,7 @@ export class SyncFlow {
       }
 
       const note = action.note === undefined ? '' : ` (${action.note})`;
-      const label = (dryRun ? DRY_RUN_LABELS[action.status] : undefined) ?? action.status;
+      const label = (isDryRun ? DRY_RUN_LABELS[action.status] : undefined) ?? action.status;
 
       process.stderr.write(`  ${label.padEnd(width)} ${relative(opts.cwd, action.path)}${note}\n`);
     }

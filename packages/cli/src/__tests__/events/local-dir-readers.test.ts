@@ -31,7 +31,7 @@ const setup = (opts: { days?: number[]; manifestDir?: string } = {}) => {
         project: { key: 'ACME' },
         events: { log: true, ...(opts.manifestDir === undefined ? {} : { dir: opts.manifestDir }) },
       }),
-      [LOCAL]: JSON.stringify({ schemaVersion: 1, events: { dir } }),
+      [LOCAL]: JSON.stringify({ schemaVersion: 1, board: { events: { dir } } }),
       '.gitignore': '.agents/local/\n',
       'package.json': '{}',
     },
@@ -200,7 +200,10 @@ describe('vulcan project sync and an invalid local events.dir', () => {
     const root = createProject({
       files: {
         '.configs/vulcan.config.mts': "export default { name: 'acme', events: { log: true } };\n",
-        [LOCAL]: JSON.stringify({ schemaVersion: 1, events: { dir: 'relative/events' } }),
+        [LOCAL]: JSON.stringify({
+          schemaVersion: 1,
+          board: { events: { dir: 'relative/events' } },
+        }),
       },
     });
     const result = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });

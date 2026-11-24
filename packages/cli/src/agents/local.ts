@@ -7,69 +7,99 @@ import { BOARD_AGENTS } from '../board/schema.ts';
 import { EventSettings } from '../events/settings.ts';
 import { AgentConstants } from './common/index.ts';
 import type { TLocalChoice } from './common/index.ts';
+import { ProfileKeys } from './profile-keys.ts';
 import { AgentTable } from './table.ts';
 
 export const LOCAL_AGENTS_FILE = AgentConstants.LOCAL_FILE;
 
 /** The keys `sync --agents` owns in the profile; every other key of the file is kept as it is. */
-const OWNED_KEYS = ['schemaVersion', 'agents'];
+const OWNED_KEYS = ['schemaVersion'];
 
-/** The machine's keys of the profile: the shape the owner's `PROFILE_SCHEMA` and the reader of the choice share. */
+/** A key of the old shape: optional, and refused when present with where it went, instead of a bare "unrecognized key". */
+const REMOVED_KEY = (opts: { to: string }) =>
+  z
+    .unknown()
+    .superRefine((_value, context) => {
+      context.addIssue({
+        code: 'custom',
+        message: `removed: it is ${opts.to} now; run vulcan project sync to move it`,
+      });
+    })
+    .optional();
+
+/** The machine's keys of the profile, in the groups of the config: the shape the owner's `PROFILE_SCHEMA` and the reader of the choice share. */
 export const MACHINE_KEYS = {
-  agents: z.array(z.string()).optional(),
-  /** The roster of the board for this checkout; it replaces `board.agents` of the committed config. */
+  /** `list` is the agents of this machine, over `agent.list` of the committed config. */
+  agent: z.strictObject({ list: z.array(z.string()).optional() }).optional(),
   board: z
     .strictObject({
-      agents: BOARD_AGENTS.optional(),
-      /** `serve.autoStart` starts the board at session start on this machine; personal, so a teammate's commit cannot start a listener here. */
-      serve: z.strictObject({ autoStart: z.boolean().optional() }).optional(),
-    })
-    .optional(),
-  /** `dir` replaces `events.dir` of the committed config: an absolute folder, such as one shared by several repositories. */
-  events: z
-    .strictObject({
-      dir: z
-        .string()
-        .superRefine((dir, context) => {
-          const message = EventSettings.dirError({ dir });
+      /** `page.agents` is the roster of the board for this checkout; it replaces `board.page.agents` of the committed config. */
+      page: z.strictObject({ agents: BOARD_AGENTS.optional() }).optional(),
+      /** `events.dir` replaces `board.events.dir` of the committed config: an absolute folder, such as one shared by several repositories. */
+      events: z
+        .strictObject({
+          dir: z
+            .string()
+            .superRefine((dir, context) => {
+              const message = EventSettings.dirError({ dir });
 
-          if (message !== undefined) {
-            context.addIssue({ code: 'custom', message });
-          }
+              if (message !== undefined) {
+                context.addIssue({ code: 'custom', message });
+              }
+            })
+            .optional(),
         })
         .optional(),
+      /** `serve.autoStart` starts the board at session start on this machine; personal, so a teammate's commit cannot start a listener here. */
+      serve: z.strictObject({ autoStart: z.boolean().optional() }).optional(),
+      agents: REMOVED_KEY({ to: 'board.page.agents' }),
     })
     .optional(),
-  /** `tmp` replaces `local.tmp` of the committed config. */
-  local: z
+  /** `local.tmp` replaces `common.local.tmp` of the committed config. */
+  common: z
     .strictObject({
-      tmp: z
-        .string()
-        .superRefine((folder, context) => {
-          const message = LayoutFolder.layoutFolderProblem({ folder });
+      local: z
+        .strictObject({
+          tmp: z
+            .string()
+            .superRefine((folder, context) => {
+              const message = LayoutFolder.layoutFolderProblem({ folder });
 
-          if (message !== undefined) {
-            context.addIssue({ code: 'custom', message });
-          }
+              if (message !== undefined) {
+                context.addIssue({ code: 'custom', message });
+              }
+            })
+            .optional(),
         })
         .optional(),
     })
     .optional(),
 };
 
+/** The top-level keys of the old shape, each refused by name; kept out of `MACHINE_KEYS`, which a reset reads as the keys to keep. */
+export const REMOVED_MACHINE_KEYS = {
+  agents: REMOVED_KEY({ to: 'agent.list' }),
+  events: REMOVED_KEY({ to: 'board.events' }),
+  local: REMOVED_KEY({ to: 'common.local' }),
+};
+
 const LOCAL_SCHEMA = z.object({
   schemaVersion: z.literal(AgentConstants.LOCAL_SCHEMA_VERSION),
   ...MACHINE_KEYS,
+  ...REMOVED_MACHINE_KEYS,
 });
 
 export class LocalChoice {
-  /** The file for `agents`; every key `sync` does not own (`board`, `local`) is kept from `previous`, the text of the file as it is. */
+  /** The file for `agent.list`; every key `sync` does not own (`board`, `common`, the rest of `agent`) is kept from `previous`, the text of the file as it is. */
   static render(opts: { agents: string[]; previous?: string }): string {
+    const kept = LocalChoice.kept({ text: opts.previous });
+    const agent = RecordValue.isRecord(kept['agent']) ? kept['agent'] : {};
+
     return `${JSON.stringify(
       {
         schemaVersion: AgentConstants.LOCAL_SCHEMA_VERSION,
-        agents: opts.agents,
-        ...LocalChoice.kept({ text: opts.previous }),
+        ...kept,
+        agent: { ...agent, list: opts.agents },
       },
       null,
       2,
@@ -103,7 +133,8 @@ export class LocalChoice {
     try {
       const parsed: unknown = JSON.parse(readFileSync(own, 'utf8'));
 
-      return (RecordValue.isRecord(parsed) && Object.hasOwn(parsed, 'agents')) ||
+      return (RecordValue.isRecord(parsed) &&
+        (Object.hasOwn(parsed, 'agent') || Object.hasOwn(parsed, 'agents'))) ||
         !existsSync(legacy)
         ? own
         : legacy;
@@ -140,56 +171,47 @@ export class LocalChoice {
       return { failed: 'profile' };
     }
 
-    const kept: string[] = [];
-    const moved: Record<string, unknown> = {};
+    // The legacy file has the old paths; its machine keys are put at the new ones and merged under what the profile has.
+    const machine = ['agents', 'board', 'events', 'local'];
     const left = Object.keys(old).filter(
-      (key) => key !== '$generated' && key !== 'schemaVersion' && !Object.hasOwn(MACHINE_KEYS, key),
+      (key) => key !== '$generated' && key !== 'schemaVersion' && !machine.includes(key),
     );
+    const incoming = ProfileKeys.toNew({
+      value: Object.fromEntries(Object.entries(old).filter(([key]) => machine.includes(key))),
+    });
+    const merge = ProfileKeys.merge({
+      incoming: incoming.value,
+      own: ProfileKeys.toNew({ value: current }).value,
+      path: '',
+    });
+    const merged = {
+      schemaVersion: AgentConstants.LOCAL_SCHEMA_VERSION,
+      ...(RecordValue.isRecord(merge.value) ? merge.value : {}),
+    };
 
-    for (const key of Object.keys(MACHINE_KEYS)) {
-      const incoming = old[key];
-      const own = current[key];
-
-      if (incoming === undefined) {
-        continue;
-      }
-
-      if (own === undefined) {
-        moved[key] = incoming;
-      } else if (RecordValue.isRecord(incoming) && RecordValue.isRecord(own)) {
-        moved[key] = { ...incoming, ...own };
-        kept.push(
-          ...Object.keys(own)
-            .filter(
-              (sub) =>
-                incoming[sub] !== undefined &&
-                JSON.stringify(incoming[sub]) !== JSON.stringify(own[sub]),
-            )
-            .map((sub) => `${key}.${sub}`),
-        );
-      } else if (JSON.stringify(incoming) !== JSON.stringify(own)) {
-        kept.push(key);
-      }
-    }
-
-    const merged = { schemaVersion: AgentConstants.LOCAL_SCHEMA_VERSION, ...current, ...moved };
-
-    return { text: `${JSON.stringify(merged, null, 2)}\n`, kept, left };
+    return { text: `${JSON.stringify(merged, null, 2)}\n`, kept: merge.kept, left };
   }
 
   /** The developer's stored choice: absent is "not chosen yet", a broken file is an error, never a silent default. */
-  static read(opts: { root: string }): TLocalChoice {
+  static read(opts: {
+    root: string;
+    /** The profile as it will be after `sync` has moved its keys, for a dry run that has not written it. */
+    profile?: Record<string, unknown>;
+  }): TLocalChoice {
     // The profile first; a machine not yet synced since the upgrade still has its choice in the file of the earlier release.
-    const file = LocalChoice.choiceFile(opts);
+    const file =
+      opts.profile === undefined
+        ? LocalChoice.choiceFile(opts)
+        : join(opts.root, LOCAL_AGENTS_FILE);
 
-    if (!existsSync(file)) {
+    if (opts.profile === undefined && !existsSync(file)) {
       return { ok: true, agents: undefined };
     }
 
     let parsed: unknown;
 
     try {
-      parsed = JSON.parse(readFileSync(file, 'utf8'));
+      parsed = opts.profile ?? JSON.parse(readFileSync(file, 'utf8'));
     } catch {
       return {
         ok: false,
@@ -197,7 +219,13 @@ export class LocalChoice {
       };
     }
 
-    const checked = LOCAL_SCHEMA.safeParse(parsed);
+    // The file of the earlier release has the old paths, and is read as that: it is moved into the profile by `sync`.
+    const isLegacy = file === join(opts.root, AgentConstants.LEGACY_LOCAL_FILE);
+    const checked = LOCAL_SCHEMA.safeParse(
+      isLegacy && RecordValue.isRecord(parsed)
+        ? ProfileKeys.toNew({ value: parsed }).value
+        : parsed,
+    );
     const issue = checked.success ? undefined : checked.error.issues[0];
 
     if (!checked.success) {
@@ -208,7 +236,7 @@ export class LocalChoice {
     }
 
     const known = new Set(AgentTable.agentIds());
-    const unknown = (checked.data.agents ?? []).find((id) => !known.has(id));
+    const unknown = (checked.data.agent?.list ?? []).find((id) => !known.has(id));
 
     if (unknown !== undefined) {
       return {
@@ -217,6 +245,6 @@ export class LocalChoice {
       };
     }
 
-    return { ok: true, agents: checked.data.agents };
+    return { ok: true, agents: checked.data.agent?.list };
   }
 }

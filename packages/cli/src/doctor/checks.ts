@@ -771,7 +771,7 @@ export class ProjectContract {
           createViolation({
             check: DoctorChecks.EVENTS_DIR,
             file: isOwn ? AgentConstants.LOCAL_FILE : opts.configFile,
-            message: `events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
+            message: `board.events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
           }),
         ];
   }
@@ -1234,7 +1234,9 @@ export class ProjectContract {
         createViolation({
           check: DoctorChecks.PROFILE,
           file: OwnerConstants.PROFILE_FILE,
-          message: `${read.error} - fix the key it names; the file also holds this machine's keys (agents, board, local, events), so 'vulcan profile reset --yes' keeps the valid ones and drops a broken one`,
+          message: read.error.includes('removed: it is')
+            ? `${read.error}`
+            : `${read.error} - fix the key it names; the file also holds this machine's keys (agent, board, common), so 'vulcan profile reset --yes' keeps the valid ones and drops a broken one`,
         }),
       );
     }
@@ -1394,7 +1396,7 @@ export class ProjectContract {
       createViolation({
         check: DoctorChecks.LOCAL,
         file: own === undefined ? opts.configFile : AgentConstants.LOCAL_FILE,
-        message: `local.tmp '${tmp}': ${problem}`,
+        message: `common.local.tmp '${tmp}': ${problem}`,
       }),
     );
   }
