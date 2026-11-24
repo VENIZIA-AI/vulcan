@@ -160,3 +160,20 @@ claude-launch-file-dropped:
     steps:
       - 'Pin the earlier package and run `bun node_modules/.bin/vulcan sync`: it writes the launch file again.'
   data: "Claude Code's own task-output files, the scratchpad it offers and its MCP servers use /tmp/claude-<uid> unless you export CLAUDE_CODE_TMPDIR in your shell. Commands the agent runs still use the project tmp folder (the session start exports TMPDIR), and guard-outside refuses a write into the offered scratchpad."
+manifest-local-and-descriptor:
+  symbols:
+    - ManifestConstants.FILE
+    - ManifestConstants.DESCRIPTOR_FILE
+    - ProjectConfig.manifestFileOf
+  upgrade:
+    steps:
+      - 'Run `bun node_modules/.bin/vulcan sync`: it writes `.agents/local/vulcan.manifest.json` (gitignored) and `.agents/atlas.manifest.json`, and removes `.agents/vulcan.manifest.json` when git does not track it.'
+      - 'Commit `.agents/atlas.manifest.json`. If git tracks `.agents/vulcan.manifest.json`, run `git rm --cached .agents/vulcan.manifest.json` and delete the file: `vulcan doctor` names it until you do.'
+      - 'If your wiki config reads `.agents/vulcan.manifest.json` for the theme (`WikiTheme.read`), point it at `.agents/atlas.manifest.json`.'
+      - 'Run `bun node_modules/.bin/vulcan sync` before any CI step that reads the local manifest (the guards, `vulcan doctor`, `vulcan board`): a clone has none until it runs. Replace a CI step that checks `.agents/vulcan.manifest.json` against sync with `git diff --exit-code -- .agents/atlas.manifest.json`.'
+      - 'A script that reads `.agents/vulcan.manifest.json` reads `.agents/atlas.manifest.json` (packages, knowledge, release) or `.agents/local/vulcan.manifest.json` (everything else).'
+      - 'A repository that other projects read through atlas commits the descriptor before those projects upgrade; until then atlas reads its old manifest file from the ref they pin, for this release only.'
+  downgrade:
+    steps:
+      - 'Pin the earlier packages and run `bun node_modules/.bin/vulcan sync`: it writes `.agents/vulcan.manifest.json` again; commit it and delete `.agents/atlas.manifest.json`.'
+  data: 'A fresh clone has no local manifest until `vulcan sync` runs, so its guards use their defaults (for the venizia pack, writes outside the project ask instead of deny) until then.'

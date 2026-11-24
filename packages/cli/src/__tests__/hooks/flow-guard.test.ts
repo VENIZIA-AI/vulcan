@@ -16,7 +16,7 @@ const GUARD = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-gi
 const project = (opts: { log?: boolean; manifest?: string } = {}): string =>
   createProject({
     files: {
-      '.agents/vulcan.manifest.json':
+      '.agents/local/vulcan.manifest.json':
         opts.manifest ??
         JSON.stringify({ project: { key: 'ACME' }, events: { log: opts.log ?? true } }),
     },

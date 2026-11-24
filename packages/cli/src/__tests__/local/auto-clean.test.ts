@@ -31,7 +31,9 @@ const day = (ago: number): string => EventLog.dayOf({ time: NOW - ago * DAY });
 const project = (opts: { manifest?: object } = {}): string => {
   const root = createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify(opts.manifest ?? { events: { log: true } }),
+      '.agents/local/vulcan.manifest.json': JSON.stringify(
+        opts.manifest ?? { events: { log: true } },
+      ),
       '.gitignore': '.agents/local/\n',
       'package.json': '{}',
     },
@@ -158,7 +160,7 @@ describe('LocalAutoClean.tick: once a day, only when asked for', () => {
   test('a manifest that is not JSON, or says nothing about it, leaves the clean on', () => {
     const spy = starts();
     const root = createProject({
-      files: { '.agents/vulcan.manifest.json': '{ nope', '.agents/local/tmp/.keep': '' },
+      files: { '.agents/local/vulcan.manifest.json': '{ nope', '.agents/local/tmp/.keep': '' },
     });
 
     LocalAutoClean.tick({ root, now: NOW, env: {}, start: spy.start });

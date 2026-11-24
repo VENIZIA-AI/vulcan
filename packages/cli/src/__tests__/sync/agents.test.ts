@@ -37,7 +37,7 @@ describe('vulcan sync --agents', () => {
     expect(localAgents({ root })).toEqual(['omp', 'pi']);
     expect(existsSync(join(root, 'CLAUDE.md'))).toBe(false);
     expect(existsSync(join(root, '.claude'))).toBe(false);
-    expect(existsSync(join(root, '.agents/vulcan.manifest.json'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/vulcan.manifest.json'))).toBe(true);
     expect(result.stderr).toContain(`created   ${LOCAL}`);
   });
 
@@ -78,7 +78,7 @@ describe('vulcan sync --agents', () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("unknown agent 'vim'");
-    expect(existsSync(join(root, '.agents/vulcan.manifest.json'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/vulcan.manifest.json'))).toBe(false);
     expect(existsSync(join(root, LOCAL))).toBe(false);
   });
 

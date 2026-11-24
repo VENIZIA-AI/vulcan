@@ -97,7 +97,7 @@ const REPAIR =
   /^\s*(bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*|bun node_modules\/\.bin\/vulcan sync( --?[a-z][a-z-]*( [\w./@-]+)?)*)\s*$/;
 /** A command line that names git or gh as a word. */
 const GIT_LINE = /(^|[^A-Za-z0-9_])(git|gh)([^A-Za-z0-9_]|$)/;
-const MANIFEST_FILE = join('.agents', 'vulcan.manifest.json');
+const MANIFEST_FILE = join('.agents', 'local', 'vulcan.manifest.json');
 const HELD_ASK =
   'Every call that would need a human to confirm it is denied here (guard.asks: deny, VULCAN_GUARD_ASKS=deny, or a manifest that cannot be read). Nothing was run: hand this to the owner.';
 

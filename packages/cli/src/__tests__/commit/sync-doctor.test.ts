@@ -44,7 +44,7 @@ describe('vulcan sync and the commit-msg hook', () => {
       'node_modules/.bin/vulcan" commit-check',
     );
     expect(
-      JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8')).commit,
+      JSON.parse(readFileSync(join(root, '.agents/local/vulcan.manifest.json'), 'utf8')).commit,
     ).toEqual({
       message: { agent: { signature: 'deny' } },
     });

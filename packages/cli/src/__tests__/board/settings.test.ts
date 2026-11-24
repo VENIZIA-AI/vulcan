@@ -154,7 +154,7 @@ describe('BoardSettings.resolve', () => {
 describe('BoardSettings.read', () => {
   const project = (opts: { manifest: object; files?: Record<string, string> }) =>
     createProject({
-      files: { '.agents/vulcan.manifest.json': JSON.stringify(opts.manifest), ...opts.files },
+      files: { '.agents/local/vulcan.manifest.json': JSON.stringify(opts.manifest), ...opts.files },
     });
 
   test('reads the manifest, and an svg of the project as a data URL', () => {
@@ -264,7 +264,7 @@ describe('BoardSettings.read', () => {
   });
 
   test('a manifest that is not JSON is no settings, not a crash', () => {
-    const root = createProject({ files: { '.agents/vulcan.manifest.json': '{ nope' } });
+    const root = createProject({ files: { '.agents/local/vulcan.manifest.json': '{ nope' } });
 
     expect(BoardSettings.read({ root })).toMatchObject({ title: 'Project Board' });
   });
@@ -275,7 +275,7 @@ describe('vulcan board uses the settings', () => {
     const root = createProject({
       files: {
         '.git/HEAD': 'x',
-        '.agents/vulcan.manifest.json': JSON.stringify({
+        '.agents/local/vulcan.manifest.json': JSON.stringify({
           name: 'Acme',
           board: {
             owner: 'Ana',
@@ -412,7 +412,7 @@ describe('BoardSettings.resolve: the roster and the lanes', () => {
 
 describe('BoardSettings.read: the git user', () => {
   test('is the one readGitUser gives, asked once per read, and git is not asked', () => {
-    const root = createProject({ files: { '.agents/vulcan.manifest.json': '{}' } });
+    const root = createProject({ files: { '.agents/local/vulcan.manifest.json': '{}' } });
     let asked = 0;
     const settings = BoardSettings.read({
       root,

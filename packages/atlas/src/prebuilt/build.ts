@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { AtlasConstants, AtlasGit } from '@/common/constants';
@@ -138,9 +138,9 @@ export class IndexPair {
     GitRepository.run({ cwd: root, args: ['worktree', 'add', '--detach', scratch, sha] });
 
     try {
-      const manifestFile = join(scratch, MANIFEST_FILE);
+      const manifestFile = ProjectConfig.manifestFileOf({ dir: scratch });
 
-      if (!existsSync(manifestFile)) {
+      if (manifestFile === undefined) {
         throw new Error(
           `atlas index: ${sha.slice(0, 8)} has no ${MANIFEST_FILE} - run \`vulcan sync\` and commit it`,
         );

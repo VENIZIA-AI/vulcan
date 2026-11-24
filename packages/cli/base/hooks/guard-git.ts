@@ -142,7 +142,7 @@ try {
     try {
       const { existsSync, readFileSync } = await import('node:fs');
       const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-      const file = `${root}/.agents/vulcan.manifest.json`;
+      const file = `${root}/.agents/local/vulcan.manifest.json`;
 
       isHeldOnCrash = process.env.VULCAN_GUARD_ASKS === 'deny';
 

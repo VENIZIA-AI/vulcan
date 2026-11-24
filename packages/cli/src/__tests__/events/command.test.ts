@@ -18,7 +18,7 @@ const project = (
 ): string =>
   createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify(
+      '.agents/local/vulcan.manifest.json': JSON.stringify(
         opts.key === undefined ? {} : { project: { key: opts.key } },
       ),
       ...(opts.flows === undefined
@@ -71,7 +71,9 @@ describe('vulcan event add', () => {
     const shared = createProject({ files: {} });
     const configured = createProject({
       files: {
-        '.agents/vulcan.manifest.json': JSON.stringify({ events: { log: true, dir: shared } }),
+        '.agents/local/vulcan.manifest.json': JSON.stringify({
+          events: { log: true, dir: shared },
+        }),
         'packages/api/src/x.ts': 'x',
       },
     });
@@ -168,7 +170,9 @@ describe('vulcan event add', () => {
     const other = createProject({ files: {} });
     const root = createProject({
       files: {
-        '.agents/vulcan.manifest.json': JSON.stringify({ events: { log: true, dir: shared } }),
+        '.agents/local/vulcan.manifest.json': JSON.stringify({
+          events: { log: true, dir: shared },
+        }),
       },
     });
 

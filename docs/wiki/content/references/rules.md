@@ -305,7 +305,7 @@ export default {
 
 ### Manifest per-rule hashes
 
-The committed manifest `.agents/vulcan.manifest.json` tracks eight-character SHA-256 hashes for each base rule.
+The local manifest `.agents/local/vulcan.manifest.json` tracks eight-character SHA-256 hashes for each base rule.
 When you run [vulcan sync](/references/commands/sync), VULCAN compares installed base rules against the manifest hashes.
 If an upstream update adds, changes, or removes a base rule, `vulcan sync` reports the change.
 Recording hashes in the committed manifest ensures rule updates are visible in code reviews.

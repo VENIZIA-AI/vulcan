@@ -13,7 +13,7 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 ├── knowledge/                tracked   the facts: the knowledge bundle
 ├── skills/                   tracked   the project's own skills (optional)
 ├── hooks/                    tracked   scripts of the project's own hooks (optional)
-├── vulcan.manifest.json      tracked   written by vulcan sync; atlas and the hooks read it
+├── atlas.manifest.json       tracked   written by vulcan sync; atlas and the wiki build read it
 ├── vulcan.local.json         ignored   the agents you chose on this machine, and your own board.agents and local.tmp
 ├── plans/                    ignored   plans an agent saved for you
 ├── specs/                    tracked   lane-L cards from plan-a-change (optional)
@@ -42,7 +42,8 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 | `rules.md` | You | The project's rules, next to the base rules every VULCAN project inherits |
 | `knowledge/` | You and the okf tools | The facts about the project, in a bundle agents and atlas read |
 | `skills/`, `hooks/` | You | Skills and hook scripts that belong to the project; `sync` links the skills into `.claude/skills/` |
-| `vulcan.manifest.json` | `vulcan sync` | The resolved project: packages, rule hashes, the settings the hooks read. Never edit it; `doctor` fails a stale one |
+| `atlas.manifest.json` | `vulcan sync` | What atlas reads: name, packages, layout, presets, knowledge, release, sources. Never edit it; `doctor` fails a stale one |
+| `local/vulcan.manifest.json` | `vulcan sync` | The resolved project in full: rule hashes and the settings the hooks, the board and `doctor` read. Gitignored; each clone writes its own |
 
 ## What is in local/ and when it goes
 

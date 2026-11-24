@@ -17,7 +17,7 @@ const line = (id: string, order = 0) =>
 const project = (opts: { key?: string; seeds?: string[]; branch?: string } = {}): string =>
   createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify(
+      '.agents/local/vulcan.manifest.json': JSON.stringify(
         opts.key === undefined ? {} : { project: { key: opts.key } },
       ),
       ...(opts.seeds === undefined
@@ -299,7 +299,7 @@ describe('a flow line on the branch of a flow, open or over, makes a new flow', 
   const made = (lines: Parameters<typeof log>[0]): string => {
     const root = createProject({
       files: {
-        '.agents/vulcan.manifest.json': JSON.stringify({ project: { key: 'ACME' } }),
+        '.agents/local/vulcan.manifest.json': JSON.stringify({ project: { key: 'ACME' } }),
         '.agents/local/events/2026-11-01.jsonl': `${log(lines)}\n`,
         '.git/HEAD': 'ref: refs/heads/feature/VULZ-ACME-4-x\n',
       },
@@ -335,7 +335,7 @@ describe('a flow line on the branch of a flow, open or over, makes a new flow', 
   test('--flow names a flow that is over on purpose, and is taken', () => {
     const root = createProject({
       files: {
-        '.agents/vulcan.manifest.json': JSON.stringify({ project: { key: 'ACME' } }),
+        '.agents/local/vulcan.manifest.json': JSON.stringify({ project: { key: 'ACME' } }),
         '.agents/local/events/2026-11-01.jsonl': `${log([{ kind: 'pr', ref: 'merged:9' }])}\n`,
       },
     });

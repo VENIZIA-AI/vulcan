@@ -3,7 +3,7 @@
 An MCP server that lets an AI agent search and read a project's documentation - the wiki, the
 changelogs and the knowledge bundle - and look up exported symbols, versions and changes. Every hit
 carries an id the agent can read in full and cite. It reads a project only through its committed
-manifest (`.agents/vulcan.manifest.json`, written by `vulcan sync`), and it serves other projects
+manifest (`.agents/atlas.manifest.json`, written by `vulcan sync`), and it serves other projects
 next to it as sources. Part of VULCAN.
 
 You do not import it. You register it with an MCP client (Claude Code, an IDE agent, ...), which

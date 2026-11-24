@@ -12,7 +12,7 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
 `vulcan x atlas tools` lists the tools and `--help` prints the usage, both without an MCP client.
 
 - **What it serves**: the project it runs in, read live from its manifest
-  (`.agents/vulcan.manifest.json`), and every source the manifest lists; outside a project,
+  (`.agents/atlas.manifest.json`), and every source the manifest lists; outside a project,
   `--source`. With none of these it exits 2:
   atlas ships code only, no packaged corpus. A source is fetched by git (or as a GitHub tarball when
   git is missing) into `.agents/local/cache/atlas/v1/` of the project (`--cache-dir` moves it); atlas touches nothing outside the project directory.

@@ -102,7 +102,7 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 - `--actor`: who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session, when a person or a peer gave it (a name Claude Code made up from the folder, a counter or a clash does not count; when several of its session files hold the session id, the one of a live process, then the newest), else `claude:` and the start of the session id, else `unknown`. A name that starts with `claude:` is reserved for unnamed sessions: the board shows no agent for it.
 - `--dir`: the folder, for this call: `--dir` over `events.dir` over `.agents/local/events`. A relative path is relative to where you run the command.
 
-Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.
+Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/local/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.
 
 Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not a flow id or that no line of the log carries, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or one that makes a new flow when the project has no `project.key`, or with an empty or blank `--context` or `--next`, or with a `--summary`, a `--title`, `--why`, `--context` or `--next` on any other kind, an unknown flag, a flag given twice).
 

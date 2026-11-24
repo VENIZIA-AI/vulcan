@@ -32,13 +32,14 @@ export class HookConstants {
     'This session denies every call that would need a human to confirm it (VULCAN_GUARD_ASKS=deny). Nothing was run: hand this to the owner.';
   /** What an answer says when the manifest exists and cannot be read: the hooks cannot tell what the project asked for, so an ask is a deny. */
   static readonly MANIFEST_UNREADABLE =
-    'The manifest .agents/vulcan.manifest.json exists but cannot be read, so every call that would need a human to confirm it is denied. Nothing was run: the owner repairs the file or runs bun node_modules/.bin/vulcan sync.';
+    'The manifest .agents/local/vulcan.manifest.json exists but cannot be read, so every call that would need a human to confirm it is denied. Nothing was run: the owner repairs the file or runs bun node_modules/.bin/vulcan sync.';
   /**
    * The files the guards read their policy from (the manifest, the config, Claude Code's project and launch settings, the installed package):
    * an agent that can write one can switch a guard off, so guard-outside denies it; the owner changes them by hand or through `vulcan sync`.
    */
   static readonly PROTECTED_FILES = [
-    '.agents/vulcan.manifest.json',
+    '.agents/local/vulcan.manifest.json',
+    '.agents/atlas.manifest.json',
     '.configs/vulcan.config.*',
     '.agents/vulcan.local.json',
     '.claude/settings.json',

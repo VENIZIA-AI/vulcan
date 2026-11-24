@@ -71,7 +71,10 @@ export class ToolRunner {
         [ProjectLayout.CONFIG_ENV]: JSON.stringify(config),
         [ProjectLayout.ROOT_ENV]: opts.root,
         // Atlas reads the manifest only; rendered fresh, so a run never sees a stale committed one.
-        [ManifestConstants.ENV]: ProjectManifest.render({ root: opts.root, config: loaded.config }),
+        [ManifestConstants.ENV]: ProjectManifest.renderDescriptor({
+          root: opts.root,
+          config: loaded.config,
+        }),
       },
     };
   }

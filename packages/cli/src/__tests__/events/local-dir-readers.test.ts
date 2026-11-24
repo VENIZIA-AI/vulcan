@@ -27,7 +27,7 @@ const setup = (opts: { days?: number[]; manifestDir?: string } = {}) => {
   const dir = createProject({ files: {} });
   const root = createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify({
+      '.agents/local/vulcan.manifest.json': JSON.stringify({
         project: { key: 'ACME' },
         events: { log: true, ...(opts.manifestDir === undefined ? {} : { dir: opts.manifestDir }) },
       }),
@@ -181,7 +181,7 @@ describe('doctor and the local folder', () => {
 
   test('events-size of a committed folder is reported against the config too', () => {
     const team = createProject({ files: {} });
-    const root = createProject({ files: { '.agents/vulcan.manifest.json': '{}' } });
+    const root = createProject({ files: { '.agents/local/vulcan.manifest.json': '{}' } });
 
     writeFileSync(join(team, `${EventLog.dayOf({ time: Date.now() })}.jsonl`), 'x'.repeat(4096));
 
@@ -208,7 +208,7 @@ describe('vulcan sync and an invalid local events.dir', () => {
     expect(result.code).not.toBe(0);
     expect(result.stderr).toContain('vulcan.local.json');
     expect(result.stderr).toContain('events.dir');
-    expect(existsSync(join(root, '.agents/vulcan.manifest.json'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/vulcan.manifest.json'))).toBe(false);
   });
 });
 

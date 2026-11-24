@@ -17,7 +17,9 @@ const projectWith = (opts: { message?: object }): string =>
       opts.message === undefined
         ? {}
         : {
-            '.agents/vulcan.manifest.json': JSON.stringify({ commit: { message: opts.message } }),
+            '.agents/local/vulcan.manifest.json': JSON.stringify({
+              commit: { message: opts.message },
+            }),
           },
   });
 

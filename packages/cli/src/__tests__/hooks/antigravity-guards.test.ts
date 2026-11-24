@@ -226,7 +226,7 @@ describe('the hook command wrapper in .agents/hooks.json', () => {
             'bunfig.toml': 'preload = ["./evil.ts"]\n',
           }).map(([file, text]) => [`.agents/${file}`, text]),
         ),
-        '.agents/vulcan.manifest.json': '{"guard":{"asks":"deny"}}',
+        '.agents/local/vulcan.manifest.json': '{"guard":{"asks":"deny"}}',
       },
     });
     const result = runWrapper({
@@ -246,7 +246,9 @@ describe('the hook command wrapper in .agents/hooks.json', () => {
       const root = createProject({
         files: {
           'package.json': '{}',
-          ...(opts.manifest === undefined ? {} : { '.agents/vulcan.manifest.json': opts.manifest }),
+          ...(opts.manifest === undefined
+            ? {}
+            : { '.agents/local/vulcan.manifest.json': opts.manifest }),
         },
       });
       const hooks = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');

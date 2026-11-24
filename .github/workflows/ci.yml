@@ -68,10 +68,11 @@ jobs:
         if: ${{ !cancelled() && steps.atlas.outcome == 'success' }}
         run: make vulcan-sync
 
-      # The manifest is generated: a committed copy that differs from what sync wrote is stale or edited by hand.
-      - name: Committed manifest matches sync
+      # The descriptor atlas reads is generated and committed: a copy that differs from what sync wrote is stale or edited by hand.
+      # The manifest the hooks read is local to each clone and not committed.
+      - name: Committed descriptor matches sync
         if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
-        run: git diff --exit-code -- .agents/vulcan.manifest.json
+        run: git diff --exit-code -- .agents/atlas.manifest.json
 
       - name: Agent setup checks (VULCAN doctor)
         if: ${{ !cancelled() && steps.sync.outcome == 'success' }}

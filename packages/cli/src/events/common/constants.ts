@@ -141,7 +141,7 @@ export class EventConstants {
   static readonly DEFAULT_MAX_AGE_DAYS = 30;
   /** Relative to the project root; the default place of the log. */
   static readonly DEFAULT_DIRECTORY = '.agents/local/events';
-  static readonly MANIFEST_FILE = '.agents/vulcan.manifest.json';
+  static readonly MANIFEST_FILE = '.agents/local/vulcan.manifest.json';
   /** The per-checkout file; the same path as `AgentConstants.LOCAL_FILE`, kept here because the event hook loads no other module (a test holds them equal). */
   static readonly LOCAL_FILE = '.agents/vulcan.local.json';
   /** A day file of the log: `<local day>.jsonl`; the capture is the day. */

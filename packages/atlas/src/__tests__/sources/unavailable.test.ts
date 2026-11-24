@@ -77,7 +77,7 @@ test('a source that cannot be served is reported; the project and the other sour
 
   expect(resolved.map((source) => source.name)).toEqual(['own']);
   expect(unavailable.map((entry) => entry.source.name)).toEqual(['unadopted', 'gone']);
-  expect(unavailable[0].reason).toContain('.agents/vulcan.manifest.json');
+  expect(unavailable[0].reason).toContain('.agents/atlas.manifest.json');
 
   const server = SourcesServer.build({ sources: resolved, unavailable, cwd, version: '0.0.0' });
   const call = async (opts: { method: string; params: object }) => {

@@ -62,7 +62,7 @@ describe('RunnersCheck.scan', () => {
   test('passes scoped @venizia packages, and the names the manifest allows', () => {
     const root = repository({
       files: {
-        '.agents/vulcan.manifest.json': JSON.stringify({
+        '.agents/local/vulcan.manifest.json': JSON.stringify({
           schemaVersion: 1,
           guard: { runners: { allow: ['shadcn'] } },
         }),
@@ -134,7 +134,7 @@ describe('the allow-list of the project, under the launch environment that holds
   const project = (): string =>
     repository({
       files: {
-        '.agents/vulcan.manifest.json': JSON.stringify({
+        '.agents/local/vulcan.manifest.json': JSON.stringify({
           schemaVersion: 1,
           guard: { runners: { allow: ['shadcn'] } },
         }),
@@ -153,7 +153,7 @@ describe('the allow-list of the project, under the launch environment that holds
   test('a name the list does not hold is still found under that environment', () => {
     const root = repository({
       files: {
-        '.agents/vulcan.manifest.json': JSON.stringify({
+        '.agents/local/vulcan.manifest.json': JSON.stringify({
           schemaVersion: 1,
           guard: { runners: { allow: ['shadcn'] } },
         }),

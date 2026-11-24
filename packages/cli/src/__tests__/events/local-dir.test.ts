@@ -20,7 +20,7 @@ import { wire } from './wire.helper.ts';
 
 afterAll(removeProjects);
 
-const MANIFEST = '.agents/vulcan.manifest.json';
+const MANIFEST = '.agents/local/vulcan.manifest.json';
 const LOCAL = '.agents/vulcan.local.json';
 const ACTOR = 'pnt-vulcan-1';
 const shared = (): string => createProject({ files: {} });

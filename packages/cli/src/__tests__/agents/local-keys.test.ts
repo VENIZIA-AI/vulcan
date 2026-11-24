@@ -12,7 +12,7 @@ import { runCli } from '../run.helper.ts';
 
 afterAll(removeProjects);
 
-const MANIFEST = '.agents/vulcan.manifest.json';
+const MANIFEST = '.agents/local/vulcan.manifest.json';
 const ROSTER = { aurora: { shape: 'flame', role: 'Frontend' } };
 const CONFIG = "export default { name: 'acme', rules: { 'V-W-01': 'read-only' } };\n";
 

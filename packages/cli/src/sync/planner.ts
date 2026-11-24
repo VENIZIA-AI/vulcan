@@ -275,22 +275,72 @@ const skillDirectoriesOf = (opts: { agents: string[] }): string[] => [
 
 /** Plans the files `vulcan sync` writes, as a list of actions, without touching disk; also used by `vulcan doctor` to find drift. */
 export class SyncPlanner {
-  /** The committed project manifest (Project Contract v1, C1), rendered from the config. */
-  static planManifest(opts: { root: string; config: TResolvedConfig }): ISyncAction {
-    const path = join(opts.root, ManifestConstants.FILE);
-    const text = ProjectManifest.render(opts);
+  /** One generated file: created, replaced when it differs from `text`, or unchanged. */
+  private static planFile(opts: { root: string; file: string; text: string }): ISyncAction {
+    const path = join(opts.root, opts.file);
     const write = (): void => {
       mkdirSync(dirname(path), { recursive: true });
-      writeFileSync(path, text);
+      writeFileSync(path, opts.text);
     };
 
     if (!existsSync(path)) {
       return { path, status: SyncStatuses.CREATED, apply: write };
     }
 
-    return readFileSync(path, 'utf8') === text
+    return readFileSync(path, 'utf8') === opts.text
       ? { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }
       : { path, status: SyncStatuses.REPLACED, apply: write };
+  }
+
+  /**
+   * The manifests (Project Contract v1, C1), rendered from the config: the local manifest every hook reads, and the
+   * descriptor atlas reads, which is committed. The manifest of earlier releases, `.agents/vulcan.manifest.json`, is removed
+   * when git does not track it; when git tracks it, sync leaves it and the note names the git command (sync runs no git write).
+   */
+  static planManifest(opts: { root: string; config: TResolvedConfig }): ISyncAction[] {
+    const legacy = join(opts.root, ManifestConstants.LEGACY_FILE);
+    const legacyAction: ISyncAction[] = !existsSync(legacy)
+      ? []
+      : AgentFiles.isTracked({ root: opts.root, path: ManifestConstants.LEGACY_FILE })
+        ? [
+            {
+              path: legacy,
+              status: SyncStatuses.SKIPPED,
+              note: `the manifest moved to ${ManifestConstants.FILE} (policy, not committed) and ${ManifestConstants.DESCRIPTOR_FILE} (what atlas reads, committed), and git tracks the old file: run git rm --cached ${ManifestConstants.LEGACY_FILE}, then delete it`,
+              apply: NO_CHANGE,
+            },
+          ]
+        : [
+            {
+              path: legacy,
+              status: SyncStatuses.REMOVED,
+              note: 'the manifest of an earlier release is no longer used',
+              apply: () => rmSync(legacy, { force: true }),
+            },
+          ];
+
+    return [
+      SyncPlanner.planFile({
+        root: opts.root,
+        file: ManifestConstants.FILE,
+        text: ProjectManifest.render(opts),
+      }),
+      SyncPlanner.planFile({
+        root: opts.root,
+        file: ManifestConstants.DESCRIPTOR_FILE,
+        text: ProjectManifest.renderDescriptor(opts),
+      }),
+      ...legacyAction,
+    ];
+  }
+
+  /** The paths of the manifest actions, so a check of the adapters can leave them to the manifest check. */
+  static manifestPaths(opts: { root: string }): string[] {
+    return [
+      ManifestConstants.FILE,
+      ManifestConstants.DESCRIPTOR_FILE,
+      ManifestConstants.LEGACY_FILE,
+    ].map((file) => join(opts.root, file));
   }
 
   /** Every adapter the project's agents need, and the manifest every project carries - planned, not written. */
@@ -312,7 +362,7 @@ export class SyncPlanner {
         }),
       ),
       ...AgentFiles.plan({ root: opts.root, agents: opts.agents }),
-      SyncPlanner.planManifest(opts),
+      ...SyncPlanner.planManifest(opts),
     ];
   }
 }

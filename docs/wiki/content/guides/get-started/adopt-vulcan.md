@@ -84,7 +84,7 @@ $ cd my-product && find . -type f -not -path './.git/*' -not -path '*/node_modul
 ./.agents/knowledge/packages/core-api.md
 ./.agents/rules.md
 ./.agents/vulcan.local.json
-./.agents/vulcan.manifest.json
+./.agents/local/vulcan.manifest.json
 ./.claude/settings.json
 ./.claude/vulcan-managed.json
 ./.configs/vulcan.config.mts
@@ -216,7 +216,8 @@ $ bun node_modules/.bin/vulcan sync
   created   .claude/skills/ship
   created   .claude/skills/visualize-work
   created   .mcp.json
-  created   .agents/vulcan.manifest.json
+  created   .agents/local/vulcan.manifest.json
+  created   .agents/atlas.manifest.json
   replaced  AGENTS.md (Atlas block)
   created   .agents/vulcan.local.json
   created   .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
@@ -227,10 +228,10 @@ The starter config suggests `claude` (`agents: ['claude']`), so `sync` takes tha
 A `CLAUDE.md` that already exists, one `bun init` wrote included, is left alone and reported as `skipped`; delete it to let `sync` write `@AGENTS.md`.
 `init` already added `CLAUDE.md`, `CLAUDE.*.md`, `.claude/`, `.agents/plans`, `.agents/vulcan.local.json` and `.agents/local/` to `.gitignore`, and `sync` lists the files it wrote for your agents in `.git/info/exclude`.
 These adapter files stay local on each machine.
-Commit `.agents/vulcan.manifest.json` and the Atlas block `sync` wrote into `AGENTS.md` to version control.
+Commit `.agents/atlas.manifest.json` and the Atlas block `sync` wrote into `AGENTS.md` to version control; `.agents/local/vulcan.manifest.json` stays on your machine.
 For details on adapter generation, see the [sync reference](/references/commands/sync).
 
-**Check:** `.agents/vulcan.manifest.json` exists in git status, while `CLAUDE.md` and `.claude/` remain gitignored.
+**Check:** `.agents/atlas.manifest.json` exists in git status, while `.agents/local/`, `CLAUDE.md` and `.claude/` remain gitignored.
 
 ## 5. Verify with doctor
 
@@ -311,7 +312,7 @@ bun node_modules/.bin/vulcan upgrade --nightly
 From an installed prerelease, `latest` can be an older version, so a plain `upgrade` prints a note first; `--stable` is the name of that default, and `--nightly` keeps the prerelease line.
 
 The command installs the target release and runs `vulcan sync` with the newly installed CLI.
-Commit `.agents/vulcan.manifest.json` if it changed.
+Commit `.agents/atlas.manifest.json` if it changed.
 For all available commands, see the [commands reference](/references/commands/).
 
 ## See also

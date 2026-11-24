@@ -142,7 +142,7 @@ export class BoardConstants {
   /** Who an ask waits on when neither `board.owner` nor `git config user.name` says. */
   static readonly DEFAULT_OWNER = 'Owner';
   static readonly LOGO_MAX_BYTES = 100 * 1024;
-  static readonly MANIFEST_FILE = '.agents/vulcan.manifest.json';
+  static readonly MANIFEST_FILE = '.agents/local/vulcan.manifest.json';
   static readonly CI_ACTOR = 'CI';
   /** A quiet spell this long ends a stretch of work: the next line starts a new one. */
   static readonly ACTIVE_GAP_MS = 30 * 60 * 1000;

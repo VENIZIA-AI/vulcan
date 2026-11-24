@@ -28,7 +28,7 @@ You do not need to tell the agent to use them. The server's instructions and the
 
 Before you use atlas, confirm these preconditions:
 
-- Run `vulcan sync` so it writes `.agents/vulcan.manifest.json`. atlas reads that manifest and never imports your configuration file directly.
+- Run `vulcan sync` so it writes `.agents/atlas.manifest.json`. atlas reads that manifest and never imports your configuration file directly.
 - To use `symbol`, build your packages first. atlas reads their exported `.d.ts` declaration files.
 - To use `version` and `changes`, tag your releases in git. Your changelog directory must hold files named `YYYY-MM-DD-<slug>.md`, each declaring `packages:` frontmatter. See [Adopt VULCAN](/guides/get-started/adopt-vulcan).
 

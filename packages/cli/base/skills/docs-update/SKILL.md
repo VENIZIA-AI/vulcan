@@ -42,7 +42,7 @@ Copy it into your reply and tick it off, in order:
 ## 1. Paths
 
 1. `bun node_modules/.bin/vulcan doctor` passes (run it from the project root), so the manifest is fresh. Fix what it names first.
-2. Read `.agents/vulcan.manifest.json`. Every path comes from it, never from a layout you expect:
+2. Read `.agents/atlas.manifest.json`. Every path comes from it, never from a layout you expect:
 
 | Key | What it gives you |
 |---|---|

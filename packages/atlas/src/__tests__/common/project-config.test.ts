@@ -17,6 +17,33 @@ afterAll(() => {
 
 const ROOT = '/work/project';
 
+describe('ProjectConfig.manifestFileOf', () => {
+  const folder = (files: string[]): string => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-manifest-'));
+
+    roots.push(root);
+    mkdirSync(join(root, '.agents'), { recursive: true });
+
+    for (const file of files) {
+      writeFileSync(join(root, '.agents', file), '{}');
+    }
+
+    return root;
+  };
+
+  test('the descriptor first, then the manifest of an older release, then nothing', () => {
+    expect(
+      ProjectConfig.manifestFileOf({
+        dir: folder(['atlas.manifest.json', 'vulcan.manifest.json']),
+      }),
+    ).toEndWith('.agents/atlas.manifest.json');
+    expect(ProjectConfig.manifestFileOf({ dir: folder(['vulcan.manifest.json']) })).toEndWith(
+      '.agents/vulcan.manifest.json',
+    );
+    expect(ProjectConfig.manifestFileOf({ dir: folder([]) })).toBeUndefined();
+  });
+});
+
 describe('ProjectConfig.readAtlasProject', () => {
   test('reads the packages, compiles the release commit, resolves the paths', () => {
     useAtlasProject({
@@ -81,7 +108,7 @@ describe('ProjectConfig.readAtlasProject', () => {
     process.env.VULCAN_PROJECT_ROOT = root;
 
     expect(() => ProjectConfig.readAtlasProject()).toThrow(
-      'atlas: no project manifest (.agents/vulcan.manifest.json) - run `vulcan sync`',
+      'atlas: no project manifest (.agents/atlas.manifest.json) - run `vulcan sync`',
     );
   });
 

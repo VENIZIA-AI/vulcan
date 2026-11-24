@@ -1,0 +1,124 @@
+import { afterAll, describe, expect, test } from 'bun:test';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { ProjectContract } from '../../doctor/checks.ts';
+import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
+import { SyncPlanner } from '../../sync/index.ts';
+import { createProject, removeProjects } from '../project.helper.ts';
+import { runCli } from '../run.helper.ts';
+
+afterAll(removeProjects);
+
+const CONFIG_TEXT = `export default {
+  name: 'acme',
+  packs: ['venizia'],
+  packages: [{ dir: 'kernel', name: '@x/kernel' }],
+  events: { log: true },
+  project: { key: 'ACME' },
+  guard: { outside: 'deny' },
+};
+`;
+const project = (opts: { legacy?: string } = {}): string =>
+  createProject({
+    files: {
+      '.configs/vulcan.config.mts': CONFIG_TEXT,
+      'package.json': '{ "name": "@x/acme-workspace" }',
+      '.gitignore': 'node_modules\n',
+      ...(opts.legacy === undefined ? {} : { [ManifestConstants.LEGACY_FILE]: opts.legacy }),
+    },
+  });
+const configOf = (root: string) => {
+  const parsed = VULCAN_CONFIG_SCHEMA.parse({
+    name: 'acme',
+    packages: [{ dir: 'kernel', name: '@x/kernel' }],
+    events: { log: true },
+    project: { key: 'ACME' },
+    guard: { outside: 'deny' },
+  });
+
+  return { root, config: parsed };
+};
+
+describe('the descriptor and the local manifest', () => {
+  test('the descriptor holds only what atlas and the wiki read, with the values and the order of the manifest', () => {
+    const root = project();
+    const whole = JSON.parse(ProjectManifest.render(configOf(root)));
+    const descriptor = JSON.parse(ProjectManifest.renderDescriptor(configOf(root)));
+
+    expect(Object.keys(descriptor)).toEqual(
+      Object.keys(whole).filter((key) => ManifestConstants.DESCRIPTOR_KEYS.includes(key)),
+    );
+    for (const key of Object.keys(descriptor)) {
+      expect(descriptor[key], key).toEqual(whole[key]);
+    }
+
+    for (const policy of ['guard', 'events', 'project', 'rules']) {
+      expect(whole[policy], `${policy} is in the manifest`).toBeDefined();
+      expect(descriptor[policy], `${policy} is not in the descriptor`).toBeUndefined();
+    }
+
+    expect(descriptor.packages).toHaveLength(1);
+    expect(descriptor.theme).toBeDefined();
+  });
+
+  test('sync writes the local manifest and the descriptor, and nothing at the old path', () => {
+    const root = project();
+    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+
+    expect(run.code, run.stderr).toBe(0);
+    expect(existsSync(join(root, ManifestConstants.FILE))).toBe(true);
+    expect(existsSync(join(root, ManifestConstants.DESCRIPTOR_FILE))).toBe(true);
+    expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(false);
+    expect(JSON.parse(readFileSync(join(root, ManifestConstants.FILE), 'utf8')).guard.outside).toBe(
+      'deny',
+    );
+  });
+
+  test('a manifest of the earlier release that git does not track is removed by sync', () => {
+    const root = project({ legacy: '{"old":true}\n' });
+    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+
+    expect(run.code, run.stderr).toBe(0);
+    expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(false);
+  });
+
+  test('one that git tracks is never removed: sync skips it, and doctor names the git command', () => {
+    const root = project({ legacy: '{"old":true}\n' });
+
+    Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
+    Bun.spawnSync(['git', 'add', '-f', ManifestConstants.LEGACY_FILE], { cwd: root });
+
+    const action = SyncPlanner.planManifest(configOf(root)).find(
+      (entry) => entry.path === join(root, ManifestConstants.LEGACY_FILE),
+    );
+
+    expect(action?.status).toBe('skipped');
+    action?.apply();
+    expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(true);
+
+    const found = ProjectContract.checkManifest({
+      root,
+      config: configOf(root).config,
+      configFile: '.configs/vulcan.config.mts',
+    }).filter((entry) => entry.file === ManifestConstants.LEGACY_FILE);
+
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toContain('git rm --cached .agents/vulcan.manifest.json');
+  });
+
+  test('doctor asks for the descriptor to be committed and the local manifest only to be synced', () => {
+    const root = project();
+    const found = ProjectContract.checkManifest({
+      root,
+      config: configOf(root).config,
+      configFile: '.configs/vulcan.config.mts',
+    });
+    const local = found.find((entry) => entry.file === ManifestConstants.FILE);
+    const descriptor = found.find((entry) => entry.file === ManifestConstants.DESCRIPTOR_FILE);
+
+    expect(local?.message).toContain('missing');
+    expect(local?.message).not.toContain('commit');
+    expect(descriptor?.message).toContain('commit it');
+  });
+});

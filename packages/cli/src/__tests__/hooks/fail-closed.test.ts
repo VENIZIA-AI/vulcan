@@ -490,8 +490,8 @@ describe('guard.asks: deny turns the answer of a crashed hook into a deny', () =
     const target = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
 
     mkdirSync(target, { recursive: true });
-    mkdirSync(join(root, '.agents'), { recursive: true });
-    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), opts.manifest);
+    mkdirSync(join(root, '.agents', 'local'), { recursive: true });
+    writeFileSync(join(root, '.agents', 'local', 'vulcan.manifest.json'), opts.manifest);
 
     for (const name of ['guard-git', 'guard-outside']) {
       if (opts.script === undefined) {
@@ -570,8 +570,8 @@ describe('a crashed hook is held by the launch environment and by a manifest tha
     }
 
     if (opts.manifest !== undefined) {
-      mkdirSync(join(root, '.agents'), { recursive: true });
-      writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), opts.manifest);
+      mkdirSync(join(root, '.agents', 'local'), { recursive: true });
+      writeFileSync(join(root, '.agents', 'local', 'vulcan.manifest.json'), opts.manifest);
     }
 
     return root;
@@ -642,8 +642,8 @@ describe('a crashed hook is held by the launch environment and by a manifest tha
       const target = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
 
       mkdirSync(target, { recursive: true });
-      mkdirSync(join(root, '.agents'), { recursive: true });
-      writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), manifest);
+      mkdirSync(join(root, '.agents', 'local'), { recursive: true });
+      writeFileSync(join(root, '.agents', 'local', 'vulcan.manifest.json'), manifest);
 
       for (const name of ['guard-git', 'guard-outside']) {
         copyFileSync(join(PACKAGE_ROOT, 'base', 'hooks', `${name}.ts`), join(target, `${name}.ts`));
@@ -716,8 +716,11 @@ describe('bun does not read the .env or the bunfig.toml of the project into a ho
 
     mkdirSync(dirname(installed), { recursive: true });
     symlinkSync(PACKAGE_ROOT, installed);
-    mkdirSync(join(root, '.agents'), { recursive: true });
-    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{"guard":{"asks":"deny"}}');
+    mkdirSync(join(root, '.agents', 'local'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents', 'local', 'vulcan.manifest.json'),
+      '{"guard":{"asks":"deny"}}',
+    );
 
     for (const [file, text] of Object.entries(BUN_FILES)) {
       writeFileSync(join(root, file), text);
@@ -740,7 +743,7 @@ describe('bun does not read the .env or the bunfig.toml of the project into a ho
       runHook({
         command: hookOf('guard-outside').command,
         root,
-        stdin: BASH_INPUT('echo x > .agents/vulcan.manifest.json'),
+        stdin: BASH_INPUT('echo x > .agents/local/vulcan.manifest.json'),
       }).stdout,
     ).toContain(DENY);
     expect(
@@ -757,8 +760,8 @@ describe('bun does not read the .env or the bunfig.toml of the project into a ho
     const target = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
 
     mkdirSync(target, { recursive: true });
-    mkdirSync(join(root, '.agents'), { recursive: true });
-    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{ nope');
+    mkdirSync(join(root, '.agents', 'local'), { recursive: true });
+    writeFileSync(join(root, '.agents', 'local', 'vulcan.manifest.json'), '{ nope');
 
     for (const [file, text] of Object.entries(BUN_FILES)) {
       writeFileSync(join(root, file), text);
@@ -1114,8 +1117,8 @@ describe('BUN_OPTIONS, NODE_OPTIONS and BUN_CONFIG_* do not reach a Claude hook'
     const { root, marker, env } = probed();
     const hooks = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
 
-    mkdirSync(join(root, '.agents'), { recursive: true });
-    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{ nope');
+    mkdirSync(join(root, '.agents', 'local'), { recursive: true });
+    writeFileSync(join(root, '.agents', 'local', 'vulcan.manifest.json'), '{ nope');
 
     for (const name of ['guard-git', 'guard-outside']) {
       writeFileSync(join(hooks, `${name}.ts`), 'process.exit(3);');

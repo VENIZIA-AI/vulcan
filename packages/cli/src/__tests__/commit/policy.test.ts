@@ -12,7 +12,7 @@ const manifestOf = (opts: { root: string; config: object }): Record<string, unkn
   );
 
 const projectWithManifest = (opts: { manifest: object }): string =>
-  createProject({ files: { '.agents/vulcan.manifest.json': JSON.stringify(opts.manifest) } });
+  createProject({ files: { '.agents/local/vulcan.manifest.json': JSON.stringify(opts.manifest) } });
 
 describe('AgentSignaturePolicies', () => {
   test('two values, and isValid reads them', () => {
@@ -201,7 +201,7 @@ describe('CommitPolicy.read', () => {
   });
 
   test('a manifest that is not JSON is ignored', () => {
-    const root = createProject({ files: { '.agents/vulcan.manifest.json': '{ nope' } });
+    const root = createProject({ files: { '.agents/local/vulcan.manifest.json': '{ nope' } });
 
     expect(CommitPolicy.read({ root })).toBeUndefined();
   });

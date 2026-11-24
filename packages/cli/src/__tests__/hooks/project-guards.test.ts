@@ -262,7 +262,7 @@ describe('ProjectGuards.matchesBranch', () => {
 const manifestWith = (opts: { guard: unknown }): string =>
   createProject({
     files: {
-      '.agents/vulcan.manifest.json': JSON.stringify({ schemaVersion: 1, guard: opts.guard }),
+      '.agents/local/vulcan.manifest.json': JSON.stringify({ schemaVersion: 1, guard: opts.guard }),
     },
   });
 
@@ -394,7 +394,7 @@ describe('ProjectGuards.readPolicy', () => {
       env: {},
     });
     const broken = ProjectGuards.readPolicy({
-      root: createProject({ files: { '.agents/vulcan.manifest.json': '{ nope' } }),
+      root: createProject({ files: { '.agents/local/vulcan.manifest.json': '{ nope' } }),
       env: {},
     });
 
@@ -409,7 +409,7 @@ describe('ProjectGuards.readPolicy', () => {
   test('a manifest that exists and cannot be read holds every ask and keeps nothing else', () => {
     for (const text of ['{ nope', '', '<<<<<<< HEAD\n{}\n>>>>>>> x', '[]', 'null', '"deny"']) {
       const policy = ProjectGuards.readPolicy({
-        root: createProject({ files: { '.agents/vulcan.manifest.json': text } }),
+        root: createProject({ files: { '.agents/local/vulcan.manifest.json': text } }),
         env: {},
       });
 

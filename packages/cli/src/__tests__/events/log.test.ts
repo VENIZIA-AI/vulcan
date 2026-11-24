@@ -745,7 +745,7 @@ describe('EventSettings', () => {
   const projectWith = (opts: { events?: unknown; raw?: string }): string =>
     createProject({
       files: {
-        '.agents/vulcan.manifest.json':
+        '.agents/local/vulcan.manifest.json':
           opts.raw ?? JSON.stringify(opts.events === undefined ? {} : { events: opts.events }),
       },
     });
@@ -790,20 +790,20 @@ describe('EventSettings', () => {
 
   test('rootOf: the nearest folder above with the manifest or .git, itself included', () => {
     const withManifest = createProject({
-      files: { '.agents/vulcan.manifest.json': '{}', 'a/b/c/x.txt': 'x' },
+      files: { '.agents/local/vulcan.manifest.json': '{}', 'a/b/c/x.txt': 'x' },
     });
     const gitOnly = createProject({
       files: { '.git/HEAD': 'ref: refs/heads/x\n', 'a/b/x.txt': 'x' },
     });
     const nested = createProject({
       files: {
-        '.agents/vulcan.manifest.json': '{}',
+        '.agents/local/vulcan.manifest.json': '{}',
         'inner/.git/HEAD': 'x',
         'inner/deep/x.txt': 'x',
       },
     });
     const both = createProject({
-      files: { '.agents/vulcan.manifest.json': '{}', '.git/HEAD': 'x', 'w/x.txt': 'x' },
+      files: { '.agents/local/vulcan.manifest.json': '{}', '.git/HEAD': 'x', 'w/x.txt': 'x' },
     });
 
     expect(EventSettings.rootOf({ cwd: join(withManifest, 'a/b/c') })).toBe(withManifest);

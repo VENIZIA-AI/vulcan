@@ -256,10 +256,10 @@ describe('every ask the hooks have becomes a deny with guard.asks: deny', () => 
   test('an agent cannot loosen a held project by editing the manifest: the edit is denied, and a loosened manifest does not weaken the environment', () => {
     const root = projectOf({ guard: { asks: 'deny' } });
     const edits = [
-      "sed -i 's/deny/ask/' .agents/vulcan.manifest.json",
-      'echo "{}" > .agents/vulcan.manifest.json',
-      'rm .agents/vulcan.manifest.json',
-      "perl -pi -e 's/deny/ask/' .agents/vulcan.manifest.json",
+      "sed -i 's/deny/ask/' .agents/local/vulcan.manifest.json",
+      'echo "{}" > .agents/local/vulcan.manifest.json',
+      'rm .agents/local/vulcan.manifest.json',
+      "perl -pi -e 's/deny/ask/' .agents/local/vulcan.manifest.json",
     ];
 
     for (const command of edits) {
@@ -272,7 +272,7 @@ describe('every ask the hooks have becomes a deny with guard.asks: deny', () => 
       root,
       stdin: fileToolEvent({
         tool: 'Write',
-        path: join(root, '.agents', 'vulcan.manifest.json'),
+        path: join(root, '.agents', 'local', 'vulcan.manifest.json'),
         cwd: root,
       }),
     });

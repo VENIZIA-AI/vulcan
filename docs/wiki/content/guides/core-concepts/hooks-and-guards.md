@@ -37,7 +37,7 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 
 Around them, `session-start` prints a short digest (a config problem, a launch warning, how to answer the owner) into the session and, in Claude Code, exports `TMPDIR` (the project's `.agents/local/tmp`) into every Bash command ([Temporary files](/references/agents#temporary-files)), and `subagent-start` gives every subagent a small rules card. The shape of replies to the owner is a card in that digest, not a check ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
 
-No hook guards `.agents/vulcan.manifest.json`: `vulcan sync` rewrites it from the config, and `vulcan doctor` fails a copy that is stale or edited by hand ([The generated manifest](/references/hooks/#the-generated-manifest)).
+No hook guards `.agents/local/vulcan.manifest.json`: `vulcan sync` rewrites it from the config, and `vulcan doctor` fails a copy that is stale or edited by hand ([The generated manifest](/references/hooks/#the-generated-manifest)).
 
 ## Your own deploy and migrate commands
 

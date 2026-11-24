@@ -79,7 +79,7 @@ The table below lists the top-level configuration keys:
 The `project.key` is the key a flow is named by: `VULZ-<key>-<number>`, such as `VULZ-ACME-15`. It is uppercase letters and digits, 2 to 8, and is set once. `vulcan init` writes it (`--key`, a terminal's answer, or one made from the project name). The event log and the board read it from the manifest. `vulcan doctor` warns when the log is on and it is missing.
 ## name
 
-The `name` property assigns the project identifier written to `.agents/vulcan.manifest.json`. It appears as the `source` of every atlas result and names the server `<name>-atlas`.
+The `name` property assigns the project identifier written to `.agents/atlas.manifest.json`. It appears as the `source` of every atlas result and names the server `<name>-atlas`.
 
 If you omit `name`, VULCAN uses the root `package.json` name without scope and without `-workspace`. When `package.json` has no name, VULCAN uses the root directory name. The derived name is lower-cased.
 
@@ -226,7 +226,7 @@ export default {
 
 The shared kind has no side of its own: `side` stays the app kind's. A record without `lib` or `shared` is valid.
 
-The entries live in the `vulcan:apps` block that `init` and `add` rewrite, and the config reads them with `presets: apps.presets`. `add` refuses a block that does not hold the `presets` list, because it is not the JSON `vulcan` wrote. `vulcan sync` renders `layout` and `presets` into `.agents/vulcan.manifest.json`, which is what atlas reads. A project whose apps were not made from a preset records none.
+The entries live in the `vulcan:apps` block that `init` and `add` rewrite, and the config reads them with `presets: apps.presets`. `add` refuses a block that does not hold the `presets` list, because it is not the JSON `vulcan` wrote. `vulcan sync` renders `layout` and `presets` into `.agents/local/vulcan.manifest.json`, which is what atlas reads. A project whose apps were not made from a preset records none.
 
 ```ts
 export default {
@@ -239,7 +239,7 @@ export default {
 
 The `packages` array defines monorepo packages in release order. **Leave the key out and VULCAN derives it** from the root `package.json` `workspaces` (an array, or the object form with `packages`) and the `package.json` of each member: an entry is `{ dir, name, path }` with the member's `name`, its folder as `path`, and `dir` that folder with `/` as `-`, in the order of the paths. The patterns are applied in order, so a `!pattern` takes out what the patterns before it gave. In a git repository only members whose `package.json` git tracks count, so an untracked experiment does not change what `vulcan sync` writes (`git add` a new member first); outside one the folders are read, never entering `node_modules` or a dot folder. A pattern that leaves the project root, or two members that give the same `dir` or `name` (`a/b-c` and `a-b/c` both give `a-b-c`), stop the command with an error naming them. A member with no valid `name`, or whose folder cannot be a `dir` (an upper-case letter, an underscore), is not normalised: `vulcan doctor` names it and the reason. `vulcan config --effective` shows the result and says it came from `workspaces`. **If you tag per package, write the list before the first release**: a derived `dir` follows the folder path, and with the default `tagPattern` (`<dir>-v<version>`) it becomes the tag. Write the key, even as `[]`, and it is the list exactly: use it when the release order matters or a member needs `aliases`, `retired`, `kind` or a `dir` of its own. `vulcan doctor` warns about a workspace member a written list does not name. Manifest rendering, release checks, and atlas symbol searches read this list.
 
-`vulcan sync` writes the package list into `.agents/vulcan.manifest.json`. If `package.json` declares workspaces while `packages` is empty and none could be derived, `vulcan doctor` reports a `[scaffold]` violation. `vulcan doctor` also runs the `[tags]` check to verify tags against package directories and aliases.
+`vulcan sync` writes the package list into `.agents/atlas.manifest.json`. If `package.json` declares workspaces while `packages` is empty and none could be derived, `vulcan doctor` reports a `[scaffold]` violation. `vulcan doctor` also runs the `[tags]` check to verify tags against package directories and aliases.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
@@ -279,7 +279,7 @@ export default {
 
 ## knowledge
 
-The `knowledge` object configures paths for knowledge bundles and documentation. `vulcan sync` writes these paths to `.agents/vulcan.manifest.json`.
+The `knowledge` object configures paths for knowledge bundles and documentation. `vulcan sync` writes these paths to `.agents/atlas.manifest.json`.
 
 `vulcan doctor` verifies that the `bundle` directory exists using the `[layout]` label. Atlas reads `bundle`, `wiki`, and `changelogs` from the manifest to index concepts and release notes.
 
@@ -385,7 +385,7 @@ To configure custom generators and view built-in renderer options, see the [rend
 
 ## atlas
 
-The `atlas` object configures release tags and external repository sources. `vulcan sync` writes `release: { tagPattern, ignoreTags }` and `sources` to `.agents/vulcan.manifest.json`. Atlas reads `sources` from the manifest to clone and query knowledge across external repositories.
+The `atlas` object configures release tags and external repository sources. `vulcan sync` writes `release: { tagPattern, ignoreTags }` and `sources` to `.agents/atlas.manifest.json`. Atlas reads `sources` from the manifest to clone and query knowledge across external repositories.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
@@ -516,7 +516,7 @@ export default {
 
 ## theme
 
-The colours, fonts and corner radius of the pages VULCAN makes. The token names are fixed; the values come from a preset and from your project. `vulcan sync` resolves the set, checks it, and writes it to `.agents/vulcan.manifest.json`, which is where [`vulcan visualize`](/references/commands/visualize) and [`vulcan board`](/references/commands/board) read it. A spec's own `accent` wins over the project's. A project with no `theme` gets the `venizia` preset.
+The colours, fonts and corner radius of the pages VULCAN makes. The token names are fixed; the values come from a preset and from your project. `vulcan sync` resolves the set, checks it, and writes it to `.agents/local/vulcan.manifest.json`, which is where [`vulcan visualize`](/references/commands/visualize) and [`vulcan board`](/references/commands/board) read it. A spec's own `accent` wins over the project's. A project with no `theme` gets the `venizia` preset.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|

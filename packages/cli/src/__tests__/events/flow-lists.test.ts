@@ -9,7 +9,7 @@ afterAll(removeProjects);
 
 const project = (): string =>
   createProject({
-    files: { '.agents/vulcan.manifest.json': JSON.stringify({ project: { key: 'ACME' } }) },
+    files: { '.agents/local/vulcan.manifest.json': JSON.stringify({ project: { key: 'ACME' } }) },
   });
 const events = (root: string) => join(root, '.agents/local/events');
 const cli = (opts: { root: string; args: string[] }) =>

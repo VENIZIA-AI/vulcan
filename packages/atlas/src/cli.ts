@@ -234,7 +234,7 @@ const pull = async (): Promise<number> => {
 };
 
 const NOTHING_TO_SERVE = (opts: { root: string }): string =>
-  `nothing to serve at ${opts.root} - run in a project (\`vulcan sync\` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>`;
+  `nothing to serve at ${opts.root} - run in a project (\`vulcan sync\` writes .agents/atlas.manifest.json), or pass --source <owner/repo>@<ref>`;
 
 /** The server the arguments ask for; a usage error names what is missing. */
 const readServer = async (): Promise<{ server: Transport; boot: SourceBoot }> => {

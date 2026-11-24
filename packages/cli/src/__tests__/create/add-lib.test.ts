@@ -121,7 +121,7 @@ describe('vulcan add --lib', () => {
     addLib({ root, args: ['--lib', 'billing'] });
     runCli({ args: ['sync', '--agents', 'none'], cwd: root });
 
-    const manifest = readJson({ root, path: '.agents/vulcan.manifest.json' });
+    const manifest = readJson({ root, path: '.agents/local/vulcan.manifest.json' });
 
     expect(manifest.packages.find((item: { dir: string }) => item.dir === 'billing')).toMatchObject(
       {

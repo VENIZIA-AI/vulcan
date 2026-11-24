@@ -29,7 +29,7 @@ interface IGuardPolicy {
 }
 
 /** Spelt out: the blocking hooks import nothing that reads the package. */
-const GUARD_MANIFEST_FILE = '.agents/vulcan.manifest.json';
+const GUARD_MANIFEST_FILE = '.agents/local/vulcan.manifest.json';
 
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);

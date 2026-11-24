@@ -410,7 +410,7 @@ export class ProjectTheme {
     let text: string;
 
     try {
-      const directory = join(opts.root, '.agents');
+      const directory = join(opts.root, '.agents', 'local');
       const file = join(directory, 'vulcan.manifest.json');
       const folder = lstatSync(directory);
       const entry = lstatSync(file);
@@ -435,7 +435,8 @@ export class ProjectTheme {
       manifest = JSON.parse(text);
     } catch {
       return {
-        warning: '.agents/vulcan.manifest.json is not valid JSON, so the default colour is used',
+        warning:
+          '.agents/local/vulcan.manifest.json is not valid JSON, so the default colour is used',
       };
     }
 

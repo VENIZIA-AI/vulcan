@@ -14,7 +14,7 @@ const SINCE = '2026-11-01';
 
 const projectWithLog = (): string => {
   const root = createProject({
-    files: { '.agents/vulcan.manifest.json': '{}', '.git/HEAD': 'ref: refs/heads/x\n' },
+    files: { '.agents/local/vulcan.manifest.json': '{}', '.git/HEAD': 'ref: refs/heads/x\n' },
   });
 
   for (const event of sampleLines()) {
@@ -71,7 +71,9 @@ describe('vulcan board', () => {
 
     const configured = createProject({
       files: {
-        '.agents/vulcan.manifest.json': JSON.stringify({ events: { log: true, dir: shared } }),
+        '.agents/local/vulcan.manifest.json': JSON.stringify({
+          events: { log: true, dir: shared },
+        }),
         '.git/HEAD': 'x',
       },
     });
@@ -81,7 +83,7 @@ describe('vulcan board', () => {
     expect(dataOf(join(configured, 'out/b.html')).flows).toHaveLength(6);
 
     const bare = createProject({
-      files: { '.agents/vulcan.manifest.json': '{}', '.git/HEAD': 'x' },
+      files: { '.agents/local/vulcan.manifest.json': '{}', '.git/HEAD': 'x' },
     });
     const viaDir = board({ root: bare, args: ['--dir', shared] });
 
@@ -111,7 +113,7 @@ describe('vulcan board', () => {
     expect(dataOf(future.stdout.trim()).flows).toEqual([]);
 
     const none = createProject({
-      files: { '.agents/vulcan.manifest.json': '{}', '.git/HEAD': 'x' },
+      files: { '.agents/local/vulcan.manifest.json': '{}', '.git/HEAD': 'x' },
     });
     const result = runCli({ args: ['board', '--no-github'], cwd: none, env: hermeticEnv() });
 
@@ -200,7 +202,7 @@ describe('vulcan board with board.agents in the manifest', () => {
     expect(plain.lanes).toBeUndefined();
 
     writeFileSync(
-      join(root, '.agents/vulcan.manifest.json'),
+      join(root, '.agents/local/vulcan.manifest.json'),
       JSON.stringify({
         board: { agents: { 'veni-forge': 'banana', 'pnt-ignis-1': { lane: 'veni-forge' } } },
       }),

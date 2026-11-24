@@ -5,7 +5,7 @@ import { CommitAgents } from './agents.ts';
 import { AgentSignaturePolicies } from './common/index.ts';
 import type { ICommitPolicy, ICommitSubject, TAgentSignaturePolicy } from './common/index.ts';
 
-const MANIFEST_FILE = '.agents/vulcan.manifest.json';
+const MANIFEST_FILE = '.agents/local/vulcan.manifest.json';
 
 export class CommitPolicy {
   /**

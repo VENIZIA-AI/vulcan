@@ -31,7 +31,7 @@ const WAIT = (condition: string, ms: number): string => `(async () => {
 describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
   test('a new line of the log shows with no reload, and what the owner selected stays', async () => {
     const root = createProject({
-      files: { '.agents/vulcan.manifest.json': '{}', '.git/HEAD': 'ref: refs/heads/x\n' },
+      files: { '.agents/local/vulcan.manifest.json': '{}', '.git/HEAD': 'ref: refs/heads/x\n' },
     });
     const dir = join(root, '.agents/local/events');
 
@@ -120,7 +120,7 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
   });
 
   test('when the server stops the page says it is disconnected, and keeps showing the board', async () => {
-    const root = createProject({ files: { '.agents/vulcan.manifest.json': '{}' } });
+    const root = createProject({ files: { '.agents/local/vulcan.manifest.json': '{}' } });
     const dir = join(root, '.agents/local/events');
 
     EventLog.append({

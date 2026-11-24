@@ -93,7 +93,7 @@ describe('the package list', () => {
 
   test('no manifest, render stops with what to do', () => {
     expect(() => PublicSurface.render({ repoRoot: makeRepoRoot() })).toThrow(
-      'atlas: no project manifest (.agents/vulcan.manifest.json) - run `vulcan sync`',
+      'atlas: no project manifest (.agents/atlas.manifest.json) - run `vulcan sync`',
     );
   });
 

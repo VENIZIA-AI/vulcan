@@ -57,7 +57,8 @@ $ bun node_modules/.bin/vulcan agents add pi
   created   .agents/skills/docs-update
   created   .agents/skills/docs-writing
   created   .pi/mcp.json
-  unchanged .agents/vulcan.manifest.json
+  unchanged .agents/local/vulcan.manifest.json
+  unchanged .agents/atlas.manifest.json
   unchanged AGENTS.md
   replaced  .agents/vulcan.local.json
   replaced  .git/info/exclude
@@ -86,7 +87,8 @@ $ bun node_modules/.bin/vulcan agents remove pi
   unchanged .claude/skills/ship
   unchanged .claude/skills/visualize-work
   unchanged .mcp.json
-  unchanged .agents/vulcan.manifest.json
+  unchanged .agents/local/vulcan.manifest.json
+  unchanged .agents/atlas.manifest.json
   unchanged AGENTS.md
   replaced  .agents/vulcan.local.json
   replaced  .git/info/exclude

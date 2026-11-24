@@ -69,7 +69,7 @@ const NO_REGISTRY = 'http://127.0.0.1:9';
 
 /** What the source commits for atlas - its manifest and one concept the search below must find. */
 const SOURCE_FILES: Record<string, string> = {
-  '.agents/vulcan.manifest.json': `${JSON.stringify(
+  '.agents/local/vulcan.manifest.json': `${JSON.stringify(
     {
       schemaVersion: 1,
       name: 'remote',

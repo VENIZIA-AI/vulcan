@@ -37,7 +37,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `skills` (shipped names) | Project skills avoid names reserved by shipped skills | Rename the colliding skill directory under `.agents/skills/` |
 | `make` | The project `Makefile` includes `vulcan.mk` and avoids shipped target names | Add the `-include` line or rename conflicting project make targets |
 | `adapters` | Generated files, settings and links match configuration; the `AGENTS.md` blocks are present and current | Run `bun node_modules/.bin/vulcan sync` |
-| `manifest` | Committed `.agents/vulcan.manifest.json` matches project configuration | Run `bun node_modules/.bin/vulcan sync` and commit the manifest |
+| `manifest` | `.agents/local/vulcan.manifest.json` and the committed `.agents/atlas.manifest.json` match the project configuration; a copy of the old `.agents/vulcan.manifest.json` that git tracks is named | Run `bun node_modules/.bin/vulcan sync` and commit the descriptor; `git rm --cached .agents/vulcan.manifest.json` for the old file |
 | `changelog-folders` | A project with version folders under its changelog directory has a vulcan installed whose atlas reads them | Install the vulcan version the message names |
 | `tags` | Git tags matching `atlas.tagPattern` resolve to declared packages | Declare the package, add an alias, or add the tag to `atlas.ignoreTags` |
 | `skills` (warning) | A skill's description has no "Use when" part, so atlas cannot tell an agent when to load it; never a failure | Start the description with when to use the skill |
@@ -181,11 +181,11 @@ When sync skips a file, it reports the reason or `shadows a shipped skill - rena
 
 ### manifest
 
-A missing or outdated `.agents/vulcan.manifest.json` file triggers this check.
+A missing or outdated `.agents/local/vulcan.manifest.json` file triggers this check.
 
 ```text
 $ bun node_modules/.bin/vulcan doctor
-  [manifest] .agents/vulcan.manifest.json: stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and run 'bun node_modules/.bin/vulcan sync' and commit it
+  [manifest] .agents/atlas.manifest.json: stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and run 'bun node_modules/.bin/vulcan sync' and commit it
 vulcan doctor: 1 violation(s)
 ```
 

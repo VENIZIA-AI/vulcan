@@ -19,7 +19,7 @@ import type { TReleaseKind } from './release-args.ts';
 export class GithubReleaseConstants {
   /** The release the atlas index publishes its pairs to. */
   static readonly ATLAS_INDEX_TAG = 'atlas-index';
-  static readonly MANIFEST = '.agents/vulcan.manifest.json';
+  static readonly MANIFEST = '.agents/atlas.manifest.json';
   static readonly DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
   static readonly DATE_HEADING = /^# Changelog - \d{4}-\d{2}-\d{2}\s*$/m;
   /** `## VULCAN X.Y.Z: title` or `## VULCAN 0.2.0-0: title`: the product and version prefix an older entry's heading carries; a heading with no prefix does not match and is left as written. */

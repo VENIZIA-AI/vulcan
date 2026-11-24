@@ -1,4 +1,8 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { ProjectLayout } from '../common/index.ts';
 import { ConfigLoader } from '../config/index.ts';
+import { ManifestConstants } from '../manifest/index.ts';
 import { OWNER_SCHEMA, OwnerCard, OwnerProfile, OwnerView, ReplySwitch } from '../owner/index.ts';
 
 /**
@@ -17,6 +21,8 @@ export class SessionDigest {
   }): Promise<string> {
     const loaded = await ConfigLoader.load({ root: opts.projectRoot });
     const configNote = ConfigLoader.unreadableNote({ loaded });
+    const isManifestMissing =
+      loaded.ok && !existsSync(join(opts.projectRoot, ManifestConstants.FILE));
     const lines = [
       '# VULCAN session',
       '',
@@ -24,6 +30,14 @@ export class SessionDigest {
       ...(configNote === undefined
         ? []
         : ['', '## Config problem', '', `This session: ${configNote}.`]),
+      ...(isManifestMissing
+        ? [
+            '',
+            '## Setup missing',
+            '',
+            `The local manifest is missing, so the guards run on their defaults: run \`${ProjectLayout.VULCAN_COMMAND} sync\` (or \`bun install\`) and restart the session.`,
+          ]
+        : []),
       '',
       "Use the project tmp folder (`$TMPDIR`) for scratch files, not the tool's offered scratchpad in /tmp; guard-outside refuses that.",
     ];
