@@ -18,7 +18,7 @@ export const SymbolInputSchema = z.object({
 
 export const IntentInputSchema = z.object({
   /** The need in plain words: "wait 500 ms", "react to a media query". */
-  query: z.string().min(1),
+  query: z.string().min(1).max(500),
   limit: z.number().int().min(1).max(10).optional(),
   /** The npm name of the package to look in. */
   package: z.string().min(1).optional(),

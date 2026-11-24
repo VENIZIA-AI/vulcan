@@ -38,6 +38,25 @@ const DECLARATIONS = [
   'export type TId = (typeof Ids)[keyof typeof Ids];',
   'export declare function pick(id: TId): void;',
   'export * as ns from "./other.js";',
+  '/** Promise helpers. */',
+  'export declare class PromiseUtility {',
+  '    /**',
+  '     * Waits.',
+  '     * @useWhen wait some milliseconds',
+  '     */',
+  '    static sleep(opts: { ms: number }): Promise<void>;',
+  '    static sleep(ms: number): Promise<void>;',
+  '    private static secret;',
+  '    protected static guarded(): void;',
+  '    static get now(): number;',
+  '    instance(): void;',
+  '}',
+  '/**',
+  ' * All the doors.',
+  ' *',
+  ' * @useWhen one import for every door',
+  ' */',
+  'export * as allDoors from "./other.js";',
   'export {};',
   '',
 ].join('\n');
@@ -112,6 +131,31 @@ describe('the declaration a symbol record keeps', () => {
   test('a module re-exported as a namespace has no declaration of its own, not the whole file', () => {
     expect(get('ns').declaration).toBeUndefined();
     expect(get('ns').doc).toBeUndefined();
+  });
+
+  test('a namespace export keeps the TSDoc written on the export statement', () => {
+    expect(get('allDoors').doc).toBe('All the doors.\n\n@useWhen one import for every door');
+    expect(get('allDoors').declaration).toBeUndefined();
+  });
+
+  test('a class keeps its public static members, one per name, each with its own doc', () => {
+    expect(get('PromiseUtility').members).toEqual([
+      {
+        name: 'sleep',
+        signature: 'static sleep(opts: { ms: number }): Promise<void>',
+        line: 28,
+        doc: 'Waits.\n@useWhen wait some milliseconds',
+      },
+      { name: 'now', signature: 'static get now(): number', line: 32, doc: '' },
+    ]);
+    expect(get('Ids').members).toEqual([
+      { name: 'A', signature: 'static readonly A', line: 17, doc: '' },
+    ]);
+    expect(get('Door').members).toBeUndefined();
+  });
+
+  test('a record of its own package is not marked re-exported', () => {
+    expect([...records.values()].some((record) => record.reExported === true)).toBe(false);
   });
 
   test('a variable declared with another keeps its own declaration', () => {
@@ -231,6 +275,7 @@ describe('a record of a source file never holds a value', () => {
     'declare function mixin(name: string): new () => object;\ninterface Marker<T> { value: T }',
     "export enum Level { Low = 'LEAK_ENUM' }",
     "export * as everything from './other.ts';",
+    "export class Statics {\n  static readonly TOKEN = 'LEAK_STATIC_FIELD';\n  static helper(a = 'LEAK_STATIC_DEFAULT'): string {\n    return 'LEAK_STATIC_BODY' + a;\n  }\n}",
   ].join('\n');
   const OTHER = "export const hidden = 'LEAK_OTHER_FILE';\n";
 
@@ -268,6 +313,7 @@ describe('a record of a source file never holds a value', () => {
       [
         'Level',
         'Named',
+        'Statics',
         'arrow',
         'body',
         'config',
@@ -280,6 +326,7 @@ describe('a record of a source file never holds a value', () => {
 
     for (const record of records) {
       expect(`${record.signature}\n${record.declaration ?? ''}`).not.toContain('LEAK');
+      expect(JSON.stringify(record.members ?? [])).not.toContain('LEAK');
     }
   });
 
@@ -291,6 +338,11 @@ describe('a record of a source file never holds a value', () => {
     expect(bySymbol.get('withDefault')).toBe('function withDefault(a?, { ... }?): void');
     expect(bySymbol.get('Named')).toBe('class Named<T> extends ... implements Marker<T>');
     expect(bySymbol.get('everything')).toBe('namespace everything');
+    expect(
+      recordsOfSource()
+        .find((record) => record.name === 'Statics')
+        ?.members?.map((member) => member.signature),
+    ).toEqual(['static readonly TOKEN', 'static helper(a?): string']);
   });
 });
 
@@ -309,5 +361,49 @@ describe('the exports of a source package that are and are not read', () => {
       { subpath: '.', types: './src/a.ts' },
       { subpath: './b', types: './src/b.ts' },
     ]);
+  });
+});
+
+describe('an export another package declares', () => {
+  test('is marked re-exported and points at the same declaration as the declaring package', () => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-re-export-'));
+
+    roots.push(root);
+
+    const files: Record<string, string> = {
+      'packages/kernel/package.json': JSON.stringify({
+        name: '@x/kernel',
+        version: '1.0.0',
+        exports: { '.': { types: './dist/index.d.ts' } },
+      }),
+      'packages/kernel/dist/index.d.ts':
+        '/** Waits. */\nexport declare function sleep(): Promise<void>;\n',
+      'packages/umbrella/package.json': JSON.stringify({
+        name: '@x/umbrella',
+        version: '1.0.0',
+        exports: { '.': { types: './dist/index.d.ts' } },
+      }),
+      'packages/umbrella/dist/index.d.ts': 'export * from "../../kernel/dist/index.js";\n',
+    };
+
+    for (const [path, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), text);
+    }
+
+    const records = AtlasSymbols.recordsOf({
+      repoRoot: root,
+      packages: ['kernel', 'umbrella'].map((dir) =>
+        PackageEntries.readDirectory({ directory: join(root, 'packages', dir) }),
+      ),
+    });
+    const kernel = records.find((record) => record.package === '@x/kernel');
+    const umbrella = records.find((record) => record.package === '@x/umbrella');
+
+    expect(kernel?.reExported).toBeUndefined();
+    expect(umbrella?.reExported).toBe(true);
+    expect(umbrella?.doc).toBe('Waits.');
+    expect(`${umbrella?.file}:${umbrella?.line}`).toBe(`${kernel?.file}:${kernel?.line}`);
+    expect(umbrella?.shape).toBe(kernel?.shape);
   });
 });

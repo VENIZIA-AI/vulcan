@@ -14,11 +14,11 @@ import type { IPackageMapEntry } from '@/common/package-map';
 import type { IPackageEntries } from '@/common/types';
 import { ProjectConfig } from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type TypeScript from 'typescript';
 import { PublicSurface } from '@/surface';
-import type { ISymbolRecord } from './common';
+import type { ISymbolMember, ISymbolRecord } from './common';
 import { DeclarationText } from './declaration-text';
 import { SourceSignature } from './source-signature';
 
@@ -199,6 +199,7 @@ export class AtlasSymbols {
               program,
               repoRoot: opts.repoRoot,
               packageName: item.manifest.name,
+              packageDirectory: item.directory,
               subpath: entry.subpath,
               file: entry.file,
             });
@@ -289,10 +290,14 @@ export class AtlasSymbols {
     program: DeclarationProgram;
     repoRoot: string;
     packageName: string;
+    packageDirectory: string;
     subpath: string;
     file: string;
   }): ISymbolRecord[] {
     const { repoRoot, packageName, subpath, file } = opts;
+    const packageDirectory = existsSync(opts.packageDirectory)
+      ? realpathSync(opts.packageDirectory)
+      : opts.packageDirectory;
     const { checker, moduleSymbol } = opts.program.moduleOf({ file });
 
     const specifier = subpath === '.' ? packageName : `${packageName}${subpath.slice(1)}`;
@@ -315,6 +320,18 @@ export class AtlasSymbols {
         !TypeScriptCompiler.get().isSourceFile(declaration)
           ? AtlasSymbols.textOf({ declaration, checker, name: symbol.getName() })
           : undefined;
+      const exportDoc = AtlasSymbols.exportDocOf({ symbol });
+      const doc =
+        exportDoc !== '' && (text === undefined || text.doc === '') ? exportDoc : text?.doc;
+      const members =
+        declaration !== undefined && !isExternal
+          ? AtlasSymbols.membersOf({ repoRoot, declaration })
+          : [];
+      const inside =
+        declaration === undefined
+          ? ''
+          : relative(packageDirectory, declaration.getSourceFile().fileName);
+      const isReExported = inside.startsWith('..') || isAbsolute(inside);
       const record: ISymbolRecord = {
         name: symbol.getName(),
         package: packageName,
@@ -331,13 +348,92 @@ export class AtlasSymbols {
             })
           : '',
         ...(declaration ? { shape: AtlasSymbols.shapeOf({ declaration }) } : {}),
-        ...(text === undefined
-          ? {}
-          : { declaration: text.declaration, doc: text.doc, uses: text.uses }),
+        ...(text === undefined ? {} : { declaration: text.declaration, uses: text.uses }),
+        ...(doc === undefined ? {} : { doc }),
+        ...(isReExported ? { reExported: true as const } : {}),
+        ...(members.length === 0 ? {} : { members }),
       };
 
       return isExternal ? { ...record, external: true } : record;
     });
+  }
+
+  /**
+   * The TSDoc written on the export statement itself (`export * as X from`, `export { X } from`); empty for a
+   * symbol declared where it is exported. It is the doc of a namespace export, and of a re-export whose target has none.
+   */
+  private static exportDocOf(opts: { symbol: TypeScript.Symbol }): string {
+    const compiler = TypeScriptCompiler.get();
+    const own = opts.symbol.getDeclarations()?.[0];
+
+    if (
+      own === undefined ||
+      !(opts.symbol.flags & compiler.SymbolFlags.Alias) ||
+      !(compiler.isNamespaceExport(own) || compiler.isExportSpecifier(own))
+    ) {
+      return '';
+    }
+
+    return DeclarationText.docOf({ declaration: own });
+  }
+
+  /**
+   * The public static members of a class, one per name (an overload set is its first signature, with the first doc
+   * of the set). A private, protected or `#` member is not part of the surface.
+   */
+  private static membersOf(opts: {
+    repoRoot: string;
+    declaration: TypeScript.Declaration;
+  }): ISymbolMember[] {
+    const compiler = TypeScriptCompiler.get();
+
+    if (!compiler.isClassDeclaration(opts.declaration)) {
+      return [];
+    }
+
+    const byName = new Map<string, ISymbolMember>();
+
+    for (const member of opts.declaration.members) {
+      const flags = compiler.getCombinedModifierFlags(member);
+      const name = member.name;
+      const isPublicStatic =
+        (flags & compiler.ModifierFlags.Static) !== 0 &&
+        (flags & (compiler.ModifierFlags.Private | compiler.ModifierFlags.Protected)) === 0;
+
+      if (
+        !isPublicStatic ||
+        name === undefined ||
+        !(compiler.isIdentifier(name) || compiler.isStringLiteral(name))
+      ) {
+        continue;
+      }
+
+      const signature = SourceSignature.memberOf({ member, name: name.text });
+
+      if (signature === undefined) {
+        continue;
+      }
+
+      const doc = DeclarationText.memberDocOf({ member });
+      const known = byName.get(name.text);
+
+      if (known !== undefined) {
+        if (known.doc === '' && doc !== '') {
+          byName.set(name.text, { ...known, doc });
+        }
+
+        continue;
+      }
+
+      byName.set(name.text, {
+        name: name.text,
+        signature: AtlasSymbols.collapseSignature({ text: signature }),
+        line: AtlasSymbols.locationOf({ repoRoot: opts.repoRoot, declaration: member }).line,
+        doc,
+      });
+    }
+
+    return [...byName.values()];
   }
 
   /**

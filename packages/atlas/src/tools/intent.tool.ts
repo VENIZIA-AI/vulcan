@@ -1,7 +1,7 @@
 import { AtlasConstants } from '@/common';
 import type { IToolHandler } from '@/protocol/common';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
-import type { ISymbolIndex, ISymbolRecord } from '@/symbols';
+import type { IIntentHit, ISymbolIndex, ISymbolRecord } from '@/symbols';
 import { SymbolIntent } from '@/symbols';
 import { z } from 'zod';
 import { IntentInputSchema, ToolInput, ToolTriggers } from './common';
@@ -31,15 +31,12 @@ interface IIntentHitReply {
   notInstalled?: true;
 }
 
-const importLine = (opts: { record: ISymbolRecord }): string =>
-  `import ${TYPE_KINDS.has(opts.record.kind) ? 'type ' : ''}{ ${opts.record.name} } from '${opts.record.specifier}';`;
+const importLine = (opts: { record: ISymbolRecord; importName: string }): string =>
+  `import ${TYPE_KINDS.has(opts.record.kind) ? 'type ' : ''}{ ${opts.importName} } from '${opts.record.specifier}';`;
 
-const replyOf = (opts: {
-  record: ISymbolRecord;
-  tags: ReturnType<typeof SymbolIntent.tagsOf>;
-}): IIntentHitReply => ({
+const replyOf = (opts: IIntentHit): IIntentHitReply => ({
   name: opts.record.name,
-  import: importLine({ record: opts.record }),
+  import: importLine(opts),
   specifier: opts.record.specifier,
   signature: opts.record.signature,
   ...opts.tags,
@@ -47,7 +44,7 @@ const replyOf = (opts: {
   line: opts.record.line,
   ...(opts.record.source === undefined ? {} : { source: opts.record.source }),
   ...(opts.record.origin !== undefined && opts.record.origin.installedAt === undefined
-    ? { notInstalled: true as const }
+    ? { notInstalled: true }
     : {}),
 });
 

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { Transport } from '@/protocol';
+import { SourceSymbols } from '@/sources/serving';
 import { SymbolIntent, SymbolStore } from '@/symbols';
 import type { ISymbolRecord } from '@/symbols';
 import { IntentTool } from '@/tools/intent.tool';
@@ -77,6 +78,63 @@ describe('SymbolIntent.tagsOf', () => {
   });
 });
 
+describe('SymbolIntent, code fences', () => {
+  const FENCED = [
+    'Registers a controller.',
+    '```ts',
+    '@controller({ path: "/early" })',
+    '```',
+    'Still prose.',
+    '@useWhen an app needs a route',
+    '@example',
+    '```ts',
+    '@controller({ path: "/users" })',
+    'export class UserController {}',
+    '```',
+    '@insteadOf a hand-written router',
+  ].join('\n');
+
+  test('a decorator inside a fence belongs to the example, never starts a tag', () => {
+    const tags = SymbolIntent.tagsOf({ doc: FENCED });
+
+    expect(tags.example).toBe(
+      '```ts\n@controller({ path: "/users" })\nexport class UserController {}\n```',
+    );
+    expect(tags.useWhen).toBe('an app needs a route');
+    expect(tags.insteadOf).toBe('a hand-written router');
+  });
+
+  test('a fence in the prose does not end the prose', () => {
+    const prose = SymbolIntent.proseOf({ doc: FENCED });
+
+    expect(prose).toContain('@controller({ path: "/early" })');
+    expect(prose).toContain('Still prose.');
+    expect(prose).not.toContain('an app needs a route');
+  });
+});
+
+describe('SymbolIntent.tokensOf', () => {
+  test('a TPascal or IPascal name splits after its prefix letter', () => {
+    expect(SymbolIntent.tokensOf({ text: 'TNullable' })).toEqual(['t', 'nullable']);
+    // `i` is a stop word; split or not, `request` and `context` are words of their own.
+    expect(SymbolIntent.tokensOf({ text: 'IRequestContext' })).toEqual(['request', 'context']);
+  });
+
+  test('"nullable type" finds TNullable first among the type helpers', () => {
+    const hits = SymbolIntent.rank({
+      records: [
+        record({ name: 'TNullable', kind: 'type', doc: 'A value or null.' }),
+        record({ name: 'ValueOf', kind: 'type', doc: 'The values of an object type.' }),
+        record({ name: 'TConstValue', kind: 'type', doc: 'The value type of a const class.' }),
+      ],
+      query: 'nullable type',
+      limit: 3,
+    });
+
+    expect(hits[0].record.name).toBe('TNullable');
+  });
+});
+
 describe('the intent tool', () => {
   test('a need in plain words names the export, with its import line and what it replaces', async () => {
     const answer = await call({ query: 'I need to react to a screen size media query' });
@@ -127,6 +185,88 @@ describe('the intent tool', () => {
     expect(answer.hits[0].notInstalled).toBe(true);
   });
 
+  test('one declaration reached through several entries is one hit, imported from the declaring package', async () => {
+    const same = { name: 'useSleep', doc: '@useWhen wait before the next step', shape: 'abc' };
+    const answer = await call({ query: 'wait before the next step' }, [
+      record({ ...same, package: '@venizia/ardor', specifier: '@venizia/ardor', reExported: true }),
+      record({ ...same, package: '@venizia/ardor-kernel', specifier: '@venizia/ardor-kernel' }),
+      record({
+        ...same,
+        package: '@venizia/ardor-kernel',
+        subpath: './hooks',
+        specifier: '@venizia/ardor-kernel/hooks',
+      }),
+    ]);
+
+    expect(answer.hits).toHaveLength(1);
+    expect(answer.hits[0].import).toBe("import { useSleep } from '@venizia/ardor-kernel/hooks';");
+  });
+
+  test('a subpath wins over the root, the shorter subpath next, then the specifier; same file:line merges without a shape', async () => {
+    const same = {
+      name: 'sleep',
+      doc: '@useWhen wait',
+      file: 'packages/helpers/src/p.ts',
+      line: 3,
+    };
+    const entries = ['.', './common', './core', './utilities/all'].map((subpath) =>
+      record({
+        ...same,
+        package: '@x/helpers',
+        subpath,
+        specifier: subpath === '.' ? '@x/helpers' : `@x/helpers${subpath.slice(1)}`,
+      }),
+    );
+    const forward = await call({ query: 'wait' }, entries);
+    const backward = await call({ query: 'wait' }, [...entries].reverse());
+
+    expect(forward.hits).toHaveLength(1);
+    expect(forward.hits[0].specifier).toBe('@x/helpers/core');
+    expect(backward.hits[0].specifier).toBe('@x/helpers/core');
+  });
+
+  test('two different declarations of one name stay two hits', async () => {
+    const answer = await call({ query: 'wait' }, [
+      record({ name: 'sleep', doc: '@useWhen wait', file: 'a.ts' }),
+      record({ name: 'sleep', doc: '@useWhen wait', file: 'b.ts', package: '@other/pkg' }),
+    ]);
+
+    expect(answer.hits).toHaveLength(2);
+  });
+
+  test('a public static member is its own hit, with its tags and the class import line', async () => {
+    const answer = await call({ query: 'wait some milliseconds' }, [
+      record({
+        name: 'PromiseUtility',
+        kind: 'class',
+        specifier: '@x/helpers/common',
+        doc: 'Promise helpers.',
+        members: [
+          {
+            name: 'sleep',
+            signature: 'static sleep(opts: { ms: number }): Promise<void>',
+            line: 12,
+            doc: 'Waits.\n@useWhen wait some milliseconds before going on\n@example\nawait PromiseUtility.sleep({ ms: 5 });',
+          },
+        ],
+      }),
+      record({ name: 'Plain' }),
+    ]);
+
+    expect(answer.hits[0].name).toBe('PromiseUtility.sleep');
+    expect(answer.hits[0].import).toBe("import { PromiseUtility } from '@x/helpers/common';");
+    expect(answer.hits[0].signature).toBe('static sleep(opts: { ms: number }): Promise<void>');
+    expect(answer.hits[0].line).toBe(12);
+    expect(answer.hits[0].useWhen).toBe('wait some milliseconds before going on');
+    expect(answer.hits[0].example).toBe('await PromiseUtility.sleep({ ms: 5 });');
+  });
+
+  test('a query over 500 characters is refused', async () => {
+    const answer = await call({ query: 'x'.repeat(501) });
+
+    expect(answer.error).toBeDefined();
+  });
+
   test('over the budget the example goes first, then trailing hits, and one hit always stays', async () => {
     const long = 'x'.repeat(900);
     const many = Array.from({ length: 6 }, (_, at) =>
@@ -137,5 +277,33 @@ describe('the intent tool', () => {
 
     expect(text.length).toBeLessThanOrEqual(2000);
     expect(answer.hits.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('the records intent ranks stay the same objects while the table is the same', () => {
+  test('a store hands out one array per load, and a new one after its table is read again', () => {
+    let version = 'one';
+    const store = new SymbolStore({
+      load: () => ({ symbols: [record({ name: `use${version}` })], packageMap: [] }),
+      fingerprint: () => version,
+    });
+    const first = store.all();
+
+    expect(store.all()).toBe(first);
+
+    version = 'two';
+
+    expect(store.all()).not.toBe(first);
+    expect(store.all()[0].name).toBe('usetwo');
+  });
+
+  test('several sources name their records once per table', () => {
+    const symbols = new SourceSymbols({
+      sources: [{ name: 'ardor', symbols: new SymbolStore({ symbols: SYMBOLS }) }],
+    });
+    const first = symbols.all();
+
+    expect(first[0].source).toBe('ardor');
+    expect(symbols.all()[0]).toBe(first[0]);
   });
 });

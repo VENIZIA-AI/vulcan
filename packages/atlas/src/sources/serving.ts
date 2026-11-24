@@ -259,6 +259,8 @@ export class SourceReleases {
 /** One symbol store per source, served as one: every record names its source. */
 export class SourceSymbols {
   private readonly sources: { name: string; symbols: SymbolStore }[];
+  /** Each store table with its source named, kept while the store hands out the same table. */
+  private readonly named = new WeakMap<ISymbolRecord[], ISymbolRecord[]>();
 
   constructor(opts: { sources: { name: string; symbols: SymbolStore }[] }) {
     this.sources = opts.sources;
@@ -279,9 +281,20 @@ export class SourceSymbols {
   }
 
   all(): ISymbolRecord[] {
-    return this.sources.flatMap((source) =>
-      source.symbols.all().map((record) => ({ ...record, source: source.name })),
-    );
+    return this.sources.flatMap((source) => {
+      const records = source.symbols.all();
+      const known = this.named.get(records);
+
+      if (known !== undefined) {
+        return known;
+      }
+
+      const named = records.map((record) => ({ ...record, source: source.name }));
+
+      this.named.set(records, named);
+
+      return named;
+    });
   }
 
   suggest(opts: { name: string; limit?: number }): string[] {
