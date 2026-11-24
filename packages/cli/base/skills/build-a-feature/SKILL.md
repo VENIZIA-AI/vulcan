@@ -60,6 +60,7 @@ For each layer the feature touches, find how this project already does it:
 |---|---|
 | How a feature of this kind is organised (routes, controllers, services, repositories, datasources, pages) | `search` with the kind and the layer, then `get` on the best hits |
 | The project's own concepts and decisions | `search` with `corpus: "knowledge"` |
+| A helper, hook or utility you were about to write by hand | `intent` with the need in plain words ("wait 500 ms", "react to a media query"); a hit gives the import line and an example, a miss is recorded in the plan before anything is hand-written |
 | A new app or a shared package | `presets`, then the exact `vulcan add` command it returns |
 | What changed in a release you depend on | `changes`, `version` |
 
@@ -69,7 +70,7 @@ point **unverified**.
 
 Then list what already exists for the feature before you design anything: the code and precedent in
 this repository, what the framework provides (its `symbol` and `search` hits), what the runtime and
-the installed libraries already do. Say, per piece of the feature, "reused: X" or "new: why nothing
+the installed libraries already do (ask `intent` first for each helper you would otherwise write). Say, per piece of the feature, "reused: X" or "new: why nothing
 above covers it" (V-P-08).
 
 Done when each layer has a quoted atlas hit, or is marked unverified, and each piece is marked reused or new.

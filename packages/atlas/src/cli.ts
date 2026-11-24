@@ -336,7 +336,7 @@ const main = async (): Promise<void> => {
 
     process.stdout.write(AtlasStatus.report({ root: statusRoot, cacheDir: statusCache }));
     process.exitCode = AtlasStatus.problemsOf({ root: statusRoot, cacheDir: statusCache }).some(
-      (problem) => problem.kind === 'failed' || problem.kind === 'hung',
+      (problem) => problem.type === 'failed' || problem.type === 'hung',
     )
       ? 1
       : 0;

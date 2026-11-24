@@ -278,6 +278,12 @@ export class SourceSymbols {
     );
   }
 
+  all(): ISymbolRecord[] {
+    return this.sources.flatMap((source) =>
+      source.symbols.all().map((record) => ({ ...record, source: source.name })),
+    );
+  }
+
   suggest(opts: { name: string; limit?: number }): string[] {
     const names = [...new Set(this.sources.flatMap((source) => source.symbols.suggest(opts)))];
 

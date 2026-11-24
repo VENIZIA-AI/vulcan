@@ -65,4 +65,6 @@ export interface ISymbolIndex {
   isEmpty(): boolean;
   lookup(opts: { name: string; package?: string }): ISymbolRecord[];
   suggest(opts: { name: string; limit?: number }): string[];
+  /** Every record, for the tool that ranks them by what they are for. */
+  all(): ISymbolRecord[];
 }

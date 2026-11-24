@@ -1,4 +1,3 @@
-import { AtlasStatus } from '@venizia/vulcan-atlas';
 import { Glob } from 'bun';
 import { spawnSync } from 'node:child_process';
 import {
@@ -36,7 +35,7 @@ import {
 import { BrowserSocket, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
 import { PrivateValues } from './private-values.ts';
 import { ReplySwitch, OwnerConstants, OwnerReplySwitch, OwnerProfile } from '../owner/index.ts';
-import { SkillCatalog, VersionFolders } from '@venizia/vulcan-atlas';
+import { AtlasStatus, SkillCatalog, VersionFolders } from '@venizia/vulcan-atlas';
 import { LocalSettings } from '../common/local-settings.ts';
 import { HookConstants, ProjectTmp } from '../hooks/index.ts';
 import { DoctorChecks, DoctorConstants, PrivateValueKinds } from './common/index.ts';
@@ -764,7 +763,7 @@ export class ProjectContract {
    */
   static checkAtlasSources(opts: ICheckContext): IViolation[] {
     const problems = AtlasStatus.problemsOf({ root: opts.root }).filter(
-      (problem) => problem.kind !== 'abandoned',
+      (problem) => problem.type !== 'abandoned',
     );
 
     return problems.length === 0
@@ -772,9 +771,9 @@ export class ProjectContract {
       : [
           createViolation({
             check: DoctorChecks.ATLAS_SOURCE,
-            file: '.agents/local/cache/atlas/status.json',
+            file: AtlasStatus.recordFileOf({ root: opts.root }),
             message: `an atlas source is not served as it should be: ${problems
-              .map((problem) => `${problem.source}: ${problem.kind} (${problem.detail})`)
+              .map((problem) => `${problem.source}: ${problem.type} (${problem.detail})`)
               .join(
                 ' | ',
               )} - run \`${ProjectLayout.VULCAN_COMMAND} x atlas status\` for the record`,

@@ -17,6 +17,7 @@ import {
   GetTool,
   MigrateTool,
   PresetsTool,
+  IntentTool,
   SearchTool,
   SymbolTool,
   VersionTool,
@@ -146,6 +147,8 @@ const remoteTarget = (opts: {
   served: IResolvedSource;
   cwd: string;
   resolve: (source: IAtlasSource) => Promise<IResolvedSource>;
+  /** True while the boot's child is still building this source. */
+  isBusy?: () => boolean;
 }): IRefreshTarget | undefined => {
   let { served } = opts;
   const { declared } = served;
@@ -156,6 +159,11 @@ const remoteTarget = (opts: {
 
   return {
     refresh: async () => {
+      // A child of the boot is still pulling this source: a second pull would overlap it, and the build replaces what is served.
+      if (opts.isBusy?.() === true) {
+        return;
+      }
+
       const next = await opts.resolve(declared);
 
       if (
@@ -261,7 +269,17 @@ export class SourcesServer {
     const makeTarget = (opts2: { entry: TLiveEntry; source: IResolvedSource }) =>
       opts2.source.mode === 'repository'
         ? repositoryTarget(opts2)
-        : remoteTarget({ entry: opts2.entry, served: opts2.source, cwd: opts.cwd, resolve });
+        : remoteTarget({
+            entry: opts2.entry,
+            served: opts2.source,
+            cwd: opts.cwd,
+            resolve,
+            isBusy: () =>
+              boot
+                ?.progress()
+                .some((item) => item.source === opts2.source.name && item.state === 'building') ===
+              true,
+          });
     const targetOf = new Map<string, IRefreshTarget>();
     const targets = opts.sources.flatMap((source, index): IRefreshTarget[] => {
       const target = makeTarget({ entry: stores[index], source });
@@ -367,6 +385,7 @@ export class SourcesServer {
     const transport = new Transport({
       tools: [
         guarded(SearchTool.build({ store: chunks, symbols, projects })),
+        guarded(IntentTool.build({ symbols, projects })),
         guarded(GetTool.build({ store: chunks })),
         guarded(SymbolTool.build({ store: chunks, symbols, projects })),
         guarded(VersionTool.build({ releases, projects })),

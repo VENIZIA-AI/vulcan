@@ -160,6 +160,13 @@ export class SymbolStore extends BaseHelper {
     );
   }
 
+  /** Every record of the loaded table. */
+  all(): ISymbolRecord[] {
+    this.ensureLoaded();
+
+    return [...this.byExactName.values()].flat();
+  }
+
   /** The closest known names to `name`: prefix matches first, then substrings, then near-misses. */
   suggest(opts: { name: string; limit?: number }): string[] {
     this.ensureLoaded();

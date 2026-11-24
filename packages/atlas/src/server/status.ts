@@ -36,7 +36,7 @@ export interface ISourceRecord {
 export interface ISourceProblem {
   source: string;
   /** `failed`: never served; `refresh-failed`: served from an older index, the last check failed; `hung`: building too long by a live server; `abandoned`: building, but the server that began it is gone. */
-  kind: 'failed' | 'refresh-failed' | 'hung' | 'abandoned';
+  type: 'failed' | 'refresh-failed' | 'hung' | 'abandoned';
   detail: string;
 }
 
@@ -202,7 +202,7 @@ export class SourceStatus {
         return [
           {
             source: name,
-            kind: entry.resolved === undefined ? 'failed' : 'refresh-failed',
+            type: entry.resolved === undefined ? 'failed' : 'refresh-failed',
             detail: entry.error ?? 'no reason recorded',
           },
         ];
@@ -211,10 +211,10 @@ export class SourceStatus {
       if (entry.state === 'building' && opts.now - entry.since > STUCK_MS) {
         return [
           entry.pid !== undefined && alive({ pid: entry.pid })
-            ? { source: name, kind: 'hung', detail: 'building for over 10 minutes' }
+            ? { source: name, type: 'hung', detail: 'building for over 10 minutes' }
             : {
                 source: name,
-                kind: 'abandoned',
+                type: 'abandoned',
                 detail: 'its server is gone; the next start builds it again',
               },
         ];

@@ -71,7 +71,7 @@ describe('vulcan x atlas status: what the last server run recorded', () => {
   const live = (): boolean => true;
   const kinds = (opts: { root: string; now: number; alive?: () => boolean }) =>
     AtlasStatus.problemsOf({ ...opts, alive: opts.alive ?? dead }).map(
-      (problem) => `${problem.source}:${problem.kind}`,
+      (problem) => `${problem.source}:${problem.type}`,
     );
 
   test('says nothing was recorded when no server has started, and is no problem', () => {

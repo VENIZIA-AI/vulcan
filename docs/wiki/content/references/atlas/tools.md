@@ -1,17 +1,18 @@
 ---
 title: atlas tools
-description: Arguments, schemas, and return formats for the seven atlas MCP tools.
+description: Arguments, schemas, and return formats for the eight atlas MCP tools.
 ---
 
 # atlas tools
 
-atlas provides seven MCP tools for search, retrieval, code inspection, release tracking, migration plans, and creating apps and packages.
+atlas provides eight MCP tools for search, retrieval, code inspection by name and by intent, release tracking, migration plans, and creating apps and packages.
 Agents call these tools over JSON-RPC 2.0 stdio.
 
 | Tool | Required arguments |
 |---|---|
 | `search` | `query` |
 | `get` | `id` |
+| `intent` | `query` |
 | `symbol` | `name` |
 | `version` | None |
 | `changes` | None |
@@ -120,6 +121,21 @@ unknown id; ids come from search
 ```
 
 If `cursor` is malformed or out of range, `get` returns error `-32602` with message `invalid cursor`.
+
+## intent
+
+`intent` finds the export that already does what you need, from the need in plain words. It reads the TSDoc tags the packages write on their exports: `@useWhen` (the situation in the user's words), `@insteadOf` (what an app writes by hand instead, free text) and the first `@example`. Ranking is BM25 over `@useWhen` (weight 4), `@insteadOf` (3), the name (2) and the prose (1); an export without the tags is still found by its name and prose, ranked lower. There are no embeddings and no network, and no index format moved: the tags are read from the `doc` the symbol table already holds.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `query` | String | None (required) | The need in plain words |
+| `limit` | Integer 1 to 10 | 5 | Hits to return |
+| `package` | String | All | An npm package name to look in |
+| `source` | String | All | One source to look in |
+
+Each hit has `name`, `import` (`import { name } from 'specifier';`, `import type` for a type), `specifier`, `signature`, `useWhen`, `insteadOf`, `example`, `file`, `line`, the `source` when atlas serves more than one, and `notInstalled: true` when the package is not installed in the project and the hit comes from its newest published release. Over the reply budget the examples go first, then the last hits; one hit always stays.
+
+A miss is not an error: it answers `hits: []` and up to five `closest` names. Follow a hit with `symbol` for the full declaration.
 
 ## symbol
 
@@ -408,6 +424,7 @@ To inspect tool declarations without an MCP client, run `vulcan x atlas tools`:
 $ bun node_modules/.bin/vulcan x atlas tools
 search   When the user asks how something works in demo-app, how to build something in it, or about this project's conventions, search here before you answer from memory
 get      After `search`, read the hit here before you rely on it
+intent   When you are about to write a helper, a hook or a utility by hand, or the user asks how to do something with demo-app, say the need in plain words here first: it names the export that already does it
 symbol   Before you import or call an export of demo-app, get its real signature, import path and source line here instead of recalling it
 version  When a version, an upgrade or an installed @venizia/* package comes up in demo-app, check here
 changes  When the user asks what changed, what a release added or what breaks on upgrade in demo-app, list the entries here

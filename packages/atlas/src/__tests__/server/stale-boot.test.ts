@@ -479,3 +479,57 @@ describe('a server that starts with a recorded source', () => {
     expect(from(second)).toBe(from(first));
   });
 });
+
+describe('the refresher and a source whose child is still building', () => {
+  test('skips the pull while the boot builds the source, and looks again once it is done', async () => {
+    process.env.VULCAN_ATLAS_CALL_WAIT_SECONDS = '0';
+
+    const { cwd, source } = world();
+    const landed = await SourceResolver.resolveRemote({ source, cwd, cacheDir });
+    const memory = new FileSourceMemory({ cwd, cacheBase: cacheDir });
+
+    memory.record({ source, entry: { state: 'ready', since: 1, resolved: landed } });
+
+    const { resolved } = await SourceResolver.resolveServable({ cwd, cacheDir, sources: [] });
+    const held = gate<IResolvedSource>();
+    let pulls = 0;
+    let clock = 0;
+    const boot = new SourceBoot({ sources: [source], memory, indexer: () => held.promise });
+    const server = SourcesServer.build({
+      sources: resolved,
+      cwd,
+      version: '0.0.0',
+      boot,
+      refresh: {
+        intervalMs: 10,
+        now: () => clock,
+        resolve: async () => {
+          pulls += 1;
+
+          return landed;
+        },
+      },
+    });
+    const poke = async (): Promise<void> => {
+      clock += 100;
+      await server.handleLine({
+        line: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'presets', arguments: {} },
+        }),
+      });
+      await Bun.sleep(20);
+    };
+
+    // Stale is being served and the child is building: no overlapping pull.
+    await poke();
+    expect(pulls).toBe(0);
+
+    held.release(landed);
+    await boot.fresh;
+    await poke();
+    expect(pulls).toBe(1);
+  });
+});
