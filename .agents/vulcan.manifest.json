@@ -1,0 +1,123 @@
+{
+  "$generated": "by vulcan sync from .configs/vulcan.config.* - do not edit",
+  "schemaVersion": 1,
+  "name": "vulcan",
+  "packages": [
+    {
+      "name": "@venizia/vulcan-okf",
+      "dir": "okf",
+      "path": "packages/okf",
+      "aliases": [],
+      "retired": false
+    },
+    {
+      "name": "@venizia/vulcan-atlas",
+      "dir": "atlas",
+      "path": "packages/atlas",
+      "aliases": [],
+      "retired": false
+    },
+    {
+      "name": "@venizia/vulcan",
+      "dir": "cli",
+      "path": "packages/cli",
+      "aliases": [],
+      "retired": false
+    }
+  ],
+  "presets": [
+    {
+      "spec": "ignis",
+      "side": "backend",
+      "summary": "IGNIS: a backend app on Bun",
+      "lib": "IGNIS: a shared library"
+    },
+    {
+      "spec": "ardor",
+      "side": "frontend",
+      "summary": "ARDOR: a frontend app on Vite and React",
+      "lib": "ARDOR: a shared feature package"
+    }
+  ],
+  "knowledge": {
+    "bundle": ".agents/knowledge",
+    "wiki": "docs/wiki/content",
+    "changelogs": "docs/wiki/content/changelogs",
+    "migrationFrom": "0.4.5",
+    "datedUntil": "2026-11-14"
+  },
+  "release": {
+    "tagPattern": "vulcan-v<version>",
+    "legacyTagPatterns": ["v<version>"],
+    "ignoreTags": []
+  },
+  "sources": [
+    {
+      "name": "ignis",
+      "repo": "VENIZIA-AI/ignis",
+      "ref": "develop"
+    },
+    {
+      "name": "ardor",
+      "repo": "VENIZIA-AI/ardor",
+      "ref": "develop"
+    }
+  ],
+  "atlas": {
+    "index": {
+      "keys": ["RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ="]
+    }
+  },
+  "theme": {
+    "accent": "#8a5a20",
+    "accentDark": "#dead6a",
+    "preset": "venizia",
+    "tokens": {
+      "light": {
+        "ground": "#f6f6f7",
+        "bg": "#ffffff",
+        "line": "#e2e2e3",
+        "line-strong": "#101010",
+        "ink": "#000000",
+        "body": "#4b4b4b",
+        "muted": "#6b6b6b",
+        "ok": "#067647",
+        "ok-soft": "#e7f5ee",
+        "wait": "#8a4b00",
+        "wait-soft": "#fdf1dc",
+        "fail": "#b42318",
+        "fail-soft": "#fdecea",
+        "info": "#175cd3",
+        "info-soft": "#eff8ff",
+        "accent": "#8a5a20",
+        "accent-ink": "#ffffff",
+        "accent-soft": "#f5ecdf",
+        "accent-text": "#8a5a20"
+      },
+      "dark": {
+        "ground": "#1b1b1f",
+        "bg": "#202127",
+        "line": "#2e2e32",
+        "line-strong": "#ffffff4d",
+        "ink": "#ffffff",
+        "body": "#ffffffb3",
+        "muted": "#ffffff8c",
+        "ok": "#47cd89",
+        "ok-soft": "#14291f",
+        "wait": "#fdb022",
+        "wait-soft": "#33270f",
+        "fail": "#f97066",
+        "fail-soft": "#3a1d1a",
+        "info": "#84caff",
+        "info-soft": "#102a43",
+        "accent": "#dead6a",
+        "accent-ink": "#1a1200",
+        "accent-soft": "#33281a",
+        "accent-text": "#dead6a"
+      }
+    },
+    "font": "'Inter Display', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    "mono": "'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace",
+    "radius": "4px"
+  }
+}

@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { ProjectContract } from '../../doctor/checks.ts';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
-import { SyncPlanner } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -62,44 +61,37 @@ describe('the descriptor and the local manifest', () => {
     expect(descriptor.theme).toBeDefined();
   });
 
-  test('sync writes the local manifest and the descriptor, and nothing at the old path', () => {
+  test('sync writes the local manifest, the descriptor, and a data-only copy of the descriptor at the old path', () => {
     const root = project();
     const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
     expect(run.code, run.stderr).toBe(0);
     expect(existsSync(join(root, ManifestConstants.FILE))).toBe(true);
     expect(existsSync(join(root, ManifestConstants.DESCRIPTOR_FILE))).toBe(true);
-    expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(false);
+    expect(readFileSync(join(root, ManifestConstants.LEGACY_FILE), 'utf8')).toBe(
+      readFileSync(join(root, ManifestConstants.DESCRIPTOR_FILE), 'utf8'),
+    );
+    expect(
+      Object.keys(JSON.parse(readFileSync(join(root, ManifestConstants.LEGACY_FILE), 'utf8'))),
+    ).not.toContain('guard');
     expect(JSON.parse(readFileSync(join(root, ManifestConstants.FILE), 'utf8')).guard.outside).toBe(
       'deny',
     );
   });
 
-  test('a manifest of the earlier release that git does not track is removed by sync', () => {
-    const root = project({ legacy: '{"old":true}\n' });
-
-    Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
-
+  test('an old manifest (the earlier release, with policy) is replaced by the data-only copy, never removed', () => {
+    const root = project({ legacy: '{"old":true,"guard":{"outside":"ask"}}\n' });
     const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const copy = JSON.parse(readFileSync(join(root, ManifestConstants.LEGACY_FILE), 'utf8'));
 
     expect(run.code, run.stderr).toBe(0);
-    expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(false);
+    expect(copy.old).toBeUndefined();
+    expect(copy.guard).toBeUndefined();
+    expect(copy.name).toBe('acme');
   });
 
-  test('one that git tracks is never removed: sync skips it, and doctor names the git command', () => {
-    const root = project({ legacy: '{"old":true}\n' });
-
-    Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
-    Bun.spawnSync(['git', 'add', '-f', ManifestConstants.LEGACY_FILE], { cwd: root });
-
-    const action = SyncPlanner.planManifest(configOf(root)).find(
-      (entry) => entry.path === join(root, ManifestConstants.LEGACY_FILE),
-    );
-
-    expect(action?.status).toBe('skipped');
-    action?.apply();
-    expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(true);
-
+  test('doctor names the temporary copy: missing or stale, commit it, kept until the stable release', () => {
+    const root = project();
     const found = ProjectContract.checkManifest({
       root,
       config: configOf(root).config,
@@ -107,19 +99,8 @@ describe('the descriptor and the local manifest', () => {
     }).filter((entry) => entry.file === ManifestConstants.LEGACY_FILE);
 
     expect(found).toHaveLength(1);
-    expect(found[0]?.message).toContain('git rm .agents/vulcan.manifest.json');
-  });
-
-  test('where git cannot say (not a repository) the old file is left alone and the note says so', () => {
-    const root = project({ legacy: '{"old":true}\n' });
-    const action = SyncPlanner.planManifest(configOf(root)).find(
-      (entry) => entry.path === join(root, ManifestConstants.LEGACY_FILE),
-    );
-
-    expect(action?.status).toBe('skipped');
-    expect(action?.note).toContain('could not say');
-    action?.apply();
-    expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(true);
+    expect(found[0]?.message).toContain('temporary copy');
+    expect(found[0]?.message).toContain('commit it');
   });
 
   test('doctor asks for the descriptor to be committed and the local manifest only to be synced', () => {

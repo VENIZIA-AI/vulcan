@@ -376,18 +376,20 @@ export class ProjectContract {
       .map((action) => {
         const file = relative(opts.root, action.path);
         const sync = `run '${ProjectLayout.VULCAN_COMMAND} sync'`;
-        const isCommitted = file === ManifestConstants.DESCRIPTOR_FILE;
+        const isCommitted = file !== ManifestConstants.FILE;
         const fix = isCommitted ? `${sync} and commit it` : sync;
+        const temporary =
+          file === ManifestConstants.LEGACY_FILE
+            ? ' (a temporary copy of the descriptor for atlas of 0.5.0-6 and before, kept until the stable 0.5.0 release)'
+            : '';
 
         return createViolation({
           check: DoctorChecks.MANIFEST,
           file,
           message:
-            action.note !== undefined
-              ? `${action.note}${action.status === SyncStatuses.REMOVED ? ` - ${sync}` : ''}`
-              : action.status === SyncStatuses.CREATED
-                ? `missing - ${fix}`
-                : `stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and ${fix}`,
+            action.status === SyncStatuses.CREATED
+              ? `missing${temporary} - ${fix}`
+              : `stale against the config, or edited by hand${temporary} - the manifest is generated, never edit it: edit .configs/vulcan.config.* and ${fix}`,
         });
       });
   }
