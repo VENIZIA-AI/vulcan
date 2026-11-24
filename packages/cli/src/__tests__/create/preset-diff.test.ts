@@ -251,7 +251,7 @@ describe('vulcan package diff', () => {
 
   /** The config records the preset by an npm spec, as init --preset ignis does, instead of the file: folder. */
   const recordNpmSpec = (opts: { root: string; spec: string }): void => {
-    const config = join(opts.root, '.configs/vulcan.config.mts');
+    const config = join(opts.root, '.configs/vulcan/project.mts');
 
     writeFileSync(
       config,
@@ -316,7 +316,7 @@ describe('vulcan package diff', () => {
     recordNpmSpec({ root, spec: '@fixture/backend@^1.2.0' });
     installInApp({ root, preset });
 
-    const config = join(root, '.configs/vulcan.config.mts');
+    const config = join(root, '.configs/vulcan/project.mts');
     const source = readFileSync(config, 'utf8');
     const record = /\{\s*"spec": "@fixture\/backend@\^1\.2\.0"[^}]*\}/.exec(source)?.[0] ?? '';
 
@@ -370,7 +370,7 @@ describe('vulcan package diff', () => {
 /** The monorepo of a library or shared package: its own copy of the preset with app, lib and shared kinds. */
 const WITH_SHARED_PATH = join(FIXTURES, 'preset-with-shared');
 const WITH_LIB_PATH = join(FIXTURES, 'preset-with-lib');
-const CONFIG = '.configs/vulcan.config.mts';
+const CONFIG = '.configs/vulcan/project.mts';
 
 interface ILibraryMonorepo {
   root: string;

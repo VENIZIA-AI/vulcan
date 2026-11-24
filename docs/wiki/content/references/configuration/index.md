@@ -40,7 +40,7 @@ export default defineConfig({
 
 Both shapes load the same way: the config is a module, and what it imports is read with it.
 
-**One file.** Every group in `.configs/vulcan.config.mts`, as above. A monorepo made by `vulcan project init --preset` has this shape, written in groups (its apps block, which `vulcan package add` rewrites, stays in that file), and so can any project.
+**One file.** Every group in `.configs/vulcan.config.mts`, as above; any project can have this shape.
 
 **Split.** What `vulcan project init` writes: one module per group in `.configs/vulcan/`, each `satisfies` its group type, re-exported by `.configs/vulcan/index.mts`, and a config that composes them:
 
@@ -74,6 +74,8 @@ export default {
 ```
 
 `vulcan config codemod config-groups --split --write` makes the same shape from an existing config, with its values and comments.
+
+A monorepo made by `vulcan project init --preset` is split too: `project.mts` holds the `vulcan:apps` block (as `export const apps`), and `project`, and `knowledge.mts` read it. `vulcan package add` and `vulcan package diff` find the block in `.configs/vulcan.config.mts` or in `.configs/vulcan/project.mts`, only inside `.configs/` (a link out of it is not read), and refuse with the lines to add by hand when it is in neither.
 
 - A module is typed by its group (`VulcanConfig.Project`, `.Agent`, `.Guard`, `.Board`, `.Knowledge`, `.Check`, `.Common`); a module of the 0.5.0-7 and -8 scaffolds typed `VulcanConfig['claude']` (or `['doctor']`, `['okf']`, `['packages']`) is typed `VulcanConfig.Agent['claude']`, `VulcanConfig.Check['doctor']`, `VulcanConfig.Knowledge['okf']`, `VulcanConfig.Project['packages']` now: the old form no longer type-checks, because `VulcanConfig` is the grouped shape or the flat one; the flat file of the earlier releases is read until the release that refuses it.
 - A `packages` that is `undefined` counts as not written: the packages are derived from the workspaces, as when the key is left out.

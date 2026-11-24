@@ -175,13 +175,17 @@ export default {
   });
 
   test('the config vulcan project init writes is in order', () => {
-    const text = WorkspaceDocs.renderVulcanConfig({
+    const files = WorkspaceDocs.renderSplitConfig({
       project: 'demo',
       key: 'DEMO',
       block: { layout: {}, packages: [], presets: [], sources: [] },
     });
 
-    expect(format({ text })).toMatchObject({ ok: true, moved: [] });
+    expect(files.map((file) => file.path)).toContain('.configs/vulcan/project.mts');
+
+    for (const file of files.filter((entry) => entry.path === '.configs/vulcan.config.mts')) {
+      expect(format({ text: file.content }), file.path).toMatchObject({ ok: true, moved: [] });
+    }
   });
 });
 

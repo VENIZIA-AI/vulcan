@@ -287,7 +287,7 @@ describe('vulcan package add with several folders per side', () => {
 
   test('the hand-added lines show the list when the apps block cannot be extended', () => {
     const root = monorepo({ backendDir: 'backends' });
-    const config = join(root, '.configs/vulcan.config.mts');
+    const config = join(root, '.configs/vulcan/project.mts');
 
     writeFileSync(config, readFileSync(config, 'utf8').replace('// vulcan:apps:start', '// gone'));
 
@@ -312,7 +312,7 @@ describe('vulcan package add with several folders per side', () => {
 
   test('a folder listed under other is not an app target, and the error says so', async () => {
     const root = monorepo({ backendDir: 'backends' });
-    const config = join(root, '.configs/vulcan.config.mts');
+    const config = join(root, '.configs/vulcan/project.mts');
 
     writeFileSync(
       config,

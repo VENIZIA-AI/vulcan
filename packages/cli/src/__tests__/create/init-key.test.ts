@@ -88,7 +88,9 @@ describe('vulcan project init: the project key', () => {
 
     expect(result.code, result.stderr).toBe(0);
     expect(result.stderr).toContain('project key MYPRODUC');
-    expect(readFileSync(join(parent, 'my-product', CONFIG), 'utf8')).toContain("key: 'MYPRODUC'");
+    expect(
+      readFileSync(join(parent, 'my-product', '.configs/vulcan/project.mts'), 'utf8'),
+    ).toContain("key: 'MYPRODUC'");
   });
 });
 

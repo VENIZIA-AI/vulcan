@@ -40,6 +40,7 @@ describe('vulcan project init --preset', () => {
       'Makefile',
       '.agents/rules.md',
       '.configs/vulcan.config.mts',
+      '.configs/vulcan/project.mts',
       '.agents/knowledge/index.md',
       '.agents/knowledge/packages/core-api.md',
       'services/core-api/package.json',
@@ -57,7 +58,7 @@ describe('vulcan project init --preset', () => {
     expect(manifest.workspaces.packages).toEqual(['services/*', 'libs/*']);
     expect(manifest.workspaces.catalog['@fixture/lib']).toBe('1.0.0');
     expect(manifest.workspaces.catalog['@fixture/backend']).toBe(`file:${BACKEND}`);
-    expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).toContain(
+    expect(readFileSync(join(root, '.configs/vulcan/project.mts'), 'utf8')).toContain(
       '"backend": "services"',
     );
     expect(readFileSync(join(root, 'services/core-api/src/index.ts'), 'utf8')).toContain(
@@ -208,7 +209,7 @@ describe('vulcan project init --preset', () => {
     // The sync init runs after a real install is skipped here: run it, as the install would have.
     runCli({ args: ['project', 'sync', '--agents', 'none'], cwd: root });
 
-    const config = readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8');
+    const config = readFileSync(join(root, '.configs/vulcan/project.mts'), 'utf8');
     const manifest = JSON.parse(
       readFileSync(join(root, '.agents/local/vulcan.manifest.json'), 'utf8'),
     );
