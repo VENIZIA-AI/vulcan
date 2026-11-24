@@ -1,5 +1,7 @@
 import { relative } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
+import { SourceStatus } from '@/server/status';
+import type { ISourceProblem, ISourceRecord } from '@/server/status';
 import { InstalledPackages } from '@/sources/installed';
 import { InstalledVersions } from '@/tools/common/installed-versions';
 
@@ -11,7 +13,74 @@ import { InstalledVersions } from '@/tools/common/installed-versions';
  * tool.
  */
 export class AtlasStatus {
-  static report(opts: { root: string }): string {
+  private static recordsOf(opts: {
+    root: string;
+    cacheDir?: string;
+  }): Record<string, ISourceRecord> {
+    return SourceStatus.read({
+      file: SourceStatus.fileOf({
+        cacheBase: SourceStatus.cacheBaseOf({ root: opts.root, cacheDir: opts.cacheDir }),
+      }),
+    });
+  }
+
+  private static declaredOf(opts: { root: string }): string[] {
+    return ProjectConfig.hasAtlasProject({ root: opts.root })
+      ? ProjectConfig.readAtlasProject({ root: opts.root }).sources.map((source) => source.name)
+      : [];
+  }
+
+  /** What is worth a warning in the record of the declared sources, decided from the records. */
+  static problemsOf(opts: {
+    root: string;
+    cacheDir?: string;
+    now?: number;
+    alive?: (opts: { pid: number }) => boolean;
+  }): ISourceProblem[] {
+    return SourceStatus.problemsOf({
+      records: AtlasStatus.recordsOf(opts),
+      declared: AtlasStatus.declaredOf(opts),
+      now: opts.now ?? Date.now(),
+      alive: opts.alive,
+    });
+  }
+
+  /** The declared sources as the last server run recorded them, one line each: state, how long ago, how long a build takes, the error. */
+  static recordedLines(opts: {
+    root: string;
+    cacheDir?: string;
+    now?: number;
+    alive?: (opts: { pid: number }) => boolean;
+  }): string[] {
+    const records = AtlasStatus.recordsOf(opts);
+    const now = opts.now ?? Date.now();
+    const problems = AtlasStatus.problemsOf(opts);
+
+    return AtlasStatus.declaredOf(opts)
+      .filter((name) => records[name] !== undefined)
+      .sort((left, right) => left.localeCompare(right))
+      .map((name) => {
+        const entry = records[name];
+        const ago = Math.max(0, Math.round((now - entry.since) / 1000));
+        const usual =
+          entry.durationMs === undefined
+            ? ''
+            : `; a build usually takes about ${Math.round(entry.durationMs / 1000)} s`;
+        const problem = problems.find((item) => item.source === name);
+        const note =
+          problem === undefined
+            ? ''
+            : problem.kind === 'refresh-failed'
+              ? ` - the last check failed and the older index is served: ${problem.detail}`
+              : problem.kind === 'hung' || problem.kind === 'abandoned'
+                ? ` - ${problem.detail}`
+                : '';
+
+        return `- ${name}: ${entry.state} for ${ago} s${usual}${entry.error === undefined || problem?.kind === 'refresh-failed' ? '' : `; last error: ${entry.error}`}${note}`;
+      });
+  }
+
+  static report(opts: { root: string; cacheDir?: string }): string {
     const { root } = opts;
     const lines = [`atlas status for ${root}`, ''];
     const sources = ProjectConfig.hasAtlasProject({ root })
@@ -23,6 +92,13 @@ export class AtlasStatus {
       ...(sources.length === 0
         ? ['- none declared']
         : sources.map((source) => `- ${source.name}: ${source.repo}@${source.ref}`)),
+    );
+    const recorded = AtlasStatus.recordedLines(opts);
+
+    lines.push(
+      '',
+      'What the last server run recorded for each source (`building`, `ready` or `failed`):',
+      ...(recorded.length === 0 ? ['- nothing yet: no atlas server has started here'] : recorded),
     );
     lines.push(
       '',

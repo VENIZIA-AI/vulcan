@@ -293,35 +293,12 @@ export class SyncPlanner {
   }
 
   /**
-   * The manifests (Project Contract v1, C1), rendered from the config: the local manifest every hook reads, and the
-   * descriptor atlas reads, which is committed. The manifest of earlier releases, `.agents/vulcan.manifest.json`, is removed
-   * when git does not track it; when git tracks it, sync leaves it and the note names the git command (sync runs no git write).
+   * The manifests (Project Contract v1, C1), rendered from the config: the local manifest every hook reads, the descriptor
+   * atlas reads (committed), and, until the stable 0.5.0 release, a copy of the descriptor at the path of earlier releases,
+   * `.agents/vulcan.manifest.json` (committed too): atlas of 0.5.0-6 and before finds a source's manifest only there.
    */
   static planManifest(opts: { root: string; config: TResolvedConfig }): ISyncAction[] {
-    const legacy = join(opts.root, ManifestConstants.LEGACY_FILE);
-    const state = AgentFiles.trackState({ root: opts.root, path: ManifestConstants.LEGACY_FILE });
-    const legacyAction: ISyncAction[] = !existsSync(legacy)
-      ? []
-      : state === 'untracked'
-        ? [
-            {
-              path: legacy,
-              status: SyncStatuses.REMOVED,
-              note: 'the manifest of an earlier release is no longer used',
-              apply: () => rmSync(legacy, { force: true }),
-            },
-          ]
-        : [
-            {
-              path: legacy,
-              status: SyncStatuses.SKIPPED,
-              note:
-                state === 'tracked'
-                  ? `the manifest moved to ${ManifestConstants.FILE} (policy, not committed) and ${ManifestConstants.DESCRIPTOR_FILE} (what atlas reads, committed), and git tracks the old file: run git rm ${ManifestConstants.LEGACY_FILE}, then commit the descriptor`
-                  : `${ManifestConstants.LEGACY_FILE} is no longer used, but git could not say whether it tracks it: remove it by hand`,
-              apply: NO_CHANGE,
-            },
-          ];
+    const descriptor = ProjectManifest.renderDescriptor(opts);
 
     return [
       SyncPlanner.planFile({
@@ -332,9 +309,13 @@ export class SyncPlanner {
       SyncPlanner.planFile({
         root: opts.root,
         file: ManifestConstants.DESCRIPTOR_FILE,
-        text: ProjectManifest.renderDescriptor(opts),
+        text: descriptor,
       }),
-      ...legacyAction,
+      SyncPlanner.planFile({
+        root: opts.root,
+        file: ManifestConstants.LEGACY_FILE,
+        text: descriptor,
+      }),
     ];
   }
 

@@ -14,7 +14,11 @@ export class ManifestConstants {
   static readonly FILE = '.agents/local/vulcan.manifest.json';
   /** Committed and generated: the part of the manifest that readers of a checkout need without running `vulcan sync` (atlas, the wiki build). */
   static readonly DESCRIPTOR_FILE = '.agents/atlas.manifest.json';
-  /** The one file of earlier releases; atlas still reads it from an older ref for one release, and `sync` removes a copy git does not track. */
+  /**
+   * The one file of earlier releases, kept as a DATA-ONLY copy of the descriptor (the same text) until the stable 0.5.0
+   * release: atlas of 0.5.0-6 and before reads a source's manifest only at this path, and resolves a source's ref through it
+   * before it can pin a release tag. A newer atlas reads the descriptor first.
+   */
   static readonly LEGACY_FILE = '.agents/vulcan.manifest.json';
   /** The keys of the descriptor: what `ProjectConfig` of atlas reads from a manifest, and the resolved theme the wiki build takes its colours from. */
   static readonly DESCRIPTOR_KEYS = [

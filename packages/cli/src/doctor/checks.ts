@@ -1,3 +1,4 @@
+import { AtlasStatus } from '@venizia/vulcan-atlas';
 import { Glob } from 'bun';
 import { spawnSync } from 'node:child_process';
 import {
@@ -376,18 +377,20 @@ export class ProjectContract {
       .map((action) => {
         const file = relative(opts.root, action.path);
         const sync = `run '${ProjectLayout.VULCAN_COMMAND} sync'`;
-        const isCommitted = file === ManifestConstants.DESCRIPTOR_FILE;
+        const isCommitted = file !== ManifestConstants.FILE;
         const fix = isCommitted ? `${sync} and commit it` : sync;
+        const temporary =
+          file === ManifestConstants.LEGACY_FILE
+            ? ' (a temporary copy of the descriptor for atlas of 0.5.0-6 and before, kept until the stable 0.5.0 release)'
+            : '';
 
         return createViolation({
           check: DoctorChecks.MANIFEST,
           file,
           message:
-            action.note !== undefined
-              ? `${action.note}${action.status === SyncStatuses.REMOVED ? ` - ${sync}` : ''}`
-              : action.status === SyncStatuses.CREATED
-                ? `missing - ${fix}`
-                : `stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and ${fix}`,
+            action.status === SyncStatuses.CREATED
+              ? `missing${temporary} - ${fix}`
+              : `stale against the config, or edited by hand${temporary} - the manifest is generated, never edit it: edit .configs/vulcan.config.* and ${fix}`,
         });
       });
   }
@@ -750,6 +753,31 @@ export class ProjectContract {
             check: DoctorChecks.EVENTS_DIR,
             file: isOwn ? AgentConstants.LOCAL_FILE : opts.configFile,
             message: `events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
+          }),
+        ];
+  }
+
+  /**
+   * An atlas source the last server run could not build, could not refresh (an older index is served), or has been building
+   * for over ten minutes in a server that is still running: the agents of this project read the `.d.ts` files by hand
+   * until it is served. A warning with what `vulcan x atlas status` prints; a build left by a closed session is not one.
+   */
+  static checkAtlasSources(opts: ICheckContext): IViolation[] {
+    const problems = AtlasStatus.problemsOf({ root: opts.root }).filter(
+      (problem) => problem.kind !== 'abandoned',
+    );
+
+    return problems.length === 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.ATLAS_SOURCE,
+            file: '.agents/local/cache/atlas/status.json',
+            message: `an atlas source is not served as it should be: ${problems
+              .map((problem) => `${problem.source}: ${problem.kind} (${problem.detail})`)
+              .join(
+                ' | ',
+              )} - run \`${ProjectLayout.VULCAN_COMMAND} x atlas status\` for the record`,
           }),
         ];
   }

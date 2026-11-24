@@ -37,7 +37,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `skills` (shipped names) | Project skills avoid names reserved by shipped skills | Rename the colliding skill directory under `.agents/skills/` |
 | `make` | The project `Makefile` includes `vulcan.mk` and avoids shipped target names | Add the `-include` line or rename conflicting project make targets |
 | `adapters` | Generated files, settings and links match configuration; the `AGENTS.md` blocks are present and current | Run `bun node_modules/.bin/vulcan sync` |
-| `manifest` | `.agents/local/vulcan.manifest.json` and the committed `.agents/atlas.manifest.json` match the project configuration; a copy of the old `.agents/vulcan.manifest.json` that git tracks is named | Run `bun node_modules/.bin/vulcan sync` and commit the descriptor; `git rm --cached .agents/vulcan.manifest.json` for the old file |
+| `manifest` | `.agents/local/vulcan.manifest.json`, the committed `.agents/atlas.manifest.json` and the temporary data-only copy of it at `.agents/vulcan.manifest.json` (kept until the stable 0.5.0 release, for atlas of 0.5.0-6 and before) match the project configuration | Run `bun node_modules/.bin/vulcan sync` and commit the descriptor and the copy |
 | `changelog-folders` | A project with version folders under its changelog directory has a vulcan installed whose atlas reads them | Install the vulcan version the message names |
 | `tags` | Git tags matching `atlas.tagPattern` resolve to declared packages | Declare the package, add an alias, or add the tag to `atlas.ignoreTags` |
 | `skills` (warning) | A skill's description has no "Use when" part, so atlas cannot tell an agent when to load it; never a failure | Start the description with when to use the skill |
@@ -55,6 +55,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `local.tmp` to a short folder and run `vulcan sync`, or check out at a shorter path |
 | `local` (failure) | `local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
 | `board-autostart` (note) | `board.serve.autoStart` of `.agents/local/profile.json` is on and `events.log` is off, so no board is started | Set `events.log` to `true`, or turn `autoStart` off |
+| `atlas-source` (warning) | The last atlas server run recorded a source as failed, as failing its refresh (an older index is served), or as building for over ten minutes in a live server | Run `vulcan x atlas status` for the record; fix the remote or the network, or `vulcan x atlas pull` the source |
 | `prepare` (note) | No install script (`prepare` or `postinstall`) of the root `package.json` runs `vulcan sync` (directly or as `make vulcan-sync`), so a fresh clone has no hooks until someone runs it | Add the `prepare` script the note prints (`vulcan init --preset` writes it for a new project) |
 | `claude-settings` (warning) | Git tracks `.claude/settings.json`, which `sync` writes in every clone | `git rm --cached .claude/settings.json`; sync keeps it out of git from then on |
 | `config-defaults` (note) | N values of the config repeat what the shipped defaults give | Run `vulcan config --diff` and delete them |
@@ -183,7 +184,7 @@ When sync skips a file, it reports the reason or `shadows a shipped skill - rena
 
 ### manifest
 
-A missing or outdated `.agents/local/vulcan.manifest.json` or `.agents/atlas.manifest.json` file triggers this check, and so does a copy of the old `.agents/vulcan.manifest.json` that git still tracks.
+A missing or outdated `.agents/local/vulcan.manifest.json`, `.agents/atlas.manifest.json` or `.agents/vulcan.manifest.json` triggers this check. The last is a temporary data-only copy of the descriptor, kept until the stable 0.5.0 release because atlas of 0.5.0-6 and before reads a source's manifest only at that path; the message says so, and the fix is the same: run `vulcan sync` and commit it.
 
 ```text
 $ bun node_modules/.bin/vulcan doctor
@@ -301,6 +302,10 @@ A warning: today's event file is bigger than `events.maxSize` on its own. The re
 ```text
   warning [events-size] .configs/vulcan.config.mts: today's event file in /path/.agents/local/events is 61.2 MB, over events.maxSize (50MB); nothing is truncated and today's file is never removed - raise maxSize or write fewer events
 ```
+
+### atlas-source
+
+A warning: the agents of the project read the `.d.ts` files by hand while an atlas source is not served. The atlas server records what it does with each source in `.agents/local/cache/atlas/status.json` (`building`, `ready` or `failed`, since when, how long a build took, the last error); doctor warns when a declared source is `failed`, failed its last refresh, or has been `building` for over ten minutes in a server whose process is still alive. A build left by a closed session, and the record of a source the config no longer declares, are not warnings. `vulcan x atlas status` prints the same record, one line per source, and exits 1 for a source never served or hung.
 
 ### prepare
 

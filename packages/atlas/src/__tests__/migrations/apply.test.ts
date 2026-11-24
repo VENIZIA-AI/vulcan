@@ -432,6 +432,9 @@ describe('MigrateApply.run', () => {
       notServed: {
         answeredFrom: ['app'],
         indexing: [],
+        building: [],
+        stale: [],
+        ready: { count: 1, total: 2 },
         failed: [{ source: 'ignis', reason: 'fetch failed' }],
         message: 'ignis could not be indexed (fetch failed) and is not searched',
       },

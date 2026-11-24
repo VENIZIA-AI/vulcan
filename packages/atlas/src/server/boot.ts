@@ -3,6 +3,7 @@ import { availableParallelism, freemem } from 'node:os';
 import { join } from 'node:path';
 import { StderrLogger } from '@/common/logger';
 import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
+import type { ISourceMemory } from './status';
 
 /** What one index build holds at its peak (460 MB measured on the largest source of a real project, rounded up); the builds at once are capped by free memory over it. */
 const SIGNAL_EXIT_CODES = { SIGTERM: 143, SIGINT: 130, SIGHUP: 129 } as const;
@@ -37,6 +38,27 @@ interface IBootOptions {
   indexer: TSourceIndexer;
   /** Builds at once; default `SourceBoot.concurrencyOf()`. */
   concurrency?: number;
+  /** What the last runs recorded: with it a source is served from its last good index at once, while it is checked again. */
+  memory?: ISourceMemory;
+  /** A monotonic clock in milliseconds, for durations; default `performance.now`. */
+  now?: () => number;
+}
+
+/** How far one source is, for the notice and for `status`. */
+export interface ISourceProgress {
+  source: string;
+  /** `waiting` for a free slot, `building` in a child, `ready` once it is served. */
+  state: 'waiting' | 'building' | 'ready' | 'failed';
+  /** Milliseconds since it began building; 0 while waiting or when ready. */
+  elapsedMs: number;
+  /** About how long a build takes, from the last successful one; absent when none was recorded. */
+  expectedMs?: number;
+  /** Served from the last good index while the remote is checked again. */
+  isStale: boolean;
+  /** What the stale index is: the commit and, when pinned, the tag it was built at. */
+  staleAt?: string;
+  /** Why the last check of a source served from an older index failed. */
+  refreshError?: string;
 }
 
 /**
@@ -49,11 +71,23 @@ export class SourceBoot {
   private readonly waiting: IAtlasSource[];
   private readonly running = new Map<string, IAtlasSource>();
   private readonly failed: IUnavailableSource[] = [];
+  /** Sources served from their last good index while a child checks the remote again. */
+  private readonly stale = new Set<string>();
+  /** Sources that have been handed to the server, stale or fresh: the first time counts for waiting calls, once. */
+  private readonly handedOver = new Set<string>();
+  private readonly startedAt = new Map<string, number>();
+  private readonly staleAt = new Map<string, string>();
+  private readonly refreshErrors = new Map<string, string>();
+  private readonly expected = new Map<string, number | undefined>();
   private readonly done: Promise<void>;
   private readonly settledBy = new Map<string, { promise: Promise<void>; finish: () => void }>();
   private finish!: () => void;
+  private readonly freshDone: Promise<void>;
+  private finishFresh!: () => void;
+  private freshRemaining: number;
   private handlers: {
-    onReady?: (opts: { resolved: IResolvedSource }) => void;
+    /** `isReplacement`: the source was already served from its last good index and this is the fresh one. */
+    onReady?: (opts: { resolved: IResolvedSource; isReplacement?: boolean }) => void;
     onFailed?: (opts: { unavailable: IUnavailableSource }) => void;
   } = {};
   private started = false;
@@ -63,6 +97,7 @@ export class SourceBoot {
     this.options = opts;
     this.waiting = [...opts.sources];
     this.remaining = opts.sources.length;
+    this.freshRemaining = opts.sources.length;
 
     for (const source of opts.sources) {
       let finish!: () => void;
@@ -76,9 +111,13 @@ export class SourceBoot {
     this.done = new Promise((resolve) => {
       this.finish = resolve;
     });
+    this.freshDone = new Promise((resolve) => {
+      this.finishFresh = resolve;
+    });
 
     if (this.remaining === 0) {
       this.finish();
+      this.finishFresh();
     }
   }
 
@@ -216,7 +255,7 @@ export class SourceBoot {
 
   /** What to do when a source is ready, and when one failed; set before `start()`. */
   listen(opts: {
-    onReady: (opts: { resolved: IResolvedSource }) => void;
+    onReady: (opts: { resolved: IResolvedSource; isReplacement?: boolean }) => void;
     onFailed?: (opts: { unavailable: IUnavailableSource }) => void;
   }): void {
     this.handlers = opts;
@@ -229,6 +268,12 @@ export class SourceBoot {
     }
 
     this.started = true;
+
+    this.options.memory?.prune({ keep: this.options.sources.map((source) => source.name) });
+
+    for (const source of this.options.sources) {
+      this.expected.set(source.name, this.options.memory?.expectedMs({ source }));
+    }
 
     // A server stopped by a signal takes its children with it: the 'exit' handlers kill them.
     for (const [signal, code] of Object.entries(SIGNAL_EXIT_CODES)) {
@@ -245,11 +290,39 @@ export class SourceBoot {
     }
   }
 
-  /** The sources not ready and not failed, in the order the config lists them. */
+  /** The sources not served yet and not failed, in the order the config lists them. A source served from its last good index is not among them. */
   indexing(): IAtlasSource[] {
     return this.options.sources.filter(
-      (source) => this.waiting.includes(source) || [...this.running.values()].includes(source),
+      (source) =>
+        !this.stale.has(source.name) &&
+        (this.waiting.includes(source) || [...this.running.values()].includes(source)),
     );
+  }
+
+  /** Where every declared source stands: waiting, building (since when, how long it usually takes) or ready. */
+  progress(): ISourceProgress[] {
+    const now = (this.options.now ?? performance.now.bind(performance))();
+
+    return this.options.sources.map((source) => {
+      const isStale = this.stale.has(source.name);
+      const began = this.startedAt.get(source.name);
+      const isBuilding = [...this.running.values()].includes(source);
+      const expectedMs = this.expected.get(source.name);
+      const isFailed = this.failed.some((entry) => entry.source.name === source.name);
+      const isReady = this.handedOver.has(source.name) && !isBuilding && !isFailed;
+
+      return {
+        source: source.name,
+        state: isFailed ? 'failed' : isReady ? 'ready' : isBuilding ? 'building' : 'waiting',
+        elapsedMs: isBuilding && began !== undefined ? now - began : 0,
+        ...(expectedMs === undefined ? {} : { expectedMs }),
+        isStale,
+        ...(this.staleAt.has(source.name) ? { staleAt: this.staleAt.get(source.name) } : {}),
+        ...(this.refreshErrors.has(source.name)
+          ? { refreshError: this.refreshErrors.get(source.name) }
+          : {}),
+      };
+    });
   }
 
   /** The sources that failed, with the reason. */
@@ -257,9 +330,14 @@ export class SourceBoot {
     return [...this.failed];
   }
 
-  /** Resolves when every source is ready or failed. */
+  /** Resolves when every source is ready or failed, a source served from an older index counting as ready. */
   get settled(): Promise<void> {
     return this.done;
+  }
+
+  /** Resolves when every source's own build has finished, fresh or failed: what `migrate` and `tools` wait for, never an older index. */
+  get fresh(): Promise<void> {
+    return this.freshDone;
   }
 
   /**
@@ -287,37 +365,110 @@ export class SourceBoot {
     clearTimeout(timer);
   }
 
+  /** The first time a source is handed to the server, or fails: the calls that wait for it are released, once. */
+  private settle(opts: { name: string }): void {
+    if (this.handedOver.has(opts.name)) {
+      return;
+    }
+
+    this.handedOver.add(opts.name);
+    this.settledBy.get(opts.name)?.finish();
+    this.remaining -= 1;
+
+    if (this.remaining === 0) {
+      this.finish();
+    }
+  }
+
   private async work(): Promise<void> {
+    const { memory } = this.options;
+    const now = this.options.now ?? performance.now.bind(performance);
+
     for (let source = this.waiting.shift(); source !== undefined; source = this.waiting.shift()) {
+      let last = memory?.lastGood({ source });
+
       this.running.set(source.name, source);
+      this.startedAt.set(source.name, now());
+
+      // The last good index answers at once; the child checks the remote and replaces it when it has something newer.
+      // A hand-over that throws (a corrupted index, a prune racing it) is a normal build from nothing.
+      if (last !== undefined) {
+        try {
+          this.stale.add(source.name);
+          this.staleAt.set(source.name, SourceBoot.describeStale({ resolved: last }));
+          this.handlers.onReady?.({ resolved: last });
+          this.settle({ name: source.name });
+        } catch (error) {
+          StderrLogger.get('SourceBoot').warn(
+            'the last good index could not be opened, the source is built again | source: %s | error: %s',
+            source.name,
+            error instanceof Error ? error.message : String(error),
+          );
+          this.stale.delete(source.name);
+          this.staleAt.delete(source.name);
+          last = undefined;
+        }
+      }
+
+      memory?.record({
+        source,
+        entry: { state: 'building', since: Date.now(), pid: process.pid },
+      });
 
       try {
         const resolved = await this.options.indexer({ source });
+        const durationMs = now() - (this.startedAt.get(source.name) ?? now());
 
         this.running.delete(source.name);
-        this.handlers.onReady?.({ resolved });
-      } catch (error) {
-        const unavailable = {
+        this.stale.delete(source.name);
+        this.staleAt.delete(source.name);
+        this.refreshErrors.delete(source.name);
+        memory?.record({
           source,
-          reason: error instanceof Error ? error.message : String(error),
-        };
+          entry: { state: 'ready', since: Date.now(), durationMs, resolved },
+        });
+        this.handlers.onReady?.({ resolved, isReplacement: last !== undefined });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
 
         this.running.delete(source.name);
-        this.failed.push(unavailable);
-        StderrLogger.get('SourceBoot').warn(
-          'source not served | source: %s | reason: %s',
-          source.name,
-          unavailable.reason,
-        );
-        this.handlers.onFailed?.({ unavailable });
+        memory?.record({ source, entry: { state: 'failed', since: Date.now(), error: reason } });
+
+        if (last !== undefined) {
+          // The last good index keeps answering; the failure is recorded, shown in the notice and tried again by the next start.
+          this.stale.delete(source.name);
+          this.refreshErrors.set(source.name, reason);
+          StderrLogger.get('SourceBoot').warn(
+            'source not refreshed, the last good index is served | source: %s | reason: %s',
+            source.name,
+            reason,
+          );
+        } else {
+          const unavailable = { source, reason };
+
+          this.failed.push(unavailable);
+          StderrLogger.get('SourceBoot').warn(
+            'source not served | source: %s | reason: %s',
+            source.name,
+            reason,
+          );
+          this.handlers.onFailed?.({ unavailable });
+        }
       }
 
-      this.settledBy.get(source.name)?.finish();
-      this.remaining -= 1;
+      this.settle({ name: source.name });
+      this.freshRemaining -= 1;
 
-      if (this.remaining === 0) {
-        this.finish();
+      if (this.freshRemaining === 0) {
+        this.finishFresh();
       }
     }
+  }
+
+  /** What a served-stale source is, in the words of the notice: its tag when pinned, else the short commit. */
+  static describeStale(opts: { resolved: IResolvedSource }): string {
+    const { pin, sha } = opts.resolved;
+
+    return pin?.pinned === true ? pin.ref : (sha ?? 'an earlier build').slice(0, 7);
   }
 }
