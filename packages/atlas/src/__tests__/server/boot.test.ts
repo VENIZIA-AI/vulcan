@@ -358,6 +358,7 @@ describe('SourceNotice', () => {
           answeredFrom: [],
           indexing: ['a'],
           building: [],
+          stale: [],
           ready: { count: 0, total: 1 },
           failed: [],
           message: 'm',

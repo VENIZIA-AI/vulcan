@@ -1,7 +1,7 @@
 import { relative } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
 import { SourceStatus } from '@/server/status';
-import { SourceCache } from '@/sources/cache';
+import type { ISourceProblem, ISourceRecord } from '@/server/status';
 import { InstalledPackages } from '@/sources/installed';
 import { InstalledVersions } from '@/tools/common/installed-versions';
 
@@ -12,41 +12,72 @@ import { InstalledVersions } from '@/tools/common/installed-versions';
  * install is seen at a glance. It reads the disk only; the pin of a source's docs is in the answer of the `version`
  * tool.
  */
-/** A source still building after this long has most likely hung: `status` says so, and `vulcan doctor` warns. */
-const STUCK_MS = 10 * 60 * 1000;
-
 export class AtlasStatus {
-  /** The sources as the last server run recorded them, one line each: state, how long ago, how long a build takes, the error. */
-  static recordedLines(opts: { root: string; cacheDir?: string; now?: number }): string[] {
-    const recorded = SourceStatus.read({
+  private static recordsOf(opts: {
+    root: string;
+    cacheDir?: string;
+  }): Record<string, ISourceRecord> {
+    return SourceStatus.read({
       file: SourceStatus.fileOf({
-        cacheBase: SourceCache.cacheBaseOf({ cwd: opts.root, cacheDir: opts.cacheDir }),
+        cacheBase: SourceStatus.cacheBaseOf({ root: opts.root, cacheDir: opts.cacheDir }),
       }),
     });
-    const now = opts.now ?? Date.now();
+  }
 
-    return Object.entries(recorded)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([name, entry]) => {
+  private static declaredOf(opts: { root: string }): string[] {
+    return ProjectConfig.hasAtlasProject({ root: opts.root })
+      ? ProjectConfig.readAtlasProject({ root: opts.root }).sources.map((source) => source.name)
+      : [];
+  }
+
+  /** What is worth a warning in the record of the declared sources, decided from the records. */
+  static problemsOf(opts: {
+    root: string;
+    cacheDir?: string;
+    now?: number;
+    alive?: (opts: { pid: number }) => boolean;
+  }): ISourceProblem[] {
+    return SourceStatus.problemsOf({
+      records: AtlasStatus.recordsOf(opts),
+      declared: AtlasStatus.declaredOf(opts),
+      now: opts.now ?? Date.now(),
+      alive: opts.alive,
+    });
+  }
+
+  /** The declared sources as the last server run recorded them, one line each: state, how long ago, how long a build takes, the error. */
+  static recordedLines(opts: {
+    root: string;
+    cacheDir?: string;
+    now?: number;
+    alive?: (opts: { pid: number }) => boolean;
+  }): string[] {
+    const records = AtlasStatus.recordsOf(opts);
+    const now = opts.now ?? Date.now();
+    const problems = AtlasStatus.problemsOf(opts);
+
+    return AtlasStatus.declaredOf(opts)
+      .filter((name) => records[name] !== undefined)
+      .sort((left, right) => left.localeCompare(right))
+      .map((name) => {
+        const entry = records[name];
         const ago = Math.max(0, Math.round((now - entry.since) / 1000));
         const usual =
           entry.durationMs === undefined
             ? ''
             : `; a build usually takes about ${Math.round(entry.durationMs / 1000)} s`;
-        const stuck =
-          entry.state === 'building' && now - entry.since > STUCK_MS
-            ? ' - over 10 minutes: the build most likely hung or the server ended'
-            : '';
+        const problem = problems.find((item) => item.source === name);
+        const note =
+          problem === undefined
+            ? ''
+            : problem.kind === 'refresh-failed'
+              ? ` - the last check failed and the older index is served: ${problem.detail}`
+              : problem.kind === 'hung' || problem.kind === 'abandoned'
+                ? ` - ${problem.detail}`
+                : '';
 
-        return `- ${name}: ${entry.state} for ${ago} s${usual}${entry.error === undefined ? '' : `; last error: ${entry.error}`}${stuck}`;
+        return `- ${name}: ${entry.state} for ${ago} s${usual}${entry.error === undefined || problem?.kind === 'refresh-failed' ? '' : `; last error: ${entry.error}`}${note}`;
       });
-  }
-
-  /** Whether the record holds a source that failed, or one that has been building for over ten minutes. */
-  static hasProblem(opts: { root: string; cacheDir?: string; now?: number }): boolean {
-    return AtlasStatus.recordedLines(opts).some(
-      (line) => line.includes(': failed ') || line.includes('over 10 minutes'),
-    );
   }
 
   static report(opts: { root: string; cacheDir?: string }): string {

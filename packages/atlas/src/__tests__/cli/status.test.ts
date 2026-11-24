@@ -50,8 +50,9 @@ const install = (opts: { root: string; version: string }): void =>
   });
 
 describe('vulcan x atlas status: what the last server run recorded', () => {
-  const record = (opts: { root: string; name: string; entry: object }): void => {
-    const file = join(opts.root, '.agents/local/cache/atlas/status.json');
+  const record = (opts: { root: string; name: string; entry: object; at?: string }): void => {
+    const path = `${opts.at ?? '.agents/local/cache'}/atlas/status.json`;
+    const file = join(opts.root, path);
     let sources: Record<string, object> = {};
 
     try {
@@ -62,49 +63,97 @@ describe('vulcan x atlas status: what the last server run recorded', () => {
 
     write({
       root: opts.root,
-      path: '.agents/local/cache/atlas/status.json',
+      path,
       text: JSON.stringify({ version: 1, sources: { ...sources, [opts.name]: opts.entry } }),
     });
   };
+  const dead = (): boolean => false;
+  const live = (): boolean => true;
+  const kinds = (opts: { root: string; now: number; alive?: () => boolean }) =>
+    AtlasStatus.problemsOf({ ...opts, alive: opts.alive ?? dead }).map(
+      (problem) => `${problem.source}:${problem.kind}`,
+    );
 
   test('says nothing was recorded when no server has started, and is no problem', () => {
     const root = project();
 
     expect(AtlasStatus.report({ root })).toContain('nothing yet: no atlas server has started here');
-    expect(AtlasStatus.hasProblem({ root })).toBe(false);
+    expect(AtlasStatus.problemsOf({ root })).toEqual([]);
   });
 
-  test('one line per source: state, seconds, the usual build time and the last error; a failure is a problem', () => {
+  test('one line per declared source; a source never served that failed is a problem', () => {
     const root = project();
     const now = Date.now();
 
     record({
       root,
       name: 'ignis',
-      entry: { state: 'ready', since: now - 30_000, durationMs: 19_000 },
-    });
-    record({
-      root,
-      name: 'ardor',
       entry: { state: 'failed', since: now - 5000, error: 'the remote is down' },
     });
 
     const lines = AtlasStatus.recordedLines({ root, now });
 
-    expect(lines[0]).toMatch(/^- ardor: failed for 5 s; last error: the remote is down$/);
-    expect(lines[1]).toMatch(/^- ignis: ready for 30 s; a build usually takes about 19 s$/);
-    expect(AtlasStatus.hasProblem({ root, now })).toBe(true);
+    expect(lines).toEqual(['- ignis: failed for 5 s; last error: the remote is down']);
+    expect(kinds({ root, now })).toEqual(['ignis:failed']);
   });
 
-  test('a build running for over ten minutes is named and is a problem; a recent one is not', () => {
+  test('a failed check that left an older index serving is refresh-failed, not failed', () => {
     const root = project();
     const now = Date.now();
 
-    record({ root, name: 'ignis', entry: { state: 'building', since: now - 60_000 } });
-    expect(AtlasStatus.hasProblem({ root, now })).toBe(false);
+    record({
+      root,
+      name: 'ignis',
+      entry: {
+        state: 'failed',
+        since: now,
+        error: 'offline',
+        resolved: { name: 'ignis' },
+        durationMs: 19_000,
+      },
+    });
+    expect(kinds({ root, now })).toEqual(['ignis:refresh-failed']);
+    expect(AtlasStatus.recordedLines({ root, now })[0]).toContain(
+      'the older index is served: offline',
+    );
+  });
+
+  test('a build over ten minutes is hung only when its server is alive; otherwise it was left by a closed session', () => {
+    const root = project();
+    const now = Date.now();
+
+    record({ root, name: 'ignis', entry: { state: 'building', since: now - 60_000, pid: 1 } });
+    expect(kinds({ root, now, alive: live })).toEqual([]);
+    record({ root, name: 'ignis', entry: { state: 'building', since: now - 11 * 60_000, pid: 1 } });
+    expect(kinds({ root, now, alive: live })).toEqual(['ignis:hung']);
+    expect(kinds({ root, now, alive: dead })).toEqual(['ignis:abandoned']);
     record({ root, name: 'ignis', entry: { state: 'building', since: now - 11 * 60_000 } });
-    expect(AtlasStatus.recordedLines({ root, now })[0]).toContain('over 10 minutes');
-    expect(AtlasStatus.hasProblem({ root, now })).toBe(true);
+    expect(kinds({ root, now, alive: live })).toEqual(['ignis:abandoned']);
+  });
+
+  test('a source the config no longer declares is not shown and is no problem', () => {
+    const root = project();
+    const now = Date.now();
+
+    record({ root, name: 'removed', entry: { state: 'failed', since: now, error: 'x' } });
+    expect(AtlasStatus.recordedLines({ root, now })).toEqual([]);
+    expect(AtlasStatus.problemsOf({ root, now })).toEqual([]);
+  });
+
+  test('a custom cache folder is found through the pointer a server left, and by --cache-dir', () => {
+    const root = project();
+    const now = Date.now();
+
+    record({
+      root,
+      name: 'ignis',
+      entry: { state: 'failed', since: now, error: 'x' },
+      at: 'elsewhere',
+    });
+    expect(AtlasStatus.problemsOf({ root, now })).toEqual([]);
+    expect(AtlasStatus.problemsOf({ root, now, cacheDir: 'elsewhere' })).toHaveLength(1);
+    write({ root, path: '.agents/local/atlas-cache-base', text: `${join(root, 'elsewhere')}\n` });
+    expect(AtlasStatus.problemsOf({ root, now })).toHaveLength(1);
   });
 });
 

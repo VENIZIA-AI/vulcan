@@ -3,7 +3,13 @@ import { AtlasCommands, AtlasConstants } from './common';
 import { InteractiveRun, ModeArguments, ModeUsageError, SourceArguments } from './cli/index';
 import { AtlasStatus } from './cli/status';
 import { runReleasesCommand } from './releases/generator';
-import { FileSourceMemory, Refresher, SourceBoot, SourcesServer } from './server/index';
+import {
+  FileSourceMemory,
+  Refresher,
+  SourceBoot,
+  SourcesServer,
+  SourceStatus,
+} from './server/index';
 import type { Transport } from './protocol/index';
 import { AtlasLimits } from './common/limits';
 import { ProjectConfig } from './common/project-config';
@@ -117,6 +123,8 @@ const sourcesToServe = (opts: {
 const buildServer = async (opts: {
   root: string;
   version: string;
+  /** The command needs the fresh build of every source (`migrate`, `tools`), never an older index. */
+  isFresh?: boolean;
 }): Promise<{ server: Transport; boot: SourceBoot } | undefined> => {
   const { project, sources } = sourcesToServe({ root: opts.root, argv });
 
@@ -144,10 +152,16 @@ const buildServer = async (opts: {
       arg === '--source' ? [arg, argv[index + 1] ?? ''] : arg.startsWith('--source=') ? [arg] : [],
     ),
   ];
+  const cacheBase = SourceCache.cacheBaseOf({ cwd: opts.root, cacheDir });
+
+  SourceStatus.remember({ root: opts.root, cacheBase, isCustom: cacheDir !== undefined });
+
   const boot = new SourceBoot({
     sources,
     memory: new FileSourceMemory({
-      cacheBase: SourceCache.cacheBaseOf({ cwd: opts.root, cacheDir }),
+      cwd: opts.root,
+      cacheBase,
+      isStaleAllowed: opts.isFresh !== true,
     }),
     indexer: ({ source }) =>
       SourceBoot.indexInChild({
@@ -240,7 +254,9 @@ const NOTHING_TO_SERVE = (opts: { root: string }): string =>
   `nothing to serve at ${opts.root} - run in a project (\`vulcan sync\` writes .agents/atlas.manifest.json), or pass --source <owner/repo>@<ref>`;
 
 /** The server the arguments ask for; a usage error names what is missing. */
-const readServer = async (): Promise<{ server: Transport; boot: SourceBoot }> => {
+const readServer = async (
+  opts: { isFresh?: boolean } = {},
+): Promise<{ server: Transport; boot: SourceBoot }> => {
   let root: string;
 
   try {
@@ -253,7 +269,7 @@ const readServer = async (): Promise<{ server: Transport; boot: SourceBoot }> =>
     throw error;
   }
 
-  const built = await buildServer({ root, version: packageVersion() });
+  const built = await buildServer({ root, version: packageVersion(), isFresh: opts.isFresh });
 
   if (built === undefined) {
     return usageError(NOTHING_TO_SERVE({ root }));
@@ -264,10 +280,10 @@ const readServer = async (): Promise<{ server: Transport; boot: SourceBoot }> =>
 
 /** `tools`: what `tools/list` answers, one line per tool - the way to check a setup without an MCP client. */
 const listTools = async (): Promise<void> => {
-  const { server, boot } = await readServer();
+  const { server, boot } = await readServer({ isFresh: true });
 
   // The listing needs no source, but a setup check should say when none can be served.
-  await boot.settled;
+  await boot.fresh;
 
   if (
     boot.declared.length > 0 &&
@@ -319,16 +335,20 @@ const main = async (): Promise<void> => {
     const statusCache = ModeArguments.readCacheDir({ argv });
 
     process.stdout.write(AtlasStatus.report({ root: statusRoot, cacheDir: statusCache }));
-    process.exitCode = AtlasStatus.hasProblem({ root: statusRoot, cacheDir: statusCache }) ? 1 : 0;
+    process.exitCode = AtlasStatus.problemsOf({ root: statusRoot, cacheDir: statusCache }).some(
+      (problem) => problem.kind === 'failed' || problem.kind === 'hung',
+    )
+      ? 1
+      : 0;
 
     return;
   }
 
   if (subcommand === AtlasCommands.MIGRATE) {
-    const { server, boot } = await readServer();
+    const { server, boot } = await readServer({ isFresh: true });
 
-    // Every source indexed first: the plan needs the whole release table, not the sources ready so far.
-    await boot.settled;
+    // Every source built fresh first: the plan needs the whole release table of the current refs, never an older index.
+    await boot.fresh;
 
     const code = await MigrateCommand.run({
       args: argv.slice(1),

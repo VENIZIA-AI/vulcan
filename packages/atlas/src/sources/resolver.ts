@@ -885,6 +885,14 @@ const resolveSelf = (opts: { cwd: string }): IResolvedSource[] =>
     : [];
 
 export class SourceResolver {
+  /** Whether the cache holds a complete set of this atlas's format for `sha` of the source: what a start serves without asking the remote. */
+  static isCached(opts: { source: IAtlasSource; cacheBase: string; sha: string }): boolean {
+    return isCurrentSet({
+      cacheRoot: SourceCache.cacheRootOf({ repo: opts.source.repo, cacheBase: opts.cacheBase }),
+      sha: opts.sha,
+    });
+  }
+
   /** One remote source resolved again, as a start does: the cache for the SHA its ref names now, a pull when it moved. */
   static resolveRemote(opts: {
     source: IAtlasSource;

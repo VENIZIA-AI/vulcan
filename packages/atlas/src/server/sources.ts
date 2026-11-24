@@ -262,8 +262,13 @@ export class SourcesServer {
       opts2.source.mode === 'repository'
         ? repositoryTarget(opts2)
         : remoteTarget({ entry: opts2.entry, served: opts2.source, cwd: opts.cwd, resolve });
+    const targetOf = new Map<string, IRefreshTarget>();
     const targets = opts.sources.flatMap((source, index): IRefreshTarget[] => {
       const target = makeTarget({ entry: stores[index], source });
+
+      if (target !== undefined) {
+        targetOf.set(source.name, target);
+      }
 
       return target === undefined ? [] : [target];
     });
@@ -292,6 +297,19 @@ export class SourcesServer {
             resolved,
           );
 
+          // The refresh target compares against what it was given: a new one, so the next look does not rebuild what just landed.
+          const next = makeTarget({ entry: existing, source: resolved });
+          const old = targetOf.get(resolved.name);
+
+          if (old !== undefined) {
+            targets.splice(targets.indexOf(old), 1);
+          }
+
+          if (next !== undefined) {
+            targets.push(next);
+            targetOf.set(resolved.name, next);
+          }
+
           return;
         }
 
@@ -306,6 +324,7 @@ export class SourcesServer {
 
         if (target !== undefined) {
           targets.push(target);
+          targetOf.set(resolved.name, target);
         }
       },
     });

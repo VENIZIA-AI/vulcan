@@ -7,7 +7,9 @@ export interface ISourceNotice {
   failed: { source: string; reason: string }[];
   /** How far each source that is not ready has got: seconds spent, and the usual duration when one was recorded. */
   building: { source: string; elapsedSeconds: number; expectedSeconds?: number }[];
-  /** `N of M sources are ready`. */
+  /** Sources answered from an older index while they are checked again, with what the index is and why the last check failed, if it did. */
+  stale: { source: string; at: string; refreshError?: string }[];
+  /** `N of M sources are ready`, the project's own counted in both. */
   ready: { count: number; total: number };
   /** About how long until the sources that are building should be served; 30 when no duration was recorded. */
   retryInSeconds?: number;
@@ -34,12 +36,24 @@ export class SourceNotice {
       .unavailable()
       .map((entry) => ({ source: entry.source.name, reason: entry.reason }));
 
-    if (indexing.length === 0 && failed.length === 0) {
+    const progress = opts.boot.progress();
+    const stale = progress.flatMap((entry) =>
+      entry.staleAt === undefined
+        ? []
+        : [
+            {
+              source: entry.source,
+              at: entry.staleAt,
+              ...(entry.refreshError === undefined ? {} : { refreshError: entry.refreshError }),
+            },
+          ],
+    );
+
+    if (indexing.length === 0 && failed.length === 0 && stale.length === 0) {
       return undefined;
     }
 
-    const building = opts.boot
-      .progress()
+    const building = progress
       .filter((entry) => indexing.includes(entry.source))
       .map((entry) => ({
         source: entry.source,
@@ -58,7 +72,7 @@ export class SourceNotice {
             MIN_RETRY_SECONDS,
             left.length === 0 ? DEFAULT_RETRY_SECONDS : Math.max(...left),
           );
-    const total = opts.boot.declared.length;
+    const total = opts.answeredFrom.length + indexing.length + failed.length;
     const describe = (entry: (typeof building)[number]): string =>
       `${entry.source} is being indexed (${entry.elapsedSeconds} s so far${entry.expectedSeconds === undefined ? '' : `, usually about ${entry.expectedSeconds} s`})`;
     const parts = [
@@ -66,16 +80,22 @@ export class SourceNotice {
       ...failed.map(
         (entry) => `${entry.source} could not be indexed (${entry.reason}) and is not searched`,
       ),
+      ...stale.map((entry) =>
+        entry.refreshError === undefined
+          ? `${entry.source} is answered from ${entry.at} while it refreshes`
+          : `${entry.source} could not be refreshed (${entry.refreshError}) and stays at ${entry.at}`,
+      ),
     ];
 
     return {
       answeredFrom: opts.answeredFrom,
       indexing,
       failed,
+      stale,
       building,
       ready: { count: opts.answeredFrom.length, total },
       ...(retryInSeconds === undefined ? {} : { retryInSeconds }),
-      message: `${opts.answeredFrom.length} of ${total} sources are ready; ${parts.join('; ')}; this answer covers only ${opts.answeredFrom.length === 0 ? 'nothing yet' : listOf({ names: opts.answeredFrom })}${retryInSeconds === undefined ? '' : `. Ask again in about ${retryInSeconds} s for the rest`}`,
+      message: `${opts.answeredFrom.length} of ${total} sources are ready; ${parts.join('; ')}${indexing.length === 0 && failed.length === 0 ? '' : `; this answer covers only ${opts.answeredFrom.length === 0 ? 'nothing yet' : listOf({ names: opts.answeredFrom })}`}${retryInSeconds === undefined ? '' : `. Ask again in about ${retryInSeconds} s for the rest`}`,
     };
   }
 
