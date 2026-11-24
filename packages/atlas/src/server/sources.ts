@@ -280,7 +280,21 @@ export class SourcesServer {
       boot?.declared.findIndex((source) => source.name === name) ?? -1;
 
     boot?.listen({
-      onReady: ({ resolved }) => {
+      onReady: ({ resolved, isReplacement }) => {
+        const existing = stores.find((store) => store.name === resolved.name);
+
+        // The source was served from its last good index: the fresh one replaces its stores in place.
+        if (isReplacement === true && existing !== undefined) {
+          existing.replace(storesOf({ source: resolved, cwd: opts.cwd }));
+          served.splice(
+            served.findIndex((entry) => entry.name === resolved.name),
+            1,
+            resolved,
+          );
+
+          return;
+        }
+
         const entry = liveEntry({ initial: storesOf({ source: resolved, cwd: opts.cwd }) });
         const target = makeTarget({ entry, source: resolved });
 

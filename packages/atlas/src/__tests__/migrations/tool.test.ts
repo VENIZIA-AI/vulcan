@@ -383,6 +383,8 @@ describe('MigrateReport.markdown', () => {
         notServed: {
           answeredFrom: ['app'],
           indexing: [],
+          building: [],
+          ready: { count: 1, total: 2 },
           failed: [{ source: 'ignis', reason: 'fetch failed' }],
           message:
             'ignis could not be indexed (fetch failed) and is not searched; this answer covers only app',

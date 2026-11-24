@@ -246,7 +246,7 @@ describe('a server whose sources are still being indexed', () => {
 
     expect(early.hits.every((hit: { source: string }) => hit.source === 'own')).toBe(true);
     expect(early.notServed.indexing).toEqual(['src']);
-    expect(early.notServed.message).toContain('src is still being indexed');
+    expect(early.notServed.message).toContain('src is being indexed');
     expect(early.notServed.answeredFrom).toEqual(['own']);
 
     const landed = await SourceResolver.resolveRemote({ source, cwd, cacheDir });
@@ -354,7 +354,14 @@ describe('SourceNotice', () => {
     expect(
       SourceNotice.attach({
         result: [1, 2],
-        notice: { answeredFrom: [], indexing: ['a'], failed: [], message: 'm' },
+        notice: {
+          answeredFrom: [],
+          indexing: ['a'],
+          building: [],
+          ready: { count: 0, total: 1 },
+          failed: [],
+          message: 'm',
+        },
       }),
     ).toEqual([1, 2]);
   });

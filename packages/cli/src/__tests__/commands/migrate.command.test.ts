@@ -280,7 +280,7 @@ describe('vulcan migrate', () => {
       });
 
       expect(plan.code).toBe(0);
-      expect(plan.stdout).toContain('Warning: ghost could not be indexed');
+      expect(plan.stdout).toContain('ghost could not be indexed');
       expect(missing.code).toBe(1);
       expect(missing.stderr).toContain('not served by any atlas source');
       expect(missing.stderr).toContain('ghost could not be indexed');

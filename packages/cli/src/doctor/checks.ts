@@ -1,3 +1,4 @@
+import { AtlasStatus } from '@venizia/vulcan-atlas';
 import { Glob } from 'bun';
 import { spawnSync } from 'node:child_process';
 import {
@@ -754,6 +755,28 @@ export class ProjectContract {
             message: `events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
           }),
         ];
+  }
+
+  /**
+   * An atlas source that the last server run recorded as failed, or as building for over ten minutes: the agents of this project
+   * read the `.d.ts` files by hand until it is served. A warning with the lines `vulcan x atlas status` prints.
+   */
+  static checkAtlasSources(opts: ICheckContext): IViolation[] {
+    return AtlasStatus.hasProblem({ root: opts.root })
+      ? [
+          createViolation({
+            check: DoctorChecks.ATLAS_SOURCE,
+            file: '.agents/local/cache/atlas/status.json',
+            message: `an atlas source is not served: ${AtlasStatus.recordedLines({
+              root: opts.root,
+            })
+              .filter((line) => line.includes(': failed ') || line.includes('over 10 minutes'))
+              .join(
+                ' | ',
+              )} - run \`${ProjectLayout.VULCAN_COMMAND} x atlas status\` for the record`,
+          }),
+        ]
+      : [];
   }
 
   /**

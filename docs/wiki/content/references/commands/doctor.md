@@ -55,6 +55,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `local.tmp` to a short folder and run `vulcan sync`, or check out at a shorter path |
 | `local` (failure) | `local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
 | `board-autostart` (note) | `board.serve.autoStart` of `.agents/local/profile.json` is on and `events.log` is off, so no board is started | Set `events.log` to `true`, or turn `autoStart` off |
+| `atlas-source` (warning) | The last atlas server run recorded a source as failed, or as building for over ten minutes | Run `vulcan x atlas status` for the record; fix the remote or the network, or `vulcan x atlas pull` the source |
 | `prepare` (note) | No install script (`prepare` or `postinstall`) of the root `package.json` runs `vulcan sync` (directly or as `make vulcan-sync`), so a fresh clone has no hooks until someone runs it | Add the `prepare` script the note prints (`vulcan init --preset` writes it for a new project) |
 | `claude-settings` (warning) | Git tracks `.claude/settings.json`, which `sync` writes in every clone | `git rm --cached .claude/settings.json`; sync keeps it out of git from then on |
 | `config-defaults` (note) | N values of the config repeat what the shipped defaults give | Run `vulcan config --diff` and delete them |
@@ -301,6 +302,10 @@ A warning: today's event file is bigger than `events.maxSize` on its own. The re
 ```text
   warning [events-size] .configs/vulcan.config.mts: today's event file in /path/.agents/local/events is 61.2 MB, over events.maxSize (50MB); nothing is truncated and today's file is never removed - raise maxSize or write fewer events
 ```
+
+### atlas-source
+
+A warning: the agents of the project read the `.d.ts` files by hand while an atlas source is not served. The atlas server records what it does with each source in `.agents/local/cache/atlas/status.json` (`building`, `ready` or `failed`, since when, how long a build took, the last error); doctor warns when a source is `failed` or has been `building` for over ten minutes (the build most likely hung, or the server that started it ended). `vulcan x atlas status` prints the same record, one line per source, and exits 1 on such a problem.
 
 ### prepare
 

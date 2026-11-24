@@ -3,13 +3,13 @@ import { AtlasCommands, AtlasConstants } from './common';
 import { InteractiveRun, ModeArguments, ModeUsageError, SourceArguments } from './cli/index';
 import { AtlasStatus } from './cli/status';
 import { runReleasesCommand } from './releases/generator';
-import { Refresher, SourceBoot, SourcesServer } from './server/index';
+import { FileSourceMemory, Refresher, SourceBoot, SourcesServer } from './server/index';
 import type { Transport } from './protocol/index';
 import { AtlasLimits } from './common/limits';
 import { ProjectConfig } from './common/project-config';
 import { TextValue } from './common/text';
 import { runIndexCommand } from './prebuilt/index';
-import { SourceResolver } from './sources/index';
+import { SourceCache, SourceResolver } from './sources/index';
 import type { IAtlasSource } from './sources/index';
 import { runApiCommand } from './api/index';
 import { runSurfaceCommand } from './surface/index';
@@ -146,6 +146,9 @@ const buildServer = async (opts: {
   ];
   const boot = new SourceBoot({
     sources,
+    memory: new FileSourceMemory({
+      cacheBase: SourceCache.cacheBaseOf({ cwd: opts.root, cacheDir }),
+    }),
     indexer: ({ source }) =>
       SourceBoot.indexInChild({
         source,
@@ -312,7 +315,11 @@ const main = async (): Promise<void> => {
   }
 
   if (subcommand === AtlasCommands.STATUS) {
-    process.stdout.write(AtlasStatus.report({ root: ModeArguments.readRoot({ argv }).value }));
+    const statusRoot = ModeArguments.readRoot({ argv }).value;
+    const statusCache = ModeArguments.readCacheDir({ argv });
+
+    process.stdout.write(AtlasStatus.report({ root: statusRoot, cacheDir: statusCache }));
+    process.exitCode = AtlasStatus.hasProblem({ root: statusRoot, cacheDir: statusCache }) ? 1 : 0;
 
     return;
   }

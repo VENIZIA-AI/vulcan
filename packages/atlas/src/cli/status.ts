@@ -1,5 +1,7 @@
 import { relative } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
+import { SourceStatus } from '@/server/status';
+import { SourceCache } from '@/sources/cache';
 import { InstalledPackages } from '@/sources/installed';
 import { InstalledVersions } from '@/tools/common/installed-versions';
 
@@ -10,8 +12,44 @@ import { InstalledVersions } from '@/tools/common/installed-versions';
  * install is seen at a glance. It reads the disk only; the pin of a source's docs is in the answer of the `version`
  * tool.
  */
+/** A source still building after this long has most likely hung: `status` says so, and `vulcan doctor` warns. */
+const STUCK_MS = 10 * 60 * 1000;
+
 export class AtlasStatus {
-  static report(opts: { root: string }): string {
+  /** The sources as the last server run recorded them, one line each: state, how long ago, how long a build takes, the error. */
+  static recordedLines(opts: { root: string; cacheDir?: string; now?: number }): string[] {
+    const recorded = SourceStatus.read({
+      file: SourceStatus.fileOf({
+        cacheBase: SourceCache.cacheBaseOf({ cwd: opts.root, cacheDir: opts.cacheDir }),
+      }),
+    });
+    const now = opts.now ?? Date.now();
+
+    return Object.entries(recorded)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, entry]) => {
+        const ago = Math.max(0, Math.round((now - entry.since) / 1000));
+        const usual =
+          entry.durationMs === undefined
+            ? ''
+            : `; a build usually takes about ${Math.round(entry.durationMs / 1000)} s`;
+        const stuck =
+          entry.state === 'building' && now - entry.since > STUCK_MS
+            ? ' - over 10 minutes: the build most likely hung or the server ended'
+            : '';
+
+        return `- ${name}: ${entry.state} for ${ago} s${usual}${entry.error === undefined ? '' : `; last error: ${entry.error}`}${stuck}`;
+      });
+  }
+
+  /** Whether the record holds a source that failed, or one that has been building for over ten minutes. */
+  static hasProblem(opts: { root: string; cacheDir?: string; now?: number }): boolean {
+    return AtlasStatus.recordedLines(opts).some(
+      (line) => line.includes(': failed ') || line.includes('over 10 minutes'),
+    );
+  }
+
+  static report(opts: { root: string; cacheDir?: string }): string {
     const { root } = opts;
     const lines = [`atlas status for ${root}`, ''];
     const sources = ProjectConfig.hasAtlasProject({ root })
@@ -23,6 +61,13 @@ export class AtlasStatus {
       ...(sources.length === 0
         ? ['- none declared']
         : sources.map((source) => `- ${source.name}: ${source.repo}@${source.ref}`)),
+    );
+    const recorded = AtlasStatus.recordedLines(opts);
+
+    lines.push(
+      '',
+      'What the last server run recorded for each source (`building`, `ready` or `failed`):',
+      ...(recorded.length === 0 ? ['- nothing yet: no atlas server has started here'] : recorded),
     );
     lines.push(
       '',
