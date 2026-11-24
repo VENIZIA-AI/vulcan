@@ -9,10 +9,12 @@ import {
   OwnerTones,
 } from './constants.ts';
 
-const TEXT = z.string().regex(OwnerConstants.LABEL_PATTERN, {
+/** One line of at most 80 characters, with no backtick, pipe or quote. */
+export const TEXT = z.string().regex(OwnerConstants.LABEL_PATTERN, {
   message: 'one line of at most 80 characters, with no backtick, pipe or quote',
 });
-const LANGUAGE = z.string().regex(OwnerConstants.LANGUAGE_PATTERN, {
+/** A language code such as `en` or `pt-BR`. */
+export const LANGUAGE = z.string().regex(OwnerConstants.LANGUAGE_PATTERN, {
   message: 'a language code such as en or pt-BR',
 });
 const choice = (opts: { isValid: (value: string) => boolean; set: Iterable<string> }) =>
@@ -20,11 +22,13 @@ const choice = (opts: { isValid: (value: string) => boolean; set: Iterable<strin
     message: `one of: ${[...opts.set].join(', ')}`,
   });
 
-const SECTION = choice({
+/** A section of a reply, one of `OwnerSections`. */
+export const SECTION = choice({
   isValid: (value) => OwnerSections.isValid(value),
   set: OwnerSections.values(),
 });
-const ENFORCE = choice({
+/** An enforcement level, one of `OwnerEnforcement`. */
+export const ENFORCE = choice({
   isValid: (value) => OwnerEnforcement.isValid(value),
   set: OwnerEnforcement.values(),
 });
@@ -46,8 +50,6 @@ const REMOVED_KEY = (opts: { fix: string }) =>
       context.addIssue({ code: 'custom', message: `removed: ${opts.fix}` });
     })
     .optional();
-
-const DEFAULTS = OwnerConstants.DEFAULT_LABELS;
 
 /** The words of one language: the minimap header, the six statuses and five labels. A closed list. */
 export const OWNER_LABEL_SET = z.strictObject({
@@ -82,48 +84,6 @@ export const OWNER_LABEL_SET = z.strictObject({
     recommend: TEXT.refine((value) => value.includes('{x}'), { message: 'must contain {x}' }),
   }),
 });
-
-/**
- * The project's report contract for answers to its owners: the shape, the status words, the labels and
- * whether the shape card is shown. English and `advise` unless the project says otherwise. A person's own
- * language, address and tone live in their profile (`.agents/local/profile.json`), not here.
- */
-export const OWNER_SCHEMA = z
-  .strictObject({
-    /** Language of the reply labels, a code such as `en` or `pt-BR`; default `en`. */
-    language: LANGUAGE.default(OwnerConstants.DEFAULT_LANGUAGE),
-    /** How a reply is shaped: sections, minimap columns, status words, labels, headline length, path style and whether the shape card is shown. */
-    report: z
-      .strictObject({
-        /** Sections of a reply, in order: headline, minimap, blocked, detail, decisions; at least one, default all five in that order. */
-        shape: z.array(SECTION).min(1).default(OwnerConstants.DEFAULT_SHAPE),
-        /** Three minimap column headers; default `#`, `Task`, `Status`. */
-        minimapColumns: z.tuple([TEXT, TEXT, TEXT]).default(DEFAULTS.minimapColumns),
-        /** Status words of the minimap; default the English set (done, in progress, waiting, not started, blocked, dropped). */
-        status: OWNER_LABEL_SET.shape.status.default(DEFAULTS.status),
-        /** Labels of the blocked and decisions parts; default the English set. */
-        labels: OWNER_LABEL_SET.shape.labels.default(DEFAULTS.labels),
-        /** Most sentences the headline of a reply may have, 1 to 5; default 2. */
-        headlineMaxSentences: z
-          .number()
-          .int()
-          .min(1)
-          .max(5)
-          .default(OwnerConstants.DEFAULT_HEADLINE_MAX_SENTENCES),
-        /** Whether file paths in a reply must be absolute; default `true`. */
-        absolutePaths: z.boolean().default(true),
-        /** Whether the session digest shows the shape card: `off` leaves it out, `advise` and `block` show it; default `advise`. */
-        enforce: ENFORCE.default(OwnerEnforcement.ADVISE),
-        /** Removed with the reply check, the only thing that read it. */
-        claimWords: REMOVED_KEY({ fix: 'delete this key; the reply check that read it is gone' }),
-        /** Removed with the reply check, the only thing that read it. */
-        shortReplyWords: REMOVED_KEY({
-          fix: 'delete this key; the reply check that read it is gone',
-        }),
-      })
-      .prefault({}),
-  })
-  .prefault({});
 
 /**
  * `.agents/local/profile.json`: the one per-developer file. What one developer told VULCAN about how to work with them, and
@@ -171,6 +131,5 @@ export const PROFILE_SCHEMA = z.strictObject({
   labels: z.record(LANGUAGE, OWNER_LABEL_SET).default({}),
 });
 
-export type TOwnerConfig = z.output<typeof OWNER_SCHEMA>;
 export type TOwnerLabelSet = z.output<typeof OWNER_LABEL_SET>;
 export type TProfile = z.output<typeof PROFILE_SCHEMA>;

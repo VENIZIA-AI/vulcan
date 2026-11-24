@@ -2,8 +2,9 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
 import { ConfigLoader } from '../config/index.ts';
+import { OWNER_SCHEMA } from '../config/sections/owner/index.ts';
 import { ManifestConstants } from '../manifest/index.ts';
-import { OWNER_SCHEMA, OwnerCard, OwnerProfile, OwnerView, ReplySwitch } from '../owner/index.ts';
+import { OwnerCard, OwnerProfile, OwnerView, ReplySwitch } from '../owner/index.ts';
 
 /**
  * Builds the digest printed at session start by the session-start hook: what only this session knows - a config

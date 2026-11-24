@@ -9,8 +9,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { OWNER_SCHEMA } from '../../config/sections/owner/index.ts';
 import {
-  OWNER_SCHEMA,
   OwnerCard,
   OwnerConstants,
   OwnerProfile,

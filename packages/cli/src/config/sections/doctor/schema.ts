@@ -1,8 +1,8 @@
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
-import { LayoutConstants } from '../layout/common/constants.ts';
-import { PrivateValueKinds } from './common/constants.ts';
-import type { TPrivateValueKind } from './common/types.ts';
+import { LayoutConstants } from '../../../layout/common/constants.ts';
+import { PrivateValueKinds } from '../../../doctor/common/constants.ts';
+import type { TPrivateValueKind } from '../../../doctor/common/types.ts';
 
 const KIND = z.custom<TPrivateValueKind>(
   (value) => typeof value === 'string' && PrivateValueKinds.isValid(value),
@@ -47,6 +47,7 @@ export const DOCTOR_SCHEMA = z.strictObject({
   layout: LAYOUT.prefault({}),
 });
 
-export type TLayoutSettings = z.output<typeof LAYOUT>;
-
-export type TPrivateValueAcknowledgement = z.output<typeof ACKNOWLEDGEMENT>;
+export const DOCTOR_SECTION = {
+  /** What `vulcan doctor` is told: `privateValues.acknowledged` lists the files that may keep private values, each with a `reason`; `layout` sets the layout check. */
+  doctor: DOCTOR_SCHEMA.prefault({}),
+};
