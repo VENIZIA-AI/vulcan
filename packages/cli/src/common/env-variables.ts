@@ -28,7 +28,7 @@ export class EnvVariables {
   static readonly VULCAN_DIST_TAGS = 'VULCAN_DIST_TAGS';
   /** The project root, set by Claude Code for its hooks and by the guard extension for the hooks it runs; without it the hooks use the working directory. */
   static readonly CLAUDE_PROJECT_DIR = 'CLAUDE_PROJECT_DIR';
-  /** Where Claude Code puts its task output; the launch file points it at `.agents/local/tmp`, and `vulcan doctor` warns when it points elsewhere. */
+  /** Where Claude Code puts its own temp files; a person who wants them in the project exports it in their shell. */
   static readonly CLAUDE_CODE_TMPDIR = 'CLAUDE_CODE_TMPDIR';
   /** The file Claude Code hands a start hook to export variables from; the session-start hook appends `export TMPDIR=...` to it. */
   static readonly CLAUDE_ENV_FILE = 'CLAUDE_ENV_FILE';

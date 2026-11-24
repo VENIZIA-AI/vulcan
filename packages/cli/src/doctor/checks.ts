@@ -33,7 +33,6 @@ import {
   SyncStatuses,
 } from '../sync/index.ts';
 import { BrowserSocket, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
-import { CLAUDE_LAUNCH_FILE } from '../sync/claude-launch.ts';
 import { PrivateValues } from './private-values.ts';
 import { ReplySwitch, OwnerConstants, OwnerReplySwitch, OwnerProfile } from '../owner/index.ts';
 import { SkillCatalog, VersionFolders } from '@venizia/vulcan-atlas';
@@ -1305,8 +1304,8 @@ export class ProjectContract {
   /**
    * The project's tmp folder is too deep for a browser: Chrome and Chromium put a socket below the temp folder
    * and exit with "Socket path too long" past the limit of a unix socket path (`BrowserSocket.PATH_MAX`, the Linux
-   * value; macOS allows 104). The launch file points a session's `TMPDIR` at that folder, so a browser it starts
-   * (Playwright MCP, a headless Chrome) fails; a project with no launch file is not asked. A warning, because only a
+   * value; macOS allows 104). The session start points a session's `TMPDIR` at that folder, so a browser it starts
+   * (Playwright MCP, a headless Chrome) fails. A warning, because only a
    * project that starts a browser meets it; the way out is a shorter checkout path. The root is made absolute first.
    */
   static checkBrowserSocket(opts: { root: string; tmp?: string }): IViolation[] {
@@ -1318,7 +1317,7 @@ export class ProjectContract {
     const folder = ProjectTmp.projectOf({ root, tmp: HookConstants.PROJECT_TMP });
     const length = BrowserSocket.lengthOf({ folder });
 
-    if (BrowserSocket.fits({ folder }) || !existsSync(join(root, CLAUDE_LAUNCH_FILE))) {
+    if (BrowserSocket.fits({ folder })) {
       return [];
     }
 
@@ -1327,7 +1326,7 @@ export class ProjectContract {
     return [
       createViolation({
         check: DoctorChecks.LOCAL,
-        file: CLAUDE_LAUNCH_FILE,
+        file: HookConstants.PROJECT_TMP,
         message: `the temp folder ${folder} is too deep for a browser: Chrome's socket path would be ${length} characters (${BrowserSocket.longest()} below it) and the limit is ${BrowserSocket.PATH_MAX}, so a browser started with this folder exits with "${BrowserSocket.ERROR}". Set \`local.tmp\` in the config to a short folder of the project (for example \`tmp\`) and run \`vulcan sync\`, or move the checkout to a path of ${spare} characters or fewer`,
       }),
     ];

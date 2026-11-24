@@ -96,7 +96,6 @@ A project installs only `@venizia/vulcan`. The other two ship inside it as depen
 ./.agents/vulcan.manifest.json          # committed: project manifest written by sync
 ./.agents/vulcan.local.json             # gitignored: the coding agents you chose on this machine
 ./.agents/local/                        # gitignored: scratch, worktrees, reports, profile (vulcan clean)
-./.agents/local/claude.launch.settings.json # gitignored: Claude Code launch file, written by sync
 ./CLAUDE.md                             # gitignored: agent adapter pointing to AGENTS.md
 ./.claude/settings.json                 # gitignored: merged settings and registered hooks
 ./.claude/vulcan-managed.json           # gitignored: record of applied settings

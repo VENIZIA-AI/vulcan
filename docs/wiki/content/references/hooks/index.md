@@ -10,7 +10,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 
 | Hook | Event | Matcher | What it does | When it acts |
 |---|---|---|---|---|
-| Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Prints a config problem, a launch warning and the owner card to stdout, under 2 KB | Fires on session start, resume, clear, or compact |
+| Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Prints a config problem, where scratch goes and the owner card to stdout, under 2 KB | Fires on session start, resume, clear, or compact |
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
 | `guard-git` | `PreToolUse` | `Bash` | Refuses some git and gh actions on `develop` and `main`; asks before other risky ones | Fires on every Bash command; only those git and gh actions are flagged |
 | `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
@@ -22,7 +22,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 
 ## Session digest
 
-The session-start hook injects what only this session knows into your agent's context, in under 2 KB: a config problem when the config does not load, a launch warning when Claude Code was started without the launch file, the shape card "How to answer the owner" built from the [`owner` block](/references/configuration/#owner) (left out when `report.enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off`) and, when the developer has a [profile](/references/configuration/#the-personal-profile), a short "Working with this person" card.
+The session-start hook injects what only this session knows into your agent's context, in under 2 KB: a config problem when the config does not load, one line telling the agent to keep scratch in `$TMPDIR` and not in the scratchpad the tool offers, the shape card "How to answer the owner" built from the [`owner` block](/references/configuration/#owner) (left out when `report.enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off`) and, when the developer has a [profile](/references/configuration/#the-personal-profile), a short "Working with this person" card.
 
 It holds no rule text. The rules are the generated block of the committed `AGENTS.md` (`<!-- vulcan:rules:start ... -->`), which `vulcan sync` writes: the slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go, and the rules of `digest.oftenDropped`, one line each with the whole first sentence of the rule, at most 6 KB. Claude Code reads it through `CLAUDE.md`, omp reads `AGENTS.md` itself. The reason is a limit measured in a real Claude Code run: a hook's output reaches the model whole up to about 10,000 bytes (10,001 passed, 10,010 did not), and beyond that the model gets a file path and the first 2 KB. The digest this hook printed before was 23 KB for VULCAN, 148 KB for a project with many rules, so the model saw its first 2 KB (the header and `V-W-01` to `V-W-03`) and nothing else.
 
@@ -169,7 +169,6 @@ The scratchpad folder an agent tool offers a session is under the system temp di
 - `.agents/vulcan.manifest.json`
 - `.configs/vulcan.config.*`
 - `.claude/settings.json` and `.claude/settings.local.json`
-- `.agents/local/claude.launch.settings.json`, the file `vulcan sync` writes for `claude --settings .agents/local/claude.launch.settings.json`. Its `env` block reaches every hook, so a write to it reaches the guards as surely as a write to the project settings. Only this path is held: a session started with another `--settings` file is not covered.
 - `.codex/hooks.json`, `.agents/hooks.json`, `.omp/hooks/pre/vulcan-guards.ts` and `.pi/extensions/vulcan-guards.ts`, the files `vulcan sync` writes for Codex, Antigravity, omp and pi
 - `node_modules/@venizia/vulcan` and everything under it (the hooks themselves)
 - Bun's own copy of that package, `node_modules/.bun/@venizia+vulcan@*` and everything under it, which the link in `node_modules/@venizia/vulcan` points to; where the link leads to another copy under `node_modules`, that copy and the folders above it are held the same way. A link to a source folder of a workspace (this repository links the package to `packages/cli`) is the project's own code and is not held, only the link path is

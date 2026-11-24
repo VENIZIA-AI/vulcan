@@ -42,12 +42,7 @@ export class LocalConstants {
   static readonly NOTE_BYTES = 50 * 1024 * 1024;
   static readonly GIT_TIMEOUT_MS = 10_000;
   /** Files VULCAN itself writes directly under `.agents/local/`; anything else there that is not a layout folder is unknown. */
-  static readonly KNOWN_FILES = new Set([
-    'profile.json',
-    'claude.launch.settings.json',
-    'auto-clean.json',
-    '.gitkeep',
-  ]);
+  static readonly KNOWN_FILES = new Set(['profile.json', 'auto-clean.json', '.gitkeep']);
   /**
    * Scratch folders a browser leaves directly under the temp folder it was given (`.agents/local` when it is
    * the folder that is short enough for Chrome's socket). They are tmp that sits one level too high.

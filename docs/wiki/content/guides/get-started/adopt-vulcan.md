@@ -82,7 +82,6 @@ The project it creates (the files `init` and `sync` wrote, without `.git`, `node
 $ cd my-product && find . -type f -not -path './.git/*' -not -path '*/node_modules/*' -not -name bun.lock | LC_ALL=C sort
 ./.agents/knowledge/index.md
 ./.agents/knowledge/packages/core-api.md
-./.agents/local/claude.launch.settings.json
 ./.agents/rules.md
 ./.agents/vulcan.local.json
 ./.agents/vulcan.manifest.json
@@ -113,7 +112,7 @@ $ cd my-product && find . -type f -not -path './.git/*' -not -path '*/node_modul
 ./services/core-api/tsconfig.json
 ```
 
-Everything under `services/core-api/` comes from the preset (the list shows its shape; the exact files come from the preset you pick). The rest is the VULCAN layer. `sync` also creates the scratch folder `.agents/local/` (gitignored), which holds the Claude Code launch file `claude.launch.settings.json`. `.agents/vulcan.local.json` exists only after you chose your agents.
+Everything under `services/core-api/` comes from the preset (the list shows its shape; the exact files come from the preset you pick). The rest is the VULCAN layer. `sync` also creates the scratch folder `.agents/local/` (gitignored). `.agents/vulcan.local.json` exists only after you chose your agents.
 When every step passes, `init` prints the next step (the lines depend on the preset):
 
 ```text
@@ -220,7 +219,6 @@ $ bun node_modules/.bin/vulcan sync
   created   .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)
   created   .agents/vulcan.local.json
-  created   .agents/local/claude.launch.settings.json (the Claude Code launch file is missing)
   created   .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
   replaced  .git/info/exclude
 ```

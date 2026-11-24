@@ -11,7 +11,7 @@ tags: [architecture, agents, local, clean]
 
 **`local/` is the one place an agent creates files** (rule V-B-08). `ProjectLayout.LOCAL_LAYOUT` is the single list of its folders, each with a lifetime: `tmp` (task, stale after 1 day), `worktrees` (branch), `clones` (research, 14 days), `cache`, `reports`, `prototypes`, `agents` (kept; `agents/<name>/` is one agent's own state, never cleaned, never warned about), `events` (kept) and `release-candidates` (release). `agents`, `events` and `release-candidates` carry `onDemand`, so `sync` does not create them (`LocalPlan.planWorkspace`). `sync`, `doctor` and `clean` all read that list; the docs page `guides/core-concepts/the-agents-folder.md` repeats it as a table, and a test keeps the two together.
 
-**Files VULCAN writes directly in `local/`:** `profile.json`, `claude.launch.settings.json` (`LocalConstants.KNOWN_FILES`).
+**Files VULCAN writes directly in `local/`:** `profile.json` (`LocalConstants.KNOWN_FILES`).
 
 ## How expiry and cleaning work
 
@@ -23,6 +23,6 @@ tags: [architecture, agents, local, clean]
 
 ## Gotchas
 
-- `local.tmp` (config, manifest `local.tmp`) names a short tmp folder in the project; `ProjectTmp.projectOf` is the one method that returns it, and the guard, the session digest, the session-start export, the launch file, the clean scan and the `add` scratch call it. The hooks read it from the manifest, `sync` and `doctor` from the config. It is checked like a layout folder (`LayoutFolder.layoutFolderProblem`), so a hidden folder such as `.t` is refused; `doctor` fails when it is still too deep for a browser socket.
+- `local.tmp` (config, manifest `local.tmp`) names a short tmp folder in the project; `ProjectTmp.projectOf` is the one method that returns it, and the guard, the session digest, the session-start export, the clean scan and the `add` scratch call it. The hooks read it from the manifest, `sync` and `doctor` from the config. It is checked like a layout folder (`LayoutFolder.layoutFolderProblem`), so a hidden folder such as `.t` is refused; `doctor` fails when it is still too deep for a browser socket.
 - `BrowserSocket` (`local/browser-socket.ts`) holds the 107-character limit and the socket names of Chrome and Chromium for the test helper and for the doctor warning (`ProjectContract.checkBrowserSocket`). Chrome puts a unix socket at `<temp folder>/com.google.Chrome.XXXXXX/SingletonSocket`, 107 characters at most. The visualize browser test helper (`BrowserPage`) therefore takes the first of `VULCAN_BROWSER_TMPDIR`, `.agents/local/tmp`, `.agents/local`, the test folder where that path fits; in a long path (a worktree) none fits and the tests skip with a message. Each run gets a private temp folder inside it when the path allows (removed whole at the end); otherwise only the folder named by the link `<profile>/SingletonSocket` is removed (`BrowserPage.scratchOf`), so two runs at once never delete each other's folders. Chrome's small `url_fetcher` and hidden `.com.google.Chrome.*` folders stay in that case and are taken by `vulcan clean --tmp`.
 - A clone path of 66 characters or more cannot hold a Chrome socket under `.agents/local`.

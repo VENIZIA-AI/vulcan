@@ -801,7 +801,7 @@ The safe part is stale `tmp/`, browser folders older than an hour, event day fil
 
 It is written like a [layout](#layout) folder: 1 to 4 plain lower-case segments, never absolute, never climbing, so `tmp` (recommended) or `tools/tmp`, not `.tmp`.
 
-`vulcan sync` creates it, adds it to `.gitignore` when it is outside `.agents/local/`, points the launch file at it and writes it to the manifest. The guard, the session digest, the session-start export, `vulcan clean` and `vulcan add` then use it.
+`vulcan sync` creates it, adds it to `.gitignore` when it is outside `.agents/local/`, and writes it to the manifest. The guard, the session digest, the session-start export, `vulcan clean` and `vulcan add` then use it.
 
 A browser puts a socket below it, so a deep checkout sets it short; `vulcan doctor` fails when even this folder is too deep.
 
@@ -923,7 +923,7 @@ The variables the cli reads. The atlas server has variables of its own (`VULCAN_
 - `VULCAN_BUN`, `VULCAN_GIT`, read by `init`, `add`: Replace the `bun` and `git` those commands run; for tests
 - `VULCAN_DIST_TAGS`, read by `upgrade`: The dist-tags as JSON in place of the registry read of `--nightly`; for tests
 - `CLAUDE_PROJECT_DIR`, read by the hooks: The project root, set by Claude Code (and by the pi guards extension when it runs a guard script); without it the hooks use the working directory
-- `CLAUDE_CODE_TMPDIR`, read by the session-start hook: Where Claude Code puts its task output; the launch file points it at `.agents/local/tmp` (or `local.tmp`) (see [Agents](/references/agents))
+- `CLAUDE_CODE_TMPDIR`, read by the session-start hook: Where Claude Code puts its own temp files; export it in your shell to keep them in the project (see [Agents](/references/agents))
 - `CLAUDE_ENV_FILE`, read by the session-start hook: The file Claude Code hands a start hook to export variables from; the hook appends `export TMPDIR=<project>/.agents/local/tmp` (or the `local.tmp` folder)
 - `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CONFIG_DIR`, read by the event hook: The session id, and the folder whose `sessions/*.json` names the session (default `~/.claude`), to find the session's name
 

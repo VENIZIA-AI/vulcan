@@ -1,14 +1,17 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { LOCAL_AGENTS_FILE, LocalChoice } from '../agents/index.ts';
 import { ProjectLayout } from '../common/index.ts';
 import { HookConstants } from '../hooks/common/index.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
-import { LaunchSettings } from './claude-launch.ts';
+import { AgentFiles } from './agent-files.ts';
 import { SyncStatuses } from './common/index.ts';
 import type { ISyncAction } from './common/index.ts';
 
 const NO_CHANGE = (): void => {};
+
+/** The file an earlier release wrote for `claude --settings`; nothing writes or reads it now. */
+const LEGACY_LAUNCH_FILE = `${ProjectLayout.LOCAL_DIRECTORY}/claude.launch.settings.json`;
 
 /** One line sync adds to a committed `.gitignore`; a project without one is left alone. */
 const planIgnoreLine = (opts: { root: string; line: string }): ISyncAction[] => {
@@ -94,6 +97,35 @@ export class LocalPlan {
     ];
   }
 
+  /** The launch file of an earlier release, left behind: removed when git does not track it (sync never runs a git write). */
+  static planLegacyLaunch(opts: { root: string }): ISyncAction[] {
+    const path = join(opts.root, LEGACY_LAUNCH_FILE);
+
+    if (!existsSync(path)) {
+      return [];
+    }
+
+    if (AgentFiles.isTracked({ root: opts.root, path: LEGACY_LAUNCH_FILE })) {
+      return [
+        {
+          path,
+          status: SyncStatuses.SKIPPED,
+          note: `the Claude Code launch file is no longer used and git tracks it: run git rm --cached ${LEGACY_LAUNCH_FILE}, then delete it`,
+          apply: NO_CHANGE,
+        },
+      ];
+    }
+
+    return [
+      {
+        path,
+        status: SyncStatuses.REMOVED,
+        note: 'the Claude Code launch file is no longer used',
+        apply: () => rmSync(path, { force: true }),
+      },
+    ];
+  }
+
   /**
    * The project's local workspace: `.agents/local/` is gitignored and holds what an agent creates while
    * it works (scratch, worktrees, clones, cache, prototypes), so nothing lands outside the project.
@@ -107,13 +139,7 @@ export class LocalPlan {
     return [
       ...planIgnoreLine({ root: opts.root, line: `${ProjectLayout.LOCAL_DIRECTORY}/` }),
       ...LocalPlan.planTmp(opts),
-      ...LaunchSettings.planClaude({
-        root: opts.root,
-        tmp: ProjectTmp.effectiveOf({
-          root: opts.root,
-          tmp: ProjectTmp.configuredOf({ tmp: opts.tmp }),
-        }),
-      }),
+      ...LocalPlan.planLegacyLaunch({ root: opts.root }),
       {
         path: directory,
         status: missing.length === 0 ? SyncStatuses.UNCHANGED : SyncStatuses.CREATED,

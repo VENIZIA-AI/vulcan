@@ -28,7 +28,7 @@ const-classes-extend-const-class:
   downgrade:
     steps:
       - 'Pin the earlier package and put `X.SCHEME_SET` and `X.isValid` back where you replaced them.'
-launch-file-and-loader-variables:
+loader-variables-dropped:
   symbols:
     - BUN_OPTIONS
     - NODE_OPTIONS
@@ -38,7 +38,6 @@ launch-file-and-loader-variables:
       - 'Run `bun node_modules/.bin/vulcan sync` in a terminal after upgrading; if `claude.settings.env` in `.configs/vulcan.config.*` sets `BUN_OPTIONS`, `NODE_OPTIONS` or any `BUN_CONFIG_*`, it refuses and names the key.'
       - 'Delete each of those keys from `claude.settings.env` and set it in your shell instead (your shell profile or the command that starts the agent): the hooks no longer pass them on.'
       - 'Run `bun node_modules/.bin/vulcan sync` again and commit `.claude/settings.json` and the manifest.'
-      - 'Stop writing `.agents/local/claude.launch.settings.json` from an agent or a script that ran through one: it is protected like the project settings.'
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, put the keys back in `claude.settings.env` if you want the agent to receive them, and run `bun node_modules/.bin/vulcan sync`.'
@@ -147,3 +146,18 @@ pack-guard-and-commit-defaults:
   downgrade:
     steps:
       - 'Pin the earlier package and write `guard.outside` and the signature value you want in the config.'
+claude-launch-file-dropped:
+  symbols:
+    - LaunchSettings
+    - ClaudeLaunch
+    - CLAUDE_CODE_TMPDIR
+  upgrade:
+    steps:
+      - 'Stop starting Claude Code with `claude --settings .agents/local/claude.launch.settings.json`: start it as you start any project (nothing replaces the flag); remove it from your shell alias or script.'
+      - 'Run `bun node_modules/.bin/vulcan sync`: it deletes a leftover `.agents/local/claude.launch.settings.json` that git does not track. If git tracks it, run `git rm --cached .agents/local/claude.launch.settings.json` and delete it.'
+      - 'To keep Claude Code''s own task-output and MCP temp files in the project, export `CLAUDE_CODE_TMPDIR="$PWD/.agents/local/tmp"` in your own shell before you start it; VULCAN no longer writes a file for this.'
+      - 'A script or a Makefile that reads `.agents/local/claude.launch.settings.json` loses the file: read `.agents/local/tmp` (or your `local.tmp` folder) instead.'
+  downgrade:
+    steps:
+      - 'Pin the earlier package and run `bun node_modules/.bin/vulcan sync`: it writes the launch file again.'
+  data: "Claude Code's own task-output files, the scratchpad it offers and its MCP servers use /tmp/claude-<uid> unless you export CLAUDE_CODE_TMPDIR in your shell. Commands the agent runs still use the project tmp folder (the session start exports TMPDIR), and guard-outside refuses a write into the offered scratchpad."
