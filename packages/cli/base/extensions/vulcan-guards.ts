@@ -1,11 +1,11 @@
-// Written by `vulcan sync` for omp and pi; sync rewrites it, so change the guards, not this file.
+// Written by `vulcan project sync` for omp and pi; sync rewrites it, so change the guards, not this file.
 //
 // VULCAN's guards for an agent that takes an extension instead of Claude Code's hook commands. Before each
 // tool call it runs the same guard scripts Claude Code runs (node_modules/@venizia/vulcan/base/hooks/*.ts),
 // with a Claude-shaped event on stdin, and turns the answer into this agent's: `deny` blocks, `ask` asks
 // the owner (and blocks when there is no UI to ask). A guard that cannot give an answer follows the same
 // policy as the Claude wrappers: the safety guards block, the others ask, and a missing install blocks
-// too - bar a bare `bun install` or `vulcan sync`, the way to repair it (guard-git only for a git or gh line).
+// too - bar a bare `bun install` or `vulcan project sync`, the way to repair it (guard-git only for a git or gh line).
 // A guard that is gone from an installed package blocks, except guard-writes, which passes: there is nothing
 // to run. A project that sets `guard.asks: 'deny'` has every ask answered as a block.
 // Only node: modules are imported, so any host that loads TypeScript can load it.
@@ -92,9 +92,9 @@ const withoutLoaderNames = (opts: {
         !LoaderNames.PREFIXES.some((prefix) => name.startsWith(prefix)),
     ),
   );
-/** The commands that pass while the install is missing or out of step: they are how it is repaired (`bun install`, `vulcan sync`). */
+/** The commands that pass while the install is missing or out of step: they are how it is repaired (`bun install`, `vulcan project sync`). */
 const REPAIR =
-  /^\s*(bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*|bun node_modules\/\.bin\/vulcan sync( --?[a-z][a-z-]*( [\w./@-]+)?)*)\s*$/;
+  /^\s*(bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*|bun node_modules\/\.bin\/vulcan project sync( --?[a-z][a-z-]*( [\w./@-]+)?)*)\s*$/;
 /** A command line that names git or gh as a word. */
 const GIT_LINE = /(^|[^A-Za-z0-9_])(git|gh)([^A-Za-z0-9_]|$)/;
 const MANIFEST_FILE = join('.agents', 'local', 'vulcan.manifest.json');
@@ -258,7 +258,7 @@ const runGuard = (opts: {
       return opts.guard.isClosedWhenGone
         ? {
             kind: Answers.MISSING,
-            reason: `VULCAN guards unavailable: ${opts.guard.name} is not in the installed package; run bun node_modules/.bin/vulcan sync`,
+            reason: `VULCAN guards unavailable: ${opts.guard.name} is not in the installed package; run bun node_modules/.bin/vulcan project sync`,
           }
         : { kind: Answers.ALLOW, reason: '' };
     }

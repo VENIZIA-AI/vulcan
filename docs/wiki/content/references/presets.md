@@ -5,7 +5,7 @@ description: The format of a VULCAN preset - the package field, the preset.json 
 
 # Presets
 
-A preset is the app template a framework ships in its own npm package. `vulcan init --preset` and `vulcan add --preset` read it and create the app.
+A preset is the app template a framework ships in its own npm package. `vulcan project init --preset` and `vulcan package add --preset` read it and create the app.
 A preset is data only: VULCAN never imports or runs code from it.
 
 Two things make a package a preset. The first is a `vulcan.presets.app` field in its `package.json`, the path to `preset.json`:
@@ -54,7 +54,7 @@ The folder is yours to name; the official presets build into `dist/presets/{app,
 
 The `typecheck` script is `bun check` (Bun 1.4.4 or later): it reports the same errors as `tsc --noEmit`, including decorator metadata, in a fraction of the time (83 s down to 3.2 s on a real app). Two differences matter in a script: a failing run exits with code 1, not 2, so test for `!= 0`; and above 50 errors it groups identical ones unless you pass `--all`, which you want when you count errors. If the package has a script named `check`, `bun check` runs that script instead; pass `--no-script` to run the type checker. Keep `tsc` where it emits (build output, declaration files); `bun check -b` is documented to follow project references like `tsc -b`, but it was not measured here, so keep `tsc -b` for a build that depends on them.
 
-The app must pass `vulcan doctor`, which `init` runs last. Its `style` check wants `@venizia/dev-configs` declared and a lint config that imports it, so the example ships `.configs/lints/oxlint.config.mts` (`import { defineConfig } from 'oxlint'; import { oxlintConfigs } from '@venizia/dev-configs/linters'; export default defineConfig(oxlintConfigs);`) and lists `@venizia/dev-configs` in `devDependencies`. A preset without them ends `init` with `[style] package.json: add @venizia/dev-configs as a devDependency - here, or at the root`.
+The app must pass `vulcan project doctor`, which `init` runs last. Its `style` check wants `@venizia/dev-configs` declared and a lint config that imports it, so the example ships `.configs/lints/oxlint.config.mts` (`import { defineConfig } from 'oxlint'; import { oxlintConfigs } from '@venizia/dev-configs/linters'; export default defineConfig(oxlintConfigs);`) and lists `@venizia/dev-configs` in `devDependencies`. A preset without them ends `init` with `[style] package.json: add @venizia/dev-configs as a devDependency - here, or at the root`.
 
 ## preset.json keys
 
@@ -65,7 +65,7 @@ The app must pass `vulcan doctor`, which `init` runs last. Its `style` check wan
 - `dependencies` (object, optional): Package to range. They go in the root `catalog` and in the app as `catalog:`
 - `devDependencies` (object, optional): The same, for development
 - `peers` (object, optional): Package to range that the root `catalog` must already satisfy when `add` runs. A catalog pin equal to the version this preset lists for that package in `dependencies` or `devDependencies` is accepted without the comparison, a prerelease included
-- `scripts` (object, optional): The `scripts` of the app's `package.json`. Use the standard seven (`server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`; rule `V-B-05`): the root `dev` script runs `server:dev` in every app, and `vulcan doctor` notes an app that lacks one or carries `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`
+- `scripts` (object, optional): The `scripts` of the app's `package.json`. Use the standard seven (`server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`; rule `V-B-05`): the root `dev` script runs `server:dev` in every app, and `vulcan project doctor` notes an app that lacks one or carries `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`
 - `checks` (array of script names, optional): Scripts that `init` and `add` run in the app after install, in order. Each entry must be a key of `scripts`, or the preset is refused
 - `urls` (array of paths, optional): Paths to open on the dev port, each starting with `/` (`/api/hello`). `init` and `add` end with one `open http://localhost:<port><path>` line per path. With none, they print the root. They are recorded in the app's `package.json` under `vulcan.urls`, so a later `add` prints them too
 - `imports` (object of strings, optional): Node subpath imports for the app, written to its `package.json` as `imports` exactly as given, so code can import `#src/...` with no `tsconfig` `paths`, `tsc-alias` or Vite alias. Every key must start with `#`, or the preset is refused and the message names the key. Every value is a string. The [tokens](#tokens-in-files) are not replaced here. VULCAN 0.3.3 and older ignore the key
@@ -125,10 +125,10 @@ The app-only keys `side`, `devPort`, `urls` and `peers` are not allowed here: th
 
 The library files take the tokens `{{project}}`, `{{lib}}` (the folder name, `billing`) and `{{package}}` (the npm name, `@acme/billing`).
 
-`vulcan add --lib` generates `package.json` as `name`, `version` (`0.0.0`), `private`, the `packageFields`, `exports`, `imports`, `scripts`, then the three dependency maps.
+`vulcan package add --lib` generates `package.json` as `name`, `version` (`0.0.0`), `private`, the `packageFields`, `exports`, `imports`, `scripts`, then the three dependency maps.
 A library lands in the `--dir` folder, else the one `shared` folder of `layout`, else the one folder the existing libraries share; with none of those, or with several `shared` folders, `add` asks for `--dir`.
 Its name takes `--scope`, else the scope the packages already in that folder agree on, else the project's own scope, else none.
-See [`vulcan add`](/references/commands/add#add-a-library).
+See [`vulcan package add`](/references/commands/add#add-a-library).
 
 ## A shared kind
 
@@ -150,8 +150,8 @@ The `shared` file has the same keys as a lib preset file ([the table above](#a-l
 
 The shared files take the tokens `{{project}}`, `{{shared}}` (the folder name, `common`) and `{{package}}` (the npm name, `@acme/common`). The token `{{lib}}` is not replaced in a shared package, and `{{shared}}` is not replaced in a library.
 
-`vulcan add --shared` generates `package.json` and places the package by the rules of `--lib`, in the same `shared` folder of `layout`; the folder never depends on the kind. The preset's package is not added as a dependency, so a project with only frontend apps can run `vulcan add --preset <name> --shared common` and needs no app of that preset.
-The config records the preset with a `shared` summary and the package with `presetKind: "shared"` ([Configuration](/references/configuration/#presets)). See [`vulcan add`](/references/commands/add#add-a-shared-package).
+`vulcan package add --shared` generates `package.json` and places the package by the rules of `--lib`, in the same `shared` folder of `layout`; the folder never depends on the kind. The preset's package is not added as a dependency, so a project with only frontend apps can run `vulcan package add --preset <name> --shared common` and needs no app of that preset.
+The config records the preset with a `shared` summary and the package with `presetKind: "shared"` ([Configuration](/references/configuration/#presets)). See [`vulcan package add`](/references/commands/add#add-a-shared-package).
 
 ## Tokens in files
 
@@ -179,7 +179,7 @@ docker build -f be/api3/.configs/builders/Dockerfile \
   --build-arg APP_BUILD_BRANCH="$(git rev-parse --abbrev-ref HEAD)" .
 ```
 
-The root `.dockerignore` that `vulcan init` writes leaves out `.git`, so the image gets the commit and branch from the build arguments instead. It also excludes `**/.env` and `**/.env.*` (and keeps `!**/.env.example`): a Dockerfile that copies the project would otherwise put every app's secrets in an image layer, which a CI cache can keep.
+The root `.dockerignore` that `vulcan project init` writes leaves out `.git`, so the image gets the commit and branch from the build arguments instead. It also excludes `**/.env` and `**/.env.*` (and keeps `!**/.env.example`): a Dockerfile that copies the project would otherwise put every app's secrets in an image layer, which a CI cache can keep.
 
 Never copy a file with a credential into an image: an `.npmrc` with an auth token, a `.netrc`, a key. A build that installs from a private registry takes it from the environment, `BUN_CONFIG_REGISTRY`, handed over as a build secret (`docker build --secret`) and never as a copied file; a build argument is visible in the image history, so it does not carry a token either.
 
@@ -215,7 +215,7 @@ Any other dotfile (`.editorconfig`, for one) copies from a `file:` preset under 
 A preset with another number stops `init` with a message that names both versions:
 
 ```text
-vulcan init: @acme/api@1.0.0 has preset version 2; this VULCAN reads version 1 - upgrade @venizia/vulcan
+vulcan project init: @acme/api@1.0.0 has preset version 2; this VULCAN reads version 1 - upgrade @venizia/vulcan
 ```
 
 Write the version your preset was made for, and raise it only when you use a newer format.
@@ -225,13 +225,13 @@ Write the version your preset was made for, and raise it only when you use a new
 Point `--preset` at the package folder with `file:`. The path resolves against the current directory:
 
 ```bash
-bun x @venizia/vulcan init --preset file:../acme-api --project demo --backend-dir services --app core-api
+bun x @venizia/vulcan project init --preset file:../acme-api --project demo --backend-dir services --app core-api
 ```
 
 With `file:`, the preset package itself is written to the catalog as `file:<absolute path>`, so the generated app installs from your folder.
 
-`--preset` takes `<name>` (an unscoped name is `@venizia/<name>`), `<name>@<range>`, `@scope/<name>` or `file:<path>`. `init --preset` creates a new project folder and refuses one that exists and is not empty; see [vulcan init](/references/commands/init).
-Run it without `VULCAN_NO_INSTALL`: a good preset ends with the checks, `vulcan doctor` and `okf check --strict` all green.
+`--preset` takes `<name>` (an unscoped name is `@venizia/<name>`), `<name>@<range>`, `@scope/<name>` or `file:<path>`. `init --preset` creates a new project folder and refuses one that exists and is not empty; see [vulcan project init](/references/commands/init).
+Run it without `VULCAN_NO_INSTALL`: a good preset ends with the checks, `vulcan project doctor` and `okf check --strict` all green.
 
 To test the format without an install, set `VULCAN_NO_INSTALL=1`. The install, `git init`, `sync` and the checks then print as `skipped`, and the files are still written.
 This is what VULCAN's own tests do.
@@ -239,11 +239,11 @@ This is what VULCAN's own tests do.
 A preset that does not fit the format stops with the key and the reason:
 
 ```text
-vulcan init: @acme/api@1.0.0: ./dist/presets/app/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined
+vulcan project init: @acme/api@1.0.0: ./dist/presets/app/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined
 ```
 
 ## See also
 
-- [vulcan init](/references/commands/init#create-a-monorepo-with-preset)
-- [vulcan add](/references/commands/add)
+- [vulcan project init](/references/commands/init#create-a-monorepo-with-preset)
+- [vulcan package add](/references/commands/add)
 - [Configuration: `layout`](/references/configuration/)

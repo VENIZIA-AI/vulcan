@@ -15,7 +15,7 @@ interface IBoardServerOptions {
   hostname?: string;
   /** The events folder to watch; a read of the board happens when it changes. */
   dir: string;
-  /** The folded board, as `vulcan board` makes it. */
+  /** The folded board, as `vulcan board show` makes it. */
   collect: () => IBoardData;
   /** The design tokens of the page; default the default preset. */
   tokens?: IThemeTokens;

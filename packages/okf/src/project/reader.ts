@@ -122,14 +122,17 @@ const contentsFilesOf = (opts: { patterns: string[]; root: string }): string[] =
   ),
 ];
 
-/** The handoff, parsed: only `vulcan x` writes it, so anything else is okf run by hand. */
+/** The handoff, parsed: only `vulcan atlas` or `vulcan okf` writes it, so anything else is okf run by hand. */
 const parsedOf = (opts: { text: string }): unknown => {
   try {
     return JSON.parse(opts.text);
   } catch (error) {
-    throw new Error('okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan x`', {
-      cause: error,
-    });
+    throw new Error(
+      'okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan atlas` or `vulcan okf`',
+      {
+        cause: error,
+      },
+    );
   }
 };
 
@@ -138,7 +141,7 @@ let cached: { text: string; root: string; project: IOkfProject } | undefined;
 
 export class OkfProject {
   /**
-   * okf's view of the project, from what `vulcan x` hands it. The cli validated the config already;
+   * okf's view of the project, from what `vulcan atlas` or `vulcan okf` hands it. The cli validated the config already;
    * this only reads it, with the schema's defaults for anything absent, and resolves every path.
    */
   static read(): IOkfProject {
@@ -146,7 +149,7 @@ export class OkfProject {
     const root = process.env[OkfProjectConstants.ROOT_ENV];
 
     if (text === undefined || root === undefined) {
-      throw new Error('okf: no project config - run through `vulcan x okf`');
+      throw new Error('okf: no project config - run through `vulcan okf`');
     }
 
     if (cached?.text === text && cached.root === root) {

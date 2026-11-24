@@ -117,7 +117,7 @@ const projectOf = (opts: { checkout: string; source: IAtlasSource }): IAtlasProj
 
   if (file === undefined) {
     throw new Error(
-      `atlas: ${describe(opts)} has no ${MANIFEST_FILE} - its maintainers run \`vulcan sync\` and commit it`,
+      `atlas: ${describe(opts)} has no ${MANIFEST_FILE} - its maintainers run \`vulcan project sync\` and commit it`,
     );
   }
 

@@ -49,7 +49,7 @@ const bash = (command: string): TEvent => ({ toolName: 'bash', input: { command 
 
 const DENY_OUTSIDE_CONFIG =
   "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny' } };\n";
-/** What `vulcan sync` renders from it: the hooks read this, not the config. */
+/** What `vulcan project sync` renders from it: the hooks read this, not the config. */
 const DENY_OUTSIDE_MANIFEST = guardManifest({ guard: { outside: 'deny' } });
 
 /** A project with the package installed: the real guard scripts run. */
@@ -434,7 +434,7 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
     // every guard is gone: guard-writes passes, guard-outside blocks the call
     expect(gone?.block).toBe(true);
     expect(gone?.reason).toContain('VULCAN guards unavailable: guard-outside');
-    expect(gone?.reason).toContain('vulcan sync');
+    expect(gone?.reason).toContain('vulcan project sync');
     expect(goneGit?.block).toBe(true);
     expect(noPackage?.block).toBe(true);
 
@@ -469,12 +469,12 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
     const result2 = await handle(bash('bun install --frozen-lockfile'), contextOf({ cwd: root }));
     expect(result2).toBeUndefined();
     const result4 = await handle(
-      bash('bun node_modules/.bin/vulcan sync'),
+      bash('bun node_modules/.bin/vulcan project sync'),
       contextOf({ cwd: root }),
     );
     expect(result4).toBeUndefined();
     const chainedSync = await handle(
-      bash('bun node_modules/.bin/vulcan sync; git push'),
+      bash('bun node_modules/.bin/vulcan project sync; git push'),
       contextOf({ cwd: root }),
     );
     const gitLine = await handle(bash('git status'), contextOf({ cwd: root }));

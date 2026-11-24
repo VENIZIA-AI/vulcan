@@ -12,7 +12,7 @@ export class LibraryKinds extends ConstClass {
   static readonly SHARED = 'shared';
 }
 
-/** The agents `vulcan sync` writes adapters for. */
+/** The agents `vulcan project sync` writes adapters for. */
 export class CodingAgents {
   static readonly CLAUDE = 'claude';
 
@@ -37,7 +37,7 @@ export class ConfigConstants {
   static readonly DIRECTORY = '.configs';
   /** The one config file name, under `.configs/`. */
   static readonly FILE = 'vulcan.config.mts';
-  /** The modules `vulcan init` splits the config into, under `.configs/`: the index the config imports and one per large section. */
+  /** The modules `vulcan project init` splits the config into, under `.configs/`: the index the config imports and one per large section. */
   static readonly SPLIT_MODULES = [
     'vulcan/index.mts',
     'vulcan/claude.mts',

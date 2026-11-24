@@ -142,9 +142,9 @@ describe('the Stop hook decides', () => {
 
     expect(held?.decision).toBe('block');
     expect(held?.reason).toContain(
-      `bun node_modules/.bin/vulcan event step --flow '${FLOW}' --done 'Refresh'`,
+      `bun node_modules/.bin/vulcan flow step --flow '${FLOW}' --done 'Refresh'`,
     );
-    expect(held?.reason).toContain(`event step --flow '${FLOW}' --next with the real state`);
+    expect(held?.reason).toContain(`flow step --flow '${FLOW}' --next with the real state`);
     expect(held?.reason).not.toContain('where the work stands');
     expect(held?.reason).not.toContain("--done 'Token'");
 
@@ -358,7 +358,7 @@ describe('a stale flow is reminded once per two hours', () => {
 
     expect(held?.decision).toBe('block');
     expect(held?.reason).toContain('no update for 3 hours and steps are still open');
-    expect(held?.reason).toContain(`event step --flow '${FLOW}' --done 'Refresh'`);
+    expect(held?.reason).toContain(`flow step --flow '${FLOW}' --done 'Refresh'`);
     expect(stop({ root, now: T0 + HOUR })).toBeUndefined();
   });
 
@@ -628,7 +628,7 @@ describe('the scripts', () => {
 
     expect(held.exitCode).toBe(0);
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toContain(`event step --flow '${FLOW}'`);
+    expect(parsed.reason).toContain(`flow step --flow '${FLOW}'`);
     expect(again.stdout.toString()).toBe('');
     expect(run({ script: 'board-stop.ts', root, input: 'not an object' }).exitCode).toBe(0);
   });

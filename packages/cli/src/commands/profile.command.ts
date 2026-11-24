@@ -105,7 +105,7 @@ const fillInProfile = async (opts: { root: string }): Promise<number> => {
   // Before the questions, not after: an answer that cannot be saved is an answer typed for nothing.
   if (!OwnerProfile.profileIsIgnored({ root: opts.root })) {
     process.stderr.write(
-      'vulcan profile: .gitignore does not list .agents/local/ - run vulcan sync (or add the line) first; a personal file must not be committable\n',
+      'vulcan profile: .gitignore does not list .agents/local/ - run vulcan project sync (or add the line) first; a personal file must not be committable\n',
     );
 
     return ExitCodes.FAILURE;

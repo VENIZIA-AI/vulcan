@@ -33,7 +33,7 @@ const runCommand = async (opts: { command: string | undefined; argv: string[] })
     }
 
     default: {
-      console.error('usage: vulcan x okf <check|gen|coverage>');
+      console.error('usage: vulcan okf <check|gen|coverage>');
       process.exit(2);
     }
   }

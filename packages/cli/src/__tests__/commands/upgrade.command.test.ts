@@ -69,7 +69,7 @@ test('an explicit version or tag wins over the mode, and never reads the registr
 
 test('--stable with --nightly is refused naming both, before anything is installed', () => {
   const root = createProject({ files: {} });
-  const result = runCli({ args: ['upgrade', '--stable', '--nightly'], cwd: root });
+  const result = runCli({ args: ['project', 'upgrade', '--stable', '--nightly'], cwd: root });
 
   expect(result.code).toBe(1);
   expect(result.stderr).toContain('--stable and --nightly');
@@ -78,7 +78,7 @@ test('--stable with --nightly is refused naming both, before anything is install
 test('upgrade --nightly pins the resolved version (offline run)', () => {
   const root = createProject({ files: {} });
   const result = runCli({
-    args: ['upgrade', '--nightly'],
+    args: ['project', 'upgrade', '--nightly'],
     cwd: root,
     env: {
       VULCAN_NO_INSTALL: '1',
@@ -95,7 +95,7 @@ const NIGHTLY_FAILURE = 'could not read the dist-tags of @venizia/vulcan';
 describe('--nightly with an unusable registry answer', () => {
   const runNightly = (opts: { tags: string }) =>
     runCli({
-      args: ['upgrade', '--nightly'],
+      args: ['project', 'upgrade', '--nightly'],
       cwd: createProject({ files: {} }),
       env: { VULCAN_NO_INSTALL: '1', [UpgradeFlags.DIST_TAGS_ENV]: opts.tags },
     });
@@ -129,7 +129,7 @@ describe('--nightly with an unusable registry answer', () => {
 
 test('when bun pm view fails its own stderr is printed', () => {
   const result = runCli({
-    args: ['upgrade', '--nightly'],
+    args: ['project', 'upgrade', '--nightly'],
     cwd: createProject({ files: {} }),
     env: {
       VULCAN_BUN: createFakeCommand({ body: 'echo "registry unreachable: 401" >&2; exit 1' }),
@@ -153,7 +153,11 @@ describe('an installed prerelease on the stable channel', () => {
       },
     });
   const upgrade = (opts: { root: string; args: string[] }) =>
-    runCli({ args: ['upgrade', ...opts.args], cwd: opts.root, env: { VULCAN_NO_INSTALL: '1' } });
+    runCli({
+      args: ['project', 'upgrade', ...opts.args],
+      cwd: opts.root,
+      env: { VULCAN_NO_INSTALL: '1' },
+    });
 
   test('prints one note naming the installed version', () => {
     const result = upgrade({ root: withInstalled({ version: '0.3.0-2' }), args: [] });

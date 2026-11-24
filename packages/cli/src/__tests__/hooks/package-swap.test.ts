@@ -131,7 +131,7 @@ describe('a package manager that takes the guard package from somewhere else is 
     'bun run add ./evil',
     'bun run install ./evil',
     'bunx @venizia/vulcan --version',
-    'bun node_modules/.bin/vulcan sync',
+    'bun node_modules/.bin/vulcan project sync',
     'git add ./evil',
     'echo bun add ./evil',
   ])('%s passes', (command) => {

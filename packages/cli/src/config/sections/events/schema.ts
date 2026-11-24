@@ -6,14 +6,14 @@ export const EVENTS_SECTION = {
   /**
    * The agent event log: one JSON line per thing an agent did (a session started, a message sent, an
    * owner is needed), summaries only, in `.agents/local/events/<day>.jsonl`. `log: true` makes
-   * `vulcan sync` install the Claude Code hooks that write it; `vulcan event add` writes it for any
+   * `vulcan project sync` install the Claude Code hooks that write it; `vulcan event add` writes it for any
    * other agent whatever this says. `dir` is an absolute folder that takes the log instead of the
    * project's own, so one coordinator can read the events of sessions in different repositories.
    * Off by default; written to the manifest only when `log` is true or `dir` is set.
    */
   events: z
     .strictObject({
-      /** `true` makes `vulcan sync` install the hooks that write the event log; default `false`. */
+      /** `true` makes `vulcan project sync` install the hooks that write the event log; default `false`. */
       log: z.boolean().default(false),
       /** Absolute folder that takes the event log instead of the project's own; absent means the project's `.agents/local/events`. */
       dir: z

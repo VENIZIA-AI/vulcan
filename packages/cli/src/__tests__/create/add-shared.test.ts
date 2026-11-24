@@ -18,7 +18,17 @@ const ENV = { VULCAN_NO_INSTALL: '1' };
 const initFrom = (opts: { preset: string; args: string[] }): string => {
   const parent = createProject({ files: {} });
   const result = runCli({
-    args: ['init', '--preset', opts.preset, '--project', 'p', '--key', 'TEST', ...opts.args],
+    args: [
+      'project',
+      'init',
+      '--preset',
+      opts.preset,
+      '--project',
+      'p',
+      '--key',
+      'TEST',
+      ...opts.args,
+    ],
     cwd: parent,
     env: ENV,
   });
@@ -37,7 +47,7 @@ const monorepo = (): string =>
 
 const add = (opts: { root: string; preset?: string; args: string[] }) =>
   runCli({
-    args: ['add', '--preset', opts.preset ?? WITH_SHARED, ...opts.args],
+    args: ['package', 'add', '--preset', opts.preset ?? WITH_SHARED, ...opts.args],
     cwd: opts.root,
     env: ENV,
   });
@@ -57,7 +67,7 @@ const blockOf = (opts: { root: string }) => {
 const readJson = (opts: { root: string; path: string }) =>
   JSON.parse(readFileSync(join(opts.root, opts.path), 'utf8'));
 
-describe('vulcan add --shared', () => {
+describe('vulcan package add --shared', () => {
   test('makes the package in the shared folder from the shared kind, with its own tokens', () => {
     const root = monorepo();
     const result = add({ root, args: ['--shared', 'common'] });
@@ -128,11 +138,11 @@ describe('vulcan add --shared', () => {
     const result = add({ root: monorepo(), args: [] });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain(`vulcan add --preset ${WITH_SHARED} --shared <name>`);
+    expect(result.stderr).toContain(`vulcan package add --preset ${WITH_SHARED} --shared <name>`);
   });
 });
 
-describe('vulcan add --shared with a preset that has no shared kind', () => {
+describe('vulcan package add --shared with a preset that has no shared kind', () => {
   test('refuses, writes nothing, says what the preset makes, and says no known preset has the kind', () => {
     const root = initFrom({
       preset: WITH_LIB,
@@ -157,13 +167,13 @@ describe('vulcan add --shared with a preset that has no shared kind', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('has no shared kind');
     expect(result.stderr).toMatch(
-      /a preset with one: run bun node_modules\/\.bin\/vulcan add --preset file:\S+ --shared x/,
+      /a preset with one: run bun node_modules\/\.bin\/vulcan package add --preset file:\S+ --shared x/,
     );
     expect(existsSync(join(root, 'libs/x'))).toBe(false);
   });
 });
 
-describe('vulcan add --shared names the official presets that have a shared kind', () => {
+describe('vulcan package add --shared names the official presets that have a shared kind', () => {
   const OFFICIAL: IOfficialPreset[] = [
     {
       id: 'forge',
@@ -210,7 +220,7 @@ describe('vulcan add --shared names the official presets that have a shared kind
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(
-      'a preset with one: run bun node_modules/.bin/vulcan add --preset forge --shared x\n',
+      'a preset with one: run bun node_modules/.bin/vulcan package add --preset forge --shared x\n',
     );
     expect(result.stderr).not.toContain('plain');
     expect(result.stderr).not.toContain('no preset known');
@@ -236,13 +246,13 @@ describe('vulcan add --shared names the official presets that have a shared kind
     const result = await refuse({ root, official: OFFICIAL });
 
     expect(result.stderr).toContain(
-      'a preset with one: run bun node_modules/.bin/vulcan add --preset @venizia/forge@1.2.3 --shared x\n',
+      'a preset with one: run bun node_modules/.bin/vulcan package add --preset @venizia/forge@1.2.3 --shared x\n',
     );
     expect(result.stderr).not.toContain('--preset forge ');
   });
 });
 
-describe('vulcan add --shared in a project that has only a frontend app', () => {
+describe('vulcan package add --shared in a project that has only a frontend app', () => {
   test('works with no backend app, no backend folder and no preset package among the dependencies', () => {
     const root = initFrom({
       preset: FRONTEND,

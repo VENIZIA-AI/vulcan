@@ -41,7 +41,7 @@ const DEV_TARGET = '\ndev:\n\t@bun run dev\n';
 const BASE_IGNORES = ['node_modules/', 'dist/', '*.tsbuildinfo'];
 
 const fail = (opts: { message: string }): number => {
-  process.stderr.write(`vulcan init: ${opts.message}\n`);
+  process.stderr.write(`vulcan project init: ${opts.message}\n`);
 
   return ExitCodes.FAILURE;
 };
@@ -399,7 +399,7 @@ const runCreate = async (opts: {
       SubProcess.runBun({
         cwd: root,
         args: [join(root, 'node_modules', '.bin', 'vulcan'), 'sync'],
-        label: 'vulcan sync',
+        label: 'vulcan project sync',
       }),
     () =>
       AppChecks.run({

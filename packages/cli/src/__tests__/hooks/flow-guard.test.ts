@@ -56,7 +56,7 @@ describe('FlowGuard: a commit or a pull request needs a flow, in a project that 
 
     expect(hit?.decision).toBe('deny');
     expect(hit?.rule).toBe('V-P-13');
-    expect(hit?.fix).toContain('bun node_modules/.bin/vulcan event add --kind flow --title');
+    expect(hit?.fix).toContain('bun node_modules/.bin/vulcan flow add --title');
     expect(hit?.fix).toContain('Flow: <id>');
   });
 
@@ -232,7 +232,7 @@ describe('the git guard script holds the rule', () => {
     expect(child.exitCode).toBe(0);
     expect(out.hookSpecificOutput.permissionDecision).toBe('deny');
     expect(out.hookSpecificOutput.permissionDecisionReason).toContain('V-P-13');
-    expect(out.hookSpecificOutput.permissionDecisionReason).toContain('event add --kind flow');
+    expect(out.hookSpecificOutput.permissionDecisionReason).toContain('flow add');
   });
 
   test('with a flow, with the log off and for a command that is not a commit it prints nothing', () => {

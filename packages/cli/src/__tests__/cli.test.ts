@@ -55,10 +55,10 @@ describe('vulcan router', () => {
     const cwd = createProject({ files: { '.configs/vulcan.config.mts': 'export default {};\n' } });
 
     for (const args of [
-      ['sync', '--help'],
-      ['doctor', '-h'],
-      ['init', '--help'],
-      ['upgrade', '--help'],
+      ['project', 'sync', '--help'],
+      ['project', 'doctor', '-h'],
+      ['project', 'init', '--help'],
+      ['project', 'upgrade', '--help'],
     ]) {
       const result = runCli({ args, cwd });
 
@@ -73,8 +73,8 @@ describe('vulcan router', () => {
 
   test('the help line of add lists every flag add takes, for each of its three kinds', () => {
     const help = runCli({ args: ['help'], cwd: tmpdir() }).stdout;
-    const start = help.indexOf('  add --preset');
-    const block = help.slice(start, help.indexOf('  sync ', start));
+    const start = help.indexOf('  package add --preset');
+    const block = help.slice(start, help.indexOf('  project sync ', start));
 
     for (const flag of [
       CreateFlags.PRESET,
@@ -99,17 +99,17 @@ describe('vulcan router', () => {
     const cwd = createProject({ files: { '.configs/vulcan.config.mts': 'export default {};\n' } });
 
     for (const args of [
-      ['sync', '--dryrun'],
-      ['sync', '--prune'],
-      ['doctor', 'now'],
-      ['init', '--force'],
-      ['upgrade', 'a', 'b'],
+      ['project', 'sync', '--dryrun'],
+      ['project', 'sync', '--prune'],
+      ['project', 'doctor', 'now'],
+      ['project', 'init', '--force'],
+      ['project', 'upgrade', 'a', 'b'],
     ]) {
       const result = runCli({ args, cwd });
 
       expect(result.code, args.join(' ')).toBe(1);
       expect(result.stderr, args.join(' ')).toContain(
-        `vulcan ${args[0]}: unknown argument '${args.at(-1)}'`,
+        `vulcan ${args[0]} ${args[1]}: unknown argument '${args.at(-1)}'`,
       );
       expect(result.stdout).toBe('');
     }

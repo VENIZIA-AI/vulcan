@@ -18,7 +18,7 @@ const PRE_UPGRADE = {
 describe('upgrading a project from the layout before .agents/local/', () => {
   test('one sync creates the local workspace and gitignores it, with nothing done by hand', () => {
     const root = createProject({ files: PRE_UPGRADE });
-    const result = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const result = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     expect(result.code).toBe(0);
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
@@ -35,10 +35,10 @@ describe('upgrading a project from the layout before .agents/local/', () => {
   test('a second sync changes nothing in the workspace or the gitignore', () => {
     const root = createProject({ files: PRE_UPGRADE });
 
-    runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     const ignore = readFileSync(join(root, '.gitignore'), 'utf8');
-    const again = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const again = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     expect(again.code).toBe(0);
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(ignore);
@@ -50,7 +50,7 @@ describe('upgrading a project from the layout before .agents/local/', () => {
 
     expect(before.some((entry) => entry.check === 'local')).toBe(true);
 
-    runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     const result = await DoctorRunner.runWarnings({ root });
     const after = SocketWarning.without({ warnings: result });

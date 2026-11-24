@@ -100,7 +100,7 @@ describe('local.autoClean in the config', () => {
   });
 });
 
-describe("vulcan doctor and the size of today's event file", () => {
+describe("vulcan project doctor and the size of today's event file", () => {
   const project = (events: string): { root: string; dir: string } => {
     const dir = join(createProject({ files: {} }), 'shared');
     const root = createProject({

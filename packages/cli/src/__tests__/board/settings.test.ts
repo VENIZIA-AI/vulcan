@@ -270,7 +270,7 @@ describe('BoardSettings.read', () => {
   });
 });
 
-describe('vulcan board uses the settings', () => {
+describe('vulcan board show uses the settings', () => {
   test('title, owner, key and faces reach the page data; the logo too', () => {
     const root = createProject({
       files: {
@@ -287,7 +287,11 @@ describe('vulcan board uses the settings', () => {
         'logo.svg': SVG,
       },
     });
-    const result = runCli({ args: ['board', '--no-github'], cwd: root, env: hermeticEnv() });
+    const result = runCli({
+      args: ['board', 'show', '--no-github'],
+      cwd: root,
+      env: hermeticEnv(),
+    });
 
     expect(result.code, result.stderr).toBe(0);
 

@@ -32,12 +32,12 @@ const projectWith = (opts: { entry: string }): string =>
     },
   });
 
-describe('vulcan changelog check', () => {
+describe('vulcan check changelog', () => {
   test.skipIf(atlasBin === undefined || !existsSync(atlasBin))(
     'C1: exits 1 and names the entry that owes a migration block',
     () => {
       const result = runCli({
-        args: ['changelog', 'check'],
+        args: ['check', 'changelog'],
         cwd: projectWith({ entry: BREAKING_ENTRY }),
       });
 
@@ -61,7 +61,7 @@ describe('vulcan changelog check', () => {
 
 #`,
       );
-      const result = runCli({ args: ['changelog', 'check'], cwd: projectWith({ entry }) });
+      const result = runCli({ args: ['check', 'changelog'], cwd: projectWith({ entry }) });
 
       expect(result.code).toBe(0);
     },
@@ -75,7 +75,7 @@ describe('vulcan changelog check', () => {
   });
 });
 
-describe('vulcan changelog notes', () => {
+describe('vulcan migrate notes', () => {
   const folderProject = (): string =>
     createProject({
       files: {
@@ -94,9 +94,9 @@ describe('vulcan changelog notes', () => {
     'prints the notes of a version folder, and nothing for --migration when there is no block',
     () => {
       const root = folderProject();
-      const notes = runCli({ args: ['changelog', 'notes', '--version', '0.4.8'], cwd: root });
+      const notes = runCli({ args: ['migrate', 'notes', '--version', '0.4.8'], cwd: root });
       const migration = runCli({
-        args: ['changelog', 'notes', '--version', '0.4.8', '--migration'],
+        args: ['migrate', 'notes', '--version', '0.4.8', '--migration'],
         cwd: root,
       });
 
@@ -111,10 +111,10 @@ describe('vulcan changelog notes', () => {
   test('a request that is not --version <X.Y.Z> [--migration] exits 2 with the usage', () => {
     const root = folderProject();
 
-    expect(runCli({ args: ['changelog', 'notes'], cwd: root }).code).toBe(2);
-    expect(runCli({ args: ['changelog', 'notes', '--version'], cwd: root }).code).toBe(2);
+    expect(runCli({ args: ['migrate', 'notes'], cwd: root }).code).toBe(2);
+    expect(runCli({ args: ['migrate', 'notes', '--version'], cwd: root }).code).toBe(2);
     expect(
-      runCli({ args: ['changelog', 'notes', '--version', '0.4.8', '--all'], cwd: root }).code,
+      runCli({ args: ['migrate', 'notes', '--version', '0.4.8', '--all'], cwd: root }).code,
     ).toBe(2);
   });
 });

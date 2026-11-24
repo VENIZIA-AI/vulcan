@@ -1,15 +1,15 @@
 ---
-title: vulcan add
-description: Add another app, a library or a shared package to a monorepo that vulcan init created, from a framework preset - a backend, a frontend that proxies to one, a library other apps import, or a side-neutral package.
+title: vulcan package add
+description: Add another app, a library or a shared package to a monorepo that vulcan project init created, from a framework preset - a backend, a frontend that proxies to one, a library other apps import, or a side-neutral package.
 ---
 
-# vulcan add
+# vulcan package add
 
-`vulcan add` puts one more app, one library or one shared package into a monorepo that `vulcan init --preset` created.
+`vulcan package add` puts one more app, one library or one shared package into a monorepo that `vulcan project init --preset` created.
 Run it at the monorepo root:
 
 ```bash
-bun node_modules/.bin/vulcan add --preset <name>
+bun node_modules/.bin/vulcan package add --preset <name>
 ```
 
 > In a terminal that can draw menus, every question is a menu, not a typed answer; see [Interactive prompts](/references/prompts). The samples below show what a plain terminal (`TERM=dumb`) asks.
@@ -18,34 +18,34 @@ The command asks what to create (when the preset makes more than one kind), the 
 In a terminal it asks. Without one, the kind and every name come from flags:
 
 ```bash
-bun node_modules/.bin/vulcan add --preset ignis --app api2
-bun node_modules/.bin/vulcan add --preset ignis --lib billing
-bun node_modules/.bin/vulcan add --preset ignis --shared common
+bun node_modules/.bin/vulcan package add --preset ignis --app api2
+bun node_modules/.bin/vulcan package add --preset ignis --lib billing
+bun node_modules/.bin/vulcan package add --preset ignis --shared common
 ```
 
 `--app` makes a runnable app. `--lib` makes a library other apps import, which may use the project's framework; only a preset that ships a library kind accepts it (see [Presets](/references/presets#a-library-kind)). `--shared` makes a side-neutral package that depends on no framework; only a preset that ships a shared kind accepts it (see [Presets](/references/presets#a-shared-kind)).
-A frontend, without a terminal, also needs `--api <backend app>` (the backend `/api` is proxied to) or `--no-api`; without one of them `add` stops with `vulcan add: missing --api <app> or --no-api` before it downloads anything.
+A frontend, without a terminal, also needs `--api <backend app>` (the backend `/api` is proxied to) or `--no-api`; without one of them `add` stops with `vulcan package add: missing --api <app> or --no-api` before it downloads anything.
 The kind is never defaulted. With no kind flag, a terminal asks `What do you want to create? (app, lib, shared)`, listing only the kinds the preset offers; a preset with one kind skips that question and asks the folder and the name as it always did.
 Without a terminal, `add` stops before it downloads or writes anything and prints the command of each kind:
 
 ```text
-$ bun node_modules/.bin/vulcan add --preset ignis < /dev/null
-vulcan add: say what to create - `--app <name>` (a runnable app), `--lib <name>` (a library other apps import) or `--shared <name>` (a side-neutral package other apps import)
-  bun node_modules/.bin/vulcan add --preset ignis --app <name>
-  bun node_modules/.bin/vulcan add --preset ignis --lib <name>
-  bun node_modules/.bin/vulcan add --preset ignis --shared <name>
+$ bun node_modules/.bin/vulcan package add --preset ignis < /dev/null
+vulcan package add: say what to create - `--app <name>` (a runnable app), `--lib <name>` (a library other apps import) or `--shared <name>` (a side-neutral package other apps import)
+  bun node_modules/.bin/vulcan package add --preset ignis --app <name>
+  bun node_modules/.bin/vulcan package add --preset ignis --lib <name>
+  bun node_modules/.bin/vulcan package add --preset ignis --shared <name>
 ```
 
 The three commands print whether or not the preset has the kind. A preset without it refuses the flag when you run it (see [Refusals](#refusals)).
 
-This page covers `add`. The first app and the monorepo come from [`vulcan init --preset`](/references/commands/init#create-a-monorepo-with-preset); the preset format is in [Presets](/references/presets).
+This page covers `add`. The first app and the monorepo come from [`vulcan project init --preset`](/references/commands/init#create-a-monorepo-with-preset); the preset format is in [Presets](/references/presets).
 
 ## Add a frontend
 
 A frontend asks which backend app to proxy `/api` to; without a terminal it needs `--api <app>` or `--no-api`. This run adds the `ardor` frontend `web` in a terminal. `ardor` makes apps and libraries, so `add` asks the kind first:
 
 ```text
-$ bun node_modules/.bin/vulcan add --preset ardor
+$ bun node_modules/.bin/vulcan package add --preset ardor
 Fetching preset @venizia/ardor@latest ...
 ? What do you want to create? (app, lib) > app
 ? Frontend folder (holds every frontend app) > apps
@@ -86,7 +86,7 @@ $ bun test
  0 fail
 $ vite build --config .configs/builders/vite.config.mts
 ✓ built in 426ms
-vulcan doctor: OK
+vulcan project doctor: OK
 check: OK - OKF v0.2 + house rules - 4 files, 2 concepts
 Done. apps/web is added. Next:
   make dev
@@ -99,14 +99,14 @@ The output of the install, the lint and the build, and the timings, are cut or d
 Without a terminal, the same run is one command:
 
 ```bash
-bun node_modules/.bin/vulcan add --preset ardor --app web --frontend-dir apps --api core-api
+bun node_modules/.bin/vulcan package add --preset ardor --app web --frontend-dir apps --api core-api
 ```
 
 Without `--api` and `--no-api` it stops at once:
 
 ```text
-$ bun node_modules/.bin/vulcan add --preset ardor --app web --frontend-dir apps < /dev/null
-vulcan add: missing --api <app> or --no-api
+$ bun node_modules/.bin/vulcan package add --preset ardor --app web --frontend-dir apps < /dev/null
+vulcan package add: missing --api <app> or --no-api
 ```
 
 With a published preset, `add` first prints `Fetching preset <name>@<range> ...`, then asks; the output of `bun add` is printed only when the fetch fails.
@@ -124,7 +124,7 @@ With `VULCAN_NO_INSTALL=1` the install, `sync` and the checks print as `skipped`
 ## Add a backend app
 
 ```text
-$ bun node_modules/.bin/vulcan add --preset ignis --app api2
+$ bun node_modules/.bin/vulcan package add --preset ignis --app api2
 Fetching preset @venizia/ignis@latest ...
   created  services/api2/package.json
   created  package.json
@@ -159,7 +159,7 @@ Found 0 warnings and 0 errors.
 $ bun test
  2 pass
  0 fail
-vulcan doctor: OK
+vulcan project doctor: OK
 check: OK - OKF v0.2 + house rules - 4 files, 2 concepts
 Done. services/api2 is added. Next:
   make dev
@@ -176,7 +176,7 @@ The second backend listens on `3001`: the preset's `devPort` is `3000` and `core
 A library is a package other apps import: no port, no urls, no `/api` proxy. This run adds `billing` from the `ignis` preset to a project whose shared folder is `libs`:
 
 ```text
-$ bun node_modules/.bin/vulcan add --preset ignis --lib billing
+$ bun node_modules/.bin/vulcan package add --preset ignis --lib billing
 Fetching preset @venizia/ignis@latest ...
   created  libs/billing/tsconfig.json
   created  libs/billing/src/index.ts
@@ -218,7 +218,7 @@ Found 0 warnings and 0 errors.
 $ bun test
  1 pass
  0 fail
-vulcan doctor: OK
+vulcan project doctor: OK
 check: OK - OKF v0.2 + house rules - 5 files, 3 concepts
 Done. libs/billing is added.
 ```
@@ -269,7 +269,7 @@ In a terminal, the library questions are the kind, the name and then the folder 
 
 Where the library goes, and what it is called:
 
-- **The folder** is `--dir`, else the one `shared` folder of `layout`, else the one folder the existing libraries share. With several `shared` folders and no `--dir`, `add` refuses and lists them (`pass --dir <folder> (the layout lists 'kits/a', 'kits/b')`); a terminal picks one. A `--dir` the layout does not list yet is added to `layout.shared` when it is a valid layout folder that nests with no other. A `--dir` that is not one (uppercase, a dot, more than 4 segments, or nested with a listed folder) is still used, and `add` prints one line saying why it was not recorded (`note: 'libs/UI' is not added to layout.shared (...)`). With none of those, `add` refuses: `vulcan add: where should billing go? pass --dir <folder>`. In a terminal it asks `Folder (libs)`, with that default.
+- **The folder** is `--dir`, else the one `shared` folder of `layout`, else the one folder the existing libraries share. With several `shared` folders and no `--dir`, `add` refuses and lists them (`pass --dir <folder> (the layout lists 'kits/a', 'kits/b')`); a terminal picks one. A `--dir` the layout does not list yet is added to `layout.shared` when it is a valid layout folder that nests with no other. A `--dir` that is not one (uppercase, a dot, more than 4 segments, or nested with a listed folder) is still used, and `add` prints one line saying why it was not recorded (`note: 'libs/UI' is not added to layout.shared (...)`). With none of those, `add` refuses: `vulcan package add: where should billing go? pass --dir <folder>`. In a terminal it asks `Folder (libs)`, with that default.
 - **The scope** is `--scope @acme`, else the scope the packages in that folder agree on, else the scope of the project's own `package.json` (`@acme/shop` gives `@acme`), else none. If the packages there use more than one scope, `add` refuses and asks for `--scope`.
 - **The workspace** must cover the folder. A new folder is added to `workspaces`, as for an app.
 - **The registration** is a `packages` entry with `kind: "lib"` and an explicit `path`, so `doctor` does not ask a library to live in a backend or frontend folder; it only checks that a `workspaces` glob covers it. The knowledge page is tagged `library`.
@@ -279,7 +279,7 @@ Where the library goes, and what it is called:
 A shared package is the third kind a preset can ship. It is side-neutral: it belongs to no backend or frontend framework, and apps of either side import it. `--shared` follows every rule of `--lib` above: the folder, the scope, the workspace, the generated `package.json`, the knowledge page and the checks.
 
 ```bash
-bun node_modules/.bin/vulcan add --preset <name> --shared common
+bun node_modules/.bin/vulcan package add --preset <name> --shared common
 ```
 
 Four things differ from a library:
@@ -287,7 +287,7 @@ Four things differ from a library:
 - **The files** come from the preset's shared kind, not its lib kind. They take the tokens `{{project}}`, `{{shared}}` (the folder name, `common`) and `{{package}}` (the npm name).
 - **The folder** is the same one a library uses. It comes from `--dir` or the project's `layout`, never from the preset or the kind, so a library and a shared package sit side by side in one `shared` folder.
 - **The config entry** carries `presetKind: "shared"` next to `kind: "lib"`; a library carries no `presetKind`. The preset's record gains a `shared` summary ([Configuration](/references/configuration/#presets)).
-- **No app of the preset is needed.** The command adds no dependency on the preset's package, to the root or to the new package. A project with only frontend apps runs `vulcan add --preset ignis --shared common` with no IGNIS app and no backend folder; the dependencies it adds are the ones the shared preset file lists.
+- **No app of the preset is needed.** The command adds no dependency on the preset's package, to the root or to the new package. A project with only frontend apps runs `vulcan package add --preset ignis --shared common` with no IGNIS app and no backend folder; the dependencies it adds are the ones the shared preset file lists.
 
 The package's entry in the `packages` list of the config then reads:
 
@@ -295,7 +295,7 @@ The package's entry in the `packages` list of the config then reads:
 { "dir": "common", "name": "common", "path": "libs/common", "kind": "lib", "presetKind": "shared" }
 ```
 
-[`vulcan preset diff`](/references/commands/preset) reads `presetKind` to pick the files to compare.
+[`vulcan package diff`](/references/commands/preset) reads `presetKind` to pick the files to compare.
 
 ## Options
 
@@ -352,7 +352,7 @@ More on the rows:
 - `.configs/vulcan.config.mts`: the block between `vulcan:apps:start` and `vulcan:apps:end` is extended with `layout`, the new `packages` entry and the preset's `atlas` sources. Everything you added outside the markers is untouched and never copied in.
 - `.agents/knowledge/`: the bullet goes after the last one under `## Apps` in `index.md`. A section is added when there is none; the rest of the file is yours.
 
-Then it runs `bun install`, `vulcan sync` from the installed CLI, the preset's `checks` in the new app, `vulcan doctor` and `vulcan x okf check --strict`.
+Then it runs `bun install`, `vulcan project sync` from the installed CLI, the preset's `checks` in the new app, `vulcan project doctor` and `vulcan okf check --strict`.
 The first failure stops the command, and the files stay for you to inspect.
 
 Two rules keep apps consistent:
@@ -372,43 +372,43 @@ Every refusal happens before the first write, with exit code 1.
 
 | Message | Cause and fix |
 |---|---|
-| `vulcan add: run it at the root of a monorepo vulcan init created (no layout in .configs/vulcan.config.*)` | The folder has no `layout`. Run `add` at the monorepo root |
-| `vulcan add: the backend folder 'services/x' does not fit the layout of .configs/vulcan.config.mts: ... are nested` | A folder inside another listed folder, or around one. Pick a folder that is neither |
-| `vulcan add: missing --backend-dir (...)` | Several folders are listed and there is no terminal. Pass one |
-| `vulcan add: --backend-dir '../x' ...` | The folder is not a layout folder (rules below) |
-| `vulcan add: missing --app (Name of this [backend\|frontend] app) - names are never chosen for you` | `--app` was given with no name and there is no terminal to ask. Pass the name |
-| `vulcan add: services/billing already exists` | An app or folder has that name. Pick another |
-| `vulcan add: say what to create - ...` | No kind flag, and no terminal to ask. The message prints the command of each kind |
-| `vulcan add: --app, --lib and --shared cannot be used together` | One kind per run |
-| `vulcan add: --shared needs a name` | `--shared` with no name and no terminal to ask. Pass the name (`--lib` says the same with `--lib`) |
-| `vulcan add: preset @acme/api has no lib kind` | `--lib` on a preset with no `vulcan.presets.lib`. Use `--app`, or another preset |
-| `vulcan add: preset @acme/api has no shared kind (...)` | `--shared` on a preset with no `vulcan.presets.shared`. Nothing is written (details below) |
-| `vulcan add: where should billing go? pass --dir <folder>` | A library with no `--dir`, no `shared` folder and no folder shared by existing libraries |
-| `vulcan add: the packages in libs use more than one scope (@a, @b) - pass --scope <@scope>` | The folder's packages disagree on a scope |
-| `vulcan add: --scope 'acme' is not a scope like @acme` | A scope starts with `@` |
-| `vulcan add: the monorepo pins typescript ^6.0.3, but the preset needs ^7.0.0 - ...` | The preset declares `peers` that the catalog does not satisfy (details below) |
-| `vulcan add: the monorepo pins x ^0.2.2-5, a prerelease, which does not meet the preset's ^0.2.2 ...` | A prerelease sorts before its release, so it does not meet a plain range. Pin a release in the catalog first |
-| `vulcan add: the monorepo pins x workspace:*, which is not a version vulcan can compare ...` | The catalog value is a range, a `workspace:` link or a URL. Pin a version first |
-| `vulcan add: the frontend folder 'services' is the backend folder in ...` | A folder holds one kind of code. Pick another |
-| `vulcan add: missing --api <app> or --no-api` | A frontend without a terminal needs one of the two flags |
-| `vulcan add: --api 'x' is not a backend app of this monorepo` | `--api` takes the name of an app under the backend folder |
-| `vulcan add: no *PORT=<number> line in services/core-api/.env.example to proxy to` | The backend app has no port line to read |
-| `vulcan add: the vulcan:apps block is gone from .configs/vulcan.config.mts - add by hand:` | The markers were edited away. `add` prints the lines to paste and never rewrites your config |
-| `vulcan add: the vulcan:apps block in .configs/vulcan.config.mts is not the JSON vulcan wrote - add by hand:` | The block between the markers was edited into something else. Same: the new lines are printed |
+| `vulcan package add: run it at the root of a monorepo vulcan project init created (no layout in .configs/vulcan.config.*)` | The folder has no `layout`. Run `add` at the monorepo root |
+| `vulcan package add: the backend folder 'services/x' does not fit the layout of .configs/vulcan.config.mts: ... are nested` | A folder inside another listed folder, or around one. Pick a folder that is neither |
+| `vulcan package add: missing --backend-dir (...)` | Several folders are listed and there is no terminal. Pass one |
+| `vulcan package add: --backend-dir '../x' ...` | The folder is not a layout folder (rules below) |
+| `vulcan package add: missing --app (Name of this [backend\|frontend] app) - names are never chosen for you` | `--app` was given with no name and there is no terminal to ask. Pass the name |
+| `vulcan package add: services/billing already exists` | An app or folder has that name. Pick another |
+| `vulcan package add: say what to create - ...` | No kind flag, and no terminal to ask. The message prints the command of each kind |
+| `vulcan package add: --app, --lib and --shared cannot be used together` | One kind per run |
+| `vulcan package add: --shared needs a name` | `--shared` with no name and no terminal to ask. Pass the name (`--lib` says the same with `--lib`) |
+| `vulcan package add: preset @acme/api has no lib kind` | `--lib` on a preset with no `vulcan.presets.lib`. Use `--app`, or another preset |
+| `vulcan package add: preset @acme/api has no shared kind (...)` | `--shared` on a preset with no `vulcan.presets.shared`. Nothing is written (details below) |
+| `vulcan package add: where should billing go? pass --dir <folder>` | A library with no `--dir`, no `shared` folder and no folder shared by existing libraries |
+| `vulcan package add: the packages in libs use more than one scope (@a, @b) - pass --scope <@scope>` | The folder's packages disagree on a scope |
+| `vulcan package add: --scope 'acme' is not a scope like @acme` | A scope starts with `@` |
+| `vulcan package add: the monorepo pins typescript ^6.0.3, but the preset needs ^7.0.0 - ...` | The preset declares `peers` that the catalog does not satisfy (details below) |
+| `vulcan package add: the monorepo pins x ^0.2.2-5, a prerelease, which does not meet the preset's ^0.2.2 ...` | A prerelease sorts before its release, so it does not meet a plain range. Pin a release in the catalog first |
+| `vulcan package add: the monorepo pins x workspace:*, which is not a version vulcan can compare ...` | The catalog value is a range, a `workspace:` link or a URL. Pin a version first |
+| `vulcan package add: the frontend folder 'services' is the backend folder in ...` | A folder holds one kind of code. Pick another |
+| `vulcan package add: missing --api <app> or --no-api` | A frontend without a terminal needs one of the two flags |
+| `vulcan package add: --api 'x' is not a backend app of this monorepo` | `--api` takes the name of an app under the backend folder |
+| `vulcan package add: no *PORT=<number> line in services/core-api/.env.example to proxy to` | The backend app has no port line to read |
+| `vulcan package add: the vulcan:apps block is gone from .configs/vulcan.config.mts - add by hand:` | The markers were edited away. `add` prints the lines to paste and never rewrites your config |
+| `vulcan package add: the vulcan:apps block in .configs/vulcan.config.mts is not the JSON vulcan wrote - add by hand:` | The block between the markers was edited into something else. Same: the new lines are printed |
 
 Full text and details of the rows that were shortened:
 
-- `vulcan add: missing --backend-dir (Backend folder (holds every backend app); the layout lists backends, backends-2) - names are never chosen for you`.
+- `vulcan package add: missing --backend-dir (Backend folder (holds every backend app); the layout lists backends, backends-2) - names are never chosen for you`.
 - `--backend-dir` rules: no `..`, no leading or trailing `/`, no backslash, no `node_modules`, at most 4 segments of lowercase letters, digits and `-`.
-- `vulcan add: preset @acme/api has no shared kind (it makes: app and lib); a preset with one: run bun node_modules/.bin/vulcan add --preset ignis --shared x`. The message names what the preset makes. It then names every preset that has a shared kind, each with its command. The project's recorded presets come first, then the official ones. When none is known it says `no preset known to this project or to the official list has one`.
-- `vulcan add: the monorepo pins typescript ^6.0.3, but the preset needs ^7.0.0 - move the catalog first`. Change the catalog version first. A pin equal to the version the preset itself lists is never refused.
-- `vulcan add: the frontend folder 'services' is the backend folder in .configs/vulcan.config.mts; each kind of code needs its own folder`.
+- `vulcan package add: preset @acme/api has no shared kind (it makes: app and lib); a preset with one: run bun node_modules/.bin/vulcan package add --preset ignis --shared x`. The message names what the preset makes. It then names every preset that has a shared kind, each with its command. The project's recorded presets come first, then the official ones. When none is known it says `no preset known to this project or to the official list has one`.
+- `vulcan package add: the monorepo pins typescript ^6.0.3, but the preset needs ^7.0.0 - move the catalog first`. Change the catalog version first. A pin equal to the version the preset itself lists is never refused.
+- `vulcan package add: the frontend folder 'services' is the backend folder in .configs/vulcan.config.mts; each kind of code needs its own folder`.
 
-The preset itself can also be refused; those messages are listed under [`vulcan init`](/references/commands/init#refusals).
+The preset itself can also be refused; those messages are listed under [`vulcan project init`](/references/commands/init#refusals).
 
 ## See also
 
-- [`vulcan preset diff`](/references/commands/preset): what a preset changed since `add` copied it
-- [`vulcan init`](/references/commands/init)
+- [`vulcan package diff`](/references/commands/preset): what a preset changed since `add` copied it
+- [`vulcan project init`](/references/commands/init)
 - [Presets](/references/presets)
 - [The `layout` key](/references/configuration/)

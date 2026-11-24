@@ -31,13 +31,13 @@ const synced = (opts: { agents: string; files?: Record<string, string> }): strin
   const root = createProject({ files: { ...PROJECT, ...opts.files } });
 
   git({ root, args: ['init', '-q'] });
-  runCli({ args: ['sync', '--agents', opts.agents], cwd: root, env: ENV });
+  runCli({ args: ['project', 'sync', '--agents', opts.agents], cwd: root, env: ENV });
 
   return root;
 };
 
 const agents = (opts: { root: string; args: string[] }) =>
-  runCli({ args: ['agents', ...opts.args], cwd: opts.root, env: ENV });
+  runCli({ args: ['agent', ...opts.args], cwd: opts.root, env: ENV });
 
 const stored = (opts: { root: string }): string[] =>
   JSON.parse(readFileSync(join(opts.root, LOCAL), 'utf8')).agents;
@@ -48,7 +48,7 @@ const exclude = (opts: { root: string }): string =>
 const isLink = (opts: { path: string }): boolean =>
   existsSync(opts.path) && lstatSync(opts.path).isSymbolicLink();
 
-describe('vulcan agents (list)', () => {
+describe('vulcan agent (list)', () => {
   test('prints the chosen agents, what was detected and the table, and writes nothing', () => {
     const root = synced({ agents: 'omp' });
     const before = readFileSync(join(root, LOCAL), 'utf8');
@@ -74,7 +74,7 @@ describe('vulcan agents (list)', () => {
   });
 });
 
-describe('vulcan agents add', () => {
+describe('vulcan agent add', () => {
   test('adds to the stored list in table order and writes the new adapters', () => {
     const root = synced({ agents: 'omp' });
     const result = agents({ root, args: ['add', 'pi,cursor'] });
@@ -125,7 +125,7 @@ describe('vulcan agents add', () => {
   });
 });
 
-describe('vulcan agents remove', () => {
+describe('vulcan agent remove', () => {
   test('takes back a file sync wrote whole, its folder, and the exclude lines', () => {
     const root = synced({ agents: 'cursor,omp' });
     const result = agents({ root, args: ['remove', 'cursor'] });
@@ -269,7 +269,7 @@ describe('sync --agents does the same cleanup for agents that drop out', () => {
   test('an agent stored before and left out of the new list is taken back', () => {
     const root = synced({ agents: 'cursor,omp' });
 
-    runCli({ args: ['sync', '--agents', 'omp'], cwd: root, env: ENV });
+    runCli({ args: ['project', 'sync', '--agents', 'omp'], cwd: root, env: ENV });
 
     expect(existsSync(join(root, '.cursor'))).toBe(false);
     expect(stored({ root })).toEqual(['omp']);
@@ -278,13 +278,13 @@ describe('sync --agents does the same cleanup for agents that drop out', () => {
   test('a machine that never stored a choice loses nothing it did not choose to drop', () => {
     const root = createProject({ files: { ...PROJECT, 'CLAUDE.md': '@AGENTS.md\n' } });
 
-    runCli({ args: ['sync', '--agents', 'omp'], cwd: root, env: ENV });
+    runCli({ args: ['project', 'sync', '--agents', 'omp'], cwd: root, env: ENV });
 
     expect(readFileSync(join(root, 'CLAUDE.md'), 'utf8')).toBe('@AGENTS.md\n');
   });
 });
 
-describe('vulcan agents setup', () => {
+describe('vulcan agent setup', () => {
   test('without a terminal it says so and points at add, remove and sync --agents', () => {
     const root = synced({ agents: 'omp' });
     const result = agents({ root, args: ['setup'] });
@@ -296,7 +296,7 @@ describe('vulcan agents setup', () => {
   describe.skipIf(!hasScript)('in a terminal', () => {
     test('Enter keeps the stored list and the question says so', () => {
       const root = synced({ agents: 'omp' });
-      const command = `'${process.execPath}' '${CLI}' agents setup`;
+      const command = `'${process.execPath}' '${CLI}' agent setup`;
       const child = spawnSyncBounded({
         cmd: ['script', '-qec', command, '/dev/null'],
         cwd: root,
@@ -313,7 +313,7 @@ describe('vulcan agents setup', () => {
 
     test('asks again with the stored list shown, and applies the answer', () => {
       const root = synced({ agents: 'omp' });
-      const command = `'${process.execPath}' '${CLI}' agents setup`;
+      const command = `'${process.execPath}' '${CLI}' agent setup`;
       const child = spawnSyncBounded({
         cmd: ['script', '-qec', command, '/dev/null'],
         cwd: root,
@@ -336,8 +336,8 @@ describe('the command line', () => {
   test('an unknown subcommand is refused with the choices', () => {
     const result = agents({ root: createProject({ files: PROJECT }), args: ['frobnicate'] });
 
-    expect(result.code).toBe(1);
-    expect(result.stderr, result.stderr).toContain('unknown subcommand');
+    expect(result.code).toBe(2);
+    expect(result.stderr, result.stderr).toContain("unknown action 'frobnicate'");
     expect(result.stderr, result.stderr).toContain('list, add, remove, setup');
   });
 

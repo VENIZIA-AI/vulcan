@@ -201,7 +201,7 @@ const planSkillLinks = (opts: {
     .map((source) => ({
       path: source,
       status: SyncStatuses.SKIPPED,
-      note: "shadows a shipped skill - rename it ('vulcan doctor' reports it)",
+      note: "shadows a shipped skill - rename it ('vulcan project doctor' reports it)",
       apply: NO_CHANGE,
     }));
   const sources = [...shipped, ...project.filter((source) => !shippedNames.has(basename(source)))];
@@ -273,7 +273,7 @@ const skillDirectoriesOf = (opts: { agents: string[] }): string[] => [
   ),
 ];
 
-/** Plans the files `vulcan sync` writes, as a list of actions, without touching disk; also used by `vulcan doctor` to find drift. */
+/** Plans the files `vulcan project sync` writes, as a list of actions, without touching disk; also used by `vulcan project doctor` to find drift. */
 export class SyncPlanner {
   /** One generated file: created, replaced when it differs from `text`, or unchanged. */
   private static planFile(opts: { root: string; file: string; text: string }): ISyncAction {
@@ -302,7 +302,7 @@ export class SyncPlanner {
   static planManifest(opts: {
     root: string;
     config: TResolvedConfig;
-    /** The modules of the config, when the caller scanned them already (`vulcan sync` scans once). */
+    /** The modules of the config, when the caller scanned them already (`vulcan project sync` scans once). */
     configModules?: string[];
   }): ISyncAction[] {
     const local = SyncPlanner.planFile({

@@ -3,11 +3,11 @@ import type { TAgentResolution, TAskAgents } from './common/index.ts';
 import { LocalChoice } from './local.ts';
 import { AgentTable } from './table.ts';
 
-export const NO_TTY_HINT = `vulcan sync: no agents chosen on this machine - wrote the Claude files as before; if you use Codex, omp, pi or another agent, run once: vulcan sync ${AgentConstants.FLAG} ${AgentConstants.EXAMPLE_LIST} (or ${AgentConstants.NONE})`;
+export const NO_TTY_HINT = `vulcan project sync: no agents chosen on this machine - wrote the Claude files as before; if you use Codex, omp, pi or another agent, run once: vulcan project sync ${AgentConstants.FLAG} ${AgentConstants.EXAMPLE_LIST} (or ${AgentConstants.NONE})`;
 
 type TParsed = { ok: true; agents: string[] } | { ok: false; error: string };
 
-/** Parses and resolves the list of agent tools a project targets, from the flag, the config or a prompt; used by `vulcan agents`, `vulcan sync` and `vulcan doctor`. */
+/** Parses and resolves the list of agent tools a project targets, from the flag, the config or a prompt; used by `vulcan agent`, `vulcan project sync` and `vulcan project doctor`. */
 export class AgentSelection {
   private static fromList(opts: {
     value: string;
@@ -33,7 +33,7 @@ export class AgentSelection {
         ? { ok: true, agents: [] }
         : {
             ok: false,
-            error: `vulcan sync: '${AgentConstants.NONE}' cannot be combined with other agents`,
+            error: `vulcan project sync: '${AgentConstants.NONE}' cannot be combined with other agents`,
           };
     }
 
@@ -42,7 +42,7 @@ export class AgentSelection {
     if (unknown !== undefined) {
       return {
         ok: false,
-        error: `vulcan sync: unknown agent '${unknown}' - one of: ${[...known, AgentConstants.NONE].join(', ')}`,
+        error: `vulcan project sync: unknown agent '${unknown}' - one of: ${[...known, AgentConstants.NONE].join(', ')}`,
       };
     }
 
@@ -65,7 +65,7 @@ export class AgentSelection {
     const stored = LocalChoice.read({ root: opts.root });
 
     if (!stored.ok) {
-      return { ok: false, error: `vulcan sync: ${stored.error}` };
+      return { ok: false, error: `vulcan project sync: ${stored.error}` };
     }
 
     const askNow = (): TAgentResolution => {
@@ -74,7 +74,7 @@ export class AgentSelection {
       if (answer === null) {
         return {
           ok: false,
-          error: `vulcan sync: no answer - run: vulcan sync ${AgentConstants.FLAG} ${AgentConstants.EXAMPLE_LIST} (or ${AgentConstants.NONE})`,
+          error: `vulcan project sync: no answer - run: vulcan project sync ${AgentConstants.FLAG} ${AgentConstants.EXAMPLE_LIST} (or ${AgentConstants.NONE})`,
         };
       }
 
@@ -95,7 +95,7 @@ export class AgentSelection {
         ? askNow()
         : {
             ok: false,
-            error: `vulcan sync: ${AgentConstants.FLAG} needs a list (${AgentConstants.EXAMPLE_LIST}) or ${AgentConstants.NONE}`,
+            error: `vulcan project sync: ${AgentConstants.FLAG} needs a list (${AgentConstants.EXAMPLE_LIST}) or ${AgentConstants.NONE}`,
           };
     }
 

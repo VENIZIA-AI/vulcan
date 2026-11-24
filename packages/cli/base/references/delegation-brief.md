@@ -76,5 +76,5 @@ Start it with `VULCAN_OWNER_REPLY=off` on the command that starts it (`VULCAN_OW
 session then gets no owner shape card and no profile card; everything else (the guards, the rules) stays on. A session started for one piece of
 work is handed the item and the format ("take item X, return as Y"), not a long message. Say in the brief which plain
 format you want back (the four statuses and the evidence table above are the default), in the language
-you work in. Never set it in a shell the owner works in, or in the `env` of a settings file: `vulcan doctor` prints a
+you work in. Never set it in a shell the owner works in, or in the `env` of a settings file: `vulcan project doctor` prints a
 note when it is set in the shell that runs it and a warning when a Claude Code settings file sets it.

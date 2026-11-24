@@ -77,7 +77,7 @@ const checkPackagesUnique = (
 };
 
 export const PACKAGES_SECTION = {
-  /** The folders `vulcan init` and `add` put apps in, as the user named them. */
+  /** The folders `vulcan project init` and `add` put apps in, as the user named them. */
   layout: z
     .strictObject({
       /** Folder, or list of folders, for backend apps. */

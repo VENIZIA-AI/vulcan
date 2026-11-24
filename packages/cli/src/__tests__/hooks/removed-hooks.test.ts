@@ -35,7 +35,7 @@ const projectWithThisPackage = (): string => {
   return root;
 };
 
-describe('an entry an older vulcan sync wrote for a removed fail-open hook', () => {
+describe('an entry an older vulcan project sync wrote for a removed fail-open hook', () => {
   for (const hook of REMOVED_OPEN) {
     test(`${hook}: with its file gone, the old entry still passes the call`, () => {
       const root = projectWithThisPackage();

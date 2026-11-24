@@ -3,8 +3,8 @@ import { MigrateReport } from './report';
 import type { IMigrationResult } from './plan';
 
 const USAGE = [
-  'usage: vulcan x atlas migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]',
-  '       vulcan x atlas migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]',
+  'usage: vulcan atlas migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]',
+  '       vulcan atlas migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]',
 ].join('\n');
 
 const VALUE_FLAGS = new Set([
@@ -88,7 +88,7 @@ interface IReply {
   error?: { message?: string };
 }
 
-/** `vulcan x atlas migrate plan|apply`: the `migrate` tool, asked through the server the project serves; `apply` then runs the codemods it links. */
+/** `vulcan atlas migrate plan|apply`: the `migrate` tool, asked through the server the project serves; `apply` then runs the codemods it links. */
 export class MigrateCommand {
   /**
    * Parses the flags, sends one `tools/call` through `send` (the server's transport, so a package

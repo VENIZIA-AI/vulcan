@@ -3,7 +3,7 @@
 An MCP server that lets an AI agent search and read a project's documentation - the wiki, the
 changelogs and the knowledge bundle - and look up exported symbols, versions and changes. Every hit
 carries an id the agent can read in full and cite. It reads a project only through its committed
-manifest (`.agents/atlas.manifest.json`, written by `vulcan sync`), and it serves other projects
+manifest (`.agents/atlas.manifest.json`, written by `vulcan project sync`), and it serves other projects
 next to it as sources. Part of VULCAN.
 
 You do not import it. You register it with an MCP client (Claude Code, an IDE agent, ...), which
@@ -64,7 +64,7 @@ A private repository uses `GITHUB_TOKEN`, else `gh auth token`, sent in request 
 | `version` | `cwd?` (a project directory) | The served packages installed there, the newest release atlas computed for each, and which are `behind` |
 | `changes` | `package?`, `from?`, `to?` (versions, or dates) | The changelog entries between two versions |
 | `migrate` | `to`, `package?`, `from?`, `app?` | What an app must change to move a package between two releases, newer or older: the steps in order, where its code touches them (`file:line`), codemods, data warnings. Read only |
-| `presets` | `kind?` (`app`, `lib` for a library other apps import, or `shared` for a side-neutral package; default `app`), `name?` (the name of the new app or package, put into the command; default `<name>`), `side?` (`backend`, `frontend`) | The presets the project can create from, the folder each lands in and the exact `vulcan add` command; `presets: []` with a `note` when no preset makes the kind |
+| `presets` | `kind?` (`app`, `lib` for a library other apps import, or `shared` for a side-neutral package; default `app`), `name?` (the name of the new app or package, put into the command; default `<name>`), `side?` (`backend`, `frontend`) | The presets the project can create from, the folder each lands in and the exact `vulcan package add` command; `presets: []` with a `note` when no preset makes the kind |
 
 Page `search` with `offset: nextOffset`, not `offset + limit`: the reply-size budget can return fewer
 hits than `limit`. Pass a hit's `id` to `get` to read the whole section.

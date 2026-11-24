@@ -1,5 +1,5 @@
 /**
- * Hands atlas a project manifest the way `vulcan x` does (`VULCAN_MANIFEST` + `VULCAN_PROJECT_ROOT`).
+ * Hands atlas a project manifest the way `vulcan atlas` or `vulcan okf` does (`VULCAN_MANIFEST` + `VULCAN_PROJECT_ROOT`).
  * `schemaVersion` is filled in; every other section takes the reader's defaults when absent.
  */
 export const useAtlasProject = (opts: { root: string; manifest: object }): void => {

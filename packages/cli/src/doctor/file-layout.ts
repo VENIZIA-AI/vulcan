@@ -8,7 +8,7 @@ import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
 
 const SHOWN_PATHS = 3;
-const COMMAND = `${ProjectLayout.VULCAN_COMMAND} layout check`;
+const COMMAND = `${ProjectLayout.VULCAN_COMMAND} check layout`;
 
 /** One warning per rule with open findings: the path and what to do for one, the count and the first paths for more. */
 const warningsOf = (opts: { open: ILayoutFinding[] }): IViolation[] =>

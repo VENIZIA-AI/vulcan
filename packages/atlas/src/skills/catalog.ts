@@ -52,7 +52,7 @@ export class SkillCatalog {
   }
 
   /**
-   * The skills a project has, the set `vulcan sync` links: the shipped ones of the installed vulcan,
+   * The skills a project has, the set `vulcan project sync` links: the shipped ones of the installed vulcan,
    * then the project's own in `.agents/skills`, a project skill that shadows a shipped name left out.
    * Read from disk on every call, so an added, renamed or deleted skill needs no edit anywhere else.
    */

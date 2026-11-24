@@ -3,7 +3,7 @@
  * from the built `.d.ts` with the TypeScript compiler API. Records name and kind only - never a
  * signature, generics, class members or a type body - so a fresh snapshot does not prove a
  * signature is unchanged. `check` fails when a symbol appears, disappears or changes kind. Usage:
- * vulcan x atlas surface gen|check
+ * vulcan atlas surface gen|check
  */
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
@@ -221,7 +221,7 @@ export const runSurfaceCommand = (opts: { command?: string; outputPath?: string 
     }
 
     default: {
-      console.error('usage: vulcan x atlas surface gen|check');
+      console.error('usage: vulcan atlas surface gen|check');
 
       return 2;
     }

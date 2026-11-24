@@ -1,11 +1,11 @@
 ---
 title: Coding agents
-description: The coding agents VULCAN sets up, what each one reads, what vulcan sync writes for it, and what it gets or loses compared with Claude Code.
+description: The coding agents VULCAN sets up, what each one reads, what vulcan project sync writes for it, and what it gets or loses compared with Claude Code.
 ---
 
 # Coding agents
 
-VULCAN sets up seven coding agents (eight entries, because Copilot is two products). You choose the ones you use on your own machine ([`vulcan sync`](/references/commands/sync#choosing-your-agents), [`vulcan agents`](/references/commands/agents)); the choice is stored in `.agents/local/profile.json` and is never committed. The same file may hold `board.agents` (the board's roster) and `local.tmp` (a short temporary folder), in the config's own shape; on your machine each replaces the committed value of the same key, and `vulcan sync` keeps them. `AGENTS.md` is the one file every project commits, and it is the file all of these agents read, except Claude Code, which reads it through a `CLAUDE.md` shim.
+VULCAN sets up seven coding agents (eight entries, because Copilot is two products). You choose the ones you use on your own machine ([`vulcan project sync`](/references/commands/sync#choosing-your-agents), [`vulcan agent`](/references/commands/agents)); the choice is stored in `.agents/local/profile.json` and is never committed. The same file may hold `board.agents` (the board's roster) and `local.tmp` (a short temporary folder), in the config's own shape; on your machine each replaces the committed value of the same key, and `vulcan project sync` keeps them. `AGENTS.md` is the one file every project commits, and it is the file all of these agents read, except Claude Code, which reads it through a `CLAUDE.md` shim.
 
 The table below is the content of `base/agents.json`, the table `sync` is driven by.
 
@@ -46,16 +46,16 @@ Rule `V-B-08` keeps everything an agent makes inside the project, in `.agents/tm
 |---|---|---|---|
 | Nothing | the system temp folder | `/tmp/claude-<uid>/` | the system temp folder |
 | `env` in the project's `.claude/settings.json` or `settings.local.json` | **not applied** (Claude Code applies the block, but not these two variables) | not applied | not applied |
-| The session-start hook of `vulcan sync` | yes | **no** | **no** |
+| The session-start hook of `vulcan project sync` | yes | **no** | **no** |
 | The variables in the launch environment, or in your user settings file | yes | yes | yes |
 
-What `vulcan sync` sets up, for Claude Code: **the session-start hook** appends `export TMPDIR=<project>/.agents/tmp` (or the `local.tmp` folder) to the file Claude Code sources before each Bash command. Nothing to start differently; from the first command of a session, `mktemp -d` and every script it runs use the project folder, and `guard-outside` no longer asks about a bare `mktemp`.
+What `vulcan project sync` sets up, for Claude Code: **the session-start hook** appends `export TMPDIR=<project>/.agents/tmp` (or the `local.tmp` folder) to the file Claude Code sources before each Bash command. Nothing to start differently; from the first command of a session, `mktemp -d` and every script it runs use the project folder, and `guard-outside` no longer asks about a bare `mktemp`.
 
 What the hook does not reach: Claude Code's own task-output files, its MCP servers (Playwright included) and the scratchpad folder it offers a session, which stay under `/tmp/claude-<uid>/`. The session digest tells the agent to keep scratch in `$TMPDIR`, not in that scratchpad, and `guard-outside` refuses a write there. A path an agent writes by hand (`/tmp/x`) still asks, on purpose. To move Claude Code's own files into the project too, export the variable in your own shell before you start it, for example `export CLAUDE_CODE_TMPDIR="$PWD/.agents/tmp"` (VULCAN no longer writes a launch file for this). Any agent other than Claude Code has no hook of this kind: the rules and the session digest tell it to use `.agents/tmp`, and it needs `TMPDIR` in its own launch environment (`export TMPDIR=$PWD/.agents/tmp`); VULCAN has not checked whether those agents can set it from their configuration.
 
-`vulcan doctor` warns when the folder is missing, and `vulcan sync` fixes it. The folder is a task scratch folder: remove what you made when the task ends; `vulcan clean` lists what is older than a day.
+`vulcan project doctor` warns when the folder is missing, and `vulcan project sync` fixes it. The folder is a task scratch folder: remove what you made when the task ends; `vulcan project clean` lists what is older than a day.
 
-**A long checkout path.** The session-start hook points `TMPDIR` of every command at `<project>/.agents/tmp`. A browser puts a unix socket in that folder (`org.chromium.Chromium.XXXXXX/SingletonSocket` for Chromium, the longest name; 45 characters more), and a socket path is at most 107 characters, so a project path of about 45 characters or more makes the browser, started by Playwright for example, exit with `Socket path too long`. `vulcan doctor` warns about it. Set `local.tmp` in the config, or in your own `.agents/local/profile.json` when the team should not share it, to a short folder of the project (for example `tmp`) and run `vulcan sync`: the hooks, `vulcan clean` and `vulcan add` use it, and `vulcan doctor` fails when even that folder is too deep.
+**A long checkout path.** The session-start hook points `TMPDIR` of every command at `<project>/.agents/tmp`. A browser puts a unix socket in that folder (`org.chromium.Chromium.XXXXXX/SingletonSocket` for Chromium, the longest name; 45 characters more), and a socket path is at most 107 characters, so a project path of about 45 characters or more makes the browser, started by Playwright for example, exit with `Socket path too long`. `vulcan project doctor` warns about it. Set `local.tmp` in the config, or in your own `.agents/local/profile.json` when the team should not share it, to a short folder of the project (for example `tmp`) and run `vulcan project sync`: the hooks, `vulcan project clean` and `vulcan package add` use it, and `vulcan project doctor` fails when even that folder is too deep.
 
 ## Detecting your agents
 
