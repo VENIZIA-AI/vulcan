@@ -4,7 +4,7 @@ import { request } from 'node:http';
 import { join } from 'node:path';
 import { LocalSettings } from '../common/local-settings.ts';
 import { EventSettings } from '../events/settings.ts';
-import { HookConstants } from '../hooks/common/constants.ts';
+import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { BoardFlags, BoardServe } from './common/index.ts';
 
 /** What `tick` did, for a test and for the note the hook prints. */
@@ -65,7 +65,7 @@ export class BoardAutoStart {
     }
 
     const port = opts.port ?? BoardServe.DEFAULT_PORT;
-    const folder = join(opts.root, HookConstants.PROJECT_TMP);
+    const folder = ProjectTmp.projectOf({ root: opts.root });
     const state = await BoardAutoStart.portState({ port });
 
     if (state === 'board') {
