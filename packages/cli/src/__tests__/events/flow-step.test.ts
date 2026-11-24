@@ -412,3 +412,76 @@ describe('the hook script with a task list', () => {
     expect(last?.steps?.at(-1)).toEqual({ text: 'From the script', done: true });
   });
 });
+
+describe('vulcan event step keeps the steps it does not name', () => {
+  const FIVE = ['One', 'Two', 'Three', 'Four', 'Five'];
+  const openFive = (root: string): string =>
+    cli({
+      root,
+      args: [
+        'add',
+        '--kind',
+        'flow',
+        '--title',
+        'Sign in',
+        '--step-done',
+        'One',
+        '--step-done',
+        'Two',
+        '--step',
+        'Three',
+        '--step',
+        'Four',
+        '--step',
+        'Five',
+      ],
+    }).stdout.trim();
+  const stepsOf = (root: string): string[] | undefined =>
+    linesOf(root)
+      .filter((line) => line.kind === 'flow')
+      .at(-1)
+      ?.steps?.map((step) => step.text);
+
+  test('--todo with a new text appends it after five steps and keeps the rest in order', () => {
+    const root = project();
+    const id = openFive(root);
+
+    cli({ root, args: ['step', '--flow', id, '--todo', 'Six'] });
+
+    expect(stepsOf(root)).toEqual([...FIVE, 'Six']);
+  });
+
+  test('--done with a new text appends it done, and --todo with an old text only opens it', () => {
+    const root = project();
+    const id = openFive(root);
+
+    cli({ root, args: ['step', '--flow', id, '--done', 'Six'] });
+    cli({ root, args: ['step', '--flow', id, '--todo', 'One'] });
+
+    const last = linesOf(root)
+      .filter((line) => line.kind === 'flow')
+      .at(-1);
+
+    expect(last?.steps).toEqual([
+      { text: 'One', done: false },
+      { text: 'Two', done: true },
+      { text: 'Three', done: false },
+      { text: 'Four', done: false },
+      { text: 'Five', done: false },
+      { text: 'Six', done: true },
+    ]);
+  });
+
+  test('a flow line written for the same id replaces the list whole, and a step then goes on that list', () => {
+    const root = project();
+    const id = openFive(root);
+
+    cli({
+      root,
+      args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in', '--step', 'Only'],
+    });
+    cli({ root, args: ['step', '--flow', id, '--todo', 'Next'] });
+
+    expect(stepsOf(root)).toEqual(['Only', 'Next']);
+  });
+});
