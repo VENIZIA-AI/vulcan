@@ -4,7 +4,7 @@ import { clearProjectConfig, useProjectConfig } from './project.helper.ts';
 
 afterEach(clearProjectConfig);
 
-test('okf reads the project root vulcan x hands it, never an IGNIS_ROOT left in the environment', () => {
+test('okf reads the project root vulcan atlas/okf hands it, never an IGNIS_ROOT left in the environment', () => {
   process.env.IGNIS_ROOT = '/somewhere/else';
   useProjectConfig({ root: '/the/project', config: {} });
 

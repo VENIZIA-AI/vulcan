@@ -411,13 +411,13 @@ describe('LocalClean.plan and runClean', () => {
   });
 });
 
-describe('vulcan clean', () => {
+describe('vulcan project clean', () => {
   test('is a dry run by default: it lists, and removes nothing', () => {
     const root = repository();
 
     file({ root, path: 'tmp/job/a.txt', text: 'hello', ageDays: 3 });
 
-    const result = runCli({ args: ['clean'], cwd: root });
+    const result = runCli({ args: ['project', 'clean'], cwd: root });
 
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('dry run');
@@ -433,7 +433,7 @@ describe('vulcan clean', () => {
     file({ root, path: 'cache/k/a.txt' });
     file({ root, path: 'reports/r.md' });
 
-    const result = runCli({ args: ['clean', '--yes'], cwd: root });
+    const result = runCli({ args: ['project', 'clean', '--yes'], cwd: root });
 
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('removed 1 item(s)');
@@ -487,7 +487,10 @@ describe('vulcan clean', () => {
       );
     }
 
-    const result = runCli({ args: ['clean', '--all', '--include-fresh', '--yes'], cwd: root });
+    const result = runCli({
+      args: ['project', 'clean', '--all', '--include-fresh', '--yes'],
+      cwd: root,
+    });
 
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('in use');
@@ -496,19 +499,19 @@ describe('vulcan clean', () => {
     expect(existsSync(join(root, '.agents/local/cache/atlas'))).toBe(false);
   });
 
-  test('vulcan clean --yes leaves a fresh item and says why; --include-fresh --yes takes it', () => {
+  test('vulcan project clean --yes leaves a fresh item and says why; --include-fresh --yes takes it', () => {
     const root = repository();
 
     file({ root, path: 'tmp/live/a.txt' });
 
-    const kept = runCli({ args: ['clean', '--yes'], cwd: root });
+    const kept = runCli({ args: ['project', 'clean', '--yes'], cwd: root });
 
     expect(kept.code).toBe(0);
     expect(kept.stderr).toContain('kept tmp/live');
     expect(kept.stderr).toContain('--include-fresh');
     expect(existsSync(join(root, '.agents/tmp/live'))).toBe(true);
 
-    const taken = runCli({ args: ['clean', '--include-fresh', '--yes'], cwd: root });
+    const taken = runCli({ args: ['project', 'clean', '--include-fresh', '--yes'], cwd: root });
 
     expect(taken.code).toBe(0);
     expect(taken.stderr).toContain('removed 1 item(s)');
@@ -522,10 +525,10 @@ describe('vulcan clean', () => {
     file({ root, path: 'cache/k/x' });
     file({ root, path: 'reports/r.md' });
 
-    expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'clean', '--all', '--yes'], cwd: root }).code).toBe(0);
     expect(existsSync(join(root, '.agents/local/cache/k'))).toBe(false);
     expect(existsSync(join(root, '.agents/local/reports/r.md'))).toBe(true);
-    expect(runCli({ args: ['clean', '--reports', '--yes'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'clean', '--reports', '--yes'], cwd: root }).code).toBe(0);
     expect(existsSync(join(root, '.agents/local/reports/r.md'))).toBe(false);
   });
 
@@ -534,17 +537,17 @@ describe('vulcan clean', () => {
 
     worktree({ root, name: 'busy', commit: true });
 
-    const kept = runCli({ args: ['clean', '--worktrees', '--yes'], cwd: root });
+    const kept = runCli({ args: ['project', 'clean', '--worktrees', '--yes'], cwd: root });
 
     expect(kept.stderr).toContain('kept worktrees/busy');
     expect(kept.stderr).toContain('not merged');
     expect(existsSync(join(root, '.agents/local/worktrees/busy'))).toBe(true);
-    expect(runCli({ args: ['clean', '--everything'], cwd: root }).code).not.toBe(0);
+    expect(runCli({ args: ['project', 'clean', '--everything'], cwd: root }).code).not.toBe(0);
   });
 
   test('with nothing there it says so', () => {
     const root = repository();
-    const result = runCli({ args: ['clean'], cwd: root });
+    const result = runCli({ args: ['project', 'clean'], cwd: root });
 
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('nothing to remove');
@@ -570,7 +573,7 @@ describe('doctor and what an agent left behind', () => {
     expect(warnings.map((entry) => entry.file)).toEqual(['.agents/local']);
     expect(warnings[0].message).toContain('2 entries have outlived their use');
     expect(warnings[0].message).toContain('1 stale in tmp, 1 merged in worktrees');
-    expect(warnings[0].message).toContain('run: vulcan clean --tmp --worktrees --yes');
+    expect(warnings[0].message).toContain('run: vulcan project clean --tmp --worktrees --yes');
   });
 
   test('forty stale entries are one warning with the count and the command, not forty lines', async () => {
@@ -593,7 +596,7 @@ describe('doctor and what an agent left behind', () => {
     expect(warnings).toHaveLength(1);
     expect(warnings[0].message).toContain('40 entries have outlived their use');
     expect(warnings[0].message).toContain('40 stale in tmp');
-    expect(warnings[0].message).toContain('vulcan clean --tmp --yes');
+    expect(warnings[0].message).toContain('vulcan project clean --tmp --yes');
   });
 
   test('forty entries it does not know are one warning that names the first ten', async () => {
@@ -670,13 +673,15 @@ describe("the layout: on-demand folders, release candidates, events and a browse
       LocalClean.plan({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] }).remove,
     ).toEqual([]);
 
-    const dry = runCli({ args: ['clean', '--release-candidates'], cwd: root });
+    const dry = runCli({ args: ['project', 'clean', '--release-candidates'], cwd: root });
 
     expect(dry.stderr).toContain('release-candidates/0.4.6');
     expect(dry.stderr).toContain('kept release-candidates/0.4.7');
     expect(existsSync(join(root, '.agents/local/release-candidates/0.4.6'))).toBe(true);
 
-    expect(runCli({ args: ['clean', '--release-candidates', '--yes'], cwd: root }).code).toBe(0);
+    expect(
+      runCli({ args: ['project', 'clean', '--release-candidates', '--yes'], cwd: root }).code,
+    ).toBe(0);
     expect(existsSync(join(root, '.agents/local/release-candidates/0.4.6'))).toBe(false);
     expect(existsSync(join(root, '.agents/local/release-candidates/0.4.7'))).toBe(true);
   });
@@ -698,7 +703,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
 
     expect(folded).toHaveLength(1);
     expect(folded[0].file).toBe('.agents/local');
-    expect(folded[0].message).toContain('vulcan clean --release-candidates --yes');
+    expect(folded[0].message).toContain('vulcan project clean --release-candidates --yes');
   });
 
   test('only a version can be a release candidate, and only a tag of that exact name ships it', () => {
@@ -739,7 +744,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
       expect(byName[name].note, name).toContain('is not a version');
     }
 
-    runCli({ args: ['clean', '--release-candidates', '--yes'], cwd: root });
+    runCli({ args: ['project', 'clean', '--release-candidates', '--yes'], cwd: root });
 
     expect(existsSync(join(root, '.agents/local/release-candidates/1.0.0~0/a.txt'))).toBe(true);
     expect(existsSync(join(root, '.agents/local/release-candidates/HEAD/a.txt'))).toBe(true);
@@ -756,10 +761,10 @@ describe("the layout: on-demand folders, release candidates, events and a browse
 
     expect(entry).toMatchObject({ state: 'unmerged', removable: false });
     expect(entry?.note).toContain('has no commits of its own yet');
-    expect(runCli({ args: ['clean', '--worktrees'], cwd: root }).stderr).toContain(
+    expect(runCli({ args: ['project', 'clean', '--worktrees'], cwd: root }).stderr).toContain(
       'kept worktrees/fresh',
     );
-    expect(runCli({ args: ['clean', '--worktrees', '--yes'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'clean', '--worktrees', '--yes'], cwd: root }).code).toBe(0);
     expect(readFileSync(join(root, '.agents/local/worktrees/fresh/.env'), 'utf8')).toBe('SECRET=1');
   });
 
@@ -817,12 +822,12 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     expect(byName['gone-secret']).toMatchObject({ state: 'dirty', removable: false });
     expect(byName['gone-secret'].note).toContain('.env');
 
-    const dry = runCli({ args: ['clean', '--worktrees'], cwd: root }).stderr;
+    const dry = runCli({ args: ['project', 'clean', '--worktrees'], cwd: root }).stderr;
 
     expect(dry).toContain('kept worktrees/secret');
     expect(dry).toContain('.env');
 
-    runCli({ args: ['clean', '--worktrees', '--yes'], cwd: root });
+    runCli({ args: ['project', 'clean', '--worktrees', '--yes'], cwd: root });
 
     expect(existsSync(join(root, '.agents/local/worktrees/rebuildable'))).toBe(false);
     expect(readFileSync(join(root, '.agents/local/worktrees/secret/.env'), 'utf8')).toBe(
@@ -879,15 +884,15 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     expect(
       LocalClean.plan({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] }).remove,
     ).toEqual([]);
-    expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'clean', '--all', '--yes'], cwd: root }).code).toBe(0);
     expect(files.every(exists)).toBe(true);
 
-    const dry = runCli({ args: ['clean', '--events'], cwd: root }).stderr;
+    const dry = runCli({ args: ['project', 'clean', '--events'], cwd: root }).stderr;
 
     expect(dry).toContain(`events/${day(60)}.jsonl`);
     expect(dry).toContain('older than 30 days');
     expect(dry).toContain(`kept events/${day(5)}.jsonl`);
-    expect(runCli({ args: ['clean', '--events', '--yes'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'clean', '--events', '--yes'], cwd: root }).code).toBe(0);
     expect(exists(files[0])).toBe(false);
     expect(exists(files[1])).toBe(true);
     expect(exists(files[2])).toBe(true);
@@ -919,13 +924,13 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     expect(byName['com.google.Chrome.new333']).toMatchObject({ removable: false, state: 'ok' });
     expect(byName['com.google.Chrome.new333'].note).toContain('may be using it');
 
-    const dry = runCli({ args: ['clean'], cwd: root });
+    const dry = runCli({ args: ['project', 'clean'], cwd: root });
 
     expect(dry.stderr).toContain('  com.google.Chrome.old111  ');
     expect(dry.stderr).toContain('kept com.google.Chrome.new333');
     expect(existsSync(join(root, '.agents/local/com.google.Chrome.old111'))).toBe(true);
 
-    expect(runCli({ args: ['clean', '--yes'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'clean', '--yes'], cwd: root }).code).toBe(0);
     expect(existsSync(join(root, '.agents/local/com.google.Chrome.old111'))).toBe(false);
     expect(existsSync(join(root, '.agents/local/org.chromium.Chromium.old222'))).toBe(false);
     expect(existsSync(join(root, '.agents/local/.com.google.Chrome.hidden4'))).toBe(false);
@@ -989,9 +994,9 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     const stale = warnings.find((entry) => entry.message.includes('outlived'));
 
     expect(stale?.message).toContain('1 stale in tmp');
-    expect(stale?.message).toContain('vulcan clean --tmp --yes');
+    expect(stale?.message).toContain('vulcan project clean --tmp --yes');
     expect(existsSync(join(root, '.agents/local/diag.ts'))).toBe(true);
-    expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'clean', '--all', '--yes'], cwd: root }).code).toBe(0);
     expect(existsSync(join(root, '.agents/local/diag.ts'))).toBe(true);
     expect(existsSync(join(root, '.agents/local/audit/report.md'))).toBe(true);
   });
@@ -1005,7 +1010,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
 
     expect(LocalScan.unknown({ root })).toEqual([]);
     expect(warnings.filter((entry) => entry.file.includes('agents/scout'))).toEqual([]);
-    expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'clean', '--all', '--yes'], cwd: root }).code).toBe(0);
     expect(existsSync(join(root, '.agents/local/agents/scout/notes.md'))).toBe(true);
   });
 
@@ -1066,7 +1071,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     for (const scope of CleanScopes.values()) {
       expect(clean, scope).toContain(`--${scope}`);
       expect(
-        runCli({ args: ['clean', `--${scope}`], cwd: repository() }).stderr,
+        runCli({ args: ['project', 'clean', `--${scope}`], cwd: repository() }).stderr,
         scope,
       ).not.toContain('unknown argument');
     }
@@ -1096,7 +1101,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
   });
 });
 
-describe('vulcan clean --events and the configured log', () => {
+describe('vulcan project clean --events and the configured log', () => {
   const day = (ago: number): string => EventLog.dayOf({ time: Date.now() - ago * DAY });
   const shared = (opts: { manifest?: object; days: number[] }): { root: string; dir: string } => {
     const dir = createProject({ files: {} });
@@ -1116,12 +1121,12 @@ describe('vulcan clean --events and the configured log', () => {
 
   test('the day files of events.dir are listed by their path and removed by the limits of the project', () => {
     const { root, dir } = shared({ days: [60, 5, 0] });
-    const dry = runCli({ args: ['clean', '--events'], cwd: root }).stderr;
+    const dry = runCli({ args: ['project', 'clean', '--events'], cwd: root }).stderr;
 
     expect(dry).toContain(`${dir}/${day(60)}.jsonl`);
     expect(dry).toContain('older than 30 days');
     expect(existsSync(join(dir, `${day(60)}.jsonl`))).toBe(true);
-    expect(runCli({ args: ['clean', '--events', '--yes'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['project', 'clean', '--events', '--yes'], cwd: root }).code).toBe(0);
     expect(existsSync(join(dir, `${day(60)}.jsonl`))).toBe(false);
     expect(existsSync(join(dir, `${day(5)}.jsonl`))).toBe(true);
     expect(existsSync(join(dir, `${day(0)}.jsonl`))).toBe(true);
@@ -1130,7 +1135,7 @@ describe('vulcan clean --events and the configured log', () => {
   test('the limits of the manifest apply: maxFiles 1 keeps only today', () => {
     const { root, dir } = shared({ manifest: { maxFiles: 1 }, days: [4, 3, 0] });
 
-    runCli({ args: ['clean', '--events', '--yes'], cwd: root });
+    runCli({ args: ['project', 'clean', '--events', '--yes'], cwd: root });
 
     expect([4, 3, 0].filter((ago) => existsSync(join(dir, `${day(ago)}.jsonl`)))).toEqual([0]);
   });
@@ -1139,11 +1144,11 @@ describe('vulcan clean --events and the configured log', () => {
     const { root, dir } = shared({ days: [60] });
 
     file({ root, path: `events/${day(60)}.jsonl`, text: '{}\n' });
-    runCli({ args: ['clean', '--all', '--yes'], cwd: root });
+    runCli({ args: ['project', 'clean', '--all', '--yes'], cwd: root });
 
     expect(existsSync(join(dir, `${day(60)}.jsonl`))).toBe(true);
 
-    runCli({ args: ['clean', '--events', '--yes'], cwd: root });
+    runCli({ args: ['project', 'clean', '--events', '--yes'], cwd: root });
 
     expect(existsSync(join(dir, `${day(60)}.jsonl`))).toBe(false);
     expect(existsSync(join(root, `.agents/local/events/${day(60)}.jsonl`))).toBe(true);

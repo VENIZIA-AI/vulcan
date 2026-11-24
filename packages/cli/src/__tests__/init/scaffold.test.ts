@@ -23,11 +23,11 @@ const SCAFFOLD = [
   'Makefile',
 ];
 
-describe('vulcan init', () => {
+describe('vulcan project init', () => {
   test('an empty project gets the whole layer, mts config by default', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
 
-    expect(runCli({ args: ['init'], cwd: root, env: NO_INSTALL }).code).toBe(0);
+    expect(runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL }).code).toBe(0);
 
     for (const path of SCAFFOLD) {
       expect(existsSync(join(root, path))).toBe(true);
@@ -45,7 +45,7 @@ describe('vulcan init', () => {
   test('no formatter config is written: the [fmt] section of bunfig.toml is the formatter config', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
 
-    runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(existsSync(join(root, '.configs/formatters'))).toBe(false);
     expect(readFileSync(join(root, 'bunfig.toml'), 'utf8')).toContain('flavor = "oxfmt"');
@@ -53,7 +53,7 @@ describe('vulcan init', () => {
 
   test('a root .dockerignore is created when there is none, and reported', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(result.stderr).toContain('created  .dockerignore');
 
@@ -72,7 +72,7 @@ describe('vulcan init', () => {
 
   test('a root bunfig.toml with telemetry off and [fmt] is created when there is none, and reported', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
     const text = readFileSync(join(root, 'bunfig.toml'), 'utf8');
 
     expect(result.stderr).toContain('created  bunfig.toml');
@@ -87,12 +87,12 @@ describe('vulcan init', () => {
     const root = createProject({
       files: { 'package.json': STYLED_PACKAGE, 'bunfig.toml': '[install]\nexact = true\n' },
     });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(result.stderr).toContain('kept     bunfig.toml');
     expect(readFileSync(join(root, 'bunfig.toml'), 'utf8')).toBe('[install]\nexact = true\n');
 
-    runCli({ args: ['sync', '--agents', 'omp'], cwd: root, env: NO_INSTALL });
+    runCli({ args: ['project', 'sync', '--agents', 'omp'], cwd: root, env: NO_INSTALL });
 
     expect(readFileSync(join(root, 'bunfig.toml'), 'utf8')).toBe('[install]\nexact = true\n');
   });
@@ -101,7 +101,7 @@ describe('vulcan init', () => {
     const root = createProject({
       files: { 'package.json': STYLED_PACKAGE, '.dockerignore': 'mine\n' },
     });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(result.stderr).toContain('kept     .dockerignore');
     expect(readFileSync(join(root, '.dockerignore'), 'utf8')).toBe('mine\n');
@@ -109,10 +109,14 @@ describe('vulcan init', () => {
 
   test('the config is always .mts: --config is an unknown argument, and nothing is written', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
-    const result = runCli({ args: ['init', '--config', 'ts'], cwd: root, env: NO_INSTALL });
+    const result = runCli({
+      args: ['project', 'init', '--config', 'ts'],
+      cwd: root,
+      env: NO_INSTALL,
+    });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain("vulcan init: unknown argument '--config'");
+    expect(result.stderr).toContain("vulcan project init: unknown argument '--config'");
     expect(existsSync(join(root, 'AGENTS.md'))).toBe(false);
   });
 
@@ -124,7 +128,7 @@ describe('vulcan init', () => {
         Makefile: 'build:\n\t@echo\n',
       },
     });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toBe('# mine\n');
     expect(readFileSync(join(root, 'Makefile'), 'utf8')).toBe('build:\n\t@echo\n');
@@ -139,7 +143,7 @@ describe('vulcan init', () => {
       },
     });
 
-    runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
     expect(existsSync(join(root, '.configs/vulcan.config.mts'))).toBe(true);
   });
 
@@ -148,7 +152,7 @@ describe('vulcan init', () => {
       files: { '.gitignore': 'node_modules/\n', 'package.json': STYLED_PACKAGE },
     });
 
-    runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
       'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n',
     );
@@ -162,7 +166,7 @@ describe('vulcan init', () => {
       const root = createProject({
         files: { '.gitignore': gitignore, 'package.json': STYLED_PACKAGE },
       });
-      const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+      const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
       Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
 
@@ -204,7 +208,7 @@ describe('vulcan init', () => {
       files: { '.gitignore': 'node_modules/', 'package.json': STYLED_PACKAGE },
     });
 
-    runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
       'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n',
     );
@@ -212,7 +216,7 @@ describe('vulcan init', () => {
 
   test('lint tools the scaffolded configs need are installed when undeclared', () => {
     const root = createProject({ files: { 'package.json': '{ "name": "demo" }' } });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(result.stderr).toContain(
       'skipped  bun add -d --exact oxlint oxlint-tsgolint eslint @venizia/dev-configs',
@@ -222,7 +226,7 @@ describe('vulcan init', () => {
 
   test('the packages to install are listed before the install runs', () => {
     const root = createProject({ files: { 'package.json': '{ "name": "demo" }' } });
-    const { stderr } = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const { stderr } = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
     const listed = stderr.indexOf(
       'installing oxlint oxlint-tsgolint eslint @venizia/dev-configs\n',
     );
@@ -234,14 +238,14 @@ describe('vulcan init', () => {
   test('a failed install exits 1, says what to run, and still lists what is left', () => {
     const root = createProject({ files: { 'package.json': '{ "name": "demo" }' } });
     const result = runCli({
-      args: ['init'],
+      args: ['project', 'init'],
       cwd: root,
       env: { VULCAN_BUN: createFakeCommand({ body: 'echo offline >&2; exit 7' }) },
     });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(
-      "vulcan init: 'bun add -d --exact oxlint oxlint-tsgolint eslint @venizia/dev-configs' failed - run it yourself",
+      "vulcan project init: 'bun add -d --exact oxlint oxlint-tsgolint eslint @venizia/dev-configs' failed - run it yourself",
     );
     expect(result.stderr).toContain('left to do:');
     expect(existsSync(join(root, 'AGENTS.md'))).toBe(true);
@@ -249,7 +253,7 @@ describe('vulcan init', () => {
 
   test('a directory without package.json is refused before anything is written', () => {
     const root = createProject({ files: {} });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('no package.json');
@@ -265,7 +269,7 @@ describe('vulcan init', () => {
           '{ "name": "demo", "devDependencies": { "@venizia/dev-configs": "0.3.1", "oxlint": "1", "oxlint-tsgolint": "7", "eslint": "10" } }',
       },
     });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(result.stderr).not.toContain('bun add');
   });
@@ -274,7 +278,7 @@ describe('vulcan init', () => {
     const root = createProject({
       files: { 'package.json': '{ "name": "demo", "workspaces": ["apps/*"] }' },
     });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(result.stderr).toContain(
       'skipped  bun add -d --exact @venizia/dev-configs (VULCAN_NO_INSTALL)',
@@ -283,20 +287,20 @@ describe('vulcan init', () => {
 
   test('ends with a numbered list naming the scaffold marker', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(result.stderr).toContain('left to do:');
     expect(result.stderr).toContain(
       '1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line',
     );
     expect(result.stderr).toContain(
-      'bun node_modules/.bin/vulcan sync && bun node_modules/.bin/vulcan doctor',
+      'bun node_modules/.bin/vulcan project sync && bun node_modules/.bin/vulcan project doctor',
     );
   });
 
   test('init never scaffolds .mcp.json: sync writes it per machine, for the agents that read it', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(existsSync(join(root, '.mcp.json'))).toBe(false);
     expect(result.stderr).not.toContain('.mcp.json');
@@ -305,7 +309,7 @@ describe('vulcan init', () => {
   test('an existing .mcp.json is left alone, with no hint about it', () => {
     const mine = '{ "mcpServers": { "other": { "command": "x" } } }\n';
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE, '.mcp.json': mine } });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     expect(readFileSync(join(root, '.mcp.json'), 'utf8')).toBe(mine);
     expect(result.stderr).not.toContain('.mcp.json');
@@ -315,7 +319,7 @@ describe('vulcan init', () => {
   test('the Makefile explains itself when vulcan.mk is missing: a shipped target says to install first, the project own targets still run', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
 
-    runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
     writeFileSync(
       join(root, 'Makefile'),
       `${readFileSync(join(root, 'Makefile'), 'utf8')}\ninstall:\n\t@echo installing\n`,
@@ -345,7 +349,7 @@ describe('vulcan init', () => {
     const root = createProject({
       files: { 'package.json': '{ "name": "demo", "workspaces": ["apps/*"] }' },
     });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const result = runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
 
     for (const file of [
       'lints/oxlint.config.mts',
@@ -365,16 +369,16 @@ describe('vulcan init', () => {
       files: { 'package.json': '{ "name": "demo", "workspaces": { "packages": ["apps/*"] } }' },
     });
 
-    runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
     expect(existsSync(join(root, '.configs/lints/oxlint.config.mts'))).toBe(false);
   });
 
   test('init, then sync: doctor names what is left to fill in, and is green once it is', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
 
-    runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
-    runCli({ args: ['sync'], cwd: root });
-    const raw = runCli({ args: ['doctor'], cwd: root });
+    runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
+    runCli({ args: ['project', 'sync'], cwd: root });
+    const raw = runCli({ args: ['project', 'doctor'], cwd: root });
 
     expect(raw.code).toBe(1);
     expect(raw.stderr).toContain('[scaffold] .agents/knowledge/index.md');
@@ -388,17 +392,17 @@ describe('vulcan init', () => {
         .filter((line) => !line.includes('vulcan:scaffold'))
         .join('\n'),
     );
-    const filled = runCli({ args: ['doctor'], cwd: root });
+    const filled = runCli({ args: ['project', 'doctor'], cwd: root });
 
-    expect(filled.stderr).toContain('vulcan doctor: OK');
+    expect(filled.stderr).toContain('vulcan project doctor: OK');
     expect(filled.code).toBe(0);
   });
 
   test('the scaffolded knowledge bundle is OKF v0.2 conformant', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
 
-    runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
-    const check = runCli({ args: ['x', 'okf', 'check'], cwd: root });
+    runCli({ args: ['project', 'init'], cwd: root, env: NO_INSTALL });
+    const check = runCli({ args: ['okf', 'check'], cwd: root });
 
     expect(check.code).toBe(0);
     expect(check.stdout).toContain('OKF v0.2');

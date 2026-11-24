@@ -173,7 +173,7 @@ export default {
     ).toEqual([]);
   });
 
-  test('the config vulcan init writes is in order', () => {
+  test('the config vulcan project init writes is in order', () => {
     const text = WorkspaceDocs.renderVulcanConfig({
       project: 'demo',
       key: 'DEMO',

@@ -5,7 +5,7 @@ description: The skills VULCAN ships to every project - what each is for, when a
 
 # Shipped skills
 
-`vulcan sync` links these skills into every project, for each agent that reads skills. A project cannot shadow their names (`vulcan doctor` names a clash). Each one has a description an agent reads to decide when to load it, and a body that is loaded only then.
+`vulcan project sync` links these skills into every project, for each agent that reads skills. A project cannot shadow their names (`vulcan project doctor` names a clash). Each one has a description an agent reads to decide when to load it, and a body that is loaded only then.
 
 ## The skills
 
@@ -37,7 +37,7 @@ description: The skills VULCAN ships to every project - what each is for, when a
 ### visualize-work
 
 - Use it when: You are asked to show, present, explain, diagram or compare something, or a page reads faster than Markdown.
-- Produces: One small static HTML page in `.agents/local/prototypes/`, made by `vulcan visualize` from a JSON spec, with the checks it ran and the browser check reported honestly
+- Produces: One small static HTML page in `.agents/local/prototypes/`, made by `vulcan page new` from a JSON spec, with the checks it ran and the browser check reported honestly
 
 ### ship
 

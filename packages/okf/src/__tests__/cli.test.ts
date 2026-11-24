@@ -24,7 +24,7 @@ describe('vulcan-okf dispatcher', () => {
     const result = run({ args: [] });
 
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain('usage: vulcan x okf');
+    expect(result.stderr).toContain('usage: vulcan okf');
   });
 
   test('an unknown command exits 2 with the usage', () => {
@@ -38,16 +38,16 @@ describe('vulcan-okf dispatcher', () => {
     const result = run({ args: ['symbols'] });
 
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain('usage: vulcan x okf <check|gen|coverage>');
+    expect(result.stderr).toContain('usage: vulcan okf <check|gen|coverage>');
   });
 });
 
-describe('outside vulcan x', () => {
+describe('outside vulcan atlas/okf', () => {
   test('a command without a project config stops with what to do, never a stack trace', () => {
     const result = run({ args: ['check'] });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('okf: no project config - run through `vulcan x okf`');
+    expect(result.stderr).toContain('okf: no project config - run through `vulcan okf`');
     expect(result.stderr).not.toContain('    at ');
   });
 
@@ -58,7 +58,7 @@ describe('outside vulcan x', () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(
-      'okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan x`',
+      'okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan atlas` or `vulcan okf`',
     );
     expect(result.stderr).not.toContain('    at ');
   });

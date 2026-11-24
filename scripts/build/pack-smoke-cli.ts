@@ -42,7 +42,7 @@ const CATALOG: Record<string, string> = JSON.parse(
 
 /**
  * A project module as a project writes one: it imports the renderer API from `@venizia/vulcan/okf`,
- * the only VULCAN package a project installs. Type-checked, then run by `vulcan x okf gen`.
+ * the only VULCAN package a project installs. Type-checked, then run by `vulcan okf gen`.
  */
 const PROBE_MODULE = `import { defineRenderer } from '@venizia/vulcan/okf';
 
@@ -554,12 +554,12 @@ try {
 
     const steps = [
       { name: 'install', command: ['bun', 'install'], expectedCode: 0 },
-      { name: 'init', command: ['bun', 'x', 'vulcan', 'init'], expectedCode: 0 },
-      { name: 'sync', command: ['bun', 'x', 'vulcan', 'sync'], expectedCode: 0 },
+      { name: 'init', command: ['bun', 'x', 'vulcan', 'project', 'init'], expectedCode: 0 },
+      { name: 'sync', command: ['bun', 'x', 'vulcan', 'project', 'sync'], expectedCode: 0 },
       // The raw scaffold is not done: doctor names the index marker until the project fills it in.
       {
         name: 'doctor on the raw scaffold',
-        command: ['bun', 'x', 'vulcan', 'doctor'],
+        command: ['bun', 'x', 'vulcan', 'project', 'doctor'],
         expectedCode: 1,
       },
       {
@@ -571,10 +571,10 @@ try {
         ],
         expectedCode: 0,
       },
-      { name: 'doctor', command: ['bun', 'x', 'vulcan', 'doctor'], expectedCode: 0 },
+      { name: 'doctor', command: ['bun', 'x', 'vulcan', 'project', 'doctor'], expectedCode: 0 },
       {
         name: 'x okf check',
-        command: ['bun', 'x', 'vulcan', 'x', 'okf', 'check'],
+        command: ['bun', 'x', 'vulcan', 'okf', 'check'],
         expectedCode: 0,
       },
     ];
@@ -607,13 +607,13 @@ try {
 
       for (const step of [
         // The source rides in the manifest, which atlas reads - never the config.
-        { name: 'sync with a source', command: ['bun', 'x', 'vulcan', 'sync'], expectedCode: 0 },
+        { name: 'sync with a source', command: ['bun', 'x', 'vulcan', 'project', 'sync'], expectedCode: 0 },
         {
           name: 'okf module type-checks',
           command: ['bun', 'check', '--no-pretty', '-p', '.'],
           expectedCode: 0,
         },
-        { name: 'x okf gen', command: ['bun', 'x', 'vulcan', 'x', 'okf', 'gen'], expectedCode: 0 },
+        { name: 'x okf gen', command: ['bun', 'x', 'vulcan', 'okf', 'gen'], expectedCode: 0 },
       ]) {
         const result = runStep({ ...step, cwd: sandbox });
 
@@ -636,7 +636,7 @@ try {
     if (failure === undefined) {
       const mcp = runStep({
         name: 'x atlas mcp',
-        command: ['bun', 'x', 'vulcan', 'x', 'atlas', 'mcp'],
+        command: ['bun', 'x', 'vulcan', 'atlas', 'mcp'],
         cwd: sandbox,
         expectedCode: 0,
         input: buildMcpRequests(),

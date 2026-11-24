@@ -11,9 +11,9 @@ import { BaseRules } from '../rules/index.ts';
 import { ThemeTokens } from '../theme/index.ts';
 
 export class ManifestConstants {
-  /** Local, not committed: the whole manifest, which every hook, the board and the doctor read. Each clone writes its own with `vulcan sync`. */
+  /** Local, not committed: the whole manifest, which every hook, the board and the doctor read. Each clone writes its own with `vulcan project sync`. */
   static readonly FILE = '.agents/local/vulcan.manifest.json';
-  /** Committed and generated: the part of the manifest that readers of a checkout need without running `vulcan sync` (atlas, the wiki build). */
+  /** Committed and generated: the part of the manifest that readers of a checkout need without running `vulcan project sync` (atlas, the wiki build). */
   static readonly DESCRIPTOR_FILE = '.agents/atlas.manifest.json';
   /**
    * The one file of earlier releases, kept as a DATA-ONLY copy of the descriptor (the same text) until the stable 0.5.0
@@ -40,7 +40,8 @@ export class ManifestConstants {
   static readonly ENV = EnvVariables.VULCAN_MANIFEST;
   /** The first key: a reader sees at once that the file is generated. Readers ignore it. */
   static readonly GENERATED_KEY = '$generated';
-  static readonly GENERATED_NOTE = 'by vulcan sync from .configs/vulcan.config.* - do not edit';
+  static readonly GENERATED_NOTE =
+    'by vulcan project sync from .configs/vulcan.config.* - do not edit';
 }
 
 const HASH_LENGTH = 8;
@@ -121,7 +122,7 @@ const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<str
     : {};
 };
 
-/** The manifest's `local` block, which the hooks and `vulcan clean` read: when the automatic clean is off or the project names its tmp folder. */
+/** The manifest's `local` block, which the hooks and `vulcan project clean` read: when the automatic clean is off or the project names its tmp folder. */
 const localBlockOf = (opts: { config: TResolvedConfig }): { local?: Record<string, unknown> } => {
   const { autoClean, tmp } = opts.config.local;
   const block = {
@@ -161,7 +162,7 @@ const themeBlockOf = (opts: { config: TResolvedConfig }): { theme?: Record<strin
   };
 };
 
-/** The manifest's `board` block, which `vulcan board` reads: only what the project sets. */
+/** The manifest's `board` block, which `vulcan board show` reads: only what the project sets. */
 const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<string, unknown> } => {
   const { owner, title, logo, hostname, agents } = opts.config.board;
 
@@ -182,7 +183,7 @@ const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<strin
       };
 };
 
-/** The manifest's `provider` block, which `vulcan board` reads: written only when the code host is not GitHub. */
+/** The manifest's `provider` block, which `vulcan board show` reads: written only when the code host is not GitHub. */
 const providerBlockOf = (opts: {
   config: TResolvedConfig;
 }): { provider?: Record<string, unknown> } => {
@@ -207,7 +208,7 @@ const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<strin
   return Object.keys(block).length === 0 ? {} : { atlas: block };
 };
 
-/** Renders `.agents/local/vulcan.manifest.json` from the config and the base rule hashes; written by `vulcan sync`. */
+/** Renders `.agents/local/vulcan.manifest.json` from the config and the base rule hashes; written by `vulcan project sync`. */
 export class ProjectManifest {
   /** `@acme/shop-workspace` gives `shop`; a project with no package name takes its directory's. */
   static projectNameOf(opts: { root: string; config: TResolvedConfig }): string {
@@ -240,7 +241,7 @@ export class ProjectManifest {
 
   /**
    * The local manifest (Project Contract v1, C1): data only, rendered from the config with a fixed key order, so a stale
-   * one shows as a diff. Not committed: every clone writes it with `vulcan sync`.
+   * one shows as a diff. Not committed: every clone writes it with `vulcan project sync`.
    */
   static render(opts: { root: string; config: TResolvedConfig }): string {
     return BunFormatter.format({
@@ -321,7 +322,7 @@ export class ProjectManifest {
       // The design tokens: the preset, the seeds the project gave and the resolved set every consumer reads.
       ...themeBlockOf({ config }),
       ...commitBlockOf({ config }),
-      // The names and the logo `vulcan board` puts on its page; nothing set, nothing is written.
+      // The names and the logo `vulcan board show` puts on its page; nothing set, nothing is written.
       ...boardBlockOf({ config }),
       // The code host the board reads; GitHub, the default, writes nothing.
       ...providerBlockOf({ config }),

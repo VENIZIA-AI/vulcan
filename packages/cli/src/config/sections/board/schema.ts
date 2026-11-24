@@ -5,7 +5,7 @@ import { BOARD_AGENTS } from '../../../board/schema.ts';
 
 export const BOARD_SECTION = {
   /**
-   * What `vulcan board` calls things. `owner` is who an ask waits on (default: `git config user.name`),
+   * What `vulcan board show` calls things. `owner` is who an ask waits on (default: `git config user.name`),
    * `title` the name on the page (default: the project name and "Board"), `logo` a path inside the project to an
    * SVG put on the page (default: none), `agents` an agent name to a face (`bun`, `flame`, `ember`, `rock`,
    * `banana`; any other agent has `bun`). Written to the manifest only when something is set.
@@ -37,7 +37,7 @@ export const BOARD_SECTION = {
     })
     .default({ agents: {} }),
   /**
-   * The code host `vulcan board` reads pull requests, checks and commits from: `github` through `gh` (the default),
+   * The code host `vulcan board show` reads pull requests, checks and commits from: `github` through `gh` (the default),
    * or `gitlab` through `glab`. `host` names the GitLab server (default `gitlab.com`): a bare host name with an
    * optional port, never a URL. Written to the manifest only when it is not `github`.
    */

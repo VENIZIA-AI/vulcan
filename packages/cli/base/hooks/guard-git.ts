@@ -6,7 +6,7 @@
  * (ask: the pull request would land on the default branch).
  *
  * It guards against drift, it is not the last line of defence. A missing package, `bun` or hook file is the settings wrapper's
- * to answer: it blocks a command that names `git` or `gh`, bar `bun install` and `vulcan sync`. Input it cannot read ASKS,
+ * to answer: it blocks a command that names `git` or `gh`, bar `bun install` and `vulcan project sync`. Input it cannot read ASKS,
  * because nothing was checked. A guard that started and then failed - a crash or a timeout, here an internal error or an
  * unloadable module - ASKS about a command that names `git` or `gh`, instead of passing it unchecked. Where the project
  * (`guard.asks: 'deny'`) or the launch environment (`VULCAN_GUARD_ASKS=deny`) holds every ask, each ask is a deny, and so is a

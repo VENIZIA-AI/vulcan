@@ -331,7 +331,7 @@ describe('every ask the hooks have becomes a deny with guard.asks: deny', () => 
 
         expect(held.decision, `${hook} ${JSON.stringify(manifest)}`).toBe('deny');
         expect(held.text, hook).toContain('cannot be read');
-        expect(held.text, hook).toContain('vulcan sync');
+        expect(held.text, hook).toContain('vulcan project sync');
       }
     }
   });

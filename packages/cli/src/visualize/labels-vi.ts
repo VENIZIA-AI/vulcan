@@ -30,7 +30,7 @@ export const VI_CHROME: TChrome = {
     info: 'để biết',
   },
   actions: 'Làm lần lượt',
-  footer: 'Trang tĩnh do vulcan visualize tạo; không tải gì từ mạng.',
+  footer: 'Trang tĩnh do vulcan page new tạo; không tải gì từ mạng.',
   flow: 'Luồng đi',
   legend: 'Chú giải',
   play: 'Chạy',

@@ -95,7 +95,7 @@ VULCAN is the rules and workflow centre for the coding agents in your repository
 <span class="stage-num">4</span>
 <h4>Look things up</h4>
 </div>
-<p><a href="/references/">References</a> then <a href="/references/commands/doctor">vulcan doctor</a></p>
+<p><a href="/references/">References</a> then <a href="/references/commands/doctor">vulcan project doctor</a></p>
 <span class="stage-desc">Look up configuration keys, command options, and contract verification checks.</span>
 </div>
 

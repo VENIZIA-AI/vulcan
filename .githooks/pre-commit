@@ -14,8 +14,8 @@ echo ""
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 cd "$ROOT_DIR"
 
-echo "pre-commit: vulcan doctor"
-bun node_modules/.bin/vulcan doctor
+echo "pre-commit: vulcan project doctor"
+bun node_modules/.bin/vulcan project doctor
 
 echo "pre-commit: lint all packages"
 make lint-all

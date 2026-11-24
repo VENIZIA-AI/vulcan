@@ -61,7 +61,7 @@ const run = (opts: { root: string; args: string[] }) =>
     stderr: 'pipe',
   });
 
-describe('vulcan x atlas api undocumented, on a package that publishes its source', () => {
+describe('vulcan atlas api undocumented, on a package that publishes its source', () => {
   test('lists the exports without TSDoc and exits 1', () => {
     const root = sourceProject({
       source: '/** Documented. */\nexport const a = 1;\nexport function bare(): void {}\n',

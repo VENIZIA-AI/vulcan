@@ -41,7 +41,7 @@ export class Dockerignore {
     ];
 
     return [
-      '# Written by vulcan init; edit it freely, vulcan never overwrites it. .git is excluded, so pass the commit: docker build --build-arg APP_BUILD_COMMIT="$(git rev-parse HEAD)" ...',
+      '# Written by vulcan project init; edit it freely, vulcan never overwrites it. .git is excluded, so pass the commit: docker build --build-arg APP_BUILD_COMMIT="$(git rev-parse HEAD)" ...',
       ...patterns.flatMap((pattern) =>
         pattern === ProjectLayout.SECRET_PATTERNS[0] ? [SECRET_COMMENT, pattern] : [pattern],
       ),

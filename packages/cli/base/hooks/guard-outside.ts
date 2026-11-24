@@ -12,15 +12,15 @@
  *
  * A write to a file the guards read their policy from (the manifest, the config, `.claude/settings*.json` and the installed
  * package) is always DENIED: an agent that can write one can switch a guard off, and the owner changes them by hand or through
- * `vulcan sync`. A missing package, `bun` or hook file is the settings wrapper's to answer: it blocks, bar `bun install` and
- * `vulcan sync`.
+ * `vulcan project sync`. A missing package, `bun` or hook file is the settings wrapper's to answer: it blocks, bar `bun install` and
+ * `vulcan project sync`.
  *
  * It guards against drift, not against an attacker. A hook input it cannot read ASKS, because nothing was checked and the agent
  * cannot repair that. A guard that started and then failed - a crash or a timeout, here an internal error or an unloadable
  * module - ASKS instead of passing the call unchecked. Where the project (`guard.asks: 'deny'`) or the launch environment
  * (`VULCAN_GUARD_ASKS=deny`) holds every ask, each is a deny; a manifest that exists and cannot be read holds them too. `VULCAN_GUARDS=off` switches it off,
  * read before anything is imported. It reads what the project set (`guard.outside`, `guard.toolOwnedPaths`)
- * from the manifest `vulcan sync` wrote, never from the config: a config a newer release wrote, which this
+ * from the manifest `vulcan project sync` wrote, never from the config: a config a newer release wrote, which this
  * VULCAN cannot parse, then changes nothing here.
  */
 
@@ -132,7 +132,7 @@ try {
             : []),
           ...unread,
           '',
-          'Nothing was run. These files are changed by the owner, by hand or through bun node_modules/.bin/vulcan sync; an agent that could edit them could switch a guard off.',
+          'Nothing was run. These files are changed by the owner, by hand or through bun node_modules/.bin/vulcan project sync; an agent that could edit them could switch a guard off.',
         ];
       } else if (linkHits.length > 0) {
         reason = [

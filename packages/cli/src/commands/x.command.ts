@@ -96,7 +96,7 @@ export const runXCommand = async (opts: ICommandContext): Promise<number> => {
 
   if (bin === undefined) {
     process.stderr.write(
-      `vulcan x: ${TOOL_PACKAGES[name].packageName} has no '${TOOL_PACKAGES[name].binName}' bin - run 'bun install'\n`,
+      `vulcan ${name}: ${TOOL_PACKAGES[name].packageName} has no '${TOOL_PACKAGES[name].binName}' bin - run 'bun install'\n`,
     );
 
     return ExitCodes.FAILURE;
@@ -105,7 +105,7 @@ export const runXCommand = async (opts: ICommandContext): Promise<number> => {
   const environment = await ToolRunner.buildEnvironment({ root: opts.cwd });
 
   if (!environment.ok) {
-    process.stderr.write(`vulcan x: ${environment.error}\n`);
+    process.stderr.write(`vulcan ${name}: ${environment.error}\n`);
 
     return ExitCodes.FAILURE;
   }

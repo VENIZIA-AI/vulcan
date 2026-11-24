@@ -51,11 +51,11 @@ describe('the prepare script cannot fail an install', () => {
 
     expect(run.exitCode).toBe(0);
     const result = await Bun.file(join(root, 'ran.txt')).text();
-    expect(result).toBe('sync --quiet|no-tty');
+    expect(result).toBe('project sync --quiet|no-tty');
   });
 
   test('the script text reads no terminal and always exits 0', () => {
-    expect(ProjectLayout.PREPARE_SCRIPT).toContain('vulcan sync --quiet < /dev/null');
+    expect(ProjectLayout.PREPARE_SCRIPT).toContain('vulcan project sync --quiet < /dev/null');
     expect(ProjectLayout.PREPARE_SCRIPT.endsWith('exit 0')).toBe(true);
   });
 });
@@ -73,11 +73,11 @@ describe('doctor and the prepare script', () => {
 
     expect(found).toHaveLength(1);
     expect(found[0]?.message).toContain('"prepare"');
-    expect(found[0]?.message).toContain('vulcan sync');
+    expect(found[0]?.message).toContain('vulcan project sync');
     expect(ProjectContract.checkPrepareScript(context(has))).toEqual([]);
 
     for (const script of [
-      { postinstall: 'bun node_modules/.bin/vulcan sync' },
+      { postinstall: 'bun node_modules/.bin/vulcan project sync' },
       { prepare: 'make vulcan-sync' },
     ]) {
       const other = createProject({

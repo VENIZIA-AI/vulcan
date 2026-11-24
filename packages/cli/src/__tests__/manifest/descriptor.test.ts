@@ -66,7 +66,7 @@ describe('the descriptor and the local manifest', () => {
 
   test('sync writes the local manifest, the descriptor, and a data-only copy of the descriptor at the old path', () => {
     const root = project();
-    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const run = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     expect(run.code, run.stderr).toBe(0);
     expect(existsSync(join(root, ManifestConstants.FILE))).toBe(true);
@@ -84,7 +84,7 @@ describe('the descriptor and the local manifest', () => {
 
   test('an old manifest (the earlier release, with policy) is replaced by the data-only copy, never removed', () => {
     const root = project({ legacy: '{"old":true,"guard":{"outside":"ask"}}\n' });
-    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const run = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
     const copy = JSON.parse(readFileSync(join(root, ManifestConstants.LEGACY_FILE), 'utf8'));
 
     expect(run.code, run.stderr).toBe(0);
@@ -146,7 +146,7 @@ describe('a repository that publishes no package has no descriptor', () => {
 
   test('sync writes only the local manifest', () => {
     const root = app();
-    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const run = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     expect(run.code, run.stderr).toBe(0);
     expect(existsSync(join(root, ManifestConstants.FILE))).toBe(true);
@@ -177,7 +177,7 @@ describe('a repository that publishes no package has no descriptor', () => {
       ProjectContract.checkManifest(appConfig(root)).map((entry) => entry.message),
     ).toContainEqual(expect.stringContaining('left from an earlier sync'));
 
-    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const run = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     expect(run.code, run.stderr).toBe(0);
     expect(existsSync(join(root, ManifestConstants.DESCRIPTOR_FILE))).toBe(false);
@@ -189,7 +189,7 @@ describe('a repository that publishes no package has no descriptor', () => {
 
     initRepo({ cwd: root });
 
-    const run = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    const run = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
     expect(run.code, run.stderr).toBe(0);
     expect(readFileSync(join(root, ManifestConstants.DESCRIPTOR_FILE), 'utf8')).toBe('{}\n');

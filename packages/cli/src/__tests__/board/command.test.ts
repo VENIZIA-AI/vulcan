@@ -26,7 +26,7 @@ const projectWithLog = (): string => {
 
 const board = (opts: { root: string; args?: string[]; env?: Record<string, string> }) =>
   runCli({
-    args: ['board', '--no-github', '--since', SINCE, ...(opts.args ?? [])],
+    args: ['board', 'show', '--no-github', '--since', SINCE, ...(opts.args ?? [])],
     cwd: opts.root,
     env: { ...hermeticEnv(), ...opts.env },
   });
@@ -39,7 +39,7 @@ const dataOf = (file: string) => {
   return JSON.parse(block);
 };
 
-describe('vulcan board', () => {
+describe('vulcan board show', () => {
   test('writes .agents/local/reports/board.html from the event log and prints its path', () => {
     const root = projectWithLog();
     const result = board({ root });
@@ -93,7 +93,7 @@ describe('vulcan board', () => {
   test('--since keeps the lines at or after it; a folder with no log is an empty board, not an error', () => {
     const root = projectWithLog();
     const after = runCli({
-      args: ['board', '--no-github', '--since', '2026-11-03T08:50:00Z'],
+      args: ['board', 'show', '--no-github', '--since', '2026-11-03T08:50:00Z'],
       cwd: root,
       env: hermeticEnv(),
     });
@@ -105,7 +105,7 @@ describe('vulcan board', () => {
     expect(kept).toEqual(['F-4', 'F-5', 'Unsorted']);
 
     const future = runCli({
-      args: ['board', '--no-github', '--since', '2026-11-04'],
+      args: ['board', 'show', '--no-github', '--since', '2026-11-04'],
       cwd: root,
       env: hermeticEnv(),
     });
@@ -115,7 +115,11 @@ describe('vulcan board', () => {
     const none = createProject({
       files: { '.agents/local/vulcan.manifest.json': '{}', '.git/HEAD': 'x' },
     });
-    const result = runCli({ args: ['board', '--no-github'], cwd: none, env: hermeticEnv() });
+    const result = runCli({
+      args: ['board', 'show', '--no-github'],
+      cwd: none,
+      env: hermeticEnv(),
+    });
 
     expect(result.code, result.stderr).toBe(0);
     expect(dataOf(result.stdout.trim()).flows).toEqual([]);
@@ -127,7 +131,7 @@ describe('vulcan board', () => {
     mkdirSync(join(root, 'packages/api'), { recursive: true });
 
     const result = runCli({
-      args: ['board', '--no-github', '--since', SINCE],
+      args: ['board', 'show', '--no-github', '--since', SINCE],
       cwd: join(root, 'packages/api'),
       env: hermeticEnv(),
     });
@@ -143,7 +147,7 @@ describe('vulcan board', () => {
     symlinkSync(process.execPath, join(bin, 'bun'));
 
     const result = runCli({
-      args: ['board', '--since', SINCE],
+      args: ['board', 'show', '--since', SINCE],
       cwd: root,
       env: { ...hermeticEnv(), PATH: bin },
     });
@@ -178,7 +182,7 @@ describe('vulcan board', () => {
   test('--repo may be given more than once', () => {
     const root = projectWithLog();
     const result = runCli({
-      args: ['board', '--no-github', '--repo', 'a/b', '--repo', 'c/d', '--since', SINCE],
+      args: ['board', 'show', '--no-github', '--repo', 'a/b', '--repo', 'c/d', '--since', SINCE],
       cwd: root,
       env: hermeticEnv(),
     });
@@ -188,12 +192,12 @@ describe('vulcan board', () => {
 
   test('help lists the command', () => {
     expect(runCli({ args: ['help'], cwd: createProject({ files: {} }) }).stdout).toContain(
-      'board [--out <file>]',
+      'board show [--out <file>]',
     );
   });
 });
 
-describe('vulcan board with board.agents in the manifest', () => {
+describe('vulcan board show with board.agents in the manifest', () => {
   test('the roster and the lanes reach the page; with nothing listed neither does', () => {
     const root = projectWithLog();
     const plain = dataOf(board({ root }).stdout.trim());
@@ -226,7 +230,11 @@ describe('vulcan board serve', () => {
     [['serve', '--port', 'abc'], 'must be a number from 0 to 65535'],
     [['serve', '--port'], 'needs a value'],
   ])('%j is a usage error and starts nothing', (args, message) => {
-    const result = runCli({ args: ['board', ...args], cwd: projectWithLog(), env: hermeticEnv() });
+    const result = runCli({
+      args: ['board', 'show', ...args],
+      cwd: projectWithLog(),
+      env: hermeticEnv(),
+    });
 
     expect(result.code).toBe(2);
     expect(result.stderr).toContain(message);

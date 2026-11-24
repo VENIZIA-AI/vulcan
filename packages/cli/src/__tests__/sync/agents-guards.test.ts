@@ -20,7 +20,7 @@ const OMP = '.omp/hooks/pre/vulcan-guards.ts';
 const PI = '.pi/extensions/vulcan-guards.ts';
 
 const sync = (opts: { root: string; agents: string }) =>
-  runCli({ args: ['sync', '--agents', opts.agents], cwd: opts.root });
+  runCli({ args: ['project', 'sync', '--agents', opts.agents], cwd: opts.root });
 
 describe('the guard extension of an agent that takes one', () => {
   test('the table gives omp and pi an extension, Antigravity and Codex a hooks file and nobody else a guard', () => {

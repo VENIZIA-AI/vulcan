@@ -143,6 +143,7 @@ const monorepo = (opts: { backendDir?: string; shared?: string } = {}): string =
   const parent = createProject({ files: {} });
   const result = runCli({
     args: [
+      'project',
       'init',
       '--preset',
       BACKEND,
@@ -171,7 +172,7 @@ const layoutOf = async (opts: { root: string }) => {
   return loaded.ok ? loaded.config.layout : undefined;
 };
 
-describe('vulcan init --preset with folder paths', () => {
+describe('vulcan project init --preset with folder paths', () => {
   test('a backend folder and a shared folder two levels deep', async () => {
     const root = monorepo({ backendDir: 'frontends/apps', shared: 'frontends/kits' });
 
@@ -190,6 +191,7 @@ describe('vulcan init --preset with folder paths', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         BACKEND,
@@ -211,11 +213,20 @@ describe('vulcan init --preset with folder paths', () => {
   });
 });
 
-describe('vulcan add with several folders per side', () => {
+describe('vulcan package add with several folders per side', () => {
   test('a second folder grows the string into a list, and the app lands in it', async () => {
     const root = monorepo({ backendDir: 'backends' });
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2/services', '--app', 'worker'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        BACKEND,
+        '--backend-dir',
+        'backends-2/services',
+        '--app',
+        'worker',
+      ],
       cwd: root,
       env: ENV,
     });
@@ -232,23 +243,32 @@ describe('vulcan add with several folders per side', () => {
     const root = monorepo({ backendDir: 'backends' });
 
     runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2', '--app', 'worker'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        BACKEND,
+        '--backend-dir',
+        'backends-2',
+        '--app',
+        'worker',
+      ],
       cwd: root,
       env: ENV,
     });
 
     const missing = runCli({
-      args: ['add', '--preset', BACKEND, '--app', 'job'],
+      args: ['package', 'add', '--preset', BACKEND, '--app', 'job'],
       cwd: root,
       env: ENV,
     });
     const listed = runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2', '--app', 'job'],
+      args: ['package', 'add', '--preset', BACKEND, '--backend-dir', 'backends-2', '--app', 'job'],
       cwd: root,
       env: ENV,
     });
     const first = runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends', '--app', 'queue'],
+      args: ['package', 'add', '--preset', BACKEND, '--backend-dir', 'backends', '--app', 'queue'],
       cwd: root,
       env: ENV,
     });
@@ -272,7 +292,16 @@ describe('vulcan add with several folders per side', () => {
     writeFileSync(config, readFileSync(config, 'utf8').replace('// vulcan:apps:start', '// gone'));
 
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2', '--app', 'worker'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        BACKEND,
+        '--backend-dir',
+        'backends-2',
+        '--app',
+        'worker',
+      ],
       cwd: root,
       env: ENV,
     });
@@ -291,7 +320,7 @@ describe('vulcan add with several folders per side', () => {
     );
 
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'docs', '--app', 'worker'],
+      args: ['package', 'add', '--preset', BACKEND, '--backend-dir', 'docs', '--app', 'worker'],
       cwd: root,
       env: ENV,
     });
@@ -310,7 +339,7 @@ describe('vulcan add with several folders per side', () => {
 
     for (const [folder, why] of cases) {
       const result = runCli({
-        args: ['add', '--preset', BACKEND, '--backend-dir', folder, '--app', 'worker'],
+        args: ['package', 'add', '--preset', BACKEND, '--backend-dir', folder, '--app', 'worker'],
         cwd: root,
         env: ENV,
       });
@@ -329,13 +358,23 @@ describe('vulcan add with several folders per side', () => {
     const root = monorepo({ backendDir: 'backends' });
 
     runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2', '--app', 'worker'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        BACKEND,
+        '--backend-dir',
+        'backends-2',
+        '--app',
+        'worker',
+      ],
       cwd: root,
       env: ENV,
     });
 
     const result = runCli({
       args: [
+        'package',
         'add',
         '--preset',
         FRONTEND,
@@ -360,12 +399,13 @@ describe('vulcan add with several folders per side', () => {
   });
 });
 
-describe('vulcan add --lib with several shared folders', () => {
+describe('vulcan package add --lib with several shared folders', () => {
   test('--dir picks a listed folder; without it the error lists them; a new valid one is added', async () => {
     const root = createProject({ files: {} });
     const lib = join(FIXTURES, 'preset-with-lib');
     const init = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `file:${lib}`,
@@ -388,7 +428,7 @@ describe('vulcan add --lib with several shared folders', () => {
 
     const repo = join(root, 'p');
     const second = runCli({
-      args: ['add', '--preset', `file:${lib}`, '--lib', 'money', '--dir', 'kits/b'],
+      args: ['package', 'add', '--preset', `file:${lib}`, '--lib', 'money', '--dir', 'kits/b'],
       cwd: repo,
       env: ENV,
     });
@@ -399,7 +439,7 @@ describe('vulcan add --lib with several shared folders', () => {
     expect(layout?.shared).toEqual(['kits/a', 'kits/b']);
 
     const missing = runCli({
-      args: ['add', '--preset', `file:${lib}`, '--lib', 'tax'],
+      args: ['package', 'add', '--preset', `file:${lib}`, '--lib', 'tax'],
       cwd: repo,
       env: ENV,
     });
@@ -408,7 +448,7 @@ describe('vulcan add --lib with several shared folders', () => {
     expect(missing.stderr).toContain("the layout lists 'kits/a', 'kits/b'");
 
     const listed = runCli({
-      args: ['add', '--preset', `file:${lib}`, '--lib', 'tax', '--dir', 'kits/a'],
+      args: ['package', 'add', '--preset', `file:${lib}`, '--lib', 'tax', '--dir', 'kits/a'],
       cwd: repo,
       env: ENV,
     });
@@ -420,12 +460,13 @@ describe('vulcan add --lib with several shared folders', () => {
   });
 });
 
-describe('vulcan add --lib says why a folder it used was not recorded', () => {
+describe('vulcan package add --lib says why a folder it used was not recorded', () => {
   const lib = `file:${join(FIXTURES, 'preset-with-lib')}`;
   const project = (): string => {
     const parent = createProject({ files: {} });
     const init = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         lib,
@@ -450,7 +491,7 @@ describe('vulcan add --lib says why a folder it used was not recorded', () => {
   };
   const addLib = (opts: { root: string; name: string; dir: string }) =>
     runCli({
-      args: ['add', '--preset', lib, '--lib', opts.name, '--dir', opts.dir],
+      args: ['package', 'add', '--preset', lib, '--lib', opts.name, '--dir', opts.dir],
       cwd: opts.root,
       env: ENV,
     });
@@ -629,12 +670,21 @@ describe('preset diff for an app in a later folder of a list', () => {
     const root = monorepo({ backendDir: 'backends' });
 
     runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2', '--app', 'worker'],
+      args: [
+        'package',
+        'add',
+        '--preset',
+        BACKEND,
+        '--backend-dir',
+        'backends-2',
+        '--app',
+        'worker',
+      ],
       cwd: root,
       env: ENV,
     });
 
-    const result = runCli({ args: ['preset', 'diff', 'worker', '--check'], cwd: root, env: ENV });
+    const result = runCli({ args: ['package', 'diff', 'worker', '--check'], cwd: root, env: ENV });
 
     expect(result.code, result.stderr).toBe(0);
     expect(result.stdout).toContain('backends-2/worker against');

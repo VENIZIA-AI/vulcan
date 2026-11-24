@@ -26,7 +26,7 @@ VULCAN configures coding agents; it is not a sandbox.
   deploys and mutating HTTP calls by pattern, and asks a human before they run. A command it does not
   recognise runs. Keep real credentials out of reach of the agent.
 - **The `V-W-01` deny list** (`read-only`) blocks git writes through the agent's own permission
-  system. Where an agent has no such system, the rule is instruction-only (`vulcan doctor` says so).
+  system. Where an agent has no such system, the rule is instruction-only (`vulcan project doctor` says so).
 - **`bun node_modules/.bin/vulcan`.** Everything VULCAN writes into a project runs the installed
   `@venizia/vulcan` and never downloads: the unscoped npm name `vulcan` belongs to an unrelated package.
 - **Atlas reads, never writes.** The MCP server serves the wiki, changelogs and knowledge bundle of
@@ -35,5 +35,5 @@ VULCAN configures coding agents; it is not a sandbox.
 ## Keeping a project safe
 
 - Install with `--exact` and commit `bun.lock`.
-- Review a VULCAN upgrade's changelog before running `vulcan upgrade`: it changes the rules, hooks
+- Review a VULCAN upgrade's changelog before running `vulcan project upgrade`: it changes the rules, hooks
   and settings your agents run with.

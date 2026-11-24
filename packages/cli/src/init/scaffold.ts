@@ -10,7 +10,7 @@ import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
 /** The atlas entry of the root `.mcp.json`, as `sync` writes it and `doctor` shows it. */
 export const MCP_SERVER_HINT =
-  '"atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "x", "atlas", "mcp", "--root", "."] }';
+  '"atlas": { "command": "bun", "args": ["node_modules/.bin/vulcan", "atlas", "mcp", "--root", "."] }';
 
 /** The files every project gets, apart from the config. */
 const SCAFFOLD_FILES: IScaffoldFile[] = [
@@ -80,7 +80,7 @@ const writeIfAbsent = (opts: { root: string; path: string; content: string }): I
   return { status: InitStatuses.CREATED, subject: opts.path };
 };
 
-/** Writes the starter files of a project and detects workspace globs and the project name; used by `vulcan init` and the create flows. */
+/** Writes the starter files of a project and detects workspace globs and the project name; used by `vulcan project init` and the create flows. */
 export class ProjectScaffold {
   /** Whether the root `package.json` declares workspaces: the array form or `{ packages: [...] }`. */
   static declaresWorkspaces(opts: { root: string }): boolean {
@@ -236,7 +236,7 @@ export class ProjectScaffold {
       ...entries
         .filter((entry) => entry.status === InitStatuses.ADD)
         .map((entry) => `add ${entry.subject}`),
-      `${ProjectLayout.VULCAN_COMMAND} sync && ${ProjectLayout.VULCAN_COMMAND} doctor`,
+      `${ProjectLayout.VULCAN_COMMAND} project sync && ${ProjectLayout.VULCAN_COMMAND} project doctor`,
     ];
 
     return { entries, install, todo };

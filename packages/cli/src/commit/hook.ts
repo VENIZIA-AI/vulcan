@@ -10,19 +10,19 @@ const HOOK_NAME = 'commit-msg';
 const MARKER = '# vulcan:commit-msg';
 /** The marker line, then the folder of the project that wrote it in brackets; a hook of an earlier release has no brackets. */
 const OWNER = new RegExp(`^${MARKER}(?: \\[([^\\]]*)\\])?`);
-/** A hook that calls the check: the old text (`vulcan commit-check`) and the one sync writes now (`vulcan" commit-check`). */
-const CALL = /vulcan["']?\s+commit-check/;
+/** A hook that calls the check: the old text (`commit-check`) and the one sync writes now (`vulcan" check commit`). */
+const CALL = /vulcan["']?\s+(?:commit-check|check\s+commit)/;
 /** The call sync wrote before V-S-08, and the `bunx` forms of it: they can run a copy bunx cached, so a hook that has one is stale. */
-const LEGACY_CALL = /\bbun(?:x|\s+x)\s+(?:--?[\w-]+\s+)*vulcan\s+commit-check/;
+const LEGACY_CALL = /\bbun(?:x|\s+x)\s+(?:--?[\w-]+\s+)*vulcan\s+(?:commit-check|check\s+commit)/;
 /** A line break, or any other control character: a folder name that holds one cannot be written into the hook text. */
 const CONTROL_CHARACTER = /\p{Cc}/u;
 const CONTROL_CHARACTERS = /\p{Cc}/gu;
 /** The escapes the marker line holds: `%` and `]`, and a control character as two hex digits. */
 const ESCAPE = /%(25|5D|[01][0-9A-F]|7F|[89][0-9A-F])/g;
 /** The linked bin of the folder the loop above found, by path: nothing is fetched and no `$PATH` is searched (V-S-08). */
-const COMMAND = 'bun "$dir/node_modules/.bin/vulcan" commit-check "$1"';
+const COMMAND = 'bun "$dir/node_modules/.bin/vulcan" check commit "$1"';
 /** What a developer adds to a hook of their own, run from the project folder. */
-const ADVICE_COMMAND = 'bun node_modules/.bin/vulcan commit-check "$1"';
+const ADVICE_COMMAND = 'bun node_modules/.bin/vulcan check commit "$1"';
 
 const git = (opts: { root: string; args: string[] }): string | undefined => {
   try {
@@ -46,10 +46,10 @@ export class CommitHook {
   }
 
   /**
-   * The hook file: a POSIX shell script that hands the message to `vulcan commit-check` from the
+   * The hook file: a POSIX shell script that hands the message to `vulcan check commit` from the
    * project folder. A commit goes through, with a note on stderr, when bun is not installed, no
    * `node_modules/@venizia/vulcan` is found from the project folder up to the git top level, or the installed vulcan has
-   * no `commit-check` command (an older branch).
+   * no `check commit` command (an older branch).
    */
   static template(opts: { prefix: string }): string {
     if (!CommitHook.isWritable({ prefix: opts.prefix })) {
@@ -60,7 +60,7 @@ export class CommitHook {
     const enter = folder === '' ? '' : `cd ${CommitHook.quote({ text: folder })} || exit 0\n`;
 
     return `#!/bin/sh
-${MARKER} [${CommitHook.encode({ folder })}] - written by vulcan sync from commit.message in .configs/vulcan.config.mts; do not edit
+${MARKER} [${CommitHook.encode({ folder })}] - written by vulcan project sync from commit.message in .configs/vulcan.config.mts; do not edit
 message="$1"
 case "$message" in /*) ;; *) message="$PWD/$message" ;; esac
 top="$(git rev-parse --show-toplevel)"
@@ -79,8 +79,8 @@ while [ ! -d "$dir/node_modules/@venizia/vulcan" ]; do
 done
 output="$(${COMMAND.replace('"$1"', '"$message"')} 2>&1)"
 status=$?
-if [ "$status" -eq 1 ] && printf '%s\n' "$output" | grep -q "^vulcan: unknown command 'commit-check'"; then
-  echo "vulcan: the commit-msg hook is skipped - the installed vulcan has no commit-check command" >&2
+if [ "$status" -eq 1 ] && printf '%s\n' "$output" | grep -q "^vulcan: unknown command 'check'"; then
+  echo "vulcan: the commit-msg hook is skipped - the installed vulcan has no check commit command" >&2
   exit 0
 fi
 [ -z "$output" ] || printf '%s\n' "$output" >&2

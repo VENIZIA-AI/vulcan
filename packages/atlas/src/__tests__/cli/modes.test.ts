@@ -195,7 +195,7 @@ describe('ProjectConfig.hasAtlasProject - a project is a manifest, never a layou
     expect(ProjectConfig.hasAtlasProject({ root: makeRepositoryRoot() })).toBe(true);
   });
 
-  test('the manifest vulcan x hands over counts for the root it named, and no other', () => {
+  test('the manifest vulcan atlas/okf hands over counts for the root it named, and no other', () => {
     const named = makeTempDirectory({ prefix: 'atlas-handed-' });
     const other = makeTempDirectory({ prefix: 'atlas-other-' });
 

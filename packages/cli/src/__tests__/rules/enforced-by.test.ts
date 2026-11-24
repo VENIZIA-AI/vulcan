@@ -40,7 +40,7 @@ describe('the Enforced by column says what really enforces a rule', () => {
 
     expect(cell['V-B-08']).toMatch(/^HARD .*guard-outside.*SOFT for the rest$/);
     expect(cell['V-W-06']).toMatch(/^HARD .*guard-git.*SOFT for every other action/);
-    expect(cell['V-S-01']).toContain('`vulcan doctor`');
+    expect(cell['V-S-01']).toContain('`vulcan project doctor`');
     expect(cell['V-C-10']).toContain('consistent-type-assertions');
     expect(cell['V-C-06']).toContain('no-silent-catch');
     expect(cell['V-C-20']).toContain('no-await-new-chain');

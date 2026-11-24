@@ -1,12 +1,12 @@
 ---
-title: vulcan runners
+title: vulcan check runners
 description: List every tracked file that runs an unscoped package fetched by name, and how to write it so it cannot run the wrong package.
 ---
 
-# vulcan runners
+# vulcan check runners
 
 <!-- runners: example -->
-`vulcan runners check` lists every file git tracks that runs a package fetched by name: `bunx shadcn`, `npx turbo`, `pnpm dlx create-foo`. It is the check behind rule `V-S-08`, for CI and for you. The agent's side of the same rule is the `guard-git` hook.
+`vulcan check runners` lists every file git tracks that runs a package fetched by name: `bunx shadcn`, `npx turbo`, `pnpm dlx create-foo`. It is the check behind rule `V-S-08`, for CI and for you. The agent's side of the same rule is the `guard-git` hook.
 
 ## Why
 
@@ -17,13 +17,13 @@ Write `bun node_modules/.bin/<bin>` from the project root (the folder where the 
 ## Synopsis
 
 ```text
-vulcan runners check
+vulcan check runners
 ```
 
-`check` is the only subcommand, and it takes no option. Anything else prints `usage: vulcan runners check` on stderr and exits `2`. Run it from the project root: it lists the files git tracks in the folder it runs in.
+`check` is the only subcommand, and it takes no option. Anything else prints `usage: vulcan check runners` on stderr and exits `2`. Run it from the project root: it lists the files git tracks in the folder it runs in.
 
 ```bash
-bun node_modules/.bin/vulcan runners check
+bun node_modules/.bin/vulcan check runners
 ```
 
 ## What it reads
@@ -45,7 +45,7 @@ Each finding is one line on stderr: ``<file>:<line>: <runner> <name> fetches a p
 
 <!-- runners: example -->
 ```text
-$ bun node_modules/.bin/vulcan runners check
+$ bun node_modules/.bin/vulcan check runners
 Makefile:2: bunx shadcn fetches a package by name; run `bun node_modules/.bin/<bin>` from the project root, or through a make target (V-S-08)
 scripts/ci.sh:2: npx --no-install turbo fetches a package by name; run `bun node_modules/.bin/<bin>` from the project root, or through a make target (V-S-08)
 1 command in Markdown marked as an example (<!-- runners: example -->) not counted
@@ -61,15 +61,15 @@ A line in a Markdown file can show a refused command, such as a page that warns 
 
 - `0`: No file runs an unscoped package by name.
 - `1`: At least one finding.
-- `2`: The arguments are not `check`, or the check could not run: `vulcan runners: git ls-files failed in <folder>: ...` when the folder is not a git repository.
+- `2`: The arguments are not `check`, or the check could not run: `vulcan check runners: git ls-files failed in <folder>: ...` when the folder is not a git repository.
 
 ## Common errors
 
 - A finding on a line of a script or a workflow: Replace the runner with `bun node_modules/.bin/<bin>` from the project root, or a make target. If the package has no linked bin yet, add it to the project's dependencies so `bun install` links it.
-- A finding on a name you trust, such as `shadcn`: Add the name to `guard.runners.allow` of `.configs/vulcan.config.mts` and run `vulcan sync`; the check reads it from the manifest, whatever `VULCAN_GUARD_ASKS` and `VULCAN_GUARD_OUTSIDE` hold in your shell. The live hook does not: where either is `deny`, it ignores that list.
+- A finding on a name you trust, such as `shadcn`: Add the name to `guard.runners.allow` of `.configs/vulcan.config.mts` and run `vulcan project sync`; the check reads it from the manifest, whatever `VULCAN_GUARD_ASKS` and `VULCAN_GUARD_OUTSIDE` hold in your shell. The live hook does not: where either is `deny`, it ignores that list.
 - A finding in a Markdown page that warns against the command: Mark it with `<!-- runners: example -->`.
-- `vulcan runners: git ls-files failed in ...`: Run it from the root of a git repository.
-- `usage: vulcan runners check`: You gave another subcommand or an option.
+- `vulcan check runners: git ls-files failed in ...`: Run it from the root of a git repository.
+- `usage: vulcan check runners`: You gave another subcommand or an option.
 
 If a `bunx` of a Venizia name ever ran on a machine, look for `~/.bun/install/cache/.bunx-*/`. An entry named `<name>@<version>` where the name is `vulcan`, `devz`, `ardor`, `ignis` or `vulcan-atlas` is a foreign package. Delete the entry.
 
@@ -81,4 +81,4 @@ If a `bunx` of a Venizia name ever ran on a machine, look for `~/.bun/install/ca
 
 - [Hooks reference](/references/hooks/): `guard-git` and rule `V-S-08`.
 - [Configuration](/references/configuration/#guard-runners-allow): `guard.runners.allow`.
-- [`vulcan doctor`](/references/commands/doctor): the other check for CI.
+- [`vulcan project doctor`](/references/commands/doctor): the other check for CI.

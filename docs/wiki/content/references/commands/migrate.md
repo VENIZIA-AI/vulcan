@@ -7,7 +7,7 @@ description: Plan what an app must change to move a @venizia/* package to anothe
 
 `vulcan migrate` moves an app between two releases of a package. `plan` reads the app and prints what to change, newer or older, any number of releases apart. `apply` runs the codemods that plan links.
 
-Both run atlas's `migrate` command at the pinned version ([`vulcan x atlas migrate`](/references/atlas/tools#migrate)), over the sources the project serves. The guide [Migrate between releases](/guides/core-concepts/migrate-between-releases) walks through a whole upgrade; this page is the reference.
+Both run atlas's `migrate` command at the pinned version ([`vulcan atlas migrate`](/references/atlas/tools#migrate)), over the sources the project serves. The guide [Migrate between releases](/guides/core-concepts/migrate-between-releases) walks through a whole upgrade; this page is the reference.
 
 ## Synopsis
 
@@ -82,7 +82,7 @@ After:    ThingFactory.build({ name })
 Codemod: `thing-factory`
 ```
 
-A `Note:` line warns when the plan needs it, for example when `latest` is older than the installed prerelease, so the plan is a downgrade; use `next` to stay on the newest release. A source that cannot be served is a `Warning:` at the top of the plan, and `apply` then refuses unless you pass `--force`. A package no source serves is an error that names `atlas.sources` and `vulcan x atlas pull`. The reply and its JSON fields are in the [atlas tool reference](/references/atlas/tools#migrate).
+A `Note:` line warns when the plan needs it, for example when `latest` is older than the installed prerelease, so the plan is a downgrade; use `next` to stay on the newest release. A source that cannot be served is a `Warning:` at the top of the plan, and `apply` then refuses unless you pass `--force`. A package no source serves is an error that names `atlas.sources` and `vulcan atlas pull`. The reply and its JSON fields are in the [atlas tool reference](/references/atlas/tools#migrate).
 
 ## What `apply` does
 
@@ -115,7 +115,7 @@ A `Note:` line warns when the plan needs it, for example when `latest` is older 
 - `no installed @venizia/* package of the sources atlas serves was found in <app>; pass package and from`: Run in the right folder, or pass `--app`, or name the package and `--from`.
 - `a version names one package: pass package with from, or with a version for to (latest and next need no package)`: Add `--package`.
 - `app directory not found: <app>`: `--app` names a folder that is not there.
-- `<package>@<to> is published to npm but the atlas does not know it ...`: The atlas source's ref is behind the registry. Move the ref (`atlas.sources`) and run `vulcan x atlas pull`.
+- `<package>@<to> is published to npm but the atlas does not know it ...`: The atlas source's ref is behind the registry. Move the ref (`atlas.sources`) and run `vulcan atlas pull`.
 - `<package> has no stable release in the release table; use next or a version`: `latest` has no stable release to give.
 - `vulcan migrate apply: <app> has uncommitted changes; commit or stash them ... or pass --force`: Commit first, so the rewrite is a diff of its own.
 - `vulcan migrate apply: <app> is not inside a git work tree, so a rewrite could not be undone ...`: Put the app under git, or pass `--force`.
@@ -127,5 +127,5 @@ A `Note:` line warns when the plan needs it, for example when `latest` is older 
 
 - [Migrate between releases](/guides/core-concepts/migrate-between-releases): a whole upgrade, a rollback and prereleases.
 - [atlas tools](/references/atlas/tools#migrate): the `migrate` tool the command asks, and its JSON.
-- [`vulcan changelog`](/references/commands/changelog): checks the `migration` blocks the plan reads.
+- [`vulcan check changelog`](/references/commands/changelog): checks the `migration` blocks the plan reads.
 - [Configuration](/references/configuration/#atlas-sources): `atlas.sources`.

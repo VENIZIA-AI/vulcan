@@ -2,7 +2,7 @@ import { join } from 'node:path';
 
 /**
  * Chrome and Chromium put a unix socket at `<temp folder>/<profile folder>/SingletonSocket` and exit with "Socket path too long"
- * when it passes the limit of a unix socket path. The tests and `vulcan doctor` read this one place.
+ * when it passes the limit of a unix socket path. The tests and `vulcan project doctor` read this one place.
  */
 export class BrowserSocket {
   /** A unix socket path is 107 characters at most on Linux. */

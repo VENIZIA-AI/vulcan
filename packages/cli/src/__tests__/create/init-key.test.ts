@@ -15,9 +15,9 @@ const CONFIG = '.configs/vulcan.config.mts';
 const app = (name: string, extra: Record<string, string> = {}): string =>
   createProject({ files: { 'package.json': JSON.stringify({ name }), ...extra } });
 const init = (opts: { root: string; args?: string[] }) =>
-  runCli({ args: ['init', ...(opts.args ?? [])], cwd: opts.root, env: ENV });
+  runCli({ args: ['project', 'init', ...(opts.args ?? [])], cwd: opts.root, env: ENV });
 
-describe('vulcan init: the project key', () => {
+describe('vulcan project init: the project key', () => {
   test('with no terminal the key is made from the name, said, and written to the config', () => {
     const root = app('acme-shop');
     const result = init({ root });
@@ -70,6 +70,7 @@ describe('vulcan init: the project key', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
       args: [
+        'project',
         'init',
         '--preset',
         `file:${BACKEND}`,
@@ -92,11 +93,11 @@ describe('vulcan init: the project key', () => {
   });
 });
 
-describe.skipIf(!hasScript)('vulcan init in a terminal asks for the key', () => {
+describe.skipIf(!hasScript)('vulcan project init in a terminal asks for the key', () => {
   const asked = async (opts: { send: string[] }) => {
     const root = app('acme-shop');
     const result = await driveTerminal({
-      args: ['init'],
+      args: ['project', 'init'],
       cwd: root,
       env: { ...ENV, TERM: 'xterm-256color', LANG: 'en_US.UTF-8' },
       steps: [

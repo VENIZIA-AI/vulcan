@@ -6,7 +6,7 @@ import { InstalledPackages } from '@/sources/installed';
 import { InstalledVersions } from '@/tools/common/installed-versions';
 
 /**
- * What `vulcan x atlas status` prints: the sources the project reads, and for each `@venizia/*` package the app
+ * What `vulcan atlas status` prints: the sources the project reads, and for each `@venizia/*` package the app
  * declares the copy atlas reads its symbols from (the first one `InstalledPackages.copiesOf` finds, nearest the root;
  * `symbol` reads it when it has a version, else the newest release on npm) and every other copy on disk, so a stale
  * install is seen at a glance. It reads the disk only; the pin of a source's docs is in the answer of the `version`

@@ -8,7 +8,7 @@ import { RecordValue } from './record.ts';
  * The config keys a person may set for this checkout in the profile, `.agents/local/profile.json`: `local.tmp`, `board.agents` and
  * `events.dir` (read by `EventSettings`, which the event hook must load without this module). Read by hooks and the board
  * page, so it never throws and checks nothing but the shape of a folder: a value it cannot use is left out and the
- * committed one applies. `vulcan doctor` says what is wrong.
+ * committed one applies. `vulcan project doctor` says what is wrong.
  */
 export class LocalSettings {
   static read(opts: { root: string }): {

@@ -14,7 +14,7 @@ const HOOKS = '.codex/hooks.json';
 const MINE = { matcher: 'Bash', hooks: [{ type: 'command', command: './my-check.sh' }] };
 
 const sync = (opts: { root: string; agents: string }) =>
-  runCli({ args: ['sync', '--agents', opts.agents], cwd: opts.root });
+  runCli({ args: ['project', 'sync', '--agents', opts.agents], cwd: opts.root });
 
 interface IFile {
   hooks: { PreToolUse: { matcher: string; hooks: { command: string }[] }[] };

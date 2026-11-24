@@ -8,7 +8,7 @@ import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 afterAll(removeProjects);
 
 const HOOKS = join(import.meta.dir, '..', '..', '..', 'base', 'hooks');
-/** What `vulcan sync` renders from the config below for the guards: the hooks read this. */
+/** What `vulcan project sync` renders from the config below for the guards: the hooks read this. */
 const MANIFEST = guardManifest({ guard: { toolOwnedPaths: ['/srv/store/**'] } });
 const CONFIG =
   "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { toolOwnedPaths: ['/srv/store/**'] } };\n";

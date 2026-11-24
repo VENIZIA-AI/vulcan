@@ -61,4 +61,4 @@ owner may be made with the `visualize-work` skill.
 ## 5. Clean up
 
 Delete the clones and the scratch files you created, once the report names what they were for
-(`vulcan clean` lists what is stale). Keep the report. Never delete anything you did not create.
+(`vulcan project clean` lists what is stale). Keep the report. Never delete anything you did not create.

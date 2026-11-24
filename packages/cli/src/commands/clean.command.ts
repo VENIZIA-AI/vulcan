@@ -15,7 +15,7 @@ const lineOf = (opts: { entry: ILocalEntry }): string => {
 };
 
 /**
- * `vulcan clean`: lists what the chosen scopes of `.agents/local/` would remove, with size and age, and
+ * `vulcan project clean`: lists what the chosen scopes of `.agents/local/` would remove, with size and age, and
  * removes it with `--yes`. A dry run by default. It touches only `.agents/local/` of this project.
  */
 export const runCleanCommand = async (opts: ICommandContext): Promise<number> => {
@@ -36,13 +36,15 @@ export const runCleanCommand = async (opts: ICommandContext): Promise<number> =>
   const total = plan.remove.reduce((sum, entry) => sum + entry.bytes, 0);
 
   if (plan.remove.length === 0 && plan.keep.length === 0) {
-    process.stderr.write(`vulcan clean: nothing to remove in ${scopes.join(', ')}\n`);
+    process.stderr.write(`vulcan project clean: nothing to remove in ${scopes.join(', ')}\n`);
 
     return ExitCodes.OK;
   }
 
   process.stderr.write(
-    yes ? 'vulcan clean: removing\n' : 'vulcan clean: dry run, nothing is removed (add --yes)\n',
+    yes
+      ? 'vulcan project clean: removing\n'
+      : 'vulcan project clean: dry run, nothing is removed (add --yes)\n',
   );
 
   for (const entry of plan.remove) {

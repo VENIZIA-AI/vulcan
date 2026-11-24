@@ -41,7 +41,7 @@ export class PromptContext {
     }
 
     const shown = open.slice(0, STEPS_LISTED);
-    const command = `${ProjectLayout.VULCAN_COMMAND} event step --flow ${EventText.shellQuote({ text: found.flowId })}`;
+    const command = `${ProjectLayout.VULCAN_COMMAND} flow step --flow ${EventText.shellQuote({ text: found.flowId })}`;
     const more = open.length > shown.length ? `\n- ... ${open.length - shown.length} more` : '';
 
     return {

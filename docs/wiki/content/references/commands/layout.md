@@ -1,22 +1,22 @@
 ---
-title: vulcan layout
+title: vulcan check layout
 description: List the file names with a plural role, the folders that mix subfolders and loose files, and the long source files of a project, and adopt the ones it has with a baseline.
 ---
 
-# vulcan layout
+# vulcan check layout
 
-`vulcan layout check` reads the source files git tracks in the project's package and layout folders and lists three kinds of finding. `vulcan doctor` runs the same check as the [`file-layout`](/references/commands/doctor#file-layout) warning.
+`vulcan check layout` reads the source files git tracks in the project's package and layout folders and lists three kinds of finding. `vulcan project doctor` runs the same check as the [`file-layout`](/references/commands/doctor#file-layout) warning.
 
 ## Synopsis
 
 ```text
-vulcan layout check [--write-baseline]
+vulcan check layout [--write-baseline]
 ```
 
 Run it from the project root: it reads the files git tracks in the folder it runs in, through the same inert git query as the hooks.
 
 ```bash
-bun node_modules/.bin/vulcan layout check
+bun node_modules/.bin/vulcan check layout
 ```
 
 ## What it reads
@@ -57,18 +57,18 @@ export default {
 
 ## The baseline
 
-A project that already has findings adopts the check with a baseline: `vulcan layout check --write-baseline` writes every finding into `.configs/layout-baseline.json`, a JSON list of `{ "rule", "path" }` sorted by path, and exits `0`. Commit the file. From then on a finding the baseline holds is `info`, a new one is a `warning`, and an entry that no longer matches a finding is listed as stale; run `--write-baseline` again to drop it after a rename or a split. A baseline whose entries are not `{ rule, path }` with a known rule stops the check and is named.
+A project that already has findings adopts the check with a baseline: `vulcan check layout --write-baseline` writes every finding into `.configs/layout-baseline.json`, a JSON list of `{ "rule", "path" }` sorted by path, and exits `0`. Commit the file. From then on a finding the baseline holds is `info`, a new one is a `warning`, and an entry that no longer matches a finding is listed as stale; run `--write-baseline` again to drop it after a rename or a split. A baseline whose entries are not `{ rule, path }` with a known rule stops the check and is named.
 
 ## Output
 
 Each finding is one line on stderr, then a summary:
 
 ```text
-$ bun node_modules/.bin/vulcan layout check
+$ bun node_modules/.bin/vulcan check layout
   warning [plural-suffix] src/user.helpers.ts: the role "helpers" is plural: name the file user.helper.ts
   warning [mixed-folder] src: 3 subfolders beside 2 loose file(s) (main.ts, util.ts): move the files into a subfolder; only index.ts or index.tsx stays beside subfolders
   info [long-file] src/db/schema.ts: 612 lines, over doctor.layout.maxLines (400): split it by concern (in the baseline)
-vulcan layout: 2 new, 1 in the baseline, 0 stale baseline entries
+vulcan check layout: 2 new, 1 in the baseline, 0 stale baseline entries
 ```
 
 ## Exit codes
@@ -79,5 +79,5 @@ vulcan layout: 2 new, 1 in the baseline, 0 stale baseline entries
 
 ## See also
 
-- [`vulcan doctor`](/references/commands/doctor#file-layout): the `file-layout` warning.
+- [`vulcan project doctor`](/references/commands/doctor#file-layout): the `file-layout` warning.
 - [Configuration](/references/configuration/): `doctor.layout`.

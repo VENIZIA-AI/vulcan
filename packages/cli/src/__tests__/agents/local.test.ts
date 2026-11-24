@@ -69,7 +69,7 @@ describe('the local choice file', () => {
 
     expect(LocalChoice.read({ root: broken })).toEqual({
       ok: false,
-      error: `${LOCAL_AGENTS_FILE} is not valid JSON - fix it (or move it aside), then run: vulcan sync --agents <list>`,
+      error: `${LOCAL_AGENTS_FILE} is not valid JSON - fix it (or move it aside), then run: vulcan project sync --agents <list>`,
     });
 
     const result = LocalChoice.read({ root: unknown });

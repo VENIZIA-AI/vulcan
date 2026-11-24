@@ -38,12 +38,12 @@ Rule `V-W-01` defines git write boundaries and provides two options:
 
 With `read-only`, every git verb that writes the index, the history, a ref, the config or the work tree is denied. The option adds 40 deny patterns to `permissions.deny`.
 
-If you omit the slot choice, `vulcan doctor` reports a violation and exits with code 1:
+If you omit the slot choice, `vulcan project doctor` reports a violation and exits with code 1:
 
 ```text
-$ bun node_modules/.bin/vulcan doctor
+$ bun node_modules/.bin/vulcan project doctor
   [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
-vulcan doctor: 1 violation(s)
+vulcan project doctor: 1 violation(s)
 ```
 
 The `[rule-slots]` check also fails for an unknown option or a key that is not a slot.
@@ -58,19 +58,19 @@ Add a project rule as a row in the markdown table:
 |---|---|---|
 | C-19 | ISO dates (2026-10-17) in every durable artifact. | SOFT |
 
-A `V-` ID is allowed in your rules only when it points at a base rule (`Extends V-W-01`). If a project rule uses an unassigned `V-` ID, `vulcan doctor` reports a violation and exits with code 1:
+A `V-` ID is allowed in your rules only when it points at a base rule (`Extends V-W-01`). If a project rule uses an unassigned `V-` ID, `vulcan project doctor` reports a violation and exits with code 1:
 
 ```text
-$ bun node_modules/.bin/vulcan doctor
+$ bun node_modules/.bin/vulcan project doctor
   [rule-ids] .agents/rules.md: V-Z-99 is not a base rule - give the extension a bare ID
-vulcan doctor: 1 violation(s)
+vulcan project doctor: 1 violation(s)
 ```
 
 ## How an agent sees them
 
-`vulcan sync` writes a block into the committed `AGENTS.md`, between `<!-- vulcan:rules:start ... -->` and `<!-- vulcan:rules:end -->`: your slot choices, the write boundaries (`V-W-02`, `V-W-03`, `V-W-06`), where scratch files go, and the rules sessions drop most (`digest.oftenDropped`), one line each, the whole first sentence, at most 6 KB. It is built from the rule files and the config, holds no path of one machine, and is the same for every developer.
+`vulcan project sync` writes a block into the committed `AGENTS.md`, between `<!-- vulcan:rules:start ... -->` and `<!-- vulcan:rules:end -->`: your slot choices, the write boundaries (`V-W-02`, `V-W-03`, `V-W-06`), where scratch files go, and the rules sessions drop most (`digest.oftenDropped`), one line each, the whole first sentence, at most 6 KB. It is built from the rule files and the config, holds no path of one machine, and is the same for every developer.
 
-Every agent that reads `AGENTS.md` gets it, and so does Claude Code, whose `CLAUDE.md` is `@AGENTS.md`. Verified in a real run: Claude Code and omp both quoted the block. `vulcan doctor` notes a block that is missing or no longer matches the rules or the config, and `vulcan sync` rewrites it.
+Every agent that reads `AGENTS.md` gets it, and so does Claude Code, whose `CLAUDE.md` is `@AGENTS.md`. Verified in a real run: Claude Code and omp both quoted the block. `vulcan project doctor` notes a block that is missing or no longer matches the rules or the config, and `vulcan project sync` rewrites it.
 
 At session start, the SessionStart hook of Claude Code prints a short digest, under 2 KB, of what only that session knows: a config problem, a launch warning, and how to answer the owner. It holds no rule text: Claude Code gives the model a hook's output whole only up to about 10,000 bytes, and beyond that a file and its first 2 KB, which is what the old digest, 20 to 150 KB, always was.
 
@@ -84,7 +84,7 @@ The rules are in AGENTS.md ("Rules that must not be skipped"); the full text is 
 ...
 ```
 
-You can customize the rules named in the block with the `digest.oftenDropped` configuration key; run `vulcan sync` after.
+You can customize the rules named in the block with the `digest.oftenDropped` configuration key; run `vulcan project sync` after.
 
 ## See also
 

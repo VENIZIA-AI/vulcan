@@ -142,7 +142,7 @@ export class IndexPair {
 
       if (manifestFile === undefined) {
         throw new Error(
-          `atlas index: ${sha.slice(0, 8)} has no ${MANIFEST_FILE} - run \`vulcan sync\` and commit it`,
+          `atlas index: ${sha.slice(0, 8)} has no ${MANIFEST_FILE} - run \`vulcan project sync\` and commit it`,
         );
       }
 

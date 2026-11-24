@@ -19,7 +19,7 @@ import { PresetScratch } from './scratch.ts';
 import { PortRegistry } from './workspace.ts';
 
 const SUBCOMMAND = 'diff';
-const USAGE = `usage: vulcan preset ${SUBCOMMAND} <package> [--preset <name|file:path>] [--api <backend app> | --no-api] [--full] [--check]`;
+const USAGE = `usage: vulcan package ${SUBCOMMAND} <package> [--preset <name|file:path>] [--api <backend app> | --no-api] [--full] [--check]`;
 const API_URL_TOKEN = '{{apiUrl}}';
 /** What the compared folder is called in the output. */
 const APP_SUBJECT = 'app';
@@ -28,7 +28,7 @@ const PACKAGE_SUBJECT = 'package';
 const VALUE_FLAGS = [CreateFlags.PRESET, CreateFlags.API];
 
 const fail = (opts: { message: string }): number => {
-  process.stderr.write(`vulcan preset ${SUBCOMMAND}: ${opts.message}\n`);
+  process.stderr.write(`vulcan package ${SUBCOMMAND}: ${opts.message}\n`);
 
   return ExitCodes.FAILURE;
 };
@@ -99,7 +99,7 @@ const printReport = (opts: {
   const countOf = (status: string): number =>
     reports.filter((report) => report.status === status).length;
   const lines = [
-    `vulcan preset ${SUBCOMMAND}: ${opts.appPath} against ${opts.located.packageName}@${opts.located.packageVersion} (${opts.source})`,
+    `vulcan package ${SUBCOMMAND}: ${opts.appPath} against ${opts.located.packageName}@${opts.located.packageVersion} (${opts.source})`,
   ];
 
   for (const report of reports) {
@@ -445,7 +445,7 @@ export class PresetDiff {
       return fail({
         message:
           loaded.file === undefined
-            ? 'run it at the root of a monorepo vulcan init created (no .configs/vulcan.config.*)'
+            ? 'run it at the root of a monorepo vulcan project init created (no .configs/vulcan.config.*)'
             : loaded.error,
       });
     }

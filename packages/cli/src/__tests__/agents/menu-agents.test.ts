@@ -26,7 +26,7 @@ const barePath = (): string => {
 const storedAgents = (opts: { root: string }): string[] =>
   JSON.parse(readFileSync(join(opts.root, LOCAL), 'utf8')).agents;
 
-describe.skipIf(!hasScript)('vulcan sync asks the agents as a checkbox menu', () => {
+describe.skipIf(!hasScript)('vulcan project sync asks the agents as a checkbox menu', () => {
   const env = (opts: { home: string }): Record<string, string> => ({
     HOME: opts.home,
     PATH: barePath(),
@@ -37,7 +37,7 @@ describe.skipIf(!hasScript)('vulcan sync asks the agents as a checkbox menu', ()
     const root = createProject({ files: PROJECT });
     const home = createProject({ files: { '.codex/config.toml': '' } });
     const result = await driveTerminal({
-      args: ['sync'],
+      args: ['project', 'sync'],
       cwd: root,
       env: env({ home }),
       steps: [
@@ -58,10 +58,10 @@ describe.skipIf(!hasScript)('vulcan sync asks the agents as a checkbox menu', ()
     const root = createProject({ files: PROJECT });
     const home = createProject({ files: {} });
 
-    runCli({ args: ['sync', '--agents', 'omp,pi'], cwd: root });
+    runCli({ args: ['project', 'sync', '--agents', 'omp,pi'], cwd: root });
     // A stored choice is read, not asked: the menu is reached through the flag with no value.
     const result = await driveTerminal({
-      args: ['sync', '--agents'],
+      args: ['project', 'sync', '--agents'],
       cwd: root,
       env: env({ home }),
       steps: [{ waitFor: 'chosen before', send: KEYS.ENTER }],
@@ -75,7 +75,7 @@ describe.skipIf(!hasScript)('vulcan sync asks the agents as a checkbox menu', ()
     const root = createProject({ files: PROJECT });
     const home = createProject({ files: {} });
     const result = await driveTerminal({
-      args: ['sync'],
+      args: ['project', 'sync'],
       cwd: root,
       env: env({ home }),
       steps: [{ waitFor: 'Which coding agents', send: KEYS.CTRL_C }],
@@ -90,7 +90,7 @@ describe.skipIf(!hasScript)('vulcan sync asks the agents as a checkbox menu', ()
     const root = createProject({ files: PROJECT });
     const home = createProject({ files: {} });
     const result = await driveTerminal({
-      args: ['sync'],
+      args: ['project', 'sync'],
       cwd: root,
       env: { ...env({ home }), NO_COLOR: '1' },
       steps: [{ waitFor: 'Which coding agents', send: KEYS.ENTER }],

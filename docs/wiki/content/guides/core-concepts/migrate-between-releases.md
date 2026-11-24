@@ -10,7 +10,7 @@ description: Ask what your app must change to move a @venizia/* package to anoth
 ## What you need
 
 - The `@venizia/*` packages installed in the app, at exact versions.
-- atlas serving the repositories that publish them: a project lists them in `atlas.sources` of its config. `vulcan x atlas tools` must list `migrate`.
+- atlas serving the repositories that publish them: a project lists them in `atlas.sources` of its config. `vulcan atlas tools` must list `migrate`.
 - For `apply`, the `devz` command of `@venizia/dev-configs` in the app or a parent folder, and the app under git.
 
 ## Plan an upgrade
@@ -85,7 +85,7 @@ A project that keeps its changelog as one folder per version (`changelogs/<versi
 
 So an item added in one prerelease and taken out in the next shows nothing from the first to the third, and a plan can hold both kinds of step. It lists everything to undo first, newest first, then everything to apply, oldest first, and each step names its direction.
 
-Two limits. The folder at a prerelease tag is read from the project's git history, and never from the network while you plan: a source atlas fetches has those files fetched when it is pulled (`vulcan x atlas pull`). When a tag still cannot be read, the plan falls back to the nearest earlier tag of the line it can read, or counts only the earlier lines when it can read none; it says so in its `Note:` and `Warning:` lines and is marked degraded, and `apply` runs nothing from it unless you pass `--force`. And a prerelease of a line that was folded into a folder after its release has no folder at its tag: the plan splits at the line's stable, lists the dated entries inside the line as breaking changes without steps, and tells you to read `changelog:<version>` with the atlas `get` tool.
+Two limits. The folder at a prerelease tag is read from the project's git history, and never from the network while you plan: a source atlas fetches has those files fetched when it is pulled (`vulcan atlas pull`). When a tag still cannot be read, the plan falls back to the nearest earlier tag of the line it can read, or counts only the earlier lines when it can read none; it says so in its `Note:` and `Warning:` lines and is marked degraded, and `apply` runs nothing from it unless you pass `--force`. And a prerelease of a line that was folded into a folder after its release has no folder at its tag: the plan splits at the line's stable, lists the dated entries inside the line as breaking changes without steps, and tells you to read `changelog:<version>` with the atlas `get` tool.
 
 ## Run the codemods
 
@@ -108,7 +108,7 @@ bun node_modules/.bin/vulcan migrate apply --package @venizia/ignis --to 1.1.0
 
 ## When the plan holds nothing
 
-`N changelog entries in the window; 0 structured steps` means the window has entries but none carries a `migration` block: read the breaking ones it lists. `No changelog entry falls between A and B` means the release table holds no entry between the two versions; it proves nothing about the move. A `Warning:` at the top means a source in `atlas.sources` could not be served, so the plan covers only the rest: fix the source (`vulcan x atlas pull` shows why) and plan again.
+`N changelog entries in the window; 0 structured steps` means the window has entries but none carries a `migration` block: read the breaking ones it lists. `No changelog entry falls between A and B` means the release table holds no entry between the two versions; it proves nothing about the move. A `Warning:` at the top means a source in `atlas.sources` could not be served, so the plan covers only the rest: fix the source (`vulcan atlas pull` shows why) and plan again.
 
 Run the command from any folder of the project. A folder with no VULCAN config uses the nearest enclosing project, and the folder you ran it in is the app.
 

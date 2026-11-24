@@ -93,7 +93,7 @@ describe('the package list', () => {
 
   test('no manifest, render stops with what to do', () => {
     expect(() => PublicSurface.render({ repoRoot: makeRepoRoot() })).toThrow(
-      'atlas: no project manifest (.agents/atlas.manifest.json) - run `vulcan sync`',
+      'atlas: no project manifest (.agents/atlas.manifest.json) - run `vulcan project sync`',
     );
   });
 
@@ -196,7 +196,7 @@ describe('runSurfaceCommand check', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('not set up');
     expect(result.stderr).toContain('no public surface is committed yet');
-    expect(result.stderr).toContain('run `vulcan x atlas surface gen`');
+    expect(result.stderr).toContain('run `vulcan atlas surface gen`');
     expect(result.stderr).not.toContain('stale');
   });
 

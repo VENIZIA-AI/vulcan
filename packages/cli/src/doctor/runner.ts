@@ -10,7 +10,7 @@ import { TagCheck } from './tags.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
 
-/** Runs the doctor checks and sorts their findings into violations, notes and warnings; used by `vulcan doctor`. */
+/** Runs the doctor checks and sorts their findings into violations, notes and warnings; used by `vulcan project doctor`. */
 export class DoctorRunner {
   /** Every violation of the VULCAN contract in the project at `root`; empty means conformant. */
   static async runChecks(opts: { root: string }): Promise<IViolation[]> {
@@ -65,7 +65,7 @@ export class DoctorRunner {
       : undefined;
   }
 
-  /** What `vulcan doctor` prints: the violations, the warnings and the notes, with the config loaded and the layout check run once. */
+  /** What `vulcan project doctor` prints: the violations, the warnings and the notes, with the config loaded and the layout check run once. */
   static async runReport(opts: {
     root: string;
     /** The environment of the shell running doctor; defaults to the process environment. */
