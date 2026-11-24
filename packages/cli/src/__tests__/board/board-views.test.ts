@@ -80,6 +80,69 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
     });
   });
 
+  test('the flow details: the long summaries of "All events" wrap in the full width and no row paints over the next', async () => {
+    const flow = data.flows.find((one) => one.id !== 'Unsorted' && one.events.length > 0);
+    const first = flow?.events[0];
+
+    if (flow === undefined || first === undefined) {
+      throw new Error('the sample day has no flow with events');
+    }
+
+    const summary = `Rà soát từng bảng adoption của IGNIS trong backend và ghi lại mọi chỗ còn dùng đường cũ ${'src/very/long/path/'.repeat(4)}`;
+    const long = {
+      ...data,
+      flows: [
+        {
+          ...flow,
+          title: 'Backend dùng hết IGNIS (bảng adoption IGNIS)',
+          events: Array.from({ length: 30 }, (_, index) => ({
+            ...first,
+            id: `long-${index}`,
+            isTitle: index === 0,
+            summary: `${summary}${index}`,
+          })),
+        },
+      ],
+    };
+    const raw = await BrowserPage.measure<string>({
+      html: BoardPage.render({ data: long }),
+      width: 1440,
+      dark: false,
+      expression: `(async () => {
+        localStorage.clear();
+        ${WAIT}
+        document.querySelector('[data-id="${flow.id}"]').click();
+        await wait();
+        document.querySelector('button.d-all').click();
+        await wait();
+        const nodes = [...document.querySelectorAll('li.ev')];
+        const rows = nodes.map((row) => row.getBoundingClientRect());
+        const texts = nodes.map((row) => row.children[1].children[1].getBoundingClientRect());
+        localStorage.clear();
+        return JSON.stringify({
+          count: rows.length,
+          spilling: nodes.filter((row) => row.scrollHeight > row.clientHeight + 1).length,
+          overlaps: rows.filter((box, index) => index > 0 && box.top < rows[index - 1].bottom - 0.5).length,
+          narrowest: Math.min(...texts.map((box) => box.width)),
+          shortest: Math.min(...texts.map((box) => box.height)),
+        });
+      })()`,
+    });
+    const result: {
+      count: number;
+      spilling: number;
+      overlaps: number;
+      narrowest: number;
+      shortest: number;
+    } = JSON.parse(raw);
+
+    expect(result.count).toBe(30);
+    expect(result.overlaps).toBe(0);
+    expect(result.spilling).toBe(0);
+    expect(result.narrowest).toBeGreaterThan(200);
+    expect(result.shortest).toBeGreaterThan(30);
+  });
+
   test('the table: ten columns in order, a header click sorts with aria-sort, and j moves through its rows', async () => {
     const result = await run<{
       headers: string[];

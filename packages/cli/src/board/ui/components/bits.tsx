@@ -112,7 +112,7 @@ export const EventItem = (props: { event: IBoardViewEvent; chip?: ReactNode }) =
           <Route event={event} />
           {` · ${kind ? t(kind) : event.kind}${event.attempt && event.attempt > 1 ? `${t(' lần ')}${event.attempt}` : ''}`}
         </div>
-        <div className="sm">{event.summary}</div>
+        <div className="ev-text">{event.summary}</div>
         {link || origin ? (
           <div>
             {link ? (
