@@ -41,6 +41,7 @@ export class CommandScopes {
       prefix: ['--effective'],
     },
     { scope: 'config', action: 'diff', command: VulcanCommands.CONFIG, prefix: ['--diff'] },
+    { scope: 'config', action: 'codemod', command: VulcanCommands.CONFIG, prefix: ['codemod'] },
     { scope: 'config', action: 'format', command: VulcanCommands.CONFIG, prefix: ['format'] },
     { scope: 'check', action: 'layout', command: VulcanCommands.LAYOUT, prefix: ['check'] },
     { scope: 'check', action: 'commit', command: VulcanCommands.COMMIT_CHECK },

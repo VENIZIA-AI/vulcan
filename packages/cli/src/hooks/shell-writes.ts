@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { ConfigConstants } from '../config/common/index.ts';
 import { LinkMakers } from './link-makers.ts';
 import { ProtectedNames } from './protected-names.ts';
 import { ShellParser } from './shell.ts';
@@ -575,6 +576,41 @@ export class ShellWrites {
   }
 
   /** A source word whose name this check cannot tell: a pattern, an expansion, `.`, `..`, or (for `rsync`) a trailing slash, which copies what is inside. */
+  /**
+   * The files a `vulcan` command writes that the guards protect: the config for `config format` (it writes unless it is given `--check`)
+   * and for `config codemod ... --write`, with the first module for the codemod. The program is `vulcan` itself, or `bun`, `node` or
+   * `bunx` given a path or a name that ends in `vulcan`.
+   */
+  private static vulcanWritesOf(opts: { name: string; args: string[] }): string[] {
+    const at =
+      opts.name === 'vulcan'
+        ? -1
+        : opts.args.slice(0, 3).findIndex((word) => ShellParser.basenameOf({ word }) === 'vulcan');
+
+    if (
+      opts.name !== 'vulcan' &&
+      (at === -1 || !['bun', 'bunx', 'node', 'npx'].includes(opts.name))
+    ) {
+      return [];
+    }
+
+    const [scope, action, ...rest] = opts.args.slice(at + 1);
+
+    if (scope !== 'config') {
+      return [];
+    }
+
+    const config = `${ConfigConstants.DIRECTORY}/${ConfigConstants.FILE}`;
+
+    if (action === 'format' && !rest.includes('--check')) {
+      return [config];
+    }
+
+    return action === 'codemod' && rest.includes('--write')
+      ? [config, `${ConfigConstants.DIRECTORY}/vulcan/index.mts`]
+      : [];
+  }
+
   private static isUnknownName(opts: { word: string; isRsync: boolean }): boolean {
     const bare = opts.word.replace(/\/+$/, '');
     const last = bare.slice(bare.lastIndexOf('/') + 1);
@@ -988,6 +1024,11 @@ export class ShellWrites {
           ? { word, base, message, isEdit: true }
           : { word, base, message, isProtectedOnly: true },
       );
+    }
+
+    // `vulcan config format` and `vulcan config codemod ... --write` write the config and its modules: an agent never runs them.
+    for (const word of ShellWrites.vulcanWritesOf({ name, args })) {
+      targets.push({ word, base, message: `vulcan writes ${word}`, isEdit: true });
     }
 
     const own = maker !== undefined && maker.names.length > 0 ? maker.destination : undefined;

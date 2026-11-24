@@ -191,31 +191,4 @@ export class ConfigKeyOrder {
 
     return index === -1 ? keys.length : index;
   }
-
-  /** Whether a config object, as the file wrote it, is in order: its top-level keys and, in a grouped file, the keys of each group. */
-  static isOrderedFile(opts: { value: Record<string, unknown> }): boolean {
-    const keys = Object.keys(opts.value);
-
-    if (ConfigKeyOrder.isFlatShape({ keys })) {
-      return ConfigKeyOrder.isOrdered({ keys });
-    }
-
-    const isSorted = (sequence: number[]): boolean =>
-      sequence.every((rank, index) => index === 0 || sequence[index - 1] <= rank);
-
-    return (
-      isSorted(keys.map((key) => ConfigKeyOrder.groupRankOf({ key }))) &&
-      keys.every((group) => {
-        const inner = opts.value[group];
-
-        return (
-          typeof inner !== 'object' ||
-          inner === null ||
-          Array.isArray(inner) ||
-          group === 'guard' ||
-          isSorted(Object.keys(inner).map((key) => ConfigKeyOrder.innerRankOf({ group, key })))
-        );
-      })
-    );
-  }
 }

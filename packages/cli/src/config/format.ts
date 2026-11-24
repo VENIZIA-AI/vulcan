@@ -14,7 +14,7 @@ export type TConfigFormatResult =
   | { ok: false; reason: string };
 
 /** One property of the object, cut into the text that moves with it. */
-interface IPropertySegment {
+export interface IPropertySegment {
   key: string;
   /** The text from the end of the property before it up to its first token: blank lines, comments, indentation. */
   leading: string;
@@ -24,10 +24,10 @@ interface IPropertySegment {
   hasComma: boolean;
 }
 
-type TTypeScript = ReturnType<typeof TypeScriptCompiler.load>;
-type TSourceFile = ReturnType<TTypeScript['createSourceFile']>;
-type TObjectLiteral = ReturnType<TTypeScript['factory']['createObjectLiteralExpression']>;
-type TObjectElement = TObjectLiteral['properties'][number];
+export type TTypeScript = ReturnType<typeof TypeScriptCompiler.load>;
+export type TSourceFile = ReturnType<TTypeScript['createSourceFile']>;
+export type TObjectLiteral = ReturnType<TTypeScript['factory']['createObjectLiteralExpression']>;
+export type TObjectElement = TObjectLiteral['properties'][number];
 type TExportAssignment = ReturnType<TTypeScript['factory']['createExportAssignment']>;
 
 type TFound = { object: TObjectLiteral } | { reason: string };
@@ -236,7 +236,7 @@ export class ConfigFormat {
   }
 
   /** The object of `export default { ... }`, through `satisfies`, `as`, parentheses and `defineConfig(...)`. */
-  private static findObject(opts: { typescript: TTypeScript; source: TSourceFile }): TFound {
+  static findObject(opts: { typescript: TTypeScript; source: TSourceFile }): TFound {
     const { typescript } = opts;
     const exported = opts.source.statements.find(
       (statement): statement is TExportAssignment =>
@@ -277,7 +277,7 @@ export class ConfigFormat {
       : { reason: 'the default export is not an object literal (`export default { ... }`)' };
   }
 
-  private static keyOf(opts: {
+  static keyOf(opts: {
     typescript: TTypeScript;
     property: TObjectElement;
   }): string | { reason: string } {
@@ -306,7 +306,7 @@ export class ConfigFormat {
   }
 
   /** The object's text cut into what stays (before the first key, after the last) and one segment per property. */
-  private static cut(opts: {
+  static cut(opts: {
     typescript: TTypeScript;
     source: TSourceFile;
     object: TObjectLiteral;
