@@ -46,7 +46,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "SendMessage|TodoWrite|Bash",
+        "matcher": "SendMessage|TodoWrite|Bash|Write|Edit|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",

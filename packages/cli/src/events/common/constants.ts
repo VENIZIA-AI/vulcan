@@ -116,6 +116,8 @@ export class ClaudeHookEvents {
   static readonly TODO_TOOL = 'TodoWrite';
   /** The shell tool: only its class of command (a commit, a pull request opened or merged) is logged, never the command. */
   static readonly BASH_TOOL = 'Bash';
+  /** The file-editing tools: a call marks that the session edited, for the Stop hook; the path and the content stay unread. */
+  static readonly EDIT_TOOLS = new Set<string>(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
   /** The notification types that mean an agent waits for a person; `auth_success` does not. */
   static readonly OWNER_NOTIFICATIONS = new Set<string>([
     'permission_prompt',
@@ -208,6 +210,8 @@ export class EventConstants {
   static readonly STALE_REMINDER_DIR = '.stale-reminders';
   /** A reminder file this old (by its modified time) is removed the next time one is written. */
   static readonly STALE_REMINDER_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
+  /** The folder of the events folder that holds, per session, when it last edited a file with a tool. */
+  static readonly OWN_EDIT_DIR = '.own-edits';
 }
 
 /**

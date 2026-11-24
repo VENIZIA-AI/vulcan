@@ -1,5 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { GitActivity } from '../../hooks/git-activity.ts';
@@ -67,6 +75,31 @@ const line = (opts: {
       now: opts.at,
     }),
   });
+const SESSION = 'abcdef12-3456-7890-abcd-ef1234567890';
+const editCall = (opts: {
+  root: string;
+  actor?: string;
+  at: number;
+  tool?: string;
+  result?: Record<string, unknown>;
+}) =>
+  EventHook.run({
+    root: opts.root,
+    input: wire({
+      hookEventName: 'PostToolUse',
+      toolName: opts.tool ?? 'Edit',
+      sessionId: SESSION,
+      cwd: opts.root,
+      toolInput: {
+        filePath: join(opts.root, 'a.txt'),
+        oldString: 'secret one',
+        newString: 'secret two',
+      },
+      ...(opts.result === undefined ? {} : { toolResponse: opts.result }),
+    }),
+    env: { VULCAN_ACTOR: opts.actor ?? ACTOR },
+    now: opts.at,
+  });
 const stop = (opts: {
   root: string;
   active?: boolean;
@@ -122,10 +155,11 @@ describe('the Stop hook decides', () => {
     expect(stop({ root: pr })?.decision).toBe('block');
   });
 
-  test('an edit of tracked files since the flow line holds it, and no edit does not', () => {
+  test('an edit of tracked files since the flow line, after an edit tool of the session, holds it, and no edit does not', () => {
     const root = project();
 
     flowLine({ root, at: T0 });
+    editCall({ root, at: T0 + 1000 });
     expect(stop({ root, edited: true })?.decision).toBe('block');
     expect(stop({ root, edited: false })).toBeUndefined();
   });
@@ -218,6 +252,8 @@ describe('the edit signal belongs to a session that is in the flow', () => {
 
     flowLine({ root, at: T0 });
     branch(root);
+    editCall({ root, actor: 'assistant-1', at: T0 + 1000 });
+    editCall({ root, at: T0 + 1000 });
     expect(stop({ root, actor: 'assistant-1', edited: true })).toBeUndefined();
     expect(stop({ root, actor: ACTOR, edited: true })?.decision).toBe('block');
   });
@@ -232,6 +268,81 @@ describe('the edit signal belongs to a session that is in the flow', () => {
 
     line({ root, kind: 'commit', summary: 'commit', at: T0 + 2000, actor: 'assistant-1' });
     expect(stop({ root, actor: 'assistant-1' })?.decision).toBe('block');
+  });
+});
+
+describe('an edit counts only when an edit tool of this session ran', () => {
+  test('another session that edits files of the flow does not hold this one', () => {
+    const root = project();
+
+    flowLine({ root, at: T0 });
+    editCall({ root, actor: 'assistant-1', at: T0 + 1000 });
+    expect(stop({ root, edited: true })).toBeUndefined();
+  });
+
+  test('an edit of this session with no step after it holds once; a step line after it does not hold', () => {
+    const root = project();
+
+    flowLine({ root, at: T0 });
+    editCall({ root, at: T0 + 1000 });
+    expect(stop({ root, edited: true })?.decision).toBe('block');
+    expect(stop({ root, edited: true, active: true })).toBeUndefined();
+
+    flowLine({ root, at: T0 + 2000 });
+    expect(stop({ root, edited: true })).toBeUndefined();
+  });
+
+  test('no mark, a mark older than the flow line, or an edit tool but no dirty tracked file does not hold', () => {
+    const none = project();
+
+    flowLine({ root: none, at: T0 });
+    expect(stop({ root: none, edited: true })).toBeUndefined();
+
+    const older = project();
+
+    editCall({ root: older, at: T0 - 1000 });
+    flowLine({ root: older, at: T0 });
+    expect(stop({ root: older, edited: true })).toBeUndefined();
+
+    const clean = project();
+
+    flowLine({ root: clean, at: T0 });
+    editCall({ root: clean, at: T0 + 1000 });
+    expect(stop({ root: clean, edited: false })).toBeUndefined();
+  });
+
+  test('every edit tool marks the session in a private file of the events folder, and logs no line and no path', () => {
+    const folder = (root: string) => join(dirOf(root), '.own-edits');
+
+    for (const tool of ['Write', 'Edit', 'MultiEdit', 'NotebookEdit']) {
+      const root = project();
+
+      expect(editCall({ root, tool, at: T0 })).toBeUndefined();
+      expect(readFileSync(join(folder(root), ACTOR), 'utf8')).toBe(String(T0));
+      expect(statSync(join(folder(root), ACTOR)).mode % 0o1000).toBe(0o600);
+      expect(readdirSync(folder(root))).toEqual([ACTOR]);
+      expect(EventLog.read({ dir: dirOf(root) }).events).toHaveLength(0);
+    }
+  });
+
+  test('a failed call, an unknown actor and the log off mark nothing', () => {
+    const root = project();
+    const file = join(dirOf(root), '.own-edits', ACTOR);
+
+    editCall({ root, at: T0, result: { success: false } });
+    expect(existsSync(file)).toBe(false);
+    EventHook.run({
+      root,
+      input: wire({ hookEventName: 'PostToolUse', toolName: 'Edit', cwd: root }),
+      env: {},
+      now: T0,
+    });
+    expect(existsSync(join(dirOf(root), '.own-edits'))).toBe(false);
+
+    const off = project({ log: false });
+
+    editCall({ root: off, at: T0 });
+    expect(existsSync(join(dirOf(off), '.own-edits'))).toBe(false);
   });
 });
 
@@ -520,5 +631,37 @@ describe('the scripts', () => {
     expect(parsed.reason).toContain(`event step --flow '${FLOW}'`);
     expect(again.stdout.toString()).toBe('');
     expect(run({ script: 'board-stop.ts', root, input: 'not an object' }).exitCode).toBe(0);
+  });
+
+  test('an edit through the event script, then a dirty tracked file, holds the stop script; a dirty file alone does not', () => {
+    const root = project();
+    const git = (...args: string[]) =>
+      Bun.spawnSync(['git', '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd: root });
+    const stopInput = { hookEventName: 'Stop', sessionId: SESSION, cwd: root };
+
+    writeFileSync(join(root, 'a.txt'), 'one\n');
+    git('init', '-q');
+    git('add', 'a.txt');
+    git('commit', '-q', '-m', 'first');
+    flowLine({ root, at: Date.now() - 5000 });
+    writeFileSync(join(root, 'a.txt'), 'two\n');
+    expect(run({ script: 'board-stop.ts', root, input: stopInput }).stdout.toString()).toBe('');
+
+    const edit = run({
+      script: 'event.ts',
+      root,
+      input: {
+        hookEventName: 'PostToolUse',
+        toolName: 'Edit',
+        sessionId: SESSION,
+        cwd: root,
+        toolInput: { filePath: join(root, 'a.txt') },
+      },
+    });
+    const held = run({ script: 'board-stop.ts', root, input: stopInput });
+
+    expect(edit.exitCode).toBe(0);
+    expect(edit.stdout.toString()).toBe('');
+    expect(JSON.parse(held.stdout.toString()).decision).toBe('block');
   });
 });

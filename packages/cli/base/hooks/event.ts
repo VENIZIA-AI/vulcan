@@ -1,7 +1,8 @@
 /**
- * Event log hook (SessionStart, Stop, SubagentStop, Notification and PostToolUse: a SendMessage is a message, any
- * other tool at most one tick per session every 30 seconds): appends one line to the agent event log
- * (src/events/hook.ts) when the manifest says `events.log` is on. It stores names and short labels only -
+ * Event log hook (SessionStart, SubagentStart, SubagentStop, Notification and PostToolUse of SendMessage, TodoWrite, Bash
+ * and the edit tools): appends at most one line to the agent event log (src/events/hook.ts) when the manifest says
+ * `events.log` is on; a Write, Edit, MultiEdit or NotebookEdit call writes no line, only the time of the session's last
+ * edit, for the Stop hook. It stores names and short labels only -
  * never a message body, the last reply, a command, a path or anything of a tool's input or result, except
  * the step text of a `TodoWrite` call, which becomes the steps of the flow (cleaned and redacted), and the class
  * of a `Bash` call (a commit, a pull request opened or merged: the command is read here only to classify it and never

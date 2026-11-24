@@ -97,7 +97,7 @@ describe('the manifest', () => {
 });
 
 describe('vulcan sync and the event hooks', () => {
-  test('log: true installs one entry per event, SendMessage, TodoWrite and Bash only on PostToolUse, fast and fail-open', () => {
+  test('log: true installs one entry per event, SendMessage, TodoWrite, Bash and the edit tools only on PostToolUse, fast and fail-open', () => {
     const root = projectWith({ events: '{ log: true }' });
     const result = sync({ root });
 
@@ -107,7 +107,7 @@ describe('vulcan sync and the event hooks', () => {
 
     expect(found.map((item) => item.name).sort()).toEqual([...HOOK_EVENTS].sort());
     expect(found.find((item) => item.name === 'PostToolUse')?.entry.matcher).toBe(
-      'SendMessage|TodoWrite|Bash',
+      'SendMessage|TodoWrite|Bash|Write|Edit|MultiEdit|NotebookEdit',
     );
 
     for (const { entry, name } of found) {
@@ -121,7 +121,7 @@ describe('vulcan sync and the event hooks', () => {
     expect(eventEntries({ root })).toHaveLength(HOOK_EVENTS.length);
   });
 
-  test('an old install, whose PostToolUse entry has no matcher and which has a Stop entry that ran the event script, is replaced by the new one: a matcher for SendMessage, TodoWrite and Bash, and the board Stop hook', () => {
+  test('an old install, whose PostToolUse entry has no matcher and which has a Stop entry that ran the event script, is replaced by the new one: a matcher for SendMessage, TodoWrite, Bash and the edit tools, and the board Stop hook', () => {
     const root = projectWith({ events: '{ log: true }' });
 
     sync({ root });
@@ -148,7 +148,7 @@ describe('vulcan sync and the event hooks', () => {
 
     expect(after.filter((item) => item.name === 'PostToolUse')).toHaveLength(1);
     expect(after.find((item) => item.name === 'PostToolUse')?.entry.matcher).toBe(
-      'SendMessage|TodoWrite|Bash',
+      'SendMessage|TodoWrite|Bash|Write|Edit|MultiEdit|NotebookEdit',
     );
     // The old Stop entry ran the event script; the one now installed is the board's own, and there is only one.
     const stops = after.filter((item) => item.name === 'Stop');
