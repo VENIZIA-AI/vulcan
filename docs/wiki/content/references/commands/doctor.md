@@ -55,6 +55,8 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `local.tmp` to a short folder and run `vulcan sync`, or check out at a shorter path |
 | `local` (failure) | `local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
 | `board-autostart` (note) | `board.serve.autoStart` of `.agents/local/profile.json` is on and `events.log` is off, so no board is started | Set `events.log` to `true`, or turn `autoStart` off |
+| `prepare` (note) | The root `package.json` has no `prepare` script that runs `vulcan sync`, so a fresh clone has no manifest and no hooks until someone runs it | Add the script `init` writes (it reads no terminal and cannot fail an install) |
+| `claude-settings` (warning) | Git tracks `.claude/settings.json`, which `sync` writes in every clone | `git rm --cached .claude/settings.json`; sync keeps it out of git from then on |
 | `config-defaults` (note) | N values of the config repeat what the shipped defaults give | Run `vulcan config --diff` and delete them |
 | `config-remove` (warning) | A `remove` entry matches nothing, so it does nothing | Delete the entry |
 | `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it, or delete `packages` so it is derived from the workspaces |
@@ -299,6 +301,14 @@ A warning: today's event file is bigger than `events.maxSize` on its own. The re
 ```text
   warning [events-size] .configs/vulcan.config.mts: today's event file in /path/.agents/local/events is 61.2 MB, over events.maxSize (50MB); nothing is truncated and today's file is never removed - raise maxSize or write fewer events
 ```
+
+### prepare
+
+A note: the root `package.json` of a project has no `prepare` script that runs `vulcan sync`. `bun install` runs `prepare`, so with the script a fresh clone gets its local manifest, its hooks and its adapters from the install; without it, until someone runs `vulcan sync` the hooks hold every ask as a deny (the manifest is missing) and the guards of the other agents are not installed. The script `vulcan init` writes is `bun node_modules/.bin/vulcan sync < /dev/null`, guarded: it does nothing when the bin is not installed, prints a note when sync fails, always exits 0, and never stops at the question about agents (it reads no terminal, so a machine that has not chosen takes `claude` and says how to choose).
+
+### claude-settings
+
+A warning: git tracks `.claude/settings.json`. `vulcan sync` writes that file in every clone from the shipped hooks and the `claude.settings` of the config, so a committed copy goes stale and shows as a diff. Run `git rm --cached .claude/settings.json`. `sync` adds `/.claude/settings.json` to a committed `.gitignore` that does not already ignore `.claude/`.
 
 ### board-autostart
 

@@ -1,4 +1,5 @@
 import { relative, resolve } from 'node:path';
+import { ProjectLayout } from '../common/constants.ts';
 import { RecordValue } from '../common/record.ts';
 import { ProjectScaffold } from '../init/index.ts';
 import { LibraryKinds, PackageKinds } from '../config/index.ts';
@@ -48,7 +49,10 @@ export class WorkspaceManifest {
         name: opts.project,
         private: true,
         workspaces: { packages: opts.workspaces, catalog: opts.catalog },
-        scripts: { dev: "bun run --filter '*' server:dev" },
+        scripts: {
+          dev: "bun run --filter '*' server:dev",
+          prepare: ProjectLayout.PREPARE_SCRIPT,
+        },
         devDependencies: { '@venizia/vulcan': opts.vulcanVersion },
       },
     });

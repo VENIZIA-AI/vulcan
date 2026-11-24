@@ -120,7 +120,7 @@ A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you ch
 
 ## The temp folder
 
-`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/`, and creates the folder `local.tmp` names, when the config sets one, and gitignores it. The session-start hook it registers exports `TMPDIR` into every Bash command. A `.agents/local/claude.launch.settings.json` left by an earlier release is removed when git does not track it. What the hook moves, and what it does not, is in [Temporary files](/references/agents#temporary-files).
+`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/` and, unless `.claude/` is already ignored, `/.claude/settings.json` (Claude Code's settings are written in every clone and never committed), and creates the folder `local.tmp` names, when the config sets one, and gitignores it. The session-start hook it registers exports `TMPDIR` into every Bash command. A `.agents/local/claude.launch.settings.json` left by an earlier release is removed when git does not track it. What the hook moves, and what it does not, is in [Temporary files](/references/agents#temporary-files).
 
 ## Keeping the adapters out of git
 

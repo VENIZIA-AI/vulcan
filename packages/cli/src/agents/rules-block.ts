@@ -63,6 +63,8 @@ export class RulesBlock {
         '',
         'Full text, cited by ID: `node_modules/@venizia/vulcan/base/rules.md` (V-*) and `.agents/rules.md`.',
         '',
+        '**Before you work: run `bun install` (or `bun node_modules/.bin/vulcan sync`). Until it has run, no guard is active.**',
+        '',
         ...opts.slotLines,
         ...(opts.packs ?? []).map(
           (pack) =>

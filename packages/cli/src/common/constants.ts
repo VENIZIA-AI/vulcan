@@ -59,6 +59,14 @@ export class ProjectLayout {
   static readonly STYLE_PACKAGE = '@venizia/dev-configs';
   /** The one list of secret files, for `.gitignore` and for `.dockerignore`: the `.env` files stay out of git and out of every image, the example stays in. */
   static readonly SECRET_PATTERNS = ['**/.env', '**/.env.*', '!**/.env.example'];
+  /**
+   * The root `prepare` script: a fresh clone gets its manifest, hooks and adapters when `bun install` runs. It cannot fail an
+   * install: a missing bin is a note, a failing sync is a note, the exit is 0, and `sync` reads no terminal (`< /dev/null`), so it
+   * never stops at the question about agents.
+   */
+  static readonly PREPARE_SCRIPT =
+    "if [ -f node_modules/.bin/vulcan ]; then bun node_modules/.bin/vulcan sync < /dev/null || echo 'vulcan: sync did not finish: run bun node_modules/.bin/vulcan sync'; else echo 'vulcan: not installed yet: run bun install'; fi; exit 0";
+  static readonly CLAUDE_SETTINGS_FILE = '.claude/settings.json';
   static readonly GITIGNORE_ENTRIES = [
     'CLAUDE.md',
     'CLAUDE.*.md',

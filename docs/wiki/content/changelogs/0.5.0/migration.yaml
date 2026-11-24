@@ -37,7 +37,7 @@ launch-file-and-loader-variables:
     steps:
       - 'Run `bun node_modules/.bin/vulcan sync` in a terminal after upgrading; if `claude.settings.env` in `.configs/vulcan.config.*` sets `BUN_OPTIONS`, `NODE_OPTIONS` or any `BUN_CONFIG_*`, it refuses and names the key.'
       - 'Delete each of those keys from `claude.settings.env` and set it in your shell instead (your shell profile or the command that starts the agent): the hooks no longer pass them on.'
-      - 'Run `bun node_modules/.bin/vulcan sync` again and commit `.claude/settings.json` and the manifest.'
+      - 'Run `bun node_modules/.bin/vulcan sync` again and commit what git tracks that it changed; `.claude/settings.json` and the local manifest are not committed.'
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`, put the keys back in `claude.settings.env` if you want the agent to receive them, and run `bun node_modules/.bin/vulcan sync`.'
@@ -128,7 +128,7 @@ config-defaults-from-base-and-pack:
       - 'Run `bun node_modules/.bin/vulcan config --diff`: it lists the lines of your config that the shipped layers already give. Delete them from the config.'
       - "To refuse a shipped line, add `remove: { 'claude.settings.permissions.allow': ['Bash(date:*)'] }` (or `deny`, `presets`, `atlas.sources`). A shipped deny can refuse a command your own allow line used to permit (for example a `git diff --output`): `remove` it from `claude.settings.permissions.deny`."
       - "A repository that uses the venizia pack and is itself one of its atlas sources (IGNIS, ARDOR, VULCAN) adds `remove: { 'atlas.sources': ['<its own name>'] }`, or it lists itself twice."
-      - 'Run `bun node_modules/.bin/vulcan sync` and commit `.claude/settings.json` if your project commits it.'
+      - 'Run `bun node_modules/.bin/vulcan sync`; `.claude/settings.json` is written by sync in every clone and is not committed.'
   downgrade:
     steps:
       - 'Pin the earlier package and put back the allow, deny, presets and atlas sources lines you deleted.'
@@ -141,7 +141,7 @@ pack-guard-and-commit-defaults:
       - "Run `bun node_modules/.bin/vulcan config --effective`: with `packs: ['venizia']`, `config.guard.outside` is `deny` and `config.commit.message.agent.signature` is `deny` unless you wrote otherwise."
       - "To keep the earlier behaviour, write `guard: { outside: 'ask' }` and `commit: { message: { agent: { signature: 'allow' } } }` in the config; the project value wins over the pack."
       - 'If you wrote the same values as the pack, delete them: `bun node_modules/.bin/vulcan config --diff` lists them.'
-      - 'Run `bun node_modules/.bin/vulcan sync` and commit what git tracks that it changed (`.agents/atlas.manifest.json`, and `.claude/settings.json` where the project commits it): with the signature denied, sync blanks the attribution Claude Code adds to a commit and a pull request.'
+      - 'Run `bun node_modules/.bin/vulcan sync` and commit what git tracks that it changed (`.agents/atlas.manifest.json`): with the signature denied, sync blanks the attribution Claude Code adds to a commit and a pull request.'
       - 'Every clone runs `bun node_modules/.bin/vulcan sync` once, which installs the commit-msg hook that refuses a signature.'
   downgrade:
     steps:
@@ -191,3 +191,17 @@ local-json-folds-into-profile:
     steps:
       - 'Pin the earlier package, move `agents`, `board`, `local` and `events` from `.agents/local/profile.json` back into `.agents/vulcan.local.json`, and delete them from the profile: an earlier release refuses unknown keys in the profile.'
   data: "The profile file now also holds this machine's keys. `vulcan profile reset` (and `vulcan clean --profile`) keeps the valid ones; deleting the file by hand drops your choice of agents, board roster, tmp folder and events folder."
+claude-settings-never-committed:
+  symbols:
+    - ProjectLayout.PREPARE_SCRIPT
+    - ProjectContract.checkClaudeSettingsTracked
+  upgrade:
+    steps:
+      - 'Run `bun node_modules/.bin/vulcan sync`: it adds `/.claude/settings.json` to a committed `.gitignore` that does not already ignore `.claude/`.'
+      - 'If git tracks `.claude/settings.json`, run `git rm --cached .claude/settings.json` and commit: `vulcan doctor` names it until you do. Every clone then writes its own copy with `vulcan sync`.'
+      - 'Add the `prepare` script to the root `package.json` (`vulcan doctor` prints it): `bun install` then runs `vulcan sync` in a fresh clone, so the hooks are there before anyone works. It reads no terminal and always exits 0.'
+      - 'Run `vulcan sync` (or `bun install`) in CI before any step that reads the manifest or runs a hook.'
+  downgrade:
+    steps:
+      - 'Pin the earlier package, run `vulcan sync`, and commit `.claude/settings.json` again if your team wants it shared.'
+  data: 'A fresh clone has no `.claude/settings.json`, so no hook runs, until `bun install` (with the `prepare` script) or `vulcan sync` has run. AGENTS.md says so in its first line of rules.'

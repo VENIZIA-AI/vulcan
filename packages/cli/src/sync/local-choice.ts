@@ -16,7 +16,12 @@ const NO_CHANGE = (): void => {};
 const LEGACY_LAUNCH_FILE = `${ProjectLayout.LOCAL_DIRECTORY}/claude.launch.settings.json`;
 
 /** One line sync adds to a committed `.gitignore`; a project without one is left alone. */
-const planIgnoreLine = (opts: { root: string; line: string }): ISyncAction[] => {
+const planIgnoreLine = (opts: {
+  root: string;
+  line: string;
+  /** Lines that already ignore what `line` ignores: with one of them there, nothing is added. */
+  covered?: string[];
+}): ISyncAction[] => {
   const path = join(opts.root, '.gitignore');
 
   if (!existsSync(path)) {
@@ -25,7 +30,7 @@ const planIgnoreLine = (opts: { root: string; line: string }): ISyncAction[] => 
 
   const text = readFileSync(path, 'utf8');
 
-  if (text.split('\n').some((line) => line.trim() === opts.line)) {
+  if (text.split('\n').some((line) => [opts.line, ...(opts.covered ?? [])].includes(line.trim()))) {
     return [];
   }
 
@@ -34,11 +39,19 @@ const planIgnoreLine = (opts: { root: string; line: string }): ISyncAction[] => 
       path,
       status: SyncStatuses.REPLACED,
       note: `added ${opts.line}`,
-      apply: () =>
+      // Read again when it runs: several lines are added to the same file by actions planned from one reading.
+      apply: () => {
+        const current = readFileSync(path, 'utf8');
+
+        if (current.split('\n').some((line) => line.trim() === opts.line)) {
+          return;
+        }
+
         writeFileSync(
           path,
-          `${text}${text === '' || text.endsWith('\n') ? '' : '\n'}${opts.line}\n`,
-        ),
+          `${current}${current === '' || current.endsWith('\n') ? '' : '\n'}${opts.line}\n`,
+        );
+      },
     },
   ];
 };
@@ -246,6 +259,18 @@ export class LocalPlan {
 
     return [
       ...planIgnoreLine({ root: opts.root, line: `${ProjectLayout.LOCAL_DIRECTORY}/` }),
+      // Claude Code's settings are written by sync in every clone: they are never committed.
+      ...planIgnoreLine({
+        root: opts.root,
+        line: `/${ProjectLayout.CLAUDE_SETTINGS_FILE}`,
+        covered: [
+          '.claude/',
+          '.claude',
+          '/.claude/',
+          '/.claude',
+          ProjectLayout.CLAUDE_SETTINGS_FILE,
+        ],
+      }),
       ...LocalPlan.planLegacyLocal({ root: opts.root }),
       ...LocalPlan.planTmp(opts),
       ...LocalPlan.planLegacyLaunch({ root: opts.root }),

@@ -29,6 +29,7 @@
   },
   "type": "module",
   "scripts": {
+    "prepare": "if [ -f node_modules/.bin/vulcan ]; then bun node_modules/.bin/vulcan sync < /dev/null || echo 'vulcan: sync did not finish: run bun node_modules/.bin/vulcan sync'; else echo 'vulcan: not installed yet: run bun install'; fi; exit 0",
     "force-update": "bun run --filter \"@venizia/*\" force-update"
   },
   "devDependencies": {

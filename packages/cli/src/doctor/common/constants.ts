@@ -46,6 +46,10 @@ export class DoctorChecks {
   static readonly EVENTS_SIZE = 'events-size';
   /** The event log is on but project.key is unset, so no flow can be created; a warning. */
   static readonly PROJECT_KEY = 'project-key';
+  /** The root `package.json` has no `prepare` script that runs `vulcan sync`: a fresh clone has no manifest and no hooks until someone runs it; a note. */
+  static readonly PREPARE = 'prepare';
+  /** Git tracks `.claude/settings.json`: sync writes it in every clone, so it is never committed; a warning. */
+  static readonly CLAUDE_SETTINGS = 'claude-settings';
   /** `board.serve.autoStart` is on but the event log is off, so nothing starts the board; a note. */
   static readonly BOARD_AUTOSTART = 'board-autostart';
   /** Lines of the config that repeat what the shipped defaults give; a note. */
