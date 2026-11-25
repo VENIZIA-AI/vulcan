@@ -663,7 +663,7 @@ export const ItemPane = (props: {
   if (all.length === 0) {
     body = (
       <p className="c-empty">
-        {t('Chưa có luồng nào. Bật events.log, hoặc ghi một dòng bằng vulcan event add.')}
+        {t('Chưa có luồng nào. Bật board.events.log, hoặc ghi một dòng bằng vulcan event add.')}
       </p>
     );
   } else if (shown.length === 0) {

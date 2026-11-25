@@ -43,6 +43,18 @@ describe('the config shown in the docs is in the groups', () => {
     expect(scan(`The key ${text} sets it.`)).toEqual([]);
   });
 
+  test('a flat key named between escaped backticks in a source string is found, a test is not read', () => {
+    const text = 'message: `set \\`events.log\\` and \\`board.events.log\\``';
+    const hits = scan(text, 'packages/cli/src/doctor/checks.ts');
+
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toMatchObject({
+      text: '`events.log`',
+      reason: 'the key is `board.events.log`',
+    });
+    expect(scan(text, 'packages/cli/src/__tests__/doctor/checks.test.ts')).toEqual([]);
+  });
+
   test('the changelogs, which keep the old words, are not read', () => {
     expect(scan('`events.log`', 'docs/wiki/content/changelogs/2026-10-01-x.md')).toEqual([]);
   });

@@ -237,7 +237,7 @@ export class ProjectContract {
           message:
             pack === undefined
               ? `${id} is not a base rule - give the extension a bare ID`
-              : `${id} is in the ${pack} pack - add '${pack}' to packs in the config`,
+              : `${id} is in the ${pack} pack - add '${pack}' to agent.packs in the config`,
         });
       });
   }
@@ -863,7 +863,7 @@ export class ProjectContract {
             check: DoctorChecks.BOARD_AUTOSTART,
             file: opts.configFile,
             message:
-              'board.serve.autoStart is on in .agents/local/profile.json, but events.log is off, so the session start does not start the board: set events.log to true',
+              'board.serve.autoStart is on in .agents/local/profile.json, but board.events.log is off, so the session start does not start the board: set board.events.log to true',
           }),
         ]
       : [];
@@ -1427,7 +1427,7 @@ export class ProjectContract {
       createViolation({
         check: DoctorChecks.LOCAL,
         file: HookConstants.PROJECT_TMP,
-        message: `the temp folder ${folder} is too deep for a browser: Chrome's socket path would be ${length} characters (${BrowserSocket.longest()} below it) and the limit is ${BrowserSocket.PATH_MAX}, so a browser started with this folder exits with "${BrowserSocket.ERROR}". Set \`local.tmp\` in the config to a short folder of the project (for example \`tmp\`) and run \`vulcan project sync\`, or move the checkout to a path of ${spare} characters or fewer`,
+        message: `the temp folder ${folder} is too deep for a browser: Chrome's socket path would be ${length} characters (${BrowserSocket.longest()} below it) and the limit is ${BrowserSocket.PATH_MAX}, so a browser started with this folder exits with "${BrowserSocket.ERROR}". Set \`common.local.tmp\` in the config to a short folder of the project (for example \`tmp\`) and run \`vulcan project sync\`, or move the checkout to a path of ${spare} characters or fewer`,
       }),
     ];
   }
@@ -1477,7 +1477,7 @@ export class ProjectContract {
       root: opts.root,
       acknowledged: opts.config.doctor.privateValues.acknowledged,
     });
-    const where = 'doctor.privateValues.acknowledged';
+    const where = 'check.doctor.privateValues.acknowledged';
     const kindsOf = (counts: Record<string, number | undefined>): string =>
       Object.entries(counts)
         .map(([kind, count]) => `${count} ${kind}`)
@@ -1532,7 +1532,7 @@ export class ProjectContract {
           createViolation({
             check: DoctorChecks.PRIVATE_VALUES,
             file: opts.configFile,
-            message: `${acknowledgedFiles} ${acknowledgedFiles === 1 ? 'file' : 'files'} acknowledged in doctor.privateValues.acknowledged`,
+            message: `${acknowledgedFiles} ${acknowledgedFiles === 1 ? 'file' : 'files'} acknowledged in check.doctor.privateValues.acknowledged`,
           }),
         ];
   }

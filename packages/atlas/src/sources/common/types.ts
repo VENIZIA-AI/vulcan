@@ -4,7 +4,7 @@ import type { SourceModes } from './constants';
 
 export type { TSourcePin };
 
-/** A source a project reads knowledge from: \`atlas.sources\` of its config, or \`--source\`. */
+/** A source a project reads knowledge from: `knowledge.atlas.sources` of its config, or `--source`. */
 export interface IAtlasSource {
   name: string;
   /** `owner/repo` (GitHub), or a git URL - `file://` in tests. */

@@ -60,8 +60,8 @@ export const DICTIONARY: Record<TBoardLanguage, Record<string, string>> = {
     'Bị chặn': 'Blocked',
     'Bỏ lọc theo ': 'Clear filter for ',
     'Chi tiết luồng': 'Flow detail',
-    'Chưa có luồng nào. Bật events.log, hoặc ghi một dòng bằng vulcan event add.':
-      'No flows yet. Turn on events.log, or write a line with vulcan event add.',
+    'Chưa có luồng nào. Bật board.events.log, hoặc ghi một dòng bằng vulcan event add.':
+      'No flows yet. Turn on board.events.log, or write a line with vulcan event add.',
     'Chưa có sự kiện nào của agent này.': 'No events from this agent yet.',
     'Chờ anh': 'Waiting on you',
     Code: 'Code',

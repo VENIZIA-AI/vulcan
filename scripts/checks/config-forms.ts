@@ -9,6 +9,9 @@ const ROOT = join(import.meta.dir, '..', '..');
 /** What is read: the wiki, the shipped base texts and the package READMEs. The changelogs are frozen history and say the old keys on purpose. */
 const SCANNED =
   /^(?:docs\/wiki\/content\/(?!changelogs\/)|packages\/[a-z-]+\/(?:base\/|README\.md))[^]*\.md$/;
+/** The user-facing strings of the sources: a key named between escaped backticks in a template string (`\\`events.log\\``). Tests and generated files are not read. */
+const SOURCE = /^packages\/[a-z-]+\/src\/(?!__tests__\/)[^]*\.(?:ts|tsx)$/;
+const SOURCE_PATH = /\\`([a-zA-Z]+(?:\.[a-zA-Z[\]<>*-]+)+)\\`/g;
 /** The first word of a flat config path: a backticked `events.log` is the flat key, `board.events.log` is the key. */
 const FLAT_HEADS = new Set([
   'events',
@@ -29,6 +32,7 @@ const FLAT_HEADS = new Set([
   'agents',
   'provider',
 ]);
+const DOC_PATH = /`([a-zA-Z]+(?:\.[a-zA-Z[\]<>*-]+)+)`/g;
 const FILE_NAME = /\.(?:md|ts|mts|json|yaml|yml|js|mjs|html|css|sh|toml|txt)$/;
 /**
  * Dotted words that look like a flat config key and are not one: the keys of a preset package's `package.json`, and the keys of the
@@ -54,12 +58,18 @@ export class ConfigForms {
 
   /** Every config sample in the flat shape and every flat key path of the given texts. */
   static scan(opts: { files: { file: string; text: string }[] }): IConfigFormHit[] {
-    return opts.files
-      .filter(({ file }) => SCANNED.test(file))
-      .flatMap(({ file, text }) => [
-        ...ConfigForms.samples({ file, text }),
-        ...ConfigForms.paths({ file, text }),
-      ]);
+    return opts.files.flatMap(({ file, text }) => {
+      if (SOURCE.test(file)) {
+        return ConfigForms.paths({ file, text, pattern: SOURCE_PATH });
+      }
+
+      return SCANNED.test(file)
+        ? [
+            ...ConfigForms.samples({ file, text }),
+            ...ConfigForms.paths({ file, text, pattern: DOC_PATH }),
+          ]
+        : [];
+    });
   }
 
   /** A fenced block with `export default {` that the groups codemod would still rewrite is a flat sample. */
@@ -94,9 +104,9 @@ export class ConfigForms {
   }
 
   /** A backticked dotted word that is the flat path of a key which moved: `events.log` is `board.events.log`. */
-  private static paths(opts: { file: string; text: string }): IConfigFormHit[] {
+  private static paths(opts: { file: string; text: string; pattern: RegExp }): IConfigFormHit[] {
     return opts.text.split('\n').flatMap((line, index) =>
-      [...line.matchAll(/`([a-zA-Z]+(?:\.[a-zA-Z[\]<>*-]+)+)`/g)].flatMap((found) => {
+      [...line.matchAll(opts.pattern)].flatMap((found) => {
         const token = found[1] ?? '';
 
         if (
@@ -128,7 +138,7 @@ export class ConfigForms {
 
     return listed.stdout
       .split('\0')
-      .filter((file) => file !== '' && SCANNED.test(file))
+      .filter((file) => file !== '' && (SCANNED.test(file) || SOURCE.test(file)))
       .flatMap((file) => {
         try {
           return [{ file, text: readFileSync(join(ROOT, file), 'utf8') }];

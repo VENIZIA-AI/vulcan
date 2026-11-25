@@ -243,7 +243,7 @@ config-groups:
   codemod: config-groups
   upgrade:
     steps:
-      - 'Run `bun node_modules/.bin/vulcan migrate apply` (or `bun node_modules/.bin/vulcan config codemod config-groups . --write`; add `--split` for one module per group under `.configs/vulcan/`): it rewrites `.configs/vulcan.config.mts` from the flat shape into the seven groups with every value, comment and import kept, and retypes the modules of an earlier split.'
+      - 'Move the config into the groups: `migrate apply` has run the codemod already, or run `bun node_modules/.bin/vulcan config codemod config-groups . --write` (add `--split` for one module per group under `.configs/vulcan/`). The codemod rewrites `.configs/vulcan.config.mts` from the flat shape into the seven groups with every value, comment and import kept, and retypes the modules of an earlier split.'
       - 'Review the diff with `git diff`, run `bun node_modules/.bin/vulcan config format --check` and `bun node_modules/.bin/vulcan project doctor`, and commit the config.'
       - 'A config the codemod refuses (a spread, a computed key, a statement before `export default` when splitting, a module that holds more than its one value) is named with the reason and nothing is written: move that part by hand, then run it again.'
       - 'Run `bun node_modules/.bin/vulcan project sync`: it moves the machine keys of `.agents/local/profile.json` to their new paths (`agents` is `agent.list`, `events` is `board.events`, `local` is `common.local`, `board.agents` is `board.page.agents`).'

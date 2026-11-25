@@ -168,7 +168,7 @@ describe('the pack gives the stack its guard and commit defaults', () => {
     const autoFound = await DoctorRunner.runNotes({ root: auto });
 
     expect(JSON.stringify(autoFound)).toContain(
-      'board.serve.autoStart is on in .agents/local/profile.json, but events.log is off',
+      'board.serve.autoStart is on in .agents/local/profile.json, but board.events.log is off',
     );
     expect(cleanNotes).not.toContain('autoStart');
     expect(repeatsNotes).toContain('1 value(s) of this config repeat what VULCAN ships');
@@ -272,7 +272,7 @@ describe('the effective config of a project that writes none of it', () => {
     expect(
       JSON.stringify(all.filter((warning) => warning.check === 'private-values')),
     ).not.toContain('matches no file');
-    expect(JSON.stringify(all)).not.toContain('acknowledged in doctor.privateValues');
+    expect(JSON.stringify(all)).not.toContain('acknowledged in check.doctor.privateValues');
   });
 });
 

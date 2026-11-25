@@ -317,7 +317,7 @@ describe('vulcan project doctor: the warning', () => {
     expect(warnings[0].file).toBe('env/dev.env');
     expect(warnings[0].message).toContain('1 private-key');
     expect(warnings[0].message).toContain('2 ipv4');
-    expect(warnings[0].message).toContain('doctor.privateValues.acknowledged');
+    expect(warnings[0].message).toContain('check.doctor.privateValues.acknowledged');
     expect(warnings[0].message).not.toContain('10.0.0.9');
   });
 
@@ -343,7 +343,7 @@ describe('vulcan project doctor: the warning', () => {
     expect(mild?.message).toContain('docs/setup.md (1 machine-path)');
     expect(mild?.message).not.toContain('10.20.30');
     expect(mild?.message).not.toContain('alice');
-    expect(mild?.message).toContain('doctor.privateValues.acknowledged');
+    expect(mild?.message).toContain('check.doctor.privateValues.acknowledged');
   });
 
   test('one file that holds only an address keeps its own line', async () => {
@@ -372,7 +372,7 @@ describe('vulcan project doctor: the warning', () => {
     expect(warnings).toEqual([]);
     expect(notes).toHaveLength(1);
     expect(notes[0].message).toContain('2 files acknowledged');
-    expect(notes[0].message).toContain('doctor.privateValues.acknowledged');
+    expect(notes[0].message).toContain('check.doctor.privateValues.acknowledged');
   });
 
   test('an entry that matches no file with that kind is a warning, so a stale or broad one is seen', async () => {
