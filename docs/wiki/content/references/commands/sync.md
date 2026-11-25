@@ -157,7 +157,7 @@ To generate missing adapters and the manifest, run `vulcan project sync`:
 ```text
 $ bun node_modules/.bin/vulcan project sync
   created   CLAUDE.md
-  created   .claude/settings.json (shipped, slot and claude.settings over personal keys)
+  created   .claude/settings.json (shipped, slot and agent.claude.settings over personal keys)
   created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
@@ -256,7 +256,7 @@ The settings and the manifest are what change; the skill lines and the lines tha
 
 ```text
 $ bun node_modules/.bin/vulcan project sync
-  replaced  .claude/settings.json (shipped, slot and claude.settings over personal keys)
+  replaced  .claude/settings.json (shipped, slot and agent.claude.settings over personal keys)
   replaced  .agents/local/vulcan.manifest.json
   replaced  .agents/atlas.manifest.json
   replaced  .agents/vulcan.manifest.json
@@ -269,7 +269,7 @@ To preview filesystem operations without making changes, pass `--dry-run`:
 ```text
 $ bun node_modules/.bin/vulcan project sync --dry-run
   would create  CLAUDE.md
-  would create  .claude/settings.json (shipped, slot and claude.settings over personal keys)
+  would create  .claude/settings.json (shipped, slot and agent.claude.settings over personal keys)
   would create  .claude/skills/build-a-feature
   would create  .claude/skills/docs-update
   would create  .claude/skills/docs-writing

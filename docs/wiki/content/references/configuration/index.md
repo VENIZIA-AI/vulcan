@@ -511,7 +511,7 @@ The `[tags]` doctor check does not require every tag to match `tagPattern`. It p
 
 ```text
 $ bun node_modules/.bin/vulcan project doctor
-  [tags] git tags: tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)
+  [tags] git tags: tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (knowledge.atlas.ignoreTags)
 vulcan project doctor: 1 violation(s)
 ```
 

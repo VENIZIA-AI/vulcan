@@ -1,6 +1,6 @@
 ---
 title: vulcan event
-description: Write a line to the agent event log, or read it. With events.log on, vulcan project sync installs the Claude Code hooks that write it.
+description: Write a line to the agent event log, or read it. With board.events.log on, vulcan project sync installs the Claude Code hooks that write it.
 ---
 
 # vulcan event

@@ -55,6 +55,16 @@ describe('the config shown in the docs is in the groups', () => {
     expect(scan(text, 'packages/cli/src/__tests__/doctor/checks.test.ts')).toEqual([]);
   });
 
+  test('a flat key in plain prose, with no backticks, is found; a domain is not', () => {
+    const hits = scan('Turn on events.log to see it, and read claude.ai for the rest.');
+
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toMatchObject({
+      text: '`events.log`',
+      reason: 'the key is `board.events.log`',
+    });
+  });
+
   test('the changelogs, which keep the old words, are not read', () => {
     expect(scan('`events.log`', 'docs/wiki/content/changelogs/2026-10-01-x.md')).toEqual([]);
   });

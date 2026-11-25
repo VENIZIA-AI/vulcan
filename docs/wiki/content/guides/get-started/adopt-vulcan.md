@@ -203,7 +203,7 @@ bun node_modules/.bin/vulcan project sync
 ```text
 $ bun node_modules/.bin/vulcan project sync
   created   CLAUDE.md
-  created   .claude/settings.json (shipped, slot and claude.settings over personal keys)
+  created   .claude/settings.json (shipped, slot and agent.claude.settings over personal keys)
   created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
