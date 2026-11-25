@@ -348,11 +348,11 @@ export class CommandTable {
         '0 when every entry conforms (notes: printed); 1 when an entry does not, a folder is missing, the tool is missing or the configuration is invalid; 2 for a subcommand other than check or notes.',
     },
     [VulcanCommands.MIGRATE]: {
-      help: `  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]
+      help: `  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]
                                   What an app must change to move a package between two releases, newer or
                                   older: the steps in order, the places in your code they touch (file:line),
                                   codemods and data warnings; read only
-  migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]
+  migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]
                                   Run the codemods the plan links, once each in order (reversed for a
                                   rollback), then print the steps that stay manual; refuses an app with
                                   uncommitted changes or outside git unless --force`,
@@ -363,8 +363,12 @@ export class CommandTable {
           'A version, latest (newest stable) or next (newest release) of the atlas release table',
         '--app': 'The app directory to scan; default the current directory',
         '--format': 'md (default) or json (plan only)',
+        '--root': 'The project atlas serves the sources of; read by atlas',
+        '--source': 'A source to serve, owner/repo@ref, repeatable; read by atlas',
+        '--cache-dir': 'Where atlas keeps the sets it pulls; read by atlas',
       },
       flags: {
+        '--no-prebuilt': 'Build the index from the files, do not download the prebuilt one',
         '--force': 'apply: run on an app with uncommitted changes, or outside git',
         '--verbose': 'plan: list every place that imports a module a step is about, not a count',
       },

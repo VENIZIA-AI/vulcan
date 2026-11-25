@@ -270,6 +270,7 @@ event-type-field:
     steps:
       - 'Run `bun node_modules/.bin/vulcan project sync` once: it rewrites `kind` to `type` in every line of the day files of the event log (`.agents/local/events/` or `board.events.dir`), and says how many lines it moved. A line that has a `type` already, or a `kind` that is not an event type, is left as it is, so a second run changes nothing.'
       - 'Change every script, hook and doc that runs `vulcan event add --kind <t>` to `--type <t>`, and every reader of the log that reads the `kind` field to read `type`.'
+      - 'Repos that share one events dir (`board.events.dir`) should upgrade together: until each one is on this release, a session on an earlier one does not see the lines the sync of another has moved.'
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan`: it reads `kind`, so the lines the new sync moved are not read by it. Restore the day files from a backup, or rename `type` to `kind` in them.'

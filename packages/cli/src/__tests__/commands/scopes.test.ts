@@ -23,7 +23,7 @@ const PAIRS: { old: string; now: string; run: string[] }[] = [
   { old: 'runners check', now: 'check runners', run: ['runners', 'check'] },
   { old: 'changelog check', now: 'check changelog', run: ['changelog', 'check'] },
   { old: 'changelog notes', now: 'migrate notes', run: ['changelog', 'notes'] },
-  { old: 'event add --kind flow', now: 'flow add', run: ['event', 'add', '--kind', 'flow'] },
+  { old: 'event add --type flow', now: 'flow add', run: ['event', 'add', '--type', 'flow'] },
   { old: 'event step', now: 'flow step', run: ['event', 'step'] },
   { old: 'event add', now: 'event add', run: ['event', 'add'] },
   { old: 'event tail', now: 'event tail', run: ['event', 'tail'] },

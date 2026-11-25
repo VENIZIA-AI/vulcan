@@ -100,11 +100,11 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   The release notes of a version folder: the body of its log.md, then the packages.
                                   --migration prints the path of its migration.yaml when that file holds a block,
                                   and nothing when it does not (what a workflow attaches to the Release)
-  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]
+  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]
                                   What an app must change to move a package between two releases, newer or
                                   older: the steps in order, the places in your code they touch (file:line),
                                   codemods and data warnings; read only
-  migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]
+  migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]
                                   Run the codemods the plan links, once each in order (reversed for a
                                   rollback), then print the steps that stay manual; refuses an app with
                                   uncommitted changes or outside git unless --force
