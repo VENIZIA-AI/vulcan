@@ -9,6 +9,11 @@ export class CodemodRunner {
   static readonly DEFAULT: readonly string[] = ['devz', 'codemod'];
   /** A word of the command: letters, digits, `.`, `_`, `-`; never a path, a flag or a shell word. */
   static readonly WORD_PATTERN = /^[a-z0-9][a-z0-9._-]*$/i;
+  /**
+   * The package whose bin is the running tool itself. Only a check of the project's own runner adds it to the packages
+   * (`ChangelogCheck`): `apply` runs the command of a remote source, so it never trusts it unless the source declares it.
+   */
+  static readonly TOOL_PACKAGE = '@venizia/vulcan';
 
   /**
    * The words of `knowledge.codemodCommand` from the manifest; empty when the key is absent. A word that is not
@@ -44,7 +49,7 @@ export class CodemodRunner {
   /**
    * Why the bin `name` installed under `directory` may not run as a source's codemod runner, or `undefined` when it may: its
    * real path, every link resolved, must lie inside the installed directory of one of `packages` - the packages the source
-   * serves. A runner is code the app runs with its own rights: a bin of another package (`rimraf`), or a link that leaves
+   * serves; a `node_modules/<name>` link into a Bun isolated store (`.bun/<name>@<v>/node_modules/<name>`) is resolved like any link. A runner is code the app runs with its own rights: a bin of another package (`rimraf`), or a link that leaves
    * the package, is never one, whatever a manifest or an index says. A name that is not an npm package name is never an
    * allowed package: `..` or an empty name would name the app itself.
    */
