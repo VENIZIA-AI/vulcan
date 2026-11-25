@@ -44,7 +44,8 @@
     "wiki": "docs/wiki/content",
     "changelogs": "docs/wiki/content/changelogs",
     "migrationFrom": "0.4.5",
-    "datedUntil": "2026-11-14"
+    "datedUntil": "2026-11-14",
+    "codemodCommand": ["vulcan", "config", "codemod"]
   },
   "release": {
     "tagPattern": "vulcan-v<version>",
