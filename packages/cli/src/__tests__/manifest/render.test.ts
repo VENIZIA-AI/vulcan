@@ -8,6 +8,7 @@ import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
 import { Bunfig } from '../../create/bunfig.ts';
 import { checkFiles } from '../format.helper.ts';
+import { groupsOf } from '../groups.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -400,7 +401,7 @@ describe('the preset kind of a package in the manifest', () => {
 
 describe('the manifest in sync, doctor and vulcan atlas', () => {
   const PROJECT = {
-    '.configs/vulcan.config.mts': `export default ${JSON.stringify(CONFIG)};\n`,
+    '.configs/vulcan.config.mts': `export default ${JSON.stringify(groupsOf({ flat: CONFIG }))};\n`,
     'AGENTS.md': '# x\n',
   };
 
@@ -419,7 +420,7 @@ describe('the manifest in sync, doctor and vulcan atlas', () => {
     const key = newPublicKey();
     const root = createProject({
       files: {
-        '.configs/vulcan.config.mts': `export default ${JSON.stringify({ ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [key] } } })};\n`,
+        '.configs/vulcan.config.mts': `export default ${JSON.stringify(groupsOf({ flat: { ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [key] } } } }))};\n`,
         'AGENTS.md': '# x\n',
       },
     });
@@ -442,7 +443,10 @@ describe('the manifest in sync, doctor and vulcan atlas', () => {
 
     // Positive control: the same check, after the config changes under the committed manifest - in
     // a new process, as doctor runs: this one has the first config module cached.
-    writeFileSync(join(root, '.configs/vulcan.config.mts'), "export default { name: 'moved' };\n");
+    writeFileSync(
+      join(root, '.configs/vulcan.config.mts'),
+      "export default { project: { name: 'moved' } };\n",
+    );
 
     const stale = runCli({ args: ['project', 'doctor'], cwd: root });
 

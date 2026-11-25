@@ -28,7 +28,8 @@ const projectConfig = await import(join(REPO_ROOT, '.configs', 'vulcan.config.mt
 /** Configs that parse: every section set at least once. */
 const VALID: Record<string, unknown> = {
   empty: {},
-  'this repository': projectConfig.default,
+  // This repository's config is written in groups; the frozen schema is the flat one.
+  'this repository': ConfigGroups.toFlat({ value: projectConfig.default }).flat,
   // The shipped files are written in groups; the frozen schema is the flat one.
   'shipped defaults': flatOf({ path: join(BASE, 'defaults.config.json') }),
   'venizia pack': flatOf({ path: join(BASE, 'packs', 'venizia.config.json') }),

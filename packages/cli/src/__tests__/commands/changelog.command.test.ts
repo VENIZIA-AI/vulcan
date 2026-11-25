@@ -17,10 +17,7 @@ packages: ['@a/kernel']
 
 <Badge type="warning" text="Breaking Change" />
 `;
-const CONFIG = `export default {
-  packages: [{ dir: 'kernel', name: '@a/kernel' }],
-  knowledge: { bundle: '.agents/knowledge', changelogs: 'changes', migrationFrom: '2026-11-13' },
-};
+const CONFIG = `export default { project: { packages: [{ dir: 'kernel', name: '@a/kernel' }] }, knowledge: { bundle: '.agents/knowledge', changelogs: 'changes', migrationFrom: '2026-11-13' } };
 `;
 
 const projectWith = (opts: { entry: string }): string =>

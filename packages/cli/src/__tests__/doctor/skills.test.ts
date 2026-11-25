@@ -144,7 +144,7 @@ describe('doctor [skills] - a project skill named like a shipped one', () => {
   test('fails, and suggests a rename the project owns', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.mts': "export default { name: 'shop' };\n",
+        '.configs/vulcan.config.mts': "export default { project: { name: 'shop' } };\n",
         '.agents/skills/research/SKILL.md': SKILL({ name: 'research' }),
       },
     });

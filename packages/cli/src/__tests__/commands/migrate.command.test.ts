@@ -39,14 +39,10 @@ migration:
 const world = (): { framework: string; app: string } => {
   const framework = createProject({
     files: {
-      '.configs/vulcan.config.mts': `export default {
-  packages: [
+      '.configs/vulcan.config.mts': `export default { project: { packages: [
     { dir: 'kernel', name: '@venizia/kernel' },
     { dir: 'dev-configs', name: '@venizia/dev-configs' },
-  ],
-  knowledge: { bundle: '.agents/knowledge', changelogs: 'changes' },
-  atlas: { tagPattern: '<dir>-v<version>' },
-};
+  ] }, knowledge: { bundle: '.agents/knowledge', changelogs: 'changes', atlas: { tagPattern: '<dir>-v<version>' } } };
 `,
       '.agents/knowledge/index.md': '# Probe\n',
     },
@@ -183,6 +179,33 @@ describe('vulcan migrate', () => {
     },
   );
 
+  test.skipIf(!built)(
+    'plan reads a project whose config is still flat (the one tool allowed to); another command refuses it',
+    () => {
+      const { framework, app } = world();
+
+      writeFileSync(
+        join(framework, '.configs/vulcan.config.mts'),
+        `export default { packages: [
+    { dir: 'kernel', name: '@venizia/kernel' },
+  ], knowledge: { bundle: '.agents/knowledge', changelogs: 'changes' }, atlas: { tagPattern: '<dir>-v<version>' } };
+`,
+      );
+
+      const plan = runCli({
+        args: ['migrate', 'plan', '--package', '@venizia/kernel', '--to', 'latest', '--app', app],
+        cwd: framework,
+      });
+      const other = runCli({ args: ['project', 'doctor'], cwd: framework });
+
+      expect(plan.stderr).not.toContain('flat shape');
+      expect(plan.code, plan.stderr).toBe(0);
+      expect(plan.stdout).toContain('## @venizia/kernel: 1.0.0 to 1.1.0');
+      expect(other.stderr).toContain('the config is in the flat shape');
+      expect(other.code).toBe(1);
+    },
+  );
+
   test('a usage error of apply exits 2', () => {
     const { framework } = world();
 
@@ -231,14 +254,10 @@ describe('vulcan migrate', () => {
     () => {
       const framework = createProject({
         files: {
-          '.configs/vulcan.config.mts': `export default {
-  packages: [{ dir: 'kernel', name: '@venizia/kernel' }],
-  knowledge: { bundle: '.agents/knowledge' },
-  atlas: {
+          '.configs/vulcan.config.mts': `export default { project: { packages: [{ dir: 'kernel', name: '@venizia/kernel' }] }, knowledge: { bundle: '.agents/knowledge', atlas: {
     tagPattern: '<dir>-v<version>',
     sources: [{ name: 'ghost', repo: '/nonexistent/ghost.git', ref: 'v1' }],
-  },
-};
+  } } };
 `,
           '.agents/knowledge/index.md': '# Probe\n',
         },

@@ -91,7 +91,7 @@ It never removes a worktree or a clone, wherever it sits, and never touches the 
 - an entry that has outlived its use (old `tmp/`, a worktree of a merged branch, an old clone, a shipped release candidate), with the command that takes it;
 - an entry directly under `.agents/local/` that is not in the tree above. Put scratch in `tmp/`, what you want to keep in `reports/`, and what one agent keeps for itself in `agents/<name>/`; nothing removes the unknown entry. A script the team relies on does not belong here: put it in the tracked tree (`scripts/`), where it gets review and history;
 - the size of `.agents/local/` once it is large;
-- today's event file when it alone is over `events.maxSize`.
+- today's event file when it alone is over `board.events.maxSize`.
 
 ## A browser's scratch folders
 

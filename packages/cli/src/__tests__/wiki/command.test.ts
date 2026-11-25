@@ -146,7 +146,7 @@ describe('the shipped entry scripts', () => {
     writeFileSync(join(root, 'docs/wiki/content/api.md'), 'Gone: `apps/api/gone.ts`\n');
     writeFileSync(
       join(root, '.configs/vulcan.config.mts'),
-      "export default { layout: { backend: 'apps/api' } };\n",
+      "export default { project: { layout: { backend: 'apps/api' } } };\n",
     );
     git({ cwd: root, args: ['add', '-A'] });
 
@@ -166,7 +166,10 @@ describe('the shipped entry scripts', () => {
     const root = repository({ link: 'packages/x/gone.ts' });
 
     mkdirSync(join(root, '.configs'), { recursive: true });
-    writeFileSync(join(root, '.configs/vulcan.config.mts'), 'export default { layout: 3 };\n');
+    writeFileSync(
+      join(root, '.configs/vulcan.config.mts'),
+      'export default { project: { layout: 3 } };\n',
+    );
 
     const result = spawnSyncBounded({
       cmd: ['bun', entry('wiki-source-links'), '--repo', 'VENIZIA-AI/acme'],

@@ -66,7 +66,7 @@ Files only the package has are not listed. A `package.json` among the preset's f
 2. The app's `package.json` depends on the preset's package, and the config's recorded `presets` name it. The recorded preset of the app's side (backend or frontend folder) whose package the app depends on is the one.
 3. Otherwise the command stops and lists the recorded presets: no match, or more than one, asks for `--preset`.
 
-A library and a shared package do not depend on their preset, so the kind decides. The config entry says which kind made the package: `presetKind: "shared"` for a shared package, nothing for a library (see [Configuration](/references/configuration/#packages)).
+A library and a shared package do not depend on their preset, so the kind decides. The config entry says which kind made the package: `presetKind: "shared"` for a shared package, nothing for a library (see [Configuration](/references/configuration/#project-packages)).
 
 1. `--preset`, when given. It must ship the package's kind, or the command says so.
 2. Otherwise the one recorded preset that ships the kind: a lib kind for a library, a shared kind for a shared package.

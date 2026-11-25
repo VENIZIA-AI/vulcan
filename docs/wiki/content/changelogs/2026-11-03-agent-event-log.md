@@ -29,7 +29,7 @@ Nothing changes until a project turns it on. Add this to `.configs/vulcan.config
 events: { log: true },
 ```
 
-To share one log between projects, add `dir` with an absolute folder you own and create it. The keys are in the [configuration reference](/references/configuration/#events) and the details in [vulcan event](/references/commands/event).
+To share one log between projects, add `dir` with an absolute folder you own and create it. The keys are in the [configuration reference](/references/configuration/#board-events) and the details in [vulcan event](/references/commands/event).
 
 ## Who is affected
 

@@ -41,9 +41,11 @@ The `owner` block of the config holds the project's contract. Every default is E
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  owner: {
-    language: 'pt-BR',
-    report: { enforce: 'off', headlineMaxSentences: 1 },
+  agent: {
+    owner: {
+      language: 'pt-BR',
+      report: { enforce: 'off', headlineMaxSentences: 1 },
+    },
   },
 } satisfies VulcanConfig;
 ```
@@ -80,5 +82,5 @@ Never `export` the variable or put it in the `env` of a settings file: either ta
 
 ## See also
 
-- [Configuration: owner](/references/configuration/#owner)
+- [Configuration: owner](/references/configuration/#agent-owner)
 - [vulcan profile](/references/commands/profile)

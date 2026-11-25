@@ -45,7 +45,7 @@ The health route card.
 
 ## The structure
 
-The title line says what changes and for whom. Nine headings follow, spelled as written and in this order. The body under them is in the project's `owner.language`, English when it is unset. Fixed headings make an item searchable in any tracker and checkable by heading.
+The title line says what changes and for whom. Nine headings follow, spelled as written and in this order. The body under them is in the project's `agent.owner.language`, English when it is unset. Fixed headings make an item searchable in any tracker and checkable by heading.
 
 | Heading | Holds |
 |---|---|

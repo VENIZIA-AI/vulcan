@@ -17,7 +17,7 @@ const SUBAGENT_CARD_MAX_CHARACTERS = 1600;
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'session-start.ts');
 
 describe('SessionDigest.build', () => {
-  const CONFIG = "export default { rules: { 'V-W-01': 'on-user-word' } };\n";
+  const CONFIG = "export default { agent: { rules: { 'V-W-01': 'on-user-word' } } };\n";
 
   test('prints what only the session knows and points to the rules, which are in AGENTS.md', async () => {
     const digest = await SessionDigest.build({
@@ -100,7 +100,8 @@ describe('SessionDigest.build', () => {
 test('the session-start hook prints the digest for CLAUDE_PROJECT_DIR', () => {
   const root = createProject({
     files: {
-      '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
+      '.configs/vulcan.config.mts':
+        "export default { agent: { rules: { 'V-W-01': 'on-user-word' } } };\n",
     },
   });
   const child = spawnSyncBounded({
@@ -116,7 +117,7 @@ test('the session-start hook prints the digest for CLAUDE_PROJECT_DIR', () => {
 });
 
 describe('the owner cards in the digest', () => {
-  const CONFIG = "export default { rules: { 'V-W-01': 'on-user-word' } };\n";
+  const CONFIG = "export default { agent: { rules: { 'V-W-01': 'on-user-word' } } };\n";
 
   test('every session gets the English shape card, with no profile card', async () => {
     const root = createProject({ files: { '.configs/vulcan.config.mts': CONFIG } });
@@ -131,7 +132,7 @@ describe('the owner cards in the digest', () => {
     const root = createProject({
       files: {
         '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'on-user-word' }, owner: { report: { enforce: 'off' } } };\n",
+          "export default { agent: { rules: { 'V-W-01': 'on-user-word' }, owner: { report: { enforce: 'off' } } } };\n",
         '.agents/local/profile.json': JSON.stringify({
           schemaVersion: 1,
           address: { you: 'Sam' },

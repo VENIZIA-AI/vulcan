@@ -14,7 +14,7 @@ afterAll(removeProjects);
 
 const KEY_HEADER = '-----BEGIN RSA PRIVATE KEY-----';
 const TOKEN = `ghp_${'a1B2c3D4'.repeat(3)}`;
-const CONFIG = "export default { rules: { 'V-W-01': 'on-user-word' } };\n";
+const CONFIG = "export default { agent: { rules: { 'V-W-01': 'on-user-word' } } };\n";
 
 /** A committed project holding exactly `files`. */
 const repository = (files: Record<string, string>, opts: { config?: string } = {}): string => {
@@ -361,7 +361,7 @@ describe('vulcan project doctor: the warning', () => {
     const root = repository(
       { 'env/dev.env': `${KEY_HEADER}\n`, 'env/two.env': `${KEY_HEADER}\n` },
       {
-        config: `export default { rules: { 'V-W-01': 'on-user-word' }, doctor: { privateValues: { acknowledged: [{ path: 'env/*.env', kinds: ['private-key'], reason: 'dev keys, replaced by the secret store' }] } } };\n`,
+        config: `export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, check: { doctor: { privateValues: { acknowledged: [{ path: 'env/*.env', kinds: ['private-key'], reason: 'dev keys, replaced by the secret store' }] } } } };\n`,
       },
     );
     const result = await DoctorRunner.runWarnings({ root });
@@ -379,7 +379,7 @@ describe('vulcan project doctor: the warning', () => {
     const root = repository(
       { 'env/dev.env': `${KEY_HEADER}\n` },
       {
-        config: `export default { rules: { 'V-W-01': 'on-user-word' }, doctor: { privateValues: { acknowledged: [{ path: 'env/*.env', kinds: ['private-key'], reason: 'dev keys' }, { path: 'gone/**', reason: 'old folder' }, { path: 'env/*.env', kinds: ['ipv4'], reason: 'no address here' }] } } };\n`,
+        config: `export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, check: { doctor: { privateValues: { acknowledged: [{ path: 'env/*.env', kinds: ['private-key'], reason: 'dev keys' }, { path: 'gone/**', reason: 'old folder' }, { path: 'env/*.env', kinds: ['ipv4'], reason: 'no address here' }] } } } };\n`,
       },
     );
     const result = await DoctorRunner.runWarnings({ root });

@@ -62,10 +62,11 @@ export const runMigrateCommand = (opts: ICommandContext): Promise<number> => {
 
   // Run in the project that has the config; the app is the folder the command was run in unless `--app` says otherwise.
   return project === undefined || project === opts.cwd
-    ? runXCommand({ ...opts, args: ['atlas', 'migrate', ...opts.args] })
+    ? runXCommand({ ...opts, args: ['atlas', 'migrate', ...opts.args], isLenient: true })
     : runXCommand({
         ...opts,
         cwd: project,
         args: ['atlas', 'migrate', ...withApp({ args: opts.args, cwd: opts.cwd })],
+        isLenient: true,
       });
 };

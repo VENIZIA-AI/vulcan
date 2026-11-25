@@ -9,7 +9,8 @@ import { createProject, removeProjects } from '../project.helper.ts';
 afterAll(removeProjects);
 
 const keyOf = (key: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ project: { key } });
-const CONFIG = "export default { rules: { 'V-W-01': 'on-user-word' }, events: { log: true }";
+const CONFIG =
+  "export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, board: { events: { log: true } }";
 
 describe('project.key: the key a flow is named by', () => {
   test.each(['ACME', 'AB', 'A1', 'ABCDEFGH', '12', 'X9Y8Z7'])('%s is accepted', (key) => {
@@ -87,7 +88,9 @@ describe('vulcan project doctor: the project key', () => {
   });
 
   test('the log is off: a key is no concern', async () => {
-    const result = await warningsOf("export default { rules: { 'V-W-01': 'on-user-word' } };\n");
+    const result = await warningsOf(
+      "export default { agent: { rules: { 'V-W-01': 'on-user-word' } } };\n",
+    );
     expect(result).toEqual([]);
   });
 });

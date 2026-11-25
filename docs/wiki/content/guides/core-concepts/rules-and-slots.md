@@ -23,8 +23,10 @@ To choose an option, set the `rules` key in `.configs/vulcan.config.mts`:
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  rules: {
-    'V-W-01': 'on-user-word',
+  agent: {
+    rules: {
+      'V-W-01': 'on-user-word',
+    },
   },
 } satisfies VulcanConfig;
 ```
@@ -68,7 +70,7 @@ vulcan project doctor: 1 violation(s)
 
 ## How an agent sees them
 
-`vulcan project sync` writes a block into the committed `AGENTS.md`, between `<!-- vulcan:rules:start ... -->` and `<!-- vulcan:rules:end -->`: your slot choices, the write boundaries (`V-W-02`, `V-W-03`, `V-W-06`), where scratch files go, and the rules sessions drop most (`digest.oftenDropped`), one line each, the whole first sentence, at most 6 KB. It is built from the rule files and the config, holds no path of one machine, and is the same for every developer.
+`vulcan project sync` writes a block into the committed `AGENTS.md`, between `<!-- vulcan:rules:start ... -->` and `<!-- vulcan:rules:end -->`: your slot choices, the write boundaries (`V-W-02`, `V-W-03`, `V-W-06`), where scratch files go, and the rules sessions drop most (`agent.digest.oftenDropped`), one line each, the whole first sentence, at most 6 KB. It is built from the rule files and the config, holds no path of one machine, and is the same for every developer.
 
 Every agent that reads `AGENTS.md` gets it, and so does Claude Code, whose `CLAUDE.md` is `@AGENTS.md`. Verified in a real run: Claude Code and omp both quoted the block. `vulcan project doctor` notes a block that is missing or no longer matches the rules or the config, and `vulcan project sync` rewrites it.
 
@@ -84,7 +86,7 @@ The rules are in AGENTS.md ("Rules that must not be skipped"); the full text is 
 ...
 ```
 
-You can customize the rules named in the block with the `digest.oftenDropped` configuration key; run `vulcan project sync` after.
+You can customize the rules named in the block with the `agent.digest.oftenDropped` configuration key; run `vulcan project sync` after.
 
 ## See also
 

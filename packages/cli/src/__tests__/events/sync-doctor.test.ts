@@ -27,7 +27,7 @@ const CONTEXT_HOOK = 'node_modules/@venizia/vulcan/base/hooks/board-context.ts';
 
 const parse = (events: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ events });
 const config = (opts: { events?: string; hooks?: string }) =>
-  `export default {${opts.events === undefined ? '' : ` events: ${opts.events},`}${opts.hooks === undefined ? '' : ` claude: { settings: { hooks: ${opts.hooks} } },`} };\n`;
+  `export default {${opts.events === undefined ? '' : ` board: { events: ${opts.events} },`}${opts.hooks === undefined ? '' : ` agent: { claude: { settings: { hooks: ${opts.hooks} } } },`} };\n`;
 
 const projectWith = (opts: { events?: string; hooks?: string }): string =>
   createProject({ files: { '.configs/vulcan.config.mts': config(opts), 'AGENTS.md': '# x\n' } });

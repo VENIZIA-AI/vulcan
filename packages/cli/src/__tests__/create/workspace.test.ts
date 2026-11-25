@@ -216,7 +216,7 @@ describe('workspace planners', () => {
   });
 
   test('AppsBlock.parse reads back the block AppsBlock.render wrote, around any user lines', () => {
-    const source = `import x from 'y';\n${AppsBlock.render({ block: BLOCK })}\nexport default { packages: [...apps.packages, { dir: 'w' }] };\n`;
+    const source = `import x from 'y';\n${AppsBlock.render({ block: BLOCK })}\nexport default { project: { packages: [...apps.packages, { dir: 'w' }] } };\n`;
 
     expect(AppsBlock.parse({ source })).toEqual({ ok: true, block: BLOCK });
   });

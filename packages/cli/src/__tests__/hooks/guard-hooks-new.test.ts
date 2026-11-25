@@ -11,7 +11,7 @@ const HOOKS = join(import.meta.dir, '..', '..', '..', 'base', 'hooks');
 /** What `vulcan project sync` renders from the config below for the guards: the hooks read this. */
 const MANIFEST = guardManifest({ guard: { toolOwnedPaths: ['/srv/store/**'] } });
 const CONFIG =
-  "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { toolOwnedPaths: ['/srv/store/**'] } };\n";
+  "export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, guard: { toolOwnedPaths: ['/srv/store/**'] } };\n";
 
 const runHook = async (opts: {
   hook: string;
@@ -306,7 +306,7 @@ describe('the guard-outside hook', () => {
 
 describe('the guard-outside hook with guard.outside set', () => {
   const configOf = (opts: { outside: string }) =>
-    `export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: '${opts.outside}', toolOwnedPaths: ['/srv/store/**'] } };\n`;
+    `export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, guard: { outside: '${opts.outside}', toolOwnedPaths: ['/srv/store/**'] } };\n`;
   const manifestOf = (opts: { outside: string }) =>
     guardManifest({ guard: { outside: opts.outside, toolOwnedPaths: ['/srv/store/**'] } });
   const denyRoot = createProject({
@@ -423,7 +423,7 @@ describe('the guard-outside hook with guard.outside set', () => {
     const typoRoot = createProject({
       files: {
         '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny', notAKey: true } };\n",
+          "export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, guard: { outside: 'deny', notAKey: true } };\n",
         [GUARD_MANIFEST_FILE]: guardManifest({ guard: { outside: 'deny' } }),
       },
     });

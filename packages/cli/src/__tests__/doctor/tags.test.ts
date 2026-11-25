@@ -5,13 +5,10 @@ import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
 
-const CONFIG = `export default {
-  packages: [
+const CONFIG = `export default { project: { packages: [
     { dir: 'core-server', name: '@a/server', aliases: ['core'] },
     { dir: 'old', name: '@a/old', retired: true },
-  ],
-  atlas: { tagPattern: '<dir>-v<version>', ignoreTags: ['legacy/*'] },
-};
+  ] }, knowledge: { atlas: { tagPattern: '<dir>-v<version>', ignoreTags: ['legacy/*'] } } };
 `;
 
 const projectWithTags = (opts: { tags: string[]; config?: string }): string => {
@@ -60,7 +57,7 @@ test('a tag naming no declared package is a violation (positive control)', async
 test('a template with <package> is a config violation that names the placeholder and <dir>', async () => {
   const root = projectWithTags({
     tags: [],
-    config: "export default { atlas: { tagPattern: '<package>-v<version>' } };\n",
+    config: "export default { knowledge: { atlas: { tagPattern: '<package>-v<version>' } } };\n",
   });
   const violations = await DoctorRunner.runChecks({ root });
 

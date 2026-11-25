@@ -16,9 +16,9 @@ const MCP = JSON.stringify({
 });
 const CONFIG = [
   'export default {',
-  "  name: 'acme',",
-  "  rules: { 'V-W-01': 'read-only' },",
-  "  atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' }] },",
+  "  project: { name: 'acme' },",
+  "  agent: { rules: { 'V-W-01': 'read-only' } },",
+  "  knowledge: { atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' }] } },",
   '};',
   '',
 ].join('\n');
@@ -81,8 +81,8 @@ describe('the Atlas and rules blocks in AGENTS.md', () => {
     writeFileSync(
       join(root, '.configs/vulcan.config.mts'),
       CONFIG.replace("'read-only'", "'on-user-word'").replace(
-        '  atlas:',
-        "  remove: { 'digest.oftenDropped': ['V-P-07'] },\n  atlas:",
+        '  knowledge:',
+        "  common: { remove: { 'agent.digest.oftenDropped': ['V-P-07'] } },\n  knowledge:",
       ),
     );
     sync({ root });
@@ -105,7 +105,7 @@ describe('the Atlas and rules blocks in AGENTS.md', () => {
 
     writeFileSync(
       join(on, '.configs/vulcan.config.mts'),
-      CONFIG.replace('  rules:', "  packs: ['venizia'],\n  rules:"),
+      CONFIG.replace('  agent: { rules:', "  agent: { packs: ['venizia'], rules:"),
     );
     sync({ root: off });
     sync({ root: on });
@@ -229,8 +229,8 @@ describe('the Atlas and rules blocks in AGENTS.md', () => {
     const root = createProject({
       files: {
         '.configs/vulcan.config.mts': CONFIG.replace(
-          '};',
-          "  okf: { contents: { files: ['.agents/rules.md'] } },\n};",
+          '  knowledge: {',
+          "  knowledge: { okf: { contents: { files: ['.agents/rules.md'] } },",
         ),
         'AGENTS.md': LONG_AGENTS_MD,
       },

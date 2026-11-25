@@ -129,7 +129,7 @@ House style rules run over every markdown file in the bundle, index and log incl
 
    The brand rule fires only when the brand is all capitals of 2+ letters (for example VULCAN).
    It rejects the title-case spelling.
-   The brand comes from `okf.brand` (default: root package name unscoped and upper-cased).
+   The brand comes from `knowledge.okf.brand` (default: root package name unscoped and upper-cased).
 
 3. Structural coverage: Every directory matched by a coverage axis must have a concept or resource mapping:
    - `coverage: <section>/<name> has no concept (<section>/<name>.md)`
@@ -159,7 +159,7 @@ House style rules run over every markdown file in the bundle, index and log incl
    ```
 
    The check covers every bundle `.md` file except `log.md`, generated files, and renderer-owned pages.
-   It also checks entries in `okf.contents.files`.
+   It also checks entries in `knowledge.okf.contents.files`.
    The check fails only for files over 100 lines that need a contents list.
 
 7. Changelog declarations: Dated changelog entries (`YYYY-MM-DD-*.md`) under `knowledge.changelogs` must satisfy package rules:
@@ -204,9 +204,9 @@ gen: wrote .agents/knowledge/reference/makefile-targets.md
 
 `gen` performs three tasks:
 
-1. Whole files: Writes pages registered in `okf.renderers` (by default under `reference/`).
-2. Managed regions: Replaces content between `<!-- okf:generated:<id> start -->` and `<!-- okf:generated:<id> end -->` registered in `okf.regions`.
-3. Contents lists: Inserts contents lists into files over 100 lines that need one (`okf.contents.files`).
+1. Whole files: Writes pages registered in `knowledge.okf.renderers` (by default under `reference/`).
+2. Managed regions: Replaces content between `<!-- okf:generated:<id> start -->` and `<!-- okf:generated:<id> end -->` registered in `knowledge.okf.regions`.
+3. Contents lists: Inserts contents lists into files over 100 lines that need one (`knowledge.okf.contents.files`).
 
 As files are written or skipped, `gen` reports its actions:
 
@@ -222,7 +222,7 @@ With a renderer configured but already current, `gen` prints:
 gen: up to date
 ```
 
-When `okf.renderers` and `okf.regions` are empty and no contents list was written, `gen` prints:
+When `knowledge.okf.renderers` and `knowledge.okf.regions` are empty and no contents list was written, `gen` prints:
 
 ```text
 gen: nothing configured - okf.renderers and okf.regions are empty; add a renderer to okf.renderers in the vulcan config (built in: source-map, makefile-targets, binding-keys, packages-table)
@@ -281,7 +281,7 @@ For an invalid value, the message shows `got "<value>"`.
 
 ### Coverage axes
 
-You define structural coverage axes under `okf.coverage` in `.configs/vulcan.config.mts`.
+You define structural coverage axes under `knowledge.okf.coverage` in `.configs/vulcan.config.mts`.
 Each axis globs directories under the repository root:
 
 | Option | Type | Default | Meaning |
@@ -291,7 +291,7 @@ Each axis globs directories under the repository root:
 | `exclude` | `string[]` | `[]` | Globs from repository root excluded from this axis |
 | `denylist` | `string[]` | `[]` | Directory names excluded from this axis |
 
-The global `okf.denylist` lists directory names excluded across every axis.
+The global `knowledge.okf.denylist` lists directory names excluded across every axis.
 An axis item is covered when a concept exists at `/<name>/<directory>.md`.
 An item is also covered when a concept declares a matching `resource:` value.
 The covering `resource:` value is the directory path from the repository root.

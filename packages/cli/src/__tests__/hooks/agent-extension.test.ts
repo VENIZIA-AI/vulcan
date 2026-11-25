@@ -48,7 +48,7 @@ const contextOf = (opts: { cwd: string; hasUI?: boolean; answer?: boolean }): TC
 const bash = (command: string): TEvent => ({ toolName: 'bash', input: { command } });
 
 const DENY_OUTSIDE_CONFIG =
-  "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny' } };\n";
+  "export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, guard: { outside: 'deny' } };\n";
 /** What `vulcan project sync` renders from it: the hooks read this, not the config. */
 const DENY_OUTSIDE_MANIFEST = guardManifest({ guard: { outside: 'deny' } });
 

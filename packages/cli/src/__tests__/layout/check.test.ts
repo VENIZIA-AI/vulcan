@@ -259,7 +259,7 @@ const repository = (opts: { files: Record<string, string> }): string => {
 };
 
 const PROJECT = {
-  '.configs/vulcan.config.mts': 'export default {\n  name: "demo",\n};\n',
+  '.configs/vulcan.config.mts': 'export default {\n  project: { name: "demo" },\n};\n',
   'src/a/x.ts': '',
   'src/b/x.ts': '',
   'src/c/x.ts': '',

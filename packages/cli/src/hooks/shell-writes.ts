@@ -576,8 +576,8 @@ export class ShellWrites {
   }
 
   /**
-   * The files a `vulcan` command writes that the guards protect: the config for `config format` (it writes unless it is given `--check`)
-   * and for `config codemod ... --write`, with the first module for the codemod. The program is `vulcan` itself, or `bun`, `node` or
+   * The files a `vulcan` command writes that the guards protect: the config for `config format` (it writes unless it is given `--check`),
+   * for `config codemod ... --write` and for `migrate apply`, with the first module for the codemods. The program is `vulcan` itself, or `bun`, `node` or
    * `bunx` given a path or a name that ends in `vulcan`.
    */
   private static vulcanWritesOf(opts: { name: string; args: string[] }): string[] {
@@ -598,12 +598,16 @@ export class ShellWrites {
     }
 
     const [scope, action, ...rest] = opts.args.slice(at + 1);
+    const config = `${ConfigConstants.DIRECTORY}/${ConfigConstants.FILE}`;
+
+    // `migrate apply` runs the codemods of a migration, which write the config (and stage what they wrote): an owner's command.
+    if (scope === 'migrate' && action === 'apply') {
+      return [config, `${ConfigConstants.DIRECTORY}/vulcan/index.mts`];
+    }
 
     if (scope !== 'config') {
       return [];
     }
-
-    const config = `${ConfigConstants.DIRECTORY}/${ConfigConstants.FILE}`;
 
     if (action === 'format' && !rest.includes('--check')) {
       return [config];
@@ -1030,7 +1034,7 @@ export class ShellWrites {
       );
     }
 
-    // `vulcan config format` and `vulcan config codemod ... --write` write the config and its modules: an agent never runs them.
+    // `vulcan config format`, `vulcan config codemod ... --write` and `vulcan migrate apply` write the config and its modules: an agent never runs them.
     for (const word of ShellWrites.vulcanWritesOf({ name, args })) {
       targets.push({ word, base, message: `vulcan writes ${word}`, isEdit: true });
     }

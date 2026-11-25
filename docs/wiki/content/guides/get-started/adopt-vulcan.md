@@ -124,7 +124,7 @@ Done. Next:
   open http://localhost:3000/api/doc/explorer
 ```
 
-Last, in a terminal, `init` offers to save your working style (reply language, how to address you, tone) with [`vulcan profile`](/references/commands/profile). Without a terminal it prints the command. The project's own `owner.language` is not asked here: set it in `.configs/vulcan.config.mts` ([`owner`](/references/configuration/#owner)).
+Last, in a terminal, `init` offers to save your working style (reply language, how to address you, tone) with [`vulcan profile`](/references/commands/profile). Without a terminal it prints the command. The project's own `agent.owner.language` is not asked here: set it in `.configs/vulcan.config.mts` ([`owner`](/references/configuration/#agent-owner)).
 
 For every file and message, see the [init reference](/references/commands/init#create-a-monorepo-with-preset).
 
@@ -279,7 +279,7 @@ Details:
 - For a Makefile, add `-include node_modules/@venizia/vulcan/base/make/vulcan.mk`, and do not reuse shipped target names.
 - For a skill with a shipped name, rename the directory under `.agents/skills/` to avoid collisions.
 - For lint configs, add `@venizia/dev-configs` as a devDependency and import from it in the lint configurations.
-- For git tags, declare the package, add an alias, or add the tags to `atlas.ignoreTags`.
+- For git tags, declare the package, add an alias, or add the tags to `knowledge.atlas.ignoreTags`.
 
 ## Run it in CI
 

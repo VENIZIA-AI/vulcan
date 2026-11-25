@@ -32,7 +32,8 @@ const monorepo = (
       ...Object.fromEntries(
         Object.entries(members).map(([folder, name]) => [`${folder}/package.json`, manifest(name)]),
       ),
-      '.configs/vulcan.config.mts': opts.config ?? "export default { name: 'acme' };\n",
+      '.configs/vulcan.config.mts':
+        opts.config ?? "export default { project: { name: 'acme' } };\n",
     },
   });
 };
@@ -221,12 +222,12 @@ describe('the loader: packages the config does not write are derived, a list it 
 
   test('packages: [] keeps none, and a written list is exactly the list', async () => {
     const none = await ConfigLoader.load({
-      root: monorepo({ config: 'export default { packages: [] };\n' }),
+      root: monorepo({ config: 'export default { project: { packages: [] } };\n' }),
     });
     const listed = await ConfigLoader.load({
       root: monorepo({
         config:
-          "export default { packages: [{ dir: 'only', name: '@x/cli', path: 'packages/cli' }] };\n",
+          "export default { project: { packages: [{ dir: 'only', name: '@x/cli', path: 'packages/cli' }] } };\n",
       }),
     });
 
@@ -247,7 +248,7 @@ describe('the loader: packages the config does not write are derived, a list it 
       root: monorepo({
         workspaces: ['a/*', 'a-b/*'],
         members: { 'a/b-c': '@x/one', 'a-b/c': '@x/two' },
-        config: 'export default { packages: [] };\n',
+        config: 'export default { project: { packages: [] } };\n',
       }),
     });
 
@@ -260,7 +261,7 @@ describe('the loader: packages the config does not write are derived, a list it 
   test('a project with no workspaces has no packages, as before', async () => {
     const loaded = await ConfigLoader.load({
       root: createProject({
-        files: { '.configs/vulcan.config.mts': "export default { name: 'acme' };\n" },
+        files: { '.configs/vulcan.config.mts': "export default { project: { name: 'acme' } };\n" },
       }),
     });
 
@@ -284,7 +285,7 @@ describe('doctor: a workspace member the list does not name', () => {
   test('is a warning that names the members and the way out', async () => {
     const root = monorepo({
       config:
-        "export default { packages: [{ dir: 'cli', name: '@x/cli', path: 'packages/cli' }] };\n",
+        "export default { project: { packages: [{ dir: 'cli', name: '@x/cli', path: 'packages/cli' }] } };\n",
     });
     const [hit] = await check(root);
 
@@ -312,7 +313,7 @@ describe('doctor: a workspace member the list does not name', () => {
       workspaces: ['packages/*'],
       members: { 'packages/okf': '@x/okf' },
       config:
-        "export default { packages: [{ dir: 'okf', name: '@x/okf', path: './packages/okf/' }] };\n",
+        "export default { project: { packages: [{ dir: 'okf', name: '@x/okf', path: './packages/okf/' }] } };\n",
     });
 
     const result = await check(root);
@@ -325,7 +326,7 @@ describe('doctor: a workspace member the list does not name', () => {
     const result2 = await check(
       monorepo({
         config:
-          "export default { packages: [{ dir: 'a', name: '@x/okf', path: 'packages/okf' }, { dir: 'b', name: '@x/cli', path: 'packages/cli', retired: true }, { dir: 'c', name: '@x/site', path: 'apps/web/site' }] };\n",
+          "export default { project: { packages: [{ dir: 'a', name: '@x/okf', path: 'packages/okf' }, { dir: 'b', name: '@x/cli', path: 'packages/cli', retired: true }, { dir: 'c', name: '@x/site', path: 'apps/web/site' }] } };\n",
       }),
     );
     expect(result2).toEqual([]);

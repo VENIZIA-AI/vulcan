@@ -40,7 +40,7 @@ The form runs as menus in a terminal that can draw them and as plain lines other
 - A symlink at the file's place or at `.agents/local` is refused.
 - `vulcan project doctor` warns when the file cannot be read, when git would pick it up and when git tracks it.
 
-The fields, and how a profile combines with the project's [`owner` block](/references/configuration/#owner), are in the [configuration reference](/references/configuration/#the-personal-profile).
+The fields, and how a profile combines with the project's [`owner` block](/references/configuration/#agent-owner), are in the [configuration reference](/references/configuration/#the-personal-profile).
 
 ## Exit codes
 

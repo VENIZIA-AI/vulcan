@@ -59,7 +59,8 @@ describe('vulcan project init: the project key', () => {
   });
 
   test('an existing config is kept and nothing is asked: its key, or none, stays', () => {
-    const own = "export default { name: 'x', rules: { 'V-W-01': 'on-user-word' } };\n";
+    const own =
+      "export default { project: { name: 'x' }, agent: { rules: { 'V-W-01': 'on-user-word' } } };\n";
     const root = app('x', { [CONFIG]: own });
     const result = init({ root });
 

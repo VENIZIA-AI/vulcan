@@ -5,7 +5,8 @@ import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
 
-const PLAIN_CONFIG = "export default { agents: ['claude'], rules: { 'V-W-01': 'read-only' } };\n";
+const PLAIN_CONFIG =
+  "export default { agent: { list: ['claude'], rules: { 'V-W-01': 'read-only' } } };\n";
 
 describe('ConfigLoader.findFile', () => {
   test('finds nothing in an empty directory', () => {
@@ -82,7 +83,7 @@ describe('ConfigLoader.load', () => {
 
   test('a wrong type: the error names the field path', async () => {
     const root = createProject({
-      files: { '.configs/vulcan.config.mts': "export default { agents: 'claude' };\n" },
+      files: { '.configs/vulcan.config.mts': "export default { agent: { list: 'claude' } };\n" },
     });
     const result = await ConfigLoader.load({ root });
 
@@ -95,7 +96,7 @@ describe('ConfigLoader.load', () => {
 
   test('an unknown agent kind is rejected', async () => {
     const root = createProject({
-      files: { '.configs/vulcan.config.mts': "export default { agents: ['notepad'] };\n" },
+      files: { '.configs/vulcan.config.mts': "export default { agent: { list: ['notepad'] } };\n" },
     });
 
     const result = await ConfigLoader.load({ root });

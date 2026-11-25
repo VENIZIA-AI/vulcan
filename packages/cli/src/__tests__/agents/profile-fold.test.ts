@@ -25,7 +25,7 @@ const OLD = {
   events: { dir: '/srv/vulcan-fixture/events' },
 };
 const PROJECT = {
-  '.configs/vulcan.config.mts': "export default { name: 'acme' };\n",
+  '.configs/vulcan.config.mts': "export default { project: { name: 'acme' } };\n",
   'package.json': '{ "name": "@x/acme-workspace" }',
   '.gitignore': 'node_modules\n',
 };

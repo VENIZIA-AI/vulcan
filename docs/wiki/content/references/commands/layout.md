@@ -29,16 +29,16 @@ bun node_modules/.bin/vulcan check layout
 | Rule | A finding | What to do |
 |---|---|---|
 | `plural-suffix` | A role part of a file name is plural: `user.helpers.ts`, `order.services.test.ts`. The role is every part between the stem and the extension; the stem (`constants.ts`) is not read | Name the file with the singular the message gives (`user.helper.ts`) |
-| `mixed-folder` | A folder under a root (the root itself included) has at least `doctor.layout.minSubfolders` subfolders (3) and a loose source file other than `index.ts` or `index.tsx` beside them. A subfolder is any folder with a tracked file, `__tests__` included | Move the loose files into a subfolder; only the entry point stays |
-| `long-file` | A source file has more lines than `doctor.layout.maxLines` (400) and is not generated | Split it by concern |
+| `mixed-folder` | A folder under a root (the root itself included) has at least `check.layout.minSubfolders` subfolders (3) and a loose source file other than `index.ts` or `index.tsx` beside them. A subfolder is any folder with a tracked file, `__tests__` included | Move the loose files into a subfolder; only the entry point stays |
+| `long-file` | A source file has more lines than `check.layout.maxLines` (400) and is not generated | Split it by concern |
 
-**Plural.** A role word is plural when it ends in `s` and is not on the list of words that only look plural: `access`, `alias`, `analysis`, `canvas`, `class`, `css`, `process`, `status`, `stories`, plus the project's `doctor.layout.pluralAllow`. The singular drops the `s`, turns `ies` into `y`, and knows `aliases`, `analyses`, `classes`, `indices`, `processes` and `statuses`.
+**Plural.** A role word is plural when it ends in `s` and is not on the list of words that only look plural: `access`, `alias`, `analysis`, `canvas`, `class`, `css`, `process`, `status`, `stories`, plus the project's `check.layout.pluralAllow`. The singular drops the `s`, turns `ies` into `y`, and knows `aliases`, `analyses`, `classes`, `indices`, `processes` and `statuses`.
 
-**Generated.** A file is generated when its opening comment lines (the first 10 lines, up to the first line that is not a comment) say `generated` or `do not edit`, in any case, or when its path matches a glob of `doctor.layout.generated`. The words in code (`import ... from './generated-block.ts'`) do not count.
+**Generated.** A file is generated when its opening comment lines (the first 10 lines, up to the first line that is not a comment) say `generated` or `do not edit`, in any case, or when its path matches a glob of `check.layout.generated`. The words in code (`import ... from './generated-block.ts'`) do not count.
 
 ## Configuration
 
-`doctor.layout` in `.configs/vulcan.config.mts`; every field has a default:
+`check.layout` in `.configs/vulcan.config.mts`; every field has a default:
 
 | Field | Default | What it does |
 |---|---|---|
@@ -49,7 +49,7 @@ bun node_modules/.bin/vulcan check layout
 
 ```ts
 export default {
-  doctor: {
+  check: {
     layout: { maxLines: 600, pluralAllow: ['news'], generated: ['src/generated/**'] },
   },
 } satisfies VulcanConfig;
@@ -80,4 +80,4 @@ vulcan check layout: 2 new, 1 in the baseline, 0 stale baseline entries
 ## See also
 
 - [`vulcan project doctor`](/references/commands/doctor#file-layout): the `file-layout` warning.
-- [Configuration](/references/configuration/): `doctor.layout`.
+- [Configuration](/references/configuration/): `check.layout`.

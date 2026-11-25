@@ -352,7 +352,7 @@ describe('every shipped skill and the shared references', () => {
       .filter((heading) => headings.includes(heading ?? ''));
 
     expect(example).toEqual(headings);
-    expect(text).toContain("the project's `owner.language`");
+    expect(text).toContain("the project's `agent.owner.language`");
 
     expect(text).not.toMatch(/(?:^|[\s(])(?:\/home\/|\/Users\/|~\/|[A-Z]:\\)/m);
   });

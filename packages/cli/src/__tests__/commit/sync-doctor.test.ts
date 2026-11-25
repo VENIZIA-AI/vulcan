@@ -10,7 +10,7 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 const CONFIG = (opts: { commit?: string }) =>
-  `export default {${opts.commit === undefined ? '' : ` commit: ${opts.commit},`} };\n`;
+  `export default {${opts.commit === undefined ? '' : ` check: { commit: ${opts.commit} },`} };\n`;
 
 const DENY = "{ message: { agent: { signature: 'deny' } } }";
 

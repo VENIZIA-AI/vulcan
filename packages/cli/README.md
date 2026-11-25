@@ -50,12 +50,18 @@ clean MCP stdio server.
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  agents: ['claude'],
-  rules: { 'V-W-01': 'on-user-word' },          // slot choice: 'on-user-word' | 'read-only'
-  knowledge: { bundle: '.agents/knowledge' },
-  claude: { settings: { permissions: { allow: ['Bash(make test)'] } } }, // team-shared, committed
-  digest: { oftenDropped: ['V-B-03', 'W-00'] },  // repeated at every session start; base or own IDs
-  layout: { backend: 'services', frontend: 'web', shared: 'libs' }, // written by init --preset and add
+  project: {
+    layout: { backend: 'services', frontend: 'web', shared: 'libs' }, // written by init --preset and add
+  },
+  agent: {
+    list: ['claude'],
+    rules: { 'V-W-01': 'on-user-word' },          // slot choice: 'on-user-word' | 'read-only'
+    digest: { oftenDropped: ['V-B-03', 'W-00'] },  // repeated at every session start; base or own IDs
+    claude: { settings: { permissions: { allow: ['Bash(make test)'] } } }, // team-shared, committed
+  },
+  knowledge: {
+    bundle: '.agents/knowledge',
+  },
 } satisfies VulcanConfig;
 ```
 

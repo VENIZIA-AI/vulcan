@@ -29,7 +29,7 @@ Nothing changes until a project turns it on. Add this to `.configs/vulcan.config
 commit: { message: { agent: { signature: 'deny' } } },
 ```
 
-Then run `vulcan sync` in each clone; that also writes Claude Code's `attribution` setting. A project that kept its own script for this can replace it with `vulcan commit-check --range <revs>` in CI and drop the script. The keys are in the [configuration reference](/references/configuration/#commit) and the details in [vulcan commit-check](/references/commands/commit-check).
+Then run `vulcan sync` in each clone; that also writes Claude Code's `attribution` setting. A project that kept its own script for this can replace it with `vulcan commit-check --range <revs>` in CI and drop the script. The keys are in the [configuration reference](/references/configuration/#check-commit) and the details in [vulcan commit-check](/references/commands/commit-check).
 
 ## Who is affected
 

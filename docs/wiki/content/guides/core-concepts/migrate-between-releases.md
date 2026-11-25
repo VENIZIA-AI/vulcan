@@ -10,7 +10,7 @@ description: Ask what your app must change to move a @venizia/* package to anoth
 ## What you need
 
 - The `@venizia/*` packages installed in the app, at exact versions.
-- atlas serving the repositories that publish them: a project lists them in `atlas.sources` of its config. `vulcan atlas tools` must list `migrate`.
+- atlas serving the repositories that publish them: a project lists them in `knowledge.atlas.sources` of its config. `vulcan atlas tools` must list `migrate`.
 - For `apply`, the `devz` command of `@venizia/dev-configs` in the app or a parent folder, and the app under git.
 
 ## Plan an upgrade
@@ -108,7 +108,7 @@ bun node_modules/.bin/vulcan migrate apply --package @venizia/ignis --to 1.1.0
 
 ## When the plan holds nothing
 
-`N changelog entries in the window; 0 structured steps` means the window has entries but none carries a `migration` block: read the breaking ones it lists. `No changelog entry falls between A and B` means the release table holds no entry between the two versions; it proves nothing about the move. A `Warning:` at the top means a source in `atlas.sources` could not be served, so the plan covers only the rest: fix the source (`vulcan atlas pull` shows why) and plan again.
+`N changelog entries in the window; 0 structured steps` means the window has entries but none carries a `migration` block: read the breaking ones it lists. `No changelog entry falls between A and B` means the release table holds no entry between the two versions; it proves nothing about the move. A `Warning:` at the top means a source in `knowledge.atlas.sources` could not be served, so the plan covers only the rest: fix the source (`vulcan atlas pull` shows why) and plan again.
 
 Run the command from any folder of the project. A folder with no VULCAN config uses the nearest enclosing project, and the folder you ran it in is the app.
 

@@ -39,7 +39,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `adapters` | Generated files, settings and links match configuration; the `AGENTS.md` blocks are present and current | Run `bun node_modules/.bin/vulcan project sync` |
 | `manifest` | `.agents/local/vulcan.manifest.json`, the committed `.agents/atlas.manifest.json` and the temporary data-only copy of it at `.agents/vulcan.manifest.json` (kept until the stable 0.5.0 release, for atlas of 0.5.0-6 and before) match the project configuration | Run `bun node_modules/.bin/vulcan project sync` and commit the descriptor and the copy |
 | `changelog-folders` | A project with version folders under its changelog directory has a vulcan installed whose atlas reads them | Install the vulcan version the message names |
-| `tags` | Git tags matching `atlas.tagPattern` resolve to declared packages | Declare the package, add an alias, or add the tag to `atlas.ignoreTags` |
+| `tags` | Git tags matching `knowledge.atlas.tagPattern` resolve to declared packages | Declare the package, add an alias, or add the tag to `knowledge.atlas.ignoreTags` |
 | `skills` (warning) | A skill's description has no "Use when" part, so atlas cannot tell an agent when to load it; never a failure | Start the description with when to use the skill |
 | `skills` (skill lint) | Project skills satisfy authoring rules for frontmatter and structure | Fix frontmatter formatting, limits, or missing sections in `SKILL.md` |
 | `style` | Packages declare `@venizia/dev-configs` and lint configuration files import the shared style | Add `@venizia/dev-configs` as a devDependency and import it in lint configuration files |
@@ -47,14 +47,14 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `apps` | Each `backend`, `frontend`, `shared` folder of `layout` is a workspace; each package is in a listed folder (`other` too) | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 | `agents` | The stored agents file parses and names only known agents | Fix the key it names in `.agents/local/profile.json`, then run `vulcan project sync --agents <list>` |
 | `format` (warning) | Root `bunfig.toml` has `[fmt]` with `flavor = "oxfmt"`; no `package.json` defines `fmt`; no oxfmt config is left | Add the section, rename the script, delete the config or the copy |
-| `commit-hook` (warning) | `commit.message` has a check on and this clone's `commit-msg` hook is missing, stale or skips `vulcan check commit` | Run `bun node_modules/.bin/vulcan project sync`; for your own hook, add the line the warning shows |
-| `events-size` (warning) | Today's event file alone is over `events.maxSize` | Raise `maxSize` or write fewer events |
+| `commit-hook` (warning) | `check.commit.message` has a check on and this clone's `commit-msg` hook is missing, stale or skips `vulcan check commit` | Run `bun node_modules/.bin/vulcan project sync`; for your own hook, add the line the warning shows |
+| `events-size` (warning) | Today's event file alone is over `board.events.maxSize` | Raise `maxSize` or write fewer events |
 | `events-dir` (warning) | `board.events.dir` (from the config, or from `.agents/local/profile.json`, which replaces it) names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
 | `profile` (warning) | `.agents/local/profile.json` cannot be read (an unknown key is refused: the file takes the profile keys and `agent`, `board`, `common`; an old key (`agents`, `events`, `local`, `board.agents`) is refused by name until `vulcan project sync` has moved it), is not ignored by git, or is tracked by git | Fix or delete the file and run the profile form again; ignore `.agents/local/` or untrack the file |
 | `guards` (note) | Notes list each `guard.writes.commands` pattern and `guard.git.askPush` | Change the list in the config |
-| `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `local.tmp` to a short folder and run `vulcan project sync`, or check out at a shorter path |
-| `local` (failure) | `local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
-| `board-autostart` (note) | `board.serve.autoStart` of `.agents/local/profile.json` is on and `events.log` is off, so no board is started | Set `events.log` to `true`, or turn `autoStart` off |
+| `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `common.local.tmp` to a short folder and run `vulcan project sync`, or check out at a shorter path |
+| `local` (failure) | `common.local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
+| `board-autostart` (note) | `board.serve.autoStart` of `.agents/local/profile.json` is on and `board.events.log` is off, so no board is started | Set `board.events.log` to `true`, or turn `autoStart` off |
 | `atlas-source` (warning) | The last atlas server run recorded a source as failed, as failing its refresh (an older index is served), or as building for over ten minutes in a live server | Run `vulcan atlas status` for the record; fix the remote or the network, or `vulcan atlas pull` the source |
 | `prepare` (note) | No install script (`prepare` or `postinstall`) of the root `package.json` runs `vulcan project sync` (directly or as `make vulcan-sync`), so a fresh clone has no hooks until someone runs it | Add the `prepare` script the note prints (`vulcan project init --preset` writes it for a new project) |
 | `claude-settings` (warning) | Git tracks `.claude/settings.json`, which `sync` writes in every clone | `git rm --cached .claude/settings.json`; sync keeps it out of git from then on |
@@ -63,9 +63,9 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `config-order` (note) | The top-level keys of the config are not in the canonical order | Run `vulcan config format` |
 | `config-remove` (warning) | A `remove` entry matches nothing, so it does nothing | Delete the entry |
 | `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it, or delete `packages` so it is derived from the workspaces |
-| `project-key` (warning) | `events.log` is on and `project.key` is not set, so no flow can be created | Add `project: { key: 'KEY' }` to the config and run `vulcan project sync` |
-| `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `doctor.privateValues.acknowledged` |
-| `file-layout` (warning, note) | A file name with a plural role (`user.helpers.ts`), a folder that mixes subfolders with loose source files, or a source file over `doctor.layout.maxLines`, that `.configs/layout-baseline.json` does not hold; what it holds is one note | Rename, move or split, or adopt the findings with `vulcan check layout --write-baseline` |
+| `project-key` (warning) | `board.events.log` is on and `project.key` is not set, so no flow can be created | Add `project: { key: 'KEY' }` to the config and run `vulcan project sync` |
+| `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `check.doctor.privateValues.acknowledged` |
+| `file-layout` (warning, note) | A file name with a plural role (`user.helpers.ts`), a folder that mixes subfolders with loose source files, or a source file over `check.layout.maxLines`, that `.configs/layout-baseline.json` does not hold; what it holds is one note | Rename, move or split, or adopt the findings with `vulcan check layout --write-baseline` |
 | `mcp` (warning) | `.mcp.json` holds the canonical `atlas` entry, is not untracked and unignored, and the Claude settings enable `atlas` | Use the entry the warning shows; ignore `/.mcp.json` or run `vulcan project sync` at the top level; run `vulcan project sync` |
 | `local` (warning) | Stray entries directly under `.agents/local/` | Move them to `tmp/`, `reports/` or `agents/<name>/` |
 | `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor` | Unset it in a shell the owner works in |
@@ -187,7 +187,7 @@ When sync skips a file, it reports the reason or `shadows a shipped skill - rena
 
 ### manifest
 
-A missing or outdated `.agents/local/vulcan.manifest.json`, `.agents/atlas.manifest.json` or `.agents/vulcan.manifest.json` triggers this check. The last is a temporary data-only copy of the descriptor, kept until the stable 0.5.0 release because atlas of 0.5.0-6 and before reads a source's manifest only at that path; the message says so, and the fix is the same: run `vulcan project sync` and commit it. In a repository that publishes nothing (no `atlas.index.keys`, and git tracks no descriptor) only the local manifest is checked, and a descriptor left untracked by an earlier sync is a violation that `vulcan project sync` fixes by deleting it. A descriptor git tracks makes the repository a source: it is checked like the rest, and doctor never asks to untrack it. When git cannot say (not a repository, a broken index), the descriptor counts as tracked.
+A missing or outdated `.agents/local/vulcan.manifest.json`, `.agents/atlas.manifest.json` or `.agents/vulcan.manifest.json` triggers this check. The last is a temporary data-only copy of the descriptor, kept until the stable 0.5.0 release because atlas of 0.5.0-6 and before reads a source's manifest only at that path; the message says so, and the fix is the same: run `vulcan project sync` and commit it. In a repository that publishes nothing (no `knowledge.atlas.index.keys`, and git tracks no descriptor) only the local manifest is checked, and a descriptor left untracked by an earlier sync is a violation that `vulcan project sync` fixes by deleting it. A descriptor git tracks makes the repository a source: it is checked like the rest, and doctor never asks to untrack it. When git cannot say (not a repository, a broken index), the descriptor counts as tracked.
 
 ```text
 $ bun node_modules/.bin/vulcan project doctor
@@ -199,7 +199,7 @@ When the file is absent, the check reports `missing - run 'bun node_modules/.bin
 
 ### tags
 
-A git tag matching `atlas.tagPattern` that names an undeclared package directory triggers this check.
+A git tag matching `knowledge.atlas.tagPattern` that names an undeclared package directory triggers this check.
 
 ```text
 $ bun node_modules/.bin/vulcan project doctor
@@ -207,11 +207,11 @@ $ bun node_modules/.bin/vulcan project doctor
 vulcan project doctor: 1 violation(s)
 ```
 
-The check is skipped if `atlas.tagPattern` has no `<dir>`.
+The check is skipped if `knowledge.atlas.tagPattern` has no `<dir>`.
 It is also skipped when the directory is not a git repository.
 To resolve the tag error, declare the package in `.configs/vulcan.config.mts` under `packages`.
 Set `retired: true` if the package is no longer maintained.
-Alternatively, add the directory to `aliases` on the package or add the pattern to `atlas.ignoreTags`.
+Alternatively, add the directory to `aliases` on the package or add the pattern to `knowledge.atlas.ignoreTags`.
 
 ### style
 
@@ -252,7 +252,7 @@ vulcan project doctor: 1 violation(s)
 
 ### apps
 
-A `backend`, `frontend` or `shared` folder of `layout` missing from `package.json` workspaces (`<folder>/*`, `<folder>/**`, the `./` forms and any glob that matches a package there, such as `frontends/*/*`, all count), or a package outside every listed folder, triggers this check. A folder listed under `layout.other` need not be a workspace, and a package under it is allowed, so a project can declare its layout while keeping documentation, third-party code or tests outside the sides; a package under no listed folder is still reported. Projects without `layout` skip it.
+A `backend`, `frontend` or `shared` folder of `layout` missing from `package.json` workspaces (`<folder>/*`, `<folder>/**`, the `./` forms and any glob that matches a package there, such as `frontends/*/*`, all count), or a package outside every listed folder, triggers this check. A folder listed under `project.layout.other` need not be a workspace, and a package under it is allowed, so a project can declare its layout while keeping documentation, third-party code or tests outside the sides; a package under no listed folder is still reported. Projects without `layout` skip it.
 
 The following output drops the lines that belong to other checks:
 
@@ -279,11 +279,11 @@ Anything else is a warning that shows the expected entry: a file that is not JSO
   warning [mcp] .claude/settings.json: enabledMcpjsonServers does not include atlas (has: ignis-knowledge): Claude asks before using the server - run vulcan project sync
 ```
 
-To serve another project's knowledge too, declare it as an `atlas.sources` entry in `.configs/vulcan.config.mts`; `--root` stays `.`.
+To serve another project's knowledge too, declare it as an `knowledge.atlas.sources` entry in `.configs/vulcan.config.mts`; `--root` stays `.`.
 
 ### commit-hook
 
-A warning, not a violation: a hook belongs to one clone, and a fresh CI checkout has none. It appears only when `commit.message` turns a check on ([vulcan check commit](/references/commands/commit-check)), the folder is a git repository, and the clone's `commit-msg` hook is not in order.
+A warning, not a violation: a hook belongs to one clone, and a fresh CI checkout has none. It appears only when `check.commit.message` turns a check on ([vulcan check commit](/references/commands/commit-check)), the folder is a git repository, and the clone's `commit-msg` hook is not in order.
 
 ```text
   warning [commit-hook] .git/hooks/commit-msg: the commit-msg hook is not installed, so commit messages are not checked - run 'bun node_modules/.bin/vulcan project sync' (make vulcan-sync)
@@ -300,7 +300,7 @@ The last message reads `this project's commit check is not installed: the hook b
 
 ### events-size
 
-A warning: today's event file is bigger than `events.maxSize` on its own. The retention removes whole old day files and never today's, so nothing else will shrink it; raise `maxSize` or write fewer events. It appears only when the log is on or a limit is set.
+A warning: today's event file is bigger than `board.events.maxSize` on its own. The retention removes whole old day files and never today's, so nothing else will shrink it; raise `maxSize` or write fewer events. It appears only when the log is on or a limit is set.
 
 ```text
   warning [events-size] .configs/vulcan.config.mts: today's event file in /path/.agents/local/events is 61.2 MB, over events.maxSize (50MB); nothing is truncated and today's file is never removed - raise maxSize or write fewer events
@@ -316,11 +316,11 @@ A note: no install script of the root `package.json` runs `vulcan project sync`.
 
 ### claude-settings
 
-A warning: git tracks `.claude/settings.json`. `vulcan project sync` writes that file in every clone from the shipped hooks and the `claude.settings` of the config, so a committed copy goes stale and shows as a diff. Run `git rm --cached .claude/settings.json`. `sync` adds `/.claude/settings.json` to a committed `.gitignore` that does not already ignore `.claude/`.
+A warning: git tracks `.claude/settings.json`. `vulcan project sync` writes that file in every clone from the shipped hooks and the `agent.claude.settings` of the config, so a committed copy goes stale and shows as a diff. Run `git rm --cached .claude/settings.json`. `sync` adds `/.claude/settings.json` to a committed `.gitignore` that does not already ignore `.claude/`.
 
 ### board-autostart
 
-A note: `board.serve.autoStart` is on in `.agents/local/profile.json`, but the session start starts the board only when the event log is on too. Set `events.log` to `true` to get the board, or turn `autoStart` off.
+A note: `board.serve.autoStart` is on in `.agents/local/profile.json`, but the session start starts the board only when the event log is on too. Set `board.events.log` to `true` to get the board, or turn `autoStart` off.
 
 ### config-defaults
 
@@ -350,7 +350,7 @@ Add the entries, or delete the `packages` key. Second: a workspace member that c
 
 ### events-dir
 
-A warning, not a violation: the folder belongs to the machine, and a CI checkout may not have it. It appears only when `events.dir` ([the event log](/references/commands/event#one-folder-for-every-project)), in the config or in your `.agents/local/profile.json`, is set to a folder outside the project; the line names the file the folder came from. The event hooks fail open, so a folder they cannot write loses every line without a message; this warning is where it shows. A `dir` inside the project is made on the first write and is not checked.
+A warning, not a violation: the folder belongs to the machine, and a CI checkout may not have it. It appears only when `board.events.dir` ([the event log](/references/commands/event#one-folder-for-every-project)), in the config or in your `.agents/local/profile.json`, is set to a folder outside the project; the line names the file the folder came from. The event hooks fail open, so a folder they cannot write loses every line without a message; this warning is where it shows. A `dir` inside the project is made on the first write and is not checked.
 
 ```text
   warning [events-dir] .configs/vulcan.config.mts: events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
@@ -372,8 +372,8 @@ The same folder set in the local file is reported against it:
 
 Six results share the name `local`.
 
-- **tmp too deep (warning):** the project's tmp folder (`.agents/tmp` under the project path) is too deep for a browser. Chrome and Chromium put a socket below the temp folder, a socket path is 107 characters at most on Linux (104 on macOS, which this check does not count), and past that the browser exits with `Socket path too long`. The warning names the folder, the length and the longest project path that fits. Fix: set `local.tmp` to a short folder of the project and run `vulcan project sync`, or check the project out at a shorter path.
-- **tmp still too deep (failure):** `local.tmp` names a folder whose browser socket path is still over 107 characters (the checkout path plus the folder plus the longest socket name). Fix: use a shorter folder name or a shorter checkout path.
+- **tmp too deep (warning):** the project's tmp folder (`.agents/tmp` under the project path) is too deep for a browser. Chrome and Chromium put a socket below the temp folder, a socket path is 107 characters at most on Linux (104 on macOS, which this check does not count), and past that the browser exits with `Socket path too long`. The warning names the folder, the length and the longest project path that fits. Fix: set `common.local.tmp` to a short folder of the project and run `vulcan project sync`, or check the project out at a shorter path.
+- **tmp still too deep (failure):** `common.local.tmp` names a folder whose browser socket path is still over 107 characters (the checkout path plus the folder plus the longest socket name). Fix: use a shorter folder name or a shorter checkout path.
 - **stray entries (warning):** one or more entries directly under `.agents/local/` are not a folder of the layout, a file VULCAN writes or a browser's scratch folder. The warning counts them, gives their size and names the first ten. Nothing removes them. Fix: put scratch in `tmp/`, what you keep in `reports/`, what one agent keeps for itself in `agents/<name>/`, and a script the team relies on in the tracked tree.
 - **owner reply off in the shell (note):** `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor`, so sessions started from it get no owner shape card and no profile card. Fix: unset it in a shell the owner works in; a started session gets it on its own command line only.
 - **owner reply off in the settings (warning):** `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env`, so every session of the project gets no owner shape card and no profile card. Fix: remove it from `env`.
@@ -394,11 +394,13 @@ A project that knowingly commits development credentials records the decision, a
 
 ```ts
 export default {
-  doctor: {
-    privateValues: {
-      acknowledged: [
-        { path: 'infra/dev/**', kinds: ['private-key'], reason: 'dev-only keys, replaced by the secret store' },
-      ],
+  check: {
+    doctor: {
+      privateValues: {
+        acknowledged: [
+          { path: 'infra/dev/**', kinds: ['private-key'], reason: 'dev-only keys, replaced by the secret store' },
+        ],
+      },
     },
   },
 } satisfies VulcanConfig;

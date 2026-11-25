@@ -133,6 +133,44 @@ export class ConfigGroups {
     });
   }
 
+  /**
+   * What a flat config's top-level keys became: each key that moved with the grouped path it is at now (`events` is `board.events`), and
+   * the keys that are no config key at all. A key the two shapes share (`guard`, `knowledge`) is neither: it did not move.
+   */
+  static movesOf(opts: { value: Record<string, unknown> }): {
+    moved: { key: string; to: string }[];
+    unknown: string[];
+  } {
+    const known = new Set([
+      ...Object.values(ConfigGroups.GROUPS).flatMap((keys) =>
+        Object.values(keys).map((target) => target.to),
+      ),
+      ...ConfigGroups.KNOWLEDGE_TOOLS,
+      'knowledge',
+      'guard',
+    ]);
+    const grouped = new Set(ConfigGroups.names());
+    const keys = Object.keys(opts.value).filter((key) => !grouped.has(key));
+    const to = (key: string): string =>
+      key === 'project' ? 'project.key' : ConfigGroups.groupedPathOf({ path: key });
+    const board = opts.value['board'];
+
+    // `board` is a group too: with a key of the old page settings (`title`, `hostname`...) it is the flat one, and it is `board.page` now.
+    if (
+      RecordValue.isRecord(board) &&
+      Object.keys(board).some((key) => !ConfigGroups.GROUPS['board'][key])
+    ) {
+      keys.push('board');
+    }
+
+    return {
+      moved: keys
+        .filter((key) => known.has(key) && to(key) !== key)
+        .map((key) => ({ key, to: to(key) })),
+      unknown: keys.filter((key) => !known.has(key)),
+    };
+  }
+
   static names(): string[] {
     return ['project', 'agent', 'guard', 'board', 'knowledge', 'check', 'common'];
   }

@@ -10,7 +10,8 @@ afterAll(removeProjects);
 
 /** A project as it was before `.agents/local/` existed: an old `.gitignore`, no local workspace. */
 const PRE_UPGRADE = {
-  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
+  '.configs/vulcan.config.mts':
+    "export default { agent: { rules: { 'V-W-01': 'on-user-word' } } };\n",
   'AGENTS.md': '# x\n',
   '.gitignore': 'node_modules/\n.agents/local/profile.json\n',
 };

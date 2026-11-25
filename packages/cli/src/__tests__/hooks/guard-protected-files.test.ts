@@ -398,6 +398,8 @@ describe('guard-outside denies a vulcan command that writes the config', () => {
     'bun node_modules/.bin/vulcan config codemod config-groups . --write',
     'bun node_modules/.bin/vulcan config codemod config-groups . --split --write',
     'ls && bun node_modules/.bin/vulcan config format; ls',
+    'bun node_modules/.bin/vulcan migrate apply --to latest',
+    'bunx @venizia/vulcan@0.5.0-9 migrate apply --package @venizia/vulcan --to next',
   ])('%s', (command) => {
     expect(protectedHitsOf({ root, command }).length).toBeGreaterThan(0);
   });
@@ -409,6 +411,7 @@ describe('guard-outside denies a vulcan command that writes the config', () => {
     'bun node_modules/.bin/vulcan config codemod --list',
     'bun node_modules/.bin/vulcan config effective',
     'bun node_modules/.bin/vulcan config diff',
+    'bun node_modules/.bin/vulcan migrate plan --to latest',
     'bun node_modules/.bin/vulcan project doctor',
     'bun node_modules/.bin/vulcan check layout',
     'echo config format',

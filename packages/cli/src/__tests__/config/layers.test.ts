@@ -331,7 +331,8 @@ describe('the merge and the schema', () => {
   test('the shipped layers are the base and each pack in order, under the project object', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.mts': "export default { name: 'acme', packs: ['venizia'] };\n",
+        '.configs/vulcan.config.mts':
+          "export default { project: { name: 'acme' }, agent: { packs: ['venizia'] } };\n",
       },
     });
     const loaded = await ConfigLoader.load({ root });
@@ -432,7 +433,7 @@ describe('vulcan config', () => {
     createProject({
       files: {
         '.configs/vulcan.config.mts':
-          "export default { name: 'acme', packs: ['venizia'], remove: { 'atlas.sources': ['ghost'] } };\n",
+          "export default { project: { name: 'acme' }, agent: { packs: ['venizia'] }, common: { remove: { 'atlas.sources': ['ghost'] } } };\n",
       },
     });
 

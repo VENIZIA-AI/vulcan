@@ -6,7 +6,7 @@ An item is one slice of a card (see `plan-a-change`). The card holds the goal, t
 
 ## The template
 
-One fixed structure, the same in every project: a title line, then these nine headings, spelled exactly as written and in this order. The body under each heading is written in the language of the team that reads the item: the project's `owner.language`, English when it is unset. The fixed headings make an item searchable in any tracker and checkable by heading.
+One fixed structure, the same in every project: a title line, then these nine headings, spelled exactly as written and in this order. The body under each heading is written in the language of the team that reads the item: the project's `agent.owner.language`, English when it is unset. The fixed headings make an item searchable in any tracker and checkable by heading.
 
 | Heading | Holds |
 |---|---|
@@ -77,7 +77,7 @@ An item is ready for an agent when each line holds. Run it before the item is ma
 - [ ] Every criterion is one behaviour with a probe, and the criteria together show the desired behaviour.
 - [ ] Out of scope has content, and Blocked by and Parent are filled or say "none".
 - [ ] Key interfaces name what to change by name; a reader can find each in the knowledge bundle or by atlas `symbol`.
-- [ ] The body is in the project's `owner.language`.
+- [ ] The body is in the project's `agent.owner.language`.
 - [ ] A person who was not in the conversation can say what changes and why from the first lines, and a fresh agent could start without asking.
 
 An item that fails a line is not ready for an agent; if the missing part is a decision, the item needs a human and the decision is named.

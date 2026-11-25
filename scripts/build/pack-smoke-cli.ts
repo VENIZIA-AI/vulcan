@@ -59,8 +59,10 @@ export default defineRenderer({
 `;
 
 const probeConfigOf = (opts: { sourceUrl: string }): string => `export default {
-  okf: { renderers: [{ id: 'probe', module: '.agents/okf/probe.ts' }] },
-  atlas: { sources: [{ name: 'remote', repo: '${opts.sourceUrl}', ref: 'develop' }] },
+  knowledge: {
+    okf: { renderers: [{ id: 'probe', module: '.agents/okf/probe.ts' }] },
+    atlas: { sources: [{ name: 'remote', repo: '${opts.sourceUrl}', ref: 'develop' }] },
+  },
 };
 `;
 

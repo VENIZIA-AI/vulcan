@@ -70,7 +70,7 @@ The app must pass `vulcan project doctor`, which `init` runs last. Its `style` c
 - `urls` (array of paths, optional): Paths to open on the dev port, each starting with `/` (`/api/hello`). `init` and `add` end with one `open http://localhost:<port><path>` line per path. With none, they print the root. They are recorded in the app's `package.json` under `vulcan.urls`, so a later `add` prints them too
 - `imports` (object of strings, optional): Node subpath imports for the app, written to its `package.json` as `imports` exactly as given, so code can import `#src/...` with no `tsconfig` `paths`, `tsc-alias` or Vite alias. Every key must start with `#`, or the preset is refused and the message names the key. Every value is a string. The [tokens](#tokens-in-files) are not replaced here. VULCAN 0.3.3 and older ignore the key
 - `files` (string, required): The folder to copy, relative to `preset.json`. It, and the `vulcan.presets.app` path, must stay inside the package; a path that climbs out with `..` is refused
-- `atlas` (array of `{ name, repo, ref }`, optional): Documentation sources added to `atlas.sources`, so agents read the framework's docs
+- `atlas` (array of `{ name, repo, ref }`, optional): Documentation sources added to `knowledge.atlas.sources`, so agents read the framework's docs
 
 The app's `package.json` is generated from these keys: `name` is the app name, `version` is `0.0.0`, and the preset package itself is a dependency.
 A `package.json` in `files/` is overwritten.
@@ -151,7 +151,7 @@ The `shared` file has the same keys as a lib preset file ([the table above](#a-l
 The shared files take the tokens `{{project}}`, `{{shared}}` (the folder name, `common`) and `{{package}}` (the npm name, `@acme/common`). The token `{{lib}}` is not replaced in a shared package, and `{{shared}}` is not replaced in a library.
 
 `vulcan package add --shared` generates `package.json` and places the package by the rules of `--lib`, in the same `shared` folder of `layout`; the folder never depends on the kind. The preset's package is not added as a dependency, so a project with only frontend apps can run `vulcan package add --preset <name> --shared common` and needs no app of that preset.
-The config records the preset with a `shared` summary and the package with `presetKind: "shared"` ([Configuration](/references/configuration/#presets)). See [`vulcan package add`](/references/commands/add#add-a-shared-package).
+The config records the preset with a `shared` summary and the package with `presetKind: "shared"` ([Configuration](/references/configuration/#project-presets)). See [`vulcan package add`](/references/commands/add#add-a-shared-package).
 
 ## Tokens in files
 

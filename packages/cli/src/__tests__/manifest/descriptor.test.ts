@@ -10,15 +10,7 @@ import { runCli } from '../run.helper.ts';
 
 afterAll(removeProjects);
 
-const CONFIG_TEXT = `export default {
-  name: 'acme',
-  packs: ['venizia'],
-  packages: [{ dir: 'kernel', name: '@x/kernel' }],
-  events: { log: true },
-  project: { key: 'ACME' },
-  guard: { outside: 'deny' },
-  atlas: { index: { keys: ['RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ='] } },
-};
+const CONFIG_TEXT = `export default { project: { name: 'acme', packages: [{ dir: 'kernel', name: '@x/kernel' }], key: 'ACME' }, agent: { packs: ['venizia'] }, guard: { outside: 'deny' }, board: { events: { log: true } }, knowledge: { atlas: { index: { keys: ['RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ='] } } } };
 `;
 const project = (opts: { legacy?: string } = {}): string =>
   createProject({
@@ -123,7 +115,7 @@ describe('the descriptor and the local manifest', () => {
 });
 
 describe('a repository that publishes no package has no descriptor', () => {
-  const APP_CONFIG = "export default { name: 'shop', guard: { outside: 'deny' } };\n";
+  const APP_CONFIG = "export default { project: { name: 'shop' }, guard: { outside: 'deny' } };\n";
   const app = (files: Record<string, string> = {}): string =>
     createProject({
       files: {

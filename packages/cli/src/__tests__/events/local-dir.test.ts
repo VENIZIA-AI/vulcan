@@ -258,7 +258,7 @@ describe('the local file and doctor', () => {
       local: { board: { events: { dir: own } } },
     });
     const config =
-      "export default { name: 'acme', project: { key: 'ACME' }, events: { log: true } };\n";
+      "export default { project: { name: 'acme', key: 'ACME' }, board: { events: { log: true } } };\n";
 
     for (const root of [plain, withLocal]) {
       mkdirSync(join(root, '.configs'), { recursive: true });

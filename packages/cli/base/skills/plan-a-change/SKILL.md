@@ -81,7 +81,7 @@ next to the code slices, never as a last group, whenever **Docs impact** is not 
 In lane L, or when there is more than one slice, write each slice as a **work item**
 (`node_modules/@venizia/vulcan/base/references/work-item.md`): its acceptance criteria are the card's claims
 for that slice, with their ids and probes; Blocked by names only what truly gates it; Parent names the card.
-The headings are the fixed English names of the reference; the body is in the project's `owner.language`. Publish the items through the
+The headings are the fixed English names of the reference; the body is in the project's `agent.owner.language`. Publish the items through the
 project's own tracker, or as files next to the card; this skill names no tracker. Run the self-check of the
 reference before an item is marked ready for an agent: the point of an item is that a person on the team
 can read it and a fresh agent can do it from the item and the knowledge bundle alone.

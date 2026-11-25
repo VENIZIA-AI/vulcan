@@ -199,7 +199,8 @@ describe('vulcan project sync and an invalid local events.dir', () => {
   test('sync refuses, names the file and the key, and writes nothing; the readers fall back', () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.mts': "export default { name: 'acme', events: { log: true } };\n",
+        '.configs/vulcan.config.mts':
+          "export default { project: { name: 'acme' }, board: { events: { log: true } } };\n",
         [LOCAL]: JSON.stringify({
           schemaVersion: 1,
           board: { events: { dir: 'relative/events' } },

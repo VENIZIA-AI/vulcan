@@ -1052,7 +1052,7 @@ describe('the vulcan:apps block of a split monorepo', () => {
       ].join('\n'),
     );
 
-    const before = await ConfigLoader.load({ root });
+    const before = await ConfigLoader.load({ root, isLenient: true });
     const result = runCli({
       args: ['config', 'codemod', 'config-groups', '.', '--split', '--write'],
       cwd: root,
@@ -1067,13 +1067,15 @@ describe('the vulcan:apps block of a split monorepo', () => {
     );
     expect(readFileSync(join(root, CONFIG), 'utf8')).toContain('// The project.');
 
-    const after = await ConfigLoader.load({ root });
+    // A new process reads the files now on disk (this one has the flat module cached): the same resolved config as before.
+    const effective = runCli({ args: ['config', 'effective'], cwd: root, env: ENV });
 
-    if (!before.ok || !after.ok) {
-      throw new Error(before.ok ? String(!after.ok && after.error) : before.error);
+    if (!before.ok) {
+      throw new Error(before.error);
     }
 
-    expect(after.config).toEqual(before.config);
+    expect(effective.code, effective.stderr).toBe(0);
+    expect(JSON.parse(effective.stdout).config).toEqual(JSON.parse(JSON.stringify(before.config)));
 
     const config = readFileSync(join(root, CONFIG), 'utf8');
     const lib = runCli({

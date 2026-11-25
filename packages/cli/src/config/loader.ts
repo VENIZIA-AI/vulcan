@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { ConfigConstants } from './common/index.ts';
 import { VULCAN_CONFIG_SCHEMA } from './schema.ts';
 import type { TResolvedConfig } from './schema.ts';
+import { ProjectLayout } from '../common/constants.ts';
 import { RecordValue } from '../common/record.ts';
 import { ConfigLayers } from './layers.ts';
 import { WorkspacePackages } from './workspaces.ts';
@@ -97,7 +98,12 @@ export class ConfigLoader {
     };
   }
 
-  static async load(opts: { root: string }): Promise<TLoadResult> {
+  /**
+   * The config of a project, validated. The flat shape of the earlier releases is refused with the new path of each key, except
+   * for a caller that passes `isLenient`: the migration tool, which has to read the old shape to move it. Adding a caller that does
+   * is a decision (`loader.test.ts` pins the list).
+   */
+  static async load(opts: { root: string; isLenient?: boolean }): Promise<TLoadResult> {
     const file = ConfigLoader.findFile({ root: opts.root });
 
     if (file === undefined) {
@@ -136,6 +142,29 @@ export class ConfigLoader {
     // The file is written in groups or flat; the rest of the load reads the flat one.
     let written: unknown = loaded.default;
 
+    // A key that moved is the flat shape of the earlier releases and is refused with its new path; a key that is no config key at all
+    // (a typo) is left to the schema, which names it as it always has.
+    const flat =
+      opts.isLenient !== true &&
+      RecordValue.isRecord(written) &&
+      ConfigGroups.isFlat({ value: written })
+        ? ConfigGroups.movesOf({ value: written })
+        : undefined;
+
+    if (flat !== undefined && flat.moved.length > 0) {
+      return {
+        ok: false,
+        file,
+        error: [
+          `${shown}: the config is in the flat shape of the earlier releases; its keys are in seven groups now (project, agent, guard, board, knowledge, check, common)`,
+          ...flat.moved.map((move) => `  ${move.key}: moved to ${move.to}`),
+          ...flat.unknown.map((key) => `  ${key}: not a config key`),
+          `run \`${ProjectLayout.VULCAN_COMMAND} config codemod config-groups . --write\` (or \`${ProjectLayout.VULCAN_COMMAND} migrate apply\`), which rewrites the file with its values and comments`,
+        ].join('\n'),
+      };
+    }
+
+    // The file is written in groups or flat (a flat file with only a typo is read as it was: the schema names the key).
     if (RecordValue.isRecord(written) && !ConfigGroups.isFlat({ value: written })) {
       const grouped = ConfigGroups.toFlat({ value: written });
 

@@ -9,7 +9,7 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 const PROJECT = {
-  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { agent: { rules: { 'V-W-01': 'read-only' } } };\n",
   'AGENTS.md': '# x\n',
 };
 const DIFF_LINE = /^ {2}(?:added|changed|removed) +V-/m;
@@ -105,7 +105,7 @@ describe('rule packs in the manifest hashes and the sync report', () => {
     createProject({
       files: {
         ...PROJECT,
-        '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }${opts.packs ? ", packs: ['venizia']" : ''} };\n`,
+        '.configs/vulcan.config.mts': `export default { agent: { rules: { 'V-W-01': 'read-only' }${opts.packs ? ", packs: ['venizia']" : ''} } };\n`,
       },
     });
   const MOVED = ['V-B-05', 'V-B-09', 'V-C-07', 'V-C-08', 'V-C-20'];
@@ -129,7 +129,7 @@ describe('rule packs in the manifest hashes and the sync report', () => {
     runSync({ root });
     writeFileSync(
       join(root, '.configs/vulcan.config.mts'),
-      "export default { rules: { 'V-W-01': 'read-only' }, packs: ['venizia'] };\n",
+      "export default { agent: { rules: { 'V-W-01': 'read-only' }, packs: ['venizia'] } };\n",
     );
 
     const first = runSync({ root });

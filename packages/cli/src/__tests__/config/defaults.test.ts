@@ -108,8 +108,10 @@ describe('what the base and the venizia pack ship', () => {
 
 describe('the pack gives the stack its guard and commit defaults', () => {
   test('a project with the venizia pack denies writes outside the project and agent signatures; one without keeps ask and allow', async () => {
-    const stack = await effective("export default { name: 'acme', packs: ['venizia'] };\n");
-    const plain = await effective("export default { name: 'acme' };\n");
+    const stack = await effective(
+      "export default { project: { name: 'acme' }, agent: { packs: ['venizia'] } };\n",
+    );
+    const plain = await effective("export default { project: { name: 'acme' } };\n");
 
     expect(stack.guard.outside).toBe('deny');
     expect(stack.commit.message.agent.signature).toBe('deny');
@@ -119,13 +121,15 @@ describe('the pack gives the stack its guard and commit defaults', () => {
 
   test('the project file overrides the pack, and sync writes the guard to the manifest', async () => {
     const own = await effective(
-      "export default { name: 'acme', packs: ['venizia'], guard: { outside: 'ask' }, commit: { message: { agent: { signature: 'allow' } } } };\n",
+      "export default { project: { name: 'acme' }, agent: { packs: ['venizia'] }, guard: { outside: 'ask' }, check: { commit: { message: { agent: { signature: 'allow' } } } } };\n",
     );
 
     expect(own.guard.outside).toBe('ask');
     expect(own.commit.message.agent.signature).toBe('allow');
 
-    const root = project("export default { name: 'acme', packs: ['venizia'] };\n");
+    const root = project(
+      "export default { project: { name: 'acme' }, agent: { packs: ['venizia'] } };\n",
+    );
 
     expect(runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root }).code).toBe(0);
     expect(
@@ -136,11 +140,13 @@ describe('the pack gives the stack its guard and commit defaults', () => {
 
   test('doctor says how many lines repeat the defaults, and warns about a remove that matches nothing', async () => {
     const repeats = project(
-      "export default { name: 'acme', packs: ['venizia'], guard: { outside: 'deny' } };\n",
+      "export default { project: { name: 'acme' }, agent: { packs: ['venizia'] }, guard: { outside: 'deny' } };\n",
     );
-    const clean = project("export default { name: 'acme', packs: ['venizia'] };\n");
+    const clean = project(
+      "export default { project: { name: 'acme' }, agent: { packs: ['venizia'] } };\n",
+    );
     const stale = project(
-      "export default { name: 'acme', remove: { 'atlas.sources': ['ghost'] } };\n",
+      "export default { project: { name: 'acme' }, common: { remove: { 'atlas.sources': ['ghost'] } } };\n",
     );
     const repeatsFound = await DoctorRunner.runNotes({ root: repeats });
     const cleanFound = await DoctorRunner.runNotes({ root: clean });
@@ -151,7 +157,7 @@ describe('the pack gives the stack its guard and commit defaults', () => {
     const staleWarnings = JSON.stringify(staleFound);
     const cleanWarnings = JSON.stringify(cleanWarned);
 
-    const auto = project("export default { name: 'acme' };\n");
+    const auto = project("export default { project: { name: 'acme' } };\n");
 
     mkdirSync(join(auto, '.agents', 'local'), { recursive: true });
     writeFileSync(
@@ -175,8 +181,10 @@ describe('the pack gives the stack its guard and commit defaults', () => {
 
 describe('the effective config of a project that writes none of it', () => {
   test('gets the base list, and the pack list only with the pack', async () => {
-    const plain = await effective("export default { name: 'acme' };\n");
-    const stack = await effective("export default { name: 'acme', packs: ['venizia'] };\n");
+    const plain = await effective("export default { project: { name: 'acme' } };\n");
+    const stack = await effective(
+      "export default { project: { name: 'acme' }, agent: { packs: ['venizia'] } };\n",
+    );
     const allowOf = (config: typeof plain): string[] =>
       PERMISSIONS.parse(config.claude.settings.permissions).allow;
 
@@ -193,18 +201,13 @@ describe('the effective config of a project that writes none of it', () => {
   });
 
   test('a project adds its own, and remove takes any default out, base or pack', async () => {
-    const config = await effective(`export default {
-      name: 'acme',
-      packs: ['venizia'],
-      digest: { oftenDropped: ['P-02'] },
-      claude: { settings: { permissions: { allow: ['Bash(make okf-check:*)'] } } },
-      remove: {
+    const config =
+      await effective(`export default { project: { name: 'acme' }, agent: { packs: ['venizia'], digest: { oftenDropped: ['P-02'] }, claude: { settings: { permissions: { allow: ['Bash(make okf-check:*)'] } } } }, common: { remove: {
         'digest.oftenDropped': ['V-P-07'],
         presets: ['ardor'],
         'atlas.sources': ['vulcan'],
         'claude.settings.permissions.allow': ['Bash(date:*)', 'Bash(bun test:*)'],
-      },
-    };\n`);
+      } } };\n`);
     const allow = PERMISSIONS.parse(config.claude.settings.permissions).allow;
 
     expect(config.digest.oftenDropped).toHaveLength(11);
@@ -220,7 +223,7 @@ describe('the effective config of a project that writes none of it', () => {
 
   test('a project that writes a line the base already has can delete it: --diff names it', () => {
     const root = project(
-      "export default { name: 'acme', claude: { settings: { permissions: { allow: ['Bash(ls:*)', 'Bash(mine:*)'] } } } };\n",
+      "export default { project: { name: 'acme' }, agent: { claude: { settings: { permissions: { allow: ['Bash(ls:*)', 'Bash(mine:*)'] } } } } };\n",
     );
     const out = runCli({ args: ['config', 'diff'], cwd: root }).stdout;
 
@@ -229,7 +232,7 @@ describe('the effective config of a project that writes none of it', () => {
   });
 
   test('sync writes the allow and deny lines into the Claude settings', () => {
-    const root = project("export default { name: 'acme' };\n");
+    const root = project("export default { project: { name: 'acme' } };\n");
 
     expect(runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root }).code).toBe(0);
 
@@ -243,7 +246,7 @@ describe('the effective config of a project that writes none of it', () => {
   test('the Dockerfile row hides a container path and nothing else', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.mts': "export default { name: 'acme' };\n",
+        '.configs/vulcan.config.mts': "export default { project: { name: 'acme' } };\n",
         Dockerfile: 'FROM bun\nWORKDIR /home/app\n',
         'notes.md': 'my machine is /home/phat/work\n',
       },
@@ -262,7 +265,7 @@ describe('the effective config of a project that writes none of it', () => {
 
   test('a project with no Dockerfile is not told that the standing row matches nothing, and no note counts it', async () => {
     const root = createProject({
-      files: { '.configs/vulcan.config.mts': "export default { name: 'acme' };\n" },
+      files: { '.configs/vulcan.config.mts': "export default { project: { name: 'acme' } };\n" },
     });
     const all = await DoctorRunner.runWarnings({ root });
 

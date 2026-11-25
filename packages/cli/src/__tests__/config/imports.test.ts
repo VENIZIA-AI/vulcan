@@ -18,7 +18,7 @@ const SPLIT = {
     "import { extra } from './policy.js';",
     "import { shared } from '../src/shared.ts';",
     '',
-    "export default { name: 'demo', claude, doctor, theme: extra, board: shared } satisfies VulcanConfig;",
+    "export default { project: { name: 'demo' }, agent: { claude }, check: { doctor }, common: { theme: extra }, board: { page: shared } } satisfies VulcanConfig;",
     '',
   ].join('\n'),
   '.configs/vulcan/index.mts':
@@ -112,7 +112,7 @@ describe('vulcan project init writes the config split', () => {
 });
 
 describe('ConfigImports.scan: what the guards cannot protect', () => {
-  const config = (body: string) => `${body}\nexport default { name: 'demo' };\n`;
+  const config = (body: string) => `${body}\nexport default { project: { name: 'demo' } };\n`;
 
   test('a module outside .configs/, at any depth, is named with the way to fix it', () => {
     const root = createProject({ files: SPLIT });
