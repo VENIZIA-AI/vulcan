@@ -296,6 +296,21 @@ describe('doctor: a workspace member the list does not name', () => {
     expect(hit?.message).toContain('delete `packages`');
   });
 
+  test('a private member is never published, so the list need not name it', async () => {
+    const root = monorepo({
+      config:
+        "export default { project: { packages: [{ dir: 'cli', name: '@x/cli', path: 'packages/cli' }, { dir: 'okf', name: '@x/okf', path: 'packages/okf' }] } };\n",
+    });
+
+    await Bun.write(
+      join(root, 'apps/web/site/package.json'),
+      JSON.stringify({ name: '@x/site', private: true }),
+    );
+
+    const result = await check(root);
+    expect(result).toEqual([]);
+  });
+
   test('members that cannot be a package are named with their reason, for a derived list too', async () => {
     const root = monorepo({
       workspaces: ['packages/*'],

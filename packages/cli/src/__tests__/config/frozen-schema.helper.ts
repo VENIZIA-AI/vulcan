@@ -28,8 +28,8 @@ import { EventSettings } from '../../events/settings.ts';
 import {
   CodingAgents,
   ConfigConstants,
-  LibraryKinds,
-  PackageKinds,
+  LibraryTypes,
+  PackageTypes,
   TemplatePlaceholders,
 } from '../../config/common/index.ts';
 
@@ -45,7 +45,7 @@ const ACKNOWLEDGEMENT = z.strictObject({
     .refine((value) => !isAbsolute(value) && !value.split(/[\\/]/).includes('..'), {
       message: 'a glob relative to the repo root, without ..',
     }),
-  kinds: z.array(KIND).min(1).optional(),
+  types: z.array(KIND).min(1).optional(),
   reason: z.string().trim().min(1),
   standing: z.boolean().optional(),
 });
@@ -200,8 +200,8 @@ const PROJECT_PACKAGE = z.strictObject({
   path: z.string().optional(),
   aliases: z.array(z.string()).default([]),
   retired: z.boolean().default(false),
-  kind: z.enum([PackageKinds.APP, PackageKinds.LIB]).optional(),
-  presetKind: z.enum([LibraryKinds.LIB, LibraryKinds.SHARED]).optional(),
+  type: z.enum([PackageTypes.APP, PackageTypes.LIB]).optional(),
+  presetType: z.enum([LibraryTypes.LIB, LibraryTypes.SHARED]).optional(),
 });
 
 const pathKeyOf = (opts: { path: string }): string =>

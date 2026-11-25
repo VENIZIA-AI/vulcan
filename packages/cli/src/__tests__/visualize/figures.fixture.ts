@@ -18,7 +18,7 @@ export const figuresSpec = (): Record<string, unknown> => ({
         sublabel: 'quản lý ban tổ chức O-A',
         row: 0,
         col: 0,
-        kind: 'actor',
+        type: 'actor',
       },
       {
         id: 'b',
@@ -26,7 +26,7 @@ export const figuresSpec = (): Record<string, unknown> => ({
         sublabel: 'ScopeWriteGuard',
         row: 0,
         col: 1,
-        kind: 'service',
+        type: 'service',
         state: 'blocked',
       },
       {
@@ -35,7 +35,7 @@ export const figuresSpec = (): Record<string, unknown> => ({
         sublabel: 'ghi nhầm mã cửa hàng khác',
         row: 0,
         col: 2,
-        kind: 'store',
+        type: 'store',
         state: 'blocked',
       },
       {
@@ -44,7 +44,7 @@ export const figuresSpec = (): Record<string, unknown> => ({
         sublabel: 'ghi lại mọi lần thử',
         row: 1,
         col: 1,
-        kind: 'store',
+        type: 'store',
       },
     ],
     edges: [

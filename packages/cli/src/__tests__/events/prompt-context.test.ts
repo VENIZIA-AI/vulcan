@@ -27,7 +27,7 @@ const project = (
   EventLog.append({
     dir: join(root, '.agents/local/events'),
     event: EventLog.build({
-      kind: 'flow',
+      type: 'flow',
       summary: opts.title ?? 'Sign in',
       actor: ACTOR,
       source: 'cli',
@@ -102,7 +102,7 @@ describe('the prompt context block', () => {
     EventLog.append({
       dir: join(over, '.agents/local/events'),
       event: EventLog.build({
-        kind: 'decision',
+        type: 'decision',
         summary: 'rejected',
         status: 'reject',
         actor: ACTOR,
@@ -139,7 +139,7 @@ describe('the prompt context block', () => {
       dir: join(root, '.agents/local/events'),
       event: {
         ...EventLog.build({
-          kind: 'flow',
+          type: 'flow',
           summary: 'Evil',
           actor: 'evil-1',
           source: 'cli',

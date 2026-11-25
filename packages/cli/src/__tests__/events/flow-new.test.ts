@@ -35,7 +35,7 @@ describe('a flow line with no --flow is always a new flow', () => {
       root,
       args: [
         'add',
-        '--kind',
+        '--type',
         'flow',
         '--title',
         'First flow',
@@ -56,13 +56,13 @@ describe('a flow line with no --flow is always a new flow', () => {
 
     const second = cli({
       root,
-      args: ['add', '--kind', 'flow', '--title', 'Second flow', '--step', 'a'],
+      args: ['add', '--type', 'flow', '--title', 'Second flow', '--step', 'a'],
     }).stdout.trim();
 
     expect(first).toBe('VULZ-ACME-1');
     expect(second).toBe('VULZ-ACME-2');
 
-    const flows = linesOf(root).filter((line) => line.kind === 'flow');
+    const flows = linesOf(root).filter((line) => line.type === 'flow');
 
     expect(flows.map((line) => [line.flowId, line.summary])).toEqual([
       [first, 'First flow'],
@@ -78,9 +78,9 @@ describe('a flow line with no --flow is always a new flow', () => {
     const root = project();
     const first = open(root);
 
-    cli({ root, args: ['add', '--kind', 'deploy', '--flow', first, '--summary', 'live'] });
+    cli({ root, args: ['add', '--type', 'deploy', '--flow', first, '--summary', 'live'] });
     branch({ root, name: `feature/${first}-first` });
-    expect(cli({ root, args: ['add', '--kind', 'flow', '--title', 'Next'] }).stdout.trim()).toBe(
+    expect(cli({ root, args: ['add', '--type', 'flow', '--title', 'Next'] }).stdout.trim()).toBe(
       'VULZ-ACME-2',
     );
   });
@@ -94,7 +94,7 @@ describe('a flow line with no --flow is always a new flow', () => {
       root,
       args: [
         'add',
-        '--kind',
+        '--type',
         'flow',
         '--flow',
         first,
@@ -104,15 +104,15 @@ describe('a flow line with no --flow is always a new flow', () => {
         'one',
       ],
     });
-    cli({ root, args: ['add', '--kind', 'commit', '--summary', 'a commit'] });
+    cli({ root, args: ['add', '--type', 'commit', '--summary', 'a commit'] });
 
     const lines = linesOf(root);
 
-    expect(lines.filter((line) => line.kind === 'flow').map((line) => line.summary)).toEqual([
+    expect(lines.filter((line) => line.type === 'flow').map((line) => line.summary)).toEqual([
       'First flow',
       'First flow, renamed',
     ]);
-    expect(lines.find((line) => line.kind === 'commit')?.flowId).toBe(first);
+    expect(lines.find((line) => line.type === 'commit')?.flowId).toBe(first);
   });
 
   test('the step command still names the flow of the branch', () => {

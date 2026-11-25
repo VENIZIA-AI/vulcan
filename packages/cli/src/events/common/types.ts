@@ -1,7 +1,7 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { EventKinds, EventStatuses, GitActivities } from './constants.ts';
+import type { EventTypes, EventStatuses, GitActivities } from './constants.ts';
 
-export type TEventKind = TConstValue<typeof EventKinds>;
+export type TEventType = TConstValue<typeof EventTypes>;
 export type TEventStatus = TConstValue<typeof EventStatuses>;
 export type TGitActivity = TConstValue<typeof GitActivities>;
 
@@ -38,7 +38,7 @@ export interface IEvent {
   ts: string;
   flowId?: string;
   actor: string;
-  kind: TEventKind;
+  type: TEventType;
   summary: string;
   /** Only a `decision` has one. */
   status?: TEventStatus;
@@ -89,7 +89,7 @@ export interface IEventSettings {
 
 /** What a hook payload says happened, before the actor, the flow and the id are added. */
 export interface IHookEvent {
-  kind: TEventKind;
+  type: TEventType;
   summary: string;
   ref?: string;
   /** The notification type of a `needs-owner` line. */

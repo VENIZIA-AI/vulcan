@@ -62,7 +62,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `config-modules` (warning) | A module of the config the guards cannot protect: the config file or a module that is or leads outside `.configs/` (a relative import, a link, a package of this repository such as a workspace member or a `file:` dependency), a module reached through an alias, a specifier that names nothing the project has, or a file that cannot be read | Move it under `.configs/` and import it by a relative path |
 | `config-order` (note) | The top-level keys of the config are not in the canonical order | Run `vulcan config format` |
 | `config-remove` (warning) | A `remove` entry matches nothing, so it does nothing | Delete the entry |
-| `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it, or delete `packages` so it is derived from the workspaces |
+| `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it (a member with `"private": true` is not asked for), or delete `packages` so it is derived from the workspaces |
 | `project-key` (warning) | `board.events.log` is on and `project.key` is not set, so no flow can be created | Add `project: { key: 'KEY' }` to the config and run `vulcan project sync` |
 | `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `check.doctor.privateValues.acknowledged` |
 | `file-layout` (warning, note) | A file name with a plural role (`user.helpers.ts`), a folder that mixes subfolders with loose source files, or a source file over `check.layout.maxLines`, that `.configs/layout-baseline.json` does not hold; what it holds is one note | Rename, move or split, or adopt the findings with `vulcan check layout --write-baseline` |
@@ -203,7 +203,7 @@ A git tag matching `knowledge.atlas.tagPattern` that names an undeclared package
 
 ```text
 $ bun node_modules/.bin/vulcan project doctor
-  [tags] git tags: tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)
+  [tags] git tags: tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (knowledge.atlas.ignoreTags)
 vulcan project doctor: 1 violation(s)
 ```
 
@@ -258,7 +258,7 @@ The following output drops the lines that belong to other checks:
 
 ```text
 $ bun node_modules/.bin/vulcan project doctor
-  [apps] package.json: layout.frontend 'web' is not in package.json workspaces - add 'web/*'
+  [apps] package.json: project.layout.frontend 'web' is not in package.json workspaces - add 'web/*'
   [apps] .configs/vulcan.config.mts: package core-api lives at apps/core-api, outside every layout folder (services, web)
 ```
 
@@ -303,7 +303,7 @@ The last message reads `this project's commit check is not installed: the hook b
 A warning: today's event file is bigger than `board.events.maxSize` on its own. The retention removes whole old day files and never today's, so nothing else will shrink it; raise `maxSize` or write fewer events. It appears only when the log is on or a limit is set.
 
 ```text
-  warning [events-size] .configs/vulcan.config.mts: today's event file in /path/.agents/local/events is 61.2 MB, over events.maxSize (50MB); nothing is truncated and today's file is never removed - raise maxSize or write fewer events
+  warning [events-size] .configs/vulcan.config.mts: today's event file in /path/.agents/local/events is 61.2 MB, over board.events.maxSize (50MB); nothing is truncated and today's file is never removed - raise maxSize or write fewer events
 ```
 
 ### atlas-source
@@ -346,20 +346,20 @@ A warning with two forms. First: the root `package.json` declares workspaces, th
   warning [workspace-packages] .configs/vulcan.config.mts: 2 workspace member(s) of the root package.json are not in packages: @x/okf (packages/okf), @x/site (apps/web/site). Add them, or delete `packages` so it is derived from the workspaces
 ```
 
-Add the entries, or delete the `packages` key. Second: a workspace member that cannot be a package (a folder that is not a valid `dir`, such as `apps/WebApp` or `packages/my_lib`, or a `package.json` with no valid `name`) is named with its reason, for a derived list too; nothing is normalised. Rename the folder or the package, or write `packages` with the `dir` you want.
+Add the entries, or delete the `packages` key. A member whose `package.json` says `"private": true` is never published, so it is not asked for: docs, examples and wiki workspaces stay out of the list. Second: a workspace member that cannot be a package (a folder that is not a valid `dir`, such as `apps/WebApp` or `packages/my_lib`, or a `package.json` with no valid `name`) is named with its reason, for a derived list too; nothing is normalised. Rename the folder or the package, or write `packages` with the `dir` you want.
 
 ### events-dir
 
 A warning, not a violation: the folder belongs to the machine, and a CI checkout may not have it. It appears only when `board.events.dir` ([the event log](/references/commands/event#one-folder-for-every-project)), in the config or in your `.agents/local/profile.json`, is set to a folder outside the project; the line names the file the folder came from. The event hooks fail open, so a folder they cannot write loses every line without a message; this warning is where it shows. A `dir` inside the project is made on the first write and is not checked.
 
 ```text
-  warning [events-dir] .configs/vulcan.config.mts: events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
+  warning [events-dir] .configs/vulcan.config.mts: board.events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
 ```
 
 The same folder set in the local file is reported against it:
 
 ```text
-  warning [events-dir] .agents/local/profile.json: events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
+  warning [events-dir] .agents/local/profile.json: board.events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
 ```
 
 | Message | Fix |
@@ -384,8 +384,8 @@ Six results share the name `local`.
 A warning, not a violation: it prints as `warning [private-values]`, the exit code stays `0`. It reads every file git tracks (text files up to 1 MB) and warns about the private values in each file, once per file for a key, a token or a URL credential, and in one line for the files that hold only IPv4 addresses or machine paths (the line names them all): a private-key header, a known token (`ghp_`, `github_pat_`, `npm_`, `sk-`, `AKIA`, `AIza`, `glpat-`, Stripe keys, Hugging Face, DigitalOcean, Shopify and SendGrid tokens, JWTs, `Basic` and `Bearer` credentials, Slack tokens and the path of a Slack webhook, the values of a `Cookie` or `Set-Cookie` header, the value of an `Authorization` header of any other scheme, the signature `sig=` of a shared access URL, a 40-character AWS secret key set to a name that holds `aws` or `secret`), a password on a command line (the value of `--password`, `--http-password`, `--ftp-password`, `--token`, `--secret` or `--api-key` given with a space, a credential-shaped value of `--key` that is not a path or a file name, the password of curl's user flag, `-p` joined to its value for the MySQL and MariaDB clients, `-p` of sshpass and of a docker, podman or az login, `-a` of redis-cli, `-P` of sqlcmd, the secret that `aws configure set` writes; a value that is a variable such as `$NAME` or a placeholder such as `<value>` is not counted), `user:password@` in a URL (the user may be empty, the password may hold `/`, `@` or `:`) and the key of a DSN before its `@`, an IPv4 address (not loopback, `0.0.0.0`, broadcast or the documentation ranges) and a machine path (`/home/<user>/`, `/Users/<user>/`, `C:\Users\<user>\`). The warning gives the kinds and how many; it never prints the value, because a warning that prints a secret leaks it again.
 
 ```text
-  warning [private-values] env/dev.env: holds private values: 1 private-key, 2 ipv4 (not shown); remove them, or record the decision in doctor.privateValues.acknowledged
-  warning [private-values] 3 files: 3 files hold only addresses or machine paths: src/policy-a.ts (1 ipv4), src/policy-b.ts (2 ipv4), docs/setup.md (1 machine-path) (not shown); remove them, or record the decision in doctor.privateValues.acknowledged
+  warning [private-values] env/dev.env: holds private values: 1 private-key, 2 ipv4 (not shown); remove them, or record the decision in check.doctor.privateValues.acknowledged
+  warning [private-values] 3 files: 3 files hold only addresses or machine paths: src/policy-a.ts (1 ipv4), src/policy-b.ts (2 ipv4), docs/setup.md (1 machine-path) (not shown); remove them, or record the decision in check.doctor.privateValues.acknowledged
 ```
 
 It does not read lockfiles, `.drawio` diagrams, `.snap` snapshots, or files under `__tests__/`, `fixtures/` and `golden/` or named `*.test.*`: they hold hashes and fake values on purpose. It does not look for host names (it would flag `github.com`, package names and file names) or for a name set to a value (`token = ...`): on a large tree that pattern matched in the order of a hundred thousand lines. The one exception is a 40-character AWS secret key set to a name that holds `aws` or `secret`, a shape specific enough to count. An IPv4 address counts only when it stands on its own: four numbers from 0 to 255 with no letter, digit, `_`, `.`, `-` or `,` touching either end, so `10.0.0.1` and `127.0.0.1:8080` are addresses, and the numbers of SVG path data (`M1.2.3.4`), versions (`1.2.3.4.5`) and placeholders (`192.168.1.x`) are not. Loopback, `0.*`, `255.*` and the documentation ranges are never reported. A folder that is not a git repository is skipped.
@@ -398,7 +398,7 @@ export default {
     doctor: {
       privateValues: {
         acknowledged: [
-          { path: 'infra/dev/**', kinds: ['private-key'], reason: 'dev-only keys, replaced by the secret store' },
+          { path: 'infra/dev/**', types: ['private-key'], reason: 'dev-only keys, replaced by the secret store' },
         ],
       },
     },
@@ -406,7 +406,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-`path` is a glob relative to the repo root, `kinds` limits the entry to some kinds (`private-key`, `token`, `url-credentials`, `ipv4`, `machine-path`) and `reason` is required. A kind that the entry does not name still warns. The count is a note, not a warning, so a project that acknowledged everything still prints a plain OK: `2 files acknowledged in doctor.privateValues.acknowledged`. An entry that covers no value at all (a folder that is gone, a kind no file holds) is a warning, because a stale or broad entry would quietly cover files added later. There is no comment that silences a line. Only regular files are read: a submodule, a link to a folder and a link to a file are skipped and never followed.
+`path` is a glob relative to the repo root, `types` limits the entry to some types (`private-key`, `token`, `url-credentials`, `ipv4`, `machine-path`) and `reason` is required. A kind that the entry does not name still warns. The count is a note, not a warning, so a project that acknowledged everything still prints a plain OK: `2 files acknowledged in doctor.privateValues.acknowledged`. An entry that covers no value at all (a folder that is gone, a kind no file holds) is a warning, because a stale or broad entry would quietly cover files added later. There is no comment that silences a line. Only regular files are read: a submodule, a link to a folder and a link to a file are skipped and never followed.
 
 ### file-layout
 

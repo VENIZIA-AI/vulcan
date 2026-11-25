@@ -168,7 +168,7 @@ export class CommandTable {
         '0 on written or serve stopped; 1 when the file cannot be written or serve cannot start; 2 on bad input.',
     },
     [VulcanCommands.EVENT]: {
-      help: `  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] [--order <n>|none] | flow step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] [--order <n>|none] | event tail [--since <time>] [--json] [--dir <folder>]
+      help: `  event add --type <t> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] [--order <n>|none] | flow step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] [--order <n>|none] | event tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
                                   read it; with board.events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input`,
@@ -176,7 +176,7 @@ export class CommandTable {
         [EventFlags.JSON]: 'Print each line as written (tail)',
       },
       values: {
-        [EventFlags.KIND]: 'One of the fourteen event kinds',
+        [EventFlags.TYPE]: 'One of the fourteen event kinds',
         [EventFlags.SUMMARY]: 'A short label, cut to one line of 200 characters',
         [EventFlags.FLOW]: 'The id of a flow the log already has',
         [EventFlags.DONE]: 'step: set this step of the flow done (added when it is not there)',
@@ -238,8 +238,9 @@ export class CommandTable {
                                   Put the top-level keys of .configs/vulcan.config.mts in the canonical order, each
                                   with its comments; --check writes nothing and exits 1 when a key would move; exit 2
                                   when the keys cannot be ordered (a spread, a computed key, no object literal)
-  config codemod config-groups [<dir>] [--write] [--split] | --list
-                                  Move the keys of .configs/vulcan.config.mts into the seven groups, each with its
+  config codemod <config-groups|type-names> [<dir>] [--write] [--split] | --list
+                                  type-names: rename kind to type and presetKind to presetType in the package
+                                  entries of the config and its modules. config-groups: move the keys of .configs/vulcan.config.mts into the seven groups, each with its
                                   comments (--split: one module per group in .configs/vulcan/, the modules of an old
                                   split folded in); without --write it lists what it would write; exit 2 and
                                   nothing written when it cannot move a key without losing it`,
@@ -248,7 +249,7 @@ export class CommandTable {
         '--check': 'format only: write nothing; exit 1 and name the keys that would move',
         '--write': 'codemod only: write the files (without it, list them)',
         '--split': 'codemod only: one module per group under .configs/vulcan/',
-        '--list': 'codemod only: name the codemod',
+        '--list': 'codemod only: name the codemods',
       },
       positionals: 3,
       unknownExit: ExitCodes.USAGE,
@@ -347,11 +348,11 @@ export class CommandTable {
         '0 when every entry conforms (notes: printed); 1 when an entry does not, a folder is missing, the tool is missing or the configuration is invalid; 2 for a subcommand other than check or notes.',
     },
     [VulcanCommands.MIGRATE]: {
-      help: `  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]
+      help: `  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]
                                   What an app must change to move a package between two releases, newer or
                                   older: the steps in order, the places in your code they touch (file:line),
                                   codemods and data warnings; read only
-  migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]
+  migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]
                                   Run the codemods the plan links, once each in order (reversed for a
                                   rollback), then print the steps that stay manual; refuses an app with
                                   uncommitted changes or outside git unless --force`,
@@ -362,8 +363,12 @@ export class CommandTable {
           'A version, latest (newest stable) or next (newest release) of the atlas release table',
         '--app': 'The app directory to scan; default the current directory',
         '--format': 'md (default) or json (plan only)',
+        '--root': 'The project atlas serves the sources of; read by atlas',
+        '--source': 'A source to serve, owner/repo@ref, repeatable; read by atlas',
+        '--cache-dir': 'Where atlas keeps the sets it pulls; read by atlas',
       },
       flags: {
+        '--no-prebuilt': 'Build the index from the files, do not download the prebuilt one',
         '--force': 'apply: run on an app with uncommitted changes, or outside git',
         '--verbose': 'plan: list every place that imports a module a step is about, not a count',
       },

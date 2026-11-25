@@ -312,7 +312,7 @@ export default {
 
 ## project.packages
 
-The `packages` array defines monorepo packages in release order. **Leave the key out and VULCAN derives it** from the root `package.json` `workspaces` (an array, or the object form with `packages`) and the `package.json` of each member: an entry is `{ dir, name, path }` with the member's `name`, its folder as `path`, and `dir` that folder with `/` as `-`, in the order of the paths. The patterns are applied in order, so a `!pattern` takes out what the patterns before it gave. In a git repository only members whose `package.json` git tracks count, so an untracked experiment does not change what `vulcan project sync` writes (`git add` a new member first); outside one the folders are read, never entering `node_modules` or a dot folder. A pattern that leaves the project root, or two members that give the same `dir` or `name` (`a/b-c` and `a-b/c` both give `a-b-c`), stop the command with an error naming them. A member with no valid `name`, or whose folder cannot be a `dir` (an upper-case letter, an underscore), is not normalised: `vulcan project doctor` names it and the reason. `vulcan config effective` shows the result and says it came from `workspaces`. **If you tag per package, write the list before the first release**: a derived `dir` follows the folder path, and with the default `tagPattern` (`<dir>-v<version>`) it becomes the tag. Write the key, even as `[]`, and it is the list exactly: use it when the release order matters or a member needs `aliases`, `retired`, `kind` or a `dir` of its own. `vulcan project doctor` warns about a workspace member a written list does not name. Manifest rendering, release checks, and atlas symbol searches read this list.
+The `packages` array defines monorepo packages in release order. **Leave the key out and VULCAN derives it** from the root `package.json` `workspaces` (an array, or the object form with `packages`) and the `package.json` of each member: an entry is `{ dir, name, path }` with the member's `name`, its folder as `path`, and `dir` that folder with `/` as `-`, in the order of the paths. The patterns are applied in order, so a `!pattern` takes out what the patterns before it gave. In a git repository only members whose `package.json` git tracks count, so an untracked experiment does not change what `vulcan project sync` writes (`git add` a new member first); outside one the folders are read, never entering `node_modules` or a dot folder. A pattern that leaves the project root, or two members that give the same `dir` or `name` (`a/b-c` and `a-b/c` both give `a-b-c`), stop the command with an error naming them. A member with no valid `name`, or whose folder cannot be a `dir` (an upper-case letter, an underscore), is not normalised: `vulcan project doctor` names it and the reason. `vulcan config effective` shows the result and says it came from `workspaces`. **If you tag per package, write the list before the first release**: a derived `dir` follows the folder path, and with the default `tagPattern` (`<dir>-v<version>`) it becomes the tag. Write the key, even as `[]`, and it is the list exactly: use it when the release order matters or a member needs `aliases`, `retired`, `type` or a `dir` of its own. `vulcan project doctor` warns about a workspace member a written list does not name. Manifest rendering, release checks, and atlas symbol searches read this list.
 
 `vulcan project sync` writes the package list into `.agents/atlas.manifest.json`. If `package.json` declares workspaces while `packages` is empty and none could be derived, `vulcan project doctor` reports a `[scaffold]` violation. `vulcan project doctor` also runs the `[tags]` check to verify tags against package directories and aliases.
 
@@ -323,16 +323,16 @@ The `packages` array defines monorepo packages in release order. **Leave the key
 | `path` | `string` | `packages/<dir>` | Package location relative to the repository root |
 | `aliases` | `string[]` | `[]` | Extra names accepted as the `<dir>` of a release tag |
 | `retired` | `boolean` | `false` | Marks a package as retired to keep historical releases readable |
-| `kind` | `app` or `lib` | unset | `lib` for a package `vulcan package add --lib` or `--shared` made; unset for an app or a plain package |
-| `presetKind` | `lib` or `shared` | unset | Which preset kind made a package whose `kind` is `lib` |
+| `type` | `app` or `lib` | unset | `lib` for a package `vulcan package add --lib` or `--shared` made; unset for an app or a plain package |
+| `presetType` | `lib` or `shared` | unset | Which preset kind made a package whose `type` is `lib` |
 
 - `name` is lower case (a to z, digits, `. _ ~ -`); a name with a capital letter is refused.
 - `kind: lib` means `doctor` does not ask the package to live in a backend or frontend folder.
-- `vulcan package add --shared` writes `presetKind: shared`; `--lib` writes nothing, and an unset value means `lib`. `vulcan package diff` reads it.
+- `vulcan package add --shared` writes `presetType: shared`; `--lib` writes nothing, and an unset value means `lib`. `vulcan package diff` reads it.
 
-`vulcan package add` writes `kind` and `presetKind`; you do not set them by hand. The schema is strict. A VULCAN that does not know `presetKind` and the `shared` summary cannot read a config that holds them. Upgrade the project's VULCAN before you record a shared package.
+`vulcan package add` writes `type` and `presetType`; you do not set them by hand. The schema is strict. A VULCAN that does not know `presetType` and the `shared` summary cannot read a config that holds them. Upgrade the project's VULCAN before you record a shared package.
 
-`vulcan project sync` copies `presetKind` into the manifest, so atlas reads it too.
+`vulcan project sync` copies `presetType` into the manifest, so atlas reads it too.
 
 The schema requires strict uniqueness across all packages:
 
@@ -511,7 +511,7 @@ The `[tags]` doctor check does not require every tag to match `tagPattern`. It p
 
 ```text
 $ bun node_modules/.bin/vulcan project doctor
-  [tags] git tags: tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)
+  [tags] git tags: tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (knowledge.atlas.ignoreTags)
 vulcan project doctor: 1 violation(s)
 ```
 
@@ -869,14 +869,14 @@ The `doctor` object tells [`vulcan project doctor`](/references/commands/doctor#
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `privateValues.acknowledged` | `Array<{ path, kinds?, reason, standing? }>` | the shipped `**/Dockerfile*` row for `machine-path` | Files that may keep private values, each with a reason |
+| `privateValues.acknowledged` | `Array<{ path, types?, reason, standing? }>` | the shipped `**/Dockerfile*` row for `machine-path` | Files that may keep private values, each with a reason |
 | `project.layout.maxLines` | `number` | `400` | A source file with more lines is a `long-file` finding of [`vulcan check layout`](/references/commands/layout) |
 | `project.layout.minSubfolders` | `number` | `3` | A folder with at least this many subfolders may keep no loose source file but its index (`mixed-folder`) |
 | `project.layout.pluralAllow` | `string[]` | `[]` | Role words that end in s and are not plurals, added to the shipped list (`plural-suffix`) |
 | `project.layout.generated` | `string[]` | `[]` | Globs relative to the repo root of generated files, which `long-file` skips |
 
 - `path` is a glob relative to the repo root (no absolute path, no `..`).
-- `kinds` is some of `private-key`, `token`, `url-credentials`, `ipv4`, `machine-path` (all when absent).
+- `types` is some of `private-key`, `token`, `url-credentials`, `ipv4`, `machine-path` (all when absent).
 - `reason` is required and not blank.
 
 An acknowledged file is counted in one summary line, never dropped silently. A row marked `standing: true`, such as the Dockerfile row VULCAN ships, is not reported when it matches no file and does not start the summary on its own.

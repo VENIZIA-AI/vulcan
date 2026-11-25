@@ -163,7 +163,7 @@ export class SpecSections {
     }
 
     const width = FigureLayout.widthOf({ nodes: flow.nodes, edges: flow.edges });
-    const kinds = [...new Set(flow.nodes.map((node) => node.kind ?? 'step'))];
+    const kinds = [...new Set(flow.nodes.map((node) => node.type ?? 'step'))];
     const variants = [...new Set(flow.edges.map((edge) => edge.variant ?? 'main'))];
     const states = [
       ...new Set(flow.nodes.flatMap((node) => (node.state === undefined ? [] : [node.state]))),

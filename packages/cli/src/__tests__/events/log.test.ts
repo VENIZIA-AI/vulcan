@@ -7,7 +7,7 @@ import {
   EventActorNames,
   EventConstants,
   EventFlow,
-  EventKinds,
+  EventTypes,
   EventLog,
   EventSecrets,
   EventSettings,
@@ -64,9 +64,9 @@ const PIECES = [
   'hooks.slack.com/services/T',
 ];
 
-describe('EventKinds', () => {
+describe('EventTypes', () => {
   test('the fourteen kinds a board reads, and isValid', () => {
-    expect(EventKinds.values()).toEqual([
+    expect(EventTypes.values()).toEqual([
       'session-start',
       'session-stop',
       'msg-sent',
@@ -82,8 +82,8 @@ describe('EventKinds', () => {
       'tool-tick',
       'usage',
     ]);
-    expect(EventKinds.isValid('commit')).toBe(true);
-    expect(EventKinds.isValid('rollout')).toBe(false);
+    expect(EventTypes.isValid('commit')).toBe(true);
+    expect(EventTypes.isValid('rollout')).toBe(false);
   });
 });
 
@@ -478,7 +478,7 @@ describe('EventFlow', () => {
 describe('EventLog', () => {
   test('a built event has the documented fields in order, a clean summary and no empty field', () => {
     const event = EventLog.build({
-      kind: 'commit',
+      type: 'commit',
       summary: ' fixed  the\nlock ',
       actor: 'pnt-vulcan-1',
       source: 'cli',
@@ -492,7 +492,7 @@ describe('EventLog', () => {
       'ts',
       'flowId',
       'actor',
-      'kind',
+      'type',
       'summary',
       'ref',
       'source',
@@ -501,7 +501,7 @@ describe('EventLog', () => {
     expect(event.summary).toBe('fixed the lock');
 
     const bare = EventLog.build({
-      kind: 'pr',
+      type: 'pr',
       summary: 's',
       actor: 'a',
       source: 'cli',
@@ -509,12 +509,12 @@ describe('EventLog', () => {
       now: NOW,
     });
 
-    expect(Object.keys(bare)).toEqual(['id', 'ts', 'actor', 'kind', 'summary', 'source']);
+    expect(Object.keys(bare)).toEqual(['id', 'ts', 'actor', 'type', 'summary', 'source']);
   });
 
   test('a flow line keeps context (600 characters) and next (200) as one clean line each, after why and before source', () => {
     const event = EventLog.build({
-      kind: 'flow',
+      type: 'flow',
       summary: 'Title',
       actor: 'a',
       source: 'cli',
@@ -530,7 +530,7 @@ describe('EventLog', () => {
       'ts',
       'flowId',
       'actor',
-      'kind',
+      'type',
       'summary',
       'why',
       'context',
@@ -543,7 +543,7 @@ describe('EventLog', () => {
     expect(EventLog.parse({ line: JSON.stringify(event) })).toEqual(event);
     expect(
       EventLog.build({
-        kind: 'flow',
+        type: 'flow',
         summary: 'T',
         actor: 'a',
         source: 'cli',
@@ -560,7 +560,7 @@ describe('EventLog', () => {
       id: 'i1',
       ts: '2026-11-03T09:30:00.000Z',
       actor: 'a',
-      kind: 'flow',
+      type: 'flow',
       summary: `${token} ${'s '.repeat(1_000_000)}`,
       why: `line one\n${token} ${'w'.repeat(5000)}`,
       context: `${token} ${'c '.repeat(2000)}`,
@@ -586,7 +586,7 @@ describe('EventLog', () => {
         id: 'i1',
         ts: '2026-11-03T09:30:00.000Z',
         actor: 'a',
-        kind: 'flow',
+        type: 'flow',
         summary: piece.repeat(Math.ceil(100_000 / piece.length)),
         context: piece.repeat(Math.ceil(100_000 / piece.length)),
         source: 'cli',
@@ -604,7 +604,7 @@ describe('EventLog', () => {
     const token = 'ghp_abcdefghijklmnop1234567890';
     const long = `from:${token} ${'r'.repeat(5000)}`;
     const built = EventLog.build({
-      kind: 'msg-received',
+      type: 'msg-received',
       summary: 's',
       actor: 'a',
       source: 'cli',
@@ -616,7 +616,7 @@ describe('EventLog', () => {
         id: 'i1',
         ts: '2026-11-03T09:30:00.000Z',
         actor: 'a',
-        kind: 'msg-received',
+        type: 'msg-received',
         summary: 's',
         ref: long,
         source: 'cli',
@@ -636,7 +636,7 @@ describe('EventLog', () => {
       ts: '2026-11-03T09:30:00.000Z',
       flowId: 'F-1\u001b',
       actor: 'a\u001b[2Jb',
-      kind: 'commit',
+      type: 'commit',
       summary: 'x\u009by',
       ref: 'r\u0007',
       source: 'cli\u001b',
@@ -661,7 +661,7 @@ describe('EventLog', () => {
   test('append writes one line to the file of the local day, creating the folder', () => {
     const dir = join(createProject({ files: {} }), 'deep', 'events');
     const event = EventLog.build({
-      kind: 'pr',
+      type: 'pr',
       summary: 'opened',
       actor: 'a',
       source: 'cli',
@@ -676,9 +676,9 @@ describe('EventLog', () => {
 
   test('read returns the events oldest first, filtered by since, and counts what is not an event', () => {
     const dir = createProject({ files: {} });
-    const at = (offset: number, kind: 'commit' | 'pr') =>
+    const at = (offset: number, type: 'commit' | 'pr') =>
       EventLog.build({
-        kind,
+        type,
         summary: `at ${offset}`,
         actor: 'a',
         source: 'cli',
@@ -689,9 +689,9 @@ describe('EventLog', () => {
       EventLog.append({ dir, event });
     }
 
-    // A day file two days back, a line that is not JSON, a JSON line of another shape, a line of an unknown kind.
+    // A day file two days back, a line that is not JSON, a JSON line of another shape, a line of an unknown type.
     const old = EventLog.build({
-      kind: 'commit',
+      type: 'commit',
       summary: 'old',
       actor: 'a',
       source: 'cli',
@@ -701,7 +701,7 @@ describe('EventLog', () => {
     EventLog.append({ dir, event: old });
     writeFileSync(
       join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`),
-      `${readFileSync(join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`), 'utf8')}not json\n{"a":1}\n${JSON.stringify({ ...at(0, 'pr'), kind: 'rollout' })}\n\n`,
+      `${readFileSync(join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`), 'utf8')}not json\n{"a":1}\n${JSON.stringify({ ...at(0, 'pr'), type: 'rollout' })}\n\n`,
     );
 
     const all = EventLog.read({ dir });

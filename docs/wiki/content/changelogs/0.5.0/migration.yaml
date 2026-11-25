@@ -251,3 +251,47 @@ config-groups:
     steps:
       - 'Pin the earlier `@venizia/vulcan` and restore `.configs/vulcan.config.mts` and the modules under `.configs/vulcan/` from git (the codemod has no way back); run `vulcan sync` to write the machine keys in the old form again.'
   data: 'None: the manifests keep their keys. The profile of a machine moved by the new `sync` has the new key paths, which an earlier VULCAN does not read: delete the keys it names, or run `vulcan profile` again.'
+type-names:
+  symbols:
+    - VulcanConfig
+  codemod: type-names
+  upgrade:
+    steps:
+      - 'Rename the keys that said `kind` in the config: `bun node_modules/.bin/vulcan migrate apply` has run the codemod already, or run `bun node_modules/.bin/vulcan config codemod type-names . --write`. In every `packages` entry (an object with a `dir` and a `name`) `kind` is `type` and `presetKind` is `presetType`; in every acknowledgement of `check.doctor.privateValues.acknowledged` (an object with a `path` and a `reason`) `kinds` is `types`. It reads `.configs/vulcan.config.mts`, the modules of `.configs/vulcan/` and the `vulcan:apps` block.'
+      - 'Review the diff with `git diff`, run `bun node_modules/.bin/vulcan project sync` (the manifest keeps the new names) and `bun node_modules/.bin/vulcan project doctor`, and commit.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan` and restore the config files from git (the earlier VULCAN refuses `type`, `presetType` and `types`).'
+  data: 'None: the manifests are rendered by sync with the new key names. An earlier atlas does not read `type` or `presetType` of a package.'
+event-type-field:
+  symbols:
+    - '@venizia/vulcan'
+  upgrade:
+    steps:
+      - 'Run `bun node_modules/.bin/vulcan project sync` once: it rewrites `kind` to `type` in every line of the day files of the event log (`.agents/local/events/` or `board.events.dir`), and says how many lines it moved. A line that has a `type` already, or a `kind` that is not an event type, is left as it is, so a second run changes nothing.'
+      - 'Change every script, hook and doc that runs `vulcan event add --kind <t>` to `--type <t>`, and every reader of the log that reads the `kind` field to read `type`.'
+      - 'Repos that share one events dir (`board.events.dir`) should upgrade together: until each one is on this release, a session on an earlier one does not see the lines the sync of another has moved.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan`: it reads `kind`, so the lines the new sync moved are not read by it. Rename `type` back to `kind` in the day files of the log.'
+  data: 'The event log of a machine is moved by `project sync` in place; a log copied from a machine that has not run it still has `kind` and is not read by the new board.'
+atlas-field-names:
+  symbols:
+    - '@venizia/vulcan-atlas'
+  upgrade:
+    steps:
+      - 'The atlas tools and the plan name their fields without `kind`: `presets` takes and answers `type` (it was `kind`); `symbol`, `search` and `intent` records and the surface lines carry `category` (const, function, class, interface, type; it was `kind`); a `changes` entry carries `badge`, the text of its first badge (it was `kind`); the `touches` of a `migrate` plan carry `reach` (`name`, `module` or `re-export`; it was `kind`). Change any script or agent text that reads them.'
+      - 'Run `bun node_modules/.bin/vulcan atlas pull` once: the stored sets are at a new format and are rebuilt.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan-atlas`: it rebuilds the sets at its own format.'
+  data: 'The index format is 3: a prebuilt index of a source published at format 2 is not read and the source is built from its files until it is published again.'
+visualize-type-field:
+  symbols:
+    - '@venizia/vulcan'
+  upgrade:
+    steps:
+      - 'In a `vulcan page new` spec, a node, a sequence message and a lifecycle state say `type` where they said `kind` (`{ "id": "db", "label": "Store", "type": "store" }`). A spec with `kind` is refused naming the key: rename it in each spec file you keep.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan` and rename `type` back to `kind` in the spec files.'

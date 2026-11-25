@@ -60,7 +60,7 @@ const table = (opts: { entries: number }): IReleaseTable => ({
     date: `2026-01-0${index + 1}`,
     title: 'x',
     packages: ['kernel'],
-    kind: null,
+    badge: null,
   })),
 });
 

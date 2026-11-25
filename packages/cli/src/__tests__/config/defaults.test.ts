@@ -25,7 +25,7 @@ const SHIPPED_SCHEMA = z.object({
   doctor: z
     .object({
       privateValues: z.object({
-        acknowledged: z.array(z.object({ path: z.string(), kinds: z.array(z.string()) })),
+        acknowledged: z.array(z.object({ path: z.string(), types: z.array(z.string()) })),
       }),
     })
     .optional(),
@@ -64,7 +64,7 @@ describe('what the base and the venizia pack ship', () => {
       'V-B-09',
     ]);
     expect(base.doctor?.privateValues.acknowledged).toEqual([
-      expect.objectContaining({ path: '**/Dockerfile*', kinds: ['machine-path'] }),
+      expect.objectContaining({ path: '**/Dockerfile*', types: ['machine-path'] }),
     ]);
   });
 
@@ -196,7 +196,7 @@ describe('the effective config of a project that writes none of it', () => {
     expect(stack.atlas.sources.map((source) => source.name)).toEqual(['ignis', 'ardor', 'vulcan']);
     expect(plain.atlas.sources).toEqual([]);
     expect(plain.doctor.privateValues.acknowledged).toEqual([
-      expect.objectContaining({ path: '**/Dockerfile*', kinds: ['machine-path'], standing: true }),
+      expect.objectContaining({ path: '**/Dockerfile*', types: ['machine-path'], standing: true }),
     ]);
   });
 

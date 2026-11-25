@@ -4,8 +4,8 @@ import type { TConstValue } from '../common/index.ts';
 import { ExitCodes } from '../common/index.ts';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import type { ILayout } from '../common/layout-folder.ts';
-import { ConfigLoader, LibraryKinds, PackageKinds, ProjectPackages } from '../config/index.ts';
-import type { IProjectPackage, TLibraryKind } from '../config/index.ts';
+import { ConfigLoader, LibraryTypes, PackageTypes, ProjectPackages } from '../config/index.ts';
+import type { IProjectPackage, TLibraryType } from '../config/index.ts';
 import { AppScaffold } from './add-app.ts';
 import { AppSides, CreateConstants, CreateFlags, PresetDiffStatuses } from './common/index.ts';
 import type { ILocatedPreset, IRecordedPreset, IPresetSpec, TAppSide } from './common/index.ts';
@@ -217,12 +217,12 @@ const MANIFEST_FILE = 'package.json';
 const detectLibraryPreset = (opts: {
   root: string;
   recorded: IRecordedPreset[];
-  kind: TLibraryKind;
+  kind: TLibraryType;
 }): { ok: true; spec: string } | { ok: false; error: string } => {
   const matching = new Map<string, string>();
 
   for (const preset of opts.recorded) {
-    const ships = (opts.kind === LibraryKinds.SHARED ? preset.shared : preset.lib) !== undefined;
+    const ships = (opts.kind === LibraryTypes.SHARED ? preset.shared : preset.lib) !== undefined;
 
     if (ships) {
       // The last record of a package wins: it is the newest spec `add` wrote.
@@ -254,7 +254,7 @@ const detectLibraryPreset = (opts: {
 const reportNotFound = (opts: { packages: IProjectPackage[]; packageName: string }): number => {
   const namesOf = (query: { isLibrary: boolean }): string[] =>
     opts.packages
-      .filter((entry) => (entry.kind === PackageKinds.LIB) === query.isLibrary)
+      .filter((entry) => (entry.type === PackageTypes.LIB) === query.isLibrary)
       .map((entry) => entry.dir);
   const apps = namesOf({ isLibrary: false });
   const libraries = namesOf({ isLibrary: true });
@@ -271,19 +271,19 @@ const reportNotFound = (opts: { packages: IProjectPackage[]; packageName: string
 export class PresetDiff {
   /**
    * `preset diff` of a package whose config entry has `kind: 'lib'`: the files of the preset kind that made it
-   * (`presetKind`, absent means `lib`), rendered with that kind's tokens, set against the package's folder.
+   * (`presetType`, absent means `lib`), rendered with that kind's tokens, set against the package's folder.
    */
   private static async diffLibrary(opts: {
     cwd: string;
     args: string[];
     library: IProjectPackage;
-    kind: TLibraryKind;
+    kind: TLibraryType;
     recorded: IRecordedPreset[];
     configName: string | undefined;
     presetValue: string | undefined;
   }): Promise<number> {
     const { cwd, args, library, kind } = opts;
-    const noun = kind === LibraryKinds.SHARED ? 'shared package' : 'library';
+    const noun = kind === LibraryTypes.SHARED ? 'shared package' : 'library';
 
     for (const flag of [CreateFlags.API, CreateFlags.NO_API]) {
       if (args.includes(flag)) {
@@ -458,12 +458,12 @@ export class PresetDiff {
       return reportNotFound({ packages, packageName });
     }
 
-    if (app.kind === PackageKinds.LIB) {
+    if (app.type === PackageTypes.LIB) {
       return PresetDiff.diffLibrary({
         cwd,
         args,
         library: app,
-        kind: app.presetKind ?? LibraryKinds.LIB,
+        kind: app.presetType ?? LibraryTypes.LIB,
         recorded: config.presets ?? [],
         configName: config.name,
         presetValue: presetFlag.value,

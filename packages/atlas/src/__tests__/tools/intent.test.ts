@@ -9,7 +9,7 @@ const record = (opts: Partial<ISymbolRecord> & { name: string }): ISymbolRecord 
   package: '@venizia/ardor-react',
   subpath: '.',
   specifier: '@venizia/ardor-react',
-  kind: 'function',
+  category: 'function',
   file: 'packages/react/src/hooks/x.ts',
   line: 7,
   signature: `${opts.name}(): void`,
@@ -32,7 +32,7 @@ const SYMBOLS: ISymbolRecord[] = [
     name: 'useDebounce',
     doc: 'Delays a value.\n\n@useWhen you must wait a fixed time before reacting to fast input\n@insteadOf setTimeout and clearTimeout inside a useEffect',
   }),
-  record({ name: 'formatDate', kind: 'type', doc: 'Formats a date for display.' }),
+  record({ name: 'formatDate', category: 'type', doc: 'Formats a date for display.' }),
   record({ name: 'Plain' }),
 ];
 
@@ -123,9 +123,9 @@ describe('SymbolIntent.tokensOf', () => {
   test('"nullable type" finds TNullable first among the type helpers', () => {
     const hits = SymbolIntent.rank({
       records: [
-        record({ name: 'TNullable', kind: 'type', doc: 'A value or null.' }),
-        record({ name: 'ValueOf', kind: 'type', doc: 'The values of an object type.' }),
-        record({ name: 'TConstValue', kind: 'type', doc: 'The value type of a const class.' }),
+        record({ name: 'TNullable', category: 'type', doc: 'A value or null.' }),
+        record({ name: 'ValueOf', category: 'type', doc: 'The values of an object type.' }),
+        record({ name: 'TConstValue', category: 'type', doc: 'The value type of a const class.' }),
       ],
       query: 'nullable type',
       limit: 3,
@@ -238,7 +238,7 @@ describe('the intent tool', () => {
     const answer = await call({ query: 'wait some milliseconds' }, [
       record({
         name: 'PromiseUtility',
-        kind: 'class',
+        category: 'class',
         specifier: '@x/helpers/common',
         doc: 'Promise helpers.',
         members: [

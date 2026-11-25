@@ -35,7 +35,7 @@ const table = (opts: { dir: string; name: string; id: string }): IReleaseTable =
       date: '2026-02-01',
       title: `Change ${opts.id}`,
       packages: [opts.name],
-      kind: 'Breaking Change',
+      badge: 'Breaking Change',
       order: 1,
       migration: [
         {
@@ -324,14 +324,14 @@ describe('MigrateReport.markdown', () => {
             id: 'only-reexported',
             symbols: ['Alpha', 'Beta'],
             touches: [
-              { file: 'src/index.ts', line: 4, symbol: 'Alpha', kind: 're-export' },
-              { file: 'src/index.ts', line: 4, symbol: 'Beta', kind: 're-export' },
+              { file: 'src/index.ts', line: 4, symbol: 'Alpha', reach: 're-export' },
+              { file: 'src/index.ts', line: 4, symbol: 'Beta', reach: 're-export' },
             ],
           }),
           stepWith({
             id: 'used',
             symbols: ['Gamma'],
-            touches: [{ file: 'src/a.ts', line: 2, symbol: 'Gamma', kind: 'name' }],
+            touches: [{ file: 'src/a.ts', line: 2, symbol: 'Gamma', reach: 'name' }],
           }),
         ],
       }),
@@ -356,8 +356,8 @@ describe('MigrateReport.markdown', () => {
           id: 'entry-import',
           symbols: ['@venizia/kernel'],
           touches: [
-            { file: 'src/a.ts', line: 1, symbol: '@venizia/kernel', kind: 'module' },
-            { file: 'src/b.ts', line: 3, symbol: '@venizia/kernel', kind: 'module' },
+            { file: 'src/a.ts', line: 1, symbol: '@venizia/kernel', reach: 'module' },
+            { file: 'src/b.ts', line: 3, symbol: '@venizia/kernel', reach: 'module' },
           ],
         }),
       ],

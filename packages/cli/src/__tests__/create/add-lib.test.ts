@@ -128,7 +128,7 @@ describe('vulcan package add --lib', () => {
       {
         name: 'billing',
         path: 'libs/billing',
-        kind: 'lib',
+        type: 'lib',
       },
     );
     expect(manifest.presets[0].lib).toBe('A fixture library.');
@@ -238,7 +238,7 @@ describe('the package name', () => {
         config,
         readFileSync(config, 'utf8').replace(
           '"packages": [',
-          `"packages": [\n    { "dir": "${dir}", "name": "${name}", "path": "libs/${dir}", "kind": "lib" },`,
+          `"packages": [\n    { "dir": "${dir}", "name": "${name}", "path": "libs/${dir}", "type": "lib" },`,
         ),
       );
     }

@@ -177,11 +177,11 @@ describe('AppScan.scan', () => {
       ],
     });
 
-    expect(found.touches.name.map((touch) => `${touch.file}:${touch.kind}`).sort()).toEqual([
+    expect(found.touches.name.map((touch) => `${touch.file}:${touch.reach}`).sort()).toEqual([
       'a.ts:name',
       'b.ts:re-export',
     ]);
-    expect(found.touches.module.map((touch) => touch.kind)).toEqual(['module']);
+    expect(found.touches.module.map((touch) => touch.reach)).toEqual(['module']);
   });
 
   test('`export * as ns from` passes the whole module on: a re-export, like `export *`', () => {
@@ -192,7 +192,7 @@ describe('AppScan.scan', () => {
     });
 
     expect(found.touches.t).toEqual([
-      { file: 'a.ts', line: 1, symbol: 'Thing', kind: 're-export' },
+      { file: 'a.ts', line: 1, symbol: 'Thing', reach: 're-export' },
     ]);
   });
 
@@ -206,11 +206,13 @@ describe('AppScan.scan', () => {
       ],
     });
 
-    expect(found.touches.named).toEqual([{ file: 'a.ts', line: 1, symbol: 'Thing', kind: 'name' }]);
+    expect(found.touches.named).toEqual([
+      { file: 'a.ts', line: 1, symbol: 'Thing', reach: 'name' },
+    ]);
     expect(found.touches.other).toEqual([]);
   });
 
-  test('one file with a real use and an `export *` reports both, each by its kind and line', () => {
+  test('one file with a real use and an `export *` reports both, each by how it reaches and line', () => {
     const app = appWith({
       files: {
         'a.ts':
@@ -222,7 +224,7 @@ describe('AppScan.scan', () => {
       targets: [{ id: 't', packages: ['@a/kernel'], symbols: ['Thing'] }],
     });
 
-    expect(found.touches.t.map((touch) => `${touch.line}:${touch.kind}`).sort()).toEqual([
+    expect(found.touches.t.map((touch) => `${touch.line}:${touch.reach}`).sort()).toEqual([
       '1:name',
       '3:re-export',
       '5:name',

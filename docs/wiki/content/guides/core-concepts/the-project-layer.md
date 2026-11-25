@@ -76,7 +76,7 @@ The manifest carries the following fields:
 
 Details:
 
-- `packages` entries carry `name`, `dir`, `path`, `aliases`, `retired`, and `presetKind`; `kind: "lib"` marks a library other apps import, made by `vulcan package add --lib`.
+- `packages` entries carry `name`, `dir`, `path`, `aliases`, `retired`, and `presetType`; `type: "lib"` marks a library other apps import, made by `vulcan package add --lib`.
 - `other` holds folders the layout does not manage, such as docs.
 - `migrationFrom` is the cutover of the migration gate: a date (`2026-11-13`) from which dated Breaking Change entries carry a migration block, or a version (`0.4.5`) from which version folders `changelogs/<X.Y.Z>/` are the changelog and dated files are history.
 - `codemodCommand` is the runner of the project's migration codemods: a bare binary name found in the app's `node_modules/.bin`, then fixed words, such as `['tool', 'codemod']`; the default is `['devz', 'codemod']`. A migration names a codemod and never a command, so a changelog cannot run anything. A word that is not allowed (a path, a flag, a space) fails with the word named; it is never dropped.

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { ProjectLayout } from '../common/constants.ts';
 import { GitQueries } from '../hooks/git-queries.ts';
 import { RecordValue } from '../common/record.ts';
-import { EventConstants, EventKinds } from './common/index.ts';
+import { EventConstants, EventTypes } from './common/index.ts';
 import type { TIsOver } from './common/index.ts';
 import { FlowId } from './flow-id.ts';
 import { EventText } from './text.ts';
@@ -17,11 +17,11 @@ type TEdited = (opts: { root: string; since: number }) => boolean;
 
 /** The kinds that are work on a flow: usage and session lines say nothing of it. */
 const WORK_KINDS = new Set<string>([
-  EventKinds.FLOW,
-  EventKinds.COMMIT,
-  EventKinds.PR,
-  EventKinds.DECISION,
-  EventKinds.DEPLOY,
+  EventTypes.FLOW,
+  EventTypes.COMMIT,
+  EventTypes.PR,
+  EventTypes.DECISION,
+  EventTypes.DEPLOY,
 ]);
 
 /**
@@ -67,7 +67,7 @@ export class BoardStop {
     const acts = known.filter(
       (event) =>
         event.actor === actor &&
-        (event.kind === EventKinds.COMMIT || event.kind === EventKinds.PR) &&
+        (event.type === EventTypes.COMMIT || event.type === EventTypes.PR) &&
         event.flowId !== undefined &&
         FlowId.canon({ id: event.flowId, key }) === wanted &&
         Date.parse(event.ts) > since,
@@ -134,7 +134,7 @@ export class BoardStop {
     const newest = known
       .filter(
         (event) =>
-          WORK_KINDS.has(event.kind) &&
+          WORK_KINDS.has(event.type) &&
           event.flowId !== undefined &&
           FlowId.canon({ id: event.flowId, key }) === opts.wanted,
       )

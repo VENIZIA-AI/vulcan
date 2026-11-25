@@ -541,7 +541,7 @@ describe('doctor: apps', () => {
       ...CONFORMANT,
       'package.json': `{ "name": "demo", "workspaces": ${opts.workspaces}, "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }`,
       '.configs/vulcan.config.mts':
-        "export default { project: { layout: { backend: 'services' }, packages: [{ dir: 'merchant', name: '@nx/merchant', path: 'frontends/features/merchant', kind: 'lib' }] }, agent: { rules: { 'V-W-01': 'read-only' } } };\n",
+        "export default { project: { layout: { backend: 'services' }, packages: [{ dir: 'merchant', name: '@nx/merchant', path: 'frontends/features/merchant', type: 'lib' }] }, agent: { rules: { 'V-W-01': 'read-only' } } };\n",
     });
     const covered = createSyncedProject({
       files: files({ workspaces: '["services/*", "frontends/features/*"]' }),

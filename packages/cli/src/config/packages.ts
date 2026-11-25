@@ -1,4 +1,4 @@
-import type { TLibraryKind, TPackageKind } from './common/index.ts';
+import type { TLibraryType, TPackageType } from './common/index.ts';
 import type { TResolvedConfig } from './schema.ts';
 
 const DEFAULT_PACKAGES_DIRECTORY = 'packages';
@@ -10,9 +10,9 @@ export interface IProjectPackage {
   path: string;
   aliases: string[];
   retired: boolean;
-  kind?: TPackageKind;
+  type?: TPackageType;
   /** Which preset kind made a library; absent means `lib`. */
-  presetKind?: TLibraryKind;
+  presetType?: TLibraryType;
 }
 
 export class ProjectPackages {
@@ -24,8 +24,8 @@ export class ProjectPackages {
       path: entry.path ?? `${DEFAULT_PACKAGES_DIRECTORY}/${entry.dir}`,
       aliases: entry.aliases,
       retired: entry.retired,
-      ...(entry.kind === undefined ? {} : { kind: entry.kind }),
-      ...(entry.presetKind === undefined ? {} : { presetKind: entry.presetKind }),
+      ...(entry.type === undefined ? {} : { type: entry.type }),
+      ...(entry.presetType === undefined ? {} : { presetType: entry.presetType }),
     }));
   }
 }

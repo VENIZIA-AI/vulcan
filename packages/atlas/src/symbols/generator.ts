@@ -337,7 +337,7 @@ export class AtlasSymbols {
         package: packageName,
         subpath,
         specifier,
-        kind: PublicSurface.kindOf({ checker, symbol }),
+        category: PublicSurface.categoryOf({ checker, symbol }),
         file: location.file,
         line: location.line,
         signature: declaration

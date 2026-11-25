@@ -3,8 +3,8 @@ import { MigrateReport } from './report';
 import type { IMigrationResult } from './plan';
 
 const USAGE = [
-  'usage: vulcan atlas migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose]',
-  '       vulcan atlas migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force]',
+  'usage: vulcan atlas migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]',
+  '       vulcan atlas migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]',
 ].join('\n');
 
 const VALUE_FLAGS = new Set([

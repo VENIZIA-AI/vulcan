@@ -5,8 +5,8 @@ import { LayoutFolder, LayoutKeys } from '../common/layout-folder.ts';
 import type { ILayout } from '../common/layout-folder.ts';
 import { OFFICIAL_PRESETS, OfficialPresets } from '@venizia/vulcan-atlas';
 import type { IOfficialPreset } from '@venizia/vulcan-atlas';
-import { ConfigLoader, LibraryKinds, PackageKinds, ProjectPackages } from '../config/index.ts';
-import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/index.ts';
+import { ConfigLoader, LibraryTypes, PackageTypes, ProjectPackages } from '../config/index.ts';
+import type { IProjectPackage, TLibraryType, TResolvedConfig } from '../config/index.ts';
 import { ProjectScaffold } from '../init/index.ts';
 import { LibraryScaffold } from './add-lib.ts';
 import { AppChecks } from './checks.ts';
@@ -90,19 +90,19 @@ const missingFlag = (opts: { args: string[]; layout: ILayout }): string | undefi
 };
 
 /** What `add` makes: an app, or one of the library kinds. */
-type TAddKind = typeof PackageKinds.APP | TLibraryKind;
+type TAddKind = typeof PackageTypes.APP | TLibraryType;
 
 /** Per kind: the flag that names it and the words a menu and a message describe it with. */
 const ADD_KINDS: Record<TAddKind, { flag: string; hint: string }> = {
-  [PackageKinds.APP]: { flag: CreateFlags.APP, hint: 'a runnable app' },
-  [LibraryKinds.LIB]: { flag: CreateFlags.LIB, hint: 'a library other apps import' },
-  [LibraryKinds.SHARED]: {
+  [PackageTypes.APP]: { flag: CreateFlags.APP, hint: 'a runnable app' },
+  [LibraryTypes.LIB]: { flag: CreateFlags.LIB, hint: 'a library other apps import' },
+  [LibraryTypes.SHARED]: {
     flag: CreateFlags.SHARED,
     hint: 'a side-neutral package other apps import',
   },
 };
 
-const ADD_KIND_ORDER: TAddKind[] = [PackageKinds.APP, LibraryKinds.LIB, LibraryKinds.SHARED];
+const ADD_KIND_ORDER: TAddKind[] = [PackageTypes.APP, LibraryTypes.LIB, LibraryTypes.SHARED];
 
 /** The commands a project can run for this preset: what `add` prints when it is not told what to create. */
 const kindCommands = (opts: { presetValue: string }): string[] =>
@@ -122,9 +122,9 @@ const SAY_WHAT = `say what to create - ${DESCRIBED_KINDS.slice(0, -1).join(', ')
 /** The kinds a located preset makes: always an app, a library kind only when its file is there. */
 const kindsOffered = (opts: { located: ILocatedPreset }): TAddKind[] => {
   const hasFile: Record<TAddKind, boolean> = {
-    [PackageKinds.APP]: true,
-    [LibraryKinds.LIB]: opts.located.libFile !== undefined,
-    [LibraryKinds.SHARED]: opts.located.sharedFile !== undefined,
+    [PackageTypes.APP]: true,
+    [LibraryTypes.LIB]: opts.located.libFile !== undefined,
+    [LibraryTypes.SHARED]: opts.located.sharedFile !== undefined,
   };
 
   return ADD_KIND_ORDER.filter((kind) => hasFile[kind]);
@@ -153,7 +153,7 @@ const noSharedKindMessage = (opts: {
   ];
   const commands = known.map(
     (spec) =>
-      `bun node_modules/.bin/vulcan package add --preset ${spec} ${ADD_KINDS[LibraryKinds.SHARED].flag} ${opts.name}`,
+      `bun node_modules/.bin/vulcan package add --preset ${spec} ${ADD_KINDS[LibraryTypes.SHARED].flag} ${opts.name}`,
   );
 
   return `preset ${opts.located.packageName} has no shared kind (it makes: ${kindsOffered({ located: opts.located }).join(' and ')}); ${
@@ -298,7 +298,7 @@ export class AppScaffold {
     }
 
     const [flaggedKind] = flaggedKinds;
-    const flagsLibrary = flaggedKind !== undefined && flaggedKind !== PackageKinds.APP;
+    const flagsLibrary = flaggedKind !== undefined && flaggedKind !== PackageTypes.APP;
     const flaggedScope = ProjectNames.readScope({ args: opts.args });
 
     if (!flaggedScope.ok) {
@@ -337,9 +337,9 @@ export class AppScaffold {
 
     const { preset, packageName, packageVersion } = located.located;
     const recordedSpec = PresetRecord.presetSpecOf({ value: presetValue, root: cwd, cwd });
-    let kind: TAddKind = flaggedKind ?? PackageKinds.APP;
+    let kind: TAddKind = flaggedKind ?? PackageTypes.APP;
 
-    if (flaggedKind === LibraryKinds.SHARED && located.located.sharedFile === undefined) {
+    if (flaggedKind === LibraryTypes.SHARED && located.located.sharedFile === undefined) {
       return AddFailure.fail({
         message: noSharedKindMessage({
           located: located.located,
@@ -354,7 +354,7 @@ export class AppScaffold {
 
     if (flaggedKind === undefined) {
       const offered = kindsOffered({ located: located.located });
-      const askingKind = offered.length === 1 ? PackageKinds.APP : askKind({ offered });
+      const askingKind = offered.length === 1 ? PackageTypes.APP : askKind({ offered });
       const chosen = await askingKind;
 
       if (chosen === undefined) {
@@ -364,7 +364,7 @@ export class AppScaffold {
       kind = chosen;
     }
 
-    if (kind !== PackageKinds.APP) {
+    if (kind !== PackageTypes.APP) {
       const flaggedName = ProjectNames.readFlag({ args: opts.args, flag: ADD_KINDS[kind].flag });
       const askingName =
         flaggedName === undefined

@@ -3,7 +3,7 @@ import type { IBoardViewEvent, TTranslate } from '../common/types.ts';
 
 /**
  * The verb of each type of log line an agent card can show as its latest; a type with no verb shows its words alone.
- * The types are the log's `EventKinds` values, written out: the page bundle must not take the events constants.
+ * The types are the log's `EventTypes` values, written out: the page bundle must not take the events constants.
  */
 const ACTIVITY_VERBS: Record<string, string> = {
   'session-start': 'lt.sessionStart',

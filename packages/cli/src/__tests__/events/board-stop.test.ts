@@ -46,7 +46,7 @@ const flowLine = (opts: {
   write({
     root: opts.root,
     event: EventLog.build({
-      kind: 'flow',
+      type: 'flow',
       summary: 'Sign in',
       actor: ACTOR,
       source: 'cli',
@@ -60,7 +60,7 @@ const flowLine = (opts: {
   });
 const line = (opts: {
   root: string;
-  kind: 'commit' | 'pr' | 'deploy';
+  type: 'commit' | 'pr' | 'deploy';
   summary: string;
   at: number;
   actor?: string;
@@ -68,7 +68,7 @@ const line = (opts: {
   write({
     root: opts.root,
     event: EventLog.build({
-      kind: opts.kind,
+      type: opts.type,
       summary: opts.summary,
       actor: opts.actor ?? ACTOR,
       source: 'claude-hook',
@@ -128,7 +128,7 @@ describe('the Stop hook decides', () => {
 
     flowLine({ root, at: T0 });
     expect(stop({ root })).toBeUndefined();
-    line({ root, kind: 'commit', summary: 'commit', at: T0 + 1000 });
+    line({ root, type: 'commit', summary: 'commit', at: T0 + 1000 });
     flowLine({ root, at: T0 + 2000 });
     expect(stop({ root })).toBeUndefined();
   });
@@ -137,7 +137,7 @@ describe('the Stop hook decides', () => {
     const root = project();
 
     flowLine({ root, at: T0 });
-    line({ root, kind: 'commit', summary: 'commit', at: T0 + 1000 });
+    line({ root, type: 'commit', summary: 'commit', at: T0 + 1000 });
 
     const held = stop({ root });
 
@@ -150,7 +150,7 @@ describe('the Stop hook decides', () => {
     const pr = project();
 
     flowLine({ root: pr, at: T0 });
-    line({ root: pr, kind: 'pr', summary: 'pull request opened', at: T0 + 1000 });
+    line({ root: pr, type: 'pr', summary: 'pull request opened', at: T0 + 1000 });
     expect(stop({ root: pr })?.decision).toBe('block');
   });
 
@@ -181,7 +181,7 @@ describe('the Stop hook decides', () => {
     const root = project();
 
     flowLine({ root, at: T0 });
-    line({ root, kind: 'pr', summary: 'pull request merge', at: T0 + 1000 });
+    line({ root, type: 'pr', summary: 'pull request merge', at: T0 + 1000 });
 
     const held = stop({ root });
 
@@ -193,7 +193,7 @@ describe('the Stop hook decides', () => {
     const root = project();
 
     flowLine({ root, at: T0 });
-    line({ root, kind: 'commit', summary: 'commit', at: T0 + 1000 });
+    line({ root, type: 'commit', summary: 'commit', at: T0 + 1000 });
     expect(stop({ root, active: true })).toBeUndefined();
     expect(stop({ root, actor: 'someone-else' })).toBeUndefined();
     expect(
@@ -210,17 +210,17 @@ describe('the Stop hook decides', () => {
     const off = project({ log: false });
 
     flowLine({ root: off, at: T0 });
-    line({ root: off, kind: 'commit', summary: 'commit', at: T0 + 1000 });
+    line({ root: off, type: 'commit', summary: 'commit', at: T0 + 1000 });
     expect(stop({ root: off })).toBeUndefined();
 
-    line({ root, kind: 'deploy', summary: 'live', at: T0 + 2000 });
+    line({ root, type: 'deploy', summary: 'live', at: T0 + 2000 });
     expect(stop({ root })).toBeUndefined();
   });
 
   test('no flow, no flow line, and a broken input end the turn without throwing', () => {
     const none = project();
 
-    line({ root: none, kind: 'commit', summary: 'commit', at: T0 + 1000 });
+    line({ root: none, type: 'commit', summary: 'commit', at: T0 + 1000 });
     expect(stop({ root: none, edited: true })).toBeUndefined();
     expect(
       BoardStop.decide({ root: none, input: 'x', env: {}, isOver: FlowState.isOver }),
@@ -254,10 +254,10 @@ describe('the edit signal belongs to a session that is in the flow', () => {
 
     flowLine({ root, at: T0 });
     branch(root);
-    line({ root, kind: 'commit', summary: 'commit', at: T0 + 1000, actor: ACTOR });
+    line({ root, type: 'commit', summary: 'commit', at: T0 + 1000, actor: ACTOR });
     expect(stop({ root, actor: 'assistant-1' })).toBeUndefined();
 
-    line({ root, kind: 'commit', summary: 'commit', at: T0 + 2000, actor: 'assistant-1' });
+    line({ root, type: 'commit', summary: 'commit', at: T0 + 2000, actor: 'assistant-1' });
     expect(stop({ root, actor: 'assistant-1' })?.decision).toBe('block');
   });
 });
@@ -370,7 +370,7 @@ describe('a stale flow is reminded once per two hours', () => {
     write({
       root,
       event: EventLog.build({
-        kind: 'usage',
+        type: 'usage',
         summary: 'tokens',
         actor: ACTOR,
         source: 'claude-hook',
@@ -383,7 +383,7 @@ describe('a stale flow is reminded once per two hours', () => {
     const worked = project();
 
     flowLine({ root: worked, at: T0 });
-    line({ root: worked, kind: 'commit', summary: 'commit', at: T0 + 2 * HOUR });
+    line({ root: worked, type: 'commit', summary: 'commit', at: T0 + 2 * HOUR });
     flowLine({ root: worked, at: T0 + 2 * HOUR + 1000 });
     expect(stop({ root: worked, now: T0 + 3 * HOUR })).toBeUndefined();
   });
@@ -392,7 +392,7 @@ describe('a stale flow is reminded once per two hours', () => {
     const root = project();
 
     flowLine({ root, at: T0 });
-    line({ root, kind: 'commit', summary: 'commit', at: T0 + 2 * HOUR + 30 * 60_000 });
+    line({ root, type: 'commit', summary: 'commit', at: T0 + 2 * HOUR + 30 * 60_000 });
     // The commit also holds this turn on its own (no flow line since); the stale reminder is not the reason.
     const held = stop({ root, now: T0 + 3 * HOUR });
 
@@ -471,8 +471,8 @@ describe('GitActivity.classify', () => {
     ['glab mr create', 'pr-open'],
     ['gh pr merge 5 --squash', 'pr-merge'],
     ['glab mr merge 5', 'pr-merge'],
-  ])('%s is %s', (command, kind) => {
-    expect(GitActivity.classify({ command })).toBe(kind);
+  ])('%s is %s', (command, type) => {
+    expect(GitActivity.classify({ command })).toBe(type);
   });
 
   test.each([
@@ -523,9 +523,9 @@ describe('the Bash line of the event hook', () => {
     const opened = bash({ root, activity: 'pr-open' });
     const merged = bash({ root, activity: 'pr-merge' });
 
-    expect([commit?.kind, commit?.summary, commit?.flowId]).toEqual(['commit', 'commit', FLOW]);
-    expect([opened?.kind, opened?.summary]).toEqual(['pr', 'pull request opened']);
-    expect([merged?.kind, merged?.summary]).toEqual(['pr', 'pull request merge']);
+    expect([commit?.type, commit?.summary, commit?.flowId]).toEqual(['commit', 'commit', FLOW]);
+    expect([opened?.type, opened?.summary]).toEqual(['pr', 'pull request opened']);
+    expect([merged?.type, merged?.summary]).toEqual(['pr', 'pull request merge']);
     expect(JSON.stringify([commit, opened, merged])).not.toContain('secret');
   });
 
@@ -541,7 +541,7 @@ describe('the Bash line of the event hook', () => {
     ).toBeDefined();
 
     // The branch names the flow, and it is over: nothing is written on it. With no branch, the search skips it and the line has no flow.
-    line({ root, kind: 'deploy', summary: 'live', at: Date.now() + 5000 });
+    line({ root, type: 'deploy', summary: 'live', at: Date.now() + 5000 });
     expect(bash({ root, activity: 'commit' })?.flowId).toBeUndefined();
     mkdirSync(join(root, '.git'));
     writeFileSync(join(root, '.git/HEAD'), `ref: refs/heads/feature/${FLOW}-sign-in\n`);
@@ -588,7 +588,7 @@ describe('the scripts', () => {
 
     expect(child.exitCode).toBe(0);
     expect(child.stdout.toString()).toBe('');
-    expect([last?.kind, last?.summary, last?.flowId]).toEqual(['commit', 'commit', FLOW]);
+    expect([last?.type, last?.summary, last?.flowId]).toEqual(['commit', 'commit', FLOW]);
     expect(JSON.stringify(EventLog.read({ dir: dirOf(root) }).events)).not.toContain('secret');
   });
 
@@ -606,7 +606,7 @@ describe('the scripts', () => {
     const now = Date.now();
 
     flowLine({ root, at: now - 5000 });
-    line({ root, kind: 'commit', summary: 'commit', at: now - 1000 });
+    line({ root, type: 'commit', summary: 'commit', at: now - 1000 });
 
     const input = {
       hookEventName: 'Stop',

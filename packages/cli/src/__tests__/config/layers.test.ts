@@ -70,15 +70,15 @@ describe('ConfigLayers.merge: the rules, the same for every key', () => {
       layers: [
         layer('base', {
           doctor: {
-            privateValues: { acknowledged: [{ path: 'a/**', kinds: ['ipv4'], reason: 'one' }] },
+            privateValues: { acknowledged: [{ path: 'a/**', types: ['ipv4'], reason: 'one' }] },
           },
         }),
         layer('project', {
           doctor: {
             privateValues: {
               acknowledged: [
-                { path: 'a/**', kinds: ['token'], reason: 'two' },
-                { path: 'a/**', kinds: ['ipv4'], reason: 'three' },
+                { path: 'a/**', types: ['token'], reason: 'two' },
+                { path: 'a/**', types: ['ipv4'], reason: 'three' },
               ],
             },
           },
@@ -172,7 +172,7 @@ describe('ConfigLayers.merge: remove', () => {
       atlas: { sources: [source('ignis'), source('ardor'), source('vulcan')] },
       claude: { settings: { permissions: { allow: ['Bash(ls:*)', 'Bash(ps:*)'] } } },
       doctor: {
-        privateValues: { acknowledged: [{ path: 'a/**', kinds: ['token', 'ipv4'], reason: 'r' }] },
+        privateValues: { acknowledged: [{ path: 'a/**', types: ['token', 'ipv4'], reason: 'r' }] },
       },
     }),
     layer('project', { atlas: { sources: [source('own')] } }),
@@ -374,8 +374,8 @@ describe('a project object alone, through the merge, is exactly what the schema 
       doctor: {
         privateValues: {
           acknowledged: [
-            { path: 'a/**', kinds: ['ipv4'], reason: 'one' },
-            { path: 'a/**', kinds: ['token'], reason: 'two' },
+            { path: 'a/**', types: ['ipv4'], reason: 'one' },
+            { path: 'a/**', types: ['token'], reason: 'two' },
           ],
         },
       },

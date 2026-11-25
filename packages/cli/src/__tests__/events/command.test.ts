@@ -11,7 +11,7 @@ afterAll(removeProjects);
 /** A project folder: the manifest marks it, so a command run in it does not walk up into the repository the test run lives in. */
 /** A line of the log that carries a flow: a flow exists when a line says so, and an id is never made up by hand. */
 const seedLine = (id: string): string =>
-  `${JSON.stringify(EventLog.build({ kind: 'commit', summary: 'seed', actor: 'seed', source: 'cli', flowId: id }))}\n`;
+  `${JSON.stringify(EventLog.build({ type: 'commit', summary: 'seed', actor: 'seed', source: 'cli', flowId: id }))}\n`;
 
 const project = (
   opts: { files?: Record<string, string>; flows?: string[]; key?: string } = {},
@@ -48,7 +48,7 @@ describe('vulcan event add', () => {
     const root = project({ files: { '.git/HEAD': 'ref: refs/heads/feature/F-7-x\n' } });
     const result = cli({
       root,
-      args: ['add', '--kind', 'commit', '--summary', 'fixed the lock', '--ref', 'abc1234'],
+      args: ['add', '--type', 'commit', '--summary', 'fixed the lock', '--ref', 'abc1234'],
     });
 
     expect(result.code, result.stderr).toBe(0);
@@ -58,7 +58,7 @@ describe('vulcan event add', () => {
 
     expect(result.stdout.trim()).toBe(event.id);
     expect(event).toMatchObject({
-      kind: 'commit',
+      type: 'commit',
       summary: 'fixed the lock',
       ref: 'abc1234',
       actor: 'pnt-vulcan-1',
@@ -84,7 +84,7 @@ describe('vulcan event add', () => {
     expect(
       cli({
         root: join(configured, 'packages/api/src'),
-        args: ['add', '--kind', 'pr', '--summary', 's'],
+        args: ['add', '--type', 'pr', '--summary', 's'],
       }).code,
     ).toBe(0);
     expect(lines({ dir: shared })).toHaveLength(1);
@@ -94,7 +94,7 @@ describe('vulcan event add', () => {
     );
 
     expect(
-      cli({ root: join(plain, 'packages/api'), args: ['add', '--kind', 'pr', '--summary', 's'] })
+      cli({ root: join(plain, 'packages/api'), args: ['add', '--type', 'pr', '--summary', 's'] })
         .code,
     ).toBe(0);
     expect(lines({ dir: join(plain, '.agents/local/events') })).toHaveLength(1);
@@ -107,7 +107,7 @@ describe('vulcan event add', () => {
     expect(
       cli({
         root: join(root, 'sub'),
-        args: ['add', '--kind', 'pr', '--summary', 's', '--dir', 'here'],
+        args: ['add', '--type', 'pr', '--summary', 's', '--dir', 'here'],
       }).code,
     ).toBe(0);
     expect(existsSync(join(root, 'sub/here'))).toBe(true);
@@ -119,7 +119,7 @@ describe('vulcan event add', () => {
       root,
       args: [
         'add',
-        '--kind',
+        '--type',
         'decision',
         '--status',
         'approve',
@@ -132,22 +132,22 @@ describe('vulcan event add', () => {
 
     expect(ok.code, ok.stderr).toBe(0);
     expect(JSON.parse(lines({ dir: join(root, '.agents/local/events') })[0])).toMatchObject({
-      kind: 'decision',
+      type: 'decision',
       status: 'approve',
       flowId: 'F-4',
     });
 
     for (const status of ['park', 'reject']) {
       expect(
-        cli({ root, args: ['add', '--kind', 'decision', '--status', status, '--summary', 's'] })
+        cli({ root, args: ['add', '--type', 'decision', '--status', status, '--summary', 's'] })
           .code,
       ).toBe(0);
     }
 
     for (const args of [
-      ['add', '--kind', 'decision', '--summary', 's'],
-      ['add', '--kind', 'decision', '--status', 'maybe', '--summary', 's'],
-      ['add', '--kind', 'commit', '--status', 'approve', '--summary', 's'],
+      ['add', '--type', 'decision', '--summary', 's'],
+      ['add', '--type', 'decision', '--status', 'maybe', '--summary', 's'],
+      ['add', '--type', 'commit', '--status', 'approve', '--summary', 's'],
     ]) {
       const result = cli({ root, args });
 
@@ -161,7 +161,7 @@ describe('vulcan event add', () => {
   test('works with the log switched off in the manifest', () => {
     const root = project();
 
-    expect(cli({ root, args: ['add', '--kind', 'pr', '--summary', 'opened'] }).code).toBe(0);
+    expect(cli({ root, args: ['add', '--type', 'pr', '--summary', 'opened'] }).code).toBe(0);
     expect(existsSync(join(root, '.agents/local/events'))).toBe(true);
   });
 
@@ -179,7 +179,7 @@ describe('vulcan event add', () => {
     expect(
       cli({
         root,
-        args: ['add', '--kind', 'pr', '--summary', 's', '--flow', 'F-2', '--actor', 'someone'],
+        args: ['add', '--type', 'pr', '--summary', 's', '--flow', 'F-2', '--actor', 'someone'],
       }).code,
     ).toBe(0);
     expect(JSON.parse(lines({ dir: shared })[0])).toMatchObject({
@@ -187,7 +187,7 @@ describe('vulcan event add', () => {
       actor: 'someone',
     });
     expect(
-      cli({ root, args: ['add', '--kind', 'pr', '--summary', 's', '--dir', other] }).code,
+      cli({ root, args: ['add', '--type', 'pr', '--summary', 's', '--dir', other] }).code,
     ).toBe(0);
     expect(lines({ dir: other })).toHaveLength(1);
     expect(existsSync(join(root, '.agents/local/events'))).toBe(false);
@@ -198,7 +198,7 @@ describe('vulcan event add', () => {
 
     cli({
       root,
-      args: ['add', '--kind', 'commit', '--summary', 'used npm_abcdefghijklmnopqrstu\nsecond'],
+      args: ['add', '--type', 'commit', '--summary', 'used npm_abcdefghijklmnopqrstu\nsecond'],
     });
 
     expect(JSON.parse(lines({ dir: join(root, '.agents/local/events') })[0]).summary).toBe(
@@ -210,13 +210,13 @@ describe('vulcan event add', () => {
     const root = project();
     const bad: string[][] = [
       ['add'],
-      ['add', '--kind', 'rollout', '--summary', 's'],
-      ['add', '--kind', 'commit'],
-      ['add', '--kind', 'commit', '--summary', '  '],
-      ['add', '--kind', 'commit', '--summary', 's', '--flow', 'flow-1'],
-      ['add', '--kind', 'commit', '--summary', 's', '--kind', 'pr'],
-      ['add', '--kind', 'commit', '--summary', 's', '--nope', 'x'],
-      ['add', '--kind', 'commit', '--summary'],
+      ['add', '--type', 'rollout', '--summary', 's'],
+      ['add', '--type', 'commit'],
+      ['add', '--type', 'commit', '--summary', '  '],
+      ['add', '--type', 'commit', '--summary', 's', '--flow', 'flow-1'],
+      ['add', '--type', 'commit', '--summary', 's', '--type', 'pr'],
+      ['add', '--type', 'commit', '--summary', 's', '--nope', 'x'],
+      ['add', '--type', 'commit', '--summary'],
       ['frobnicate'],
       [],
     ];
@@ -235,7 +235,7 @@ describe('vulcan event add', () => {
     const root = project();
     const result = cli({
       root,
-      args: ['add', '--kind', 'pr', '--summary', 's', '--dir', '/proc/vulcan-no-such/events'],
+      args: ['add', '--type', 'pr', '--summary', 's', '--dir', '/proc/vulcan-no-such/events'],
     });
 
     expect(result.code).toBe(1);
@@ -249,7 +249,7 @@ describe('vulcan event tail', () => {
     const root = project();
     const dir = join(root, '.agents/local/events');
 
-    for (const [offset, kind, summary] of [
+    for (const [offset, type, summary] of [
       [-3 * 86_400_000, 'commit', 'three days ago'],
       [-2000, 'pr', 'second'],
       [-5000, 'commit', 'first'],
@@ -257,7 +257,7 @@ describe('vulcan event tail', () => {
       EventLog.append({
         dir,
         event: EventLog.build({
-          kind,
+          type,
           summary,
           actor: 'a-1',
           source: 'cli',
@@ -296,7 +296,7 @@ describe('vulcan event tail', () => {
       'ts',
       'flowId',
       'actor',
-      'kind',
+      'type',
       'summary',
       'source',
     ]);
@@ -308,7 +308,7 @@ describe('vulcan event tail', () => {
 
     EventLog.append({
       dir: shared,
-      event: EventLog.build({ kind: 'pr', summary: 'elsewhere', actor: 'x', source: 'cli' }),
+      event: EventLog.build({ type: 'pr', summary: 'elsewhere', actor: 'x', source: 'cli' }),
     });
 
     expect(cli({ root, args: ['tail', '--dir', shared] }).stdout).toContain('elsewhere');
@@ -335,7 +335,7 @@ describe('vulcan event tail', () => {
   test('control characters in a line written by someone else never reach the terminal, in either format', () => {
     const root = project();
     const dir = join(root, '.agents/local/events');
-    const event = EventLog.build({ kind: 'commit', summary: 's', actor: 'a', source: 'cli' });
+    const event = EventLog.build({ type: 'commit', summary: 's', actor: 'a', source: 'cli' });
 
     mkdirSync(dir, { recursive: true });
     writeFileSync(
@@ -360,7 +360,7 @@ describe('vulcan event tail', () => {
   test('help lists the command; an unknown flag is exit 2', () => {
     const root = project();
 
-    expect(runCli({ args: ['help'], cwd: root }).stdout).toContain('event add --kind');
+    expect(runCli({ args: ['help'], cwd: root }).stdout).toContain('event add --type');
     expect(cli({ root, args: ['tail', '--bogus'] }).code).toBe(2);
   });
 });
@@ -374,7 +374,7 @@ describe('vulcan flow add', () => {
       root,
       args: [
         'add',
-        '--kind',
+        '--type',
         'flow',
         '--flow',
         'F-12',
@@ -390,7 +390,7 @@ describe('vulcan flow add', () => {
     const event = JSON.parse(lines({ dir: dir(root) })[0]);
 
     expect(event).toMatchObject({
-      kind: 'flow',
+      type: 'flow',
       flowId: 'F-12',
       summary: 'Bảng việc cho anh',
       why: 'để anh thấy việc chờ anh',
@@ -407,7 +407,7 @@ describe('vulcan flow add', () => {
       root,
       args: [
         'add',
-        '--kind',
+        '--type',
         'flow',
         '--flow',
         'F-12',
@@ -424,7 +424,7 @@ describe('vulcan flow add', () => {
 
     const event = JSON.parse(lines({ dir: dir(root) })[0]);
 
-    expect(event).toMatchObject({ kind: 'flow', context, next: 'pnt-vulcan-1 mở pull request' });
+    expect(event).toMatchObject({ type: 'flow', context, next: 'pnt-vulcan-1 mở pull request' });
     expect(EventLog.parse({ line: lines({ dir: dir(root) })[0] })).toEqual(event);
   });
 
@@ -435,7 +435,7 @@ describe('vulcan flow add', () => {
       root,
       args: [
         'add',
-        '--kind',
+        '--type',
         'flow',
         '--flow',
         'F-12',
@@ -460,7 +460,7 @@ describe('vulcan flow add', () => {
       root,
       args: [
         'add',
-        '--kind',
+        '--type',
         'flow',
         '--flow',
         'F-13',
@@ -479,17 +479,17 @@ describe('vulcan flow add', () => {
     const root = project({ flows: ['F-12', 'F-13', 'F-3'] });
 
     expect(
-      cli({ root, args: ['add', '--kind', 'flow', '--flow', 'F-12', '--title', 'Only a title'] })
+      cli({ root, args: ['add', '--type', 'flow', '--flow', 'F-12', '--title', 'Only a title'] })
         .code,
     ).toBe(0);
     expect(JSON.parse(lines({ dir: dir(root) })[0])).not.toHaveProperty('why');
 
     for (const args of [
-      ['add', '--kind', 'flow', '--flow', 'F-12'],
-      ['add', '--kind', 'flow', '--flow', 'F-12', '--title', '  '],
-      ['add', '--kind', 'flow', '--title', 'No flow'],
-      ['add', '--kind', 'flow', '--flow', 'F-12', '--summary', 'the old way', '--title', 'Both'],
-      ['add', '--kind', 'flow', '--flow', 'bad', '--title', 'Not a flow id'],
+      ['add', '--type', 'flow', '--flow', 'F-12'],
+      ['add', '--type', 'flow', '--flow', 'F-12', '--title', '  '],
+      ['add', '--type', 'flow', '--title', 'No flow'],
+      ['add', '--type', 'flow', '--flow', 'F-12', '--summary', 'the old way', '--title', 'Both'],
+      ['add', '--type', 'flow', '--flow', 'bad', '--title', 'Not a flow id'],
     ]) {
       const result = cli({ root, args });
 
@@ -511,7 +511,7 @@ describe('vulcan flow add', () => {
     ]) {
       const result = cli({
         root,
-        args: ['add', '--kind', 'flow', '--flow', 'F-12', '--title', 'T', ...extra],
+        args: ['add', '--type', 'flow', '--flow', 'F-12', '--title', 'T', ...extra],
       });
 
       expect(result.code, extra.join(' ')).toBe(2);
@@ -532,7 +532,7 @@ describe('vulcan flow add', () => {
     ]) {
       const result = cli({
         root,
-        args: ['add', '--kind', 'commit', '--summary', 'fixed', ...extra],
+        args: ['add', '--type', 'commit', '--summary', 'fixed', ...extra],
       });
 
       expect(result.code, extra.join(' ')).toBe(2);
@@ -549,7 +549,7 @@ describe('vulcan flow add', () => {
       root,
       args: [
         'add',
-        '--kind',
+        '--type',
         'flow',
         '--flow',
         'F-3',
@@ -573,7 +573,7 @@ describe('vulcan flow add', () => {
       root,
       args: [
         'add',
-        '--kind',
+        '--type',
         'flow',
         '--flow',
         'F-12',

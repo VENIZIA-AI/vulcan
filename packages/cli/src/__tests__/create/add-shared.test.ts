@@ -96,9 +96,9 @@ describe('vulcan package add --shared', () => {
     const block = blockOf({ root });
     const entry = (opts: { dir: string }) => block.packages.find((item) => item.dir === opts.dir);
 
-    expect(entry({ dir: 'common' })).toMatchObject({ kind: 'lib', presetKind: 'shared' });
-    expect(entry({ dir: 'billing' })).toMatchObject({ kind: 'lib' });
-    expect(entry({ dir: 'billing' })?.presetKind).toBeUndefined();
+    expect(entry({ dir: 'common' })).toMatchObject({ type: 'lib', presetType: 'shared' });
+    expect(entry({ dir: 'billing' })).toMatchObject({ type: 'lib' });
+    expect(entry({ dir: 'billing' })?.presetType).toBeUndefined();
     expect(block.presets?.[0]).toMatchObject({
       side: 'backend',
       lib: 'A fixture library.',
@@ -106,7 +106,7 @@ describe('vulcan package add --shared', () => {
     });
   });
 
-  test('an app added after a shared package keeps the shared record and the presetKind of that package', () => {
+  test('an app added after a shared package keeps the shared record and the presetType of that package', () => {
     const root = monorepo();
 
     expect(add({ root, args: ['--shared', 'common'] }).code).toBe(0);
@@ -119,8 +119,8 @@ describe('vulcan package add --shared', () => {
 
     expect(block.presets?.[0]?.shared).toBe('A fixture side-neutral package.');
     expect(block.packages.find((item) => item.dir === 'common')).toMatchObject({
-      kind: 'lib',
-      presetKind: 'shared',
+      type: 'lib',
+      presetType: 'shared',
     });
     expect(block.packages.map((item) => item.dir)).toContain('second-api');
   });

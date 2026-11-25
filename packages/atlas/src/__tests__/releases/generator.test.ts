@@ -8,15 +8,15 @@ import { ignisCommittedFileOf, IGNIS_HAS_HISTORY, IGNIS_ROOT } from '../ignis-ro
 const withFrontmatter = (opts: { frontmatter: string; body: string }): string =>
   `---\n${opts.frontmatter}\n---\n\n${opts.body}\n`;
 
-describe('ReleaseCompute.kindOfChangelog', () => {
+describe('ReleaseCompute.badgeOfChangelog', () => {
   test('reads the first badge text', () => {
     const text = '# Changelog\n\n<Badge type="tip" text="New Feature" />\n';
 
-    expect(ReleaseCompute.kindOfChangelog({ text })).toBe('New Feature');
+    expect(ReleaseCompute.badgeOfChangelog({ text })).toBe('New Feature');
   });
 
-  test('a file with no badge has no kind', () => {
-    expect(ReleaseCompute.kindOfChangelog({ text: '# Changelog\n\nProse.\n' })).toBeNull();
+  test('a file with no badge has no badge', () => {
+    expect(ReleaseCompute.badgeOfChangelog({ text: '# Changelog\n\nProse.\n' })).toBeNull();
   });
 });
 

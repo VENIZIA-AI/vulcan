@@ -84,12 +84,12 @@ const project = (opts: { log?: boolean } = {}): string =>
   });
 const dirOf = (root: string): string => join(root, '.agents/local/events');
 const usageOf = (root: string) =>
-  EventLog.read({ dir: dirOf(root) }).events.filter((event) => event.kind === 'usage');
+  EventLog.read({ dir: dirOf(root) }).events.filter((event) => event.type === 'usage');
 const openFlow = (root: string): void => {
   EventLog.append({
     dir: dirOf(root),
     event: EventLog.build({
-      kind: 'flow',
+      type: 'flow',
       summary: 'Sign in',
       actor: ACTOR,
       source: 'cli',
@@ -559,7 +559,7 @@ describe('the hooks that record', () => {
       cacheWrite: 0,
     });
     expect(
-      EventLog.read({ dir: dirOf(root) }).events.some((event) => event.kind === 'subagent-stop'),
+      EventLog.read({ dir: dirOf(root) }).events.some((event) => event.type === 'subagent-stop'),
     ).toBe(true);
   });
 
@@ -571,7 +571,7 @@ describe('the hooks that record', () => {
     EventLog.append({
       dir: dirOf(root),
       event: EventLog.build({
-        kind: 'deploy',
+        type: 'deploy',
         summary: 'live',
         actor: ACTOR,
         source: 'cli',
@@ -602,7 +602,7 @@ describe('the board adds the tokens up', () => {
     out: number;
   }) =>
     EventLog.build({
-      kind: 'usage',
+      type: 'usage',
       summary: 'tokens',
       actor: opts.actor,
       source: 'claude-hook',

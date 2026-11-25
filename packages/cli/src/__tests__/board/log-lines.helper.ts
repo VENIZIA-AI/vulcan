@@ -1,5 +1,5 @@
 import { EventLog } from '../../events/log.ts';
-import type { IEvent, TEventKind, TEventStatus } from '../../events/common/index.ts';
+import type { IEvent, TEventType, TEventStatus } from '../../events/common/index.ts';
 
 export const T0 = Date.parse('2026-11-03T08:00:00Z');
 
@@ -7,7 +7,7 @@ export const T0 = Date.parse('2026-11-03T08:00:00Z');
 export const line = (opts: {
   base?: number;
   minute: number;
-  kind: TEventKind;
+  kind: TEventType;
   actor: string;
   summary: string;
   flow?: string;
@@ -21,7 +21,7 @@ export const line = (opts: {
   source?: string;
 }): IEvent =>
   EventLog.build({
-    kind: opts.kind,
+    type: opts.kind,
     summary: opts.summary,
     actor: opts.actor,
     source: opts.source ?? 'cli',

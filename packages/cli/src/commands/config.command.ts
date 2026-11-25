@@ -4,6 +4,7 @@ import { ExitCodes, ProjectLayout } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { ConfigConstants, ConfigGroups, ConfigLayers, ConfigLoader } from '../config/index.ts';
 import { ConfigCodemod } from '../config/codemod.ts';
+import { ConfigTypeNames } from '../config/type-names.ts';
 import { ConfigFormat } from '../config/format.ts';
 
 const EFFECTIVE_FLAG = '--effective';
@@ -97,7 +98,7 @@ const runCodemod = (opts: ICommandContext): number => {
 
   if (unknown.length > 0 || words.length > 2) {
     process.stderr.write(
-      `vulcan config codemod: ${ConfigCodemod.NAME} [<dir>] [--write] [--split] | --list\n`,
+      `vulcan config codemod: <${ConfigCodemod.NAME}|${ConfigTypeNames.NAME}> [<dir>] [--write] [--split] | --list\n`,
     );
 
     return ExitCodes.USAGE;
@@ -105,31 +106,39 @@ const runCodemod = (opts: ICommandContext): number => {
 
   if (flags.includes('--list')) {
     // One name per line and nothing else: the changelog check reads the list as the names a codemod runner offers.
-    process.stdout.write(`${ConfigCodemod.NAME}\n`);
+    process.stdout.write(`${ConfigCodemod.NAME}\n${ConfigTypeNames.NAME}\n`);
 
     return ExitCodes.OK;
   }
 
   const [name, directory = '.'] = words;
 
-  if (name !== ConfigCodemod.NAME) {
+  if (name !== ConfigCodemod.NAME && name !== ConfigTypeNames.NAME) {
     process.stderr.write(
-      `vulcan config codemod: unknown codemod '${name ?? ''}': the one there is is ${ConfigCodemod.NAME}\n`,
+      `vulcan config codemod: unknown codemod '${name ?? ''}': the ones there are are ${ConfigCodemod.NAME} and ${ConfigTypeNames.NAME}\n`,
+    );
+
+    return ExitCodes.USAGE;
+  }
+
+  if (name === ConfigTypeNames.NAME && flags.includes('--split')) {
+    process.stderr.write(
+      `vulcan config codemod: --split does not apply to ${ConfigTypeNames.NAME}: it renames keys where they are; --split is for ${ConfigCodemod.NAME}\n`,
     );
 
     return ExitCodes.USAGE;
   }
 
   const root = resolve(opts.cwd, directory);
-  const result = ConfigCodemod.run({
-    root,
-    // A file whose real path is outside the folder it is read from (a link out of `.configs/`) is not read.
-    read: (path) =>
-      existsSync(join(root, path)) && isInside({ root, path, folder: ConfigConstants.DIRECTORY })
-        ? readFileSync(join(root, path), 'utf8')
-        : undefined,
-    split: flags.includes('--split'),
-  });
+  // A file whose real path is outside the folder it is read from (a link out of `.configs/`) is not read.
+  const read = (path: string): string | undefined =>
+    existsSync(join(root, path)) && isInside({ root, path, folder: ConfigConstants.DIRECTORY })
+      ? readFileSync(join(root, path), 'utf8')
+      : undefined;
+  const result =
+    name === ConfigTypeNames.NAME
+      ? ConfigTypeNames.run({ root, read })
+      : ConfigCodemod.run({ root, read, split: flags.includes('--split') });
 
   if (!result.ok) {
     process.stderr.write(`vulcan config codemod: nothing was written: ${result.reason}\n`);

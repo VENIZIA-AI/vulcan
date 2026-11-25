@@ -20,7 +20,7 @@ const entry = (opts: {
   date: string;
   slug: string;
   packages: string[];
-  kind?: string | null;
+  badge?: string | null;
   title?: string;
 }) => ({
   id: `changelog:${opts.date}-${opts.slug}`,
@@ -28,7 +28,7 @@ const entry = (opts: {
   date: opts.date,
   title: opts.title ?? opts.slug,
   packages: opts.packages,
-  kind: opts.kind ?? null,
+  badge: opts.badge ?? null,
 });
 
 const TABLE: IReleaseTable = {
@@ -44,7 +44,12 @@ const TABLE: IReleaseTable = {
     helpers: [{ version: '0.2.0-12', date: '2026-09-04', sha: 'aaaaaaaa', order: 1 }],
   },
   changelogs: [
-    entry({ date: '2026-09-05', slug: 'list-response', packages: ['kernel'], kind: 'New Feature' }),
+    entry({
+      date: '2026-09-05',
+      slug: 'list-response',
+      packages: ['kernel'],
+      badge: 'New Feature',
+    }),
     entry({ date: '2026-09-04', slug: 'helpers-seams', packages: ['helpers'] }),
     entry({ date: '2026-09-02', slug: 'decorators', packages: ['boot', 'kernel'] }),
     entry({ date: '2026-08-31', slug: 'lower-edge', packages: ['kernel'] }),
@@ -57,7 +62,7 @@ interface IChangesPayload {
   package: string | null;
   from: string | null;
   to: string;
-  entries: { id: string; date: string; title: string; kind: string | null; packages: string[] }[];
+  entries: { id: string; date: string; title: string; badge: string | null; packages: string[] }[];
   truncated?: boolean;
   nextOffset?: number;
 }
@@ -158,7 +163,7 @@ describe('changes tool', () => {
     expect(payload.entries.map((item) => item.id)).toEqual(['changelog:2026-09-05-list-response']);
   });
 
-  test('every entry carries its date, title, kind and packages', async () => {
+  test('every entry carries its date, title, badge and packages', async () => {
     const result = await callChanges({ releases, args: { package: 'kernel', from: '0.2.0-14' } });
     const payload = payloadOf(result);
 
@@ -166,7 +171,7 @@ describe('changes tool', () => {
       id: 'changelog:2026-09-05-list-response',
       date: '2026-09-05',
       title: 'list-response',
-      kind: 'New Feature',
+      badge: 'New Feature',
       packages: ['@venizia/ignis-kernel'],
     });
   });

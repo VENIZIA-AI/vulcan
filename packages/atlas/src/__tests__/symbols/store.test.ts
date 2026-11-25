@@ -7,7 +7,7 @@ const record = (opts: Partial<ISymbolRecord> & { name: string }): ISymbolRecord 
   package: '@venizia/ignis-helpers',
   subpath: '.',
   specifier: '@venizia/ignis-helpers',
-  kind: 'function',
+  category: 'function',
   file: 'packages/helpers/src/modules/error/error.ts',
   line: 42,
   signature: `${opts.name}(): void`,
@@ -19,7 +19,7 @@ const SYMBOLS: ISymbolRecord[] = [
   record({ name: 'respond', package: '@venizia/ignis', specifier: '@venizia/ignis' }),
   record({ name: 'respond', package: '@venizia/ignis-kernel', specifier: '@venizia/ignis-kernel' }),
   record({ name: 'respondError' }),
-  record({ name: 'BaseHelper', kind: 'class' }),
+  record({ name: 'BaseHelper', category: 'class' }),
 ];
 
 const buildStore = (): SymbolStore =>

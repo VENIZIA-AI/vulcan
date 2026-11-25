@@ -27,7 +27,7 @@ export const IntentInputSchema = z.object({
 
 export const PresetsInputSchema = z.object({
   /** What is being created; `app` when omitted. `lib` is a library other apps import, `shared` a side-neutral package. */
-  kind: z.string().min(1).optional(),
+  type: z.string().min(1).optional(),
   /** The name of the new app or package, put into the command. */
   name: z
     .string()

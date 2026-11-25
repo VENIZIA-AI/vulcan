@@ -152,6 +152,19 @@ export class WorkspacePackages {
     return found;
   }
 
+  /** Whether the member's `package.json` says `"private": true`: a package that is never published, so no release table needs it. */
+  static isPrivate(opts: { root: string; folder: string }): boolean {
+    try {
+      const file: unknown = JSON.parse(
+        readFileSync(join(opts.root, opts.folder, PACKAGE_FILE), 'utf8'),
+      );
+
+      return RecordValue.isRecord(file) && file.private === true;
+    } catch {
+      return false;
+    }
+  }
+
   private static nameOf(opts: { root: string; folder: string }): unknown {
     try {
       const file: unknown = JSON.parse(

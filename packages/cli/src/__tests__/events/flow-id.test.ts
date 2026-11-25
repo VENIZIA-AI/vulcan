@@ -12,7 +12,7 @@ afterAll(removeProjects);
 
 const BASE = Date.parse('2026-11-01T09:00:00Z');
 const line = (id: string, order = 0) =>
-  `${JSON.stringify(EventLog.build({ kind: 'commit', summary: 'seed', actor: 'a', source: 'cli', flowId: id, now: BASE + order * 1000 }))}\n`;
+  `${JSON.stringify(EventLog.build({ type: 'commit', summary: 'seed', actor: 'a', source: 'cli', flowId: id, now: BASE + order * 1000 }))}\n`;
 
 const project = (opts: { key?: string; seeds?: string[]; branch?: string } = {}): string =>
   createProject({
@@ -39,14 +39,14 @@ const cli = (opts: { root: string; args: string[] }) =>
   });
 const flowIds = (root: string): string[] =>
   EventLog.read({ dir: events(root) }).events.flatMap((event) =>
-    event.kind === 'flow' && event.flowId !== undefined ? [event.flowId] : [],
+    event.type === 'flow' && event.flowId !== undefined ? [event.flowId] : [],
   );
 
 describe('a flow made by the command', () => {
   test('a flow line with no id makes the next one for the key, and prints it', () => {
     const root = project({ key: 'ACME' });
-    const first = cli({ root, args: ['add', '--kind', 'flow', '--title', 'Sign in'] });
-    const second = cli({ root, args: ['add', '--kind', 'flow', '--title', 'Pay'] });
+    const first = cli({ root, args: ['add', '--type', 'flow', '--title', 'Sign in'] });
+    const second = cli({ root, args: ['add', '--type', 'flow', '--title', 'Pay'] });
 
     expect(first.code, first.stderr).toBe(0);
     expect(first.stdout.trim()).toBe('VULZ-ACME-1');
@@ -56,7 +56,7 @@ describe('a flow made by the command', () => {
 
   test('without a project key the command refuses and says what to set; nothing is written', () => {
     const root = project();
-    const result = cli({ root, args: ['add', '--kind', 'flow', '--title', 'Sign in'] });
+    const result = cli({ root, args: ['add', '--type', 'flow', '--title', 'Sign in'] });
 
     expect(result.code).toBe(2);
     expect(result.stderr).toContain('project.key');
@@ -65,9 +65,9 @@ describe('a flow made by the command', () => {
 
   test('the number goes above every older F-n of the log, and a flow line on the branch of a flow is a new flow', () => {
     const root = project({ key: 'ACME', seeds: ['F-9', 'F-12'], branch: 'feature/F-12-x' });
-    const onBranch = cli({ root, args: ['add', '--kind', 'flow', '--title', 'New'] });
+    const onBranch = cli({ root, args: ['add', '--type', 'flow', '--title', 'New'] });
     const off = project({ key: 'ACME', seeds: ['F-9', 'F-12'] });
-    const made = cli({ root: off, args: ['add', '--kind', 'flow', '--title', 'New'] });
+    const made = cli({ root: off, args: ['add', '--type', 'flow', '--title', 'New'] });
 
     expect(onBranch.code, onBranch.stderr).toBe(0);
     expect(onBranch.stdout.trim()).toBe('VULZ-ACME-13');
@@ -81,7 +81,7 @@ describe('--flow must name a flow that exists', () => {
     const root = project({ key: 'ACME', seeds: ['VULZ-ACME-1', 'VULZ-ACME-2'] });
     const result = cli({
       root,
-      args: ['add', '--kind', 'commit', '--summary', 'x', '--flow', 'VULZ-ACME-99'],
+      args: ['add', '--type', 'commit', '--summary', 'x', '--flow', 'VULZ-ACME-99'],
     });
 
     expect(result.code).toBe(2);
@@ -94,11 +94,11 @@ describe('--flow must name a flow that exists', () => {
     const root = project({ key: 'ACME' });
     const none = cli({
       root,
-      args: ['add', '--kind', 'commit', '--summary', 'x', '--flow', 'VULZ-ACME-1'],
+      args: ['add', '--type', 'commit', '--summary', 'x', '--flow', 'VULZ-ACME-1'],
     });
     const shape = cli({
       root,
-      args: ['add', '--kind', 'commit', '--summary', 'x', '--flow', 'acme-1'],
+      args: ['add', '--type', 'commit', '--summary', 'x', '--flow', 'acme-1'],
     });
 
     expect(none.stderr).toContain('no flow yet');
@@ -110,11 +110,11 @@ describe('--flow must name a flow that exists', () => {
     const root = project({ key: 'ACME', seeds: ['F-7'] });
     const asNew = cli({
       root,
-      args: ['add', '--kind', 'commit', '--summary', 'x', '--flow', 'VULZ-ACME-7'],
+      args: ['add', '--type', 'commit', '--summary', 'x', '--flow', 'VULZ-ACME-7'],
     });
     const asOld = cli({
       root,
-      args: ['add', '--kind', 'commit', '--summary', 'x', '--flow', 'F-7'],
+      args: ['add', '--type', 'commit', '--summary', 'x', '--flow', 'F-7'],
     });
 
     expect(asNew.code, asNew.stderr).toBe(0);
@@ -123,7 +123,7 @@ describe('--flow must name a flow that exists', () => {
 
   test('a flow named only by the branch is taken as it is, as the hooks take it', () => {
     const root = project({ key: 'ACME', branch: 'feature/VULZ-ACME-5-x' });
-    const result = cli({ root, args: ['add', '--kind', 'commit', '--summary', 'x'] });
+    const result = cli({ root, args: ['add', '--type', 'commit', '--summary', 'x'] });
 
     expect(result.code, result.stderr).toBe(0);
     expect(EventLog.read({ dir: events(root) }).events[0].flowId).toBe('VULZ-ACME-5');
@@ -275,7 +275,7 @@ describe('the claims are not part of the log', () => {
 describe('a flow line on the branch of a flow, open or over, makes a new flow', () => {
   const log = (
     lines: {
-      kind: 'commit' | 'pr' | 'decision';
+      type: 'commit' | 'pr' | 'decision';
       ref?: string;
       status?: 'approve' | 'park' | 'reject';
     }[],
@@ -284,7 +284,7 @@ describe('a flow line on the branch of a flow, open or over, makes a new flow', 
       .map((one, order) =>
         JSON.stringify(
           EventLog.build({
-            kind: one.kind,
+            type: one.type,
             summary: 'x',
             actor: 'a',
             source: 'cli',
@@ -305,24 +305,24 @@ describe('a flow line on the branch of a flow, open or over, makes a new flow', 
       },
     });
 
-    return cli({ root, args: ['add', '--kind', 'flow', '--title', 'T'] }).stdout.trim();
+    return cli({ root, args: ['add', '--type', 'flow', '--title', 'T'] }).stdout.trim();
   };
 
   const CASES: [string, Parameters<typeof log>[0]][] = [
-    ['open', [{ kind: 'commit' }]],
-    ['merged', [{ kind: 'pr', ref: 'merged:9' }]],
-    ['merged with a #', [{ kind: 'pr', ref: 'merged:#9' }]],
-    ['parked', [{ kind: 'decision', status: 'park' }]],
-    ['rejected', [{ kind: 'decision', status: 'reject' }]],
-    ['approved', [{ kind: 'decision', status: 'approve' }]],
+    ['open', [{ type: 'commit' }]],
+    ['merged', [{ type: 'pr', ref: 'merged:9' }]],
+    ['merged with a #', [{ type: 'pr', ref: 'merged:#9' }]],
+    ['parked', [{ type: 'decision', status: 'park' }]],
+    ['rejected', [{ type: 'decision', status: 'reject' }]],
+    ['approved', [{ type: 'decision', status: 'approve' }]],
     [
       'reopened by an approval after a park',
       [
-        { kind: 'decision', status: 'park' },
-        { kind: 'decision', status: 'approve' },
+        { type: 'decision', status: 'park' },
+        { type: 'decision', status: 'approve' },
       ],
     ],
-    ['reopened by work after the merge', [{ kind: 'pr', ref: 'merged:9' }, { kind: 'commit' }]],
+    ['reopened by work after the merge', [{ type: 'pr', ref: 'merged:9' }, { type: 'commit' }]],
   ];
 
   test.each(CASES)(
@@ -336,12 +336,12 @@ describe('a flow line on the branch of a flow, open or over, makes a new flow', 
     const root = createProject({
       files: {
         '.agents/local/vulcan.manifest.json': JSON.stringify({ project: { key: 'ACME' } }),
-        '.agents/local/events/2026-11-01.jsonl': `${log([{ kind: 'pr', ref: 'merged:9' }])}\n`,
+        '.agents/local/events/2026-11-01.jsonl': `${log([{ type: 'pr', ref: 'merged:9' }])}\n`,
       },
     });
     const result = cli({
       root,
-      args: ['add', '--kind', 'flow', '--flow', 'VULZ-ACME-4', '--title', 'T'],
+      args: ['add', '--type', 'flow', '--flow', 'VULZ-ACME-4', '--title', 'T'],
     });
 
     expect(result.code, result.stderr).toBe(0);

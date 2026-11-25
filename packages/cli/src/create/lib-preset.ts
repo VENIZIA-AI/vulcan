@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { z } from 'zod';
-import { LibraryKinds } from '../config/index.ts';
-import type { TLibraryKind } from '../config/index.ts';
+import { LibraryTypes } from '../config/index.ts';
+import type { TLibraryType } from '../config/index.ts';
 import { CreateConstants, PresetPath } from './common/index.ts';
 import type { ILocatedPreset, IRecordedPreset } from './common/index.ts';
 
@@ -87,11 +87,11 @@ export class LibPreset {
    * The lib preset of a located preset package, validated; with `kind: 'shared'` it reads the shared kind,
    * which has the same schema. The app side is never touched by an error here.
    */
-  static read(opts: { located: ILocatedPreset; kind?: TLibraryKind }): TLibPresetResult {
+  static read(opts: { located: ILocatedPreset; kind?: TLibraryType }): TLibPresetResult {
     const { located } = opts;
-    const kind = opts.kind ?? LibraryKinds.LIB;
+    const kind = opts.kind ?? LibraryTypes.LIB;
     const shown = `${located.packageName}@${located.packageVersion}`;
-    const file = kind === LibraryKinds.SHARED ? located.sharedFile : located.libFile;
+    const file = kind === LibraryTypes.SHARED ? located.sharedFile : located.libFile;
 
     if (file === undefined) {
       return { ok: false, error: `preset ${located.packageName} has no ${kind} kind` };
@@ -142,7 +142,7 @@ export class LibPreset {
   /** What the preset records of itself: its side and summary, and the lib summary when it makes libraries. */
   static recordedOf(opts: { spec: string; located: ILocatedPreset }): IRecordedPreset {
     const lib = LibPreset.read({ located: opts.located });
-    const shared = LibPreset.read({ located: opts.located, kind: LibraryKinds.SHARED });
+    const shared = LibPreset.read({ located: opts.located, kind: LibraryTypes.SHARED });
 
     return {
       spec: opts.spec,

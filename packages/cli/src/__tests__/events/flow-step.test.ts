@@ -34,7 +34,7 @@ const open = (root: string): string =>
     root,
     args: [
       'add',
-      '--kind',
+      '--type',
       'flow',
       '--title',
       'Sign in',
@@ -67,7 +67,7 @@ describe('vulcan flow step', () => {
     const last = linesOf(root).at(-1);
 
     expect(done.code).toBe(0);
-    expect(last?.kind).toBe('flow');
+    expect(last?.type).toBe('flow');
     expect(last?.summary).toBe('Sign in');
     expect(last?.flowId).toBe(id);
     expect(last?.steps).toEqual([
@@ -132,7 +132,7 @@ describe('vulcan flow step', () => {
       root,
       args: [
         'add',
-        '--kind',
+        '--type',
         'flow',
         '--flow',
         id,
@@ -184,7 +184,7 @@ describe('vulcan flow step', () => {
     EventLog.append({
       dir: dirOf(root),
       event: EventLog.build({
-        kind: 'commit',
+        type: 'commit',
         summary: 'x',
         actor: 'a',
         source: 'cli',
@@ -320,7 +320,7 @@ describe('the TodoWrite mirror', () => {
     writeFileSync(join(root, '.git/HEAD'), `ref: refs/heads/feature/${id}-sign-in\n`);
     expect(call({ root, todos: [task('A')], env: other })?.flowId).toBe(id);
 
-    cli({ root, args: ['add', '--kind', 'deploy', '--flow', id, '--summary', 'live'] });
+    cli({ root, args: ['add', '--type', 'deploy', '--flow', id, '--summary', 'live'] });
     expect(call({ root, todos: [task('B')], env: other })).toBeUndefined();
     expect(call({ root, todos: [task('B')] })).toBeUndefined();
   });
@@ -330,7 +330,7 @@ describe('the TodoWrite mirror', () => {
     const first = open(root);
     const second = open(root);
 
-    cli({ root, args: ['add', '--kind', 'deploy', '--flow', second, '--summary', 'live'] });
+    cli({ root, args: ['add', '--type', 'deploy', '--flow', second, '--summary', 'live'] });
 
     expect(call({ root, todos: [task('C')] })?.flowId).toBe(first);
   });
@@ -420,7 +420,7 @@ describe('a flow step keeps the steps it does not name', () => {
       root,
       args: [
         'add',
-        '--kind',
+        '--type',
         'flow',
         '--title',
         'Sign in',
@@ -438,7 +438,7 @@ describe('a flow step keeps the steps it does not name', () => {
     }).stdout.trim();
   const stepsOf = (root: string): string[] | undefined =>
     linesOf(root)
-      .filter((line) => line.kind === 'flow')
+      .filter((line) => line.type === 'flow')
       .at(-1)
       ?.steps?.map((step) => step.text);
 
@@ -459,7 +459,7 @@ describe('a flow step keeps the steps it does not name', () => {
     cli({ root, args: ['step', '--flow', id, '--todo', 'One'] });
 
     const last = linesOf(root)
-      .filter((line) => line.kind === 'flow')
+      .filter((line) => line.type === 'flow')
       .at(-1);
 
     expect(last?.steps).toEqual([
@@ -476,12 +476,12 @@ describe('a flow step keeps the steps it does not name', () => {
     const root = project();
     const id = openFive(root);
 
-    cli({ root, args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in again'] });
-    cli({ root, args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in once more'] });
+    cli({ root, args: ['add', '--type', 'flow', '--flow', id, '--title', 'Sign in again'] });
+    cli({ root, args: ['add', '--type', 'flow', '--flow', id, '--title', 'Sign in once more'] });
     cli({ root, args: ['step', '--flow', id, '--todo', 'Six'] });
 
     const last = linesOf(root)
-      .filter((line) => line.kind === 'flow')
+      .filter((line) => line.type === 'flow')
       .at(-1);
 
     expect(last?.summary).toBe('Sign in once more');
@@ -495,9 +495,9 @@ describe('a flow step keeps the steps it does not name', () => {
 
     cli({
       root,
-      args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in', '--step', 'Only'],
+      args: ['add', '--type', 'flow', '--flow', id, '--title', 'Sign in', '--step', 'Only'],
     });
-    cli({ root, args: ['add', '--kind', 'flow', '--flow', id, '--title', 'Sign in v2'] });
+    cli({ root, args: ['add', '--type', 'flow', '--flow', id, '--title', 'Sign in v2'] });
     cli({ root, args: ['step', '--flow', id, '--todo', 'Next'] });
 
     expect(stepsOf(root)).toEqual(['Only', 'Next']);

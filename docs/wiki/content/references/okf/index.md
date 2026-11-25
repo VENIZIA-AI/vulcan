@@ -225,7 +225,7 @@ gen: up to date
 When `knowledge.okf.renderers` and `knowledge.okf.regions` are empty and no contents list was written, `gen` prints:
 
 ```text
-gen: nothing configured - okf.renderers and okf.regions are empty; add a renderer to okf.renderers in the vulcan config (built in: source-map, makefile-targets, binding-keys, packages-table)
+gen: nothing configured - knowledge.okf.renderers and knowledge.okf.regions are empty; add a renderer to knowledge.okf.renderers in the vulcan config (built in: source-map, makefile-targets, binding-keys, packages-table)
 ```
 
 Contents lists default to `AGENTS.md` and `.agents/rules.md`.

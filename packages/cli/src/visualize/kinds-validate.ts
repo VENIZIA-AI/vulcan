@@ -73,19 +73,19 @@ const checkLifecycle = (opts: { lifecycle: TLifecycle }): string[] => {
     ids.add(state.id);
   }
 
-  const starts = lifecycle.states.filter((state) => state.kind === LifecycleKinds.START);
-  const ends = lifecycle.states.filter((state) => state.kind === LifecycleKinds.END);
+  const starts = lifecycle.states.filter((state) => state.type === LifecycleKinds.START);
+  const ends = lifecycle.states.filter((state) => state.type === LifecycleKinds.END);
 
   if (starts.length !== 1) {
     problems.push(
       starts.length === 0
-        ? "lifecycle.states: there is no state of kind 'start' - exactly one is needed"
-        : `lifecycle.states: ${starts.length} states are of kind 'start' (${starts.map((state) => `'${state.id}'`).join(', ')}) - exactly one is needed`,
+        ? "lifecycle.states: there is no state of type 'start' - exactly one is needed"
+        : `lifecycle.states: ${starts.length} states are of type 'start' (${starts.map((state) => `'${state.id}'`).join(', ')}) - exactly one is needed`,
     );
   }
 
   if (ends.length === 0) {
-    problems.push("lifecycle.states: there is no state of kind 'end' - at least one is needed");
+    problems.push("lifecycle.states: there is no state of type 'end' - at least one is needed");
   }
 
   const names = new Set<string>();

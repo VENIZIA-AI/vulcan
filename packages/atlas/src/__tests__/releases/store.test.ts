@@ -24,7 +24,7 @@ const TABLE: IReleaseTable = {
       date: '2026-09-05',
       title: 'One respond method',
       packages: ['connectors', 'kernel'],
-      kind: 'New Feature',
+      badge: 'New Feature',
     },
     {
       id: 'changelog:2026-09-04-helpers-only',
@@ -32,7 +32,7 @@ const TABLE: IReleaseTable = {
       date: '2026-09-04',
       title: 'Helpers only',
       packages: ['helpers'],
-      kind: null,
+      badge: null,
     },
     {
       id: 'changelog:2026-08-31-on-the-lower-edge',
@@ -40,7 +40,7 @@ const TABLE: IReleaseTable = {
       date: '2026-08-31',
       title: 'On the lower edge',
       packages: ['kernel'],
-      kind: 'Bug Fix',
+      badge: 'Bug Fix',
     },
     {
       id: 'changelog:2026-08-20-no-package',
@@ -48,7 +48,7 @@ const TABLE: IReleaseTable = {
       date: '2026-08-20',
       title: 'Names no package',
       packages: [],
-      kind: null,
+      badge: null,
     },
   ],
 };

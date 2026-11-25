@@ -67,7 +67,7 @@ Each finding is one line on stderr, then a summary:
 $ bun node_modules/.bin/vulcan check layout
   warning [plural-suffix] src/user.helpers.ts: the role "helpers" is plural: name the file user.helper.ts
   warning [mixed-folder] src: 3 subfolders beside 2 loose file(s) (main.ts, util.ts): move the files into a subfolder; only index.ts or index.tsx stays beside subfolders
-  info [long-file] src/db/schema.ts: 612 lines, over doctor.layout.maxLines (400): split it by concern (in the baseline)
+  info [long-file] src/db/schema.ts: 612 lines, over check.layout.maxLines (400): split it by concern (in the baseline)
 vulcan check layout: 2 new, 1 in the baseline, 0 stale baseline entries
 ```
 

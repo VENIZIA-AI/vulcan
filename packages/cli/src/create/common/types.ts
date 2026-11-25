@@ -1,6 +1,6 @@
 import type { ILayout } from '../../common/layout-folder.ts';
 import type { TConstValue } from '../../common/index.ts';
-import type { TLibraryKind } from '../../config/common/index.ts';
+import type { TLibraryType } from '../../config/common/index.ts';
 import type { AppSides, AppsBlockProblems } from './constants.ts';
 
 export type TAppSide = TConstValue<typeof AppSides>;
@@ -112,7 +112,7 @@ export interface IRecordedPreset {
 /** What `init` and `add` own in the config: the layout, the package list, the presets and the atlas sources. */
 export interface IAppsBlock {
   layout: ILayout;
-  packages: { dir: string; name: string; path: string; kind?: 'lib'; presetKind?: TLibraryKind }[];
+  packages: { dir: string; name: string; path: string; type?: 'lib'; presetType?: TLibraryType }[];
   presets: IRecordedPreset[];
   sources: { name: string; repo: string; ref: string }[];
 }

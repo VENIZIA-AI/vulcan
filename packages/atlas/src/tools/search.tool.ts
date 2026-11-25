@@ -56,7 +56,7 @@ const symbolBriefOf = (opts: {
     name: record.name,
     package: record.package,
     specifier: record.specifier,
-    kind: record.kind,
+    category: record.category,
     file: record.file,
     line: record.line,
   };

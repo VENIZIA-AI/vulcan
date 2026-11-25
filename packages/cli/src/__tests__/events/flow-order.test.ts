@@ -27,7 +27,7 @@ const cli = (opts: { root: string; args: string[] }) =>
 const linesOf = (root: string) => EventLog.read({ dir: join(root, '.agents/local/events') }).events;
 const flowsOf = (root: string) =>
   EventLog.read({ dir: join(root, '.agents/local/events') }).events.filter(
-    (line) => line.kind === 'flow',
+    (line) => line.type === 'flow',
   );
 const open = (opts: { root: string; extra?: string[] }): string =>
   cli({
@@ -146,7 +146,7 @@ describe('the order of a flow', () => {
 
     expect(cli({ root, args: ['flow', 'add', '--title', 'X', '--order', 'abc'] }).code).toBe(2);
     expect(
-      cli({ root, args: ['event', 'add', '--kind', 'note', '--summary', 'x', '--order', '2'] })
+      cli({ root, args: ['event', 'add', '--type', 'note', '--summary', 'x', '--order', '2'] })
         .code,
     ).toBe(2);
     expect(flowsOf(root)).toHaveLength(1);
@@ -160,7 +160,7 @@ describe('the order in the log', () => {
         id: 'a',
         ts: '2026-11-01T08:00:00.000Z',
         actor: 'x',
-        kind: 'flow',
+        type: 'flow',
         source: 'cli',
         summary: 'Old',
         flowId: 'F-1',
@@ -172,7 +172,7 @@ describe('the order in the log', () => {
 
     const kept = EventLog.parse({
       line: JSON.stringify(
-        EventLog.build({ kind: 'flow', summary: 'New', actor: 'x', source: 'cli', order: 5 }),
+        EventLog.build({ type: 'flow', summary: 'New', actor: 'x', source: 'cli', order: 5 }),
       ),
     });
 
@@ -182,7 +182,7 @@ describe('the order in the log', () => {
   test('an order that is not a positive whole number is dropped, and the line stays a line', () => {
     for (const order of [0, -2, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 2]) {
       expect(
-        EventLog.build({ kind: 'flow', summary: 'A', actor: 'x', source: 'cli', order }).order,
+        EventLog.build({ type: 'flow', summary: 'A', actor: 'x', source: 'cli', order }).order,
       ).toBeUndefined();
     }
 
@@ -191,7 +191,7 @@ describe('the order in the log', () => {
         id: 'a',
         ts: '2026-11-01T08:00:00.000Z',
         actor: 'x',
-        kind: 'flow',
+        type: 'flow',
         source: 'cli',
         summary: 'A',
         order: '3',

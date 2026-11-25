@@ -177,7 +177,7 @@ interface IRoute {
 
 const boxOf = (opts: { node: TNode }): IBox => {
   const { node } = opts;
-  const isActor = node.kind === 'actor';
+  const isActor = node.type === 'actor';
   const textLeft =
     node.state === undefined ? (isActor ? 22 : 14) : node.state === 'waiting' ? 48 : 40;
   const textRight = isActor ? 22 : 14;
@@ -481,7 +481,7 @@ export class FigureLayout {
           )
           .join('');
 
-        return `<g class="node ${FigureLayout.escaped(node.kind ?? 'step')}${tone}${gate ? ' gate' : ''}" tabindex="0" role="img" aria-label="${FigureLayout.escaped(node.label)}${node.sublabel === undefined ? '' : `, ${FigureLayout.escaped(node.sublabel)}`}" data-node="${FigureLayout.escaped(node.id)}" data-detail="${FigureLayout.escaped(node.detail ?? node.sublabel ?? node.label)}"><title>${FigureLayout.escaped(node.label)}</title><rect x="${left}" y="${top}" width="${box.width}" height="${box.height}" rx="4"/>${mark}${titles}${subtitles}</g>`;
+        return `<g class="node ${FigureLayout.escaped(node.type ?? 'step')}${tone}${gate ? ' gate' : ''}" tabindex="0" role="img" aria-label="${FigureLayout.escaped(node.label)}${node.sublabel === undefined ? '' : `, ${FigureLayout.escaped(node.sublabel)}`}" data-node="${FigureLayout.escaped(node.id)}" data-detail="${FigureLayout.escaped(node.detail ?? node.sublabel ?? node.label)}"><title>${FigureLayout.escaped(node.label)}</title><rect x="${left}" y="${top}" width="${box.width}" height="${box.height}" rx="4"/>${mark}${titles}${subtitles}</g>`;
       })
       .join('');
 

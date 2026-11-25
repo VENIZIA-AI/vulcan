@@ -1,6 +1,6 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs';
 import { RecordValue } from '../common/record.ts';
-import { EventConstants, EventKinds, EventSources } from './common/index.ts';
+import { EventConstants, EventTypes, EventSources } from './common/index.ts';
 import type { IEvent, IEventMark, IEventUsage, TIsOver } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { FlowSteps } from './flow-steps.ts';
@@ -319,7 +319,7 @@ export class UsageMeter {
     const size = statSync(opts.file).size;
     const found = opts.known.findLast(
       (event) =>
-        event.kind === EventKinds.USAGE && event.ref === opts.ref && event.mark !== undefined,
+        event.type === EventTypes.USAGE && event.ref === opts.ref && event.mark !== undefined,
     )?.mark;
     const isFresh = found === undefined || found.offset > size;
     const began = isFresh ? UsageMeter.firstTimestamp({ file: opts.file }) : undefined;
@@ -389,7 +389,7 @@ export class UsageMeter {
     now?: number;
   }): IEvent {
     return EventLog.build({
-      kind: EventKinds.USAGE,
+      type: EventTypes.USAGE,
       summary: EventConstants.USAGE_LABEL,
       actor: opts.actor,
       source: EventSources.CLAUDE_HOOK,

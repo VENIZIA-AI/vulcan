@@ -13,7 +13,7 @@ export class AtlasConstants {
    * Bump it with any change to either: the format-lock test fails until you do. A cached or
    * downloaded index of another format is never read as if it were current.
    */
-  static readonly INDEX_FORMAT = 2;
+  static readonly INDEX_FORMAT = 3;
 }
 
 /** How atlas runs git: every call, local or remote, takes this environment. */
@@ -79,13 +79,13 @@ export class SkillSources extends ConstClass {
 }
 
 /** What a package of the project is: an app, or a library other apps import. */
-export class PackageKinds extends ConstClass {
+export class PackageTypes extends ConstClass {
   static readonly APP = 'app';
   static readonly LIB = 'lib';
 }
 
 /** Which preset kind made a library: `lib` (may use the project's framework) or `shared` (depends on no framework). */
-export class LibraryKinds extends ConstClass {
+export class LibraryTypes extends ConstClass {
   static readonly LIB = 'lib';
   static readonly SHARED = 'shared';
 }

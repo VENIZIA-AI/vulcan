@@ -7,12 +7,12 @@ export const check = {
       acknowledged: [
         {
           path: 'docs/wiki/content/**',
-          kinds: ['machine-path'],
+          types: ['machine-path'],
           reason: 'placeholder home-folder paths in examples',
         },
         {
           path: 'packages/cli/src/events/settings.ts',
-          kinds: ['machine-path'],
+          types: ['machine-path'],
           reason: 'a placeholder path in an error message',
         },
       ],

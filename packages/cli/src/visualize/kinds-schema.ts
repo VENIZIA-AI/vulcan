@@ -63,7 +63,7 @@ export const SEQUENCE_SCHEMA = z.strictObject({
         to: ID,
         /** A verb phrase: what the sender does. */
         label: text(VisualizeLimits.MAX_EDGE_LABEL),
-        kind: choice({ set: MessageKinds.values() }).optional(),
+        type: choice({ set: MessageKinds.values() }).optional(),
         note: text(VisualizeLimits.MAX_LABEL).optional(),
       }),
     )
@@ -81,7 +81,7 @@ export const LIFECYCLE_SCHEMA = z.strictObject({
         id: ID,
         label: text(VisualizeLimits.MAX_LABEL),
         sublabel: text(VisualizeLimits.MAX_LABEL).optional(),
-        kind: choice({ set: LifecycleKinds.values() }).optional(),
+        type: choice({ set: LifecycleKinds.values() }).optional(),
       }),
     )
     .min(NewKindLimits.MIN_STATES)

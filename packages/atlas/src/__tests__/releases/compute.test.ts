@@ -248,7 +248,7 @@ describe('ReleaseCompute.compute on the edges of a repository', () => {
         date: '2026-01-02',
         title: 'Faster',
         packages: ['kernel'],
-        kind: null,
+        badge: null,
       },
     ]);
   });
@@ -442,7 +442,7 @@ describe('ReleaseCompute.compute marks an entry breaking by any of its badges', 
     table.changelogs.find((record) => record.file === opts.file);
 
   test('a Breaking badge that is not the first sets breaking, whichever spelling', () => {
-    expect(entry({ file: '2026-02-01-second.md' })?.kind).toBe('New Feature');
+    expect(entry({ file: '2026-02-01-second.md' })?.badge).toBe('New Feature');
     expect(entry({ file: '2026-02-01-second.md' })?.breaking).toBe(true);
     expect(entry({ file: '2026-02-02-short.md' })?.breaking).toBe(true);
   });
@@ -452,15 +452,15 @@ describe('ReleaseCompute.compute marks an entry breaking by any of its badges', 
   });
 });
 
-describe('ReleaseCompute.kindOfChangelog', () => {
+describe('ReleaseCompute.badgeOfChangelog', () => {
   test('reports the first badge, and the short Breaking as Breaking Change', () => {
-    const kind = (opts: { text: string }): string | null => ReleaseCompute.kindOfChangelog(opts);
+    const badge = (opts: { text: string }): string | null => ReleaseCompute.badgeOfChangelog(opts);
 
-    expect(kind({ text: '<Badge type="tip" text="New Feature" />' })).toBe('New Feature');
-    expect(kind({ text: '<Badge type="danger" text="Breaking Change" />' })).toBe(
+    expect(badge({ text: '<Badge type="tip" text="New Feature" />' })).toBe('New Feature');
+    expect(badge({ text: '<Badge type="danger" text="Breaking Change" />' })).toBe(
       'Breaking Change',
     );
-    expect(kind({ text: '<Badge type="danger" text="Breaking" />' })).toBe('Breaking Change');
-    expect(kind({ text: 'no badge' })).toBeNull();
+    expect(badge({ text: '<Badge type="danger" text="Breaking" />' })).toBe('Breaking Change');
+    expect(badge({ text: 'no badge' })).toBeNull();
   });
 });

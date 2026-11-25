@@ -157,7 +157,7 @@ To generate missing adapters and the manifest, run `vulcan project sync`:
 ```text
 $ bun node_modules/.bin/vulcan project sync
   created   CLAUDE.md
-  created   .claude/settings.json (shipped, slot and claude.settings over personal keys)
+  created   .claude/settings.json (shipped, slot and agent.claude.settings over personal keys)
   created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
@@ -256,7 +256,7 @@ The settings and the manifest are what change; the skill lines and the lines tha
 
 ```text
 $ bun node_modules/.bin/vulcan project sync
-  replaced  .claude/settings.json (shipped, slot and claude.settings over personal keys)
+  replaced  .claude/settings.json (shipped, slot and agent.claude.settings over personal keys)
   replaced  .agents/local/vulcan.manifest.json
   replaced  .agents/atlas.manifest.json
   replaced  .agents/vulcan.manifest.json
@@ -269,7 +269,7 @@ To preview filesystem operations without making changes, pass `--dry-run`:
 ```text
 $ bun node_modules/.bin/vulcan project sync --dry-run
   would create  CLAUDE.md
-  would create  .claude/settings.json (shipped, slot and claude.settings over personal keys)
+  would create  .claude/settings.json (shipped, slot and agent.claude.settings over personal keys)
   would create  .claude/skills/build-a-feature
   would create  .claude/skills/docs-update
   would create  .claude/skills/docs-writing
@@ -374,7 +374,7 @@ The manifest also includes optional fields when configured:
 - `knowledge.migrationFrom`: The first day (`YYYY-MM-DD`) whose Breaking Change changelog entries must carry a `migration:` block, present when set.
 - `layout`: The folders of backend apps, frontend apps and shared packages (`backend`, `frontend`, `shared`), present when set; `init --preset` and `add` write it.
 - `presets`: The presets the project's apps came from, each `{ spec, side, summary }` and `lib` when the preset also makes libraries. atlas's `presets` tool answers from it.
-- `kind`: `"lib"` on a package entry that `add --lib` made (apps carry no `kind`), and `presetKind` (`lib` or `shared`) on a library or shared package that `add` made.
+- `type`: `"lib"` on a package entry that `add --lib` made (apps carry no `type`), and `presetType` (`lib` or `shared`) on a library or shared package that `add` made.
 - `sources`: External repository sources for atlas, present when `knowledge.atlas.sources` contains entries.
 - `atlas`: The keys a prebuilt index is checked with and the switch that turns its download off, present when `knowledge.atlas.index` or `knowledge.atlas.prebuilt` is set.
 - `guard`: The commands and push targets the guards ask about beyond their own list, present when `guard.writes.commands` or `guard.git.askPush` is set.

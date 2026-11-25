@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import { LayoutFolder } from '../common/layout-folder.ts';
-import { LibraryKinds, PackageKinds } from '../config/index.ts';
-import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/index.ts';
+import { LibraryTypes, PackageTypes } from '../config/index.ts';
+import type { IProjectPackage, TLibraryType, TResolvedConfig } from '../config/index.ts';
 import { ProjectScaffold } from '../init/index.ts';
 import { AppChecks } from './checks.ts';
 import { AddFailure, AppsBlockProblems, CreateConstants, CreateFlags } from './common/index.ts';
@@ -46,7 +46,7 @@ const folderOf = async (opts: {
   const libFolders = [
     ...new Set(
       opts.packages
-        .filter((entry) => entry.kind === PackageKinds.LIB && !entry.retired)
+        .filter((entry) => entry.type === PackageTypes.LIB && !entry.retired)
         .map((entry) => dirname(entry.path)),
     ),
   ];
@@ -141,11 +141,11 @@ export class LibraryScaffold {
     packages: IProjectPackage[];
     libName: string;
     /** Which preset kind makes the package: `lib` (the default) or the side-neutral `shared`. */
-    kind?: TLibraryKind;
+    kind?: TLibraryType;
     recorded: (opts: { block: IAppsBlock }) => IAppsBlock;
   }): Promise<number> {
     const { cwd, config, located, libName } = opts;
-    const kind = opts.kind ?? LibraryKinds.LIB;
+    const kind = opts.kind ?? LibraryTypes.LIB;
 
     if (!CreateConstants.NAME_PATTERN.test(libName)) {
       return AddFailure.fail({
@@ -232,8 +232,8 @@ export class LibraryScaffold {
             dir: libName,
             name: named.name,
             path,
-            kind: PackageKinds.LIB,
-            ...(kind === LibraryKinds.SHARED ? { presetKind: LibraryKinds.SHARED } : {}),
+            type: PackageTypes.LIB,
+            ...(kind === LibraryTypes.SHARED ? { presetType: LibraryTypes.SHARED } : {}),
           },
         ],
       },
@@ -265,7 +265,7 @@ export class LibraryScaffold {
     }
 
     const rows: [string, string][] = [
-      [kind === LibraryKinds.SHARED ? 'shared package' : 'library', path],
+      [kind === LibraryTypes.SHARED ? 'shared package' : 'library', path],
     ];
 
     if (isNewFolder) {
@@ -295,7 +295,7 @@ export class LibraryScaffold {
       target: join(cwd, path),
       tokens: {
         project,
-        [kind === LibraryKinds.SHARED ? 'shared' : 'lib']: libName,
+        [kind === LibraryTypes.SHARED ? 'shared' : 'lib']: libName,
         package: named.name,
       },
     });

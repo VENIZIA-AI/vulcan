@@ -45,7 +45,7 @@ const VALID: Record<string, unknown> = {
     packages: [
       { dir: 'core', name: '@demo/core' },
       { dir: 'old', name: 'demo-old', path: 'legacy/old', retired: true, aliases: ['legacy'] },
-      { dir: 'kit', name: '@demo/kit', kind: 'lib', presetKind: 'shared' },
+      { dir: 'kit', name: '@demo/kit', type: 'lib', presetType: 'shared' },
     ],
     knowledge: {
       wiki: 'docs/wiki',
@@ -82,7 +82,7 @@ const VALID: Record<string, unknown> = {
     },
     provider: { type: 'gitlab', host: 'gitlab.example.com:8443' },
     doctor: {
-      privateValues: { acknowledged: [{ path: 'fixtures/**', kinds: ['ipv4'], reason: 'tests' }] },
+      privateValues: { acknowledged: [{ path: 'fixtures/**', types: ['ipv4'], reason: 'tests' }] },
       layout: { maxLines: 500, pluralAllow: ['status'] },
     },
     claude: { settings: { env: { DEMO: '1' }, permissions: { allow: ['Bash(ls)'] } } },

@@ -59,8 +59,8 @@ export interface IChangelogRecord {
   date: string;
   title: string;
   packages: string[];
-  kind: string | null;
-  /** Present and true when any badge of the entry says breaking, whichever it is first: `kind` is only the first. */
+  badge: string | null;
+  /** Present and true when any badge of the entry says breaking, whichever it is first: `badge` is only the first. */
   breaking?: true;
   /** How an app migrates across the entry: present only when the file's `migration` block is valid. */
   migration?: TMigrationItem[];

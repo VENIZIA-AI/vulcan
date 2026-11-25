@@ -210,7 +210,7 @@ describe.skipIf(!hasBrowser)(
           sublabel: 'xem kết quả mỗi tuần',
           row: 0,
           col: 4,
-          kind: 'actor',
+          type: 'actor',
         },
         {
           id: 'g',
@@ -218,7 +218,7 @@ describe.skipIf(!hasBrowser)(
           sublabel: 'giữ bản sao một năm',
           row: 0,
           col: 5,
-          kind: 'store',
+          type: 'store',
         },
       );
       spec.flow.edges.push(

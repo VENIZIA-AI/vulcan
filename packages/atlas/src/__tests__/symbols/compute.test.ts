@@ -62,7 +62,7 @@ describe('SymbolCompute.symbolsOfInstalled (D2)', () => {
     });
 
     expect(
-      symbols.map((symbol) => `${symbol.package} ${symbol.name} ${symbol.kind}`).sort(),
+      symbols.map((symbol) => `${symbol.package} ${symbol.name} ${symbol.category}`).sort(),
     ).toEqual(['@x/kit Kit class', '@x/kit greet function']);
     expect(symbols.find((symbol) => symbol.name === 'greet')?.signature).toContain(
       'greet(name: string): string',

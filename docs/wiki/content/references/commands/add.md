@@ -286,16 +286,16 @@ Four things differ from a library:
 
 - **The files** come from the preset's shared kind, not its lib kind. They take the tokens `{{project}}`, `{{shared}}` (the folder name, `common`) and `{{package}}` (the npm name).
 - **The folder** is the same one a library uses. It comes from `--dir` or the project's `layout`, never from the preset or the kind, so a library and a shared package sit side by side in one `shared` folder.
-- **The config entry** carries `presetKind: "shared"` next to `kind: "lib"`; a library carries no `presetKind`. The preset's record gains a `shared` summary ([Configuration](/references/configuration/#project-presets)).
+- **The config entry** carries `presetType: "shared"` next to `kind: "lib"`; a library carries no `presetType`. The preset's record gains a `shared` summary ([Configuration](/references/configuration/#project-presets)).
 - **No app of the preset is needed.** The command adds no dependency on the preset's package, to the root or to the new package. A project with only frontend apps runs `vulcan package add --preset ignis --shared common` with no IGNIS app and no backend folder; the dependencies it adds are the ones the shared preset file lists.
 
 The package's entry in the `packages` list of the config then reads:
 
 ```json
-{ "dir": "common", "name": "common", "path": "libs/common", "kind": "lib", "presetKind": "shared" }
+{ "dir": "common", "name": "common", "path": "libs/common", "kind": "lib", "presetType": "shared" }
 ```
 
-[`vulcan package diff`](/references/commands/preset) reads `presetKind` to pick the files to compare.
+[`vulcan package diff`](/references/commands/preset) reads `presetType` to pick the files to compare.
 
 ## Options
 

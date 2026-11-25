@@ -88,7 +88,7 @@ When the query matches an exported symbol exactly, `search` adds a `symbol` reco
   "name": "bootChecks",
   "package": "@venizia/ignis-boot",
   "specifier": "@venizia/ignis-boot",
-  "kind": "const",
+  "category": "const",
   "file": "packages/boot/src/common/types.ts",
   "line": 12
 }
@@ -154,7 +154,7 @@ When exactly one match exists, `symbol` returns a flat record:
   "package": "@venizia/ignis-helpers",
   "subpath": ".",
   "specifier": "@venizia/ignis-helpers",
-  "kind": "function",
+  "category": "function",
   "file": "packages/helpers/src/modules/error/error.ts",
   "line": 42,
   "signature": "getError(): void",
@@ -256,8 +256,8 @@ The window excludes entries dated on `from` and includes entries on `to`.
 `changes` replies with `package`, `from`, `to`, and `entries`.
 For a date window across all packages, `package` is `null`.
 `from` can be `null` when no earlier boundary exists.
-Each entry carries `id`, `date`, `title`, `kind`, and `packages`.
-`kind` is the text of the entry's first badge, and the short `Breaking` badge is reported as `Breaking Change`, so one value names a breaking entry.
+Each entry carries `id`, `date`, `title`, `badge`, and `packages`.
+`badge` is the text of the entry's first badge, and the short `Breaking` badge is reported as `Breaking Change`, so one value names a breaking entry.
 `packages` lists npm package names, never directory names:
 
 ```json
@@ -270,7 +270,7 @@ Each entry carries `id`, `date`, `title`, `kind`, and `packages`.
       "id": "changelog:2026-09-05-list-response",
       "date": "2026-09-05",
       "title": "list-response",
-      "kind": "New Feature",
+      "badge": "New Feature",
       "packages": [
         "@venizia/ignis-kernel"
       ]
@@ -279,7 +279,7 @@ Each entry carries `id`, `date`, `title`, `kind`, and `packages`.
       "id": "changelog:2026-09-02-decorators",
       "date": "2026-09-02",
       "title": "decorators",
-      "kind": null,
+      "badge": null,
       "packages": [
         "@venizia/ignis-boot",
         "@venizia/ignis-kernel"
@@ -333,7 +333,7 @@ The reply holds `app`, `plans` (one for each package), `skipped` and, when a sou
 - `apply`: the `vulcan migrate apply` command that runs the codemods the steps link; absent when no step links one. The tool never runs it.
 - `entries`: how many changelog entries of the package fall in the window, with a `migration` block or not. `0` means the release table holds none between the two versions, which proves nothing about the move.
 - `note`: present when the plan needs a warning, for example `latest` is older than the installed prerelease, so the plan is a downgrade; use `next` to stay on the newest release.
-- `steps`: the window's migration items in the order they apply (newest first for a downgrade): `id`, `entry`, `title`, `date`, `symbols`, `change` (the `upgrade` or `downgrade` of the item), `data`, `codemod`, and `touches`, the `file`, `line`, `symbol` and `kind` where the app's code reaches it (empty when no static import of it was found). `kind` is `name` (the code imports or uses the name), `re-export` (`export * from` the package: only the consumers are reached) or `module` (the symbol is a module specifier and the line imports it). The Markdown report counts a `re-export` as "only re-exported" and lists the `module` places only with `--verbose`; the JSON always holds every touch.
+- `steps`: the window's migration items in the order they apply (newest first for a downgrade): `id`, `entry`, `title`, `date`, `symbols`, `change` (the `upgrade` or `downgrade` of the item), `data`, `codemod`, and `touches`, the `file`, `line`, `symbol` and `reach` where the app's code reaches it (empty when no static import of it was found). `reach` is `name` (the code imports or uses the name), `re-export` (`export * from` the package: only the consumers are reached) or `module` (the symbol is a module specifier and the line imports it). The Markdown report counts a `re-export` as "only re-exported" and lists the `module` places only with `--verbose`; the JSON always holds every touch.
 - `unstructured`: entries of the window with any Breaking or Breaking Change badge and no `migration` block: read each with `get`.
 - `behind`: set when npm publishes a `latest` or `next` the atlas does not know: the ref of the source is behind the registry, so the plan stops short of it. `apply` refuses such a plan unless `--force`. One bounded request per package to the registry of `VULCAN_NPM_REGISTRY` (default `https://registry.npmjs.org`); when it cannot be asked, nothing is claimed. A `to` that is a version npm publishes and the atlas does not know is an error that says so, not "unknown version".
 - `unreadable`: files of the app that could not be read; the scan covered the rest.
@@ -350,17 +350,17 @@ The answer lists the presets this project recorded first (`inProject: true`), th
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `kind` | String | `app` | What is created: `app`, `lib` or `shared` |
+| `type` | String | `app` | What is created: `app`, `lib` or `shared` |
 | `name` | String | `<name>` | The new name (lowercase letters, digits and `-`), put into the command |
 | `side` | `backend` or `frontend` | Both | Narrows the apps list to one side |
 
-`lib` is a library other apps import; `shared` is a side-neutral package other apps import. Any other `kind` word is a kind no preset makes.
+`lib` is a library other apps import; `shared` is a side-neutral package other apps import. Any other `type` word is a type no preset makes.
 
-For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `command` and `inProject`; for `kind: "lib"` and `kind: "shared"`, `preset`, `summary`, `folder`, `command` and `inProject`. With `kind: "shared"` the entries are the recorded presets that have a shared kind, and the command ends in `--shared <name>`. A side or kind whose layout lists several folders has `folder: null`, a `folders` list, and a command with a folder placeholder (`--frontend-dir <frontends/apps|frontends/guests>`): the agent picks one. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder. A frontend's command ends with `--api <backend app> | --no-api`.
+For `type: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `command` and `inProject`; for `type: "lib"` and `type: "shared"`, `preset`, `summary`, `folder`, `command` and `inProject`. With `kind: "shared"` the entries are the recorded presets that have a shared kind, and the command ends in `--shared <name>`. A side or kind whose layout lists several folders has `folder: null`, a `folders` list, and a command with a folder placeholder (`--frontend-dir <frontends/apps|frontends/guests>`): the agent picks one. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder. A frontend's command ends with `--api <backend app> | --no-api`.
 
 ```json
 {
-  "kind": "app",
+  "type": "app",
   "presets": [
     {
       "preset": "ignis",
@@ -384,7 +384,7 @@ For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `com
 
 A recorded preset of the same package (`ignis`, `@venizia/ignis`, `ignis@0.3.5`) replaces the official entry, so a preset is listed once. When no entry is in the project, a `note` says so. When nothing fits the kind, `presets` is empty and a `note` says what to do instead. The tool never offers an app preset for a library or a shared package, or a command that does not exist:
 
-- A kind other than `app`, `lib` or `shared`: `no preset makes a <kind> (vulcan package add makes apps, libs and shared packages): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app, lib or shared preset for it`
+- A type other than `app`, `lib` or `shared`: `no preset makes a <type> (vulcan package add makes apps, libs and shared packages): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app, lib or shared preset for it`
 - The project recorded no preset: `this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use`
 - No recorded preset makes the kind or side: `no recorded preset makes a <lib, shared or side>: the entries are the official ones, marked inProject false; ask the user which to use, and do not hand-write package.json, tsconfig or scripts`
 - No preset at all makes the kind (a `shared` ask while no recorded preset has a shared kind and no official one has published it): `no preset makes a shared: ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app preset for it`

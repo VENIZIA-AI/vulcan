@@ -42,7 +42,7 @@ export class PrivateValues {
         const covering = opts.acknowledged.filter(
           (entry) =>
             new Glob(entry.path).match(file) &&
-            (entry.kinds?.some((allowed) => allowed === kind) ?? true),
+            (entry.types?.some((allowed) => allowed === kind) ?? true),
         );
 
         covering.forEach((entry) => used.add(entry));
