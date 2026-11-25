@@ -9,6 +9,11 @@ export class CodemodRunner {
   static readonly DEFAULT: readonly string[] = ['devz', 'codemod'];
   /** A word of the command: letters, digits, `.`, `_`, `-`; never a path, a flag or a shell word. */
   static readonly WORD_PATTERN = /^[a-z0-9][a-z0-9._-]*$/i;
+  /**
+   * The package whose bin is the running tool itself: `vulcan config codemod` is a runner a project may name, and its
+   * package is not one the project declares. Installed, it is trusted as any package of the source is; a bin of any other package is not.
+   */
+  static readonly TOOL_PACKAGE = '@venizia/vulcan';
 
   /**
    * The words of `knowledge.codemodCommand` from the manifest; empty when the key is absent. A word that is not
@@ -44,7 +49,7 @@ export class CodemodRunner {
   /**
    * Why the bin `name` installed under `directory` may not run as a source's codemod runner, or `undefined` when it may: its
    * real path, every link resolved, must lie inside the installed directory of one of `packages` - the packages the source
-   * serves. A runner is code the app runs with its own rights: a bin of another package (`rimraf`), or a link that leaves
+   * serves - or of `TOOL_PACKAGE`; a `node_modules/<name>` link into a Bun isolated store (`.bun/<name>@<v>/node_modules/<name>`) is resolved like any link. A runner is code the app runs with its own rights: a bin of another package (`rimraf`), or a link that leaves
    * the package, is never one, whatever a manifest or an index says. A name that is not an npm package name is never an
    * allowed package: `..` or an empty name would name the app itself.
    */
@@ -63,7 +68,9 @@ export class CodemodRunner {
       return `${binary} does not resolve to a file`;
     }
 
-    for (const name of opts.packages.filter((entry) => NPM_NAME_PATTERN.test(entry))) {
+    const allowed = [...new Set([...opts.packages, CodemodRunner.TOOL_PACKAGE])];
+
+    for (const name of allowed.filter((entry) => NPM_NAME_PATTERN.test(entry))) {
       let installed: string;
 
       try {
@@ -79,7 +86,7 @@ export class CodemodRunner {
       }
     }
 
-    return `${binary} resolves to ${real}, which is not inside an installed package of the source that serves it (${opts.packages.length} declared); it is not run`;
+    return `${binary} resolves to ${real}, which is not inside an installed package of the source that serves it (${opts.packages.length} declared) or of ${CodemodRunner.TOOL_PACKAGE}; it is not run`;
   }
 
   /** What a message names as the listing command, for example `devz codemod --list`. */
