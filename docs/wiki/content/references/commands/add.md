@@ -269,7 +269,7 @@ In a terminal, the library questions are the kind, the name and then the folder 
 
 Where the library goes, and what it is called:
 
-- **The folder** is `--dir`, else the one `shared` folder of `layout`, else the one folder the existing libraries share. With several `shared` folders and no `--dir`, `add` refuses and lists them (`pass --dir <folder> (the layout lists 'kits/a', 'kits/b')`); a terminal picks one. A `--dir` the layout does not list yet is added to `layout.shared` when it is a valid layout folder that nests with no other. A `--dir` that is not one (uppercase, a dot, more than 4 segments, or nested with a listed folder) is still used, and `add` prints one line saying why it was not recorded (`note: 'libs/UI' is not added to layout.shared (...)`). With none of those, `add` refuses: `vulcan package add: where should billing go? pass --dir <folder>`. In a terminal it asks `Folder (libs)`, with that default.
+- **The folder** is `--dir`, else the one `shared` folder of `layout`, else the one folder the existing libraries share. With several `shared` folders and no `--dir`, `add` refuses and lists them (`pass --dir <folder> (the layout lists 'kits/a', 'kits/b')`); a terminal picks one. A `--dir` the layout does not list yet is added to `project.layout.shared` when it is a valid layout folder that nests with no other. A `--dir` that is not one (uppercase, a dot, more than 4 segments, or nested with a listed folder) is still used, and `add` prints one line saying why it was not recorded (`note: 'libs/UI' is not added to layout.shared (...)`). With none of those, `add` refuses: `vulcan package add: where should billing go? pass --dir <folder>`. In a terminal it asks `Folder (libs)`, with that default.
 - **The scope** is `--scope @acme`, else the scope the packages in that folder agree on, else the scope of the project's own `package.json` (`@acme/shop` gives `@acme`), else none. If the packages there use more than one scope, `add` refuses and asks for `--scope`.
 - **The workspace** must cover the folder. A new folder is added to `workspaces`, as for an app.
 - **The registration** is a `packages` entry with `kind: "lib"` and an explicit `path`, so `doctor` does not ask a library to live in a backend or frontend folder; it only checks that a `workspaces` glob covers it. The knowledge page is tagged `library`.
@@ -286,7 +286,7 @@ Four things differ from a library:
 
 - **The files** come from the preset's shared kind, not its lib kind. They take the tokens `{{project}}`, `{{shared}}` (the folder name, `common`) and `{{package}}` (the npm name).
 - **The folder** is the same one a library uses. It comes from `--dir` or the project's `layout`, never from the preset or the kind, so a library and a shared package sit side by side in one `shared` folder.
-- **The config entry** carries `presetKind: "shared"` next to `kind: "lib"`; a library carries no `presetKind`. The preset's record gains a `shared` summary ([Configuration](/references/configuration/#presets)).
+- **The config entry** carries `presetKind: "shared"` next to `kind: "lib"`; a library carries no `presetKind`. The preset's record gains a `shared` summary ([Configuration](/references/configuration/#project-presets)).
 - **No app of the preset is needed.** The command adds no dependency on the preset's package, to the root or to the new package. A project with only frontend apps runs `vulcan package add --preset ignis --shared common` with no IGNIS app and no backend folder; the dependencies it adds are the ones the shared preset file lists.
 
 The package's entry in the `packages` list of the config then reads:
@@ -325,7 +325,7 @@ Without a terminal, the flags are checked before the preset is downloaded: no ki
 
 ## The folder
 
-The preset says whether it is a backend or a frontend, and the app goes in one of that side's folders in `.configs/vulcan.config.mts`. A folder is a path of 1 to 4 segments (`--frontend-dir frontends/guests`; see [the `layout` key](/references/configuration/#layout)).
+The preset says whether it is a backend or a frontend, and the app goes in one of that side's folders in `.configs/vulcan.config.mts`. A folder is a path of 1 to 4 segments (`--frontend-dir frontends/guests`; see [the `layout` key](/references/configuration/#project-layout)).
 
 - One folder listed: it is the folder. Another valid folder given with the flag is added to the list (the string becomes a list) and the confirmation says so.
 - Several folders listed: pick one with the flag, or in a terminal from a menu. Without a terminal and without the flag, `add` refuses and lists them.

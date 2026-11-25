@@ -22,8 +22,10 @@ The configuration file must provide a default export. Type the configuration usi
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  agents: ['claude'],
-  rules: { 'V-W-01': 'on-user-word' },
+  agent: {
+    list: ['claude'],
+    rules: { 'V-W-01': 'on-user-word' },
+  },
 } satisfies VulcanConfig;
 ```
 
@@ -31,8 +33,10 @@ export default {
 import { defineConfig } from '@venizia/vulcan';
 
 export default defineConfig({
-  agents: ['claude'],
-  rules: { 'V-W-01': 'on-user-word' },
+  agent: {
+    list: ['claude'],
+    rules: { 'V-W-01': 'on-user-word' },
+  },
 });
 ```
 
@@ -95,35 +99,46 @@ The command exits with code 1.
 
 **Upgrading.** The schema is strict, so a key that a newer release added is an unknown key to an older `vulcan`. Upgrade first: run `bun node_modules/.bin/vulcan project upgrade`, commit the lockfile, make sure every machine and CI job has installed that version, and only then add the new key to the config. While the installed `vulcan` cannot read the config, `vulcan project sync` fails, but the guards keep working: `guard-outside` and `guard-writes` read what the project set (`guard.outside`, `guard.toolOwnedPaths`, `guard.writes.commands`) from the manifest of the last `sync`, so a `deny` stays a `deny`. The session digest names the unreadable key, and so does `vulcan project doctor`, so run it after you pull a change to the config.
 
-The table below lists the top-level configuration keys:
+The config has seven groups, each with its own type (`VulcanConfig.Project`, `.Agent`, `.Guard`, `.Board`, `.Knowledge`, `.Check`, `.Common`). A key a group does not have is refused with its path (`project.nme: not a key of project`). The flat shape of the releases before the groups (`name`, `agents`, `rules`, `okf`, `events` at the top level) is refused with the new path of each key; `vulcan config codemod config-groups . --write` rewrites a file (`--split` writes one module per group). The table lists every key by its path in a group:
+
+| Group | Keys |
+|---|---|
+| `project` | `name`, `key`, `layout`, `packages`, `presets` |
+| `agent` | `list`, `packs`, `rules`, `digest`, `owner`, `claude` |
+| `guard` | the one key `guard` holds: `toolOwnedPaths`, `outside`, `asks`, `writes`, `git`, `runners` |
+| `board` | `events`, `page`, `provider` |
+| `knowledge` | `bundle`, `wiki`, `changelogs`, `migrationFrom`, `codemodCommand`, `datedUntil`, `siteUrl`, `okf`, `atlas` |
+| `check` | `doctor`, `commit`, `layout` |
+| `common` | `theme`, `local`, `remove` |
+
 
 | Key | Type | Default | What it controls |
 |---|---|---|---|
-| `name` | `string` | root package name | Project identifier in the manifest and atlas results |
+| `project.name` | `string` | root package name | Project identifier in the manifest and atlas results |
 | `project.key` | `string` | none | The key a flow is named by, such as `VULZ-ACME-15` (see below the table) |
-| `agents` | `string[]` | unset | Coding agents the project suggests; each developer's choice is stored locally |
-| `rules` | `Record<string, string>` | `{}` | Base rule slot choices |
-| `packs` | `string[]` | `[]` | The rule packs this project follows (`venizia`) |
-| `layout` | `object` | `undefined` | The folders `vulcan project init` and `vulcan package add` put apps in (a path or a list of paths per side), and the folders left alone |
-| `presets` | `object[]` | `undefined` | The presets this project's apps came from, as `--preset` takes them back; `init` and `add` record them |
-| `packages` | `Array<object>` | `[]` | Monorepo packages in release order |
+| `agent.list` | `string[]` | unset | Coding agents the project suggests; each developer's choice is stored locally |
+| `agent.rules` | `Record<string, string>` | `{}` | Base rule slot choices |
+| `agent.packs` | `string[]` | `[]` | The rule packs this project follows (`venizia`) |
+| `project.layout` | `object` | `undefined` | The folders `vulcan project init` and `vulcan package add` put apps in (a path or a list of paths per side), and the folders left alone |
+| `project.presets` | `object[]` | `undefined` | The presets this project's apps came from, as `--preset` takes them back; `init` and `add` record them |
+| `project.packages` | `Array<object>` | `[]` | Monorepo packages in release order |
 | `knowledge` | `object` | `{ bundle: '.agents/knowledge' }` | Locations for knowledge documents and concepts |
-| `okf` | `object` | `{ renderers: [], ... }` | Renderers, regions, and coverage checks for okf |
-| `atlas` | `object` | `{ tagPattern: '...', sources: [] }` | Release tags and external knowledge sources |
-| `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
-| `digest` | `object` | `{ oftenDropped: [...] }` | The rules the rules block of `AGENTS.md` names |
+| `knowledge.okf` | `object` | `{ renderers: [], ... }` | Renderers, regions, and coverage checks for okf |
+| `knowledge.atlas` | `object` | `{ tagPattern: '...', sources: [] }` | Release tags and external knowledge sources |
+| `agent.claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
+| `agent.digest` | `object` | `{ oftenDropped: [...] }` | The rules the rules block of `AGENTS.md` names |
 | `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask' (`'deny'` with the `venizia` pack), asks: 'ask', writes: { commands: [] }, git: { askPush: [] }, runners: { allow: [] } }` | Tool-owned stores, and the commands and push targets the guards ask about ([guard](#guard)) |
-| `doctor` | `object` | `{ privateValues: { acknowledged: [] }, layout: { maxLines: 400, ... } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)), and the settings of the layout check ([layout](/references/commands/layout#configuration)) |
-| `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
-| `theme` | `object` | `undefined` | The colour the project's `vulcan page new` pages use |
-| `board` | `object` | `{ agents: {} }` | What `vulcan board show` puts on its page: owner, title, host name, logo and the faces of agents ([board](#board)) |
-| `provider` | `object` | `{ type: 'github' }` | The code host `vulcan board show` reads pull requests from: GitHub or GitLab ([provider](#provider)) |
-| `commit` | `object` | every check off | The checks of `vulcan check commit` and the `commit-msg` hook ([commit](#commit)) |
-| `events` | `object` | `{ log: false }` | The agent event log: on or off, its folder and its limits ([events](#events)) |
-| `local` | `object` | `{ autoClean: true }` | The automatic clean of `.agents/local/` and the project's own tmp folder, `local.tmp` ([local](#local)) |
+| `check.doctor` | `object` | `{ privateValues: { acknowledged: [] }, layout: { maxLines: 400, ... } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)), and the settings of the layout check ([layout](/references/commands/layout#configuration)) |
+| `agent.owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
+| `common.theme` | `object` | `undefined` | The colour the project's `vulcan page new` pages use |
+| `board.page` | `object` | `{ agents: {} }` | What `vulcan board show` puts on its page: owner, title, host name, logo and the faces of agents ([board](#board-page)) |
+| `board.provider` | `object` | `{ type: 'github' }` | The code host `vulcan board show` reads pull requests from: GitHub or GitLab ([provider](#board-provider)) |
+| `check.commit` | `object` | every check off | The checks of `vulcan check commit` and the `commit-msg` hook ([commit](#check-commit)) |
+| `board.events` | `object` | `{ log: false }` | The agent event log: on or off, its folder and its limits ([events](#board-events)) |
+| `common.local` | `object` | `{ autoClean: true }` | The automatic clean of `.agents/local/` and the project's own tmp folder, `common.local.tmp` ([local](#common-local)) |
 
 The `project.key` is the key a flow is named by: `VULZ-<key>-<number>`, such as `VULZ-ACME-15`. It is uppercase letters and digits, 2 to 8, and is set once. `vulcan project init` writes it (`--key`, a terminal's answer, or one made from the project name). The event log and the board read it from the manifest. `vulcan project doctor` warns when the log is on and it is missing.
-## name
+## project.name
 
 The `name` property assigns the project identifier written to `.agents/atlas.manifest.json`. It appears as the `source` of every atlas result and names the server `<name>-atlas`.
 
@@ -135,11 +150,13 @@ The value must match the regular expression `/^[a-z0-9][a-z0-9-]*$/`. It allows 
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  name: 'shop-service',
+  project: {
+    name: 'shop-service',
+  },
 } satisfies VulcanConfig;
 ```
 
-## agents
+## agent.list
 
 An optional list of agents the project suggests. Each developer's own choice lives in `.agents/local/profile.json` (see [`vulcan project sync`](/references/commands/sync#choosing-your-agents)); this list is used only when a machine has not chosen yet. `vulcan project init` does not write it. Accepted ids: `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity`, `pi`.
 
@@ -147,29 +164,33 @@ When `claude` is chosen, `vulcan project sync` writes `CLAUDE.md`, `.claude/sett
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `agents` | `string[]` | unset | The agents the project suggests when a machine has not chosen |
+| `agent.list` | `string[]` | unset | The agents the project suggests when a machine has not chosen |
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  agents: ['claude'],
+  agent: {
+    list: ['claude'],
+  },
 } satisfies VulcanConfig;
 ```
 
-## packs
+## agent.packs
 
 `packs` lists the shipped rule packs the project follows, by name. The only pack today is `venizia`: the rules of the Venizia stack (one script set per app, bun for scripts, verb-first names, const classes, the instance declared before it is awaited). They are not in the base rules; a project that does not list the pack is not held to them. `vulcan project sync` names each pack, its file and its rule IDs in the rules block of `AGENTS.md`, and a name VULCAN does not ship is refused when the config is read. See [Rule packs](/references/rules#rule-packs).
 
 ```ts
 export default {
-  packs: ['venizia'],
+  agent: {
+    packs: ['venizia'],
+  },
 } satisfies VulcanConfig;
 ```
 
 `packs` also brings the config of the pack: `base/packs/<name>.config.json` is merged under the project file. See [vulcan config](/references/commands/config#the-merge) for the merge rules and `remove`.
 
-## rules
+## agent.rules
 
 The `rules` map assigns choices to base rule slots. `vulcan project sync` updates generated assistant settings and session digests from these choices.
 
@@ -180,7 +201,7 @@ The SessionStart hook reads your choices and displays them during session startu
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `rules` | `Record<string, string>` | `{}` | Map of base rule slot IDs to selected choices |
+| `agent.rules` | `Record<string, string>` | `{}` | Map of base rule slot IDs to selected choices |
 
 Every slot key must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
 
@@ -210,13 +231,15 @@ The command exits with code 1.
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  rules: {
-    'V-W-01': 'on-user-word',
+  agent: {
+    rules: {
+      'V-W-01': 'on-user-word',
+    },
   },
 } satisfies VulcanConfig;
 ```
 
-## layout
+## project.layout
 
 The `layout` object records the folders that hold your apps. `vulcan project init` and `vulcan package add` write it from the names you gave; you can also write it by hand.
 
@@ -237,11 +260,13 @@ A side whose apps are grouped lists each group's folder:
 
 ```ts
 export default {
-  layout: {
-    backend: 'backends',
-    frontend: ['frontends/apps', 'frontends/guests', 'frontends/public'],
-    shared: 'frontends/kits',
-    other: ['frontends/tools', 'third-parties', 'docs', 'qc'],
+  project: {
+    layout: {
+      backend: 'backends',
+      frontend: ['frontends/apps', 'frontends/guests', 'frontends/public'],
+      shared: 'frontends/kits',
+      other: ['frontends/tools', 'third-parties', 'docs', 'qc'],
+    },
   },
 } satisfies VulcanConfig;
 ```
@@ -252,13 +277,15 @@ export default {
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  layout: { backend: 'services', frontend: 'web', shared: 'libs' },
+  project: {
+    layout: { backend: 'services', frontend: 'web', shared: 'libs' },
+  },
 } satisfies VulcanConfig;
 ```
 
 `vulcan project doctor` runs the [`apps`](/references/commands/doctor#apps) check against this object: every `backend`, `frontend` and `shared` folder must be a workspace, and every package must live inside a listed folder (an `other` folder included).
 
-## presets
+## project.presets
 
 `vulcan project init --preset` and `vulcan package add --preset` record the preset each app came from, so an agent asked for a new app can find the exact command. Each entry is `{ spec, side, summary }`: `spec` is what you gave `--preset` (`ignis`, `@acme/kit@1.2.0`, or a `file:` path made relative to the project), `side` is `backend` or `frontend`, and `summary` is the preset's one sentence. A preset is recorded once however many apps it made.
 
@@ -276,12 +303,14 @@ The entries live in the `vulcan:apps` block that `init` and `add` rewrite, and t
 
 ```ts
 export default {
-  layout: { backend: 'services' },
-  presets: [{ spec: 'ignis', side: 'backend', summary: 'An IGNIS API on Bun.' }],
+  project: {
+    layout: { backend: 'services' },
+    presets: [{ spec: 'ignis', side: 'backend', summary: 'An IGNIS API on Bun.' }],
+  },
 } satisfies VulcanConfig;
 ```
 
-## packages
+## project.packages
 
 The `packages` array defines monorepo packages in release order. **Leave the key out and VULCAN derives it** from the root `package.json` `workspaces` (an array, or the object form with `packages`) and the `package.json` of each member: an entry is `{ dir, name, path }` with the member's `name`, its folder as `path`, and `dir` that folder with `/` as `-`, in the order of the paths. The patterns are applied in order, so a `!pattern` takes out what the patterns before it gave. In a git repository only members whose `package.json` git tracks count, so an untracked experiment does not change what `vulcan project sync` writes (`git add` a new member first); outside one the folders are read, never entering `node_modules` or a dot folder. A pattern that leaves the project root, or two members that give the same `dir` or `name` (`a/b-c` and `a-b/c` both give `a-b-c`), stop the command with an error naming them. A member with no valid `name`, or whose folder cannot be a `dir` (an upper-case letter, an underscore), is not normalised: `vulcan project doctor` names it and the reason. `vulcan config effective` shows the result and says it came from `workspaces`. **If you tag per package, write the list before the first release**: a derived `dir` follows the folder path, and with the default `tagPattern` (`<dir>-v<version>`) it becomes the tag. Write the key, even as `[]`, and it is the list exactly: use it when the release order matters or a member needs `aliases`, `retired`, `kind` or a `dir` of its own. `vulcan project doctor` warns about a workspace member a written list does not name. Manifest rendering, release checks, and atlas symbol searches read this list.
 
@@ -290,7 +319,7 @@ The `packages` array defines monorepo packages in release order. **Leave the key
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `dir` | `string` | none | Unique package key matching `/^[a-z0-9][a-z0-9.-]*$/` |
-| `name` | `string` | none | The npm package name, with an optional `@scope/`, at most 214 characters |
+| `project.name` | `string` | none | The npm package name, with an optional `@scope/`, at most 214 characters |
 | `path` | `string` | `packages/<dir>` | Package location relative to the repository root |
 | `aliases` | `string[]` | `[]` | Extra names accepted as the `<dir>` of a release tag |
 | `retired` | `boolean` | `false` | Marks a package as retired to keep historical releases readable |
@@ -315,11 +344,13 @@ The schema requires strict uniqueness across all packages:
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  packages: [
-    { dir: 'core', name: '@venizia/core' },
-    { dir: 'server', name: '@venizia/server', path: 'services/server', aliases: ['api'] },
-    { dir: 'legacy-worker', name: '@venizia/worker', retired: true },
-  ],
+  project: {
+    packages: [
+      { dir: 'core', name: '@venizia/core' },
+      { dir: 'server', name: '@venizia/server', path: 'services/server', aliases: ['api'] },
+      { dir: 'legacy-worker', name: '@venizia/worker', retired: true },
+    ],
+  },
 } satisfies VulcanConfig;
 ```
 
@@ -350,7 +381,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-## okf
+## knowledge.okf
 
 The `okf` object configures renderers, region replacements, coverage tracking and the brand for `vulcan okf` commands.
 
@@ -363,7 +394,7 @@ The `okf` object configures renderers, region replacements, coverage tracking an
 | `contents` | `object` | `{ files: ['AGENTS.md', '.agents/rules.md'] }` | Files that receive generated table of contents when exceeding 100 lines |
 | `brand` | `string` | root package name, unscoped, upper-cased | How the project's name is written in prose; the brand rule of `okf check --strict` flags its title-case spelling |
 
-### okf.renderers
+### knowledge.okf.renderers
 
 Each entry is a string identifier or an object configuring a renderer:
 
@@ -373,7 +404,7 @@ Each entry is a string identifier or an object configuring a renderer:
 | `module` | `string` | `undefined` | Module path exporting the custom renderer function |
 | `options` | `Record<string, unknown>` | `{}` | Options passed to the renderer function |
 
-### okf.regions
+### knowledge.okf.regions
 
 Each region binds a generated block in a markdown file to a renderer:
 
@@ -383,20 +414,20 @@ Each region binds a generated block in a markdown file to a renderer:
 | `file` | `string` | none | Target file path relative to the repository root |
 | `renderer` | `string` | none | Identifier of the renderer generating the block |
 
-### okf.coverage
+### knowledge.okf.coverage
 
 Each entry defines a directory axis checked for concept documentation coverage:
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `name` | `string` | none | Unique name for the coverage axis |
+| `project.name` | `string` | none | Unique name for the coverage axis |
 | `path` | `string` | none | Directory path or pattern to scan |
 | `exclude` | `string[]` | `[]` | Root-relative glob patterns omitted from this axis |
 | `denylist` | `string[]` | `[]` | Directory names omitted from this axis only |
 
-The top-level `okf.denylist` array omits directory names across every coverage axis.
+The top-level `knowledge.okf.denylist` array omits directory names across every coverage axis.
 
-### okf.contents
+### knowledge.okf.contents
 
 The `contents` object configures files outside the bundle that receive generated contents tables when exceeding 100 lines:
 
@@ -404,7 +435,7 @@ The `contents` object configures files outside the bundle that receive generated
 |---|---|---|---|
 | `files` | `string[]` | `['AGENTS.md', '.agents/rules.md']` | File paths or glob patterns receiving generated tables |
 
-### okf.brand
+### knowledge.okf.brand
 
 The brand is the spelling of the project's name in prose. When it is all capitals of two letters or more (for example `VULCAN`), `okf check --strict` flags its title-case spelling (`Vulcan`). Unset, it is the root `package.json` name without scope and `-workspace`, upper-cased; with no name, the directory name.
 
@@ -412,31 +443,33 @@ The brand is the spelling of the project's name in prose. When it is all capital
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  okf: {
-    renderers: [
-      'source-map',
-      { id: 'custom-docs', module: '.agents/okf/custom.ts' },
-    ],
-    regions: [
-      { id: 'packages-table', file: 'overview/monorepo-layout.md', renderer: 'packages-table' },
-    ],
-    coverage: [
-      { name: 'packages', path: 'packages/*' },
-    ],
+  knowledge: {
+    okf: {
+      renderers: [
+        'source-map',
+        { id: 'custom-docs', module: '.agents/okf/custom.ts' },
+      ],
+      regions: [
+        { id: 'packages-table', file: 'overview/monorepo-layout.md', renderer: 'packages-table' },
+      ],
+      coverage: [
+        { name: 'packages', path: 'packages/*' },
+      ],
+    },
   },
 } satisfies VulcanConfig;
 ```
 
 To configure custom generators and view built-in renderer options, see the [renderers reference](/references/okf/renderers).
 
-## atlas
+## knowledge.atlas
 
 The `atlas` object configures release tags and external repository sources. `vulcan project sync` writes `release: { tagPattern, ignoreTags }` and `sources` to `.agents/atlas.manifest.json`. Atlas reads `sources` from the manifest to clone and query knowledge across external repositories.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` |
-| `legacyTagPatterns` | `string[]` | `undefined` | Tag templates of an earlier layout, read after `tagPattern` ([details](#legacytagpatterns)) |
+| `legacyTagPatterns` | `string[]` | `undefined` | Tag templates of an earlier layout, read after `tagPattern` ([details](#knowledge-atlas-legacytagpatterns)) |
 | `sources` | `Array<object>` | `[]` | External repositories to query through atlas |
 | `ignoreTags` | `string[]` | `undefined` | Glob patterns of git tags ignored by checks |
 | `index.keys` | `string[]` | `[]` | The public keys a prebuilt atlas index of this repository may be signed with |
@@ -445,9 +478,9 @@ The `atlas` object configures release tags and external repository sources. `vul
 
 - `tagPattern`: `<issue>` and `<date>` are the only other placeholders, and any other `<word>` is refused.
 - `index.keys`: each key is the base64 of 32 bytes, as `vulcan atlas index keygen` prints it.
-- `limits.download` counts the commit of a GitHub source, or an npm package read for its declarations. A larger one is refused, nothing is kept, and the error names this setting. It is an integer from `1048576` (1 MiB) to `1073741824` (1 GiB); a value outside it is a schema error. It is written to the manifest as `atlas.limits.download`, and only when set.
+- `limits.download` counts the commit of a GitHub source, or an npm package read for its declarations. A larger one is refused, nothing is kept, and the error names this setting. It is an integer from `1048576` (1 MiB) to `1073741824` (1 GiB); a value outside it is a schema error. It is written to the manifest as `knowledge.atlas.limits.download`, and only when set.
 
-### legacyTagPatterns
+### knowledge.atlas.legacyTagPatterns
 
 After you rename your release tags, `legacyTagPatterns` keeps the old tags readable as releases. List the templates of the earlier layout.
 
@@ -463,14 +496,14 @@ atlas: { tagPattern: 'vulcan-v<version>', legacyTagPatterns: ['v<version>'] },
 
 Unlike `ignoreTags`, a tag a legacy template reads counts as a release. The key is written to the manifest as `release.legacyTagPatterns`, and only when it lists something, so `schemaVersion` stays 1; an atlas that does not know it reads the new tags only. The `[tags]` doctor check reads `tagPattern` only.
 
-### index and prebuilt
+### knowledge.atlas.index and prebuilt
 
 `index.keys`, `prebuilt` and `limits.download` are written to the manifest as `atlas: { index: { keys }, prebuilt, limits: { download } }`, and only when set: a project that sets neither has the manifest it always had (`schemaVersion` stays 1, and an atlas that does not know the block ignores it).
 A key that is not the base64 of 32 bytes fails when the config is read.
 Listing keys lets the projects that read this one as a source use the signed index its CI publishes; replacing the list is how a key is rotated.
 See [the prebuilt index](/references/atlas/prebuilt-index).
 
-### tagPattern and the tags check
+### knowledge.atlas.tagPattern and the tags check
 
 The `tagPattern` template must contain `<version>`. The `<dir>` placeholder is optional. A template may hold only `<dir>`, `<version>`, `<issue>` and `<date>`: any other `<word>` is refused when the config loads, and `<package>` is told to be `<dir>`. A release train that tags once leaves it out (`v<version>`). `vulcan project doctor` skips the `[tags]` check when there is no `<dir>`.
 
@@ -484,13 +517,13 @@ vulcan project doctor: 1 violation(s)
 
 The command exits with code 1.
 
-### atlas.sources
+### knowledge.atlas.sources
 
 The `sources` array lists external repositories indexed by atlas:
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `name` | `string` | none | External source identifier in atlas results |
+| `project.name` | `string` | none | External source identifier in atlas results |
 | `repo` | `string` | none | GitHub repository identifier in `owner/repo` format, or a git URL; it must not start with `-` |
 | `ref` | `string` | `'develop'` | Git branch, tag, or commit reference to index; it must not start with `-` |
 | `pin` | `'installed'` or `'ref'` | `'installed'` | Which version of the docs atlas reads: `installed` or `ref` |
@@ -501,23 +534,25 @@ The `sources` array lists external repositories indexed by atlas:
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  atlas: {
-    tagPattern: '<dir>-v<version>',
-    sources: [
-      { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
-    ],
-    ignoreTags: ['legacy-*'],
+  knowledge: {
+    atlas: {
+      tagPattern: '<dir>-v<version>',
+      sources: [
+        { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
+      ],
+      ignoreTags: ['legacy-*'],
+    },
   },
 } satisfies VulcanConfig;
 ```
 
 To configure external repositories, see the [atlas sources reference](/references/atlas/sources).
 
-## claude
+## agent.claude
 
-The `claude` object provides team-shared assistant configuration. VULCAN ships a read-only allow list and its companion denies for every project, and the `venizia` pack adds five script lines (see [vulcan config](/references/commands/config#what-the-shipped-layers-hold)); `permissions.allow` and `permissions.deny` you write are added to them. `vulcan project sync` merges `claude.settings` into `.claude/settings.json` over personal keys.
+The `claude` object provides team-shared assistant configuration. VULCAN ships a read-only allow list and its companion denies for every project, and the `venizia` pack adds five script lines (see [vulcan config](/references/commands/config#what-the-shipped-layers-hold)); `permissions.allow` and `permissions.deny` you write are added to them. `vulcan project sync` merges `agent.claude.settings` into `.claude/settings.json` over personal keys.
 
-`vulcan project sync` records applied settings in `.claude/vulcan-managed.json`. When you remove a key from `claude.settings`, the next run of `vulcan project sync` removes that key from `.claude/settings.json`.
+`vulcan project sync` records applied settings in `.claude/vulcan-managed.json`. When you remove a key from `agent.claude.settings`, the next run of `vulcan project sync` removes that key from `.claude/settings.json`.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
@@ -529,17 +564,19 @@ A project hook goes in `settings.hooks`, in Claude Code's own shape (an event, t
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  claude: {
-    settings: {
-      permissions: {
-        allow: ['Bash(bun test)'],
+  agent: {
+    claude: {
+      settings: {
+        permissions: {
+          allow: ['Bash(bun test)'],
+        },
       },
     },
   },
 } satisfies VulcanConfig;
 ```
 
-## digest
+## agent.digest
 
 The `digest` object configures which rule IDs `vulcan project sync` names, one line each, in the rules block of `AGENTS.md`, after the write boundaries. The block holds at most 6 KB, so the last IDs of a long list are the ones left out. If you omit `digest`, the default list below is used. Run `vulcan project sync` after you change it.
 
@@ -553,14 +590,18 @@ Every rule ID in `oftenDropped` must match the rule ID regular expression `/^(?:
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  digest: {
-    oftenDropped: ['P-02'],
+  agent: {
+    digest: {
+      oftenDropped: ['P-02'],
+    },
   },
-  remove: { 'digest.oftenDropped': ['V-C-02'] },
+  common: {
+    remove: { 'agent.digest.oftenDropped': ['V-C-02'] },
+  },
 } satisfies VulcanConfig;
 ```
 
-## theme
+## common.theme
 
 The colours, fonts and corner radius of the pages VULCAN makes. The token names are fixed; the values come from a preset and from your project. `vulcan project sync` resolves the set, checks it, and writes it to `.agents/local/vulcan.manifest.json`, which is where [`vulcan page new`](/references/commands/visualize) and [`vulcan board show`](/references/commands/board) read it. A spec's own `accent` wins over the project's. A project with no `theme` gets the `venizia` preset.
 
@@ -585,17 +626,19 @@ Text needs a 4.5:1 contrast and marks 3:1, on the light and on the dark ground. 
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  theme: {
-    preset: 'slate',
-    tokens: { 'line-strong': '#6b6b6b', ok: { dark: '#3ddc97' } },
-    radius: '2px',
+  common: {
+    theme: {
+      preset: 'slate',
+      tokens: { 'line-strong': '#6b6b6b', ok: { dark: '#3ddc97' } },
+      radius: '2px',
+    },
   },
 } satisfies VulcanConfig;
 ```
 
 `theme: { accent: '#8a5a20', accentDark: '#dead6a' }` means the `venizia` preset.
 
-## owner
+## agent.owner
 
 The `owner` object is the project's contract for how an agent answers its owners. Every default is neutral and English; a project changes only what it needs. `vulcan project sync` and the session digest print it as the shape card "How to answer the owner".
 
@@ -616,8 +659,10 @@ The `owner` object is the project's contract for how an agent answers its owners
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  owner: {
-    report: { shape: ['headline', 'decisions'], headlineMaxSentences: 1 },
+  agent: {
+    owner: {
+      report: { shape: ['headline', 'decisions'], headlineMaxSentences: 1 },
+    },
   },
 } satisfies VulcanConfig;
 ```
@@ -628,13 +673,13 @@ No label is a fixed word. What the reply is held to depends on whether a label s
 
 | The reader's language | Label set | What the card says |
 |---|---|---|
-| English (`en`, `en-GB`) | the project's `owner.report` words, which default to the English ones | quotes the words |
-| Another language, with a set (the `owner` block when `owner.language` is that language, or the person's `labels` for it) | that set | quotes the words |
+| English (`en`, `en-GB`) | the project's `agent.owner.report` words, which default to the English ones | quotes the words |
+| Another language, with a set (the `owner` block when `agent.owner.language` is that language, or the person's `labels` for it) | that set | quotes the words |
 | Another language, with none (a project left at the default words, a person who skipped the label questions) | none | tells the agent to write the labels itself, in that language and form of address |
 
 In the last case the agent writes the table header, the status words, the blocked label, the decisions heading and the recommendation.
 
-A person who wants their own exact words types them in the profile form, or a project writes them in `owner.report`; nothing else is needed for the card to use a language's exact words.
+A person who wants their own exact words types them in the profile form, or a project writes them in `agent.owner.report`; nothing else is needed for the card to use a language's exact words.
 
 ### A session whose reader is an agent
 
@@ -676,9 +721,9 @@ The `guard` object configures the write guards.
 
 `writes.trustedScripts` was removed: guard-writes no longer reads scripts, so it had nothing left to skip. A config that still sets it is refused, and the message says to delete the key.
 
-### claude.settings.env
+### agent.claude.settings.env
 
-`claude.settings` is merged into `.claude/settings.json`. An `env` there that names a `VULCAN_GUARD*` variable (`VULCAN_GUARD_ASKS`, `VULCAN_GUARD_OUTSIDE`, `VULCAN_GUARDS`) is refused, and so is the sync: those variables are the owner's choice and belong in the environment that launches the agent, not in a project file. An `env` that names `BUN_OPTIONS`, `NODE_OPTIONS`, a `BUN_CONFIG_*` or a `BUN_INSPECT*` variable is refused too: Claude Code gives that `env` to every hook, and bun loads `BUN_OPTIONS=--preload=...` before a guard runs (see [the loader variables the hooks remove](/references/hooks/#the-loader-variables-the-hooks-remove)). Other variables are not affected.
+`agent.claude.settings` is merged into `.claude/settings.json`. An `env` there that names a `VULCAN_GUARD*` variable (`VULCAN_GUARD_ASKS`, `VULCAN_GUARD_OUTSIDE`, `VULCAN_GUARDS`) is refused, and so is the sync: those variables are the owner's choice and belong in the environment that launches the agent, not in a project file. An `env` that names `BUN_OPTIONS`, `NODE_OPTIONS`, a `BUN_CONFIG_*` or a `BUN_INSPECT*` variable is refused too: Claude Code gives that `env` to every hook, and bun loads `BUN_OPTIONS=--preload=...` before a guard runs (see [the loader variables the hooks remove](/references/hooks/#the-loader-variables-the-hooks-remove)). Other variables are not affected.
 
 ### guard.toolOwnedPaths
 
@@ -738,7 +783,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-## commit
+## check.commit
 
 The `commit` object configures `vulcan check commit` and the `commit-msg` hook that `vulcan project sync` installs in each clone. Every check is off until you turn it on, so a project that sets nothing gets no hook.
 
@@ -751,21 +796,21 @@ The `commit` object configures `vulcan check commit` and the `commit-msg` hook t
 
 `vulcan project sync` writes the block to the manifest only when a check is on, and the command reads it from there. See [vulcan check commit](/references/commands/commit-check) for what is checked and what the hook does.
 
-### message.agent.signature
+### check.commit.message.agent.signature
 
 `'deny'` rejects a `Co-Authored-By` or `Signed-off-by` trailer, or a `Generated with` line, that names an agent. It also makes `sync` install the hook and write Claude Code's empty `attribution` into `.claude/settings.json`. `'allow'` checks and installs nothing, and removes what `sync` wrote.
 
-### message.agent.names
+### check.commit.message.agent.names
 
 Agent names added to the shipped list: a co-author whose name begins with one is flagged, and so is a `Generated with` line that names one. Spaces, case and hyphens do not matter. Used only with `'deny'`; it cannot remove a shipped name.
 
-### message.agent.allow
+### check.commit.message.agent.allow
 
 Whole co-author names never flagged, for a person who shares a name with an agent (`Claude Dupont`); an agent's address still is. Used only with `'deny'`.
 
 Every entry of `names` and `allow` holds a letter or a digit; the config refuses an entry of punctuation or spaces.
 
-### message.subject
+### check.commit.message.subject
 
 The project's one-line shape: the first line of a message must match `pattern`, a regular expression source (an invalid one is refused when the config loads). `hint` is shown beside a failure. Setting it installs the hook too.
 
@@ -773,16 +818,18 @@ The project's one-line shape: the first line of a message must match `pattern`, 
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  commit: {
-    message: {
-      agent: { signature: 'deny', names: ['windsurf'], allow: ['Claude Dupont'] },
-      subject: { pattern: '^\\[#\\d+\\] ', hint: '[#N] type(scope): subject' },
+  check: {
+    commit: {
+      message: {
+        agent: { signature: 'deny', names: ['windsurf'], allow: ['Claude Dupont'] },
+        subject: { pattern: '^\\[#\\d+\\] ', hint: '[#N] type(scope): subject' },
+      },
     },
   },
 } satisfies VulcanConfig;
 ```
 
-## events
+## board.events
 
 The `events` object configures the agent event log ([vulcan event](/references/commands/event)). It is off until you turn it on.
 
@@ -810,21 +857,23 @@ The three limits apply when `log` is `true`, or when you set one of them. Past a
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  events: { log: true, dir: '/home/me/work/.agents/local/events' },
+  board: {
+    events: { log: true, dir: '/home/me/work/.agents/local/events' },
+  },
 } satisfies VulcanConfig;
 ```
 
-## doctor
+## check.doctor
 
 The `doctor` object tells [`vulcan project doctor`](/references/commands/doctor#private-values) what the project has decided. Nothing is required.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `privateValues.acknowledged` | `Array<{ path, kinds?, reason, standing? }>` | the shipped `**/Dockerfile*` row for `machine-path` | Files that may keep private values, each with a reason |
-| `layout.maxLines` | `number` | `400` | A source file with more lines is a `long-file` finding of [`vulcan check layout`](/references/commands/layout) |
-| `layout.minSubfolders` | `number` | `3` | A folder with at least this many subfolders may keep no loose source file but its index (`mixed-folder`) |
-| `layout.pluralAllow` | `string[]` | `[]` | Role words that end in s and are not plurals, added to the shipped list (`plural-suffix`) |
-| `layout.generated` | `string[]` | `[]` | Globs relative to the repo root of generated files, which `long-file` skips |
+| `project.layout.maxLines` | `number` | `400` | A source file with more lines is a `long-file` finding of [`vulcan check layout`](/references/commands/layout) |
+| `project.layout.minSubfolders` | `number` | `3` | A folder with at least this many subfolders may keep no loose source file but its index (`mixed-folder`) |
+| `project.layout.pluralAllow` | `string[]` | `[]` | Role words that end in s and are not plurals, added to the shipped list (`plural-suffix`) |
+| `project.layout.generated` | `string[]` | `[]` | Globs relative to the repo root of generated files, which `long-file` skips |
 
 - `path` is a glob relative to the repo root (no absolute path, no `..`).
 - `kinds` is some of `private-key`, `token`, `url-credentials`, `ipv4`, `machine-path` (all when absent).
@@ -832,7 +881,7 @@ The `doctor` object tells [`vulcan project doctor`](/references/commands/doctor#
 
 An acknowledged file is counted in one summary line, never dropped silently. A row marked `standing: true`, such as the Dockerfile row VULCAN ships, is not reported when it matches no file and does not start the summary on its own.
 
-## local
+## common.local
 
 The `local` object configures what VULCAN keeps tidy in `.agents/local/` by itself ([The .agents folder](/guides/core-concepts/the-agents-folder#the-automatic-clean)).
 
@@ -841,31 +890,31 @@ The `local` object configures what VULCAN keeps tidy in `.agents/local/` by itse
 | `autoClean` | `boolean` | `true` | The session-start hook cleans the safe part of `.agents/local/` by itself, at most once a day |
 | `tmp` | `string` | `.agents/tmp` | A folder of the project, written from its root, for the temporary files of a session |
 
-### local.autoClean
+### common.local.autoClean
 
 The safe part is stale `tmp/`, browser folders older than an hour, event day files past their limits, and release candidates whose version is tagged. It never removes a worktree or a clone. `false` turns it off; `sync` then writes `local: { autoClean: false }` to the manifest.
 
 `VULCAN_AUTO_CLEAN=off` in the environment turns it off for one shell.
 
-### local.tmp
+### common.local.tmp
 
-It is written like a [layout](#layout) folder: 1 to 4 plain lower-case segments, never absolute, never climbing, so `tmp` (recommended) or `tools/tmp`, not `.tmp`.
+It is written like a [layout](#project-layout) folder: 1 to 4 plain lower-case segments, never absolute, never climbing, so `tmp` (recommended) or `tools/tmp`, not `.tmp`.
 
 `vulcan project sync` creates it, adds it to `.gitignore` when it is outside `.agents/local/`, and writes it to the manifest. The guard, the session digest, the session-start export, `vulcan project clean` and `vulcan package add` then use it. To keep Claude Code's own temp files in the project too, export `CLAUDE_CODE_TMPDIR` in your shell (see [Agents](/references/agents#temporary-files)).
 
 A browser puts a socket below it, so a deep checkout sets it short; `vulcan project doctor` fails when even this folder is too deep.
 
-## board
+## board.page
 
 The `board` object names what [`vulcan board show`](/references/commands/board) puts on its page. Nothing is required.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `owner` | `string` | `git config user.name`, else `Owner` | Who an ask waits on |
+| `agent.owner` | `string` | `git config user.name`, else `Owner` | Who an ask waits on |
 | `title` | `string` | `<project name> Board` | The name in the header and the tab |
 | `logo` | `string` | none | A path inside the project to an `.svg` file |
 | `hostname` | `string` | `'vulz-board.venizia.ai.localhost'` | The name in the address of `vulcan board serve` |
-| `agents` | `Record<string, Face \| { shape?, lane?, role? }>` | `{}` | The agents of the board |
+| `agent.list` | `Record<string, Face \| { shape?, lane?, role? }>` | `{}` | The agents of the board |
 
 - `logo` has no leading `/` and no `..` segment; the board also refuses a file that, with links resolved, lies outside the project.
 - `hostname` is lowercase and ends in `.localhost` (a browser resolves it to your own machine by itself). See [vulcan board show](/references/commands/board).
@@ -881,7 +930,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-## provider
+## board.provider
 
 The `provider` object says which code host [`vulcan board show`](/references/commands/board) reads pull requests, checks and commits from. Nothing is required: GitHub, read through `gh`, is the default.
 
@@ -900,7 +949,9 @@ With `gitlab`, the board reads merge requests, approvals, pipelines with their j
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  provider: { type: 'gitlab', host: 'git.example.com' },
+  board: {
+    provider: { type: 'gitlab', host: 'git.example.com' },
+  },
 } satisfies VulcanConfig;
 ```
 
@@ -912,50 +963,54 @@ The example below shows a typical configuration. It sets the common keys and lea
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  name: 'shop-suite',
-  agents: ['claude'],
-  rules: {
-    'V-W-01': 'on-user-word',
+  project: {
+    name: 'shop-suite',
+    layout: { backend: 'services', shared: 'libs' },
+    packages: [
+      { dir: 'core', name: '@venizia/shop-core' },
+      { dir: 'api', name: '@venizia/shop-api', path: 'services/api', aliases: ['server'] },
+      { dir: 'worker', name: '@venizia/shop-worker', retired: true },
+    ],
   },
-  layout: { backend: 'services', shared: 'libs' },
-  packages: [
-    { dir: 'core', name: '@venizia/shop-core' },
-    { dir: 'api', name: '@venizia/shop-api', path: 'services/api', aliases: ['server'] },
-    { dir: 'worker', name: '@venizia/shop-worker', retired: true },
-  ],
+  agent: {
+    list: ['claude'],
+    rules: {
+      'V-W-01': 'on-user-word',
+    },
+    digest: {
+      oftenDropped: ['V-B-03', 'V-P-06', 'V-B-07'],
+    },
+    claude: {
+      settings: {
+        permissions: {
+          allow: ['Bash(bun test)'],
+        },
+      },
+    },
+  },
   knowledge: {
     bundle: '.agents/knowledge',
     wiki: 'docs/wiki/content',
     changelogs: 'docs/wiki/content/changelogs',
-  },
-  okf: {
-    renderers: [
-      'source-map',
-      { id: 'makefile-targets' },
-    ],
-    regions: [
-      { id: 'packages-table', file: 'overview/monorepo-layout.md', renderer: 'packages-table' },
-    ],
-    coverage: [
-      { name: 'packages', path: 'packages/*' },
-    ],
-  },
-  atlas: {
-    tagPattern: '<dir>-v<version>',
-    sources: [
-      { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
-    ],
-    ignoreTags: ['legacy-*'],
-  },
-  claude: {
-    settings: {
-      permissions: {
-        allow: ['Bash(bun test)'],
-      },
+    okf: {
+      renderers: [
+        'source-map',
+        { id: 'makefile-targets' },
+      ],
+      regions: [
+        { id: 'packages-table', file: 'overview/monorepo-layout.md', renderer: 'packages-table' },
+      ],
+      coverage: [
+        { name: 'packages', path: 'packages/*' },
+      ],
     },
-  },
-  digest: {
-    oftenDropped: ['V-B-03', 'V-P-06', 'V-B-07'],
+    atlas: {
+      tagPattern: '<dir>-v<version>',
+      sources: [
+        { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
+      ],
+      ignoreTags: ['legacy-*'],
+    },
   },
 } satisfies VulcanConfig;
 ```
@@ -965,15 +1020,15 @@ export default {
 The variables the cli reads. The atlas server has variables of its own (`VULCAN_ATLAS_*`, `VULCAN_NPM_REGISTRY`, `VULCAN_GITHUB_API_URL`, `VULCAN_GITHUB_URL`, `VULCAN_CODELOAD_URL`); they are not listed here. A variable set to `off` means exactly the word `off`.
 
 - `VULCAN_ACTOR`, read by `vulcan event add`, the event hook: The name of the writer of an event line; it wins over the name Claude Code gave the session (see [vulcan event](/references/commands/event))
-- `VULCAN_AUTO_CLEAN`, read by the session-start hook: `off` turns the daily automatic clean of `.agents/local/` off for the shell (see [local](#local))
-- `VULCAN_OWNER_REPLY`, read by the session-start hook: `off` leaves the owner shape card and the profile card out of the session; an agent that starts a session sets it, an owner who exported it by mistake is told by `vulcan project doctor` (see [owner](#owner))
+- `VULCAN_AUTO_CLEAN`, read by the session-start hook: `off` turns the daily automatic clean of `.agents/local/` off for the shell (see [local](#common-local))
+- `VULCAN_OWNER_REPLY`, read by the session-start hook: `off` leaves the owner shape card and the profile card out of the session; an agent that starts a session sets it, an owner who exported it by mistake is told by `vulcan project doctor` (see [owner](#agent-owner))
 - `VULCAN_GUARDS`, read by the guard hooks: `off` switches the guards off for one session; set it only for the command that needs it (see [Hooks and guards](/guides/core-concepts/hooks-and-guards))
 - `VULCAN_NO_INSTALL`, read by `init`, `add`, `upgrade`: `1` prints the install, `git init`, `sync` and the checks as `skipped` and writes the files; VULCAN's own tests use it
 - `VULCAN_CONFIG`, `VULCAN_MANIFEST`, `VULCAN_PROJECT_ROOT`, read by `okf` and `atlas`: Set by `vulcan atlas` or `vulcan okf` for the tool it starts: the resolved config as JSON, the manifest rendered fresh, the project root (see [vulcan atlas/okf](/references/commands/#okf-and-atlas))
 - `VULCAN_BUN`, `VULCAN_GIT`, read by `init`, `add`: Replace the `bun` and `git` those commands run; for tests
 - `VULCAN_DIST_TAGS`, read by `upgrade`: The dist-tags as JSON in place of the registry read of `--nightly`; for tests
 - `CLAUDE_PROJECT_DIR`, read by the hooks: The project root, set by Claude Code (and by the pi guards extension when it runs a guard script); without it the hooks use the working directory
-- `CLAUDE_ENV_FILE`, read by the session-start hook: The file Claude Code hands a start hook to export variables from; the hook appends `export TMPDIR=<project>/.agents/tmp` (or the `local.tmp` folder)
+- `CLAUDE_ENV_FILE`, read by the session-start hook: The file Claude Code hands a start hook to export variables from; the hook appends `export TMPDIR=<project>/.agents/tmp` (or the `common.local.tmp` folder)
 - `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CONFIG_DIR`, read by the event hook: The session id, and the folder whose `sessions/*.json` names the session (default `~/.claude`), to find the session's name
 
 ## See also

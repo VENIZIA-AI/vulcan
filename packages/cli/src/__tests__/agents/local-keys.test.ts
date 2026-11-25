@@ -15,7 +15,8 @@ afterAll(removeProjects);
 
 const MANIFEST = '.agents/local/vulcan.manifest.json';
 const ROSTER = { aurora: { shape: 'flame', role: 'Frontend' } };
-const CONFIG = "export default { name: 'acme', rules: { 'V-W-01': 'read-only' } };\n";
+const CONFIG =
+  "export default { project: { name: 'acme' }, agent: { rules: { 'V-W-01': 'read-only' } } };\n";
 
 const projectWith = (opts: {
   local?: unknown;
@@ -201,7 +202,7 @@ describe('vulcan project sync with a local file', () => {
   test('the manifest, AGENTS.md and .gitignore are the same with and without a local file', () => {
     const team = {
       '.configs/vulcan.config.mts':
-        "export default { name: 'acme', local: { tmp: 'tmp' }, board: { agents: { umbra: 'ember' } } };\n",
+        "export default { project: { name: 'acme' }, board: { page: { agents: { umbra: 'ember' } } }, common: { local: { tmp: 'tmp' } } };\n",
       '.gitignore': 'node_modules/\n',
     };
     const plain = projectWith({ files: team });

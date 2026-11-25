@@ -10,7 +10,7 @@ afterAll(removeProjects);
 
 const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
 const PROJECT = {
-  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { agent: { rules: { 'V-W-01': 'read-only' } } };\n",
   'AGENTS.md': '# x\n',
 };
 const LOCAL = '.agents/local/profile.json';

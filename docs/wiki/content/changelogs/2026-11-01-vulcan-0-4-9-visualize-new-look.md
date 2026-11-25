@@ -32,7 +32,7 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
 
 ## Who is affected
 
-Anyone who runs `vulcan visualize`: your existing specs continue to work and render in the new design. To use custom colours, add `theme: { accent: '#...' }` to your config and run `vulcan sync` (see the [`theme` option](/references/configuration/#theme)). The breaking changes only affect projects that run `make agent-setup` or import the six renamed functions below. The core `vulcan` CLI commands remain unchanged.
+Anyone who runs `vulcan visualize`: your existing specs continue to work and render in the new design. To use custom colours, add `theme: { accent: '#...' }` to your config and run `vulcan sync` (see the [`theme` option](/references/configuration/#common-theme)). The breaking changes only affect projects that run `make agent-setup` or import the six renamed functions below. The core `vulcan` CLI commands remain unchanged.
 
 ## Breaking changes
 

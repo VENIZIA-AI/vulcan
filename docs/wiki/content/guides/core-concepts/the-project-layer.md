@@ -72,7 +72,7 @@ The manifest carries the following fields:
 | `knowledge` | Paths for the knowledge bundle, wiki and changelogs, and `migrationFrom` |
 | `release` | Release `tagPattern`, `ignoreTags`, and `legacyTagPatterns` (only when it lists something) |
 | `rules` | Path to project rules and short 8-character hashes of each base rule row |
-| `sources` | External knowledge sources from `atlas.sources` when configured |
+| `sources` | External knowledge sources from `knowledge.atlas.sources` when configured |
 
 Details:
 

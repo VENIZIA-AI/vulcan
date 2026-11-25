@@ -5,7 +5,8 @@ import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
-const CONFIG = "export default { name: 'acme', rules: { 'V-W-01': 'read-only' } };\n";
+const CONFIG =
+  "export default { project: { name: 'acme' }, agent: { rules: { 'V-W-01': 'read-only' } } };\n";
 const profileWarnings = async (opts: { root: string }) => {
   const warnings = await DoctorRunner.runWarnings({ root: opts.root });
 

@@ -19,7 +19,8 @@ import { runCli } from '../run.helper.ts';
 
 afterAll(removeProjects);
 
-const CONFIG = "export default { name: 'acme', rules: { 'V-W-01': 'on-user-word' } };\n";
+const CONFIG =
+  "export default { project: { name: 'acme' }, agent: { rules: { 'V-W-01': 'on-user-word' } } };\n";
 const DAY = 24 * 60 * 60 * 1000;
 
 const git = (opts: { cwd: string; args: string[] }): string => {

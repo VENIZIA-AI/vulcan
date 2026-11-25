@@ -6,10 +6,7 @@ import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
 
-const CONFIG = `export default {
-  packages: [{ dir: 'core', name: '@a/core' }],
-  knowledge: { changelogs: 'docs/changelogs' },
-};
+const CONFIG = `export default { project: { packages: [{ dir: 'core', name: '@a/core' }] }, knowledge: { changelogs: 'docs/changelogs' } };
 `;
 
 const LOG = "---\ntitle: 0.4.9\nversion: 0.4.9\npackages: ['@a/core']\n---\nNo change.\n";

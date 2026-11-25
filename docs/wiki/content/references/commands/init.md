@@ -200,9 +200,13 @@ The starter file provides baseline settings:
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  project: { key: 'ACME' },
-  agents: ['claude'],
-  rules: { 'V-W-01': 'on-user-word' },
+  project: {
+    key: 'ACME',
+  },
+  agent: {
+    list: ['claude'],
+    rules: { 'V-W-01': 'on-user-word' },
+  },
 } satisfies VulcanConfig;
 ```
 

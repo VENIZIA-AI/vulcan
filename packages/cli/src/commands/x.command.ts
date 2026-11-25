@@ -49,12 +49,17 @@ export class ToolRunner {
    */
   static async buildEnvironment(opts: {
     root: string;
+    /** Reads the flat config of the earlier releases too: only `vulcan migrate` asks for it. */
+    isLenient?: boolean;
   }): Promise<{ ok: true; env: Record<string, string> } | { ok: false; error: string }> {
     if (ConfigLoader.findFile({ root: opts.root }) === undefined) {
       return { ok: true, env: {} };
     }
 
-    const loaded = await ConfigLoader.load({ root: opts.root });
+    const loaded = await ConfigLoader.load({
+      root: opts.root,
+      ...(opts.isLenient === true ? { isLenient: true } : {}),
+    });
 
     if (!loaded.ok) {
       return { ok: false, error: loaded.error };
@@ -81,7 +86,9 @@ export class ToolRunner {
 }
 
 /** Runs the tool as a child on the inherited stdio: vulcan writes nothing to stdout, so MCP stays clean. */
-export const runXCommand = async (opts: ICommandContext): Promise<number> => {
+export const runXCommand = async (
+  opts: ICommandContext & { isLenient?: boolean },
+): Promise<number> => {
   const [name, ...toolArgs] = opts.args;
 
   if (name === undefined || !VulcanTools.isValid(name)) {
@@ -102,7 +109,10 @@ export const runXCommand = async (opts: ICommandContext): Promise<number> => {
     return ExitCodes.FAILURE;
   }
 
-  const environment = await ToolRunner.buildEnvironment({ root: opts.cwd });
+  const environment = await ToolRunner.buildEnvironment({
+    root: opts.cwd,
+    ...(opts.isLenient === true ? { isLenient: true } : {}),
+  });
 
   if (!environment.ok) {
     process.stderr.write(`vulcan ${name}: ${environment.error}\n`);

@@ -134,11 +134,11 @@ The following list gives each command, its purpose, its exit codes, and its refe
   Exit codes: `0` shown; `1` when the config cannot be loaded; `2` on bad input.
 - `clean` ([vulcan project clean](/references/commands/clean)): List what an agent left under `.agents/local/` and remove it with `--yes`.
   Exit codes: `0` on a dry run, a removal or nothing to remove; `1` when an item cannot be removed or on an unknown flag.
-- `commit-check` ([vulcan check commit](/references/commands/commit-check)): Check a commit message for an agent signature and the project's subject shape, as the `commit-msg` hook that `sync` installs does; nothing is checked until `commit.message` turns a check on.
+- `commit-check` ([vulcan check commit](/references/commands/commit-check)): Check a commit message for an agent signature and the project's subject shape, as the `commit-msg` hook that `sync` installs does; nothing is checked until `check.commit.message` turns a check on.
   Exit codes: `0` when clean or when no check is configured; `1` on a problem; `2` on bad input.
 - `board` ([vulcan board show](/references/commands/board)): Fold the event log, and GitHub or GitLab pull requests when `gh` or `glab` can read them, into flows and write one read-only HTML page, by default `.agents/local/reports/board.html`.
   Exit codes: `0` written; `1` the file cannot be written, or `board serve` cannot start; `2` on bad input.
-- `event` ([vulcan event](/references/commands/event)): `event add` writes a line to the agent event log, `event tail` reads it; with `events.log` on, `sync` installs the Claude Code hooks that write it.
+- `event` ([vulcan event](/references/commands/event)): `event add` writes a line to the agent event log, `event tail` reads it; with `board.events.log` on, `sync` installs the Claude Code hooks that write it.
   Exit codes: `0` on success; `1` when the log cannot be written; `2` on bad input.
 - `doctor` ([vulcan project doctor](/references/commands/doctor)): Check the project against the VULCAN contract and report violations.
   Exit codes: `0` when conformant; `1` on any contract violation or unknown argument.

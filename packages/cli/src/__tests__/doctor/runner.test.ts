@@ -20,7 +20,7 @@ const LINT_CONFIGS = {
     "import { namingConventionConfigs } from '@venizia/dev-configs/linters';\n\nexport default namingConventionConfigs;\n",
 };
 const CONFORMANT: Record<string, string> = {
-  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { agent: { rules: { 'V-W-01': 'read-only' } } };\n",
   'package.json': '{ "name": "demo", "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
   'AGENTS.md': '# x\n',
   '.agents/rules.md': '| ID | Rule | Enforced by |\n|---|---|---|\n| W-06 | stay | SOFT |\n',
@@ -70,7 +70,7 @@ describe('doctor', () => {
     const root = createProject({
       files: {
         '.configs/vulcan.config.mts':
-          "export default { packages: [{ dir: 'kernel', name: '@Acme/Kernel' }] };\n",
+          "export default { project: { packages: [{ dir: 'kernel', name: '@Acme/Kernel' }] } };\n",
       },
     });
     const result = runCli({ args: ['project', 'doctor'], cwd: root });
@@ -121,7 +121,7 @@ describe('doctor', () => {
       files: {
         ...CONFORMANT,
         '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, packs: ['venizia'] };\n",
+          "export default { agent: { rules: { 'V-W-01': 'read-only' }, packs: ['venizia'] } };\n",
         '.agents/rules.md': rules,
       },
     });
@@ -181,7 +181,8 @@ describe('doctor', () => {
     const root = createProject({
       files: {
         ...CONFORMANT,
-        '.configs/vulcan.config.mts': "export default { rules: { 'W-01': 'read-only' } };\n",
+        '.configs/vulcan.config.mts':
+          "export default { agent: { rules: { 'W-01': 'read-only' } } };\n",
       },
     });
 
@@ -203,7 +204,8 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'sometimes' } };\n",
+        '.configs/vulcan.config.mts':
+          "export default { agent: { rules: { 'V-W-01': 'sometimes' } } };\n",
       },
     });
 
@@ -216,7 +218,7 @@ describe('doctor', () => {
       files: {
         ...CONFORMANT,
         '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only', 'V-P-02': 'x' } };\n",
+          "export default { agent: { rules: { 'V-W-01': 'read-only', 'V-P-02': 'x' } } };\n",
       },
     });
 
@@ -323,7 +325,7 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        '.configs/lints/oxlint.config.mts': 'export default { rules: {} };\n',
+        '.configs/lints/oxlint.config.mts': 'export default { agent: { rules: {} } };\n',
       },
     });
 
@@ -412,7 +414,7 @@ describe('doctor', () => {
       files: {
         ...CONFORMANT,
         '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'kit', name: '@demo/kit', path: 'backends/kit' }] };\n",
+          "export default { project: { packages: [{ dir: 'kit', name: '@demo/kit', path: 'backends/kit' }] }, agent: { rules: { 'V-W-01': 'read-only' } } };\n",
         'backends/kit/package.json': '{ "name": "@demo/kit" }',
         'backends/kit/.configs/lints/oxlint.config.mts': 'export default {};\n',
       },
@@ -482,7 +484,7 @@ describe('doctor: the scaffold is filled in', () => {
         ...CONFORMANT,
         'package.json': WORKSPACES_PACKAGE,
         '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'api', name: '@demo/api', path: 'apps/api' }] };\n",
+          "export default { project: { packages: [{ dir: 'api', name: '@demo/api', path: 'apps/api' }] }, agent: { rules: { 'V-W-01': 'read-only' } } };\n",
       },
     });
 
@@ -520,7 +522,7 @@ describe('doctor: apps', () => {
         'package.json':
           '{ "name": "demo", "workspaces": ["services/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
         '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services', frontend: 'web' }, packages: [{ dir: 'core-api', name: 'core-api', path: 'apps/core-api' }] };\n",
+          "export default { project: { layout: { backend: 'services', frontend: 'web' }, packages: [{ dir: 'core-api', name: 'core-api', path: 'apps/core-api' }] }, agent: { rules: { 'V-W-01': 'read-only' } } };\n",
       },
     });
     const violations = await DoctorRunner.runChecks({ root });
@@ -539,7 +541,7 @@ describe('doctor: apps', () => {
       ...CONFORMANT,
       'package.json': `{ "name": "demo", "workspaces": ${opts.workspaces}, "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }`,
       '.configs/vulcan.config.mts':
-        "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'merchant', name: '@nx/merchant', path: 'frontends/features/merchant', kind: 'lib' }] };\n",
+        "export default { project: { layout: { backend: 'services' }, packages: [{ dir: 'merchant', name: '@nx/merchant', path: 'frontends/features/merchant', kind: 'lib' }] }, agent: { rules: { 'V-W-01': 'read-only' } } };\n",
     });
     const covered = createSyncedProject({
       files: files({ workspaces: '["services/*", "frontends/features/*"]' }),
@@ -565,7 +567,7 @@ describe('doctor: apps', () => {
           ...CONFORMANT,
           'package.json': `{ "name": "demo", "workspaces": ${JSON.stringify(globs)}, "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }`,
           '.configs/vulcan.config.mts':
-            "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'core-api', name: 'core-api', path: 'services/core-api' }] };\n",
+            "export default { project: { layout: { backend: 'services' }, packages: [{ dir: 'core-api', name: 'core-api', path: 'services/core-api' }] }, agent: { rules: { 'V-W-01': 'read-only' } } };\n",
         },
       });
 
@@ -581,7 +583,7 @@ describe('doctor: apps', () => {
         'package.json':
           '{ "name": "demo", "workspaces": ["./other/**"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
         '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' } };\n",
+          "export default { project: { layout: { backend: 'services' } }, agent: { rules: { 'V-W-01': 'read-only' } } };\n",
       },
     });
     const result = await DoctorRunner.runChecks({ root });
@@ -654,7 +656,7 @@ describe('doctor: bun fmt (warnings)', () => {
           ...CONFORMANT,
           'package.json':
             '{ "name": "demo", "workspaces": ["services/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
-          '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: ${PACKAGES} };\n`,
+          '.configs/vulcan.config.mts': `export default { project: { layout: { backend: 'services' }, packages: ${PACKAGES} }, agent: { rules: { 'V-W-01': 'read-only' } } };\n`,
           'services/api/package.json': JSON.stringify({ name: 'api', scripts: { lint: 'x' } }),
           ...opts.files,
         }).filter((entry): entry is [string, string] => entry[1] !== null),
@@ -972,7 +974,8 @@ describe('the owner reply switch', () => {
   test('a note says when VULCAN_OWNER_REPLY=off is set in the shell that runs doctor', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+        '.configs/vulcan.config.mts':
+          "export default { agent: { rules: { 'V-W-01': 'read-only' } } };\n",
       },
     });
     const notesOf = async (env: Record<string, string>): Promise<string[]> => {
@@ -992,7 +995,7 @@ describe('the owner reply switch', () => {
   });
 
   test('a warning says when a Claude Code settings file of the project sets the switch in env', async () => {
-    const config = "export default { rules: { 'V-W-01': 'read-only' } };\n";
+    const config = "export default { agent: { rules: { 'V-W-01': 'read-only' } } };\n";
     const flagged = createProject({
       files: {
         '.configs/vulcan.config.mts': config,

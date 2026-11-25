@@ -8,7 +8,8 @@ afterAll(removeProjects);
 
 const hasScript = Bun.which('script') !== null;
 const ENV = { VULCAN_NO_INSTALL: '1', TERM: 'xterm-256color', LANG: 'en_US.UTF-8' };
-const CONFIG = "export default { name: 'acme', rules: { 'V-W-01': 'on-user-word' } };\n";
+const CONFIG =
+  "export default { project: { name: 'acme' }, agent: { rules: { 'V-W-01': 'on-user-word' } } };\n";
 const FILE = '.agents/local/profile.json';
 
 const project = (): string =>

@@ -129,7 +129,7 @@ describe('ToolRunner.buildEnvironment', () => {
     const root = createProject({
       files: {
         '.configs/vulcan.config.mts':
-          "export default { packages: [{ dir: 'kernel', name: '@a/kernel' }] };\n",
+          "export default { project: { packages: [{ dir: 'kernel', name: '@a/kernel' }] } };\n",
       },
     });
     const environment = await ToolRunner.buildEnvironment({ root });

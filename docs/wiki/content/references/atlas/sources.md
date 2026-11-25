@@ -6,16 +6,18 @@ description: Configure external repository sources, cache locations, and authent
 # atlas sources
 
 atlas serves external project documentation alongside your repository.
-Declare external repositories under `atlas.sources` in `.configs/vulcan.config.mts`:
+Declare external repositories under `knowledge.atlas.sources` in `.configs/vulcan.config.mts`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  atlas: {
-    sources: [
-      { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
-    ],
+  knowledge: {
+    atlas: {
+      sources: [
+        { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
+      ],
+    },
   },
 } satisfies VulcanConfig;
 ```
@@ -39,7 +41,7 @@ A `repo` with an `http://` or `git://` URL (clear text) or a `scheme::` remote h
 
 Every git call of atlas runs with `GIT_ALLOW_PROTOCOL=https:ssh:file`, so git uses only `https`, `ssh` and a repository on this machine (`file://` or a path), whatever the machine's own git configuration allows. `http://` and `git://` carry the repository in clear text with no authentication, and `ext::` and `fd::` run a command: a source that names one is refused before git is called, and the message names the source and says to use https or ssh.
 
-The tarball of a GitHub source, and an npm package read for its declarations, are read up to `atlas.limits.download` bytes (default 128 MiB; set it in [the config](/references/configuration/#atlas)). A response that announces a larger length is refused before its body is read, and one that sends more than it announced is cut off at the limit; nothing is kept. The ref advertisement of a remote is held to 16 MiB, with no setting. For scale: the tarball of `microsoft/TypeScript` is 28 MB, of `facebook/react` 10 MB, and the largest npm package of this project 0.4 MB.
+The tarball of a GitHub source, and an npm package read for its declarations, are read up to `knowledge.atlas.limits.download` bytes (default 128 MiB; set it in [the config](/references/configuration/#knowledge-atlas)). A response that announces a larger length is refused before its body is read, and one that sends more than it announced is cut off at the limit; nothing is kept. The ref advertisement of a remote is held to 16 MiB, with no setting. For scale: the tarball of `microsoft/TypeScript` is 28 MB, of `facebook/react` 10 MB, and the largest npm package of this project 0.4 MB.
 
 ## Which version of the docs
 
@@ -74,7 +76,7 @@ sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop', pin: 'ref' 
 
 You can declare external sources in two places:
 
-- Project configuration: Add sources under `atlas.sources`. `vulcan project sync` writes them to `.agents/atlas.manifest.json`.
+- Project configuration: Add sources under `knowledge.atlas.sources`. `vulcan project sync` writes them to `.agents/atlas.manifest.json`.
 - Command line flag: Pass `--source <value>` or `--source=<value>` when starting atlas.
 
 The `--source` flag accepts an `owner/repo` path or a git URL.
@@ -130,7 +132,7 @@ A repository can publish the search index of each commit, signed, so the project
 atlas uses such an index for a source when all of these hold:
 
 - the source is a GitHub `owner/repo` and atlas reads it with git;
-- the source's manifest lists public keys under `atlas.index.keys`;
+- the source's manifest lists public keys under `knowledge.atlas.index.keys`;
 - you did not pass `--no-prebuilt`.
 
 Then atlas looks for the pair of the commit it resolved on the release `atlas-index` of that repository: `<sha>.atlas.json` (the signed envelope) and `<sha>.atlas.gz` (the gzipped index).
@@ -224,7 +226,7 @@ A source is not served when it hits any of these conditions:
 - Unreachable with no cache: `atlas: source '<name>' (<repo>@<ref>) is unreachable and has no cache`
 - Missing ref on remote: `atlas: source '<name>' (<repo>@<ref>) - the remote has no branch or tag '<ref>'`
 - `http://`, `git://` or `ext::` repository: `atlas: source '<name>' (<repo>@<ref>) uses an http:// URL, which is clear text - use https or ssh`
-- Tarball over `atlas.limits.download`: `atlas: the tarball of <owner>/<repo> at <sha> is over atlas.limits.download (<bytes> bytes) - raise it in the vulcan config if the source is meant to be that large`
+- Tarball over `knowledge.atlas.limits.download`: `atlas: the tarball of <owner>/<repo> at <sha> is over atlas.limits.download (<bytes> bytes) - raise it in the vulcan config if the source is meant to be that large`
 - Git URL without git: `atlas: source '<name>' (<repo>@<ref>) needs git on this machine - only an owner/repo source has a tarball path`
 - Short commit hash without git: `atlas: source '<name>' (<repo>@<ref>) - a short commit hash needs git on this machine; give all 40 characters`
 - Missing manifest: `atlas: source '<name>' (<repo>@<ref>) has no .agents/atlas.manifest.json (nor the .agents/vulcan.manifest.json of an older release) - its maintainers run \`vulcan project sync\` and commit it`

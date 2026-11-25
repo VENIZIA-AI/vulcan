@@ -54,7 +54,7 @@ What each one checks:
 
 ## Generated pages
 
-`vulcan okf gen` derives reference pages from source code, rendering only what `okf.renderers` lists (default `[]`).
+`vulcan okf gen` derives reference pages from source code, rendering only what `knowledge.okf.renderers` lists (default `[]`).
 To enable `makefile-targets`, add the config line:
 
 ```ts
@@ -71,7 +71,7 @@ For built-in renderers and custom modules, see [okf renderers](/references/okf/r
 
 ## Coverage
 
-`vulcan okf coverage` audits curated concepts against directory axes configured under `okf.coverage`.
+`vulcan okf coverage` audits curated concepts against directory axes configured under `knowledge.okf.coverage`.
 With no axes configured (default `[]`), the report prints `structural: 0/0 100%` because zero directories are expected.
 For axis configuration and threshold gates, see the [okf reference](/references/okf/).
 

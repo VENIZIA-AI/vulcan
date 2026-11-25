@@ -13,7 +13,7 @@ const CONFIG = (opts: { signature?: string }) =>
   `export default {${
     opts.signature === undefined
       ? ''
-      : ` commit: { message: { agent: { signature: '${opts.signature}' } } },`
+      : ` check: { commit: { message: { agent: { signature: '${opts.signature}' } } } },`
   } };\n`;
 
 const ATTRIBUTION = { commit: '', pr: '', sessionUrl: false };

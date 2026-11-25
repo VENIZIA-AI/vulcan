@@ -27,7 +27,7 @@ const MANIFEST = '.agents/local/vulcan.manifest.json';
 const manifestWith = (tmp: unknown): string => JSON.stringify({ schemaVersion: 1, local: { tmp } });
 const projectWith = (tmp: unknown): string =>
   createProject({ files: { [MANIFEST]: manifestWith(tmp), '.agents/rules.md': '' } });
-const CONFIG = "export default { name: 'acme', local: { tmp: 't' } };\n";
+const CONFIG = "export default { project: { name: 'acme' }, common: { local: { tmp: 't' } } };\n";
 
 describe('local.tmp in the config', () => {
   const parse = (tmp: unknown): { success: boolean; message: string } => {
@@ -247,7 +247,10 @@ describe('the review of local.tmp', () => {
     });
 
     runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
-    writeFileSync(join(root, '.configs/vulcan.config.mts'), "export default { name: 'acme' };\n");
+    writeFileSync(
+      join(root, '.configs/vulcan.config.mts'),
+      "export default { project: { name: 'acme' } };\n",
+    );
 
     const again = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 

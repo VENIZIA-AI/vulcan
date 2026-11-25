@@ -8,7 +8,8 @@ afterAll(removeProjects);
 
 const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
 const FILE = '.agents/local/profile.json';
-const CONFIG = "export default { name: 'acme', rules: { 'V-W-01': 'on-user-word' } };\n";
+const CONFIG =
+  "export default { project: { name: 'acme' }, agent: { rules: { 'V-W-01': 'on-user-word' } } };\n";
 
 /** Runs `vulcan profile ...` with `lines` on stdin, as a pipe: the plain questions, not the menus. */
 const profile = (opts: {

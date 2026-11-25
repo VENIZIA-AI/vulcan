@@ -86,7 +86,7 @@ Process rules establish reading requirements, design review gates, scope boundar
   - Enforced by: SOFT
 - `V-P-12` - Delegate mechanical work to a smaller-model subagent, keep judgment, and put the goal, files, "no git writes", report shape and the rules digest in every brief (template: `delegation-brief.md` in the shipped references).
   - Enforced by: SOFT - the brief; a subagent-start hook where the tool has one
-- `V-P-13` - Only in a project with `events.log` on: when you start work that belongs to a flow, make the flow first: log a `flow` event with no `--flow`, in the owner's language, with a title the owner reads, a one-line reason, a short context and the next step (`vulcan flow add --title ... --why ... --context ... --next ...`). VULCAN gives the flow its id, `VULZ-<project.key>-<number>`, and prints it; use it on every other line of the flow, and never type or invent one. Lists and fields: `--step`, `--step-done`, `--check`, `--check-done`, `--app`, `--due`, `--ref`; to change a flow, log a new `flow` line with `--flow <id>` that repeats every list and field that still holds. Log a `deploy` line when something goes live.
+- `V-P-13` - Only in a project with `board.events.log` on: when you start work that belongs to a flow, make the flow first: log a `flow` event with no `--flow`, in the owner's language, with a title the owner reads, a one-line reason, a short context and the next step (`vulcan flow add --title ... --why ... --context ... --next ...`). VULCAN gives the flow its id, `VULZ-<project.key>-<number>`, and prints it; use it on every other line of the flow, and never type or invent one. Lists and fields: `--step`, `--step-done`, `--check`, `--check-done`, `--app`, `--due`, `--ref`; to change a flow, log a new `flow` line with `--flow <id>` that repeats every list and field that still holds. Log a `deploy` line when something goes live.
   - Enforced by: SOFT
 
 ## Build and quality (B)
@@ -101,7 +101,7 @@ Build rules require test-driven workflows, command output verification, zero war
   - Enforced by: SOFT
 - `V-B-07` - Say what you skipped or did not check; mark a deliberate shortcut `// SHORTCUT: <what>, <why>, <revisit when>`.
   - Enforced by: SOFT - build-a-feature step 8 summary, the rules block of AGENTS.md
-- `V-B-08` - Create nothing outside the project: scratch, temporary files, logs, worktrees, clones and subagent output live under the gitignored `.agents/local/` (or the folder `local.tmp` names, inside the project), and you remove each when its lifetime ends (table below); the done report says what was removed or kept. The scratchpad folder an agent tool offers is a system temp directory, so it is not allowed either (`guard-outside` denies a write there).
+- `V-B-08` - Create nothing outside the project: scratch, temporary files, logs, worktrees, clones and subagent output live under the gitignored `.agents/local/` (or the folder `common.local.tmp` names, inside the project), and you remove each when its lifetime ends (table below); the done report says what was removed or kept. The scratchpad folder an agent tool offers is a system temp directory, so it is not allowed either (`guard-outside` denies a write there).
   - Enforced by: HARD for the writes the guard-outside hook reads (redirects, `mkdir`, `cp`, `mv`, `tee`, `git clone`, `git worktree add`, `mktemp`...): it asks, or denies with `guard.outside: 'deny'`, and always denies a write into the scratchpad folder a tool offers. SOFT for the rest
 
 ### Where agent files live, and when they go
@@ -151,7 +151,9 @@ A rule pack is a file of rules for one stack, shipped in `@venizia/vulcan` under
 
 ```ts
 export default {
-  packs: ['venizia'],
+  agent: {
+    packs: ['venizia'],
+  },
 } satisfies VulcanConfig;
 ```
 
@@ -195,23 +197,25 @@ Denials include `git add`, `git commit`, `git push`, `git checkout`, `git branch
 
 `read-only` denies all 30 git write verbs in every form: `add`, `rm`, `mv`, `restore`, `commit`, `push`, `pull`, `merge`, `rebase`, `reset`, `revert`, `cherry-pick`, `checkout`, `switch`, `branch`, `tag`, `stash`, `clean`, `apply`, `am`, `worktree`, `remote`, `config`, `submodule`, `update-ref`, `filter-branch`, `gc`, `init`, `clone` and `notes`. It takes no exception. A deny rule wins over an allow rule, and a permission pattern cannot allow one exact form of a verb (`git pull --ff-only origin develop`) and deny the others, so an allow list in the project's settings cannot reopen a verb that `read-only` denies.
 
-A project that needs exceptions chooses `on-user-word` and writes its own deny list in `claude.settings.permissions.deny`: it names the verbs it denies and leaves the others out. For example, to let agents run `git pull`, `git stash`, `git restore` and `git switch` and nothing that writes the history or the remote:
+A project that needs exceptions chooses `on-user-word` and writes its own deny list in `agent.claude.settings.permissions.deny`: it names the verbs it denies and leaves the others out. For example, to let agents run `git pull`, `git stash`, `git restore` and `git switch` and nothing that writes the history or the remote:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  rules: { 'V-W-01': 'on-user-word' },
-  claude: {
-    settings: {
-      permissions: {
-        deny: [
-          'Bash(git add)', 'Bash(git add:*)', 'Bash(git rm:*)', 'Bash(git mv:*)',
-          'Bash(git commit)', 'Bash(git commit:*)', 'Bash(git push)', 'Bash(git push:*)',
-          'Bash(git merge)', 'Bash(git merge:*)', 'Bash(git rebase)', 'Bash(git rebase:*)',
-          'Bash(git reset)', 'Bash(git reset:*)', 'Bash(git revert:*)', 'Bash(git cherry-pick:*)',
-          'Bash(git checkout)', 'Bash(git checkout:*)', 'Bash(git tag:*)', 'Bash(git clean:*)',
-        ],
+  agent: {
+    rules: { 'V-W-01': 'on-user-word' },
+    claude: {
+      settings: {
+        permissions: {
+          deny: [
+            'Bash(git add)', 'Bash(git add:*)', 'Bash(git rm:*)', 'Bash(git mv:*)',
+            'Bash(git commit)', 'Bash(git commit:*)', 'Bash(git push)', 'Bash(git push:*)',
+            'Bash(git merge)', 'Bash(git merge:*)', 'Bash(git rebase)', 'Bash(git rebase:*)',
+            'Bash(git reset)', 'Bash(git reset:*)', 'Bash(git revert:*)', 'Bash(git cherry-pick:*)',
+            'Bash(git checkout)', 'Bash(git checkout:*)', 'Bash(git tag:*)', 'Bash(git clean:*)',
+          ],
+        },
       },
     },
   },
@@ -228,8 +232,10 @@ To set a slot option, add the rule key to `.configs/vulcan.config.mts`:
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  rules: {
-    'V-W-01': 'read-only',
+  agent: {
+    rules: {
+      'V-W-01': 'read-only',
+    },
   },
 } satisfies VulcanConfig;
 ```
@@ -273,7 +279,7 @@ Agents receive the rules through a generated block of `AGENTS.md`, a short sessi
 
 ### The rules block of AGENTS.md
 
-`vulcan project sync` writes the block `vulcan:rules` into the committed `AGENTS.md`. It holds, one line each, the whole first sentence of the rule, and at most 6 KB: the slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go (`V-B-08`), and the rules of `digest.oftenDropped` that fit, in order. A line is the first sentence of the rule, taken from the rule file, so it cannot drift from it; the full text stays in `node_modules/@venizia/vulcan/base/rules.md` and `.agents/rules.md`. `vulcan project doctor` notes a block that is out of date.
+`vulcan project sync` writes the block `vulcan:rules` into the committed `AGENTS.md`. It holds, one line each, the whole first sentence of the rule, and at most 6 KB: the slot choices, the write boundaries `V-W-02`, `V-W-03` and `V-W-06`, where scratch files go (`V-B-08`), and the rules of `agent.digest.oftenDropped` that fit, in order. A line is the first sentence of the rule, taken from the rule file, so it cannot drift from it; the full text stays in `node_modules/@venizia/vulcan/base/rules.md` and `.agents/rules.md`. `vulcan project doctor` notes a block that is out of date.
 
 Claude Code reads `AGENTS.md` through `CLAUDE.md` (`@AGENTS.md`) and omp reads it itself; both quoted the block in a real run. For pi, Codex, Antigravity, Cursor and Copilot the block is where the rules would arrive, as they read `AGENTS.md`; that was not run for them.
 
@@ -291,14 +297,16 @@ The rules are in AGENTS.md ("Rules that must not be skipped"); the full text is 
 ...
 ```
 
-To customize which rules the block names, define `digest.oftenDropped` in `.configs/vulcan.config.mts` and run `vulcan project sync`:
+To customize which rules the block names, define `agent.digest.oftenDropped` in `.configs/vulcan.config.mts` and run `vulcan project sync`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  digest: {
-    oftenDropped: ['V-B-03'],
+  agent: {
+    digest: {
+      oftenDropped: ['V-B-03'],
+    },
   },
 } satisfies VulcanConfig;
 ```

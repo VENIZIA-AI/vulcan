@@ -105,7 +105,7 @@ describe("vulcan project doctor and the size of today's event file", () => {
     const dir = join(createProject({ files: {} }), 'shared');
     const root = createProject({
       files: {
-        '.configs/vulcan.config.mts': `export default { events: ${events.replace('DIR', JSON.stringify(dir))} };\n`,
+        '.configs/vulcan.config.mts': `export default { board: { events: ${events.replace('DIR', JSON.stringify(dir))} } };\n`,
         'AGENTS.md': '# x\n',
       },
     });

@@ -8,7 +8,7 @@ import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
 
-const CONFIG = "export default { rules: { 'V-W-01': 'on-user-word' } };\n";
+const CONFIG = "export default { agent: { rules: { 'V-W-01': 'on-user-word' } } };\n";
 const TMP = '.agents/tmp';
 
 /** A root whose socket path in the project tmp folder is exactly `length` characters. */

@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { join } from 'node:path';
 import { ConfigGroups, ConfigLoader } from '../../config/index.ts';
 import type { VulcanConfig } from '../../index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -127,8 +128,11 @@ describe('ConfigGroups.toFlat', () => {
 });
 
 describe('the loader reads either shape and gives the same config', () => {
-  test('the grouped file and the flat file of FLAT load to the same resolved config', async () => {
-    const flat = await ConfigLoader.load({ root: write({ body: JSON.stringify(FLAT) }) });
+  test('the grouped file and the flat file of FLAT (read leniently, as `migrate` does) load to the same resolved config', async () => {
+    const flat = await ConfigLoader.load({
+      root: write({ body: JSON.stringify(FLAT) }),
+      isLenient: true,
+    });
     const grouped = await ConfigLoader.load({ root: write({ body: JSON.stringify(GROUPED) }) });
 
     expect(flat.ok, flat.ok ? '' : flat.error).toBe(true);
@@ -244,5 +248,55 @@ describe('toFlat and the shipped mask: the small cases', () => {
 
       expect(ConfigGroups.strayOfShipped({ value }), key).toEqual([key]);
     }
+  });
+});
+
+describe('the flat shape is refused', () => {
+  test('every moved key is named with its new path, and the way out is the codemod', async () => {
+    const loaded = await ConfigLoader.load({
+      root: write({
+        body: "{ name: 'x', agents: ['claude'], events: { log: true }, okf: {}, atlas: {}, board: { title: 't' }, local: {}, doctor: {}, project: { key: 'AB' } }",
+      }),
+    });
+    const error = loaded.ok ? '' : loaded.error;
+
+    expect(loaded.ok).toBe(false);
+
+    for (const line of [
+      'name: moved to project.name',
+      'agents: moved to agent.list',
+      'events: moved to board.events',
+      'okf: moved to knowledge.okf',
+      'atlas: moved to knowledge.atlas',
+      'board: moved to board.page',
+      'local: moved to common.local',
+      'doctor: moved to check.doctor',
+    ]) {
+      expect(error).toContain(line);
+    }
+
+    expect(error).toContain('config codemod config-groups . --write');
+    expect(error).toContain('migrate apply');
+  });
+
+  test('a typo is still the schema error, not a flat-shape refusal', async () => {
+    const loaded = await ConfigLoader.load({ root: write({ body: '{ nope: 1 }' }) });
+
+    expect(loaded.ok ? '' : loaded.error).not.toContain('flat shape');
+  });
+
+  test('the lenient load is asked by the migration tool only', () => {
+    const asked = Bun.spawnSync(
+      ['grep', '-rln', '--include=*.ts', 'isLenient: true', join(import.meta.dir, '../../')],
+      { stdout: 'pipe' },
+    )
+      .stdout.toString()
+      .split('\n')
+      .filter((file) => file !== '' && !file.includes('__tests__'))
+      .map((file) => file.slice(file.indexOf('/src/') + 1))
+      .toSorted();
+
+    // `vulcan migrate` asks, and `x.command.ts` hands it from `runXCommand` through `ToolRunner.buildEnvironment` to the loader: add a caller here on purpose.
+    expect(asked).toEqual(['src/commands/migrate.command.ts', 'src/commands/x.command.ts']);
   });
 });

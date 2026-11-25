@@ -23,17 +23,19 @@ To configure okf features, export an `okf` section in `.configs/vulcan.config.mt
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  okf: {
-    renderers: [
-      'source-map',
-      'makefile-targets',
-    ],
-    regions: [
-      { id: 'packages-table', file: 'overview/repository-layout.md', renderer: 'packages-table' },
-    ],
-    coverage: [
-      { name: 'packages', path: 'packages/*' },
-    ],
+  knowledge: {
+    okf: {
+      renderers: [
+        'source-map',
+        'makefile-targets',
+      ],
+      regions: [
+        { id: 'packages-table', file: 'overview/repository-layout.md', renderer: 'packages-table' },
+      ],
+      coverage: [
+        { name: 'packages', path: 'packages/*' },
+      ],
+    },
   },
 } satisfies VulcanConfig;
 ```
@@ -49,7 +51,7 @@ okf ships four built-in renderers:
 | `binding-keys` | Whole page (`reference/binding-keys.md`) | Source file configured in `options.source` | `source` (required), `path`, `description`, `seeAlso` |
 | `packages-table` | Managed region only | Package manifests and directories | None |
 
-To pass options, use the object form `{ id, module, options }` in `okf.renderers`.
+To pass options, use the object form `{ id, module, options }` in `knowledge.okf.renderers`.
 `module` is an optional path from the repository root.
 `options` passes settings to the renderer.
 Because `binding-keys` requires `options.source`, configure it using the object form:
@@ -63,7 +65,7 @@ Because `binding-keys` requires `options.source`, configure it using the object 
 `source-map` documents packages from the top-level `packages` key.
 It skips retired entries and missing directories.
 When no `packages` list is configured, it falls back to every directory under `packages/`.
-The top-level `okf.denylist` drops packages too.
+The top-level `knowledge.okf.denylist` drops packages too.
 For each package, it scans package directories under `packages/*/src` and counts source files.
 Subsystems named `__tests__` or with zero files are left out.
 Rows sort by file count.
@@ -153,16 +155,18 @@ gen: wrote .agents/knowledge/reference/makefile-targets.md
 
 ## Your own renderer
 
-To declare a custom renderer, provide an object in `okf.renderers`:
+To declare a custom renderer, provide an object in `knowledge.okf.renderers`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  okf: {
-    renderers: [
-      { id: 'probe', module: '.agents/okf/probe.ts' },
-    ],
+  knowledge: {
+    okf: {
+      renderers: [
+        { id: 'probe', module: '.agents/okf/probe.ts' },
+      ],
+    },
   },
 } satisfies VulcanConfig;
 ```
@@ -203,7 +207,7 @@ export default defineRenderer({
 ```
 
 The `id` property in the module must match the `id` declared in `.configs/vulcan.config.mts`.
-Two entries in `okf.renderers` with the same `id` are an error.
+Two entries in `knowledge.okf.renderers` with the same `id` are an error.
 A custom module with a built-in id replaces that built-in renderer.
 When okf loads the module, it prints:
 
@@ -217,7 +221,7 @@ A managed region is a marked block inside a markdown file.
 When you run `vulcan okf gen`, okf rewrites the content between the markers.
 Content outside the markers remains untouched.
 
-To configure a region, add an entry to `okf.regions`:
+To configure a region, add an entry to `knowledge.okf.regions`:
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
@@ -227,8 +231,8 @@ To configure a region, add an entry to `okf.regions`:
 
 The `renderer` key is required.
 A region without one is dropped silently.
-A region's renderer need not be listed in `okf.renderers`.
-An id not listed in `okf.renderers` must be a built-in renderer, otherwise `gen` fails.
+A region's renderer need not be listed in `knowledge.okf.renderers`.
+An id not listed in `knowledge.okf.renderers` must be a built-in renderer, otherwise `gen` fails.
 okf runs unlisted built-in renderers with empty options.
 
 If the region's `file` does not exist, `gen` prints:
@@ -268,7 +272,7 @@ okf: region '<id>' names renderer '<renderer>', which renders no region
 
 ## Coverage axes
 
-Setting `okf.coverage` defines structural coverage axes for your codebase.
+Setting `knowledge.okf.coverage` defines structural coverage axes for your codebase.
 Each axis verifies that source directories have corresponding concept documents in the bundle.
 
 | Option | Type | Default | Meaning |
@@ -355,7 +359,7 @@ Under `vulcan okf check --strict`, missing or stale contents lists fail verifica
 
 ## brand
 
-`okf.brand` is how the project's name is written in prose. When it is all capitals of two letters or more, `okf check --strict` flags its title-case spelling, and lifted `package.json` descriptions take the brand spelling.
+`knowledge.okf.brand` is how the project's name is written in prose. When it is all capitals of two letters or more, `okf check --strict` flags its title-case spelling, and lifted `package.json` descriptions take the brand spelling.
 
 If you omit it, okf derives the brand from the root `package.json`: it strips the npm scope and a `-workspace` suffix, then upper-cases the result. The brand falls back to the directory name when `package.json` has no name.
 
@@ -363,7 +367,9 @@ If you omit it, okf derives the brand from the root `package.json`: it strips th
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  okf: { brand: 'VULCAN' },
+  knowledge: {
+    okf: { brand: 'VULCAN' },
+  },
 } satisfies VulcanConfig;
 ```
 

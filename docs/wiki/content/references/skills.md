@@ -80,7 +80,7 @@ Detail that several skills share lives in `node_modules/@venizia/vulcan/base/ref
 | `phase-boundaries.md` | Continue, clear, hand off, subagent or compact: the order of questions | `report-back` |
 | `work-item.md` | The work item template, the writing rules, the self-check for "ready for an agent" | `plan-a-change`, `report-back`, `ship`, the delegation brief |
 
-The work item template is tracker-neutral: nine fixed English headings, the body in the project's `owner.language`.
+The work item template is tracker-neutral: nine fixed English headings, the body in the project's `agent.owner.language`.
 
 `docs-writing` also carries `references/agent-documents.md`: the method for a document an agent reads (a skill, a rules file, `AGENTS.md`).
 
@@ -89,4 +89,4 @@ The work item template is tracker-neutral: nine fixed English headings, the body
 - No skill commits, pushes or publishes: git writes follow rule `V-W-01`, and a release follows `V-W-06`.
 - A skill that changes files works only inside the project; scratch goes under `.agents/local/` (`V-B-08`).
 - `plan-a-change` ends on the plan, and `review-a-change` is read-only: a reviewer reports, it does not fix.
-- `report-back` does not restate the reply shape: the session digest carries it, built from the [`owner` block](/references/configuration/#owner) and the developer's [profile](/references/configuration/#the-personal-profile).
+- `report-back` does not restate the reply shape: the session digest carries it, built from the [`owner` block](/references/configuration/#agent-owner) and the developer's [profile](/references/configuration/#the-personal-profile).

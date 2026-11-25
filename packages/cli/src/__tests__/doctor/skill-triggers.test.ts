@@ -7,7 +7,8 @@ import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
 
-const CONFIG = "export default { name: 'acme', rules: { 'V-W-01': 'read-only' } };\n";
+const CONFIG =
+  "export default { project: { name: 'acme' }, agent: { rules: { 'V-W-01': 'read-only' } } };\n";
 const skill = (opts: { name: string; description: string }): string =>
   `---\nname: ${opts.name}\ndescription: ${opts.description}\n---\n\n# ${opts.name}\n`;
 const project = (opts: { description: string }) => {

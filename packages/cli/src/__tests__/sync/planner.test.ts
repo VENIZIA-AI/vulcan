@@ -20,7 +20,7 @@ afterAll(removeProjects);
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 
 const READ_ONLY_PROJECT = {
-  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { agent: { rules: { 'V-W-01': 'read-only' } } };\n",
   'AGENTS.md': '# x\n',
 };
 
@@ -153,7 +153,8 @@ describe('.claude/settings.json', () => {
     const root = createProject({
       files: {
         ...READ_ONLY_PROJECT,
-        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
+        '.configs/vulcan.config.mts':
+          "export default { agent: { rules: { 'V-W-01': 'on-user-word' } } };\n",
       },
     });
 
@@ -168,7 +169,7 @@ describe('.claude/settings.json', () => {
     const root = createProject({
       files: {
         ...READ_ONLY_PROJECT,
-        '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }, claude: { settings: { hooks: ${HOOKS_SETTING} } } };\n`,
+        '.configs/vulcan.config.mts': `export default { agent: { rules: { 'V-W-01': 'read-only' }, claude: { settings: { hooks: ${HOOKS_SETTING} } } } };\n`,
       },
     });
 
@@ -187,7 +188,7 @@ describe('.claude/settings.json', () => {
     runSync({ root });
     writeFileSync(
       join(root, '.configs/vulcan.config.mts'),
-      "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
+      "export default { agent: { rules: { 'V-W-01': 'on-user-word' } } };\n",
     );
     expect(runSync({ root }).stderr).toContain('replaced');
 
@@ -202,14 +203,14 @@ describe('.claude/settings.json', () => {
     const root = createProject({
       files: {
         ...READ_ONLY_PROJECT,
-        '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }, claude: { settings: { hooks: ${HOOKS_SETTING} } } };\n`,
+        '.configs/vulcan.config.mts': `export default { agent: { rules: { 'V-W-01': 'read-only' }, claude: { settings: { hooks: ${HOOKS_SETTING} } } } };\n`,
       },
     });
 
     runSync({ root });
     writeFileSync(
       join(root, '.configs/vulcan.config.mts'),
-      "export default { rules: { 'V-W-01': 'read-only' } };\n",
+      "export default { agent: { rules: { 'V-W-01': 'read-only' } } };\n",
     );
     runSync({ root });
     expect(JSON.stringify(readSettings({ root }).hooks)).not.toContain('echo bye');
@@ -222,7 +223,7 @@ describe('.claude/settings.json', () => {
         ...READ_ONLY_PROJECT,
         '.claude/settings.json': '{ "model": "opus", "permissions": { "allow": ["Bash(ls)"] } }',
         '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, claude: { settings: { env: { CI: '1' }, permissions: { allow: ['Bash(make test)'] } } } };\n",
+          "export default { agent: { rules: { 'V-W-01': 'read-only' }, claude: { settings: { env: { CI: '1' }, permissions: { allow: ['Bash(make test)'] } } } } };\n",
       },
     });
 
@@ -236,7 +237,7 @@ describe('.claude/settings.json', () => {
 
     writeFileSync(
       join(root, '.configs/vulcan.config.mts'),
-      "export default { rules: { 'V-W-01': 'read-only' } };\n",
+      "export default { agent: { rules: { 'V-W-01': 'read-only' } } };\n",
     );
     runSync({ root });
     const after = readSettings({ root });

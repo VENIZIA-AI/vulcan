@@ -33,6 +33,7 @@ help:
 	@echo "Every package and the repository:"
 	@$(HELP_ROW) "lint / lint-packages" "lint-<pkg> for every package."
 	@$(HELP_ROW) "lint-all" "lint-<pkg> for every package, lint-wiki, lint-scripts, lint-files, then project-names-check, command-forms-check, public-api-check, changelog-check."
+	@$(HELP_ROW) "config-forms-check" "Gate: the config samples in the wiki, the base texts and the READMEs are in the seven groups, and no flat key path is named."
 	@$(HELP_ROW) "command-forms-check" "Gate: no retired command form (the old top-level names) outside the table that maps it and the frozen changelog history."
 	@$(HELP_ROW) "project-names-check" "Gate: no project name (IGNIS, ARDOR or a downstream project) in packages/*/src or packages/cli/base outside tests."
 	@$(HELP_ROW) "public-api-check" "Gate: every export of cli and okf has a doc comment (vulcan atlas api undocumented). Needs make atlas and make build first."

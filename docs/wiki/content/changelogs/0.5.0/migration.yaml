@@ -237,3 +237,17 @@ command-scopes:
     steps:
       - 'Pin the earlier package and use the old names; run `vulcan sync` so the commit-msg hook and the `.mcp.json` entry are written in the old form again.'
   data: 'A commit-msg hook or an `.mcp.json` entry written by this release calls `vulcan check commit` and `vulcan atlas`; an earlier vulcan does not know them (the hook says so and lets the commit through, the MCP server does not start) until `vulcan project sync` of that version rewrites them.'
+config-groups:
+  symbols:
+    - VulcanConfig
+  codemod: config-groups
+  upgrade:
+    steps:
+      - 'Run `bun node_modules/.bin/vulcan migrate apply` (or `bun node_modules/.bin/vulcan config codemod config-groups . --write`; add `--split` for one module per group under `.configs/vulcan/`): it rewrites `.configs/vulcan.config.mts` from the flat shape into the seven groups with every value, comment and import kept, and retypes the modules of an earlier split.'
+      - 'Review the diff with `git diff`, run `bun node_modules/.bin/vulcan config format --check` and `bun node_modules/.bin/vulcan project doctor`, and commit the config.'
+      - 'A config the codemod refuses (a spread, a computed key, a statement before `export default` when splitting, a module that holds more than its one value) is named with the reason and nothing is written: move that part by hand, then run it again.'
+      - 'Run `bun node_modules/.bin/vulcan project sync`: it moves the machine keys of `.agents/local/profile.json` to their new paths (`agents` is `agent.list`, `events` is `board.events`, `local` is `common.local`, `board.agents` is `board.page.agents`).'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan` and restore `.configs/vulcan.config.mts` and the modules under `.configs/vulcan/` from git (the codemod has no way back); run `vulcan sync` to write the machine keys in the old form again.'
+  data: 'None: the manifests keep their keys. The profile of a machine moved by the new `sync` has the new key paths, which an earlier VULCAN does not read: delete the keys it names, or run `vulcan profile` again.'

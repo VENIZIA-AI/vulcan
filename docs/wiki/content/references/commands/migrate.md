@@ -30,6 +30,10 @@ A flag takes its value as `--flag value` or `--flag=value`; a value that starts 
 
 A flag of the other subcommand is a usage error: `--force` and `--verbose` do not exist for the other one, and `--format` is a plan's. There is no `--reverse`. A move to an older version is a downgrade, and `apply` then passes `--reverse` to each codemod by itself.
 
+## The flat config
+
+`migrate` is the one command that still reads a config in the flat shape of the releases before the seven groups: every other command refuses such a file with the new path of each key. This is how a project moves across that release: `vulcan migrate apply` runs the codemod `config-groups` the 0.5.0 migration links (the same as `vulcan config codemod config-groups . --write`, which lists what it would write without `--write`), and the config is then in the groups. An agent does not run `migrate apply`: the guards deny it, because it writes the config.
+
 ## Where it runs
 
 Run it from the project root: the bin is linked there only. The app is the folder you run in, or the folder `--app` names, which a workspace needs:
@@ -82,7 +86,7 @@ After:    ThingFactory.build({ name })
 Codemod: `thing-factory`
 ```
 
-A `Note:` line warns when the plan needs it, for example when `latest` is older than the installed prerelease, so the plan is a downgrade; use `next` to stay on the newest release. A source that cannot be served is a `Warning:` at the top of the plan, and `apply` then refuses unless you pass `--force`. A package no source serves is an error that names `atlas.sources` and `vulcan atlas pull`. The reply and its JSON fields are in the [atlas tool reference](/references/atlas/tools#migrate).
+A `Note:` line warns when the plan needs it, for example when `latest` is older than the installed prerelease, so the plan is a downgrade; use `next` to stay on the newest release. A source that cannot be served is a `Warning:` at the top of the plan, and `apply` then refuses unless you pass `--force`. A package no source serves is an error that names `knowledge.atlas.sources` and `vulcan atlas pull`. The reply and its JSON fields are in the [atlas tool reference](/references/atlas/tools#migrate).
 
 ## What `apply` does
 
@@ -109,13 +113,13 @@ A `Note:` line warns when the plan needs it, for example when `latest` is older 
 ## Common errors
 
 - `usage: vulcan migrate plan ...`: The arguments do not match the synopsis. `--to` is required.
-- `unknown package '<name>'; known packages: ...`: No source serves that package. Check the name, and `atlas.sources` of the project.
+- `unknown package '<name>'; known packages: ...`: No source serves that package. Check the name, and `knowledge.atlas.sources` of the project.
 - `unknown version '<v>' for <package>; known versions: ...`: The release table has no such version. Use one of those listed, or `latest` or `next`.
 - `<name> is not installed in <app> (no resolvable version in its package.json); pass from`: The app has no exact version to start from. Pass `--from`.
 - `no installed @venizia/* package of the sources atlas serves was found in <app>; pass package and from`: Run in the right folder, or pass `--app`, or name the package and `--from`.
 - `a version names one package: pass package with from, or with a version for to (latest and next need no package)`: Add `--package`.
 - `app directory not found: <app>`: `--app` names a folder that is not there.
-- `<package>@<to> is published to npm but the atlas does not know it ...`: The atlas source's ref is behind the registry. Move the ref (`atlas.sources`) and run `vulcan atlas pull`.
+- `<package>@<to> is published to npm but the atlas does not know it ...`: The atlas source's ref is behind the registry. Move the ref (`knowledge.atlas.sources`) and run `vulcan atlas pull`.
 - `<package> has no stable release in the release table; use next or a version`: `latest` has no stable release to give.
 - `vulcan migrate apply: <app> has uncommitted changes; commit or stash them ... or pass --force`: Commit first, so the rewrite is a diff of its own.
 - `vulcan migrate apply: <app> is not inside a git work tree, so a rewrite could not be undone ...`: Put the app under git, or pass `--force`.
@@ -128,4 +132,4 @@ A `Note:` line warns when the plan needs it, for example when `latest` is older 
 - [Migrate between releases](/guides/core-concepts/migrate-between-releases): a whole upgrade, a rollback and prereleases.
 - [atlas tools](/references/atlas/tools#migrate): the `migrate` tool the command asks, and its JSON.
 - [`vulcan check changelog`](/references/commands/changelog): checks the `migration` blocks the plan reads.
-- [Configuration](/references/configuration/#atlas-sources): `atlas.sources`.
+- [Configuration](/references/configuration/#knowledge-atlas-sources): `knowledge.atlas.sources`.

@@ -19,11 +19,13 @@ Add the key to `.configs/vulcan.config.mts`, then run `vulcan project sync`:
 
 ```ts
 export default {
-  commit: { message: { agent: { signature: 'deny' } } },
+  check: {
+    commit: { message: { agent: { signature: 'deny' } } },
+  },
 };
 ```
 
-`sync` writes the key to the manifest, which the command reads, and installs the [`commit-msg` hook](#the-hook) in your clone. Every developer gets it on their next `sync`. The [config reference](/references/configuration/#commit) lists every key.
+`sync` writes the key to the manifest, which the command reads, and installs the [`commit-msg` hook](#the-hook) in your clone. Every developer gets it on their next `sync`. The [config reference](/references/configuration/#check-commit) lists every key.
 
 ## Claude Code's own attribution
 
@@ -74,9 +76,9 @@ Git's comment lines and the scissors line follow the repository: `#` by default,
 
 A human co-author passes: `Claude Dupont <claude.dupont@example.fr>`, `claude@martin.fr`, `Jane (Cursor team) <jane@cursor.sh>`, a person at a vendor's domain with a normal address, a note such as `Generated with protoc`, and a tool named in the subject. A name alone, such as `Claude`, with an address that is not an agent's, is not flagged.
 
-The products, vendor domains, address names and phrases are data, in `base/commit-agents.json` of the package. Add your own products with `commit.message.agent.names`; a project cannot remove a shipped one. List a person who shares a name with an agent in `commit.message.agent.allow`: a co-author whose whole name is that entry, with an address that is not an agent's, is not flagged. `allow: ['Claude']` clears a person called Claude, never `Claude Code`. Every entry of `names` and `allow` needs a letter or a digit; the config refuses `-` or a blank.
+The products, vendor domains, address names and phrases are data, in `base/commit-agents.json` of the package. Add your own products with `check.commit.message.agent.names`; a project cannot remove a shipped one. List a person who shares a name with an agent in `check.commit.message.agent.allow`: a co-author whose whole name is that entry, with an address that is not an agent's, is not flagged. `allow: ['Claude']` clears a person called Claude, never `Claude Code`. Every entry of `names` and `allow` needs a letter or a digit; the config refuses `-` or a blank.
 
-**A subject shape** (`commit.message.subject`). The first line that is not a git comment must match the regular expression you give. VULCAN ships no pattern, because the shape belongs to each project. Merge, `Revert`, `fixup!`, `squash!` and `amend!` subjects are not checked.
+**A subject shape** (`check.commit.message.subject`). The first line that is not a git comment must match the regular expression you give. VULCAN ships no pattern, because the shape belongs to each project. Merge, `Revert`, `fixup!`, `squash!` and `amend!` subjects are not checked.
 
 ```ts
 commit: {
@@ -112,4 +114,4 @@ sync never overwrites a hook it did not write; it knows its own by the marker on
 
 - [vulcan project sync](/references/commands/sync#the-commit-msg-hook): when the hook is written
 - [vulcan project doctor](/references/commands/doctor#commit-hook): the warning
-- [Configuration](/references/configuration/#commit): the `commit` key
+- [Configuration](/references/configuration/#check-commit): the `commit` key

@@ -13,14 +13,14 @@ The manifest is always written.
 | Output | Where | Committed? | Built from |
 |---|---|---|---|
 | Agent instructions | `CLAUDE.md` | No (gitignored adapter) | `@AGENTS.md` import line |
-| Claude settings | `.claude/settings.json` | No (gitignored adapter) | Shipped settings, slot choices, `claude.settings` (project hooks included), and personal settings |
+| Claude settings | `.claude/settings.json` | No (gitignored adapter) | Shipped settings, slot choices, `agent.claude.settings` (project hooks included), and personal settings |
 | Skill links | `.claude/skills/<name>` | No (gitignored adapter) | Symbolic links to shipped and project skills |
-| Atlas descriptor | `.agents/atlas.manifest.json` | Yes (committed, generated); only in a repository that publishes (it sets `atlas.index.keys`, or git tracks the file) | What atlas and the wiki build read: name, packages, layout, presets, knowledge, release, sources, atlas, theme |
+| Atlas descriptor | `.agents/atlas.manifest.json` | Yes (committed, generated); only in a repository that publishes (it sets `knowledge.atlas.index.keys`, or git tracks the file) | What atlas and the wiki build read: name, packages, layout, presets, knowledge, release, sources, atlas, theme |
 | Descriptor copy (temporary) | `.agents/vulcan.manifest.json` | Yes (committed, generated); only in a repository that publishes | The same text as the descriptor, kept until the stable 0.5.0 release: atlas of 0.5.0-6 and before finds a source's manifest only at this path |
 | Local manifest | `.agents/local/vulcan.manifest.json` | No (gitignored; each clone writes its own) | Project configuration the hooks, board and doctor read, and base rule hashes |
 | Managed overlay | `.claude/vulcan-managed.json` | No (gitignored adapter) | Managed overlay record of settings written by VULCAN |
 
-Only a repository that publishes (its config sets `atlas.index.keys`, or git already tracks `.agents/atlas.manifest.json`) gets the descriptor and the copy. An app gets neither: everything stays in `.agents/local/vulcan.manifest.json`, and atlas reads its own project from there. A descriptor or a copy left untracked by an earlier sync is deleted; one git tracks, or one git cannot tell about (not a repository, a broken index), is never touched, and such a repository counts as publishing. A new atlas source that signs nothing commits its descriptor once: set `atlas.index.keys`, run `vulcan project sync`, and commit `.agents/atlas.manifest.json`; from then on git tracking it keeps `sync` writing it, keys or not.
+Only a repository that publishes (its config sets `knowledge.atlas.index.keys`, or git already tracks `.agents/atlas.manifest.json`) gets the descriptor and the copy. An app gets neither: everything stays in `.agents/local/vulcan.manifest.json`, and atlas reads its own project from there. A descriptor or a copy left untracked by an earlier sync is deleted; one git tracks, or one git cannot tell about (not a repository, a broken index), is never touched, and such a repository counts as publishing. A new atlas source that signs nothing commits its descriptor once: set `knowledge.atlas.index.keys`, run `vulcan project sync`, and commit `.agents/atlas.manifest.json`; from then on git tracking it keeps `sync` writing it, keys or not.
 
 ## Options
 
@@ -99,17 +99,17 @@ How to build something here (a feature, a controller, a service, a repository): 
 <!-- vulcan:atlas:end -->
 ```
 
-The corpora come from the config (the project and every `atlas.sources` entry). `sync` inserts the block before the section that follows "Must read first" (or at the end), rewrites only what sits between the markers on later runs, and never touches your text around it. `vulcan project doctor` prints an `info` line when the block is missing or out of date; it never fails.
+The corpora come from the config (the project and every `knowledge.atlas.sources` entry). `sync` inserts the block before the section that follows "Must read first" (or at the end), rewrites only what sits between the markers on later runs, and never touches your text around it. `vulcan project doctor` prints an `info` line when the block is missing or out of date; it never fails.
 
-The blocks can make `AGENTS.md` pass 100 lines. When it is one of `okf.contents.files` (it is by default), `sync` then also writes its contents list, so `vulcan okf check --strict` never reports `AGENTS.md has no fresh contents list` after a `sync`.
+The blocks can make `AGENTS.md` pass 100 lines. When it is one of `knowledge.okf.contents.files` (it is by default), `sync` then also writes its contents list, so `vulcan okf check --strict` never reports `AGENTS.md has no fresh contents list` after a `sync`.
 
 ## The event hooks
 
-When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `SubagentStart`, `SubagentStop`, `Notification` and `PostToolUse` (only the `SendMessage`, `TodoWrite`, `Bash`, `Write`, `Edit`, `MultiEdit` and `NotebookEdit` tools, so no process starts for any other tool call), and a `UserPromptSubmit` hook that adds the flow and its open steps to a turn a user prompt starts to `.claude/settings.json`; a `Stop` hook and a `PostToolUse` hook for every tool are not installed, and `sync` removes one it finds. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.
+When `board.events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `SubagentStart`, `SubagentStop`, `Notification` and `PostToolUse` (only the `SendMessage`, `TodoWrite`, `Bash`, `Write`, `Edit`, `MultiEdit` and `NotebookEdit` tools, so no process starts for any other tool call), and a `UserPromptSubmit` hook that adds the flow and its open steps to a turn a user prompt starts to `.claude/settings.json`; a `Stop` hook and a `PostToolUse` hook for every tool are not installed, and `sync` removes one it finds. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `board.events.log` back to `false` and the next `sync` removes those entries and only those. `board.events.dir` alone installs nothing.
 
 ## The commit-msg hook
 
-When `commit.message` turns a commit check on, `sync` installs a `commit-msg` git hook in your clone, so every commit message is checked, whoever or whatever makes the commit. Nothing is installed for a project that sets no check.
+When `check.commit.message` turns a commit check on, `sync` installs a `commit-msg` git hook in your clone, so every commit message is checked, whoever or whatever makes the commit. Nothing is installed for a project that sets no check.
 
 - With no `core.hooksPath`, it writes `.git/hooks/commit-msg`, and a linked worktree shares it.
 - A hook that `sync` did not write is never touched: `sync` prints `skipped` and the line to add, `bun node_modules/.bin/vulcan check commit "$1"`.
@@ -126,7 +126,7 @@ A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you ch
 
 The machine keys of `.agents/local/profile.json` are in the groups of the config: `agent.list` (the agents you chose), `board.page.agents` (the roster of the board), `board.events.dir` (an absolute events folder), `common.local.tmp` (the tmp folder) and `board.serve.autoStart`. A profile written before the groups has `agents`, `board.agents`, `events` and `local`: the first `sync` after the upgrade moves each one to its new path, in place and once (a value already at the new path stays and is named; a key it cannot place stays where it is, named; `--dry-run` lists the move and writes nothing). Until it has run, a command that reads the profile refuses the old key and names the new one.
 
-`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/` and, unless `.claude/` is already ignored, `/.claude/settings.json` (Claude Code's settings are written in every clone and never committed), and creates the folder `local.tmp` names, when the config sets one, and gitignores it. The session-start hook it registers exports `TMPDIR` into every Bash command. A `.agents/local/claude.launch.settings.json` left by an earlier release is removed when git does not track it. What the hook moves, and what it does not, is in [Temporary files](/references/agents#temporary-files).
+`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/` and, unless `.claude/` is already ignored, `/.claude/settings.json` (Claude Code's settings are written in every clone and never committed), and creates the folder `common.local.tmp` names, when the config sets one, and gitignores it. The session-start hook it registers exports `TMPDIR` into every Bash command. A `.agents/local/claude.launch.settings.json` left by an earlier release is removed when git does not track it. What the hook moves, and what it does not, is in [Temporary files](/references/agents#temporary-files).
 
 ## Keeping the adapters out of git
 
@@ -239,7 +239,7 @@ Each later source overrides the earlier sources:
 3. Slot choices: Settings defined for chosen slot options in `base/slots.json`, such as git write restrictions for `V-W-01`.
 4. Commit attribution: With `commit.message.agent.signature: 'deny'`, VULCAN sets `attribution` empty so Claude Code adds no signature to commits and pull requests ([the details](/references/commands/commit-check#claude-code-s-own-attribution)).
 5. Event hooks: With `events.log: true`, VULCAN adds the five hooks of the [agent event log](/references/commands/event).
-6. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`, project hooks (`claude.settings.hooks`) included.
+6. Claude settings: Team settings declared under `agent.claude.settings` in `.configs/vulcan.config.mts`, project hooks (`agent.claude.settings.hooks`) included.
 
 ### Merge behavior
 
@@ -375,8 +375,8 @@ The manifest also includes optional fields when configured:
 - `layout`: The folders of backend apps, frontend apps and shared packages (`backend`, `frontend`, `shared`), present when set; `init --preset` and `add` write it.
 - `presets`: The presets the project's apps came from, each `{ spec, side, summary }` and `lib` when the preset also makes libraries. atlas's `presets` tool answers from it.
 - `kind`: `"lib"` on a package entry that `add --lib` made (apps carry no `kind`), and `presetKind` (`lib` or `shared`) on a library or shared package that `add` made.
-- `sources`: External repository sources for atlas, present when `atlas.sources` contains entries.
-- `atlas`: The keys a prebuilt index is checked with and the switch that turns its download off, present when `atlas.index` or `atlas.prebuilt` is set.
+- `sources`: External repository sources for atlas, present when `knowledge.atlas.sources` contains entries.
+- `atlas`: The keys a prebuilt index is checked with and the switch that turns its download off, present when `knowledge.atlas.index` or `knowledge.atlas.prebuilt` is set.
 - `guard`: The commands and push targets the guards ask about beyond their own list, present when `guard.writes.commands` or `guard.git.askPush` is set.
 
 ## See also

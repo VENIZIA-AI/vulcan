@@ -6,13 +6,13 @@ LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FIX_PKG_TARGETS := $(addprefix lint-fix-,$(PACKAGES))
 TYPECHECK_PKG_TARGETS := $(addprefix typecheck-,$(PACKAGES))
 
-.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-wiki lint-files project-names-check command-forms-check public-api-check changelog-check agent-signature-check wiki-shared-check lint-fix-packages lint-fix-wiki fmt-files \
+.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-wiki lint-files project-names-check command-forms-check config-forms-check public-api-check changelog-check agent-signature-check wiki-shared-check lint-fix-packages lint-fix-wiki fmt-files \
         typecheck typecheck-packages $(LINT_PKG_TARGETS) $(FIX_PKG_TARGETS) $(TYPECHECK_PKG_TARGETS)
 
 lint: lint-packages
 	@echo "lint: done"
 
-lint-all: lint-packages lint-wiki lint-scripts lint-files project-names-check command-forms-check public-api-check changelog-check runners-check
+lint-all: lint-packages lint-wiki lint-scripts lint-files project-names-check command-forms-check config-forms-check public-api-check changelog-check runners-check
 	@echo "lint: all packages done"
 
 lint-packages: $(LINT_PKG_TARGETS)
@@ -70,6 +70,10 @@ lint-files:
 # Project Contract v1, V1: VULCAN's shipped source names no project.
 command-forms-check:
 	@bun scripts/checks/command-forms.ts
+
+# The wiki, the base texts and the READMEs show the config in the seven groups, and name a key by its group path.
+config-forms-check:
+	@bun scripts/checks/config-forms.ts
 
 project-names-check:
 	@echo "lint: no project names in packages/*/src"

@@ -226,14 +226,14 @@ describe('vulcan config format', () => {
       return all.filter((note) => note.check === 'config-order');
     };
     const outOfOrder = await notes({
-      root: config({ text: "export default {\n  rules: {},\n  name: 'demo',\n};\n" }),
+      root: config({ text: "export default {\n  agent: {},\n  project: { name: 'demo' },\n};\n" }),
     });
 
     expect(outOfOrder.map((note) => note.message)).toEqual([
-      '1 key(s) out of the canonical order (name): run `bun node_modules/.bin/vulcan config format`',
+      '1 key(s) out of the canonical order (project): run `bun node_modules/.bin/vulcan config format`',
     ]);
     const result = await notes({
-      root: config({ text: "export default {\n  name: 'demo',\n  rules: {},\n};\n" }),
+      root: config({ text: "export default {\n  project: { name: 'demo' },\n  agent: {},\n};\n" }),
     });
     expect(result).toEqual([]);
   });

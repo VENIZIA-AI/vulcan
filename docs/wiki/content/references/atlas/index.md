@@ -30,7 +30,7 @@ usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cac
 | `migrate plan\|apply` | Plans what an app must change to move a package between two releases, or runs the plan's codemods |
 | `help` | Prints the usage line and exits with code 0 |
 
-`mcp` takes `--cache-dir <dir>`, which says where atlas keeps what it fetches. `pull --warm` fetches and indexes only what the cache lacks; `pull --no-prebuilt` builds every source here instead of downloading its prebuilt index. The sources in `atlas.sources` are not included in what `releases` prints. For `migrate`, see [`migrate`](/references/atlas/tools#migrate).
+`mcp` takes `--cache-dir <dir>`, which says where atlas keeps what it fetches. `pull --warm` fetches and indexes only what the cache lacks; `pull --no-prebuilt` builds every source here instead of downloading its prebuilt index. The sources in `knowledge.atlas.sources` are not included in what `releases` prints. For `migrate`, see [`migrate`](/references/atlas/tools#migrate).
 
 ## Starting the server
 
@@ -130,8 +130,8 @@ Notes on the fields:
 
 - `schemaVersion`: any other value stops atlas with `atlas: the manifest is schemaVersion X; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan`.
 - `packages`: the defaults are name = `dir`, path = `packages/<dir>`, aliases `[]`, retired `false`; an invalid npm name is an error.
-- `release.tagPattern`: written from `atlas.tagPattern` in configuration. It may hold `<dir>`, `<version>`, `<issue>` and `<date>`; the config refuses any other `<word>`.
-- `release.legacyTagPatterns`: written from `atlas.legacyTagPatterns` in configuration. A tag they read is a release and keeps its name.
+- `release.tagPattern`: written from `knowledge.atlas.tagPattern` in configuration. It may hold `<dir>`, `<version>`, `<issue>` and `<date>`; the config refuses any other `<word>`.
+- `release.legacyTagPatterns`: written from `knowledge.atlas.legacyTagPatterns` in configuration. A tag they read is a release and keeps its name.
 - `knowledge.migrationFrom`: `changelogs check` never reads an earlier entry.
 
 ## Tools
@@ -157,7 +157,7 @@ Each description opens with when to call the tool, and names the projects the se
 
 An agent that is not told when to use atlas answers from memory. The server therefore sends the agent two texts of its own, both built from the project's config:
 
-- **`instructions`**, in the reply to `initialize`. A client such as Claude Code adds it to the agent's context as "MCP Server Instructions". It names the corpora (this project and every `atlas.sources` entry), the four triggers, the rule not to answer from memory, and when a how-to-build question must search first:
+- **`instructions`**, in the reply to `initialize`. A client such as Claude Code adds it to the agent's context as "MCP Server Instructions". It names the corpora (this project and every `knowledge.atlas.sources` entry), the four triggers, the rule not to answer from memory, and when a how-to-build question must search first:
 
 ```text
 Atlas holds the real code and docs of my-product (this repository) and ignis. Do not answer facts about my-product and ignis from memory when atlas can answer them: call `symbol` for each export before you write code that imports their packages (`@venizia/*`, `api`), `search` then `get` when the user asks how something works or which convention applies, `version` or `changes` for a release or an upgrade, `presets` before you create an app or package.

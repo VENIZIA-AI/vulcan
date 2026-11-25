@@ -82,18 +82,20 @@ NOT VERIFIED means built from the agent's documentation and unit tests, and neve
 
 ## Your own hooks
 
-Put a project hook under `claude.settings.hooks` in `.configs/vulcan.config.mts`, in Claude Code's own settings shape; `vulcan project sync` merges it into `.claude/settings.json` next to the shipped ones:
+Put a project hook under `agent.claude.settings.hooks` in `.configs/vulcan.config.mts`, in Claude Code's own settings shape; `vulcan project sync` merges it into `.claude/settings.json` next to the shipped ones:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  claude: {
-    settings: {
-      hooks: {
-        PreToolUse: [
-          { matcher: 'Bash', hooks: [{ type: 'command', command: 'bun .agents/hooks/check-lint.ts' }] },
-        ],
+  agent: {
+    claude: {
+      settings: {
+        hooks: {
+          PreToolUse: [
+            { matcher: 'Bash', hooks: [{ type: 'command', command: 'bun .agents/hooks/check-lint.ts' }] },
+          ],
+        },
       },
     },
   },

@@ -104,9 +104,8 @@ const runCodemod = (opts: ICommandContext): number => {
   }
 
   if (flags.includes('--list')) {
-    process.stdout.write(
-      `${ConfigCodemod.NAME}  the keys of the config in the seven groups (--split: one module per group)\n`,
-    );
+    // One name per line and nothing else: the changelog check reads the list as the names a codemod runner offers.
+    process.stdout.write(`${ConfigCodemod.NAME}\n`);
 
     return ExitCodes.OK;
   }
