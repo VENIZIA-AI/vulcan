@@ -132,6 +132,11 @@ export class ChangelogCheck {
     return [...problems, ...VersionCheck.scan({ project: opts.project, codemods: opts.codemods })];
   }
 
+  /** The packages a runner of the project's own may live in: the project's packages and the tool itself (`vulcan config codemod`). */
+  private static trusted(opts: { packages: readonly string[] }): string[] {
+    return [...opts.packages, CodemodRunner.TOOL_PACKAGE];
+  }
+
   /** The codemod names the project's codemod runner offers, or `undefined` when it is not installed or cannot list them. */
   static codemodsOf(opts: {
     root: string;
@@ -144,7 +149,11 @@ export class ChangelogCheck {
 
     if (
       !existsSync(bin) ||
-      CodemodRunner.refusalOf({ directory: opts.root, name, packages: opts.packages }) !== undefined
+      CodemodRunner.refusalOf({
+        directory: opts.root,
+        name,
+        packages: ChangelogCheck.trusted(opts),
+      }) !== undefined
     ) {
       return undefined;
     }
@@ -182,12 +191,14 @@ export class ChangelogCheck {
         ? CodemodRunner.refusalOf({
             directory: opts.project.root,
             name,
-            packages: opts.project.packages.map((entry) => entry.name),
+            packages: ChangelogCheck.trusted({
+              packages: opts.project.packages.map((entry) => entry.name),
+            }),
           })
         : undefined;
 
       opts.write(
-        `changelog check: \`${listing}\` is not available${refusal === undefined ? '' : ` (${refusal})`}; codemod names were not checked\n`,
+        `changelog check: \`${listing}\` is not available${refusal === undefined ? '' : ` (${refusal}; a bin of ${CodemodRunner.TOOL_PACKAGE} is allowed here too)`}; codemod names were not checked\n`,
       );
     }
 

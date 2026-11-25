@@ -666,14 +666,14 @@ describe("MigrateApply.run: the runner is the source project's own", () => {
 });
 
 describe('MigrateApply.run: a runner is run only from a package of its source', () => {
-  const runFor = (opts: { app: string }) => {
+  const runFor = (opts: { app: string; command?: string[] }) => {
     const out: string[] = [];
     const err: string[] = [];
     const result = MigratePlan.plans({
       releases: new ReleaseStore({
         codemodPackages: PROJECT_PACKAGES,
         table: TABLE,
-        codemodCommand: ['rimraf', 'codemod'],
+        codemodCommand: opts.command ?? ['rimraf', 'codemod'],
       }),
       app: opts.app,
       package: '@venizia/kernel',
@@ -706,6 +706,23 @@ describe('MigrateApply.run: a runner is run only from a package of its source', 
     expect(err).toContain('not inside an installed package of the source');
     expect(calls({ log })).toEqual([]);
     expect(out).toContain('up a-item');
+  });
+
+  test('the bin of VULCAN is refused for a source that does not declare @venizia/vulcan', () => {
+    const { app, log } = appWith({ devz: false });
+
+    installRunner({
+      nodeModules: join(app, 'node_modules'),
+      name: 'vulcan',
+      pkg: '@venizia/vulcan',
+      script: STUB({ log }),
+    });
+
+    const { code, err } = runFor({ app, command: ['vulcan', 'project', 'upgrade'] });
+
+    expect(code).toBe(1);
+    expect(err).toContain('not inside an installed package of the source');
+    expect(calls({ log })).toEqual([]);
   });
 
   test('a link that escapes the package is refused, even when the package is the right one', () => {
