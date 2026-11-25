@@ -177,9 +177,9 @@ describe('package kind', () => {
     };
 
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, kind: 'lib' }] }).packages[0]?.kind,
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, type: 'lib' }] }).packages[0]?.type,
     ).toBe('lib');
-    expect(VULCAN_CONFIG_SCHEMA.parse({ packages: [base] }).packages[0]?.kind).toBeUndefined();
+    expect(VULCAN_CONFIG_SCHEMA.parse({ packages: [base] }).packages[0]?.type).toBeUndefined();
     expect(VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, kind: 'tool' }] }).success).toBe(
       false,
     );
@@ -190,30 +190,30 @@ describe('package kind', () => {
       dir: 'money',
       name: '@nx/money',
       path: 'libs/money',
-      kind: 'lib',
+      type: 'lib',
     } as const;
 
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, presetKind: 'lib' }] }).packages[0]
-        ?.presetKind,
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, presetType: 'lib' }] }).packages[0]
+        ?.presetType,
     ).toBe('lib');
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, presetKind: 'shared' }] }).packages[0]
-        ?.presetKind,
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, presetType: 'shared' }] }).packages[0]
+        ?.presetType,
     ).toBe('shared');
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({ packages: [base] }).packages[0]?.presetKind,
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [base] }).packages[0]?.presetType,
     ).toBeUndefined();
     expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, presetKind: 'app' }] }).success,
+      VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, presetType: 'app' }] }).success,
     ).toBe(false);
     expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, presetKind: '' }] }).success,
+      VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, presetType: '' }] }).success,
     ).toBe(false);
   });
 
-  test('an entry without presetKind parses to exactly what it did before', () => {
-    const entry = { dir: 'money', name: '@nx/money', path: 'libs/money', kind: 'lib' } as const;
+  test('an entry without presetType parses to exactly what it did before', () => {
+    const entry = { dir: 'money', name: '@nx/money', path: 'libs/money', type: 'lib' } as const;
 
     expect(VULCAN_CONFIG_SCHEMA.parse({ packages: [entry] }).packages[0]).toEqual({
       ...entry,
@@ -222,17 +222,17 @@ describe('package kind', () => {
     });
   });
 
-  test('ProjectPackages.resolve carries presetKind only when it is set', () => {
+  test('ProjectPackages.resolve carries presetType only when it is set', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       packages: [
-        { dir: 'money', name: '@nx/money', path: 'libs/money', kind: 'lib', presetKind: 'shared' },
-        { dir: 'feature', name: '@nx/feature', path: 'libs/feature', kind: 'lib' },
+        { dir: 'money', name: '@nx/money', path: 'libs/money', type: 'lib', presetType: 'shared' },
+        { dir: 'feature', name: '@nx/feature', path: 'libs/feature', type: 'lib' },
       ],
     });
     const packages = ProjectPackages.resolve({ config });
 
-    expect(packages[0]).toMatchObject({ presetKind: 'shared' });
-    expect(packages[1]).not.toHaveProperty('presetKind');
+    expect(packages[0]).toMatchObject({ presetType: 'shared' });
+    expect(packages[1]).not.toHaveProperty('presetType');
   });
 
   test('ProjectPackages.resolve carries the kind', () => {
@@ -242,13 +242,13 @@ describe('package kind', () => {
           dir: 'merchant',
           name: '@nx-feature/merchant',
           path: 'frontends/features/merchant',
-          kind: 'lib',
+          type: 'lib',
         },
       ],
     });
 
     expect(ProjectPackages.resolve({ config })[0]).toMatchObject({
-      kind: 'lib',
+      type: 'lib',
       path: 'frontends/features/merchant',
     });
   });

@@ -1,9 +1,9 @@
 import type {
   AppSides,
   Corpora,
-  LibraryKinds,
+  LibraryTypes,
   LogLevels,
-  PackageKinds,
+  PackageTypes,
   SkillSources,
   SourcePins,
 } from './constants';
@@ -46,8 +46,8 @@ export class ConstClass {
 export type TCorpus = TConstValue<typeof Corpora>;
 export type TLogLevel = TConstValue<typeof LogLevels>;
 export type TSkillSource = TConstValue<typeof SkillSources>;
-export type TPackageKind = TConstValue<typeof PackageKinds>;
-export type TLibraryKind = TConstValue<typeof LibraryKinds>;
+export type TPackageType = TConstValue<typeof PackageTypes>;
+export type TLibraryType = TConstValue<typeof LibraryTypes>;
 export type TAppSide = TConstValue<typeof AppSides>;
 export type TSourcePin = TConstValue<typeof SourcePins>;
 

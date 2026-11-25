@@ -238,8 +238,9 @@ export class CommandTable {
                                   Put the top-level keys of .configs/vulcan.config.mts in the canonical order, each
                                   with its comments; --check writes nothing and exits 1 when a key would move; exit 2
                                   when the keys cannot be ordered (a spread, a computed key, no object literal)
-  config codemod config-groups [<dir>] [--write] [--split] | --list
-                                  Move the keys of .configs/vulcan.config.mts into the seven groups, each with its
+  config codemod <config-groups|package-types> [<dir>] [--write] [--split] | --list
+                                  package-types: rename kind to type and presetKind to presetType in the package
+                                  entries of the config and its modules. config-groups: move the keys of .configs/vulcan.config.mts into the seven groups, each with its
                                   comments (--split: one module per group in .configs/vulcan/, the modules of an old
                                   split folded in); without --write it lists what it would write; exit 2 and
                                   nothing written when it cannot move a key without losing it`,
@@ -248,7 +249,7 @@ export class CommandTable {
         '--check': 'format only: write nothing; exit 1 and name the keys that would move',
         '--write': 'codemod only: write the files (without it, list them)',
         '--split': 'codemod only: one module per group under .configs/vulcan/',
-        '--list': 'codemod only: name the codemod',
+        '--list': 'codemod only: name the codemods',
       },
       positionals: 3,
       unknownExit: ExitCodes.USAGE,

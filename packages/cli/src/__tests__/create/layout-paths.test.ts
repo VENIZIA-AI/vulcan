@@ -546,7 +546,7 @@ const groupedProject = (opts: { other?: string[]; extraPackage?: string } = {}):
   const entries = packages
     .map(
       ([dir, path]) =>
-        `{ dir: '${dir}', name: '${dir}', path: '${path}'${path.includes('/kits/') ? ", kind: 'lib'" : ''} }`,
+        `{ dir: '${dir}', name: '${dir}', path: '${path}'${path.includes('/kits/') ? ", type: 'lib'" : ''} }`,
     )
     .join(', ');
   const other = JSON.stringify(opts.other ?? ['frontends/tools', 'docs', 'qc', 'third-parties']);

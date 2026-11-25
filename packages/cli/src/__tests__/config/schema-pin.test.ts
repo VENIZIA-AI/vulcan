@@ -45,7 +45,7 @@ const VALID: Record<string, unknown> = {
     packages: [
       { dir: 'core', name: '@demo/core' },
       { dir: 'old', name: 'demo-old', path: 'legacy/old', retired: true, aliases: ['legacy'] },
-      { dir: 'kit', name: '@demo/kit', kind: 'lib', presetKind: 'shared' },
+      { dir: 'kit', name: '@demo/kit', type: 'lib', presetType: 'shared' },
     ],
     knowledge: {
       wiki: 'docs/wiki',

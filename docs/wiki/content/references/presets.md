@@ -151,7 +151,7 @@ The `shared` file has the same keys as a lib preset file ([the table above](#a-l
 The shared files take the tokens `{{project}}`, `{{shared}}` (the folder name, `common`) and `{{package}}` (the npm name, `@acme/common`). The token `{{lib}}` is not replaced in a shared package, and `{{shared}}` is not replaced in a library.
 
 `vulcan package add --shared` generates `package.json` and places the package by the rules of `--lib`, in the same `shared` folder of `layout`; the folder never depends on the kind. The preset's package is not added as a dependency, so a project with only frontend apps can run `vulcan package add --preset <name> --shared common` and needs no app of that preset.
-The config records the preset with a `shared` summary and the package with `presetKind: "shared"` ([Configuration](/references/configuration/#project-presets)). See [`vulcan package add`](/references/commands/add#add-a-shared-package).
+The config records the preset with a `shared` summary and the package with `presetType: "shared"` ([Configuration](/references/configuration/#project-presets)). See [`vulcan package add`](/references/commands/add#add-a-shared-package).
 
 ## Tokens in files
 

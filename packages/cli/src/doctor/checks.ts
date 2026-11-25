@@ -610,7 +610,7 @@ export class ProjectContract {
     for (const entry of ProjectPackages.resolve({ config: opts.config }).filter(
       (item) => !item.retired,
     )) {
-      if (entry.kind === 'lib') {
+      if (entry.type === 'lib') {
         const parent = dirname(entry.path);
 
         // A library lives where the project keeps libraries; it only has to be a workspace.

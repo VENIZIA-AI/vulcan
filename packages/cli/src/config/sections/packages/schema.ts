@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { LayoutFolder } from '../../../common/layout-folder.ts';
-import { LibraryKinds, PackageKinds } from '../../common/index.ts';
+import { LibraryTypes, PackageTypes } from '../../common/index.ts';
 import { LAYOUT_FOLDER } from '../../common/schema.ts';
 import { PackagesSectionConstants } from './constant.ts';
 
@@ -31,9 +31,9 @@ const PROJECT_PACKAGE = z.strictObject({
   /** `true` marks a package that is gone but whose releases stay readable; its path may be reused. Default `false`. */
   retired: z.boolean().default(false),
   /** A library a preset made lives anywhere a workspace glob covers; absent means an app or a plain package. */
-  kind: z.enum([PackageKinds.APP, PackageKinds.LIB]).optional(),
+  type: z.enum([PackageTypes.APP, PackageTypes.LIB]).optional(),
   /** Which preset kind made a library; absent means the `lib` kind. */
-  presetKind: z.enum([LibraryKinds.LIB, LibraryKinds.SHARED]).optional(),
+  presetType: z.enum([LibraryTypes.LIB, LibraryTypes.SHARED]).optional(),
 });
 
 /** A path as a key: no leading `./`, no trailing slash. */

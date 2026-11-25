@@ -1,6 +1,6 @@
-import { LibraryKinds, PackageKinds } from '@/common/constants';
+import { LibraryTypes, PackageTypes } from '@/common/constants';
 import type { IAtlasPreset, IAtlasProject } from '@/common/project-config';
-import type { TLibraryKind } from '@/common/types';
+import type { TLibraryType } from '@/common/types';
 import type { IToolHandler } from '@/protocol/common';
 import { dirname } from 'node:path';
 import { z } from 'zod';
@@ -60,7 +60,7 @@ const libFoldersOf = (opts: { project: IAtlasProject | undefined }): string[] =>
   const folders = [
     ...new Set(
       (opts.project?.packages ?? [])
-        .filter((entry) => entry.kind === PackageKinds.LIB && !entry.retired)
+        .filter((entry) => entry.type === PackageTypes.LIB && !entry.retired)
         .map((entry) => dirname(entry.path)),
     ),
   ];
@@ -104,7 +104,7 @@ const libEntry = (opts: {
   name: string;
   inProject: boolean;
   /** The flag of the command is the kind's name. */
-  kind: TLibraryKind;
+  kind: TLibraryType;
 }): IPresetEntry => {
   const folders = libFoldersOf({ project: opts.project });
 
@@ -123,7 +123,7 @@ const libEntry = (opts: {
  * and that the project has not recorded for it.
  */
 const libraryEntries = (opts: {
-  kind: TLibraryKind;
+  kind: TLibraryType;
   project: IAtlasProject | undefined;
   recorded: IAtlasPreset[];
   official: IOfficialPreset[];
@@ -197,7 +197,7 @@ const appEntries = (opts: {
   ];
 };
 
-const LIBRARY_KINDS: TLibraryKind[] = [LibraryKinds.LIB, LibraryKinds.SHARED];
+const LIBRARY_KINDS: TLibraryType[] = [LibraryTypes.LIB, LibraryTypes.SHARED];
 
 export class PresetsTool {
   /**
@@ -221,12 +221,12 @@ export class PresetsTool {
       },
       call: async ({ args }) => {
         const input = ToolInput.parse({ schema: PresetsInputSchema, args });
-        const kind = input.kind ?? PackageKinds.APP;
+        const kind = input.kind ?? PackageTypes.APP;
         const name = input.name ?? '<name>';
         const { project, official = OFFICIAL_PRESETS } = opts;
         const libraryKind = LIBRARY_KINDS.find((candidate) => candidate === kind);
 
-        if (kind !== PackageKinds.APP && libraryKind === undefined) {
+        if (kind !== PackageTypes.APP && libraryKind === undefined) {
           return {
             kind,
             presets: [],
@@ -258,7 +258,7 @@ export class PresetsTool {
           note:
             recorded.length === 0
               ? 'this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use'
-              : `no recorded preset makes a ${kind === PackageKinds.APP ? (input.side ?? PackageKinds.APP) : kind}: the entries are the official ones, marked inProject false; ask the user which to use, and ${NO_HAND_WRITING}`,
+              : `no recorded preset makes a ${kind === PackageTypes.APP ? (input.side ?? PackageTypes.APP) : kind}: the entries are the official ones, marked inProject false; ask the user which to use, and ${NO_HAND_WRITING}`,
         };
       },
     };

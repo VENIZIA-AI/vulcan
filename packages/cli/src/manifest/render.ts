@@ -304,8 +304,8 @@ export class ProjectManifest {
         path: entry.path,
         aliases: entry.aliases,
         retired: entry.retired,
-        ...(entry.kind === undefined ? {} : { kind: entry.kind }),
-        ...(entry.presetKind === undefined ? {} : { presetKind: entry.presetKind }),
+        ...(entry.type === undefined ? {} : { type: entry.type }),
+        ...(entry.presetType === undefined ? {} : { presetType: entry.presetType }),
       })),
       // Where each kind of app goes and the presets that make one: what an agent asked for a new app needs.
       ...(config.layout === undefined ? {} : { layout: config.layout }),

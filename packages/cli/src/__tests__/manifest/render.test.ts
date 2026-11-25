@@ -283,7 +283,7 @@ describe('package kind in the manifest', () => {
               dir: 'merchant',
               name: '@nx/merchant',
               path: 'frontends/features/merchant',
-              kind: 'lib',
+              type: 'lib',
             },
           ],
         },
@@ -292,7 +292,7 @@ describe('package kind in the manifest', () => {
 
     expect(manifest.packages[0]).not.toHaveProperty('kind');
     expect(manifest.packages[1]).toMatchObject({
-      kind: 'lib',
+      type: 'lib',
       path: 'frontends/features/merchant',
     });
   });
@@ -345,7 +345,7 @@ describe('the preset kind of a package in the manifest', () => {
   const root = (): string =>
     createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
 
-  test('a package made from the shared kind carries presetKind after its kind', () => {
+  test('a package made from the shared kind carries presetType after its kind', () => {
     const text = render({
       root: root(),
       config: {
@@ -355,8 +355,8 @@ describe('the preset kind of a package in the manifest', () => {
             dir: 'common',
             name: '@x/common',
             path: 'libs/common',
-            kind: 'lib',
-            presetKind: 'shared',
+            type: 'lib',
+            presetType: 'shared',
           },
         ],
       },
@@ -369,32 +369,32 @@ describe('the preset kind of a package in the manifest', () => {
       path: 'libs/common',
       aliases: [],
       retired: false,
-      kind: 'lib',
-      presetKind: 'shared',
+      type: 'lib',
+      presetType: 'shared',
     });
-    expect(Object.keys(entry).slice(-2)).toEqual(['kind', 'presetKind']);
+    expect(Object.keys(entry).slice(-2)).toEqual(['type', 'presetType']);
   });
 
-  test('a package without it renders no presetKind at all, so a project that never used it keeps its manifest', () => {
+  test('a package without it renders no presetType at all, so a project that never used it keeps its manifest', () => {
     const text = render({
       root: root(),
       config: {
         ...CONFIG,
         packages: [
-          { dir: 'money', name: '@x/money', path: 'libs/money', kind: 'lib' },
+          { dir: 'money', name: '@x/money', path: 'libs/money', type: 'lib' },
           { dir: 'kernel', name: '@x/kernel' },
         ],
       },
     });
 
-    expect(text).not.toContain('presetKind');
+    expect(text).not.toContain('presetType');
     expect(JSON.parse(text).packages[0]).toEqual({
       name: '@x/money',
       dir: 'money',
       path: 'libs/money',
       aliases: [],
       retired: false,
-      kind: 'lib',
+      type: 'lib',
     });
   });
 });

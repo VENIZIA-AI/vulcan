@@ -251,3 +251,15 @@ config-groups:
     steps:
       - 'Pin the earlier `@venizia/vulcan` and restore `.configs/vulcan.config.mts` and the modules under `.configs/vulcan/` from git (the codemod has no way back); run `vulcan sync` to write the machine keys in the old form again.'
   data: 'None: the manifests keep their keys. The profile of a machine moved by the new `sync` has the new key paths, which an earlier VULCAN does not read: delete the keys it names, or run `vulcan profile` again.'
+package-types:
+  symbols:
+    - VulcanConfig
+  codemod: package-types
+  upgrade:
+    steps:
+      - 'Rename the keys of every `packages` entry: `bun node_modules/.bin/vulcan migrate apply` has run the codemod already, or run `bun node_modules/.bin/vulcan config codemod package-types . --write`. `kind` is `type` and `presetKind` is `presetType`, in `.configs/vulcan.config.mts`, in the modules of `.configs/vulcan/` and in the `vulcan:apps` block; an object is an entry when it has a `dir` and a `name`.'
+      - 'Review the diff with `git diff`, run `bun node_modules/.bin/vulcan project sync` (the manifest keeps the new names) and `bun node_modules/.bin/vulcan project doctor`, and commit.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan` and restore the config files from git (the earlier VULCAN refuses `type` and `presetType`).'
+  data: 'None: the manifests are rendered by sync with the new key names. An earlier atlas does not read `type` or `presetType`.'

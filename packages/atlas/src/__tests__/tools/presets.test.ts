@@ -17,7 +17,7 @@ const MANIFEST = {
       path: 'libs/money',
       aliases: [],
       retired: false,
-      kind: 'lib',
+      type: 'lib',
     },
   ],
   presets: [
@@ -72,7 +72,7 @@ describe('the manifest carries what presets needs', () => {
 
     expect(project.layout).toEqual({ backend: 'services', frontend: 'web', shared: 'libs' });
     expect(project.presets?.map((item) => item.spec)).toEqual(['ignis', 'file:../acme-web']);
-    expect(project.packages.find((item) => item.dir === 'money')?.kind).toBe('lib');
+    expect(project.packages.find((item) => item.dir === 'money')?.type).toBe('lib');
   });
 
   test('a shared summary on a preset is kept, and a preset without one has none', () => {
@@ -99,7 +99,7 @@ describe('the manifest carries what presets needs', () => {
     expect(project.presets).toEqual([{ spec: 'ignis', side: 'backend', summary: 'An API.' }]);
   });
 
-  test('the presetKind of a package is read, and a package without one has none', () => {
+  test('the presetType of a package is read, and a package without one has none', () => {
     const project = projectOf({
       manifest: {
         ...MANIFEST,
@@ -111,37 +111,37 @@ describe('the manifest carries what presets needs', () => {
             path: 'libs/common',
             aliases: [],
             retired: false,
-            kind: 'lib',
-            presetKind: 'shared',
+            type: 'lib',
+            presetType: 'shared',
           },
           {
             name: '@shop/kit',
             dir: 'kit',
             path: 'libs/kit',
-            kind: 'lib',
-            presetKind: 'lib',
+            type: 'lib',
+            presetType: 'lib',
           },
         ],
       },
     });
     const entry = (dir: string) => project.packages.find((item) => item.dir === dir);
 
-    expect(entry('common')).toMatchObject({ kind: 'lib', presetKind: 'shared' });
-    expect(entry('kit')?.presetKind).toBe('lib');
-    expect(entry('money')).not.toHaveProperty('presetKind');
-    expect(entry('api')).not.toHaveProperty('presetKind');
+    expect(entry('common')).toMatchObject({ type: 'lib', presetType: 'shared' });
+    expect(entry('kit')?.presetType).toBe('lib');
+    expect(entry('money')).not.toHaveProperty('presetType');
+    expect(entry('api')).not.toHaveProperty('presetType');
   });
 
-  test('a presetKind that is neither lib nor shared is dropped, the package kept', () => {
+  test('a presetType that is neither lib nor shared is dropped, the package kept', () => {
     const project = projectOf({
       manifest: {
         ...MANIFEST,
-        packages: [{ name: '@shop/odd', dir: 'odd', kind: 'lib', presetKind: 'neutral' }],
+        packages: [{ name: '@shop/odd', dir: 'odd', type: 'lib', presetType: 'neutral' }],
       },
     });
 
     expect(project.packages).toHaveLength(1);
-    expect(project.packages[0]).not.toHaveProperty('presetKind');
+    expect(project.packages[0]).not.toHaveProperty('presetType');
   });
 
   test('a manifest without them reads as none', () => {

@@ -79,13 +79,13 @@ export class SkillSources extends ConstClass {
 }
 
 /** What a package of the project is: an app, or a library other apps import. */
-export class PackageKinds extends ConstClass {
+export class PackageTypes extends ConstClass {
   static readonly APP = 'app';
   static readonly LIB = 'lib';
 }
 
 /** Which preset kind made a library: `lib` (may use the project's framework) or `shared` (depends on no framework). */
-export class LibraryKinds extends ConstClass {
+export class LibraryTypes extends ConstClass {
   static readonly LIB = 'lib';
   static readonly SHARED = 'shared';
 }

@@ -327,18 +327,18 @@ describe('workspace planners', () => {
     ).toEqual({ ok: false, reason: AppsBlockProblems.INVALID });
   });
 
-  test('a block with a shared summary on a preset and a presetKind on a package reads back as written', () => {
+  test('a block with a shared summary on a preset and a presetType on a package reads back as written', () => {
     const withShared: IAppsBlock = {
       ...BLOCK,
       packages: [
         ...BLOCK.packages,
-        { dir: 'money', name: '@p/money', path: 'libs/money', kind: 'lib', presetKind: 'shared' },
+        { dir: 'money', name: '@p/money', path: 'libs/money', type: 'lib', presetType: 'shared' },
         {
           dir: 'feature',
           name: '@p/feature',
           path: 'libs/feature',
-          kind: 'lib',
-          presetKind: 'lib',
+          type: 'lib',
+          presetType: 'lib',
         },
       ],
       presets: [
@@ -352,13 +352,13 @@ describe('workspace planners', () => {
     });
   });
 
-  test('a package with a presetKind that is neither lib nor shared makes the block invalid', () => {
+  test('a package with a presetType that is neither lib nor shared makes the block invalid', () => {
     const bad = AppsBlock.render({ block: BLOCK }).replace(
       '"path": "services/core-api"',
-      '"path": "services/core-api", "presetKind": "app"',
+      '"path": "services/core-api", "presetType": "app"',
     );
 
-    expect(bad).toContain('"presetKind": "app"');
+    expect(bad).toContain('"presetType": "app"');
     expect(AppsBlock.parse({ source: bad })).toEqual({ ok: false, reason: 'invalid' });
   });
 

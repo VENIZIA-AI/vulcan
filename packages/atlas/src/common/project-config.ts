@@ -5,8 +5,8 @@ import { GitArgument } from './git-argument';
 import { AtlasLimits } from './limits';
 import { SiteUrl } from './site-url';
 import { WireValue } from './wire';
-import { LibraryKinds, PackageKinds, SourcePins } from './constants';
-import type { TAppSide, TLibraryKind, TPackageKind, TSourcePin } from './types';
+import { LibraryTypes, PackageTypes, SourcePins } from './constants';
+import type { TAppSide, TLibraryType, TPackageType, TSourcePin } from './types';
 
 /** The project's descriptor (Project Contract v1, C1): committed and generated, it holds what atlas reads, and nothing else. */
 export const MANIFEST_FILE = '.agents/atlas.manifest.json';
@@ -37,9 +37,9 @@ export interface IAtlasPackage {
   aliases: string[];
   retired: boolean;
   /** `lib` for a library a preset made; absent for an app or a plain package. */
-  kind?: TPackageKind;
+  type?: TPackageType;
   /** Which preset kind made a library; absent means `lib`. */
-  presetKind?: TLibraryKind;
+  presetType?: TLibraryType;
 }
 
 /** A preset an app of the project came from, as `vulcan package add --preset` takes it back. */
@@ -126,11 +126,11 @@ const packagesOf = (opts: { value: unknown; label: string }): IAtlasPackage[] =>
         path: WireValue.stringOf({ value: entry.path }) ?? `packages/${dir}`,
         aliases: aliases.filter((alias): alias is string => typeof alias === 'string'),
         retired: entry.retired === true,
-        ...(entry.kind === PackageKinds.LIB || entry.kind === PackageKinds.APP
-          ? { kind: entry.kind }
+        ...(entry.type === PackageTypes.LIB || entry.type === PackageTypes.APP
+          ? { type: entry.type }
           : {}),
-        ...(entry.presetKind === LibraryKinds.LIB || entry.presetKind === LibraryKinds.SHARED
-          ? { presetKind: entry.presetKind }
+        ...(entry.presetType === LibraryTypes.LIB || entry.presetType === LibraryTypes.SHARED
+          ? { presetType: entry.presetType }
           : {}),
       },
     ];

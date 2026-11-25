@@ -3,8 +3,8 @@ import { join, relative, resolve, sep } from 'node:path';
 import { ProjectLayout } from '../common/constants.ts';
 import { RecordValue } from '../common/record.ts';
 import { ProjectScaffold } from '../init/index.ts';
-import { LibraryKinds, PackageKinds } from '../config/index.ts';
-import type { TLibraryKind } from '../config/index.ts';
+import { LibraryTypes, PackageTypes } from '../config/index.ts';
+import type { TLibraryType } from '../config/index.ts';
 import { AppsBlockProblems, CreateConstants } from './common/index.ts';
 import { ManifestJson } from './manifest-json.ts';
 import type {
@@ -234,7 +234,7 @@ export class WorkspaceManifest {
 }
 
 /** The atlas lookups a package of one kind depends on: what a summary page cannot hold. */
-const ATLAS_LOOKUPS: Record<TAppSide | typeof PackageKinds.LIB, [string, string][]> = {
+const ATLAS_LOOKUPS: Record<TAppSide | typeof PackageTypes.LIB, [string, string][]> = {
   backend: [
     ['How a route and its controller are written', '`search` "controller routes", then `get`'],
     [
@@ -250,7 +250,7 @@ const ATLAS_LOOKUPS: Record<TAppSide | typeof PackageKinds.LIB, [string, string]
 };
 
 /** The note and the table that turn a package page into a pointer at atlas, for its kind. */
-const renderAtlasLookups = (opts: { kind: TAppSide | typeof PackageKinds.LIB }): string[] => [
+const renderAtlasLookups = (opts: { kind: TAppSide | typeof PackageTypes.LIB }): string[] => [
   '> This page is a summary, not a spec: it says what the package is. How code is written here lives',
   '> in atlas; look it up before you explain or write code.',
   '',
@@ -295,8 +295,8 @@ const isAppsBlock = (value: unknown): value is IAppsBlock =>
     (entry) =>
       hasStrings({ value: entry, keys: ['dir', 'name', 'path'] }) &&
       RecordValue.isRecord(entry) &&
-      (entry.presetKind === undefined ||
-        (typeof entry.presetKind === 'string' && LibraryKinds.isValid(entry.presetKind))),
+      (entry.presetType === undefined ||
+        (typeof entry.presetType === 'string' && LibraryTypes.isValid(entry.presetType))),
   ) &&
   Array.isArray(value.sources) &&
   value.sources.every((entry) => hasStrings({ value: entry, keys: ['name', 'repo', 'ref'] }));
@@ -455,7 +455,7 @@ export class WorkspaceDocs {
     summary: string;
     presetPackage: string;
     /** Which preset kind made the package; `lib` when absent. */
-    kind?: TLibraryKind;
+    kind?: TLibraryType;
   }): string {
     return [
       '---',
@@ -468,9 +468,9 @@ export class WorkspaceDocs {
       '',
       `# ${opts.name}`,
       '',
-      `The ${opts.kind === LibraryKinds.SHARED ? 'side-neutral package' : 'library'} at \`${opts.path}\`, created from the ${opts.presetPackage} preset (${opts.kind ?? LibraryKinds.LIB} kind). ${oneLine({ text: opts.summary })}`,
+      `The ${opts.kind === LibraryTypes.SHARED ? 'side-neutral package' : 'library'} at \`${opts.path}\`, created from the ${opts.presetPackage} preset (${opts.kind ?? LibraryTypes.LIB} kind). ${oneLine({ text: opts.summary })}`,
       '',
-      ...renderAtlasLookups({ kind: PackageKinds.LIB }),
+      ...renderAtlasLookups({ kind: PackageTypes.LIB }),
     ].join('\n');
   }
 

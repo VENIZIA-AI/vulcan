@@ -374,7 +374,7 @@ The manifest also includes optional fields when configured:
 - `knowledge.migrationFrom`: The first day (`YYYY-MM-DD`) whose Breaking Change changelog entries must carry a `migration:` block, present when set.
 - `layout`: The folders of backend apps, frontend apps and shared packages (`backend`, `frontend`, `shared`), present when set; `init --preset` and `add` write it.
 - `presets`: The presets the project's apps came from, each `{ spec, side, summary }` and `lib` when the preset also makes libraries. atlas's `presets` tool answers from it.
-- `kind`: `"lib"` on a package entry that `add --lib` made (apps carry no `kind`), and `presetKind` (`lib` or `shared`) on a library or shared package that `add` made.
+- `type`: `"lib"` on a package entry that `add --lib` made (apps carry no `type`), and `presetType` (`lib` or `shared`) on a library or shared package that `add` made.
 - `sources`: External repository sources for atlas, present when `knowledge.atlas.sources` contains entries.
 - `atlas`: The keys a prebuilt index is checked with and the switch that turns its download off, present when `knowledge.atlas.index` or `knowledge.atlas.prebuilt` is set.
 - `guard`: The commands and push targets the guards ask about beyond their own list, present when `guard.writes.commands` or `guard.git.askPush` is set.
