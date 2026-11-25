@@ -69,7 +69,9 @@ export class IndexKeygen {
       `store it as the Actions secret: gh secret set ${PrebuiltConstants.KEY_ENV} < ${shown}`,
     );
     opts.print(`then remove the file: rm ${shown}`);
-    opts.print(`public key, for atlas.index.keys in the vulcan config: ${pair.publicKey}`);
+    opts.print(
+      `public key, for knowledge.atlas.index.keys in the vulcan config: ${pair.publicKey}`,
+    );
 
     return { file, publicKey: pair.publicKey };
   }

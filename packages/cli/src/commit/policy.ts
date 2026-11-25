@@ -55,7 +55,7 @@ export class CommitPolicy {
 
     if (policy === undefined) {
       console.error(
-        `[CommitPolicy.read] ignoring commit.message in ${MANIFEST_FILE}: not the shape vulcan project sync writes - run vulcan project sync`,
+        `[CommitPolicy.read] ignoring check.commit.message in ${MANIFEST_FILE}: not the shape vulcan project sync writes - run vulcan project sync`,
       );
     }
 

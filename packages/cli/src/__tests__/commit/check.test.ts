@@ -36,7 +36,7 @@ describe('vulcan check commit <message-file>', () => {
     const result = checkFile({ root: projectWith({}), message: SIGNED });
 
     expect(result.code).toBe(0);
-    expect(result.stderr).toContain('no commit check is configured (commit.message in');
+    expect(result.stderr).toContain('no commit check is configured (check.commit.message in');
   });
 
   test('a clean message passes and prints nothing', () => {

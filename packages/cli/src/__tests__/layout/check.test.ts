@@ -380,7 +380,7 @@ describe('vulcan check layout', () => {
     expect(ofLayout(result)).toEqual([
       'src/user.helpers.ts: plural-suffix: the role "helpers" is plural: name the file user.helper.ts',
       'src: mixed-folder: 3 subfolders beside 3 loose file(s) (long.ts, main.ts, user.helpers.ts): move the files into a subfolder; only index.ts or index.tsx stays beside subfolders',
-      'src/long.ts: long-file: 401 lines, over doctor.layout.maxLines (400): split it by concern',
+      'src/long.ts: long-file: 401 lines, over check.layout.maxLines (400): split it by concern',
     ]);
 
     LayoutBaseline.write({

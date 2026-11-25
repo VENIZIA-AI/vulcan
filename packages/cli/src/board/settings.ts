@@ -58,12 +58,12 @@ export class BoardSettings {
     const logo = logoPath === undefined ? undefined : opts.readLogo(logoPath);
 
     if (problem !== undefined) {
-      notes.push(`board.agents is not used: ${problem}`);
+      notes.push(`board.page.agents is not used: ${problem}`);
     }
 
     if (logoPath !== undefined && logo === undefined) {
       notes.push(
-        `board.logo ${logoPath} is missing, outside the project, over 100 KB or not an SVG: no logo`,
+        `board.page.logo ${logoPath} is missing, outside the project, over 100 KB or not an SVG: no logo`,
       );
     }
 

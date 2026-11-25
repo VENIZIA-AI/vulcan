@@ -73,7 +73,7 @@ export class TagCheck {
               {
                 check: DoctorChecks.TAGS,
                 file: 'git tags',
-                message: `tag ${tag} reads as a release of '${dir}', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)`,
+                message: `tag ${tag} reads as a release of '${dir}', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (knowledge.atlas.ignoreTags)`,
               },
             ];
       });

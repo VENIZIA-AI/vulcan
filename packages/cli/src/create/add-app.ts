@@ -448,7 +448,7 @@ export class AppScaffold {
       return AddFailure.fail({
         message:
           otherSide[0] === LayoutKeys.OTHER
-            ? `the ${side} folder '${folder}' is listed under layout.other in ${configPath}: folders the layout leaves alone are not app targets`
+            ? `the ${side} folder '${folder}' is listed under project.layout.other in ${configPath}: folders the layout leaves alone are not app targets`
             : `the ${side} folder '${folder}' is the ${otherSide[0]} folder in ${configPath}; each kind of code needs its own folder`,
       });
     }

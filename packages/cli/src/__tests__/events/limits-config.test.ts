@@ -129,7 +129,7 @@ describe("vulcan project doctor and the size of today's event file", () => {
     const found = await warnings(root);
 
     expect(found).toHaveLength(1);
-    expect(found[0].message).toContain('over events.maxSize (1KB)');
+    expect(found[0].message).toContain('over board.events.maxSize (1KB)');
     expect(found[0].message).toContain('nothing is truncated');
     expect(found[0].message).toContain('5.0 KB');
   });

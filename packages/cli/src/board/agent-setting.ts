@@ -33,7 +33,7 @@ export class BoardAgentSetting {
     const target = settings[lane];
 
     if (target === undefined) {
-      return `lane '${lane}' of '${name}' is not a key of board.agents`;
+      return `lane '${lane}' of '${name}' is not a key of board.page.agents`;
     }
 
     return BoardAgentSetting.laneOf({ setting: target }) === undefined

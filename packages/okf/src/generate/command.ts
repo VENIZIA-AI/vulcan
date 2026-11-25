@@ -64,7 +64,7 @@ export const gen = async (): Promise<void> => {
 
   if (renderers.length === 0 && regions.length === 0 && contents.length === 0) {
     console.log(
-      `gen: nothing configured - okf.renderers and okf.regions are empty; add a renderer to okf.renderers in the vulcan config (built in: ${Object.keys(BUILT_IN_RENDERERS).join(', ')})`,
+      `gen: nothing configured - knowledge.okf.renderers and knowledge.okf.regions are empty; add a renderer to knowledge.okf.renderers in the vulcan config (built in: ${Object.keys(BUILT_IN_RENDERERS).join(', ')})`,
     );
   } else if (regionWrites.length === 0 && pages.length === 0 && contents.length === 0) {
     console.log('gen: up to date');

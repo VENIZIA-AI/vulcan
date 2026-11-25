@@ -326,7 +326,7 @@ describe('vulcan package add with several folders per side', () => {
     });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('listed under layout.other');
+    expect(result.stderr).toContain('listed under project.layout.other');
   });
 
   test('a folder that is not a folder, nested in another, or another key is refused, nothing written', async () => {
@@ -507,7 +507,7 @@ describe('vulcan package add --lib says why a folder it used was not recorded', 
 
     expect(result.code, result.stderr).toBe(0);
     expect(existsSync(join(root, dir, 'money/package.json'))).toBe(true);
-    expect(result.stderr).toContain(`note: '${dir}' is not added to layout.shared`);
+    expect(result.stderr).toContain(`note: '${dir}' is not added to project.layout.shared`);
     expect(result.stderr).toContain(why);
     const layout = await layoutOf({ root });
 
@@ -621,7 +621,7 @@ describe('doctor on a grouped monorepo', () => {
     expect(
       violations.filter((message) => message.startsWith("layout.frontend 'frontends/public'")),
     ).toHaveLength(1);
-    expect(violations.some((message) => message.includes('layout.other'))).toBe(false);
+    expect(violations.some((message) => message.includes('project.layout.other'))).toBe(false);
   });
 });
 

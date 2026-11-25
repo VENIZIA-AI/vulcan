@@ -38,7 +38,7 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   See, add, remove or re-choose the coding agents you use on this machine
   project doctor                  Check the project follows VULCAN; exit 1 on any violation
   check commit <message-file> | --range <revs> | --text <message>
-                                  Check a commit message against the commit.message checks of the config (an
+                                  Check a commit message against the check.commit.message checks of the config (an
                                   agent in a trailer or a "generated with" line, the project's subject shape);
                                   sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input
   board show [--out <file>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
@@ -49,7 +49,7 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   Serve the same page on 127.0.0.1 (default port 4317) and push the new events to the open page, with no reload
   event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] [--order <n>|none] | flow step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] [--order <n>|none] | event tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
-                                  read it; with events.log on, sync installs the Claude Code hooks that
+                                  read it; with board.events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input
   page new <spec.json> [--out <name>] | page schema
                                   Make one small static HTML page (a flow, a status, a before and after) from
@@ -85,9 +85,9 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   and the names of guard.runners.allow pass; tests, lockfiles, build output and
                                   frozen history (dated entries, released version folders) are not read
   check layout [--write-baseline]
-                                  List the layout findings of the package and layout folders (doctor.layout): a
+                                  List the layout findings of the package and layout folders (check.layout): a
                                   plural role in a file name, a folder that mixes subfolders and loose files, a
-                                  source file over doctor.layout.maxLines; what .configs/layout-baseline.json
+                                  source file over check.layout.maxLines; what .configs/layout-baseline.json
                                   holds is info, the rest warns; --write-baseline writes every finding into it
   check changelog [--history --base <ref>]
                                   Check the changelog: a version folder changelogs/<X.Y.Z>/{log.md, migration.yaml}

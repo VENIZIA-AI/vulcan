@@ -137,7 +137,7 @@ const planSettings = (opts: { root: string; config: TResolvedConfig }): ISyncAct
   return {
     path,
     status: before === undefined ? SyncStatuses.CREATED : SyncStatuses.REPLACED,
-    note: 'shipped, slot and claude.settings over personal keys',
+    note: 'shipped, slot and agent.claude.settings over personal keys',
     apply: () => {
       mkdirSync(directory, { recursive: true });
       writeFileSync(path, text);

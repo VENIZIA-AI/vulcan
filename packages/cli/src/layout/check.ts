@@ -119,7 +119,7 @@ export class LayoutCheck {
         findings.push({
           rule: LayoutRules.LONG_FILE,
           path: file,
-          message: `${text.lines} lines, over doctor.layout.maxLines (${settings.maxLines}): split it by concern`,
+          message: `${text.lines} lines, over check.layout.maxLines (${settings.maxLines}): split it by concern`,
         });
       }
     }

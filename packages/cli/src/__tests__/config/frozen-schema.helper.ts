@@ -371,7 +371,7 @@ export const FROZEN_CONFIG_SCHEMA = z.strictObject({
         .default({ files: ['AGENTS.md', '.agents/rules.md'] }),
       brand: z.string().optional(),
       viz: REMOVED_OKF_KEY({
-        fix: 'delete this key; `vulcan okf viz` and `make okf-viz` are gone with no replacement, and the brand it carried is now `okf.brand`',
+        fix: 'delete this key; `vulcan okf viz` and `make okf-viz` are gone with no replacement, and the brand it carried is now `knowledge.okf.brand`',
       }),
       sections: REMOVED_OKF_KEY({ fix: 'delete this key; only the removed explorer read it' }),
     })
