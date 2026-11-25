@@ -166,10 +166,10 @@ describe.skipIf(!hasBrowser)('the board page in a real browser', () => {
 
     expect(result.errors).toEqual([]);
     expect(result.en).toContain(
-      'No flows yet. Turn on events.log, or write a line with vulcan event add.',
+      'No flows yet. Turn on board.events.log, or write a line with vulcan event add.',
     );
     expect(result.en).not.toMatch(NOT_A_DEFAULT);
-    expect(result.vi).toContain('events.log');
+    expect(result.vi).toContain('board.events.log');
     expect(result.vi).not.toMatch(NOT_A_DEFAULT);
   });
 });

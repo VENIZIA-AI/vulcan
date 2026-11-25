@@ -37,7 +37,7 @@ const removeSharedEvent = (opts: { root: string; entry: ILocalEntry }): string |
       dirname(entry.path) !== EventSettings.dirOf({ root: opts.root }) ||
       !lstatSync(entry.path).isFile()
     ) {
-      return 'refused: not a day file in the folder events.dir names';
+      return 'refused: not a day file in the folder board.events.dir names';
     }
 
     unlinkSync(entry.path);

@@ -188,7 +188,7 @@ describe('the tarball of a GitHub source', () => {
       }).catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
 
       expect(failure).toContain(
-        'atlas: the tarball of acme/src at aaaaaaaa is over atlas.limits.download',
+        'atlas: the tarball of acme/src at aaaaaaaa is over knowledge.atlas.limits.download',
       );
       expect(failure).toContain(`(${MIB} bytes)`);
       expect(existsSync(join(directory, 'source.tgz'))).toBe(false);
@@ -254,7 +254,7 @@ describe('the npm tarball of a package version', () => {
       }).catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
 
       expect(failure).toContain(
-        'atlas: the npm tarball of @x/big@1.0.0 is over atlas.limits.download',
+        'atlas: the npm tarball of @x/big@1.0.0 is over knowledge.atlas.limits.download',
       );
       expect(failure).toContain(`(${MIB} bytes)`);
     } finally {

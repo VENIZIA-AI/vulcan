@@ -132,7 +132,7 @@ export class CommandTable {
     },
     [VulcanCommands.COMMIT_CHECK]: {
       help: `  check commit <message-file> | --range <revs> | --text <message>
-                                  Check a commit message against the commit.message checks of the config (an
+                                  Check a commit message against the check.commit.message checks of the config (an
                                   agent in a trailer or a "generated with" line, the project's subject shape);
                                   sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input`,
       values: {
@@ -159,7 +159,7 @@ export class CommandTable {
         [BoardFlags.OUT]: 'The file to write; default .agents/local/reports/board.html',
         [BoardFlags.PORT]: 'serve only: the port to listen on; default 4317',
         [BoardFlags.SINCE]: 'Read events and pull requests changed at or after this date',
-        [BoardFlags.DIR]: 'The events folder; default events.dir, else .agents/local/events',
+        [BoardFlags.DIR]: 'The events folder; default board.events.dir, else .agents/local/events',
         [BoardFlags.REPO]: 'A GitHub repository, owner/name; repeat it to read several',
       },
       positionals: 1,
@@ -170,7 +170,7 @@ export class CommandTable {
     [VulcanCommands.EVENT]: {
       help: `  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] [--order <n>|none] | flow step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] [--order <n>|none] | event tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
-                                  read it; with events.log on, sync installs the Claude Code hooks that
+                                  read it; with board.events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input`,
       flags: {
         [EventFlags.JSON]: 'Print each line as written (tail)',
@@ -196,7 +196,7 @@ export class CommandTable {
         [EventFlags.CONTEXT]: 'Flow only: two to four sentences on what the flow is',
         [EventFlags.NEXT]: 'Flow only: the next step and who does it',
         [EventFlags.ACTOR]: 'Who wrote the event; else VULCAN_ACTOR or the session name',
-        [EventFlags.DIR]: 'The events folder for this call, over events.dir',
+        [EventFlags.DIR]: 'The events folder for this call, over board.events.dir',
         [EventFlags.SINCE]: 'tail only: print events at or after this time; default 24 hours',
       },
       positionals: 1,
@@ -306,9 +306,9 @@ export class CommandTable {
     },
     [VulcanCommands.LAYOUT]: {
       help: `  check layout [--write-baseline]
-                                  List the layout findings of the package and layout folders (doctor.layout): a
+                                  List the layout findings of the package and layout folders (check.layout): a
                                   plural role in a file name, a folder that mixes subfolders and loose files, a
-                                  source file over doctor.layout.maxLines; what .configs/layout-baseline.json
+                                  source file over check.layout.maxLines; what .configs/layout-baseline.json
                                   holds is info, the rest warns; --write-baseline writes every finding into it`,
       flags: {
         '--write-baseline':

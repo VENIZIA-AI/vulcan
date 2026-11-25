@@ -51,6 +51,11 @@ export class ConfigLoader {
       return `a config file of this VULCAN install is not valid, so the defaults apply (${head.trim()}: ${first.trim()}). Run \`bun install\` again; if it stays, report it`;
     }
 
+    // A flat config is an OLDER one: the way out is the codemod, not an upgrade.
+    if (head.includes('the config is in the flat shape')) {
+      return `the project config is in the flat shape of the earlier releases, so its values are ignored and the defaults apply. Run \`${ProjectLayout.VULCAN_COMMAND} config codemod config-groups . --write\` to move it into the seven groups (\`--split\` writes one file per group)`;
+    }
+
     const problem =
       head.endsWith('invalid config') && first.trim() !== '' ? first.trim() : head.trim();
 
@@ -159,7 +164,7 @@ export class ConfigLoader {
           `${shown}: the config is in the flat shape of the earlier releases; its keys are in seven groups now (project, agent, guard, board, knowledge, check, common)`,
           ...flat.moved.map((move) => `  ${move.key}: moved to ${move.to}`),
           ...flat.unknown.map((key) => `  ${key}: not a config key`),
-          `run \`${ProjectLayout.VULCAN_COMMAND} config codemod config-groups . --write\` (or \`${ProjectLayout.VULCAN_COMMAND} migrate apply\`), which rewrites the file with its values and comments`,
+          `run \`${ProjectLayout.VULCAN_COMMAND} config codemod config-groups . --write\` (or \`${ProjectLayout.VULCAN_COMMAND} migrate apply\`), which rewrites the file with its values and comments (\`--split\` writes one file per group)`,
         ].join('\n'),
       };
     }

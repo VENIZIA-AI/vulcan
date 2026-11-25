@@ -50,7 +50,7 @@ test('a tag naming no declared package is a violation (positive control)', async
   const violations = await tagViolations({ root });
 
   expect(violations.map((violation) => violation.message)).toEqual([
-    "tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)",
+    "tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (knowledge.atlas.ignoreTags)",
   ]);
 });
 

@@ -259,7 +259,9 @@ export class LibraryScaffold {
 
     // The folder is used all the same; the layout does not list it.
     if (notRecorded !== undefined && notRecorded !== '') {
-      process.stderr.write(`note: '${folder}' is not added to layout.shared (${notRecorded})\n`);
+      process.stderr.write(
+        `note: '${folder}' is not added to project.layout.shared (${notRecorded})\n`,
+      );
     }
 
     const rows: [string, string][] = [
@@ -269,7 +271,7 @@ export class LibraryScaffold {
     if (isNewFolder) {
       rows.push([
         'layout',
-        `adds '${folder}' to layout.shared (now ${LayoutFolder.describe({ folders: LayoutFolder.layoutFoldersOf({ value: grown }) })})`,
+        `adds '${folder}' to project.layout.shared (now ${LayoutFolder.describe({ folders: LayoutFolder.layoutFoldersOf({ value: grown }) })})`,
       ]);
     }
 

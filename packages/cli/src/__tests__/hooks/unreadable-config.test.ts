@@ -80,6 +80,18 @@ describe('ConfigLoader.unreadableNote', () => {
     expect(note).toContain('vulcan project upgrade');
   });
 
+  test('a config in the flat shape is told to run the codemod, not to upgrade', async () => {
+    const root = createProject({
+      files: { '.configs/vulcan.config.mts': "export default { agents: ['claude'] };\n" },
+    });
+    const result = await ConfigLoader.load({ root });
+    const note = ConfigLoader.unreadableNote({ loaded: result });
+
+    expect(note).toContain('config codemod config-groups . --write');
+    expect(note).toContain('--split');
+    expect(note).not.toContain('project upgrade');
+  });
+
   test('a load error of several lines is told by its head, not by its second line', async () => {
     const root = createProject({
       files: {

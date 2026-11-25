@@ -49,7 +49,7 @@ export const OKF_SECTION = {
       brand: z.string().optional(),
       /** Removed with `vulcan okf viz`: the key is refused with what to do. */
       viz: REMOVED_OKF_KEY({
-        fix: 'delete this key; `vulcan okf viz` and `make okf-viz` are gone with no replacement, and the brand it carried is now `okf.brand`',
+        fix: 'delete this key; `vulcan okf viz` and `make okf-viz` are gone with no replacement, and the brand it carried is now `knowledge.okf.brand`',
       }),
       /** Removed with the explorer, the only thing that read it. */
       sections: REMOVED_OKF_KEY({ fix: 'delete this key; only the removed explorer read it' }),

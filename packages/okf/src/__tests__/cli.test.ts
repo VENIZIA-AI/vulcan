@@ -71,7 +71,7 @@ describe('gen', () => {
 
     expect(result.code).toBe(0);
     expect(result.stdout).toStartWith(
-      'gen: nothing configured - okf.renderers and okf.regions are empty; add a renderer',
+      'gen: nothing configured - knowledge.okf.renderers and knowledge.okf.regions are empty; add a renderer',
     );
   });
 });

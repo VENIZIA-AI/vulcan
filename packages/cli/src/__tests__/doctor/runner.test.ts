@@ -128,7 +128,7 @@ describe('doctor', () => {
 
     const result = await DoctorRunner.runChecks({ root: off });
     expect(result.map((item) => item.message)).toEqual([
-      "V-C-08 is in the venizia pack - add 'venizia' to packs in the config",
+      "V-C-08 is in the venizia pack - add 'venizia' to agent.packs in the config",
     ]);
     const result2 = await findChecks({ root: on });
     expect(result2).toEqual([]);

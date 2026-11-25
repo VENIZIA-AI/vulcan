@@ -38,6 +38,7 @@ describe('the prepare script cannot fail an install', () => {
 
     expect(run.exitCode).toBe(0);
     expect(run.stdout.toString()).toContain('sync did not finish');
+    expect(run.stdout.toString()).toContain('config codemod config-groups . --write');
   });
 
   test('with a working bin it runs `sync --quiet` with no terminal on its input', async () => {

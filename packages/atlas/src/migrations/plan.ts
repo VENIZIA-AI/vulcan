@@ -191,7 +191,7 @@ export class MigratePlan {
 
   /** Why a package has no release: no source declares it - one may have failed (the server's notice says which) or was never pulled. */
   private static notServedReason(opts: { name: string }): string {
-    return `${opts.name} is not served by any atlas source: check atlas.sources in the config and run \`vulcan atlas pull\`, or see which source failed`;
+    return `${opts.name} is not served by any atlas source: check knowledge.atlas.sources in the config and run \`vulcan atlas pull\`, or see which source failed`;
   }
 
   private static installedOf(opts: {

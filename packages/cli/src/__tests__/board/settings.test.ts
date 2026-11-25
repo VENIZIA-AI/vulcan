@@ -147,7 +147,7 @@ describe('BoardSettings.resolve', () => {
     });
 
     expect(settings.logo).toBeUndefined();
-    expect(settings.notes[0]).toContain('board.logo x.svg');
+    expect(settings.notes[0]).toContain('board.page.logo x.svg');
   });
 });
 
@@ -329,7 +329,9 @@ describe('board.agents: a face, or { shape?, lane? }', () => {
     const result = agents({ alpha: 'ember', 'pnt-x-1': { lane: 'nobody' } });
 
     expect(result.success).toBe(false);
-    expect(messageOf(result)).toContain("lane 'nobody' of 'pnt-x-1' is not a key of board.agents");
+    expect(messageOf(result)).toContain(
+      "lane 'nobody' of 'pnt-x-1' is not a key of board.page.agents",
+    );
   });
 
   test('no chain: a lane cannot itself have a lane', () => {
@@ -401,7 +403,7 @@ describe('BoardSettings.resolve: the roster and the lanes', () => {
 
     expect(settings).toMatchObject({ roster: [], lanes: {}, shapes: {} });
     expect(settings.notes).toEqual([
-      "board.agents is not used: lane 'nobody' of 'a' is not a key of board.agents",
+      "board.page.agents is not used: lane 'nobody' of 'a' is not a key of board.page.agents",
     ]);
   });
 

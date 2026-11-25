@@ -66,7 +66,7 @@ export class ProjectLayout {
    * never stops at the question about agents.
    */
   static readonly PREPARE_SCRIPT =
-    "if [ -f node_modules/.bin/vulcan ]; then bun node_modules/.bin/vulcan project sync --quiet < /dev/null || echo 'vulcan: sync did not finish: run bun node_modules/.bin/vulcan project sync'; else echo 'vulcan: not installed yet: run bun install'; fi; exit 0";
+    "if [ -f node_modules/.bin/vulcan ]; then bun node_modules/.bin/vulcan project sync --quiet < /dev/null || echo 'vulcan: sync did not finish: if the config is in the flat shape run bun node_modules/.bin/vulcan config codemod config-groups . --write, else run bun node_modules/.bin/vulcan project sync'; else echo 'vulcan: not installed yet: run bun install'; fi; exit 0";
   /** The default scratch folder of a session: short, so a browser's socket path fits, and outside `.agents/local/`. `local.tmp` replaces it. */
   static readonly TMP_DIRECTORY = '.agents/tmp';
   static readonly CLAUDE_SETTINGS_FILE = '.claude/settings.json';

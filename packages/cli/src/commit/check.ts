@@ -46,7 +46,7 @@ export class CommitCheck {
 
     if (policy === undefined) {
       process.stderr.write(
-        'commit-check: no commit check is configured (commit.message in .configs/vulcan.config.mts); nothing checked\n',
+        'commit-check: no commit check is configured (check.commit.message in .configs/vulcan.config.mts); nothing checked\n',
       );
 
       return ExitCodes.OK;

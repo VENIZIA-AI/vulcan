@@ -154,7 +154,7 @@ export class SymbolCompute {
 
       if (result === undefined) {
         throw new Error(
-          `atlas: the npm tarball of ${opts.name}@${opts.version} is over atlas.limits.download (${cap} bytes) - raise it in the vulcan config if the package is meant to be that large`,
+          `atlas: the npm tarball of ${opts.name}@${opts.version} is over knowledge.atlas.limits.download (${cap} bytes) - raise it in the vulcan config if the package is meant to be that large`,
         );
       }
 

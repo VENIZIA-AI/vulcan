@@ -114,7 +114,7 @@ export class GithubTarball {
 
     if (isOver === true) {
       throw new Error(
-        `atlas: the tarball of ${opts.owner}/${opts.repo} at ${opts.sha.slice(0, 8)} is over atlas.limits.download (${cap} bytes) - raise it in the vulcan config if the source is meant to be that large`,
+        `atlas: the tarball of ${opts.owner}/${opts.repo} at ${opts.sha.slice(0, 8)} is over knowledge.atlas.limits.download (${cap} bytes) - raise it in the vulcan config if the source is meant to be that large`,
       );
     }
 
