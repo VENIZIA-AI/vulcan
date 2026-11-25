@@ -71,16 +71,19 @@ describe.each([
     ).toBeUndefined();
   });
 
-  test('the bin of VULCAN itself is allowed although the source does not declare it', () => {
+  test('the bin of VULCAN is refused for a source that does not declare it, allowed when the packages name it', () => {
     const root = app();
 
     install({ root, name: '@venizia/vulcan', bin: 'vulcan' });
 
     expect(
+      CodemodRunner.refusalOf({ directory: root, name: 'vulcan', packages: ['@acme/kernel'] }),
+    ).toContain('not inside an installed package');
+    expect(
       CodemodRunner.refusalOf({
         directory: root,
         name: 'vulcan',
-        packages: ['@acme/kernel'],
+        packages: ['@acme/kernel', CodemodRunner.TOOL_PACKAGE],
       }),
     ).toBeUndefined();
   });
