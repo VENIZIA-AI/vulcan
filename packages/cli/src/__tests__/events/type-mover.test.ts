@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EventTypeMover } from '../../events/type-mover.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -24,6 +24,23 @@ describe('the move of the event lines from kind to type', () => {
     expect(first.left).toBe(1);
     expect(first.text).toBe(`not json\n${NEW}\n{"kind":"nothing"}\n${NEW}\n`);
     expect(EventTypeMover.moveText({ text: first.text }).moved).toBe(0);
+  });
+
+  test('a line appended after the plan is moved too, and no temporary file is left', () => {
+    const root = createProject({ files: {} });
+    const dir = join(root, 'events');
+    const file = join(dir, '2026-11-04.jsonl');
+
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(file, `${OLD}\n`);
+
+    const moves = EventTypeMover.plan({ dir });
+
+    appendFileSync(file, `${OLD}\n`);
+    EventTypeMover.apply({ moves });
+
+    expect(readFileSync(file, 'utf8')).toBe(`${NEW}\n${NEW}\n`);
+    expect(readdirSync(dir)).toEqual(['2026-11-04.jsonl']);
   });
 
   test('the day files of the folder are moved, other files and a folder that is not there are not', () => {

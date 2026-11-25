@@ -62,7 +62,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `config-modules` (warning) | A module of the config the guards cannot protect: the config file or a module that is or leads outside `.configs/` (a relative import, a link, a package of this repository such as a workspace member or a `file:` dependency), a module reached through an alias, a specifier that names nothing the project has, or a file that cannot be read | Move it under `.configs/` and import it by a relative path |
 | `config-order` (note) | The top-level keys of the config are not in the canonical order | Run `vulcan config format` |
 | `config-remove` (warning) | A `remove` entry matches nothing, so it does nothing | Delete the entry |
-| `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it, or delete `packages` so it is derived from the workspaces |
+| `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it (a member with `"private": true` is not asked for), or delete `packages` so it is derived from the workspaces |
 | `project-key` (warning) | `board.events.log` is on and `project.key` is not set, so no flow can be created | Add `project: { key: 'KEY' }` to the config and run `vulcan project sync` |
 | `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `check.doctor.privateValues.acknowledged` |
 | `file-layout` (warning, note) | A file name with a plural role (`user.helpers.ts`), a folder that mixes subfolders with loose source files, or a source file over `check.layout.maxLines`, that `.configs/layout-baseline.json` does not hold; what it holds is one note | Rename, move or split, or adopt the findings with `vulcan check layout --write-baseline` |
@@ -346,7 +346,7 @@ A warning with two forms. First: the root `package.json` declares workspaces, th
   warning [workspace-packages] .configs/vulcan.config.mts: 2 workspace member(s) of the root package.json are not in packages: @x/okf (packages/okf), @x/site (apps/web/site). Add them, or delete `packages` so it is derived from the workspaces
 ```
 
-Add the entries, or delete the `packages` key. Second: a workspace member that cannot be a package (a folder that is not a valid `dir`, such as `apps/WebApp` or `packages/my_lib`, or a `package.json` with no valid `name`) is named with its reason, for a derived list too; nothing is normalised. Rename the folder or the package, or write `packages` with the `dir` you want.
+Add the entries, or delete the `packages` key. A member whose `package.json` says `"private": true` is never published, so it is not asked for: docs, examples and wiki workspaces stay out of the list. Second: a workspace member that cannot be a package (a folder that is not a valid `dir`, such as `apps/WebApp` or `packages/my_lib`, or a `package.json` with no valid `name`) is named with its reason, for a derived list too; nothing is normalised. Rename the folder or the package, or write `packages` with the `dir` you want.
 
 ### events-dir
 

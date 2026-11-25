@@ -1,4 +1,12 @@
-import { lstatSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { EventConstants, EventTypes } from './common/index.ts';
@@ -80,12 +88,34 @@ export class EventTypeMover {
     }
   }
 
-  /** Writes what `plan` found; returns the files written. */
+  /**
+   * Writes what `plan` found; returns the files written. Each file is read again first, so a line another session appended since the plan
+   * is moved with the rest, and the new text goes to a file beside it that is renamed over the day file: a crash leaves the old file or
+   * the new one, never half of one.
+   */
   static apply(opts: { moves: { path: string; move: IEventTypeMove }[] }): string[] {
-    for (const { path, move } of opts.moves) {
-      writeFileSync(path, move.text);
+    const written: string[] = [];
+
+    for (const { path } of opts.moves) {
+      const move = EventTypeMover.moveText({ text: readFileSync(path, 'utf8') });
+
+      if (move.moved === 0) {
+        continue;
+      }
+
+      const temporary = `${path}.moving-${process.pid}`;
+
+      try {
+        writeFileSync(temporary, move.text, { mode: statSync(path).mode & 0o777 });
+        renameSync(temporary, path);
+        written.push(path);
+      } catch (error) {
+        rmSync(temporary, { force: true });
+
+        throw error;
+      }
     }
 
-    return opts.moves.map(({ path }) => path);
+    return written;
   }
 }

@@ -375,6 +375,8 @@ describe('vulcan config codemod', () => {
 
     expect(run(root, ['--list']).stdout).toBe('config-groups\ntype-names\n');
     expect(run(root, ['nope']).code).toBe(2);
+    expect(run(root, ['type-names', '--split']).code).toBe(2);
+    expect(run(root, ['type-names', '--split']).stderr).toContain('--split does not apply');
     expect(run(root, ['config-groups', '--bad']).code).toBe(2);
     expect(run(root, ['config-groups', '.', '--reverse']).code).toBe(2);
   });

@@ -121,6 +121,14 @@ const runCodemod = (opts: ICommandContext): number => {
     return ExitCodes.USAGE;
   }
 
+  if (name === ConfigTypeNames.NAME && flags.includes('--split')) {
+    process.stderr.write(
+      `vulcan config codemod: --split does not apply to ${ConfigTypeNames.NAME}: it renames keys where they are; --split is for ${ConfigCodemod.NAME}\n`,
+    );
+
+    return ExitCodes.USAGE;
+  }
+
   const root = resolve(opts.cwd, directory);
   // A file whose real path is outside the folder it is read from (a link out of `.configs/`) is not read.
   const read = (path: string): string | undefined =>
