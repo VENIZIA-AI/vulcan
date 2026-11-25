@@ -42,7 +42,7 @@ const entry = (opts: {
   slug: string;
   date: string;
   order: number;
-  kind?: string | null;
+  badge?: string | null;
   packages?: string[];
   migration?: TMigrationItem[];
 }): IChangelogRecord => ({
@@ -51,7 +51,7 @@ const entry = (opts: {
   date: opts.date,
   title: opts.slug,
   packages: opts.packages ?? ['@venizia/kernel'],
-  kind: opts.kind ?? null,
+  badge: opts.badge ?? null,
   order: opts.order,
   migration: opts.migration,
 });
@@ -77,33 +77,33 @@ const TABLE: IReleaseTable = {
       slug: 'rename',
       date: '2026-02-01',
       order: 1,
-      kind: 'Breaking Change',
+      badge: 'Breaking Change',
       migration: [item({ id: 'rename-thing', symbols: ['Thing.make'] })],
     }),
     entry({
       slug: 'two-items',
       date: '2026-03-01',
       order: 3,
-      kind: 'Breaking Change',
+      badge: 'Breaking Change',
       migration: [
         item({ id: 'drop-a', symbols: ['Gone'], data: 'Stored ids change.' }),
         item({ id: 'move-b', symbols: ['@venizia/kernel/old'], codemod: 'connector-imports' }),
       ],
     }),
-    entry({ slug: 'old-breaking', date: '2026-03-05', order: 3, kind: 'Breaking' }),
-    entry({ slug: 'a-feature', date: '2026-03-06', order: 3, kind: 'New Feature' }),
+    entry({ slug: 'old-breaking', date: '2026-03-05', order: 3, badge: 'Breaking' }),
+    entry({ slug: 'a-feature', date: '2026-03-06', order: 3, badge: 'New Feature' }),
     entry({
       slug: 'same-day',
       date: '2026-03-10',
       order: 5,
-      kind: 'Breaking Change',
+      badge: 'Breaking Change',
       migration: [item({ id: 'between-two', symbols: ['Between'] })],
     }),
     entry({
       slug: 'web-only',
       date: '2026-03-02',
       order: 3,
-      kind: 'Breaking Change',
+      badge: 'Breaking Change',
       packages: ['@venizia/web'],
       migration: [item({ id: 'web-thing', symbols: ['Thing.make'] })],
     }),
@@ -244,7 +244,7 @@ describe('MigratePlan.plans', () => {
     const [renamed, dropped] = result.steps;
 
     expect(renamed.touches).toEqual([
-      { file: 'src/a.ts', line: 3, symbol: 'Thing.make', kind: 'name' },
+      { file: 'src/a.ts', line: 3, symbol: 'Thing.make', reach: 'name' },
     ]);
     expect(dropped.touches).toEqual([]);
     expect(dropped.data).toBe('Stored ids change.');
@@ -272,10 +272,10 @@ describe('MigratePlan.plans', () => {
         ...TABLE,
         changelogs: [
           {
-            ...entry({ slug: 'badge-second', date: '2026-02-05', order: 3, kind: 'New Feature' }),
+            ...entry({ slug: 'badge-second', date: '2026-02-05', order: 3, badge: 'New Feature' }),
             breaking: true,
           },
-          entry({ slug: 'plain', date: '2026-02-06', order: 3, kind: 'New Feature' }),
+          entry({ slug: 'plain', date: '2026-02-06', order: 3, badge: 'New Feature' }),
         ],
       },
     });

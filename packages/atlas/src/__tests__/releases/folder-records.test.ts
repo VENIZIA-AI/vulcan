@@ -124,7 +124,7 @@ describe('the release table reads version folders (A6)', () => {
       layout: ChangelogLayouts.FOLDER,
       version: '0.4.5',
       section: 'Breaking',
-      kind: 'Breaking Change',
+      badge: 'Breaking Change',
       breaking: true,
       date: '2026-11-03',
       file: '0.4.5/log.md',

@@ -371,13 +371,13 @@ describe('the page with sources and terms', () => {
         ],
         messages: [
           { from: 'owner', to: 'agent', label: 'asks' },
-          { from: 'agent', to: 'owner', label: 'answers', kind: 'reply' },
+          { from: 'agent', to: 'owner', label: 'answers', type: 'reply' },
         ],
       },
       lifecycle: {
         states: [
-          { id: 'open', label: 'Open', kind: 'start' },
-          { id: 'done', label: 'Done', kind: 'end' },
+          { id: 'open', label: 'Open', type: 'start' },
+          { id: 'done', label: 'Done', type: 'end' },
         ],
         transitions: [{ from: 'open', to: 'done', label: 'closes' }],
       },

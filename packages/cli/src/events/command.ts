@@ -5,12 +5,12 @@ import type { ICommandContext } from '../common/index.ts';
 import {
   EventConstants,
   EventFlags,
-  EventKinds,
+  EventTypes,
   EventSources,
   EventStatuses,
   EventSubcommands,
 } from './common/index.ts';
-import type { IEvent, IEventItem, TEventKind, TEventStatus } from './common/index.ts';
+import type { IEvent, IEventItem, TEventType, TEventStatus } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
@@ -20,13 +20,13 @@ import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 import { EventText } from './text.ts';
 
-const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} <flow id>] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${EventStatuses.values().join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
-       vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} [${EventFlags.FLOW} <flow id>] ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.NEXT} <text>] [${EventFlags.DUE} <YYYY-MM-DD>] [${EventFlags.ORDER} <n>] [${EventFlags.REF} <tracker id>]
+const USAGE = `usage: vulcan event add ${EventFlags.TYPE} <type> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} <flow id>] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${EventStatuses.values().join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
+       vulcan event add ${EventFlags.TYPE} ${EventTypes.FLOW} [${EventFlags.FLOW} <flow id>] ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.NEXT} <text>] [${EventFlags.DUE} <YYYY-MM-DD>] [${EventFlags.ORDER} <n>] [${EventFlags.REF} <tracker id>]
          [${EventFlags.STEP} <text> | ${EventFlags.STEP_DONE} <text>]... [${EventFlags.CHECK} <text> | ${EventFlags.CHECK_DONE} <text>]... [${EventFlags.APP} <name>]... [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
        vulcan flow step [${EventFlags.FLOW} <flow id>] [${EventFlags.DONE} <step> | ${EventFlags.TODO} <step>] [${EventFlags.NEXT} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.ORDER} <n>|${EventFlags.ORDER_NONE}] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
          (changes one step of the flow's last flow line, or its next step or context, and keeps every other field)
        vulcan event tail [${EventFlags.SINCE} <time>] [${EventFlags.JSON}] [${EventFlags.DIR} <folder>]
-kinds: ${EventKinds.values().join(', ')}
+types: ${EventTypes.values().join(', ')}
 A flow line without ${EventFlags.FLOW} makes a new flow and prints its id (VULZ-<project.key>-<number>); give that id to every other line of the flow. Ids are never typed by hand.`;
 
 type TFlagValues = Record<string, string>;
@@ -179,7 +179,7 @@ export class EventCommand {
 
     if (last === undefined) {
       return fail(
-        `${placed.flowId} has no flow line yet. Write it with: vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} ${EventFlags.FLOW} ${placed.flowId} ${EventFlags.TITLE} <text>`,
+        `${placed.flowId} has no flow line yet. Write it with: vulcan event add ${EventFlags.TYPE} ${EventTypes.FLOW} ${EventFlags.FLOW} ${placed.flowId} ${EventFlags.TITLE} <text>`,
       );
     }
 
@@ -292,15 +292,15 @@ export class EventCommand {
 
   private static add(opts: { cwd: string; values: TFlagValues; lists: IListFlag[] }): number {
     const { values } = opts;
-    const kind = values[EventFlags.KIND];
-    const isFlow = kind === EventKinds.FLOW;
+    const type = values[EventFlags.TYPE];
+    const isFlow = type === EventTypes.FLOW;
     // A flow line is named by its title: the title is its summary, and `--summary` is not a second way to say it.
     const summary = isFlow ? values[EventFlags.TITLE] : values[EventFlags.SUMMARY];
     const flow = values[EventFlags.FLOW];
 
-    if (kind === undefined || !EventKinds.isValid(kind)) {
+    if (type === undefined || !EventTypes.isValid(type)) {
       process.stderr.write(
-        `event: ${EventFlags.KIND} must be one of ${EventKinds.values().join(', ')}\n`,
+        `event: ${EventFlags.TYPE} must be one of ${EventTypes.values().join(', ')}\n`,
       );
 
       return ExitCodes.USAGE;
@@ -372,12 +372,12 @@ export class EventCommand {
 
     // A decision says which way it went; no other line has a status.
     if (
-      kind === EventKinds.DECISION
+      type === EventTypes.DECISION
         ? status === undefined || !EventStatuses.isValid(status)
         : status !== undefined
     ) {
       process.stderr.write(
-        kind === EventKinds.DECISION
+        type === EventTypes.DECISION
           ? `event: a decision needs ${EventFlags.STATUS} <${EventStatuses.values().join('|')}>\n`
           : `event: ${EventFlags.STATUS} belongs to a decision only\n`,
       );
@@ -412,7 +412,7 @@ export class EventCommand {
           })
         : EventActor.clean({ text: values[EventFlags.ACTOR] });
     const event: IEvent = EventLog.build({
-      kind: kind as TEventKind,
+      type: type as TEventType,
       summary,
       actor: actor === '' ? EventConstants.UNKNOWN_ACTOR : actor,
       source: EventSources.CLI,
@@ -581,7 +581,7 @@ export class EventCommand {
       const recent = FlowId.recent({ events: known, key, count: EventConstants.FLOW_RECENT_COUNT });
 
       process.stderr.write(
-        `event: no flow ${flow} in the log. ${recent.length === 0 ? 'The log has no flow yet' : `Recent flows: ${recent.join(', ')}`}. Make a new flow with: vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} ${EventFlags.TITLE} <text>\n`,
+        `event: no flow ${flow} in the log. ${recent.length === 0 ? 'The log has no flow yet' : `Recent flows: ${recent.join(', ')}`}. Make a new flow with: vulcan event add ${EventFlags.TYPE} ${EventTypes.FLOW} ${EventFlags.TITLE} <text>\n`,
       );
 
       return { ok: false, code: ExitCodes.USAGE };
@@ -632,7 +632,7 @@ export class EventCommand {
       process.stdout.write(
         opts.json
           ? `${JSON.stringify(event)}\n`
-          : `${event.ts} ${event.kind.padEnd(13)} ${event.actor} ${event.flowId ?? '-'} ${event.summary}\n`,
+          : `${event.ts} ${event.type.padEnd(13)} ${event.actor} ${event.flowId ?? '-'} ${event.summary}\n`,
       );
     }
 

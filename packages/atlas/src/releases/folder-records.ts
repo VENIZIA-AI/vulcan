@@ -95,7 +95,7 @@ export class FolderRecords {
           date,
           title: item.title,
           packages,
-          kind: isBreaking ? BreakingBadge.CANONICAL : item.section,
+          badge: isBreaking ? BreakingBadge.CANONICAL : item.section,
           layout: ChangelogLayouts.FOLDER,
           version: folder.name,
           section: item.section,

@@ -8,7 +8,7 @@ description: Write a line to the agent event log, or read it. With events.log on
 The agent event log is an append-only record of what the coding agents of a project did: a session started, a message went out, an agent waits for the owner. A board or a coordinator reads it instead of asking each agent. It holds short labels, never message bodies.
 
 ```text
-$ bun node_modules/.bin/vulcan event add --kind commit --summary "fixed the lock age" --ref 28592dd
+$ bun node_modules/.bin/vulcan event add --type commit --summary "fixed the lock age" --ref 28592dd
 0y4k2m9xa1b2c3d4
 $ bun node_modules/.bin/vulcan event tail --since 2026-11-03
 2026-11-03T09:30:12.431Z commit        pnt-vulcan-1 VULZ-ACME-12 fixed the lock age
@@ -33,14 +33,14 @@ Without the key nothing is installed and nothing is written by itself. The [conf
 One file per local day, one JSON object per line, in `.agents/local/events/<yyyy-mm-dd>.jsonl`. The folder is under `.agents/local/`, which git ignores.
 
 ```json
-{"id":"0y4k2m9xa1b2c3d4","ts":"2026-11-03T09:30:12.431Z","flowId":"VULZ-ACME-12","actor":"pnt-vulcan-1","kind":"commit","summary":"fixed the lock age","ref":"28592dd","source":"cli"}
+{"id":"0y4k2m9xa1b2c3d4","ts":"2026-11-03T09:30:12.431Z","flowId":"VULZ-ACME-12","actor":"pnt-vulcan-1","type":"commit","summary":"fixed the lock age","ref":"28592dd","source":"cli"}
 ```
 
 - `id`: sorts by time and does not repeat across sessions.
 - `ts`: ISO 8601, UTC.
 - `flowId`: `VULZ-<key>-<number>` (or the older `F-<number>`), when the line belongs to a flow; absent otherwise.
 - `actor`: the session that wrote it, as other sessions address it.
-- `kind`: one of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow`, `deploy`, `tool-tick`, `usage`. The hooks do not write `session-stop` and `tool-tick`; they stay valid so a log that holds them is read.
+- `type`: one of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow`, `deploy`, `tool-tick`, `usage`. The hooks do not write `session-stop` and `tool-tick`; they stay valid so a log that holds them is read.
 - `status`: only on a `decision`: `approve`, `park` or `reject`.
 - `summary`: one line, at most 200 characters. On a `flow` line it is the flow's title.
 - `notification`: only on a `needs-owner` the Claude Code hook wrote: the notification type that raised it (`permission_prompt`, `idle_prompt` or `elicitation_dialog`). A board uses it to tell the harness waiting from a question someone wrote, whatever the `summary` says; anything else is not written and is dropped on read.
@@ -82,33 +82,33 @@ A committed `board.events.dir` still works for a team that really shares one pat
 ## vulcan event add
 
 ```text
-vulcan event add --kind <kind> --summary <text> [--flow <flow id>] [--ref <ref>] [--status approve|park|reject] [--actor <name>] [--dir <folder>]
+vulcan event add --type <type> --summary <text> [--flow <flow id>] [--ref <ref>] [--status approve|park|reject] [--actor <name>] [--dir <folder>]
 vulcan flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--due <YYYY-MM-DD>] [--order <n>|none] [--ref <tracker id>]
          [--step <text> | --step-done <text>]... [--check <text> | --check-done <text>]... [--app <name>]... [--actor <name>] [--dir <folder>]
 ```
 
 It prints the id of the line. This is the way in for any coding agent: a hook of Claude Code is only one writer.
 
-- `--kind`: one of the fourteen kinds. `deploy` says something went live (`--summary "block 10" --flow <id>`); a board shows it as a milestone of its flow and, like a merge, counts it as Done until later work reopens the flow.
+- `--type`: one of the fourteen types. `deploy` says something went live (`--summary "block 10" --flow <id>`); a board shows it as a milestone of its flow and, like a merge, counts it as Done until later work reopens the flow.
 - `--summary`: a short label (not on a `flow` line: it takes `--title`). It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]`.
 - `--flow`: the id of a flow that the log already has: `VULZ-<key>-<number>`, as the command printed it when the flow was made, or an older `F-<number>`. An id no line carries is refused, with the recent flows listed. Without it, a line that is not a `flow` line takes the flow its branch names, when the branch name has a flow id segment such as `feature/VULZ-ACME-12-events-log`; a `flow` line with no `--flow` is always a new flow, whatever the branch. Give `--flow` to change the heading or the lists of a flow that exists.
 - `--ref`: a commit, a PR number, a recipient; on a `flow` line, the id of the flow in a tracker (`TICKET-12`). On a `pr` line, `merged:12` says pull request 12 was merged.
-- `--status`: `approve`, `park` or `reject`. Required on a `decision`, refused on any other kind. The owner's answer to a flow, written by whoever relays it.
-- `--title`: only for `--kind flow`, where it is required: the title of the flow, in the language of the owner. Same limits as `--summary`.
-- `--why`: only for `--kind flow`, optional: one line on why the flow exists. Same limits and the same secret removal.
-- `--context`: only for `--kind flow`, optional: two to four sentences, in the language of the owner, on what the flow is, what is done and what is left. Cut to one line of 600 characters, with the same secret removal.
-- `--next`: only for `--kind flow`, optional: the next step and who does it. Cut to one line of 200 characters, with the same secret removal.
-- `--step`, `--step-done`: only for `--kind flow`, optional, repeatable: a step still to do, a step done. The list is the flags in the order given. Each text is 1 to 200 characters (longer is refused, not cut), at most 30 steps.
+- `--status`: `approve`, `park` or `reject`. Required on a `decision`, refused on any other type. The owner's answer to a flow, written by whoever relays it.
+- `--title`: only for `--type flow`, where it is required: the title of the flow, in the language of the owner. Same limits as `--summary`.
+- `--why`: only for `--type flow`, optional: one line on why the flow exists. Same limits and the same secret removal.
+- `--context`: only for `--type flow`, optional: two to four sentences, in the language of the owner, on what the flow is, what is done and what is left. Cut to one line of 600 characters, with the same secret removal.
+- `--next`: only for `--type flow`, optional: the next step and who does it. Cut to one line of 200 characters, with the same secret removal.
+- `--step`, `--step-done`: only for `--type flow`, optional, repeatable: a step still to do, a step done. The list is the flags in the order given. Each text is 1 to 200 characters (longer is refused, not cut), at most 30 steps.
 - `--check`, `--check-done`: as the steps, for the acceptance checks.
-- `--app`: only for `--kind flow`, optional, repeatable: an app or module the flow touches, 1 to 40 characters, at most 12.
-- `--due`: only for `--kind flow`, optional: the day it is due, `YYYY-MM-DD`, a day that exists.
+- `--app`: only for `--type flow`, optional, repeatable: an app or module the flow touches, 1 to 40 characters, at most 12.
+- `--due`: only for `--type flow`, optional: the day it is due, `YYYY-MM-DD`, a day that exists.
 - `--order`: only for `flow add`, optional: the place of the flow in the work order, a positive whole number. The board's table sorts by it. Given twice, the last value wins. A line without `--order` keeps the order the flow had, so a retitle does not lose it; `--order none`, only for a flow that exists (`--flow`), clears it.
 - `--actor`: who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session, when a person or a peer gave it (a name Claude Code made up from the folder, a counter or a clash does not count; when several of its session files hold the session id, the one of a live process, then the newest), else `claude:` and the start of the session id, else `unknown`. A name that starts with `claude:` is reserved for unnamed sessions: the board shows no agent for it.
 - `--dir`: the folder, for this call: `--dir` over `board.events.dir` over `.agents/local/events`. A relative path is relative to where you run the command.
 
 Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/local/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.
 
-Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not a flow id or that no line of the log carries, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or one that makes a new flow when the project has no `project.key`, or with an empty or blank `--context` or `--next`, or with a `--summary`, a `--title`, `--why`, `--context` or `--next` on any other kind, an unknown flag, a flag given twice).
+Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown type, a missing or empty `--summary`, a `--flow` that is not a flow id or that no line of the log carries, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or one that makes a new flow when the project has no `project.key`, or with an empty or blank `--context` or `--next`, or with a `--summary`, a `--title`, `--why`, `--context` or `--next` on any other kind, an unknown flag, a flag given twice).
 
 ## vulcan flow step
 
@@ -175,7 +175,7 @@ The newest `flow` line of a flow wins as a whole, with all its fields: write a n
 
 ### A flow id
 
-A line carries `flowId` when a flow id is found, in this order: `--flow`; `Flow: <id>` in the first line of a sent message; a flow id segment in the name of the checked-out branch (`feature/VULZ-ACME-12-events-log`). The branch is read from `.git/HEAD` without starting git. For a pull request, put `Flow: <id>` in the body and pass `--flow <id>` to `event add --kind pr`. Only `vulcan event add` checks that the flow exists; the hooks log what they read and never block.
+A line carries `flowId` when a flow id is found, in this order: `--flow`; `Flow: <id>` in the first line of a sent message; a flow id segment in the name of the checked-out branch (`feature/VULZ-ACME-12-events-log`). The branch is read from `.git/HEAD` without starting git. For a pull request, put `Flow: <id>` in the body and pass `--flow <id>` to `event add --type pr`. Only `vulcan event add` checks that the flow exists; the hooks log what they read and never block.
 
 A flow id is `VULZ-<key>-<number>`: the key is the project's `project.key`, and VULCAN gives the number. Lines written before that, with `F-12`, are not rewritten: the board shows them as `VULZ-<key>-12`, and `--flow F-12` and `--flow VULZ-ACME-12` name the same flow.
 
@@ -204,7 +204,7 @@ The Bash hook runs on every shell call of the session: a call that names no `git
 With `board.events.log` on, the tokens a session and its subagents use are recorded as `usage` lines, so the board can show them per flow. Tokens only: a line holds four counts (`input`, `output`, `cacheRead`, `cacheWrite`), a `model` and, for a subagent, its `agent` type. There is no price, rate or cost anywhere, in the log or on the board.
 
 ```json
-{"kind":"usage","summary":"tokens","actor":"pnt-vulcan-1","flowId":"VULZ-ACME-12","ref":"transcript:abcd1234-...","usage":{"model":"claude-sonnet-5-5","input":12,"output":4210,"cacheRead":812345,"cacheWrite":9120},"mark":{"offset":1048576,"message":"msg_01..."},"source":"claude-hook"}
+{"type":"usage","summary":"tokens","actor":"pnt-vulcan-1","flowId":"VULZ-ACME-12","ref":"transcript:abcd1234-...","usage":{"model":"claude-sonnet-5-5","input":12,"output":4210,"cacheRead":812345,"cacheWrite":9120},"mark":{"offset":1048576,"message":"msg_01..."},"source":"claude-hook"}
 ```
 
 - **Who writes it.** The `Stop` hook (`board-stop.ts`) records the turn's tokens first, then decides whether to hold the turn. The `SubagentStop` hook records the tokens of the subagent from `agent_transcript_path`, on the flow of its parent session. The flow is the branch's, else the one the session last opened and that is not over; with none the line is written without a flow, and the board shows it under "no flow".

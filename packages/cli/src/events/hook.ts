@@ -2,11 +2,11 @@ import { RecordValue } from '../common/record.ts';
 import {
   ClaudeHookEvents,
   EventConstants,
-  EventKinds,
+  EventTypes,
   EventSources,
   GitActivities,
 } from './common/index.ts';
-import type { IEvent, IHookEvent, TEventKind, TGitActivity, TIsOver } from './common/index.ts';
+import type { IEvent, IHookEvent, TEventType, TGitActivity, TIsOver } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowSteps } from './flow-steps.ts';
@@ -41,7 +41,7 @@ export class EventHook {
         const model = text({ value: input.model });
 
         return {
-          kind: EventKinds.SESSION_START,
+          type: EventTypes.SESSION_START,
           summary: [text({ value: input.source }), model].filter((word) => word !== '').join(' '),
           ...(model === '' ? {} : { model }),
         };
@@ -49,7 +49,7 @@ export class EventHook {
 
       case ClaudeHookEvents.SUBAGENT_START: {
         return {
-          kind: EventKinds.SUBAGENT_START,
+          type: EventTypes.SUBAGENT_START,
           summary: [text({ value: input.agent_type }), text({ value: input.agent_id })]
             .filter((word) => word !== '')
             .join(' '),
@@ -58,7 +58,7 @@ export class EventHook {
 
       case ClaudeHookEvents.SUBAGENT_STOP: {
         return {
-          kind: EventKinds.SUBAGENT_STOP,
+          type: EventTypes.SUBAGENT_STOP,
           summary: [text({ value: input.agent_type }), text({ value: input.agent_id })]
             .filter((word) => word !== '')
             .join(' '),
@@ -70,7 +70,7 @@ export class EventHook {
 
         return ClaudeHookEvents.OWNER_NOTIFICATIONS.has(type)
           ? {
-              kind: EventKinds.NEEDS_OWNER,
+              type: EventTypes.NEEDS_OWNER,
               summary: text({ value: input.title }) || type,
               notification: type,
             }
@@ -127,7 +127,7 @@ export class EventHook {
     const recipient = text({ value: call.to });
 
     return {
-      kind: EventKinds.MSG_SENT,
+      type: EventTypes.MSG_SENT,
       summary: label === '' ? EventConstants.MESSAGE_SENT_LABEL : label,
       ...(recipient === '' ? {} : { ref: `to:${EventHook.recipientOf({ to: recipient })}` }),
       flowText: message,
@@ -278,10 +278,10 @@ export class EventHook {
     activity?: TGitActivity;
     isOver?: TIsOver;
   }): IEvent | undefined {
-    const labels: Record<TGitActivity, { kind: TEventKind; summary: string }> = {
-      [GitActivities.COMMIT]: { kind: EventKinds.COMMIT, summary: EventConstants.COMMIT_LABEL },
-      [GitActivities.PR_OPEN]: { kind: EventKinds.PR, summary: EventConstants.PR_OPEN_LABEL },
-      [GitActivities.PR_MERGE]: { kind: EventKinds.PR, summary: EventConstants.PR_MERGE_LABEL },
+    const labels: Record<TGitActivity, { type: TEventType; summary: string }> = {
+      [GitActivities.COMMIT]: { type: EventTypes.COMMIT, summary: EventConstants.COMMIT_LABEL },
+      [GitActivities.PR_OPEN]: { type: EventTypes.PR, summary: EventConstants.PR_OPEN_LABEL },
+      [GitActivities.PR_MERGE]: { type: EventTypes.PR, summary: EventConstants.PR_MERGE_LABEL },
     };
     const label = opts.activity === undefined ? undefined : labels[opts.activity];
 
@@ -317,7 +317,7 @@ export class EventHook {
     }
 
     const event = EventLog.build({
-      kind: label.kind,
+      type: label.type,
       summary: label.summary,
       actor,
       source: EventSources.CLAUDE_HOOK,
@@ -399,7 +399,7 @@ export class EventHook {
       (mapped.flowText === undefined ? undefined : EventFlow.fromText({ text: mapped.flowText })) ??
       EventFlow.fromBranch({ cwd });
     const event = EventLog.build({
-      kind: mapped.kind,
+      type: mapped.type,
       summary: mapped.summary,
       actor: EventActor.resolve({
         sessionId: text({ value: opts.input.session_id }),

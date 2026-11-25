@@ -1,16 +1,16 @@
 import { MigrateDirections } from './directions';
 import { MigrateTargets } from './plan';
 import type { IMigrationPlan, IMigrationResult, IMigrationStep } from './plan';
-import { TouchKinds } from './scan';
-import type { IMigrationTouch, TTouchKind } from './scan';
+import { TouchReaches } from './scan';
+import type { IMigrationTouch, TTouchReach } from './scan';
 import type { TMigrationDirection } from './schema';
 
-const ofKind = (opts: { touches: IMigrationTouch[]; kind: TTouchKind }): IMigrationTouch[] =>
-  opts.touches.filter((touch) => touch.kind === opts.kind);
+const ofReach = (opts: { touches: IMigrationTouch[]; reach: TTouchReach }): IMigrationTouch[] =>
+  opts.touches.filter((touch) => touch.reach === opts.reach);
 
 /** Places the app's own code reaches: a name used, or a module imported. A re-export is not one. */
 const isReached = (opts: { step: IMigrationStep }): boolean =>
-  opts.step.touches.some((touch) => touch.kind !== TouchKinds.REEXPORT);
+  opts.step.touches.some((touch) => touch.reach !== TouchReaches.REEXPORT);
 
 const isReexportOnly = (opts: { step: IMigrationStep }): boolean =>
   opts.step.touches.length > 0 && !isReached(opts);
@@ -82,9 +82,9 @@ const stepOf = (opts: { step: IMigrationStep; verbose: boolean; isMixed: boolean
     '',
   ];
 
-  const named = ofKind({ touches: step.touches, kind: TouchKinds.NAME });
-  const modules = ofKind({ touches: step.touches, kind: TouchKinds.MODULE });
-  const reexports = ofKind({ touches: step.touches, kind: TouchKinds.REEXPORT });
+  const named = ofReach({ touches: step.touches, reach: TouchReaches.NAME });
+  const modules = ofReach({ touches: step.touches, reach: TouchReaches.MODULE });
+  const reexports = ofReach({ touches: step.touches, reach: TouchReaches.REEXPORT });
 
   if (step.touches.length === 0) {
     lines.push('No mention found.');

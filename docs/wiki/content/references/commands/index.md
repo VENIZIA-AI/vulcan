@@ -47,7 +47,7 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   .agents/local/reports/board.html; read-only; exit 2 on bad input
   board serve [--port <n>] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
                                   Serve the same page on 127.0.0.1 (default port 4317) and push the new events to the open page, with no reload
-  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] [--order <n>|none] | flow step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] [--order <n>|none] | event tail [--since <time>] [--json] [--dir <folder>]
+  event add --type <t> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] [--order <n>|none] | flow step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] [--order <n>|none] | event tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
                                   read it; with board.events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input
@@ -67,8 +67,8 @@ Usage: bun node_modules/.bin/vulcan <command>
                                   Put the top-level keys of .configs/vulcan.config.mts in the canonical order, each
                                   with its comments; --check writes nothing and exits 1 when a key would move; exit 2
                                   when the keys cannot be ordered (a spread, a computed key, no object literal)
-  config codemod <config-groups|package-types> [<dir>] [--write] [--split] | --list
-                                  package-types: rename kind to type and presetKind to presetType in the package
+  config codemod <config-groups|type-names> [<dir>] [--write] [--split] | --list
+                                  type-names: rename kind to type and presetKind to presetType in the package
                                   entries of the config and its modules. config-groups: move the keys of .configs/vulcan.config.mts into the seven groups, each with its
                                   comments (--split: one module per group in .configs/vulcan/, the modules of an old
                                   split folded in); without --write it lists what it would write; exit 2 and

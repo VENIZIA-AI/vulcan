@@ -2,7 +2,7 @@ import { EventActorNames } from './actor-names.ts';
 import { ConstClass } from '../../common/types.ts';
 
 /** What happened. A board reads these; add one only when a reader needs to tell it apart. */
-export class EventKinds extends ConstClass {
+export class EventTypes extends ConstClass {
   static readonly SESSION_START = 'session-start';
   /** No longer written (a turn that ends is not an event); read so a log written before still folds until its retention removes it. */
   static readonly SESSION_STOP = 'session-stop';
@@ -63,7 +63,7 @@ export class EventFlags {
   /** Only a `flow`: its place in the work order, a positive whole number, or `none` to clear it. */
   static readonly ORDER = '--order';
   static readonly ORDER_NONE = 'none';
-  static readonly KIND = '--kind';
+  static readonly TYPE = '--type';
   static readonly SUMMARY = '--summary';
   static readonly FLOW = '--flow';
   static readonly REF = '--ref';
@@ -89,7 +89,7 @@ export class EventFlags {
     this.APP,
     this.DUE,
     this.ORDER,
-    this.KIND,
+    this.TYPE,
     this.SUMMARY,
     this.FLOW,
     this.REF,

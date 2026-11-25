@@ -4,7 +4,7 @@ import { ExitCodes, ProjectLayout } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { ConfigConstants, ConfigGroups, ConfigLayers, ConfigLoader } from '../config/index.ts';
 import { ConfigCodemod } from '../config/codemod.ts';
-import { ConfigPackageTypes } from '../config/package-types.ts';
+import { ConfigTypeNames } from '../config/type-names.ts';
 import { ConfigFormat } from '../config/format.ts';
 
 const EFFECTIVE_FLAG = '--effective';
@@ -98,7 +98,7 @@ const runCodemod = (opts: ICommandContext): number => {
 
   if (unknown.length > 0 || words.length > 2) {
     process.stderr.write(
-      `vulcan config codemod: <${ConfigCodemod.NAME}|${ConfigPackageTypes.NAME}> [<dir>] [--write] [--split] | --list\n`,
+      `vulcan config codemod: <${ConfigCodemod.NAME}|${ConfigTypeNames.NAME}> [<dir>] [--write] [--split] | --list\n`,
     );
 
     return ExitCodes.USAGE;
@@ -106,16 +106,16 @@ const runCodemod = (opts: ICommandContext): number => {
 
   if (flags.includes('--list')) {
     // One name per line and nothing else: the changelog check reads the list as the names a codemod runner offers.
-    process.stdout.write(`${ConfigCodemod.NAME}\n${ConfigPackageTypes.NAME}\n`);
+    process.stdout.write(`${ConfigCodemod.NAME}\n${ConfigTypeNames.NAME}\n`);
 
     return ExitCodes.OK;
   }
 
   const [name, directory = '.'] = words;
 
-  if (name !== ConfigCodemod.NAME && name !== ConfigPackageTypes.NAME) {
+  if (name !== ConfigCodemod.NAME && name !== ConfigTypeNames.NAME) {
     process.stderr.write(
-      `vulcan config codemod: unknown codemod '${name ?? ''}': the ones there are are ${ConfigCodemod.NAME} and ${ConfigPackageTypes.NAME}\n`,
+      `vulcan config codemod: unknown codemod '${name ?? ''}': the ones there are are ${ConfigCodemod.NAME} and ${ConfigTypeNames.NAME}\n`,
     );
 
     return ExitCodes.USAGE;
@@ -128,8 +128,8 @@ const runCodemod = (opts: ICommandContext): number => {
       ? readFileSync(join(root, path), 'utf8')
       : undefined;
   const result =
-    name === ConfigPackageTypes.NAME
-      ? ConfigPackageTypes.run({ root, read })
+    name === ConfigTypeNames.NAME
+      ? ConfigTypeNames.run({ root, read })
       : ConfigCodemod.run({ root, read, split: flags.includes('--split') });
 
   if (!result.ok) {

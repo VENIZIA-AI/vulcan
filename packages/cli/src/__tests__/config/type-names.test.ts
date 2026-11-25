@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { ConfigPackageTypes } from '../../config/package-types.ts';
+import { ConfigTypeNames } from '../../config/type-names.ts';
 
 const CONFIG = '.configs/vulcan.config.mts';
 const run = (files: Record<string, string>) =>
-  ConfigPackageTypes.run({ root: process.cwd(), read: (path) => files[path] });
+  ConfigTypeNames.run({ root: process.cwd(), read: (path) => files[path] });
 
-describe('the package-types codemod', () => {
+describe('the type-names codemod', () => {
   test('kind and presetKind of a package entry are renamed, in a config with groups', () => {
     const result = run({
       [CONFIG]: `export default {
@@ -72,7 +72,7 @@ export const apps = [
     expect(run({})).toEqual({
       ok: true,
       changes: [],
-      notes: ['no package entry has a kind: nothing to do'],
+      notes: ['no kind, presetKind or kinds key to rename: nothing to do'],
     });
   });
 });

@@ -52,7 +52,7 @@ const matchOf = (opts: { record: ISymbolRecord; docs: string[] }): ISymbolMatch 
     package: record.package,
     subpath: record.subpath,
     specifier: record.specifier,
-    kind: record.kind,
+    category: record.category,
     file: record.file,
     line: record.line,
     signature: record.signature,

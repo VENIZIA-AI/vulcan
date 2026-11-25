@@ -397,7 +397,7 @@ describe('version tool', () => {
               date: '2026-01-02',
               title: 'x',
               packages: [],
-              kind: null,
+              badge: null,
             },
           ],
         },

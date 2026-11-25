@@ -43,7 +43,7 @@ const entry = (opts: {
   date: `2026-02-0${opts.order}`,
   title: opts.slug,
   packages: ['@venizia/kernel'],
-  kind: 'Breaking Change',
+  badge: 'Breaking Change',
   order: opts.order,
   migration: opts.items,
 });

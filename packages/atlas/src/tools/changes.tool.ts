@@ -29,7 +29,7 @@ interface IChangesEntry {
   id: string;
   date: string;
   title: string;
-  kind: string | null;
+  badge: string | null;
   packages: string[];
   /** A version folder item with a block: how an app upgrades and downgrades across it. */
   migration?: TMigrationItem[];
@@ -70,7 +70,7 @@ const entryOf = (record: IChangelogRecord): IChangesEntry => ({
   id: record.id,
   date: record.date,
   title: record.title,
-  kind: record.kind,
+  badge: record.badge,
   packages: record.packages,
   ...(record.layout === ChangelogLayouts.FOLDER && record.migration !== undefined
     ? { migration: record.migration }

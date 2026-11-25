@@ -152,11 +152,11 @@ describe('the manifest carries what presets needs', () => {
   });
 });
 
-describe('presets (kind app)', () => {
+describe('presets (type app)', () => {
   test('lists each recorded preset first, then the official ones the project has not used, with the exact command', async () => {
     const answer = await ask({ args: { name: 'api3' } });
 
-    expect(answer.kind).toBe('app');
+    expect(answer.type).toBe('app');
     expect(answer.presets).toEqual([
       {
         preset: 'ignis',
@@ -219,7 +219,7 @@ describe('presets (kind app)', () => {
     );
   });
 
-  test('without a name the command carries <name>; kind app is the default', async () => {
+  test('without a name the command carries <name>; type app is the default', async () => {
     const answer = await ask({});
 
     expect(answer.presets[0].command).toBe(
@@ -251,7 +251,7 @@ describe('presets (kind app)', () => {
       },
     });
     const app = await ask({ project, args: { name: 'shop', side: 'frontend' } });
-    const lib = await ask({ project, args: { kind: 'lib', name: 'money' } });
+    const lib = await ask({ project, args: { type: 'lib', name: 'money' } });
     const backend = await ask({ project, args: { name: 'api3', side: 'backend' } });
 
     expect(app.presets[0].folder).toBeNull();
@@ -315,11 +315,11 @@ describe('presets (official, not yet used)', () => {
   });
 });
 
-describe('presets (kind lib)', () => {
+describe('presets (type lib)', () => {
   test('the recorded presets that make a library first, then the official libraries not yet in the project, with the shared folder', async () => {
-    const answer = await ask({ args: { kind: 'lib', name: 'billing' } });
+    const answer = await ask({ args: { type: 'lib', name: 'billing' } });
 
-    expect(answer.kind).toBe('lib');
+    expect(answer.type).toBe('lib');
     expect(answer.presets).toEqual([
       {
         preset: 'ignis',
@@ -340,7 +340,7 @@ describe('presets (kind lib)', () => {
 
   test('without a shared folder the folder of the existing libs, else a placeholder', async () => {
     const noShared = projectOf({ manifest: { ...MANIFEST, layout: { backend: 'services' } } });
-    const fromLibs = await ask({ project: noShared, args: { kind: 'lib', name: 'billing' } });
+    const fromLibs = await ask({ project: noShared, args: { type: 'lib', name: 'billing' } });
     const bare = projectOf({
       manifest: {
         ...MANIFEST,
@@ -348,7 +348,7 @@ describe('presets (kind lib)', () => {
         packages: [{ name: 'api', dir: 'api', path: 'services/api' }],
       },
     });
-    const none = await ask({ project: bare, args: { kind: 'lib', name: 'billing' } });
+    const none = await ask({ project: bare, args: { type: 'lib', name: 'billing' } });
 
     expect(fromLibs.presets[0].folder).toBe('libs');
     expect(fromLibs.presets[0].command).toBe(
@@ -364,7 +364,7 @@ describe('presets (kind lib)', () => {
     const project = projectOf({
       manifest: { ...MANIFEST, presets: [{ spec: 'ignis', side: 'backend', summary: 'An API.' }] },
     });
-    const answer = await ask({ project, args: { kind: 'lib', name: 'billing' } });
+    const answer = await ask({ project, args: { type: 'lib', name: 'billing' } });
 
     expect(answer.presets.map((item: { preset: string }) => item.preset)).toEqual([
       'ignis',
@@ -379,14 +379,14 @@ describe('presets (kind lib)', () => {
   });
 });
 
-describe('presets (kind shared)', () => {
+describe('presets (type shared)', () => {
   test('lists the recorded presets that have a shared summary, with the shared flag and the folder', async () => {
     const answer = await ask({
       project: projectOf({ manifest: SHARED_MANIFEST }),
-      args: { kind: 'shared', name: 'contracts' },
+      args: { type: 'shared', name: 'contracts' },
     });
 
-    expect(answer.kind).toBe('shared');
+    expect(answer.type).toBe('shared');
     expect(answer.presets).toEqual([
       {
         preset: 'ignis',
@@ -409,8 +409,8 @@ describe('presets (kind shared)', () => {
         ],
       },
     });
-    const shared = await ask({ project, args: { kind: 'shared', name: 'x' } });
-    const lib = await ask({ project, args: { kind: 'lib', name: 'x' } });
+    const shared = await ask({ project, args: { type: 'shared', name: 'x' } });
+    const lib = await ask({ project, args: { type: 'lib', name: 'x' } });
 
     expect(shared.presets.map((item: { preset: string }) => item.preset)).toEqual(['file:../kit']);
     expect(lib.presets.map((item: { preset: string }) => item.preset)).toEqual(['ignis', 'ardor']);
@@ -424,7 +424,7 @@ describe('presets (kind shared)', () => {
         layout: { ...MANIFEST.layout, shared: ['libs/a', 'libs/b'] },
       },
     });
-    const answer = await ask({ project, args: { kind: 'shared', name: 'contracts' } });
+    const answer = await ask({ project, args: { type: 'shared', name: 'contracts' } });
 
     expect(answer.presets[0].folders).toEqual(['libs/a', 'libs/b']);
     expect(answer.presets[0].command).toBe(
@@ -433,16 +433,16 @@ describe('presets (kind shared)', () => {
   });
 
   test('with no preset that has a shared kind it says so and invents no command', async () => {
-    const answer = await ask({ args: { kind: 'shared', name: 'contracts' } });
+    const answer = await ask({ args: { type: 'shared', name: 'contracts' } });
 
-    expect(answer.kind).toBe('shared');
+    expect(answer.type).toBe('shared');
     expect(answer.presets).toEqual([]);
     expect(answer.note).toContain('no preset makes a shared');
     expect(JSON.stringify(answer)).not.toContain('vulcan package add');
   });
 
   test('without a project the answer is the same: no shared preset, no command', async () => {
-    const answer = await ask({ project: undefined, args: { kind: 'shared', name: 'contracts' } });
+    const answer = await ask({ project: undefined, args: { type: 'shared', name: 'contracts' } });
 
     expect(answer.presets).toEqual([]);
     expect(JSON.stringify(answer)).not.toContain('vulcan package add');
@@ -464,7 +464,7 @@ describe('presets (kind shared)', () => {
       const answer = await ask({
         project: projectOf(),
         official: OFFICIAL,
-        args: { kind: 'shared', name: 'contracts' },
+        args: { type: 'shared', name: 'contracts' },
       });
 
       expect(answer.presets).toEqual([
@@ -493,7 +493,7 @@ describe('presets (kind shared)', () => {
       const answer = await ask({
         project,
         official: OFFICIAL,
-        args: { kind: 'shared', name: 'contracts' },
+        args: { type: 'shared', name: 'contracts' },
       });
 
       expect(answer.presets).toEqual([
@@ -519,15 +519,15 @@ describe('presets (kind shared)', () => {
       const answer = await ask({
         project,
         official: OFFICIAL,
-        args: { kind: 'shared', name: 'contracts' },
+        args: { type: 'shared', name: 'contracts' },
       });
 
       expect(answer.presets.map((item: { preset: string }) => item.preset)).toEqual(['forge']);
       expect(answer.presets[0].inProject).toBe(false);
     });
 
-    test('does not change what kind app and kind lib list', async () => {
-      const lib = await ask({ official: OFFICIAL, args: { kind: 'lib', name: 'billing' } });
+    test('does not change what type app and kind lib list', async () => {
+      const lib = await ask({ official: OFFICIAL, args: { type: 'lib', name: 'billing' } });
 
       expect(lib.presets.map((item: { preset: string }) => item.preset)).toEqual([
         'ignis',
@@ -537,10 +537,10 @@ describe('presets (kind shared)', () => {
     });
   });
 
-  test('kind app and kind lib list what they listed before when a preset also has a shared kind', async () => {
+  test('type app and kind lib list what they listed before when a preset also has a shared kind', async () => {
     const project = projectOf({ manifest: SHARED_MANIFEST });
     const app = await ask({ project, args: { name: 'api3', side: 'backend' } });
-    const lib = await ask({ project, args: { kind: 'lib', name: 'billing' } });
+    const lib = await ask({ project, args: { type: 'lib', name: 'billing' } });
 
     expect(app.presets).toEqual([
       {
@@ -573,12 +573,12 @@ describe('presets (kind shared)', () => {
 
 describe('presets (nothing fits)', () => {
   test('a kind no preset makes is said plainly, never pointed at an app preset', async () => {
-    for (const kind of ['feature', 'tool', 'service']) {
-      const answer = await ask({ args: { kind } });
+    for (const type of ['feature', 'tool', 'service']) {
+      const answer = await ask({ args: { type } });
 
       expect(answer.presets).toEqual([]);
       expect(answer.note).toBe(
-        `no preset makes a ${kind} (vulcan package add makes apps, libs and shared packages): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app, lib or shared preset for it`,
+        `no preset makes a ${type} (vulcan package add makes apps, libs and shared packages): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app, lib or shared preset for it`,
       );
     }
   });

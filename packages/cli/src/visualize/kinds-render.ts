@@ -155,7 +155,7 @@ const renderSequence = (opts: { sequence: TSequence; chrome: TChrome }): IKindDr
   const rowHeight = hasNote ? 66 : 52;
   const firstY = 8 + headHeight + (hasNote ? 48 : 40);
   const lastY = firstY + (sequence.messages.length - 1) * rowHeight;
-  const kinds = [...new Set(sequence.messages.map((message) => message.kind ?? MessageKinds.CALL))];
+  const kinds = [...new Set(sequence.messages.map((message) => message.type ?? MessageKinds.CALL))];
   const legendHeight = kinds.length > 1 ? 34 : 0;
   const height = lastY + (hasNote ? 40 : 28) + legendHeight;
   const lifelines = heads
@@ -180,7 +180,7 @@ const renderSequence = (opts: { sequence: TSequence; chrome: TChrome }): IKindDr
         return '';
       }
 
-      const kind = message.kind ?? MessageKinds.CALL;
+      const kind = message.type ?? MessageKinds.CALL;
       const sign = to > from ? 1 : -1;
       const y = firstY + order * rowHeight;
       const x1 = centre(from) + sign * 6;
@@ -214,7 +214,7 @@ const renderSequence = (opts: { sequence: TSequence; chrome: TChrome }): IKindDr
     width,
     list: `<div class="path kl ksq"><ul class="kparts">${sequence.participants.map((part) => `<li><b>${escaped(part.label)}</b>${part.sublabel === undefined ? '' : ` <span class="mut">${escaped(part.sublabel)}</span>`}</li>`).join('')}</ul><ol class="kmsgs">${sequence.messages
       .map((message) => {
-        const kind = message.kind ?? MessageKinds.CALL;
+        const kind = message.type ?? MessageKinds.CALL;
 
         return `<li class="k-${kind}"><b>${escaped(nameOf(message.from))}</b><span class="verb kv-${kind}">${escaped(message.label)}</span><b>${escaped(nameOf(message.to))}</b>${kind === MessageKinds.CALL ? '' : ` <span class="kword">${escaped(wordOf({ chrome, key: MESSAGE_WORD[kind] ?? 'kindCall' }))}</span>`}${message.note === undefined ? '' : `<span class="knote">${escaped(message.note)}</span>`}</li>`;
       })
@@ -236,7 +236,7 @@ type TState = TLifecycle['states'][number];
 const orderStates = (opts: { lifecycle: TLifecycle }): TState[] => {
   const { lifecycle } = opts;
   const byId = new Map(lifecycle.states.map((state) => [state.id, state]));
-  const start = lifecycle.states.find((state) => state.kind === LifecycleKinds.START);
+  const start = lifecycle.states.find((state) => state.type === LifecycleKinds.START);
   const seen = new Set<string>();
   const found: TState[] = [];
   const queue = start === undefined ? [] : [start.id];
@@ -268,8 +268,8 @@ const orderStates = (opts: { lifecycle: TLifecycle }): TState[] => {
   }
 
   return [
-    ...found.filter((state) => state.kind !== LifecycleKinds.END),
-    ...found.filter((state) => state.kind === LifecycleKinds.END),
+    ...found.filter((state) => state.type !== LifecycleKinds.END),
+    ...found.filter((state) => state.type === LifecycleKinds.END),
   ];
 };
 
@@ -311,9 +311,9 @@ const renderLifecycle = (opts: { lifecycle: TLifecycle; chrome: TChrome }): IKin
     }),
   );
   const wordFor = (state: TState): string | undefined =>
-    state.kind === LifecycleKinds.START
+    state.type === LifecycleKinds.START
       ? wordOf({ chrome, key: 'stateStart' })
-      : state.kind === LifecycleKinds.END
+      : state.type === LifecycleKinds.END
         ? wordOf({ chrome, key: 'stateEnd' })
         : undefined;
   const contents = order.map((state) => {
@@ -499,7 +499,7 @@ const renderLifecycle = (opts: { lifecycle: TLifecycle; chrome: TChrome }): IKin
 
       const x = colX(place.col);
       const y = rowTop(place.row);
-      const kind = item.state.kind ?? LifecycleKinds.NORMAL;
+      const kind = item.state.type ?? LifecycleKinds.NORMAL;
 
       return `<g class="kstate kk-${kind}">${item.word === undefined ? '' : `<title>${escaped(item.word)}</title>`}<rect class="kbox" x="${x}" y="${y}" width="${BOX_WIDTH}" height="${boxHeight}" rx="4"/>${kind === LifecycleKinds.END ? `<rect class="kinner" x="${x + 5}" y="${y + 5}" width="${BOX_WIDTH - 10}" height="${boxHeight - 10}" rx="2"/>` : ''}${textLines({ cls: 'kt', x: x + 14, y: y + item.first, lines: item.labelLines, step: 17 })}${item.subLines.length === 0 ? '' : textLines({ cls: 'ks', x: x + 14, y: y + item.last + 17, lines: item.subLines, step: 15 })}</g>`;
     })
@@ -508,7 +508,7 @@ const renderLifecycle = (opts: { lifecycle: TLifecycle; chrome: TChrome }): IKin
   const firstPlace = first === undefined ? undefined : places.get(first.id);
   const marker =
     first !== undefined &&
-    first.kind === LifecycleKinds.START &&
+    first.type === LifecycleKinds.START &&
     firstPlace !== undefined &&
     firstPlace.row === 0 &&
     firstPlace.col === 0
@@ -526,7 +526,7 @@ const renderLifecycle = (opts: { lifecycle: TLifecycle; chrome: TChrome }): IKin
         const word = wordFor(state);
         const out = lifecycle.transitions.filter((transition) => transition.from === state.id);
 
-        return `<li class="kst kk-${state.kind ?? LifecycleKinds.NORMAL}"><b>${escaped(state.label)}</b>${state.sublabel === undefined ? '' : ` <span class="mut">${escaped(state.sublabel)}</span>`}${word === undefined ? '' : ` <span class="kword">${escaped(word)}</span>`}${out.length === 0 ? '' : `<ul class="kout">${out.map((transition) => `<li><span class="verb">${escaped(transition.label)}</span><b>${escaped(nameOf(transition.to))}</b></li>`).join('')}</ul>`}</li>`;
+        return `<li class="kst kk-${state.type ?? LifecycleKinds.NORMAL}"><b>${escaped(state.label)}</b>${state.sublabel === undefined ? '' : ` <span class="mut">${escaped(state.sublabel)}</span>`}${word === undefined ? '' : ` <span class="kword">${escaped(word)}</span>`}${out.length === 0 ? '' : `<ul class="kout">${out.map((transition) => `<li><span class="verb">${escaped(transition.label)}</span><b>${escaped(nameOf(transition.to))}</b></li>`).join('')}</ul>`}</li>`;
       })
       .join('')}</ul>`,
     caption:

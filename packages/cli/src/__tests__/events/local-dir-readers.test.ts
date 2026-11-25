@@ -125,7 +125,7 @@ describe('the other readers of the local folder', () => {
     EventLog.append({
       dir,
       event: EventLog.build({
-        kind: 'flow',
+        type: 'flow',
         summary: 'Sign in',
         actor: ACTOR,
         source: 'cli',
@@ -137,7 +137,7 @@ describe('the other readers of the local folder', () => {
     EventLog.append({
       dir,
       event: EventLog.build({
-        kind: 'commit',
+        type: 'commit',
         summary: 'commit',
         actor: ACTOR,
         source: 'claude-hook',

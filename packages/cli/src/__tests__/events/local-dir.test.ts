@@ -101,7 +101,7 @@ describe('every reader of the events folder follows it', () => {
       args: [
         'event',
         'add',
-        '--kind',
+        '--type',
         'commit',
         '--summary',
         'in the shared folder',
@@ -127,7 +127,7 @@ describe('every reader of the events folder follows it', () => {
       env: { VULCAN_ACTOR: ACTOR },
     });
 
-    expect(line?.kind).toBe('session-start');
+    expect(line?.type).toBe('session-start');
     expect(linesIn(own)).toHaveLength(1);
     expect(readdirSyncSafe(ownLog(root))).toEqual([]);
   });
@@ -140,7 +140,7 @@ describe('every reader of the events folder follows it', () => {
     EventLog.append({
       dir: own,
       event: EventLog.build({
-        kind: 'flow',
+        type: 'flow',
         summary: 'A flow of the shared folder',
         actor: ACTOR,
         source: 'cli',
@@ -170,7 +170,7 @@ describe('every reader of the events folder follows it', () => {
     EventLog.append({
       dir: own,
       event: EventLog.build({
-        kind: 'flow',
+        type: 'flow',
         summary: 'F',
         actor: ACTOR,
         source: 'cli',
@@ -197,7 +197,7 @@ describe('every reader of the events folder follows it', () => {
     });
 
     expect(usage?.flowId).toBe('VULZ-ACME-1');
-    expect(linesIn(own).filter((line) => line.kind === 'usage')).toHaveLength(1);
+    expect(linesIn(own).filter((line) => line.type === 'usage')).toHaveLength(1);
     expect(readdirSyncSafe(ownLog(root))).toEqual([]);
   });
 });

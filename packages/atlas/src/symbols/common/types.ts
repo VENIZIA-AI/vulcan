@@ -31,7 +31,7 @@ export interface ISymbolRecord {
   package: string;
   subpath: string;
   specifier: string;
-  kind: string;
+  category: string;
   file: string;
   line: number;
   signature: string;
@@ -59,7 +59,7 @@ export interface ISymbolBrief {
   name: string;
   package: string;
   specifier: string;
-  kind: string;
+  category: string;
   file: string;
   line: number;
 }

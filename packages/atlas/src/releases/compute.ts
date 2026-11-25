@@ -247,7 +247,7 @@ export class ReleaseCompute {
   }
 
   /** The first `<Badge ... text="X" />` in the file, or `null` when it carries none; the short `Breaking` is reported as `Breaking Change`. */
-  static kindOfChangelog(opts: { text: string }): string | null {
+  static badgeOfChangelog(opts: { text: string }): string | null {
     const kind = BADGE_TEXT_PATTERN.exec(opts.text)?.[1];
 
     return kind === undefined ? null : BreakingBadge.canonical({ text: kind });
@@ -340,7 +340,7 @@ export class ReleaseCompute {
             values: listed.filter((item): item is string => typeof item === 'string'),
             packages: project.packages,
           }),
-          kind: ReleaseCompute.kindOfChangelog({ text }),
+          badge: ReleaseCompute.badgeOfChangelog({ text }),
           ...(added === undefined
             ? {}
             : { order: placed?.order ?? countOf(added.get(file) ?? UNCOMMITTED_POSITION) }),

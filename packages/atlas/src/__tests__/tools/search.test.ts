@@ -164,7 +164,7 @@ describe('search tool: the symbol field', () => {
         package: '@venizia/ignis-boot',
         subpath: '.',
         specifier: '@venizia/ignis-boot',
-        kind: 'const',
+        category: 'const',
         file: 'packages/boot/src/common/types.ts',
         line: 12,
         signature: 'const bootChecks: IBootChecks',
@@ -198,7 +198,7 @@ describe('search tool: the symbol field', () => {
       name: 'bootChecks',
       package: '@venizia/ignis-boot',
       specifier: '@venizia/ignis-boot',
-      kind: 'const',
+      category: 'const',
       file: 'packages/boot/src/common/types.ts',
       line: 12,
     });

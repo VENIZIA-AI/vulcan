@@ -373,7 +373,7 @@ describe('vulcan config codemod', () => {
   test('--list names the codemod; an unknown name or option (--reverse included) is a usage error', () => {
     const root = createProject({ files: {} });
 
-    expect(run(root, ['--list']).stdout).toBe('config-groups\npackage-types\n');
+    expect(run(root, ['--list']).stdout).toBe('config-groups\ntype-names\n');
     expect(run(root, ['nope']).code).toBe(2);
     expect(run(root, ['config-groups', '--bad']).code).toBe(2);
     expect(run(root, ['config-groups', '.', '--reverse']).code).toBe(2);

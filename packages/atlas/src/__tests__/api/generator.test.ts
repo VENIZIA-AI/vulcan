@@ -18,7 +18,7 @@ const record = (opts: Partial<ISymbolRecord> & { name: string }): ISymbolRecord 
   package: '@x/kit',
   subpath: '.',
   specifier: '@x/kit',
-  kind: 'function',
+  category: 'function',
   file: 'packages/kit/src/index.ts',
   line: 3,
   signature: `${opts.name}(): void`,
@@ -43,7 +43,7 @@ describe('ApiReference.filesOf', () => {
     expect([...files.keys()].sort()).toEqual(['index.md', 'x-kit-testing.md', 'x-kit.md']);
   });
 
-  test('a page lists the exports by name, with kind, TSDoc and the declaration without its leading comment', () => {
+  test('a page lists the exports by name, with category, TSDoc and the declaration without its leading comment', () => {
     const page = files.get('x-kit.md') ?? '';
 
     expect(page.indexOf('## `alpha`')).toBeLessThan(page.indexOf('## `zeta`'));
@@ -189,7 +189,7 @@ describe('ApiReference.undocumentedOf', () => {
         record({ name: 'known', doc: 'Known.' }),
         record({ name: 'hidden', doc: '@internal' }),
         record({ name: 'third', external: true, declaration: undefined }),
-        record({ name: 'ns', kind: 'namespace', declaration: undefined }),
+        record({ name: 'ns', category: 'namespace', declaration: undefined }),
         record({ name: 'other', specifier: '@x/kit/testing', subpath: './testing' }),
       ],
     });

@@ -69,7 +69,7 @@ const NODE = z.strictObject({
   detail: text(VisualizeLimits.MAX_DETAIL).optional(),
   row: GRID,
   col: GRID,
-  kind: choice({ set: NodeKinds.values() }).optional(),
+  type: choice({ set: NodeKinds.values() }).optional(),
   state: STATE.optional(),
   /** Where the box comes from: shown as `repo@commit:path:lines` in its detail. */
   source: SOURCE_SCHEMA.optional(),

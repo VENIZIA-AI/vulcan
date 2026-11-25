@@ -19,7 +19,7 @@ const cli = (opts: { root: string; args: string[] }) =>
     env: { ...hermeticEnv(), VULCAN_ACTOR: 'pnt-vulcan-1' },
   });
 const flow = (opts: { root: string; extra: string[] }) =>
-  cli({ root: opts.root, args: ['add', '--kind', 'flow', '--title', 'Sign in', ...opts.extra] });
+  cli({ root: opts.root, args: ['add', '--type', 'flow', '--title', 'Sign in', ...opts.extra] });
 
 describe('the lists of a flow line', () => {
   test('steps, checks and apps are written in the order the flags came, with their state, and the due date and the ref', () => {
@@ -110,7 +110,7 @@ describe('the lists of a flow line', () => {
     expect(flow({ root, extra }).code).toBe(0);
   });
 
-  test('the lists and the due date belong to a flow line: another kind refuses them', () => {
+  test('the lists and the due date belong to a flow line: another type refuses them', () => {
     const root = project();
 
     for (const extra of [
@@ -119,7 +119,7 @@ describe('the lists of a flow line', () => {
       ['--app', 'x'],
       ['--due', '2026-11-08'],
     ]) {
-      const result = cli({ root, args: ['add', '--kind', 'commit', '--summary', 'x', ...extra] });
+      const result = cli({ root, args: ['add', '--type', 'commit', '--summary', 'x', ...extra] });
 
       expect(result.code, extra.join(' ')).toBe(2);
       expect(result.stderr).toContain('flow line only');
@@ -162,7 +162,7 @@ describe('reading a line the way it is on disk', () => {
         id: 'x',
         ts: '2026-11-04T09:00:00Z',
         actor: 'a',
-        kind: 'flow',
+        type: 'flow',
         summary: 's',
         source: 'cli',
         ...value,
@@ -189,17 +189,17 @@ describe('reading a line the way it is on disk', () => {
   });
 });
 
-describe('the deploy kind and the model of a session', () => {
+describe('the deploy type and the model of a session', () => {
   test('a deploy line is a line of its flow, like a merge', () => {
     const root = project();
     const made = flow({ root, extra: [] }).stdout.trim();
     const result = cli({
       root,
-      args: ['add', '--kind', 'deploy', '--summary', 'block 10', '--flow', made],
+      args: ['add', '--type', 'deploy', '--summary', 'block 10', '--flow', made],
     });
 
     expect(result.code, result.stderr).toBe(0);
-    expect(EventLog.read({ dir: events(root) }).events.map((event) => event.kind)).toEqual([
+    expect(EventLog.read({ dir: events(root) }).events.map((event) => event.type)).toEqual([
       'flow',
       'deploy',
     ]);

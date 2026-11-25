@@ -15,16 +15,21 @@ const MODULES = [
   'packages',
   'index',
 ];
-/** The keys of a package entry that are renamed. */
-const RENAMES: Readonly<Record<string, string>> = { kind: 'type', presetKind: 'presetType' };
+/** The keys of a package entry (an object with a `dir` and a `name`) that are renamed. */
+const PACKAGE_RENAMES: Readonly<Record<string, string>> = {
+  kind: 'type',
+  presetKind: 'presetType',
+};
+/** The keys of an acknowledgement of `check.doctor.privateValues.acknowledged` (an object with a `path` and a `reason`) that are renamed. */
+const ACKNOWLEDGEMENT_RENAMES: Readonly<Record<string, string>> = { kinds: 'types' };
 
 /**
- * The codemod `package-types`: a package entry of the config (`{ dir, name, kind: 'lib', presetKind: 'shared' }`, in the config, in a
+ * The codemod `type-names`: a package entry of the config (`{ dir, name, kind: 'lib', presetKind: 'shared' }`, in the config, in a
  * module of a split config or in the `vulcan:apps` block) has `type` and `presetType`. An object is an entry when it has a `dir` and a
  * `name`; any other `kind` of the file is left alone.
  */
-export class ConfigPackageTypes {
-  static readonly NAME = 'package-types';
+export class ConfigTypeNames {
+  static readonly NAME = 'type-names';
 
   static run(opts: {
     root: string;
@@ -62,11 +67,16 @@ export class ConfigPackageTypes {
               ? [{ property, key: property.name.text }]
               : [],
           );
-          const isEntry =
-            keys.some(({ key }) => key === 'dir') && keys.some(({ key }) => key === 'name');
+          const has = (name: string): boolean => keys.some(({ key }) => key === name);
+          const renames =
+            has('dir') && has('name')
+              ? PACKAGE_RENAMES
+              : has('path') && has('reason')
+                ? ACKNOWLEDGEMENT_RENAMES
+                : {};
 
-          for (const { property, key } of isEntry ? keys : []) {
-            const renamed = RENAMES[key];
+          for (const { property, key } of keys) {
+            const renamed = renames[key];
 
             if (renamed === undefined) {
               continue;
@@ -102,14 +112,17 @@ export class ConfigPackageTypes {
 
       changes.push({ path, text: renamed });
       notes.push(
-        `${path}: ${edits.length} key(s) renamed (kind to type, presetKind to presetType)`,
+        `${path}: ${edits.length} key(s) renamed (kind to type, presetKind to presetType, kinds to types)`,
       );
     }
 
     return {
       ok: true,
       changes,
-      notes: changes.length === 0 ? ['no package entry has a kind: nothing to do'] : notes,
+      notes:
+        changes.length === 0
+          ? ['no kind, presetKind or kinds key to rename: nothing to do']
+          : notes,
     };
   }
 }

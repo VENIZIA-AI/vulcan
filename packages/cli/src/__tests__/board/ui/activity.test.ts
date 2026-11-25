@@ -22,7 +22,7 @@ const commit = line({
   ref: 'abc1234',
 });
 const usage = EventLog.build({
-  kind: 'usage',
+  type: 'usage',
   summary: 'tokens',
   actor: 'api-lead',
   source: 'claude-hook',

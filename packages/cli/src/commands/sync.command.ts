@@ -12,6 +12,8 @@ import {
   AgentsPrompt,
 } from '../agents/index.ts';
 import { ConfigLoader } from '../config/index.ts';
+import { EventSettings } from '../events/settings.ts';
+import { EventTypeMover } from '../events/type-mover.ts';
 import {
   AgentFiles,
   AgentRemoval,
@@ -96,6 +98,30 @@ export class SyncFlow {
           `vulcan project sync: ${relative(opts.cwd, move.path)}: ${move.note ?? 'moved'}\n`,
         );
       }
+    }
+
+    // The event lines of the releases before 0.5.0 name their type `kind`: the day files of the log move to `type` once, a dry run only says so.
+    const eventDir = EventSettings.dirOf({
+      root: opts.cwd,
+      settings: {
+        ...loaded.config.events,
+        ...(EventSettings.localDir({ root: opts.cwd }) === undefined
+          ? {}
+          : { dir: EventSettings.localDir({ root: opts.cwd }) }),
+      },
+    });
+    const eventMoves = EventTypeMover.plan({ dir: eventDir });
+
+    if (eventMoves.length > 0) {
+      const lines = eventMoves.reduce((total, { move }) => total + move.moved, 0);
+
+      if (!isDryRun) {
+        EventTypeMover.apply({ moves: eventMoves });
+      }
+
+      process.stderr.write(
+        `vulcan project sync: ${relative(opts.cwd, eventDir)}: ${isDryRun ? 'would move' : 'moved'} \`kind\` to \`type\` in ${lines} line(s) of ${eventMoves.length} file(s)\n`,
+      );
     }
 
     const resolved = await AgentsPrompt.resolveInTerminal({

@@ -1,5 +1,5 @@
 import type { IEvent } from '../events/common/index.ts';
-import { EventKinds } from '../events/common/index.ts';
+import { EventTypes } from '../events/common/index.ts';
 import type { IBoardTokenRow, IBoardTokens } from './common/index.ts';
 
 const empty = (opts: { name: string }): IBoardTokenRow => ({
@@ -33,7 +33,7 @@ export class BoardTokens {
     >();
 
     for (const line of opts.events) {
-      if (line.kind !== EventKinds.USAGE || line.usage === undefined) {
+      if (line.type !== EventTypes.USAGE || line.usage === undefined) {
         continue;
       }
 

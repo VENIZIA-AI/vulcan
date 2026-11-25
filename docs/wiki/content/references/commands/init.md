@@ -194,20 +194,40 @@ The test suites use this to run offline.
 Item 1 is always the knowledge index; the `add` hints follow, then the `sync` and `doctor` command.
 
 To configure your project, edit `.configs/vulcan.config.mts`.
-The starter file provides baseline settings:
+It is a split config: the file only joins the seven groups, and each group is a module in `.configs/vulcan/`.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
+import { agent, board, check, common, guard, knowledge, project } from './vulcan/index.mts';
 
 export default {
-  project: {
-    key: 'ACME',
-  },
-  agent: {
-    list: ['claude'],
-    rules: { 'V-W-01': 'on-user-word' },
-  },
+  project,
+  agent,
+  guard,
+  board,
+  knowledge,
+  check,
+  common,
 } satisfies VulcanConfig;
+```
+
+The starter modules are small. `project.mts` holds the key you gave, and `agent.mts` the agents and the one rule setting every project starts with; the other five are empty objects to fill in:
+
+```ts
+// .configs/vulcan/project.mts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export const project = {
+  key: 'ACME',
+} satisfies VulcanConfig.Project;
+
+// .configs/vulcan/agent.mts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export const agent = {
+  list: ['claude'],
+  rules: { 'V-W-01': 'on-user-word' },
+} satisfies VulcanConfig.Agent;
 ```
 
 To complete your knowledge setup, edit `.agents/knowledge/index.md`.

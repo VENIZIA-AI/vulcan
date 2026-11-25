@@ -215,7 +215,7 @@ export class ConfigLayers {
     );
   }
 
-  /** The name of an item: itself for a string, else its identity fields joined by `|` (the `kinds` of an acknowledgement sorted, joined by `,`). */
+  /** The name of an item: itself for a string, else its identity fields joined by `|` (the `types` of an acknowledgement sorted, joined by `,`). */
   private static identityOf(opts: {
     item: unknown;
     identity: string | string[] | undefined;

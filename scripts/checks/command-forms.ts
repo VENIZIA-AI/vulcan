@@ -14,7 +14,7 @@ const RETIRED = [
   new RegExp(String.raw`${CALL} board(?! show| serve| \$\{)\b`),
   new RegExp(String.raw`${CALL} config --(?:effective|diff)\b`),
   new RegExp(String.raw`${CALL} event step\b`),
-  new RegExp(String.raw`${CALL} event add --kind flow\b`),
+  new RegExp(String.raw`${CALL} event add --type flow\b`),
   // A child of the installed bin by a retired name: `[bin, 'doctor']`, `[join(root, 'node_modules', '.bin', 'vulcan'), 'sync']`.
   /(?:\bbin|'vulcan'\)|\.bin\/vulcan['"`]?)\s*,\s*'(?:sync|doctor|init|upgrade|clean|add|agents|commit-check|runners|changelog|preset|visualize|layout|x)'/,
   // The same list with the program quoted (`'vulcan', 'x', 'atlas'`, `"vulcan","sync"`), the old `.mcp.json` pair (`"x", "atlas"`), and a command constant passed as an argument.

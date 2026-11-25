@@ -22,7 +22,7 @@ afterAll(() => {
  * What it does not lock: query-time ranking (the weights and the planner are not stored in the index).
  */
 const LOCKED = {
-  format: 2,
+  format: 3,
   digest: 'fe4d84dceeb22aedd3be8a9dd5eff9069d6c460e5e800e0d410a7de06efb55e7',
 };
 

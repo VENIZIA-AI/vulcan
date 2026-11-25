@@ -3,7 +3,7 @@ import { BoardFold } from '../../board/fold.ts';
 import { BoardSettings } from '../../board/settings.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { EventLog } from '../../events/index.ts';
-import type { IEvent, IEventItem, TEventKind } from '../../events/common/index.ts';
+import type { IEvent, IEventItem, TEventType } from '../../events/common/index.ts';
 import { BoardPage } from '../../board/page.ts';
 import { BrowserPage } from '../visualize/browser.helper.ts';
 import { sampleData } from './sample-data.helper.ts';
@@ -15,7 +15,7 @@ afterAll(() => BrowserPage.close());
 const BASE = Date.parse('2026-11-04T08:00:00Z');
 const make = (opts: {
   minute: number;
-  kind: TEventKind;
+  kind: TEventType;
   actor?: string;
   summary: string;
   flow?: string;
@@ -29,7 +29,7 @@ const make = (opts: {
   next?: string;
 }): IEvent =>
   EventLog.build({
-    kind: opts.kind,
+    type: opts.kind,
     summary: opts.summary,
     actor: opts.actor ?? 'agent-a-1',
     source: opts.source ?? 'cli',

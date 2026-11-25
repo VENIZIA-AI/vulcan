@@ -231,7 +231,7 @@ describe('the hook stays light', () => {
       .map((file) => file.slice(SRC.length + 1))
       .filter((file) => !file.startsWith('events/'));
 
-    // common/types.ts holds ConstClass, which EventKinds extends: no imports of its own, so the hook still loads no package.
+    // common/types.ts holds ConstClass, which EventTypes extends: no imports of its own, so the hook still loads no package.
     expect(outside.sort()).toEqual(['common/record.ts', 'common/types.ts']);
     expect([...packages].sort()).toEqual(['node:fs', 'node:os', 'node:path']);
   });

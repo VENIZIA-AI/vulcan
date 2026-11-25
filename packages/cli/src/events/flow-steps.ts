@@ -1,4 +1,4 @@
-import { EventConstants, EventKinds } from './common/index.ts';
+import { EventConstants, EventTypes } from './common/index.ts';
 import type { IEvent, IEventItem } from './common/index.ts';
 import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
@@ -20,7 +20,7 @@ export class FlowSteps {
     const wanted = FlowId.canon({ id: opts.flowId, key: opts.key });
     const lines = opts.events.filter(
       (event) =>
-        event.kind === EventKinds.FLOW &&
+        event.type === EventTypes.FLOW &&
         event.flowId !== undefined &&
         FlowId.canon({ id: event.flowId, key: opts.key }) === wanted,
     );
@@ -66,7 +66,7 @@ export class FlowSteps {
 
     for (const event of [...opts.events].reverse()) {
       if (
-        event.kind !== EventKinds.FLOW ||
+        event.type !== EventTypes.FLOW ||
         event.actor !== opts.actor ||
         event.flowId === undefined ||
         seen.has(event.flowId)
@@ -151,7 +151,7 @@ export class FlowSteps {
     }
 
     return EventLog.build({
-      kind: EventKinds.FLOW,
+      type: EventTypes.FLOW,
       summary: last.summary,
       actor: opts.actor,
       source: opts.source,

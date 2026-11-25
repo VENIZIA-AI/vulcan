@@ -14,7 +14,7 @@ const DESCRIPTION =
 
 const INPUT_JSON_SCHEMA = z.toJSONSchema(IntentInputSchema);
 const DEFAULT_LIMIT = 5;
-const TYPE_KINDS = new Set(['interface', 'type', 'type alias', 'type-alias']);
+const TYPE_CATEGORIES = new Set(['interface', 'type', 'type alias', 'type-alias']);
 
 interface IIntentHitReply {
   name: string;
@@ -32,7 +32,7 @@ interface IIntentHitReply {
 }
 
 const importLine = (opts: { record: ISymbolRecord; importName: string }): string =>
-  `import ${TYPE_KINDS.has(opts.record.kind) ? 'type ' : ''}{ ${opts.importName} } from '${opts.record.specifier}';`;
+  `import ${TYPE_CATEGORIES.has(opts.record.category) ? 'type ' : ''}{ ${opts.importName} } from '${opts.record.specifier}';`;
 
 const replyOf = (opts: IIntentHit): IIntentHitReply => ({
   name: opts.record.name,

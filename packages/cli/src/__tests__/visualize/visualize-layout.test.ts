@@ -100,7 +100,7 @@ describe('the figure is sized from its text', () => {
             sublabel: 'thấy dữ liệu của người khác nữa',
             row: 0,
             col: 0,
-            kind: 'actor',
+            type: 'actor',
           },
         ],
         edges: [],

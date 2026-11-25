@@ -9,7 +9,7 @@ description: Show the config as the commands read it, merged from the shipped de
 vulcan config effective
 vulcan config diff
 vulcan config format [--check]
-vulcan config codemod <config-groups|package-types> [<dir>] [--write] [--split]
+vulcan config codemod <config-groups|type-names> [<dir>] [--write] [--split]
 vulcan config codemod --list
 ```
 
@@ -87,7 +87,7 @@ It refuses, with the reason and nothing written (exit `2`), a config with a spre
 
 There is no way back: the downgrade is to restore the earlier config from git. A config in groups already has nothing to do (`--split` still makes the modules of a grouped file).
 
-`vulcan config codemod package-types` renames `kind` to `type` and `presetKind` to `presetType` in every package entry of the config (an object with a `dir` and a `name`): in `.configs/vulcan.config.mts`, in the modules of `.configs/vulcan/` and in the `vulcan:apps` block. Run it once; a second run changes nothing. `--split` is for `config-groups` only.
+`vulcan config codemod type-names` renames the keys that said `kind`: `kind` is `type` and `presetKind` is `presetType` in every package entry of the config (an object with a `dir` and a `name`), and `kinds` is `types` in every acknowledgement of `check.doctor.privateValues.acknowledged` (an object with a `path` and a `reason`). It reads `.configs/vulcan.config.mts`, the modules of `.configs/vulcan/` and the `vulcan:apps` block. Run it once; a second run changes nothing. `--split` is for `config-groups` only.
 
 **Agents do not run it.** The guards deny a `vulcan` command that writes the config or its modules: `config format` without `--check` and `config codemod ... --write`. The read-only forms stay allowed: `config format --check`, `config codemod` without `--write`, `--list`. The owner runs the writing forms.
 

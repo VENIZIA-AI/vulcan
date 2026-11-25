@@ -21,7 +21,7 @@ const OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/public-surface
 
 interface IEntrySurface {
   entry: string;
-  symbols: { name: string; kind: string }[];
+  symbols: { name: string; category: string }[];
 }
 
 /** What `check` finds: the snapshot matches, differs from the built declarations, or was never committed. */
@@ -111,7 +111,7 @@ export class PublicSurface {
       return [
         `### \`${manifest.name}${suffix}\` (${surface.symbols.length})`,
         '',
-        ...surface.symbols.map((symbol) => `- \`${symbol.name}\` ${symbol.kind}`),
+        ...surface.symbols.map((symbol) => `- \`${symbol.name}\` ${symbol.category}`),
         '',
       ];
     });
@@ -130,7 +130,7 @@ export class PublicSurface {
       .getExportsOfModule(moduleSymbol)
       .map((symbol) => ({
         name: symbol.getName(),
-        kind: PublicSurface.kindOf({ checker, symbol }),
+        category: PublicSurface.categoryOf({ checker, symbol }),
       }))
       .sort((left, right) => left.name.localeCompare(right.name));
 
@@ -138,7 +138,7 @@ export class PublicSurface {
   }
 
   /** Public so `atlas-symbols.ts` records the same vocabulary this snapshot does, never a second one. */
-  static kindOf(opts: { checker: TypeScript.TypeChecker; symbol: TypeScript.Symbol }): string {
+  static categoryOf(opts: { checker: TypeScript.TypeChecker; symbol: TypeScript.Symbol }): string {
     const resolved =
       opts.symbol.flags & TypeScriptCompiler.get().SymbolFlags.Alias
         ? opts.checker.getAliasedSymbol(opts.symbol)

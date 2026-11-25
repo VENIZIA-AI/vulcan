@@ -45,7 +45,7 @@ const ACKNOWLEDGEMENT = z.strictObject({
     .refine((value) => !isAbsolute(value) && !value.split(/[\\/]/).includes('..'), {
       message: 'a glob relative to the repo root, without ..',
     }),
-  kinds: z.array(KIND).min(1).optional(),
+  types: z.array(KIND).min(1).optional(),
   reason: z.string().trim().min(1),
   standing: z.boolean().optional(),
 });

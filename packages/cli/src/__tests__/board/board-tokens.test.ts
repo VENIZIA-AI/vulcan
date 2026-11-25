@@ -14,7 +14,7 @@ afterAll(() => BrowserPage.close());
 const BASE = Date.now() - 60 * 60_000;
 const usage = (opts: { flow?: string; actor: string; agent?: string; out: number }) =>
   EventLog.build({
-    kind: 'usage',
+    type: 'usage',
     summary: 'tokens',
     actor: opts.actor,
     source: 'claude-hook',

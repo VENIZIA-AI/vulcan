@@ -331,7 +331,7 @@ export class ApiReference {
     return [
       `## \`${record.name}\``,
       '',
-      `*${record.kind}*`,
+      `*${record.category}*`,
       '',
       ...((record.doc ?? '') === '' ? [] : [ApiReference.proseOf({ text: record.doc ?? '' }), '']),
       `${fence}ts`,

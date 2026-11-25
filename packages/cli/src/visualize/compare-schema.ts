@@ -50,7 +50,7 @@ export const COMPARE_SCHEMA = z.strictObject({
         sublabel: text(VisualizeLimits.MAX_LABEL).optional(),
         row: GRID,
         col: GRID,
-        kind: choice({ set: NodeKinds.values() }).optional(),
+        type: choice({ set: NodeKinds.values() }).optional(),
         state: choice({ set: NodeStates.SCHEME_SET }).optional(),
         source: SOURCE_SCHEMA.optional(),
       }),

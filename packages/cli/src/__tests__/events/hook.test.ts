@@ -30,11 +30,11 @@ describe('EventHook.map', () => {
     expect(
       map({ hookEventName: 'SessionStart', source: 'resume', model: 'claude-sonnet-5-5' }),
     ).toEqual({
-      kind: 'session-start',
+      type: 'session-start',
       summary: 'resume claude-sonnet-5-5',
       model: 'claude-sonnet-5-5',
     });
-    expect(map({ hookEventName: 'SessionStart' })).toEqual({ kind: 'session-start', summary: '' });
+    expect(map({ hookEventName: 'SessionStart' })).toEqual({ type: 'session-start', summary: '' });
   });
 
   test('a turn that ends is not an event, whatever the reply', () => {
@@ -52,7 +52,7 @@ describe('EventHook.map', () => {
         agentId: 'a1-b2',
         prompt: 'SECRET',
       }),
-    ).toEqual({ kind: 'subagent-start', summary: 'Explore a1-b2' });
+    ).toEqual({ type: 'subagent-start', summary: 'Explore a1-b2' });
   });
 
   test('SubagentStop: the agent type and id, never the reply', () => {
@@ -63,7 +63,7 @@ describe('EventHook.map', () => {
         agentId: 'a1-b2',
         lastAssistantMessage: 'SECRET REPLY',
       }),
-    ).toEqual({ kind: 'subagent-stop', summary: 'Explore a1-b2' });
+    ).toEqual({ type: 'subagent-stop', summary: 'Explore a1-b2' });
   });
 
   test('Notification: needs-owner for a prompt, nothing for a login that worked; the title, never the message', () => {
@@ -76,14 +76,14 @@ describe('EventHook.map', () => {
           message: 'rm -rf /',
         }),
       ).toEqual({
-        kind: 'needs-owner',
+        type: 'needs-owner',
         summary: 'Claude needs you',
         notification: type,
       });
     }
 
     expect(map({ hookEventName: 'Notification', notificationType: 'idle_prompt' })).toEqual({
-      kind: 'needs-owner',
+      type: 'needs-owner',
       summary: 'idle_prompt',
       notification: 'idle_prompt',
     });
@@ -106,7 +106,7 @@ describe('EventHook.map', () => {
     });
 
     expect(mapped).toMatchObject({
-      kind: 'msg-sent',
+      type: 'msg-sent',
       summary: 'design note for the event log',
       ref: 'to:veni-forge',
       flowText: 'Flow: F-9 BODY TEXT',
@@ -205,7 +205,7 @@ describe('EventHook.run: what is no longer logged', () => {
       now: Date.parse('2026-11-03T09:00:05Z'),
     });
 
-    expect(sent).toMatchObject({ kind: 'msg-sent' });
+    expect(sent).toMatchObject({ type: 'msg-sent' });
   });
 });
 
@@ -250,7 +250,7 @@ describe('EventHook.run', () => {
 
     expect(event).toEqual(written!);
     expect(event).toMatchObject({
-      kind: 'session-start',
+      type: 'session-start',
       actor: 'pnt-vulcan-1',
       flowId: 'F-33',
       summary: 'startup m',
@@ -276,7 +276,7 @@ describe('EventHook.run', () => {
     });
 
     expect(eventsOf({ dir: join(root, '.agents/local/events') })[0]).toMatchObject({
-      kind: 'msg-sent',
+      type: 'msg-sent',
       flowId: 'F-40',
       ref: 'to:veni-forge',
     });
@@ -439,19 +439,19 @@ describe('EventHook.run: the notification type is kept, so a title does not hide
     });
 
     expect(written).toMatchObject({
-      kind: 'needs-owner',
+      type: 'needs-owner',
       summary: 'Claude needs your permission to use Bash',
       notification: 'permission_prompt',
       source: 'claude-hook',
     });
     expect(
-      EventLog.build({ kind: 'needs-owner', summary: 'Which way?', actor: 'a', source: 'cli' }),
+      EventLog.build({ type: 'needs-owner', summary: 'Which way?', actor: 'a', source: 'cli' }),
     ).not.toHaveProperty('notification');
   });
 
   test('the field is a short enum: a value that is not a prompt type is not written and is dropped on read', () => {
     const built = EventLog.build({
-      kind: 'needs-owner',
+      type: 'needs-owner',
       summary: 'x',
       actor: 'a',
       source: 'claude-hook',
@@ -462,7 +462,7 @@ describe('EventHook.run: the notification type is kept, so a title does not hide
     expect(
       EventLog.parse({
         line: JSON.stringify({
-          ...EventLog.build({ kind: 'needs-owner', summary: 'x', actor: 'a', source: 'cli' }),
+          ...EventLog.build({ type: 'needs-owner', summary: 'x', actor: 'a', source: 'cli' }),
           notification: 'rm -rf /',
         }),
       }),

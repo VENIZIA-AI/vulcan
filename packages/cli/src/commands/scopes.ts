@@ -52,11 +52,11 @@ export class CommandScopes {
       scope: 'flow',
       action: 'add',
       command: VulcanCommands.EVENT,
-      prefix: ['add', '--kind', 'flow'],
+      prefix: ['add', '--type', 'flow'],
     },
     { scope: 'flow', action: 'step', command: VulcanCommands.EVENT, prefix: ['step'] },
     { scope: 'event', action: 'add', command: VulcanCommands.EVENT, prefix: ['add'] },
-    // `event step` stays beside `flow step`: it is the same line of the log, and `event add --kind flow` works as `flow add`.
+    // `event step` stays beside `flow step`: it is the same line of the log, and `event add --type flow` works as `flow add`.
     { scope: 'event', action: 'step', command: VulcanCommands.EVENT, prefix: ['step'] },
     { scope: 'event', action: 'tail', command: VulcanCommands.EVENT, prefix: ['tail'] },
     { scope: 'board', action: 'show', command: VulcanCommands.BOARD },

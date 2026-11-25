@@ -168,7 +168,7 @@ export class CommandTable {
         '0 on written or serve stopped; 1 when the file cannot be written or serve cannot start; 2 on bad input.',
     },
     [VulcanCommands.EVENT]: {
-      help: `  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] [--order <n>|none] | flow step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] [--order <n>|none] | event tail [--since <time>] [--json] [--dir <folder>]
+      help: `  event add --type <t> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] [--order <n>|none] | flow step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] [--order <n>|none] | event tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
                                   read it; with board.events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input`,
@@ -176,7 +176,7 @@ export class CommandTable {
         [EventFlags.JSON]: 'Print each line as written (tail)',
       },
       values: {
-        [EventFlags.KIND]: 'One of the fourteen event kinds',
+        [EventFlags.TYPE]: 'One of the fourteen event kinds',
         [EventFlags.SUMMARY]: 'A short label, cut to one line of 200 characters',
         [EventFlags.FLOW]: 'The id of a flow the log already has',
         [EventFlags.DONE]: 'step: set this step of the flow done (added when it is not there)',
@@ -238,8 +238,8 @@ export class CommandTable {
                                   Put the top-level keys of .configs/vulcan.config.mts in the canonical order, each
                                   with its comments; --check writes nothing and exits 1 when a key would move; exit 2
                                   when the keys cannot be ordered (a spread, a computed key, no object literal)
-  config codemod <config-groups|package-types> [<dir>] [--write] [--split] | --list
-                                  package-types: rename kind to type and presetKind to presetType in the package
+  config codemod <config-groups|type-names> [<dir>] [--write] [--split] | --list
+                                  type-names: rename kind to type and presetKind to presetType in the package
                                   entries of the config and its modules. config-groups: move the keys of .configs/vulcan.config.mts into the seven groups, each with its
                                   comments (--split: one module per group in .configs/vulcan/, the modules of an old
                                   split folded in); without --write it lists what it would write; exit 2 and

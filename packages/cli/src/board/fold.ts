@@ -1,6 +1,6 @@
 import {
   EventActorNames,
-  EventKinds,
+  EventTypes,
   EventSources,
   EventStatuses,
 } from '../events/common/index.ts';
@@ -140,7 +140,7 @@ export class BoardFold {
    */
   private static isHarnessAsk(opts: { line: IEvent }): boolean {
     return (
-      opts.line.kind === EventKinds.NEEDS_OWNER &&
+      opts.line.type === EventTypes.NEEDS_OWNER &&
       (opts.line.notification !== undefined ||
         BoardConstants.HARNESS_ASKS.has(opts.line.summary.trim().toLowerCase()))
     );
@@ -157,12 +157,12 @@ export class BoardFold {
       source: line.source,
     };
 
-    switch (line.kind) {
-      case EventKinds.COMMIT: {
+    switch (line.type) {
+      case EventTypes.COMMIT: {
         return { ...base, kind: BoardKinds.COMMIT, stage: BoardStages.CODE };
       }
 
-      case EventKinds.PR: {
+      case EventTypes.PR: {
         const merged = MERGED_REF.exec(line.ref ?? '')?.[1];
 
         if (merged !== undefined) {
@@ -185,9 +185,9 @@ export class BoardFold {
         };
       }
 
-      case EventKinds.MSG_SENT:
-      case EventKinds.MSG_RECEIVED: {
-        const isIncoming = line.kind === EventKinds.MSG_RECEIVED;
+      case EventTypes.MSG_SENT:
+      case EventTypes.MSG_RECEIVED: {
+        const isIncoming = line.type === EventTypes.MSG_RECEIVED;
         // A received line has a sender, never a recipient: the page reads `to` as who the message went to.
         const to =
           !isIncoming && line.ref?.startsWith(TO_PREFIX)
@@ -208,14 +208,14 @@ export class BoardFold {
         };
       }
 
-      case EventKinds.NEEDS_OWNER: {
+      case EventTypes.NEEDS_OWNER: {
         // The harness waiting for a prompt is not a person asking: it is shown only on request and never makes a flow wait.
         return BoardFold.isHarnessAsk({ line })
           ? { ...base, kind: BoardKinds.NOTE, stage: -1, plumbing: true }
           : { ...base, kind: BoardKinds.NOTE, stage: -1, needsOwner: true };
       }
 
-      case EventKinds.FLOW: {
+      case EventTypes.FLOW: {
         return {
           ...base,
           kind: BoardKinds.FLOW,
@@ -233,11 +233,11 @@ export class BoardFold {
         };
       }
 
-      case EventKinds.DEPLOY: {
+      case EventTypes.DEPLOY: {
         return { ...base, kind: BoardKinds.RELEASE, stage: BoardStages.RELEASE };
       }
 
-      case EventKinds.USAGE: {
+      case EventTypes.USAGE: {
         // The tokens are summed by `BoardTokens` and not drawn as lines of a flow; a line with no flow keeps the group of
         // such lines on the page, so the tokens that belong to no flow have a place to be shown.
         return line.flowId === undefined
@@ -245,14 +245,14 @@ export class BoardFold {
           : undefined;
       }
 
-      case EventKinds.SESSION_START:
-      case EventKinds.SESSION_STOP:
-      case EventKinds.SUBAGENT_START:
-      case EventKinds.SUBAGENT_STOP: {
+      case EventTypes.SESSION_START:
+      case EventTypes.SESSION_STOP:
+      case EventTypes.SUBAGENT_START:
+      case EventTypes.SUBAGENT_STOP: {
         return { ...base, kind: BoardKinds.AGENT, stage: -1, plumbing: true };
       }
 
-      case EventKinds.DECISION: {
+      case EventTypes.DECISION: {
         return {
           ...base,
           kind: BoardKinds.DECISION,
@@ -300,10 +300,10 @@ export class BoardFold {
 
     // A message got, a usage line and a subagent stop show the session is busy; they do not say what it works on.
     if (
-      line.kind === EventKinds.SUBAGENT_START ||
-      line.kind === EventKinds.SUBAGENT_STOP ||
-      line.kind === EventKinds.MSG_RECEIVED ||
-      line.kind === EventKinds.USAGE
+      line.type === EventTypes.SUBAGENT_START ||
+      line.type === EventTypes.SUBAGENT_STOP ||
+      line.type === EventTypes.MSG_RECEIVED ||
+      line.type === EventTypes.USAGE
     ) {
       const state = 'working';
 
@@ -322,16 +322,16 @@ export class BoardFold {
     }
 
     if (
-      line.kind === EventKinds.SESSION_START ||
-      line.kind === EventKinds.SESSION_STOP ||
-      line.kind === EventKinds.TOOL_TICK
+      line.type === EventTypes.SESSION_START ||
+      line.type === EventTypes.SESSION_STOP ||
+      line.type === EventTypes.TOOL_TICK
     ) {
-      const state = line.kind === EventKinds.SESSION_STOP ? 'idle' : 'working';
+      const state = line.type === EventTypes.SESSION_STOP ? 'idle' : 'working';
 
       // The model is what the session start said, and the harness is the hook that wrote it; both stay until a start says another.
       const isHook = line.source === EventSources.CLAUDE_HOOK;
       const model =
-        line.kind === EventKinds.SESSION_START ? (line.model ?? known?.model) : known?.model;
+        line.type === EventTypes.SESSION_START ? (line.model ?? known?.model) : known?.model;
       const harness = isHook ? BoardConstants.HARNESS_CLAUDE : known?.harness;
 
       agents[line.actor] = {
@@ -342,7 +342,7 @@ export class BoardFold {
         checkedAt: line.ts,
         ...(model === undefined ? {} : { model }),
         ...(harness === undefined ? {} : { harness }),
-        ...(line.kind === EventKinds.SESSION_START
+        ...(line.type === EventTypes.SESSION_START
           ? { latest: BoardFold.activityOf({ line }) }
           : known?.latest === undefined
             ? {}
@@ -369,16 +369,16 @@ export class BoardFold {
 
   private static activityOf(opts: { line: IEvent }): IBoardActivity {
     const { line } = opts;
-    const prefix = line.kind === EventKinds.MSG_RECEIVED ? FROM_PREFIX : TO_PREFIX;
+    const prefix = line.type === EventTypes.MSG_RECEIVED ? FROM_PREFIX : TO_PREFIX;
     const peer =
-      (line.kind === EventKinds.MSG_SENT || line.kind === EventKinds.MSG_RECEIVED) &&
+      (line.type === EventTypes.MSG_SENT || line.type === EventTypes.MSG_RECEIVED) &&
       line.ref?.startsWith(prefix)
         ? line.ref.slice(prefix.length)
         : undefined;
 
     return {
       id: line.id,
-      type: line.kind,
+      type: line.type,
       ts: line.ts,
       summary: line.summary,
       ...(line.flowId === undefined ? {} : { flowId: line.flowId }),

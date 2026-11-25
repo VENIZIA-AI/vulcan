@@ -18,20 +18,20 @@ const sequenceFixture = () => ({
   messages: [
     { from: 'owner', to: 'cli', label: 'run with a spec' },
     { from: 'cli', to: 'disk', label: 'read the spec', note: 'strict JSON' },
-    { from: 'disk', to: 'cli', label: 'the text', kind: 'reply' },
-    { from: 'cli', to: 'disk', label: 'write the page', kind: 'async' },
-    { from: 'cli', to: 'owner', label: 'the path', kind: 'reply' },
+    { from: 'disk', to: 'cli', label: 'the text', type: 'reply' },
+    { from: 'cli', to: 'disk', label: 'write the page', type: 'async' },
+    { from: 'cli', to: 'owner', label: 'the path', type: 'reply' },
   ],
   caption: 'One run, from the command to the written page.',
 });
 
 const lifecycleFixture = () => ({
   states: [
-    { id: 'draft', label: 'Draft', sublabel: 'on a branch', kind: 'start' },
+    { id: 'draft', label: 'Draft', sublabel: 'on a branch', type: 'start' },
     { id: 'review', label: 'In review' },
     { id: 'approved', label: 'Approved' },
-    { id: 'merged', label: 'Merged', kind: 'end' },
-    { id: 'closed', label: 'Closed', kind: 'end' },
+    { id: 'merged', label: 'Merged', type: 'end' },
+    { id: 'closed', label: 'Closed', type: 'end' },
   ],
   transitions: [
     { from: 'draft', to: 'review', label: 'open the PR' },
@@ -119,8 +119,8 @@ describe('the schemas', () => {
   test('a lifecycle without transitions gets an empty list', () => {
     const parsed = LIFECYCLE_SCHEMA.parse({
       states: [
-        { id: 'a', label: 'A', kind: 'start' },
-        { id: 'b', label: 'B', kind: 'end' },
+        { id: 'a', label: 'A', type: 'start' },
+        { id: 'b', label: 'B', type: 'end' },
       ],
     });
 
@@ -200,13 +200,13 @@ describe('the schemas', () => {
     expect(
       parses(SEQUENCE_SCHEMA, {
         ...sequence,
-        messages: [{ from: 'owner', to: 'cli', label: 'ask', kind: 'shout' }],
+        messages: [{ from: 'owner', to: 'cli', label: 'ask', type: 'shout' }],
       }),
     ).toBe(false);
     expect(
       parses(LIFECYCLE_SCHEMA, {
         ...lifecycle,
-        states: [{ id: 'a', label: 'A', kind: 'middle' }, lifecycle.states[1]],
+        states: [{ id: 'a', label: 'A', type: 'middle' }, lifecycle.states[1]],
       }),
     ).toBe(false);
     expect(parses(TREE_SCHEMA, { root: { id: 'r', label: 'R', state: 'sleeping' } })).toBe(false);
@@ -280,7 +280,7 @@ describe('the checks', () => {
 
   test('a lifecycle needs exactly one start', () => {
     const two = lifecycleProblems((spec) => {
-      spec.states[1] = { id: 'review', label: 'In review', kind: 'start' };
+      spec.states[1] = { id: 'review', label: 'In review', type: 'start' };
     });
     const none = lifecycleProblems((spec) => {
       spec.states[0] = { id: 'draft', label: 'Draft' };
@@ -289,12 +289,12 @@ describe('the checks', () => {
     expect(
       two.some(
         (line) =>
-          line.includes('2 states are of kind') &&
+          line.includes('2 states are of type') &&
           line.includes("'draft'") &&
           line.includes("'review'"),
       ),
     ).toBe(true);
-    expect(none.some((line) => line.includes("no state of kind 'start'"))).toBe(true);
+    expect(none.some((line) => line.includes("no state of type 'start'"))).toBe(true);
   });
 
   test('a lifecycle needs an end, and an end has nothing after it', () => {
@@ -306,7 +306,7 @@ describe('the checks', () => {
       spec.transitions.push({ from: 'merged', to: 'draft', label: 'reopen' });
     });
 
-    expect(none.some((line) => line.includes("no state of kind 'end'"))).toBe(true);
+    expect(none.some((line) => line.includes("no state of type 'end'"))).toBe(true);
     expect(leaving.some((line) => line.includes("leaves the end state 'merged'"))).toBe(true);
   });
 
@@ -499,7 +499,7 @@ describe('the figures', () => {
     const states = Array.from({ length: 10 }, (_, index) => ({
       id: `s${index}`,
       label: `State ${index}`,
-      kind: index === 0 ? 'start' : index === 9 ? 'end' : 'normal',
+      type: index === 0 ? 'start' : index === 9 ? 'end' : 'normal',
     }));
     const transitions = [
       ...Array.from({ length: 9 }, (_, index) => ({
@@ -615,8 +615,8 @@ describe('the figures', () => {
     const label = 'A rather long state name that needs to be wrapped over lines';
     const lifecycle = LIFECYCLE_SCHEMA.parse({
       states: [
-        { id: 'a', label, kind: 'start' },
-        { id: 'b', label: 'End', kind: 'end' },
+        { id: 'a', label, type: 'start' },
+        { id: 'b', label: 'End', type: 'end' },
       ],
       transitions: [{ from: 'a', to: 'b', label: 'finish it' }],
     });
@@ -693,8 +693,8 @@ describe('a phone, escaping and no script', () => {
       }),
       lifecycle: LIFECYCLE_SCHEMA.parse({
         states: [
-          { id: 'a', label: 'A', kind: 'start' },
-          { id: 'b', label: 'B', kind: 'end' },
+          { id: 'a', label: 'A', type: 'start' },
+          { id: 'b', label: 'B', type: 'end' },
         ],
         transitions: [{ from: 'a', to: 'b', label: 'go' }],
       }),
@@ -723,8 +723,8 @@ describe('a phone, escaping and no script', () => {
     }),
     lifecycle: LIFECYCLE_SCHEMA.parse({
       states: [
-        { id: 'a', label: hostile, sublabel: hostile, kind: 'start' },
-        { id: 'b', label: '<img src=x onerror=alert(1)>', kind: 'end' },
+        { id: 'a', label: hostile, sublabel: hostile, type: 'start' },
+        { id: 'b', label: '<img src=x onerror=alert(1)>', type: 'end' },
       ],
       transitions: [{ from: 'a', to: 'b', label: '"><svg>' }],
       caption: hostile,

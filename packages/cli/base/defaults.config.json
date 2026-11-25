@@ -88,7 +88,7 @@
         "acknowledged": [
           {
             "path": "**/Dockerfile*",
-            "kinds": ["machine-path"],
+            "types": ["machine-path"],
             "reason": "Container paths such as /home/app in an image recipe: a path inside the image, not a machine of the project.",
             "standing": true
           }

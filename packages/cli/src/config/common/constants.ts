@@ -52,7 +52,7 @@ export class ConfigConstants {
   static readonly RULE_ID_PATTERN = /^(?:[A-Z]+-)?[A-Z]-\d{2}$/;
   /**
    * The arrays a shipped layer may add to and a project may `remove` from, each with the field that names an item of an array
-   * of objects, or the fields that together name it (an acknowledgement is its `path` and its `kinds`, written `path|kind,kind`); `undefined`: the items are strings, named by themselves. One list for the merge and for the schema.
+   * of objects, or the fields that together name it (an acknowledgement is its `path` and its `types`, written `path|kind,kind`); `undefined`: the items are strings, named by themselves. One list for the merge and for the schema.
    */
   static readonly LAYERED_ARRAYS: Readonly<Record<string, string | string[] | undefined>> = {
     'claude.settings.permissions.allow': undefined,
@@ -60,7 +60,7 @@ export class ConfigConstants {
     presets: 'spec',
     'atlas.sources': 'name',
     'digest.oftenDropped': undefined,
-    'doctor.privateValues.acknowledged': ['path', 'kinds'],
+    'doctor.privateValues.acknowledged': ['path', 'types'],
   };
 }
 

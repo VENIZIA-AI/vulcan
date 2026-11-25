@@ -16,7 +16,7 @@ const record = (opts: Partial<ISymbolRecord> & { name: string }): ISymbolRecord 
   package: '@venizia/ignis-helpers',
   subpath: '.',
   specifier: '@venizia/ignis-helpers',
-  kind: 'function',
+  category: 'function',
   file: 'packages/helpers/src/modules/error/error.ts',
   line: 42,
   signature: `${opts.name}(): void`,
@@ -92,7 +92,7 @@ describe('symbol tool', () => {
     expect(payload.package).toBe('@venizia/ignis-helpers');
     expect(payload.subpath).toBe('.');
     expect(payload.specifier).toBe('@venizia/ignis-helpers');
-    expect(payload.kind).toBe('function');
+    expect(payload.category).toBe('function');
     expect(payload.file).toBe('packages/helpers/src/modules/error/error.ts');
     expect(payload.line).toBe(42);
     expect(payload.signature).toBe('getError(): void');
@@ -150,7 +150,7 @@ describe('symbol tool', () => {
           name: 'AbstractSearchController',
           subpath: `./search/controllers/level-${index}`,
           specifier: `@venizia/ignis-connectors/search/controllers/level-${index}`,
-          kind: 'class',
+          category: 'class',
           file: 'packages/connectors/src/search/core/controllers/abstract.controller.ts',
           signature: `class AbstractSearchController${'X'.repeat(260)}`,
         }),

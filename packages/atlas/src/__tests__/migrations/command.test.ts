@@ -32,7 +32,7 @@ const releases = new ReleaseStore({
         date: '2026-02-01',
         title: 'Rename',
         packages: ['@venizia/kernel'],
-        kind: 'Breaking Change',
+        badge: 'Breaking Change',
         order: 1,
         migration: [
           {

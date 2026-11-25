@@ -267,17 +267,17 @@ describe('PrivateValues.scan: acknowledgments', () => {
     'infra/dev/b.env': `${KEY_HEADER}\n`,
     'src/c.ts': 'ip 10.0.0.9\n',
   };
-  const entry = (opts: { path: string; kinds?: ('private-key' | 'ipv4')[]; reason?: string }) => ({
+  const entry = (opts: { path: string; types?: ('private-key' | 'ipv4')[]; reason?: string }) => ({
     path: opts.path,
     reason: opts.reason ?? 'dev only',
-    ...(opts.kinds === undefined ? {} : { kinds: opts.kinds }),
+    ...(opts.types === undefined ? {} : { types: opts.types }),
   });
 
   test('an acknowledged kind in a matching file is not a finding and is counted', () => {
     const root = repository(files);
     const result = PrivateValues.scan({
       root,
-      acknowledged: [entry({ path: 'infra/dev/**', kinds: ['private-key'] })],
+      acknowledged: [entry({ path: 'infra/dev/**', types: ['private-key'] })],
     });
 
     expect(result.acknowledgedFiles).toBe(2);
@@ -361,7 +361,7 @@ describe('vulcan project doctor: the warning', () => {
     const root = repository(
       { 'env/dev.env': `${KEY_HEADER}\n`, 'env/two.env': `${KEY_HEADER}\n` },
       {
-        config: `export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, check: { doctor: { privateValues: { acknowledged: [{ path: 'env/*.env', kinds: ['private-key'], reason: 'dev keys, replaced by the secret store' }] } } } };\n`,
+        config: `export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, check: { doctor: { privateValues: { acknowledged: [{ path: 'env/*.env', types: ['private-key'], reason: 'dev keys, replaced by the secret store' }] } } } };\n`,
       },
     );
     const result = await DoctorRunner.runWarnings({ root });
@@ -379,7 +379,7 @@ describe('vulcan project doctor: the warning', () => {
     const root = repository(
       { 'env/dev.env': `${KEY_HEADER}\n` },
       {
-        config: `export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, check: { doctor: { privateValues: { acknowledged: [{ path: 'env/*.env', kinds: ['private-key'], reason: 'dev keys' }, { path: 'gone/**', reason: 'old folder' }, { path: 'env/*.env', kinds: ['ipv4'], reason: 'no address here' }] } } } };\n`,
+        config: `export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, check: { doctor: { privateValues: { acknowledged: [{ path: 'env/*.env', types: ['private-key'], reason: 'dev keys' }, { path: 'gone/**', reason: 'old folder' }, { path: 'env/*.env', types: ['ipv4'], reason: 'no address here' }] } } } };\n`,
       },
     );
     const result = await DoctorRunner.runWarnings({ root });
@@ -436,7 +436,7 @@ describe('doctor.privateValues in the config', () => {
     expect(
       parse([
         { path: 'infra/dev/**', reason: 'dev only' },
-        { path: 'a.env', kinds: ['private-key', 'ipv4'], reason: 'dev only' },
+        { path: 'a.env', types: ['private-key', 'ipv4'], reason: 'dev only' },
       ]).success,
     ).toBe(true);
   });
@@ -449,8 +449,8 @@ describe('doctor.privateValues in the config', () => {
     ['a path that climbs', { path: '../x', reason: 'r' }],
     ['a path with a climbing segment', { path: 'a/../../x', reason: 'r' }],
     ['an empty path', { path: '', reason: 'r' }],
-    ['an unknown kind', { path: 'a', kinds: ['hostname'], reason: 'r' }],
-    ['an empty kinds list', { path: 'a', kinds: [], reason: 'r' }],
+    ['an unknown kind', { path: 'a', types: ['hostname'], reason: 'r' }],
+    ['an empty kinds list', { path: 'a', types: [], reason: 'r' }],
     ['an unknown key', { path: 'a', reason: 'r', until: '2027' }],
   ])('%s is refused', (_name, entry) => {
     expect(parse([entry]).success).toBe(false);

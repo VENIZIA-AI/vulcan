@@ -901,7 +901,8 @@ export class ProjectContract {
 
   /**
    * A workspace member of the root `package.json` that the config's `packages` list does not name: a package every table
-   * keyed by `packages` (release tags, versions, the atlas) then misses. A list that is derived from the workspaces
+   * keyed by `packages` (release tags, versions, the atlas) then misses. A member whose `package.json` is `"private": true` is never published, so it is not
+   * expected in the list. A list that is derived from the workspaces
    * has none of those; the other warning is for the members that cannot be a package (a folder that is not a valid key, a
    * member with no valid name), each named with its reason, derived list or written. Retired entries count as named. Warnings.
    */
@@ -912,7 +913,11 @@ export class ProjectContract {
       ),
     );
     const derived = WorkspacePackages.derive({ root: opts.root });
-    const missing = derived.packages.filter((entry) => !named.has(pathKeyOf({ path: entry.path })));
+    const missing = derived.packages.filter(
+      (entry) =>
+        !named.has(pathKeyOf({ path: entry.path })) &&
+        !WorkspacePackages.isPrivate({ root: opts.root, folder: entry.path }),
+    );
     const message = [
       missing.length === 0
         ? undefined
@@ -1513,7 +1518,7 @@ export class ProjectContract {
           createViolation({
             check: DoctorChecks.PRIVATE_VALUES,
             file: opts.configFile,
-            message: `${where}: "${entry.path}"${entry.kinds === undefined ? '' : ` (${entry.kinds.join(', ')})`} matches no file that holds such a value: remove the entry, or it covers files added later`,
+            message: `${where}: "${entry.path}"${entry.types === undefined ? '' : ` (${entry.types.join(', ')})`} matches no file that holds such a value: remove the entry, or it covers files added later`,
           }),
         ),
     ];

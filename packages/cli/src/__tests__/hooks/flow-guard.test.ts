@@ -26,7 +26,7 @@ const addLine = (opts: { root: string; kind: 'flow' | 'deploy'; actor?: string; 
   EventLog.append({
     dir: dirOf(opts.root),
     event: EventLog.build({
-      kind: opts.kind,
+      type: opts.kind,
       summary: 'Sign in',
       actor: opts.actor ?? ACTOR,
       source: 'cli',

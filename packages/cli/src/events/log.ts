@@ -1,14 +1,14 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
-import { ClaudeHookEvents, EventConstants, EventKinds, EventStatuses } from './common/index.ts';
+import { ClaudeHookEvents, EventConstants, EventTypes, EventStatuses } from './common/index.ts';
 import type {
   IEvent,
   IEventItem,
   IEventMark,
   IEventRead,
   IEventUsage,
-  TEventKind,
+  TEventType,
   TEventStatus,
 } from './common/index.ts';
 import { EventText } from './text.ts';
@@ -39,7 +39,7 @@ export class EventLog {
 
   /** An event with its text made safe: one line, secrets redacted, limits applied. */
   static build(opts: {
-    kind: TEventKind;
+    type: TEventType;
     summary: string;
     actor: string;
     source: string;
@@ -104,7 +104,7 @@ export class EventLog {
       ts: new Date(now).toISOString(),
       ...(opts.flowId === undefined ? {} : { flowId: opts.flowId }),
       actor: opts.actor,
-      kind: opts.kind,
+      type: opts.type,
       summary: EventText.oneLine({ text: opts.summary, max: EventConstants.SUMMARY_MAX }),
       ...(opts.status === undefined ? {} : { status: opts.status }),
       ...(ref === '' ? {} : { ref }),
@@ -289,7 +289,7 @@ export class EventLog {
       ts,
       flowId,
       actor,
-      kind,
+      type,
       summary,
       status,
       ref,
@@ -313,8 +313,8 @@ export class EventLog {
       typeof ts !== 'string' ||
       !Number.isFinite(Date.parse(ts)) ||
       typeof actor !== 'string' ||
-      typeof kind !== 'string' ||
-      !EventKinds.isValid(kind) ||
+      typeof type !== 'string' ||
+      !EventTypes.isValid(type) ||
       typeof summary !== 'string' ||
       typeof source !== 'string' ||
       (flowId !== undefined && typeof flowId !== 'string') ||
@@ -346,7 +346,7 @@ export class EventLog {
       ts: clean(ts),
       ...(flowId === undefined ? {} : { flowId: clean(flowId) }),
       actor: clean(actor),
-      kind: kind as TEventKind,
+      type: type as TEventType,
       summary: text(summary, EventConstants.SUMMARY_MAX),
       ...(status === undefined ? {} : { status: status as TEventStatus }),
       ...(ref === undefined ? {} : { ref: text(ref, EventConstants.REF_MAX) }),

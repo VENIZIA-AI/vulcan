@@ -869,14 +869,14 @@ The `doctor` object tells [`vulcan project doctor`](/references/commands/doctor#
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `privateValues.acknowledged` | `Array<{ path, kinds?, reason, standing? }>` | the shipped `**/Dockerfile*` row for `machine-path` | Files that may keep private values, each with a reason |
+| `privateValues.acknowledged` | `Array<{ path, types?, reason, standing? }>` | the shipped `**/Dockerfile*` row for `machine-path` | Files that may keep private values, each with a reason |
 | `project.layout.maxLines` | `number` | `400` | A source file with more lines is a `long-file` finding of [`vulcan check layout`](/references/commands/layout) |
 | `project.layout.minSubfolders` | `number` | `3` | A folder with at least this many subfolders may keep no loose source file but its index (`mixed-folder`) |
 | `project.layout.pluralAllow` | `string[]` | `[]` | Role words that end in s and are not plurals, added to the shipped list (`plural-suffix`) |
 | `project.layout.generated` | `string[]` | `[]` | Globs relative to the repo root of generated files, which `long-file` skips |
 
 - `path` is a glob relative to the repo root (no absolute path, no `..`).
-- `kinds` is some of `private-key`, `token`, `url-credentials`, `ipv4`, `machine-path` (all when absent).
+- `types` is some of `private-key`, `token`, `url-credentials`, `ipv4`, `machine-path` (all when absent).
 - `reason` is required and not blank.
 
 An acknowledged file is counted in one summary line, never dropped silently. A row marked `standing: true`, such as the Dockerfile row VULCAN ships, is not reported when it matches no file and does not start the summary on its own.
