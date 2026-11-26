@@ -171,15 +171,25 @@ describe('BoardWork.sortOf: the table order', () => {
     ]);
   });
 
-  test('tokens are what was read (input, cache reads, cache writes) plus what was written', () => {
+  test('read is input, cache reads and cache writes; written is output; each sorts on its own', () => {
     const flow = flowOf({
       id: 'F-1',
       events: [event({ ts: at(1) })],
       tokens: { input: 1, output: 2, cacheRead: 30, cacheWrite: 400, agents: [], models: [] },
     });
+    const view = viewOf(flow);
 
-    expect(BoardWork.tokensOf({ flow })).toBe(433);
-    expect(BoardWork.tokensOf({ flow: flowOf({ id: 'F-2', events: [] }) })).toBeUndefined();
+    expect(BoardWork.valueOf({ view, column: 'read' })).toBe(431);
+    expect(BoardWork.valueOf({ view, column: 'written' })).toBe(2);
+    expect(BoardWork.readOf({ counts: { input: 0, output: 5, cacheRead: 0, cacheWrite: 0 } })).toBe(
+      0,
+    );
+    expect(
+      BoardWork.cacheShareOf({ counts: { input: 0, output: 5, cacheRead: 0, cacheWrite: 0 } }),
+    ).toBeUndefined();
+    expect(
+      BoardWork.valueOf({ view: viewOf(flowOf({ id: 'F-2', events: [] })), column: 'read' }),
+    ).toBeUndefined();
   });
 });
 
@@ -235,8 +245,8 @@ describe('BoardWork: the table order, more', () => {
     viewOf(flowOf({ id: 'F-4', state: 'blocked', holder: '', events: [event({ ts: at(3) })] })),
   ];
 
-  test('tokens sort by the four counts added up; a flow with none is last', () => {
-    expect(ids(BoardWork.sortOf({ views, sort: { column: 'tokens', descending: true } }))).toEqual([
+  test('read sorts by its total; a flow with none is last', () => {
+    expect(ids(BoardWork.sortOf({ views, sort: { column: 'read', descending: true } }))).toEqual([
       'F-3',
       'F-1',
       'F-2',

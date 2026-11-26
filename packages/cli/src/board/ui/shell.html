@@ -837,7 +837,7 @@
       /* Compact: one line a flow. */
       .c-line {
         display: grid;
-        grid-template-columns: 14px 104px minmax(0, 1fr) auto 84px 116px 72px;
+        grid-template-columns: 14px minmax(128px, max-content) minmax(0, 1fr) auto 84px 116px 92px;
         align-items: center;
         gap: 10px;
         height: 40px;
@@ -880,14 +880,16 @@
       }
       .t-work {
         width: 100%;
-        min-width: 1100px;
+        min-width: 1500px;
         table-layout: fixed;
         border-collapse: separate;
         border-spacing: 0;
         font-size: 13px;
+        /* how far the Code column stays from the left: the width of the Order column */
+        --order-width: 64px;
       }
       .w-order {
-        width: 64px;
+        width: var(--order-width);
       }
       .w-code {
         font: 13px var(--mono);
@@ -897,7 +899,7 @@
         width: 92px;
       }
       .w-state {
-        width: 108px;
+        width: 124px;
       }
       .w-holder {
         width: 104px;
@@ -908,8 +910,44 @@
       .w-pr {
         width: 88px;
       }
-      .w-tokens {
-        width: 64px;
+      .w-read,
+      .w-written {
+        width: 150px;
+      }
+      .t-work td.t-tk {
+        line-height: 16px;
+      }
+      .t-work td.t-tk small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      /* Order and Code stay at the left while the table scrolls sideways. */
+      .t-work td:nth-child(1),
+      .t-work td:nth-child(2) {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: var(--bg);
+      }
+      .t-work th:nth-child(1),
+      .t-work th:nth-child(2) {
+        left: 0;
+        z-index: 2;
+      }
+      .t-work td:nth-child(2),
+      .t-work th:nth-child(2) {
+        left: var(--order-width);
+      }
+      .t-work tr.sel td:nth-child(1),
+      .t-work tr.sel td:nth-child(2) {
+        background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--bg);
+      }
+      .t-work tr.row:not(.sel):hover td:nth-child(1),
+      .t-work tr.row:not(.sel):hover td:nth-child(2) {
+        background: linear-gradient(var(--sunk), var(--sunk)), var(--bg);
       }
       .w-due {
         width: 92px;
@@ -1781,6 +1819,53 @@
         }
       }
 
+      .c-line .who {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      /* A work pane too narrow for one line: the title on its own line, the rest under it. */
+      @container (max-width: 900px) {
+        .c-line {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 2px 8px;
+          height: auto;
+          padding: 8px;
+        }
+        /* the first line: the state mark and the title */
+        .c-line .c-lt {
+          order: 1;
+          flex: 0 0 calc(100% - 22px);
+        }
+        /* the second line, indented under the title: the code, then the rest */
+        .c-line .c-id {
+          order: 2;
+          margin-left: 22px;
+        }
+        .c-line .c-lm,
+        .c-line .c-ls,
+        .c-line .who,
+        .c-line .c-ago {
+          order: 3;
+        }
+        /* a long holder is cut, so the time stays on the second line */
+        .c-line .who {
+          display: block;
+          flex: 1 1 0;
+        }
+        .c-line .who i {
+          display: inline-block;
+          margin-right: 6px;
+        }
+        .c-line .c-lm {
+          justify-content: flex-start;
+        }
+        .c-line .c-ago {
+          margin-left: auto;
+        }
+      }
+
       /* A tablet or a phone: one column, the work first; the detail opens over it. */
       @media (max-width: 900px) {
         body {
@@ -1927,34 +2012,12 @@
           min-height: 44px;
         }
         .c-line {
-          grid-template-columns: 14px auto minmax(0, 1fr) auto;
-          grid-template-areas:
-            'sm lt lt lt'
-            '. id lm ago';
-          gap: 2px 8px;
-          height: auto;
           padding: 8px 16px;
           min-height: 44px;
         }
-        .c-line .sm {
-          grid-area: sm;
-        }
-        .c-line .c-id {
-          grid-area: id;
-        }
-        .c-lt {
-          grid-area: lt;
-        }
-        .c-lm {
-          grid-area: lm;
-          justify-content: flex-start;
-        }
-        .c-ls,
+        .c-line .c-ls,
         .c-line .who {
           display: none;
-        }
-        .c-ago {
-          grid-area: ago;
         }
         .t-work th button {
           height: 44px;

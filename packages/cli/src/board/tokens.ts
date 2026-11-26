@@ -17,6 +17,11 @@ const add = (opts: { row: IBoardTokenRow; line: IEvent }): void => {
   row.output += opts.line.usage?.output ?? 0;
   row.cacheRead += opts.line.usage?.cacheRead ?? 0;
   row.cacheWrite += opts.line.usage?.cacheWrite ?? 0;
+
+  if (opts.line.usage?.thinking !== undefined) {
+    row.thinking = (row.thinking ?? 0) + opts.line.usage.thinking;
+    row.thinkingOf = (row.thinkingOf ?? 0) + opts.line.usage.output;
+  }
 };
 
 /** The tokens of a flow, summed from the `usage` lines of the log: numbers only, in four counts, by agent and by model. */

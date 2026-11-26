@@ -14,7 +14,7 @@ export interface IEventItem {
   done: boolean;
 }
 
-/** The tokens of a `usage` line: four counts, the model that used them, and the subagent type when a subagent did. */
+/** The tokens of a `usage` line: four counts, the thinking part of the output when reported, the model that used them, and the subagent type when a subagent did. */
 export interface IEventUsage {
   model: string;
   /** Only a subagent's tokens have one: its `agent_type`. */
@@ -23,6 +23,8 @@ export interface IEventUsage {
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  /** The part of `output` spent thinking; absent when the transcript did not say, which is not zero. */
+  thinking?: number;
 }
 
 /** Where the meter stopped reading a transcript: the byte after the last whole line read, and the last message counted. */
