@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SharedCopy } from '../copy.ts';
 import { BuildCheck } from '../../../docs/wiki/site/.vitepress/theme/shared/build-check.ts';
+import { SearchIndex } from '../../../docs/wiki/site/.vitepress/theme/shared/search-index.ts';
+import { WikiSearch } from '../../../docs/wiki/site/.vitepress/theme/shared/search.ts';
 import { SharedCheck } from '../check.ts';
 import { MANIFEST_FILE, SHARED_DIR, SharedManifest } from '../manifest.ts';
 
@@ -539,5 +541,62 @@ describe('BuildCheck', () => {
         process.env['WIKI_BUILD_CHECK'] = before;
       }
     }
+  });
+});
+
+describe('the search index of a wiki', () => {
+  test('is built by this Bun running the installed Pagefind, over the built site', () => {
+    const command = SearchIndex.commandOf({ wiki: '/srv/vulcan-fixture/docs/wiki' });
+
+    expect(command.slice(0, 4)).toEqual([
+      process.execPath,
+      '/srv/vulcan-fixture/docs/wiki/node_modules/pagefind/lib/runner/bin.cjs',
+      '--site',
+      '/srv/vulcan-fixture/docs/wiki/site/.vitepress/dist',
+    ]);
+    expect(command.join(' ')).toContain('--root-selector .VPContent');
+    expect(command.at(-1)).toContain('span.lang');
+  });
+
+  test('a wiki without Pagefind installed fails and downloads nothing', () => {
+    expect(SearchIndex.run({ wiki: join(tmpdir(), 'wiki-without-pagefind') })).toBe(1);
+  });
+});
+
+describe('what a search lists for a page', () => {
+  const page = { url: '/a.html', excerpt: 'the page', meta: { title: 'Runtime config \u{200B}' } };
+
+  test('the page itself when no section matched', () => {
+    expect(WikiSearch.hitsOf({ page })).toEqual([
+      { url: '/a.html', title: 'Runtime config', excerpt: 'the page' },
+    ]);
+  });
+
+  test('at most three sections, and a section named like its page is not said twice', () => {
+    const section = (title: string, at: number) => ({
+      url: `/a.html#${at}`,
+      title,
+      excerpt: `${at}`,
+    });
+    const hits = WikiSearch.hitsOf({
+      page: {
+        ...page,
+        // eslint-disable-next-line @typescript-eslint/naming-convention -- Pagefind's own name
+        sub_results: [
+          section('Runtime config', 1),
+          // Pagefind lists the page and the section of its first heading: one name, one row.
+          section('Runtime config \u{200B}', 5),
+          section('Options \u{200B}', 2),
+          section('Errors', 3),
+          section('More', 4),
+        ],
+      },
+    });
+
+    expect(hits.map((hit) => hit.title)).toEqual([
+      'Runtime config',
+      'Runtime config - Options',
+      'Runtime config - Errors',
+    ]);
   });
 });

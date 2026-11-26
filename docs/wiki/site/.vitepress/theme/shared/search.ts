@@ -21,8 +21,9 @@ interface IPagefindPage {
   sub_results?: { url: string; title: string; excerpt: string }[];
 }
 
+/** What this box calls of Pagefind's browser module; a search that a newer one replaced answers `null`. */
 interface IPagefind {
-  search(query: string): Promise<{ results: { data(): Promise<IPagefindPage> }[] }>;
+  debouncedSearch(query: string): Promise<{ results: { data(): Promise<IPagefindPage> }[] } | null>;
 }
 
 /** How many pages one search reads: each one is a small download. */
@@ -30,11 +31,15 @@ const PAGES = 8;
 /** How many sections of one page are listed. */
 const SECTIONS = 3;
 
+/** The types of the npm package cover its build API, not the module a build writes for the browser, so its shape is checked. */
 const isPagefind = (value: unknown): value is IPagefind =>
   typeof value === 'object' &&
   value !== null &&
-  'search' in value &&
-  typeof value.search === 'function';
+  'debouncedSearch' in value &&
+  typeof value.debouncedSearch === 'function';
+
+/** A heading as a reader sees it: VitePress puts a zero-width space before the anchor of one. */
+const headingOf = (text: string): string => text.replaceAll('\u{200B}', '').trim();
 
 export class WikiSearch {
   private static module: Promise<IPagefind> | undefined;
@@ -42,18 +47,27 @@ export class WikiSearch {
   /** The sections of a page that matched, else the page itself. */
   static hitsOf(opts: { page: IPagefindPage }): ISearchHit[] {
     const { page } = opts;
-    const title = page.meta.title ?? page.url;
+    const title = headingOf(page.meta.title ?? page.url);
     const sections = page.sub_results ?? [];
 
     if (sections.length === 0) {
       return [{ url: page.url, title, excerpt: page.excerpt }];
     }
 
-    return sections.slice(0, SECTIONS).map((section) => ({
-      url: section.url,
-      title: section.title === title ? title : `${title} - ${section.title}`,
-      excerpt: section.excerpt,
-    }));
+    const named = sections.map((section) => {
+      const heading = headingOf(section.title);
+
+      return {
+        url: section.url,
+        title: heading === title ? title : `${title} - ${heading}`,
+        excerpt: section.excerpt,
+      };
+    });
+
+    // Two sections under one name read as the same result twice: the first stays.
+    return named
+      .filter((hit, at) => named.findIndex((other) => other.title === hit.title) === at)
+      .slice(0, SECTIONS);
   }
 
   /** Loads the module at `url` once; a failure (no index, as under `vitepress dev`) is thrown and tried again next time. */
@@ -74,9 +88,15 @@ export class WikiSearch {
     return WikiSearch.module;
   }
 
-  static async find(opts: { url: string; query: string }): Promise<ISearchHit[]> {
+  /** The hits of `query`; `undefined` when a newer search took its place. */
+  static async find(opts: { url: string; query: string }): Promise<ISearchHit[] | undefined> {
     const pagefind = await WikiSearch.load({ url: opts.url });
-    const found = await pagefind.search(opts.query);
+    const found = await pagefind.debouncedSearch(opts.query);
+
+    if (found === null) {
+      return undefined;
+    }
+
     const pages = await Promise.all(found.results.slice(0, PAGES).map((result) => result.data()));
 
     return pages.flatMap((page) => WikiSearch.hitsOf({ page }));

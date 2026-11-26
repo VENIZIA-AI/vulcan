@@ -1,5 +1,5 @@
 {
-  "fingerprint": "8254516e660052eb4e57911de89c818c3a4ec1d341621bfc3c6da7b2a20e0840",
+  "fingerprint": "6acac9097882c96e7057d0bb9de09da63008a293318722dcfbe1ed4cbcf86bad",
   "files": {
     "AtAGlance.vue": "82a497e03e3214a0aabca18d2dcf581bd2e9379c4d13594d0df48ce74f398991",
     "ChangelogCounts.vue": "b30cff5391f2cf098cd0a17fea63eb1b1513cbdaa4d12767820bf705e9c828f5",
@@ -17,7 +17,7 @@
     "InstallBox.vue": "a51e007485c23e8cdba0512c254029d09faed57fc16bef7d28d157a92dd6b0b0",
     "PrereleaseLatest.vue": "9287257ff55df1525f22cc5f91ba2114588dc2d993fee52e0c683c3fa1f4fdbf",
     "PrereleaseTable.vue": "df65beb07a836a93c7400deb6cfa02999d6802253b682dac2d356a135cf2b2dc",
-    "SearchBox.vue": "c864719615e495f0ff4855ce0432a46f53d4f78ca65835b6790fc9c31f8fae68",
+    "SearchBox.vue": "8f491d93df5dd05c1cc169095929dd04e30626bf7af03d9134ab6b6bb4d30ac6",
     "SiteBrand.vue": "9c118baa7294ba04db034ca6ade8dcf3f1ef21b4b3b4477427da79163c44064c",
     "SiteFooter.vue": "1f902b8df8a78047787faa4ac807b1b9b6a38dfc2d72598b0dcb282808ed857d",
     "SiteLayout.vue": "6de39e22b0ff7e5557adedecdddb17044264e83db1160d8fab7630d826fb47f5",
@@ -62,9 +62,9 @@
     "home-types.ts": "610944ab017cbc1a56fb3166b11ffde7a4c1118ea83d95b831a464e2972e8d78",
     "home.css": "325356909f8ca67cb4a3d07bf42a4619131ef2ce411befc1aef2e5af0ec4a4fb",
     "index.ts": "b31d0aae6a5b519e83beb3f516c903a7fbee2e511c8e123f526091b48f02854a",
-    "search-index.ts": "ed1554b3b482690bc1eebaaabb344fc36e55e3845231b6d930ab30519f375dca",
-    "search.css": "db1051431b1c411b5a4fbde332a8e89945c647499d465c6803af3d3cc5c2f418",
-    "search.ts": "b3d3556ac40f23cce7e27c09605aac4a7bad331b3a899b49e0c7ee8cb23f537f",
+    "search-index.ts": "6f72d14bd2b790d25944582c6c4e616531d68b243035e2746cd1eb99e9116485",
+    "search.css": "202ebc578ff253be8fab90be6f99816c0e2f44a06341dd63c816e2dc27950a2b",
+    "search.ts": "32271f2a4f89569175b35a0f102516f9785619234d15db2cf97dd94dc5db6496",
     "theme-switch.css": "cbf2c2b3a7be26b5e7cfa632a9cd005f01efa36242be8f7684f0460d4c0285f7",
     "toggle-appearance.ts": "77ea0c377f0d7ba8cecd26580a6e79a5b173c1bc140c80516ddf67f94395c04c",
     "tokens.css": "684654b3adecf5b762144c7e07f9a6774ab5de09246309624e8d1cb6c3f0cf34",

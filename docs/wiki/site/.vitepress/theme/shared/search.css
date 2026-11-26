@@ -131,9 +131,13 @@
 }
 
 .search-note {
-  margin: 12px 4px 4px;
+  margin: 8px 4px 0;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 13px;
+}
+
+.search-note:empty {
+  margin: 0;
 }
 
 .search-hits {

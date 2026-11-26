@@ -7,7 +7,7 @@
 -->
 <script setup lang="ts">
 import { useRouter, withBase } from 'vitepress';
-import { nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, useId, useTemplateRef, watch } from 'vue';
 import { WikiSearch } from './search';
 import type { ISearchHit } from './search';
 
@@ -18,6 +18,27 @@ const query = ref('');
 const hits = ref<ISearchHit[]>([]);
 const picked = ref(0);
 const state = ref<'idle' | 'searching' | 'done' | 'unavailable'>('idle');
+/** The name of the modifier key: the Command sign on an Apple device, known once the page runs in the browser. */
+const modifier = ref('Ctrl');
+const listId = useId();
+const optionId = (index: number): string => `${listId}-${index}`;
+
+/** What a screen reader hears, and what the box says under its input. */
+const note = computed(() => {
+  if (state.value === 'unavailable') {
+    return 'Search is not available here: the index is written by the site build.';
+  }
+
+  if (state.value !== 'done') {
+    return '';
+  }
+
+  const count = hits.value.length;
+
+  return count === 0
+    ? `No result for "${query.value}".`
+    : `${count} result${count === 1 ? '' : 's'}.`;
+});
 
 let asked = 0;
 
@@ -61,7 +82,7 @@ watch(query, async (text) => {
     const found = await WikiSearch.find({ url: withBase('/pagefind/pagefind.js'), query: text });
 
     // A slower answer to an earlier text is dropped.
-    if (turn === asked) {
+    if (turn === asked && found !== undefined) {
       hits.value = found;
       picked.value = 0;
       state.value = 'done';
@@ -90,16 +111,31 @@ const onKey = async (event: KeyboardEvent): Promise<void> => {
   }
 };
 
-onMounted(() => window.addEventListener('keydown', onKey));
+onMounted(() => {
+  if (/Mac|iPhone|iPad|iPod/.test(navigator.userAgent)) {
+    modifier.value = '⌘';
+  }
+
+  window.addEventListener('keydown', onKey);
+});
 onUnmounted(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>
   <div class="wiki-search">
-    <button type="button" class="search-button" aria-label="Search" @click="open">
+    <button
+      type="button"
+      class="search-button"
+      aria-label="Search"
+      aria-keyshortcuts="Control+K Meta+K /"
+      @click="open"
+    >
       <span class="search-icon" aria-hidden="true"></span>
       <span class="search-label">Search</span>
-      <span class="search-keys" aria-hidden="true"><kbd>Ctrl</kbd><kbd>K</kbd></span>
+      <span class="search-keys" aria-hidden="true"
+        ><kbd>{{ modifier }}</kbd
+        ><kbd>K</kbd></span
+      >
     </button>
     <dialog ref="dialog" class="search-dialog" aria-label="Search" @click.self="close">
       <div class="search-panel">
@@ -107,23 +143,31 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
           ref="input"
           v-model="query"
           type="search"
+          role="combobox"
           placeholder="Search"
           aria-label="Search"
+          aria-autocomplete="list"
+          :aria-expanded="hits.length > 0"
+          :aria-controls="listId"
+          :aria-activedescendant="hits.length > 0 ? optionId(picked) : undefined"
           autocomplete="off"
           spellcheck="false"
           @keydown.down.prevent="move(1)"
           @keydown.up.prevent="move(-1)"
           @keydown.enter.prevent="go(hits[picked])"
         />
-        <p v-if="state === 'unavailable'" class="search-note" role="status">
-          Search is not available here: the index is written by the site build.
-        </p>
-        <p v-else-if="state === 'done' && hits.length === 0" class="search-note" role="status">
-          No result for "{{ query }}".
-        </p>
-        <ul v-if="hits.length > 0" class="search-hits">
-          <li v-for="(hit, index) in hits" :key="hit.url" :class="{ picked: index === picked }">
-            <a :href="hit.url" @click.prevent="go(hit)" @mousemove="picked = index">
+        <!-- always in the page: a live region that appears with its text is not announced -->
+        <p class="search-note" role="status" aria-live="polite">{{ note }}</p>
+        <ul :id="listId" class="search-hits" role="listbox" aria-label="Results">
+          <li
+            v-for="(hit, index) in hits"
+            :id="optionId(index)"
+            :key="hit.url"
+            role="option"
+            :aria-selected="index === picked"
+            :class="{ picked: index === picked }"
+          >
+            <a :href="hit.url" tabindex="-1" @click.prevent="go(hit)" @mousemove="picked = index">
               <span class="hit-title">{{ hit.title }}</span>
               <span class="hit-excerpt" v-html="hit.excerpt"></span>
             </a>
