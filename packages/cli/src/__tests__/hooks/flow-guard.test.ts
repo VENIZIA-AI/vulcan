@@ -11,6 +11,7 @@ afterAll(removeProjects);
 
 const FLOW = 'VULZ-ACME-1';
 const ACTOR = 'pnt-vulcan-1';
+const SESSION = 'abcdef12-3456-7890-abcd-ef1234567890';
 const GUARD = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-git.ts');
 
 const project = (opts: { log?: boolean; manifest?: string } = {}): string =>
@@ -22,24 +23,26 @@ const project = (opts: { log?: boolean; manifest?: string } = {}): string =>
     },
   });
 const dirOf = (root: string): string => join(root, '.agents/local/events');
-const addLine = (opts: { root: string; kind: 'flow' | 'deploy'; actor?: string; at?: number }) =>
+const addLine = (opts: { root: string; kind: 'flow' | 'deploy'; session?: string; at?: number }) =>
   EventLog.append({
     dir: dirOf(opts.root),
     event: EventLog.build({
       type: opts.kind,
       summary: 'Sign in',
-      actor: opts.actor ?? ACTOR,
+      actor: ACTOR,
       source: 'cli',
       flowId: FLOW,
+      session: opts.session ?? SESSION,
       ...(opts.at === undefined ? {} : { now: opts.at }),
     }),
   });
-const inspect = (opts: { root: string; command: string; actor?: string }) =>
+const inspect = (opts: { root: string; command: string }) =>
   FlowGuard.inspect({
     root: opts.root,
     command: opts.command,
     cwd: opts.root,
-    env: { VULCAN_ACTOR: opts.actor ?? ACTOR },
+    sessionId: SESSION,
+    env: { VULCAN_ACTOR: ACTOR },
     isOver: FlowState.isOver,
   });
 
@@ -108,10 +111,10 @@ describe('FlowGuard: a commit or a pull request needs a flow, in a project that 
     expect(inspect({ root: session, command: 'gh pr create --base develop' })).toEqual([]);
   });
 
-  test("another session's flow, and a flow that is over, do not resolve it", () => {
+  test('the flow of another session with the same name, and a flow that is over, do not resolve it', () => {
     const other = project();
 
-    addLine({ root: other, kind: 'flow', actor: 'someone-else' });
+    addLine({ root: other, kind: 'flow', session: 'another-session' });
     expect(inspect({ root: other, command: 'git commit -m x' })).toHaveLength(1);
 
     const over = project();
@@ -161,19 +164,18 @@ describe('FlowGuard: what is not asked about, and what fails open', () => {
 
   test('a session id with no VULCAN_ACTOR names the session, and its own flow resolves it', () => {
     const root = project();
-    const sessionId = 'abcdef12-3456-7890-abcd-ef1234567890';
     const ask = () =>
       FlowGuard.inspect({
         root,
         command: 'git commit -m x',
         cwd: root,
-        sessionId,
+        sessionId: SESSION,
         env: {},
         isOver: FlowState.isOver,
       });
 
     expect(ask()).toHaveLength(1);
-    addLine({ root, kind: 'flow', actor: 'claude:abcdef12' });
+    addLine({ root, kind: 'flow' });
     expect(ask()).toEqual([]);
   });
 
@@ -214,7 +216,7 @@ describe('the git guard script holds the rule', () => {
           wire({
             hookEventName: 'PreToolUse',
             toolName: 'Bash',
-            sessionId: 'abcdef12-3456-7890-abcd-ef1234567890',
+            sessionId: SESSION,
             cwd: opts.root,
             toolInput: { command: opts.command },
           }),

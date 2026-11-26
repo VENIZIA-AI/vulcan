@@ -162,6 +162,7 @@ describe('every reader of the events folder follows it', () => {
         root,
         command: 'git commit -m x',
         cwd: root,
+        sessionId: 's-1',
         env: { VULCAN_ACTOR: ACTOR },
         isOver: FlowState.isOver,
       });

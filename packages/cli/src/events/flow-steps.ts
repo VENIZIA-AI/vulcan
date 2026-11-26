@@ -42,17 +42,17 @@ export class FlowSteps {
 
   /**
    * The flow of the work being done, the one resolution every hook shares: the flow the branch at `cwd` names, else the one
-   * this actor last opened or updated that is not over. `undefined` when neither is found.
+   * the session `session` last opened or updated that is not over. `undefined` when neither is found.
    */
   static flowOf(opts: {
     events: IEvent[];
     cwd: string;
-    actor: string;
+    session?: string;
     isOver: (flowId: string) => boolean;
   }): string | undefined {
     return (
       EventFlow.fromBranch({ cwd: opts.cwd }) ??
-      FlowSteps.lastOpenedBy({ events: opts.events, actor: opts.actor, isOver: opts.isOver })
+      FlowSteps.lastOpenedBy({ events: opts.events, session: opts.session, isOver: opts.isOver })
     );
   }
 
@@ -76,10 +76,42 @@ export class FlowSteps {
     )?.flowId;
   }
 
-  /** The newest flow this actor wrote a `flow` line for that is not over: the flow the session last opened or updated. */
+  /**
+   * The newest flow the session `session` wrote a `flow` line for that is not over. Only the session counts, never the
+   * actor, and with no session id there is none: a line without a session is nobody's.
+   */
   static lastOpenedBy(opts: {
     events: IEvent[];
+    session?: string;
+    isOver: (flowId: string) => boolean;
+  }): string | undefined {
+    const { events, session, isOver } = opts;
+
+    if (session === undefined || session === '') {
+      return undefined;
+    }
+
+    return FlowSteps.newestOpen({ events, isOwn: (event) => event.session === session, isOver });
+  }
+
+  /**
+   * The newest flow of the actor name that is not over, for the commit guard alone when its hook has no session id (the
+   * adapters of Codex, Antigravity, omp and pi send none). Two sessions may share a name, so nothing is written from it:
+   * a wrong guess only lets a commit through.
+   */
+  static lastOpenedByActor(opts: {
+    events: IEvent[];
     actor: string;
+    isOver: (flowId: string) => boolean;
+  }): string | undefined {
+    const { events, actor, isOver } = opts;
+
+    return FlowSteps.newestOpen({ events, isOwn: (event) => event.actor === actor, isOver });
+  }
+
+  private static newestOpen(opts: {
+    events: IEvent[];
+    isOwn: (event: IEvent) => boolean;
     isOver: (flowId: string) => boolean;
   }): string | undefined {
     const seen = new Set<string>();
@@ -87,7 +119,7 @@ export class FlowSteps {
     for (const event of [...opts.events].reverse()) {
       if (
         event.type !== EventTypes.FLOW ||
-        event.actor !== opts.actor ||
+        !opts.isOwn(event) ||
         event.flowId === undefined ||
         seen.has(event.flowId)
       ) {

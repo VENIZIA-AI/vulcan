@@ -9,6 +9,8 @@ import { runCli } from '../run.helper.ts';
 import { wire } from './wire.helper.ts';
 
 afterAll(removeProjects);
+
+const SESSION = 'abcdef12-3456-7890-abcd-ef1234567890';
 // Each test starts a few `vulcan` processes: on a loaded runner five seconds is not enough, and the CLI path is what is under test.
 setDefaultTimeout(30_000);
 
@@ -27,7 +29,7 @@ const cli = (opts: { root: string; args: string[] }) =>
   runCli({
     args: ['event', ...opts.args],
     cwd: opts.root,
-    env: { ...hermeticEnv(), VULCAN_ACTOR: 'pnt-vulcan-1' },
+    env: { ...hermeticEnv(), VULCAN_ACTOR: 'pnt-vulcan-1', CLAUDE_CODE_SESSION_ID: SESSION },
   });
 const open = (root: string): string =>
   cli({
@@ -225,7 +227,6 @@ describe('FlowSteps', () => {
 });
 
 describe('the TodoWrite mirror', () => {
-  const SESSION = 'abcdef12-3456-7890-abcd-ef1234567890';
   const call = (opts: {
     root: string;
     todos: unknown[];
@@ -312,16 +313,16 @@ describe('the TodoWrite mirror', () => {
   test('the flow of the branch is used by any session, and a flow that is over is not written', () => {
     const root = project();
     const id = open(root);
-    const other = { VULCAN_ACTOR: 'someone-else' };
+    const other = { sessionId: 'another-session' };
 
-    expect(call({ root, todos: [task('A')], env: other })).toBeUndefined();
+    expect(call({ root, todos: [task('A')], extra: other })).toBeUndefined();
 
     mkdirSync(join(root, '.git'));
     writeFileSync(join(root, '.git/HEAD'), `ref: refs/heads/feature/${id}-sign-in\n`);
-    expect(call({ root, todos: [task('A')], env: other })?.flowId).toBe(id);
+    expect(call({ root, todos: [task('A')], extra: other })?.flowId).toBe(id);
 
     cli({ root, args: ['add', '--type', 'deploy', '--flow', id, '--summary', 'live'] });
-    expect(call({ root, todos: [task('B')], env: other })).toBeUndefined();
+    expect(call({ root, todos: [task('B')], extra: other })).toBeUndefined();
     expect(call({ root, todos: [task('B')] })).toBeUndefined();
   });
 
@@ -395,7 +396,7 @@ describe('the hook script with a task list', () => {
           wire({
             hookEventName: 'PostToolUse',
             toolName: 'TodoWrite',
-            sessionId: 'abcdef12-3456-7890-abcd-ef1234567890',
+            sessionId: SESSION,
             cwd: root,
             toolInput: { todos: [{ content: 'From the script', status: 'completed' }] },
           }),
