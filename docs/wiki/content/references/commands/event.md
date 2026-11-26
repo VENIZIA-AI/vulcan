@@ -137,8 +137,22 @@ It prints the events at or after `--since`, oldest first. `--since` takes anythi
 | `SubagentStop` | `subagent-stop`, and a `usage` line for its tokens | the `agent_type` and the `agent_id` | `agent_type`, `agent_id`, `agent_transcript_path` (the tokens, see [Token usage](#token-usage)) |
 | `Notification` | `needs-owner`, for `permission_prompt`, `idle_prompt` and `elicitation_dialog` | the notification `title`, else its type; the type is also stored in `notification` | `notification_type`, `title` |
 | `PostToolUse` of `TodoWrite` | a `flow` line: the last flow line of the flow, copied whole, with the task list merged into its steps | the `content` and `status` of each task |
-| `PostToolUse` of `Bash`, when the command succeeded and commits (`git commit`), opens a pull request (`gh pr create`, `glab mr create`) or merges one (`gh pr merge`, `glab mr merge`; `--auto` and `--when-pipeline-succeeds` ask for a merge later and are not logged) | `commit`, or `pr` | the fixed text `commit`, `pull request opened` or `pull request merge`: never the command or its message | `tool_input.command`, read only to tell which of the three it is (the guards' shell parser); the flow is the branch's, else the one [this session](#whose-flow) last opened; nothing is written on a flow that is over. Claude Code runs a failed tool through `PostToolUseFailure` (its hook reference lists it as the event "after tool fails"), so a failed or interrupted call writes nothing; a line such as `git commit ...; true` still counts, a known and bounded false hold |
+| `PostToolUse` of `Bash`, when a successful command commits, or opens or merges a pull request | `commit`, or `pr` | the fixed text `commit`, `pull request opened` or `pull request merge`: never the command or its message | `tool_input.command`, read only to tell which of the three it is (details below) |
 | `PostToolUse` of `SendMessage` | `msg-sent` | the sender's own `summary` label, else the fixed text `message sent`. The text of the message is never used | `tool_input.to`, `tool_input.summary`; the first line of `tool_input.message` only to look for `Flow: F-n` |
+
+The `Bash` row in full. It logs only when the command succeeded and does one of these:
+
+- commits (`git commit`)
+- opens a pull request (`gh pr create`, `glab mr create`)
+- merges one (`gh pr merge`, `glab mr merge`; `--auto` and `--when-pipeline-succeeds` ask for a merge later and are not logged)
+
+More on this row:
+
+- `tool_input.command` is read only to tell which of the three it is (the guards' shell parser).
+- The flow is the branch's, else the one [this session](#whose-flow) last opened.
+- Nothing is written on a flow that is over.
+- Claude Code runs a failed tool through `PostToolUseFailure` (its hook reference lists it as the event "after tool fails"), so a failed or interrupted call writes nothing.
+- A line such as `git commit ...; true` still counts, a known and bounded false hold.
 
 The `TodoWrite` hook merges the list into the steps, it never replaces them: a task that is not a step yet is added (done when it is `completed`), a completed task marks its step done (the text is matched after the log's own cleaning), and nothing is removed or reopened, so what `vulcan flow step` wrote stays. It writes only when a step changes. The flow is the branch's, else the one [this session](#whose-flow) last opened or updated and that is not over; the log is read for the last three days, for both, so a flow whose last line is older is not found. A flow that is over, a flow with no flow line yet, an unknown actor and a call of a subagent (its payload carries `agent_id`) write nothing. Known limit: the log has no lock, so a `vulcan flow step` and the hook that write the same flow at the same moment can lose one change; the next call restates the merge. A turn that ends (`Stop`) and a tool that is used (`PostToolUse` of any tool but `SendMessage` and `TodoWrite`) are not logged: a `session-stop` line of the fixed text `turn ended` and a `tool-tick` line at most every 30 seconds would be over half of the lines of a busy log, and neither carries anything but the fact itself. The board still reads such lines in a log that holds them, until the age limit removes them.
 

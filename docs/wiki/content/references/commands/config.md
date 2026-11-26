@@ -77,9 +77,15 @@ Exit codes: `0` formatted or already in order; `1` with `--check` when a key wou
 |---|---|
 | none | Lists what it would write (`would write  .configs/vulcan.config.mts`) and writes nothing |
 | `--write` | Writes the files, and deletes the modules it folds in |
-| `--split` | One module per group under `.configs/vulcan/` (`project.mts`, `agent.mts`, ...) and a config that composes them; the modules of the old split (`claude.mts`, `doctor.mts`, `okf.mts`, `packages.mts`) are folded into the groups and deleted, and an import a value uses is carried into the module one folder deeper |
+| `--split` | Writes one module per group under `.configs/vulcan/`, and a config that composes them (details below) |
 | `--list` | Names the codemods |
 | `<dir>` | The project folder; default `.` |
+
+With `--split`:
+
+- It writes one module per group under `.configs/vulcan/` (`project.mts`, `agent.mts`, ...) and a config that composes them.
+- The modules of the old split (`claude.mts`, `doctor.mts`, `okf.mts`, `packages.mts`) are folded into the groups and deleted.
+- An import a value uses is carried into the module one folder deeper.
 
 With `--split`, the codemod finds a value through the config's imports: a named re-export (`export { packages } from './packages.mts'`) or `export * from './packages.mts'`, through more than one index.
 
@@ -98,10 +104,23 @@ There is no way back: the downgrade is to restore the earlier config from git. W
 | Kind | Rule |
 |---|---|
 | Object | merged key by key |
-| Array listed below | adds: the items of the later layer come after those of the earlier layers; an item the earlier layers already hold is not added again (a string), or replaces it in its place (an object of the same identity). Items are compared with the earlier layers only, so a layer that lists an item twice keeps both. An item is named by itself (a string) or by its `spec` (`presets`), its `name` (`knowledge.atlas.sources`) or its `path` and its sorted `kinds` (`check.doctor.privateValues.acknowledged`, written `path\|kind,kind`) |
+| Array listed below | adds the later layer's items after the earlier layers' (details below) |
 | Any other array (`packages`, `agent.claude.settings.hooks`...) | replaced by the later layer, as a scalar |
 | Scalar | the later layer wins; the project file is always last |
-| `remove` | `common.remove` of the project file: `common: { remove: { 'knowledge.atlas.sources': ['vulcan'] } }` takes items out of an array after all layers are in, wherever they came from. The keys are the arrays shipped defaults can add to, by their group path: `agent.claude.settings.permissions.allow`, `agent.claude.settings.permissions.deny`, `project.presets`, `knowledge.atlas.sources`, `agent.digest.oftenDropped` and `check.doctor.privateValues.acknowledged`. A flat file still writes `remove: { 'atlas.sources': [...] }` until the release that refuses the flat shape |
+| `remove` | `common.remove` of the project file takes items out of an array (details below) |
+
+The "Array listed below" rule:
+
+- It adds: the items of the later layer come after those of the earlier layers.
+- An item the earlier layers already hold is not added again (a string), or replaces it in its place (an object of the same identity).
+- Items are compared with the earlier layers only, so a layer that lists an item twice keeps both.
+- An item is named by itself (a string) or by its `spec` (`presets`), its `name` (`knowledge.atlas.sources`) or its `path` and its sorted `types` (`check.doctor.privateValues.acknowledged`, written `path|type,type`).
+
+The `remove` rule:
+
+- `common.remove` of the project file, such as `common: { remove: { 'knowledge.atlas.sources': ['vulcan'] } }`, takes items out of an array after all layers are in, wherever they came from.
+- The keys are the arrays shipped defaults can add to, by their group path: `agent.claude.settings.permissions.allow`, `agent.claude.settings.permissions.deny`, `project.presets`, `knowledge.atlas.sources`, `agent.digest.oftenDropped` and `check.doctor.privateValues.acknowledged`.
+- A flat file still writes `remove: { 'atlas.sources': [...] }` until the release that refuses the flat shape.
 
 ## Where the shipped layers are
 
@@ -116,8 +135,25 @@ Only a plain object (a literal or JSON) is merged into; a key named `__proto__` 
 
 | Layer | Holds |
 |---|---|
-| `base/defaults.config.json` | the allow list for Claude Code of commands that only read (42 lines: 28 commands and 14 git read subcommands) with 14 companion denies for flags of those commands that write a file or run a program the repository names (`date -s`, `rg --pre`, `git ... --output`, `git cat-file --filters`...); the 11 rule ids the session digest repeats (`agent.digest.oftenDropped`); one standing acknowledgement, `**/Dockerfile*` for kind `machine-path` (container paths such as `/home/app`) |
-| `base/packs/venizia.config.json` | the presets `ignis` and `ardor`, the atlas sources `ignis`, `ardor` and `vulcan`, and five allow lines that run the stack's project scripts: `bun run typecheck`, `bun run test`, `bun run lint`, `bun test`, `bun check`; `guard.outside: 'deny'` (a write outside the project is refused, not asked about) and `commit.message.agent.signature: 'deny'` (no agent signature in a commit message). The project file overrides both |
+| `base/defaults.config.json` | The read-only allow list for Claude Code and its denies, digest rule ids, one acknowledgement |
+| `base/packs/venizia.config.json` | The stack's presets, atlas sources, script allow lines and two deny settings |
+
+`base/defaults.config.json` holds:
+
+- the allow list for Claude Code of commands that only read (42 lines: 28 commands and 14 git read subcommands)
+- 14 companion denies for flags of those commands that write a file or run a program the repository names (`date -s`, `rg --pre`, `git ... --output`, `git cat-file --filters`...)
+- the 11 rule ids the session digest repeats (`agent.digest.oftenDropped`)
+- one standing acknowledgement, `**/Dockerfile*` for kind `machine-path` (container paths such as `/home/app`)
+
+`base/packs/venizia.config.json` holds:
+
+- the presets `ignis` and `ardor`
+- the atlas sources `ignis`, `ardor` and `vulcan`
+- five allow lines that run the stack's project scripts: `bun run typecheck`, `bun run test`, `bun run lint`, `bun test`, `bun check`
+- `guard.outside: 'deny'` (a write outside the project is refused, not asked about)
+- `commit.message.agent.signature: 'deny'` (no agent signature in a commit message)
+
+The project file overrides both.
 
 The base denies no git write: a project that wants that picks the `read-only` choice of rule `V-W-01`, or lists its own denies. What these lists do not cover, stated so no one relies on them:
 

@@ -37,7 +37,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `skills` (shipped names) | Project skills avoid names reserved by shipped skills | Rename the colliding skill directory under `.agents/skills/` |
 | `make` | The project `Makefile` includes `vulcan.mk` and avoids shipped target names | Add the `-include` line or rename conflicting project make targets |
 | `adapters` | Generated files, settings and links match configuration; the `AGENTS.md` blocks are present and current | Run `bun node_modules/.bin/vulcan project sync` |
-| `manifest` | `.agents/local/vulcan.manifest.json`, the committed `.agents/atlas.manifest.json` and the temporary data-only copy of it at `.agents/vulcan.manifest.json` (kept until the stable 0.5.0 release, for atlas of 0.5.0-6 and before) match the project configuration | Run `bun node_modules/.bin/vulcan project sync` and commit the descriptor and the copy |
+| `manifest` | The local manifest, the atlas descriptor and its temporary copy match the project configuration | Run `bun node_modules/.bin/vulcan project sync` and commit the descriptor and the copy |
 | `changelog-folders` | A project with version folders under its changelog directory has a vulcan installed whose atlas reads them | Install the vulcan version the message names |
 | `tags` | Git tags matching `knowledge.atlas.tagPattern` resolve to declared packages | Declare the package, add an alias, or add the tag to `knowledge.atlas.ignoreTags` |
 | `skills` (warning) | A skill's description has no "Use when" part, so atlas cannot tell an agent when to load it; never a failure | Start the description with when to use the skill |
@@ -47,30 +47,46 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `apps` | Each `backend`, `frontend`, `shared` folder of `layout` is a workspace; each package is in a listed folder (`other` too) | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 | `agents` | The stored agents file parses and names only known agents | Fix the key it names in `.agents/local/profile.json`, then run `vulcan project sync --agents <list>` |
 | `format` (warning) | Root `bunfig.toml` has `[fmt]` with `flavor = "oxfmt"`; no `package.json` defines `fmt`; no oxfmt config is left | Add the section, rename the script, delete the config or the copy |
-| `commit-hook` (warning) | `check.commit.message` has a check on and this clone's `commit-msg` hook is missing, stale or skips `vulcan check commit` | Run `bun node_modules/.bin/vulcan project sync`; for your own hook, add the line the warning shows |
+| `commit-hook` (warning) | A commit check is on and this clone's `commit-msg` hook is missing, stale or skips the check | Run `bun node_modules/.bin/vulcan project sync`; for your own hook, add the line the warning shows |
 | `events-size` (warning) | Today's event file alone is over `board.events.maxSize` | Raise `maxSize` or write fewer events |
-| `events-dir` (warning) | `board.events.dir` (from the config, or from `.agents/local/profile.json`, which replaces it) names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
-| `profile` (warning) | `.agents/local/profile.json` cannot be read (an unknown key is refused: the file takes the profile keys and `agent`, `board`, `common`; an old key (`agents`, `events`, `local`, `board.agents`) is refused by name until `vulcan project sync` has moved it), is not ignored by git, or is tracked by git | Fix or delete the file and run the profile form again; ignore `.agents/local/` or untrack the file |
+| `events-dir` (warning) | `board.events.dir` names a folder outside the project that is missing or unusable | Create it, or fix the path |
+| `profile` (warning) | `.agents/local/profile.json` cannot be read, is not ignored by git, or is tracked by git | Fix or delete the file and run the profile form again; ignore `.agents/local/` or untrack the file |
 | `guards` (note) | Notes list each `guard.writes.commands` pattern and `guard.git.askPush` | Change the list in the config |
 | `local` (warning) | The project's tmp folder is too deep for a browser socket path | Set `common.local.tmp` to a short folder and run `vulcan project sync`, or check out at a shorter path |
 | `local` (failure) | `common.local.tmp` still gives a browser socket path over 107 characters | Use a shorter folder name or a shorter checkout path |
 | `board-autostart` (note) | `board.serve.autoStart` of `.agents/local/profile.json` is on and `board.events.log` is off, so no board is started | Set `board.events.log` to `true`, or turn `autoStart` off |
-| `atlas-source` (warning) | The last atlas server run recorded a source as failed, as failing its refresh (an older index is served), or as building for over ten minutes in a live server | Run `vulcan atlas status` for the record; fix the remote or the network, or `vulcan atlas pull` the source |
-| `prepare` (note) | No install script (`prepare` or `postinstall`) of the root `package.json` runs `vulcan project sync` (directly or as `make vulcan-sync`), so a fresh clone has no hooks until someone runs it | Add the `prepare` script the note prints (`vulcan project init --preset` writes it for a new project) |
+| `atlas-source` (warning) | The last atlas server run recorded a source problem | Run `vulcan atlas status` for the record; fix the remote or the network, or `vulcan atlas pull` the source |
+| `prepare` (note) | No install script runs `vulcan project sync`, so a fresh clone has no hooks | Add the `prepare` script the note prints (`vulcan project init --preset` writes it for a new project) |
 | `claude-settings` (warning) | Git tracks `.claude/settings.json`, which `sync` writes in every clone | `git rm --cached .claude/settings.json`; sync keeps it out of git from then on |
 | `config-defaults` (note) | N values of the config repeat what the shipped defaults give | Run `vulcan config diff` and delete them |
-| `config-modules` (warning) | A module of the config the guards cannot protect: the config file or a module that is or leads outside `.configs/` (a relative import, a link, a package of this repository such as a workspace member or a `file:` dependency), a module reached through an alias, a specifier that names nothing the project has, or a file that cannot be read | Move it under `.configs/` and import it by a relative path |
+| `config-modules` (warning) | A module of the config that the guards cannot protect | Move it under `.configs/` and import it by a relative path |
 | `config-order` (note) | The top-level keys of the config are not in the canonical order | Run `vulcan config format` |
 | `config-remove` (warning) | A `remove` entry matches nothing, so it does nothing | Delete the entry |
 | `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it (a member with `"private": true` is not asked for), or delete `packages` so it is derived from the workspaces |
 | `project-key` (warning) | `board.events.log` is on and `project.key` is not set, so no flow can be created | Add `project: { key: 'KEY' }` to the config and run `vulcan project sync` |
 | `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `check.doctor.privateValues.acknowledged` |
-| `file-layout` (warning, note) | A file name with a plural role (`user.helpers.ts`), a folder that mixes subfolders with loose source files, or a source file over `check.layout.maxLines`, that `.configs/vulcan/layout/baseline.json` does not hold; what it holds is one note | Rename, move or split, or adopt the findings with `vulcan check layout --write-baseline` |
-| `mcp` (warning) | `.mcp.json` holds the canonical `atlas` entry, is not untracked and unignored, and the Claude settings enable `atlas` | Use the entry the warning shows; ignore `/.mcp.json` or run `vulcan project sync` at the top level; run `vulcan project sync` |
+| `file-layout` (warning, note) | A plural file name, a mixed folder or a long source file that the layout baseline does not hold | Rename, move or split, or adopt the findings with `vulcan check layout --write-baseline` |
+| `mcp` (warning) | `.mcp.json` holds the canonical `atlas` entry, is not untracked and unignored, and the Claude settings enable `atlas` | Use the shown entry; ignore `/.mcp.json` or run `vulcan project sync` (details below) |
 | `local` (warning) | Stray entries directly under `.agents/local/` | Move them to `tmp/`, `reports/` or `agents/<name>/` |
 | `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor` | Unset it in a shell the owner works in |
 | `local` (warning) | `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env` | Remove it from `env` |
 | `local` (warning) | `.agents/local/` is incomplete, not gitignored, or holds leftovers | Run `bun node_modules/.bin/vulcan project sync`; for leftovers, run the `vulcan project clean` command it names |
+
+Full text of the rows that were shortened:
+
+- `manifest`: `.agents/local/vulcan.manifest.json`, the committed `.agents/atlas.manifest.json` and the temporary data-only copy of it at `.agents/vulcan.manifest.json` match the project configuration. The copy is kept until the stable 0.5.0 release, for atlas of 0.5.0-6 and before.
+- `commit-hook`: `check.commit.message` has a check on and this clone's `commit-msg` hook is missing, stale or skips `vulcan check commit`.
+- `events-dir`: `board.events.dir` (from the config, or from `.agents/local/profile.json`, which replaces it) names a folder outside the project and it does not exist, is not a folder, or cannot be written.
+- `profile`: `.agents/local/profile.json` cannot be read, is not ignored by git, or is tracked by git. An unknown key is refused: the file takes the profile keys and `agent`, `board`, `common`. An old key (`agents`, `events`, `local`, `board.agents`) is refused by name until `vulcan project sync` has moved it.
+- `atlas-source`: the last atlas server run recorded a source as failed, as failing its refresh (an older index is served), or as building for over ten minutes in a live server.
+- `prepare`: no install script (`prepare` or `postinstall`) of the root `package.json` runs `vulcan project sync` (directly or as `make vulcan-sync`), so a fresh clone has no hooks until someone runs it.
+- `config-modules`: a module of the config the guards cannot protect is one of:
+  - the config file or a module that is or leads outside `.configs/` (a relative import, a link, a package of this repository such as a workspace member or a `file:` dependency)
+  - a module reached through an alias
+  - a specifier that names nothing the project has
+  - a file that cannot be read
+- `file-layout`: a file name with a plural role (`user.helpers.ts`), a folder that mixes subfolders with loose source files, or a source file over `check.layout.maxLines`, that `.configs/vulcan/layout/baseline.json` does not hold. What the baseline holds is one note.
+- `mcp` fix: use the entry the warning shows; ignore `/.mcp.json` or run `vulcan project sync` at the top level; run `vulcan project sync`.
 
 The `adapters` check reads the Atlas block and the rules block of `AGENTS.md`. The `skills` lint rule for contents accepts `**Contents**`, `## Contents`, `### Contents` or an okf generated-contents comment. The `mcp` check looks at `.mcp.json` only when a chosen agent reads it, and a release refuses when git lists the file as untracked and not ignored. A `commit-hook` fix for a hook in the `core.hooksPath` folder is the same line. The `profile` fix for a tracked file is `git rm --cached .agents/local/profile.json`. The `local` checks are described in [local](#local).
 

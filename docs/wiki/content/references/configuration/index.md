@@ -119,7 +119,7 @@ The config has seven groups, each with its own type (`VulcanConfig.Project`, `.A
 | `agent.list` | `string[]` | unset | Coding agents the project suggests; each developer's choice is stored locally |
 | `agent.rules` | `Record<string, string>` | `{}` | Base rule slot choices |
 | `agent.packs` | `string[]` | `[]` | The rule packs this project follows (`venizia`) |
-| `project.layout` | `object` | `undefined` | The folders `vulcan project init` and `vulcan package add` put apps in (a path or a list of paths per side), and the folders left alone |
+| `project.layout` | `object` | `undefined` | The folders `init` and `add` put apps in, and the folders left alone |
 | `project.presets` | `object[]` | `undefined` | The presets this project's apps came from, as `--preset` takes them back; `init` and `add` record them |
 | `project.packages` | `Array<object>` | `[]` | Monorepo packages in release order |
 | `knowledge` | `object` | `{ bundle: '.agents/knowledge' }` | Locations for knowledge documents and concepts |
@@ -127,7 +127,7 @@ The config has seven groups, each with its own type (`VulcanConfig.Project`, `.A
 | `knowledge.atlas` | `object` | `{ tagPattern: '...', sources: [] }` | Release tags and external knowledge sources |
 | `agent.claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `agent.digest` | `object` | `{ oftenDropped: [...] }` | The rules the rules block of `AGENTS.md` names |
-| `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask' (`'deny'` with the `venizia` pack), asks: 'ask', writes: { commands: [] }, git: { askPush: [] }, runners: { allow: [] } }` | Tool-owned stores, and the commands and push targets the guards ask about ([guard](#guard)) |
+| `guard` | `object` | See below | Tool-owned stores, and the commands and push targets the guards ask about ([guard](#guard)) |
 | `check.doctor` | `object` | `{ privateValues: { acknowledged: [] } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)) |
 | `check.layout` | `object` | `{ maxLines: 600, minSubfolders: 3, ... }` | The settings of the layout check ([check.layout](#check-layout)) |
 | `agent.owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
@@ -137,6 +137,11 @@ The config has seven groups, each with its own type (`VulcanConfig.Project`, `.A
 | `check.commit` | `object` | every check off | The checks of `vulcan check commit` and the `commit-msg` hook ([commit](#check-commit)) |
 | `board.events` | `object` | `{ log: false }` | The agent event log: on or off, its folder and its limits ([events](#board-events)) |
 | `common.local` | `object` | `{ autoClean: true }` | The automatic clean of `.agents/local/` and the project's own tmp folder, `common.local.tmp` ([local](#common-local)) |
+
+Details of two keys:
+
+- `project.layout`: the folders `vulcan project init` and `vulcan package add` put apps in (a path or a list of paths per side), and the folders left alone.
+- `guard` default: `{ toolOwnedPaths: [], outside: 'ask', asks: 'ask', writes: { commands: [] }, git: { askPush: [] }, runners: { allow: [] } }`. With the `venizia` pack, `outside` is `'deny'`.
 
 The `project.key` is the key a flow is named by: `VULZ-<key>-<number>`, such as `VULZ-ACME-15`. It is uppercase letters and digits, 2 to 8, and is set once. `vulcan project init` writes it (`--key`, a terminal's answer, or one made from the project name). The event log and the board read it from the manifest. `vulcan project doctor` warns when the log is on and it is missing.
 ## project.name
@@ -583,7 +588,13 @@ The `digest` object configures which rule IDs `vulcan project sync` names, one l
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `oftenDropped` | `string[]` | `[]`, added to the shipped list `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-C-02', 'V-C-09', 'V-C-10', 'V-P-08', 'V-B-07', 'V-B-09']` | Rule IDs the rules block names, most important first; yours come after the shipped ones, and `remove: { 'digest.oftenDropped': [...] }` takes ids out |
+| `oftenDropped` | `string[]` | `[]`, added to the shipped list (below) | Rule IDs the rules block names, most important first (details below) |
+
+About `oftenDropped`:
+
+- The shipped list it is added to is `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-C-02', 'V-C-09', 'V-C-10', 'V-P-08', 'V-B-07', 'V-B-09']`.
+- Yours come after the shipped ones.
+- `remove: { 'digest.oftenDropped': [...] }` takes ids out.
 
 Every rule ID in `oftenDropped` must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
 
@@ -675,8 +686,10 @@ No label is a fixed word. What the reply is held to depends on whether a label s
 | The reader's language | Label set | What the card says |
 |---|---|---|
 | English (`en`, `en-GB`) | the project's `agent.owner.report` words, which default to the English ones | quotes the words |
-| Another language, with a set (the `owner` block when `agent.owner.language` is that language, or the person's `labels` for it) | that set | quotes the words |
+| Another language, with a set (see below) | that set | quotes the words |
 | Another language, with none (a project left at the default words, a person who skipped the label questions) | none | tells the agent to write the labels itself, in that language and form of address |
+
+- For another language, the set is the `owner` block when `agent.owner.language` is that language, or the person's `labels` for it.
 
 In the last case the agent writes the table header, the status words, the blocked label, the decisions heading and the recommendation.
 
