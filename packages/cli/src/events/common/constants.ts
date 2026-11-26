@@ -76,7 +76,7 @@ export class EventFlags {
   static readonly DIR = '--dir';
   static readonly SINCE = '--since';
   static readonly JSON = '--json';
-  /** `vulcan flow step`: the step's text, set done or open. */
+  /** `vulcan flow step`: a step's text, set done or open; each may be given several times. */
   static readonly DONE = '--done';
   static readonly TODO = '--todo';
 

@@ -90,7 +90,7 @@ export class EventCommand {
   }
 
   /**
-   * One step of a flow, or its next step or context, without restating the lists: the flow's last `flow` line is
+   * Steps of a flow, or its next step or context, without restating the lists: the flow's last `flow` line is
    * copied whole with the change. The flow is `--flow`, else the branch's, and it must have a flow line already.
    */
   private static step(opts: { cwd: string; values: TFlagValues; marks: string[] }): number {
@@ -137,14 +137,18 @@ export class EventCommand {
       return fail(order.message);
     }
 
-    if (
-      marks.some(
-        (text) =>
-          EventText.oneLine({ text, max: EventConstants.ITEM_TEXT_MAX }) === '' ||
-          Array.from(text).length > EventConstants.ITEM_TEXT_MAX,
-      )
-    ) {
-      return fail(`the step needs a text of 1 to ${EventConstants.ITEM_TEXT_MAX} characters`);
+    const refused = marks.find(
+      (text) =>
+        EventText.oneLine({ text, max: EventConstants.ITEM_TEXT_MAX }) === '' ||
+        Array.from(text).length > EventConstants.ITEM_TEXT_MAX,
+    );
+
+    if (refused !== undefined) {
+      const shown = EventText.oneLine({ text: refused, max: EventConstants.ITEM_TEXT_MAX });
+
+      return fail(
+        `the step needs a text of 1 to ${EventConstants.ITEM_TEXT_MAX} characters, got '${shown}'`,
+      );
     }
 
     const blank = EventCommand.blankFlag({ values });

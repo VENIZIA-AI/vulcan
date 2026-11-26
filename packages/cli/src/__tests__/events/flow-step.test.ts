@@ -461,6 +461,41 @@ describe('vulcan flow step with several steps', () => {
     expect(linesOf(root)).toHaveLength(before);
   });
 
+  test('the same text twice marks its step once', () => {
+    const root = project();
+    const id = open(root);
+
+    cli({ root, args: ['step', '--flow', id, '--done', 'Docs', '--done', 'Docs'] });
+
+    expect(
+      linesOf(root)
+        .at(-1)
+        ?.steps?.map((step) => step.text),
+    ).toEqual(['Token', 'Refresh', 'Docs']);
+  });
+
+  test('a refusal names the value that was refused', () => {
+    const root = project();
+    const id = open(root);
+    const long = 'x'.repeat(201);
+    const result = cli({ root, args: ['step', '--flow', id, '--done', 'Refresh', '--done', long] });
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(`got '${'x'.repeat(100)}`);
+  });
+
+  test('marks that would pass 30 steps write nothing', () => {
+    const root = project();
+    const id = open(root);
+    const before = linesOf(root).length;
+    const marks = Array.from({ length: 29 }, (_, at) => ['--done', `new ${at}`]).flat();
+    const result = cli({ root, args: ['step', '--flow', id, ...marks] });
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain('at most 30 steps, got 31');
+    expect(linesOf(root)).toHaveLength(before);
+  });
+
   test('flow add still refuses a repeated --done', () => {
     const root = project();
 
