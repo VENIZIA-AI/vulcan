@@ -82,8 +82,10 @@ You do not have to run `vulcan project clean` for the safe part. At most once a 
 |---|---|
 | `tmp/` entries | older than a day, unless the folder holds a repository (see below) |
 | `com.google.Chrome.*` and `org.chromium.Chromium.*` folders under `.agents/local/` | older than an hour |
-| Event day files | past `maxAgeDays`, `maxFiles` or `maxSize`; never today's or a later day's |
+| Old event day files | past `maxAgeDays`, `maxFiles` or `maxSize`; never today's or a later day's |
 | `release-candidates/` folders | whose version is tagged |
+
+The event database, `events/events.db`, is not trimmed yet. The limits act only on the day files (`<yyyy-mm-dd>.jsonl`) of earlier releases.
 
 A `tmp/` folder that holds a repository stays: a `.git` folder or file anywhere inside it (a scratch clone, a `git worktree add` into `tmp/`; a `.git` inside `node_modules` does not count) is somebody's work.
 

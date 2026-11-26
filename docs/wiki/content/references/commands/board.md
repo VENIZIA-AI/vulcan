@@ -37,7 +37,7 @@ Run in a subfolder, it uses the project of that folder, as [vulcan event](/refer
 
 ## Serve it live
 
-`vulcan board serve` serves the same page on your own machine (it listens on `127.0.0.1`) and sends the open page a new snapshot when the event log changes, so it updates with no reload. The selected flow, the scroll position and the open groups stay. The static `vulcan board show` file works as before.
+`vulcan board serve` serves the same page on your own machine (it listens on `127.0.0.1`) and sends the open page a new snapshot when the event log changes, so it updates with no reload. It watches the size and time of `events/events.db` and its write-ahead log, `events/events.db-wal`. The selected flow, the scroll position and the open groups stay. The static `vulcan board show` file works as before.
 
 ```text
 $ bun node_modules/.bin/vulcan board serve --open

@@ -27,8 +27,8 @@ project: this project's VULCAN setup
   vulcan project sync [--agents <list>|list] [--dry-run] [--quiet]
       Write the adapters of the agents you chose (--agents claude,omp or none, stored in
       .agents/local/profile.json; --agents list shows them), with their guards, the commit hook when
-      a check is on and the ignore lines; move old profile keys and old event lines to the new
-      names. --dry-run writes nothing; --quiet prints only changes and notes.
+      a check is on and the ignore lines; move old profile keys to the new names. --dry-run writes
+      nothing; --quiet prints only changes and notes.
   vulcan project doctor
       Check the project follows VULCAN; exit 1 on any violation.
   vulcan project upgrade [--stable | --nightly] [<version|tag>]
@@ -167,13 +167,16 @@ event: the agent event log
 
   vulcan event add --type <type> --summary <text> [--flow <flow id>] [--ref <ref>]
       [--status approve|park|reject] [--actor <name>] [--dir <folder>]
-      Write one line to the event log (.agents/local/events/<day>.jsonl). Types: session-start,
+      Write one event to the event log (.agents/local/events/events.db). Types: session-start,
       session-stop, msg-sent, msg-received, needs-owner, subagent-start, subagent-stop, commit, pr,
       decision, flow, deploy, tool-tick, usage. --status is required on a decision and refused
       elsewhere. With board.events.log on, sync installs the Claude Code hooks that write the log.
       Exit 2 on bad input.
   vulcan event tail [--since <time>] [--json] [--dir <folder>]
       Print the events since a time (default: the last 24 hours); --json prints each as JSON.
+  vulcan event import [--dir <folder>]
+      Load the day files of an earlier release (<day>.jsonl) into events.db. The files stay; an
+      event that is already there is not added again.
 
 board: the page made from the log
 
@@ -249,7 +252,7 @@ The following list gives each command, its purpose, its exit codes, and its refe
   Exit codes: `0` when clean or when no check is configured; `1` on a problem; `2` on bad input.
 - `board` ([vulcan board show](/references/commands/board)): Fold the event log, and GitHub or GitLab pull requests when `gh` or `glab` can read them, into flows and write one read-only HTML page, by default `.agents/local/reports/board.html`.
   Exit codes: `0` written; `1` the file cannot be written, or `board serve` cannot start; `2` on bad input.
-- `event` ([vulcan event](/references/commands/event)): `flow add` and `flow step` keep the flows of the board, `event add` writes a line to the agent event log and `event tail` reads it; with `board.events.log` on, `sync` installs the Claude Code hooks that write it.
+- `event` ([vulcan event](/references/commands/event)): `flow add` and `flow step` keep the flows of the board, `event add` writes an event to the agent event log, `event tail` reads it and `event import` loads the day files of an earlier release; with `board.events.log` on, `sync` installs the Claude Code hooks that write it.
   Exit codes: `0` on success; `1` when the log cannot be written; `2` on bad input.
 - `doctor` ([vulcan project doctor](/references/commands/doctor)): Check the project against the VULCAN contract and report violations.
   Exit codes: `0` when conformant; `1` on any contract violation or unknown argument.

@@ -1,5 +1,5 @@
 import { existsSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import {
@@ -8,12 +8,14 @@ import {
   EventTypes,
   EventSources,
   EventStatuses,
+  EventStoreConstants,
   EventSubcommands,
 } from './common/index.ts';
 import type { IEvent, IEventItem, TEventType, TEventStatus } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
+import { EventImport } from './import.ts';
 import { FlowSteps } from './flow-steps.ts';
 import { ProjectKey } from './project-key.ts';
 import { EventLog } from './log.ts';
@@ -22,7 +24,7 @@ import { EventText } from './text.ts';
 
 /** Where the usage is: the command table holds it, and this module is kept free of what the table loads. */
 const USAGE =
-  'usage: bun node_modules/.bin/vulcan help flow (add, step), or help event (add, tail)';
+  'usage: bun node_modules/.bin/vulcan help flow (add, step), or help event (add, tail, import)';
 
 type TFlagValues = Record<string, string>;
 
@@ -53,9 +55,18 @@ export class EventCommand {
       parsed === undefined ||
       (subcommand !== EventSubcommands.ADD &&
         subcommand !== EventSubcommands.STEP &&
-        subcommand !== EventSubcommands.TAIL)
+        subcommand !== EventSubcommands.TAIL &&
+        subcommand !== EventSubcommands.IMPORT)
     ) {
       return EventCommand.usage();
+    }
+
+    if (subcommand === EventSubcommands.IMPORT) {
+      const isOnlyDir = Object.keys(parsed.values).every((flag) => flag === EventFlags.DIR);
+
+      return !isOnlyDir || parsed.lists.length > 0 || parsed.json
+        ? EventCommand.usage()
+        : EventCommand.import({ cwd: opts.cwd, values: parsed.values });
     }
 
     if (subcommand === EventSubcommands.STEP) {
@@ -620,6 +631,32 @@ export class EventCommand {
     }
 
     return { ok: true, flowId: FlowId.next({ dir: opts.dir, key }) };
+  }
+
+  private static import(opts: { cwd: string; values: TFlagValues }): number {
+    const dir = EventCommand.dirOf(opts);
+
+    if (!existsSync(dir) || !statSync(dir).isDirectory()) {
+      process.stderr.write(`event: ${dir} is not a folder\n`);
+
+      return ExitCodes.USAGE;
+    }
+
+    try {
+      const { files, added, present, skipped } = EventImport.run({ dir });
+
+      process.stdout.write(
+        `event: ${added} new event(s) from ${files} day file(s) into ${join(dir, EventStoreConstants.FILE)}; ${present} already there; ${skipped} line(s) that are not events\n`,
+      );
+
+      return ExitCodes.OK;
+    } catch (error) {
+      process.stderr.write(
+        `event: cannot load the day files of ${dir}: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+
+      return ExitCodes.FAILURE;
+    }
   }
 
   private static tail(opts: { cwd: string; values: TFlagValues; json: boolean }): number {

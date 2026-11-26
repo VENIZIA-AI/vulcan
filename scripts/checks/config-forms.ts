@@ -35,7 +35,7 @@ const FLAT_HEADS = new Set([
 const DOC_PATH = /`([a-zA-Z]+(?:\.[a-zA-Z[\]<>*-]+)+)`/g;
 /** A dotted word in plain prose: not preceded by a dot, a word character, `/`, `@` or `-`, and not followed by a word character, `(`, `/` or `-`. */
 const PLAIN_PATH = /(?<![.\w/@-])([a-zA-Z]+(?:\.[a-zA-Z]+)+)(?![\w(/-])/g;
-const FILE_NAME = /\.(?:md|ts|mts|json|yaml|yml|js|mjs|html|css|sh|toml|txt|ai|com|dev|io|org)$/;
+const FILE_NAME = /\.(?:md|ts|mts|json|yaml|yml|js|mjs|html|css|sh|toml|txt|db|ai|com|dev|io|org)$/;
 /**
  * Dotted words that look like a flat config key and are not one: the keys of a preset package's `package.json`, and the keys of the
  * generated manifest, which keeps the flat names. Each entry is a file and the word; the test of this gate pins the list.

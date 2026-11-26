@@ -233,7 +233,7 @@ describe('the hook stays light', () => {
 
     // common/types.ts holds ConstClass, which EventTypes extends: no imports of its own, so the hook still loads no package.
     expect(outside.sort()).toEqual(['common/record.ts', 'common/types.ts']);
-    expect([...packages].sort()).toEqual(['node:fs', 'node:os', 'node:path']);
+    expect([...packages].sort()).toEqual(['bun:sqlite', 'node:fs', 'node:os', 'node:path']);
   });
 
   test('the event command reaches atlas through no static import', () => {

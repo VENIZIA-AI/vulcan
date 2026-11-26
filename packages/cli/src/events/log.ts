@@ -1,7 +1,12 @@
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
-import { ClaudeHookEvents, EventConstants, EventTypes, EventStatuses } from './common/index.ts';
+import {
+  ClaudeHookEvents,
+  EventConstants,
+  EventTypes,
+  EventStatuses,
+  EventStoreConstants,
+} from './common/index.ts';
 import type {
   IEvent,
   IEventItem,
@@ -11,12 +16,13 @@ import type {
   TEventType,
   TEventStatus,
 } from './common/index.ts';
+import { EventStore } from './store.ts';
 import { EventText } from './text.ts';
 
 const ID_TIME_WIDTH = 9;
 const ID_RANDOM_BYTES = 4;
 
-/** The append-only log: one JSON line per event, one file per local day, in one folder. */
+/** The append-only log: one JSON line per event, kept in the database of one folder. */
 export class EventLog {
   /** Time-ordered and collision-safe across sessions: the time in base 36, then 8 random hex digits. */
   static newId(opts: { now?: number }): string {
@@ -28,7 +34,7 @@ export class EventLog {
     return `${time}${random}`;
   }
 
-  /** `yyyy-mm-dd` of a moment, in the local time zone: the name of the day file. */
+  /** `yyyy-mm-dd` of a moment, in the local time zone: a day file of an earlier release is named so. */
   static dayOf(opts: { time: number }): string {
     const date = new Date(opts.time);
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -139,62 +145,27 @@ export class EventLog {
     return session === '' ? {} : { session };
   }
 
-  /** Adds the event to the day file of its time as one write, so sessions writing at once do not interleave. */
+  /** Adds the event to the database of the folder and returns the file. */
   static append(opts: { dir: string; event: IEvent }): string {
-    const file = join(
-      opts.dir,
-      `${EventLog.dayOf({ time: Date.parse(opts.event.ts) })}${EventConstants.FILE_SUFFIX}`,
-    );
+    const file = join(opts.dir, EventStoreConstants.FILE);
 
-    mkdirSync(opts.dir, { recursive: true });
-    appendFileSync(file, `${JSON.stringify(opts.event)}\n`);
+    EventStore.append({ file, events: [opts.event] });
 
     return file;
   }
 
   /**
-   * Every event at or after `since` (milliseconds), oldest first. A line that is not an event is counted
-   * and skipped. A folder that does not exist holds no events.
+   * Every event at or after `since` (milliseconds), oldest first. A row that is not an event is counted and skipped. A
+   * folder with no database holds no events.
    */
   static read(opts: { dir: string; since?: number }): IEventRead {
-    if (!existsSync(opts.dir)) {
-      return { events: [], skipped: 0 };
-    }
+    const lines = EventStore.lines({
+      file: join(opts.dir, EventStoreConstants.FILE),
+      ...(opts.since === undefined ? {} : { since: opts.since }),
+    });
+    const events = lines.flatMap((line) => EventLog.parse({ line }) ?? []);
 
-    // A day file holds the local day of its events; one day earlier covers a reader in another zone.
-    const first =
-      opts.since === undefined
-        ? undefined
-        : EventLog.dayOf({ time: opts.since - EventConstants.DAY_MS });
-    const files = readdirSync(opts.dir)
-      .filter(
-        (name) => EventConstants.DAY_FILE.test(name) && (first === undefined || name >= first),
-      )
-      .sort();
-    const events: IEvent[] = [];
-    let skipped = 0;
-
-    for (const name of files) {
-      for (const line of readFileSync(join(opts.dir, name), 'utf8').split('\n')) {
-        if (line.trim() === '') {
-          continue;
-        }
-
-        const event = EventLog.parse({ line });
-
-        if (event === undefined) {
-          skipped++;
-        } else if (opts.since === undefined || Date.parse(event.ts) >= opts.since) {
-          events.push(event);
-        }
-      }
-    }
-
-    events.sort((left, right) =>
-      left.ts === right.ts ? left.id.localeCompare(right.id) : left.ts.localeCompare(right.ts),
-    );
-
-    return { events, skipped };
+    return { events, skipped: lines.length - events.length };
   }
 
   /** A place in the work order as the log keeps it: a positive whole number; anything else is nothing. */

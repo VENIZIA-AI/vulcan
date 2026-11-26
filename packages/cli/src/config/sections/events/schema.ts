@@ -5,7 +5,7 @@ import { EventSettings } from '../../../events/settings.ts';
 export const EVENTS_SECTION = {
   /**
    * The agent event log: one JSON line per thing an agent did (a session started, a message sent, an
-   * owner is needed), summaries only, in `.agents/local/events/<day>.jsonl`. `log: true` makes
+   * owner is needed), summaries only, in the SQLite database `.agents/local/events/events.db`. `log: true` makes
    * `vulcan project sync` install the Claude Code hooks that write it; `vulcan event add` writes it for any
    * other agent whatever this says. `dir` is an absolute folder that takes the log instead of the
    * project's own, so one coordinator can read the events of sessions in different repositories.
@@ -28,9 +28,9 @@ export const EVENTS_SECTION = {
         })
         .optional(),
       /**
-       * How much of the log is kept, as whole day files removed oldest first (today's never): `maxSize` for the
-       * folder (`50MB`, `200MB`, `1GB`), `maxFiles` for the day files, `maxAgeDays` for their age. The defaults,
-       * when `log` is on, are 50MB, 30 files and 30 days.
+       * The limits act on the day files of earlier releases, removed whole and oldest first (today's never); the
+       * database is not trimmed yet. `maxSize` for their total (`50MB`, `200MB`, `1GB`), `maxFiles` for their
+       * number, `maxAgeDays` for their age. The defaults, when `log` is on, are 50MB, 30 files and 30 days.
        */
       maxSize: z
         .string()
@@ -38,7 +38,7 @@ export const EVENTS_SECTION = {
           message: 'a size such as 50MB, 200MB or 1GB',
         })
         .optional(),
-      /** Most day files kept in the log; at least 1, default 30 when `log` is on. */
+      /** Most day files kept; at least 1, default 30 when `log` is on. */
       maxFiles: z.number().int().min(1).optional(),
       /** Oldest age, in days, a day file may reach; at least 1, default 30 when `log` is on. */
       maxAgeDays: z.number().int().min(1).optional(),

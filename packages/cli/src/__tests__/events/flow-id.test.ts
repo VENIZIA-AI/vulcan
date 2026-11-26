@@ -7,30 +7,38 @@ import { EventFlow, EventLog, EventRetention, FlowId } from '../../events/index.
 import { hermeticEnv } from '../hermetic.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
+import { LogDb } from './log-db.helper.ts';
 
 afterAll(removeProjects);
 
 const BASE = Date.parse('2026-11-01T09:00:00Z');
-const line = (id: string, order = 0) =>
-  `${JSON.stringify(EventLog.build({ type: 'commit', summary: 'seed', actor: 'a', source: 'cli', flowId: id, now: BASE + order * 1000 }))}\n`;
+const seedEvent = (id: string, order = 0) =>
+  EventLog.build({
+    type: 'commit',
+    summary: 'seed',
+    actor: 'a',
+    source: 'cli',
+    flowId: id,
+    now: BASE + order * 1000,
+  });
 
-const project = (opts: { key?: string; seeds?: string[]; branch?: string } = {}): string =>
-  createProject({
+const events = (root: string) => join(root, '.agents/local/events');
+const project = (opts: { key?: string; seeds?: string[]; branch?: string } = {}): string => {
+  const root = createProject({
     files: {
       '.agents/local/vulcan.manifest.json': JSON.stringify(
         opts.key === undefined ? {} : { project: { key: opts.key } },
       ),
-      ...(opts.seeds === undefined
-        ? {}
-        : {
-            '.agents/local/events/2026-11-01.jsonl': opts.seeds
-              .map((id, order) => line(id, order))
-              .join(''),
-          }),
       ...(opts.branch === undefined ? {} : { '.git/HEAD': `ref: refs/heads/${opts.branch}\n` }),
     },
   });
-const events = (root: string) => join(root, '.agents/local/events');
+
+  if (opts.seeds !== undefined) {
+    LogDb.seed({ dir: events(root), events: opts.seeds.map(seedEvent) });
+  }
+
+  return root;
+};
 const cli = (opts: { root: string; args: string[] }) =>
   runCli({
     args: ['event', ...opts.args],
@@ -154,8 +162,7 @@ describe('a number is claimed, never given twice', () => {
   test('a key counts on its own; the log counts for it, and an older F-n for every key', () => {
     const dir = join(createProject({ files: {} }), 'events');
 
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, '2026-11-01.jsonl'), line('VULZ-ACME-6') + line('F-9'));
+    LogDb.seed({ dir, events: [seedEvent('VULZ-ACME-6'), seedEvent('F-9')] });
 
     expect(FlowId.next({ dir, key: 'ACME' })).toBe('VULZ-ACME-10');
     expect(FlowId.next({ dir, key: 'OTHER' })).toBe('VULZ-OTHER-10');
@@ -179,7 +186,7 @@ describe('a number is claimed, never given twice', () => {
     mkdirSync(join(dir, '.flow-ids'), { recursive: true });
     writeFileSync(join(dir, '.flow-ids', 'ACME-1e21'), '');
     writeFileSync(join(dir, '.flow-ids', 'ACME-99999999999999999999'), '');
-    writeFileSync(join(dir, '2026-11-01.jsonl'), line('VULZ-ACME-99999999999999999999'));
+    LogDb.seed({ dir, events: [seedEvent('VULZ-ACME-99999999999999999999')] });
 
     expect(FlowId.next({ dir, key: 'ACME' })).toBe('VULZ-ACME-1');
     expect(FlowId.numberOf({ id: 'VULZ-ACME-12' })).toBe(12);
@@ -258,7 +265,7 @@ describe('the claims are not part of the log', () => {
     const dir = join(createProject({ files: {} }), 'events');
 
     FlowId.next({ dir, key: 'ACME' });
-    writeFileSync(join(dir, '2020-01-01.jsonl'), line('F-1'));
+    writeFileSync(join(dir, '2020-01-01.jsonl'), `${JSON.stringify(seedEvent('F-1'))}\n`);
 
     const plan = EventRetention.plan({
       dir,
@@ -279,31 +286,28 @@ describe('a flow line on the branch of a flow, open or over, makes a new flow', 
       ref?: string;
       status?: 'approve' | 'park' | 'reject';
     }[],
-  ): string =>
-    lines
-      .map((one, order) =>
-        JSON.stringify(
-          EventLog.build({
-            type: one.type,
-            summary: 'x',
-            actor: 'a',
-            source: 'cli',
-            flowId: 'VULZ-ACME-4',
-            now: Date.parse('2026-11-01T09:00:00Z') + order * 1000,
-            ...(one.ref === undefined ? {} : { ref: one.ref }),
-            ...(one.status === undefined ? {} : { status: one.status }),
-          }),
-        ),
-      )
-      .join('\n');
+  ) =>
+    lines.map((one, order) =>
+      EventLog.build({
+        type: one.type,
+        summary: 'x',
+        actor: 'a',
+        source: 'cli',
+        flowId: 'VULZ-ACME-4',
+        now: BASE + order * 1000,
+        ...(one.ref === undefined ? {} : { ref: one.ref }),
+        ...(one.status === undefined ? {} : { status: one.status }),
+      }),
+    );
   const made = (lines: Parameters<typeof log>[0]): string => {
     const root = createProject({
       files: {
         '.agents/local/vulcan.manifest.json': JSON.stringify({ project: { key: 'ACME' } }),
-        '.agents/local/events/2026-11-01.jsonl': `${log(lines)}\n`,
         '.git/HEAD': 'ref: refs/heads/feature/VULZ-ACME-4-x\n',
       },
     });
+
+    LogDb.seed({ dir: events(root), events: log(lines) });
 
     return cli({ root, args: ['add', '--type', 'flow', '--title', 'T'] }).stdout.trim();
   };
@@ -336,9 +340,11 @@ describe('a flow line on the branch of a flow, open or over, makes a new flow', 
     const root = createProject({
       files: {
         '.agents/local/vulcan.manifest.json': JSON.stringify({ project: { key: 'ACME' } }),
-        '.agents/local/events/2026-11-01.jsonl': `${log([{ type: 'pr', ref: 'merged:9' }])}\n`,
       },
     });
+
+    LogDb.seed({ dir: events(root), events: log([{ type: 'pr', ref: 'merged:9' }]) });
+
     const result = cli({
       root,
       args: ['add', '--type', 'flow', '--flow', 'VULZ-ACME-4', '--title', 'T'],

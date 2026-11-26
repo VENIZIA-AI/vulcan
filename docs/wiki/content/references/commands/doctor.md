@@ -48,7 +48,8 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `agents` | The stored agents file parses and names only known agents | Fix the key it names in `.agents/local/profile.json`, then run `vulcan project sync --agents <list>` |
 | `format` (warning) | Root `bunfig.toml` has `[fmt]` with `flavor = "oxfmt"`; no `package.json` defines `fmt`; no oxfmt config is left | Add the section, rename the script, delete the config or the copy |
 | `commit-hook` (warning) | A commit check is on and this clone's `commit-msg` hook is missing, stale or skips the check | Run `bun node_modules/.bin/vulcan project sync`; for your own hook, add the line the warning shows |
-| `events-size` (warning) | Today's event file alone is over `board.events.maxSize` | Raise `maxSize` or write fewer events |
+| `events-size` (warning) | Today's day file alone is over `board.events.maxSize` | Raise `maxSize` |
+| `events-import` (warning) | A day file is new or changed since the last import, or the folder cannot be read | Run `vulcan event import` |
 | `events-dir` (warning) | `board.events.dir` names a folder outside the project that is missing or unusable | Create it, or fix the path |
 | `profile` (warning) | `.agents/local/profile.json` cannot be read, is not ignored by git, or is tracked by git | Fix or delete the file and run the profile form again; ignore `.agents/local/` or untrack the file |
 | `guards` (note) | Notes list each `guard.writes.commands` pattern and `guard.git.askPush` | Change the list in the config |
@@ -316,11 +317,23 @@ The last message reads `this project's commit check is not installed: the hook b
 
 ### events-size
 
-A warning: today's event file is bigger than `board.events.maxSize` on its own. The retention removes whole old day files and never today's, so nothing else will shrink it; raise `maxSize` or write fewer events. It appears only when the log is on or a limit is set.
+A warning: today's day file is bigger than `board.events.maxSize` on its own. Only an earlier release writes day files. The retention removes whole old day files and never today's, so nothing else will shrink it. Raise `maxSize`. `events/events.db` is not measured or trimmed yet. The warning appears only when the log is on or a limit is set.
 
 ```text
   warning [events-size] .configs/vulcan.config.mts: today's event file in /path/.agents/local/events is 61.2 MB, over board.events.maxSize (50MB); nothing is truncated and today's file is never removed - raise maxSize or write fewer events
 ```
+
+### events-import
+
+A warning: the events folder holds a day file (`<yyyy-mm-dd>.jsonl`) that is new, or changed, since the last import. The log is read from the database alone, so the board and `vulcan event tail` do not show what only a day file holds. It appears only when `board.events.log` is `true`.
+
+```text
+  warning [events-import] .configs/vulcan.config.mts: /path/.agents/local/events holds 3 day file(s) not loaded into its database, so nothing reads what they hold - run `bun node_modules/.bin/vulcan event import`
+```
+
+Run the command the warning prints. The check compares the size and time of each file with what the last import recorded in `.imported.json`; it reads no file. A session on an earlier release keeps writing day files, so the warning can return until that session upgrades. The day files stay after an import. See [vulcan event import](/references/commands/event#vulcan-event-import).
+
+When the day files or the database cannot be read, the same check says `the events of <folder> cannot be read: <reason>`.
 
 ### atlas-source
 

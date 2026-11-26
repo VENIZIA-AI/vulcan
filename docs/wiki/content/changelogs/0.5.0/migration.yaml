@@ -268,13 +268,25 @@ event-type-field:
     - '@venizia/vulcan'
   upgrade:
     steps:
-      - 'Run `bun node_modules/.bin/vulcan project sync` once: it rewrites `kind` to `type` in every line of the day files of the event log (`.agents/local/events/` or `board.events.dir`), and says how many lines it moved. A line that has a `type` already, or a `kind` that is not an event type, is left as it is, so a second run changes nothing.'
-      - 'Change every script, hook and doc that runs `vulcan event add --kind <t>` to `--type <t>`, and every reader of the log that reads the `kind` field to read `type`.'
-      - 'Repos that share one events dir (`board.events.dir`) should upgrade together: until each one is on this release, a session on an earlier one does not see the lines the sync of another has moved.'
+      - 'Run `bun node_modules/.bin/vulcan event import` once for each events folder (see `event-database`): it reads a day file line that says `kind` as `type`. The day files are not changed.'
+      - 'Change every script, hook and doc that runs `vulcan event add --kind <t>` to `--type <t>`, and every reader of the log that reads the `kind` field to read `type` (`vulcan event tail --json`).'
+      - 'Repos that share one events dir (`board.events.dir`) should upgrade together: a session on an earlier release writes day files that this release does not read until you run the import again.'
   downgrade:
     steps:
-      - 'Pin the earlier `@venizia/vulcan`: it reads `kind`, so the lines the new sync moved are not read by it. Rename `type` back to `kind` in the day files of the log.'
-  data: 'The event log of a machine is moved by `project sync` in place; a log copied from a machine that has not run it still has `kind` and is not read by the new board.'
+      - 'Pin the earlier `@venizia/vulcan`: it reads the day files, which the import left as they were. If an earlier 0.5.0 prerelease moved lines to `type` and you pin a release that reads `kind`, rename `type` back to `kind` in those files. Change `--type` back to `--kind`.'
+  data: 'The day files are not rewritten. Events written to the database are not in them.'
+event-database:
+  symbols:
+    - '@venizia/vulcan'
+  upgrade:
+    steps:
+      - "Run `bun node_modules/.bin/vulcan event import` once for each events folder, before your agents work again (add `--dir <folder>` for a folder that is not the project's configured one). Until then the board and `event tail` do not show the events of the day files, and the retention can remove old day files."
+      - 'Sessions on an earlier version still write day files: run the import again after they upgrade. `vulcan project doctor` warns (`events-import`) while a day file is new or changed since the last import.'
+      - 'Change every script that reads `<day>.jsonl` to use `bun node_modules/.bin/vulcan event tail --json`. Keep a shared events folder on a local disk.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan` and run `bun node_modules/.bin/vulcan project sync`. It does not read `events.db`, so it loses sight of every event written since the upgrade. The day files from before are still there unless the retention removed them.'
+  data: 'Events are stored in `events.db` in the events folder. The import copies the day files into it and leaves them. An earlier VULCAN does not read the database, and nothing exports it back to day files. The database is not trimmed yet.'
 atlas-field-names:
   symbols:
     - '@venizia/vulcan-atlas'

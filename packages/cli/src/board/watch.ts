@@ -1,25 +1,28 @@
-import { existsSync, readdirSync, statSync, watch } from 'node:fs';
+import { existsSync, statSync, watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
 import { join } from 'node:path';
-import { EventConstants } from '../events/common/index.ts';
+import { EventStoreConstants } from '../events/common/index.ts';
 import { BoardServe } from './common/index.ts';
 
 /** Tells `vulcan board serve` when the event log changed; the log reader decides what the change means. */
 export class BoardWatch {
-  /** The names, sizes and times of the log files as one string: it differs whenever a line was added or a file came or went. */
+  /**
+   * The sizes and times of the database and its write-ahead log as one string: it differs whenever an event was written.
+   * A reader makes an empty write-ahead log, which counts for nothing.
+   */
   static signatureOf(opts: { dir: string }): string {
     if (!existsSync(opts.dir)) {
       return '';
     }
 
     try {
-      return readdirSync(opts.dir)
-        .filter((name) => EventConstants.DAY_FILE.test(name))
-        .sort()
-        .map((name) => {
-          const { size, mtimeMs } = statSync(join(opts.dir, name));
+      return [EventStoreConstants.FILE, `${EventStoreConstants.FILE}-wal`]
+        .flatMap((name) => {
+          const found = statSync(join(opts.dir, name), { throwIfNoEntry: false });
 
-          return `${name}:${size}:${mtimeMs}`;
+          return found === undefined || found.size === 0
+            ? []
+            : [`${name}:${found.size}:${found.mtimeMs}`];
         })
         .join('|');
     } catch (error) {

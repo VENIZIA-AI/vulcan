@@ -1,13 +1,12 @@
 import { Database, SQLiteError } from 'bun:sqlite';
-import { existsSync, mkdirSync } from 'node:fs';
+import { mkdirSync, statSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { EventStoreConstants } from './common/index.ts';
-import type { IEvent, IEventRead } from './common/index.ts';
-import { EventLog } from './log.ts';
+import type { IEvent } from './common/index.ts';
 
 /**
  * The event log in a SQLite database that several processes write at once (WAL: many readers, one writer at a time). The
- * file must be on a local disk. An event is appended and read back in the shape `EventLog` builds and parses.
+ * file must be on a local disk. `EventLog` is what builds an event and reads one back.
  */
 export class EventStore {
   /**
@@ -47,25 +46,38 @@ export class EventStore {
   }
 
   /**
-   * Every event at or after `since` (milliseconds), oldest first, events of one moment in the order they were written.
-   * A row that is not an event is counted and skipped. With no database there are no events, and none is made.
+   * The line of every event at or after `since` (milliseconds), oldest first, events of one moment in the order they
+   * were written. With no database there are no lines, and none is made; one that cannot be reached throws.
    */
-  static read(opts: { file: string; since?: number }): IEventRead {
-    if (!existsSync(opts.file)) {
-      return { events: [], skipped: 0 };
+  static lines(opts: { file: string; since?: number }): string[] {
+    if (!EventStore.isThere(opts)) {
+      return [];
     }
 
     const db = EventStore.open({ file: opts.file });
 
     try {
-      const rows = db
+      return db
         .query<{ line: string }, [string]>('SELECT line FROM event WHERE ts >= ? ORDER BY ts, seq')
-        .all(opts.since === undefined ? '' : new Date(opts.since).toISOString());
-      const events = rows.flatMap(({ line }) => EventLog.parse({ line }) ?? []);
-
-      return { events, skipped: rows.length - events.length };
+        .all(opts.since === undefined ? '' : new Date(opts.since).toISOString())
+        .map(({ line }) => line);
     } finally {
       db.close();
+    }
+  }
+
+  /** Whether the file is there; only its absence is a no, any other trouble to reach it throws. */
+  private static isThere(opts: { file: string }): boolean {
+    try {
+      statSync(opts.file);
+
+      return true;
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        return false;
+      }
+
+      throw error;
     }
   }
 

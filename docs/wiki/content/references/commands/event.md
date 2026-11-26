@@ -1,6 +1,6 @@
 ---
 title: vulcan event
-description: Write a line to the agent event log, or read it. With board.events.log on, vulcan project sync installs the Claude Code hooks that write it.
+description: Write an event to the agent event log, read it, or import old day files. With board.events.log on, sync installs the hooks that write it.
 ---
 
 # vulcan event
@@ -30,7 +30,11 @@ Without the key nothing is installed and nothing is written by itself. The [conf
 
 ## The log
 
-One file per local day, one JSON object per line, in `.agents/local/events/<yyyy-mm-dd>.jsonl`. The folder is under `.agents/local/`, which git ignores.
+The log is a SQLite database, `.agents/local/events/events.db`, with one row for each event. Each row holds the event as one JSON line. The folder is under `.agents/local/`, which git ignores.
+
+Several sessions can write at once. SQLite keeps its write-ahead log beside the database (`events/events.db-wal` and `events/events.db-shm`), so the folder must be on a local disk. A database that a newer VULCAN wrote in a form this one cannot use is refused with a message that says to upgrade.
+
+Earlier releases wrote one file per day, `<yyyy-mm-dd>.jsonl`. VULCAN no longer writes those files or reads them as the log. Load them once with [vulcan event import](#vulcan-event-import).
 
 ```json
 {"id":"0y4k2m9xa1b2c3d4","ts":"2026-11-03T09:30:12.431Z","flowId":"VULZ-ACME-12","actor":"pnt-vulcan-1","type":"commit","summary":"fixed the lock age","ref":"28592dd","source":"cli"}
@@ -58,11 +62,23 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 
 A reader cleans the free text of every line it reads (`summary`, `why`, `context`, `next` and `ref`) the way the writer does: one line, anything shaped like a secret replaced by `[redacted]`, the same length caps. A line written by hand, or by an older version, cannot put a huge string or a token on a board.
 
-Each line is one write, so sessions that write at the same moment do not mix their lines.
+Each event is written in one transaction, so sessions that write at the same moment do not mix their events. A writer waits for its turn.
 
 ### How much is kept
 
-The log does not grow for ever. When `board.events.log` is on, or you set a limit, whole day files are removed, oldest first, once any of three limits is passed: `maxAgeDays` (default 30 days), `maxFiles` (default 30 day files) and `maxSize` (default `50MB` for the folder). Today's file (and any later day's) is never removed or truncated; if it alone is over `maxSize`, `vulcan project doctor` warns ([events-size](/references/commands/doctor#events-size)). The removal happens in the [automatic clean](/guides/core-concepts/the-agents-folder#the-automatic-clean) at session start, and in `vulcan project clean --events`, which removes only what the limits say and lists the rest as kept. The keys are in the [config reference](/references/configuration/#board-events). A shared `dir` is kept by whichever session of any project starts first; that is fine, the limits are the same.
+**`events/events.db` is not trimmed yet.** In this release the limits act on the day files of earlier releases only. The database grows, and `maxSize` does not count it.
+
+When `board.events.log` is on, or you set a limit, whole day files are removed, oldest first, once any of three limits is passed:
+
+| Limit | Default | Applies to |
+|---|---|---|
+| `maxAgeDays` | 30 | the age of a day file |
+| `maxFiles` | 30 | the number of day files |
+| `maxSize` | `50MB` | the total size of the day files |
+
+Today's file (and any later day's) is never removed or truncated. If it alone is over `maxSize`, `vulcan project doctor` warns ([events-size](/references/commands/doctor#events-size)). The removal happens in the [automatic clean](/guides/core-concepts/the-agents-folder#the-automatic-clean) at session start, and in `vulcan project clean --events`, which removes only what the limits say and lists the rest as kept. A removed day file that you never imported is lost, so [import](#vulcan-event-import) soon after you upgrade.
+
+The keys are in the [config reference](/references/configuration/#board-events). A shared `dir` is kept by whichever session of any project starts first; that is fine, the limits are the same.
 
 ### One folder for every project
 
@@ -108,7 +124,7 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 
 Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/local/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.
 
-Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown type, a missing or empty `--summary`, a `--flow` that is not a flow id or that no line of the log carries, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or one that makes a new flow when the project has no `project.key`, or with an empty or blank `--context` or `--next`, or with a `--summary`, a `--title`, `--why`, `--context` or `--next` on any other kind, an unknown flag, a flag given twice).
+Exit codes: `0` written; `1` the log cannot be written; `2` bad input (an unknown type, a missing or empty `--summary`, a `--flow` that is not a flow id or that no line of the log carries, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or one that makes a new flow when the project has no `project.key`, or with an empty or blank `--context` or `--next`, or with a `--summary`, a `--title`, `--why`, `--context` or `--next` on any other kind, an unknown flag, a flag given twice).
 
 ## vulcan flow step
 
@@ -124,7 +140,30 @@ Changes steps of a flow without restating the lists. It copies the flow's last `
 vulcan event tail [--since <time>] [--json] [--dir <folder>]
 ```
 
-It prints the events at or after `--since`, oldest first. `--since` takes anything `Date.parse` reads, such as `2026-11-03` or `2026-11-03T09:00:00Z`; the default is the last 24 hours. `--json` prints each line as written. A line that is not an event is skipped, and the count goes to stderr. `--dir` must name a folder that exists (exit `2` otherwise); the default folder may not exist yet, and then there is nothing to print.
+It prints the events at or after `--since`, oldest first. `--since` takes anything `Date.parse` reads, such as `2026-11-03` or `2026-11-03T09:00:00Z`; the default is the last 24 hours. `--json` prints each event as one JSON line. The `ts` is stored in the UTC form shown above. A stored line that is not an event is skipped, and the count goes to stderr. `--dir` must name a folder that exists (exit `2` otherwise); the default folder may not exist yet, and then there is nothing to print.
+
+## vulcan event import
+
+```text
+vulcan event import [--dir <folder>]
+```
+
+It loads the day files of an earlier release (`<yyyy-mm-dd>.jsonl`) into `events/events.db` in the same folder.
+
+```text
+$ bun node_modules/.bin/vulcan event import
+event: 142 new event(s) from 3 day file(s) into /path/to/project/.agents/local/events/events.db; 0 already there; 0 line(s) that are not events
+```
+
+- The day files are only read. They stay where they are.
+- An event whose `id` is already in the database is not added again, so you can run the command as often as you like.
+- A line of a release before 0.5.0 names its type `kind`. The import reads it as `type`.
+- A line that is not an event is counted and left out.
+- It records the size and time of each file it loaded in `.imported.json` beside the database.
+
+Run it once for each events folder after you upgrade, before your agents work again. A session on an earlier release still writes day files. Run the command again after that session upgrades. [vulcan project doctor](/references/commands/doctor#events-import) warns while a day file is new or changed since the last import.
+
+`--dir` works as for `event add`, and it is the only flag. Exit codes: `0` loaded; `1` the files cannot be loaded; `2` an unknown flag, or a folder that does not exist (the default folder too).
 
 ## What the Claude Code hooks log
 
@@ -256,6 +295,6 @@ The hooks exist for Claude Code only. Any other coding agent reports through `vu
 - [vulcan board show](/references/commands/board): one HTML page of the flows in this log
 - [Configuration](/references/configuration/#board-events): the `events` key
 - [The .agents folder](/guides/core-concepts/the-agents-folder): where `events/` sits and when it goes
-- [vulcan project clean](/references/commands/clean): `--events` removes the log
+- [vulcan project clean](/references/commands/clean): `--events` removes old day files past the limits
 - [vulcan project sync](/references/commands/sync#the-event-hooks): when the hooks are written
-- [vulcan project doctor](/references/commands/doctor#events-dir): the folder warning
+- [vulcan project doctor](/references/commands/doctor#events-dir): the folder warning, and [events-import](/references/commands/doctor#events-import)
