@@ -23,7 +23,7 @@ const SOON_DAYS = 2;
 const PHONE = '(max-width: 640px)';
 /** Up to this many steps a bar draws one segment each; more draw as one bar. */
 const SEGMENTS_MAX = 12;
-const NUMBER_COLUMNS = new Set<TWorkColumn>(['tokens']);
+const NUMBER_COLUMNS = new Set<TWorkColumn>(['read', 'written']);
 const TOKENS = new Intl.NumberFormat('en-US', { notation: 'compact', maximumSignificantDigits: 3 });
 const VIEW_ICONS: Record<TWorkView, ReactNode> = {
   cards: ICONS.cards,
@@ -99,7 +99,7 @@ const Who = (props: { name: string; holds?: boolean }) => {
   const { t } = useUi();
 
   return (
-    <span className={`who${props.holds ? ' h' : ''}`}>
+    <span className={`who${props.holds ? ' h' : ''}`} title={props.name}>
       <i style={{ background: BoardFace.colorOf({ name: props.name }) }} />
       {props.name}
       {props.holds ? <span className="sr">{` ${t('it.holds')}`}</span> : null}
@@ -378,13 +378,24 @@ const Groups = (props: {
   );
 };
 
+/** A token figure of the table: the total, and a second line under it; the full text is the title. Empty with no tokens. */
+const TokenCell = (props: { total: number | undefined; note: string }) =>
+  props.total === undefined ? (
+    <td className="num" />
+  ) : (
+    <td className="num t-tk" title={`${props.total.toLocaleString('en-US')}\n${props.note}`}>
+      {TOKENS.format(props.total)}
+      <small>{props.note}</small>
+    </td>
+  );
+
 /** One row of the table; a cell with nothing to say is empty. */
 const TableRow = (props: IRowProps) => {
-  const { now } = useUi();
+  const { t, now } = useUi();
   const { view } = props;
   const { flow } = view;
   const card = BoardCards.itemOf({ view });
-  const tokens = BoardWork.tokensOf({ flow });
+  const { tokens } = flow;
   const pick = usePick({ id: flow.id, selected: props.selected, onSelect: props.onSelect });
 
   return (
@@ -417,9 +428,22 @@ const TableRow = (props: IRowProps) => {
         ) : null}
       </td>
       <td>{card.prs.length > 0 ? <PrList prs={card.prs} /> : null}</td>
-      <td className="num" title={tokens === undefined ? undefined : tokens.toLocaleString('en-US')}>
-        {tokens === undefined ? '' : TOKENS.format(tokens)}
-      </td>
+      <TokenCell
+        total={tokens === undefined ? undefined : BoardWork.readOf({ counts: tokens })}
+        note={
+          tokens === undefined
+            ? ''
+            : BoardWork.readNote({ counts: tokens, format: TOKENS.format, translate: t })
+        }
+      />
+      <TokenCell
+        total={tokens?.output}
+        note={
+          tokens === undefined
+            ? ''
+            : BoardWork.writtenNote({ counts: tokens, format: TOKENS.format, translate: t })
+        }
+      />
       <td className="num">{flow.due ?? ''}</td>
       <td>
         <Updated view={view} />

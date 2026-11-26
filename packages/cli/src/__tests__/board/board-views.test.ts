@@ -200,7 +200,126 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
     }
   });
 
-  test('the table: eleven columns in order, a header click sorts with aria-sort, and j moves through its rows', async () => {
+  for (const width of [1280, 1720, 2560]) {
+    for (const dark of [false, true]) {
+      test(`the table at ${width} px, ${dark ? 'dark' : 'light'}: Order and Code stay while it scrolls sideways, the title has room`, async () => {
+        const raw = await BrowserPage.measure<string>({
+          html: BoardPage.render({ data }),
+          width,
+          dark,
+          expression: `(async () => {
+          localStorage.clear();
+          ${WAIT}
+          document.querySelector('[data-view="table"]').click();
+          await wait();
+          const table = document.querySelector('.t-work');
+          let scroller = table.parentElement;
+          while (scroller.scrollWidth <= scroller.clientWidth && scroller.parentElement) scroller = scroller.parentElement;
+          const box = (selector) => document.querySelector(selector).getBoundingClientRect();
+          const read = () => ({
+            order: Math.round(box('.t-work tbody tr td:nth-child(1)').left),
+            code: Math.round(box('.t-work tbody tr td:nth-child(2)').left),
+            title: Math.round(box('.t-work tbody tr td:nth-child(3)').left),
+          });
+          const before = read();
+          scroller.scrollLeft = 200;
+          await wait();
+          const after = read();
+          const moved = scroller.scrollLeft;
+          const out = { before, after, moved, titleWidth: box('.t-work tbody tr td:nth-child(3)').width, titles: [...document.querySelectorAll('.t-title span:first-child')].every((span) => span.title === span.textContent) };
+          localStorage.clear();
+          return JSON.stringify(out);
+        })()`,
+        });
+        const result: {
+          before: { order: number; code: number; title: number };
+          after: { order: number; code: number; title: number };
+          moved: number;
+          titleWidth: number;
+          titles: boolean;
+        } = JSON.parse(raw);
+
+        // Below 2560 px the table is wider than the pane. At 2560 px whether it scrolls depends on the machine's fonts.
+        if (width < 2560) {
+          expect(result.moved).toBeGreaterThan(0);
+        }
+
+        expect(result.titleWidth).toBeGreaterThanOrEqual(240);
+        expect(result.titles).toBe(true);
+        expect(result.after.order).toBe(result.before.order);
+        expect(result.after.code).toBe(result.before.code);
+        expect(result.after.title).toBe(result.before.title - result.moved);
+      });
+    }
+
+    test(`the compact view at ${width} px: nothing overlaps, every title shows and the list does not scroll sideways`, async () => {
+      const long = {
+        ...data,
+        flows: data.flows.map((flow) => ({ ...flow, id: `VULZ-VULCAN-${flow.id.slice(2)}00` })),
+      };
+      const raw = await BrowserPage.measure<string>({
+        html: BoardPage.render({ data: long }),
+        width,
+        dark: false,
+        expression: `(async () => {
+          localStorage.clear();
+          ${WAIT}
+          document.querySelector('[data-view="compact"]').click();
+          await wait();
+          // The detail open, as when a person reads a flow: the work pane is then at its narrowest.
+          document.querySelector('.c-line').click();
+          await wait();
+          const shown = (el) => el.offsetParent !== null;
+          const rows = [...document.querySelectorAll('.c-line')].filter(shown);
+          // A holder too long for its line is cut: it never pushes the time onto a third one.
+          rows[0].querySelector('.who').append(' a-holder-name-much-longer-than-its-line-can-show');
+          await wait();
+          const bad = [];
+          for (const row of rows) {
+            const outer = row.getBoundingClientRect();
+            const parts = [...row.children].filter((el) => shown(el) && el.getBoundingClientRect().width > 0);
+            for (const [at, one] of parts.entries()) {
+              const a = one.getBoundingClientRect();
+              if (a.right > outer.right + 1 || (one.scrollWidth > one.clientWidth + 1 && !one.classList.contains('c-lt') && !one.classList.contains('who'))) bad.push('spills ' + one.className);
+              for (const other of parts.slice(at + 1)) {
+                const b = other.getBoundingClientRect();
+                if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) bad.push('overlap ' + one.className + ' / ' + other.className);
+              }
+            }
+          }
+          const narrow = getComputedStyle(rows[0]).display === 'flex';
+          const lines = rows.map((row) => {
+            const mid = (selector) => { const r = row.querySelector(selector).getBoundingClientRect(); return r.top + r.height / 2; };
+            return { mark: mid('.sm'), title: mid('.c-lt'), code: mid('.c-id'), ago: mid('.c-ago') };
+          });
+          // Narrow: the marker with the title on the first line, the code with the rest on the second.
+          const misplaced = narrow ? lines.filter((l) => !(Math.abs(l.mark - l.title) < 5 && l.code > l.title + 8 && Math.abs(l.ago - l.code) < 5)).length : 0;
+          const list = document.querySelector('.c-line').closest('.c-scroll');
+          const out = { narrow, misplaced, rows: rows.length, bad: [...new Set(bad)], titles: Math.min(...rows.map((row) => row.querySelector('.c-lt').getBoundingClientRect().width)), sideways: list.scrollWidth - list.clientWidth };
+          localStorage.clear();
+          return JSON.stringify(out);
+        })()`,
+      });
+      const result: {
+        narrow: boolean;
+        misplaced: number;
+        rows: number;
+        bad: string[];
+        titles: number;
+        sideways: number;
+      } = JSON.parse(raw);
+
+      expect(result.narrow).toBe(width === 1280);
+      expect(result.misplaced).toBe(0);
+
+      expect(result.rows).toBeGreaterThan(0);
+      expect(result.bad).toEqual([]);
+      expect(result.titles).toBeGreaterThanOrEqual(160);
+      expect(result.sideways).toBeLessThanOrEqual(0);
+    });
+  }
+
+  test('the table: twelve columns in order, a header click sorts with aria-sort, and j moves through its rows', async () => {
     const result = await run<{
       headers: string[];
       rows: number;
@@ -249,7 +368,8 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
       'Holder',
       'Steps',
       'PR · CI',
-      'Tokens',
+      'Read',
+      'Written',
       'Due',
       'Last update',
     ]);

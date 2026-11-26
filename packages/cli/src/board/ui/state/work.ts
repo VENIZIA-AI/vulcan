@@ -9,6 +9,13 @@ import { BoardView } from './view.ts';
 /** The four counts of a flow, an agent or a model. */
 type TTokenCounts = Omit<IBoardTokenRow, 'name'>;
 
+/** What writes a second line under a token figure. */
+interface ITokenNote {
+  counts: TTokenCounts;
+  format: (value: number) => string;
+  translate: (key: string) => string;
+}
+
 export type TWorkColumn =
   | 'order'
   | 'code'
@@ -18,7 +25,8 @@ export type TWorkColumn =
   | 'holder'
   | 'steps'
   | 'pr'
-  | 'tokens'
+  | 'read'
+  | 'written'
   | 'due'
   | 'updated';
 
@@ -38,7 +46,8 @@ export const WORK_COLUMNS: TWorkColumn[] = [
   'holder',
   'steps',
   'pr',
-  'tokens',
+  'read',
+  'written',
   'due',
   'updated',
 ];
@@ -56,12 +65,15 @@ const NEVER_STALE: string[] = [BoardStates.YOU, BoardStates.DONE, BoardStates.PA
 /** States whose flows keep their number but sort after the active ones. */
 const SETTLED: string[] = [BoardStates.DONE, BoardStates.PARKED];
 /** Columns whose first click sorts the largest or newest first. */
-const DESCENDING_FIRST = new Set<TWorkColumn>(['tokens', 'updated']);
+const DESCENDING_FIRST = new Set<TWorkColumn>(['read', 'written', 'updated']);
 const DEFAULT_SORT = 'default';
 const STALE_MS = BoardUiConstants.STALE_HOURS * BoardConstants.HOUR_MS;
 
 /** The work items every view draws: the same set, filtered and ordered the same way. */
 export class BoardWork {
+  /** What stands where a figure is not known. */
+  static readonly UNKNOWN = '—';
+
   /** The newest line of the flow that is not plumbing, its own `flow` lines (a step ticked) included. */
   static lastAt(opts: { flow: IBoardFlow }): string {
     return opts.flow.events.reduce(
@@ -102,11 +114,27 @@ export class BoardWork {
     return read === 0 ? undefined : Math.floor((opts.counts.cacheRead * 100) / read);
   }
 
-  /** Read plus written, what the list shows and sorts by; `undefined` when the flow recorded none. */
-  static tokensOf(opts: { flow: IBoardFlow }): number | undefined {
-    const { tokens } = opts.flow;
+  /** Under Read: what did not come from the cache, and the share that did; empty when nothing was read. */
+  static readNote(opts: ITokenNote): string {
+    const { counts } = opts;
+    const share = BoardWork.cacheShareOf({ counts });
 
-    return tokens === undefined ? undefined : BoardWork.readOf({ counts: tokens }) + tokens.output;
+    return share === undefined
+      ? ''
+      : `${opts.format(counts.input + counts.cacheWrite)} · ${share}% ${opts.translate('tk.fromCache')}`;
+  }
+
+  /** Under Written: the thinking part and its share of the output that reports it; unknown, never zero, when none does. */
+  static writtenNote(opts: ITokenNote): string {
+    const { thinking, thinkingOf } = opts.counts;
+
+    if (thinking === undefined || thinkingOf === undefined || thinkingOf === 0) {
+      return BoardWork.UNKNOWN;
+    }
+
+    const share = Math.floor((thinking * 100) / thinkingOf);
+
+    return `${opts.format(thinking)} · ${share}% ${opts.translate('tk.thinking')}`;
   }
 
   /** The repositories the flows name, sorted. */
@@ -177,8 +205,12 @@ export class BoardWork {
           .at(0);
       }
 
-      case 'tokens': {
-        return BoardWork.tokensOf({ flow });
+      case 'read': {
+        return flow.tokens === undefined ? undefined : BoardWork.readOf({ counts: flow.tokens });
+      }
+
+      case 'written': {
+        return flow.tokens?.output;
       }
 
       case 'due': {

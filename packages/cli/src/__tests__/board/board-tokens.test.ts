@@ -12,7 +12,13 @@ const hasBrowser = await BrowserPage.available();
 afterAll(() => BrowserPage.close());
 
 const BASE = Date.now() - 60 * 60_000;
-const usage = (opts: { flow?: string; actor: string; agent?: string; out: number }) =>
+const usage = (opts: {
+  flow?: string;
+  actor: string;
+  agent?: string;
+  out: number;
+  thinking?: number;
+}) =>
   EventLog.build({
     type: 'usage',
     summary: 'tokens',
@@ -26,6 +32,7 @@ const usage = (opts: { flow?: string; actor: string; agent?: string; out: number
       output: opts.out,
       cacheRead: 1_234_567,
       cacheWrite: 89,
+      ...(opts.thinking === undefined ? {} : { thinking: opts.thinking }),
     },
     mark: { offset: 1 },
     now: BASE + 5 * 60_000,
@@ -42,7 +49,7 @@ const data = (): IBoardData => {
       flow: 'F-1',
       summary: 'the lock',
     }),
-    usage({ flow: 'F-1', actor: 'lead', out: 4210 }),
+    usage({ flow: 'F-1', actor: 'lead', out: 4210, thinking: 1000 }),
     usage({ flow: 'F-1', actor: 'lead', agent: 'Explore', out: 90 }),
     usage({ actor: 'lead', out: 7 }),
   ];
@@ -77,6 +84,7 @@ const EXPRESSION = `(async () => {
   const table = document.querySelector('.d-tokens');
   out.heading = table.closest('.d-sec').querySelector('h3').textContent;
   out.head = texts('.d-tokens thead th');
+  out.columns = [...document.querySelectorAll('.t-work thead [data-column]')].map((c) => c.dataset.column);
   out.rows = [...table.querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => [...c.childNodes].map((n) => n.textContent).join(' | ')));
   const fields = document.querySelector('.d-fields');
   out.fieldsOpen = fields.open;
@@ -101,6 +109,16 @@ const EXPRESSION = `(async () => {
 })()`;
 
 describe('the tokens of a flow in the data', () => {
+  test('a flow with no line that reports thinking has none, not zero', () => {
+    const tokens = BoardTokens.of({
+      events: [usage({ flow: 'F-9', actor: 'lead', out: 5 })],
+      unflowed: 'Unsorted',
+    });
+
+    expect(tokens['F-9']).not.toHaveProperty('thinking');
+    expect(tokens['F-9']).not.toHaveProperty('thinkingOf');
+  });
+
   test('a flow carries its totals, and the lines of no flow are summed apart', () => {
     const found = data();
     const flow = found.flows.find((item) => item.id === 'F-1');
@@ -110,6 +128,9 @@ describe('the tokens of a flow in the data', () => {
       output: 4300,
       cacheRead: 2_469_134,
       cacheWrite: 178,
+      // Only the lines that report thinking count, in both figures.
+      thinking: 1000,
+      thinkingOf: 4210,
     });
     expect(flow?.tokens?.agents.map((row) => row.name)).toEqual(['lead', 'lead (Explore)']);
     expect(BoardTokens.of({ events: [], unflowed: 'Unsorted' })).toEqual({});
@@ -146,7 +167,12 @@ describe.skipIf(!hasBrowser)('the tokens block of the board page, in a real brow
       expect(result.errors).toEqual([]);
       expect(result.heading).toBe('Tokens');
       expect(result.head).toEqual(['', 'Read', 'Written']);
-      expect(result.rows[0]).toEqual(['All agents', '2,469,336 | 99% from cache', '4,300']);
+      expect(result.rows[0]).toEqual([
+        'All agents',
+        '2,469,336 | 202 · 99% from cache',
+        '4,300 | 1,000 · 23% thinking',
+      ]);
+      expect(result.rows[2]?.[2]).toBe('90 | —');
       expect(result.fieldsOpen).toBe(false);
       expect(result.note).toBe('input_tokens counts only the part outside the cache.');
       expect(result.fields).toEqual([
@@ -158,11 +184,13 @@ describe.skipIf(!hasBrowser)('the tokens block of the board page, in a real brow
         '178',
         'output_tokens',
         '4,300',
+        'output_tokens_details.thinking_tokens',
+        '1,000',
       ]);
       expect(result.rows.map((row) => row[0])).toEqual(['All agents', 'lead', 'lead (Explore)']);
       expect(result.vi.heading).toBe('Token');
       expect(result.vi.head).toEqual(['', 'Đọc vào', 'Viết ra']);
-      expect(result.vi.share).toBe('99% từ cache');
+      expect(result.vi.share).toBe('202 · 99% từ cache');
       expect(result.vi.summary).toBe('Các trường API');
       expect(result.loose).toContain('7');
       expect(JSON.stringify(result)).not.toMatch(/price|cost|usd|\$|money/i);
