@@ -108,7 +108,7 @@ check: checks that fail a commit or CI
       folders when none is named: a plural role in a file name, a folder with loose files beside
       check.layout.minSubfolders (default 3) or more subfolders, a source file over
       check.layout.maxLines (default 600; a test file is not counted). A finding in
-      .configs/layout-baseline.json passes; any other exits 1, except a long file, which is a
+      .configs/vulcan/layout/baseline.json passes; any other exits 1, except a long file, which is a
       warning only. --write-baseline writes every finding into that file.
   vulcan check commit <message-file> | --range <revs> | --text <message>
       Check a commit message against check.commit.message as the last sync recorded it (an agent

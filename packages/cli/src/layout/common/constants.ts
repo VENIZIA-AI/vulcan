@@ -6,13 +6,15 @@ export class LayoutRules extends ConstClass {
   static readonly PLURAL_SUFFIX = 'plural-suffix';
   /** A folder with many subfolders and loose source files beside them. */
   static readonly MIXED_FOLDER = 'mixed-folder';
-  /** A source file longer than `doctor.layout.maxLines`, not generated and not a test. */
+  /** A source file longer than `check.layout.maxLines`, not generated and not a test. */
   static readonly LONG_FILE = 'long-file';
 }
 
 export class LayoutConstants {
   /** The baseline a project adopts the check with, from the root. */
-  static readonly BASELINE_FILE = '.configs/layout-baseline.json';
+  static readonly BASELINE_FILE = '.configs/vulcan/layout/baseline.json';
+  /** Where an earlier prerelease of 0.5.0 wrote it: not read, and a file there stops the check. */
+  static readonly MOVED_BASELINE_FILE = '.configs/layout-baseline.json';
   static readonly DEFAULT_MAX_LINES = 600;
   /** The most bytes of `git ls-files -z` output read: a monorepo of 30,000 files lists about 2.5 MB. */
   static readonly MAX_LISTING_BYTES = 256 * 1024 * 1024;
@@ -37,7 +39,7 @@ export class LayoutConstants {
     processes: 'process',
     statuses: 'status',
   };
-  /** Role words that end in s and are not plurals; a project adds its own in `doctor.layout.pluralAllow`. */
+  /** Role words that end in s and are not plurals; a project adds its own in `check.layout.pluralAllow`. */
   static readonly NOT_PLURAL = [
     'access',
     'alias',
