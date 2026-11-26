@@ -396,7 +396,6 @@ const TableRow = (props: IRowProps) => {
   const { flow } = view;
   const card = BoardCards.itemOf({ view });
   const { tokens } = flow;
-  const compact = (value: number): string => TOKENS.format(value);
   const pick = usePick({ id: flow.id, selected: props.selected, onSelect: props.onSelect });
 
   return (
@@ -434,7 +433,7 @@ const TableRow = (props: IRowProps) => {
         note={
           tokens === undefined
             ? ''
-            : BoardWork.readNote({ counts: tokens, format: compact, translate: t })
+            : BoardWork.readNote({ counts: tokens, format: TOKENS.format, translate: t })
         }
       />
       <TokenCell
@@ -442,7 +441,7 @@ const TableRow = (props: IRowProps) => {
         note={
           tokens === undefined
             ? ''
-            : BoardWork.writtenNote({ counts: tokens, format: compact, translate: t })
+            : BoardWork.writtenNote({ counts: tokens, format: TOKENS.format, translate: t })
         }
       />
       <td className="num">{flow.due ?? ''}</td>

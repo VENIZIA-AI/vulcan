@@ -201,12 +201,13 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
   });
 
   for (const width of [1280, 1720, 2560]) {
-    test(`the table at ${width} px: Order and Code stay while it scrolls sideways, the title has room`, async () => {
-      const raw = await BrowserPage.measure<string>({
-        html: BoardPage.render({ data }),
-        width,
-        dark: false,
-        expression: `(async () => {
+    for (const dark of [false, true]) {
+      test(`the table at ${width} px, ${dark ? 'dark' : 'light'}: Order and Code stay while it scrolls sideways, the title has room`, async () => {
+        const raw = await BrowserPage.measure<string>({
+          html: BoardPage.render({ data }),
+          width,
+          dark,
+          expression: `(async () => {
           localStorage.clear();
           ${WAIT}
           document.querySelector('[data-view="table"]').click();
@@ -229,21 +230,24 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
           localStorage.clear();
           return JSON.stringify(out);
         })()`,
-      });
-      const result: {
-        before: { order: number; code: number; title: number };
-        after: { order: number; code: number; title: number };
-        moved: number;
-        titleWidth: number;
-        titles: boolean;
-      } = JSON.parse(raw);
+        });
+        const result: {
+          before: { order: number; code: number; title: number };
+          after: { order: number; code: number; title: number };
+          moved: number;
+          titleWidth: number;
+          titles: boolean;
+        } = JSON.parse(raw);
 
-      expect(result.titleWidth).toBeGreaterThanOrEqual(240);
-      expect(result.titles).toBe(true);
-      expect(result.after.order).toBe(result.before.order);
-      expect(result.after.code).toBe(result.before.code);
-      expect(result.after.title).toBe(result.before.title - result.moved);
-    });
+        // At 2560 px the pane is wider than the table, so there is nothing to scroll.
+        expect(result.moved > 0).toBe(width < 2560);
+        expect(result.titleWidth).toBeGreaterThanOrEqual(240);
+        expect(result.titles).toBe(true);
+        expect(result.after.order).toBe(result.before.order);
+        expect(result.after.code).toBe(result.before.code);
+        expect(result.after.title).toBe(result.before.title - result.moved);
+      });
+    }
 
     test(`the compact view at ${width} px: nothing overlaps, every title shows and the list does not scroll sideways`, async () => {
       const long = {
@@ -259,8 +263,14 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
           ${WAIT}
           document.querySelector('[data-view="compact"]').click();
           await wait();
+          // The detail open, as when a person reads a flow: the work pane is then at its narrowest.
+          document.querySelector('.c-line').click();
+          await wait();
           const shown = (el) => el.offsetParent !== null;
           const rows = [...document.querySelectorAll('.c-line')].filter(shown);
+          // A holder too long for its line is cut: it never pushes the time onto a third one.
+          rows[0].querySelector('.who').append(' a-holder-name-much-longer-than-its-line-can-show');
+          await wait();
           const bad = [];
           for (const row of rows) {
             const outer = row.getBoundingClientRect();
@@ -274,14 +284,30 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
               }
             }
           }
+          const narrow = getComputedStyle(rows[0]).display === 'flex';
+          const lines = rows.map((row) => {
+            const mid = (selector) => { const r = row.querySelector(selector).getBoundingClientRect(); return r.top + r.height / 2; };
+            return { mark: mid('.sm'), title: mid('.c-lt'), code: mid('.c-id'), ago: mid('.c-ago') };
+          });
+          // Narrow: the marker with the title on the first line, the code with the rest on the second.
+          const misplaced = narrow ? lines.filter((l) => !(Math.abs(l.mark - l.title) < 5 && l.code > l.title + 8 && Math.abs(l.ago - l.code) < 5)).length : 0;
           const list = document.querySelector('.c-line').closest('.c-scroll');
-          const out = { rows: rows.length, bad: [...new Set(bad)], titles: Math.min(...rows.map((row) => row.querySelector('.c-lt').getBoundingClientRect().width)), sideways: list.scrollWidth - list.clientWidth };
+          const out = { narrow, misplaced, rows: rows.length, bad: [...new Set(bad)], titles: Math.min(...rows.map((row) => row.querySelector('.c-lt').getBoundingClientRect().width)), sideways: list.scrollWidth - list.clientWidth };
           localStorage.clear();
           return JSON.stringify(out);
         })()`,
       });
-      const result: { rows: number; bad: string[]; titles: number; sideways: number } =
-        JSON.parse(raw);
+      const result: {
+        narrow: boolean;
+        misplaced: number;
+        rows: number;
+        bad: string[];
+        titles: number;
+        sideways: number;
+      } = JSON.parse(raw);
+
+      expect(result.narrow).toBe(width === 1280);
+      expect(result.misplaced).toBe(0);
 
       expect(result.rows).toBeGreaterThan(0);
       expect(result.bad).toEqual([]);
