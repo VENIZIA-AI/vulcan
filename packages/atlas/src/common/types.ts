@@ -78,8 +78,6 @@ export interface IDeclarationEntry {
 /** One package of a run: its manifest and the absolute declaration file of each typed entry. */
 export interface IPackageEntries {
   name: string;
-  /** The folder the package was read from. */
-  directory: string;
   manifest: IPackageManifest;
   entries: { subpath: string; file: string }[];
 }

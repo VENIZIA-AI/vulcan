@@ -75,6 +75,6 @@ export class PackageEntries {
       file: resolve(opts.directory, entry.types),
     }));
 
-    return { name: opts.name ?? manifest.name, directory: opts.directory, manifest, entries };
+    return { name: opts.name ?? manifest.name, manifest, entries };
   }
 }
