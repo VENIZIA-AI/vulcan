@@ -87,8 +87,8 @@ config: the config file
       Move the keys of a flat config into the seven groups, renaming those a group names
       differently, with their comments. --split makes one module per group in .configs/vulcan/ and
       deletes the modules it folds in. Without --write it lists what it would write. Exit 2, with
-      nothing written, when it cannot move something without losing it. --reverse changes nothing
-      and says the move is not reversible: restore the config from git.
+      nothing written, when it cannot move something without losing it. --reverse changes nothing,
+      says the move is not reversible (restore the config from git) and exits 2.
   vulcan config codemod type-names [<dir>] [--write] [--reverse]
       Rename kind to type and presetKind to presetType in package entries, and kinds to types in
       acknowledgements, in the config and the standard modules of .configs/vulcan/. Without --write
@@ -392,12 +392,14 @@ The following table lists the targets provided by `vulcan.mk`:
 | `atlas-releases` | Print the release table atlas computes from the tags |
 | `wiki-links-check` | Fail when the wiki or the knowledge bundle names a source path git does not track |
 | `wiki-anchors-check` | Fail when a wiki `#fragment` link has no matching heading; needs a build |
+| `conflict-markers-check` | Fail when a tracked file holds a git conflict marker |
 
 ### The wiki gates
 
 Two gates keep a VitePress wiki honest, and they take the same arguments in every repository:
 
 - `make wiki-links-check` reads every `.md` file under `docs/wiki/content` and `.agents/knowledge`. A GitHub link into your repository (`<owner>/<name>/blob/main/<path>` or `tree/main/<path>`), a backticked path under a source folder, and a concept's `resource:` must each be tracked by git. The source folders are the folders of the config `layout` (`backend`, `frontend`, `shared`, `other`) plus `docs/`, `scripts/` and `.agents/`; with no `layout` they are `packages/`, `examples/`, `scripts/`, `docs/` and `.agents/`. A gitignored file is not on GitHub. Set `WIKI_REPO` (`owner/name`) in your Makefile before the include; without it the gate refuses to run. `WIKI_LINKS_FLAGS` takes `--dirs` (the folders to walk), `--skip-prose` (folders where a backticked path may name history or a file of another project, so only links and resources are checked; the changelogs by default) and `--skip` (generated pages that are never checked).
+- `make conflict-markers-check` reads every file git tracks, code and docs, and fails on a line that starts with `<<<<<<<`, `|||||||` or `>>>>>>>`, or is exactly `=======` (so a setext heading underlined with exactly seven `=` fails too: write it with `#`). Binary files and links are not read. `make wiki-links-check` runs it first, so a project that runs that gate has this one too; `CONFLICT_MARKERS_FLAGS='--skip <path prefix>'` leaves out files that hold markers on purpose.
 - `make wiki-anchors-check` reads the built site (`make docs` first) and fails on a link to a heading, or to a page, that does not exist; it reads the ids VitePress emitted, never a computed slug. `WIKI_ANCHORS_FLAGS` takes `--content` and `--dist`.
 
 The entry scripts are `base/checks/wiki-source-links.ts` and `wiki-anchors.ts`, run by bun from the repository root.

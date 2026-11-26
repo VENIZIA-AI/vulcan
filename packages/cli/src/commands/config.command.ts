@@ -123,11 +123,12 @@ const runCodemod = (opts: ICommandContext): number => {
     return ExitCodes.USAGE;
   }
 
-  // `migrate apply` asks for this on a rollback: it prints the step as manual.
+  // `migrate apply` asks for this on a rollback. Exit 2 with the words `not reversible` is how a codemod says so to any
+  // atlas, which then prints the step as manual.
   if (flags.includes('--reverse')) {
     process.stdout.write('not reversible: restore the config from git\n');
 
-    return ExitCodes.OK;
+    return ExitCodes.USAGE;
   }
 
   if (name === ConfigTypeNames.NAME && flags.includes('--split')) {

@@ -28,7 +28,7 @@ vulcan migrate apply [--package <name>] [--from <version>] --to <version|latest|
 
 A flag takes its value as `--flag value` or `--flag=value`; a value that starts with `--` must use the second form. `--root`, `--source`, `--cache-dir` and `--no-prebuilt` are accepted and read by atlas, which serves the sources (see [atlas](/references/atlas/)); the plan does not read them.
 
-A flag of the other subcommand is a usage error: `--force` and `--verbose` do not exist for the other one, and `--format` is a plan's. There is no `--reverse`. A move to an older version is a downgrade, and `apply` then passes `--reverse` to each codemod by itself.
+A flag of the other subcommand is a usage error: `--force` and `--verbose` do not exist for the other one, and `--format` is a plan's. There is no `--reverse`. A move to an older version is a downgrade, and `apply` then passes `--reverse` to each codemod by itself. Run `apply --to <old version>` **before** you downgrade the packages: the codemod that runs is the installed one, and an older `vulcan config codemod` rejects `--reverse`.
 
 ## The flat config
 
@@ -100,7 +100,7 @@ A `Note:` line warns when the plan needs it, for example when `latest` is older 
 | A codemod ran | The files it wrote are staged (`git add -A`) before the next codemod runs, and stay staged; not done when `--force` runs over a tree with changes of its own. |
 | The plan is incomplete, behind the registry, or its folder state could not be read exactly | Refuses and exits `1`, unless `--force`. |
 | The codemod runner is not installed in the app or above it | Prints every step as manual and exits `1`. |
-| A codemod exits `2` and says `not reversible`, or exits `0` on a rollback with output that starts with `not reversible` | Not a failure: the step is printed as manual, with the steps that undo it. |
+| A codemod exits `2` and says `not reversible` | Not a failure: the step is printed as manual, with the steps that undo it. |
 | A codemod fails | Stops, prints its output, exits `1`; the codemods after it are listed as not run. |
 | No step links a codemod | Writes nothing, needs neither the runner nor a clean tree, and exits `0`. |
 

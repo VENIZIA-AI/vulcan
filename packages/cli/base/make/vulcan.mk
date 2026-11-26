@@ -10,7 +10,7 @@ VULCAN_BASE ?= node_modules/@venizia/vulcan/base
 WIKI_REPO ?=
 
 .PHONY: vulcan-sync vulcan-doctor runners-check okf-check okf-check-strict okf-gen okf-coverage \
-        surface-gen surface-check atlas-symbols atlas-releases wiki-links-check wiki-anchors-check
+        surface-gen surface-check atlas-symbols atlas-releases wiki-links-check wiki-anchors-check conflict-markers-check
 
 vulcan-sync: ## Write the agent adapters, settings, skill links and manifest from the config
 	@$(VULCAN) project sync
@@ -53,9 +53,14 @@ atlas-symbols: ## Print the symbols atlas reads from the built or installed .d.t
 atlas-releases: ## Print the release table atlas computes from the tags
 	@$(VULCAN) atlas releases
 
+# A merge committed unfinished leaves markers that no other gate reads; wiki-links-check runs this one first. Paths that
+# hold markers on purpose go in CONFLICT_MARKERS_FLAGS (--skip <path prefix>).
+conflict-markers-check: ## Fail when a tracked file holds a git conflict marker
+	@bun $(VULCAN_BASE)/checks/conflict-markers.ts $(CONFLICT_MARKERS_FLAGS)
+
 # The wiki link gates. Set WIKI_REPO (owner/name) in the project's Makefile before the include. Flags go in
 # WIKI_LINKS_FLAGS (--dirs, --skip-prose, --skip) and WIKI_ANCHORS_FLAGS (--content, --dist).
-wiki-links-check: ## Fail when the wiki or the knowledge bundle names a source path git does not track
+wiki-links-check: conflict-markers-check ## Fail when the wiki or the knowledge bundle names a source path git does not track
 	@bun $(VULCAN_BASE)/checks/wiki-source-links.ts --repo "$(WIKI_REPO)" $(WIKI_LINKS_FLAGS)
 
 wiki-anchors-check: ## Fail when a wiki #fragment link has no matching heading; needs a build

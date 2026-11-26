@@ -49,6 +49,10 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: make agent-signature-check
 
+      - name: No git conflict marker in a tracked file
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make conflict-markers-check
+
       - name: Dependency catalog
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: make catalog-check

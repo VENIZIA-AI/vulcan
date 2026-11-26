@@ -93,7 +93,6 @@ echo "$@" >> "${opts.log}"
 case "$2" in
   failing) echo "boom" >&2; exit 1 ;;
   irreversible) case " $* " in *" --reverse "*) echo "not reversible"; exit 2 ;; esac ;;
-  says-so) case " $* " in *" --reverse "*) echo "not reversible: restore the config from git"; exit 0 ;; esac ;;
 esac
 echo "rewrote $2"
 exit 0
@@ -920,58 +919,54 @@ describe('MigrateApply.run: each step runs in its own direction (C7)', () => {
     expect(out.join('')).toContain('in reverse');
   });
 
-  // One runner refuses with exit 2, one answers with exit 0: both leave the downgrade step to the reader.
-  test.each(['irreversible', 'says-so'])(
-    'a downgrade step whose codemod is not reversible stays manual while its upgrade twin is applied (%s)',
-    (codemod) => {
-      const { app, log } = appWith();
-      const out: string[] = [];
-      const code = MigrateApply.run({
-        result: {
-          app,
-          plans: [
-            {
-              package: '@venizia/kernel',
-              from: '1.0.0',
-              to: '1.1.0',
-              direction: 'upgrade',
-              target: 'version',
-              entries: 2,
-              apply: 'vulcan migrate apply',
-              codemodCommand: ['devz', 'codemod'],
-              codemodPackages: PROJECT_PACKAGES,
-              steps: [
-                step({ id: 'irr-item', direction: 'downgrade', codemod }),
-                step({ id: 'irr-item', direction: 'upgrade', codemod }),
-              ],
-              unstructured: [],
-              unreadable: [],
-            },
-          ],
-          skipped: [],
-          unserved: [],
-        },
-        force: false,
-        out: (text) => out.push(text),
-        err: () => undefined,
-      });
+  test('a downgrade step whose codemod is not reversible stays manual while its upgrade twin is applied', () => {
+    const { app, log } = appWith();
+    const out: string[] = [];
+    const code = MigrateApply.run({
+      result: {
+        app,
+        plans: [
+          {
+            package: '@venizia/kernel',
+            from: '1.0.0',
+            to: '1.1.0',
+            direction: 'upgrade',
+            target: 'version',
+            entries: 2,
+            apply: 'vulcan migrate apply',
+            codemodCommand: ['devz', 'codemod'],
+            codemodPackages: PROJECT_PACKAGES,
+            steps: [
+              step({ id: 'irr-item', direction: 'downgrade', codemod: 'irreversible' }),
+              step({ id: 'irr-item', direction: 'upgrade', codemod: 'irreversible' }),
+            ],
+            unstructured: [],
+            unreadable: [],
+          },
+        ],
+        skipped: [],
+        unserved: [],
+      },
+      force: false,
+      out: (text) => out.push(text),
+      err: () => undefined,
+    });
 
-      expect(code).toBe(0);
-      expect(calls({ log })).toEqual([
-        `codemod ${codemod} . --write --reverse`,
-        `codemod ${codemod} . --write`,
-      ]);
-      expect(out.join('')).toContain('not reversible');
-      expect(out.join('')).toContain('downgrade irr-item');
-      expect(out.join('').indexOf('upgrade irr-item')).toBeGreaterThan(
-        out.join('').indexOf('After the codemod'),
-      );
-      expect(out.join('').indexOf('upgrade irr-item')).toBeLessThan(
-        out.join('').indexOf('### Still manual'),
-      );
-      expect(out.join('').indexOf('downgrade irr-item')).toBeGreaterThan(
-        out.join('').indexOf('### Still manual'),
-      );
-    },
-  );
+    expect(code).toBe(0);
+    expect(calls({ log })).toEqual([
+      'codemod irreversible . --write --reverse',
+      'codemod irreversible . --write',
+    ]);
+    expect(out.join('')).toContain('not reversible');
+    expect(out.join('')).toContain('downgrade irr-item');
+    expect(out.join('').indexOf('upgrade irr-item')).toBeGreaterThan(
+      out.join('').indexOf('After the codemod'),
+    );
+    expect(out.join('').indexOf('upgrade irr-item')).toBeLessThan(
+      out.join('').indexOf('### Still manual'),
+    );
+    expect(out.join('').indexOf('downgrade irr-item')).toBeGreaterThan(
+      out.join('').indexOf('### Still manual'),
+    );
+  });
 });

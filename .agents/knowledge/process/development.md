@@ -24,7 +24,7 @@ make build             # type-check every package with `bun check`; only atlas e
 make lint-all          # every package, then scripts/
 make test              # every package suite (--parallel), then scripts/
 make catalog-check
-make docs wiki-links-check wiki-anchors-check
+make docs wiki-links-check wiki-anchors-check   # wiki-links-check runs conflict-markers-check first
 make smoke-atlas smoke-cli
 bun node_modules/.bin/vulcan project sync
 git diff --exit-code -- .agents/atlas.manifest.json

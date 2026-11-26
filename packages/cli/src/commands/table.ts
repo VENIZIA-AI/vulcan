@@ -342,7 +342,7 @@ export class CommandTable {
         {
           command: 'config codemod',
           args: 'config-groups [<dir>] [--split] [--write] [--reverse]',
-          text: 'Move the keys of a flat config into the seven groups, renaming those a group names differently, with their comments. --split makes one module per group in .configs/vulcan/ and deletes the modules it folds in. Without --write it lists what it would write. Exit 2, with nothing written, when it cannot move something without losing it. --reverse changes nothing and says the move is not reversible: restore the config from git.',
+          text: 'Move the keys of a flat config into the seven groups, renaming those a group names differently, with their comments. --split makes one module per group in .configs/vulcan/ and deletes the modules it folds in. Without --write it lists what it would write. Exit 2, with nothing written, when it cannot move something without losing it. --reverse changes nothing, says the move is not reversible (restore the config from git) and exits 2.',
         },
         {
           command: 'config codemod',
@@ -367,7 +367,7 @@ export class CommandTable {
       positionals: 3,
       unknownExit: ExitCodes.USAGE,
       exits:
-        '0 on shown, written, listed, already in order or nothing to do; 1 when the config cannot be loaded, or with --check when a key would move; 2 on bad input, no config to format, or a config that cannot be ordered or moved.',
+        '0 on shown, written, listed, already in order or nothing to do; 1 when the config cannot be loaded, or with --check when a key would move; 2 on bad input, no config to format, a config that cannot be ordered or moved, or codemod --reverse.',
     },
     [VulcanCommands.CLEAN]: {
       usage: [

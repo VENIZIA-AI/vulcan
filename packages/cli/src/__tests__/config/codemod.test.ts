@@ -380,13 +380,13 @@ describe('vulcan config codemod', () => {
     expect(run(root, ['config-groups', '--bad']).code).toBe(2);
   });
 
-  test('--reverse changes nothing, says it is not reversible and exits 0', () => {
+  test('--reverse changes nothing and says it is not reversible with exit 2, as a codemod tells migrate apply', () => {
     const root = createProject({ files: { [CONFIG]: FLAT } });
 
     for (const name of ['config-groups', 'type-names']) {
       const result = run(root, [name, '.', '--write', '--reverse']);
 
-      expect(result.code, name).toBe(0);
+      expect(result.code, name).toBe(2);
       expect(result.stdout, name).toBe('not reversible: restore the config from git\n');
     }
 
