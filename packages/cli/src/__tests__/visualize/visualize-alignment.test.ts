@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { GROUPS, MEASURE } from './alignment.groups.ts';
+import { GROUPS, MEASURE } from './alignment.group.ts';
 import { alignmentSpec } from './alignment.fixture.ts';
 import { architectureSpec } from './architecture.fixture.ts';
 import { figuresSpec } from './figures.fixture.ts';
