@@ -23,12 +23,13 @@ describe('Bunfig.render', () => {
 });
 
 describe("the VULCAN repository's own bunfig.toml", () => {
-  // What init writes, then the one section only this repository has: its bare `bun test` keeps temp folders in the repo.
-  test('is the file init writes, plus the test preload', () => {
+  // What init writes, then the one section only this repository has: its bare `bun test` keeps temp folders in the repo
+  // and starts without the guard choices of the shell that runs it.
+  test('is the file init writes, plus the test preloads', () => {
     const root = join(import.meta.dir, '..', '..', '..', '..', '..');
 
     expect(readFileSync(join(root, 'bunfig.toml'), 'utf8')).toBe(
-      `${Bunfig.render()}\n[test]\npreload = ["@venizia/dev-configs/testing/tmpdir-preload"]\n`,
+      `${Bunfig.render()}\n[test]\npreload = ["@venizia/dev-configs/testing/tmpdir-preload", "./packages/cli/src/__tests__/guard-env.preload.ts"]\n`,
     );
   });
 });
