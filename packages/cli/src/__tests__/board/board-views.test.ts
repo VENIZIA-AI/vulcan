@@ -239,8 +239,11 @@ describe.skipIf(!hasBrowser)('the work items as cards, compact lines or a table'
           titles: boolean;
         } = JSON.parse(raw);
 
-        // At 2560 px the pane is wider than the table, so there is nothing to scroll.
-        expect(result.moved > 0).toBe(width < 2560);
+        // Below 2560 px the table is wider than the pane. At 2560 px whether it scrolls depends on the machine's fonts.
+        if (width < 2560) {
+          expect(result.moved).toBeGreaterThan(0);
+        }
+
         expect(result.titleWidth).toBeGreaterThanOrEqual(240);
         expect(result.titles).toBe(true);
         expect(result.after.order).toBe(result.before.order);
