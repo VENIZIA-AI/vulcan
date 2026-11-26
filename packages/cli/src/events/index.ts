@@ -12,6 +12,7 @@ export * from './session-mark.ts';
 export * from './hook.ts';
 export * from './log.ts';
 export * from './settings.ts';
+export * from './store.ts';
 export * from './stop.ts';
 export * from './usage.ts';
 export * from './text.ts';
