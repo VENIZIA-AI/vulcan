@@ -280,7 +280,7 @@ atlas-field-names:
     - '@venizia/vulcan-atlas'
   upgrade:
     steps:
-      - 'The atlas tools and the plan name their fields without `kind`: `presets` takes and answers `type` (it was `kind`); `symbol`, `search` and `intent` records and the surface lines carry `category` (const, function, class, interface, type; it was `kind`); a `changes` entry carries `badge`, the text of its first badge (it was `kind`); the `touches` of a `migrate` plan carry `reach` (`name`, `module` or `re-export`; it was `kind`). Change any script or agent text that reads them.'
+      - 'The atlas tools and the plan name their fields without `kind`: `presets` takes and answers `type` (it was `kind`); `symbol` and `search` records and the surface lines carry `category` (const, function, class, interface, type; it was `kind`); a `changes` entry carries `badge`, the text of its first badge (it was `kind`); the `touches` of a `migrate` plan carry `reach` (`name`, `module` or `re-export`; it was `kind`). Change any script or agent text that reads them.'
       - 'Run `bun node_modules/.bin/vulcan atlas pull` once: the stored sets are at a new format and are rebuilt.'
   downgrade:
     steps:

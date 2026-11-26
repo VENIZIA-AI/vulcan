@@ -53,48 +53,8 @@ export class SourceSignature {
     return `export ${name}`;
   }
 
-  /**
-   * The signature of a static class member, built the same way: names and types, never a body or an initializer.
-   * `undefined` for a member that is not a method, a property or an accessor.
-   */
-  static memberOf(opts: { member: TypeScript.ClassElement; name: string }): string | undefined {
-    const compiler = TypeScriptCompiler.get();
-    const { member, name } = opts;
-    const file = member.getSourceFile();
-    const typeOf = (node?: TypeScript.TypeNode): string =>
-      node === undefined ? '' : `: ${node.getText(file)}`;
-
-    if (compiler.isMethodDeclaration(member)) {
-      const typeParameters =
-        member.typeParameters === undefined || member.typeParameters.length === 0
-          ? ''
-          : `<${member.typeParameters.map((node) => node.getText(file)).join(', ')}>`;
-      const optional = member.questionToken === undefined ? '' : '?';
-
-      return `static ${name}${optional}${typeParameters}(${SourceSignature.parametersOf({ declaration: member })})${typeOf(member.type)}`;
-    }
-
-    if (compiler.isPropertyDeclaration(member)) {
-      const isReadonly =
-        (compiler.getCombinedModifierFlags(member) & compiler.ModifierFlags.Readonly) !== 0;
-      const optional = member.questionToken === undefined ? '' : '?';
-
-      return `static ${isReadonly ? 'readonly ' : ''}${name}${optional}${typeOf(member.type)}`;
-    }
-
-    if (compiler.isGetAccessorDeclaration(member)) {
-      return `static get ${name}()${typeOf(member.type)}`;
-    }
-
-    if (compiler.isSetAccessorDeclaration(member)) {
-      return `static set ${name}(${SourceSignature.parametersOf({ declaration: member })})`;
-    }
-
-    return undefined;
-  }
-
   /** Names and types of the parameters, with no default value and no destructuring pattern spelled out. */
-  private static parametersOf(opts: { declaration: TypeScript.SignatureDeclarationBase }): string {
+  private static parametersOf(opts: { declaration: TypeScript.FunctionDeclaration }): string {
     const compiler = TypeScriptCompiler.get();
     const file = opts.declaration.getSourceFile();
 
