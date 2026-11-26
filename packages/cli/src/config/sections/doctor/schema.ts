@@ -28,7 +28,7 @@ const ACKNOWLEDGEMENT = z.strictObject({
 
 /** What the layout check reads as a finding; every field has a default. */
 const LAYOUT = z.strictObject({
-  /** A source file with more lines than this is a `long-file` finding; default 400. */
+  /** A source file with more lines than this is a `long-file` finding, a test file excepted; default 600. */
   maxLines: z.number().int().positive().default(LayoutConstants.DEFAULT_MAX_LINES),
   /** A folder with at least this many subfolders may keep no loose source file but `index.ts` or `index.tsx`; default 3. */
   minSubfolders: z.number().int().positive().default(LayoutConstants.DEFAULT_MIN_SUBFOLDERS),

@@ -22,7 +22,7 @@ bun node_modules/.bin/vulcan check layout
 ## What it reads
 
 - **The source roots.** The path of every package of `packages` that is not retired, and every `backend`, `frontend` and `shared` folder of `layout` (never `other`). A config that names neither falls back to every outermost folder named `src`.
-- **The source files.** A tracked file under a root that ends in `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs` or `.cjs`. Tests are source files too. A symbolic link is not read.
+- **The source files.** A tracked file under a root that ends in `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs` or `.cjs`. Tests are source files too, with no length limit. A symbolic link is not read.
 
 ## The rules
 
@@ -30,7 +30,7 @@ bun node_modules/.bin/vulcan check layout
 |---|---|---|
 | `plural-suffix` | A role part of a file name is plural: `user.helpers.ts`, `order.services.test.ts`. The role is every part between the stem and the extension; the stem (`constants.ts`) is not read | Name the file with the singular the message gives (`user.helper.ts`) |
 | `mixed-folder` | A folder under a root (the root itself included) has at least `check.layout.minSubfolders` subfolders (3) and a loose source file other than `index.ts` or `index.tsx` beside them. A subfolder is any folder with a tracked file, `__tests__` included | Move the loose files into a subfolder; only the entry point stays |
-| `long-file` | A source file has more lines than `check.layout.maxLines` (400) and is not generated | Split it by concern |
+| `long-file` | A source file has more lines than `check.layout.maxLines` (600), is not generated and is not a test (under a `__tests__` folder, or named `*.test.*`) | Split it by concern |
 
 **Plural.** A role word is plural when it ends in `s` and is not on the list of words that only look plural: `access`, `alias`, `analysis`, `canvas`, `class`, `css`, `process`, `status`, `stories`, plus the project's `check.layout.pluralAllow`. The singular drops the `s`, turns `ies` into `y`, and knows `aliases`, `analyses`, `classes`, `indices`, `processes` and `statuses`.
 
@@ -42,7 +42,7 @@ bun node_modules/.bin/vulcan check layout
 
 | Field | Default | What it does |
 |---|---|---|
-| `maxLines` | `400` | A source file with more lines is a `long-file` finding |
+| `maxLines` | `600` | A source file with more lines is a `long-file` finding; a test file is not counted |
 | `minSubfolders` | `3` | A folder with at least this many subfolders may keep no loose source file but its index |
 | `pluralAllow` | `[]` | Role words that end in s and are not plurals, added to the shipped list |
 | `generated` | `[]` | Globs relative to the root of generated files, which `long-file` skips |
@@ -50,7 +50,7 @@ bun node_modules/.bin/vulcan check layout
 ```ts
 export default {
   check: {
-    layout: { maxLines: 600, pluralAllow: ['news'], generated: ['src/generated/**'] },
+    layout: { maxLines: 800, pluralAllow: ['news'], generated: ['src/generated/**'] },
   },
 } satisfies VulcanConfig;
 ```
@@ -67,7 +67,7 @@ Each finding is one line on stderr, then a summary:
 $ bun node_modules/.bin/vulcan check layout
   warning [plural-suffix] src/user.helpers.ts: the role "helpers" is plural: name the file user.helper.ts
   warning [mixed-folder] src: 3 subfolders beside 2 loose file(s) (main.ts, util.ts): move the files into a subfolder; only index.ts or index.tsx stays beside subfolders
-  info [long-file] src/db/schema.ts: 612 lines, over check.layout.maxLines (400): split it by concern (in the baseline)
+  info [long-file] src/db/schema.ts: 812 lines, over check.layout.maxLines (600): split it by concern (in the baseline)
 vulcan check layout: 2 new, 1 in the baseline, 0 stale baseline entries
 ```
 
