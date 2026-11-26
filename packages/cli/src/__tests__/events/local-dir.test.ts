@@ -175,6 +175,7 @@ describe('every reader of the events folder follows it', () => {
         actor: ACTOR,
         source: 'cli',
         flowId: 'VULZ-ACME-1',
+        session: 's-1',
       }),
     });
     expect(ask()).toEqual([]);
@@ -193,7 +194,6 @@ describe('every reader of the events folder follows it', () => {
         unknown
       >,
       env: { VULCAN_ACTOR: ACTOR },
-      isOver: FlowState.isOver,
     });
 
     expect(usage?.flowId).toBe('VULZ-ACME-1');

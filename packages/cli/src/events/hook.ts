@@ -207,6 +207,7 @@ export class EventHook {
       steps,
       actor,
       source: EventSources.CLAUDE_HOOK,
+      session: text({ value: opts.input.session_id }),
       ...(opts.now === undefined ? {} : { now: opts.now }),
     });
 

@@ -66,6 +66,8 @@ export interface IEvent {
   mark?: IEventMark;
   /** Only a `needs-owner` the Claude Code hook wrote has one: the notification type that raised it. */
   notification?: string;
+  /** Only a `flow` has one: the agent session that wrote it, so the tokens of that session can be put on its flow. */
+  session?: string;
   source: string;
 }
 

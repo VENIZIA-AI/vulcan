@@ -1,10 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { appendFileSync, statSync, truncateSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, statSync, truncateSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { BoardFold } from '../../board/fold.ts';
 import { BoardTokens } from '../../board/tokens.ts';
-import { EventLog, FlowState, UsageMeter } from '../../events/index.ts';
+import { RecordValue } from '../../common/record.ts';
+import { EventLog, UsageMeter } from '../../events/index.ts';
+import type { IEvent } from '../../events/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { wire } from './wire.helper.ts';
 
@@ -13,6 +15,7 @@ afterAll(removeProjects);
 const FLOW = 'VULZ-ACME-1';
 const ACTOR = 'pnt-vulcan-1';
 const SESSION = 'abcdef12-3456-7890-abcd-ef1234567890';
+const BRANCH = `feat/${FLOW}-sign-in`;
 const HOOKS = join(import.meta.dir, '..', '..', '..', 'base', 'hooks');
 
 interface ICounts {
@@ -37,11 +40,14 @@ const assistant = (opts: {
   text?: string;
   session?: string;
   sidechain?: boolean;
+  branch?: string;
+  at?: number;
 }): string =>
   `${JSON.stringify({
     type: 'assistant',
     uuid: `u-${opts.id}-${Math.random()}`,
-    timestamp: new Date().toISOString(),
+    timestamp: new Date(opts.at ?? Date.now()).toISOString(),
+    ...(opts.branch === undefined ? {} : { gitBranch: opts.branch }),
     ...(opts.session === undefined ? {} : { sessionId: opts.session }),
     ...(opts.sidechain === undefined ? {} : { isSidechain: opts.sidechain }),
     message: {
@@ -85,7 +91,11 @@ const project = (opts: { log?: boolean } = {}): string =>
 const dirOf = (root: string): string => join(root, '.agents/local/events');
 const usageOf = (root: string) =>
   EventLog.read({ dir: dirOf(root) }).events.filter((event) => event.type === 'usage');
-const openFlow = (root: string): void => {
+/** A flow line of the log: by default the one `SESSION` opened. */
+const openFlow = (
+  root: string,
+  opts: { flowId?: string; session?: string; at?: number } = {},
+): void => {
   EventLog.append({
     dir: dirOf(root),
     event: EventLog.build({
@@ -93,7 +103,9 @@ const openFlow = (root: string): void => {
       summary: 'Sign in',
       actor: ACTOR,
       source: 'cli',
-      flowId: FLOW,
+      flowId: opts.flowId ?? FLOW,
+      session: opts.session ?? SESSION,
+      ...(opts.at === undefined ? {} : { now: opts.at }),
     }),
   });
 };
@@ -101,7 +113,7 @@ const record = (opts: {
   root: string;
   file: string;
   ref?: string;
-  flowId?: string;
+  flowSession?: string;
   now?: number;
   session?: string;
   side?: 'main' | 'sub';
@@ -115,7 +127,7 @@ const record = (opts: {
     windowDays: 30,
     ...(opts.session === undefined ? {} : { session: opts.session }),
     ...(opts.side === undefined ? {} : { side: opts.side }),
-    ...(opts.flowId === undefined ? {} : { flowId: opts.flowId }),
+    ...(opts.flowSession === undefined ? {} : { flowSession: opts.flowSession }),
     ...(opts.now === undefined ? {} : { now: opts.now }),
   });
 
@@ -265,6 +277,7 @@ describe('UsageMeter.record: the lines and the mark', () => {
       file,
       assistant({
         id: 'm1',
+        branch: BRANCH,
         iterations: [
           { in: 1, out: 10 },
           { in: 50, out: 5, type: 'advisor_message', model: 'claude-opus-5-5' },
@@ -272,7 +285,7 @@ describe('UsageMeter.record: the lines and the mark', () => {
       }),
     );
 
-    const lines = record({ root, file, flowId: FLOW });
+    const lines = record({ root, file });
 
     expect(lines.map((line) => line.usage?.model).sort()).toEqual([
       'claude-opus-5-5',
@@ -280,11 +293,11 @@ describe('UsageMeter.record: the lines and the mark', () => {
     ]);
     expect(lines.every((line) => line.summary === 'tokens' && line.flowId === FLOW)).toBe(true);
     expect(JSON.stringify(lines)).not.toMatch(/price|cost|usd|dollar|\$|rate/i);
-    expect(record({ root, file, flowId: FLOW })).toEqual([]);
+    expect(record({ root, file })).toEqual([]);
 
-    appendFileSync(file, assistant({ id: 'm2', top: { in: 0, out: 7 } }));
+    appendFileSync(file, assistant({ id: 'm2', top: { in: 0, out: 7 }, branch: BRANCH }));
 
-    const more = record({ root, file, flowId: FLOW });
+    const more = record({ root, file });
 
     expect(more).toHaveLength(1);
     expect(more[0]?.usage?.output).toBe(7);
@@ -562,33 +575,139 @@ describe('the hooks that record', () => {
       EventLog.read({ dir: dirOf(root) }).events.some((event) => event.type === 'subagent-stop'),
     ).toBe(true);
   });
+});
 
-  test('the session recorder uses the same flow resolution (an over flow is skipped, so the line has none)', () => {
+/** What the lines hold, per flow: the output tokens, `-` for no flow. */
+const outputByFlow = (lines: IEvent[]): Record<string, number> =>
+  lines.reduce<Record<string, number>>((sums, line) => {
+    const id = line.flowId ?? '-';
+
+    sums[id] = (sums[id] ?? 0) + (line.usage?.output ?? 0);
+
+    return sums;
+  }, {});
+
+/** A hook payload from camelCase words, as Claude Code sends it. */
+const hookInput = (value: object): Record<string, unknown> => {
+  const input: unknown = wire(value);
+
+  if (!RecordValue.isRecord(input)) {
+    throw new Error('not a payload');
+  }
+
+  return input;
+};
+
+describe('the flow of each line of a transcript', () => {
+  const stop = (root: string, file: string, session = SESSION): IEvent[] =>
+    UsageMeter.recordSession({
+      root,
+      input: hookInput({ sessionId: session, cwd: root, transcriptPath: file }),
+      env: { VULCAN_ACTOR: ACTOR },
+    });
+
+  test('branch switches inside one Stop window: each line goes to its branch, one usage line per flow and model, one mark', () => {
     const root = project();
     const file = join(root, 't.jsonl');
 
-    openFlow(root);
-    EventLog.append({
-      dir: dirOf(root),
-      event: EventLog.build({
-        type: 'deploy',
-        summary: 'live',
-        actor: ACTOR,
-        source: 'cli',
-        flowId: FLOW,
-        now: Date.now() + 1000,
-      }),
-    });
-    writeFileSync(file, assistant({ id: 'm1', top: { in: 1, out: 1 } }));
+    openFlow(root, { flowId: 'VULZ-ACME-3' });
+    writeFileSync(
+      file,
+      assistant({ id: 'm1', top: { out: 10 }, branch: 'feat/VULZ-ACME-1-a' }) +
+        assistant({ id: 'm2', top: { out: 20 }, branch: 'feat/VULZ-ACME-2-b' }) +
+        assistant({
+          id: 'm3',
+          top: { out: 5 },
+          branch: 'feat/VULZ-ACME-2-b',
+          model: 'claude-opus-5-5',
+        }) +
+        assistant({ id: 'm4', top: { out: 40 }, branch: 'feat/VULZ-ACME-1-a' }),
+    );
 
-    const [line] = UsageMeter.recordSession({
+    const lines = stop(root, file);
+
+    expect(outputByFlow(lines)).toEqual({ 'VULZ-ACME-1': 50, 'VULZ-ACME-2': 25 });
+    expect(lines).toHaveLength(3);
+    expect(new Set(lines.map((line) => JSON.stringify(line.mark))).size).toBe(1);
+    expect(stop(root, file)).toEqual([]);
+  });
+
+  test('a Stop that never ran changes nothing: the next one gives each line its own flow', () => {
+    const root = project();
+    const file = join(root, 't.jsonl');
+    const now = Date.now();
+
+    openFlow(root, { flowId: 'VULZ-ACME-1', at: now - 3000 });
+    writeFileSync(
+      file,
+      assistant({ id: 'm1', top: { out: 10 }, branch: 'develop', at: now - 2000 }),
+    );
+    // No Stop here. The session moves on to another flow before the next one.
+    openFlow(root, { flowId: 'VULZ-ACME-2', at: now - 1000 });
+    appendFileSync(file, assistant({ id: 'm2', top: { out: 7 }, branch: 'develop', at: now }));
+
+    expect(outputByFlow(stop(root, file))).toEqual({ 'VULZ-ACME-1': 10, 'VULZ-ACME-2': 7 });
+  });
+
+  test('with no flow in the branch, only a flow this session named counts: not one of another session with the same name', () => {
+    const root = project();
+    const file = join(root, 't.jsonl');
+    const now = Date.now();
+
+    writeFileSync(
+      file,
+      assistant({ id: 'm1', top: { out: 3 }, branch: 'develop', at: now - 5000 }),
+    );
+    openFlow(root, { flowId: 'VULZ-ACME-1', at: now - 4000 });
+    appendFileSync(
+      file,
+      assistant({ id: 'm2', top: { out: 11 }, branch: 'develop', at: now - 3000 }),
+    );
+    openFlow(root, { flowId: 'VULZ-ACME-9', session: 'another-session', at: now - 2000 });
+    appendFileSync(
+      file,
+      assistant({ id: 'm3', top: { out: 13 }, branch: 'develop', at: now - 1000 }),
+    );
+
+    // What came before the session named a flow has none.
+    expect(outputByFlow(stop(root, file))).toEqual({ '-': 3, 'VULZ-ACME-1': 24 });
+  });
+
+  test('a Stop of the session reads what its subagents wrote after their own stop, from their marks, once', () => {
+    const root = project();
+    const file = join(root, `${SESSION}.jsonl`);
+    const folder = join(root, SESSION, 'subagents');
+    const agent = join(folder, 'agent-a77.jsonl');
+    const sub = (id: string, out: number): string =>
+      assistant({ id, top: { out }, sidechain: true, branch: BRANCH, model: 'claude-haiku-5-5' });
+
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, 'agent-a77.meta.json'), JSON.stringify({ agentType: 'Explore' }));
+    writeFileSync(file, assistant({ id: 'm1', top: { out: 1 }, branch: BRANCH }));
+    writeFileSync(agent, sub('a1', 90));
+    UsageMeter.recordSubagent({
       root,
-      input: wire(stopInput(root, file)) as Record<string, unknown>,
+      input: hookInput({
+        sessionId: SESSION,
+        agentId: 'a77',
+        agentType: 'Explore',
+        agentTranscriptPath: agent,
+      }),
       env: { VULCAN_ACTOR: ACTOR },
-      isOver: FlowState.isOver,
     });
+    appendFileSync(agent, sub('a2', 8));
+    // One that never had a stop of its own.
+    writeFileSync(join(folder, 'agent-b88.jsonl'), sub('b1', 4));
 
-    expect(line?.flowId).toBeUndefined();
+    const lines = stop(root, file);
+
+    expect(lines.map((line) => [line.ref, line.usage?.agent, line.usage?.output]).sort()).toEqual([
+      ['transcript:a77', 'Explore', 8],
+      [`transcript:${SESSION}`, undefined, 1],
+      ['transcript:b88', undefined, 4],
+    ]);
+    expect(lines.every((line) => line.flowId === FLOW)).toBe(true);
+    expect(stop(root, file)).toEqual([]);
   });
 });
 
