@@ -71,20 +71,16 @@ export class FlowGuard {
       }).events;
 
       const isOver = (flowId: string): boolean => opts.isOver({ events: known, flowId, key });
+      const hasSession = opts.sessionId !== undefined && opts.sessionId !== '';
       const found =
         FlowSteps.flowOf({ events: known, cwd, session: opts.sessionId, isOver }) ??
-        (opts.sessionId === undefined || opts.sessionId === ''
-          ? FlowSteps.lastOpenedByActor({ events: known, actor, isOver })
-          : undefined);
+        (hasSession ? undefined : FlowSteps.lastOpenedByActor({ events: known, actor, isOver }));
 
       if (found !== undefined) {
         return [];
       }
 
-      const looked =
-        opts.sessionId === undefined || opts.sessionId === ''
-          ? `the actor name '${actor}' has`
-          : 'this session has';
+      const looked = hasSession ? 'this session has' : `the actor name '${actor}' has`;
 
       return [
         {

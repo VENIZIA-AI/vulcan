@@ -414,6 +414,7 @@ describe('guard-outside denies a vulcan command that writes the config', () => {
     'bun node_modules/.bin/vulcan migrate plan --to latest',
     'bun node_modules/.bin/vulcan project doctor',
     'bun node_modules/.bin/vulcan check layout',
+    'bun node_modules/.bin/vulcan check layout --write-baseline',
     'echo config format',
     'bun test config format',
   ])('the read-only form stays allowed: %s', (command) => {

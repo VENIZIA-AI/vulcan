@@ -128,7 +128,8 @@ The config has seven groups, each with its own type (`VulcanConfig.Project`, `.A
 | `agent.claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `agent.digest` | `object` | `{ oftenDropped: [...] }` | The rules the rules block of `AGENTS.md` names |
 | `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask' (`'deny'` with the `venizia` pack), asks: 'ask', writes: { commands: [] }, git: { askPush: [] }, runners: { allow: [] } }` | Tool-owned stores, and the commands and push targets the guards ask about ([guard](#guard)) |
-| `check.doctor` | `object` | `{ privateValues: { acknowledged: [] }, layout: { maxLines: 600, ... } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)), and the settings of the layout check ([layout](/references/commands/layout#configuration)) |
+| `check.doctor` | `object` | `{ privateValues: { acknowledged: [] } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)) |
+| `check.layout` | `object` | `{ maxLines: 600, minSubfolders: 3, ... }` | The settings of the layout check ([check.layout](#check-layout)) |
 | `agent.owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 | `common.theme` | `object` | `undefined` | The colour the project's `vulcan page new` pages use |
 | `board.page` | `object` | `{ agents: {} }` | What `vulcan board show` puts on its page: owner, title, host name, logo and the faces of agents ([board](#board-page)) |
@@ -870,10 +871,17 @@ The `doctor` object tells [`vulcan project doctor`](/references/commands/doctor#
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `privateValues.acknowledged` | `Array<{ path, types?, reason, standing? }>` | the shipped `**/Dockerfile*` row for `machine-path` | Files that may keep private values, each with a reason |
-| `project.layout.maxLines` | `number` | `600` | A source file with more lines, a test file excepted, is a `long-file` finding of [`vulcan check layout`](/references/commands/layout) |
-| `project.layout.minSubfolders` | `number` | `3` | A folder with at least this many subfolders may keep no loose source file but its index (`mixed-folder`) |
-| `project.layout.pluralAllow` | `string[]` | `[]` | Role words that end in s and are not plurals, added to the shipped list (`plural-suffix`) |
-| `project.layout.generated` | `string[]` | `[]` | Globs relative to the repo root of generated files, which `long-file` skips |
+
+## check.layout
+
+The `layout` object of the `check` group sets what [`vulcan check layout`](/references/commands/layout) reads as a finding. Nothing is required. It is not [`project.layout`](#project-layout), which names the folders of a monorepo.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `maxLines` | `number` | `600` | A source file with more lines, a test file excepted, is a `long-file` finding |
+| `minSubfolders` | `number` | `3` | A folder with at least this many subfolders may keep no loose source file but its index (`mixed-folder`) |
+| `pluralAllow` | `string[]` | `[]` | Role words that end in s and are not plurals, added to the shipped list (`plural-suffix`) |
+| `generated` | `string[]` | `[]` | Globs relative to the repo root of generated files, which `long-file` skips |
 
 - `path` is a glob relative to the repo root (no absolute path, no `..`).
 - `types` is some of `private-key`, `token`, `url-credentials`, `ipv4`, `machine-path` (all when absent).

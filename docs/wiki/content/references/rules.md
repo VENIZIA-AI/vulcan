@@ -163,7 +163,7 @@ The `venizia` pack holds the five rules that bind the Venizia stack (Bun, `devz`
   - Enforced by: SOFT
 - `V-B-09` - Agent scripting uses bun by default (`bun -e`, `bun file.ts`, `Bun.file()`); Python or another language is allowed when the task needs it (an existing project script, a tool only that language has), said in one line.
   - Enforced by: SOFT
-- `V-C-07` - Open function names with verbs and group state in classes.
+- `V-C-07` - Open function names with verbs, group state in classes, and prefer arrow functions.
   - Enforced by: LINT (arrow functions, not `function` declarations: `func-style` of the oxlint preset, tests exempt, after dev-configs 0.5.0-8; do not churn existing ones) + SOFT
 - `V-C-08` - Define enumerable strings as constant classes; one that is validated extends `ConstClass` (`values()`, `isValid(value)`) instead of declaring a set, imported from `@venizia/ignis-helpers/common` in a project on IGNIS or ARDOR; prefix types with T or I.
   - Enforced by: SOFT - lint (`@venizia/const-class-values`, warn; shortened once it is an error) in a project that enables `houseConfigs` of `@venizia/dev-configs`
