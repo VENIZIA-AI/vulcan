@@ -851,7 +851,7 @@ The `events` object configures the agent event log ([vulcan event](/references/c
 |---|---|---|---|
 | `log` | `boolean` | `false` | `true` makes `vulcan project sync` install the Claude Code hooks that write the log |
 | `dir` | `string` | `<project>/.agents/local/events` | An absolute folder that takes the log instead of the project's own |
-| `maxSize` | `string` | `'50MB'` | The most the events folder may hold: a number with `KB`, `MB` or `GB` (`'200MB'`, `'1GB'`). Checked in the schema |
+| `maxSize` | `string` | `'50MB'` | The most the day files may hold: a number with `KB`, `MB` or `GB`. Checked in the schema |
 | `maxFiles` | `number` | `30` | The most day files kept |
 | `maxAgeDays` | `number` | `30` | The oldest a day file may be |
 
@@ -860,10 +860,12 @@ The `events` object configures the agent event log ([vulcan event](/references/c
 An own `dir` lets one coordinator read the sessions of several repositories. The path is a machine path, so each person sets it in their own `.agents/local/profile.json` (`{ "events": { "dir": "/home/me/work/.agents/local/events" } }`), which replaces this key on that machine; see [One folder for every project](/references/commands/event#one-folder-for-every-project).
 
 - `~` and relative paths are refused.
-- It must be on a local disk (appends are not atomic on NFS).
+- It must be on a local disk: several processes write the SQLite database at once.
 - When it is outside the project, `vulcan project doctor` warns if the folder is missing or not writable.
 
-The three limits apply when `log` is `true`, or when you set one of them. Past any of them, whole day files are removed, oldest first: first those older than `maxAgeDays`, then the oldest until the count and the size are within `maxFiles` and `maxSize`. Today's file is never removed and never truncated; when it alone is over `maxSize`, `vulcan project doctor` warns. A shared `dir` is kept by whichever session starts first (see [the automatic clean](/guides/core-concepts/the-agents-folder#the-automatic-clean)).
+**`events/events.db` is not trimmed yet.** In this release the three limits act only on the day files (`<yyyy-mm-dd>.jsonl`) that earlier releases wrote.
+
+The limits apply when `log` is `true`, or when you set one of them. Past any of them, whole day files are removed, oldest first: first those older than `maxAgeDays`, then the oldest until the count and the size are within `maxFiles` and `maxSize`. Today's file is never removed and never truncated; when it alone is over `maxSize`, `vulcan project doctor` warns. A shared `dir` is kept by whichever session starts first (see [the automatic clean](/guides/core-concepts/the-agents-folder#the-automatic-clean)).
 
 `sync` writes the block to the manifest only when `log` is `true`, `dir` or a limit is set.
 
@@ -913,7 +915,7 @@ The `local` object configures what VULCAN keeps tidy in `.agents/local/` by itse
 
 ### common.local.autoClean
 
-The safe part is stale `tmp/`, browser folders older than an hour, event day files past their limits, and release candidates whose version is tagged. It never removes a worktree or a clone. `false` turns it off; `sync` then writes `local: { autoClean: false }` to the manifest.
+The safe part is stale `tmp/`, browser folders older than an hour, old event day files past their limits (not `events/events.db`), and release candidates whose version is tagged. It never removes a worktree or a clone. `false` turns it off; `sync` then writes `local: { autoClean: false }` to the manifest.
 
 `VULCAN_AUTO_CLEAN=off` in the environment turns it off for one shell.
 

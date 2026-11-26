@@ -141,6 +141,7 @@ export class DoctorRunner {
       ...ProjectContract.checkCommitHook(context),
       ...ProjectContract.checkEventsDir(context),
       ...ProjectContract.checkEventsSize(context),
+      ...ProjectContract.checkEventsImport(context),
       ...ProjectContract.checkProjectKey(context),
       ...ProjectContract.checkWorkspacePackages(context),
       ...ProjectContract.checkBrowserSocket({

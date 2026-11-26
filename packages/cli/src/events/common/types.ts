@@ -104,6 +104,14 @@ export interface IHookEvent {
   flowText?: string;
 }
 
+/** What a load of the day files did: the files read, the events new to the database and already there, and the lines that are no event. */
+export interface IEventImport {
+  files: number;
+  added: number;
+  present: number;
+  skipped: number;
+}
+
 export interface IEventRead {
   events: IEvent[];
   /** Lines that were not an event; a reader reports the count and goes on. */

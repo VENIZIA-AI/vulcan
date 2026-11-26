@@ -59,6 +59,7 @@ export class CommandScopes {
     // `event step` stays beside `flow step`: it is the same line of the log, and `event add --type flow` works as `flow add`.
     { scope: 'event', action: 'step', command: VulcanCommands.EVENT, prefix: ['step'] },
     { scope: 'event', action: 'tail', command: VulcanCommands.EVENT, prefix: ['tail'] },
+    { scope: 'event', action: 'import', command: VulcanCommands.EVENT, prefix: ['import'] },
     { scope: 'board', action: 'show', command: VulcanCommands.BOARD },
     { scope: 'board', action: 'serve', command: VulcanCommands.BOARD, prefix: ['serve'] },
     { scope: 'page', action: 'new', command: VulcanCommands.VISUALIZE },

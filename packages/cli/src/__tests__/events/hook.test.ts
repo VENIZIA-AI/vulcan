@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { EventHook, EventLog } from '../../events/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { LogDb } from './log-db.helper.ts';
 import { wire } from './wire.helper.ts';
 
 afterAll(removeProjects);
@@ -338,11 +339,12 @@ describe('EventHook.run', () => {
     }
 
     const dir = join(root, '.agents/local/events');
-    const text = readdirSync(dir)
-      .map((name) => readFileSync(join(dir, name), 'utf8'))
-      .join('');
+    const lines = LogDb.lines({ dir });
+    // The bytes on disk too: the database and whatever stays beside it.
+    const files = readdirSync(dir).map((name) => readFileSync(join(dir, name), 'utf8'));
+    const text = [...lines, ...files].join('\n');
 
-    expect(text.trim().split('\n')).toHaveLength(4);
+    expect(lines).toHaveLength(4);
 
     for (const secret of [...secrets, '/home/me/private', 'secret-dir', '/run/user']) {
       expect(text).not.toContain(secret);

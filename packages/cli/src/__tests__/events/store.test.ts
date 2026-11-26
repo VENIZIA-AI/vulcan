@@ -1,7 +1,7 @@
 import { Database } from 'bun:sqlite';
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { EventLog, EventStore, EventStoreConstants } from '../../events/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -20,8 +20,11 @@ const eventOf = (opts: { summary: string; now?: number; flowId?: string }) =>
     order: null,
     now: opts.now ?? NOW,
   });
+/** The log of the folder the database is in, as every reader reads it. */
+const read = (opts: { file: string; since?: number }) =>
+  EventLog.read({ ...opts, dir: dirname(opts.file) });
 const summaries = (opts: { file: string; since?: number }) =>
-  EventStore.read(opts).events.map((event) => event.summary);
+  read(opts).events.map((event) => event.summary);
 
 describe('EventStore', () => {
   test('gives back every field of an event as it was appended', () => {
@@ -29,7 +32,7 @@ describe('EventStore', () => {
     const event = eventOf({ summary: 'first' });
 
     expect(EventStore.append({ file, events: [event] })).toBe(1);
-    expect(EventStore.read({ file })).toEqual({ events: [event], skipped: 0 });
+    expect(read({ file })).toEqual({ events: [event], skipped: 0 });
   });
 
   test('reads oldest first, events of one moment in the order they were written', () => {
@@ -85,7 +88,7 @@ describe('EventStore', () => {
     ]);
     db.close();
 
-    expect(EventStore.read({ file }).skipped).toBe(1);
+    expect(read({ file }).skipped).toBe(1);
     expect(summaries({ file })).toEqual(['good']);
   });
 
@@ -144,8 +147,17 @@ describe('EventStore', () => {
   test('reading where there is no database finds nothing and makes nothing', () => {
     const file = fileOf();
 
-    expect(EventStore.read({ file })).toEqual({ events: [], skipped: 0 });
+    expect(EventStore.lines({ file })).toEqual([]);
+    expect(read({ file })).toEqual({ events: [], skipped: 0 });
     expect(existsSync(file)).toBe(false);
+  });
+
+  test('a folder that cannot hold a database is an error to read, not an empty log', () => {
+    const root = createProject({ files: { events: 'a file where the folder belongs' } });
+
+    expect(() =>
+      EventStore.lines({ file: join(root, 'events', EventStoreConstants.FILE) }),
+    ).toThrow('ENOTDIR');
   });
 
   test('the database is in WAL, gives space back, and carries its schema version', () => {
@@ -182,7 +194,7 @@ describe('EventStore', () => {
     expect(() => EventStore.append({ file, events: [eventOf({ summary: 'z' })] })).toThrow(
       'a newer vulcan',
     );
-    expect(() => EventStore.read({ file })).toThrow('a newer vulcan');
+    expect(() => read({ file })).toThrow('a newer vulcan');
   });
 
   test('processes that make the database at the same moment all write to it', async () => {
@@ -201,6 +213,6 @@ for (let i = 0; i < 25; i++) EventStore.append({ file: process.argv[2], events: 
     const failed = await Promise.all(runs.map(failureOf));
 
     expect(failed.filter((text) => text !== '')).toEqual([]);
-    expect(EventStore.read({ file }).events).toHaveLength(200);
+    expect(read({ file }).events).toHaveLength(200);
   }, 30_000);
 });

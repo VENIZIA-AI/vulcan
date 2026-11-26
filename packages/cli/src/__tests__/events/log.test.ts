@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import {
@@ -15,6 +15,7 @@ import {
 } from '../../events/index.ts';
 import { git } from '../git-repo.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { LogDb } from './log-db.helper.ts';
 
 afterAll(removeProjects);
 
@@ -658,7 +659,7 @@ describe('EventLog', () => {
     expect(first).toMatch(/^[0-9a-z]{9}[0-9a-f]{8}$/);
   });
 
-  test('append writes one line to the file of the local day, creating the folder', () => {
+  test('append writes one line to the database of the folder, creating the folder', () => {
     const dir = join(createProject({ files: {} }), 'deep', 'events');
     const event = EventLog.build({
       type: 'pr',
@@ -669,9 +670,9 @@ describe('EventLog', () => {
     });
     const file = EventLog.append({ dir, event });
 
-    expect(file).toBe(join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`));
-    expect(readFileSync(file, 'utf8')).toBe(`${JSON.stringify(event)}\n`);
-    expect(readdirSync(dir)).toEqual([`${EventLog.dayOf({ time: NOW })}.jsonl`]);
+    expect(file).toBe(join(dir, 'events.db'));
+    expect(LogDb.lines({ dir })).toEqual([JSON.stringify(event)]);
+    expect(readdirSync(dir)).toEqual(['events.db']);
   });
 
   test('read returns the events oldest first, filtered by since, and counts what is not an event', () => {
@@ -689,7 +690,8 @@ describe('EventLog', () => {
       EventLog.append({ dir, event });
     }
 
-    // A day file two days back, a line that is not JSON, a JSON line of another shape, a line of an unknown type.
+    // An event two days back, then rows that are no event: no summary, no source, an unknown type. A line that is not JSON
+    // or has no id cannot be a row at all (see the store tests).
     const old = EventLog.build({
       type: 'commit',
       summary: 'old',
@@ -699,10 +701,13 @@ describe('EventLog', () => {
     });
 
     EventLog.append({ dir, event: old });
-    writeFileSync(
-      join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`),
-      `${readFileSync(join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`), 'utf8')}not json\n{"a":1}\n${JSON.stringify({ ...at(0, 'pr'), type: 'rollout' })}\n\n`,
-    );
+    for (const row of [
+      { ...at(0, 'pr'), summary: undefined },
+      { ...at(0, 'pr'), source: undefined },
+      { ...at(0, 'pr'), type: 'rollout' },
+    ]) {
+      LogDb.plant({ dir, line: JSON.stringify(row) });
+    }
 
     const all = EventLog.read({ dir });
 

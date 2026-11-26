@@ -30,6 +30,7 @@ import { AgentScopes, AgentSelection, AgentTable, LocalChoice } from '../agents/
 import { CommitHook, CommitHookStates } from '../commit/index.ts';
 import { EventConstants } from '../events/common/index.ts';
 import { EventRetention } from '../events/retention.ts';
+import { EventImport } from '../events/import.ts';
 import { EventSettings } from '../events/settings.ts';
 import {
   AgentFiles,
@@ -938,6 +939,43 @@ export class ProjectContract {
             }),
           ],
     );
+  }
+
+  /**
+   * The events folder holds day files of an earlier release that no import has loaded as they are now: the log is read
+   * from the database alone, so their events are not on the board until `vulcan event import` loads them. A warning.
+   */
+  static checkEventsImport(opts: ICheckContext): IViolation[] {
+    const own = EventSettings.localDir({ root: opts.root });
+    const settings = { ...opts.config.events, ...(own === undefined ? {} : { dir: own }) };
+
+    if (!settings.log) {
+      return [];
+    }
+
+    const dir = EventSettings.dirOf({ root: opts.root, settings });
+
+    try {
+      const pending = EventImport.pending({ dir });
+
+      return pending === 0
+        ? []
+        : [
+            createViolation({
+              check: DoctorChecks.EVENTS_IMPORT,
+              file: opts.configFile,
+              message: `${dir} holds ${pending} day file(s) not loaded into its database, so nothing reads what they hold - run \`${ProjectLayout.VULCAN_COMMAND} event import\``,
+            }),
+          ];
+    } catch (error) {
+      return [
+        createViolation({
+          check: DoctorChecks.EVENTS_IMPORT,
+          file: opts.configFile,
+          message: `the events of ${dir} cannot be read: ${error instanceof Error ? error.message : String(error)}`,
+        }),
+      ];
+    }
   }
 
   /**

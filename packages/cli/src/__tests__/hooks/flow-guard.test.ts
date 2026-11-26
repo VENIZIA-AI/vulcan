@@ -198,6 +198,14 @@ describe('FlowGuard: what is not asked about, and what fails open', () => {
     writeFileSync(join(root, '.agents/local/events'), 'not a folder');
     expect(inspect({ root, command: 'git commit -m x' })).toEqual([]);
   });
+
+  test('a database that cannot be read is no refusal', () => {
+    const root = project();
+
+    mkdirSync(dirOf(root), { recursive: true });
+    writeFileSync(join(dirOf(root), 'events.db'), 'not a database '.repeat(100));
+    expect(inspect({ root, command: 'git commit -m x' })).toEqual([]);
+  });
 });
 
 describe('FlowGuard: the refusal says where it looked', () => {

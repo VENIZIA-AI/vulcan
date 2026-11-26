@@ -126,7 +126,7 @@ export class CommandTable {
         {
           command: 'project sync',
           args: '[--agents <list>|list] [--dry-run] [--quiet]',
-          text: 'Write the adapters of the agents you chose (--agents claude,omp or none, stored in .agents/local/profile.json; --agents list shows them), with their guards, the commit hook when a check is on and the ignore lines; move old profile keys and old event lines to the new names. --dry-run writes nothing; --quiet prints only changes and notes.',
+          text: 'Write the adapters of the agents you chose (--agents claude,omp or none, stored in .agents/local/profile.json; --agents list shows them), with their guards, the commit hook when a check is on and the ignore lines; move old profile keys to the new names. --dry-run writes nothing; --quiet prints only changes and notes.',
         },
       ],
       flags: {
@@ -242,7 +242,7 @@ export class CommandTable {
         {
           command: 'event add',
           args: '--type <type> --summary <text> [--flow <flow id>] [--ref <ref>] [--status approve|park|reject] [--actor <name>] [--dir <folder>]',
-          text: `Write one line to the event log (.agents/local/events/<day>.jsonl). Types: ${Object.values(
+          text: `Write one event to the event log (.agents/local/events/events.db). Types: ${Object.values(
             EventTypes,
           )
             .filter((value) => typeof value === 'string')
@@ -254,6 +254,11 @@ export class CommandTable {
           command: 'event tail',
           args: '[--since <time>] [--json] [--dir <folder>]',
           text: 'Print the events since a time (default: the last 24 hours); --json prints each as JSON.',
+        },
+        {
+          command: 'event import',
+          args: '[--dir <folder>]',
+          text: 'Load the day files of an earlier release (<day>.jsonl) into events.db. The files stay; an event that is already there is not added again.',
         },
       ],
       flags: {

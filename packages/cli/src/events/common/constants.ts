@@ -49,6 +49,8 @@ export class GitActivities extends ConstClass {
 /** The database of the event log. */
 export class EventStoreConstants {
   static readonly FILE = 'events.db';
+  /** Beside the database: the size and time of each day file the last import loaded, so none is read to know it is done. */
+  static readonly IMPORT_RECORD = '.imported.json';
   /**
    * The schema version in `PRAGMA user_version` is `MAJOR * MAJOR_STEP` plus the number of migrations applied. A migration
    * that an older writer cannot work with raises `MAJOR`; one that only adds leaves it.
@@ -84,6 +86,7 @@ export class EventSubcommands {
   static readonly ADD = 'add';
   static readonly TAIL = 'tail';
   static readonly STEP = 'step';
+  static readonly IMPORT = 'import';
 }
 
 export class EventFlags {

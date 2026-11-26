@@ -1,34 +1,47 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { EventLog } from '../../events/index.ts';
 import { hermeticEnv } from '../hermetic.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
+import { LogDb } from './log-db.helper.ts';
 
 afterAll(removeProjects);
 
-/** A project folder: the manifest marks it, so a command run in it does not walk up into the repository the test run lives in. */
-/** A line of the log that carries a flow: a flow exists when a line says so, and an id is never made up by hand. */
-const seedLine = (id: string): string =>
-  `${JSON.stringify(EventLog.build({ type: 'commit', summary: 'seed', actor: 'seed', source: 'cli', flowId: id }))}\n`;
+/**
+ * An event that carries a flow: a flow exists when a line says so, and an id is never made up by hand. It is dated long
+ * ago, so that `tail` does not print it.
+ */
+const seedEvent = (id: string) =>
+  EventLog.build({
+    type: 'commit',
+    summary: 'seed',
+    actor: 'seed',
+    source: 'cli',
+    flowId: id,
+    now: Date.parse('2026-11-01T09:00:00Z'),
+  });
 
+/** A project folder: the manifest marks it, so a command run in it does not walk up into the repository the test run lives in. */
 const project = (
   opts: { files?: Record<string, string>; flows?: string[]; key?: string } = {},
-): string =>
-  createProject({
+): string => {
+  const root = createProject({
     files: {
       '.agents/local/vulcan.manifest.json': JSON.stringify(
         opts.key === undefined ? {} : { project: { key: opts.key } },
       ),
-      ...(opts.flows === undefined
-        ? {}
-        : {
-            '.agents/local/events/2026-11-01.jsonl': opts.flows.map((id) => seedLine(id)).join(''),
-          }),
       ...opts.files,
     },
   });
+
+  if (opts.flows !== undefined) {
+    LogDb.seed({ dir: join(root, '.agents/local/events'), events: opts.flows.map(seedEvent) });
+  }
+
+  return root;
+};
 
 const cli = (opts: { root: string; args: string[]; env?: Record<string, string> }) =>
   runCli({
@@ -39,9 +52,7 @@ const cli = (opts: { root: string; args: string[]; env?: Record<string, string> 
 
 /** The lines the command wrote: the ones that seed a flow are not its output. */
 const lines = (opts: { dir: string }) =>
-  readdirSync(opts.dir)
-    .flatMap((name) => readFileSync(join(opts.dir, name), 'utf8').trim().split('\n'))
-    .filter((line) => !line.includes('"summary":"seed"'));
+  LogDb.lines(opts).filter((line) => !line.includes('"summary":"seed"'));
 
 describe('vulcan event add', () => {
   test('writes one line to the project folder and prints its id', () => {
@@ -166,7 +177,10 @@ describe('vulcan event add', () => {
   });
 
   test('--flow and --actor win; the manifest dir and --dir move the log', () => {
-    const shared = createProject({ files: { '2026-11-01.jsonl': seedLine('F-2') } });
+    const shared = createProject({ files: {} });
+
+    LogDb.seed({ dir: shared, events: [seedEvent('F-2')] });
+
     const other = createProject({ files: {} });
     const root = createProject({
       files: {
@@ -321,10 +335,11 @@ describe('vulcan event tail', () => {
 
     expect(cli({ root, args: ['tail', '--since', 'yesterdayish'] }).code).toBe(2);
 
-    const dir = join(root, '.agents/local/events');
-    const [file] = readdirSync(dir).sort().slice(-1);
-
-    writeFileSync(join(dir, file), `${readFileSync(join(dir, file), 'utf8')}garbage\n`);
+    // The database takes only an object with an id, a time, a type and an actor; without a summary it is still no event.
+    LogDb.plant({
+      dir: join(root, '.agents/local/events'),
+      line: JSON.stringify({ id: 'x', ts: new Date().toISOString(), type: 'flow', actor: 'a' }),
+    });
 
     const result = cli({ root, args: ['tail'] });
 
@@ -337,11 +352,10 @@ describe('vulcan event tail', () => {
     const dir = join(root, '.agents/local/events');
     const event = EventLog.build({ type: 'commit', summary: 's', actor: 'a', source: 'cli' });
 
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      join(dir, `${EventLog.dayOf({ time: Date.now() })}.jsonl`),
-      `${JSON.stringify({ ...event, actor: 'evil\u001b]0;pwned\u0007', summary: 'x\u009b2Jy' })}\n`,
-    );
+    LogDb.plant({
+      dir,
+      line: JSON.stringify({ ...event, actor: 'evil\u001b]0;pwned\u0007', summary: 'x\u009b2Jy' }),
+    });
 
     for (const args of [['tail'], ['tail', '--json']]) {
       const out = cli({ root, args }).stdout;

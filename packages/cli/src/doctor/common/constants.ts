@@ -44,6 +44,8 @@ export class DoctorChecks {
   static readonly EVENTS_DIR = 'events-dir';
   /** Today's event file when it alone is over events.maxSize; a warning. */
   static readonly EVENTS_SIZE = 'events-size';
+  /** Day files of an earlier release hold events the database of the log does not have. */
+  static readonly EVENTS_IMPORT = 'events-import';
   /** The event log is on but project.key is unset, so no flow can be created; a warning. */
   static readonly PROJECT_KEY = 'project-key';
   /** An atlas source the last server run could not build, or has been building for over ten minutes; a warning. */
