@@ -24,8 +24,8 @@ export class LayoutConstants {
   static readonly SOURCE_FILE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
   /** The loose files a folder of subfolders may keep: its entry point. */
   static readonly INDEX_FILES = ['index.ts', 'index.tsx'];
-  /** A test file, which has no length limit: under a `__tests__` folder, or named `<stem>.test.<extension>`. */
-  static readonly TEST_FILE = /(?:^|\/)__tests__\/|\.test\.[^./]+$/;
+  /** A test file, which has no length limit: under a `__tests__` folder, or named `<stem>.test.<extension>` or `.spec.`. */
+  static readonly TEST_FILE = /(?:^|\/)__tests__\/|\.(?:test|spec)\.[^./]+$/;
   /** A header comment that marks a file as written by a tool. */
   static readonly GENERATED_HEADER = /generated|do not edit/i;
   /** How many lines from the top are read as the header. */

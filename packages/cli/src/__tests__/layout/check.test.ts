@@ -162,6 +162,38 @@ describe('LayoutCheck.check: long-file', () => {
       }),
     ).toEqual([]);
   });
+
+  const long = { lines: 601, head: '' };
+
+  test('the default is 600 lines, and a test file is never too long', () => {
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).doctor.layout.maxLines).toBe(600);
+
+    const files = [
+      'src/a.test.ts',
+      'src/b.test.tsx',
+      'src/__tests__/helper.ts',
+      'src/__tests__/deep/fixture.ts',
+      'src/a.spec.ts',
+      'src/a.testing.ts',
+      'src/a.specific.ts',
+      'src/test.ts',
+    ];
+    const texts = Object.fromEntries(files.map((file) => [file, long]));
+
+    expect(
+      findingsOf({ files, texts }).filter((finding) => finding.startsWith('long-file')),
+    ).toEqual([
+      'long-file src/a.specific.ts',
+      'long-file src/a.testing.ts',
+      'long-file src/test.ts',
+    ]);
+  });
+
+  test('a test file keeps the other rules', () => {
+    expect(findingsOf({ files: ['src/user.helpers.test.ts'] })).toEqual([
+      'plural-suffix src/user.helpers.test.ts',
+    ]);
+  });
 });
 
 describe('LayoutCheck.roots', () => {
@@ -193,34 +225,6 @@ describe('LayoutCheck.roots', () => {
         files: ['src/a.ts', 'tools/x/src/b.ts', 'tools/x/src/src/c.ts', 'README.md', 'docs/src'],
       }),
     ).toEqual(['src', 'tools/x/src']);
-  });
-});
-
-describe('LayoutCheck.check: long-file', () => {
-  const long = { lines: 601, head: '' };
-
-  test('the default is 600 lines, and a test file is never too long', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).doctor.layout.maxLines).toBe(600);
-
-    const files = [
-      'src/a.test.ts',
-      'src/b.test.tsx',
-      'src/__tests__/helper.ts',
-      'src/__tests__/deep/fixture.ts',
-      'src/a.testing.ts',
-      'src/test.ts',
-    ];
-    const texts = Object.fromEntries(files.map((file) => [file, long]));
-
-    expect(
-      findingsOf({ files, texts }).filter((finding) => finding.startsWith('long-file')),
-    ).toEqual(['long-file src/a.testing.ts', 'long-file src/test.ts']);
-  });
-
-  test('a test file keeps the other rules', () => {
-    expect(findingsOf({ files: ['src/user.helpers.test.ts'] })).toEqual([
-      'plural-suffix src/user.helpers.test.ts',
-    ]);
   });
 });
 

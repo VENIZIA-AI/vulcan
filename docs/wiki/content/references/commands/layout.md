@@ -30,7 +30,7 @@ bun node_modules/.bin/vulcan check layout
 |---|---|---|
 | `plural-suffix` | A role part of a file name is plural: `user.helpers.ts`, `order.services.test.ts`. The role is every part between the stem and the extension; the stem (`constants.ts`) is not read | Name the file with the singular the message gives (`user.helper.ts`) |
 | `mixed-folder` | A folder under a root (the root itself included) has at least `check.layout.minSubfolders` subfolders (3) and a loose source file other than `index.ts` or `index.tsx` beside them. A subfolder is any folder with a tracked file, `__tests__` included | Move the loose files into a subfolder; only the entry point stays |
-| `long-file` | A source file has more lines than `check.layout.maxLines` (600), is not generated and is not a test (under a `__tests__` folder, or named `*.test.*`) | Split it by concern |
+| `long-file` | A source file has more lines than `check.layout.maxLines` (600), is not generated and is not a test (under a `__tests__` folder, or named `*.test.*` or `*.spec.*`) | Split it by concern |
 
 **Plural.** A role word is plural when it ends in `s` and is not on the list of words that only look plural: `access`, `alias`, `analysis`, `canvas`, `class`, `css`, `process`, `status`, `stories`, plus the project's `check.layout.pluralAllow`. The singular drops the `s`, turns `ies` into `y`, and knows `aliases`, `analyses`, `classes`, `indices`, `processes` and `statuses`.
 
