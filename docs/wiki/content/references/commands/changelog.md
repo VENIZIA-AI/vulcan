@@ -45,7 +45,7 @@ The files are in `knowledge.changelogs`. With no such folder the check has nothi
 - The frontmatter must be valid. A badge written `Breaking` is refused with the canonical spelling `Breaking Change`.
 - An entry with a `Breaking Change` badge, dated on or after [`knowledge.migrationFrom`](/references/configuration/#knowledge), must carry a `migration:` block. An earlier entry is never read.
 - Every item of a block has an `id` that is unique in the folder, `symbols`, an `upgrade` and a `downgrade`, each either `before` and `after`, or `steps`.
-- A `codemod` an item names must be one the codemod runner offers. The check asks it (`devz codemod --list` by default). When it cannot, it prints `changelog check: ... is not available (...); codemod names were not checked` and goes on.
+- A `codemod` an item names must be one the codemod runner offers. The check asks it (`devz codemod --list` by default). The runner is the bin in `node_modules/.bin`; with none there, it is the `bin` a package of `project.packages` declares in its own `package.json` (a workspace package is not linked into the root `.bin`). That file must lie inside the package folder, and it runs with the runtime that runs the check, so build the package first if the bin is a built file. When the names cannot be asked, the check prints `changelog check: ... is not available (...)` and fails if the config sets `knowledge.codemodCommand` or an item names a codemod; otherwise it says `codemod names were not checked` and goes on.
 - With `knowledge.migrationFrom` set to a version, dated files are history and are not checked. `knowledge.datedUntil` is the last date a dated file may carry.
 
 **Version folders** (`changelogs/<X.Y.Z>/log.md`, with `migration.yaml` beside it):
