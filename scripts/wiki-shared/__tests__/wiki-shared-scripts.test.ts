@@ -545,19 +545,7 @@ describe('BuildCheck', () => {
 });
 
 describe('the search index of a wiki', () => {
-  test('is built by this Bun running the installed Pagefind, over the built site', () => {
-    const command = SearchIndex.commandOf({ wiki: '/srv/vulcan-fixture/docs/wiki' });
-
-    expect(command.slice(0, 4)).toEqual([
-      process.execPath,
-      '/srv/vulcan-fixture/docs/wiki/node_modules/pagefind/lib/runner/bin.cjs',
-      '--site',
-      '/srv/vulcan-fixture/docs/wiki/site/.vitepress/dist',
-    ]);
-    expect(command.at(-1)).toContain('span.lang');
-  });
-
-  test('a built page marks its content for the index and keeps its table cells apart', () => {
+  test('a page marks its content for the index and keeps its table cells apart', () => {
     const page = SearchIndex.mark({
       html: '<div class="VPNav">menu</div><div class="VPContent x"><h1>Config</h1><table><tr><th>Export</th><th>Kind</th></tr><tr><td>a</td><td>b</td></tr></table></div>',
     });
@@ -568,17 +556,52 @@ describe('the search index of a wiki', () => {
     expect(page).toContain('<th>Export </th><th>Kind </th>');
     expect(page).toContain('<td>a </td><td>b </td>');
     expect(page).toContain('<div class="VPNav">menu</div>');
-    expect(SearchIndex.mark({ html: page })).toBe(page);
 
     // Only the first h1 names the page: a changelog page has a second one.
     expect(
       SearchIndex.mark({ html: '<div class="VPContent"><h1>Title</h1><h1>Changelog</h1></div>' }),
     ).toContain('<h1>Changelog</h1>');
+  });
 
-    // A page that only writes the attribute's name in its text is still marked.
-    expect(
-      SearchIndex.mark({ html: '<div class="VPContent"><p>data-pagefind-body</p></div>' }),
-    ).toContain('<div class="VPContent" data-pagefind-body="">');
+  test('the index gets the marked pages, and the pages a reader is served stay as built', async () => {
+    const wiki = mkdtempSync(join(tmpdir(), 'wiki-search-'));
+    const dist = join(wiki, 'site', '.vitepress', 'dist');
+    const engine = join(wiki, 'node_modules', 'pagefind', 'lib');
+    const html = '<div class="VPContent"><table><tr><th>Export</th></tr></table></div>';
+
+    mkdirSync(join(dist, 'guides'), { recursive: true });
+    mkdirSync(engine, { recursive: true });
+    writeFileSync(join(dist, 'guides', 'index.html'), html);
+    // A stand-in for Pagefind's module that writes down what it was asked.
+    writeFileSync(
+      join(engine, 'index.js'),
+      `import { writeFileSync } from 'node:fs';
+const asked = [];
+export const createIndex = async (config) => {
+  asked.push(config);
+  return {
+    errors: [],
+    index: {
+      addHTMLFile: async (file) => { asked.push(file); return { errors: [] }; },
+      writeFiles: async (options) => { asked.push(options); writeFileSync(${JSON.stringify(join(wiki, 'asked.json'))}, JSON.stringify(asked)); return { errors: [] }; },
+    },
+  };
+};
+export const close = async () => null;
+`,
+    );
+
+    try {
+      expect(await SearchIndex.run({ wiki })).toBe(0);
+      expect(readFileSync(join(dist, 'guides', 'index.html'), 'utf8')).toBe(html);
+      expect(JSON.parse(readFileSync(join(wiki, 'asked.json'), 'utf8'))).toEqual([
+        { excludeSelectors: expect.arrayContaining(['.VPDocFooter', 'button.copy']) },
+        { sourcePath: 'guides/index.html', content: SearchIndex.mark({ html }) },
+        { outputPath: join(dist, 'pagefind') },
+      ]);
+    } finally {
+      rmSync(wiki, { recursive: true, force: true });
+    }
   });
 
   test('a wiki without Pagefind installed fails and downloads nothing', async () => {

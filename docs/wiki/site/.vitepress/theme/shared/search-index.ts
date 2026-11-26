@@ -12,8 +12,6 @@ import { join, resolve } from 'node:path';
 const WIKI = resolve(import.meta.dir, '..', '..', '..', '..');
 /** The content of a page: the default theme's column, which the changelog pages use too. */
 const CONTENT = '.VPContent';
-/** The attribute that tells Pagefind which region of a page to index. */
-const BODY = 'data-pagefind-body';
 /**
  * What is no content of a page: the outline, the previous and next links, the eyebrow, the help block, the rails of a
  * changelog page, and the language label, copy button and tab names of a code block, which would run into its code.
@@ -29,21 +27,41 @@ const EXCLUDED = [
   'span.lang',
 ];
 
+/** What this build calls of Pagefind's module; each call answers with the errors it met. */
+interface IPagefindBuild {
+  createIndex(config: { excludeSelectors: string[] }): Promise<{
+    errors: string[];
+    index?: {
+      addHTMLFile(file: { sourcePath: string; content: string }): Promise<{ errors: string[] }>;
+      writeFiles(options: { outputPath: string }): Promise<{ errors: string[] }>;
+    };
+  }>;
+  close(): Promise<unknown>;
+}
+
+/** The module is read from the wiki's own install, so its shape is checked. */
+const isPagefindBuild = (value: unknown): value is IPagefindBuild =>
+  typeof value === 'object' &&
+  value !== null &&
+  'createIndex' in value &&
+  typeof value.createIndex === 'function' &&
+  'close' in value &&
+  typeof value.close === 'function';
+
 export class SearchIndex {
   /**
-   * A built page made ready for the index: its content region marked; its first `h1` kept as the title of the page and left
-   * out of the text, so an excerpt does not open with it again; and a space at the end of every table cell, which
-   * Pagefind would otherwise read as one word with the next. A page already marked is returned as it is.
+   * A built page as the index reads it: its content region marked; its first `h1` kept as the title of the page and
+   * left out of the text, so an excerpt does not open with it again; and a space at the end of every table cell, which
+   * Pagefind would otherwise read as one word with the next. Only the index gets this: a page the browser is served
+   * with text it did not render itself fails to hydrate.
    */
   static mark(opts: { html: string }): string {
-    let marked = false;
     let named = false;
 
     return new HTMLRewriter()
       .on(CONTENT, {
         element: (element) => {
-          marked = element.hasAttribute(BODY);
-          element.setAttribute(BODY, '');
+          element.setAttribute('data-pagefind-body', '');
         },
       })
       .on(`${CONTENT} h1`, {
@@ -58,30 +76,16 @@ export class SearchIndex {
       })
       .on(`${CONTENT} th, ${CONTENT} td`, {
         element: (element) => {
-          if (!marked) {
-            element.append(' ');
-          }
+          element.append(' ');
         },
       })
       .transform(opts.html);
   }
 
-  static commandOf(opts: { wiki: string }): string[] {
-    return [
-      // The package's own runner, run by this Bun: its `.bin` entry asks for Node.
-      process.execPath,
-      join(opts.wiki, 'node_modules', 'pagefind', 'lib', 'runner', 'bin.cjs'),
-      '--site',
-      join(opts.wiki, 'site', '.vitepress', 'dist'),
-      '--exclude-selectors',
-      EXCLUDED.join(','),
-    ];
-  }
-
   static async run(opts: { wiki: string }): Promise<number> {
-    const command = SearchIndex.commandOf(opts);
+    const entry = join(opts.wiki, 'node_modules', 'pagefind', 'lib', 'index.js');
 
-    if (!existsSync(command[1])) {
+    if (!existsSync(entry)) {
       console.error(
         'wiki search: pagefind is not installed: add it to the devDependencies of docs/wiki, pinned, and run bun install',
       );
@@ -89,15 +93,57 @@ export class SearchIndex {
       return 1;
     }
 
-    const dist = join(opts.wiki, 'site', '.vitepress', 'dist');
+    const pagefind: unknown = await import(entry);
 
-    for await (const page of new Bun.Glob('**/*.html').scan({ cwd: dist })) {
-      const file = join(dist, page);
+    if (!isPagefindBuild(pagefind)) {
+      console.error(`wiki search: no createIndex in ${entry}`);
 
-      await Bun.write(file, SearchIndex.mark({ html: await Bun.file(file).text() }));
+      return 1;
     }
 
-    return Bun.spawnSync(command, { stdout: 'inherit', stderr: 'inherit' }).exitCode;
+    try {
+      const errors = await SearchIndex.build({
+        pagefind,
+        dist: join(opts.wiki, 'site', '.vitepress', 'dist'),
+      });
+
+      for (const error of errors) {
+        console.error(`wiki search: ${error}`);
+      }
+
+      return errors.length === 0 ? 0 : 1;
+    } finally {
+      await pagefind.close();
+    }
+  }
+
+  /** Indexes every page of `dist` into `dist/pagefind` and answers the errors; the pages themselves are only read. */
+  private static async build(opts: { pagefind: IPagefindBuild; dist: string }): Promise<string[]> {
+    const created = await opts.pagefind.createIndex({ excludeSelectors: EXCLUDED });
+
+    if (created.index === undefined) {
+      return created.errors;
+    }
+
+    const errors = [...created.errors];
+    let pages = 0;
+
+    for await (const page of new Bun.Glob('**/*.html').scan({ cwd: opts.dist })) {
+      const html = await Bun.file(join(opts.dist, page)).text();
+      const added = await created.index.addHTMLFile({
+        sourcePath: page,
+        content: SearchIndex.mark({ html }),
+      });
+
+      errors.push(...added.errors.map((error) => `${page}: ${error}`));
+      pages++;
+    }
+
+    const written = await created.index.writeFiles({ outputPath: join(opts.dist, 'pagefind') });
+
+    console.log(`wiki search: read ${pages} pages into ${join(opts.dist, 'pagefind')}`);
+
+    return [...errors, ...written.errors];
   }
 }
 
