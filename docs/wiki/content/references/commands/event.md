@@ -219,7 +219,7 @@ With `board.events.log` on, the tokens a session and its subagents use are recor
 - **Known gaps.** After the retention window removes a transcript's marks and the transcript is still younger than the window, it is read from its start once. Codex, Antigravity, omp and pi are not covered: they have no such hook. Work done with the hooks off is not seen. The `Stop` hook may run before the last line of the turn is flushed: it is read the next time.
 - **Cost of the hook.** A tick reads only the new bytes and parses only the lines that hold an assistant message.
 
-On the board a flow shows its totals and, when more than one agent or model took part, a row for each.
+On the board a flow shows two figures and, when more than one agent or model took part, a row for each. **Read** is `input` + `cacheRead` + `cacheWrite`, with the share of it that came from the cache (`cacheRead` / Read, rounded down); **Written** is `output`. The four counts are folded below under their API names (`input_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, `output_tokens`): `input_tokens` is only the part outside the cache. The table's Tokens column and its sort are Read plus Written. The words follow the board's language.
 
 ### A commit or a pull request needs a flow
 

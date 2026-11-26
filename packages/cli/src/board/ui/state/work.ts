@@ -1,10 +1,13 @@
 import { BoardConstants, BoardStates } from '../../common/index.ts';
-import type { IBoardFlow } from '../../common/index.ts';
+import type { IBoardFlow, IBoardTokenRow } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
 import type { IFlowView } from '../common/types.ts';
 import { BoardAgentInfo } from './agent-info.ts';
 import { BoardTime } from './time.ts';
 import { BoardView } from './view.ts';
+
+/** The four counts of a flow, an agent or a model. */
+type TTokenCounts = Omit<IBoardTokenRow, 'name'>;
 
 export type TWorkColumn =
   | 'order'
@@ -85,11 +88,25 @@ export class BoardWork {
     );
   }
 
-  /** Input, output and cache writes added up (cache reads, nearly all of a long session, are in the flow's detail); `undefined` when the flow recorded none. */
+  /** Everything a model read: the input outside the cache, plus what it read from the cache and wrote to it. */
+  static readOf(opts: { counts: TTokenCounts }): number {
+    const { counts } = opts;
+
+    return counts.input + counts.cacheRead + counts.cacheWrite;
+  }
+
+  /** The whole per cent of what was read that came from the cache, rounded down; `undefined` when nothing was read. */
+  static cacheShareOf(opts: { counts: TTokenCounts }): number | undefined {
+    const read = BoardWork.readOf(opts);
+
+    return read === 0 ? undefined : Math.floor((opts.counts.cacheRead * 100) / read);
+  }
+
+  /** Read plus written, what the list shows and sorts by; `undefined` when the flow recorded none. */
   static tokensOf(opts: { flow: IBoardFlow }): number | undefined {
     const { tokens } = opts.flow;
 
-    return tokens === undefined ? undefined : tokens.input + tokens.output + tokens.cacheWrite;
+    return tokens === undefined ? undefined : BoardWork.readOf({ counts: tokens }) + tokens.output;
   }
 
   /** The repositories the flows name, sorted. */
