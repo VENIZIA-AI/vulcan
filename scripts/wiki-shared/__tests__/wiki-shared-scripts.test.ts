@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SharedCopy } from '../copy.ts';
 import { BuildCheck } from '../../../docs/wiki/site/.vitepress/theme/shared/build-check.ts';
+import { SearchIndex } from '../../../docs/wiki/site/.vitepress/theme/shared/search-index.ts';
+import { WikiSearch } from '../../../docs/wiki/site/.vitepress/theme/shared/search.ts';
 import { SharedCheck } from '../check.ts';
 import { MANIFEST_FILE, SHARED_DIR, SharedManifest } from '../manifest.ts';
 
@@ -36,6 +38,20 @@ const createWiki = (opts: { files: Record<string, string>; manifest?: boolean })
   }
 
   return root;
+};
+
+/** A built site holding `files`, by their paths from its root. */
+const createDist = (opts: { files: Record<string, string> }): string => {
+  const dist = mkdtempSync(join(tmpdir(), 'wiki-search-'));
+
+  roots.push(dist);
+
+  for (const [path, content] of Object.entries(opts.files)) {
+    mkdirSync(join(dist, path, '..'), { recursive: true });
+    writeFileSync(join(dist, path), content);
+  }
+
+  return dist;
 };
 
 describe('the manifest', () => {
@@ -395,6 +411,24 @@ describe('BuildCheck', () => {
     expect(BuildCheck.scanHome({ html: `${home}<div class="economy"></div>` })).toEqual([]);
   });
 
+  test('the search is the Pagefind index, and the local search of VitePress is gone', () => {
+    const dist = createDist({ files: { 'pagefind/pagefind.js': '' } });
+
+    expect(BuildCheck.scanSearch({ dist })).toEqual([]);
+
+    const [missing] = BuildCheck.scanSearch({ dist: createDist({ files: {} }) });
+
+    expect(missing).toContain('search-index.ts');
+
+    const [local] = BuildCheck.scanSearch({
+      dist: createDist({
+        files: { 'pagefind/pagefind.js': '', 'assets/chunks/@localSearchIndexroot.a1.js': '' },
+      }),
+    });
+
+    expect(local).toContain("provider: 'local'");
+  });
+
   test('an inner page has the top bar and no footer', () => {
     expect(BuildCheck.scanInner({ html: bar, page: 'references/index.html' })).toEqual([]);
     expect(BuildCheck.scanInner({ html: home, page: 'references/index.html' })).toHaveLength(1);
@@ -448,6 +482,8 @@ describe('BuildCheck', () => {
     roots.push(dist);
     mkdirSync(join(dist, 'references'), { recursive: true });
     mkdirSync(join(dist, 'assets'), { recursive: true });
+    mkdirSync(join(dist, 'pagefind'), { recursive: true });
+    writeFileSync(join(dist, 'pagefind', 'pagefind.js'), '');
     writeFileSync(join(dist, 'index.html'), home);
     writeFileSync(join(dist, 'references', 'index.html'), bar);
     writeFileSync(join(dist, 'assets', 'style.css'), css);
@@ -474,6 +510,8 @@ describe('BuildCheck', () => {
     roots.push(root);
     mkdirSync(join(dist, 'references'), { recursive: true });
     mkdirSync(join(dist, 'assets'), { recursive: true });
+    mkdirSync(join(dist, 'pagefind'), { recursive: true });
+    writeFileSync(join(dist, 'pagefind', 'pagefind.js'), '');
     writeFileSync(join(dist, 'index.html'), home);
     writeFileSync(join(dist, 'references', 'index.html'), bar);
     writeFileSync(join(dist, 'assets', 'style.css'), css);
@@ -503,5 +541,62 @@ describe('BuildCheck', () => {
         process.env['WIKI_BUILD_CHECK'] = before;
       }
     }
+  });
+});
+
+describe('the search index of a wiki', () => {
+  test('is built by this Bun running the installed Pagefind, over the built site', () => {
+    const command = SearchIndex.commandOf({ wiki: '/srv/vulcan-fixture/docs/wiki' });
+
+    expect(command.slice(0, 4)).toEqual([
+      process.execPath,
+      '/srv/vulcan-fixture/docs/wiki/node_modules/pagefind/lib/runner/bin.cjs',
+      '--site',
+      '/srv/vulcan-fixture/docs/wiki/site/.vitepress/dist',
+    ]);
+    expect(command.join(' ')).toContain('--root-selector .VPContent');
+    expect(command.at(-1)).toContain('span.lang');
+  });
+
+  test('a wiki without Pagefind installed fails and downloads nothing', () => {
+    expect(SearchIndex.run({ wiki: join(tmpdir(), 'wiki-without-pagefind') })).toBe(1);
+  });
+});
+
+describe('what a search lists for a page', () => {
+  const page = { url: '/a.html', excerpt: 'the page', meta: { title: 'Runtime config \u{200B}' } };
+
+  test('the page itself when no section matched', () => {
+    expect(WikiSearch.hitsOf({ page })).toEqual([
+      { url: '/a.html', title: 'Runtime config', excerpt: 'the page' },
+    ]);
+  });
+
+  test('at most three sections, and a section named like its page is not said twice', () => {
+    const section = (title: string, at: number) => ({
+      url: `/a.html#${at}`,
+      title,
+      excerpt: `${at}`,
+    });
+    const hits = WikiSearch.hitsOf({
+      page: {
+        ...page,
+        // eslint-disable-next-line @typescript-eslint/naming-convention -- Pagefind's own name
+        sub_results: [
+          section('Runtime config', 1),
+          // Pagefind lists the page and the section of its first heading: one name, one row.
+          section('Runtime config \u{200B}', 5),
+          section('Options \u{200B}', 2),
+          section('Errors', 3),
+          section('More', 4),
+        ],
+      },
+    });
+
+    expect(hits.map((hit) => hit.title)).toEqual([
+      'Runtime config',
+      'Runtime config - Options',
+      'Runtime config - Errors',
+    ]);
   });
 });
