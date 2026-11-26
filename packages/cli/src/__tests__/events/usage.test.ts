@@ -49,6 +49,7 @@ const assistant = (opts: {
   sidechain?: boolean;
   branch?: string;
   at?: number;
+  thinking?: number;
 }): string =>
   `${JSON.stringify({
     type: 'assistant',
@@ -63,6 +64,9 @@ const assistant = (opts: {
       content: [{ type: 'text', text: opts.text ?? 'hello' }],
       usage: wire({
         ...counts(opts.top ?? {}),
+        ...(opts.thinking === undefined
+          ? {}
+          : { outputTokensDetails: { thinkingTokens: opts.thinking } }),
         ...(opts.iterations === undefined
           ? {}
           : {
@@ -738,6 +742,48 @@ describe('the flow of each line of a transcript', () => {
 
     expect(stop(root, file).map((line) => line.ref)).toEqual([`transcript:${SESSION}`]);
     expect(usageOf(root)).toHaveLength(1);
+  });
+});
+
+describe('the thinking tokens of a message', () => {
+  test('are read from the message, once per message, and kept off a model that reports none', () => {
+    const root = project();
+    const file = join(root, 't.jsonl');
+
+    writeFileSync(
+      file,
+      assistant({ id: 'm1', top: { out: 40 }, thinking: 10 }) +
+        // The same message written again with a larger count.
+        assistant({ id: 'm1', top: { out: 40 }, thinking: 15 }) +
+        assistant({
+          id: 'm2',
+          top: { out: 20 },
+          thinking: 0,
+          iterations: [{ out: 20 }, { out: 7, type: 'advisor_message', model: 'claude-opus-5-5' }],
+        }),
+    );
+
+    const lines = record({ root, file });
+    const byModel = Object.fromEntries(
+      lines.map((line) => [line.usage?.model, [line.usage?.output, line.usage?.thinking]]),
+    );
+
+    expect(byModel).toEqual({
+      'claude-sonnet-5-5': [60, 15],
+      'claude-opus-5-5': [7, undefined],
+    });
+    expect(usageOf(root).map((line) => line.usage?.thinking)).toContain(15);
+    expect(JSON.stringify(usageOf(root))).not.toContain('"thinking":null');
+  });
+
+  test('a message that reports none writes no field: unknown is not zero', () => {
+    const root = project();
+    const file = join(root, 't.jsonl');
+
+    writeFileSync(file, assistant({ id: 'm1', top: { out: 4 } }));
+    record({ root, file });
+
+    expect(usageOf(root)[0]?.usage).not.toHaveProperty('thinking');
   });
 });
 

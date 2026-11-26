@@ -231,6 +231,9 @@ export class EventLog {
       output: EventLog.countOf({ value: value.output }),
       cacheRead: EventLog.countOf({ value: value.cacheRead }),
       cacheWrite: EventLog.countOf({ value: value.cacheWrite }),
+      ...(typeof value.thinking === 'number'
+        ? { thinking: EventLog.countOf({ value: value.thinking }) }
+        : {}),
     };
   }
 

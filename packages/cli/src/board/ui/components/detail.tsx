@@ -45,11 +45,12 @@ const TOKEN_FIELDS = [
   { api: 'cache_read_input_tokens', key: 'cacheRead' },
   { api: 'cache_creation_input_tokens', key: 'cacheWrite' },
   { api: 'output_tokens', key: 'output' },
+  { api: 'output_tokens_details.thinking_tokens', key: 'thinking' },
 ] as const;
 
 /**
- * The tokens of a flow, in total, then by agent and by model: what was read, with the share that came from the cache, and
- * what was written; the four counts of the API are folded below. Numbers only.
+ * The tokens of a flow, in total, then by agent and by model: what was read, with the part not from the cache and the share
+ * that was, and what was written, with the part spent thinking; the counts of the API are folded below. Numbers only.
  */
 export const Tokens = (props: { tokens: IBoardTokens | undefined }) => {
   const { t } = useUi();
@@ -59,7 +60,8 @@ export const Tokens = (props: { tokens: IBoardTokens | undefined }) => {
     return null;
   }
 
-  const count = (value: number): string => value.toLocaleString('en-US');
+  const count = (value: number | undefined): string =>
+    value === undefined ? BoardWork.UNKNOWN : value.toLocaleString('en-US');
   const rows: IBoardTokenRow[] = [
     { ...tokens, name: t('tk.total') },
     ...(tokens.agents.length > 1 ? tokens.agents : []),
@@ -77,20 +79,19 @@ export const Tokens = (props: { tokens: IBoardTokens | undefined }) => {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
-            const share = BoardWork.cacheShareOf({ counts: row });
-
-            return (
-              <tr key={row.name}>
-                <th scope="row">{row.name}</th>
-                <td>
-                  {count(BoardWork.readOf({ counts: row }))}
-                  {share === undefined ? null : <small>{`${share}% ${t('tk.fromCache')}`}</small>}
-                </td>
-                <td>{count(row.output)}</td>
-              </tr>
-            );
-          })}
+          {rows.map((row) => (
+            <tr key={row.name}>
+              <th scope="row">{row.name}</th>
+              <td>
+                {count(BoardWork.readOf({ counts: row }))}
+                <small>{BoardWork.readNote({ counts: row, format: count, translate: t })}</small>
+              </td>
+              <td>
+                {count(row.output)}
+                <small>{BoardWork.writtenNote({ counts: row, format: count, translate: t })}</small>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
       <details className="d-fields">

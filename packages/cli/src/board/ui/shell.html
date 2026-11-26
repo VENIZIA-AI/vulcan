@@ -837,7 +837,7 @@
       /* Compact: one line a flow. */
       .c-line {
         display: grid;
-        grid-template-columns: 14px 104px minmax(0, 1fr) auto 84px 116px 72px;
+        grid-template-columns: 14px minmax(128px, max-content) minmax(0, 1fr) auto 84px 116px 92px;
         align-items: center;
         gap: 10px;
         height: 40px;
@@ -880,7 +880,7 @@
       }
       .t-work {
         width: 100%;
-        min-width: 1100px;
+        min-width: 1500px;
         table-layout: fixed;
         border-collapse: separate;
         border-spacing: 0;
@@ -897,7 +897,7 @@
         width: 92px;
       }
       .w-state {
-        width: 108px;
+        width: 124px;
       }
       .w-holder {
         width: 104px;
@@ -908,8 +908,44 @@
       .w-pr {
         width: 88px;
       }
-      .w-tokens {
-        width: 64px;
+      .w-read,
+      .w-written {
+        width: 150px;
+      }
+      .t-work td.t-tk {
+        line-height: 16px;
+      }
+      .t-work td.t-tk small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      /* Order and Code stay at the left while the table scrolls sideways. */
+      .t-work td:nth-child(1),
+      .t-work td:nth-child(2) {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: var(--bg);
+      }
+      .t-work th:nth-child(1),
+      .t-work th:nth-child(2) {
+        left: 0;
+        z-index: 2;
+      }
+      .t-work td:nth-child(2),
+      .t-work th:nth-child(2) {
+        left: 64px;
+      }
+      .t-work tr.sel td:nth-child(1),
+      .t-work tr.sel td:nth-child(2) {
+        background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--bg);
+      }
+      .t-work tr.row:not(.sel):hover td:nth-child(1),
+      .t-work tr.row:not(.sel):hover td:nth-child(2) {
+        background: linear-gradient(var(--sunk), var(--sunk)), var(--bg);
       }
       .w-due {
         width: 92px;
@@ -1778,6 +1814,34 @@
           flex: 1;
           max-width: none;
           text-align: right;
+        }
+      }
+
+      .c-line .who {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      /* A work pane too narrow for one line: the title on its own line, the rest under it. */
+      @container (max-width: 860px) {
+        .c-line {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 2px 8px;
+          height: auto;
+          padding: 8px;
+        }
+        .c-line .c-lt {
+          flex: 0 0 calc(100% - 22px);
+        }
+        .c-line .c-id {
+          margin-left: 22px;
+        }
+        .c-line .c-lm {
+          justify-content: flex-start;
+        }
+        .c-line .c-ago {
+          margin-left: auto;
         }
       }
 

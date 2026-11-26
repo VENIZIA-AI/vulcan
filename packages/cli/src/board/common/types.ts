@@ -66,13 +66,17 @@ export interface IBoardEvent {
 /** One step or acceptance check of a flow, and whether it is done: the same thing the event log carries. */
 export type IBoardItem = IEventItem;
 
-/** The tokens of one agent or one model: four counts, and nothing else. */
+/** The tokens of one agent or one model: four counts, and the thinking part of the output where lines report it. */
 export interface IBoardTokenRow {
   name: string;
   input: number;
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  /** The thinking tokens of the lines that report them; absent when none does. */
+  thinking?: number;
+  /** The output of those same lines, what `thinking` is a part of. */
+  thinkingOf?: number;
 }
 
 /** The tokens of a flow, from the `usage` lines of the log: the totals, and the split by agent and by model. */
@@ -81,6 +85,8 @@ export interface IBoardTokens {
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  thinking?: number;
+  thinkingOf?: number;
   agents: IBoardTokenRow[];
   models: IBoardTokenRow[];
 }

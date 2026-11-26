@@ -17,12 +17,13 @@ import { FlowSteps } from './flow-steps.ts';
 import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 
-/** The four counts of one iteration or one message. */
+/** The four counts of one iteration or one message, and the thinking part of the output when the message says it. */
 interface ITokens {
   input: number;
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  thinking?: number;
 }
 
 /** One transcript message as counted: its flow, when it was written, and its tokens by model. */
@@ -52,7 +53,8 @@ const countOf = (opts: { value: unknown }): number =>
  * numbers and a model, never a price. The meter reads only the new part of the transcript since the mark kept on the last
  * `usage` line of that transcript (the byte after the last whole line, and the last message counted), so nothing is counted
  * twice and nothing is stored apart from the log. Of every assistant line it reads `message.id`, `message.model` and the
- * four counts of `message.usage` and of each of its `iterations`; the conversation itself is never kept.
+ * four counts of `message.usage` and of each of its `iterations`, and
+ * `output_tokens_details.thinking_tokens`; the conversation itself is never kept.
  *
  * Counting rules, from real transcripts: one API message is written as several lines that repeat the same usage, so a
  * `message.id` is counted once; `iterations` hold the truth (an `advisor_message` iteration carries its own model and tokens
@@ -201,6 +203,11 @@ export class UsageMeter {
     total.output += opts.tokens.output;
     total.cacheRead += opts.tokens.cacheRead;
     total.cacheWrite += opts.tokens.cacheWrite;
+
+    if (opts.tokens.thinking !== undefined) {
+      total.thinking = (total.thinking ?? 0) + opts.tokens.thinking;
+    }
+
     opts.totals.set(opts.model, total);
   }
 
@@ -215,7 +222,10 @@ export class UsageMeter {
       const a = opts.left.get(model);
       const b = opts.right.get(model);
 
+      const thinking = [a?.thinking, b?.thinking].filter((count) => count !== undefined);
+
       merged.set(model, {
+        ...(thinking.length === 0 ? {} : { thinking: Math.max(...thinking) }),
         input: Math.max(a?.input ?? 0, b?.input ?? 0),
         output: Math.max(a?.output ?? 0, b?.output ?? 0),
         cacheRead: Math.max(a?.cacheRead ?? 0, b?.cacheRead ?? 0),
@@ -334,6 +344,18 @@ export class UsageMeter {
       total.cacheRead += countOf({ value: part.source.cache_read_input_tokens });
       total.cacheWrite += countOf({ value: part.source.cache_creation_input_tokens });
       byModel.set(part.model, total);
+    }
+
+    // The thinking count is the message's own, beside the counts of its model; an advisor's iteration reports none.
+    const details = usage.output_tokens_details;
+    const own = byModel.get(model);
+
+    if (
+      own !== undefined &&
+      RecordValue.isRecord(details) &&
+      typeof details.thinking_tokens === 'number'
+    ) {
+      own.thinking = countOf({ value: details.thinking_tokens });
     }
 
     const branch = typeof value.gitBranch === 'string' ? value.gitBranch : '';
