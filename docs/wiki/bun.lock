@@ -10,6 +10,7 @@
         "eslint": "10.13.0",
         "oxlint": "1.89.0",
         "oxlint-tsgolint": "7.0.2004",
+        "pagefind": "1.6.0",
         "vitepress": "^1.6.4",
         "vue": "^3.5.44",
         "yaml": "2.9.1",
@@ -206,6 +207,20 @@
     "@oxlint/binding-win32-ia32-msvc": ["@oxlint/binding-win32-ia32-msvc@1.89.0", "", { "os": "win32", "cpu": "ia32" }, "sha512-saFy07cO94E664glwgLmKLI40HgTL1PY86y4T6+ud4niX4H0Kdqjcmqmjps7mQNdBytV5guGbXDdyQtRfeLbLA=="],
 
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.89.0", "", { "os": "win32", "cpu": "x64" }, "sha512-hLFJ/o0f/dTJh/EW0vmcbREYSQO9tYgfiAAlsOkiLFiJuRRWvYtFELUXN5o2ijpSo/tlO1n+YlWN58tZwPG18A=="],
+
+    "@pagefind/darwin-arm64": ["@pagefind/darwin-arm64@1.6.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-611gl64aqN12UcMyKPtZ8+vRWBKlJFSh2JgO8uScxa1Eyjo1dXz9r4wZuRno0yCUE/KN0FauEoKZ3KEwUYHCCg=="],
+
+    "@pagefind/darwin-x64": ["@pagefind/darwin-x64@1.6.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-rd3ZbtuxyYqjASKZAPuIV7eeQQHJ7VYpoNKKG8CvglaD3g30eT5Nb7XGNLYwVReBsCccpkURwrGwWjSwr8nyQQ=="],
+
+    "@pagefind/freebsd-x64": ["@pagefind/freebsd-x64@1.6.0", "", { "os": "freebsd", "cpu": "x64" }, "sha512-d+sXqsaThszmPWGVDSRKqIz9GpZcj/bAksNZfg19asSxU0ogNPOMND4kV4giQvOjPFMsltUFf6hQJfoHQ6+hSQ=="],
+
+    "@pagefind/linux-arm64": ["@pagefind/linux-arm64@1.6.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-SLB2I+XqCZma8NvIGIH8nyKblgKIxw5PmqsVtofWOKxNHhEtOEsddbqU+hsrNcT3EV0faM6UmKDHVIxcPYq29w=="],
+
+    "@pagefind/linux-x64": ["@pagefind/linux-x64@1.6.0", "", { "os": "linux", "cpu": "x64" }, "sha512-IbMSx/+Vr/Xk0TTBlLkjgK+rvnbOXGmmb2/MKxQu99AR5DsqQoV3NKEA9PQz2tAhuCZjeD5xJBp4w5N5DHIC7Q=="],
+
+    "@pagefind/windows-arm64": ["@pagefind/windows-arm64@1.6.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-wUrniW3REr7VWJHz6xE6F/p/AQgHDFpGZiY9sbWT71KfEijDE5Jnc37V8zc7cilV9h/QkwJGXoEP2+ZLwDmhtw=="],
+
+    "@pagefind/windows-x64": ["@pagefind/windows-x64@1.6.0", "", { "os": "win32", "cpu": "x64" }, "sha512-cUA2+yXfbymdJllyMjY5YTBwuOgh0/H53Pn5fYKjDnDjk154Ft4U5RVj3TenWySPL/jG6zJfARUWSlyUyXHlZw=="],
 
     "@rollup/rollup-android-arm-eabi": ["@rollup/rollup-android-arm-eabi@4.64.12", "", { "os": "android", "cpu": "arm" }, "sha512-Z8lz+5UOiCJLonjeqwJlhUtHA/Sr6R1AidkccQxdWF0nigNzP81aLoU+udgOaGfL5s1uzFXzcux/pCwGAMu0lw=="],
 
@@ -610,6 +625,8 @@
     "p-limit": ["p-limit@3.1.0", "", { "dependencies": { "yocto-queue": "^0.1.0" } }, "sha512-TYOanM3wGwNGsZN2cVTYPArw454xnXj5qmWF1bEoAc4+cU/ol7GVh7odevjp1FNHduHc3KZMcFduxU5Xc6uJRQ=="],
 
     "p-locate": ["p-locate@5.0.0", "", { "dependencies": { "p-limit": "^3.0.2" } }, "sha512-LaNjtRWUBY++zB5nE/NwcaoMylSPk+S+ZHNB1TzdbMJMny6dynpAGt7X/tl/QYq3TIeE6nxHppbo2LGymrG5Pw=="],
+
+    "pagefind": ["pagefind@1.6.0", "", { "optionalDependencies": { "@pagefind/darwin-arm64": "1.6.0", "@pagefind/darwin-x64": "1.6.0", "@pagefind/freebsd-x64": "1.6.0", "@pagefind/linux-arm64": "1.6.0", "@pagefind/linux-x64": "1.6.0", "@pagefind/windows-arm64": "1.6.0", "@pagefind/windows-x64": "1.6.0" }, "bin": { "pagefind": "lib/runner/bin.cjs" } }, "sha512-yeOd9EA0TUE1PUfbQIluBxzPadBG5/0BV48FAxwMVLkhZcOvwCz6TX4/a/Ofz97pF9/FwwT7CVbTC97BfmI+LQ=="],
 
     "parse5": ["parse5@8.0.1", "", { "dependencies": { "entities": "^8.0.0" } }, "sha512-z1e/HMG90obSGeidlli3hj7cbocou0/wa5HacvI3ASx34PecNjNQeaHNo5WIZpWofN9kgkqV1q5YvXe3F0FoPw=="],
 

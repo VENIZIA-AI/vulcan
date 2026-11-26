@@ -38,6 +38,20 @@ const createWiki = (opts: { files: Record<string, string>; manifest?: boolean })
   return root;
 };
 
+/** A built site holding `files`, by their paths from its root. */
+const createDist = (opts: { files: Record<string, string> }): string => {
+  const dist = mkdtempSync(join(tmpdir(), 'wiki-search-'));
+
+  roots.push(dist);
+
+  for (const [path, content] of Object.entries(opts.files)) {
+    mkdirSync(join(dist, path, '..'), { recursive: true });
+    writeFileSync(join(dist, path), content);
+  }
+
+  return dist;
+};
+
 describe('the manifest', () => {
   test('lists every file with its hash, and the manifest itself is left out', () => {
     const root = createWiki({ files: { 'a.css': 'a', 'fonts/b.woff2': 'b' } });
@@ -395,6 +409,24 @@ describe('BuildCheck', () => {
     expect(BuildCheck.scanHome({ html: `${home}<div class="economy"></div>` })).toEqual([]);
   });
 
+  test('the search is the Pagefind index, and the local search of VitePress is gone', () => {
+    const dist = createDist({ files: { 'pagefind/pagefind.js': '' } });
+
+    expect(BuildCheck.scanSearch({ dist })).toEqual([]);
+
+    const [missing] = BuildCheck.scanSearch({ dist: createDist({ files: {} }) });
+
+    expect(missing).toContain('search-index.ts');
+
+    const [local] = BuildCheck.scanSearch({
+      dist: createDist({
+        files: { 'pagefind/pagefind.js': '', 'assets/chunks/@localSearchIndexroot.a1.js': '' },
+      }),
+    });
+
+    expect(local).toContain("provider: 'local'");
+  });
+
   test('an inner page has the top bar and no footer', () => {
     expect(BuildCheck.scanInner({ html: bar, page: 'references/index.html' })).toEqual([]);
     expect(BuildCheck.scanInner({ html: home, page: 'references/index.html' })).toHaveLength(1);
@@ -448,6 +480,8 @@ describe('BuildCheck', () => {
     roots.push(dist);
     mkdirSync(join(dist, 'references'), { recursive: true });
     mkdirSync(join(dist, 'assets'), { recursive: true });
+    mkdirSync(join(dist, 'pagefind'), { recursive: true });
+    writeFileSync(join(dist, 'pagefind', 'pagefind.js'), '');
     writeFileSync(join(dist, 'index.html'), home);
     writeFileSync(join(dist, 'references', 'index.html'), bar);
     writeFileSync(join(dist, 'assets', 'style.css'), css);
@@ -474,6 +508,8 @@ describe('BuildCheck', () => {
     roots.push(root);
     mkdirSync(join(dist, 'references'), { recursive: true });
     mkdirSync(join(dist, 'assets'), { recursive: true });
+    mkdirSync(join(dist, 'pagefind'), { recursive: true });
+    writeFileSync(join(dist, 'pagefind', 'pagefind.js'), '');
     writeFileSync(join(dist, 'index.html'), home);
     writeFileSync(join(dist, 'references', 'index.html'), bar);
     writeFileSync(join(dist, 'assets', 'style.css'), css);

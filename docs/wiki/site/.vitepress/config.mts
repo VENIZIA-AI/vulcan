@@ -191,7 +191,6 @@ export default defineConfig({
       '/guides/': guidesSidebar,
       '/references/': referencesSidebar,
     },
-    search: { provider: 'local' },
     outline: {
       level: [2, 3],
       label: 'On this page',
