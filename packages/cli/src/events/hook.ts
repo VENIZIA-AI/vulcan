@@ -137,10 +137,10 @@ export class EventHook {
   /**
    * The task list of a `TodoWrite` call merged into the steps of the flow, never replacing them: a task that is not yet
    * a step is added, a completed one marks its step done, and nothing is removed or reopened, so what an agent wrote
-   * with `vulcan flow step` stays. The flow is the branch's at the payload's `cwd`, else the one this session last
-   * opened or updated, both only within `MIRROR_DAYS` of the log; a flow that is over, a flow with no flow line yet, an
-   * actor that is not known and a call of a subagent (its payload carries `agent_id`, and it would write its own list
-   * over its parent's flow) write nothing. The rest of the last flow line is copied forward. A call that changes no
+   * with `vulcan flow step` stays. The flow is the branch's at the payload's `cwd`, else the one this session (its id,
+   * never its name) last opened or updated, both only within `MIRROR_DAYS` of the log; a flow that is over, a flow
+   * with no flow line yet, an actor that is not known and a call of a subagent (its payload carries `agent_id`, and
+   * it would write its own list over its parent's flow) write nothing. The rest of the last flow line is copied forward. A call that changes no
    * step writes nothing, so a burst of calls is one line. Two writers of one flow at the same moment can lose one
    * change: the log has no lock, and the next call restates the whole merge.
    */
@@ -186,7 +186,7 @@ export class EventHook {
     const flowId = FlowSteps.flowOf({
       events: known,
       cwd: text({ value: opts.input.cwd }) || opts.root,
-      actor,
+      session: text({ value: opts.input.session_id }),
       isOver: (id) => opts.isOver?.({ events: known, flowId: id, key }) ?? true,
     });
     const last =
@@ -308,7 +308,7 @@ export class EventHook {
     const flowId = FlowSteps.flowOf({
       events: known,
       cwd: text({ value: opts.input.cwd }) || opts.root,
-      actor,
+      session: text({ value: opts.input.session_id }),
       isOver: (id) => isOver({ events: known, flowId: id, key }),
     });
 

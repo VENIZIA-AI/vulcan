@@ -19,8 +19,8 @@ export interface ISessionFlow {
 
 /**
  * The flow of a hook's session, resolved once for every hook that reads it (the Stop hold and the prompt context): the
- * branch's flow, else the one the session last opened or updated, and not over. `undefined` with `events.log` off, with no
- * actor, no flow or a flow that is over; it never throws on what a hook input holds.
+ * branch's flow, else the one the session (its id, never its name) last opened or updated, and not over. `undefined`
+ * with `events.log` off, with no actor, no flow or a flow that is over; it never throws on what a hook input holds.
  */
 export class SessionFlow {
   static of(opts: {
@@ -38,10 +38,8 @@ export class SessionFlow {
       return undefined;
     }
 
-    const actor = EventActor.resolve({
-      sessionId: typeof input.session_id === 'string' ? input.session_id : undefined,
-      env: opts.env,
-    });
+    const session = typeof input.session_id === 'string' ? input.session_id : undefined;
+    const actor = EventActor.resolve({ sessionId: session, env: opts.env });
 
     if (actor === EventConstants.UNKNOWN_ACTOR) {
       return undefined;
@@ -56,7 +54,7 @@ export class SessionFlow {
     const flowId = FlowSteps.flowOf({
       events: known,
       cwd,
-      actor,
+      session,
       isOver: (id) => opts.isOver({ events: known, flowId: id, key }),
     });
     const last =

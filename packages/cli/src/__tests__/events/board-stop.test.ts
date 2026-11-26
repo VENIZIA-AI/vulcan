@@ -23,6 +23,7 @@ const T0 = Date.parse('2026-11-23T09:00:00Z');
 const MINUTE = 60 * 1000;
 const FLOW = 'VULZ-ACME-1';
 const ACTOR = 'pnt-vulcan-1';
+const SESSION = 'abcdef12-3456-7890-abcd-ef1234567890';
 const HOOKS = join(import.meta.dir, '..', '..', '..', 'base', 'hooks');
 
 const project = (opts: { log?: boolean } = {}): string =>
@@ -51,6 +52,7 @@ const flowLine = (opts: {
       actor: ACTOR,
       source: 'cli',
       flowId: FLOW,
+      session: SESSION,
       steps: opts.steps ?? [
         { text: 'Token', done: true },
         { text: 'Refresh', done: false },
@@ -76,7 +78,6 @@ const line = (opts: {
       now: opts.at,
     }),
   });
-const SESSION = 'abcdef12-3456-7890-abcd-ef1234567890';
 const editCall = (opts: {
   root: string;
   actor?: string;

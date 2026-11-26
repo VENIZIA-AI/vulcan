@@ -42,17 +42,17 @@ export class FlowSteps {
 
   /**
    * The flow of the work being done, the one resolution every hook shares: the flow the branch at `cwd` names, else the one
-   * this actor last opened or updated that is not over. `undefined` when neither is found.
+   * the session `session` last opened or updated that is not over. `undefined` when neither is found.
    */
   static flowOf(opts: {
     events: IEvent[];
     cwd: string;
-    actor: string;
+    session?: string;
     isOver: (flowId: string) => boolean;
   }): string | undefined {
     return (
       EventFlow.fromBranch({ cwd: opts.cwd }) ??
-      FlowSteps.lastOpenedBy({ events: opts.events, actor: opts.actor, isOver: opts.isOver })
+      FlowSteps.lastOpenedBy({ events: opts.events, session: opts.session, isOver: opts.isOver })
     );
   }
 
@@ -76,18 +76,25 @@ export class FlowSteps {
     )?.flowId;
   }
 
-  /** The newest flow this actor wrote a `flow` line for that is not over: the flow the session last opened or updated. */
+  /**
+   * The newest flow the session `session` wrote a `flow` line for that is not over. Only the session counts, never the
+   * actor, and with no session id there is none: a line without a session is nobody's.
+   */
   static lastOpenedBy(opts: {
     events: IEvent[];
-    actor: string;
+    session?: string;
     isOver: (flowId: string) => boolean;
   }): string | undefined {
+    if (opts.session === undefined || opts.session === '') {
+      return undefined;
+    }
+
     const seen = new Set<string>();
 
     for (const event of [...opts.events].reverse()) {
       if (
         event.type !== EventTypes.FLOW ||
-        event.actor !== opts.actor ||
+        event.session !== opts.session ||
         event.flowId === undefined ||
         seen.has(event.flowId)
       ) {
