@@ -54,6 +54,7 @@ const dedupe = (values: string[]): string[] => [...new Set(values)];
 export class SymbolStore extends BaseHelper {
   private readonly byExactName = new Map<string, ISymbolRecord[]>();
   private readonly namesByLowerCase = new Map<string, string[]>();
+
   private packageMap: IPackageMapEntry[];
   /** Every load error already logged: an unbuilt package fails each reload the same way. */
   private readonly loggedErrors = new Set<string>();
