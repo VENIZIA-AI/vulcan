@@ -79,11 +79,66 @@ describe('EventStore', () => {
 
     const db = new Database(file);
 
-    db.run('INSERT INTO event (line) VALUES (?)', ['{"id":"x","ts":"2026-11-03T09:30:00.000Z"}']);
+    // Every column is there and the line is still no event: it has no summary.
+    db.run('INSERT INTO event (line) VALUES (?)', [
+      '{"id":"x","ts":"2026-11-03T09:30:00.000Z","type":"flow","actor":"a"}',
+    ]);
     db.close();
 
     expect(EventStore.read({ file }).skipped).toBe(1);
     expect(summaries({ file })).toEqual(['good']);
+  });
+
+  test.each(['id', 'ts', 'type', 'actor'])('the database refuses a row without %s', (field) => {
+    const file = fileOf();
+
+    EventStore.append({ file, events: [] });
+
+    const db = new Database(file);
+    const line = { ...eventOf({ summary: 'x' }), [field]: undefined };
+
+    expect(() => db.run('INSERT INTO event (line) VALUES (?)', [JSON.stringify(line)])).toThrow(
+      'NOT NULL',
+    );
+    db.close();
+  });
+
+  test.each(['[1,2]', '"x"', '7', 'not json'])('the database refuses %s as a line', (line) => {
+    const file = fileOf();
+
+    EventStore.append({ file, events: [] });
+
+    const db = new Database(file);
+
+    expect(() => db.run('INSERT INTO event (line) VALUES (?)', [line])).toThrow();
+    db.close();
+  });
+
+  test('an event whose time is no time is left out, and the others are written', () => {
+    const file = fileOf();
+    const bad = { ...eventOf({ summary: 'bad' }), ts: 'yesterday' };
+
+    expect(EventStore.append({ file, events: [bad, eventOf({ summary: 'good' })] })).toBe(1);
+    expect(summaries({ file })).toEqual(['good']);
+  });
+
+  test('its connections check foreign keys, also those a later schema adds', () => {
+    const file = fileOf();
+
+    EventStore.append({ file, events: [] });
+
+    const db = new Database(file);
+
+    db.run('CREATE TABLE owner (id TEXT PRIMARY KEY) STRICT');
+    db.run('CREATE TABLE owned (owner_id TEXT NOT NULL REFERENCES owner (id)) STRICT');
+    db.run(
+      'CREATE TRIGGER event_owned AFTER INSERT ON event BEGIN INSERT INTO owned VALUES (NEW.id); END',
+    );
+    db.close();
+
+    expect(() => EventStore.append({ file, events: [eventOf({ summary: 'x' })] })).toThrow(
+      'FOREIGN KEY',
+    );
   });
 
   test('reading where there is no database finds nothing and makes nothing', () => {

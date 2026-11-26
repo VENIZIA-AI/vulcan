@@ -1,4 +1,4 @@
-import { Database } from 'bun:sqlite';
+import { Database, SQLiteError } from 'bun:sqlite';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { EventStoreConstants } from './common/index.ts';
@@ -10,7 +10,10 @@ import { EventLog } from './log.ts';
  * file must be on a local disk. An event is appended and read back in the shape `EventLog` builds and parses.
  */
 export class EventStore {
-  /** Adds the events in one transaction and returns how many were new: an id that is already there is left as it is. */
+  /**
+   * Adds the events in one transaction and returns how many were new: an id that is already there is left as it is, and
+   * an event whose time cannot be read is left out.
+   */
   static append(opts: { file: string; events: IEvent[] }): number {
     mkdirSync(dirname(opts.file), { recursive: true });
 
@@ -19,13 +22,18 @@ export class EventStore {
     try {
       const insert = db.prepare('INSERT INTO event (line) VALUES (?) ON CONFLICT (id) DO NOTHING');
       const all = db.transaction((events: IEvent[]) =>
-        events.reduce(
+        events.reduce((count, event) => {
+          const time = Date.parse(event.ts);
+
+          if (Number.isNaN(time)) {
+            return count;
+          }
+
           // One written form of a time, so that the order of the text is the order of the moments.
-          (count, event) =>
-            count +
-            insert.run(JSON.stringify({ ...event, ts: new Date(event.ts).toISOString() })).changes,
-          0,
-        ),
+          const line = JSON.stringify({ ...event, ts: new Date(time).toISOString() });
+
+          return count + insert.run(line).changes;
+        }, 0),
       );
 
       try {
@@ -68,6 +76,8 @@ export class EventStore {
     try {
       db.run(`PRAGMA busy_timeout = ${EventStoreConstants.BUSY_TIMEOUT_MS}`);
       db.run('PRAGMA synchronous = NORMAL');
+      // Set by every version: an older vulcan writes to tables a newer one added references to.
+      db.run('PRAGMA foreign_keys = ON');
 
       const version = EventStore.versionOf({ db });
       if (Math.floor(version / EventStoreConstants.MAJOR_STEP) > EventStoreConstants.MAJOR) {
@@ -130,7 +140,8 @@ export class EventStore {
 
         return;
       } catch (error) {
-        const isBusy = error instanceof Error && error.message.includes('database is locked');
+        const isBusy =
+          error instanceof SQLiteError && error.code?.startsWith('SQLITE_BUSY') === true;
 
         if (!isBusy || Date.now() >= until) {
           throw error;

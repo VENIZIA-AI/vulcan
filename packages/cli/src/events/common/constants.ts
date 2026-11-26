@@ -59,15 +59,18 @@ export class EventStoreConstants {
   /** How long to wait before asking again for the journal mode, which SQLite refuses at once while another process sets it. */
   static readonly RETRY_MS = 20;
   /**
-   * One entry per schema version, applied in order; an entry, once released, is never changed. The line is stored whole,
-   * as the log writes it, and every column is read from it, so the two cannot differ.
+   * One entry per schema version, applied in order; an entry, once released, is never changed. The event is stored whole
+   * as one JSON line, its time in one written form, and every column is read from the line, so the two cannot differ.
+   * `seq` never gives a number again, also after rows are deleted: a reader keeps the last one it has seen.
    */
   static readonly MIGRATIONS: readonly string[] = [
     `CREATE TABLE event (
        seq INTEGER PRIMARY KEY AUTOINCREMENT,
-       line TEXT NOT NULL CHECK (json_valid(line)),
-       id TEXT GENERATED ALWAYS AS (json_extract(line, '$.id')) VIRTUAL,
-       ts TEXT GENERATED ALWAYS AS (json_extract(line, '$.ts')) VIRTUAL
+       line TEXT NOT NULL CHECK (json_type(line) = 'object'),
+       id TEXT NOT NULL GENERATED ALWAYS AS (json_extract(line, '$.id')) VIRTUAL,
+       ts TEXT NOT NULL GENERATED ALWAYS AS (json_extract(line, '$.ts')) VIRTUAL,
+       type TEXT NOT NULL GENERATED ALWAYS AS (json_extract(line, '$.type')) VIRTUAL,
+       actor TEXT NOT NULL GENERATED ALWAYS AS (json_extract(line, '$.actor')) VIRTUAL
      ) STRICT;
      CREATE UNIQUE INDEX event_id ON event (id);
      CREATE INDEX event_ts ON event (ts);`,
