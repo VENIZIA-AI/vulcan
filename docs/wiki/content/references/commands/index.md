@@ -158,9 +158,9 @@ flow: the pieces of work on the board
       [--check-done <text>]... [--app <name>]... [--due <YYYY-MM-DD>] [--order <n>|none]
       [--ref <ref>] [--actor <name>] [--dir <folder>]
       Open a flow and print its id; with --flow, write a new line for that flow.
-  vulcan flow step [--done <step> | --todo <step>] [--next <text>] [--context <text>]
+  vulcan flow step [--done <step>... | --todo <step>...] [--next <text>] [--context <text>]
       [--order <n>|none] [--flow <flow id>] [--actor <name>] [--dir <folder>]
-      Change one step, the next step, the context or the order of a flow (--flow, else the branch's
+      Change steps, the next step, the context or the order of a flow (--flow, else the branch's
       flow) and keep the rest; give at least one change. The event scope also takes it, as step.
 
 event: the agent event log

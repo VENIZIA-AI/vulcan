@@ -44,7 +44,10 @@ const LIST_FLAGS = new Set<string>([
 export class EventCommand {
   static async run(opts: ICommandContext): Promise<number> {
     const [subcommand, ...rest] = opts.args;
-    const parsed = EventCommand.parse({ args: rest });
+    const parsed = EventCommand.parse({
+      args: rest,
+      isStep: subcommand === EventSubcommands.STEP,
+    });
 
     if (
       parsed === undefined ||
@@ -58,7 +61,7 @@ export class EventCommand {
     if (subcommand === EventSubcommands.STEP) {
       return parsed.lists.length > 0 || parsed.json
         ? EventCommand.usage()
-        : EventCommand.step({ cwd: opts.cwd, values: parsed.values });
+        : EventCommand.step({ cwd: opts.cwd, values: parsed.values, marks: parsed.marks });
     }
 
     return subcommand === EventSubcommands.ADD
@@ -90,8 +93,8 @@ export class EventCommand {
    * One step of a flow, or its next step or context, without restating the lists: the flow's last `flow` line is
    * copied whole with the change. The flow is `--flow`, else the branch's, and it must have a flow line already.
    */
-  private static step(opts: { cwd: string; values: TFlagValues }): number {
-    const { values } = opts;
+  private static step(opts: { cwd: string; values: TFlagValues; marks: string[] }): number {
+    const { values, marks } = opts;
     const allowed = new Set<string>([
       EventFlags.FLOW,
       EventFlags.DONE,
@@ -102,7 +105,6 @@ export class EventCommand {
       EventFlags.ACTOR,
       EventFlags.DIR,
     ]);
-    const text = values[EventFlags.DONE] ?? values[EventFlags.TODO];
     const fail = (message: string): number => {
       process.stderr.write(`event: ${message}\n`);
 
@@ -119,7 +121,7 @@ export class EventCommand {
     }
 
     if (
-      text === undefined &&
+      marks.length === 0 &&
       values[EventFlags.NEXT] === undefined &&
       values[EventFlags.CONTEXT] === undefined &&
       values[EventFlags.ORDER] === undefined
@@ -136,9 +138,11 @@ export class EventCommand {
     }
 
     if (
-      text !== undefined &&
-      (EventText.oneLine({ text, max: EventConstants.ITEM_TEXT_MAX }) === '' ||
-        Array.from(text).length > EventConstants.ITEM_TEXT_MAX)
+      marks.some(
+        (text) =>
+          EventText.oneLine({ text, max: EventConstants.ITEM_TEXT_MAX }) === '' ||
+          Array.from(text).length > EventConstants.ITEM_TEXT_MAX,
+      )
     ) {
       return fail(`the step needs a text of 1 to ${EventConstants.ITEM_TEXT_MAX} characters`);
     }
@@ -185,14 +189,11 @@ export class EventCommand {
       );
     }
 
-    const steps =
-      text === undefined
-        ? (last.steps ?? [])
-        : FlowSteps.withStep({
-            steps: last.steps ?? [],
-            text,
-            done: values[EventFlags.DONE] !== undefined,
-          });
+    const done = values[EventFlags.DONE] !== undefined;
+    const steps = marks.reduce(
+      (list, text) => FlowSteps.withStep({ steps: list, text, done }),
+      last.steps ?? [],
+    );
 
     if (steps.length > EventConstants.ITEM_COUNT_MAX) {
       return fail(`at most ${EventConstants.ITEM_COUNT_MAX} steps, got ${steps.length}`);
@@ -246,9 +247,12 @@ export class EventCommand {
   /** Flags with a value, and `--json`; `undefined` for anything else (the router has already refused unknown flags). */
   private static parse(opts: {
     args: string[];
-  }): { values: TFlagValues; lists: IListFlag[]; json: boolean } | undefined {
+    /** A step takes several `--done` or `--todo`: their texts are `marks`, in the order given. */
+    isStep: boolean;
+  }): { values: TFlagValues; lists: IListFlag[]; marks: string[]; json: boolean } | undefined {
     const values: TFlagValues = {};
     const lists: IListFlag[] = [];
+    const marks: string[] = [];
     let json = false;
 
     for (let index = 0; index < opts.args.length; index++) {
@@ -260,12 +264,16 @@ export class EventCommand {
       }
 
       const value = opts.args[index + 1];
+      const isMark = opts.isStep && (arg === EventFlags.DONE || arg === EventFlags.TODO);
 
       if (
         !arg.startsWith('--') ||
         value === undefined ||
-        // A repeated flag is refused, except the order: the last value wins.
-        (!LIST_FLAGS.has(arg) && arg !== EventFlags.ORDER && Object.hasOwn(values, arg)) ||
+        // A repeated flag is refused, except the order (the last value wins) and the marks of a step.
+        (!LIST_FLAGS.has(arg) &&
+          !isMark &&
+          arg !== EventFlags.ORDER &&
+          Object.hasOwn(values, arg)) ||
         (LIST_FLAGS.has(arg) && EventFlags.KNOWN.has(value))
       ) {
         return undefined;
@@ -275,12 +283,16 @@ export class EventCommand {
         lists.push({ flag: arg, value });
       } else {
         values[arg] = value;
+
+        if (isMark) {
+          marks.push(value);
+        }
       }
 
       index++;
     }
 
-    return { values, lists, json };
+    return { values, lists, marks, json };
   }
 
   /** The folder to use: `--dir`, else the manifest's `events.dir`, else the project's own. */
