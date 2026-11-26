@@ -857,7 +857,7 @@ The `events` object configures the agent event log ([vulcan event](/references/c
 
 `vulcan event add` and `tail` work whatever `log` says.
 
-An own `dir` lets one coordinator read the sessions of several repositories. The path is a machine path, so each person sets it in their own `.agents/local/profile.json` (`{ "events": { "dir": "/home/me/work/.agents/local/events" } }`), which replaces this key on that machine; see [One folder for every project](/references/commands/event#one-folder-for-every-project).
+An own `dir` lets one coordinator read the sessions of several repositories. The path is a machine path, so each person sets it in their own `.agents/local/profile.json` (`{ "events": { "dir": "/home/<user>/work/.agents/local/events" } }`), which replaces this key on that machine; see [One folder for every project](/references/commands/event#one-folder-for-every-project).
 
 - `~` and relative paths are refused.
 - It must be on a local disk: several processes write the SQLite database at once.
@@ -874,7 +874,7 @@ import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
   board: {
-    events: { log: true, dir: '/home/me/work/.agents/local/events' },
+    events: { log: true, dir: '/home/<user>/work/.agents/local/events' },
   },
 } satisfies VulcanConfig;
 ```
