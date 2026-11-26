@@ -130,6 +130,7 @@ describe('the other readers of the local folder', () => {
         actor: ACTOR,
         source: 'cli',
         flowId: 'VULZ-ACME-1',
+        session: 'abcdef12-3456-7890-abcd-ef1234567890',
         steps: [{ text: 'Refresh', done: false }],
         now: at,
       }),

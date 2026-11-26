@@ -10,6 +10,7 @@ afterAll(removeProjects);
 const T0 = Date.parse('2026-11-23T09:00:00Z');
 const FLOW = 'VULZ-ACME-1';
 const ACTOR = 'pnt-vulcan-1';
+const SESSION = 'abcdef12-3456-7890-abcd-ef1234567890';
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'board-context.ts');
 
 const project = (
@@ -32,6 +33,7 @@ const project = (
       actor: ACTOR,
       source: 'cli',
       flowId: FLOW,
+      session: SESSION,
       steps: opts.steps ?? [
         { text: 'Token', done: true },
         { text: 'Refresh', done: false },
@@ -44,14 +46,17 @@ const project = (
 };
 const input = (root: string) => ({
   hookEventName: 'UserPromptSubmit',
-  sessionId: 'abcdef12-3456-7890-abcd-ef1234567890',
+  sessionId: SESSION,
   cwd: root,
   prompt: 'SECRET PROMPT',
 });
-const build = (opts: { root: string; actor?: string }) =>
+const build = (opts: { root: string; actor?: string; session?: string }) =>
   PromptContext.build({
     root: opts.root,
-    input: wire(input(opts.root)),
+    input: wire({
+      ...input(opts.root),
+      ...(opts.session === undefined ? {} : { sessionId: opts.session }),
+    }),
     env: { VULCAN_ACTOR: opts.actor ?? ACTOR },
     isOver: FlowState.isOver,
     now: T0 + 60_000,
@@ -114,9 +119,9 @@ describe('the prompt context block', () => {
     expect(build({ root: over })).toBeUndefined();
   });
 
-  test('prints nothing with the log off, for another actor, or without a flow', () => {
+  test('prints nothing with the log off, for another session with the same name, or without a flow', () => {
     expect(build({ root: project({ log: false }) })).toBeUndefined();
-    expect(build({ root: project(), actor: 'someone-else-1' })).toBeUndefined();
+    expect(build({ root: project(), session: 'another-session' })).toBeUndefined();
     expect(
       build({
         root: createProject({
@@ -144,6 +149,7 @@ describe('the prompt context block', () => {
           actor: 'evil-1',
           source: 'cli',
           flowId: FLOW,
+          session: SESSION,
           steps: [{ text: 'Do', done: false }],
           now: T0 + 5000,
         }),
