@@ -554,12 +554,35 @@ describe('the search index of a wiki', () => {
       '--site',
       '/srv/vulcan-fixture/docs/wiki/site/.vitepress/dist',
     ]);
-    expect(command.join(' ')).toContain('--root-selector .VPContent');
     expect(command.at(-1)).toContain('span.lang');
   });
 
-  test('a wiki without Pagefind installed fails and downloads nothing', () => {
-    expect(SearchIndex.run({ wiki: join(tmpdir(), 'wiki-without-pagefind') })).toBe(1);
+  test('a built page marks its content for the index and keeps its table cells apart', () => {
+    const page = SearchIndex.mark({
+      html: '<div class="VPNav">menu</div><div class="VPContent x"><h1>Config</h1><table><tr><th>Export</th><th>Kind</th></tr><tr><td>a</td><td>b</td></tr></table></div>',
+    });
+
+    expect(page).toContain('<div class="VPContent x" data-pagefind-body="">');
+    // The h1 names the page in a result row, so it is not part of the text an excerpt is cut from.
+    expect(page).toContain('<h1 data-pagefind-meta="title" data-pagefind-ignore="">Config</h1>');
+    expect(page).toContain('<th>Export </th><th>Kind </th>');
+    expect(page).toContain('<td>a </td><td>b </td>');
+    expect(page).toContain('<div class="VPNav">menu</div>');
+    expect(SearchIndex.mark({ html: page })).toBe(page);
+
+    // Only the first h1 names the page: a changelog page has a second one.
+    expect(
+      SearchIndex.mark({ html: '<div class="VPContent"><h1>Title</h1><h1>Changelog</h1></div>' }),
+    ).toContain('<h1>Changelog</h1>');
+
+    // A page that only writes the attribute's name in its text is still marked.
+    expect(
+      SearchIndex.mark({ html: '<div class="VPContent"><p>data-pagefind-body</p></div>' }),
+    ).toContain('<div class="VPContent" data-pagefind-body="">');
+  });
+
+  test('a wiki without Pagefind installed fails and downloads nothing', async () => {
+    expect(await SearchIndex.run({ wiki: join(tmpdir(), 'wiki-without-pagefind') })).toBe(1);
   });
 });
 
