@@ -127,15 +127,15 @@ Code and writing rules define TypeScript standards, parameter limits, naming pat
 - `V-C-01` - Use English exclusively in code, identifiers, comments, commit messages, logs, and documentation.
   - Enforced by: SOFT
 - `V-C-02` - Pass one options object first with at most five parameters; options that serve one concern live in one named sub-object (`{ limit: { default, max } }`), not as prefixed siblings (`defaultLimit`, `maxLimit`).
-  - Enforced by: SOFT - lint (`venizia/max-params-own`, 5) in a project that enables `houseConfigs` of `@venizia/dev-configs`
+  - Enforced by: LINT (at most 5 positional parameters: `@venizia/max-params-own`, `venizia/…` up to dev-configs 0.5.0-8) in a project that enables `houseConfigs` of `@venizia/dev-configs`, + SOFT
 - `V-C-04` - Never abbreviate identifiers or type parameters; spell out full descriptive names.
   - Enforced by: SOFT
-- `V-C-06` - Always log caught errors, use braces and early returns, and avoid `any` where a type exists.
-  - Enforced by: LINT (braces, floating promises; `venizia/no-silent-catch` from `@venizia/dev-configs` 0.4.8-3) in a project that enables `houseConfigs`, + SOFT
+- `V-C-06` - Log a caught error and act on it, return early, prefer a `switch` over a long if-else chain, and avoid `any` where a type exists.
+  - Enforced by: LINT (oxlint preset of `@venizia/dev-configs`: braces `curly`, floating promises, a block per case `unicorn/switch-case-braces`, and after 0.5.0-8 a `default` in every `switch` `default-case`, tests exempt; `houseConfigs`: no silent catch `@venizia/no-silent-catch`) + SOFT
 - `V-C-09` - A comment states a lasting fact the code cannot show or is public-API TSDoc; never a decision, history, an issue or PR number or a review note; delete a comment that repeats the code. TSDoc on an export is optional: write it when it says what the name and types do not (summary first, `@param`/`@returns` without `{type}`, `@default`, `@deprecated`, `@example`, on the declaration itself), within the line limit except an `@example`, when you write or change the export and never as a sweep.
   - Enforced by: SOFT
 - `V-C-10` - Avoid explicit type casts in new code; refine types instead.
-  - Enforced by: SOFT - lint (`@typescript-eslint/consistent-type-assertions`, warn) in a project that enables `houseConfigs` of `@venizia/dev-configs`
+  - Enforced by: SOFT - lint (`@typescript-eslint/consistent-type-assertions`, warn; shortened once it is an error) in a project that enables `houseConfigs` of `@venizia/dev-configs`
 - `V-C-11` - Prioritize simplicity in code and prose; justify complexity with correctness, speed, or safety. Small means only what the task needs, not golfed, and never cuts validation, error handling, security checks or data safety.
   - Enforced by: SOFT
 - `V-C-13` - Use hyphens instead of dashes; spell brands accurately; keep documentation native to its generator unless the project's rules name an exception.
@@ -163,12 +163,12 @@ The `venizia` pack holds the five rules that bind the Venizia stack (Bun, `devz`
   - Enforced by: SOFT
 - `V-B-09` - Agent scripting uses bun by default (`bun -e`, `bun file.ts`, `Bun.file()`); Python or another language is allowed when the task needs it (an existing project script, a tool only that language has), said in one line.
   - Enforced by: SOFT
-- `V-C-07` - Open function names with verbs, prefer arrow functions, and group state in classes.
-  - Enforced by: SOFT
+- `V-C-07` - Open function names with verbs and group state in classes.
+  - Enforced by: LINT (arrow functions, not `function` declarations: `func-style` of the oxlint preset, tests exempt, after dev-configs 0.5.0-8; do not churn existing ones) + SOFT
 - `V-C-08` - Define enumerable strings as constant classes; one that is validated extends `ConstClass` (`values()`, `isValid(value)`) instead of declaring a set, imported from `@venizia/ignis-helpers/common` in a project on IGNIS or ARDOR; prefix types with T or I.
-  - Enforced by: SOFT - lint (`const-class-values`) in a project that enables `houseConfigs` of `@venizia/dev-configs`
-- `V-C-20` - Declare the instance, then await on its own line: `const runner = new X({...}); await runner.run({...});`, never `await new X({...}).run({...})`. Tests and scripts too.
-  - Enforced by: SOFT - lint (`venizia/no-await-new-chain`, `@venizia/dev-configs` from 0.4.8-3) in a project that enables `houseConfigs`
+  - Enforced by: SOFT - lint (`@venizia/const-class-values`, warn; shortened once it is an error) in a project that enables `houseConfigs` of `@venizia/dev-configs`
+- `V-C-20` - Declare the instance, then await on its own line (never `await new X().method()`).
+  - Enforced by: LINT (`@venizia/no-await-new-chain`, `venizia/…` up to dev-configs 0.5.0-8) in a project that enables `houseConfigs` of `@venizia/dev-configs`
 - `V-C-21` - Name a class by what it is: a `Helper` (an object you `new` or bind, with state; `XxxHelper`, extends `BaseHelper`, `helpers/`); otherwise a static class - an access point to one thing named after it with no suffix (`RuntimeConfig`, `AppEnv`), a `Utility` (static pure functions about one data type or topic; `XxxUtility`, `utilities/`), a role class (`Reader`, `Builder`, `Encoder`, `Factory`, `Registry`, `Store`, `Guard`; a factory of one type is `XFactory.build()`, of several types `XFactory.<type>()`, never `build({ type })`) or a constants class (`HTTP`, `RequestTypes`). One protocol, one namespace (`HTTP.*`) and one class prefix (`Http*`).
   - Enforced by: SOFT
 

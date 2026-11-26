@@ -63,7 +63,7 @@ describe('RuleParser.parseIds', () => {
 
     expect(row).toContain('One options object first, at most 5 parameters');
     expect(row).toContain('isValidName({ name })');
-    expect(row).toContain('venizia/max-params-own');
+    expect(row).toContain('@venizia/max-params-own');
     expect(row).not.toContain('IStorageHelper');
   });
 
