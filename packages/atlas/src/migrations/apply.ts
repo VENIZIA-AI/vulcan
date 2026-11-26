@@ -436,7 +436,11 @@ export class MigrateApply {
 
         outcome.output = ran.status === 0 ? text.trim() : '';
 
-        if (ran.status === 0) {
+        // A runner may also say it by itself, with exit 0: nothing was rewritten, so the step stays manual.
+        const isRefused =
+          direction === MigrateDirections.DOWNGRADE && text.trim().startsWith(NOT_REVERSIBLE_TEXT);
+
+        if (ran.status === 0 && !isRefused) {
           outcome.status = CodemodStatuses.RAN;
 
           if (staging && stageAll({ app: result.app })) {
@@ -447,7 +451,10 @@ export class MigrateApply {
               `vulcan migrate apply: \`git add -A\` failed in ${result.app}; the codemods after ${codemod} were not run\n`,
             );
           }
-        } else if (ran.status === NOT_REVERSIBLE_EXIT && text.includes(NOT_REVERSIBLE_TEXT)) {
+        } else if (
+          isRefused ||
+          (ran.status === NOT_REVERSIBLE_EXIT && text.includes(NOT_REVERSIBLE_TEXT))
+        ) {
           outcome.status = CodemodStatuses.NOT_REVERSIBLE;
         } else {
           outcome.status = CodemodStatuses.FAILED;

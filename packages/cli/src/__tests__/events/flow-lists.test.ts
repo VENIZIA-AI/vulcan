@@ -139,7 +139,7 @@ describe('the lists of a flow line', () => {
 
 describe('the usage of the command', () => {
   test('a flow line says its lists, its due day and its tracker id', () => {
-    const result = runCli({ args: ['event'], cwd: project(), env: hermeticEnv() });
+    const result = runCli({ args: ['flow'], cwd: project(), env: hermeticEnv() });
 
     for (const flag of [
       '--step',

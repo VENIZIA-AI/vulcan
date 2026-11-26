@@ -203,6 +203,24 @@ describe('the help', () => {
 });
 
 describe('help of a scope', () => {
+  test('`help <scope>` prints that scope, an unknown one exits 2, and a bare flow, event or migrate shows its scope', () => {
+    const of = (args: string[]) => runCli({ args, cwd: tmpdir() });
+    const board = of(['help', 'board']);
+    const unknown = of(['help', 'nosuch']);
+
+    expect(board.code).toBe(0);
+    expect(board.stdout).toBe(CommandTable.scopeHelp({ scope: 'board' }));
+    expect(unknown.code).toBe(2);
+    expect(unknown.stderr).toContain("no scope 'nosuch'");
+
+    for (const scope of ['flow', 'event', 'migrate']) {
+      const bare = of([scope]);
+
+      expect(bare.code, scope).toBe(2);
+      expect(bare.stderr, scope).toBe(CommandTable.scopeHelp({ scope }));
+    }
+  });
+
   test("`--help` and `-h` after a scope print that scope's usage and exit 0; okf and atlas keep passing the flag to the tool", () => {
     for (const scope of CommandScopes.scopes().filter((name) => !['okf', 'atlas'].includes(name))) {
       for (const flag of ['--help', '-h']) {

@@ -79,7 +79,7 @@ describe('vulcan migrate', () => {
       const result = run({ args, cwd: framework });
 
       expect(result.code, args.join(' ')).toBe(2);
-      expect(result.stderr, args.join(' ')).toContain('usage: vulcan migrate plan');
+      expect(result.stderr, args.join(' ')).toContain('vulcan migrate plan [--package <name>]');
     }
   });
 

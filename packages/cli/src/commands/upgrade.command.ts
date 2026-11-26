@@ -116,10 +116,31 @@ export class UpgradeTarget {
     return Bun.semver.order(next, latest) === 1 ? next : latest;
   }
 
+  /** Whether `latest` is not older than `installed`; says why on stderr when it is, or when it cannot be read. */
+  private static async isNewerStable(opts: { cwd: string; installed: string }): Promise<boolean> {
+    const tags = await readDistTags({ cwd: opts.cwd });
+    const latest = tags?.latest;
+
+    if (latest !== undefined && Bun.semver.order(latest, opts.installed) >= 0) {
+      return true;
+    }
+
+    const why =
+      latest === undefined
+        ? `the latest release of ${PACKAGE_NAME} could not be read, so it may be older`
+        : `latest is ${latest}, which is older`;
+
+    process.stderr.write(
+      `vulcan project upgrade: nothing was installed: ${opts.installed} is installed and ${why}; ${UpgradeFlags.NIGHTLY} keeps the prerelease line, ${UpgradeFlags.STABLE} installs latest anyway, or give a version\n`,
+    );
+
+    return false;
+  }
+
   /**
    * What to install: an explicit version or tag wins over the channel; `--nightly` is the newest of the
-   * `latest` and `next` tags; otherwise `latest`. Undefined, after saying why on stderr, when `--nightly`
-   * cannot be resolved.
+   * `latest` and `next` tags; otherwise `latest`, which without `--stable` never replaces a newer prerelease. Undefined,
+   * after saying why on stderr, when there is nothing to install.
    */
   static async resolve(opts: ICommandContext): Promise<string | undefined> {
     const explicit = opts.args.find((arg) => !arg.startsWith('-'));
@@ -131,11 +152,23 @@ export class UpgradeTarget {
     if (!opts.args.includes(UpgradeFlags.NIGHTLY)) {
       const installed = readInstalledVersion({ cwd: opts.cwd });
 
-      if (installed !== undefined && CreateConstants.PRERELEASE_PATTERN.test(installed)) {
-        process.stderr.write(
-          `vulcan project upgrade: ${installed} is installed, a prerelease; ${UpgradeFlags.STABLE} installs the latest stable release and ${UpgradeFlags.NIGHTLY} keeps the prerelease line\n`,
-        );
+      if (installed === undefined || !CreateConstants.PRERELEASE_PATTERN.test(installed)) {
+        return DEFAULT_TARGET;
       }
+
+      const isAsked = opts.args.includes(UpgradeFlags.STABLE);
+
+      if (!isAsked) {
+        const isNewer = await UpgradeTarget.isNewerStable({ cwd: opts.cwd, installed });
+
+        if (!isNewer) {
+          return undefined;
+        }
+      }
+
+      process.stderr.write(
+        `vulcan project upgrade: ${installed} is installed, a prerelease; ${UpgradeFlags.STABLE} installs the latest stable release and ${UpgradeFlags.NIGHTLY} keeps the prerelease line\n`,
+      );
 
       return DEFAULT_TARGET;
     }
