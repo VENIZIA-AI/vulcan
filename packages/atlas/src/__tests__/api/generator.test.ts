@@ -27,6 +27,67 @@ const record = (opts: Partial<ISymbolRecord> & { name: string }): ISymbolRecord 
   ...opts,
 });
 
+describe('ApiReference.filesOf with a long entry', () => {
+  const long = (name: string) =>
+    record({
+      name,
+      doc: 'Long.',
+      declaration: `export declare const ${name}: '${'x'.repeat(6000)}';`,
+    });
+  const names = [
+    ...Array.from({ length: 20 }, (_, at) => `value${String(at).padStart(2, '0')}`),
+    'with_mark',
+  ];
+  const files = ApiReference.filesOf({ records: names.map(long) });
+  const parts = [...files.keys()].filter((file) => file.startsWith('x-kit-part-')).sort();
+  const main = files.get('x-kit.md') ?? '';
+
+  test('the entry keeps its page and gets numbered parts, none over the limit', () => {
+    expect(parts).toEqual(['x-kit-part-1.md', 'x-kit-part-2.md', 'x-kit-part-3.md']);
+
+    for (const file of ['x-kit.md', ...parts]) {
+      expect((files.get(file) ?? '').length).toBeLessThanOrEqual(ApiReference.MAX_PAGE_CHARS);
+    }
+  });
+
+  test('every export is declared once, in a part, and keeps a heading on the entry page that links there', () => {
+    for (const name of names) {
+      const holders = parts.filter((file) => (files.get(file) ?? '').includes(`const ${name}:`));
+
+      expect(holders).toHaveLength(1);
+      expect(main).toContain(`## \`${name}\``);
+    }
+
+    expect(main).not.toContain('xxxxxxxxxx');
+    expect(main).toContain('[Declaration](/references/api/x-kit-part-1#value00)');
+    // A name the site's anchor would spell another way is linked to the page alone.
+    expect(main).toContain('[Declaration](/references/api/x-kit-part-3)');
+  });
+
+  test('a part names its entry, its number and the way back', () => {
+    const part = files.get('x-kit-part-2.md') ?? '';
+
+    expect(part).toContain('title: "@x/kit (2 of 3)"');
+    expect(part).toContain('[`@x/kit`](/references/api/x-kit)');
+    expect(ApiReference.isGenerated({ text: part })).toBe(true);
+  });
+
+  test('one export over the limit has a part of its own', () => {
+    const huge = record({
+      name: 'huge',
+      declaration: `export declare const huge: '${'y'.repeat(ApiReference.MAX_PAGE_CHARS)}';`,
+    });
+    const split = ApiReference.filesOf({ records: [huge, long('small')] });
+
+    expect([...split.keys()].sort()).toEqual([
+      'index.md',
+      'x-kit-part-1.md',
+      'x-kit-part-2.md',
+      'x-kit.md',
+    ]);
+  });
+});
+
 describe('ApiReference.filesOf', () => {
   const records = [
     record({

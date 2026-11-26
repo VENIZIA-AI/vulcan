@@ -1,8 +1,8 @@
 /**
  * The API reference of a project's packages: one markdown page for each `exports` entry, listing every
  * export with its kind, its TSDoc and its declaration, read from the same symbol records the `symbol`
- * tool serves. The pages go under the wiki, are generated and are never edited; `check` fails when one is
- * stale. Usage: vulcan atlas api gen|check
+ * tool serves. A long entry is split into numbered parts. The pages go under the wiki, are generated and are
+ * never edited; `check` fails when one is stale. Usage: vulcan atlas api gen|check
  */
 import { readdirSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -12,8 +12,15 @@ import type { ISymbolRecord } from '@/symbols';
 import { DeclarationText } from '@/symbols/declaration-text';
 import { SymbolCompute } from '@/symbols/compute';
 
-/** One page: the file it is written to and the text. */
+/** A further page of a long entry. */
+export interface IApiPart {
+  file: string;
+  text: string;
+}
+
+/** The page of an entry: the file it is written to and the text, and the parts a long one is split into. */
 export interface IApiPage {
+  parts: IApiPart[];
   file: string;
   specifier: string;
   text: string;
@@ -37,6 +44,11 @@ export class ApiReference {
   /** Under the wiki content directory. */
   static readonly DIRECTORY = 'references/api';
   static readonly INDEX_FILE = 'index.md';
+  /**
+   * The longest a page is before its declarations move to parts. A built page was measured at up to eleven times its
+   * markdown, so this keeps its chunk under the bundler's default warning of 500 kB.
+   */
+  static readonly MAX_PAGE_CHARS = 45_000;
   private static readonly GENERATED_NOTE =
     'Generated from the built declarations by `vulcan atlas api gen` - do not edit.';
 
@@ -179,7 +191,9 @@ export class ApiReference {
     const pages = ApiReference.pagesOf(opts);
 
     return new Map<string, string>([
-      ...pages.map((page): [string, string] => [page.file, page.text]),
+      ...pages.flatMap((page): [string, string][] =>
+        [page, ...page.parts].map((file) => [file.file, file.text]),
+      ),
       [ApiReference.INDEX_FILE, ApiReference.indexOf({ pages })],
     ]);
   }
@@ -257,6 +271,10 @@ export class ApiReference {
     return '`'.repeat(Math.max(3, longest + 1));
   }
 
+  /**
+   * The page of one entry. When it would pass `MAX_PAGE_CHARS`, the declarations go to numbered parts and the page keeps
+   * a heading for every export, so a link to an export still lands on it, with the way to its declaration.
+   */
   private static pageOf(opts: {
     specifier: string;
     records: ISymbolRecord[];
@@ -268,7 +286,10 @@ export class ApiReference {
     const undocumented = records
       .filter((record) => record.declaration !== undefined && (record.doc ?? '') === '')
       .map((record) => record.name);
-    const sections = records.map((record) => ApiReference.sectionOf({ record }));
+    const sections = records.map((record) => ({
+      record,
+      lines: ApiReference.sectionOf({ record }),
+    }));
     const gap =
       undocumented.length === 0
         ? []
@@ -276,29 +297,103 @@ export class ApiReference {
             `Without TSDoc (${undocumented.length}): ${undocumented.map((name) => `\`${name}\``).join(', ')}.`,
             '',
           ];
+    const file = ApiReference.fileOf({ specifier: opts.specifier });
+    const head = [
+      ...ApiReference.headOf({ title: opts.specifier, specifier: opts.specifier }),
+      `${records.length} exports, ${records.length - undocumented.length} with TSDoc.${opts.reexports.length === 0 ? '' : ` ${opts.reexports.length} more are re-exported from other entries (listed at the end).`}`,
+      '',
+      ...gap,
+    ];
+    const tail = ApiReference.reexportsOf({ reexports: opts.reexports });
+    const whole = [...head, ...sections.flatMap((section) => section.lines), ...tail].join('\n');
+    const page = { file, specifier: opts.specifier, total: records.length, undocumented };
+
+    if (whole.length <= ApiReference.MAX_PAGE_CHARS) {
+      return { ...page, text: whole, parts: [] };
+    }
+
+    const stem = file.replace(/\.md$/, '');
+    const groups = ApiReference.groupsOf({ sections });
+    const parts = groups.map((group, at): IApiPart => {
+      const title = `${opts.specifier} (${at + 1} of ${groups.length})`;
+
+      return {
+        file: `${stem}-part-${at + 1}.md`,
+        text: [
+          ...ApiReference.headOf({ title, specifier: opts.specifier }),
+          `Part ${at + 1} of ${groups.length} of [\`${opts.specifier}\`](/${ApiReference.DIRECTORY}/${stem}).`,
+          '',
+          ...group.flatMap((section) => section.lines),
+        ].join('\n'),
+      };
+    });
+    const listed = groups.flatMap((group, at) =>
+      group.flatMap(({ record }) => {
+        // The site spells the anchor of a plain name in lower case; any other name is linked to the part alone.
+        const anchor = /^[A-Za-z][A-Za-z0-9]*$/.test(record.name)
+          ? `#${record.name.toLowerCase()}`
+          : '';
+
+        return [
+          `## \`${record.name}\``,
+          '',
+          `*${record.category}* - [Declaration](/${ApiReference.DIRECTORY}/${stem}-part-${at + 1}${anchor})`,
+          '',
+        ];
+      }),
+    );
 
     return {
-      file: ApiReference.fileOf({ specifier: opts.specifier }),
-      specifier: opts.specifier,
-      total: records.length,
-      undocumented,
+      ...page,
       text: [
-        '---',
-        `title: ${JSON.stringify(opts.specifier)}`,
-        `description: ${JSON.stringify(`Every export of ${opts.specifier}, from the built declarations (generated).`)}`,
-        '---',
+        ...head,
+        `The declarations are on ${groups.length} pages; each export below links to its own.`,
         '',
-        `# \`${opts.specifier}\``,
-        '',
-        `> ${ApiReference.GENERATED_NOTE}`,
-        '',
-        `${records.length} exports, ${records.length - undocumented.length} with TSDoc.${opts.reexports.length === 0 ? '' : ` ${opts.reexports.length} more are re-exported from other entries (listed at the end).`}`,
-        '',
-        ...gap,
-        ...sections.flat(),
-        ...ApiReference.reexportsOf({ reexports: opts.reexports }),
+        ...listed,
+        ...tail,
       ].join('\n'),
+      parts,
     };
+  }
+
+  /** The frontmatter, the title and the note every page of an entry starts with. */
+  private static headOf(opts: { title: string; specifier: string }): string[] {
+    return [
+      '---',
+      `title: ${JSON.stringify(opts.title)}`,
+      `description: ${JSON.stringify(`Every export of ${opts.specifier}, from the built declarations (generated).`)}`,
+      '---',
+      '',
+      `# \`${opts.title}\``,
+      '',
+      `> ${ApiReference.GENERATED_NOTE}`,
+      '',
+    ];
+  }
+
+  /** The sections in order, cut into runs that fit a page; a section longer than a page is a run of its own. */
+  private static groupsOf<Section extends { lines: string[] }>(opts: {
+    sections: Section[];
+  }): Section[][] {
+    // Room for the head of a part.
+    const budget = ApiReference.MAX_PAGE_CHARS - 1000;
+    const groups: Section[][] = [];
+    let size = 0;
+
+    for (const section of opts.sections) {
+      const length = section.lines.join('\n').length + 1;
+      const last = groups.at(-1);
+
+      if (last === undefined || size + length > budget) {
+        groups.push([section]);
+        size = length;
+      } else {
+        last.push(section);
+        size += length;
+      }
+    }
+
+    return groups;
   }
 
   /** One line for each export this entry only re-exports, linked to the page that declares it. */
