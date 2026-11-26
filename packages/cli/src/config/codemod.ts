@@ -5,6 +5,7 @@ import { ConfigFormat } from './format.ts';
 import type {
   IPropertySegment,
   TObjectElement,
+  TExportDeclaration,
   TObjectLiteral,
   TSourceFile,
   TTypeScript,
@@ -721,6 +722,7 @@ export class ConfigCodemod {
     }
 
     const folded = new Set<string>();
+    const barrels = new Set<string>();
     const foldedNames = new Set<string>();
     const changes: IFileChange[] = [];
     const written: string[] = [];
@@ -742,6 +744,7 @@ export class ConfigCodemod {
           path: posix.join(ConfigConstants.DIRECTORY, binding.specifier),
           name: binding.name,
           folded,
+          barrels,
           depth: 0,
         });
 
@@ -834,11 +837,18 @@ export class ConfigCodemod {
       };
     }
 
-    const index = ConfigCodemod.indexRefusal({
-      typescript,
-      text: opts.opts.read(`${MODULES_DIRECTORY}/index.mts`),
-      folded: foldedNames,
-    });
+    const index =
+      ConfigCodemod.indexRefusal({
+        typescript,
+        text: opts.opts.read(`${MODULES_DIRECTORY}/index.mts`),
+        folded: foldedNames,
+      }) ??
+      ConfigCodemod.barrelRefusal({
+        typescript,
+        read: opts.opts.read,
+        barrels: new Set([`${MODULES_DIRECTORY}/index.mts`, ...barrels]),
+        folded,
+      });
 
     if (index !== undefined) {
       return { ok: false, reason: index };
@@ -928,6 +938,10 @@ export class ConfigCodemod {
     return normal.startsWith(`${MODULES_DIRECTORY}/`) && !normal.split('/').includes('..');
   }
 
+  private static outsideReason(opts: { path: string }): string {
+    return `${posix.normalize(opts.path)} is not under ${MODULES_DIRECTORY}/: the codemod folds and deletes only files there; put its value in the config by hand, or move the file there`;
+  }
+
   /** The line (1-based) and the first words of a statement: what a refusal names. */
   private static whereOf(opts: {
     source: TSourceFile;
@@ -941,7 +955,8 @@ export class ConfigCodemod {
   }
 
   /**
-   * The value a module of the old split exports as `name`, with the comment above it: through `export { name } from './x.mts'`.
+   * The value a module of the old split exports as `name`, with the comment above it: through `export { name } from './x.mts'`
+   * or `export * from './x.mts'`.
    * Only a file of `.configs/vulcan/` that holds nothing but the type import and that one exported const is folded: a module with
    * another export, a local name or a statement would lose it, so it is refused with its line.
    */
@@ -951,14 +966,14 @@ export class ConfigCodemod {
     path: string;
     name: string;
     folded: Set<string>;
+    /** The files followed only for what they re-export. */
+    barrels: Set<string>;
     depth: number;
   }): { text: string; comment: string } | { reason: string } {
     const { typescript } = opts;
 
     if (!ConfigCodemod.isContained({ path: opts.path })) {
-      return {
-        reason: `${posix.normalize(opts.path)} is not under ${MODULES_DIRECTORY}/: the codemod folds and deletes only files there; put its value in the config by hand, or move the file there`,
-      };
+      return { reason: ConfigCodemod.outsideReason({ path: opts.path }) };
     }
 
     const text = opts.read(opts.path);
@@ -986,7 +1001,7 @@ export class ConfigCodemod {
         statement.exportClause.elements.some((element) => element.name.text === opts.name),
     );
 
-    if (exporting !== undefined && typescript.isExportDeclaration(exporting)) {
+    const follow = (from: string): { text: string; comment: string } | { reason: string } => {
       // A file that only re-exports (an index): nothing else may live in it.
       const stray = source.statements.find(
         (statement) =>
@@ -1001,18 +1016,13 @@ export class ConfigCodemod {
       }
 
       opts.folded.add(opts.path);
+      opts.barrels.add(opts.path);
 
-      return ConfigCodemod.moduleValue({
-        ...opts,
-        path: posix.join(
-          posix.dirname(opts.path),
-          exporting.moduleSpecifier !== undefined &&
-            typescript.isStringLiteral(exporting.moduleSpecifier)
-            ? exporting.moduleSpecifier.text
-            : '',
-        ),
-        depth: opts.depth + 1,
-      });
+      return ConfigCodemod.moduleValue({ ...opts, path: from, depth: opts.depth + 1 });
+    };
+
+    if (exporting !== undefined && typescript.isExportDeclaration(exporting)) {
+      return follow(ConfigCodemod.targetOf({ typescript, path: opts.path, statement: exporting }));
     }
 
     for (const statement of source.statements) {
@@ -1054,14 +1064,164 @@ export class ConfigCodemod {
       };
     }
 
+    const stars = ConfigCodemod.starTargets({ typescript, source, path: opts.path });
+    const outside = stars.find((path) => !ConfigCodemod.isContained({ path }));
+
+    if (outside !== undefined) {
+      return { reason: ConfigCodemod.outsideReason({ path: outside }) };
+    }
+
+    const providers = stars.filter((path) =>
+      ConfigCodemod.isExporting({ ...opts, path, seen: new Set([opts.path]) }),
+    );
+
+    if (providers.length > 1) {
+      return {
+        reason: `${opts.path} gets \`${opts.name}\` from more than one \`export *\` (${providers.join(', ')}): name the one you mean`,
+      };
+    }
+
+    if (providers.length === 1) {
+      return follow(providers[0]);
+    }
+
     return {
       reason: `${opts.path} does not export \`${opts.name}\` as a value the codemod can read`,
     };
   }
 
+  /** The file an `export ... from` of the module at `path` names. */
+  private static targetOf(opts: {
+    typescript: TTypeScript;
+    path: string;
+    statement: TExportDeclaration;
+  }): string {
+    const { moduleSpecifier } = opts.statement;
+
+    return posix.join(
+      posix.dirname(opts.path),
+      moduleSpecifier !== undefined && opts.typescript.isStringLiteral(moduleSpecifier)
+        ? moduleSpecifier.text
+        : '',
+    );
+  }
+
+  /** The files the `export * from` statements of a module name. */
+  private static starTargets(opts: {
+    typescript: TTypeScript;
+    source: TSourceFile;
+    path: string;
+  }): string[] {
+    const { typescript } = opts;
+
+    return opts.source.statements.flatMap((statement) =>
+      typescript.isExportDeclaration(statement) &&
+      statement.moduleSpecifier !== undefined &&
+      statement.exportClause === undefined
+        ? [ConfigCodemod.targetOf({ typescript, path: opts.path, statement })]
+        : [],
+    );
+  }
+
+  /** Whether the module at `path` exports `name`: a const of that name, a named re-export of it, or an `export *` that does. */
+  private static isExporting(opts: {
+    typescript: TTypeScript;
+    read: (path: string) => string | undefined;
+    path: string;
+    name: string;
+    seen: Set<string>;
+  }): boolean {
+    const { typescript, path, name } = opts;
+
+    if (opts.seen.has(path) || !ConfigCodemod.isContained({ path })) {
+      return false;
+    }
+
+    opts.seen.add(path);
+
+    const text = opts.read(path);
+
+    if (text === undefined) {
+      return false;
+    }
+
+    const source = typescript.createSourceFile(
+      path,
+      text,
+      typescript.ScriptTarget.Latest,
+      true,
+      typescript.ScriptKind.TS,
+    );
+    const isOwn = source.statements.some((statement) => {
+      if (typescript.isVariableStatement(statement)) {
+        return statement.declarationList.declarations.some(
+          (entry) => typescript.isIdentifier(entry.name) && entry.name.text === name,
+        );
+      }
+
+      return (
+        typescript.isExportDeclaration(statement) &&
+        statement.exportClause !== undefined &&
+        typescript.isNamedExports(statement.exportClause) &&
+        statement.exportClause.elements.some((element) => element.name.text === name)
+      );
+    });
+
+    return (
+      isOwn ||
+      ConfigCodemod.starTargets({ typescript, source, path }).some((target) =>
+        ConfigCodemod.isExporting({ ...opts, path: target }),
+      )
+    );
+  }
+
   /**
-   * Why the `index.mts` that is there cannot be replaced by the one of the groups, or `undefined`: it exports only the names this run
-   * folded, through `export { x } from`.
+   * Why a file that only re-exports cannot be replaced or deleted, or `undefined`: every file it re-exports from is one this run
+   * folds, so none of its exports is lost.
+   */
+  private static barrelRefusal(opts: {
+    typescript: TTypeScript;
+    read: (path: string) => string | undefined;
+    barrels: Set<string>;
+    folded: Set<string>;
+  }): string | undefined {
+    const { typescript } = opts;
+
+    for (const path of opts.barrels) {
+      const source = typescript.createSourceFile(
+        path,
+        opts.read(path) ?? '',
+        typescript.ScriptTarget.Latest,
+        true,
+        typescript.ScriptKind.TS,
+      );
+
+      for (const statement of source.statements) {
+        if (!typescript.isExportDeclaration(statement) || statement.moduleSpecifier === undefined) {
+          continue;
+        }
+
+        if (
+          statement.exportClause !== undefined &&
+          !typescript.isNamedExports(statement.exportClause)
+        ) {
+          return `${path} uses \`export * as\` (${ConfigCodemod.whereOf({ source, statement })}): the name would be lost, so nothing is written`;
+        }
+
+        const target = ConfigCodemod.targetOf({ typescript, path, statement });
+
+        if (!opts.folded.has(target)) {
+          return `${path} re-exports ${target}, which this run does not fold: its exports would be lost, so nothing is written`;
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Why the `index.mts` that is there cannot be replaced by the one of the groups, or `undefined`: it holds only re-exports, and
+   * each name it lists is one this run folded (`barrelRefusal` checks the files behind them).
    */
   private static indexRefusal(opts: {
     typescript: TTypeScript;
@@ -1085,6 +1245,14 @@ export class ConfigCodemod {
       if (
         typescript.isImportDeclaration(statement) &&
         /^import type/.test(statement.getText(source))
+      ) {
+        continue;
+      }
+
+      if (
+        typescript.isExportDeclaration(statement) &&
+        statement.moduleSpecifier !== undefined &&
+        statement.exportClause === undefined
       ) {
         continue;
       }
