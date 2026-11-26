@@ -1,5 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { appendFileSync, mkdirSync, statSync, truncateSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  mkdirSync,
+  statSync,
+  truncateSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { BoardFold } from '../../board/fold.ts';
@@ -673,6 +680,13 @@ describe('the flow of each line of a transcript', () => {
     expect(outputByFlow(stop(root, file))).toEqual({ '-': 3, 'VULZ-ACME-1': 24 });
   });
 
+  /** Makes a file look written a minute ago: the sweep leaves a file that is still being written alone. */
+  const age = (file: string): void => {
+    const past = new Date(Date.now() - 60_000);
+
+    utimesSync(file, past, past);
+  };
+
   test('a Stop of the session reads what its subagents wrote after their own stop, from their marks, once', () => {
     const root = project();
     const file = join(root, `${SESSION}.jsonl`);
@@ -696,18 +710,34 @@ describe('the flow of each line of a transcript', () => {
       env: { VULCAN_ACTOR: ACTOR },
     });
     appendFileSync(agent, sub('a2', 8));
-    // One that never had a stop of its own.
-    writeFileSync(join(folder, 'agent-b88.jsonl'), sub('b1', 4));
+
+    // Just written: its own stop may be reading it at this moment.
+    expect(stop(root, file).map((line) => line.ref)).toEqual([`transcript:${SESSION}`]);
+
+    age(agent);
 
     const lines = stop(root, file);
 
-    expect(lines.map((line) => [line.ref, line.usage?.agent, line.usage?.output]).sort()).toEqual([
+    expect(lines.map((line) => [line.ref, line.usage?.agent, line.usage?.output])).toEqual([
       ['transcript:a77', 'Explore', 8],
-      [`transcript:${SESSION}`, undefined, 1],
-      ['transcript:b88', undefined, 4],
     ]);
     expect(lines.every((line) => line.flowId === FLOW)).toBe(true);
     expect(stop(root, file)).toEqual([]);
+  });
+
+  test('a Stop reads no subagent transcript the log has no mark for: an old one is never booked afterwards', () => {
+    const root = project();
+    const file = join(root, `${SESSION}.jsonl`);
+    const folder = join(root, SESSION, 'subagents');
+    const old = join(folder, 'agent-old1.jsonl');
+
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(file, assistant({ id: 'm1', top: { out: 1 } }));
+    writeFileSync(old, assistant({ id: 'o1', top: { out: 900 }, sidechain: true }));
+    age(old);
+
+    expect(stop(root, file).map((line) => line.ref)).toEqual([`transcript:${SESSION}`]);
+    expect(usageOf(root)).toHaveLength(1);
   });
 });
 

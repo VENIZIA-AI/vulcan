@@ -34,6 +34,8 @@ interface IMessage {
 
 /** The transcripts of a session's subagents, beside its own: `<session>/subagents/agent-<id>.jsonl`. */
 const SUBAGENT_FILE = /^agent-([A-Za-z0-9_-]+)\.jsonl$/;
+/** A subagent's transcript written this recently is left to a later read: its own stop may be reading it now. */
+const SUBAGENT_QUIET_MS = 10_000;
 const NEWLINE = 0x0a;
 const ASSISTANT = '"type":"assistant"';
 const CHUNK = 1024 * 1024;
@@ -469,8 +471,8 @@ export class UsageMeter {
   }
 
   /**
-   * The tokens of a session since its last mark, from a `Stop` payload: the session's transcript, then the transcripts of
-   * its subagents beside it, so what one wrote after its own stop (or a stop that never ran) is counted here. Nothing with
+   * The tokens of a session since its last mark, from a `Stop` payload: the session's transcript, then what the
+   * transcripts of its subagents beside it got after their marks, so what one wrote after its own stop is counted here. Nothing with
    * `events.log` off or without a transcript path; it throws nothing the caller must handle beyond the read of a file.
    */
   static recordSession(opts: {
@@ -498,13 +500,26 @@ export class UsageMeter {
     });
     const folder = join(dirname(file), session, 'subagents');
     const names = existsSync(folder) ? readdirSync(folder).sort() : [];
+    // Only a transcript the log has a mark for is read here: the first read of one is its own stop's. Without a mark the
+    // whole file would be counted, however long ago its tokens were used.
+    const marked = new Set(
+      context.known.flatMap((event) =>
+        event.type === EventTypes.USAGE && event.mark !== undefined && event.ref !== undefined
+          ? [event.ref]
+          : [],
+      ),
+    );
 
     return [
       ...own,
       ...names.flatMap((name) => {
         const id = SUBAGENT_FILE.exec(name)?.[1];
 
-        if (id === undefined) {
+        if (
+          id === undefined ||
+          !marked.has(`transcript:${id}`) ||
+          Date.now() - statSync(join(folder, name)).mtimeMs < SUBAGENT_QUIET_MS
+        ) {
           return [];
         }
 
