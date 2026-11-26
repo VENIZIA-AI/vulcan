@@ -307,6 +307,27 @@ describe('vulcan check layout', () => {
     );
   });
 
+  test('a long file is a warning that leaves the exit code 0; a mixed folder and a plural role still fail', () => {
+    const codeOf = (files: Record<string, string>) => {
+      const root = repository({
+        files: { '.configs/vulcan.config.mts': PROJECT['.configs/vulcan.config.mts'], ...files },
+      });
+
+      return runCli({ args: ['check', 'layout'], cwd: root });
+    };
+    const long = codeOf({ 'src/long.ts': PROJECT['src/long.ts'] });
+
+    expect(long.code, long.stderr).toBe(0);
+    expect(long.stderr).toContain('warning [long-file] src/long.ts: 401 lines');
+    expect(long.stderr).toContain('vulcan check layout: 1 new, 0 in the baseline');
+    expect(codeOf({ 'src/user.helpers.ts': '', 'src/long.ts': PROJECT['src/long.ts'] }).code).toBe(
+      1,
+    );
+    expect(
+      codeOf({ 'src/a/x.ts': '', 'src/b/x.ts': '', 'src/c/x.ts': '', 'src/main.ts': '' }).code,
+    ).toBe(1);
+  });
+
   test('exits 2 on bad arguments, 1 outside a git work tree and on a baseline that is not valid', () => {
     const root = repository({ files: PROJECT });
     const outside = runCli({
