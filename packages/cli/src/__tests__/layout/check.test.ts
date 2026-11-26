@@ -14,7 +14,7 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 const SETTINGS: TLayoutSettings = {
-  maxLines: 400,
+  maxLines: 600,
   minSubfolders: 3,
   pluralAllow: [],
   generated: [],
@@ -129,7 +129,7 @@ describe('LayoutCheck.check: long-file', () => {
     expect(
       findingsOf({
         files: ['src/a.ts', 'src/b.tsx'],
-        texts: { 'src/a.ts': { lines: 401, head: '' }, 'src/b.tsx': { lines: 400, head: '' } },
+        texts: { 'src/a.ts': { lines: 601, head: '' }, 'src/b.tsx': { lines: 600, head: '' } },
       }),
     ).toEqual(['long-file src/a.ts']);
   });
@@ -196,6 +196,34 @@ describe('LayoutCheck.roots', () => {
   });
 });
 
+describe('LayoutCheck.check: long-file', () => {
+  const long = { lines: 601, head: '' };
+
+  test('the default is 600 lines, and a test file is never too long', () => {
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).doctor.layout.maxLines).toBe(600);
+
+    const files = [
+      'src/a.test.ts',
+      'src/b.test.tsx',
+      'src/__tests__/helper.ts',
+      'src/__tests__/deep/fixture.ts',
+      'src/a.testing.ts',
+      'src/test.ts',
+    ];
+    const texts = Object.fromEntries(files.map((file) => [file, long]));
+
+    expect(
+      findingsOf({ files, texts }).filter((finding) => finding.startsWith('long-file')),
+    ).toEqual(['long-file src/a.testing.ts', 'long-file src/test.ts']);
+  });
+
+  test('a test file keeps the other rules', () => {
+    expect(findingsOf({ files: ['src/user.helpers.test.ts'] })).toEqual([
+      'plural-suffix src/user.helpers.test.ts',
+    ]);
+  });
+});
+
 describe('LayoutBaseline', () => {
   test('splits the findings into open and accepted, lists stale entries, and writes sorted entries', () => {
     const root = createProject({ files: {} });
@@ -203,7 +231,7 @@ describe('LayoutBaseline', () => {
       files: ['src/z.helpers.ts', 'src/a.models.ts'],
       roots: ['src'],
       settings: SETTINGS,
-      read: () => ({ lines: 500, head: '' }),
+      read: () => ({ lines: 700, head: '' }),
     });
 
     expect(LayoutBaseline.write({ root, findings: findings.slice(0, 2) })).toBe(2);
@@ -265,7 +293,7 @@ const PROJECT = {
   'src/c/x.ts': '',
   'src/main.ts': '',
   'src/user.helpers.ts': '',
-  'src/long.ts': 'export const a = 1;\n'.repeat(401),
+  'src/long.ts': 'export const a = 1;\n'.repeat(601),
 };
 
 describe('vulcan check layout', () => {
@@ -275,7 +303,7 @@ describe('vulcan check layout', () => {
     symlinkSync(join(root, 'src/long.ts'), join(root, 'src/link.ts'));
     spawnSync('git', ['add', '-A'], { cwd: root });
 
-    expect(LayoutCheck.readFile({ root, file: 'src/long.ts' })?.lines).toBe(401);
+    expect(LayoutCheck.readFile({ root, file: 'src/long.ts' })?.lines).toBe(601);
     expect(LayoutCheck.readFile({ root, file: 'src/link.ts' })).toBeUndefined();
   });
 
@@ -288,7 +316,7 @@ describe('vulcan check layout', () => {
       'warning [plural-suffix] src/user.helpers.ts: the role "helpers" is plural',
     );
     expect(first.stderr).toContain('warning [mixed-folder] src:');
-    expect(first.stderr).toContain('warning [long-file] src/long.ts: 401 lines');
+    expect(first.stderr).toContain('warning [long-file] src/long.ts: 601 lines');
     expect(first.stderr).toContain(
       'vulcan check layout: 3 new, 0 in the baseline, 0 stale baseline entries',
     );
@@ -301,10 +329,31 @@ describe('vulcan check layout', () => {
     const second = runCli({ args: ['check', 'layout'], cwd: root });
 
     expect(second.code).toBe(0);
-    expect(second.stderr).toContain('info [long-file] src/long.ts: 401 lines');
+    expect(second.stderr).toContain('info [long-file] src/long.ts: 601 lines');
     expect(second.stderr).toContain(
       'vulcan check layout: 0 new, 3 in the baseline, 0 stale baseline entries',
     );
+  });
+
+  test('a long file is a warning that leaves the exit code 0; a mixed folder and a plural role still fail', () => {
+    const codeOf = (files: Record<string, string>) => {
+      const root = repository({
+        files: { '.configs/vulcan.config.mts': PROJECT['.configs/vulcan.config.mts'], ...files },
+      });
+
+      return runCli({ args: ['check', 'layout'], cwd: root });
+    };
+    const long = codeOf({ 'src/long.ts': PROJECT['src/long.ts'] });
+
+    expect(long.code, long.stderr).toBe(0);
+    expect(long.stderr).toContain('warning [long-file] src/long.ts: 601 lines');
+    expect(long.stderr).toContain('vulcan check layout: 1 new, 0 in the baseline');
+    expect(codeOf({ 'src/user.helpers.ts': '', 'src/long.ts': PROJECT['src/long.ts'] }).code).toBe(
+      1,
+    );
+    expect(
+      codeOf({ 'src/a/x.ts': '', 'src/b/x.ts': '', 'src/c/x.ts': '', 'src/main.ts': '' }).code,
+    ).toBe(1);
   });
 
   test('exits 2 on bad arguments, 1 outside a git work tree and on a baseline that is not valid', () => {
@@ -380,7 +429,7 @@ describe('vulcan check layout', () => {
     expect(ofLayout(result)).toEqual([
       'src/user.helpers.ts: plural-suffix: the role "helpers" is plural: name the file user.helper.ts',
       'src: mixed-folder: 3 subfolders beside 3 loose file(s) (long.ts, main.ts, user.helpers.ts): move the files into a subfolder; only index.ts or index.tsx stays beside subfolders',
-      'src/long.ts: long-file: 401 lines, over check.layout.maxLines (400): split it by concern',
+      'src/long.ts: long-file: 601 lines, over check.layout.maxLines (600): split it by concern',
     ]);
 
     LayoutBaseline.write({

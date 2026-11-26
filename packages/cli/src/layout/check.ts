@@ -113,6 +113,7 @@ export class LayoutCheck {
       if (
         text !== undefined &&
         text.lines > settings.maxLines &&
+        !LayoutConstants.TEST_FILE.test(file) &&
         !LayoutConstants.GENERATED_HEADER.test(headerCommentOf({ head: text.head })) &&
         !generated.some((glob) => glob.match(file))
       ) {

@@ -81,11 +81,16 @@ export class FlowGuard {
         return [];
       }
 
+      const looked =
+        opts.sessionId === undefined || opts.sessionId === ''
+          ? `the actor name '${actor}' has`
+          : 'this session has';
+
       return [
         {
           decision: GuardDecisions.DENY,
           rule: 'V-P-13',
-          message: `${detail.activity === GitActivities.COMMIT ? 'a commit' : 'a pull request'} with no flow: the branch does not name one and this session has no open flow, so the board cannot place the work`,
+          message: `${detail.activity === GitActivities.COMMIT ? 'a commit' : 'a pull request'} with no flow: the branch does not name one and ${looked} no open flow, so the board cannot place the work`,
           fix: `if this work already has a flow, put "Flow: <id>" in the message (or name the branch with its id); otherwise make one first with: ${ProjectLayout.VULCAN_COMMAND} flow add --title '<what this work is>' (it prints the id), then name the branch with that id (for example feature/<id>-<topic>) or put "Flow: <id>" in the message or the pull request body`,
         },
       ];

@@ -3,14 +3,14 @@ import type { ICommandContext } from '../common/index.ts';
 import { ConfigLoader } from '../config/index.ts';
 import { LayoutBaseline } from '../layout/baseline.ts';
 import { LayoutCheck } from '../layout/check.ts';
-import { LayoutConstants } from '../layout/common/index.ts';
+import { LayoutConstants, LayoutRules } from '../layout/common/index.ts';
 
 const USAGE = 'usage: vulcan check layout [--write-baseline]';
 const WRITE_BASELINE_FLAG = '--write-baseline';
 
 /**
  * `vulcan check layout`: prints every layout finding, a `warning` for one the baseline does not hold and an `info` for
- * one it does, and exits 1 when there is a new one. `--write-baseline` writes every finding into the baseline instead.
+ * one it does, and exits 1 when there is a new one other than a long file. `--write-baseline` writes every finding into the baseline instead.
  */
 export const runLayoutCommand = async (opts: ICommandContext): Promise<number> => {
   const [subcommand, ...rest] = opts.args;
@@ -85,5 +85,8 @@ export const runLayoutCommand = async (opts: ICommandContext): Promise<number> =
     `vulcan check layout: ${split.open.length} new, ${split.accepted.length} in the baseline, ${split.stale.length} stale baseline entr${split.stale.length === 1 ? 'y' : 'ies'}\n`,
   );
 
-  return split.open.length === 0 ? ExitCodes.OK : ExitCodes.FAILURE;
+  // A long file is printed and never fails the command.
+  const isFailing = split.open.some((finding) => finding.rule !== LayoutRules.LONG_FILE);
+
+  return isFailing ? ExitCodes.FAILURE : ExitCodes.OK;
 };

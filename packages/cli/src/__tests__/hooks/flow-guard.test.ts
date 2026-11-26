@@ -200,6 +200,24 @@ describe('FlowGuard: what is not asked about, and what fails open', () => {
   });
 });
 
+describe('FlowGuard: the refusal says where it looked', () => {
+  test('a session id looks for this session, a hook without one for the actor name', () => {
+    const root = project();
+    const messageOf = (sessionId?: string) =>
+      FlowGuard.inspect({
+        root,
+        command: 'git commit -m x',
+        cwd: root,
+        ...(sessionId === undefined ? {} : { sessionId }),
+        env: { VULCAN_ACTOR: ACTOR },
+        isOver: FlowState.isOver,
+      })[0]?.message;
+
+    expect(messageOf(SESSION)).toContain('this session has no open flow');
+    expect(messageOf()).toContain(`the actor name '${ACTOR}' has no open flow`);
+  });
+});
+
 describe('the git guard script holds the rule', () => {
   const run = (opts: { root: string; command: string; env?: Record<string, string> }) =>
     spawnSyncBounded({

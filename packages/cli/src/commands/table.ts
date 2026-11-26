@@ -432,7 +432,7 @@ export class CommandTable {
         {
           command: 'check layout',
           args: '[--write-baseline]',
-          text: 'List the layout findings of the package and layout folders (check.layout), or of the src folders when none is named: a plural role in a file name, a folder with loose files beside check.layout.minSubfolders (default 3) or more subfolders, a source file over check.layout.maxLines. A finding in .configs/layout-baseline.json passes; any other exits 1. --write-baseline writes every finding into that file.',
+          text: 'List the layout findings of the package and layout folders (check.layout), or of the src folders when none is named: a plural role in a file name, a folder with loose files beside check.layout.minSubfolders (default 3) or more subfolders, a source file over check.layout.maxLines (default 600; a test file is not counted). A finding in .configs/layout-baseline.json passes; any other exits 1, except a long file, which is a warning only. --write-baseline writes every finding into that file.',
         },
       ],
       flags: {
