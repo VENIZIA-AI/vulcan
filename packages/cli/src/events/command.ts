@@ -20,14 +20,9 @@ import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 import { EventText } from './text.ts';
 
-const USAGE = `usage: vulcan event add ${EventFlags.TYPE} <type> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} <flow id>] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${EventStatuses.values().join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
-       vulcan event add ${EventFlags.TYPE} ${EventTypes.FLOW} [${EventFlags.FLOW} <flow id>] ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.NEXT} <text>] [${EventFlags.DUE} <YYYY-MM-DD>] [${EventFlags.ORDER} <n>] [${EventFlags.REF} <tracker id>]
-         [${EventFlags.STEP} <text> | ${EventFlags.STEP_DONE} <text>]... [${EventFlags.CHECK} <text> | ${EventFlags.CHECK_DONE} <text>]... [${EventFlags.APP} <name>]... [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
-       vulcan flow step [${EventFlags.FLOW} <flow id>] [${EventFlags.DONE} <step> | ${EventFlags.TODO} <step>] [${EventFlags.NEXT} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.ORDER} <n>|${EventFlags.ORDER_NONE}] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
-         (changes one step of the flow's last flow line, or its next step or context, and keeps every other field)
-       vulcan event tail [${EventFlags.SINCE} <time>] [${EventFlags.JSON}] [${EventFlags.DIR} <folder>]
-types: ${EventTypes.values().join(', ')}
-A flow line without ${EventFlags.FLOW} makes a new flow and prints its id (VULZ-<project.key>-<number>); give that id to every other line of the flow. Ids are never typed by hand.`;
+/** Where the usage is: the command table holds it, and this module is kept free of what the table loads. */
+const USAGE =
+  'usage: bun node_modules/.bin/vulcan help flow (add, step), or help event (add, tail)';
 
 type TFlagValues = Record<string, string>;
 

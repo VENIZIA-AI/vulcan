@@ -160,11 +160,46 @@ describe('an installed prerelease on the stable channel', () => {
     });
 
   test('prints one note naming the installed version', () => {
+    withDistTags({ latest: '0.3.0' });
+
     const result = upgrade({ root: withInstalled({ version: '0.3.0-2' }), args: [] });
 
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('0.3.0-2');
     expect(result.stderr.split(NOTE).length - 1).toBe(1);
+  });
+
+  test('an older latest installs nothing without --stable, and says what to type', () => {
+    withDistTags({ latest: '0.2.9', next: '0.3.0-2' });
+
+    const result = upgrade({ root: withInstalled({ version: '0.3.0-2' }), args: [] });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('latest is 0.2.9, which is older');
+    expect(result.stderr).toContain('--nightly');
+    expect(result.stderr).not.toContain('bun add');
+  });
+
+  test('a latest that cannot be read installs nothing without --stable', () => {
+    withDistTags({});
+
+    const result = upgrade({ root: withInstalled({ version: '0.3.0-2' }), args: [] });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('could not be read');
+    expect(result.stderr).not.toContain('bun add');
+  });
+
+  test('--stable installs an older latest, since it was asked', () => {
+    withDistTags({ latest: '0.2.9' });
+
+    const result = upgrade({
+      root: withInstalled({ version: '0.3.0-2' }),
+      args: ['--stable'],
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain('skipped  bun add --dev --exact @venizia/vulcan@latest');
   });
 
   test('--stable prints it too', () => {

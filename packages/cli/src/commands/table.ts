@@ -332,22 +332,22 @@ export class CommandTable {
         {
           command: 'config effective',
           args: '',
-          text: 'Print the config the commands read (the shipped defaults, the config of each pack, then the project file, merged) and the layer each value came from. Read-only; exit 2 on bad input.',
+          text: 'Print the config the commands read (the shipped defaults, the config of each pack, then the project file, merged) and the layer each value came from. Read-only; exit 1 when the config cannot be loaded, 2 on bad input.',
         },
         {
           command: 'config diff',
           args: '',
-          text: 'List the values of the project file that the shipped layers already give. Read-only; exit 2 on bad input.',
+          text: 'List the values of the project file that the shipped layers already give. Read-only; exit 1 when the config cannot be loaded, 2 on bad input.',
         },
         {
           command: 'config codemod',
-          args: 'config-groups [<dir>] [--split] [--write]',
-          text: 'Move the keys of a flat config into the seven groups, renaming those a group names differently, with their comments. --split makes one module per group in .configs/vulcan/ and deletes the modules it folds in. Without --write it lists what it would write. Exit 2, with nothing written, when it cannot move something without losing it.',
+          args: 'config-groups [<dir>] [--split] [--write] [--reverse]',
+          text: 'Move the keys of a flat config into the seven groups, renaming those a group names differently, with their comments. --split makes one module per group in .configs/vulcan/ and deletes the modules it folds in. Without --write it lists what it would write. Exit 2, with nothing written, when it cannot move something without losing it. --reverse changes nothing and says the move is not reversible: restore the config from git.',
         },
         {
           command: 'config codemod',
-          args: 'type-names [<dir>] [--write]',
-          text: 'Rename kind to type and presetKind to presetType in package entries, and kinds to types in acknowledgements, in the config and the standard modules of .configs/vulcan/. Without --write it lists what it would write.',
+          args: 'type-names [<dir>] [--write] [--reverse]',
+          text: 'Rename kind to type and presetKind to presetType in package entries, and kinds to types in acknowledgements, in the config and the standard modules of .configs/vulcan/. Without --write it lists what it would write. --reverse as above.',
         },
         { command: 'config codemod', args: '--list', text: 'Name the codemods.' },
         {
@@ -362,6 +362,7 @@ export class CommandTable {
         '--write': 'codemod only: write the files (without it, list them)',
         '--split': 'codemod only: one module per group under .configs/vulcan/',
         '--list': 'codemod only: name the codemods',
+        '--reverse': 'codemod only: changes nothing; the codemods are not reversible',
       },
       positionals: 3,
       unknownExit: ExitCodes.USAGE,
@@ -372,7 +373,7 @@ export class CommandTable {
       usage: [
         {
           command: 'project clean',
-          args: '[--tmp | --worktrees | --clones | --cache | --all] [--reports] [--prototypes] [--events] [--release-candidates] [--profile] [--include-fresh] [--yes]',
+          args: '[--tmp] [--worktrees] [--clones] [--cache] [--all] [--reports] [--prototypes] [--events] [--release-candidates] [--profile] [--include-fresh] [--yes]',
           text: 'List what agents left in the tmp folder, .agents/local/ and the events folder; --yes removes it. --tmp, the default, takes items older than a day; --clones those older than two weeks; --include-fresh adds the newer ones. --worktrees takes clean worktrees whose branch is merged or gone, and folders git does not list. --cache is what atlas fetched. --all means tmp, worktrees, clones and cache. --reports, --prototypes, --events, --release-candidates and --profile are taken only when named.',
         },
       ],
@@ -402,16 +403,16 @@ export class CommandTable {
         {
           command: 'project upgrade',
           args: '[--stable | --nightly] [<version|tag>]',
-          text: 'Pin another @venizia/vulcan, then sync. A version or tag you give wins. --stable, the default, installs the latest tag even when that is older than the installed prerelease (it prints a note first); --nightly installs the higher of latest and next.',
+          text: 'Pin another @venizia/vulcan, then sync. A version or tag you give wins. Without a flag it installs the latest tag, and refuses when that is older than the installed prerelease or cannot be read then; --stable installs latest anyway; --nightly installs the higher of latest and next.',
         },
       ],
       flags: {
-        [UpgradeFlags.STABLE]: 'Install the latest stable release; the default',
+        [UpgradeFlags.STABLE]: 'Install the latest stable release, even over a newer prerelease',
         [UpgradeFlags.NIGHTLY]: 'Install the higher of latest and next',
       },
       positionals: 1,
       exits:
-        '0 on success; 1 when --stable and --nightly are both given, --nightly cannot read the dist-tags or no bin was installed; else the code of bun add or sync.',
+        '0 on success; 1 when --stable and --nightly are both given, --nightly cannot read the dist-tags, latest would downgrade a prerelease without --stable, or no bin was installed; else the code of bun add or sync.',
     },
     [VulcanCommands.RUNNERS]: {
       usage: [
@@ -553,7 +554,7 @@ export class CommandTable {
     const usages = CommandTable.usages();
     const scopes = CommandScopes.scopes().map((scope) => HelpText.scope({ scope, usages }));
 
-    return `vulcan ${VULCAN_VERSION} - one setup, one workflow for every project\n\nUsage: bun node_modules/.bin/vulcan <scope> <action>\n\n${scopes.join('\n\n')}\n\nAlso: vulcan help, vulcan version\n`;
+    return `vulcan ${VULCAN_VERSION} - one setup, one workflow for every project\n\nUsage: bun node_modules/.bin/vulcan <scope> <action>\n\n${scopes.join('\n\n')}\n\nAlso: vulcan help [<scope>], vulcan version\n`;
   }
 
   static usages(): IUsage[] {

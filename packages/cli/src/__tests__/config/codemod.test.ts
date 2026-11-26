@@ -370,7 +370,7 @@ describe('vulcan config codemod', () => {
   const run = (root: string, args: string[]) =>
     runCli({ args: ['config', 'codemod', ...args], cwd: root });
 
-  test('--list names the codemod; an unknown name or option (--reverse included) is a usage error', () => {
+  test('--list names the codemod; an unknown name or option is a usage error', () => {
     const root = createProject({ files: {} });
 
     expect(run(root, ['--list']).stdout).toBe('config-groups\ntype-names\n');
@@ -378,7 +378,19 @@ describe('vulcan config codemod', () => {
     expect(run(root, ['type-names', '--split']).code).toBe(2);
     expect(run(root, ['type-names', '--split']).stderr).toContain('--split does not apply');
     expect(run(root, ['config-groups', '--bad']).code).toBe(2);
-    expect(run(root, ['config-groups', '.', '--reverse']).code).toBe(2);
+  });
+
+  test('--reverse changes nothing, says it is not reversible and exits 0', () => {
+    const root = createProject({ files: { [CONFIG]: FLAT } });
+
+    for (const name of ['config-groups', 'type-names']) {
+      const result = run(root, [name, '.', '--write', '--reverse']);
+
+      expect(result.code, name).toBe(0);
+      expect(result.stdout, name).toBe('not reversible: restore the config from git\n');
+    }
+
+    expect(readFileSync(join(root, CONFIG), 'utf8')).toBe(FLAT);
   });
 
   test('without --write it lists and writes nothing; with --write it writes; a second run has nothing to do', () => {

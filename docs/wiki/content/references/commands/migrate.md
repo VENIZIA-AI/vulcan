@@ -100,7 +100,7 @@ A `Note:` line warns when the plan needs it, for example when `latest` is older 
 | A codemod ran | The files it wrote are staged (`git add -A`) before the next codemod runs, and stay staged; not done when `--force` runs over a tree with changes of its own. |
 | The plan is incomplete, behind the registry, or its folder state could not be read exactly | Refuses and exits `1`, unless `--force`. |
 | The codemod runner is not installed in the app or above it | Prints every step as manual and exits `1`. |
-| A codemod exits `2` and says `not reversible` | Not a failure: the step is printed as manual, with the steps that undo it. |
+| A codemod exits `2` and says `not reversible`, or exits `0` on a rollback with output that starts with `not reversible` | Not a failure: the step is printed as manual, with the steps that undo it. |
 | A codemod fails | Stops, prints its output, exits `1`; the codemods after it are listed as not run. |
 | No step links a codemod | Writes nothing, needs neither the runner nor a clean tree, and exits `0`. |
 

@@ -32,10 +32,11 @@ project: this project's VULCAN setup
   vulcan project doctor
       Check the project follows VULCAN; exit 1 on any violation.
   vulcan project upgrade [--stable | --nightly] [<version|tag>]
-      Pin another @venizia/vulcan, then sync. A version or tag you give wins. --stable, the default,
-      installs the latest tag even when that is older than the installed prerelease (it prints a
-      note first); --nightly installs the higher of latest and next.
-  vulcan project clean [--tmp | --worktrees | --clones | --cache | --all] [--reports] [--prototypes]
+      Pin another @venizia/vulcan, then sync. A version or tag you give wins. Without a flag it
+      installs the latest tag, and refuses when that is older than the installed prerelease or
+      cannot be read then; --stable installs latest anyway; --nightly installs the higher of latest
+      and next.
+  vulcan project clean [--tmp] [--worktrees] [--clones] [--cache] [--all] [--reports] [--prototypes]
       [--events] [--release-candidates] [--profile] [--include-fresh] [--yes]
       List what agents left in the tmp folder, .agents/local/ and the events folder; --yes removes
       it. --tmp, the default, takes items older than a day; --clones those older than two weeks;
@@ -77,19 +78,21 @@ config: the config file
 
   vulcan config effective
       Print the config the commands read (the shipped defaults, the config of each pack, then the
-      project file, merged) and the layer each value came from. Read-only; exit 2 on bad input.
+      project file, merged) and the layer each value came from. Read-only; exit 1 when the config
+      cannot be loaded, 2 on bad input.
   vulcan config diff
-      List the values of the project file that the shipped layers already give. Read-only; exit 2 on
-      bad input.
-  vulcan config codemod config-groups [<dir>] [--split] [--write]
+      List the values of the project file that the shipped layers already give. Read-only; exit 1
+      when the config cannot be loaded, 2 on bad input.
+  vulcan config codemod config-groups [<dir>] [--split] [--write] [--reverse]
       Move the keys of a flat config into the seven groups, renaming those a group names
       differently, with their comments. --split makes one module per group in .configs/vulcan/ and
       deletes the modules it folds in. Without --write it lists what it would write. Exit 2, with
-      nothing written, when it cannot move something without losing it.
-  vulcan config codemod type-names [<dir>] [--write]
+      nothing written, when it cannot move something without losing it. --reverse changes nothing
+      and says the move is not reversible: restore the config from git.
+  vulcan config codemod type-names [<dir>] [--write] [--reverse]
       Rename kind to type and presetKind to presetType in package entries, and kinds to types in
       acknowledgements, in the config and the standard modules of .configs/vulcan/. Without --write
-      it lists what it would write.
+      it lists what it would write. --reverse as above.
   vulcan config codemod --list
       Name the codemods.
   vulcan config format [--check]
@@ -215,7 +218,7 @@ atlas: a shipped tool
       The MCP knowledge server over the wiki, changelogs and knowledge bundle. Every argument,
       --help included, goes to the pinned tool.
 
-Also: vulcan help, vulcan version
+Also: vulcan help [<scope>], vulcan version
 ```
 
 The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a library other apps import and `--shared` for a side-neutral package other apps import (both with `--dir`); `--scope` names the package for any of them; see [vulcan package add](/references/commands/add).
@@ -224,10 +227,10 @@ If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' -
 The following list gives each command, its purpose, its exit codes, and its reference page:
 
 - `init` ([vulcan project init](/references/commands/init)): Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app.
-  Exit codes: `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check.
+  Exit codes: `0` on success; `1` on a refusal, a missing name flag or unknown argument; `2` on a bad `--key` without `--preset`; otherwise the exit code of the failing install, sync or check.
 - `add` ([vulcan package add](/references/commands/add)): Add an app, a library other apps import with `--lib`, or a side-neutral shared package with `--shared`, from a preset to a monorepo that `init --preset` created.
   Exit codes: `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check.
-- `preset` ([vulcan package diff](/references/commands/preset)): `preset diff <package>`: read-only report of each file the preset of an app, a library or a shared package makes now against the file the package has.
+- `preset` ([vulcan package diff](/references/commands/preset)): `package diff <package>`: read-only report of each file the preset of an app, a library or a shared package makes now against the file the package has.
   Exit codes: `0` after a report (with `--check`, `1` when anything differs or is missing); `1` on a refusal or an unknown argument.
 - `sync` ([vulcan project sync](/references/commands/sync)): Write agent adapter files and manifest.
   Exit codes: `0` on success; `1` on invalid configuration, an agent choice that cannot be resolved, a `.claude/settings.json` that is not a JSON object, or an unknown argument.
@@ -257,7 +260,7 @@ The following list gives each command, its purpose, its exit codes, and its refe
   Exit codes: `0` when a plan is printed or `apply` ran; `1` when the plan cannot be made, `apply` is refused or a codemod fails, or the tool is missing; `2` for a subcommand other than `plan` or `apply`, a missing `--to`, an unknown flag, a flag with no value or a flag of the other subcommand.
 - `check runners` ([vulcan check runners](/references/commands/runners)): `check runners` lists every tracked file that runs an unscoped package fetched by name (rule `V-S-08`).
   Exit codes: `0` when there is none; `1` when a file runs one; `2` for any other arguments or when git cannot list the files.
-- `layout` ([vulcan check layout](/references/commands/layout)): `layout check` lists the file names with a plural role, the folders that mix subfolders and loose files and the long source files of the package and layout folders; `--write-baseline` adopts them.
+- `layout` ([vulcan check layout](/references/commands/layout)): `check layout` lists the file names with a plural role, the folders that mix subfolders and loose files and the long source files of the package and layout folders; `--write-baseline` adopts them.
   Exit codes: `0` when every finding is in the baseline or the baseline was written; `1` on a new finding or when the check cannot run (the config, the baseline, a folder outside git, a listing git does not give); `2` on bad arguments.
 - `okf` and `atlas` ([okf and atlas](#okf-and-atlas)): Run a shipped tool (`okf` or `atlas`) at the pinned package version.
   Exit codes: `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool.
@@ -282,7 +285,8 @@ Upgrade before you use a new config key. The config schema is strict, so a key f
 
 | Syntax | Installs | Behavior |
 |---|---|---|
-| `bun node_modules/.bin/vulcan project upgrade` | `latest` | The stable release; never a prerelease, so it is older than an installed prerelease of a later version. Same as `--stable` |
+| `bun node_modules/.bin/vulcan project upgrade` | `latest` | The stable release. Refused, exit `1`, when a prerelease is installed and `latest` is older or cannot be read |
+| `bun node_modules/.bin/vulcan project upgrade --stable` | `latest` | The stable release, even over a newer installed prerelease |
 | `bun node_modules/.bin/vulcan project upgrade --nightly` | The higher of `latest` and `next` | The newest published version, by semver. Never older than the stable release |
 | `bun node_modules/.bin/vulcan project upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
 
@@ -293,7 +297,7 @@ Passing `--stable` and `--nightly` together exits `1`.
 If the dist-tags cannot be used, `--nightly` prints `vulcan project upgrade: --nightly could not read the dist-tags of @venizia/vulcan - pass a version instead` and exits `1`.
 That covers a failed `bun pm view` (its own error text is printed first), an answer that is not an object, and a `latest` or `next` value that is not a plain version.
 
-When the installed `@venizia/vulcan` is a prerelease and you run `upgrade` or `upgrade --stable`, the command prints one note: the stable channel installs the latest stable release, and `--nightly` keeps the prerelease line.
+When the installed `@venizia/vulcan` is a prerelease, `upgrade` reads the `latest` tag first. If `latest` is older, or cannot be read, it installs nothing, says so and exits `1`. Otherwise, and with `--stable`, it prints one note: the stable channel installs the latest stable release, and `--nightly` keeps the prerelease line.
 
 ### Example run
 

@@ -64,6 +64,13 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
     return ExitCodes.OK;
   }
 
+  // These scopes do nothing without an action: their usage is the answer.
+  if (asked === undefined && ['event', 'flow', 'migrate'].includes(scope ?? '')) {
+    process.stderr.write(CommandTable.scopeHelp({ scope: scope ?? '' }));
+
+    return ExitCodes.USAGE;
+  }
+
   const resolution = CommandScopes.resolve({ argv: opts.argv });
 
   if (resolution?.type === 'refused') {

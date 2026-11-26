@@ -94,11 +94,13 @@ const runCodemod = (opts: ICommandContext): number => {
   const rest = opts.args.slice(1);
   const flags = rest.filter((word) => word.startsWith('-'));
   const words = rest.filter((word) => !word.startsWith('-'));
-  const unknown = flags.filter((flag) => !['--list', '--write', '--split'].includes(flag));
+  const unknown = flags.filter(
+    (flag) => !['--list', '--write', '--split', '--reverse'].includes(flag),
+  );
 
   if (unknown.length > 0 || words.length > 2) {
     process.stderr.write(
-      `vulcan config codemod: <${ConfigCodemod.NAME}|${ConfigTypeNames.NAME}> [<dir>] [--write] [--split] | --list\n`,
+      `vulcan config codemod: <${ConfigCodemod.NAME}|${ConfigTypeNames.NAME}> [<dir>] [--write] [--split] [--reverse] | --list\n`,
     );
 
     return ExitCodes.USAGE;
@@ -119,6 +121,13 @@ const runCodemod = (opts: ICommandContext): number => {
     );
 
     return ExitCodes.USAGE;
+  }
+
+  // `migrate apply` asks for this on a rollback: it prints the step as manual.
+  if (flags.includes('--reverse')) {
+    process.stdout.write('not reversible: restore the config from git\n');
+
+    return ExitCodes.OK;
   }
 
   if (name === ConfigTypeNames.NAME && flags.includes('--split')) {
