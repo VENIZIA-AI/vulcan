@@ -39,7 +39,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
 
   if (specArgument === undefined) {
     process.stderr.write(
-      'vulcan page new: name the spec file - vulcan page new <spec.json> [--out <name>], or --schema\n',
+      'vulcan page new: name the spec file - vulcan page new <spec.json> [--out <name>]; vulcan page schema prints its shape\n',
     );
 
     return ExitCodes.FAILURE;

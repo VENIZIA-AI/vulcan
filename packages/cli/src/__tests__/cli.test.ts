@@ -64,7 +64,7 @@ describe('vulcan router', () => {
 
       expect(result.code, args.join(' ')).toBe(0);
       expect(result.stdout, args.join(' ')).toContain(
-        'Usage: bun node_modules/.bin/vulcan <command>',
+        'Usage: bun node_modules/.bin/vulcan <scope> <action>',
       );
     }
 
@@ -73,8 +73,8 @@ describe('vulcan router', () => {
 
   test('the help line of add lists every flag add takes, for each of its three kinds', () => {
     const help = runCli({ args: ['help'], cwd: tmpdir() }).stdout;
-    const start = help.indexOf('  package add --preset');
-    const block = help.slice(start, help.indexOf('  project sync ', start));
+    const start = help.indexOf('  vulcan package add --preset');
+    const block = help.slice(start, help.indexOf('  vulcan package diff ', start));
 
     for (const flag of [
       CreateFlags.PRESET,

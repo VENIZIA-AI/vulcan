@@ -137,36 +137,81 @@ describe('the old names', () => {
   });
 });
 
-describe('the help names only the public commands', () => {
-  test('every usage line of the help starts with a scope, `help` or `version`', () => {
-    const known = new Set([...CommandScopes.scopes(), 'help', 'version']);
-    // A usage line has two spaces and a word; its continuation lines have more spaces.
-    const first = CommandTable.helpText()
-      .split('\n')
-      .flatMap((line) => (/^ {2}[a-z]/.test(line) ? [/^ {2}([a-z-]+)/.exec(line)?.[1] ?? ''] : []));
+/** The actions the help lists for each scope: the table's, those a handler keeps for itself, and a tool's command. */
+const listed = (scope: string): string[] => {
+  const native: Record<string, string[]> = {
+    migrate: ['plan', 'apply'],
+    profile: ['edit', 'show', 'reset'],
+    okf: ['<command>'],
+    atlas: ['<command>'],
+  };
+  // `event step` is `flow step` under its older words: the help of `flow step` says so.
+  const actions = CommandScopes.actionsOf({ scope }).filter(
+    (action) => !(scope === 'event' && action === 'step'),
+  );
 
-    expect(first.filter((word) => !known.has(word))).toEqual([]);
+  return [...new Set([...actions, ...(native[scope] ?? [])])];
+};
+
+/** The `scope action` of every usage line of a help text: the lines that start two spaces in. */
+const usageLines = (text: string): string[] =>
+  text
+    .split('\n')
+    .filter((line) => /^ {2}\S/.test(line))
+    .map((line) => /^ {2}vulcan (\S+ \S+)/.exec(line)?.[1] ?? line);
+
+describe('the help', () => {
+  const all = CommandScopes.scopes().flatMap((scope) =>
+    listed(scope).map((action) => `${scope} ${action}`),
+  );
+
+  test('every usage line is `vulcan <scope> <action>` of a public command, and every one has a line', () => {
+    expect([...new Set(usageLines(CommandTable.helpText()))].sort()).toEqual([...all].sort());
+  });
+
+  test('no line is longer than 100 columns', () => {
+    const long = CommandTable.helpText()
+      .split('\n')
+      .filter((line) => line.length > 100);
+
+    expect(long).toEqual([]);
+  });
+
+  test('the scopes come grouped, in the order of the scope table', () => {
+    const order = usageLines(CommandTable.helpText()).map((line) => line.split(' ')[0]);
+
+    expect([...new Set(order)]).toEqual(CommandScopes.scopes());
+    expect(order).toEqual(
+      [...order].sort(
+        (left, right) =>
+          CommandScopes.scopes().indexOf(left) - CommandScopes.scopes().indexOf(right),
+      ),
+    );
+  });
+
+  test('the help of a scope lists its own actions, all of them, and no other', () => {
+    for (const scope of CommandScopes.scopes()) {
+      const lines = usageLines(CommandTable.scopeHelp({ scope }));
+
+      expect([...new Set(lines)].sort(), scope).toEqual(
+        listed(scope)
+          .map((action) => `${scope} ${action}`)
+          .sort(),
+      );
+    }
   });
 });
 
 describe('help of a scope', () => {
   test("`--help` and `-h` after a scope print that scope's usage and exit 0; okf and atlas keep passing the flag to the tool", () => {
-    for (const [scope, flag] of [
-      ['project', '--help'],
-      ['check', '-h'],
-      ['board', '--help'],
-      ['profile', '-h'],
-    ]) {
-      const result = runCli({ args: [scope, flag], cwd: tmpdir() });
+    for (const scope of CommandScopes.scopes().filter((name) => !['okf', 'atlas'].includes(name))) {
+      for (const flag of ['--help', '-h']) {
+        const result = runCli({ args: [scope, flag], cwd: tmpdir() });
 
-      expect(result.code, `${scope} ${flag}`).toBe(0);
-      expect(result.stdout, `${scope} ${flag}`).toContain(`  ${scope}`);
-      expect(result.stdout).not.toContain('Usage: bun node_modules/.bin/vulcan <command>');
+        expect(result.code, `${scope} ${flag}`).toBe(0);
+        expect(result.stdout, `${scope} ${flag}`).toBe(CommandTable.scopeHelp({ scope }));
+        expect(result.stdout, `${scope} ${flag}`).toContain(`  vulcan ${scope} `);
+      }
     }
-
-    expect(runCli({ args: ['project', '--help'], cwd: tmpdir() }).stdout).not.toContain(
-      '  board show',
-    );
-    expect(CommandTable.scopeHelp({ scope: 'agent' })).toContain('  agent [list|add');
   });
 });
