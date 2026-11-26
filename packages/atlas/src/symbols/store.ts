@@ -54,9 +54,6 @@ const dedupe = (values: string[]): string[] => [...new Set(values)];
 export class SymbolStore extends BaseHelper {
   private readonly byExactName = new Map<string, ISymbolRecord[]>();
   private readonly namesByLowerCase = new Map<string, string[]>();
-  /** `all()` of the loaded table, the same array and records until the table is read again. */
-  private records?: ISymbolRecord[];
-
   private packageMap: IPackageMapEntry[];
   /** Every load error already logged: an unbuilt package fails each reload the same way. */
   private readonly loggedErrors = new Set<string>();
@@ -121,8 +118,6 @@ export class SymbolStore extends BaseHelper {
   }
 
   private index(opts: { symbols: ISymbolRecord[] }): void {
-    this.records = undefined;
-
     for (const symbol of opts.symbols) {
       const exact = this.byExactName.get(symbol.name) ?? [];
 
@@ -162,14 +157,6 @@ export class SymbolStore extends BaseHelper {
     return found.filter(
       (record) => PackageMap.packageOfQuery({ value: record.package, packageMap }) === wanted,
     );
-  }
-
-  /** Every record of the loaded table; the same array until the table is read again. */
-  all(): ISymbolRecord[] {
-    this.ensureLoaded();
-    this.records ??= [...this.byExactName.values()].flat();
-
-    return this.records;
   }
 
   /** The closest known names to `name`: prefix matches first, then substrings, then near-misses. */

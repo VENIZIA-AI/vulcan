@@ -73,13 +73,6 @@ export class DeclarationText {
     });
   }
 
-  /** The TSDoc of one class member, for a record that ranks the member on its own. */
-  static memberDocOf(opts: { member: TypeScript.ClassElement }): string {
-    return DeclarationText.cleanDoc({
-      comment: DeclarationText.textOf({ statement: opts.member, declaration: opts.member }).comment,
-    });
-  }
-
   /** The text without its leading TSDoc block, for a reader that shows the prose apart from the code. */
   static withoutDoc(opts: { declaration: string }): string {
     const text = opts.declaration.trimStart();

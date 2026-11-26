@@ -45,7 +45,7 @@ bun node_modules/.bin/vulcan project doctor
 | [The owner and the reply shape](/guides/core-concepts/owner-and-replies) | The agent answers its owner in a fixed shape, in the owner's language | `owner` in the config, `vulcan profile` |
 | [Work items](/guides/core-concepts/work-items) | A template for a unit of work a person can read and a fresh agent can do | `base/references/work-item.md` |
 | [Knowledge bundle](/guides/core-concepts/knowledge-bundle) | Markdown facts about your project, checked in Open Knowledge Format v0.2 | `vulcan okf` |
-| [atlas](/guides/core-concepts/atlas) | An MCP server with 8 tools that searches your docs, changelogs and symbols | `vulcan atlas mcp` |
+| [atlas](/guides/core-concepts/atlas) | An MCP server with 7 tools that searches your docs, changelogs and symbols | `vulcan atlas mcp` |
 | [doctor](/references/commands/doctor) | Checks that the repository follows the contract | `vulcan project doctor` |
 
 More on the rows:

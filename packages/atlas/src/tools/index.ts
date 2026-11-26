@@ -3,7 +3,6 @@ export * from './changes.tool';
 export * from './get.tool';
 export * from './search.tool';
 export * from './symbol.tool';
-export * from './intent.tool';
 export * from './migrate.tool';
 export * from './version.tool';
 export * from './presets.tool';

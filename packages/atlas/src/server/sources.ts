@@ -17,7 +17,6 @@ import {
   GetTool,
   MigrateTool,
   PresetsTool,
-  IntentTool,
   SearchTool,
   SymbolTool,
   VersionTool,
@@ -385,7 +384,6 @@ export class SourcesServer {
     const transport = new Transport({
       tools: [
         guarded(SearchTool.build({ store: chunks, symbols, projects })),
-        guarded(IntentTool.build({ symbols, projects })),
         guarded(GetTool.build({ store: chunks })),
         guarded(SymbolTool.build({ store: chunks, symbols, projects })),
         guarded(VersionTool.build({ releases, projects })),
