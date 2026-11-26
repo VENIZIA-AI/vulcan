@@ -400,8 +400,10 @@ omp and pi take extensions instead of hook commands, so `vulcan project sync` wr
 | no output | the call runs |
 | a safety guard (`guard-writes`) that crashes, times out (30 s) or whose script is missing with no installed package | blocked, bar a bare `bun install` when the install is missing |
 | `guard-writes` whose script is missing from an installed package (its `package.json` is there) | the call runs |
-| `guard-git` or `guard-outside` that crashes or times out | asks, as the Claude wrappers do; blocked where every ask is held (`guard.asks`, `VULCAN_GUARD_ASKS`, a manifest that cannot be read) |
+| `guard-git` or `guard-outside` that crashes or times out | asks, as the Claude wrappers do; blocked where every ask is held (details below) |
 | `guard-git` or `guard-outside` whose script is missing, with the package installed or not | blocked, bar `bun install` and `vulcan project sync`; `guard-git` only for a `git` or `gh` line |
+
+- Where every ask is held (`guard.asks`, `VULCAN_GUARD_ASKS`, a manifest that cannot be read), the call is blocked.
 
 `VULCAN_GUARDS=off` is read by the guard scripts, so it switches the guards off here too.
 

@@ -472,11 +472,13 @@ Add more apps later with [`vulcan package add`](/references/commands/add).
 | `vulcan project init: --backend-dir and --shared-dir both name 'code' - each kind of code needs its own folder` | Two of `--backend-dir`, `--frontend-dir` and `--shared-dir` name the same folder. Give each its own |
 | `vulcan project init: --project 'Fresh' is not a name: lowercase letters, digits and '-'` | A flag holds an invalid name |
 | `vulcan project init: @acme/api@1.0.0 has preset version 2; this VULCAN reads version 1 - upgrade @venizia/vulcan` | The preset is newer than this VULCAN. Upgrade VULCAN |
-| `vulcan project init: @acme/none@1.0.0 ships no VULCAN preset (no "vulcan": { "presets": { "app" } } in its package.json)` | The package is not a preset |
+| `vulcan project init: @acme/none@1.0.0 ships no VULCAN preset (...)` | The package is not a preset |
 | `vulcan project init: @acme/api@1.0.0: ./dist/presets/app/preset.json: ...` | `preset.json` breaks the format. The author fixes it |
 | `vulcan project init: no package at ~/work/nope - was it installed?` | The `file:` path has no `package.json` |
 
 The `preset.json` message continues with the detail, such as `side one of: backend, frontend; devPort Invalid input: expected number, received undefined`.
+
+- The full text of the shortened "no VULCAN preset" row is `vulcan project init: @acme/none@1.0.0 ships no VULCAN preset (no "vulcan": { "presets": { "app" } } in its package.json)`.
 
 A `file:` preset is allowed but warns, because it writes a `file:<path>` entry into `catalog` that does not work on another machine or in CI.
 

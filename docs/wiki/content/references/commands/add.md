@@ -372,8 +372,8 @@ Every refusal happens before the first write, with exit code 1.
 
 | Message | Cause and fix |
 |---|---|
-| `vulcan package add: run it at the root of a monorepo vulcan project init created (no layout in .configs/vulcan.config.*)` | The folder has no `layout`. Run `add` at the monorepo root |
-| `vulcan package add: the backend folder 'services/x' does not fit the layout of .configs/vulcan.config.mts: ... are nested` | A folder inside another listed folder, or around one. Pick a folder that is neither |
+| `vulcan package add: run it at the root of a monorepo vulcan project init created (...)` | The folder has no `layout`. Run `add` at the monorepo root |
+| `vulcan package add: the backend folder 'services/x' does not fit the layout ... are nested` | A folder inside another listed folder, or around one. Pick a folder that is neither |
 | `vulcan package add: missing --backend-dir (...)` | Several folders are listed and there is no terminal. Pass one |
 | `vulcan package add: --backend-dir '../x' ...` | The folder is not a layout folder (rules below) |
 | `vulcan package add: missing --app (Name of this [backend\|frontend] app) - names are never chosen for you` | `--app` was given with no name and there is no terminal to ask. Pass the name |
@@ -398,6 +398,8 @@ Every refusal happens before the first write, with exit code 1.
 
 Full text and details of the rows that were shortened:
 
+- `vulcan package add: run it at the root of a monorepo vulcan project init created (no layout in .configs/vulcan.config.*)`.
+- `vulcan package add: the backend folder 'services/x' does not fit the layout of .configs/vulcan.config.mts: ... are nested`.
 - `vulcan package add: missing --backend-dir (Backend folder (holds every backend app); the layout lists backends, backends-2) - names are never chosen for you`.
 - `--backend-dir` rules: no `..`, no leading or trailing `/`, no backslash, no `node_modules`, at most 4 segments of lowercase letters, digits and `-`.
 - `vulcan package add: preset @acme/api has no shared kind (it makes: app and lib); a preset with one: run bun node_modules/.bin/vulcan package add --preset ignis --shared x`. The message names what the preset makes. It then names every preset that has a shared kind, each with its command. The project's recorded presets come first, then the official ones. When none is known it says `no preset known to this project or to the official list has one`.

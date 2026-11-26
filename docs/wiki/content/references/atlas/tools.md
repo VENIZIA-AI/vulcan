@@ -152,11 +152,17 @@ A record can also carry these fields:
 | Field | Meaning |
 |---|---|
 | `source` | The source the record came from, when atlas serves more than one |
-| `origin` | For a remote source: `version`, and `installedAt` (the folder the declarations were read from, relative to the project) when the app has the package installed; with no `installedAt` the newest published release answered because none is installed |
+| `origin` | For a remote source: `version`, and `installedAt` when installed (details below) |
 | `external` | `true` when the export re-exports a third-party declaration |
 | `declaration` | The declaration as the built `.d.ts` has it, within 10,000 characters |
 | `truncated` | `true` when something was left out of `declaration` to stay within that budget |
 | `declarationOf` | The specifier of an earlier match that has the same declaration, which is then not repeated |
+
+The `origin` field, for a remote source:
+
+- It holds `version`.
+- It holds `installedAt` (the folder the declarations were read from, relative to the project) when the app has the package installed.
+- With no `installedAt`, the newest published release answered because none is installed.
 
 A remote source answers with the declarations of the copy the app has installed, read again when the installed version changes while the server runs (a bump, a `bun install`). Check `origin` when a signature looks old: a different version than the one you run means another copy was read, and `vulcan atlas status` lists every copy.
 

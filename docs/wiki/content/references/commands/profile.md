@@ -11,7 +11,13 @@ description: Tell VULCAN how you like to work - reply language, how to address y
 |---|---|
 | `vulcan profile` or `vulcan profile edit` | Asks the questions, with your earlier answers as the defaults, and saves the file |
 | `vulcan profile show` | Prints the file, or says there is none yet |
-| `vulcan profile reset [--yes]` | Says what it would remove; with `--yes` removes your answers from `.agents/local/profile.json` and keeps this machine's valid keys (`agent`, `board`, `common`); a key of those that is not valid is dropped and named; the file is deleted only when no key is left |
+| `vulcan profile reset [--yes]` | Says what it would remove; with `--yes` removes your answers and keeps this machine's valid keys |
+
+`reset` with `--yes`:
+
+- It removes your answers from `.agents/local/profile.json` and keeps this machine's valid keys (`agent`, `board`, `common`).
+- A key of those that is not valid is dropped and named.
+- The file is deleted only when no key is left.
 
 `vulcan project init` offers the form once, in a terminal, when the project has no profile. Without a terminal it only prints the command to run.
 
