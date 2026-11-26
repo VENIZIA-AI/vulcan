@@ -171,14 +171,14 @@ describe('BoardWork.sortOf: the table order', () => {
     ]);
   });
 
-  test('tokens add up the four counts', () => {
+  test('tokens add up input, output and cache writes, not cache reads', () => {
     const flow = flowOf({
       id: 'F-1',
       events: [event({ ts: at(1) })],
       tokens: { input: 1, output: 2, cacheRead: 30, cacheWrite: 400, agents: [], models: [] },
     });
 
-    expect(BoardWork.tokensOf({ flow })).toBe(433);
+    expect(BoardWork.tokensOf({ flow })).toBe(403);
     expect(BoardWork.tokensOf({ flow: flowOf({ id: 'F-2', events: [] }) })).toBeUndefined();
   });
 });

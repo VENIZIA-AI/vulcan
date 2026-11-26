@@ -56,6 +56,26 @@ export class FlowSteps {
     );
   }
 
+  /**
+   * The flow of the newest `flow` line the session `session` wrote at or before `before` (any time without it). Only the
+   * session counts, never the actor: two sessions may have one name.
+   */
+  static lastNamedBy(opts: {
+    events: IEvent[];
+    session: string;
+    before?: number;
+  }): string | undefined {
+    const { before } = opts;
+
+    return opts.events.findLast(
+      (event) =>
+        event.type === EventTypes.FLOW &&
+        event.session === opts.session &&
+        event.flowId !== undefined &&
+        (before === undefined || Date.parse(event.ts) <= before),
+    )?.flowId;
+  }
+
   /** The newest flow this actor wrote a `flow` line for that is not over: the flow the session last opened or updated. */
   static lastOpenedBy(opts: {
     events: IEvent[];
@@ -140,6 +160,8 @@ export class FlowSteps {
     context?: string;
     /** A new place in the work order; `null` clears it; left out, the line keeps its own. */
     order?: number | null;
+    /** The agent session that writes this line; never the one of `last`. */
+    session?: string;
     now?: number;
   }): IEvent {
     const { last } = opts;
@@ -167,6 +189,7 @@ export class FlowSteps {
       ...(last.apps === undefined ? {} : { apps: last.apps }),
       ...(last.due === undefined ? {} : { due: last.due }),
       ...(order === undefined ? {} : { order }),
+      ...(opts.session === undefined ? {} : { session: opts.session }),
       ...(opts.now === undefined ? {} : { now: opts.now }),
     });
   }

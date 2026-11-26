@@ -79,6 +79,13 @@ export class EventCommand {
     return ExitCodes.USAGE;
   }
 
+  /** The agent session that runs this command, for a flow line; nothing in a terminal. */
+  private static sessionOf(): { session?: string } {
+    const session = process.env[EventConstants.SESSION_ENV];
+
+    return session === undefined || session === '' ? {} : { session };
+  }
+
   /**
    * One step of a flow, or its next step or context, without restating the lists: the flow's last `flow` line is
    * copied whole with the change. The flow is `--flow`, else the branch's, and it must have a flow line already.
@@ -206,6 +213,7 @@ export class EventCommand {
       ...(values[EventFlags.NEXT] === undefined ? {} : { next: values[EventFlags.NEXT] }),
       ...(values[EventFlags.CONTEXT] === undefined ? {} : { context: values[EventFlags.CONTEXT] }),
       ...(order.value === undefined ? {} : { order: order.value }),
+      ...EventCommand.sessionOf(),
     });
 
     // A change that changes nothing writes nothing: the id printed is the line that already says it.
@@ -422,6 +430,7 @@ export class EventCommand {
       apps: items.apps,
       ...(values[EventFlags.DUE] === undefined ? {} : { due: values[EventFlags.DUE] }),
       ...(items.order === undefined ? {} : { order: items.order }),
+      ...(isFlow ? EventCommand.sessionOf() : {}),
     });
 
     try {

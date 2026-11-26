@@ -27,7 +27,7 @@ try {
   // The tokens of the turn go to the log first, whatever the board says next. A meter that fails never holds the turn.
   try {
     if (typeof input === 'object' && input !== null) {
-      UsageMeter.recordSession({ root, input, env: process.env, isOver: FlowState.isOver });
+      UsageMeter.recordSession({ root, input, env: process.env });
     }
   } catch (error) {
     console.error(
