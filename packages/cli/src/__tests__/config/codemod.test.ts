@@ -644,6 +644,47 @@ describe('config-groups --split: an index that uses export *', () => {
     expect(namespace).toContain('export * as');
   });
 
+  test('two indexes that reach the same module are one binding', () => {
+    const { changes } = ok(
+      run({
+        '.configs/vulcan/index.mts':
+          "export * from './claude.mts';\nexport * from './doctor.mts';\nexport * from './left.mts';\nexport * from './right.mts';\n",
+        '.configs/vulcan/left.mts': "export * from './okf.mts';\nexport * from './packages.mts';\n",
+        '.configs/vulcan/right.mts': "export * from './packages.mts';\n",
+      }),
+    );
+
+    for (const name of ['left', 'right', 'packages']) {
+      expect(changes).toContainEqual({ path: `.configs/vulcan/${name}.mts` });
+    }
+  });
+
+  test('the notes call an index that is written again written, not deleted', () => {
+    const { notes } = ok(run({}));
+
+    expect(notes.filter((note) => note.startsWith('.configs/vulcan/index.mts'))).toEqual([]);
+  });
+
+  test('into one file: every module the config reaches is retyped, through any index', () => {
+    const before = files({
+      ...STAR,
+      '.configs/vulcan/index.mts':
+        "export * from './claude.mts';\nexport * from './doctor.mts';\nexport * from './lists/index.mts';\nexport * from './okf.mts';\n",
+      '.configs/vulcan/lists/index.mts': "export * from './apps.mts';\n",
+      '.configs/vulcan/lists/apps.mts': STAR['.configs/vulcan/packages.mts'],
+      '.configs/vulcan/unused.mts': "export const x: VulcanConfig['okf'] = {};\n",
+    });
+    const { changes } = ok(ConfigCodemod.run({ root: before.root, read: before.read }));
+
+    expect(textOf({ changes, path: '.configs/vulcan/lists/apps.mts' })).toContain(
+      "VulcanConfig.Project['packages']",
+    );
+    expect(textOf({ changes, path: '.configs/vulcan/claude.mts' })).toContain(
+      "VulcanConfig.Agent['claude']",
+    );
+    expect(changes.map((change) => change.path)).not.toContain('.configs/vulcan/unused.mts');
+  });
+
   test('a module with a local const stays refused', () => {
     const reason = refused({
       '.configs/vulcan/packages.mts':
