@@ -85,16 +85,41 @@ export class FlowSteps {
     session?: string;
     isOver: (flowId: string) => boolean;
   }): string | undefined {
-    if (opts.session === undefined || opts.session === '') {
+    const { events, session, isOver } = opts;
+
+    if (session === undefined || session === '') {
       return undefined;
     }
 
+    return FlowSteps.newestOpen({ events, isOwn: (event) => event.session === session, isOver });
+  }
+
+  /**
+   * The newest flow of the actor name that is not over, for the commit guard alone when its hook has no session id (the
+   * adapters of Codex, Antigravity, omp and pi send none). Two sessions may share a name, so nothing is written from it:
+   * a wrong guess only lets a commit through.
+   */
+  static lastOpenedByActor(opts: {
+    events: IEvent[];
+    actor: string;
+    isOver: (flowId: string) => boolean;
+  }): string | undefined {
+    const { events, actor, isOver } = opts;
+
+    return FlowSteps.newestOpen({ events, isOwn: (event) => event.actor === actor, isOver });
+  }
+
+  private static newestOpen(opts: {
+    events: IEvent[];
+    isOwn: (event: IEvent) => boolean;
+    isOver: (flowId: string) => boolean;
+  }): string | undefined {
     const seen = new Set<string>();
 
     for (const event of [...opts.events].reverse()) {
       if (
         event.type !== EventTypes.FLOW ||
-        event.session !== opts.session ||
+        !opts.isOwn(event) ||
         event.flowId === undefined ||
         seen.has(event.flowId)
       ) {

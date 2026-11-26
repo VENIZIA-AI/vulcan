@@ -11,15 +11,16 @@ import type { IGitHit } from './common/index.ts';
 import { GitActivity } from './git-activity.ts';
 
 /**
- * V-P-13, held by the git guard: in a project that logs events, `git commit`, `gh pr create` and `glab mr create` are refused
- * when no flow can be found for the work, and the reason says how to name or make one. A flow is found when the branch
- * names it (`feature/VULZ-ACME-12-...`), when the command carries `Flow: <id>` (in `-m` or a heredoc message or a body
- * given inline; the contents of `-F` or `--body-file` are not read), or when this session (its id, never its name)
- * last opened or updated one in the last three days that is not over. Not asked about: a line that works in another
- * repository (`git -C`, `cd`, `gh -R`: the branch and the rule here are not that repository's), a commit `--amend` (it adds no new work), a commit that
- * concludes a merge (`MERGE_HEAD`), and a session whose name is not known (no session id and no `VULCAN_ACTOR`: every
- * such agent would share one identity). It fails open: a log, a manifest or a clock that cannot be read is no
- * refusal, and with `events.log` off, or no `project.key` to make a flow with, the rule does not exist.
+ * V-P-13, held by the git guard: in a project that logs events, `git commit`, `gh pr create` and `glab mr create` are
+ * refused when no flow can be found for the work, and the reason says how to name or make one. A flow is found when the
+ * branch names it (`feature/VULZ-ACME-12-...`), when the command carries `Flow: <id>` (in `-m` or a heredoc message or
+ * a body given inline; the contents of `-F` or `--body-file` are not read), or when this session (its id, never its
+ * name) last opened or updated one in the last three days that is not over; a hook with no session id goes by the actor
+ * name instead. Not asked about: a line that works in another repository (`git -C`, `cd`, `gh -R`: the branch and the
+ * rule here are not that repository's), a commit `--amend` (it adds no new work), a commit that concludes a merge
+ * (`MERGE_HEAD`), and a session whose name is not known (no session id and no `VULCAN_ACTOR`: every such agent would
+ * share one identity). It fails open: a log, a manifest or a clock that cannot be read is no refusal, and with
+ * `events.log` off, or no `project.key` to make a flow with, the rule does not exist.
  */
 export class FlowGuard {
   static inspect(opts: {
@@ -69,14 +70,14 @@ export class FlowGuard {
         since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
       }).events;
 
-      if (
-        FlowSteps.flowOf({
-          events: known,
-          cwd,
-          session: opts.sessionId,
-          isOver: (flowId) => opts.isOver({ events: known, flowId, key }),
-        }) !== undefined
-      ) {
+      const isOver = (flowId: string): boolean => opts.isOver({ events: known, flowId, key });
+      const found =
+        FlowSteps.flowOf({ events: known, cwd, session: opts.sessionId, isOver }) ??
+        (opts.sessionId === undefined || opts.sessionId === ''
+          ? FlowSteps.lastOpenedByActor({ events: known, actor, isOver })
+          : undefined);
+
+      if (found !== undefined) {
         return [];
       }
 

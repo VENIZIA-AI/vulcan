@@ -88,13 +88,13 @@ const todos = {
   toolName: 'TodoWrite',
   toolInput: { todos: [{ content: 'A task of this session', status: 'pending' }] },
 };
-const guard = (opts: { root: string; session?: string }) =>
+const guard = (opts: { root: string; session?: string; actor?: string }) =>
   FlowGuard.inspect({
     root: opts.root,
     command: 'git commit -m x',
     cwd: opts.root,
     ...(opts.session === undefined ? {} : { sessionId: opts.session }),
-    env: { VULCAN_ACTOR: NAME },
+    env: { VULCAN_ACTOR: opts.actor ?? NAME },
     isOver: FlowState.isOver,
     now: T0 + 60_000,
   });
@@ -153,6 +153,36 @@ describe('two sessions with one name, in parallel: a hook reads and writes its o
 
     expect(guard({ root, session: FIRST })).toEqual([]);
     expect(guard({ root, session: 'a-third-session' })[0]?.rule).toBe('V-P-13');
+  });
+
+  test.each([undefined, ''])(
+    'with no session id (%p) the commit guard alone falls back to the actor name',
+    (session) => {
+      const root = project();
+      const bare = createProject({
+        files: {
+          '.agents/local/vulcan.manifest.json': JSON.stringify({
+            project: { key: 'ACME' },
+            events: { log: true },
+          }),
+        },
+      });
+      const call = { ...(session === undefined ? {} : { session }) };
+
+      flowLine({ root: bare, flowId: OWN, at: T0 });
+      expect(guard({ root: bare, ...call })).toEqual([]);
+      expect(guard({ root, ...call })).toEqual([]);
+      expect(guard({ root: bare, ...call, actor: 'another-name' })[0]?.rule).toBe('V-P-13');
+    },
+  );
+
+  test('with no session id the writing hooks still take no flow by name', () => {
+    const root = project();
+    const written = hook({ root, session: '', call: commit, activity: 'commit' });
+
+    expect(written?.flowId).toBeUndefined();
+    expect(hook({ root, session: '', call: todos })).toBeUndefined();
+    expect(context({ root, session: '' })).toBeUndefined();
   });
 
   test.each([undefined, ''])(
