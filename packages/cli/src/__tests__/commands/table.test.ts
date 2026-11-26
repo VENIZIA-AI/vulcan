@@ -23,8 +23,9 @@ describe('CommandTable: help, the parser and the generated reference read one ta
         ...Object.keys(spec.flags ?? {}),
         ...Object.keys(spec.values ?? {}),
       ]);
+      const help = spec.usage.map((usage) => `${usage.args} ${usage.text}`).join(' ');
       const named = new Set(
-        (spec.help.match(FLAG_IN_TEXT) ?? []).filter((flag) => !NOT_A_FLAG.has(flag)),
+        (help.match(FLAG_IN_TEXT) ?? []).filter((flag) => !NOT_A_FLAG.has(flag)),
       );
 
       expect([...named].sort(), `${name}: flags in the help block`).toEqual([...accepted].sort());
@@ -41,22 +42,17 @@ describe('CommandTable: help, the parser and the generated reference read one ta
     }
   });
 
-  test('help prints the block of every command, in table order, under the version line', () => {
+  test('help prints every usage of the table', () => {
     const result = runCli({ args: ['help'], cwd: tmpdir() });
-    let from = 0;
+    const flat = result.stdout.replace(/\s+/g, ' ');
 
     expect(result.code).toBe(0);
     expect(result.stdout.startsWith('vulcan ')).toBe(true);
+    expect(result.stdout).toContain('Usage: bun node_modules/.bin/vulcan <scope> <action>');
 
-    for (const [name, spec] of entries) {
-      if (spec.help === '') {
-        continue;
-      }
-
-      const at = result.stdout.indexOf(spec.help, from);
-
-      expect(at, `${name} block, in order`).toBeGreaterThanOrEqual(from);
-      from = at + spec.help.length;
+    for (const { command, args, text: body } of CommandTable.usages()) {
+      expect(flat, command).toContain(`vulcan ${command} ${args}`.trim());
+      expect(flat, command).toContain(body);
     }
   });
 
@@ -85,6 +81,6 @@ describe('CommandTable: help, the parser and the generated reference read one ta
 
     expect(init?.flags).toContain('--no-api');
     expect(init?.values).toContain('--api');
-    expect(CommandTable.COMMANDS.init.help).not.toContain('--api');
+    expect(CommandTable.scopeHelp({ scope: 'project' })).not.toContain('--api ');
   });
 });

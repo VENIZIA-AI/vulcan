@@ -3,7 +3,9 @@ import { BoardFlags } from '../board/common/index.ts';
 import { CommitCheckFlags } from '../commit/common/index.ts';
 import { ExitCodes, UpgradeFlags, VULCAN_VERSION, VulcanCommands } from '../common/index.ts';
 import { CreateFlags } from '../create/common/index.ts';
-import { EventFlags } from '../events/common/index.ts';
+import { EventFlags, EventTypes } from '../events/common/index.ts';
+import { HelpText } from './help-text.ts';
+import { CommandScopes } from './scopes.ts';
 
 /** What the router lets through for a command: the flags that stand alone, the flags that take the next argument, and how many plain arguments. */
 export interface IAcceptedArgs {
@@ -14,10 +16,18 @@ export interface IAcceptedArgs {
   positionals: number;
 }
 
+/** One usage of a command in its public words: `vulcan <command> <args>`, then what it does. */
+export interface IUsage {
+  /** The public words, the scope first: `project init`. */
+  command: string;
+  args: string;
+  text: string;
+}
+
 /** One command: what `vulcan help` prints for it, what its flags do, and what its exit codes mean. */
 export interface ICommandSpec {
-  /** The block `vulcan help` prints for the command: its usage lines, then what it does. */
-  help: string;
+  /** The usages `vulcan help` prints, each under the scope its words start with. */
+  usage: IUsage[];
   /** Flags that stand alone, each with what it does. */
   flags?: Record<string, string>;
   /** Flags that take the next argument, each with what it does. */
@@ -38,12 +48,18 @@ export interface ICommandSpec {
 export class CommandTable {
   static readonly COMMANDS: Record<string, ICommandSpec> = {
     [VulcanCommands.INIT]: {
-      help: `  project init [--key <KEY>]      Scaffold the project layer (never overwrites); --key is the project's flow key
-                                  (2 to 8 uppercase letters or digits; a terminal asks, else it is made from the name)
-  project init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
-       [--shared-dir <path>] [--scope <@scope>] [--key <KEY>]
-                                  Create a monorepo with its first app, from a framework preset
-                                  (a name missing from the flags is asked in a terminal)`,
+      usage: [
+        {
+          command: 'project init',
+          args: '[--key <KEY>]',
+          text: "Add the project layer. No existing file is overwritten; missing .gitignore lines and dev dependencies are added. --key is the project's flow key (2 to 8 uppercase letters or digits), read only for a new config; a terminal asks, else it is made from the name.",
+        },
+        {
+          command: 'project init',
+          args: '--preset <name|file:path> --project <name> --app <name> [--backend-dir <path> | --frontend-dir <path>] [--shared-dir <path>] [--scope <@scope>] [--key <KEY>]',
+          text: 'Create a monorepo with its first app, from a framework preset. A terminal asks for a name the flags leave out.',
+        },
+      ],
       values: {
         [CreateFlags.PRESET]: 'The preset package; its presence selects the monorepo mode',
         [CreateFlags.PROJECT]: 'The project name and the folder to create',
@@ -56,16 +72,16 @@ export class CommandTable {
       },
       ignored: { flags: [CreateFlags.NO_API], values: [CreateFlags.API] },
       exits:
-        '0 on success; 1 when it refuses before writing (not a project, bad or missing name, folder not empty) or bun add fails.',
+        '0 on success; 1 when it refuses before writing or bun add fails; 2 on a bad --key without --preset; after writing, the code of the step that failed.',
     },
     [VulcanCommands.ADD]: {
-      help: `  package add --preset <name|file:path> (--app <name> | --lib <name> | --shared <name>) [--dir <folder>]
-      [--scope <@scope>] [--backend-dir|--frontend-dir <path>] [--api <app> | --no-api]
-                                  Add an app, a library other apps import (--lib) or a side-neutral package
-                                  other apps import (--shared) to the monorepo (a frontend says which
-                                  backend to proxy to; --dir is for a library or a shared package;
-                                  --scope names the package @scope/<name>; a terminal asks for the kind
-                                  and every name the flags leave out)`,
+      usage: [
+        {
+          command: 'package add',
+          args: '--preset <name|file:path> (--app <name> | --lib <name> | --shared <name>) [--dir <folder>] [--scope <@scope>] [--backend-dir <path> | --frontend-dir <path>] [--api <app> | --no-api]',
+          text: 'Add to the monorepo an app, a library other apps import (--lib) or a side-neutral package (--shared). A frontend app says which backend it proxies to; --dir is for a library or a shared package; --scope names the package @scope/<name>. A terminal asks for the kind and every name the flags leave out. A refusal writes nothing; an install or a check that fails later leaves the files.',
+        },
+      ],
       flags: {
         [CreateFlags.NO_API]: 'A frontend only: proxy to nothing',
       },
@@ -81,14 +97,17 @@ export class CommandTable {
         [CreateFlags.DIR]: 'A library or shared package only: the folder it goes in',
         [CreateFlags.SCOPE]: 'The npm scope of the package name, such as @acme',
       },
-      exits: '0 on success; 1 on any refusal, which happens before the first write.',
+      exits:
+        '0 on success; 1 on a refusal, before the first write; after writing, the code of the step that failed.',
     },
     [VulcanCommands.PRESET]: {
-      help: `  package diff <package> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
-                                  Read-only: set each file the preset makes now (for an app, a library or
-                                  a shared package) against the file the package has (same, differs,
-                                  missing); --full prints the unified diffs, --check exits 1 when
-                                  anything differs or is missing`,
+      usage: [
+        {
+          command: 'package diff',
+          args: '<package> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]',
+          text: 'Set each file the preset makes now against the file the package has (same, differs, missing), and change no project file. --preset replaces the preset found from the package (name@range is fetched into .agents/tmp); --full prints the unified diffs; --check exits 1 when a file differs or is missing.',
+        },
+      ],
       flags: {
         [CreateFlags.NO_API]: 'A frontend app only: proxy to nothing',
         [CreateFlags.FULL]: 'Print the unified diff under each file that differs',
@@ -103,9 +122,13 @@ export class CommandTable {
         '0 when a report is printed (with --check, and nothing differs); 1 on --check with a difference or missing file, or any refusal.',
     },
     [VulcanCommands.SYNC]: {
-      help: `  project sync [--agents <list>|list] [--dry-run] [--quiet]
-                                  Write the adapters of the agents you chose (--agents claude,omp or none,
-                                  stored in .agents/local/profile.json; --agents list shows the table)`,
+      usage: [
+        {
+          command: 'project sync',
+          args: '[--agents <list>|list] [--dry-run] [--quiet]',
+          text: 'Write the adapters of the agents you chose (--agents claude,omp or none, stored in .agents/local/profile.json; --agents list shows them), with their guards, the commit hook when a check is on and the ignore lines; move old profile keys and old event lines to the new names. --dry-run writes nothing; --quiet prints only changes and notes.',
+        },
+      ],
       flags: {
         '--dry-run': 'Print planned changes without writing to disk',
         '--quiet': 'Print only what changed and the notes, not every file that stayed as it was',
@@ -114,27 +137,56 @@ export class CommandTable {
         [AgentConstants.FLAG]: 'The agents to write adapters for, comma-separated, none, or list',
       },
       exits:
-        '0 on success; 1 when .claude/settings.json cannot be written, or the configuration fails to load.',
+        '0 on success; 1 when the config fails to load, the agent choice cannot be resolved or .claude/settings.json is not a JSON object.',
     },
     [VulcanCommands.AGENTS]: {
-      help: `  agent [list|add <ids>|remove <ids>|setup] [--dry-run]
-                                  See, add, remove or re-choose the coding agents you use on this machine`,
+      usage: [
+        {
+          command: 'agent list',
+          args: '',
+          text: 'List the coding agents and which of them you chose on this machine; vulcan agent alone does the same.',
+        },
+        {
+          command: 'agent add',
+          args: '<id,id> [--dry-run]',
+          text: 'Add agents, given as one comma-separated list.',
+        },
+        {
+          command: 'agent remove',
+          args: '<id,id> [--dry-run]',
+          text: 'Remove agents, given as one comma-separated list.',
+        },
+        {
+          command: 'agent setup',
+          args: '[--dry-run]',
+          text: 'Choose your agents again; needs a terminal. --dry-run writes nothing.',
+        },
+      ],
       flags: {
         '--dry-run': 'Print what would change and write nothing',
       },
       positionals: 2,
       exits:
-        '0 on success, including an agent already chosen or not chosen; 1 on an unknown id, a bad argument or a failed write.',
+        '0 on success, including an agent already chosen or not chosen; 1 on an unknown id, a bad argument or a failed write; 2 on an unknown action.',
     },
     [VulcanCommands.DOCTOR]: {
-      help: `  project doctor                  Check the project follows VULCAN; exit 1 on any violation`,
+      usage: [
+        {
+          command: 'project doctor',
+          args: '',
+          text: 'Check the project follows VULCAN; exit 1 on any violation.',
+        },
+      ],
       exits: '0 for a conformant project; 1 on one or more contract violations.',
     },
     [VulcanCommands.COMMIT_CHECK]: {
-      help: `  check commit <message-file> | --range <revs> | --text <message>
-                                  Check a commit message against the check.commit.message checks of the config (an
-                                  agent in a trailer or a "generated with" line, the project's subject shape);
-                                  sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input`,
+      usage: [
+        {
+          command: 'check commit',
+          args: '<message-file> | --range <revs> | --text <message>',
+          text: 'Check a commit message against check.commit.message as the last sync recorded it (an agent signature, the subject shape); with no record, agent signatures are refused. sync installs it as the commit-msg hook when a check is on and no other hook is there. Exit 1 on a problem, 2 on bad input.',
+        },
+      ],
       values: {
         [CommitCheckFlags.RANGE]: 'Check every commit of a git range, such as origin/develop..HEAD',
         [CommitCheckFlags.TEXT]: 'Check the message text you give',
@@ -145,22 +197,30 @@ export class CommandTable {
         '0 when nothing is wrong or no check is configured; 1 when a message has a problem; 2 on bad input.',
     },
     [VulcanCommands.BOARD]: {
-      help: `  board show [--out <file>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
-                                  Fold the event log (and GitHub or GitLab pull requests, checks and reviews
-                                  when gh or glab can read them) into flows and write one HTML file, by default
-                                  .agents/local/reports/board.html; read-only; exit 2 on bad input
-  board serve [--port <n>] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
-                                  Serve the same page on 127.0.0.1 (default port 4317) and push the new events to the open page, with no reload`,
+      usage: [
+        {
+          command: 'board show',
+          args: '[--out <file>] [--open] [--since <date>] [--dir <events folder>] [--repo <owner/name>]... [--no-github]',
+          text: 'Fold the event log, with the pull or merge requests gh or glab can read, into flows and write one HTML file (default .agents/local/reports/board.html), from the last 7 days unless --since says otherwise. --repo names the repositories to read; --no-github reads neither GitHub nor GitLab. Exit 2 on bad input.',
+        },
+        {
+          command: 'board serve',
+          args: '[--port <n>] [--open] [--since <date>] [--dir <events folder>] [--repo <owner/name>]... [--no-github]',
+          text: 'Serve the same page on 127.0.0.1 and push new events to it with no reload. The port is 4317, or a free one when that is busy; a busy --port fails.',
+        },
+      ],
       flags: {
         [BoardFlags.OPEN]: 'Open the file in your browser when it is written',
-        [BoardFlags.NO_GITHUB]: 'Do not read GitHub',
+        [BoardFlags.NO_GITHUB]: 'Read neither GitHub nor GitLab',
       },
       values: {
         [BoardFlags.OUT]: 'The file to write; default .agents/local/reports/board.html',
         [BoardFlags.PORT]: 'serve only: the port to listen on; default 4317',
-        [BoardFlags.SINCE]: 'Read events and pull requests changed at or after this date',
+        [BoardFlags.SINCE]:
+          'Read events and pull requests changed at or after this date; default 7 days ago',
         [BoardFlags.DIR]: 'The events folder; default board.events.dir, else .agents/local/events',
-        [BoardFlags.REPO]: 'A GitHub repository, owner/name; repeat it to read several',
+        [BoardFlags.REPO]:
+          'A GitHub or GitLab repository, such as owner/name; repeat it to read several',
       },
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
@@ -168,12 +228,36 @@ export class CommandTable {
         '0 on written or serve stopped; 1 when the file cannot be written or serve cannot start; 2 on bad input.',
     },
     [VulcanCommands.EVENT]: {
-      help: `  event add --type <t> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | flow add [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] [--order <n>|none] | flow step [--flow <flow id>] [--done|--todo <step>] [--next <text>] [--context <text>] [--order <n>|none] | event tail [--since <time>] [--json] [--dir <folder>]
-                                  Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
-                                  read it; with board.events.log on, sync installs the Claude Code hooks that
-                                  write it; exit 2 on bad input`,
+      usage: [
+        {
+          command: 'flow add',
+          args: '--title <text> [--flow <flow id>] [--why <text>] [--context <text>] [--next <text>] [--step <text>]... [--step-done <text>]... [--check <text>]... [--check-done <text>]... [--app <name>]... [--due <YYYY-MM-DD>] [--order <n>|none] [--ref <ref>] [--actor <name>] [--dir <folder>]',
+          text: 'Open a flow and print its id; with --flow, write a new line for that flow.',
+        },
+        {
+          command: 'flow step',
+          args: '[--done <step> | --todo <step>] [--next <text>] [--context <text>] [--order <n>|none] [--flow <flow id>] [--actor <name>] [--dir <folder>]',
+          text: "Change one step, the next step, the context or the order of a flow (--flow, else the branch's flow) and keep the rest; give at least one change. The event scope also takes it, as step.",
+        },
+        {
+          command: 'event add',
+          args: '--type <type> --summary <text> [--flow <flow id>] [--ref <ref>] [--status approve|park|reject] [--actor <name>] [--dir <folder>]',
+          text: `Write one line to the event log (.agents/local/events/<day>.jsonl). Types: ${Object.values(
+            EventTypes,
+          )
+            .filter((value) => typeof value === 'string')
+            .join(
+              ', ',
+            )}. --status is required on a decision and refused elsewhere. With board.events.log on, sync installs the Claude Code hooks that write the log. Exit 2 on bad input.`,
+        },
+        {
+          command: 'event tail',
+          args: '[--since <time>] [--json] [--dir <folder>]',
+          text: 'Print the events since a time (default: the last 24 hours); --json prints each as JSON.',
+        },
+      ],
       flags: {
-        [EventFlags.JSON]: 'Print each line as written (tail)',
+        [EventFlags.JSON]: 'tail only: print each event as JSON',
       },
       values: {
         [EventFlags.TYPE]: 'One of the fourteen event kinds',
@@ -188,12 +272,12 @@ export class CommandTable {
         [EventFlags.APP]: 'Flow only, repeatable: an app or module the flow touches',
         [EventFlags.DUE]: 'Flow only: the day it is due, YYYY-MM-DD',
         [EventFlags.ORDER]:
-          'Flow only: its place in the work order, a positive whole number (step: none clears it)',
+          'Flow only: its place in the work order, a positive whole number; none clears it',
         [EventFlags.REF]: 'A commit, a PR number, a recipient, or a tracker id',
         [EventFlags.STATUS]: 'approve, park or reject; required on a decision',
         [EventFlags.TITLE]: 'Flow only, required: the title of the flow',
         [EventFlags.WHY]: 'Flow only: one line on why the flow exists',
-        [EventFlags.CONTEXT]: 'Flow only: two to four sentences on what the flow is',
+        [EventFlags.CONTEXT]: 'Flow only: what the flow is, up to 600 characters',
         [EventFlags.NEXT]: 'Flow only: the next step and who does it',
         [EventFlags.ACTOR]: 'Who wrote the event; else VULCAN_ACTOR or the session name',
         [EventFlags.DIR]: 'The events folder for this call, over board.events.dir',
@@ -201,12 +285,18 @@ export class CommandTable {
       },
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
-      exits: '0 written; 1 when the folder cannot be written; 2 on bad input.',
+      exits:
+        '0 when written, printed or already so; 1 when the log cannot be written or read; 2 on bad input.',
     },
     [VulcanCommands.VISUALIZE]: {
-      help: `  page new <spec.json> [--out <name>] | page schema
-                                  Make one small static HTML page (a flow, a status, a before and after) from
-                                  a JSON spec, in .agents/local/prototypes/; page schema prints the spec's schema`,
+      usage: [
+        {
+          command: 'page new',
+          args: '<spec.json> [--out <name>]',
+          text: 'Make one static HTML page (a flow, a status, a before and after) from a JSON spec, in .agents/local/prototypes/ under the current folder.',
+        },
+        { command: 'page schema', args: '', text: 'Print the schema of the spec.' },
+      ],
       ignored: { flags: ['--schema'], values: [] },
       values: {
         [BoardFlags.OUT]: 'The name of the page written in .agents/local/prototypes/',
@@ -216,34 +306,56 @@ export class CommandTable {
         '0 on success; 1 when the spec is missing or not renderable, or .agents/local/ is missing or outside the project.',
     },
     [VulcanCommands.PROFILE]: {
-      help: `  profile [show|edit|reset [--yes]]
-                                  Tell VULCAN how you like to work (reply language, how to address you,
-                                  tone, habits) in .agents/local/profile.json; no argument runs the form,
-                                  show prints it, reset removes your answers`,
+      usage: [
+        {
+          command: 'profile edit',
+          args: '',
+          text: 'Say how you like to work (reply language, how to address you, tone, habits), saved in .agents/local/profile.json; vulcan profile alone does the same.',
+        },
+        { command: 'profile show', args: '', text: 'Print your profile.' },
+        {
+          command: 'profile reset',
+          args: '[--yes]',
+          text: 'Show what removing your answers would do; --yes removes them. The machine settings (agent, board, common) stay.',
+        },
+      ],
       flags: {
         '--yes':
-          "With reset: remove your answers; this machine's valid keys (agents, board, local, events) stay, and the file goes only when none is left",
+          "With reset: remove your answers; this machine's valid settings (agent, board, common) stay, and the file goes only when none is left",
       },
       positionals: 1,
       exits:
         '0 on saved, shown, reset or nothing to reset; 1 on cancelled, unreadable profile, .agents/local/ not gitignored, or unknown argument.',
     },
     [VulcanCommands.CONFIG]: {
-      help: `  config effective | diff
-                                  effective prints the config as the commands read it (the shipped defaults, the
-                                  config of each pack, then the project file, merged) with the layer each value
-                                  came from; diff lists the values of the project file that the shipped layers
-                                  already give; read-only; exit 2 on bad input
-  config format [--check]
-                                  Put the top-level keys of .configs/vulcan.config.mts in the canonical order, each
-                                  with its comments; --check writes nothing and exits 1 when a key would move; exit 2
-                                  when the keys cannot be ordered (a spread, a computed key, no object literal)
-  config codemod <config-groups|type-names> [<dir>] [--write] [--split] | --list
-                                  type-names: rename kind to type and presetKind to presetType in the package
-                                  entries of the config and its modules. config-groups: move the keys of .configs/vulcan.config.mts into the seven groups, each with its
-                                  comments (--split: one module per group in .configs/vulcan/, the modules of an old
-                                  split folded in); without --write it lists what it would write; exit 2 and
-                                  nothing written when it cannot move a key without losing it`,
+      usage: [
+        {
+          command: 'config effective',
+          args: '',
+          text: 'Print the config the commands read (the shipped defaults, the config of each pack, then the project file, merged) and the layer each value came from. Read-only; exit 2 on bad input.',
+        },
+        {
+          command: 'config diff',
+          args: '',
+          text: 'List the values of the project file that the shipped layers already give. Read-only; exit 2 on bad input.',
+        },
+        {
+          command: 'config codemod',
+          args: 'config-groups [<dir>] [--split] [--write]',
+          text: 'Move the keys of a flat config into the seven groups, renaming those a group names differently, with their comments. --split makes one module per group in .configs/vulcan/ and deletes the modules it folds in. Without --write it lists what it would write. Exit 2, with nothing written, when it cannot move something without losing it.',
+        },
+        {
+          command: 'config codemod',
+          args: 'type-names [<dir>] [--write]',
+          text: 'Rename kind to type and presetKind to presetType in package entries, and kinds to types in acknowledgements, in the config and the standard modules of .configs/vulcan/. Without --write it lists what it would write.',
+        },
+        { command: 'config codemod', args: '--list', text: 'Name the codemods.' },
+        {
+          command: 'config format',
+          args: '[--check]',
+          text: 'Put the top-level keys of .configs/vulcan.config.mts in the canonical order, and in a grouped file the keys inside each group written as a literal (not guard), each with its comments. --check writes nothing and exits 1 when a key would move. Exit 2 when the keys cannot be ordered (a spread, a computed key, two keys on one line, no object literal).',
+        },
+      ],
       ignored: { flags: ['--effective', '--diff'], values: [] },
       flags: {
         '--check': 'format only: write nothing; exit 1 and name the keys that would move',
@@ -254,13 +366,16 @@ export class CommandTable {
       positionals: 3,
       unknownExit: ExitCodes.USAGE,
       exits:
-        '0 on shown, formatted or already in order; 1 when the config cannot be loaded, or with --check when a key would move; 2 on bad input or a config whose keys cannot be ordered.',
+        '0 on shown, written, listed, already in order or nothing to do; 1 when the config cannot be loaded, or with --check when a key would move; 2 on bad input, no config to format, or a config that cannot be ordered or moved.',
     },
     [VulcanCommands.CLEAN]: {
-      help: `  project clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--events|--release-candidates|--profile] [--include-fresh] [--yes]
-                                  List what an agent left under .agents/local/ (a dry run) and, with
-                                  --yes, remove it; --tmp is the default and takes stale items only (--include-fresh
-                                  adds the rest), --worktrees takes merged or gone branches only, --all never touches reports, prototypes, events, release candidates or the profile`,
+      usage: [
+        {
+          command: 'project clean',
+          args: '[--tmp | --worktrees | --clones | --cache | --all] [--reports] [--prototypes] [--events] [--release-candidates] [--profile] [--include-fresh] [--yes]',
+          text: 'List what agents left in the tmp folder, .agents/local/ and the events folder; --yes removes it. --tmp, the default, takes items older than a day; --clones those older than two weeks; --include-fresh adds the newer ones. --worktrees takes clean worktrees whose branch is merged or gone, and folders git does not list. --cache is what atlas fetched. --all means tmp, worktrees, clones and cache. --reports, --prototypes, --events, --release-candidates and --profile are taken only when named.',
+        },
+      ],
       flags: {
         '--tmp': 'Remove the stale items of tmp/ (older than a day); the default',
         '--include-fresh':
@@ -283,34 +398,42 @@ export class CommandTable {
         '0 on a dry run, a removal or nothing to remove; 1 when an item cannot be removed, or on an unknown flag.',
     },
     [VulcanCommands.UPGRADE]: {
-      help: `  project upgrade [--stable | --nightly] [<version|tag>]
-                                  Bump the pinned @venizia/vulcan, then sync; --stable (default)
-                                  takes the latest tag, --nightly the newest of latest and next`,
+      usage: [
+        {
+          command: 'project upgrade',
+          args: '[--stable | --nightly] [<version|tag>]',
+          text: 'Pin another @venizia/vulcan, then sync. A version or tag you give wins. --stable, the default, installs the latest tag even when that is older than the installed prerelease (it prints a note first); --nightly installs the higher of latest and next.',
+        },
+      ],
       flags: {
         [UpgradeFlags.STABLE]: 'Install the latest stable release; the default',
         [UpgradeFlags.NIGHTLY]: 'Install the higher of latest and next',
       },
       positionals: 1,
       exits:
-        '0 on success; 1 when --stable and --nightly are both given, the dist-tags cannot be read, or the install or sync fails.',
+        '0 on success; 1 when --stable and --nightly are both given, --nightly cannot read the dist-tags or no bin was installed; else the code of bun add or sync.',
     },
     [VulcanCommands.RUNNERS]: {
-      help: `  check runners                   List every tracked file that runs an unscoped package through bunx, pnpx,
-                                  bun x, npx, npm exec, pnpm dlx or yarn dlx, whether or not it says no-install
-                                  (a name npm gives to someone else would be fetched and run). A scoped package
-                                  and the names of guard.runners.allow pass; tests, lockfiles, build output and
-                                  frozen history (dated entries, released version folders) are not read`,
+      usage: [
+        {
+          command: 'check runners',
+          args: '',
+          text: 'List the tracked files that run an unscoped package through bunx, pnpx, bun x, npx, npm exec, npm x, npm init, npm create, bun create, bun add -g, pnpm dlx, pnpm create, yarn dlx or yarn create, with or without no-install (npm may give the name to someone else). A scoped package passes, as do the names of guard.runners.allow as sync recorded them. Tests, lockfiles, build output, vendored and fixture folders, binaries, files over 1 MiB, released changelogs and lines marked as examples are not read. Exit 1 on a finding.',
+        },
+      ],
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
       exits:
         '0 when no file runs one; 1 when one does (file:line, the command and the safe forms); 2 for any other argument or a folder git cannot list.',
     },
     [VulcanCommands.LAYOUT]: {
-      help: `  check layout [--write-baseline]
-                                  List the layout findings of the package and layout folders (check.layout): a
-                                  plural role in a file name, a folder that mixes subfolders and loose files, a
-                                  source file over check.layout.maxLines; what .configs/layout-baseline.json
-                                  holds is info, the rest warns; --write-baseline writes every finding into it`,
+      usage: [
+        {
+          command: 'check layout',
+          args: '[--write-baseline]',
+          text: 'List the layout findings of the package and layout folders (check.layout), or of the src folders when none is named: a plural role in a file name, a folder with loose files beside check.layout.minSubfolders (default 3) or more subfolders, a source file over check.layout.maxLines. A finding in .configs/layout-baseline.json passes; any other exits 1. --write-baseline writes every finding into that file.',
+        },
+      ],
       flags: {
         '--write-baseline':
           'Write every finding into .configs/layout-baseline.json instead of listing them',
@@ -321,16 +444,18 @@ export class CommandTable {
         '0 when every finding is in the baseline (or the baseline was written); 1 when one is not, or the check cannot run (the config, the baseline, a folder outside git, a listing git does not give); 2 on bad arguments.',
     },
     [VulcanCommands.CHANGELOG]: {
-      help: `  check changelog [--history --base <ref>]
-                                  Check the changelog: a version folder changelogs/<X.Y.Z>/{log.md, migration.yaml}
-                                  has a block for every Breaking and Deprecated item; a dated Breaking Change entry
-                                  on or after a date cutover carries one. --history also fails a released folder that
-                                  changed since the base, a stable with no folder, and a dated file, dated after
-                                  knowledge.datedUntil, that was added or edited.
-  migrate notes --version <X.Y.Z> [--migration]
-                                  The release notes of a version folder: the body of its log.md, then the packages.
-                                  --migration prints the path of its migration.yaml when that file holds a block,
-                                  and nothing when it does not (what a workflow attaches to the Release)`,
+      usage: [
+        {
+          command: 'check changelog',
+          args: '[--history --base <ref>]',
+          text: 'Check the changelog folder. Every version folder changelogs/<X.Y.Z>/ must be valid and give each Breaking and Deprecated item a migration block. When knowledge.migrationFrom is a date, a dated entry from that day on that says Breaking Change needs a block too. No dated entry may be later than knowledge.datedUntil. Each codemod an item names must be one the codemod runner lists. --history compares with --base: a released folder must not change, and when migrationFrom is a version, every stable release needs a folder and no late dated entry may be added or edited.',
+        },
+        {
+          command: 'migrate notes',
+          args: '--version <X.Y.Z> [--migration]',
+          text: 'Print the release notes of a version folder: the body of its log.md, then the packages. --migration prints instead the path of its migration.yaml when that file holds a block or cannot be read as YAML, and nothing otherwise.',
+        },
+      ],
       flags: {
         '--history':
           'Also run the checks that read git: frozen released folders, stables without a folder, new dated files',
@@ -345,17 +470,21 @@ export class CommandTable {
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
       exits:
-        '0 when every entry conforms (notes: printed); 1 when an entry does not, a folder is missing, the tool is missing or the configuration is invalid; 2 for a subcommand other than check or notes.',
+        '0 when every entry conforms (notes: printed); 1 on a problem, codemod names that cannot be checked, a version folder notes cannot find, a missing tool or an invalid configuration; 2 on bad arguments.',
     },
     [VulcanCommands.MIGRATE]: {
-      help: `  migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]
-                                  What an app must change to move a package between two releases, newer or
-                                  older: the steps in order, the places in your code they touch (file:line),
-                                  codemods and data warnings; read only
-  migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]
-                                  Run the codemods the plan links, once each in order (reversed for a
-                                  rollback), then print the steps that stay manual; refuses an app with
-                                  uncommitted changes or outside git unless --force`,
+      usage: [
+        {
+          command: 'migrate plan',
+          args: '[--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]',
+          text: 'Say what an app must change to move a package between two releases, newer or older: the steps in order, the places in your code (file:line), codemods and data warnings. Read-only. Without --package, --to is latest or next and --from is not allowed.',
+        },
+        {
+          command: 'migrate apply',
+          args: '[--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt]',
+          text: 'Run the codemods the plan links, each once and in order, stage what they wrote when the app was clean, then print the steps that stay manual. It refuses, unless --force, an app with uncommitted changes or outside git (when there is a codemod), a source that is not served, a package behind npm and a degraded plan.',
+        },
+      ],
       values: {
         '--package': 'The package to move; absent, every installed package the sources know',
         '--from': 'The version the app runs now; default the installed one',
@@ -375,16 +504,27 @@ export class CommandTable {
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
       exits:
-        '0 when a plan is printed or apply ran; 1 when the plan cannot be made (an unknown package or version, nothing installed), apply is refused (uncommitted changes, no git, no devz) or a codemod fails, or the tool is missing; 2 for a subcommand other than plan or apply, or a missing --to.',
+        "0 when a plan is printed or apply ran; 1 when the plan cannot be made, apply is refused (uncommitted changes, no git, the source's codemod runner missing or not allowed) or a codemod fails, or the tool is missing; 2 on bad usage or when there is nothing to serve.",
     },
     [VulcanCommands.X]: {
-      help: `  okf <args...> | atlas <args...>  Run a shipped tool at the pinned version (okf, atlas)`,
+      usage: [
+        {
+          command: 'okf <command>',
+          args: '[<args>...]',
+          text: 'The knowledge bundle tool: OKF conformance check, gen and coverage. Every argument, --help included, goes to the pinned tool.',
+        },
+        {
+          command: 'atlas <command>',
+          args: '[<args>...]',
+          text: 'The MCP knowledge server over the wiki, changelogs and knowledge bundle. Every argument, --help included, goes to the pinned tool.',
+        },
+      ],
       passthrough: true,
       exits:
         'the exit code of the tool; 1 on a missing or unknown tool, an unresolvable package or an invalid configuration',
     },
-    [VulcanCommands.HELP]: { help: '', passthrough: true, exits: '0' },
-    [VulcanCommands.VERSION]: { help: '', passthrough: true, exits: '0' },
+    [VulcanCommands.HELP]: { usage: [], passthrough: true, exits: '0' },
+    [VulcanCommands.VERSION]: { usage: [], passthrough: true, exits: '0' },
   };
 
   /** The arguments the router lets `name` take; undefined when it checks none. */
@@ -403,34 +543,20 @@ export class CommandTable {
     };
   }
 
-  /** The usage blocks of one scope (`vulcan project --help`): every block of the help that starts with the scope, or names it as a tool. */
+  /** What `vulcan <scope> --help` prints. */
   static scopeHelp(opts: { scope: string }): string {
-    const blocks: string[][] = [];
-
-    for (const line of CommandTable.helpText().split('\n').slice(4)) {
-      if (/^ {2}[a-z]/.test(line)) {
-        blocks.push([line]);
-      } else if (blocks.length > 0) {
-        blocks[blocks.length - 1].push(line);
-      }
-    }
-
-    return `${blocks
-      .filter((block) =>
-        new RegExp(`^ {2}(?:${opts.scope}\\b|[a-z]+ <args\\.\\.\\.> \\| ${opts.scope} <args)`).test(
-          block[0],
-        ),
-      )
-      .map((block) => block.join('\n'))
-      .join('\n')}\n`;
+    return `${HelpText.scope({ scope: opts.scope, usages: CommandTable.usages() })}\n`;
   }
 
   /** What `vulcan help` prints. */
   static helpText(): string {
-    const blocks = Object.values(CommandTable.COMMANDS).flatMap((spec) =>
-      spec.help === '' ? [] : [spec.help],
-    );
+    const usages = CommandTable.usages();
+    const scopes = CommandScopes.scopes().map((scope) => HelpText.scope({ scope, usages }));
 
-    return `vulcan ${VULCAN_VERSION} - one setup, one workflow for every project\n\nUsage: bun node_modules/.bin/vulcan <command>\n\n${blocks.join('\n')}\n  help · version\n`;
+    return `vulcan ${VULCAN_VERSION} - one setup, one workflow for every project\n\nUsage: bun node_modules/.bin/vulcan <scope> <action>\n\n${scopes.join('\n\n')}\n\nAlso: vulcan help, vulcan version\n`;
+  }
+
+  static usages(): IUsage[] {
+    return Object.values(CommandTable.COMMANDS).flatMap((spec) => spec.usage);
   }
 }

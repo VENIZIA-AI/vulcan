@@ -31,8 +31,8 @@ describe('vulcan x', () => {
       const result = runCli({ args: ['x', flag], cwd: tmpdir() });
 
       expect(result.code, flag).toBe(0);
-      expect(result.stdout, flag).toContain('okf <args...> | atlas <args...>');
-      expect(result.stdout, flag).toContain('(okf, atlas)');
+      expect(result.stdout, flag).toContain('vulcan okf <command> [<args>...]');
+      expect(result.stdout, flag).toContain('vulcan atlas <command> [<args>...]');
       expect(result.stderr, flag).not.toContain('unknown tool');
     }
   });
@@ -40,7 +40,7 @@ describe('vulcan x', () => {
   test('--help after the tool goes to the tool', () => {
     const result = runCli({ args: ['okf', '--help'], cwd: tmpdir() });
 
-    expect(result.stdout).not.toContain('okf <args...> | atlas <args...>');
+    expect(result.stdout).not.toContain('vulcan atlas <command> [<args>...]');
     expect(result.stdout + result.stderr).toContain('vulcan okf');
   });
 
