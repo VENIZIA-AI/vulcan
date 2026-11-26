@@ -141,8 +141,8 @@ export class EventHook {
    * never its name) last opened or updated, both only within `MIRROR_DAYS` of the log; a flow that is over, a flow
    * with no flow line yet, an actor that is not known and a call of a subagent (its payload carries `agent_id`, and
    * it would write its own list over its parent's flow) write nothing. The rest of the last flow line is copied
-   * forward. A call that changes no step writes nothing, so a burst of calls is one line. Two writers of one flow at the same moment can lose one
-   * change: the log has no lock, and the next call restates the whole merge.
+   * forward. A call that changes no step writes nothing, so a burst of calls is one line. Two writers of one flow at the
+   * same moment can lose one change: the log has no lock, and the next call restates the whole merge.
    */
   private static mirrorTodos(opts: {
     dir: string;
