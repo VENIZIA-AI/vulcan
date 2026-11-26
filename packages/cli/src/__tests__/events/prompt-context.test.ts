@@ -14,7 +14,12 @@ const SESSION = 'abcdef12-3456-7890-abcd-ef1234567890';
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'board-context.ts');
 
 const project = (
-  opts: { log?: boolean; title?: string; steps?: { text: string; done: boolean }[] } = {},
+  opts: {
+    log?: boolean;
+    title?: string;
+    steps?: { text: string; done: boolean }[];
+    at?: number;
+  } = {},
 ) => {
   const root = createProject({
     files: {
@@ -38,7 +43,7 @@ const project = (
         { text: 'Token', done: true },
         { text: 'Refresh', done: false },
       ],
-      now: T0,
+      now: opts.at ?? T0,
     }),
   });
 
@@ -165,7 +170,8 @@ describe('the prompt context block', () => {
   });
 
   test('the script prints the JSON of the block, prints nothing for bad input, and exits 0', () => {
-    const root = project();
+    // The script reads the real clock: a line of a fixed day leaves its window after three days.
+    const root = project({ at: Date.now() });
     const run = (stdin: string) =>
       spawnSyncBounded({
         cmd: [process.execPath, HOOK],
