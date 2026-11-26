@@ -48,6 +48,14 @@ export const runLayoutCommand = async (opts: ICommandContext): Promise<number> =
   }
 
   if (rest.length === 1) {
+    const moved = LayoutBaseline.movedError({ root: opts.cwd });
+
+    if (moved !== undefined) {
+      process.stderr.write(`vulcan check layout: ${moved}\n`);
+
+      return ExitCodes.FAILURE;
+    }
+
     const count = LayoutBaseline.write({ root: opts.cwd, findings: scan.findings });
 
     process.stdout.write(`wrote ${count} finding(s) to ${LayoutConstants.BASELINE_FILE}\n`);

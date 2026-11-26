@@ -65,7 +65,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `workspace-packages` (warning) | A workspace member of the root `package.json` is not named by the `packages` list the config writes | Add it (a member with `"private": true` is not asked for), or delete `packages` so it is derived from the workspaces |
 | `project-key` (warning) | `board.events.log` is on and `project.key` is not set, so no flow can be created | Add `project: { key: 'KEY' }` to the config and run `vulcan project sync` |
 | `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `check.doctor.privateValues.acknowledged` |
-| `file-layout` (warning, note) | A file name with a plural role (`user.helpers.ts`), a folder that mixes subfolders with loose source files, or a source file over `check.layout.maxLines`, that `.configs/layout-baseline.json` does not hold; what it holds is one note | Rename, move or split, or adopt the findings with `vulcan check layout --write-baseline` |
+| `file-layout` (warning, note) | A file name with a plural role (`user.helpers.ts`), a folder that mixes subfolders with loose source files, or a source file over `check.layout.maxLines`, that `.configs/vulcan/layout/baseline.json` does not hold; what it holds is one note | Rename, move or split, or adopt the findings with `vulcan check layout --write-baseline` |
 | `mcp` (warning) | `.mcp.json` holds the canonical `atlas` entry, is not untracked and unignored, and the Claude settings enable `atlas` | Use the entry the warning shows; ignore `/.mcp.json` or run `vulcan project sync` at the top level; run `vulcan project sync` |
 | `local` (warning) | Stray entries directly under `.agents/local/` | Move them to `tmp/`, `reports/` or `agents/<name>/` |
 | `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor` | Unset it in a shell the owner works in |
@@ -417,7 +417,7 @@ A warning, not a violation: it prints as `warning [file-layout]`, the exit code 
   warning [file-layout] 12 paths: long-file: src/a.ts, src/b.ts, src/c.ts and 9 more; run `bun node_modules/.bin/vulcan check layout` for each one and what to do
 ```
 
-The findings `.configs/layout-baseline.json` holds are one note (`info [file-layout] .configs/layout-baseline.json: 7 layout finding(s) accepted in the baseline`), and so are its entries that match nothing any more. Outside a git work tree the check says nothing; a listing git does not give, or a baseline that is not valid, is one warning that says why.
+The findings `.configs/vulcan/layout/baseline.json` holds are one note (`info [file-layout] .configs/vulcan/layout/baseline.json: 7 layout finding(s) accepted in the baseline`), and so are its entries that match nothing any more. Outside a git work tree the check says nothing; a listing git does not give, or a baseline that is not valid, is one warning that says why.
 
 ### format
 

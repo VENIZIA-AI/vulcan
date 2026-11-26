@@ -18,10 +18,25 @@ export type TLayoutBaselineEntry = z.output<typeof ENTRY>;
 const keyOf = (opts: { entry: TLayoutBaselineEntry }): string =>
   `${opts.entry.rule}\0${opts.entry.path}`;
 
-/** The findings a project accepted when it adopted the layout check: `.configs/layout-baseline.json`, a list of `{ rule, path }`. */
+/** The findings a project accepted when it adopted the layout check: `.configs/vulcan/layout/baseline.json`, a list of `{ rule, path }`. */
 export class LayoutBaseline {
+  /** Why nothing is read or written while a baseline is at the old path, with the command that moves it. */
+  static movedError(opts: { root: string }): string | undefined {
+    const { BASELINE_FILE: file, MOVED_BASELINE_FILE: old } = LayoutConstants;
+
+    return existsSync(join(opts.root, old))
+      ? `${old} is not read: the baseline is ${file}. Move it: mkdir -p ${dirname(file)} && mv ${old} ${file}`
+      : undefined;
+  }
+
   /** The entries of the baseline at `root`, none when there is no file, or why the file is not one. */
   static read(opts: { root: string }): { entries: TLayoutBaselineEntry[] } | { error: string } {
+    const moved = LayoutBaseline.movedError(opts);
+
+    if (moved !== undefined) {
+      return { error: moved };
+    }
+
     const file = join(opts.root, LayoutConstants.BASELINE_FILE);
 
     if (!existsSync(file)) {

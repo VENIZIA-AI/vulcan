@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
@@ -235,7 +235,9 @@ describe('LayoutBaseline', () => {
     });
 
     expect(LayoutBaseline.write({ root, findings: findings.slice(0, 2) })).toBe(2);
-    expect(JSON.parse(readFileSync(join(root, '.configs/layout-baseline.json'), 'utf8'))).toEqual([
+    expect(
+      JSON.parse(readFileSync(join(root, '.configs/vulcan/layout/baseline.json'), 'utf8')),
+    ).toEqual([
       { rule: 'long-file', path: 'src/a.models.ts' },
       { rule: 'plural-suffix', path: 'src/a.models.ts' },
     ]);
@@ -256,19 +258,38 @@ describe('LayoutBaseline', () => {
     const root = createProject({ files: {} });
 
     expect(LayoutBaseline.read({ root })).toEqual({ entries: [] });
-    const notJson = createProject({ files: { '.configs/layout-baseline.json': '{' } });
+    const notJson = createProject({ files: { '.configs/vulcan/layout/baseline.json': '{' } });
     const unparsed = LayoutBaseline.read({ root: notJson });
 
     expect('error' in unparsed && unparsed.error).toContain('is not JSON');
 
     const broken = createProject({
-      files: { '.configs/layout-baseline.json': '[{ "rule": "too-long", "path": "a" }]' },
+      files: { '.configs/vulcan/layout/baseline.json': '[{ "rule": "too-long", "path": "a" }]' },
     });
     const result = LayoutBaseline.read({ root: broken });
 
     expect('error' in result && result.error).toContain(
       'one of plural-suffix, mixed-folder, long-file',
     );
+  });
+});
+
+describe('a baseline at the old path', () => {
+  const OLD = '.configs/layout-baseline.json';
+  const MOVE =
+    'mkdir -p .configs/vulcan/layout && mv .configs/layout-baseline.json .configs/vulcan/layout/baseline.json';
+
+  test('stops the check with the command that moves it, with or without a new one', () => {
+    const only = createProject({ files: { [OLD]: '[]' } });
+    const both = createProject({
+      files: { [OLD]: '[]', '.configs/vulcan/layout/baseline.json': '[]' },
+    });
+
+    for (const root of [only, both]) {
+      const result = LayoutBaseline.read({ root });
+
+      expect('error' in result && result.error).toContain(MOVE);
+    }
   });
 });
 
@@ -324,7 +345,7 @@ describe('vulcan check layout', () => {
     const write = runCli({ args: ['check', 'layout', '--write-baseline'], cwd: root });
 
     expect(write.code).toBe(0);
-    expect(write.stdout).toContain('wrote 3 finding(s) to .configs/layout-baseline.json');
+    expect(write.stdout).toContain('wrote 3 finding(s) to .configs/vulcan/layout/baseline.json');
 
     const second = runCli({ args: ['check', 'layout'], cwd: root });
 
@@ -368,9 +389,19 @@ describe('vulcan check layout', () => {
     expect(outside.code).toBe(1);
     expect(outside.stderr).toContain('is not in a git work tree');
 
-    writeFileSync(join(root, '.configs/layout-baseline.json'), '{');
+    mkdirSync(join(root, '.configs/vulcan/layout'), { recursive: true });
+    writeFileSync(join(root, '.configs/vulcan/layout/baseline.json'), '{');
 
     expect(runCli({ args: ['check', 'layout'], cwd: root }).code).toBe(1);
+  });
+
+  test('--write-baseline writes nothing while a baseline is at the old path', () => {
+    const root = repository({ files: { ...PROJECT, '.configs/layout-baseline.json': '[]' } });
+    const write = runCli({ args: ['check', 'layout', '--write-baseline'], cwd: root });
+
+    expect(write.code).toBe(1);
+    expect(write.stderr).toContain('mv .configs/layout-baseline.json');
+    expect(existsSync(join(root, '.configs/vulcan/layout/baseline.json'))).toBe(false);
   });
 
   test('reads a listing of more than 1 MB', () => {
@@ -440,7 +471,7 @@ describe('vulcan check layout', () => {
     const staleNotes = await DoctorRunner.runNotes({ root, env: {} });
 
     expect(ofLayout(staleNotes)).toEqual([
-      '.configs/layout-baseline.json: 1 baseline entry matches nothing any more: run `bun node_modules/.bin/vulcan check layout --write-baseline`',
+      '.configs/vulcan/layout/baseline.json: 1 baseline entry matches nothing any more: run `bun node_modules/.bin/vulcan check layout --write-baseline`',
     ]);
     const openWarnings = await DoctorRunner.runWarnings({ root });
 
@@ -454,7 +485,7 @@ describe('vulcan check layout', () => {
     const adoptedNotes = await DoctorRunner.runNotes({ root, env: {} });
 
     expect(ofLayout(adoptedNotes)).toEqual([
-      '.configs/layout-baseline.json: 3 layout finding(s) accepted in the baseline',
+      '.configs/vulcan/layout/baseline.json: 3 layout finding(s) accepted in the baseline',
     ]);
   });
 });

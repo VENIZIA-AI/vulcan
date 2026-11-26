@@ -57,7 +57,13 @@ export default {
 
 ## The baseline
 
-A project that already has findings adopts the check with a baseline: `vulcan check layout --write-baseline` writes every finding into `.configs/layout-baseline.json`, a JSON list of `{ "rule", "path" }` sorted by path, and exits `0`. Commit the file. From then on a finding the baseline holds is `info`, a new one is a `warning`, and an entry that no longer matches a finding is listed as stale; run `--write-baseline` again to drop it after a rename or a split. A baseline whose entries are not `{ rule, path }` with a known rule stops the check and is named.
+A project that already has findings adopts the check with a baseline: `vulcan check layout --write-baseline` writes every finding into `.configs/vulcan/layout/baseline.json`, a JSON list of `{ "rule", "path" }` sorted by path, and exits `0`. Commit the file. From then on a finding the baseline holds is `info`, a new one is a `warning`, and an entry that no longer matches a finding is listed as stale; run `--write-baseline` again to drop it after a rename or a split. A baseline whose entries are not `{ rule, path }` with a known rule stops the check and is named. The guards protect `.configs/vulcan/**`, so an agent changes the baseline only through `--write-baseline`.
+
+An earlier 0.5.0 prerelease wrote the baseline to `.configs/layout-baseline.json`. That path is not read: while a file is there the check stops, and names the command that moves it:
+
+```sh
+mkdir -p .configs/vulcan/layout && mv .configs/layout-baseline.json .configs/vulcan/layout/baseline.json
+```
 
 ## Output
 
