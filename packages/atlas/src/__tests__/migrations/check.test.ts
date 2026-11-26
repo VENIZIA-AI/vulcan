@@ -1,7 +1,15 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
 import { ChangelogCheck } from '@/migrations';
 
@@ -424,5 +432,180 @@ describe('ChangelogCheck.run', () => {
     expect(ChangelogCheck.run({ project: good.project, write })).toBe(0);
     expect(ChangelogCheck.run({ project: bad.project, write })).toBe(1);
     expect(lines.join('')).toContain('2026-11-20-a.md');
+  });
+});
+
+describe('ChangelogCheck.run: a codemod runner that is a package of the workspace', () => {
+  /** Prints its codemod's names, and leaves a mark so a test can tell whether it ran. */
+  const RUNNER = `require('node:fs').writeFileSync(require('node:path').join(process.cwd(), 'ran'), '');
+if (process.argv.slice(2).join(' ') === 'codemod --list') console.log('namespace');
+else process.exit(2);
+`;
+
+  const CODEMOD_ITEM = `${ITEM}    codemod: namespace\n`;
+
+  const workspace = (opts: {
+    files?: Record<string, string>;
+    bin?: unknown;
+    command?: string[];
+    item?: string;
+  }) => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-'));
+    const files: Record<string, string> = {
+      'changes/2026-11-20-a.md': entry({ badge: FEATURE, extra: opts.item ?? CODEMOD_ITEM }),
+      'packages/ardor/package.json': JSON.stringify({
+        name: '@a/ardor',
+        bin: opts.bin ?? { ardor: './dist/bin.js' },
+      }),
+      ...(opts.files ?? { 'packages/ardor/dist/bin.js': RUNNER }),
+    };
+
+    roots.push(root);
+
+    for (const [file, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(root, file)), { recursive: true });
+      writeFileSync(join(root, file), text);
+    }
+
+    const project = ProjectConfig.toAtlasProject({
+      root,
+      manifest: {
+        schemaVersion: 1,
+        packages: [
+          { name: '@a/kernel', dir: 'kernel', aliases: [], retired: false },
+          { name: '@a/ardor', dir: 'ardor', aliases: [], retired: false },
+        ],
+        knowledge: {
+          changelogs: 'changes',
+          ...(opts.command === undefined ? {} : { codemodCommand: opts.command }),
+        },
+        release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+      },
+    });
+    const run = (): { code: number; output: string; ran: boolean } => {
+      const lines: string[] = [];
+      const code = ChangelogCheck.run({ project, write: (text) => lines.push(text) });
+
+      return { code, output: lines.join(''), ran: existsSync(join(root, 'ran')) };
+    };
+
+    return { root, run };
+  };
+
+  const DECLARED = ['ardor', 'codemod'];
+
+  test('the bin of a declared package lists the names, with nothing in node_modules/.bin', () => {
+    const good = workspace({ command: DECLARED }).run();
+    const bad = workspace({ command: DECLARED, item: `${ITEM}    codemod: rename\n` }).run();
+
+    expect(good).toEqual({ code: 0, output: '', ran: true });
+    expect(bad.code).toBe(1);
+    expect(bad.output).toContain("names codemod 'rename'");
+  });
+
+  test('a bin written as one string is named after the package', () => {
+    const result = workspace({ command: DECLARED, bin: './dist/bin.js' }).run();
+
+    expect(result).toEqual({ code: 0, output: '', ran: true });
+  });
+
+  test('a declared command fails when it cannot be found or has not been built', () => {
+    const unbuilt = workspace({ command: DECLARED, files: {} }).run();
+    const unknown = workspace({ command: ['other', 'codemod'] }).run();
+    const noNames = workspace({ command: DECLARED, files: {}, item: ITEM }).run();
+
+    expect(unbuilt.code).toBe(1);
+    expect(unbuilt.output).toContain('./dist/bin.js');
+    expect(unbuilt.output).toContain('build the package');
+    expect(unknown.code).toBe(1);
+    expect(unknown.output).toContain("no package of the project declares a bin 'other'");
+    expect(noNames.code).toBe(1);
+  });
+
+  test('a declared command that cannot list its names fails', () => {
+    const result = workspace({ command: ['ardor', 'codemods'] }).run();
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain('exited 2');
+  });
+
+  test('with no declared command, a missing runner fails only when an item names a codemod', () => {
+    const named = workspace({}).run();
+    const unnamed = workspace({ item: ITEM }).run();
+
+    expect(named.code).toBe(1);
+    expect(named.output).toContain('devz codemod --list');
+    expect(unnamed.code).toBe(0);
+    expect(unnamed.output).toContain('codemod names were not checked');
+  });
+
+  test('a bin that leaves its package, by path or by link, is never run', () => {
+    const byPath = workspace({
+      command: DECLARED,
+      bin: { ardor: '../../shared.js' },
+      files: { 'shared.js': RUNNER },
+    }).run();
+    const linked = workspace({ command: DECLARED, files: { 'shared.js': RUNNER } });
+
+    mkdirSync(join(linked.root, 'packages/ardor/dist'));
+    symlinkSync('../../../shared.js', join(linked.root, 'packages/ardor/dist/bin.js'));
+
+    for (const result of [byPath, linked.run()]) {
+      expect(result.code).toBe(1);
+      expect(result.ran).toBe(false);
+      expect(result.output).toContain('is not inside');
+    }
+  });
+
+  test('a package folder that is a link out of the project is not used', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'atlas-outside-'));
+
+    roots.push(outside);
+    mkdirSync(join(outside, 'dist'));
+    writeFileSync(join(outside, 'dist/bin.js'), RUNNER);
+    writeFileSync(
+      join(outside, 'package.json'),
+      JSON.stringify({ name: '@a/ardor', bin: { ardor: './dist/bin.js' } }),
+    );
+
+    const made = workspace({ command: DECLARED, files: {} });
+
+    rmSync(join(made.root, 'packages/ardor'), { recursive: true });
+    symlinkSync(outside, join(made.root, 'packages/ardor'));
+
+    const result = made.run();
+
+    expect(result.code).toBe(1);
+    expect(result.ran).toBe(false);
+  });
+
+  test('a folder whose package.json has another name is not the declared package', () => {
+    const made = workspace({ command: DECLARED });
+
+    writeFileSync(
+      join(made.root, 'packages/ardor/package.json'),
+      JSON.stringify({ name: '@a/other', bin: { ardor: './dist/bin.js' } }),
+    );
+
+    const result = made.run();
+
+    expect(result.code).toBe(1);
+    expect(result.ran).toBe(false);
+  });
+
+  test('a bin in node_modules/.bin wins: refused there, the workspace one is not tried', () => {
+    const made = workspace({
+      command: DECLARED,
+      files: { 'packages/ardor/dist/bin.js': RUNNER, 'shared.js': RUNNER },
+    });
+
+    mkdirSync(join(made.root, 'node_modules/.bin'), { recursive: true });
+    symlinkSync('../../shared.js', join(made.root, 'node_modules/.bin/ardor'));
+
+    const result = made.run();
+
+    expect(result.code).toBe(1);
+    expect(result.ran).toBe(false);
+    expect(result.output).toContain('it is not run');
   });
 });

@@ -188,6 +188,8 @@ export class ConfigCodemod {
       ? ConfigCodemod.splitOutput({ opts, typescript, source, items: items.items })
       : ConfigCodemod.singleOutput({
           opts,
+          typescript,
+          source,
           items: items.items,
           prefix: cut.prefix,
           suffix: cut.suffix,
@@ -609,6 +611,8 @@ export class ConfigCodemod {
 
   private static singleOutput(opts: {
     opts: { read: (path: string) => string | undefined };
+    typescript: TTypeScript;
+    source: TSourceFile;
     items: IItem[];
     prefix: string;
     suffix: string;
@@ -635,7 +639,13 @@ export class ConfigCodemod {
     ];
     const notes = [`${CONFIG_PATH}: the keys are in the seven groups`];
 
-    for (const path of ConfigCodemod.moduleFiles({ read: opts.opts.read })) {
+    const modules = ConfigCodemod.moduleFiles({
+      typescript: opts.typescript,
+      source: opts.source,
+      read: opts.opts.read,
+    });
+
+    for (const path of modules) {
       const old = opts.opts.read(path) ?? '';
       const next = TYPE_REWRITES.reduce((text, [pattern, to]) => text.replace(pattern, to), old);
 
@@ -648,11 +658,59 @@ export class ConfigCodemod {
     return { ok: true, changes, notes };
   }
 
-  /** The modules of a split config the 0.5.0 scaffolds wrote: the ones the codemod knows by name, and any other `.mts` the config imports from `.configs/vulcan/`. */
-  private static moduleFiles(opts: { read: (path: string) => string | undefined }): string[] {
-    return ['claude', 'doctor', 'okf', 'packages', 'index']
-      .map((name) => `${MODULES_DIRECTORY}/${name}.mts`)
-      .filter((path) => opts.read(path) !== undefined);
+  /** The files of `.configs/vulcan/` the config reaches through its imports and re-exports, however many files on the way. */
+  private static moduleFiles(opts: {
+    typescript: TTypeScript;
+    source: TSourceFile;
+    read: (path: string) => string | undefined;
+  }): string[] {
+    const { typescript } = opts;
+    const found = new Set(
+      ConfigCodemod.importedModules({ typescript, source: opts.source, path: CONFIG_PATH }),
+    );
+
+    // A set visits what is added while it is walked, and never a file twice.
+    for (const path of found) {
+      const source = typescript.createSourceFile(
+        path,
+        opts.read(path) ?? '',
+        typescript.ScriptTarget.Latest,
+        true,
+        typescript.ScriptKind.TS,
+      );
+
+      for (const target of ConfigCodemod.importedModules({ typescript, source, path })) {
+        found.add(target);
+      }
+    }
+
+    return [...found].filter((path) => opts.read(path) !== undefined);
+  }
+
+  /** The files of `.configs/vulcan/` a module names in an `import` or an `export ... from`. */
+  private static importedModules(opts: {
+    typescript: TTypeScript;
+    source: TSourceFile;
+    path: string;
+  }): string[] {
+    const { typescript } = opts;
+
+    return opts.source.statements.flatMap((statement) => {
+      const specifier =
+        typescript.isImportDeclaration(statement) || typescript.isExportDeclaration(statement)
+          ? statement.moduleSpecifier
+          : undefined;
+
+      if (specifier === undefined || !typescript.isStringLiteral(specifier)) {
+        return [];
+      }
+
+      const target = posix.join(posix.dirname(opts.path), specifier.text);
+
+      return specifier.text.startsWith('.') && ConfigCodemod.isContained({ path: target })
+        ? [target]
+        : [];
+    });
   }
 
   private static splitOutput(opts: {
@@ -900,7 +958,9 @@ export class ConfigCodemod {
       notes: [
         `${CONFIG_PATH}: composes the groups from ${MODULES_DIRECTORY}/`,
         ...written.map((group) => `${MODULES_DIRECTORY}/${group}.mts`),
-        ...[...folded].map((path) => `${path}: folded into the groups, deleted`),
+        ...changes
+          .filter((change) => change.text === undefined)
+          .map((change) => `${change.path}: folded into the groups, deleted`),
       ],
     };
   }
@@ -1071,18 +1131,23 @@ export class ConfigCodemod {
       return { reason: ConfigCodemod.outsideReason({ path: outside }) };
     }
 
-    const providers = stars.filter((path) =>
-      ConfigCodemod.isExporting({ ...opts, path, seen: new Set([opts.path]) }),
-    );
+    const providers = stars.flatMap((path) => {
+      const origins = ConfigCodemod.originsOf({ ...opts, path, seen: new Set([opts.path]) });
 
-    if (providers.length > 1) {
+      return origins.length === 0 ? [] : [{ path, origins }];
+    });
+
+    if (new Set(providers.flatMap((provider) => provider.origins)).size > 1) {
       return {
-        reason: `${opts.path} gets \`${opts.name}\` from more than one \`export *\` (${providers.join(', ')}): name the one you mean`,
+        reason: `${opts.path} gets \`${opts.name}\` from more than one \`export *\` (${providers.map((provider) => provider.path).join(', ')}): name the one you mean`,
       };
     }
 
-    if (providers.length === 1) {
-      return follow(providers[0]);
+    // Several indexes may reach the one module that declares the name: each is followed, so each is folded.
+    const [value] = providers.map((provider) => follow(provider.path));
+
+    if (value !== undefined) {
+      return value;
     }
 
     return {
@@ -1123,28 +1188,30 @@ export class ConfigCodemod {
     );
   }
 
-  /** Whether the module at `path` exports `name`: a const of that name, a named re-export of it, or an `export *` that does. */
-  private static isExporting(opts: {
+  /**
+   * The files that declare what the module at `path` exports as `name`, through named re-exports and `export *`; `seen` holds
+   * the files on the way here, so a loop ends.
+   */
+  private static originsOf(opts: {
     typescript: TTypeScript;
     read: (path: string) => string | undefined;
     path: string;
     name: string;
     seen: Set<string>;
-  }): boolean {
+  }): string[] {
     const { typescript, path, name } = opts;
 
     if (opts.seen.has(path) || !ConfigCodemod.isContained({ path })) {
-      return false;
+      return [];
     }
-
-    opts.seen.add(path);
 
     const text = opts.read(path);
 
     if (text === undefined) {
-      return false;
+      return [];
     }
 
+    const seen = new Set([...opts.seen, path]);
     const source = typescript.createSourceFile(
       path,
       text,
@@ -1152,26 +1219,35 @@ export class ConfigCodemod {
       true,
       typescript.ScriptKind.TS,
     );
-    const isOwn = source.statements.some((statement) => {
-      if (typescript.isVariableStatement(statement)) {
-        return statement.declarationList.declarations.some(
+
+    for (const statement of source.statements) {
+      if (
+        typescript.isVariableStatement(statement) &&
+        statement.declarationList.declarations.some(
           (entry) => typescript.isIdentifier(entry.name) && entry.name.text === name,
-        );
+        )
+      ) {
+        return [path];
       }
 
-      return (
+      if (
         typescript.isExportDeclaration(statement) &&
         statement.exportClause !== undefined &&
         typescript.isNamedExports(statement.exportClause) &&
         statement.exportClause.elements.some((element) => element.name.text === name)
-      );
-    });
+      ) {
+        return statement.moduleSpecifier === undefined
+          ? [path]
+          : ConfigCodemod.originsOf({
+              ...opts,
+              path: ConfigCodemod.targetOf({ typescript, path, statement }),
+              seen,
+            });
+      }
+    }
 
-    return (
-      isOwn ||
-      ConfigCodemod.starTargets({ typescript, source, path }).some((target) =>
-        ConfigCodemod.isExporting({ ...opts, path: target }),
-      )
+    return ConfigCodemod.starTargets({ typescript, source, path }).flatMap((target) =>
+      ConfigCodemod.originsOf({ ...opts, path: target, seen }),
     );
   }
 

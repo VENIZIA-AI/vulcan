@@ -1,2 +1,2 @@
 [test]
-preload = ["@venizia/dev-configs/testing/tmpdir-preload"]
+preload = ["@venizia/dev-configs/testing/tmpdir-preload", "./src/__tests__/guard-env.preload.ts"]

@@ -13,6 +13,7 @@ import { VulcanTools } from '../../common/index.ts';
 import { commitAll, git, initRepo } from '../git-repo.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
+import type { ICliResult } from '../run.helper.ts';
 
 afterAll(removeProjects);
 
@@ -34,6 +35,10 @@ migration:
 
 <Badge type="danger" text="Breaking Change" />
 `;
+
+/** `migrate` asks npm whether it is ahead of the atlas: a test asks an address that refuses at once, never the real registry. */
+const run = (opts: { args: string[]; cwd: string }): ICliResult =>
+  runCli({ ...opts, env: { VULCAN_NPM_REGISTRY: 'http://127.0.0.1:9' } });
 
 /** A framework repository with two tagged releases and one breaking entry between them, and an app on the first. */
 const world = (): { framework: string; app: string } => {
@@ -71,7 +76,7 @@ describe('vulcan migrate', () => {
     const { framework } = world();
 
     for (const args of [['migrate'], ['migrate', 'nope']]) {
-      const result = runCli({ args, cwd: framework });
+      const result = run({ args, cwd: framework });
 
       expect(result.code, args.join(' ')).toBe(2);
       expect(result.stderr, args.join(' ')).toContain('usage: vulcan migrate plan');
@@ -82,7 +87,7 @@ describe('vulcan migrate', () => {
     'plan reads the project the command runs in and prints where the app is touched',
     () => {
       const { framework, app } = world();
-      const result = runCli({
+      const result = run({
         args: ['migrate', 'plan', '--package', '@venizia/kernel', '--to', 'latest', '--app', app],
         cwd: framework,
       });
@@ -97,7 +102,7 @@ describe('vulcan migrate', () => {
 
   test.skipIf(!built)('plan --format json is the tool answer, and a rollback reverses it', () => {
     const { framework, app } = world();
-    const up = runCli({
+    const up = run({
       args: [
         'migrate',
         'plan',
@@ -112,7 +117,7 @@ describe('vulcan migrate', () => {
       ],
       cwd: framework,
     });
-    const down = runCli({
+    const down = run({
       args: [
         'migrate',
         'plan',
@@ -163,14 +168,14 @@ describe('vulcan migrate', () => {
 
       writeFileSync(join(app, 'src', 'a.ts'), '// edited\n');
 
-      const refused = runCli({ args, cwd: framework });
+      const refused = run({ args, cwd: framework });
 
       expect(refused.code).toBe(1);
       expect(refused.stderr).toContain('uncommitted');
 
       commitAll({ cwd: app });
 
-      const applied = runCli({ args, cwd: framework });
+      const applied = run({ args, cwd: framework });
 
       expect(applied.stderr).toBe('');
       expect(applied.code).toBe(0);
@@ -192,11 +197,11 @@ describe('vulcan migrate', () => {
 `,
       );
 
-      const plan = runCli({
+      const plan = run({
         args: ['migrate', 'plan', '--package', '@venizia/kernel', '--to', 'latest', '--app', app],
         cwd: framework,
       });
-      const other = runCli({ args: ['project', 'doctor'], cwd: framework });
+      const other = run({ args: ['project', 'doctor'], cwd: framework });
 
       expect(plan.stderr).not.toContain('flat shape');
       expect(plan.code, plan.stderr).toBe(0);
@@ -209,7 +214,7 @@ describe('vulcan migrate', () => {
   test('a usage error of apply exits 2', () => {
     const { framework } = world();
 
-    expect(runCli({ args: ['migrate', 'apply'], cwd: framework }).code).toBe(2);
+    expect(run({ args: ['migrate', 'apply'], cwd: framework }).code).toBe(2);
   });
 
   test.skipIf(!built)(
@@ -228,7 +233,7 @@ describe('vulcan migrate', () => {
         "import { Thing } from '@venizia/kernel';\n\nThing.make();\n",
       );
 
-      const here = runCli({
+      const here = run({
         args: ['migrate', 'plan', '--package', '@venizia/kernel', '--to', 'latest'],
         cwd: web,
       });
@@ -239,7 +244,7 @@ describe('vulcan migrate', () => {
       expect(here.stdout).toContain('src/a.ts:3 (Thing.make)');
 
       // A relative --app is read from the folder the command was run in, not from the project root.
-      const above = runCli({
+      const above = run({
         args: ['migrate', 'plan', '--package', '@venizia/kernel', '--to', 'latest', '--app', 'web'],
         cwd: join(framework, 'apps'),
       });
@@ -267,7 +272,7 @@ describe('vulcan migrate', () => {
       git({ cwd: framework, args: ['tag', 'kernel-v1.0.0'] });
 
       const { app } = world();
-      const plan = runCli({
+      const plan = run({
         args: [
           'migrate',
           'plan',
@@ -282,7 +287,7 @@ describe('vulcan migrate', () => {
         ],
         cwd: framework,
       });
-      const missing = runCli({
+      const missing = run({
         args: [
           'migrate',
           'plan',
@@ -310,7 +315,7 @@ describe('vulcan migrate', () => {
 
   test('outside any project the old message stays', () => {
     const { app } = world();
-    const result = runCli({
+    const result = run({
       args: ['migrate', 'plan', '--package', '@venizia/kernel', '--to', 'latest'],
       cwd: app,
     });
@@ -321,7 +326,7 @@ describe('vulcan migrate', () => {
 
   test.skipIf(!built)('an unknown version exits 1 with the message on stderr', () => {
     const { framework, app } = world();
-    const result = runCli({
+    const result = run({
       args: ['migrate', 'plan', '--package', '@venizia/kernel', '--to', '9.9.9', '--app', app],
       cwd: framework,
     });

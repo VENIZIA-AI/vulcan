@@ -1,5 +1,6 @@
-import { realpathSync } from 'node:fs';
-import { isAbsolute, join, relative, sep } from 'node:path';
+import { readFileSync, realpathSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { WireValue } from './wire';
 
 /** An npm package name, lower case: the same shape `ProjectConfig` validates a manifest's package names with. */
 const NPM_NAME_PATTERN = /^(?:@[a-z0-9~-][a-z0-9._~-]*\/)?[a-z0-9~-][a-z0-9._~-]*$/;
@@ -77,14 +78,104 @@ export class CodemodRunner {
         continue;
       }
 
-      const from = relative(installed, real);
-
-      if (from !== '' && !isAbsolute(from) && from.split(sep)[0] !== '..') {
+      if (CodemodRunner.isInside({ directory: installed, path: real })) {
         return undefined;
       }
     }
 
     return `${binary} resolves to ${real}, which is not inside an installed package of the source that serves it (${opts.packages.length} declared); it is not run`;
+  }
+
+  /**
+   * The file the bin `name` is in the project's own packages: a workspace package is not linked into the root
+   * `node_modules/.bin`. Only the `bin` of a declared package whose `package.json` has its name counts, and its real path,
+   * every link resolved, must lie inside that package folder, itself inside the project.
+   */
+  static workspaceBinOf(opts: {
+    root: string;
+    name: string;
+    packages: readonly { name: string; path: string; retired: boolean }[];
+  }): { file: string } | { reason: string } {
+    const missing = `${CodemodRunner.binaryIn({ directory: opts.root, name: opts.name })} does not resolve to a file`;
+
+    for (const entry of opts.packages.filter((item) => !item.retired)) {
+      const directory = resolve(opts.root, entry.path);
+      const target = CodemodRunner.declaredBinOf({
+        directory,
+        package: entry.name,
+        name: opts.name,
+      });
+
+      if (target === undefined) {
+        continue;
+      }
+
+      const declared = `${join(entry.path, 'package.json')} declares the bin '${opts.name}' as ${target}`;
+      let real: { root: string; directory: string; file: string };
+
+      try {
+        real = {
+          root: realpathSync(opts.root),
+          directory: realpathSync(directory),
+          file: realpathSync(resolve(directory, target)),
+        };
+      } catch {
+        return { reason: `${declared}, which does not resolve to a file: build the package first` };
+      }
+
+      if (
+        !CodemodRunner.isInside({ directory: real.root, path: real.directory }) ||
+        !CodemodRunner.isInside({ directory: real.directory, path: real.file })
+      ) {
+        return {
+          reason: `${declared}, which is not inside the package folder of the project; it is not run`,
+        };
+      }
+
+      return { file: real.file };
+    }
+
+    return {
+      reason: `${missing}, and no package of the project declares a bin '${opts.name}'`,
+    };
+  }
+
+  /** What `<directory>/package.json` gives for the bin `name`, when it is the package `package`. */
+  private static declaredBinOf(opts: {
+    directory: string;
+    package: string;
+    name: string;
+  }): string | undefined {
+    let data: unknown;
+
+    try {
+      data = JSON.parse(readFileSync(join(opts.directory, 'package.json'), 'utf8'));
+    } catch {
+      return undefined;
+    }
+
+    const manifest = WireValue.recordOf({ value: data });
+
+    if (manifest.name !== opts.package) {
+      return undefined;
+    }
+
+    // A `bin` written as one string is the bin named like the package, without its scope.
+    if (typeof manifest.bin === 'string') {
+      return opts.package.split('/').pop() === opts.name ? manifest.bin : undefined;
+    }
+
+    const bins = WireValue.recordOf({ value: manifest.bin });
+
+    return Object.hasOwn(bins, opts.name)
+      ? WireValue.stringOf({ value: bins[opts.name] })
+      : undefined;
+  }
+
+  private static isInside(opts: { directory: string; path: string }): boolean {
+    const from = relative(opts.directory, opts.path);
+
+    return from !== '' && !isAbsolute(from) && from.split(sep)[0] !== '..';
   }
 
   /** What a message names as the listing command, for example `devz codemod --list`. */

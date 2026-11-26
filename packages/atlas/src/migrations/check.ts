@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Resolve } from '@/changelogs/resolve';
 import { VersionFolders } from '@/changelogs/version-folder';
-import type { IAtlasProject } from '@/common/project-config';
+import type { IAtlasPackage, IAtlasProject } from '@/common/project-config';
 import { CodemodRunner } from '@/common/codemod-runner';
 import { TextValue } from '@/common/text';
 import { BreakingBadge } from './badges';
@@ -141,24 +141,55 @@ export class ChangelogCheck {
   static codemodsOf(opts: {
     root: string;
     command?: string[];
-    /** The npm names of the project's packages: the runner's binary must be installed inside one of them. */
+    /** The npm names of the project's packages: a bin in `node_modules/.bin` must be installed inside one of them. */
     packages: readonly string[];
+    /** The project's own packages: without a bin in `node_modules/.bin`, the `package.json` of one may declare it. */
+    workspace?: readonly IAtlasPackage[];
   }): string[] | undefined {
+    const listing = ChangelogCheck.listingOf(opts);
+
+    return 'codemods' in listing ? listing.codemods : undefined;
+  }
+
+  private static listingOf(opts: {
+    root: string;
+    command?: string[];
+    packages: readonly string[];
+    workspace?: readonly IAtlasPackage[];
+  }): { codemods: string[] } | { reason: string } {
     const [name, ...words] = opts.command ?? CodemodRunner.DEFAULT;
     const bin = CodemodRunner.binaryIn({ directory: opts.root, name });
+    let command: string[];
 
-    if (
-      !existsSync(bin) ||
-      CodemodRunner.refusalOf({
+    if (existsSync(bin)) {
+      const refusal = CodemodRunner.refusalOf({
         directory: opts.root,
         name,
         packages: ChangelogCheck.trusted(opts),
-      }) !== undefined
-    ) {
-      return undefined;
+      });
+
+      if (refusal !== undefined) {
+        return { reason: `${refusal}; a bin of ${CodemodRunner.TOOL_PACKAGE} is allowed here too` };
+      }
+
+      command = [bin];
+    } else {
+      const found = CodemodRunner.workspaceBinOf({
+        root: opts.root,
+        name,
+        packages: opts.workspace ?? [],
+      });
+
+      if ('reason' in found) {
+        return found;
+      }
+
+      // A built file of the workspace need not be executable: the runtime that runs the check runs it.
+      command = [process.execPath, found.file];
     }
 
-    const result = spawnSync(bin, [...words, '--list'], {
+    const [program, ...leading] = command;
+    const result = spawnSync(program, [...leading, ...words, '--list'], {
       cwd: opts.root,
       encoding: 'utf8',
       timeout: DEVZ_TIMEOUT_MS,
@@ -166,39 +197,45 @@ export class ChangelogCheck {
     });
 
     if (result.status !== 0) {
-      return undefined;
+      return { reason: `it exited ${result.status ?? result.signal ?? 'without starting'}` };
     }
 
-    return result.stdout
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+    return {
+      codemods: result.stdout
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0),
+    };
   }
 
-  /** Prints the problems, one `file: message` line each, through `write`; the exit code is 0 when there are none. */
+  /**
+   * Prints the problems, one `file: message` line each, through `write`; the exit code is 0 when there are none. Names that cannot
+   * be checked are a problem when the project declares `knowledge.codemodCommand` or an item names a codemod.
+   */
   static run(opts: { project: IAtlasProject; write: (text: string) => void }): number {
-    const codemods = ChangelogCheck.codemodsOf({
+    const command = opts.project.knowledge.codemodCommand;
+    const listing = ChangelogCheck.listingOf({
       root: opts.project.root,
-      command: opts.project.knowledge.codemodCommand,
+      command,
       packages: opts.project.packages.map((entry) => entry.name),
+      workspace: opts.project.packages,
     });
+    const codemods = 'codemods' in listing ? listing.codemods : undefined;
     const problems = ChangelogCheck.scan({ project: opts.project, codemods });
+    let isUnchecked = false;
 
-    if (codemods === undefined) {
-      const listing = CodemodRunner.listLabel({ command: opts.project.knowledge.codemodCommand });
-      const [name] = opts.project.knowledge.codemodCommand ?? CodemodRunner.DEFAULT;
-      const refusal = existsSync(CodemodRunner.binaryIn({ directory: opts.project.root, name }))
-        ? CodemodRunner.refusalOf({
-            directory: opts.project.root,
-            name,
-            packages: ChangelogCheck.trusted({
-              packages: opts.project.packages.map((entry) => entry.name),
-            }),
-          })
-        : undefined;
+    if ('reason' in listing) {
+      // With no names on offer, every codemod an item names is one more problem.
+      isUnchecked =
+        command !== undefined ||
+        ChangelogCheck.scan({ project: opts.project, codemods: [] }).length > problems.length;
+
+      const outcome = isUnchecked
+        ? 'codemod names cannot be checked, so the check fails'
+        : 'codemod names were not checked';
 
       opts.write(
-        `changelog check: \`${listing}\` is not available${refusal === undefined ? '' : ` (${refusal}; a bin of ${CodemodRunner.TOOL_PACKAGE} is allowed here too)`}; codemod names were not checked\n`,
+        `changelog check: \`${CodemodRunner.listLabel({ command })}\` is not available (${listing.reason}); ${outcome}\n`,
       );
     }
 
@@ -206,6 +243,6 @@ export class ChangelogCheck {
       opts.write(`${problem.file}: ${problem.message}\n`);
     }
 
-    return problems.length === 0 ? 0 : 1;
+    return problems.length === 0 && !isUnchecked ? 0 : 1;
   }
 }
