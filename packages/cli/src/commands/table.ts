@@ -236,8 +236,8 @@ export class CommandTable {
         },
         {
           command: 'flow step',
-          args: '[--done <step> | --todo <step>] [--next <text>] [--context <text>] [--order <n>|none] [--flow <flow id>] [--actor <name>] [--dir <folder>]',
-          text: "Change one step, the next step, the context or the order of a flow (--flow, else the branch's flow) and keep the rest; give at least one change. The event scope also takes it, as step.",
+          args: '[--done <step>... | --todo <step>...] [--next <text>] [--context <text>] [--order <n>|none] [--flow <flow id>] [--actor <name>] [--dir <folder>]',
+          text: "Change steps, the next step, the context or the order of a flow (--flow, else the branch's flow) and keep the rest; give at least one change. The event scope also takes it, as step.",
         },
         {
           command: 'event add',

@@ -414,6 +414,98 @@ describe('the hook script with a task list', () => {
   });
 });
 
+describe('vulcan flow step with several steps', () => {
+  test('--done given twice marks both in one line; a new text is added', () => {
+    const root = project();
+    const id = open(root);
+    const before = linesOf(root).length;
+    const result = cli({
+      root,
+      args: ['step', '--flow', id, '--done', 'Refresh', '--done', 'Docs'],
+    });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(linesOf(root)).toHaveLength(before + 1);
+    expect(linesOf(root).at(-1)?.steps).toEqual([
+      { text: 'Token', done: true },
+      { text: 'Refresh', done: true },
+      { text: 'Docs', done: true },
+    ]);
+  });
+
+  test('--todo given twice opens both', () => {
+    const root = project();
+    const id = open(root);
+
+    cli({ root, args: ['step', '--flow', id, '--todo', 'Token', '--todo', 'Docs'] });
+
+    expect(
+      linesOf(root)
+        .at(-1)
+        ?.steps?.map((step) => step.done),
+    ).toEqual([false, false, false]);
+  });
+
+  test('one bad text refuses the whole call, and --done with --todo stays refused', () => {
+    const root = project();
+    const id = open(root);
+    const before = linesOf(root).length;
+
+    for (const args of [
+      ['--done', 'Refresh', '--done', ''],
+      ['--done', 'Refresh', '--done', 'x', '--todo', 'Token'],
+    ]) {
+      expect(cli({ root, args: ['step', '--flow', id, ...args] }).code).toBe(2);
+    }
+
+    expect(linesOf(root)).toHaveLength(before);
+  });
+
+  test('the same text twice marks its step once', () => {
+    const root = project();
+    const id = open(root);
+
+    cli({ root, args: ['step', '--flow', id, '--done', 'Docs', '--done', 'Docs'] });
+
+    expect(
+      linesOf(root)
+        .at(-1)
+        ?.steps?.map((step) => step.text),
+    ).toEqual(['Token', 'Refresh', 'Docs']);
+  });
+
+  test('a refusal names the value that was refused', () => {
+    const root = project();
+    const id = open(root);
+    const long = 'x'.repeat(201);
+    const result = cli({ root, args: ['step', '--flow', id, '--done', 'Refresh', '--done', long] });
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(`got '${'x'.repeat(100)}`);
+  });
+
+  test('marks that would pass 30 steps write nothing', () => {
+    const root = project();
+    const id = open(root);
+    const before = linesOf(root).length;
+    const marks = Array.from({ length: 29 }, (_, at) => ['--done', `new ${at}`]).flat();
+    const result = cli({ root, args: ['step', '--flow', id, ...marks] });
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain('at most 30 steps, got 31');
+    expect(linesOf(root)).toHaveLength(before);
+  });
+
+  test('flow add still refuses a repeated --done', () => {
+    const root = project();
+
+    expect(
+      cli({ root, args: ['add', '--type', 'flow', '--title', 'X', '--done', 'a', '--done', 'b'] })
+        .code,
+    ).toBe(2);
+  });
+});
+
 describe('a flow step keeps the steps it does not name', () => {
   const FIVE = ['One', 'Two', 'Three', 'Four', 'Five'];
   const openFive = (root: string): string =>
