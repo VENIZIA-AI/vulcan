@@ -27,4 +27,15 @@ describe('the workflows pin what they run', () => {
 
     expect(floating).toEqual([]);
   });
+
+  // The board page is compared with its source byte for byte only on the pinned Bun: a drift would skip that test.
+  test('every workflow installs the Bun that .bun-version pins', () => {
+    const pinned = readFileSync(join(WORKFLOWS, '..', '..', '.bun-version'), 'utf8').trim();
+    const installed = lines.flatMap(
+      (entry) => /^\s*bun-version:\s*(\S+)/.exec(entry.text)?.[1] ?? [],
+    );
+
+    expect(installed.length).toBeGreaterThan(0);
+    expect([...new Set(installed)]).toEqual([pinned]);
+  });
 });
