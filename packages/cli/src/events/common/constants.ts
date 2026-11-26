@@ -46,6 +46,40 @@ export class GitActivities extends ConstClass {
   static readonly PR_MERGE = 'pr-merge';
 }
 
+/** The database of the event log. */
+export class EventStoreConstants {
+  static readonly FILE = 'events.db';
+  /**
+   * The schema version in `PRAGMA user_version` is `MAJOR * MAJOR_STEP` plus the number of migrations applied. A migration
+   * that an older writer cannot work with raises `MAJOR`; one that only adds leaves it.
+   */
+  static readonly MAJOR_STEP = 1000;
+  static readonly MAJOR = 0;
+  static readonly BUSY_TIMEOUT_MS = 5000;
+  /** How long to wait before asking again for the journal mode, which SQLite refuses at once while another process sets it. */
+  static readonly RETRY_MS = 20;
+  /**
+   * One entry per schema version, applied in order; an entry, once released, is never changed. The event is stored whole
+   * as one JSON line, its time in one written form, and every column is read from the line, so the two cannot differ.
+   * `seq` never gives a number again, also after rows are deleted: a reader keeps the last one it has seen.
+   */
+  static readonly MIGRATIONS: readonly string[] = [
+    `CREATE TABLE event (
+       seq INTEGER PRIMARY KEY AUTOINCREMENT,
+       line TEXT NOT NULL CHECK (json_type(line) = 'object'),
+       id TEXT NOT NULL GENERATED ALWAYS AS (json_extract(line, '$.id')) VIRTUAL,
+       ts TEXT NOT NULL GENERATED ALWAYS AS (json_extract(line, '$.ts')) VIRTUAL,
+       type TEXT NOT NULL GENERATED ALWAYS AS (json_extract(line, '$.type')) VIRTUAL,
+       actor TEXT NOT NULL GENERATED ALWAYS AS (json_extract(line, '$.actor')) VIRTUAL
+     ) STRICT;
+     CREATE UNIQUE INDEX event_id ON event (id);
+     CREATE INDEX event_ts ON event (ts);`,
+  ];
+  static readonly VERSION =
+    EventStoreConstants.MAJOR * EventStoreConstants.MAJOR_STEP +
+    EventStoreConstants.MIGRATIONS.length;
+}
+
 export class EventSubcommands {
   static readonly ADD = 'add';
   static readonly TAIL = 'tail';
