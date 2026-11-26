@@ -73,15 +73,22 @@ const EXPRESSION = `(async () => {
   if (document.documentElement.lang !== 'en') { document.getElementById('bLang').click(); await wait(); }
   document.querySelector('.row[data-id="F-1"]').click();
   await wait();
+  const texts = (selector) => [...document.querySelectorAll(selector)].map((c) => c.textContent);
   const table = document.querySelector('.d-tokens');
   out.heading = table.closest('.d-sec').querySelector('h3').textContent;
-  out.head = [...table.querySelectorAll('thead th')].map((c) => c.textContent);
-  out.rows = [...table.querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => c.textContent));
+  out.head = texts('.d-tokens thead th');
+  out.rows = [...table.querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => [...c.childNodes].map((n) => n.textContent).join(' | ')));
+  const fields = document.querySelector('.d-fields');
+  out.fieldsOpen = fields.open;
+  out.note = fields.querySelector('p').textContent;
+  out.fields = [...fields.querySelector('dl').children].map((c) => c.textContent);
   document.getElementById('bLang').click();
   await wait();
   out.vi = {
     heading: document.querySelector('.d-tokens').closest('.d-sec').querySelector('h3').textContent,
-    head: [...document.querySelectorAll('.d-tokens thead th')].map((c) => c.textContent),
+    head: texts('.d-tokens thead th'),
+    share: document.querySelector('.d-tokens tbody small').textContent,
+    summary: document.querySelector('.d-fields summary').textContent,
   };
   document.getElementById('bLang').click();
   await wait();
@@ -129,17 +136,34 @@ describe.skipIf(!hasBrowser)('the tokens block of the board page, in a real brow
         heading: string;
         head: string[];
         rows: string[][];
-        vi: { heading: string; head: string[] };
+        fieldsOpen: boolean;
+        note: string;
+        fields: string[];
+        vi: { heading: string; head: string[]; share: string; summary: string };
         loose: string | null;
       };
 
       expect(result.errors).toEqual([]);
       expect(result.heading).toBe('Tokens');
-      expect(result.head).toEqual(['', 'Input', 'Output', 'Cache read', 'Cache write']);
-      expect(result.rows[0]).toEqual(['All agents', '24', '4,300', '2,469,134', '178']);
+      expect(result.head).toEqual(['', 'Read', 'Written']);
+      expect(result.rows[0]).toEqual(['All agents', '2,469,336 | 99% from cache', '4,300']);
+      expect(result.fieldsOpen).toBe(false);
+      expect(result.note).toBe('input_tokens counts only the part outside the cache.');
+      expect(result.fields).toEqual([
+        'input_tokens',
+        '24',
+        'cache_read_input_tokens',
+        '2,469,134',
+        'cache_creation_input_tokens',
+        '178',
+        'output_tokens',
+        '4,300',
+      ]);
       expect(result.rows.map((row) => row[0])).toEqual(['All agents', 'lead', 'lead (Explore)']);
       expect(result.vi.heading).toBe('Token');
-      expect(result.vi.head).toEqual(['', 'Đầu vào', 'Đầu ra', 'Đọc cache', 'Ghi cache']);
+      expect(result.vi.head).toEqual(['', 'Đọc vào', 'Viết ra']);
+      expect(result.vi.share).toBe('99% từ cache');
+      expect(result.vi.summary).toBe('Các trường API');
       expect(result.loose).toContain('7');
       expect(JSON.stringify(result)).not.toMatch(/price|cost|usd|\$|money/i);
     });

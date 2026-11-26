@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 import type { IBoardData, IBoardTokenRow, IBoardTokens } from '../../common/index.ts';
 import { BoardConstants } from '../../common/index.ts';
@@ -8,6 +9,7 @@ import { BoardAgentInfo } from '../state/agent-info.ts';
 import { BoardCards } from '../state/cards.ts';
 import type { IAgentCard } from '../state/cards.ts';
 import { BoardTime } from '../state/time.ts';
+import { BoardWork } from '../state/work.ts';
 import { BoardUrl } from '../url.ts';
 import { AGENT_TONES } from './agents.tsx';
 import { Bar, Checklist, EventItem, Mark } from './bits.tsx';
@@ -37,7 +39,18 @@ const Section = (props: { title: string; children: ReactNode }) => (
   </div>
 );
 
-/** The tokens of a flow: the four counts in total, then by agent and by model. Numbers only. */
+/** The fields of the API a count comes from, in the order the detail lists them. */
+const TOKEN_FIELDS = [
+  { api: 'input_tokens', key: 'input' },
+  { api: 'cache_read_input_tokens', key: 'cacheRead' },
+  { api: 'cache_creation_input_tokens', key: 'cacheWrite' },
+  { api: 'output_tokens', key: 'output' },
+] as const;
+
+/**
+ * The tokens of a flow, in total, then by agent and by model: what was read, with the share that came from the cache, and
+ * what was written; the four counts of the API are folded below. Numbers only.
+ */
 export const Tokens = (props: { tokens: IBoardTokens | undefined }) => {
   const { t } = useUi();
   const { tokens } = props;
@@ -47,16 +60,11 @@ export const Tokens = (props: { tokens: IBoardTokens | undefined }) => {
   }
 
   const count = (value: number): string => value.toLocaleString('en-US');
-  const columns = [t('tk.input'), t('tk.output'), t('tk.cacheRead'), t('tk.cacheWrite')];
-  const row = (opts: { name: string; row: IBoardTokenRow }) => (
-    <tr key={opts.name}>
-      <th scope="row">{opts.name}</th>
-      <td>{count(opts.row.input)}</td>
-      <td>{count(opts.row.output)}</td>
-      <td>{count(opts.row.cacheRead)}</td>
-      <td>{count(opts.row.cacheWrite)}</td>
-    </tr>
-  );
+  const rows: IBoardTokenRow[] = [
+    { ...tokens, name: t('tk.total') },
+    ...(tokens.agents.length > 1 ? tokens.agents : []),
+    ...(tokens.models.length > 1 ? tokens.models : []),
+  ];
 
   return (
     <Section title={t('tk.title')}>
@@ -64,23 +72,44 @@ export const Tokens = (props: { tokens: IBoardTokens | undefined }) => {
         <thead>
           <tr>
             <th scope="col" />
-            {columns.map((name) => (
-              <th key={name} scope="col">
-                {name}
-              </th>
-            ))}
+            <th scope="col">{t('tk.read')}</th>
+            <th scope="col">{t('tk.written')}</th>
           </tr>
         </thead>
         <tbody>
-          {row({ name: t('tk.total'), row: { name: '', ...tokens } })}
-          {tokens.agents.length > 1
-            ? tokens.agents.map((agent) => row({ name: agent.name, row: agent }))
-            : null}
-          {tokens.models.length > 1
-            ? tokens.models.map((model) => row({ name: model.name, row: model }))
-            : null}
+          {rows.map((row) => {
+            const share = BoardWork.cacheShareOf({ counts: row });
+
+            return (
+              <tr key={row.name}>
+                <th scope="row">{row.name}</th>
+                <td>
+                  {count(BoardWork.readOf({ counts: row }))}
+                  {share === undefined ? null : <small>{`${share}% ${t('tk.fromCache')}`}</small>}
+                </td>
+                <td>{count(row.output)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+      <details className="d-fields">
+        <summary>{t('tk.fields')}</summary>
+        <p>{t('tk.inputNote')}</p>
+        {rows.map((row) => (
+          <div key={row.name}>
+            {rows.length > 1 ? <h4>{row.name}</h4> : null}
+            <dl>
+              {TOKEN_FIELDS.map((field) => (
+                <Fragment key={field.api}>
+                  <dt>{field.api}</dt>
+                  <dd>{count(row[field.key])}</dd>
+                </Fragment>
+              ))}
+            </dl>
+          </div>
+        ))}
+      </details>
     </Section>
   );
 };
