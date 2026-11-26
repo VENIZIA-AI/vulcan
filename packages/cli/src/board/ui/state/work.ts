@@ -85,13 +85,11 @@ export class BoardWork {
     );
   }
 
-  /** The four counts added up; `undefined` when the flow recorded none. */
+  /** Input, output and cache writes added up (cache reads, nearly all of a long session, are in the flow's detail); `undefined` when the flow recorded none. */
   static tokensOf(opts: { flow: IBoardFlow }): number | undefined {
     const { tokens } = opts.flow;
 
-    return tokens === undefined
-      ? undefined
-      : tokens.input + tokens.output + tokens.cacheRead + tokens.cacheWrite;
+    return tokens === undefined ? undefined : tokens.input + tokens.output + tokens.cacheWrite;
   }
 
   /** The repositories the flows name, sorted. */

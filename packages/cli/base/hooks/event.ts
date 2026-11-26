@@ -64,19 +64,13 @@ try {
     ...(activity === undefined ? {} : { activity }),
   });
 
-  // A subagent that stopped: its tokens go to the log, on the flow of its parent session. A meter that fails is its own note
+  // A subagent that stopped: its tokens go to the log, on the flow of its branch, else its parent session's. A meter that fails is its own note
   // and never undoes the line already written.
   if (input?.hook_event_name === 'SubagentStop') {
     try {
       const meter = await import('../../src/events/usage.ts');
-      const state = await import('../../src/events/flow-state.ts');
 
-      meter.UsageMeter.recordSubagent({
-        root,
-        input,
-        env: process.env,
-        isOver: state.FlowState.isOver,
-      });
+      meter.UsageMeter.recordSubagent({ root, input, env: process.env });
     } catch (error) {
       console.error(
         `vulcan: the token meter failed (${error instanceof Error ? error.message : String(error)})`,

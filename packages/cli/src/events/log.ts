@@ -58,6 +58,7 @@ export class EventLog {
     notification?: string;
     usage?: IEventUsage;
     mark?: IEventMark;
+    session?: string;
     now?: number;
   }): IEvent {
     const now = opts.now ?? Date.now();
@@ -123,8 +124,19 @@ export class EventLog {
       ClaudeHookEvents.OWNER_NOTIFICATIONS.has(opts.notification)
         ? { notification: opts.notification }
         : {}),
+      ...EventLog.sessionOf({ value: opts.session }),
       source: opts.source,
     };
+  }
+
+  /** The session of a flow line, as an id the log keeps; nothing for an empty one. */
+  private static sessionOf(opts: { value: string | undefined }): { session?: string } {
+    const session =
+      opts.value === undefined
+        ? ''
+        : EventText.oneLine({ text: opts.value, max: EventConstants.REF_MAX });
+
+    return session === '' ? {} : { session };
   }
 
   /** Adds the event to the day file of its time as one write, so sessions writing at once do not interleave. */
@@ -305,6 +317,7 @@ export class EventLog {
       usage,
       mark,
       notification,
+      session,
       source,
     } = value;
 
@@ -324,7 +337,8 @@ export class EventLog {
       (context !== undefined && typeof context !== 'string') ||
       (next !== undefined && typeof next !== 'string') ||
       (model !== undefined && typeof model !== 'string') ||
-      (notification !== undefined && typeof notification !== 'string')
+      (notification !== undefined && typeof notification !== 'string') ||
+      (session !== undefined && typeof session !== 'string')
     ) {
       return undefined;
     }
@@ -367,6 +381,7 @@ export class EventLog {
       ...(notification === undefined || !ClaudeHookEvents.OWNER_NOTIFICATIONS.has(notification)
         ? {}
         : { notification }),
+      ...(session === undefined ? {} : EventLog.sessionOf({ value: session })),
       source: clean(source),
     };
   }
