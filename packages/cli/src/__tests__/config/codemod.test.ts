@@ -543,6 +543,190 @@ export default {
   });
 });
 
+describe('config-groups --split: an index that uses export *', () => {
+  const STAR = {
+    ...SPLIT,
+    '.configs/vulcan/index.mts':
+      "export * from './claude.mts';\nexport * from './doctor.mts';\nexport * from './okf.mts';\nexport * from './packages.mts';\n",
+    '.configs/vulcan/packages.mts':
+      "import type { VulcanConfig } from '@venizia/vulcan';\n\nexport const packages = [\n  { dir: 'a', name: 'a', path: 'packages/a' },\n] satisfies VulcanConfig['packages'];\n",
+  };
+
+  const run = (extra: Record<string, string>): TCodemodResult => {
+    const before = files({ ...STAR, ...extra });
+
+    return ConfigCodemod.run({ root: before.root, read: before.read, split: true });
+  };
+
+  const refused = (extra: Record<string, string>): string => {
+    const result = run(extra);
+
+    return result.ok ? '' : result.reason;
+  };
+
+  test('the modules are followed and folded, and the config loads the same', async () => {
+    const before = files(STAR);
+    const { changes } = ok(
+      ConfigCodemod.run({ root: before.root, read: before.read, split: true }),
+    );
+
+    expect(textOf({ changes, path: '.configs/vulcan/project.mts' })).toContain(
+      "packages: [\n    { dir: 'a', name: 'a', path: 'packages/a' },\n  ],",
+    );
+    expect(
+      changes
+        .filter((change) => change.text === undefined)
+        .map((change) => change.path)
+        .sort(),
+    ).toEqual([
+      '.configs/vulcan/claude.mts',
+      '.configs/vulcan/doctor.mts',
+      '.configs/vulcan/okf.mts',
+      '.configs/vulcan/packages.mts',
+    ]);
+
+    const flat = await loaded(files(STAR).root);
+
+    apply({ root: before.root, changes });
+
+    const result = await loaded(before.root);
+    expect(result).toBe(flat);
+  });
+
+  test('a barrel behind a barrel is followed and deleted with its modules', () => {
+    const { changes } = ok(
+      run({
+        '.configs/vulcan/index.mts':
+          "export * from './claude.mts';\nexport * from './doctor.mts';\nexport * from './lists/index.mts';\n",
+        '.configs/vulcan/lists/index.mts':
+          "export * from '../okf.mts';\nexport * from '../packages.mts';\n",
+      }),
+    );
+
+    expect(changes).toContainEqual({ path: '.configs/vulcan/lists/index.mts' });
+    expect(changes).toContainEqual({ path: '.configs/vulcan/packages.mts' });
+  });
+
+  test('a star to a module this run does not fold is refused: its exports would be lost', () => {
+    const extra = { '.configs/vulcan/mine.mts': 'export const mine = 1;\n' };
+    const inIndex = refused({
+      ...extra,
+      '.configs/vulcan/index.mts': `${STAR['.configs/vulcan/index.mts']}export * from './mine.mts';\n`,
+    });
+    const nested = refused({
+      ...extra,
+      '.configs/vulcan/index.mts':
+        "export * from './claude.mts';\nexport * from './doctor.mts';\nexport * from './lists.mts';\n",
+      '.configs/vulcan/lists.mts':
+        "export * from './okf.mts';\nexport * from './packages.mts';\nexport * from './mine.mts';\n",
+    });
+
+    expect(inIndex).toContain('.configs/vulcan/mine.mts, which this run does not fold');
+    expect(nested).toContain('.configs/vulcan/mine.mts, which this run does not fold');
+  });
+
+  test('a star out of .configs/vulcan/, a name two stars export and a namespace star are refused', () => {
+    const index = STAR['.configs/vulcan/index.mts'];
+    const outside = refused({
+      '.configs/vulcan/index.mts': `export * from '../shared.mts';\n${index}`,
+      '.configs/shared.mts': 'export const other = 1;\n',
+    });
+    const twice = refused({
+      '.configs/vulcan/index.mts': `${index}export * from './again.mts';\n`,
+      '.configs/vulcan/again.mts': 'export const packages = [];\n',
+    });
+    const namespace = refused({
+      '.configs/vulcan/index.mts': `${index}export * as all from './packages.mts';\n`,
+    });
+
+    expect(outside).toContain('.configs/shared.mts is not under .configs/vulcan/');
+    expect(twice).toContain('more than one');
+    expect(namespace).toContain('export * as');
+  });
+
+  test('a module with a local const stays refused', () => {
+    const reason = refused({
+      '.configs/vulcan/packages.mts':
+        "const one = { name: 'a', path: 'packages/a' };\n\nexport const packages = [one];\n",
+    });
+
+    expect(reason).toContain('holds more than the type import and `packages`');
+  });
+
+  test('two barrels that export each other end in a refusal', () => {
+    const reason = refused({
+      '.configs/vulcan/index.mts': "export * from './loop.mts';\n",
+      '.configs/vulcan/loop.mts': "export * from './index.mts';\n",
+    });
+
+    expect(reason).toContain('does not export');
+  });
+});
+
+/** The shape an app hit: names that differ from the keys, an `export *` index, and an array that ends in `satisfies`. */
+describe('config-groups --split: an app config behind an export * index', () => {
+  const APP = {
+    [CONFIG]: `import type { VulcanConfig } from '@venizia/vulcan';
+import { claudeSetting, doctorSetting, okfSetting, packages } from './vulcan/index.mts';
+
+export default {
+  name: 'demo',
+  project: { key: 'DEMO' },
+  agents: ['claude'],
+  packages,
+  okf: okfSetting,
+  claude: claudeSetting,
+  doctor: doctorSetting,
+} satisfies VulcanConfig;
+`,
+    '.configs/vulcan/index.mts':
+      "export * from './claude.mts';\nexport * from './doctor.mts';\nexport * from './okf.mts';\nexport * from './packages.mts';\n",
+    '.configs/vulcan/claude.mts':
+      "import type { VulcanConfig } from '@venizia/vulcan';\n\nexport const claudeSetting = {\n  settings: { env: {} },\n} satisfies VulcanConfig['claude'];\n",
+    '.configs/vulcan/doctor.mts':
+      "import type { VulcanConfig } from '@venizia/vulcan';\n\nexport const doctorSetting = {\n  privateValues: { acknowledged: [] },\n} satisfies VulcanConfig['doctor'];\n",
+    '.configs/vulcan/okf.mts':
+      "import type { VulcanConfig } from '@venizia/vulcan';\n\nexport const okfSetting = { brand: 'Demo' } satisfies VulcanConfig['okf'];\n",
+    '.configs/vulcan/packages.mts':
+      "import type { VulcanConfig } from '@venizia/vulcan';\n\nexport const packages = [\n  { dir: 'core', name: '@demo/core', path: 'packages/core' },\n  { dir: 'web', name: '@demo/web', path: 'packages/web' },\n] satisfies VulcanConfig['packages'];\n",
+    'package.json': '{ "name": "demo", "workspaces": [] }',
+  };
+
+  test('every module is folded under its config key, and the config loads the same', async () => {
+    const before = files(APP);
+    const { changes } = ok(
+      ConfigCodemod.run({ root: before.root, read: before.read, split: true }),
+    );
+
+    expect(textOf({ changes, path: '.configs/vulcan/project.mts' })).toContain(
+      "{ dir: 'web', name: '@demo/web', path: 'packages/web' },",
+    );
+    expect(textOf({ changes, path: '.configs/vulcan/agent.mts' })).toContain('claude: {');
+    expect(textOf({ changes, path: '.configs/vulcan/check.mts' })).toContain('doctor: {');
+    expect(textOf({ changes, path: '.configs/vulcan/knowledge.mts' })).toContain(
+      "okf: { brand: 'Demo' }",
+    );
+
+    const flat = await loaded(files(APP).root);
+
+    apply({ root: before.root, changes });
+
+    const result = await loaded(before.root);
+    expect(result).toBe(flat);
+  });
+
+  test('a module with a local const beside its value is refused with its line', () => {
+    const before = files({
+      ...APP,
+      '.configs/vulcan/doctor.mts':
+        "import type { VulcanConfig } from '@venizia/vulcan';\n\nconst ADDRESS_FILES = ['a.md', 'b.md'];\n\nexport const doctorSetting = {\n  privateValues: {\n    acknowledged: [{ path: `{${ADDRESS_FILES.join(',')}}`, kinds: ['ipv4'], reason: 'docs' }],\n  },\n} satisfies VulcanConfig['doctor'];\n",
+    });
+    const result = ConfigCodemod.run({ root: before.root, read: before.read, split: true });
+
+    expect(result.ok ? '' : result.reason).toContain('const ADDRESS_FILES');
+  });
+});
+
 describe('vulcan config codemod --split --write: what it deletes', () => {
   const run = (root: string, args: string[]) =>
     runCli({ args: ['config', 'codemod', ...args], cwd: root });

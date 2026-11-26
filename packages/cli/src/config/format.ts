@@ -27,6 +27,7 @@ export interface IPropertySegment {
 export type TTypeScript = ReturnType<typeof TypeScriptCompiler.load>;
 export type TSourceFile = ReturnType<TTypeScript['createSourceFile']>;
 export type TObjectLiteral = ReturnType<TTypeScript['factory']['createObjectLiteralExpression']>;
+export type TExportDeclaration = ReturnType<TTypeScript['factory']['createExportDeclaration']>;
 export type TObjectElement = TObjectLiteral['properties'][number];
 type TExportAssignment = ReturnType<TTypeScript['factory']['createExportAssignment']>;
 
