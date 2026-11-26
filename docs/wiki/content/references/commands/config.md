@@ -143,7 +143,7 @@ Only a plain object (a literal or JSON) is merged into; a key named `__proto__` 
 - the allow list for Claude Code of commands that only read (42 lines: 28 commands and 14 git read subcommands)
 - 14 companion denies for flags of those commands that write a file or run a program the repository names (`date -s`, `rg --pre`, `git ... --output`, `git cat-file --filters`...)
 - the 11 rule ids the session digest repeats (`agent.digest.oftenDropped`)
-- one standing acknowledgement, `**/Dockerfile*` for kind `machine-path` (container paths such as `/home/app`)
+- one standing acknowledgement, `**/Dockerfile*` for kind `machine-path` (paths inside a container, under `/home`)
 
 `base/packs/venizia.config.json` holds:
 

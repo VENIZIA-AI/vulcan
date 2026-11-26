@@ -71,7 +71,7 @@ By default each project keeps its own log. A coordinator that must read the sess
 ```json
 {
   "schemaVersion": 1,
-  "board": { "events": { "dir": "/home/me/work/.agents/local/events" } }
+  "board": { "events": { "dir": "/home/<user>/work/.agents/local/events" } }
 }
 ```
 

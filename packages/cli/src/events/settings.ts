@@ -16,7 +16,7 @@ export class EventSettings {
 
     return isAbsolute(opts.dir)
       ? undefined
-      : 'an absolute path, such as /home/me/work/.agents/local/events (~ and relative paths are not expanded)';
+      : 'an absolute path, such as /home/<user>/work/.agents/local/events (~ and relative paths are not expanded)';
   }
 
   /**
