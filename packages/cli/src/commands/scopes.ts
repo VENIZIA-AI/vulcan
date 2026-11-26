@@ -145,11 +145,6 @@ export class CommandScopes {
       return { type: 'run', label: 'agent list', argv: [VulcanCommands.AGENTS] };
     }
 
-    // `vulcan event` and `vulcan flow` alone print the usage of the event handler, as `vulcan event` did.
-    if ((first === 'event' || first === 'flow') && second === undefined) {
-      return { type: 'run', label: first, argv: [VulcanCommands.EVENT] };
-    }
-
     const actions = CommandScopes.actionsOf({ scope: first });
 
     if (actions.length > 0) {
