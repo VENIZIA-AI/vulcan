@@ -38,6 +38,8 @@ export interface ISymbolRecord {
   doc?: string;
   /** Names of exported symbols the declaration refers to. */
   uses?: string[];
+  /** Present and true for a module re-exported as a namespace: its declaration lists the members, and it owes no TSDoc. */
+  isModuleNamespace?: boolean;
 }
 
 /** What `search` adds beside its hits when the query is one identifier the table knows - no signature, no docs, so the reply budget barely moves. */

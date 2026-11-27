@@ -288,7 +288,12 @@ export class ApiReference {
       left.name.localeCompare(right.name, 'en'),
     );
     const undocumented = records
-      .filter((record) => record.declaration !== undefined && (record.doc ?? '') === '')
+      .filter(
+        (record) =>
+          record.declaration !== undefined &&
+          record.isModuleNamespace !== true &&
+          (record.doc ?? '') === '',
+      )
       .map((record) => record.name);
     const sections = records.map((record) => ({
       record,

@@ -116,14 +116,16 @@ describe('the declaration a symbol record keeps', () => {
     expect(get('Door').uses).not.toContain('Door');
   });
 
-  test('a module re-exported as a namespace has no declaration of its own, not the whole file', () => {
-    expect(get('ns').declaration).toBeUndefined();
+  test('a module re-exported as a namespace lists its members, not the file', () => {
+    expect(get('ns').declaration).toBe(
+      'export declare namespace ns {\n    /** Documented elsewhere. */\n    function inner(): void;\n}',
+    );
     expect(get('ns').doc).toBeUndefined();
   });
 
   test('a namespace export keeps the TSDoc written on the export statement', () => {
     expect(get('allDoors').doc).toBe('All the doors.\n\n@remarks one import for every door');
-    expect(get('allDoors').declaration).toBeUndefined();
+    expect(get('allDoors').declaration).toContain('export declare namespace allDoors {');
   });
 
   test('a variable declared with another keeps its own declaration', () => {
