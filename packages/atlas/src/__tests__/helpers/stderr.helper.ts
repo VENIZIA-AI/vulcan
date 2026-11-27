@@ -64,14 +64,17 @@ export class CapturedStderr {
     const ms = opts.ms ?? 4000;
 
     const deadline = Date.now() + ms;
+    const isThere = (): boolean =>
+      this.lines.some((line) => opts.parts.every((part) => line.includes(part)));
 
     // By the clock: a loaded machine sleeps longer than asked.
-    while (Date.now() < deadline) {
-      if (this.lines.some((line) => opts.parts.every((part) => line.includes(part)))) {
-        return;
-      }
-
+    while (!isThere() && Date.now() < deadline) {
       await Bun.sleep(25);
+    }
+
+    // Asked once more after the last sleep, which may have ended past the deadline.
+    if (isThere()) {
+      return;
     }
 
     throw new Error(

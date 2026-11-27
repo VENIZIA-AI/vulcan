@@ -81,9 +81,9 @@ describe('golden questions: the scoreboard', () => {
   for (const question of GOLDEN_QUESTIONS) {
     // `symbol` answers from built declarations: a checkout that is not built (CI reads IGNIS and runs none of it), or
     // that another session is editing and rebuilding, cannot be asked.
-    const isBuilt =
+    const canAnswer =
       question.project !== GoldenProjects.IGNIS || question.ask.tool !== 'symbol' || IGNIS_IS_BUILT;
-    const present = GoldenProjects.isPresent({ project: question.project }) && isBuilt;
+    const present = GoldenProjects.isPresent({ project: question.project }) && canAnswer;
 
     if (!present) {
       verdicts.set(question.id, GoldenVerdicts.SKIPPED);
@@ -98,9 +98,9 @@ describe('golden questions: the scoreboard', () => {
 
         // A stale mark and a regression both fail: the list says what atlas serves today, or it says nothing.
         expect([GoldenVerdicts.ANSWERED, GoldenVerdicts.OPEN]).toContain(verdict);
-        // The first question of a project indexes its whole checkout, and the first `symbol` one compiles its
-        // declarations: seconds on a loaded machine, past the five a test gets by default.
       },
+      // The first question of a project indexes its whole checkout, and the first `symbol` one compiles its
+      // declarations: seconds on a loaded machine, past the five a test gets by default.
       60_000,
     );
   }
