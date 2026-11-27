@@ -1,13 +1,12 @@
 import { HookConstants } from './common/index.ts';
-import type { IHookCommand, IWriteCheck, IWriteHit } from './common/index.ts';
+import type { IHookCommand, ISimpleCommand, IWriteCheck, IWriteHit } from './common/index.ts';
 import { CommandView } from './command-view.ts';
 import type { ICommandView } from './command-view.ts';
 import { HookDecision } from './decision.ts';
 import type { IProjectCommandCheck } from './project-guards.ts';
 import { ScriptRunners } from './script-runners.ts';
 import { WriteCommands } from './write-commands.ts';
-import { ShellParser } from './shell.ts';
-import type { ISimpleCommand } from './shell.ts';
+import { ShellPrograms } from './shell-programs.ts';
 
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
@@ -71,7 +70,7 @@ export class WriteGuard {
         const { program, args } = WriteGuard.callOf({ command });
         const { script } = ScriptRunners.callOf({ program, args });
         // `python manage.py migrate --plan`: the script is the program the row names.
-        const named = script === undefined ? program : ShellParser.basenameOf({ word: script });
+        const named = script === undefined ? program : ShellPrograms.basenameOf({ word: script });
 
         return (
           WriteCommands.isLive({ check, program, args }) &&
@@ -93,9 +92,9 @@ export class WriteGuard {
 
   /** The program a simple command runs, past wrappers (`sudo`, `env`) and launchers (`npx` then a program, `uv run`). */
   private static callOf(opts: { command: ISimpleCommand }): { program: string; args: string[] } {
-    const launched = ScriptRunners.launchedOf(ShellParser.programOf({ command: opts.command }));
+    const launched = ScriptRunners.launchedOf(ShellPrograms.programOf({ command: opts.command }));
 
-    return { program: ShellParser.basenameOf({ word: launched.name }), args: launched.args };
+    return { program: ShellPrograms.basenameOf({ word: launched.name }), args: launched.args };
   }
 
   /** The Bash command and cwd from the hook's JSON; `undefined` when it is not what Claude Code sends. */

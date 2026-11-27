@@ -2,6 +2,7 @@ import { GitActivities } from '../events/common/index.ts';
 import type { TGitActivity } from '../events/common/index.ts';
 import { ghCall, gitCall } from './guard-git.ts';
 import { ShellParser } from './shell.ts';
+import { ShellPrograms } from './shell-programs.ts';
 
 /** Words after a subcommand that mean the line only reads or tries: nothing was committed, opened or merged. */
 const READS = new Set(['--help', '-h', '--dry-run']);
@@ -44,12 +45,12 @@ export class GitActivity {
     const parsed = ShellParser.parseChecked({ command: opts.command });
     const hasCd = parsed.commands.some(
       (command) =>
-        ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name }) === 'cd',
+        ShellPrograms.basenameOf({ word: ShellPrograms.programOf({ command }).name }) === 'cd',
     );
 
     for (const command of parsed.commands) {
-      const program = ShellParser.programOf({ command });
-      const name = ShellParser.basenameOf({ word: program.name });
+      const program = ShellPrograms.programOf({ command });
+      const name = ShellPrograms.basenameOf({ word: program.name });
 
       if (name === 'git') {
         const call = gitCall({ args: program.args });

@@ -1,6 +1,6 @@
 /**
  * PreToolUse hook on Bash: catches the writes V-W-02 and V-W-03 reserve for a human, matching each command
- * the shell parser finds against the command table (src/hooks/write-commands.ts). It asks rather than denies
+ * the shell parser finds against the command table (src/hooks/write-command-rows.ts). It asks rather than denies
  * (src/hooks/common/constants.ts).
  * The project's own deploy and migrate commands (`guard.writes.commands`) are read from the manifest and
  * checked beside the fixed list, inside compound commands too.
