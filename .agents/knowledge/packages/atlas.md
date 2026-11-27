@@ -45,7 +45,7 @@ Run as `vulcan atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vulc
   manifest has `atlas.index.keys`, then prints one stderr line on a miss) calls `PrebuiltFetch.fetch`, which never throws:
   release listing, the pair's two assets by name (API asset URL, never `browser_download_url`; the token goes to the
   API host only and the redirect is followed by hand without it), then signature, sha, repo, format, caps, digest,
-  bounded gunzip, an open probe (`ChunkStore.rowCount`). `pullByGit` installs a hit through `buildArtifacts`
+  bounded gunzip, an open probe (`ChunkStore.rowCount`). `SourcePull.pullByGit` (`sources/pull.ts`) installs a hit through `buildArtifacts`
   (`prebuilt` option; a `prebuilt` marker file records the building atlas version, `IResolvedSource.prebuiltBy`),
   uses the pair's release table only while the remote's tags fingerprint equals its payload's, and checks out the
   changelog directory alone otherwise. A pinned tag takes the ref's keys, not its own. `--no-prebuilt` and
