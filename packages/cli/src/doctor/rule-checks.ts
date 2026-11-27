@@ -9,7 +9,7 @@ import { SkillCatalog, VersionFolders } from '@venizia/vulcan-atlas';
 import { DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { ICheckContext, IViolation } from './common/index.ts';
 import { Makefile } from './makefile.ts';
-import { CheckSupport } from './common/check-support.ts';
+import { DoctorCheckUtility } from './utilities/doctor-check.utility.ts';
 
 /**
  * The project's Makefile and every file it includes, recursively, relative to the root. Includes
@@ -29,7 +29,7 @@ const findProjectMakefiles = (opts: { root: string }): string[] => {
     found.push(file);
 
     for (const pattern of Makefile.parseMakeIncludes({
-      makefile: CheckSupport.readText({ file: join(opts.root, file) }),
+      makefile: DoctorCheckUtility.readText({ file: join(opts.root, file) }),
     })) {
       const matches = [...new Glob(pattern).scanSync({ cwd: opts.root, onlyFiles: true })].sort();
 
@@ -46,7 +46,7 @@ export class RuleChecks {
     return ['AGENTS.md', '.agents/rules.md', opts.config.knowledge.bundle]
       .filter((path) => !existsSync(join(opts.root, path)))
       .map((path) =>
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.LAYOUT,
           file: path,
           message: `missing - run '${ProjectLayout.VULCAN_COMMAND} project init'`,
@@ -62,13 +62,13 @@ export class RuleChecks {
     const base = BaseRules.read({ packs: opts.config.packs });
 
     return RuleParser.parseBaseReferences({
-      markdown: CheckSupport.readText({ file: join(opts.root, '.agents', 'rules.md') }),
+      markdown: DoctorCheckUtility.readText({ file: join(opts.root, '.agents', 'rules.md') }),
     })
       .filter((id) => base[id] === undefined)
       .map((id) => {
         const pack = RulePacks.holderOf({ id });
 
-        return CheckSupport.createViolation({
+        return DoctorCheckUtility.createViolation({
           check: DoctorChecks.RULE_IDS,
           file: '.agents/rules.md',
           message:
@@ -89,7 +89,7 @@ export class RuleChecks {
 
       if (choice === undefined) {
         violations.push(
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.RULE_SLOTS,
             file: opts.configFile,
             message: `${id} needs a choice: rules: { '${id}': ${options} }`,
@@ -100,7 +100,7 @@ export class RuleChecks {
 
       if (slot.options[choice] === undefined) {
         violations.push(
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.RULE_SLOTS,
             file: opts.configFile,
             message: `${id}: '${choice}' is not an option (${options})`,
@@ -113,7 +113,7 @@ export class RuleChecks {
       (ruleId) => slots[ruleId] === undefined,
     )) {
       violations.push(
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.RULE_SLOTS,
           file: opts.configFile,
           message: `${id} is not a slot - only ${Object.keys(slots).join(', ')} take a choice`,
@@ -126,13 +126,13 @@ export class RuleChecks {
 
   static checkSkills(opts: ICheckContext): IViolation[] {
     const shipped = new Set(
-      CheckSupport.listDirectories({ directory: join(BASE_DIRECTORY, 'skills') }),
+      DoctorCheckUtility.listDirectories({ directory: join(BASE_DIRECTORY, 'skills') }),
     );
 
-    return CheckSupport.listDirectories({ directory: join(opts.root, '.agents', 'skills') })
+    return DoctorCheckUtility.listDirectories({ directory: join(opts.root, '.agents', 'skills') })
       .filter((name) => shipped.has(name))
       .map((name) =>
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.SKILLS,
           file: `.agents/skills/${name}`,
           message: `'${name}' is a shipped skill - rename the project skill, for example to '${ProjectManifest.projectNameOf({ root: opts.root, config: opts.config })}-${name}'`,
@@ -141,12 +141,12 @@ export class RuleChecks {
   }
 
   static checkMake(opts: ICheckContext): IViolation[] {
-    const makefile = CheckSupport.readText({ file: join(opts.root, 'Makefile') });
+    const makefile = DoctorCheckUtility.readText({ file: join(opts.root, 'Makefile') });
     const violations: IViolation[] = [];
 
     if (!DoctorConstants.MAKE_INCLUDE_PATTERN.test(makefile)) {
       violations.push(
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.MAKE,
           file: 'Makefile',
           message: `add: ${ProjectLayout.MAKE_INCLUDE_LINE}`,
@@ -156,18 +156,18 @@ export class RuleChecks {
 
     const shipped = new Set(
       Makefile.parseMakeTargets({
-        makefile: CheckSupport.readText({ file: join(BASE_DIRECTORY, 'make', 'vulcan.mk') }),
+        makefile: DoctorCheckUtility.readText({ file: join(BASE_DIRECTORY, 'make', 'vulcan.mk') }),
       }),
     );
 
     for (const file of findProjectMakefiles({ root: opts.root })) {
       const targets = Makefile.parseMakeTargets({
-        makefile: CheckSupport.readText({ file: join(opts.root, file) }),
+        makefile: DoctorCheckUtility.readText({ file: join(opts.root, file) }),
       });
 
       for (const target of targets.filter((name) => shipped.has(name))) {
         violations.push(
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.MAKE,
             file,
             message: `'${target}' is a shipped target - give the project target another name`,
@@ -197,14 +197,14 @@ export class RuleChecks {
             : '';
 
         if (action.status === SyncStatuses.REMOVED) {
-          return CheckSupport.createViolation({
+          return DoctorCheckUtility.createViolation({
             check: DoctorChecks.MANIFEST,
             file,
             message: `left from an earlier sync: a repository that publishes no package has no descriptor - ${sync}, which deletes it`,
           });
         }
 
-        return CheckSupport.createViolation({
+        return DoctorCheckUtility.createViolation({
           check: DoctorChecks.MANIFEST,
           file,
           message:
@@ -235,9 +235,9 @@ export class RuleChecks {
         (name) => VersionFolders.isName({ name }) && existsSync(join(directory, name, 'log.md')),
       );
     const installedAt = join(opts.root, 'node_modules', '@venizia', 'vulcan');
-    const installed = CheckSupport.readJsonObject({ file: join(installedAt, 'package.json') })?.[
-      'version'
-    ];
+    const installed = DoctorCheckUtility.readJsonObject({
+      file: join(installedAt, 'package.json'),
+    })?.['version'];
 
     if (!hasFolder || typeof installed !== 'string') {
       return [];
@@ -262,7 +262,7 @@ export class RuleChecks {
     return Bun.semver.order(installed, DoctorConstants.CHANGELOG_FOLDERS_FROM) >= 0
       ? []
       : [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.CHANGELOG_FOLDERS,
             file: changelogs,
             message: `holds version folders, but the installed @venizia/vulcan is ${installed}: its atlas ignores them. Install ${DoctorConstants.CHANGELOG_FOLDERS_FROM} or later`,
@@ -275,7 +275,7 @@ export class RuleChecks {
     return SkillCatalog.catalogOf({ root: opts.root })
       .filter((entry) => !SkillCatalog.triggerOf({ description: entry.description }).hasUseWhen)
       .map((entry) =>
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.SKILLS,
           file: entry.source === 'project' ? `.agents/skills/${entry.name}/SKILL.md` : entry.name,
           message: `'${entry.name}' has no "Use when" part in its description - atlas cannot say when to load it`,

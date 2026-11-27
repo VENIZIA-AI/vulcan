@@ -195,3 +195,13 @@ export class ConfigKeyOrder {
     return index === -1 ? keys.length : index;
   }
 }
+
+/** Where the codemod `config-groups` reads and writes, and the columns it indents to. */
+export class CodemodConstants {
+  static readonly CONFIG_PATH = `${ConfigConstants.DIRECTORY}/${ConfigConstants.FILE}`;
+  static readonly MODULES_DIRECTORY = `${ConfigConstants.DIRECTORY}/vulcan`;
+  /** Where the properties sit in a group (inside `group: {`) and in a group module (inside `export const group = {`). */
+  static readonly GROUP_COLUMN = 4;
+  static readonly MODULE_COLUMN = 2;
+  static readonly TOP_COLUMN = 2;
+}

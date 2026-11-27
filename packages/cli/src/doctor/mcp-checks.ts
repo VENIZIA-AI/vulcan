@@ -6,7 +6,7 @@ import { MCP_SERVER_HINT } from '../init/index.ts';
 import { AgentScopes, AgentSelection, AgentTable } from '../agents/index.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { ICheckContext, IViolation } from './common/index.ts';
-import { CheckSupport } from './common/check-support.ts';
+import { DoctorCheckUtility } from './utilities/doctor-check.utility.ts';
 
 const CANONICAL_ATLAS_ARGS = ['node_modules/.bin/vulcan', 'atlas', 'mcp', '--root', '.'];
 /** The entry of the release before the scopes: it still runs, so it is out of date and not a different server. */
@@ -32,7 +32,11 @@ const isUntrackedAndVisible = (opts: { root: string; path: string }): boolean =>
 };
 
 const mcpWarning = (opts: { file: string; message: string }): IViolation =>
-  CheckSupport.createViolation({ check: DoctorChecks.MCP, file: opts.file, message: opts.message });
+  DoctorCheckUtility.createViolation({
+    check: DoctorChecks.MCP,
+    file: opts.file,
+    message: opts.message,
+  });
 
 /** The check of how the atlas server is registered in `.mcp.json` and enabled in the Claude settings. */
 export class McpChecks {
@@ -67,7 +71,7 @@ export class McpChecks {
         );
       }
 
-      const parsed = CheckSupport.readJsonObject({ file });
+      const parsed = DoctorCheckUtility.readJsonObject({ file });
 
       if (parsed === undefined) {
         warnings.push(
@@ -136,7 +140,7 @@ export class McpChecks {
 
     const settings = join(opts.root, CLAUDE_SETTINGS_FILE);
     const enabled = existsSync(settings)
-      ? CheckSupport.readJsonObject({ file: settings })?.['enabledMcpjsonServers']
+      ? DoctorCheckUtility.readJsonObject({ file: settings })?.['enabledMcpjsonServers']
       : undefined;
 
     if (existsSync(settings) && !(Array.isArray(enabled) && enabled.includes(ATLAS_SERVER))) {

@@ -9,7 +9,7 @@ import { LocalSettings } from '../common/local-settings.ts';
 import { HookConstants, ProjectTmp } from '../hooks/index.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { ICheckContext, IViolation } from './common/index.ts';
-import { CheckSupport } from './common/check-support.ts';
+import { DoctorCheckUtility } from './utilities/doctor-check.utility.ts';
 
 /** The checks of the local workspace under `.agents/local/` and of the temp folder. */
 export class LocalChecks {
@@ -21,7 +21,7 @@ export class LocalChecks {
     })
       .filter((action) => action.status !== SyncStatuses.UNCHANGED)
       .map((action) =>
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.LOCAL,
           file: relative(opts.root, action.path) || '.',
           message: `${action.note ?? 'out of date'} - run 'bun node_modules/.bin/vulcan project sync'`,
@@ -39,7 +39,7 @@ export class LocalChecks {
     return unknown.length === 0
       ? []
       : [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.LOCAL,
             file: ProjectLayout.LOCAL_DIRECTORY,
             message: `${unknown.length} ${unknown.length === 1 ? 'entry is' : 'entries are'} not ${unknown.length === 1 ? 'one' : 'ones'} VULCAN knows: ${unknown
@@ -84,7 +84,7 @@ export class LocalChecks {
     const bytes = stale.reduce((total, entry) => total + entry.bytes, 0);
 
     return [
-      CheckSupport.createViolation({
+      DoctorCheckUtility.createViolation({
         check: DoctorChecks.LOCAL,
         file: ProjectLayout.LOCAL_DIRECTORY,
         message: `${stale.length} ${stale.length === 1 ? 'entry has' : 'entries have'} outlived ${stale.length === 1 ? 'its' : 'their'} use (${LocalFormat.formatBytes({ bytes })}): ${groups.map(([group, count]) => `${count} ${group}`).join(', ')}; run: vulcan project clean ${scopes.map((scope) => `--${scope}`).join(' ')} --yes (without --yes it lists each one)`,
@@ -137,7 +137,7 @@ export class LocalChecks {
     ];
 
     return problems.map((problem) =>
-      CheckSupport.createViolation({
+      DoctorCheckUtility.createViolation({
         check: DoctorChecks.LOCAL,
         file: own === undefined ? opts.configFile : AgentConstants.LOCAL_FILE,
         message: `common.local.tmp '${tmp}': ${problem}`,
@@ -168,7 +168,7 @@ export class LocalChecks {
     const spare = BrowserSocket.PATH_MAX - (length - root.length);
 
     return [
-      CheckSupport.createViolation({
+      DoctorCheckUtility.createViolation({
         check: DoctorChecks.LOCAL,
         file: HookConstants.PROJECT_TMP,
         message: `the temp folder ${folder} is too deep for a browser: Chrome's socket path would be ${length} characters (${BrowserSocket.longest()} below it) and the limit is ${BrowserSocket.PATH_MAX}, so a browser started with this folder exits with "${BrowserSocket.ERROR}". Set \`common.local.tmp\` in the config to a short folder of the project (for example \`tmp\`) and run \`vulcan project sync\`, or move the checkout to a path of ${spare} characters or fewer`,

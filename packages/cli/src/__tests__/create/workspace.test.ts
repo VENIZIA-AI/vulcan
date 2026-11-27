@@ -1,11 +1,6 @@
 import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
-import {
-  AppsBlock,
-  WorkspaceManifest,
-  WorkspaceDocs,
-  PortRegistry,
-  PresetRecord,
-} from '../../create/workspace.ts';
+import { WorkspaceManifest, PortRegistry, PresetRecord } from '../../create/workspace.ts';
+import { AppsBlock, WorkspaceDocs } from '../../create/workspace-docs.ts';
 import { OkfFrontmatter } from '@venizia/vulcan-okf';
 import { ProjectLayout } from '../../common/constants.ts';
 import { Bunfig } from '../../create/bunfig.ts';

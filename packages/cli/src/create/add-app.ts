@@ -2,20 +2,21 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import { LayoutFolder, LayoutKeys } from '../common/layout-folder.ts';
-import type { ILayout } from '../common/layout-folder.ts';
-import { OFFICIAL_PRESETS, OfficialPresets } from '@venizia/vulcan-atlas';
 import type { IOfficialPreset } from '@venizia/vulcan-atlas';
 import { ConfigLoader, LibraryTypes, PackageTypes, ProjectPackages } from '../config/index.ts';
-import type { IProjectPackage, TLibraryType, TResolvedConfig } from '../config/index.ts';
+import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
 import { ProjectScaffold } from '../init/index.ts';
+import { AddFlagGuard } from './add-flag-guard.ts';
+import { AddKindRegistry } from './add-kind.ts';
 import { LibraryScaffold } from './add-lib.ts';
+import { ApiProxyResolver } from './api-proxy.ts';
 import { AppChecks } from './checks.ts';
-import { AddFailure, AppSides, AppsBlockProblems, CreateFlags } from './common/index.ts';
-import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common/index.ts';
+import { AddFailure, AddKinds, AppSides, AppsBlockProblems, CreateFlags } from './common/index.ts';
+import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAddKind } from './common/index.ts';
 import { ProjectFile } from './files.ts';
 import { LibPreset } from './lib-preset.ts';
 import { ManifestJson } from './manifest-json.ts';
-import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
+import { TerminalCapability } from '../ui/index.ts';
 import { PresetMenu } from './preset-menu.ts';
 import { ABORTED, WritePlan } from './plan.ts';
 import { askInTerminal, ProjectNames, SIDE_FIELDS } from './names.ts';
@@ -23,177 +24,14 @@ import { NextStep } from './next.ts';
 import { Preset } from './preset.ts';
 import { SubProcess } from './process.ts';
 import { PresetScratch } from './scratch.ts';
-import {
-  AppsBlock,
-  PortRegistry,
-  PresetRecord,
-  WorkspaceDocs,
-  WorkspaceManifest,
-} from './workspace.ts';
+import { PortRegistry, PresetRecord, WorkspaceManifest } from './workspace.ts';
+import { AppsBlock, WorkspaceDocs } from './workspace-docs.ts';
 
 type TRootManifest = Record<string, unknown>;
 
 const KNOWLEDGE_DIRECTORY = '.agents/knowledge';
 const ROOT_HINT =
   'run it at the root of a monorepo vulcan project init created (no layout in .configs/vulcan.config.*)';
-
-const MISSING_API = `missing ${CreateFlags.API} <app> or ${CreateFlags.NO_API}`;
-
-/** The side the flags give away: a frontend flag, or only the backend folder; undefined when they do not say. */
-const sideNamedBy = (opts: { args: string[] }): TAppSide | undefined => {
-  const frontend = [CreateFlags.FRONTEND_DIR, CreateFlags.API, CreateFlags.NO_API].some((flag) =>
-    opts.args.includes(flag),
-  );
-  const backend = opts.args.includes(CreateFlags.BACKEND_DIR);
-
-  if (frontend === backend) {
-    return undefined;
-  }
-
-  return frontend ? AppSides.FRONTEND : AppSides.BACKEND;
-};
-
-/**
- * What the command line already settles, checked before the preset is downloaded: without a terminal
- * to ask, a missing --app, a side folder neither given nor held by the config, or a frontend with
- * neither --api nor --no-api cannot be fixed by the download. The side is known from the flags when
- * they name it; a preset whose side only its package says is checked after the download.
- */
-const missingFlag = (opts: { args: string[]; layout: ILayout }): string | undefined => {
-  const side = sideNamedBy({ args: opts.args });
-
-  if (ProjectNames.readFlag({ args: opts.args, flag: CreateFlags.APP }) === undefined) {
-    const kind = side === undefined ? '' : `${side} `;
-
-    return `missing ${CreateFlags.APP} (Name of this ${kind}app) - names are never chosen for you`;
-  }
-
-  if (side === undefined) {
-    return undefined;
-  }
-
-  const folder = SIDE_FIELDS[side];
-
-  const listed = LayoutFolder.layoutFoldersOf({ value: opts.layout[side] });
-
-  // One listed folder is the answer; none, or several, is for the flag to say.
-  if (
-    ProjectNames.readFlag({ args: opts.args, flag: folder.flag }) === undefined &&
-    listed.length !== 1
-  ) {
-    return `missing ${folder.flag} (${folder.question}${listed.length > 1 ? `; ${LayoutFolder.listedNote({ folders: listed })}` : ''}) - names are never chosen for you`;
-  }
-
-  const hasApi = opts.args.includes(CreateFlags.API) || opts.args.includes(CreateFlags.NO_API);
-
-  return side === AppSides.FRONTEND && !hasApi ? MISSING_API : undefined;
-};
-
-/** What `add` makes: an app, or one of the library kinds. */
-type TAddKind = typeof PackageTypes.APP | TLibraryType;
-
-/** Per kind: the flag that names it and the words a menu and a message describe it with. */
-const ADD_KINDS: Record<TAddKind, { flag: string; hint: string }> = {
-  [PackageTypes.APP]: { flag: CreateFlags.APP, hint: 'a runnable app' },
-  [LibraryTypes.LIB]: { flag: CreateFlags.LIB, hint: 'a library other apps import' },
-  [LibraryTypes.SHARED]: {
-    flag: CreateFlags.SHARED,
-    hint: 'a side-neutral package other apps import',
-  },
-};
-
-const ADD_KIND_ORDER: TAddKind[] = [PackageTypes.APP, LibraryTypes.LIB, LibraryTypes.SHARED];
-
-/** The commands a project can run for this preset: what `add` prints when it is not told what to create. */
-const kindCommands = (opts: { presetValue: string }): string[] =>
-  ADD_KIND_ORDER.map(
-    (kind) =>
-      `bun node_modules/.bin/vulcan package add --preset ${opts.presetValue} ${ADD_KINDS[kind].flag} <name>`,
-  );
-
-const NO_BACKEND = ':none';
-
-const DESCRIBED_KINDS = ADD_KIND_ORDER.map(
-  (kind) => `\`${ADD_KINDS[kind].flag} <name>\` (${ADD_KINDS[kind].hint})`,
-);
-
-const SAY_WHAT = `say what to create - ${DESCRIBED_KINDS.slice(0, -1).join(', ')} or ${DESCRIBED_KINDS.at(-1)}`;
-
-/** The kinds a located preset makes: always an app, a library kind only when its file is there. */
-const kindsOffered = (opts: { located: ILocatedPreset }): TAddKind[] => {
-  const hasFile: Record<TAddKind, boolean> = {
-    [PackageTypes.APP]: true,
-    [LibraryTypes.LIB]: opts.located.libFile !== undefined,
-    [LibraryTypes.SHARED]: opts.located.sharedFile !== undefined,
-  };
-
-  return ADD_KIND_ORDER.filter((kind) => hasFile[kind]);
-};
-
-/**
- * Why a preset cannot make a shared package, and where one can be had: the presets this project recorded with a
- * shared kind, then the official ones that have it. Nothing is invented: with none known it says so.
- */
-const noSharedKindMessage = (opts: {
-  located: ILocatedPreset;
-  recorded: TResolvedConfig['presets'];
-  name: string;
-  official?: IOfficialPreset[];
-}): string => {
-  const { official = OFFICIAL_PRESETS } = opts;
-  const recorded = (opts.recorded ?? []).filter((preset) => preset.shared !== undefined);
-  const known = [
-    ...recorded.map((preset) => preset.spec),
-    ...official
-      .filter((preset) => preset.shared !== undefined)
-      .map((preset) => preset.id)
-      .filter(
-        (id) => !recorded.some((preset) => OfficialPresets.idOf({ spec: preset.spec }) === id),
-      ),
-  ];
-  const commands = known.map(
-    (spec) =>
-      `bun node_modules/.bin/vulcan package add --preset ${spec} ${ADD_KINDS[LibraryTypes.SHARED].flag} ${opts.name}`,
-  );
-
-  return `preset ${opts.located.packageName} has no shared kind (it makes: ${kindsOffered({ located: opts.located }).join(' and ')}); ${
-    commands.length === 0
-      ? 'no preset known to this project or to the official list has one'
-      : `a preset with one: run ${commands.join(' or ')}`
-  }`;
-};
-
-/** The terminal asks which kind, listing only what the preset offers; end of input stops the command. */
-const askKind = async (opts: { offered: TAddKind[] }): Promise<TAddKind | undefined> => {
-  if (TerminalCapability.menusAvailable()) {
-    const picked = await TerminalPrompt.promptSelect({
-      message: 'What do you want to create?',
-      choices: opts.offered.map((kind) => ({
-        value: kind,
-        label: kind,
-        hint: ADD_KINDS[kind].hint,
-      })),
-    });
-
-    return opts.offered.find((kind) => kind === picked);
-  }
-
-  for (;;) {
-    const answer = ProjectNames.askWithPrompt({
-      question: `What do you want to create? (${opts.offered.join(', ')})`,
-    });
-
-    if (answer === null) {
-      return undefined;
-    }
-
-    const chosen = opts.offered.find((kind) => kind === answer.trim());
-
-    if (chosen !== undefined) {
-      return chosen;
-    }
-  }
-};
 
 const readRootManifest = (opts: { path: string }): TRootManifest | undefined => {
   if (!existsSync(opts.path)) {
@@ -287,8 +125,8 @@ export class AppScaffold {
     }
 
     const interactive = process.stdin.isTTY === true;
-    const flaggedKinds = ADD_KIND_ORDER.filter((candidate) =>
-      opts.args.includes(ADD_KINDS[candidate].flag),
+    const flaggedKinds = AddKinds.ORDER.filter((candidate) =>
+      opts.args.includes(AddKinds.TABLE[candidate].flag),
     );
 
     if (flaggedKinds.length > 1) {
@@ -307,22 +145,23 @@ export class AppScaffold {
 
     if (
       flagsLibrary &&
-      ProjectNames.readFlag({ args: opts.args, flag: ADD_KINDS[flaggedKind].flag }) === undefined
+      ProjectNames.readFlag({ args: opts.args, flag: AddKinds.TABLE[flaggedKind].flag }) ===
+        undefined
     ) {
-      return AddFailure.fail({ message: `${ADD_KINDS[flaggedKind].flag} needs a name` });
+      return AddFailure.fail({ message: `${AddKinds.TABLE[flaggedKind].flag} needs a name` });
     }
 
     // Never a default kind: without a terminal to ask, nothing is fetched or written until the flag says which.
     if (!interactive && flaggedKind === undefined) {
       return AddFailure.fail({
-        message: `${SAY_WHAT}\n  ${kindCommands({ presetValue }).join('\n  ')}`,
+        message: `${AddKinds.SAY_WHAT}\n  ${AddKindRegistry.kindCommands({ presetValue }).join('\n  ')}`,
       });
     }
 
     const early =
       interactive || flagsLibrary
         ? undefined
-        : missingFlag({ args: opts.args, layout: config.layout });
+        : AddFlagGuard.missingFlag({ args: opts.args, layout: config.layout });
 
     if (early !== undefined) {
       return AddFailure.fail({ message: early });
@@ -341,11 +180,11 @@ export class AppScaffold {
 
     if (flaggedKind === LibraryTypes.SHARED && located.located.sharedFile === undefined) {
       return AddFailure.fail({
-        message: noSharedKindMessage({
+        message: AddKindRegistry.noSharedKindMessage({
           located: located.located,
           recorded: config.presets,
           name:
-            ProjectNames.readFlag({ args: opts.args, flag: ADD_KINDS[flaggedKind].flag }) ??
+            ProjectNames.readFlag({ args: opts.args, flag: AddKinds.TABLE[flaggedKind].flag }) ??
             '<name>',
           official: opts.official,
         }),
@@ -353,19 +192,23 @@ export class AppScaffold {
     }
 
     if (flaggedKind === undefined) {
-      const offered = kindsOffered({ located: located.located });
-      const askingKind = offered.length === 1 ? PackageTypes.APP : askKind({ offered });
+      const offered = AddKindRegistry.kindsOffered({ located: located.located });
+      const askingKind =
+        offered.length === 1 ? PackageTypes.APP : AddKindRegistry.askKind({ offered });
       const chosen = await askingKind;
 
       if (chosen === undefined) {
-        return AddFailure.fail({ message: SAY_WHAT });
+        return AddFailure.fail({ message: AddKinds.SAY_WHAT });
       }
 
       kind = chosen;
     }
 
     if (kind !== PackageTypes.APP) {
-      const flaggedName = ProjectNames.readFlag({ args: opts.args, flag: ADD_KINDS[kind].flag });
+      const flaggedName = ProjectNames.readFlag({
+        args: opts.args,
+        flag: AddKinds.TABLE[kind].flag,
+      });
       const askingName =
         flaggedName === undefined
           ? askInTerminal({
@@ -378,7 +221,7 @@ export class AppScaffold {
       const name = flaggedName ?? typedName?.trim();
 
       if (name === undefined || name === '') {
-        return AddFailure.fail({ message: `${ADD_KINDS[kind].flag} needs a name` });
+        return AddFailure.fail({ message: `${AddKinds.TABLE[kind].flag} needs a name` });
       }
 
       return LibraryScaffold.add({
@@ -494,7 +337,7 @@ export class AppScaffold {
     let apiUrl = '';
 
     if (side === AppSides.FRONTEND) {
-      const api = await AppScaffold.resolveApiUrl({
+      const api = await ApiProxyResolver.resolveApiUrl({
         root: cwd,
         args: opts.args,
         interactive,
@@ -686,88 +529,6 @@ export class AppScaffold {
     );
 
     return ExitCodes.OK;
-  }
-
-  /** A frontend's proxy target: the chosen backend app's port, or nothing when it has no backend. */
-  static async resolveApiUrl(opts: {
-    root: string;
-    args: string[];
-    interactive: boolean;
-    backendFolders: string[];
-    packages: IProjectPackage[];
-  }): Promise<{ ok: true; apiUrl: string } | { ok: false; error: string }> {
-    if (opts.args.includes(CreateFlags.NO_API)) {
-      return { ok: true, apiUrl: '' };
-    }
-
-    let chosen = ProjectNames.readFlag({ args: opts.args, flag: CreateFlags.API });
-
-    if (chosen === undefined) {
-      if (!opts.interactive) {
-        return { ok: false, error: MISSING_API };
-      }
-
-      if (TerminalCapability.menusAvailable()) {
-        const backends = opts.packages.filter((entry) =>
-          opts.backendFolders.some((folder) => entry.path.startsWith(`${folder}/`)),
-        );
-
-        // Nothing to pick from: a frontend of a project without a backend has nothing to proxy to.
-        if (backends.length === 0) {
-          return { ok: true, apiUrl: '' };
-        }
-
-        const picked = await TerminalPrompt.promptSelect({
-          message: 'Backend app to proxy /api to',
-          choices: [
-            ...backends.map((entry) => ({ value: entry.dir, label: entry.dir, hint: entry.path })),
-            { value: NO_BACKEND, label: 'none', hint: 'no proxy' },
-          ],
-        });
-
-        if (picked === null) {
-          return { ok: false, error: 'aborted' };
-        }
-
-        chosen = picked === NO_BACKEND ? '' : picked;
-      } else {
-        chosen =
-          ProjectNames.askWithPrompt({
-            question: 'Backend app to proxy /api to (empty for none)',
-          })?.trim() ?? '';
-      }
-
-      if (chosen === '') {
-        return { ok: true, apiUrl: '' };
-      }
-    }
-
-    const backend = opts.packages.find(
-      (entry) =>
-        entry.dir === chosen &&
-        opts.backendFolders.some((folder) => entry.path.startsWith(`${folder}/`)),
-    );
-
-    if (backend === undefined) {
-      return {
-        ok: false,
-        error: `${CreateFlags.API} '${chosen}' is not a backend app of this monorepo`,
-      };
-    }
-
-    const envFile = join(opts.root, backend.path, '.env.example');
-    const port = existsSync(envFile)
-      ? PortRegistry.read({ envExample: readFileSync(envFile, 'utf8') })
-      : undefined;
-
-    if (port === undefined) {
-      return {
-        ok: false,
-        error: `no *PORT=<number> line in ${backend.path}/.env.example to proxy to`,
-      };
-    }
-
-    return { ok: true, apiUrl: `http://localhost:${port}` };
   }
 
   static async locate(opts: {

@@ -16,7 +16,8 @@ import { ABORTED, WritePlan } from './plan.ts';
 import { askInTerminal, ProjectNames, SCOPE_PATTERN } from './names.ts';
 import { Preset } from './preset.ts';
 import { SubProcess } from './process.ts';
-import { AppsBlock, WorkspaceDocs, WorkspaceManifest } from './workspace.ts';
+import { WorkspaceManifest } from './workspace.ts';
+import { AppsBlock, WorkspaceDocs } from './workspace-docs.ts';
 
 const KNOWLEDGE_DIRECTORY = '.agents/knowledge';
 const DIRECTORY_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;

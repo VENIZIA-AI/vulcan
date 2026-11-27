@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ConfigCodemod } from '../../config/codemod.ts';
-import type { IFileChange, TCodemodResult } from '../../config/codemod.ts';
+import type { IFileChange, TCodemodResult } from '../../config/common/index.ts';
 import { ConfigFormat } from '../../config/format.ts';
 import { ConfigLoader } from '../../config/loader.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
