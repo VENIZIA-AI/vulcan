@@ -1,38 +1,14 @@
 import { ProjectTmp } from '../hooks/project-tmp.ts';
-import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
+import type { ILocalEntry } from './common/index.ts';
 import { CleanScopes, LocalConstants, LocalProtected, LocalStates } from './constants.ts';
-
-/** One thing under `.agents/local/`: a child of one of its directories, or the profile file. */
-export interface ILocalEntry {
-  scope: string;
-  name: string;
-  /** Where it is, relative to `.agents/local/`: `tmp/job-1`, or a bare name for a stray folder. */
-  where: string;
-  path: string;
-  bytes: number;
-  ageMs: number;
-  state: string;
-  /** Whether `clean` may remove it when its scope is chosen. */
-  removable: boolean;
-  isSymlink: boolean;
-  /** A registered git worktree: removed with `git worktree remove`, then pruned. */
-  registered: boolean;
-  /** A day file of an event log kept outside the project (`events.dir`): removed only after its folder is checked against the settings. */
-  outside?: boolean;
-  note: string;
-}
-
-interface IRegistered {
-  /** `undefined` for a detached HEAD. */
-  branch: string | undefined;
-  /** The commit the worktree is at, as git last recorded it. */
-  head: string | undefined;
-}
+import { GitReader } from './git-reader.ts';
+import { DirectoryUtility } from './utilities/directory.utility.ts';
+import { WorktreeReader } from './worktree-reader.ts';
 
 /** The newest modification time under `path`, itself included: a folder's own time moves only when its direct children do. */
 const newestModifiedAt = (opts: { path: string }): number => {
@@ -74,16 +50,6 @@ const sizeOf = (opts: { path: string }): number => {
   );
 };
 
-const git = (opts: { cwd: string; args: string[] }): string | undefined => {
-  const result = spawnSync('git', opts.args, {
-    cwd: opts.cwd,
-    encoding: 'utf8',
-    timeout: LocalConstants.GIT_TIMEOUT_MS,
-  });
-
-  return result.status === 0 ? result.stdout : undefined;
-};
-
 /** Whether a release version has a tag in the repository: `v<version>` or `<version>`. */
 class ReleaseTags {
   /** Whether `name` is a version (`LocalConstants.RELEASE_VERSION`); any other name is no candidate and never matched against a tag. */
@@ -96,280 +62,15 @@ class ReleaseTags {
 
     return [`v${bare}`, bare].some(
       (tag) =>
-        git({ cwd: opts.root, args: ['show-ref', '--verify', '--quiet', `refs/tags/${tag}`] }) !==
-        undefined,
+        GitReader.run({
+          cwd: opts.root,
+          args: ['show-ref', '--verify', '--quiet', `refs/tags/${tag}`],
+        }) !== undefined,
     );
   }
 }
 
-/** What the history of a branch says about its own work. */
-class BranchHistory {
-  /**
-   * Whether anything was ever committed on the branch: `false` when its reflog holds only its creation (a new
-   * branch has the commit of the branch it came from, which is why `--merged` calls it merged), `undefined`
-   * when there is no reflog to read (the branch is then judged by `--merged` alone).
-   */
-  static hasOwnCommits(opts: { root: string; branch: string }): boolean | undefined {
-    const log = git({
-      cwd: opts.root,
-      args: ['reflog', 'show', '--format=%gs', `refs/heads/${opts.branch}`, '--'],
-    });
-    const entries = (log ?? '').split('\n').filter((line) => line.trim() !== '');
-
-    return entries.length === 0
-      ? undefined
-      : entries.some((line) => !line.startsWith('branch: Created from'));
-  }
-}
-
-/** A directory that is really one: not a link, not a file. */
-const isRealDirectory = (opts: { path: string }): boolean => {
-  try {
-    const stat = lstatSync(opts.path);
-
-    return stat.isDirectory() && !stat.isSymbolicLink();
-  } catch {
-    return false;
-  }
-};
-
-/** Whether a path is something a build or an install makes again, judged by the names in it. */
-const isRebuildable = (opts: { path: string }): boolean => {
-  const parts = opts.path.replace(/\/$/, '').split('/');
-
-  return (
-    parts.some((part) => LocalConstants.REBUILDABLE_DIRECTORIES.includes(part)) ||
-    LocalConstants.REBUILDABLE_SUFFIXES.some((suffix) => (parts.at(-1) ?? '').endsWith(suffix))
-  );
-};
-
-/**
- * The files under an ignored directory that are not rebuildable. git lists a directory whose every file is ignored
- * as one entry (`packages/`), so it is walked here, and a rebuildable folder (`node_modules`) is not entered. A
- * link is a file and is not followed. A directory too large to walk is reported whole.
- */
-const walkIgnored = (opts: {
-  real: string;
-  directory: string;
-  budget: { left: number };
-}): string[] => {
-  const found: string[] = [];
-  let names: string[];
-
-  try {
-    names = readdirSync(join(opts.real, opts.directory));
-  } catch {
-    return [opts.directory];
-  }
-
-  for (const name of names) {
-    const path = `${opts.directory}${name}`;
-
-    opts.budget.left -= 1;
-
-    if (opts.budget.left < 0) {
-      return [opts.directory];
-    }
-
-    if (isRebuildable({ path })) {
-      continue;
-    }
-
-    if (isRealDirectory({ path: join(opts.real, path) })) {
-      found.push(...walkIgnored({ ...opts, directory: `${path}/` }));
-    } else {
-      found.push(path);
-    }
-  }
-
-  return found;
-};
-
-/** Ignored files a worktree holds that no build or install makes again: `.env`, a local database, a key. */
-const unrebuildableIgnored = (opts: { real: string }): string[] | undefined => {
-  const listed = git({
-    cwd: opts.real,
-    args: ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory'],
-  });
-
-  if (listed === undefined) {
-    return undefined;
-  }
-
-  const budget = { left: LocalConstants.IGNORED_WALK_LIMIT };
-
-  // git can list a file and the directory that holds it both: each path is named once.
-  return [
-    ...new Set(
-      listed
-        .split('\n')
-        .filter((line) => line.trim() !== '' && !isRebuildable({ path: line }))
-        .flatMap((line) =>
-          line.endsWith('/') ? walkIgnored({ real: opts.real, directory: line, budget }) : [line],
-        ),
-    ),
-  ];
-};
-
-/** Where a merged branch may have gone: the checked-out branch of the root, then develop, then the default branch of origin. */
-const MERGE_TARGETS = [
-  { label: 'the branch checked out at the project root', args: [] as string[] },
-  { label: 'origin/develop', args: ['origin/develop'] },
-  { label: 'the default branch of origin', args: ['origin/HEAD'] },
-];
-
-const classifyBranch = (opts: {
-  root: string;
-  real: string;
-  registered: Map<string, IRegistered> | undefined;
-}): IVerdict => {
-  if (opts.registered === undefined) {
-    return {
-      state: LocalStates.UNKNOWN,
-      removable: false,
-      registered: false,
-      note: 'git could not list worktrees',
-    };
-  }
-
-  const found = opts.registered.get(opts.real);
-
-  if (found === undefined) {
-    return {
-      state: LocalStates.ORPHAN,
-      removable: true,
-      registered: false,
-      note: 'not a registered worktree',
-    };
-  }
-
-  const { branch } = found;
-
-  if (branch === undefined) {
-    return {
-      state: LocalStates.UNMERGED,
-      removable: false,
-      registered: true,
-      note: 'detached HEAD',
-    };
-  }
-
-  if (
-    git({ cwd: opts.root, args: ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`] }) ===
-    undefined
-  ) {
-    return {
-      state: LocalStates.GONE,
-      removable: true,
-      registered: true,
-      note: `branch ${branch} is gone`,
-    };
-  }
-
-  // Merged into the branch checked out at the root, or into develop or the default branch of origin.
-  const target = MERGE_TARGETS.find((candidate) =>
-    git({
-      cwd: opts.root,
-      args: ['branch', '--format=%(refname:short)', '--merged', ...candidate.args],
-    })
-      ?.split('\n')
-      .map((line) => line.trim())
-      .includes(branch),
-  );
-
-  if (target !== undefined && BranchHistory.hasOwnCommits({ root: opts.root, branch }) === false) {
-    return {
-      state: LocalStates.UNMERGED,
-      removable: false,
-      registered: true,
-      note: `branch ${branch} has no commits of its own yet`,
-    };
-  }
-
-  if (target !== undefined) {
-    return {
-      state: LocalStates.MERGED,
-      removable: true,
-      registered: true,
-      note: `branch ${branch} is merged into ${target.label}`,
-    };
-  }
-
-  return {
-    state: LocalStates.UNMERGED,
-    removable: false,
-    registered: true,
-    note: `branch ${branch} is not merged`,
-  };
-};
-
-/**
- * A worktree on a merged or gone branch is removable only when it holds nothing uncommitted or
- * untracked: `git worktree remove --force` would otherwise lose that work without a word. Dirtiness is
- * judged against the commit git recorded for the worktree, not HEAD: a gone branch leaves HEAD
- * unresolvable and `status` would then list every file as new. (Work staged but not committed on a gone
- * branch cannot be told from the checkout's own index.)
- */
-const classifyWorktree = (opts: {
-  root: string;
-  real: string;
-  registered: Map<string, IRegistered> | undefined;
-}): IVerdict => {
-  const verdict = classifyBranch(opts);
-
-  if (!verdict.registered || !verdict.removable) {
-    return verdict;
-  }
-
-  const head = opts.registered?.get(opts.real)?.head;
-  // A gone branch has no commit (git records all zeros): the working tree is then compared with the
-  // index, which still catches an edited file and, with the untracked check, a new one.
-  const baseline = head === undefined || /^0+$/.test(head) ? [] : [head];
-  const tracked = spawnSync('git', ['diff', '--quiet', ...baseline], {
-    cwd: opts.real,
-    timeout: LocalConstants.GIT_TIMEOUT_MS,
-  }).status;
-  const untracked = git({ cwd: opts.real, args: ['ls-files', '--others', '--exclude-standard'] });
-  const clean = tracked === 0 && untracked !== undefined && untracked.trim() === '';
-
-  if (!clean) {
-    return {
-      state: LocalStates.DIRTY,
-      removable: false,
-      registered: true,
-      note: `${verdict.note}, but it has uncommitted or untracked files`,
-    };
-  }
-
-  // `git worktree remove --force` deletes ignored files too: a `.env` or a local database would go with it.
-  const ignored = unrebuildableIgnored({ real: opts.real });
-
-  if (ignored === undefined || ignored.length > 0) {
-    const shown = (ignored ?? []).slice(0, LocalConstants.NOTE_FILES).join(', ');
-    const more = Math.max(0, (ignored ?? []).length - LocalConstants.NOTE_FILES);
-
-    return {
-      state: LocalStates.DIRTY,
-      removable: false,
-      registered: true,
-      note:
-        ignored === undefined
-          ? `${verdict.note}, but git could not list its ignored files`
-          : `${verdict.note}, but it holds ignored files that are not rebuildable: ${shown}${more > 0 ? ` and ${more} more` : ''}`,
-    };
-  }
-
-  return verdict;
-};
-
 export class LocalScan {
-  /** The registered worktrees of the repository at `root`; `undefined` when git cannot list them. */
-  private static registeredWorktrees(opts: { root: string }): Map<string, IRegistered> | undefined {
-    const listed = git({ cwd: opts.root, args: ['worktree', 'list', '--porcelain', '-z'] });
-
-    return listed === undefined ? undefined : LocalScan.parseWorktreeList({ output: listed });
-  }
-
   /**
    * The real path of the project's `.agents/local/`, or `undefined` when there is none or it cannot be
    * trusted: `.agents` or `.agents/local` is a symlink, or the folder resolves outside the project. Every
@@ -395,31 +96,6 @@ export class LocalScan {
     }
   }
 
-  /**
-   * The output of `git worktree list --porcelain -z`: records end with an extra NUL and fields are NUL
-   * separated, so a path with a line break or odd characters is read whole.
-   */
-  static parseWorktreeList(opts: { output: string }): Map<string, IRegistered> {
-    const map = new Map<string, IRegistered>();
-
-    for (const record of opts.output.split('\0\0')) {
-      const fields = record.split('\0').filter((field) => field !== '');
-      const path = fields.find((field) => field.startsWith('worktree '))?.slice('worktree '.length);
-      const branch = fields
-        .find((field) => field.startsWith('branch refs/heads/'))
-        ?.slice('branch refs/heads/'.length);
-      const head = fields
-        .find((field) => /^HEAD [0-9a-f]{7,64}$/.test(field))
-        ?.slice('HEAD '.length);
-
-      if (path !== undefined) {
-        map.set(existsSync(path) ? realpathSync(path) : path, { branch, head });
-      }
-    }
-
-    return map;
-  }
-
   /** Every entry of `.agents/local/`, with size, age and what may be removed. Nothing is followed outside it. */
   static scan(opts: { root: string; now?: number; only?: string[] }): ILocalEntry[] {
     const local = LocalScan.localRootOf({ root: opts.root });
@@ -432,7 +108,7 @@ export class LocalScan {
     // `only` names the folders to look at: the automatic clean asks for two and never starts git for the worktrees.
     const wants = (name: string): boolean => opts.only === undefined || opts.only.includes(name);
     const registered = wants(CleanScopes.WORKTREES)
-      ? LocalScan.registeredWorktrees({ root: opts.root })
+      ? WorktreeReader.registeredWorktrees({ root: opts.root })
       : undefined;
     const entries: ILocalEntry[] = [];
     // The event log is where the project's settings put it (`events.dir`, else `.agents/local/events`), with its limits.
@@ -464,7 +140,7 @@ export class LocalScan {
           homes[layout.name] ?? join(local, layout.name),
           ...(layout.name === CleanScopes.TMP ? [join(local, layout.name)] : []),
         ]),
-      ].filter((path) => isRealDirectory({ path }));
+      ].filter((path) => DirectoryUtility.isReal({ path }));
 
       for (const directory of directories) {
         for (const name of readdirSync(directory)) {
@@ -483,7 +159,7 @@ export class LocalScan {
           let note = '';
 
           if (layout.name === CleanScopes.WORKTREES) {
-            const verdict = classifyWorktree({
+            const verdict = WorktreeReader.classify({
               root: opts.root,
               real: stat.isSymbolicLink() ? resolve(path) : realpathSync(path),
               registered,
@@ -665,11 +341,4 @@ export class LocalScan {
       return undefined;
     }
   }
-}
-
-interface IVerdict {
-  state: string;
-  removable: boolean;
-  registered: boolean;
-  note: string;
 }

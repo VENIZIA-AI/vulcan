@@ -14,6 +14,7 @@ import { EventLog } from '../../events/log.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { SocketWarning } from '../doctor/socket-warning.helper.ts';
 import { CleanScopes, LocalClean, LocalConstants, LocalScan } from '../../local/index.ts';
+import { WorktreeReader } from '../../local/worktree-reader.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { runCli } from '../helpers/run.helper.ts';
 
@@ -275,7 +276,7 @@ describe('a link can never move clean out of the project', () => {
   });
 });
 
-describe('LocalScan.parseWorktreeList', () => {
+describe('WorktreeReader.parseWorktreeList', () => {
   test('reads NUL separated records, a path with a line break whole', () => {
     const output =
       [
@@ -295,7 +296,7 @@ describe('LocalScan.parseWorktreeList', () => {
           'detached',
         ].join('\0'),
       ].join('\0\0') + '\0\0';
-    const map = LocalScan.parseWorktreeList({ output });
+    const map = WorktreeReader.parseWorktreeList({ output });
 
     expect(map.get('/repo/.agents/local/worktrees/odd\nname')?.branch).toBe('odd');
     expect(map.get('/repo/.agents/local/worktrees/loose')).toEqual({

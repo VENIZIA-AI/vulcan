@@ -8,7 +8,7 @@ import { EventSettings } from '../events/settings.ts';
 import { CleanScopes, LocalConstants, LocalStates } from './constants.ts';
 import { LocalFormat } from './format.ts';
 import { LocalScan } from './scan.ts';
-import type { ILocalEntry } from './scan.ts';
+import type { ILocalEntry } from './common/index.ts';
 
 interface ICleanPlan {
   /** What the chosen scopes would remove. */

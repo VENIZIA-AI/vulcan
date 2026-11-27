@@ -1,7 +1,7 @@
 import { BoardConstants, BoardStates } from '../../common/index.ts';
 import type { IBoardFlow, IBoardTokenRow } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
-import type { IFlowView } from '../common/types.ts';
+import type { IFlowView, TTranslate } from '../common/types.ts';
 import { BoardAgentInfo } from './agent-info.ts';
 import { BoardTime } from './time.ts';
 import { BoardView } from './view.ts';
@@ -73,6 +73,11 @@ const STALE_MS = BoardUiConstants.STALE_HOURS * BoardConstants.HOUR_MS;
 export class BoardWork {
   /** What stands where a figure is not known. */
   static readonly UNKNOWN = '—';
+
+  /** What the stale mark and its filter say when pointed at. */
+  static staleTip(opts: { t: TTranslate }): string {
+    return `${opts.t('it.staleTip')} ${BoardUiConstants.STALE_HOURS}${opts.t(' giờ')}`;
+  }
 
   /** The newest line of the flow that is not plumbing, its own `flow` lines (a step ticked) included. */
   static lastAt(opts: { flow: IBoardFlow }): string {

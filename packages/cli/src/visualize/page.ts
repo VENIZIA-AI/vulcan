@@ -14,7 +14,8 @@ import { PageTerms, SourceRefs } from './sources.ts';
 import { ProjectTheme } from './theme.ts';
 import type { IResolvedTheme } from './theme.ts';
 import { SpecSections } from './sections.ts';
-import type { ISectionContext } from './sections.ts';
+import { ReportSectionsBuilder } from './report-sections.ts';
+import type { ISectionContext } from './common/index.ts';
 
 const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
@@ -185,7 +186,7 @@ export class PageShell {
             title: chrome.flow,
             body: SpecSections.flow({ ctx }),
           }),
-      SpecSections.notes({ ctx }),
+      ReportSectionsBuilder.notes({ ctx }),
       SpecSections.architecture({ ctx }),
       CompareView.section({ ctx }),
       KindsRender.sequenceSection({ ctx }),
@@ -195,14 +196,14 @@ export class PageShell {
       SpecSections.ideaMap({ ctx }),
       SpecSections.explainer({ ctx }),
       SpecSections.timeline({ ctx }),
-      SpecSections.findings({ ctx }),
-      SpecSections.grades({ ctx }),
-      SpecSections.metrics({ ctx }),
+      ReportSectionsBuilder.findings({ ctx }),
+      ReportSectionsBuilder.grades({ ctx }),
+      ReportSectionsBuilder.metrics({ ctx }),
       SpecSections.beforeAfter({ ctx }),
       SpecSections.decisionRecord({ ctx }),
-      SpecSections.evidence({ ctx }),
-      SpecSections.risks({ ctx }),
-      SpecSections.log({ ctx }),
+      ReportSectionsBuilder.evidence({ ctx }),
+      ReportSectionsBuilder.risks({ ctx }),
+      ReportSectionsBuilder.log({ ctx }),
       spec.terms === undefined
         ? ''
         : SpecSections.section({
@@ -217,7 +218,7 @@ export class PageShell {
             title: chrome.sources,
             body: SourceRefs.listHtml({ entries: sources }),
           }),
-      SpecSections.links({ ctx }),
+      ReportSectionsBuilder.links({ ctx }),
     ].join('');
     const css = `${Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? DEFAULT_THEME }) })}\n${NEW_KINDS_CSS}\n${COMPARE_CSS}\n${GridSpans.css({ spans: ctx.spans })}\n${figureFitCss({ keys: ctx.fits })}`;
     const policy = `default-src 'none'; style-src ${sha256({ text: css })}; script-src ${sha256({ text: HEAD_JS })} ${sha256({ text: PAGE_JS })}; base-uri 'none'; form-action 'none'`;

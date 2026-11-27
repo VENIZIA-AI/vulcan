@@ -1,8 +1,7 @@
 import { TypeScriptCompiler } from '@venizia/vulcan-atlas';
-import { ConfigConstants } from './common/index.ts';
+import { CodemodConstants, ConfigConstants } from './common/index.ts';
 import type { IFileChange, TCodemodResult } from './common/index.ts';
 
-const MODULES_DIRECTORY = `${ConfigConstants.DIRECTORY}/vulcan`;
 /** The files of a config that can hold a `packages` entry: the config, and the modules a split writes (the groups and the earlier names). */
 const MODULES = [
   'project',
@@ -39,7 +38,7 @@ export class ConfigTypeNames {
     const typescript = TypeScriptCompiler.load({ from: opts.root });
     const paths = [
       `${ConfigConstants.DIRECTORY}/${ConfigConstants.FILE}`,
-      ...MODULES.map((name) => `${MODULES_DIRECTORY}/${name}.mts`),
+      ...MODULES.map((name) => `${CodemodConstants.MODULES_DIRECTORY}/${name}.mts`),
     ];
     const changes: IFileChange[] = [];
     const notes: string[] = [];
