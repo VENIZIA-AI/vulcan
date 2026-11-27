@@ -55,11 +55,13 @@ export class CapturedStderr {
   }
 
   /**
-   * Resolves once an unclaimed line holds every one of `parts`, for output that arrives on its own; throws after ten
-   * seconds without one.
+   * Resolves once an unclaimed line holds every one of `parts`, for output that arrives on its own; throws after `ms` without
+   * one, by default four seconds: before a test's own five seconds end it without saying what it waited for.
    */
-  async arrival(opts: { parts: string[] }): Promise<void> {
-    for (let attempt = 0; attempt < 400; attempt += 1) {
+  async arrival(opts: { parts: string[]; ms?: number }): Promise<void> {
+    const ms = opts.ms ?? 4000;
+
+    for (let attempt = 0; attempt * 25 < ms; attempt += 1) {
       if (this.lines.some((line) => opts.parts.every((part) => line.includes(part)))) {
         return;
       }
@@ -68,14 +70,15 @@ export class CapturedStderr {
     }
 
     throw new Error(
-      `no line holding ${JSON.stringify(opts.parts)} arrived in 10 s; unclaimed: ${JSON.stringify(this.lines)}`,
+      `no line holding ${JSON.stringify(opts.parts)} arrived in ${ms} ms; unclaimed: ${JSON.stringify(this.lines)}`,
     );
   }
 
   restore(): void {
     console.error = this.error;
     process.stderr.write = this.write;
-    this.keep([this.partial]);
+    // The decoder may still hold the first bytes of a letter whose last ones never came.
+    this.keep([`${this.partial}${this.decoder.decode()}`]);
     this.partial = '';
 
     expect(this.lines.splice(0)).toEqual([]);

@@ -50,7 +50,7 @@ const systemTempLeaks = (): string[] =>
 /** Runs one test file with a bare `bun test` (no make) and the given TMPDIR; its exit code must be 0. */
 const runBare = (opts: { pkg: string; file: string; tmpdir: string }): void => {
   const result = spawnSyncBounded({
-    cmd: [process.execPath, 'test', opts.file],
+    cmd: [process.execPath, 'test', '--max-concurrency=6', opts.file],
     cwd: join(PACKAGES, opts.pkg),
     env: { ...process.env, TMPDIR: opts.tmpdir },
     stdout: 'pipe',

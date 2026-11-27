@@ -60,8 +60,7 @@ describe('ApiReference.filesOf with a long entry', () => {
 
     expect(main).not.toContain('xxxxxxxxxx');
     expect(main).toContain('[Declaration](/references/api/x-kit--part-1#value00)');
-    // A name the site's anchor would spell another way is linked to the page alone.
-    expect(main).toContain('[Declaration](/references/api/x-kit--part-3)');
+    expect(main).toContain('[Declaration](/references/api/x-kit--part-3#with-mark)');
   });
 
   test('a part names its entry, its number and the way back', () => {
@@ -95,13 +94,64 @@ describe('ApiReference.filesOf with a long entry', () => {
     });
   });
 
+  test('every name gets the anchor the site makes of it, numbered past one already taken', () => {
+    const huge = record({
+      name: 'zz',
+      declaration: `export declare const zz: '${'z'.repeat(ApiReference.MAX_PAGE_CHARS)}';`,
+    });
+    const odd = [
+      '_foo',
+      'foo',
+      'foo_1',
+      'MAX_PAGE_SIZE',
+      '$state',
+      '__esModule__',
+      'a$$b_',
+      '_9lives',
+    ];
+    const split = ApiReference.filesOf({ records: [...odd.map((name) => record({ name })), huge] });
+    const page = split.get('x-kit.md') ?? '';
+    const anchorOf = (name: string): string | undefined =>
+      page
+        .split(`## \`${name}\`\n\n*function* - [Declaration](/references/api/x-kit--part-1`)[1]
+        ?.split(')')[0];
+
+    // Lower case, a run of marks is one dash, none at an end, `_` before a digit, and `-1` past an anchor taken.
+    expect(odd.map((name) => [name, anchorOf(name)])).toEqual([
+      ['_foo', '#foo'],
+      ['foo', '#foo-1'],
+      ['foo_1', '#foo-1-1'],
+      ['MAX_PAGE_SIZE', '#max-page-size'],
+      ['$state', '#state'],
+      ['__esModule__', '#esmodule'],
+      ['a$$b_', '#a-b'],
+      ['_9lives', '#_9lives'],
+    ]);
+  });
+
+  test('the entry page of a very large entry grows past the limit, with a heading for each export and no code', () => {
+    const many = Array.from({ length: 600 }, (_, at) => `someLongerExportName${at}`);
+    const split = ApiReference.filesOf({ records: many.map(long) });
+    const page = split.get('x-kit.md') ?? '';
+
+    expect(page.length).toBeGreaterThan(ApiReference.MAX_PAGE_CHARS);
+    expect([...page.matchAll(/^## `/gm)]).toHaveLength(600);
+    expect(page).not.toContain('```');
+
+    for (const [file, text] of split) {
+      if (file.includes('--part-')) {
+        expect(text.length).toBeLessThanOrEqual(ApiReference.MAX_PAGE_CHARS);
+      }
+    }
+  });
+
   test('a name outside ASCII is listed and linked to its part', () => {
     const split = ApiReference.filesOf({
       records: [...Array.from({ length: 12 }, (_, at) => long(`value${at}`)), long('đếm')],
     });
     const page = split.get('x-kit.md') ?? '';
     const link =
-      /## `đếm`\n\n\*function\* - \[Declaration\]\(\/references\/api\/(x-kit--part-\d)\)/.exec(
+      /## `đếm`\n\n\*function\* - \[Declaration\]\(\/references\/api\/(x-kit--part-\d)#đem\)/.exec(
         page,
       )?.[1];
 
