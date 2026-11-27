@@ -10,6 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { RepoTmp } from '@venizia/dev-configs/testing';
+import { ProjectTmp } from '../../hooks/project-tmp.ts';
 import { BrowserSocket } from '../../local/browser-socket.ts';
 
 /** What a measuring run is asked: the page text, the width of the window, and the colour scheme. */
@@ -55,6 +56,30 @@ export class BrowserPage {
     return undefined;
   }
 
+  /**
+   * The child gets the first of these folders in which Chrome's socket path fits: the one named by
+   * VULCAN_BROWSER_TMPDIR, the project's configured scratch folder, `.agents/local/tmp`, the project's
+   * `.agents/local` (shorter by `tmp/`), the test folder.
+   */
+  static candidatesOf(opts: {
+    root: string;
+    folder: string;
+    override: string | undefined;
+  }): string[] {
+    const local = join(opts.root, '.agents', 'local');
+    const named = [
+      opts.override,
+      ProjectTmp.projectOf({ root: opts.root }),
+      join(local, 'tmp'),
+      local,
+      opts.folder,
+    ];
+
+    return [...new Set(named)].filter(
+      (entry): entry is string => entry !== undefined && existsSync(entry),
+    );
+  }
+
   /** Starts the browser; false when there is none or it does not answer in time (for example a socket path that is too long). */
   static async available(): Promise<boolean> {
     if (BrowserPage.socket !== undefined) {
@@ -71,18 +96,11 @@ export class BrowserPage {
 
     BrowserPage.folder = folder;
 
-    // The child gets the first of these folders in which Chrome's socket path fits: the one named by
-    // VULCAN_BROWSER_TMPDIR, the project's scratch folder, the project's `.agents/local` (shorter by `tmp/`), the test folder.
-    const local = join(RepoTmp.findRoot({ start: import.meta.dir }), '.agents', 'local');
-    const candidates = [
-      process.env['VULCAN_BROWSER_TMPDIR'],
-      join(local, 'tmp'),
-      local,
+    const candidates = BrowserPage.candidatesOf({
+      root: RepoTmp.findRoot({ start: import.meta.dir }),
       folder,
-    ].filter(
-      (entry): entry is string =>
-        entry !== undefined && existsSync(entry) && BrowserSocket.fits({ folder: entry }),
-    );
+      override: process.env['VULCAN_BROWSER_TMPDIR'],
+    }).filter((entry) => BrowserSocket.fits({ folder: entry }));
 
     for (const base of candidates) {
       // Where the path allows, Chrome gets a folder of this run alone: another run in the same folder is never
