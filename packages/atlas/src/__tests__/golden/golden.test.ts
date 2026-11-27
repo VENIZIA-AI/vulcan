@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { IGNIS_IS_BUILT } from '../ignis-root.helper';
+import { IGNIS_IS_BUILT } from '../helpers/ignis-root.helper';
 import { GOLDEN_QUESTIONS } from './golden-questions';
 import { GoldenProjects, GoldenRunner, GoldenVerdicts } from './golden.helper';
 import type { IGoldenQuestion, TGoldenVerdict } from './golden.helper';
