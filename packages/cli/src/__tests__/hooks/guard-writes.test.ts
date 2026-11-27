@@ -50,6 +50,74 @@ describe("the free text of vulcan's flow and event commands is data, like a comm
   ])('%s is still checked', (command) => {
     expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
   });
+
+  const PAYLOAD = 'kubectl apply -f x.yaml';
+
+  // Only the plain form is a note: any other way of calling it, or of sending its output on, is checked.
+  test.each([
+    `watch vulcan flow ';' ${PAYLOAD}`,
+    `parallel vulcan flow ::: "${PAYLOAD}"`,
+    `flock /tmp/l vulcan flow "${PAYLOAD}"`,
+    `sudo -s vulcan flow ';' ${PAYLOAD}`,
+    `xargs -I{} vulcan flow "${PAYLOAD}"`,
+    `/tmp/x/vulcan flow "${PAYLOAD}"`,
+    `./scripts/vulcan flow "${PAYLOAD}"`,
+    `~/vulcan event "${PAYLOAD}"`,
+    `./node_modules/.bin/vulcan flow "${PAYLOAD}"`,
+    `/tmp/x/bun node_modules/.bin/vulcan flow "${PAYLOAD}"`,
+    ...[
+      'sudo',
+      'doas',
+      'env',
+      'env A=1',
+      'A=1',
+      'command',
+      'builtin',
+      'exec',
+      'time',
+      'nohup',
+      'nice',
+      'ionice',
+      'stdbuf -oL',
+      'timeout 5',
+      'setsid',
+      'busybox',
+      'taskset 1',
+      'runuser -u x --',
+      'coproc',
+      '!',
+    ].map((prefix) => `${prefix} vulcan flow step --next "${PAYLOAD}"`),
+    `if true; then vulcan flow "${PAYLOAD}"; fi`,
+    `for a in 1; do vulcan flow "${PAYLOAD}"; done`,
+    `vulcan() { shift; "$@"; }; vulcan flow ${PAYLOAD}`,
+    `function vulcan { shift; "$@"; }; vulcan flow ${PAYLOAD}`,
+    `bun() { shift 2; "$@"; }; ${VULCAN} flow ${PAYLOAD}`,
+    `alias vulcan=eval; vulcan flow "${PAYLOAD}"`,
+    `vulcan flow "${PAYLOAD}" | (sh)`,
+    `vulcan flow "${PAYLOAD}" | { sh; }`,
+    `vulcan flow "${PAYLOAD}" | while read l; do eval "$l"; done`,
+    `vulcan flow "${PAYLOAD}" | xargs -I{} {}`,
+    `vulcan flow "${PAYLOAD}" | source /dev/stdin`,
+    `vulcan flow "${PAYLOAD}" | tail -1 | sh`,
+    `eval "$(vulcan flow "${PAYLOAD}")"`,
+    `source <(vulcan flow "${PAYLOAD}")`,
+    `vulcan flow "${PAYLOAD}" > x.sh; sh x.sh`,
+    `{ vulcan flow "${PAYLOAD}"; } > x.sh; sh x.sh`,
+    `(vulcan flow "${PAYLOAD}") | sh`,
+    `exec > x.sh; vulcan flow "${PAYLOAD}"; sh x.sh`,
+    `vulcan flow "${PAYLOAD}" # "\nvulcan flow x | sh`,
+  ])('another form is checked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    `${VULCAN} flow step --flow X-1 --next "${PAYLOAD}" 2>&1 | tail -1`,
+    `git push && ${VULCAN} flow step --next "a | b > c" | head -3`,
+    `${VULCAN} event add --type note --summary "${PAYLOAD}" >/dev/null 2>&1`,
+    `${VULCAN} flow step --next '${PAYLOAD}' # done | sh`,
+  ])('the plain form with a reading tail stays quiet: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+  });
 });
 
 /** The real hook, run in `root` with the command as Claude Code sends it: its exit code and its decision. */

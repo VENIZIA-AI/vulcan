@@ -43,6 +43,19 @@ const VULCAN_BIN = 'node_modules/.bin/vulcan';
 /** The scopes of VULCAN whose arguments are titles and notes of the board: nothing in them is run. */
 const VULCAN_NOTE_SCOPES = new Set(['flow', 'event']);
 
+/** What a line says that is not code of its own: an escaped character, a quoted string, a comment. */
+const NOT_CODE = /\\.|'[^']*'|"(?:\\.|[^"\\])*"|(?<=^|\s)#[^\n]*/g;
+
+/** The redirects that send output nowhere new. */
+const DROPPED_OUTPUT = /(?:[12]?>\s*\/dev\/null|2>&1)(?![^\s;&|])/g;
+
+/** A line that gives `vulcan` or `bun` another meaning. */
+const REDEFINES =
+  /(?:^|[\s;&|(){}])(?:function\s+(?:vulcan|bun)(?![\w.-])|(?:vulcan|bun)\s*\(\s*\)|alias\s+(?:vulcan|bun)=)/;
+
+/** A pipe into a program that only shows what it reads. */
+const SHOWS = /^\s*(?:tail|head|grep|wc)(?=\s|;|&|$)/;
+
 /** The `gh` options that take the repository as their value: that value is not the subcommand. */
 const GH_REPOSITORY_FLAGS = new Set(['-R', '--repo']);
 
@@ -115,24 +128,51 @@ const isGhRequest = (opts: { command: ISimpleCommand }): boolean => {
 };
 
 export class CommandView {
-  /** Whether a command is `vulcan flow ...` or `vulcan event ...`, by its name or by the project's bin under `bun`. */
-  private static isVulcanNote(opts: { command: ISimpleCommand }): boolean {
-    const { name, args } = ShellPrograms.programOf({ command: opts.command });
-    const program = ShellPrograms.basenameOf({ word: name });
+  /**
+   * Whether a command is `vulcan flow ...` or `vulcan event ...` written plainly: its first word is `vulcan`, or
+   * `bun` with the project's bin, with no wrapper, assignment or keyword before it, outside any substitution or
+   * subshell, on a line that keeps the output to itself. Any other form is read like every command.
+   */
+  private static isPlainNote(opts: { command: ISimpleCommand; line?: string }): boolean {
+    const { command, line } = opts;
+    const [first, second, third] = command.words;
+    const isNote =
+      (first === 'vulcan' && VULCAN_NOTE_SCOPES.has(second ?? '')) ||
+      (first === 'bun' && second === VULCAN_BIN && VULCAN_NOTE_SCOPES.has(third ?? ''));
 
-    if (program === 'bun') {
-      return args[0] === VULCAN_BIN && VULCAN_NOTE_SCOPES.has(args[1] ?? '');
+    return (
+      isNote &&
+      command.assignments.length === 0 &&
+      command.scope === undefined &&
+      command.carrier === undefined &&
+      line !== undefined &&
+      CommandView.keepsOutput({ line })
+    );
+  }
+
+  /** Whether a line sends no output on to anything that could run it, and leaves `vulcan` and `bun` as they are. */
+  private static keepsOutput(opts: { line: string }): boolean {
+    // `$'...'` has its own quoting, which is not followed here.
+    if (opts.line.includes("$'")) {
+      return false;
     }
 
-    return program === 'vulcan' && VULCAN_NOTE_SCOPES.has(args[0] ?? '');
+    const code = opts.line.replace(NOT_CODE, ' _ ').replace(DROPPED_OUTPUT, ' ');
+    const piped = code.replaceAll('||', ';').split('|').slice(1);
+
+    return !code.includes('>') && !REDEFINES.test(code) && piped.every((part) => SHOWS.test(part));
   }
 
   /** The text of one simple command: the words, a bare name for data, a reader's heredoc body appended. */
-  private static textOf(opts: { command: ISimpleCommand; withMessages: boolean }): string {
+  private static textOf(opts: {
+    command: ISimpleCommand;
+    withMessages: boolean;
+    line: string;
+  }): string {
     const { command } = opts;
     const name = ShellPrograms.basenameOf({ word: ShellPrograms.programOf({ command }).name });
 
-    if (CommandView.isDataOnly({ command, withMessages: opts.withMessages })) {
+    if (CommandView.isDataOnly(opts)) {
       return name;
     }
 
@@ -143,10 +183,15 @@ export class CommandView {
   }
 
   /**
-   * Whether the arguments of a command are data. `withMessages` adds `git`, `gh` and the notes of
-   * `vulcan flow` and `vulcan event` (their arguments are messages to the write guards).
+   * Whether the arguments of a command are data. `withMessages` adds `git`, `gh` and a plain `vulcan flow` or
+   * `vulcan event` call (their arguments are messages to the write guards).
    */
-  static isDataOnly(opts: { command: ISimpleCommand; withMessages: boolean }): boolean {
+  static isDataOnly(opts: {
+    command: ISimpleCommand;
+    withMessages: boolean;
+    /** The whole line without its heredoc bodies; without it no note command is data. */
+    line?: string;
+  }): boolean {
     const name = ShellPrograms.basenameOf({
       word: ShellPrograms.programOf({ command: opts.command }).name,
     });
@@ -159,7 +204,7 @@ export class CommandView {
       return false;
     }
 
-    if (opts.withMessages && CommandView.isVulcanNote({ command: opts.command })) {
+    if (opts.withMessages && CommandView.isPlainNote(opts)) {
       return true;
     }
 
@@ -182,7 +227,8 @@ export class CommandView {
     const { text } = ShellParser.splitHeredocs({ command: opts.command });
     const parsed = ShellParser.parseChecked({ command: opts.command });
     const commands = parsed.commands.filter(
-      (command) => !CommandView.isDataOnly({ command, withMessages: opts.withMessages }),
+      (command) =>
+        !CommandView.isDataOnly({ command, withMessages: opts.withMessages, line: text }),
     );
     // Read from the commands, not the text, so a `| sh` in a comment or in quotes feeds nothing.
     const isWholeLine = parsed.commands.some(
@@ -195,7 +241,7 @@ export class CommandView {
     const texts = isWholeLine
       ? [text]
       : parsed.commands.map((command) =>
-          CommandView.textOf({ command, withMessages: opts.withMessages }),
+          CommandView.textOf({ command, withMessages: opts.withMessages, line: text }),
         );
     const sources = isWholeLine ? [undefined] : parsed.commands;
 
