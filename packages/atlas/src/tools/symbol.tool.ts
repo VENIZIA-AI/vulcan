@@ -117,11 +117,14 @@ const withDeclarations = (opts: {
       return { ...match, declarationOf: first };
     }
 
-    if (record.shape !== undefined) {
+    const reply = DeclarationReply.of({ record, symbols: opts.symbols });
+
+    // Only a match that carries the text can stand for the others of its shape.
+    if (reply !== undefined && record.shape !== undefined) {
       firstOfShape.set(record.shape, record.specifier);
     }
 
-    return { ...match, ...DeclarationReply.of({ record, symbols: opts.symbols }) };
+    return { ...match, ...reply };
   });
 
   return 'matches' in opts.response ? { matches: attached } : attached[0];

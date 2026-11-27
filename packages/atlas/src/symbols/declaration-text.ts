@@ -18,8 +18,8 @@ const LIB_FILE = /[\\/]lib\.[^\\/]*\.d\.ts$/;
 export interface IDeclarationParts {
   body: string;
   comment: string;
-  locals: { statement: TypeScript.Node; text: string }[];
-  uses: string[];
+  readonly locals: readonly { statement: TypeScript.Node; text: string }[];
+  readonly uses: readonly string[];
 }
 
 /**

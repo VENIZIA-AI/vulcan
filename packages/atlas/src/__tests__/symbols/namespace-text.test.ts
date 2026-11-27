@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { ApiReference } from '@/api';
@@ -24,6 +24,8 @@ afterAll(() => {
 const recordsOf = (opts: {
   files: Record<string, string>;
   directory?: string;
+  /** Symbolic links to make, by path: each value is the target, as written in the link. */
+  links?: Record<string, string>;
 }): Map<string, ISymbolRecord> => {
   const base = mkdtempSync(join(tmpdir(), 'atlas-namespace-'));
   const root = join(base, opts.directory ?? '');
@@ -42,6 +44,11 @@ const recordsOf = (opts: {
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), text);
+  }
+
+  for (const [path, target] of Object.entries(opts.links ?? {})) {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    symlinkSync(target, join(root, path));
   }
 
   const records = AtlasSymbols.recordsOf({
@@ -262,6 +269,24 @@ describe('a re-exported namespace that is large, deep or partly foreign', () => 
         'dist/mixed.d.ts': "export { near } from '../../sibling/index.js';\n",
         '../sibling/index.d.ts': 'export declare const near: 1;\n',
       },
+    });
+
+    expect(records.get('Mixed')?.declaration).toContain('const near: 1;');
+    expect(records.get('direct')?.external).toBeUndefined();
+    expect(records.get('direct')?.declaration).toContain('const near: 1;');
+  });
+
+  test('a sibling package linked into node_modules is not third-party: its real path counts', () => {
+    const records = recordsOf({
+      directory: 'web',
+      files: {
+        'dist/index.d.ts':
+          "export * as Mixed from './mixed.js';\nexport { near as direct } from 'sibling';\n",
+        'dist/mixed.d.ts': "export { near } from 'sibling';\n",
+        '../sibling/package.json': JSON.stringify({ name: 'sibling', types: './index.d.ts' }),
+        '../sibling/index.d.ts': 'export declare const near: 1;\n',
+      },
+      links: { '../node_modules/sibling': '../sibling' },
     });
 
     expect(records.get('Mixed')?.declaration).toContain('const near: 1;');
