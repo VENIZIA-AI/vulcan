@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, spyOn, test, beforeEach } from 'bun:test';
 import { IGNIS_IS_PRESENT, IGNIS_ROOT } from '../ignis-root.helper';
+import { BrokenPage } from '../broken-page.helper';
 import { CapturedStderr } from '../stderr.helper';
 
 let stderr: CapturedStderr;
@@ -58,17 +59,6 @@ afterEach(() => {
   tempDirectories.length = 0;
 });
 
-/** Loading the fixture corpus skips its one broken page, and says why. */
-const skippedBrokenPage = (times = 1): void => {
-  stderr.claim({
-    parts: [
-      '[CorpusLoader-load] skipped document | corpus: wiki | path: broken.md',
-      'invalid YAML frontmatter',
-    ],
-    times,
-  });
-};
-
 /** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
 afterEach(() => {
   stderr.restore();
@@ -96,7 +86,7 @@ describe('FreshnessGuard', () => {
 
     expect(after.hits.length).toBeGreaterThan(0);
 
-    skippedBrokenPage(2);
+    BrokenPage.claim({ stderr, times: 2 });
   });
 
   test('a same-count swap that preserves mtime is still seen, via the byte-size change', () => {
@@ -119,7 +109,7 @@ describe('FreshnessGuard', () => {
 
     expect(after.hits.length).toBeGreaterThan(0);
 
-    skippedBrokenPage(2);
+    BrokenPage.claim({ stderr, times: 2 });
   });
 
   test('an unchanged corpus rebuilds nothing', () => {
@@ -138,7 +128,7 @@ describe('FreshnessGuard', () => {
       loadSpy.mockRestore();
     }
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test.skipIf(!IGNIS_IS_PRESENT)(
@@ -189,7 +179,7 @@ describe('FreshnessGuard', () => {
       loadSpy.mockRestore();
     }
 
-    skippedBrokenPage(2);
+    BrokenPage.claim({ stderr, times: 2 });
   });
 
   test('a declared root that does not exist yet starts empty, and is read once it appears', () => {
@@ -213,6 +203,6 @@ describe('FreshnessGuard', () => {
       guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 }).hits.length,
     ).toBeGreaterThan(0);
 
-    skippedBrokenPage(2);
+    BrokenPage.claim({ stderr, times: 2 });
   });
 });

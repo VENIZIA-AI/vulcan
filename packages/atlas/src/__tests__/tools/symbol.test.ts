@@ -8,6 +8,7 @@ import type { ISymbolRecord } from '@/symbols';
 import { SymbolTool } from '@/tools/symbol.tool';
 import { join } from 'node:path';
 import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
+import { BrokenPage } from '../broken-page.helper';
 import { CapturedStderr } from '../stderr.helper';
 
 let stderr: CapturedStderr;
@@ -81,17 +82,6 @@ const callSymbol = async (opts: {
 const payloadOf = (reply: { result?: { content: { text: string }[] } }) =>
   JSON.parse(reply.result?.content[0]?.text ?? '{}');
 
-/** Loading the fixture corpus skips its one broken page, and says why. */
-const skippedBrokenPage = (times = 1): void => {
-  stderr.claim({
-    parts: [
-      '[CorpusLoader-load] skipped document | corpus: wiki | path: broken.md',
-      'invalid YAML frontmatter',
-    ],
-    times,
-  });
-};
-
 /** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
 afterEach(() => {
   stderr.restore();
@@ -106,7 +96,7 @@ describe('symbol tool', () => {
     expect(reply.error?.code).toBe(-32602);
     expect(reply.error?.message).toContain('name');
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
     stderr.claim({
       parts: ['[Transport-callTool] Tool call failed | tool: symbol |', 'name: Too small'],
     });
@@ -130,7 +120,7 @@ describe('symbol tool', () => {
       AtlasConstants.SEARCH_BUDGET_CHARS,
     );
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('a name in two packages answers with every match', async () => {
@@ -143,7 +133,7 @@ describe('symbol tool', () => {
       '@venizia/ignis-kernel',
     ]);
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('a package filter narrows an ambiguous name back to one record', async () => {
@@ -153,7 +143,7 @@ describe('symbol tool', () => {
     expect(payload.matches).toBeUndefined();
     expect(payload.package).toBe('@venizia/ignis-kernel');
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('an unknown name is a result, not an error: no matches, and the closest known names', async () => {
@@ -162,7 +152,7 @@ describe('symbol tool', () => {
     expect(reply.error).toBeUndefined();
     expect(payloadOf(reply)).toEqual({ name: 'respnd', matches: [], closest: ['respond'] });
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('an unknown name with no close candidate still answers, with an empty closest list', async () => {
@@ -171,7 +161,7 @@ describe('symbol tool', () => {
     expect(reply.error).toBeUndefined();
     expect(payloadOf(reply)).toEqual({ name: 'zzzzzzzzzzz', matches: [], closest: [] });
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('a package filter that rules out every match answers the same way', async () => {
@@ -180,7 +170,7 @@ describe('symbol tool', () => {
     expect(reply.error).toBeUndefined();
     expect(payloadOf(reply).matches).toEqual([]);
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('a name exported from nine specifiers still answers inside the budget', async () => {
@@ -209,7 +199,7 @@ describe('symbol tool', () => {
     expect(payload.matches.length).toBeGreaterThan(0);
     expect(payload.matches.length).toBeLessThan(9);
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('a build with no symbol table says so instead of guessing', async () => {
@@ -221,7 +211,7 @@ describe('symbol tool', () => {
     expect(reply.error?.code).toBe(-32602);
     expect(reply.error?.message).toBe('no symbol table in this build');
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
     stderr.claim({
       parts: [
         '[Transport-callTool] Tool call failed | tool: symbol |',
@@ -248,7 +238,7 @@ describe('symbol tool: the declaration', () => {
     expect(payload.doc).toBeUndefined();
     expect(payload.uses).toBeUndefined();
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('the declaration is served outside the budget of the rest, and `uses` is not', async () => {
@@ -263,7 +253,7 @@ describe('symbol tool: the declaration', () => {
     expect(payload.uses).toBeUndefined();
     expect(payload.truncated).toBeUndefined();
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('the declarations it uses follow, nearest first, small before large, each named', async () => {
@@ -279,7 +269,7 @@ describe('symbol tool: the declaration', () => {
     expect(declaration.indexOf('// Small')).toBeLessThan(declaration.indexOf('// Large'));
     expect(declaration).toContain('// Deep (@venizia/ignis-helpers)\ndeclare Deep;');
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('a used declaration follows only three steps from the asked one', async () => {
@@ -291,7 +281,7 @@ describe('symbol tool: the declaration', () => {
     expect(declaration).toContain('// D ');
     expect(declaration).not.toContain('// E ');
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('what does not fit the budget is left out and the reply says so', async () => {
@@ -307,7 +297,7 @@ describe('symbol tool: the declaration', () => {
     expect(payload.truncated).toBe(true);
     expect(payload.declaration.length).toBeLessThanOrEqual(10_000);
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('a declaration a few characters over the budget is cut, inside the budget, and says so', async () => {
@@ -320,7 +310,7 @@ describe('symbol tool: the declaration', () => {
     expect(payload.truncated).toBe(true);
     expect(payload.declaration.length).toBeLessThanOrEqual(10_000);
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('a used declaration already shown with an earlier block adds no empty header', async () => {
@@ -332,7 +322,7 @@ describe('symbol tool: the declaration', () => {
 
     expect(declaration).not.toContain('// Twin');
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('an own declaration over the budget is cut at a line and marked', async () => {
@@ -346,7 +336,7 @@ describe('symbol tool: the declaration', () => {
     expect(payload.declaration.endsWith('// ... cut')).toBe(true);
     expect(payload.declaration.length).toBeLessThanOrEqual(10_000 + 20);
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('a name exported by two packages with one shape is spelled out once', async () => {
@@ -371,6 +361,6 @@ describe('symbol tool: the declaration', () => {
     expect(second.declaration).toBeUndefined();
     expect(second.declarationOf).toBe(first.specifier);
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 });

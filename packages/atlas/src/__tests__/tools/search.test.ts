@@ -7,6 +7,7 @@ import { SymbolStore } from '@/symbols';
 import { SearchTool } from '@/tools/search.tool';
 import { join } from 'node:path';
 import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
+import { BrokenPage } from '../broken-page.helper';
 import { CapturedStderr } from '../stderr.helper';
 
 let stderr: CapturedStderr;
@@ -36,12 +37,7 @@ const buildFixtureStore = (): ChunkStore => {
 
     store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
 
-    skipped.claim({
-      parts: [
-        '[CorpusLoader-load] skipped document | corpus: wiki | path: broken.md',
-        'invalid YAML frontmatter',
-      ],
-    });
+    BrokenPage.claim({ stderr: skipped });
 
     return store;
   } finally {

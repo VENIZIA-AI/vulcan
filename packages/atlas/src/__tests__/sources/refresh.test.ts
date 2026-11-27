@@ -221,7 +221,7 @@ describe('a remote source keeps up with its ref while the server runs', () => {
     const result = await newestOf({ transport });
     expect(result).toBe('1.0.0');
 
-    await Bun.sleep(0);
+    await stderr.arrival({ parts: ['[Refresher] kept what it served'] });
     await fetches.claimUnfetched({ stderr });
     stderr.claimSome({ parts: ['[Refresher] kept what it served | error: the remote is down'] });
   });

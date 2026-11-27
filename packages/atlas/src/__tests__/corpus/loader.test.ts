@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, spyOn, test, afterEach, beforeEach } from 'bun:test';
+import { BrokenPage } from '../broken-page.helper';
 import { CapturedStderr } from '../stderr.helper';
 
 let stderr: CapturedStderr;
@@ -15,17 +16,6 @@ beforeEach(() => {
 
 // __dirname, not import.meta: this package emits CommonJS.
 const FIXTURES_ROOT = join(__dirname, '../fixtures/corpus');
-
-/** Loading the fixture corpus skips its one broken page, and says why. */
-const skippedBrokenPage = (times = 1): void => {
-  stderr.claim({
-    parts: [
-      '[CorpusLoader-load] skipped document | corpus: wiki | path: broken.md',
-      'invalid YAML frontmatter',
-    ],
-    times,
-  });
-};
 
 /** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
 afterEach(() => {
@@ -49,7 +39,7 @@ describe('CorpusLoader', () => {
     );
     expect(guide?.body.trim().startsWith('# Artifact registration guide')).toBe(true);
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('falls back to the first H1 line when there is no frontmatter title (I3)', () => {
@@ -63,7 +53,7 @@ describe('CorpusLoader', () => {
     expect(document?.title).toBe('No Frontmatter Title');
     expect(document?.frontmatter).toEqual({});
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('loads a knowledge document under the okf corpus', () => {
@@ -98,7 +88,7 @@ describe('CorpusLoader', () => {
     expect(documents.some((document) => document.path.startsWith('excluded/'))).toBe(false);
     expect(documents.some((document) => document.path === 'guide.md')).toBe(true);
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('excludes an exact file match, not only a directory prefix', () => {
@@ -111,7 +101,7 @@ describe('CorpusLoader', () => {
     expect(documents.some((document) => document.path === 'guide.md')).toBe(false);
     expect(documents.some((document) => document.path === 'excluded/skip-me.md')).toBe(true);
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   test('skips a document with invalid YAML frontmatter, records it, and warns through the logger', () => {
@@ -167,7 +157,7 @@ describe('CorpusLoader', () => {
     expect(documents.every((document) => document.corpus === Corpora.WIKI)).toBe(true);
     expect(documents.length).toBeGreaterThan(0);
 
-    skippedBrokenPage();
+    BrokenPage.claim({ stderr });
   });
 
   describe('within a fetched checkout', () => {
