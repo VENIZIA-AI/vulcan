@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { CloneChecks } from '../../doctor/clone-checks.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
@@ -19,7 +19,7 @@ const MANIFEST = JSON.stringify({
 const STATUS = '.agents/local/cache/atlas/status.json';
 const context = (root: string) => ({
   root,
-  config: VULCAN_CONFIG_SCHEMA.parse({}),
+  config: VulcanConfigSchema.parse({}),
   configFile: '.configs/vulcan.config.mts',
 });
 const recorded = (sources: Record<string, object>, at = STATUS): string =>

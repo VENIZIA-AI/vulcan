@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
+import { VulcanConfigSchema } from '../../config/schema.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import type { TLayoutSettings } from '../../config/sections/doctor/index.ts';
 import { LayoutBaseline } from '../../layout/baseline.ts';
@@ -166,7 +166,7 @@ describe('LayoutCheck.check: long-file', () => {
   const long = { lines: 601, head: '' };
 
   test('the default is 600 lines, and a test file is never too long', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).doctor.layout.maxLines).toBe(600);
+    expect(VulcanConfigSchema.parse({}).doctor.layout.maxLines).toBe(600);
 
     const files = [
       'src/a.test.ts',
@@ -197,8 +197,7 @@ describe('LayoutCheck.check: long-file', () => {
 });
 
 describe('LayoutCheck.roots', () => {
-  const config = (opts: { input: Record<string, unknown> }) =>
-    VULCAN_CONFIG_SCHEMA.parse(opts.input);
+  const config = (opts: { input: Record<string, unknown> }) => VulcanConfigSchema.parse(opts.input);
 
   test('the package paths and the managed layout folders, without retired packages and other', () => {
     expect(

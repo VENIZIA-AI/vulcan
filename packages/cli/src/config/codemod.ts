@@ -4,6 +4,8 @@ import type { TCodemodResult } from './common/index.ts';
 import { CodemodItemReader } from './codemod-items.ts';
 import { CodemodOutputBuilder } from './codemod-output.ts';
 import { ConfigFormat } from './format.ts';
+import type { TTypeScript } from './format.ts';
+import { ConfigTypeRewriter } from './config-types-rewrite.ts';
 
 /**
  * The seven-group shape of a config file, from the flat one (the codemod `config-groups` of `vulcan config codemod`). The file is
@@ -82,15 +84,73 @@ export class ConfigCodemod {
       return { ok: false, reason: items.reason };
     }
 
-    return opts.split === true
-      ? CodemodOutputBuilder.splitOutput({ opts, typescript, source, items: items.items })
-      : CodemodOutputBuilder.singleOutput({
-          opts,
-          typescript,
-          source,
-          items: items.items,
-          prefix: cut.prefix,
-          suffix: cut.suffix,
-        });
+    const result =
+      opts.split === true
+        ? CodemodOutputBuilder.splitOutput({ opts, typescript, source, items: items.items })
+        : CodemodOutputBuilder.singleOutput({
+            opts,
+            typescript,
+            source,
+            items: items.items,
+            prefix: cut.prefix,
+            suffix: cut.suffix,
+          });
+
+    return result.ok
+      ? ConfigCodemod.withTypeNames({ typescript, result, read: opts.read })
+      : result;
+  }
+
+  /** The result with the type names of this release: in every file it writes, and in the modules it keeps. */
+  private static withTypeNames(opts: {
+    typescript: TTypeScript;
+    result: Extract<TCodemodResult, { ok: true }>;
+    read: (path: string) => string | undefined;
+  }): TCodemodResult {
+    const { typescript, result } = opts;
+    const written = new Set(result.changes.map((change) => change.path));
+    const config = result.changes.find((change) => change.path === CodemodConstants.CONFIG_PATH);
+    const kept = CodemodOutputBuilder.moduleFiles({
+      typescript,
+      source: typescript.createSourceFile(
+        CodemodConstants.CONFIG_PATH,
+        config?.text ?? '',
+        typescript.ScriptTarget.Latest,
+        true,
+        typescript.ScriptKind.TS,
+      ),
+      read: opts.read,
+    }).filter((path) => !written.has(path));
+    const notes = [...result.notes];
+    const renamed = [
+      ...result.changes,
+      ...kept.map((path) => ({ path, text: opts.read(path) })),
+    ].flatMap((change) => {
+      if (change.text === undefined) {
+        return written.has(change.path) ? [change] : [];
+      }
+
+      const rewrite = ConfigTypeRewriter.rewrite({
+        typescript,
+        path: change.path,
+        text: change.text,
+      });
+
+      notes.push(...rewrite.notes.map((note) => `${change.path}: ${note}`));
+
+      if (written.has(change.path)) {
+        return [{ path: change.path, text: rewrite.text }];
+      }
+
+      if (rewrite.text === change.text) {
+        return [];
+      }
+
+      notes.push(`${change.path}: its type names are the new ones`);
+
+      return [{ path: change.path, text: rewrite.text }];
+    });
+
+    return { ok: true, changes: renamed, notes };
   }
 }

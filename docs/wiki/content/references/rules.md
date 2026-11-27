@@ -154,7 +154,7 @@ export default {
   agent: {
     packs: ['venizia'],
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 The `venizia` pack holds the five rules that bind the Venizia stack (Bun, `devz`, the vite builders, the house lint rules). They keep the IDs they had in the base rules, and `vulcan project doctor` accepts a citation of one only in a project that follows the pack, and says which pack holds it otherwise.
@@ -200,7 +200,7 @@ Denials include `git add`, `git commit`, `git push`, `git checkout`, `git branch
 A project that needs exceptions chooses `on-user-word` and writes its own deny list in `agent.claude.settings.permissions.deny`: it names the verbs it denies and leaves the others out. For example, to let agents run `git pull`, `git stash`, `git restore` and `git switch` and nothing that writes the history or the remote:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
@@ -219,7 +219,7 @@ export default {
       },
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 The verbs left out of the list are allowed in full: `git pull --rebase` is as open as `git pull --ff-only origin develop`. To hold a verb to one form, the place is a hook, which parses the command, not a permission list. A known limit: `read-only` also denies listing branches with `git branch`; that is not changed.
@@ -229,7 +229,7 @@ The verbs left out of the list are allowed in full: `git pull --rebase` is as op
 To set a slot option, add the rule key to `.configs/vulcan.config.mts`:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
@@ -237,7 +237,7 @@ export default {
       'V-W-01': 'read-only',
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 When a slot has no choice, `vulcan project doctor` reports a violation during the `rule-slots` check:
@@ -300,7 +300,7 @@ The rules are in AGENTS.md ("Rules that must not be skipped"); the full text is 
 To customize which rules the block names, define `agent.digest.oftenDropped` in `.configs/vulcan.config.mts` and run `vulcan project sync`:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
@@ -308,7 +308,7 @@ export default {
       oftenDropped: ['V-B-03'],
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ### Manifest per-rule hashes

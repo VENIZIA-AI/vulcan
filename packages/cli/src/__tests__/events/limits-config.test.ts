@@ -3,17 +3,17 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { EventLog } from '../../events/log.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { EventSettings } from '../../events/settings.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
 import { createProject } from '../helpers/project.helper.ts';
 
-const parse = (events: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ events });
+const parse = (events: unknown) => VulcanConfigSchema.safeParse({ events });
 const manifestOf = (config: object) =>
   JSON.parse(
     ProjectManifest.render({
       root: createProject({ files: {} }),
-      config: VULCAN_CONFIG_SCHEMA.parse(config),
+      config: VulcanConfigSchema.parse(config),
     }),
   );
 
@@ -84,7 +84,7 @@ describe('the limits of the event log in the config', () => {
 
 describe('local.autoClean in the config', () => {
   test('on by default, and the manifest says nothing then', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).local).toEqual({ autoClean: true });
+    expect(VulcanConfigSchema.parse({}).local).toEqual({ autoClean: true });
     expect(manifestOf({}).local).toBeUndefined();
     expect(manifestOf({ local: { autoClean: true } }).local).toBeUndefined();
   });
@@ -94,9 +94,9 @@ describe('local.autoClean in the config', () => {
   });
 
   test('a value that is not a boolean and an unknown key are refused', () => {
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ local: { autoClean: 'no' } }).success).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ local: { autoclean: false } }).success).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ local: { clean: true } }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ local: { autoClean: 'no' } }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ local: { autoclean: false } }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ local: { clean: true } }).success).toBe(false);
   });
 });
 

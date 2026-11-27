@@ -432,7 +432,7 @@ describe('workspace planners', () => {
     const source = projectModule({ project: 'my-product', key: 'TEST', block: BLOCK });
 
     expect(source).toContain("name: 'my-product'");
-    expect(source).toContain('satisfies VulcanConfig.Project');
+    expect(source).toContain('satisfies VulcanConfig.ProjectType');
 
     const next = AppsBlock.replace({
       source,

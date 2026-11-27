@@ -1,4 +1,4 @@
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 import { agent, board, check, common, guard, knowledge, project } from './vulcan/index.mts';
 
 export default {
@@ -9,4 +9,4 @@ export default {
   knowledge,
   check,
   common,
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;

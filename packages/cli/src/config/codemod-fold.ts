@@ -1,6 +1,7 @@
 import { posix } from 'node:path';
 import { CodemodConstants } from './common/index.ts';
 import type { TExportDeclaration, TSourceFile, TTypeScript } from './format.ts';
+import { ConfigTypeRewriter } from './config-types-rewrite.ts';
 
 /** The modules of an old split the codemod folds into the groups, and why one cannot be folded or replaced. */
 export class CodemodFoldReader {
@@ -66,8 +67,7 @@ export class CodemodFoldReader {
       typescript.ScriptKind.TS,
     );
     const isTypeImport = (statement: (typeof source.statements)[number]): boolean =>
-      typescript.isImportDeclaration(statement) &&
-      /^import type \{ VulcanConfig \}/.test(statement.getText(source));
+      ConfigTypeRewriter.isTypeImport({ typescript, statement });
     const exporting = source.statements.find(
       (statement) =>
         typescript.isExportDeclaration(statement) &&

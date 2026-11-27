@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../../common/index.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { BaseRules, RulePacks, RuleParser } from '../../rules/index.ts';
 
 const MOVED = ['V-B-05', 'V-B-09', 'V-C-07', 'V-C-08', 'V-C-20'];
@@ -69,12 +69,12 @@ describe('BaseRules.read with packs', () => {
 
 describe('the packs key of the config', () => {
   test('is empty by default and takes a shipped pack', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).packs).toEqual([]);
-    expect(VULCAN_CONFIG_SCHEMA.parse({ packs: ['venizia'] }).packs).toEqual(['venizia']);
+    expect(VulcanConfigSchema.parse({}).packs).toEqual([]);
+    expect(VulcanConfigSchema.parse({ packs: ['venizia'] }).packs).toEqual(['venizia']);
   });
 
   test('refuses a pack VULCAN does not ship, and names the ones it does', () => {
-    const result = VULCAN_CONFIG_SCHEMA.safeParse({ packs: ['nonsense'] });
+    const result = VulcanConfigSchema.safeParse({ packs: ['nonsense'] });
 
     expect(result.success).toBe(false);
     expect(result.success ? '' : result.error.message).toContain(

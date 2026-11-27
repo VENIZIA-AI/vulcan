@@ -1,7 +1,7 @@
 import { OFFICIAL_PRESETS, OfficialPresets } from '@venizia/vulcan-atlas';
 import type { IOfficialPreset } from '@venizia/vulcan-atlas';
 import { LibraryTypes, PackageTypes } from '../config/index.ts';
-import type { TResolvedConfig } from '../config/index.ts';
+import type { TVulcanConfigOutput } from '../config/index.ts';
 import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
 import { AddKinds } from './common/index.ts';
 import type { ILocatedPreset, TAddKind } from './common/index.ts';
@@ -34,7 +34,7 @@ export class AddKindRegistry {
    */
   static noSharedKindMessage(opts: {
     located: ILocatedPreset;
-    recorded: TResolvedConfig['presets'];
+    recorded: TVulcanConfigOutput['presets'];
     name: string;
     official?: IOfficialPreset[];
   }): string {

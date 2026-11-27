@@ -5,7 +5,7 @@ import { ConfigKeyOrder } from '../../config/common/index.ts';
 import { ConfigGroups } from '../../config/groups.ts';
 import { ConfigFormat } from '../../config/format.ts';
 import type { TConfigFormatResult } from '../../config/format.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
+import { VulcanConfigSchema } from '../../config/schema.ts';
 import { WorkspaceDocs } from '../../create/workspace-docs.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -44,7 +44,7 @@ const load = async (opts: { text: string }): Promise<unknown> => {
     : undefined;
 };
 
-const OUT_OF_ORDER = `import type { VulcanConfig } from '@venizia/vulcan';
+const OUT_OF_ORDER = `import type { VulcanConfigType } from '@venizia/vulcan';
 
 const extra = ['a'];
 
@@ -64,7 +64,7 @@ export default {
   ],
   later: extra,
   'name': 'demo' // no comma
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 `;
 
 describe('ConfigFormat.format', () => {
@@ -82,7 +82,7 @@ describe('ConfigFormat.format', () => {
     ]);
     expect(result.ok && result.moved).toEqual(['name', 'agents', 'packages', 'remove']);
     expect(formatted({ text: OUT_OF_ORDER }))
-      .toBe(`import type { VulcanConfig } from '@venizia/vulcan';
+      .toBe(`import type { VulcanConfigType } from '@venizia/vulcan';
 
 const extra = ['a'];
 
@@ -102,7 +102,7 @@ export default {
   custom: 1,
   later: extra,
   remove: { 'atlas.sources': ['vulcan'] }
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 `);
   });
 
@@ -167,7 +167,7 @@ export default {
   });
 
   test('every key of the order is a key of the config schema', () => {
-    const schemaKeys = Object.keys(VULCAN_CONFIG_SCHEMA.shape);
+    const schemaKeys = Object.keys(VulcanConfigSchema.shape);
 
     expect(
       [...ConfigKeyOrder.KEYS, ConfigKeyOrder.LAST].filter((key) => !schemaKeys.includes(key)),
@@ -316,7 +316,7 @@ describe('a grouped file', () => {
   });
 
   test('the inner orders list every key of every group, and nothing the group does not have', () => {
-    const schema = VULCAN_CONFIG_SCHEMA.shape;
+    const schema = VulcanConfigSchema.shape;
     const knowledge = [
       ...Object.keys(
         (schema.knowledge as unknown as { def: { innerType: { shape: object } } }).def.innerType

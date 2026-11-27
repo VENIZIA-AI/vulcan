@@ -4,7 +4,7 @@ import { GitQueries } from '../hooks/git-queries.ts';
 import { RecordValue } from '../common/record.ts';
 import { WorkspaceGlobs } from './common/index.ts';
 import type { IProjectPackage } from './packages.ts';
-import { VULCAN_CONFIG_SCHEMA } from './schema.ts';
+import { VulcanConfigSchema } from './schema.ts';
 
 /** A workspace member that is not a package of the derived list, and why. */
 export interface ISkippedMember {
@@ -19,7 +19,7 @@ export interface IDerivedPackages {
   errors: string[];
 }
 
-const PACKAGES_SCHEMA = VULCAN_CONFIG_SCHEMA.shape.packages;
+const PACKAGES_SCHEMA = VulcanConfigSchema.shape.packages;
 const PACKAGE_FILE = 'package.json';
 
 /**

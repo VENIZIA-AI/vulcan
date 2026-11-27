@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { PrivateValueScan } from '../../doctor/common/index.ts';
 import { PrivateValues } from '../../doctor/private-values.ts';
@@ -426,10 +426,10 @@ describe('vulcan project doctor: the warning', () => {
 
 describe('doctor.privateValues in the config', () => {
   const parse = (acknowledged: unknown) =>
-    VULCAN_CONFIG_SCHEMA.safeParse({ doctor: { privateValues: { acknowledged } } });
+    VulcanConfigSchema.safeParse({ doctor: { privateValues: { acknowledged } } });
 
   test('defaults to nothing acknowledged', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).doctor.privateValues.acknowledged).toEqual([]);
+    expect(VulcanConfigSchema.parse({}).doctor.privateValues.acknowledged).toEqual([]);
   });
 
   test('a path, optional kinds and a reason are accepted', () => {

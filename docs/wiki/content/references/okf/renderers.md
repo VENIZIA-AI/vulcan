@@ -20,7 +20,7 @@ You configure okf through the `okf` object in `.configs/vulcan.config.mts`.
 To configure okf features, export an `okf` section in `.configs/vulcan.config.mts`:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   knowledge: {
@@ -37,7 +37,7 @@ export default {
       ],
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## Built-in renderers
@@ -158,7 +158,7 @@ gen: wrote .agents/knowledge/reference/makefile-targets.md
 To declare a custom renderer, provide an object in `knowledge.okf.renderers`:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   knowledge: {
@@ -168,7 +168,7 @@ export default {
       ],
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 A custom renderer module exports the result of `defineRenderer` as its default export.
@@ -364,13 +364,13 @@ Under `vulcan okf check --strict`, missing or stale contents lists fail verifica
 If you omit it, okf derives the brand from the root `package.json`: it strips the npm scope and a `-workspace` suffix, then upper-cases the result. The brand falls back to the directory name when `package.json` has no name.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   knowledge: {
     okf: { brand: 'VULCAN' },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## See also

@@ -7,7 +7,7 @@ import { LocalSettings } from '../../common/local-settings.ts';
 import { BoardSettings } from '../../board/settings.ts';
 import { OwnerChecks } from '../../doctor/owner-checks.ts';
 import { LocalChecks } from '../../doctor/local-checks.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { ProjectTmp } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { runCli } from '../helpers/run.helper.ts';
@@ -92,7 +92,7 @@ describe('the local file reads board.agents and local.tmp', () => {
 
     const messages = OwnerChecks.checkProfile({
       root,
-      config: VULCAN_CONFIG_SCHEMA.parse({}),
+      config: VulcanConfigSchema.parse({}),
       configFile: '.configs/vulcan.config.mts',
     }).map((violation) => violation.message);
 
@@ -239,7 +239,7 @@ describe('vulcan project doctor', () => {
     const root = projectWith({ local: { common: { local: { tmp: 'shared' } } } });
     const violations = LocalChecks.checkTmpFolder({
       root,
-      config: VULCAN_CONFIG_SCHEMA.parse({ layout: { shared: 'shared' } }),
+      config: VulcanConfigSchema.parse({ layout: { shared: 'shared' } }),
       configFile: '.configs/vulcan.config.mts',
     });
 

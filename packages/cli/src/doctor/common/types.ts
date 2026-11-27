@@ -1,5 +1,5 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { IConfigLayer, IConfigMerge, TResolvedConfig } from '../../config/index.ts';
+import type { IConfigLayer, IConfigMerge, TVulcanConfigOutput } from '../../config/index.ts';
 import type { DoctorChecks, PrivateValueKinds } from './constants.ts';
 
 export type TDoctorCheck = TConstValue<typeof DoctorChecks>;
@@ -13,7 +13,7 @@ export interface IViolation {
 
 export interface ICheckContext {
   root: string;
-  config: TResolvedConfig;
+  config: TVulcanConfigOutput;
   configFile: string;
   /** The project's own object, the shipped layers below it and the merge, when the caller loaded them: the two config-layer checks need them. */
   layers?: {

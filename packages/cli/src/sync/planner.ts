@@ -13,7 +13,7 @@ import { AgentTable } from '../agents/index.ts';
 import { BASE_DIRECTORY, BaseDirectory } from '../common/index.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { CodingAgents } from '../config/index.ts';
-import type { TResolvedConfig } from '../config/index.ts';
+import type { TVulcanConfigOutput } from '../config/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
 import { RuleSlots } from '../rules/index.ts';
 import { AgentFiles } from './agent-files.ts';
@@ -65,7 +65,7 @@ const readSettingsFile = (opts: { path: string }): TSettings | undefined => {
 };
 
 /** Shipped settings, the chosen slot options, the empty attribution of a project that denies agent signatures, the event log hooks, the project's hooks and `claude.settings` - what sync owns. */
-const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
+const buildManagedOverlay = (opts: { config: TVulcanConfigOutput }): TSettings => {
   let overlay: TSettings = JSON.parse(
     readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.SETTINGS_FILE), 'utf8'),
   );
@@ -101,7 +101,7 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
 };
 
 /** The previous overlay is taken back before the new one merges in, so removed choices really disappear. */
-const planSettings = (opts: { root: string; config: TResolvedConfig }): ISyncAction => {
+const planSettings = (opts: { root: string; config: TVulcanConfigOutput }): ISyncAction => {
   const directory = join(opts.root, SyncConstants.CLAUDE_DIRECTORY);
   const path = join(directory, SyncConstants.SETTINGS_FILE);
   const managedPath = join(directory, SyncConstants.MANAGED_FILE);
@@ -301,7 +301,7 @@ export class SyncPlanner {
    */
   static planManifest(opts: {
     root: string;
-    config: TResolvedConfig;
+    config: TVulcanConfigOutput;
     /** The modules of the config, when the caller scanned them already (`vulcan project sync` scans once). */
     configModules?: string[];
   }): ISyncAction[] {
@@ -367,7 +367,7 @@ export class SyncPlanner {
   /** Every adapter the project's agents need, and the manifest every project carries - planned, not written. */
   static plan(opts: {
     root: string;
-    config: TResolvedConfig;
+    config: TVulcanConfigOutput;
     /** The agents this machine chose (`AgentSelection.resolve`); only Claude has adapters until the renderers land. */
     agents: string[];
     /** The modules of the config, when the caller scanned them already. */

@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { ProjectLayout } from '../../common/constants.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { CloneChecks } from '../../doctor/clone-checks.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
@@ -10,7 +10,7 @@ afterAll(removeProjects);
 
 const context = (root: string) => ({
   root,
-  config: VULCAN_CONFIG_SCHEMA.parse({}),
+  config: VulcanConfigSchema.parse({}),
   configFile: '.configs/vulcan.config.mts',
 });
 const runPrepare = (root: string) =>

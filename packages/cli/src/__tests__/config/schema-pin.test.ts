@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { ConfigGroups, VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import type { TFlatConfig, TResolvedConfig } from '../../index.ts';
+import { ConfigGroups, VulcanConfigSchema } from '../../config/index.ts';
+import type { TVulcanConfigInput, TVulcanConfigOutput } from '../../index.ts';
 import { FROZEN_CONFIG_SCHEMA } from './frozen-schema.helper.ts';
 
 /** True only when the two types are identical, optional against `| undefined` included. */
@@ -12,8 +12,8 @@ type TIsEqual<Left, Right> =
     ? true
     : false;
 
-const INPUT_UNCHANGED: TIsEqual<TFlatConfig, z.input<typeof FROZEN_CONFIG_SCHEMA>> = true;
-const OUTPUT_UNCHANGED: TIsEqual<TResolvedConfig, z.output<typeof FROZEN_CONFIG_SCHEMA>> = true;
+const INPUT_UNCHANGED: TIsEqual<TVulcanConfigInput, z.input<typeof FROZEN_CONFIG_SCHEMA>> = true;
+const OUTPUT_UNCHANGED: TIsEqual<TVulcanConfigOutput, z.output<typeof FROZEN_CONFIG_SCHEMA>> = true;
 
 const REPO_ROOT = join(import.meta.dir, '..', '..', '..', '..', '..');
 const BASE = join(import.meta.dir, '..', '..', '..', 'base');
@@ -172,21 +172,19 @@ const viewOf = (opts: { schema: z.ZodType; value: unknown }): string => {
 };
 
 describe('the config schema is pinned to its frozen copy', () => {
-  test('VulcanConfig and TResolvedConfig are the frozen input and output types', () => {
+  test('TVulcanConfigInput and TVulcanConfigOutput are the frozen input and output types', () => {
     expect([INPUT_UNCHANGED, OUTPUT_UNCHANGED]).toEqual([true, true]);
   });
 
   test('the top-level keys keep their order', () => {
-    expect(Object.keys(VULCAN_CONFIG_SCHEMA.shape)).toEqual(
-      Object.keys(FROZEN_CONFIG_SCHEMA.shape),
-    );
+    expect(Object.keys(VulcanConfigSchema.shape)).toEqual(Object.keys(FROZEN_CONFIG_SCHEMA.shape));
   });
 
   for (const io of ['input', 'output'] as const) {
     test(`the JSON schema of the ${io} is the frozen one`, () => {
       const options = { io, unrepresentable: 'any' } as const;
 
-      expect(JSON.stringify(z.toJSONSchema(VULCAN_CONFIG_SCHEMA, options))).toBe(
+      expect(JSON.stringify(z.toJSONSchema(VulcanConfigSchema, options))).toBe(
         JSON.stringify(z.toJSONSchema(FROZEN_CONFIG_SCHEMA, options)),
       );
     });
@@ -194,8 +192,8 @@ describe('the config schema is pinned to its frozen copy', () => {
 
   for (const [name, value] of Object.entries(VALID)) {
     test(`a valid config parses to the same output: ${name}`, () => {
-      expect(VULCAN_CONFIG_SCHEMA.safeParse(value).success).toBe(true);
-      expect(viewOf({ schema: VULCAN_CONFIG_SCHEMA, value })).toBe(
+      expect(VulcanConfigSchema.safeParse(value).success).toBe(true);
+      expect(viewOf({ schema: VulcanConfigSchema, value })).toBe(
         viewOf({ schema: FROZEN_CONFIG_SCHEMA, value }),
       );
     });
@@ -203,8 +201,8 @@ describe('the config schema is pinned to its frozen copy', () => {
 
   for (const [name, value] of Object.entries(INVALID)) {
     test(`an invalid config fails with the same issues: ${name}`, () => {
-      expect(VULCAN_CONFIG_SCHEMA.safeParse(value).success).toBe(false);
-      expect(viewOf({ schema: VULCAN_CONFIG_SCHEMA, value })).toBe(
+      expect(VulcanConfigSchema.safeParse(value).success).toBe(false);
+      expect(viewOf({ schema: VulcanConfigSchema, value })).toBe(
         viewOf({ schema: FROZEN_CONFIG_SCHEMA, value }),
       );
     });

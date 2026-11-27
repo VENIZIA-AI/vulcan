@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { ProjectKey } from '../../events/project-key.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
+import { VulcanConfigSchema } from '../../config/schema.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { EventSettings } from '../../events/settings.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
@@ -8,7 +8,7 @@ import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 
-const keyOf = (key: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ project: { key } });
+const keyOf = (key: unknown) => VulcanConfigSchema.safeParse({ project: { key } });
 const CONFIG =
   "export default { agent: { rules: { 'V-W-01': 'on-user-word' } }, board: { events: { log: true } }";
 
@@ -25,7 +25,7 @@ describe('project.key: the key a flow is named by', () => {
   );
 
   test('an unknown key of the block is a typo, and an error', () => {
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ project: { key: 'ACME', name: 'x' } }).success).toBe(
+    expect(VulcanConfigSchema.safeParse({ project: { key: 'ACME', name: 'x' } }).success).toBe(
       false,
     );
   });
@@ -44,7 +44,7 @@ describe('the manifest and the hook reader', () => {
     JSON.parse(
       ProjectManifest.render({
         root: createProject({ files: {} }),
-        config: VULCAN_CONFIG_SCHEMA.parse(project === undefined ? {} : { project }),
+        config: VulcanConfigSchema.parse(project === undefined ? {} : { project }),
       }),
     );
 

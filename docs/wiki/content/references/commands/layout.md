@@ -58,7 +58,7 @@ export default {
   check: {
     layout: { maxLines: 800, pluralAllow: ['news'], generated: ['src/generated/**'] },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## The baseline

@@ -7,7 +7,7 @@ import { LocalSettings } from '../../common/local-settings.ts';
 import { EventSettings } from '../../events/index.ts';
 import { OwnerProfile } from '../../owner/index.ts';
 import { OwnerChecks } from '../../doctor/owner-checks.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { LocalPlan } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { runCli } from '../helpers/run.helper.ts';
@@ -481,7 +481,7 @@ describe('sync moves the old machine keys of the profile to the groups, once', (
     const root = withProfile({ schemaVersion: 1, agents: ['claude'] });
     const messages = OwnerChecks.checkProfile({
       root,
-      config: VULCAN_CONFIG_SCHEMA.parse({}),
+      config: VulcanConfigSchema.parse({}),
       configFile: '.configs/vulcan.config.mts',
     }).map((violation) => violation.message);
 

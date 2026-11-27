@@ -1,5 +1,5 @@
 import type { TLibraryType, TPackageType } from './common/index.ts';
-import type { TResolvedConfig } from './schema.ts';
+import type { TVulcanConfigOutput } from './schema.ts';
 
 const DEFAULT_PACKAGES_DIRECTORY = 'packages';
 
@@ -17,7 +17,7 @@ export interface IProjectPackage {
 
 export class ProjectPackages {
   /** The project's packages in release order. */
-  static resolve(opts: { config: TResolvedConfig }): IProjectPackage[] {
+  static resolve(opts: { config: TVulcanConfigOutput }): IProjectPackage[] {
     return opts.config.packages.map((entry) => ({
       dir: entry.dir,
       name: entry.name,

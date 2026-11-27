@@ -33,7 +33,7 @@ const FLAT = {
   remove: { 'atlas.sources': ['ignis'] },
 };
 
-const GROUPED: VulcanConfig.Groups = {
+const GROUPED: VulcanConfig.GroupsType = {
   project: {
     name: 'demo',
     key: 'DEMO',
@@ -174,14 +174,14 @@ describe('the loader reads either shape and gives the same config', () => {
 
 describe('the group types', () => {
   test('each group type takes the keys of its group and refuses the keys of another', () => {
-    const project: VulcanConfig.Project = { name: 'demo', key: 'DEMO', packages: undefined };
-    const agent: VulcanConfig.Agent = { list: ['claude'], packs: ['venizia'] };
-    const board: VulcanConfig.Board = { events: { log: true }, page: { title: 'x' } };
-    const knowledge: VulcanConfig.Knowledge = { bundle: 'b', okf: {}, atlas: {} };
-    const check: VulcanConfig.Check = { doctor: {}, layout: { maxLines: 10 } };
-    const common: VulcanConfig.Common = { theme: {}, local: { tmp: 'x' }, remove: {} };
+    const project: VulcanConfig.ProjectType = { name: 'demo', key: 'DEMO', packages: undefined };
+    const agent: VulcanConfig.AgentType = { list: ['claude'], packs: ['venizia'] };
+    const board: VulcanConfig.BoardType = { events: { log: true }, page: { title: 'x' } };
+    const knowledge: VulcanConfig.KnowledgeType = { bundle: 'b', okf: {}, atlas: {} };
+    const check: VulcanConfig.CheckType = { doctor: {}, layout: { maxLines: 10 } };
+    const common: VulcanConfig.CommonType = { theme: {}, local: { tmp: 'x' }, remove: {} };
     // @ts-expect-error `events` belongs to board
-    const wrong: VulcanConfig.Agent = { events: { log: true } };
+    const wrong: VulcanConfig.AgentType = { events: { log: true } };
 
     expect([project, agent, board, knowledge, check, common, wrong].length).toBe(7);
   });

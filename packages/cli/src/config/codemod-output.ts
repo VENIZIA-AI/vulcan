@@ -4,6 +4,7 @@ import { ConfigConstants, ConfigKeyOrder, CodemodConstants } from './common/inde
 import type { ICodemodItem, IFileChange, TCodemodResult } from './common/index.ts';
 import type { TSourceFile, TTypeScript } from './format.ts';
 import { CodemodFoldReader } from './codemod-fold.ts';
+import { ConfigTypeRewriter } from './config-types-rewrite.ts';
 
 /** The markers of the block `vulcan package add` rewrites (`CreateConstants.APPS_BLOCK_START` begins with the first; the create layer imports this one, so it is not imported here). */
 const APPS_BLOCK_START = '// vulcan:apps:start';
@@ -11,21 +12,21 @@ const APPS_BLOCK_END = '// vulcan:apps:end';
 
 /** The type a group's module is checked against in a split config. */
 const GROUP_TYPE: Readonly<Record<string, string>> = {
-  project: 'VulcanConfig.Project',
-  agent: 'VulcanConfig.Agent',
-  guard: 'NonNullable<VulcanConfig.Guard>',
-  board: 'VulcanConfig.Board',
-  knowledge: 'VulcanConfig.Knowledge',
-  check: 'VulcanConfig.Check',
-  common: 'VulcanConfig.Common',
+  project: 'VulcanConfig.ProjectType',
+  agent: 'VulcanConfig.AgentType',
+  guard: 'NonNullable<VulcanConfig.GuardType>',
+  board: 'VulcanConfig.BoardType',
+  knowledge: 'VulcanConfig.KnowledgeType',
+  check: 'VulcanConfig.CheckType',
+  common: 'VulcanConfig.CommonType',
 };
 
 /** `VulcanConfig['x']` of the modules the 0.5.0-7 and -8 scaffolds wrote, and the group type each is now. */
 const TYPE_REWRITES: readonly [RegExp, string][] = [
-  [/VulcanConfig\['claude'\]/g, "VulcanConfig.Agent['claude']"],
-  [/VulcanConfig\['doctor'\]/g, "VulcanConfig.Check['doctor']"],
-  [/VulcanConfig\['okf'\]/g, "VulcanConfig.Knowledge['okf']"],
-  [/VulcanConfig\['packages'\]/g, "VulcanConfig.Project['packages']"],
+  [/VulcanConfig\['claude'\]/g, "VulcanConfig.AgentType['claude']"],
+  [/VulcanConfig\['doctor'\]/g, "VulcanConfig.CheckType['doctor']"],
+  [/VulcanConfig\['okf'\]/g, "VulcanConfig.KnowledgeType['okf']"],
+  [/VulcanConfig\['packages'\]/g, "VulcanConfig.ProjectType['packages']"],
 ];
 
 /** The files of the grouped config, as one file or as one module per group. */
@@ -136,7 +137,7 @@ export class CodemodOutputBuilder {
   }
 
   /** The files of `.configs/vulcan/` the config reaches through its imports and re-exports, however many files on the way. */
-  private static moduleFiles(opts: {
+  static moduleFiles(opts: {
     typescript: TTypeScript;
     source: TSourceFile;
     read: (path: string) => string | undefined;
@@ -234,7 +235,10 @@ export class CodemodOutputBuilder {
       };
     }
 
-    const bindings = new Map<string, { statement: string; specifier: string; name: string }>();
+    const bindings = new Map<
+      string,
+      { statement: string; specifier: string; name: string; isConfigType: boolean }
+    >();
 
     for (const statement of imports) {
       const specifier = typescript.isStringLiteral(statement.moduleSpecifier)
@@ -256,7 +260,12 @@ export class CodemodOutputBuilder {
       }
 
       for (const name of names) {
-        bindings.set(name, { statement: statement.getText(source), specifier, name });
+        bindings.set(name, {
+          statement: statement.getText(source),
+          specifier,
+          name,
+          isConfigType: ConfigTypeRewriter.isTypeImport({ typescript, statement }),
+        });
       }
     }
 
@@ -304,7 +313,7 @@ export class CodemodOutputBuilder {
       const used = [...bindings.values()].filter(
         (binding) =>
           !CodemodOutputBuilder.isModule({ specifier: binding.specifier }) &&
-          !CodemodOutputBuilder.isVulcanType({ statement: binding.statement }) &&
+          !binding.isConfigType &&
           items.some((item) =>
             new RegExp(`\\b${binding.name}\\b`).test(`${bodies.get(item)?.body ?? item.body}`),
           ),
@@ -430,7 +439,7 @@ export class CodemodOutputBuilder {
 
     changes.unshift({
       path: CodemodConstants.CONFIG_PATH,
-      text: `${header === '' ? '' : `${header}\n`}import type { VulcanConfig } from '@venizia/vulcan';\nimport { ${written.join(', ')} } from './vulcan/index.mts';\n\n${above === '' ? '' : `${above}\n`}export default { ${ConfigKeyOrder.GROUPS.filter((group) => written.includes(group)).join(', ')} } satisfies VulcanConfig;\n`,
+      text: `${header === '' ? '' : `${header}\n`}import type { VulcanConfigType } from '@venizia/vulcan';\nimport { ${written.join(', ')} } from './vulcan/index.mts';\n\n${above === '' ? '' : `${above}\n`}export default { ${ConfigKeyOrder.GROUPS.filter((group) => written.includes(group)).join(', ')} } satisfies VulcanConfigType;\n`,
     });
     changes.push({
       path: `${CodemodConstants.MODULES_DIRECTORY}/index.mts`,
@@ -467,10 +476,6 @@ export class CodemodOutputBuilder {
 
   private static isModule(opts: { specifier: string }): boolean {
     return opts.specifier.startsWith('./vulcan/');
-  }
-
-  private static isVulcanType(opts: { statement: string }): boolean {
-    return /^import type \{ VulcanConfig \}/.test(opts.statement);
   }
 
   /** An import of the config as it reads from a module one folder deeper. */

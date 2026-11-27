@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
+import { VulcanConfigSchema } from '../../config/schema.ts';
 import { ThemeTokens } from '../../theme/index.ts';
 import { ProjectTheme } from '../../visualize/theme.ts';
 import { WikiTheme } from '../../../../../docs/wiki/site/.vitepress/theme/shared/wiki-theme.ts';
@@ -200,7 +200,7 @@ describe('ThemeTokens.resolve', () => {
       expect(ThemeTokens.resolve({ theme: { tokens: { [name]: '#ffffff' } } }).ok, name).toBe(
         false,
       );
-      expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { preset: name } }).success, name).toBe(false);
+      expect(VulcanConfigSchema.safeParse({ theme: { preset: name } }).success, name).toBe(false);
     }
   });
 
@@ -243,15 +243,15 @@ describe('ThemeTokens.resolve', () => {
 
 describe('the config refuses a theme below AA when it loads', () => {
   test('the issue names the pair; a good theme and an empty one load', () => {
-    const bad = VULCAN_CONFIG_SCHEMA.safeParse({
+    const bad = VulcanConfigSchema.safeParse({
       theme: { tokens: { body: { dark: '#202020' } } },
     });
-    const good = VULCAN_CONFIG_SCHEMA.safeParse({ theme: { preset: 'slate', radius: '2px' } });
+    const good = VulcanConfigSchema.safeParse({ theme: { preset: 'slate', radius: '2px' } });
 
     expect(bad.success).toBe(false);
     expect(!bad.success && bad.error.issues[0].message).toContain('dark: body #202020');
     expect(good.success).toBe(true);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: {} }).success).toBe(true);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { preset: 'neon' } }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ theme: {} }).success).toBe(true);
+    expect(VulcanConfigSchema.safeParse({ theme: { preset: 'neon' } }).success).toBe(false);
   });
 });

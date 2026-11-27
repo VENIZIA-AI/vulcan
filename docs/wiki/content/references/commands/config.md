@@ -9,7 +9,7 @@ description: Show the config as the commands read it, merged from the shipped de
 vulcan config effective
 vulcan config diff
 vulcan config format [--check]
-vulcan config codemod <config-groups|type-names> [<dir>] [--write] [--split]
+vulcan config codemod <config-groups|type-names|config-types> [<dir>] [--write] [--split] [--reverse]
 vulcan config codemod --list
 ```
 
@@ -50,7 +50,7 @@ That is the order of the flat file of the earlier releases. A file written in th
 
 A key the list does not name (`provider`, or one a newer VULCAN added) goes after the listed keys and before `remove`, in the order the file had it.
 
-- The file is parsed with TypeScript, never run. The object is the one of `export default { ... }`, also behind `satisfies VulcanConfig`, `as const`, parentheses or `defineConfig(...)`.
+- The file is parsed with TypeScript, never run. The object is the one of `export default { ... }`, also behind `satisfies VulcanConfigType`, `as const`, parentheses or `defineConfig(...)`.
 - A key moves with the comments above it, the blank lines before them and the comment after it on its line. The imports, the statements before the export, and the value of each key (a `readdirSync` call, a variable) are not touched. A last key with no comma keeps having none.
 - A file in order is left as it is, byte for byte, so running it twice changes nothing.
 - It refuses, and exits `2` with the reason, when the object has a spread (`...base`) or a computed key (`[name]: ...`), whose keys are known only when the config runs, when the default export is not an object literal, or when a key that must move shares its line with another.
@@ -89,13 +89,30 @@ With `--split`:
 
 With `--split`, the codemod finds a value through the config's imports: a named re-export (`export { packages } from './packages.mts'`) or `export * from './packages.mts'`, through more than one index.
 
-Without `--split`, the file stays one file and each module under `.configs/vulcan/` that the config reaches through its imports and re-exports keeps its file; its type becomes the group's (`VulcanConfig['claude']` is `VulcanConfig.Agent['claude']`, `['doctor']` is `VulcanConfig.Check['doctor']`, `['okf']` is `VulcanConfig.Knowledge['okf']`, `['packages']` is `VulcanConfig.Project['packages']`). A key moves with the comment above it; a comment after the closing brace of `project` or `knowledge` goes after its last key. The remove paths are renamed to the group paths.
+Without `--split`, the file stays one file and each module under `.configs/vulcan/` that the config reaches through its imports and re-exports keeps its file; its type becomes the group's (`VulcanConfig['claude']` is `VulcanConfig.AgentType['claude']`, `['doctor']` is `VulcanConfig.CheckType['doctor']`, `['okf']` is `VulcanConfig.KnowledgeType['okf']`, `['packages']` is `VulcanConfig.ProjectType['packages']`). A key moves with the comment above it; a comment after the closing brace of `project` or `knowledge` goes after its last key. The remove paths are renamed to the group paths.
 
 It refuses, with the reason and nothing written (exit `2`), a config with a spread or a computed key, a key that is not a config key, `doctor` with a `layout` key, `knowledge` as a variable beside `okf` or `atlas`, an object on one line that holds a comment, and, with `--split`: a statement besides the imports and `export default`; a module that is not under `.configs/vulcan/` (or is a link out of it); a module that holds more than the type import and its one exported const (another export, a local name, a statement: the reason names the line); an index (`index.mts`, or another file the run follows) with more than re-exports of what the run folds, with an `export * as`, or with two `export *` that give the same name from different modules; and a `.configs/vulcan/<group>.mts` that is already there and is not what the run writes. With `--split`, the `vulcan:apps` block of a monorepo (markers and `apps`) moves, whole, to `.configs/vulcan/project.mts` as `export const apps`, and a group that reads `apps` imports it from there, so `vulcan package add` works right after; a block without a `project` group to sit in is refused. It deletes only the modules it folded, only under `.configs/vulcan/`, and keeps every comment: the file's header, the one above `export default`, the one above a key, and the one above a folded const.
 
-There is no way back: the downgrade is to restore the earlier config from git. With `--reverse`, which `vulcan migrate apply` passes on a rollback, either codemod changes nothing, prints `not reversible: restore the config from git` and exits `2`, so `apply` lists the step as manual. Run `vulcan migrate apply --to <old version>` **before** you downgrade `@venizia/vulcan`: an older `config codemod` rejects `--reverse`.
+There is no way back: the downgrade is to restore the earlier config from git. With `--reverse`, which `vulcan migrate apply` passes on a rollback, `config-groups` and `type-names` change nothing, print `not reversible: restore the config from git` and exit `2`, so `apply` lists the step as manual. Run `vulcan migrate apply --to <old version>` **before** you downgrade `@venizia/vulcan`: an older `config codemod` rejects `--reverse`.
 
 `vulcan config codemod type-names` renames the keys that said `kind`: `kind` is `type` and `presetKind` is `presetType` in every package entry of the config (an object with a `dir` and a `name`), and `kinds` is `types` in every acknowledgement of `check.doctor.privateValues.acknowledged` (an object with a `path` and a `reason`). It reads `.configs/vulcan.config.mts`, the modules of `.configs/vulcan/` and the `vulcan:apps` block. Run it once; a second run changes nothing. `--split` is for `config-groups` only.
+
+### config-types
+
+`vulcan config codemod config-types` renames the types a config imports from `@venizia/vulcan`:
+
+| Earlier | Now |
+|---|---|
+| `VulcanConfig` as the type of the whole file | `VulcanConfigType` |
+| `VulcanConfig.Project`, `.Agent`, `.Guard`, `.Board`, `.Knowledge`, `.Check`, `.Common`, `.Groups` | `VulcanConfig.ProjectType` and the others with `Type` |
+| `TFlatConfig` | `TVulcanConfigInput` |
+| `TResolvedConfig` | `TVulcanConfigOutput` |
+
+- It reads `.configs/vulcan.config.mts`, the standard modules of `.configs/vulcan/` and every module under that folder they import. It reads no other file of the project: rename the names there by hand.
+- The import changes with the names: `VulcanConfig` stays imported where a group type is read, and `VulcanConfigType` is imported where the file uses the type of the whole file. An alias (`VulcanConfig as C`) keeps working.
+- It prints a note, and leaves the text as written, for a re-export from `@venizia/vulcan`, a type read through `import('@venizia/vulcan')` or `import * as`, a group name it does not know, a file that exports the import again or declares one of the new names itself, and a file that reads a key of the flat shape (`VulcanConfig['claude']`): run `config-groups` first, which retypes it.
+- Without `--write` it lists what it would write. `--reverse` puts the earlier names back.
+- `config-groups` writes the new names already.
 
 **Agents do not run it.** The guards deny a `vulcan` command that writes the config or its modules: `config format` without `--check` and `config codemod ... --write`. The read-only forms stay allowed: `config format --check`, `config codemod` without `--write`, `--list`. The owner runs the writing forms.
 

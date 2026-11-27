@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { runCli } from '../helpers/run.helper.ts';
 
@@ -17,9 +17,9 @@ describe('the code graph is gone', () => {
   });
 
   test('a graph key in the config is refused, as any key VULCAN does not know', () => {
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ graph: { aliases: { '@/': 'src/' } } }).success).toBe(
+    expect(VulcanConfigSchema.safeParse({ graph: { aliases: { '@/': 'src/' } } }).success).toBe(
       false,
     );
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({}).success).toBe(true);
+    expect(VulcanConfigSchema.safeParse({}).success).toBe(true);
   });
 });

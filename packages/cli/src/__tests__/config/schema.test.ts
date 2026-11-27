@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { ProjectPackages, VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { ProjectPackages, VulcanConfigSchema } from '../../config/index.ts';
 
-describe('VULCAN_CONFIG_SCHEMA', () => {
+describe('VulcanConfigSchema', () => {
   test('packages carry dir, name, aliases and retired, defaulted', () => {
-    const config = VULCAN_CONFIG_SCHEMA.parse({ packages: [{ dir: 'kernel', name: '@a/kernel' }] });
+    const config = VulcanConfigSchema.parse({ packages: [{ dir: 'kernel', name: '@a/kernel' }] });
 
     expect(config.packages).toEqual([
       { dir: 'kernel', name: '@a/kernel', aliases: [], retired: false },
@@ -11,31 +11,31 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
   });
 
   test('agents is left unset unless the project suggests a list, and names only table agents', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).agents).toBeUndefined();
-    expect(VULCAN_CONFIG_SCHEMA.parse({ agents: ['claude', 'omp'] }).agents).toEqual([
+    expect(VulcanConfigSchema.parse({}).agents).toBeUndefined();
+    expect(VulcanConfigSchema.parse({ agents: ['claude', 'omp'] }).agents).toEqual([
       'claude',
       'omp',
     ]);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ agents: ['vim'] }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ agents: ['vim'] }).success).toBe(false);
   });
 
   test('theme is the colour the project is known by: left unset, hex only, strict', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).theme).toBeUndefined();
+    expect(VulcanConfigSchema.parse({}).theme).toBeUndefined();
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({
+      VulcanConfigSchema.parse({
         theme: { accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' },
       }).theme,
     ).toEqual({ accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' });
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: 'blue' } }).success).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: '#fff' } }).success).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: {} }).success).toBe(true);
+    expect(VulcanConfigSchema.safeParse({ theme: { accent: 'blue' } }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ theme: { accent: '#fff' } }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ theme: {} }).success).toBe(true);
     expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: '#0277bd', brand: '#000000' } }).success,
+      VulcanConfigSchema.safeParse({ theme: { accent: '#0277bd', brand: '#000000' } }).success,
     ).toBe(false);
   });
 
   test('okf defaults to nothing selected - no renderer runs unless listed', () => {
-    const config = VULCAN_CONFIG_SCHEMA.parse({});
+    const config = VulcanConfigSchema.parse({});
 
     expect(config.okf.renderers).toEqual([]);
     expect(config.okf.regions).toEqual([]);
@@ -44,10 +44,10 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
   });
 
   test('okf.brand is optional; the removed okf.viz and okf.sections are refused with the key and what to do', () => {
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ okf: { brand: 'ACME' } }).success).toBe(true);
+    expect(VulcanConfigSchema.safeParse({ okf: { brand: 'ACME' } }).success).toBe(true);
 
-    const viz = VULCAN_CONFIG_SCHEMA.safeParse({ okf: { viz: { outputs: ['x.html'] } } });
-    const sections = VULCAN_CONFIG_SCHEMA.safeParse({ okf: { sections: { order: [] } } });
+    const viz = VulcanConfigSchema.safeParse({ okf: { viz: { outputs: ['x.html'] } } });
+    const sections = VulcanConfigSchema.safeParse({ okf: { sections: { order: [] } } });
 
     expect(viz.success).toBe(false);
     expect(viz.error?.issues[0]?.path).toEqual(['okf', 'viz']);
@@ -60,50 +60,50 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
 
   test('a renderer entry is strict: a misspelled key is an error', () => {
     expect(() =>
-      VULCAN_CONFIG_SCHEMA.parse({ okf: { renderers: [{ id: 'x', modul: 'a.ts' }] } }),
+      VulcanConfigSchema.parse({ okf: { renderers: [{ id: 'x', modul: 'a.ts' }] } }),
     ).toThrow();
   });
 
   test("release templates need <version>, and default to IGNIS's forms", () => {
-    expect(() => VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: 'release' } })).toThrow(
+    expect(() => VulcanConfigSchema.parse({ atlas: { tagPattern: 'release' } })).toThrow(
       'a template with <version>',
     );
-    expect(
-      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: 'v<version>' } }).atlas.tagPattern,
-    ).toBe('v<version>');
+    expect(VulcanConfigSchema.parse({ atlas: { tagPattern: 'v<version>' } }).atlas.tagPattern).toBe(
+      'v<version>',
+    );
 
-    const config = VULCAN_CONFIG_SCHEMA.parse({});
+    const config = VulcanConfigSchema.parse({});
 
     expect(config.atlas.tagPattern).toBe('<dir>-v<version>');
     expect(config.atlas.sources).toEqual([]);
   });
 
   test('legacy tag templates are optional, and each needs <version> like the current one', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).atlas.legacyTagPatterns).toBeUndefined();
+    expect(VulcanConfigSchema.parse({}).atlas.legacyTagPatterns).toBeUndefined();
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({
+      VulcanConfigSchema.parse({
         atlas: { tagPattern: 'vulcan-v<version>', legacyTagPatterns: ['v<version>'] },
       }).atlas.legacyTagPatterns,
     ).toEqual(['v<version>']);
-    expect(() => VULCAN_CONFIG_SCHEMA.parse({ atlas: { legacyTagPatterns: ['release'] } })).toThrow(
+    expect(() => VulcanConfigSchema.parse({ atlas: { legacyTagPatterns: ['release'] } })).toThrow(
       'a template with <version>',
     );
   });
 
   test('a template with a placeholder it does not know is refused, and <package> is told to be <dir>', () => {
     expect(() =>
-      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<package>-v<version>' } }),
+      VulcanConfigSchema.parse({ atlas: { tagPattern: '<package>-v<version>' } }),
     ).toThrow('<package> is not a placeholder of a release template');
     expect(() =>
-      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<package>-v<version>' } }),
+      VulcanConfigSchema.parse({ atlas: { tagPattern: '<package>-v<version>' } }),
     ).toThrow('<dir> replaces <package>');
     expect(() =>
-      VULCAN_CONFIG_SCHEMA.parse({
+      VulcanConfigSchema.parse({
         atlas: { tagPattern: '<dir>-v<version>', legacyTagPatterns: ['<name>-<version>'] },
       }),
     ).toThrow('<name> is not a placeholder');
     expect(() =>
-      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<dir >-<a>-v<version>' } }),
+      VulcanConfigSchema.parse({ atlas: { tagPattern: '<dir >-<a>-v<version>' } }),
     ).toThrow('<dir >, <a> are not placeholders');
 
     for (const template of [
@@ -112,7 +112,7 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
       '[#<issue>] release(<dir>): <version>',
       '<version>-<date>',
     ]) {
-      expect(VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: template } }).atlas.tagPattern).toBe(
+      expect(VulcanConfigSchema.parse({ atlas: { tagPattern: template } }).atlas.tagPattern).toBe(
         template,
       );
     }
@@ -120,10 +120,10 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
 
   test("a source's repo and ref are values for git, not options: one that starts with '-' is refused", () => {
     expect(() =>
-      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: 'a', repo: '--version' }] } }),
+      VulcanConfigSchema.parse({ atlas: { sources: [{ name: 'a', repo: '--version' }] } }),
     ).toThrow("it must not start with '-'");
     expect(() =>
-      VULCAN_CONFIG_SCHEMA.parse({
+      VulcanConfigSchema.parse({
         atlas: { sources: [{ name: 'a', repo: 'acme/a', ref: '-x' }] },
       }),
     ).toThrow("it must not start with '-'");
@@ -131,20 +131,20 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
 
   test('a source name is a plain name: one that could be read as a flag is refused', () => {
     expect(() =>
-      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: '--only', repo: 'acme/a' }] } }),
+      VulcanConfigSchema.parse({ atlas: { sources: [{ name: '--only', repo: 'acme/a' }] } }),
     ).toThrow('starting with a letter or a digit');
     expect(() =>
-      VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: 'a b', repo: 'acme/a' }] } }),
+      VulcanConfigSchema.parse({ atlas: { sources: [{ name: 'a b', repo: 'acme/a' }] } }),
     ).toThrow('starting with a letter or a digit');
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({
+      VulcanConfigSchema.parse({
         atlas: { sources: [{ name: 'ignis-2.core_x', repo: 'acme/a' }] },
       }).atlas.sources[0]?.name,
     ).toBe('ignis-2.core_x');
   });
 
   test('a source defaults its ref to develop', () => {
-    const config = VULCAN_CONFIG_SCHEMA.parse({
+    const config = VulcanConfigSchema.parse({
       atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }] },
     });
 
@@ -157,7 +157,7 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
 describe('a source pin', () => {
   test("`pin` is 'installed' or 'ref', and absent unless given", () => {
     const parsed = (pin?: string) =>
-      VULCAN_CONFIG_SCHEMA.safeParse({
+      VulcanConfigSchema.safeParse({
         atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ...(pin ? { pin } : {}) }] },
       });
 
@@ -177,10 +177,10 @@ describe('package kind', () => {
     };
 
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, type: 'lib' }] }).packages[0]?.type,
+      VulcanConfigSchema.parse({ packages: [{ ...base, type: 'lib' }] }).packages[0]?.type,
     ).toBe('lib');
-    expect(VULCAN_CONFIG_SCHEMA.parse({ packages: [base] }).packages[0]?.type).toBeUndefined();
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, kind: 'tool' }] }).success).toBe(
+    expect(VulcanConfigSchema.parse({ packages: [base] }).packages[0]?.type).toBeUndefined();
+    expect(VulcanConfigSchema.safeParse({ packages: [{ ...base, kind: 'tool' }] }).success).toBe(
       false,
     );
   });
@@ -194,28 +194,26 @@ describe('package kind', () => {
     } as const;
 
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, presetType: 'lib' }] }).packages[0]
+      VulcanConfigSchema.parse({ packages: [{ ...base, presetType: 'lib' }] }).packages[0]
         ?.presetType,
     ).toBe('lib');
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, presetType: 'shared' }] }).packages[0]
+      VulcanConfigSchema.parse({ packages: [{ ...base, presetType: 'shared' }] }).packages[0]
         ?.presetType,
     ).toBe('shared');
+    expect(VulcanConfigSchema.parse({ packages: [base] }).packages[0]?.presetType).toBeUndefined();
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({ packages: [base] }).packages[0]?.presetType,
-    ).toBeUndefined();
-    expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, presetType: 'app' }] }).success,
+      VulcanConfigSchema.safeParse({ packages: [{ ...base, presetType: 'app' }] }).success,
     ).toBe(false);
-    expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, presetType: '' }] }).success,
-    ).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ packages: [{ ...base, presetType: '' }] }).success).toBe(
+      false,
+    );
   });
 
   test('an entry without presetType parses to exactly what it did before', () => {
     const entry = { dir: 'money', name: '@nx/money', path: 'libs/money', type: 'lib' } as const;
 
-    expect(VULCAN_CONFIG_SCHEMA.parse({ packages: [entry] }).packages[0]).toEqual({
+    expect(VulcanConfigSchema.parse({ packages: [entry] }).packages[0]).toEqual({
       ...entry,
       aliases: [],
       retired: false,
@@ -223,7 +221,7 @@ describe('package kind', () => {
   });
 
   test('ProjectPackages.resolve carries presetType only when it is set', () => {
-    const config = VULCAN_CONFIG_SCHEMA.parse({
+    const config = VulcanConfigSchema.parse({
       packages: [
         { dir: 'money', name: '@nx/money', path: 'libs/money', type: 'lib', presetType: 'shared' },
         { dir: 'feature', name: '@nx/feature', path: 'libs/feature', type: 'lib' },
@@ -236,7 +234,7 @@ describe('package kind', () => {
   });
 
   test('ProjectPackages.resolve carries the kind', () => {
-    const config = VULCAN_CONFIG_SCHEMA.parse({
+    const config = VulcanConfigSchema.parse({
       packages: [
         {
           dir: 'merchant',
@@ -263,7 +261,7 @@ describe('presets', () => {
       lib: 'A feature library.',
     } as const;
 
-    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [preset] }).presets).toEqual([preset]);
+    expect(VulcanConfigSchema.parse({ presets: [preset] }).presets).toEqual([preset]);
   });
 
   test('a recorded preset may say it also makes shared packages', () => {
@@ -281,9 +279,9 @@ describe('presets', () => {
       shared: 'Types.',
     } as const;
 
-    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [preset] }).presets).toEqual([preset]);
-    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [sharedOnly] }).presets).toEqual([sharedOnly]);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ ...preset, shared: 1 }] }).success).toBe(
+    expect(VulcanConfigSchema.parse({ presets: [preset] }).presets).toEqual([preset]);
+    expect(VulcanConfigSchema.parse({ presets: [sharedOnly] }).presets).toEqual([sharedOnly]);
+    expect(VulcanConfigSchema.safeParse({ presets: [{ ...preset, shared: 1 }] }).success).toBe(
       false,
     );
   });
@@ -291,13 +289,13 @@ describe('presets', () => {
   test('a recorded preset is { spec, side, summary }, side being backend or frontend', () => {
     const preset = { spec: 'ignis', side: 'backend', summary: 'An API.' } as const;
 
-    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [preset] }).presets).toEqual([preset]);
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).presets).toBeUndefined();
-    expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ ...preset, side: 'shared' }] }).success,
-    ).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ spec: 'ignis' }] }).success).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ ...preset, extra: 1 }] }).success).toBe(
+    expect(VulcanConfigSchema.parse({ presets: [preset] }).presets).toEqual([preset]);
+    expect(VulcanConfigSchema.parse({}).presets).toBeUndefined();
+    expect(VulcanConfigSchema.safeParse({ presets: [{ ...preset, side: 'shared' }] }).success).toBe(
+      false,
+    );
+    expect(VulcanConfigSchema.safeParse({ presets: [{ spec: 'ignis' }] }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ presets: [{ ...preset, extra: 1 }] }).success).toBe(
       false,
     );
   });
@@ -306,10 +304,10 @@ describe('presets', () => {
 describe('layout', () => {
   test('takes the three folder names, each a valid name', () => {
     expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ layout: { backend: 'services', shared: 'libs' } }).success,
+      VulcanConfigSchema.safeParse({ layout: { backend: 'services', shared: 'libs' } }).success,
     ).toBe(true);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ layout: { backend: 'Services' } }).success).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ layout: { api: 'x' } }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ layout: { backend: 'Services' } }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ layout: { api: 'x' } }).success).toBe(false);
   });
 });
 
@@ -320,7 +318,7 @@ describe('ProjectPackages.resolve', () => {
     ['typescriptFrom', '.'],
     ['legacyTagPrefixes', ['old-']],
   ])('atlas.%s is no key any more: the strict schema names it as unrecognized', (key, value) => {
-    const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { [key]: value } });
+    const result = VulcanConfigSchema.safeParse({ atlas: { [key]: value } });
     const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
 
     expect(result.success).toBe(false);
@@ -335,7 +333,7 @@ describe('ProjectPackages.resolve', () => {
   ])(
     '%s was removed: a config that still sets it is refused, with the key named',
     (key, config) => {
-      const result = VULCAN_CONFIG_SCHEMA.safeParse(config);
+      const result = VulcanConfigSchema.safeParse(config);
       const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
 
       expect(result.success).toBe(false);
@@ -344,19 +342,19 @@ describe('ProjectPackages.resolve', () => {
   );
 
   test('without packages the list is empty', () => {
-    expect(ProjectPackages.resolve({ config: VULCAN_CONFIG_SCHEMA.parse({}) })).toEqual([]);
+    expect(ProjectPackages.resolve({ config: VulcanConfigSchema.parse({}) })).toEqual([]);
   });
 });
 
 test('a renderer given as a bare string is its id', () => {
-  const config = VULCAN_CONFIG_SCHEMA.parse({ okf: { renderers: ['source-map'] } });
+  const config = VulcanConfigSchema.parse({ okf: { renderers: ['source-map'] } });
 
   expect(config.okf.renderers).toEqual([{ id: 'source-map', options: {} }]);
 });
 
 describe('packages are keyed uniquely', () => {
   const messageOf = (packages: object[]): string | undefined => {
-    const result = VULCAN_CONFIG_SCHEMA.safeParse({ packages });
+    const result = VulcanConfigSchema.safeParse({ packages });
 
     return result.success
       ? undefined
@@ -364,7 +362,7 @@ describe('packages are keyed uniquely', () => {
   };
 
   test('two packages whose directories share a name work when their keys and paths differ', () => {
-    const config = VULCAN_CONFIG_SCHEMA.parse({
+    const config = VulcanConfigSchema.parse({
       packages: [
         { dir: 'backends-core', name: '@acme/backends-core', path: 'backends/core' },
         { dir: 'kits-core', name: '@acme/kits-core', path: 'frontends/kits/core' },
@@ -398,7 +396,7 @@ describe('packages are keyed uniquely', () => {
   test.each(['kernel', '@acme/kernel', '@acme/my-kernel.v2', 'a_b~c'])(
     "the package name '%s' is accepted",
     (name) => {
-      expect(VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ dir: 'kernel', name }] }).success).toBe(
+      expect(VulcanConfigSchema.safeParse({ packages: [{ dir: 'kernel', name }] }).success).toBe(
         true,
       );
     },
@@ -431,7 +429,7 @@ describe('packages are keyed uniquely', () => {
 
 describe('okf.coverage axes', () => {
   test('exclude and denylist are per axis, default empty', () => {
-    const config = VULCAN_CONFIG_SCHEMA.parse({
+    const config = VulcanConfigSchema.parse({
       okf: {
         coverage: [
           { name: 'apps', path: 'apps/*', exclude: ['apps/mobile-*'], denylist: ['shared'] },
@@ -448,7 +446,7 @@ describe('okf.coverage axes', () => {
 
   test('an unknown key on an axis is still an error', () => {
     expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ okf: { coverage: [{ name: 'a', path: 'a/*', skip: [] }] } })
+      VulcanConfigSchema.safeParse({ okf: { coverage: [{ name: 'a', path: 'a/*', skip: [] }] } })
         .success,
     ).toBe(false);
   });

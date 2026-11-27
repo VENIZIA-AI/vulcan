@@ -64,7 +64,7 @@ export const HOME: THomeContent = {
     {
       file: '.configs/vulcan.config.mts',
       type: 'code',
-      body: `import type { VulcanConfig } from '@venizia/vulcan';
+      body: `import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agents: ['claude', 'omp'],
@@ -72,7 +72,7 @@ export default {
   guard: {
     outside: 'deny',
   },
-} satisfies VulcanConfig;`,
+} satisfies VulcanConfigType;`,
       note: 'The config of a project. <a href="/references/configuration/">Every key is in the reference.</a>',
     },
     {

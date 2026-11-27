@@ -63,7 +63,7 @@ Without `--preset`, `vulcan project init` uses one option, `--key`. The other `i
 
 The key is written to the config as `project: { key: 'KEY' }`. A flow is named `VULZ-<key>-<number>`, such as `VULZ-ACME-15`. Without `--key`, a terminal asks (the key made from the project name is the default). With no terminal the key is made from the project name (its letters and digits in capitals, the first 8), `init` says which, and a name that makes fewer than 2 is an error that asks for `--key`. An existing config is kept, and the key is not asked.
 
-The config file is `.configs/vulcan.config.mts`, a TypeScript module that uses `satisfies VulcanConfig`.
+The config file is `.configs/vulcan.config.mts`, a TypeScript module that uses `satisfies VulcanConfigType`.
 It is written only when it does not exist yet; an existing one is reported as `kept`.
 
 ## Generated files
@@ -197,7 +197,7 @@ To configure your project, edit `.configs/vulcan.config.mts`.
 It is a split config: the file only joins the seven groups, and each group is a module in `.configs/vulcan/`.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 import { agent, board, check, common, guard, knowledge, project } from './vulcan/index.mts';
 
 export default {
@@ -208,7 +208,7 @@ export default {
   knowledge,
   check,
   common,
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 The starter modules are small. `project.mts` holds the key you gave, and `agent.mts` the agents and the one rule setting every project starts with; the other five are empty objects to fill in:
@@ -219,7 +219,7 @@ import type { VulcanConfig } from '@venizia/vulcan';
 
 export const project = {
   key: 'ACME',
-} satisfies VulcanConfig.Project;
+} satisfies VulcanConfig.ProjectType;
 
 // .configs/vulcan/agent.mts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -227,7 +227,7 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export const agent = {
   list: ['claude'],
   rules: { 'V-W-01': 'on-user-word' },
-} satisfies VulcanConfig.Agent;
+} satisfies VulcanConfig.AgentType;
 ```
 
 To complete your knowledge setup, edit `.agents/knowledge/index.md`.

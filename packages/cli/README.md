@@ -47,7 +47,7 @@ clean MCP stdio server.
 `.configs/vulcan.config.mts`:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   project: {
@@ -62,7 +62,7 @@ export default {
   knowledge: {
     bundle: '.agents/knowledge',
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 An unknown key is an error; every error names the file and the field. The example shows a few keys; each key, with its type and default, is in `docs/wiki/content/references/configuration/index.md`. Three that a new project often wants: `local.tmp` (a short folder for the temporary files of a session, so a browser socket path fits), `theme` (the colours, fonts and radius of the board and the pages VULCAN makes) and `board` (the owner, title, logo and agents of `vulcan board show`).

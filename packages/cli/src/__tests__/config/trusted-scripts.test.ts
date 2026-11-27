@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 
 describe('guard.writes.trustedScripts', () => {
   test('is refused, with the key and what to do', () => {
-    const result = VULCAN_CONFIG_SCHEMA.safeParse({
+    const result = VulcanConfigSchema.safeParse({
       guard: { writes: { trustedScripts: ['auroras/tools/i18n/cli.ts'] } },
     });
     const issues = result.success ? [] : result.error.issues;
@@ -14,7 +14,7 @@ describe('guard.writes.trustedScripts', () => {
   });
 
   test('leaves guard.writes.commands and the defaults as they were', () => {
-    const config = VULCAN_CONFIG_SCHEMA.parse({ guard: { writes: {} } });
+    const config = VulcanConfigSchema.parse({ guard: { writes: {} } });
 
     expect(config.guard.writes).toEqual({ commands: [] });
   });

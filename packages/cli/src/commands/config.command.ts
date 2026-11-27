@@ -2,9 +2,11 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { dirname, join, resolve, sep } from 'node:path';
 import { ExitCodes, ProjectLayout } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
+import type { TCodemodResult } from '../config/common/index.ts';
 import { ConfigConstants, ConfigGroups, ConfigLayers, ConfigLoader } from '../config/index.ts';
 import { ConfigCodemod } from '../config/codemod.ts';
 import { ConfigTypeNames } from '../config/type-names.ts';
+import { ConfigTypesCodemod } from '../config/config-types.ts';
 import { ConfigFormat } from '../config/format.ts';
 
 const EFFECTIVE_FLAG = '--effective';
@@ -12,6 +14,11 @@ const DIFF_FLAG = '--diff';
 const FORMAT_SUBCOMMAND = 'format';
 const CODEMOD_SUBCOMMAND = 'codemod';
 const CHECK_FLAG = '--check';
+const CODEMOD_NAMES: readonly string[] = [
+  ConfigCodemod.NAME,
+  ConfigTypeNames.NAME,
+  ConfigTypesCodemod.NAME,
+];
 
 /**
  * `vulcan config format [--check]`: puts the top-level keys of the config file in the order of `ConfigKeyOrder`, each with
@@ -64,7 +71,8 @@ const runFormat = async (opts: ICommandContext): Promise<number> => {
 };
 
 /**
- * `vulcan config codemod config-groups [<dir>] [--write] [--split]`, and `--list`: the rewrite of the config into the seven groups.
+ * `vulcan config codemod <name> [<dir>] [--write]`, and `--list`: `config-groups` (the seven groups, with `--split`), `type-names`
+ * and `config-types` (the only one with `--reverse`).
  * Without `--write` it only says what it would write; `migrate apply` runs it with `--write`. It reads and writes under `.configs/` of the
  * folder, and deletes only under `.configs/vulcan/`: a path that leaves them, by `..` or by a link, is refused before a file is touched.
  */
@@ -100,7 +108,7 @@ const runCodemod = (opts: ICommandContext): number => {
 
   if (unknown.length > 0 || words.length > 2) {
     process.stderr.write(
-      `vulcan config codemod: <${ConfigCodemod.NAME}|${ConfigTypeNames.NAME}> [<dir>] [--write] [--split] [--reverse] | --list\n`,
+      `vulcan config codemod: <${CODEMOD_NAMES.join('|')}> [<dir>] [--write] [--split] [--reverse] | --list\n`,
     );
 
     return ExitCodes.USAGE;
@@ -108,16 +116,16 @@ const runCodemod = (opts: ICommandContext): number => {
 
   if (flags.includes('--list')) {
     // One name per line and nothing else: the changelog check reads the list as the names a codemod runner offers.
-    process.stdout.write(`${ConfigCodemod.NAME}\n${ConfigTypeNames.NAME}\n`);
+    process.stdout.write(`${CODEMOD_NAMES.join('\n')}\n`);
 
     return ExitCodes.OK;
   }
 
   const [name, directory = '.'] = words;
 
-  if (name !== ConfigCodemod.NAME && name !== ConfigTypeNames.NAME) {
+  if (name === undefined || !CODEMOD_NAMES.includes(name)) {
     process.stderr.write(
-      `vulcan config codemod: unknown codemod '${name ?? ''}': the ones there are are ${ConfigCodemod.NAME} and ${ConfigTypeNames.NAME}\n`,
+      `vulcan config codemod: unknown codemod '${name ?? ''}': the ones there are are ${CODEMOD_NAMES.join(', ')}\n`,
     );
 
     return ExitCodes.USAGE;
@@ -125,15 +133,17 @@ const runCodemod = (opts: ICommandContext): number => {
 
   // `migrate apply` asks for this on a rollback. Exit 2 with the words `not reversible` is how a codemod says so to any
   // atlas, which then prints the step as manual.
-  if (flags.includes('--reverse')) {
+  const isReverse = flags.includes('--reverse');
+
+  if (isReverse && name !== ConfigTypesCodemod.NAME) {
     process.stdout.write('not reversible: restore the config from git\n');
 
     return ExitCodes.USAGE;
   }
 
-  if (name === ConfigTypeNames.NAME && flags.includes('--split')) {
+  if (name !== ConfigCodemod.NAME && flags.includes('--split')) {
     process.stderr.write(
-      `vulcan config codemod: --split does not apply to ${ConfigTypeNames.NAME}: it renames keys where they are; --split is for ${ConfigCodemod.NAME}\n`,
+      `vulcan config codemod: --split does not apply to ${name}: it renames where the names are; --split is for ${ConfigCodemod.NAME}\n`,
     );
 
     return ExitCodes.USAGE;
@@ -145,10 +155,12 @@ const runCodemod = (opts: ICommandContext): number => {
     existsSync(join(root, path)) && isInside({ root, path, folder: ConfigConstants.DIRECTORY })
       ? readFileSync(join(root, path), 'utf8')
       : undefined;
-  const result =
-    name === ConfigTypeNames.NAME
-      ? ConfigTypeNames.run({ root, read })
-      : ConfigCodemod.run({ root, read, split: flags.includes('--split') });
+  const runners: Record<string, () => TCodemodResult> = {
+    [ConfigCodemod.NAME]: () => ConfigCodemod.run({ root, read, split: flags.includes('--split') }),
+    [ConfigTypeNames.NAME]: () => ConfigTypeNames.run({ root, read }),
+    [ConfigTypesCodemod.NAME]: () => ConfigTypesCodemod.run({ root, read, isReverse }),
+  };
+  const result = runners[name]();
 
   if (!result.ok) {
     process.stderr.write(`vulcan config codemod: nothing was written: ${result.reason}\n`);

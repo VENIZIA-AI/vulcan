@@ -9,7 +9,7 @@ atlas serves external project documentation alongside your repository.
 Declare external repositories under `knowledge.atlas.sources` in `.configs/vulcan.config.mts`:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   knowledge: {
@@ -19,7 +19,7 @@ export default {
       ],
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 To update the project manifest, run `vulcan project sync`:

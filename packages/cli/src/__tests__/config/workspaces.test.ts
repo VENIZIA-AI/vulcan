@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { chmodSync } from 'node:fs';
 import { join } from 'node:path';
-import { ConfigLoader, VULCAN_CONFIG_SCHEMA, WorkspacePackages } from '../../config/index.ts';
+import { ConfigLoader, VulcanConfigSchema, WorkspacePackages } from '../../config/index.ts';
 import { WorkspaceChecks } from '../../doctor/workspace-checks.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { runCli } from '../helpers/run.helper.ts';
@@ -198,7 +198,7 @@ describe('WorkspacePackages.derive', () => {
   test('every derived list is one the packages schema accepts', () => {
     const { packages } = WorkspacePackages.derive({ root: monorepo() });
 
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ packages }).success).toBe(true);
+    expect(VulcanConfigSchema.safeParse({ packages }).success).toBe(true);
   });
 });
 

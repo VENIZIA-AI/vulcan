@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { git, initRepo } from '../helpers/git-repo.helper.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { RuleChecks } from '../../doctor/rule-checks.ts';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -22,7 +22,7 @@ const project = (opts: { legacy?: string } = {}): string =>
     },
   });
 const configOf = (root: string) => {
-  const parsed = VULCAN_CONFIG_SCHEMA.parse({
+  const parsed = VulcanConfigSchema.parse({
     name: 'acme',
     packages: [{ dir: 'kernel', name: '@x/kernel' }],
     events: { log: true },
@@ -127,7 +127,7 @@ describe('a repository that publishes no package has no descriptor', () => {
     });
   const appConfig = (root: string) => ({
     root,
-    config: VULCAN_CONFIG_SCHEMA.parse({ name: 'shop', guard: { outside: 'deny' } }),
+    config: VulcanConfigSchema.parse({ name: 'shop', guard: { outside: 'deny' } }),
     configFile: '.configs/vulcan.config.mts',
   });
 

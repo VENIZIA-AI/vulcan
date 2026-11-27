@@ -3,7 +3,7 @@ import { generateKeyPairSync } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ToolRunner } from '../../commands/x.command.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
 import { Bunfig } from '../../create/bunfig.ts';
@@ -27,7 +27,7 @@ const CONFIG = {
 };
 
 const render = (opts: { root: string; config: object }): string =>
-  ProjectManifest.render({ root: opts.root, config: VULCAN_CONFIG_SCHEMA.parse(opts.config) });
+  ProjectManifest.render({ root: opts.root, config: VulcanConfigSchema.parse(opts.config) });
 
 describe('ProjectManifest.render', () => {
   test('the text is already formatted for bun fmt: short arrays on one line, so lint stays green', () => {
@@ -253,7 +253,7 @@ describe('the prebuilt index in the manifest (C27)', () => {
     ['a key of the wrong length', Buffer.alloc(31).toString('base64')],
     ['a key with a trailing space', `${newPublicKey()} `],
   ])('%s is refused when the config is read', (_label, key) => {
-    const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { index: { keys: [key] } } });
+    const result = VulcanConfigSchema.safeParse({ atlas: { index: { keys: [key] } } });
 
     expect(result.success).toBe(false);
     expect(result.success ? '' : result.error.message).toContain('atlas index keygen');
@@ -514,7 +514,7 @@ describe('the manifest in sync, doctor and vulcan atlas', () => {
 
     if (environment.ok) {
       expect(environment.env.VULCAN_MANIFEST).toBe(
-        ProjectManifest.renderDescriptor({ root, config: VULCAN_CONFIG_SCHEMA.parse(CONFIG) }),
+        ProjectManifest.renderDescriptor({ root, config: VulcanConfigSchema.parse(CONFIG) }),
       );
       expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).toContain('@x/kernel');
     }

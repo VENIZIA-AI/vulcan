@@ -1,6 +1,6 @@
 import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import type { TResolvedConfig } from '../config/index.ts';
+import type { TVulcanConfigOutput } from '../config/index.ts';
 import type { ISyncAction } from '../sync/common/index.ts';
 import { SyncStatuses } from '../sync/common/index.ts';
 import { AgentSignaturePolicies, CommitHookStates } from './common/index.ts';
@@ -39,7 +39,7 @@ const git = (opts: { root: string; args: string[] }): string | undefined => {
 };
 
 export class CommitHook {
-  static isWanted(opts: { config: TResolvedConfig }): boolean {
+  static isWanted(opts: { config: TVulcanConfigOutput }): boolean {
     const { agent, subject } = opts.config.commit.message;
 
     return agent.signature === AgentSignaturePolicies.DENY || subject !== undefined;
@@ -141,7 +141,7 @@ exit "$status"
   }
 
   /** A project that sets `core.hooksPath` owns its hooks: this only reads them. */
-  static stateOf(opts: { root: string; config: TResolvedConfig }): ICommitHookStatus {
+  static stateOf(opts: { root: string; config: TVulcanConfigOutput }): ICommitHookStatus {
     const location = git({
       root: opts.root,
       args: ['rev-parse', '--git-path', `hooks/${HOOK_NAME}`],
@@ -247,7 +247,7 @@ exit "$status"
 }
 
 export class CommitHookPlan {
-  static plan(opts: { root: string; config: TResolvedConfig }): ISyncAction[] {
+  static plan(opts: { root: string; config: TVulcanConfigOutput }): ISyncAction[] {
     const status = CommitHook.stateOf(opts);
     const prefix = git({ root: opts.root, args: ['rev-parse', '--show-prefix'] }) ?? '';
     const { path } = status;
