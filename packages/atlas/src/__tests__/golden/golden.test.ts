@@ -99,6 +99,8 @@ describe('golden questions: the scoreboard', () => {
         // A stale mark and a regression both fail: the list says what atlas serves today, or it says nothing.
         expect([GoldenVerdicts.ANSWERED, GoldenVerdicts.OPEN]).toContain(verdict);
       },
+      // The first question of a project indexes its whole checkout, and the first `symbol` one compiles its
+      // declarations: seconds on a loaded machine, past the five a test gets by default.
       60_000,
     );
   }
