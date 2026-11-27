@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { TypeScriptCompiler } from '@/common/compiler';
 import { PackageEntries } from '@/common/package-entries';
 import type { ISymbolRecord } from '@/symbols';
 import { AtlasSymbols } from '@/symbols/generator';
@@ -131,6 +132,31 @@ describe('the declaration a symbol record keeps', () => {
   test('a variable declared with another keeps its own declaration', () => {
     expect(get('a').declaration).toBe('export declare const a: number;');
     expect(get('b').declaration).toBe('export declare const b: string;');
+  });
+});
+
+describe('a declaration listed twice in one run', () => {
+  test('is read once per checker, and a new checker reads it again', () => {
+    const compiler = TypeScriptCompiler.get();
+    const root = mkdtempSync(join(tmpdir(), 'atlas-declaration-cache-'));
+    const path = join(root, 'index.d.ts');
+
+    roots.push(root);
+    writeFileSync(path, 'export declare function plain(): void;\n');
+
+    const program = compiler.createProgram([path], {});
+    const declaration = program.getSourceFile(path)?.statements[0];
+
+    if (declaration === undefined || !compiler.isFunctionDeclaration(declaration)) {
+      throw new Error('no declaration');
+    }
+
+    const checker = program.getTypeChecker();
+    const first = DeclarationText.partsOf({ declaration, checker });
+    const other = compiler.createProgram([path], {}).getTypeChecker();
+
+    expect(DeclarationText.partsOf({ declaration, checker })).toBe(first);
+    expect(DeclarationText.partsOf({ declaration, checker: other })).not.toBe(first);
   });
 });
 

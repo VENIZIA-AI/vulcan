@@ -30,6 +30,11 @@ export class DeclarationText {
   /** A class of hundreds of members is cut here, at a line, and says so. */
   static readonly RECORD_MAX_CHARS = 40_000;
   static readonly CUT_MARK = '// ... cut';
+  /** A namespace lists declarations the other records of a run already read; what is read depends on the checker. */
+  private static readonly parts = new WeakMap<
+    TypeScript.TypeChecker,
+    WeakMap<TypeScript.Declaration, IDeclarationParts>
+  >();
 
   static of(opts: {
     declaration: TypeScript.Declaration;
@@ -49,11 +54,26 @@ export class DeclarationText {
     return {
       declaration: DeclarationText.cut({ text, max: DeclarationText.RECORD_MAX_CHARS }),
       doc: DeclarationText.cleanDoc({ comment: own.comment }),
-      uses: own.uses,
+      uses: [...own.uses],
     };
   }
 
+  /** Read once per checker: the same object each time, which a caller never changes. */
   static partsOf(opts: {
+    declaration: TypeScript.Declaration;
+    checker: TypeScript.TypeChecker;
+  }): IDeclarationParts {
+    const read =
+      DeclarationText.parts.get(opts.checker) ??
+      new WeakMap<TypeScript.Declaration, IDeclarationParts>();
+    const parts = read.get(opts.declaration) ?? DeclarationText.readParts(opts);
+
+    DeclarationText.parts.set(opts.checker, read.set(opts.declaration, parts));
+
+    return parts;
+  }
+
+  private static readParts(opts: {
     declaration: TypeScript.Declaration;
     checker: TypeScript.TypeChecker;
   }): IDeclarationParts {

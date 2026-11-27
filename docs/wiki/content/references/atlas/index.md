@@ -338,7 +338,7 @@ export declare namespace HTTP {
 - The text is cut at 40,000 characters and says so, as for a long class.
 - It needs declaration files: for a package that publishes its TypeScript source, the record says `namespace X` only.
 
-The `symbol` tool answers with the same text, looked up by the name of the namespace, not of a member.
+The `symbol` tool answers with this text, cut at 10,000 characters, looked up by the name of the namespace, not of a member.
 
 ### Long entries
 

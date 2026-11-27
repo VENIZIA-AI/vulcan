@@ -17,11 +17,18 @@ afterAll(() => {
   }
 });
 
-/** The records of a package that ships declaration files only, by name. */
-const recordsOf = (opts: { files: Record<string, string> }): Map<string, ISymbolRecord> => {
-  const root = mkdtempSync(join(tmpdir(), 'atlas-namespace-'));
+/**
+ * The records of a package that ships declaration files only, by name. `directory` puts the package below the
+ * temporary folder, so a file named with `../` lies outside it.
+ */
+const recordsOf = (opts: {
+  files: Record<string, string>;
+  directory?: string;
+}): Map<string, ISymbolRecord> => {
+  const base = mkdtempSync(join(tmpdir(), 'atlas-namespace-'));
+  const root = join(base, opts.directory ?? '');
 
-  roots.push(root);
+  roots.push(base);
 
   const files: Record<string, string> = {
     'package.json': JSON.stringify({
@@ -224,6 +231,80 @@ describe('a re-exported namespace that is large, deep or partly foreign', () => 
     expect(declaration).toContain('// `foreign`: re-exported from a third-party package');
     expect(declaration).not.toContain('SECRET_SHAPE');
     expect(declaration).toContain('const own: 1;');
+  });
+
+  test('a member of a hoisted dependency, outside the package folder, is named only', () => {
+    const records = recordsOf({
+      directory: 'node_modules/web',
+      files: {
+        'dist/index.d.ts':
+          "export * as Mixed from './mixed.js';\nexport { foreign as direct } from 'dep';\n",
+        'dist/mixed.d.ts': "export { foreign } from 'dep';\nexport declare const own: 1;\n",
+        '../dep/package.json': JSON.stringify({ name: 'dep', types: './index.d.ts' }),
+        '../dep/index.d.ts': 'export declare const foreign: "SECRET_SHAPE";\n',
+      },
+    });
+    const declaration = records.get('Mixed')?.declaration ?? '';
+
+    expect(declaration).toContain('// `foreign`: re-exported from a third-party package');
+    expect(declaration).not.toContain('SECRET_SHAPE');
+    expect(declaration).toContain('const own: 1;');
+    expect(records.get('direct')?.external).toBe(true);
+    expect(records.get('direct')?.declaration).toBeUndefined();
+  });
+
+  test('a sibling folder outside the package and outside node_modules is not third-party', () => {
+    const records = recordsOf({
+      directory: 'web',
+      files: {
+        'dist/index.d.ts':
+          "export * as Mixed from './mixed.js';\nexport { near as direct } from '../../sibling/index.js';\n",
+        'dist/mixed.d.ts': "export { near } from '../../sibling/index.js';\n",
+        '../sibling/index.d.ts': 'export declare const near: 1;\n',
+      },
+    });
+
+    expect(records.get('Mixed')?.declaration).toContain('const near: 1;');
+    expect(records.get('direct')?.external).toBeUndefined();
+    expect(records.get('direct')?.declaration).toContain('const near: 1;');
+  });
+
+  test('an unexported type is shown at the highest level that uses it', () => {
+    const records = recordsOf({
+      files: {
+        'dist/index.d.ts': "export * as Top from './top.js';\n",
+        'dist/top.d.ts': [
+          "export * as Inner from './inner.js';",
+          "export { held } from './shared.js';",
+          '',
+        ].join('\n'),
+        'dist/inner.d.ts': "export { held as again } from './shared.js';\n",
+        'dist/shared.d.ts':
+          'interface IHidden {\n    held: boolean;\n}\nexport declare const held: IHidden;\n',
+      },
+    });
+    const declaration = records.get('Top')?.declaration ?? '';
+
+    expect(declaration.split('held: boolean;').length).toBe(2);
+    expect(declaration).toContain('\n    interface IHidden {\n        held: boolean;');
+  });
+
+  test('an unexported type of two sibling namespaces is shown in each', () => {
+    const shared =
+      'interface IHidden {\n    held: boolean;\n}\nexport declare const held: IHidden;\n';
+    const records = recordsOf({
+      files: {
+        'dist/index.d.ts': "export * as Top from './top.js';\n",
+        'dist/top.d.ts':
+          "export * as Left from './left.js';\nexport * as Right from './right.js';\n",
+        'dist/left.d.ts': "export { held } from './shared.js';\n",
+        'dist/right.d.ts': "export { held } from './shared.js';\n",
+        'dist/shared.d.ts': shared,
+      },
+    });
+    const declaration = records.get('Top')?.declaration ?? '';
+
+    expect(declaration.split('\n        interface IHidden {').length).toBe(3);
   });
 
   test('a declare namespace of a published .d.ts keeps its own text', () => {

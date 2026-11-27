@@ -30,7 +30,7 @@ export interface ISymbolRecord {
    * built `.d.ts`. Never served.
    */
   shape?: string;
-  /** Present and true when `file` points inside `node_modules`: the export re-exports a third-party declaration, so the path is an install detail, not repository source. */
+  /** Present and true when `file` is in a `node_modules` folder, below the package or beside it (hoisted): the export re-exports a third-party declaration, so the path is an install detail, not repository source. */
   external?: boolean;
   /** The declaration as the built `.d.ts` has it: its TSDoc, its members, the unexported declarations it uses. Capped. */
   declaration?: string;

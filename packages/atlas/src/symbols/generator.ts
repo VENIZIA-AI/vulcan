@@ -23,6 +23,7 @@ import { DeclarationText } from './declaration-text';
 import { NamespaceText } from './namespace-text';
 import { SymbolShape } from './shape';
 import { SourceSignature } from './source-signature';
+import { ThirdPartyUtility } from './utilities/third-party.utility';
 
 const SIGNATURE_MAX_CHARS = 300;
 
@@ -309,7 +310,7 @@ export class AtlasSymbols {
         ? AtlasSymbols.locationOf({ repoRoot, declaration })
         : { file: repoRelative({ repoRoot, path: file }), line: 1 };
 
-      const isExternal = location.file.includes('node_modules');
+      const isExternal = ThirdPartyUtility.isThirdParty({ repoRoot, path: location.file });
       const text =
         declaration !== undefined &&
         !isExternal &&

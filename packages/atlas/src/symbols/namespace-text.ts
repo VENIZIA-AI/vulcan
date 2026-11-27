@@ -1,17 +1,17 @@
-import { relative } from 'node:path';
 import type TypeScript from 'typescript';
 import { TypeScriptCompiler } from '@/common/compiler';
 import type { ISymbolRecord } from './common';
 import { DeclarationText } from './declaration-text';
+import type { IDeclarationParts } from './declaration-text';
 import { SymbolShape } from './shape';
 import { SourceSignature } from './source-signature';
+import { ThirdPartyUtility } from './utilities/third-party.utility';
 
 interface IWalk {
   checker: TypeScript.TypeChecker;
   repoRoot: string;
   /** Each module already listed, with the dotted path it is listed under: a cycle ends here. */
   listed: Map<TypeScript.Symbol, string>;
-  shown: Set<TypeScript.Node>;
   members: Set<string>;
   uses: Set<string>;
   /** The exported name and the shape of every member, in order: what the digest of the namespace is made of. */
@@ -54,12 +54,16 @@ export class NamespaceText {
       checker: opts.checker,
       repoRoot: opts.repoRoot,
       listed: new Map([[opts.resolved, name]]),
-      shown: new Set(),
       members: new Set(),
       uses: new Set(),
       shapes: [],
     };
-    const lines = NamespaceText.blockOf({ walk, module: opts.resolved, path: [name] });
+    const lines = NamespaceText.blockOf({
+      walk,
+      module: opts.resolved,
+      path: [name],
+      outer: new Set(),
+    });
     const text = DeclarationText.commented({
       comment: DeclarationText.commentOf({ declaration: own }),
       body: [`export declare namespace ${name} {`, ...lines, '}'].join('\n'),
@@ -78,43 +82,73 @@ export class NamespaceText {
     walk: IWalk;
     module: TypeScript.Symbol;
     path: string[];
+    /** What the namespaces around this one already show. */
+    outer: ReadonlySet<TypeScript.Node>;
   }): string[] {
     const compiler = TypeScriptCompiler.get();
     const exported = opts.walk.checker
       .getExportsOfModule(opts.module)
       .sort((left, right) => (left.getName() < right.getName() ? -1 : 1));
-    const locals: { statement: TypeScript.Node; text: string }[] = [];
+    const shown = new Set(opts.outer);
+    const declarations: TypeScript.Declaration[] = [];
 
     // Said before any member is read, so a local that is also a member is not repeated.
     for (const symbol of exported) {
-      const declarations = NamespaceText.resolvedOf({ ...opts, symbol }).getDeclarations() ?? [];
+      const own = NamespaceText.resolvedOf({ ...opts, symbol }).getDeclarations() ?? [];
 
-      for (const declaration of declarations) {
-        opts.walk.shown.add(
+      for (const declaration of own) {
+        shown.add(
           compiler.isVariableDeclaration(declaration) ? declaration.parent.parent : declaration,
         );
       }
 
+      declarations.push(...own);
       opts.walk.members.add(symbol.getName());
     }
 
-    const lines = exported.flatMap((symbol) => NamespaceText.memberOf({ ...opts, symbol, locals }));
+    // Taken before any nested namespace is listed, so a local is shown at the highest level that uses it.
+    const locals: string[] = [];
 
-    for (const local of locals) {
-      if (!opts.walk.shown.has(local.statement)) {
-        opts.walk.shown.add(local.statement);
-        lines.push(NamespaceText.indented({ text: local.text.replace(MODIFIERS, '') }));
+    for (const declaration of declarations) {
+      for (const local of NamespaceText.partsOf({ ...opts, declaration })?.locals ?? []) {
+        if (!shown.has(local.statement)) {
+          shown.add(local.statement);
+          locals.push(NamespaceText.indented({ text: local.text.replace(MODIFIERS, '') }));
+        }
       }
     }
 
-    return lines;
+    const lines = exported.flatMap((symbol) =>
+      NamespaceText.memberOf({ walk: opts.walk, path: opts.path, symbol, shown }),
+    );
+
+    return [...lines, ...locals];
+  }
+
+  /** The parts of a declaration quoted as text: one of this package, written in a declaration file. */
+  private static partsOf(opts: {
+    walk: IWalk;
+    declaration: TypeScript.Declaration;
+  }): IDeclarationParts | undefined {
+    const { declaration, walk } = opts;
+    const file = declaration.getSourceFile();
+
+    if (
+      !file.isDeclarationFile ||
+      TypeScriptCompiler.get().isSourceFile(declaration) ||
+      ThirdPartyUtility.isThirdParty({ repoRoot: walk.repoRoot, path: file.fileName })
+    ) {
+      return undefined;
+    }
+
+    return DeclarationText.partsOf({ declaration, checker: walk.checker });
   }
 
   private static memberOf(opts: {
     walk: IWalk;
     symbol: TypeScript.Symbol;
     path: string[];
-    locals: { statement: TypeScript.Node; text: string }[];
+    shown: ReadonlySet<TypeScript.Node>;
   }): string[] {
     const { walk, symbol } = opts;
     const compiler = TypeScriptCompiler.get();
@@ -138,29 +172,33 @@ export class NamespaceText {
     return declarations.flatMap((declaration, at) => {
       const file = declaration.getSourceFile();
 
-      if (relative(walk.repoRoot, file.fileName).includes('node_modules')) {
+      if (ThirdPartyUtility.isThirdParty({ repoRoot: walk.repoRoot, path: file.fileName })) {
         walk.shapes.push(name);
 
         return at === 0 ? note('re-exported from a third-party package') : [];
       }
 
       if (compiler.isSourceFile(declaration) && file.isDeclarationFile) {
-        return NamespaceText.nestedOf({ ...opts, module: resolved, comment: exportComment });
+        return NamespaceText.nestedOf({
+          ...opts,
+          module: resolved,
+          comment: exportComment,
+          outer: opts.shown,
+        });
       }
 
       walk.shapes.push(`${name}:${SymbolShape.of({ declaration })}`);
 
+      const parts = NamespaceText.partsOf({ walk, declaration });
+
       // A source file holds values: only what its signature says is quoted.
-      if (!file.isDeclarationFile) {
+      if (parts === undefined) {
         return [`${INDENT}${SourceSignature.of({ declaration, name })};`];
       }
 
-      const parts = DeclarationText.partsOf({ declaration, checker: walk.checker });
       const declared = compiler.getNameOfDeclaration(declaration)?.getText();
       const comment = parts.comment === '' && at === 0 ? exportComment : parts.comment;
       const body = parts.body.replace(MODIFIERS, '');
-
-      opts.locals.push(...parts.locals);
 
       for (const used of parts.uses) {
         walk.uses.add(used);
@@ -179,6 +217,7 @@ export class NamespaceText {
     symbol: TypeScript.Symbol;
     path: string[];
     comment: string;
+    outer: ReadonlySet<TypeScript.Node>;
   }): string[] {
     const { walk, module } = opts;
     const name = opts.symbol.getName();
@@ -202,7 +241,7 @@ export class NamespaceText {
     walk.listed.set(module, path.join('.'));
     walk.shapes.push(`${name}{`);
 
-    const lines = NamespaceText.blockOf({ walk, module, path });
+    const lines = NamespaceText.blockOf({ walk, module, path, outer: opts.outer });
 
     walk.shapes.push('}');
 
