@@ -59,3 +59,40 @@ describe("BrowserPage.scratchOf: the folder of this run's own Chrome", () => {
     ).toBeUndefined();
   });
 });
+
+describe('BrowserPage.candidatesOf: the folders tried for the temp folder of Chrome, in order', () => {
+  test("the project's configured folder comes before the old places", () => {
+    const root = createProject({
+      files: {
+        '.agents/local/profile.json': JSON.stringify({ common: { local: { tmp: 'tmp' } } }),
+        'tmp/.keep': '',
+        '.agents/local/tmp/.keep': '',
+      },
+    });
+    const folder = createProject({ files: {} });
+
+    expect(BrowserPage.candidatesOf({ root, folder, override: undefined })).toEqual([
+      join(root, 'tmp'),
+      join(root, '.agents', 'local', 'tmp'),
+      join(root, '.agents', 'local'),
+      folder,
+    ]);
+  });
+
+  test('a named folder comes first; one that does not exist, or comes twice, is left out', () => {
+    const root = createProject({ files: { '.agents/tmp/.keep': '' } });
+    const folder = createProject({ files: {} });
+    const override = createProject({ files: {} });
+
+    expect(BrowserPage.candidatesOf({ root, folder, override })).toEqual([
+      override,
+      join(root, '.agents', 'tmp'),
+      folder,
+    ]);
+    expect(
+      BrowserPage.candidatesOf({ root, folder: override, override }).filter(
+        (entry) => entry === override,
+      ),
+    ).toHaveLength(1);
+  });
+});
