@@ -268,7 +268,7 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"kubectl apply -f deploy.yam
 The list above is fixed in the code: it knows `kubectl`, `docker compose`, `db:migrate` and the others, and nothing about how a project names its own deploy and migrate commands. A project lists them in the config:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   guard: {
@@ -279,7 +279,7 @@ export default {
       ],
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 Run `vulcan project sync`: the hook reads the list from `.agents/local/vulcan.manifest.json` (a `guard` block that only exists when the config has one), so it needs no config loader. A command that matches asks, with the rule you named and `<what> (this project's pattern)` in the text. Each entry has a `rule` (`V-W-02` or `V-W-03`), a `what` of up to 120 characters, a `pattern` (a JavaScript regular expression, up to 500 characters, case-sensitive unless `ignoreCase: true`), and nothing else; a config with a pattern that does not compile fails when it is read. `vulcan project doctor` prints one note per entry.
@@ -299,7 +299,7 @@ export default {
       },
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 `vulcan project sync` merges it into `.claude/settings.json`, and Claude Code then asks for those commands even when a broader allow rule covers them (checked in Claude Code 2.1.311 with a session driven by a stand-in for the model: the three commands were refused with the ask rule and ran without it). Spell the migrate pattern `Bash(bun run migrate*)`: `Bash(bun run migrate:*)` does not match `bun run migrate:up`, because the `:*` form is a prefix at a word boundary. This is Claude Code only; the `guard.writes.commands` patterns reach every agent that runs the guards ([Which agents run them](/guides/core-concepts/hooks-and-guards#which-agents-run-them)).
@@ -359,7 +359,7 @@ An input that is not JSON also logs a line to stderr that begins with `[WriteGua
 To add a project hook, put it under `agent.claude.settings.hooks` in `.configs/vulcan.config.mts`, in Claude Code's own settings shape. `vulcan project sync` merges it into `.claude/settings.json` next to the shipped hooks of the same event:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
@@ -373,7 +373,7 @@ export default {
       },
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 Do not add the shipped hook scripts (`@venizia/vulcan/base/hooks/`) there: `vulcan project sync` registers them itself.

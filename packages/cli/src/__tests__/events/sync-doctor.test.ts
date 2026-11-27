@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
 import { hermeticEnv } from '../helpers/hermetic.helper.ts';
@@ -25,7 +25,7 @@ const HOOK = 'node_modules/@venizia/vulcan/base/hooks/event.ts';
 const STOP_HOOK = 'node_modules/@venizia/vulcan/base/hooks/board-stop.ts';
 const CONTEXT_HOOK = 'node_modules/@venizia/vulcan/base/hooks/board-context.ts';
 
-const parse = (events: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ events });
+const parse = (events: unknown) => VulcanConfigSchema.safeParse({ events });
 const config = (opts: { events?: string; hooks?: string }) =>
   `export default {${opts.events === undefined ? '' : ` board: { events: ${opts.events} },`}${opts.hooks === undefined ? '' : ` agent: { claude: { settings: { hooks: ${opts.hooks} } } },`} };\n`;
 
@@ -57,7 +57,7 @@ const eventEntries = (opts: { root: string }) =>
 
 describe('events in the config', () => {
   test('off by default, with no folder', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).events).toEqual({ log: false });
+    expect(VulcanConfigSchema.parse({}).events).toEqual({ log: false });
   });
 
   test('log and an absolute dir are accepted', () => {
@@ -74,7 +74,7 @@ describe('events in the config', () => {
     expect(parse({ dir: '' }).success).toBe(false);
     expect(parse({ log: 'yes' }).success).toBe(false);
     expect(parse({ logging: true }).success).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ eventLog: true }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ eventLog: true }).success).toBe(false);
   });
 });
 
@@ -83,7 +83,7 @@ describe('the manifest', () => {
     JSON.parse(
       ProjectManifest.render({
         root: createProject({ files: {} }),
-        config: VULCAN_CONFIG_SCHEMA.parse({ events }),
+        config: VulcanConfigSchema.parse({ events }),
       }),
     );
 

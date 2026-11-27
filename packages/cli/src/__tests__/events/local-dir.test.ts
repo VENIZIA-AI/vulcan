@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentConstants } from '../../agents/common/constants.ts';
 import { LocalChoice } from '../../agents/index.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { OwnerProfile } from '../../owner/index.ts';
 import { SettingsChecks } from '../../doctor/settings-checks.ts';
 import { CloneChecks } from '../../doctor/clone-checks.ts';
@@ -207,7 +207,7 @@ describe('every reader of the events folder follows it', () => {
 describe('the local file and doctor', () => {
   const ctx = (root: string) => ({
     root,
-    config: VULCAN_CONFIG_SCHEMA.parse({}),
+    config: VulcanConfigSchema.parse({}),
     configFile: '.configs/vulcan.config.mts',
   });
 
@@ -220,7 +220,7 @@ describe('the local file and doctor', () => {
 
     const committed = SettingsChecks.checkEventsDir({
       ...ctx(project()),
-      config: VULCAN_CONFIG_SCHEMA.parse({ events: { dir: '/does/not/exist/team' } }),
+      config: VulcanConfigSchema.parse({ events: { dir: '/does/not/exist/team' } }),
     });
 
     expect(committed[0]?.file).toBe('.configs/vulcan.config.mts');

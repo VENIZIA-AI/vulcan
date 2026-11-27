@@ -349,6 +349,11 @@ export class CommandTable {
           args: 'type-names [<dir>] [--write] [--reverse]',
           text: 'Rename kind to type and presetKind to presetType in package entries, and kinds to types in acknowledgements, in the config and the standard modules of .configs/vulcan/. Without --write it lists what it would write. --reverse as above.',
         },
+        {
+          command: 'config codemod',
+          args: 'config-types [<dir>] [--write] [--reverse]',
+          text: 'Rename the config types imported from @venizia/vulcan, in the config and the modules of .configs/vulcan/: VulcanConfig as the type of the file to VulcanConfigType, VulcanConfig.Project and the other groups to .ProjectType, TFlatConfig to TVulcanConfigInput, TResolvedConfig to TVulcanConfigOutput. --reverse puts the earlier names back. Without --write it lists what it would write.',
+        },
         { command: 'config codemod', args: '--list', text: 'Name the codemods.' },
         {
           command: 'config format',
@@ -362,12 +367,13 @@ export class CommandTable {
         '--write': 'codemod only: write the files (without it, list them)',
         '--split': 'codemod only: one module per group under .configs/vulcan/',
         '--list': 'codemod only: name the codemods',
-        '--reverse': 'codemod only: changes nothing; the codemods are not reversible',
+        '--reverse':
+          'codemod only: config-types renames back; the other codemods change nothing, being not reversible',
       },
       positionals: 3,
       unknownExit: ExitCodes.USAGE,
       exits:
-        '0 on shown, written, listed, already in order or nothing to do; 1 when the config cannot be loaded, or with --check when a key would move; 2 on bad input, no config to format, a config that cannot be ordered or moved, or codemod --reverse.',
+        '0 on shown, written, listed, already in order or nothing to do; 1 when the config cannot be loaded, or with --check when a key would move; 2 on bad input, no config to format, a config that cannot be ordered or moved, or --reverse of a codemod that is not reversible.',
     },
     [VulcanCommands.CLEAN]: {
       usage: [

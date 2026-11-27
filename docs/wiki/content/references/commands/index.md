@@ -93,6 +93,12 @@ config: the config file
       Rename kind to type and presetKind to presetType in package entries, and kinds to types in
       acknowledgements, in the config and the standard modules of .configs/vulcan/. Without --write
       it lists what it would write. --reverse as above.
+  vulcan config codemod config-types [<dir>] [--write] [--reverse]
+      Rename the config types imported from @venizia/vulcan, in the config and the modules of
+      .configs/vulcan/: VulcanConfig as the type of the file to VulcanConfigType,
+      VulcanConfig.Project and the other groups to .ProjectType, TFlatConfig to TVulcanConfigInput,
+      TResolvedConfig to TVulcanConfigOutput. --reverse puts the earlier names back. Without --write
+      it lists what it would write.
   vulcan config codemod --list
       Name the codemods.
   vulcan config format [--check]

@@ -16,17 +16,17 @@ The table below lists all loader errors:
 | Missing default export | `<file>: no default export - write 'export default { ... }'` |
 | Invalid schema | `<file>: invalid config` |
 
-The configuration file must provide a default export. Type the configuration using `satisfies VulcanConfig` or the `defineConfig` helper:
+The configuration file must provide a default export. Type the configuration using `satisfies VulcanConfigType` or the `defineConfig` helper:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
     list: ['claude'],
     rules: { 'V-W-01': 'on-user-word' },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ```ts
@@ -50,20 +50,20 @@ Both shapes load the same way: the config is a module, and what it imports is re
 
 ```text
 .configs/
-  vulcan.config.mts       export default { project, agent, guard, board, knowledge, check, common } satisfies VulcanConfig;
+  vulcan.config.mts       export default { project, agent, guard, board, knowledge, check, common } satisfies VulcanConfigType;
   vulcan/
     index.mts             export { project } from './project.mts'; ...
-    project.mts           export const project = { key: 'ACME' } satisfies VulcanConfig.Project;
-    agent.mts             export const agent = { list: ['claude'], rules: { ... } } satisfies VulcanConfig.Agent;
-    guard.mts             export const guard = {} satisfies NonNullable<VulcanConfig.Guard>;
-    board.mts             export const board = {} satisfies VulcanConfig.Board;
-    knowledge.mts         export const knowledge = {} satisfies VulcanConfig.Knowledge;
-    check.mts             export const check = {} satisfies VulcanConfig.Check;
-    common.mts            export const common = {} satisfies VulcanConfig.Common;
+    project.mts           export const project = { key: 'ACME' } satisfies VulcanConfig.ProjectType;
+    agent.mts             export const agent = { list: ['claude'], rules: { ... } } satisfies VulcanConfig.AgentType;
+    guard.mts             export const guard = {} satisfies NonNullable<VulcanConfig.GuardType>;
+    board.mts             export const board = {} satisfies VulcanConfig.BoardType;
+    knowledge.mts         export const knowledge = {} satisfies VulcanConfig.KnowledgeType;
+    check.mts             export const check = {} satisfies VulcanConfig.CheckType;
+    common.mts            export const common = {} satisfies VulcanConfig.CommonType;
 ```
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 import { agent, board, check, common, guard, knowledge, project } from './vulcan/index.mts';
 
 export default {
@@ -74,14 +74,15 @@ export default {
   knowledge,
   check,
   common,
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 `vulcan config codemod config-groups --split --write` makes the same shape from an existing config, with its values and comments.
 
 A monorepo made by `vulcan project init --preset` is split too: `project.mts` holds the `vulcan:apps` block (as `export const apps`), and `project`, and `knowledge.mts` read it. `vulcan package add` and `vulcan package diff` find the block in `.configs/vulcan.config.mts` or in `.configs/vulcan/project.mts`, only inside `.configs/` (a link out of it is not read), and refuse with the lines to add by hand when it is in neither.
 
-- A module is typed by its group (`VulcanConfig.Project`, `.Agent`, `.Guard`, `.Board`, `.Knowledge`, `.Check`, `.Common`); a module of the 0.5.0-7 and -8 scaffolds typed `VulcanConfig['claude']` (or `['doctor']`, `['okf']`, `['packages']`) is typed `VulcanConfig.Agent['claude']`, `VulcanConfig.Check['doctor']`, `VulcanConfig.Knowledge['okf']`, `VulcanConfig.Project['packages']` now: the old form no longer type-checks, because `VulcanConfig` is the grouped shape or the flat one; the flat file of the earlier releases is read until the release that refuses it.
+- A module is typed by its group (`VulcanConfig.ProjectType`, `.AgentType`, `.GuardType`, `.BoardType`, `.KnowledgeType`, `.CheckType`, `.CommonType`); a module of the 0.5.0-7 and -8 scaffolds typed `VulcanConfig['claude']` (or `['doctor']`, `['okf']`, `['packages']`) is typed `VulcanConfig.AgentType['claude']`, `VulcanConfig.CheckType['doctor']`, `VulcanConfig.KnowledgeType['okf']`, `VulcanConfig.ProjectType['packages']` now: the old form no longer type-checks, because `VulcanConfig` holds only the group types (the type of the whole file is `VulcanConfigType`). The flat file of the earlier releases is read until the release that refuses it.
+- A config written with the earlier type names (`satisfies VulcanConfig`, `VulcanConfig.Project`, `TFlatConfig`, `TResolvedConfig`) is renamed by [`vulcan config codemod config-types`](/references/commands/config#config-types).
 - A `packages` that is `undefined` counts as not written: the packages are derived from the workspaces, as when the key is left out.
 - `vulcan config format` orders the keys of the file; the values are names, so the modules are not touched.
 - The guards protect every module under `.configs/vulcan/`, and every other file under `.configs/` the config imports, as they protect the config ([hooks](/references/hooks/#the-files-the-guards-protect)). A module outside `.configs/` is not protected, and `vulcan project sync` and `vulcan project doctor` warn about it: keep the modules there.
@@ -99,7 +100,7 @@ The command exits with code 1.
 
 **Upgrading.** The schema is strict, so a key that a newer release added is an unknown key to an older `vulcan`. Upgrade first: run `bun node_modules/.bin/vulcan project upgrade`, commit the lockfile, make sure every machine and CI job has installed that version, and only then add the new key to the config. While the installed `vulcan` cannot read the config, `vulcan project sync` fails, but the guards keep working: `guard-outside` and `guard-writes` read what the project set (`guard.outside`, `guard.toolOwnedPaths`, `guard.writes.commands`) from the manifest of the last `sync`, so a `deny` stays a `deny`. The session digest names the unreadable key, and so does `vulcan project doctor`, so run it after you pull a change to the config.
 
-The config has seven groups, each with its own type (`VulcanConfig.Project`, `.Agent`, `.Guard`, `.Board`, `.Knowledge`, `.Check`, `.Common`). A key a group does not have is refused with its path (`project.nme: not a key of project`). The flat shape of the releases before the groups (`name`, `agents`, `rules`, `okf`, `events` at the top level) is refused with the new path of each key; `vulcan config codemod config-groups . --write` rewrites a file (`--split` writes one module per group). The table lists every key by its path in a group:
+The config has seven groups, each with its own type (`VulcanConfig.ProjectType`, `.AgentType`, `.GuardType`, `.BoardType`, `.KnowledgeType`, `.CheckType`, `.CommonType`). A key a group does not have is refused with its path (`project.nme: not a key of project`). The flat shape of the releases before the groups (`name`, `agents`, `rules`, `okf`, `events` at the top level) is refused with the new path of each key; `vulcan config codemod config-groups . --write` rewrites a file (`--split` writes one module per group). The table lists every key by its path in a group:
 
 | Group | Keys |
 |---|---|
@@ -153,13 +154,13 @@ If you omit `name`, VULCAN uses the root `package.json` name without scope and w
 The value must match the regular expression `/^[a-z0-9][a-z0-9-]*$/`. It allows lowercase letters, digits, and hyphens, and must start with a lowercase letter or digit.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   project: {
     name: 'shop-service',
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## agent.list
@@ -173,13 +174,13 @@ When `claude` is chosen, `vulcan project sync` writes `CLAUDE.md`, `.claude/sett
 | `agent.list` | `string[]` | unset | The agents the project suggests when a machine has not chosen |
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
     list: ['claude'],
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## agent.packs
@@ -191,7 +192,7 @@ export default {
   agent: {
     packs: ['venizia'],
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 `packs` also brings the config of the pack: `base/packs/<name>.config.json` is merged under the project file. See [vulcan config](/references/commands/config#the-merge) for the merge rules and `remove`.
@@ -234,7 +235,7 @@ vulcan project doctor: 1 violation(s)
 The command exits with code 1.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
@@ -242,7 +243,7 @@ export default {
       'V-W-01': 'on-user-word',
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## project.layout
@@ -274,19 +275,19 @@ export default {
       other: ['frontends/tools', 'third-parties', 'docs', 'qc'],
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 `other` lists folders that hold packages the layout does not manage. A package there is allowed by [`doctor`](/references/commands/doctor#apps) and is never the target of `vulcan package add`. A package under no listed folder is still reported.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   project: {
     layout: { backend: 'services', frontend: 'web', shared: 'libs' },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 `vulcan project doctor` runs the [`apps`](/references/commands/doctor#apps) check against this object: every `backend`, `frontend` and `shared` folder must be a workspace, and every package must live inside a listed folder (an `other` folder included).
@@ -313,7 +314,7 @@ export default {
     layout: { backend: 'services' },
     presets: [{ spec: 'ignis', side: 'backend', summary: 'An IGNIS API on Bun.' }],
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## project.packages
@@ -347,7 +348,7 @@ The schema requires strict uniqueness across all packages:
 - Each active package with `retired: false` must have a unique resolved `path`.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   project: {
@@ -357,7 +358,7 @@ export default {
       { dir: 'legacy-worker', name: '@venizia/worker', retired: true },
     ],
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## knowledge
@@ -376,7 +377,7 @@ The `knowledge` object configures paths for knowledge bundles and documentation.
 `vulcan check changelog` never reads an entry earlier than `migrationFrom`.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   knowledge: {
@@ -384,7 +385,7 @@ export default {
     wiki: 'docs/wiki/content',
     changelogs: 'docs/wiki/content/changelogs',
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## knowledge.okf
@@ -446,7 +447,7 @@ The `contents` object configures files outside the bundle that receive generated
 The brand is the spelling of the project's name in prose. When it is all capitals of two letters or more (for example `VULCAN`), `okf check --strict` flags its title-case spelling (`Vulcan`). Unset, it is the root `package.json` name without scope and `-workspace`, upper-cased; with no name, the directory name.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   knowledge: {
@@ -463,7 +464,7 @@ export default {
       ],
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 To configure custom generators and view built-in renderer options, see the [renderers reference](/references/okf/renderers).
@@ -537,7 +538,7 @@ The `sources` array lists external repositories indexed by atlas:
 `installed`: the docs are read at the release tag of the newest installed package of the source. `ref`: always at `ref`. See [Which version of the docs](/references/atlas/sources#which-version-of-the-docs).
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   knowledge: {
@@ -549,7 +550,7 @@ export default {
       ignoreTags: ['legacy-*'],
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 To configure external repositories, see the [atlas sources reference](/references/atlas/sources).
@@ -567,7 +568,7 @@ The `claude` object provides team-shared assistant configuration. VULCAN ships a
 A project hook goes in `settings.hooks`, in Claude Code's own shape (an event, then entries with an optional `matcher` and a list of `hooks`). It is added next to the shipped hooks of that event. A hook of the shipped scripts is registered by `vulcan project sync`; do not add one.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
@@ -579,7 +580,7 @@ export default {
       },
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## agent.digest
@@ -599,7 +600,7 @@ About `oftenDropped`:
 Every rule ID in `oftenDropped` must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
@@ -610,7 +611,7 @@ export default {
   common: {
     remove: { 'agent.digest.oftenDropped': ['V-C-02'] },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## common.theme
@@ -635,7 +636,7 @@ The tokens are `ground`, `bg`, `line`, `line-strong`, `ink`, `body`, `muted`, `a
 Text needs a 4.5:1 contrast and marks 3:1, on the light and on the dark ground. That covers `ink`, `body`, `muted` and `accent-text` on `bg` and `ground` (and on the three greys of the board's panes, which are the same in every project), `accent-ink` on `accent`, `ink`, `body` and `muted` on `accent-soft` (the tint of a selected card), each state on its tint, and `accent` and the states as marks. A pair below it is refused when the config loads, with the pair, the colours and the ratio it reached; it is never swapped for another colour. An accent close to the fixed `blocked` red or `done` green of the visualize pages gets a warning, because those state colours do not change. A colour that carries an alpha channel is judged over the ground it sits on.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   common: {
@@ -645,7 +646,7 @@ export default {
       radius: '2px',
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 `theme: { accent: '#8a5a20', accentDark: '#dead6a' }` means the `venizia` preset.
@@ -668,7 +669,7 @@ The `owner` object is the project's contract for how an agent answers its owners
 `advise` and `block` print the card the same way. Nothing checks a reply. A person's profile cannot turn the card off when the project shows it.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
@@ -676,7 +677,7 @@ export default {
       report: { shape: ['headline', 'decisions'], headlineMaxSentences: 1 },
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ### Labels follow the reader
@@ -783,7 +784,7 @@ Unscoped package names that `bunx`, `bun x`, `npx` or `pnpm dlx` may run in this
 Branch names, with `*` for any run of characters, that a plain `git push` asks about in `guard-git`. Letters, digits, `. _ / * -` only. `vulcan project sync` writes it to the manifest.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   guard: {
@@ -794,7 +795,7 @@ export default {
     },
     git: { askPush: ['develop', 'main'] },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## check.commit
@@ -829,7 +830,7 @@ Every entry of `names` and `allow` holds a letter or a digit; the config refuses
 The project's one-line shape: the first line of a message must match `pattern`, a regular expression source (an invalid one is refused when the config loads). `hint` is shown beside a failure. Setting it installs the hook too.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   check: {
@@ -840,7 +841,7 @@ export default {
       },
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## board.events
@@ -868,13 +869,13 @@ The three limits apply when `log` is `true`, or when you set one of them. Past a
 `sync` writes the block to the manifest only when `log` is `true`, `dir` or a limit is set.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   board: {
     events: { log: true, dir: '/home/<user>/work/.agents/local/events' },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## check.doctor
@@ -944,11 +945,11 @@ The `board` object names what [`vulcan board show`](/references/commands/board) 
 `vulcan project sync` writes the block to the manifest only when something is set, and the command reads it from there.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   board: { owner: 'Ana', title: 'Acme Shop Board', logo: '.configs/board-logo.svg' },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## board.provider
@@ -967,13 +968,13 @@ With `gitlab`, the board reads merge requests, approvals, pipelines with their j
 `vulcan project sync` writes the block to the manifest only when `type` is `gitlab`, and the board reads it from there. `glab` keeps the sign-in: VULCAN stores no token and makes only GET requests.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   board: {
     provider: { type: 'gitlab', host: 'git.example.com' },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## A complete config
@@ -981,7 +982,7 @@ export default {
 The example below shows a typical configuration. It sets the common keys and leaves the rest at their defaults:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   project: {
@@ -1033,7 +1034,7 @@ export default {
       ignoreTags: ['legacy-*'],
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 ## Environment variables

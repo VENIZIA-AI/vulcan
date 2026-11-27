@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { BoardSettings } from '../../board/settings.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
 import { git } from '../helpers/git-repo.helper.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -13,11 +13,11 @@ afterAll(removeProjects);
 
 const SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>';
-const parse = (board: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ board });
+const parse = (board: unknown) => VulcanConfigSchema.safeParse({ board });
 
 describe('board in the config', () => {
   test('nothing is set by default', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).board).toEqual({
+    expect(VulcanConfigSchema.parse({}).board).toEqual({
       agents: {},
     });
   });
@@ -48,7 +48,7 @@ describe('board in the config', () => {
       JSON.parse(
         ProjectManifest.render({
           root: createProject({ files: {} }),
-          config: VULCAN_CONFIG_SCHEMA.parse({ board }),
+          config: VulcanConfigSchema.parse({ board }),
         }),
       );
 
@@ -361,7 +361,7 @@ describe('board.agents: a face, or { shape?, lane? }', () => {
     const manifest = JSON.parse(
       ProjectManifest.render({
         root: createProject({ files: {} }),
-        config: VULCAN_CONFIG_SCHEMA.parse({ board }),
+        config: VulcanConfigSchema.parse({ board }),
       }),
     );
 
@@ -435,7 +435,7 @@ describe('BoardSettings.read: the git user', () => {
 });
 
 describe('board.hostname: the name of the address of board serve', () => {
-  const hostnameOf = (hostname: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ board: { hostname } });
+  const hostnameOf = (hostname: unknown) => VulcanConfigSchema.safeParse({ board: { hostname } });
 
   test.each(['my-board.localhost', 'board.acme.localhost', 'a.localhost', 'a1-b2.c3.localhost'])(
     '%s is accepted',
@@ -469,7 +469,7 @@ describe('board.hostname: the name of the address of board serve', () => {
       JSON.parse(
         ProjectManifest.render({
           root: createProject({ files: {} }),
-          config: VULCAN_CONFIG_SCHEMA.parse({ board }),
+          config: VulcanConfigSchema.parse({ board }),
         }),
       );
 

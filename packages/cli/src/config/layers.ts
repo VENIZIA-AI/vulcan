@@ -5,7 +5,7 @@ import { RecordValue } from '../common/record.ts';
 import { RulePacks } from '../rules/packs.ts';
 import { ConfigConstants } from './common/index.ts';
 import { ConfigGroups } from './groups.ts';
-import { VULCAN_CONFIG_SCHEMA } from './schema.ts';
+import { VulcanConfigSchema } from './schema.ts';
 
 /** One layer of the config: the shipped defaults, a pack's config, or the project's own file. */
 export interface IConfigLayer {
@@ -147,7 +147,7 @@ export class ConfigLayers {
       return issues[0];
     }
 
-    const parsed = VULCAN_CONFIG_SCHEMA.pick(SHIPPED_MASK).safeParse(flat);
+    const parsed = VulcanConfigSchema.pick(SHIPPED_MASK).safeParse(flat);
 
     if (parsed.success) {
       return undefined;

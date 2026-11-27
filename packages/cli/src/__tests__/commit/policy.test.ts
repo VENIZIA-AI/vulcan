@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { AgentSignaturePolicies, CommitPolicy } from '../../commit/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -15,7 +15,7 @@ afterAll(removeProjects);
 
 const manifestOf = (opts: { root: string; config: object }): Record<string, unknown> =>
   JSON.parse(
-    ProjectManifest.render({ root: opts.root, config: VULCAN_CONFIG_SCHEMA.parse(opts.config) }),
+    ProjectManifest.render({ root: opts.root, config: VulcanConfigSchema.parse(opts.config) }),
   );
 
 const projectWithManifest = (opts: { manifest: object }): string =>
@@ -36,13 +36,13 @@ describe('AgentSignaturePolicies', () => {
 
 describe('commit.message in the config', () => {
   test('every check is off until the project turns it on', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).commit).toEqual({
+    expect(VulcanConfigSchema.parse({}).commit).toEqual({
       message: { agent: { signature: 'allow', names: [], allow: [] } },
     });
   });
 
   test('agent.signature, agent.names and a subject shape are accepted', () => {
-    const parsed = VULCAN_CONFIG_SCHEMA.parse({
+    const parsed = VulcanConfigSchema.parse({
       commit: {
         message: {
           agent: { signature: 'deny', names: ['windsurf'], allow: ['Claude Dupont'] },
@@ -64,28 +64,27 @@ describe('commit.message in the config', () => {
 
   test('a half-written block is filled in: agent alone, or message alone', () => {
     expect(
-      VULCAN_CONFIG_SCHEMA.parse({ commit: { message: { agent: { signature: 'deny' } } } }).commit
+      VulcanConfigSchema.parse({ commit: { message: { agent: { signature: 'deny' } } } }).commit
         .message.agent,
     ).toEqual({ signature: 'deny', names: [], allow: [] });
-    expect(VULCAN_CONFIG_SCHEMA.parse({ commit: {} }).commit.message.agent.signature).toBe('allow');
+    expect(VulcanConfigSchema.parse({ commit: {} }).commit.message.agent.signature).toBe('allow');
   });
 
   test('an unknown key, a flat key, an empty name and a pattern that is not a regular expression are refused', () => {
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ commit: { message: { sign: true } } }).success).toBe(
+    expect(VulcanConfigSchema.safeParse({ commit: { message: { sign: true } } }).success).toBe(
       false,
     );
     expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ commitMessage: { agentSignature: 'deny' } }).success,
+      VulcanConfigSchema.safeParse({ commitMessage: { agentSignature: 'deny' } }).success,
     ).toBe(false);
     expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ commit: { message: { agent: { names: [''] } } } }).success,
+      VulcanConfigSchema.safeParse({ commit: { message: { agent: { names: [''] } } } }).success,
     ).toBe(false);
     expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ commit: { message: { agent: { signature: true } } } })
-        .success,
+      VulcanConfigSchema.safeParse({ commit: { message: { agent: { signature: true } } } }).success,
     ).toBe(false);
 
-    const unknownValue = VULCAN_CONFIG_SCHEMA.safeParse({
+    const unknownValue = VulcanConfigSchema.safeParse({
       commit: { message: { agent: { signature: 'maybe' } } },
     });
 
@@ -95,14 +94,14 @@ describe('commit.message in the config', () => {
     for (const entry of ['-', '  ', '', '...']) {
       for (const key of ['names', 'allow']) {
         expect(
-          VULCAN_CONFIG_SCHEMA.safeParse({ commit: { message: { agent: { [key]: [entry] } } } })
+          VulcanConfigSchema.safeParse({ commit: { message: { agent: { [key]: [entry] } } } })
             .success,
           `${key} ${JSON.stringify(entry)}`,
         ).toBe(false);
       }
     }
 
-    const bad = VULCAN_CONFIG_SCHEMA.safeParse({
+    const bad = VulcanConfigSchema.safeParse({
       commit: { message: { subject: { pattern: '(' } } },
     });
 

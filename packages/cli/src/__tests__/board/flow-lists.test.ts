@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { BoardFold } from '../../board/fold.ts';
 import { BoardSettings } from '../../board/settings.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { EventLog } from '../../events/index.ts';
 import type { IEvent, IEventItem, TEventType } from '../../events/common/index.ts';
 import { BoardPage } from '../../board/page.ts';
@@ -160,7 +160,7 @@ describe('what an agent card knows of a session', () => {
 });
 
 describe('board.agents: the role of an agent', () => {
-  const parse = (agents: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ board: { agents } });
+  const parse = (agents: unknown) => VulcanConfigSchema.safeParse({ board: { agents } });
   const resolve = (agents: unknown) =>
     BoardSettings.resolve({
       manifest: { board: { agents } },

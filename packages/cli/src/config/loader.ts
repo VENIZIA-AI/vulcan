@@ -2,8 +2,8 @@ import { existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ConfigConstants } from './common/index.ts';
-import { VULCAN_CONFIG_SCHEMA } from './schema.ts';
-import type { TResolvedConfig } from './schema.ts';
+import { VulcanConfigSchema } from './schema.ts';
+import type { TVulcanConfigOutput } from './schema.ts';
 import { ProjectLayout } from '../common/constants.ts';
 import { RecordValue } from '../common/record.ts';
 import { ConfigLayers } from './layers.ts';
@@ -15,7 +15,7 @@ type TLoadResult =
   | {
       ok: true;
       file: string;
-      config: TResolvedConfig;
+      config: TVulcanConfigOutput;
       /** The project's own object, the layers below it and the merge the config was parsed from: what `vulcan config` shows. */
       layers: {
         project: Record<string, unknown>;
@@ -198,7 +198,7 @@ export class ConfigLoader {
     }
 
     // Only an object is layered; anything else goes to the schema as it is, which says what is wrong with it.
-    const parsed = VULCAN_CONFIG_SCHEMA.safeParse(
+    const parsed = VulcanConfigSchema.safeParse(
       RecordValue.isRecord(written) ? layered.merge.value : written,
     );
 

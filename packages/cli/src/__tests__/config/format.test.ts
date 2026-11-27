@@ -5,7 +5,7 @@ import { ConfigKeyOrder } from '../../config/common/index.ts';
 import { ConfigGroups } from '../../config/groups.ts';
 import { ConfigFormat } from '../../config/format.ts';
 import type { TConfigFormatResult } from '../../config/format.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
+import { VulcanConfigSchema } from '../../config/schema.ts';
 import { WorkspaceDocs } from '../../create/workspace-docs.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -167,7 +167,7 @@ export default {
   });
 
   test('every key of the order is a key of the config schema', () => {
-    const schemaKeys = Object.keys(VULCAN_CONFIG_SCHEMA.shape);
+    const schemaKeys = Object.keys(VulcanConfigSchema.shape);
 
     expect(
       [...ConfigKeyOrder.KEYS, ConfigKeyOrder.LAST].filter((key) => !schemaKeys.includes(key)),
@@ -316,7 +316,7 @@ describe('a grouped file', () => {
   });
 
   test('the inner orders list every key of every group, and nothing the group does not have', () => {
-    const schema = VULCAN_CONFIG_SCHEMA.shape;
+    const schema = VulcanConfigSchema.shape;
     const knowledge = [
       ...Object.keys(
         (schema.knowledge as unknown as { def: { innerType: { shape: object } } }).def.innerType

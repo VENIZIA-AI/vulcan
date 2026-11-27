@@ -9,7 +9,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { PresetScratch } from '../../create/scratch.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { LocalChecks } from '../../doctor/local-checks.ts';
 import { HookConstants, ProjectTmp } from '../../hooks/index.ts';
 import { CleanScopes, LocalScan } from '../../local/index.ts';
@@ -31,7 +31,7 @@ const CONFIG = "export default { project: { name: 'acme' }, common: { local: { t
 
 describe('local.tmp in the config', () => {
   const parse = (tmp: unknown): { success: boolean; message: string } => {
-    const result = VULCAN_CONFIG_SCHEMA.safeParse({ local: { tmp } });
+    const result = VulcanConfigSchema.safeParse({ local: { tmp } });
 
     return { success: result.success, message: result.success ? '' : result.error.message };
   };
@@ -48,7 +48,7 @@ describe('local.tmp in the config', () => {
   );
 
   test('the key is optional, and the default is the folder of the layout', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).local.tmp).toBeUndefined();
+    expect(VulcanConfigSchema.parse({}).local.tmp).toBeUndefined();
     expect(HookConstants.PROJECT_TMP).toBe('.agents/tmp');
   });
 });
@@ -56,7 +56,7 @@ describe('local.tmp in the config', () => {
 describe('local.tmp in the manifest', () => {
   const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
   const render = (config: object): Record<string, unknown> =>
-    JSON.parse(ProjectManifest.render({ root, config: VULCAN_CONFIG_SCHEMA.parse(config) }));
+    JSON.parse(ProjectManifest.render({ root, config: VulcanConfigSchema.parse(config) }));
 
   test('carries the folder, next to autoClean', () => {
     expect(render({ local: { tmp: 't' } }).local).toEqual({ tmp: 't' });
@@ -179,7 +179,7 @@ describe('vulcan project sync with local.tmp', () => {
 describe('vulcan project doctor: local.tmp that cannot hold a browser socket', () => {
   const contextOf = (opts: { root: string; tmp: string }) => ({
     root: opts.root,
-    config: VULCAN_CONFIG_SCHEMA.parse({ local: { tmp: opts.tmp } }),
+    config: VulcanConfigSchema.parse({ local: { tmp: opts.tmp } }),
     configFile: '.configs/vulcan.config.mts',
   });
 
@@ -197,7 +197,7 @@ describe('vulcan project doctor: local.tmp that cannot hold a browser socket', (
     expect(
       LocalChecks.checkTmpFolder({
         root: `/${'a'.repeat(80)}`,
-        config: VULCAN_CONFIG_SCHEMA.parse({}),
+        config: VulcanConfigSchema.parse({}),
         configFile: 'c',
       }),
     ).toEqual([]);
@@ -286,7 +286,7 @@ describe('the review of local.tmp', () => {
 
   const contextOf = (opts: { tmp: string; layout?: Record<string, string> }) => ({
     root: '/work/acme',
-    config: VULCAN_CONFIG_SCHEMA.parse({ local: { tmp: opts.tmp }, layout: opts.layout }),
+    config: VulcanConfigSchema.parse({ local: { tmp: opts.tmp }, layout: opts.layout }),
     configFile: '.configs/vulcan.config.mts',
   });
 
@@ -307,7 +307,7 @@ describe('the review of local.tmp', () => {
 
     const found = LocalChecks.checkTmpFolder({
       root,
-      config: VULCAN_CONFIG_SCHEMA.parse({ local: { tmp: 'tmp' } }),
+      config: VulcanConfigSchema.parse({ local: { tmp: 'tmp' } }),
       configFile: '.configs/vulcan.config.mts',
     });
 

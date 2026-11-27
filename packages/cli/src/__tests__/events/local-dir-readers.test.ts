@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentConstants } from '../../agents/common/constants.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { SettingsChecks } from '../../doctor/settings-checks.ts';
 import { BoardStop, EventLog, FlowState } from '../../events/index.ts';
 import { HookConstants } from '../../hooks/common/constants.ts';
@@ -172,7 +172,7 @@ describe('doctor and the local folder', () => {
 
     const [hit] = SettingsChecks.checkEventsSize({
       root,
-      config: VULCAN_CONFIG_SCHEMA.parse({ events: { log: true, maxSize: '1KB' } }),
+      config: VulcanConfigSchema.parse({ events: { log: true, maxSize: '1KB' } }),
       configFile: '.configs/vulcan.config.mts',
     });
 
@@ -188,7 +188,7 @@ describe('doctor and the local folder', () => {
 
     const [hit] = SettingsChecks.checkEventsSize({
       root,
-      config: VULCAN_CONFIG_SCHEMA.parse({ events: { log: true, dir: team, maxSize: '1KB' } }),
+      config: VulcanConfigSchema.parse({ events: { log: true, dir: team, maxSize: '1KB' } }),
       configFile: '.configs/vulcan.config.mts',
     });
 

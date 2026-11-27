@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { LibraryTypes, PackageTypes } from '../config/index.ts';
-import type { IProjectPackage, TLibraryType, TResolvedConfig } from '../config/index.ts';
+import type { IProjectPackage, TLibraryType, TVulcanConfigOutput } from '../config/index.ts';
 import { ProjectScaffold } from '../init/index.ts';
 import { AppChecks } from './checks.ts';
 import { AddFailure, AppsBlockProblems, CreateConstants, CreateFlags } from './common/index.ts';
@@ -40,7 +40,7 @@ const folderOf = async (opts: {
   args: string[];
   interactive: boolean;
   lib: string;
-  config: TResolvedConfig;
+  config: TVulcanConfigOutput;
   packages: IProjectPackage[];
 }): Promise<{ ok: true; folder: string } | { ok: false; error: string }> => {
   const given = ProjectNames.readFlag({ args: opts.args, flag: CreateFlags.DIR });
@@ -135,7 +135,7 @@ export class LibraryScaffold {
     presetValue: string;
     spec: IPresetSpec;
     located: ILocatedPreset;
-    config: TResolvedConfig;
+    config: TVulcanConfigOutput;
     configFile: string;
     configPath: string;
     manifest: Record<string, unknown>;

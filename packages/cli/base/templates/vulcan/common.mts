@@ -1,3 +1,3 @@
 import type { VulcanConfig } from '@venizia/vulcan';
 
-export const common = {} satisfies VulcanConfig.Common;
+export const common = {} satisfies VulcanConfig.CommonType;

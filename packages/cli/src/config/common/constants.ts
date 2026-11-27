@@ -200,6 +200,18 @@ export class ConfigKeyOrder {
 export class CodemodConstants {
   static readonly CONFIG_PATH = `${ConfigConstants.DIRECTORY}/${ConfigConstants.FILE}`;
   static readonly MODULES_DIRECTORY = `${ConfigConstants.DIRECTORY}/vulcan`;
+  /** The modules a split writes (the groups and the earlier names), which can hold a part of the config whether it imports them or not. */
+  static readonly STANDARD_MODULE_PATHS: readonly string[] = [
+    'project',
+    'agent',
+    'guard',
+    'board',
+    'knowledge',
+    'check',
+    'common',
+    'packages',
+    'index',
+  ].map((name) => `${this.MODULES_DIRECTORY}/${name}.mts`);
   /** Where the properties sit in a group (inside `group: {`) and in a group module (inside `export const group = {`). */
   static readonly GROUP_COLUMN = 4;
   static readonly MODULE_COLUMN = 2;

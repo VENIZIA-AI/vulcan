@@ -7,7 +7,7 @@ import { ProjectPackages } from '../config/index.ts';
 import { ConfigImports } from '../config/imports.ts';
 import { GuardDecisions } from '../hooks/common/index.ts';
 import { AgentFiles } from '../sync/agent-files.ts';
-import type { TResolvedConfig } from '../config/index.ts';
+import type { TVulcanConfigOutput } from '../config/index.ts';
 import { BaseRules } from '../rules/index.ts';
 import { ThemeTokens } from '../theme/index.ts';
 
@@ -54,7 +54,7 @@ const HASH_LENGTH = 8;
  * `.configs/` the config imports, which guard-outside protects like the config.
  */
 const guardBlockOf = (opts: {
-  config: TResolvedConfig;
+  config: TVulcanConfigOutput;
   configModules: string[];
 }): { guard?: Record<string, unknown> } => {
   const { configModules } = opts;
@@ -87,7 +87,9 @@ const guardBlockOf = (opts: {
   return Object.keys(block).length === 0 ? {} : { guard: block };
 };
 
-const commitBlockOf = (opts: { config: TResolvedConfig }): { commit?: Record<string, unknown> } => {
+const commitBlockOf = (opts: {
+  config: TVulcanConfigOutput;
+}): { commit?: Record<string, unknown> } => {
   const { agent, subject } = opts.config.commit.message;
   const isDenied = agent.signature === AgentSignaturePolicies.DENY;
 
@@ -110,7 +112,9 @@ const commitBlockOf = (opts: { config: TResolvedConfig }): { commit?: Record<str
 };
 
 /** The manifest's `events` block, which the hooks and `vulcan event` read: only when the log is on or has a folder. */
-const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<string, unknown> } => {
+const eventsBlockOf = (opts: {
+  config: TVulcanConfigOutput;
+}): { events?: Record<string, unknown> } => {
   const { log, dir, maxSize, maxFiles, maxAgeDays } = opts.config.events;
   const limits = {
     ...(maxSize === undefined ? {} : { maxSize }),
@@ -124,7 +128,9 @@ const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<str
 };
 
 /** The manifest's `local` block, which the hooks and `vulcan project clean` read: when the automatic clean is off or the project names its tmp folder. */
-const localBlockOf = (opts: { config: TResolvedConfig }): { local?: Record<string, unknown> } => {
+const localBlockOf = (opts: {
+  config: TVulcanConfigOutput;
+}): { local?: Record<string, unknown> } => {
   const { autoClean, tmp } = opts.config.local;
   const block = {
     ...(autoClean ? {} : { autoClean: false }),
@@ -139,7 +145,9 @@ const localBlockOf = (opts: { config: TResolvedConfig }): { local?: Record<strin
  * modes, font, mono, radius) that the board, the pages and the wiki read. Always written: a project with no `theme`
  * gets the default preset. A theme the check refused never reaches here (the config does not load).
  */
-const themeBlockOf = (opts: { config: TResolvedConfig }): { theme?: Record<string, unknown> } => {
+const themeBlockOf = (opts: {
+  config: TVulcanConfigOutput;
+}): { theme?: Record<string, unknown> } => {
   const resolved = ThemeTokens.resolve({ theme: opts.config.theme });
 
   if (!resolved.ok) {
@@ -164,7 +172,9 @@ const themeBlockOf = (opts: { config: TResolvedConfig }): { theme?: Record<strin
 };
 
 /** The manifest's `board` block, which `vulcan board show` reads: only what the project sets. */
-const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<string, unknown> } => {
+const boardBlockOf = (opts: {
+  config: TVulcanConfigOutput;
+}): { board?: Record<string, unknown> } => {
   const { owner, title, logo, hostname, agents } = opts.config.board;
 
   return owner === undefined &&
@@ -186,7 +196,7 @@ const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<strin
 
 /** The manifest's `provider` block, which `vulcan board show` reads: written only when the code host is not GitHub. */
 const providerBlockOf = (opts: {
-  config: TResolvedConfig;
+  config: TVulcanConfigOutput;
 }): { provider?: Record<string, unknown> } => {
   const { type, host } = opts.config.provider;
 
@@ -196,7 +206,9 @@ const providerBlockOf = (opts: {
 };
 
 /** The manifest's `atlas` block: only what the config sets (keys listed, the download turned off). */
-const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<string, unknown> } => {
+const atlasBlockOf = (opts: {
+  config: TVulcanConfigOutput;
+}): { atlas?: Record<string, unknown> } => {
   const keys = opts.config.atlas.index?.keys ?? [];
   const block = {
     ...(keys.length === 0 ? {} : { index: { keys } }),
@@ -212,7 +224,7 @@ const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<strin
 /** Renders `.agents/local/vulcan.manifest.json` from the config and the base rule hashes; written by `vulcan project sync`. */
 export class ProjectManifest {
   /** `@acme/shop-workspace` gives `shop`; a project with no package name takes its directory's. */
-  static projectNameOf(opts: { root: string; config: TResolvedConfig }): string {
+  static projectNameOf(opts: { root: string; config: TVulcanConfigOutput }): string {
     if (opts.config.name !== undefined) {
       return opts.config.name;
     }
@@ -246,7 +258,7 @@ export class ProjectManifest {
    */
   static render(opts: {
     root: string;
-    config: TResolvedConfig;
+    config: TVulcanConfigOutput;
     /** The modules of the config under `.configs/` (`ConfigImports.localModules`), when the caller scanned them already. */
     configModules?: string[];
   }): string {
@@ -261,7 +273,7 @@ export class ProjectManifest {
    * (`atlas.index.keys`), or git already tracks its descriptor (a source that signs nothing is read through that file).
    * Only such a repository writes the committed descriptor; an app keeps everything in the local manifest.
    */
-  static publishes(opts: { root: string; config: TResolvedConfig }): boolean {
+  static publishes(opts: { root: string; config: TVulcanConfigOutput }): boolean {
     return (
       (opts.config.atlas.index?.keys.length ?? 0) > 0 ||
       // A state git cannot give (not a repository, a broken index) counts as tracked: a descriptor is never dropped on a guess.
@@ -271,7 +283,7 @@ export class ProjectManifest {
   }
 
   /** The committed descriptor: the keys of the manifest that atlas reads, in the same order and with the same values. */
-  static renderDescriptor(opts: { root: string; config: TResolvedConfig }): string {
+  static renderDescriptor(opts: { root: string; config: TVulcanConfigOutput }): string {
     // The descriptor holds no guard block, so the modules of the config are not read.
     const whole = ProjectManifest.build({ ...opts, configModules: [] });
     const descriptor = Object.fromEntries(
@@ -286,7 +298,7 @@ export class ProjectManifest {
 
   private static build(opts: {
     root: string;
-    config: TResolvedConfig;
+    config: TVulcanConfigOutput;
     /** The modules of the config under `.configs/` (`ConfigImports.localModules`), when the caller scanned them already. */
     configModules?: string[];
   }): Record<string, unknown> {

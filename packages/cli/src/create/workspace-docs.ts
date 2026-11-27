@@ -267,7 +267,7 @@ export class WorkspaceDocs {
       {
         path: '.configs/vulcan.config.mts',
         content:
-          "import type { VulcanConfig } from '@venizia/vulcan';\nimport { agent, board, check, common, guard, knowledge, project } from './vulcan/index.mts';\n\nexport default {\n  project,\n  agent,\n  guard,\n  board,\n  knowledge,\n  check,\n  common,\n} satisfies VulcanConfig;\n",
+          "import type { VulcanConfigType } from '@venizia/vulcan';\nimport { agent, board, check, common, guard, knowledge, project } from './vulcan/index.mts';\n\nexport default {\n  project,\n  agent,\n  guard,\n  board,\n  knowledge,\n  check,\n  common,\n} satisfies VulcanConfigType;\n",
       },
       {
         path: '.configs/vulcan/index.mts',
@@ -287,25 +287,25 @@ export class WorkspaceDocs {
           '  layout: apps.layout,',
           '  packages: apps.packages,',
           '  presets: apps.presets,',
-          '} satisfies VulcanConfig.Project;',
+          '} satisfies VulcanConfig.ProjectType;',
           '',
         ].join('\n'),
       },
       {
         path: '.configs/vulcan/agent.mts',
-        content: `${head}export const agent = {\n  rules: { 'V-W-01': 'on-user-word' },\n} satisfies VulcanConfig.Agent;\n`,
+        content: `${head}export const agent = {\n  rules: { 'V-W-01': 'on-user-word' },\n} satisfies VulcanConfig.AgentType;\n`,
       },
       {
         path: '.configs/vulcan/knowledge.mts',
-        content: `${head.replace('\n\n', "\nimport { apps } from './project.mts';\n\n")}export const knowledge = {\n  atlas: { sources: apps.sources },\n} satisfies VulcanConfig.Knowledge;\n`,
+        content: `${head.replace('\n\n', "\nimport { apps } from './project.mts';\n\n")}export const knowledge = {\n  atlas: { sources: apps.sources },\n} satisfies VulcanConfig.KnowledgeType;\n`,
       },
       {
         path: '.configs/vulcan/guard.mts',
-        content: empty('guard', 'NonNullable<VulcanConfig.Guard>'),
+        content: empty('guard', 'NonNullable<VulcanConfig.GuardType>'),
       },
-      { path: '.configs/vulcan/board.mts', content: empty('board', 'VulcanConfig.Board') },
-      { path: '.configs/vulcan/check.mts', content: empty('check', 'VulcanConfig.Check') },
-      { path: '.configs/vulcan/common.mts', content: empty('common', 'VulcanConfig.Common') },
+      { path: '.configs/vulcan/board.mts', content: empty('board', 'VulcanConfig.BoardType') },
+      { path: '.configs/vulcan/check.mts', content: empty('check', 'VulcanConfig.CheckType') },
+      { path: '.configs/vulcan/common.mts', content: empty('common', 'VulcanConfig.CommonType') },
     ];
   }
 

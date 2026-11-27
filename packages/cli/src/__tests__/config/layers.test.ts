@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { ConfigLayers, ConfigLoader, VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { ConfigLayers, ConfigLoader, VulcanConfigSchema } from '../../config/index.ts';
 import type { IConfigLayer } from '../../config/index.ts';
 import { RulePacks } from '../../rules/packs.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -139,7 +139,7 @@ describe('ConfigLayers.merge: the rules, the same for every key', () => {
     expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
     expect(Object.hasOwn(value, '__proto__')).toBe(true);
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
-    expect(VULCAN_CONFIG_SCHEMA.safeParse(value).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse(value).success).toBe(false);
 
     const when = new Date(0);
 
@@ -311,7 +311,7 @@ describe('the merge and the schema', () => {
       ],
       remove: { 'atlas.sources': ['ardor'] },
     });
-    const parsed = VULCAN_CONFIG_SCHEMA.parse(value);
+    const parsed = VulcanConfigSchema.parse(value);
 
     expect(parsed.name).toBe('acme');
     expect(parsed.atlas.sources.map((entry) => entry.name)).toEqual(['ignis']);
@@ -319,13 +319,9 @@ describe('the merge and the schema', () => {
   });
 
   test('remove accepts only the arrays shipped defaults can add to, with string items', () => {
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ remove: { 'atlas.sources': ['a'] } }).success).toBe(
-      true,
-    );
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ remove: { name: ['a'] } }).success).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ remove: { 'atlas.sources': 'a' } }).success).toBe(
-      false,
-    );
+    expect(VulcanConfigSchema.safeParse({ remove: { 'atlas.sources': ['a'] } }).success).toBe(true);
+    expect(VulcanConfigSchema.safeParse({ remove: { name: ['a'] } }).success).toBe(false);
+    expect(VulcanConfigSchema.safeParse({ remove: { 'atlas.sources': 'a' } }).success).toBe(false);
   });
 
   test('the shipped layers are the base and each pack in order, under the project object', async () => {
@@ -407,7 +403,7 @@ describe('a project object alone, through the merge, is exactly what the schema 
     const project = configs[label] ?? {};
     const { value } = ConfigLayers.merge({ layers: [layer('project', project)] });
 
-    expect(VULCAN_CONFIG_SCHEMA.parse(value)).toEqual(VULCAN_CONFIG_SCHEMA.parse(project));
+    expect(VulcanConfigSchema.parse(value)).toEqual(VulcanConfigSchema.parse(project));
   });
 });
 

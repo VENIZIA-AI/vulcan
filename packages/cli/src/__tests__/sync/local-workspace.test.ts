@@ -2,14 +2,14 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { LocalChecks } from '../../doctor/local-checks.ts';
 import { LocalPlan } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 
-const CONFIG = VULCAN_CONFIG_SCHEMA.parse({});
+const CONFIG = VulcanConfigSchema.parse({});
 
 const apply = (opts: { root: string }): void => {
   for (const action of LocalPlan.planWorkspace(opts)) {

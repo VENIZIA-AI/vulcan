@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { ContentsList } from '@venizia/vulcan-okf';
 import { AtlasBlock, RulesBlock } from '../agents/index.ts';
 import { ProjectLayout } from '../common/index.ts';
-import type { TResolvedConfig } from '../config/index.ts';
+import type { TVulcanConfigOutput } from '../config/index.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { ProjectManifest } from '../manifest/index.ts';
 import { BaseRules, RulePacks, RuleParser, RuleSlots } from '../rules/index.ts';
@@ -19,7 +19,7 @@ const readText = (opts: { file: string }): string =>
 
 export class AgentsBlockPlan {
   /** The rules block of this project: the base rules and the project's own, the slot choices and the config's often-dropped list. */
-  private static rulesBlockOf(opts: { root: string; config: TResolvedConfig }): string {
+  private static rulesBlockOf(opts: { root: string; config: TVulcanConfigOutput }): string {
     return RulesBlock.render({
       rows: [
         ...Object.values(BaseRules.read({ packs: opts.config.packs })),
@@ -49,7 +49,7 @@ export class AgentsBlockPlan {
    */
   static merged(opts: {
     root: string;
-    config: TResolvedConfig;
+    config: TVulcanConfigOutput;
   }): { path: string; changed: boolean; text: string } | undefined {
     const path = join(opts.root, AGENTS_FILE);
 
@@ -81,7 +81,7 @@ export class AgentsBlockPlan {
   }
 
   /** The committed AGENTS.md carries the blocks for every agent, Claude included. */
-  static plan(opts: { root: string; config: TResolvedConfig }): ISyncAction[] {
+  static plan(opts: { root: string; config: TVulcanConfigOutput }): ISyncAction[] {
     const merged = AgentsBlockPlan.merged(opts);
 
     if (merged === undefined) {

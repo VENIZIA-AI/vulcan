@@ -4,7 +4,7 @@ import { ExitCodes } from '../common/index.ts';
 import { LayoutFolder, LayoutKeys } from '../common/layout-folder.ts';
 import type { IOfficialPreset } from '@venizia/vulcan-atlas';
 import { ConfigLoader, LibraryTypes, PackageTypes, ProjectPackages } from '../config/index.ts';
-import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
+import type { IProjectPackage, TVulcanConfigOutput } from '../config/index.ts';
 import { ProjectScaffold } from '../init/index.ts';
 import { AddFlagGuard } from './add-flag-guard.ts';
 import { AddKindRegistry } from './add-kind.ts';
@@ -115,7 +115,7 @@ export class AppScaffold {
       return AddFailure.fail({ message: loaded.file === undefined ? ROOT_HINT : loaded.error });
     }
 
-    const config: TResolvedConfig = loaded.config;
+    const config: TVulcanConfigOutput = loaded.config;
     const configPath = relative(cwd, loaded.file);
     const manifestPath = join(cwd, 'package.json');
     const manifest = readRootManifest({ path: manifestPath });

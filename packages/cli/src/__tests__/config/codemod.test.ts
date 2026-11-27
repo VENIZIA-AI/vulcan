@@ -197,6 +197,42 @@ describe('config-groups: what it refuses, with nothing written', () => {
   });
 });
 
+describe('config-groups: the type names of this release', () => {
+  test('a flat file kept in one file takes VulcanConfigType, and so do the modules it keeps', () => {
+    const before = files({
+      [CONFIG]:
+        "import type { VulcanConfig } from '@venizia/vulcan';\nimport { rules } from './vulcan/rules.mts';\n\nexport default {\n  rules,\n} satisfies VulcanConfig;\n",
+      '.configs/vulcan/rules.mts':
+        "import type { TFlatConfig } from '@venizia/vulcan';\n\nexport const rules: TFlatConfig['rules'] = {};\n",
+    });
+    const { changes } = ok(ConfigCodemod.run({ root: before.root, read: before.read }));
+
+    expect(textOf({ changes, path: CONFIG })).toContain('} satisfies VulcanConfigType;');
+    expect(textOf({ changes, path: CONFIG })).not.toContain('{ VulcanConfig }');
+    expect(textOf({ changes, path: '.configs/vulcan/rules.mts' })).toContain(
+      "TVulcanConfigInput['rules']",
+    );
+  });
+
+  test('a module that already imports the new names is folded like an old one', () => {
+    const before = files({
+      [CONFIG]:
+        "import type { VulcanConfigType } from '@venizia/vulcan';\nimport { claude } from './vulcan/claude.mts';\n\nexport default {\n  claude,\n} satisfies VulcanConfigType;\n",
+      '.configs/vulcan/claude.mts':
+        "import type { VulcanConfig, VulcanConfigType } from '@venizia/vulcan';\n\nexport const claude = {} satisfies NonNullable<VulcanConfig.AgentType['claude']>;\n",
+    });
+    const { changes } = ok(
+      ConfigCodemod.run({ root: before.root, read: before.read, split: true }),
+    );
+
+    expect(textOf({ changes, path: '.configs/vulcan/agent.mts' })).toContain('claude: {},');
+    expect(textOf({ changes, path: '.configs/vulcan/agent.mts' })).toContain(
+      'VulcanConfig.AgentType',
+    );
+    expect(changes).toContainEqual({ path: '.configs/vulcan/claude.mts' });
+  });
+});
+
 /** The split the 0.5.0-7 and -8 scaffolds wrote: modules for claude, doctor, okf and packages. */
 const SPLIT = {
   [CONFIG]: `import type { VulcanConfig } from '@venizia/vulcan';
@@ -237,16 +273,16 @@ describe('config-groups: a split of the 0.5.0 scaffold', () => {
     expect(main).toContain('    claude,');
     expect(main).toContain('    doctor,');
     expect(textOf({ changes, path: '.configs/vulcan/claude.mts' })).toContain(
-      "VulcanConfig.Agent['claude']",
+      "VulcanConfig.AgentType['claude']",
     );
     expect(textOf({ changes, path: '.configs/vulcan/doctor.mts' })).toContain(
-      "VulcanConfig.Check['doctor']",
+      "VulcanConfig.CheckType['doctor']",
     );
     expect(textOf({ changes, path: '.configs/vulcan/okf.mts' })).toContain(
-      "VulcanConfig.Knowledge['okf']",
+      "VulcanConfig.KnowledgeType['okf']",
     );
     expect(textOf({ changes, path: '.configs/vulcan/packages.mts' })).toContain(
-      "VulcanConfig.Project['packages']",
+      "VulcanConfig.ProjectType['packages']",
     );
 
     const after = files(SPLIT);
@@ -291,10 +327,10 @@ describe('config-groups: a split of the 0.5.0 scaffold', () => {
       '.configs/vulcan/packages.mts',
     ]);
     expect(textOf({ changes, path: CONFIG })).toContain(
-      'export default { project, agent, knowledge, check } satisfies VulcanConfig;',
+      'export default { project, agent, knowledge, check } satisfies VulcanConfigType;',
     );
     expect(textOf({ changes, path: '.configs/vulcan/agent.mts' })).toContain(
-      "export const agent = {\n  list: ['claude'],\n  rules: { 'V-W-01': 'on-user-word' },\n  // What Claude may run.\n  claude: {\n    settings: { env: {} },\n  },\n} satisfies VulcanConfig.Agent;",
+      "export const agent = {\n  list: ['claude'],\n  rules: { 'V-W-01': 'on-user-word' },\n  // What Claude may run.\n  claude: {\n    settings: { env: {} },\n  },\n} satisfies VulcanConfig.AgentType;",
     );
     expect(textOf({ changes, path: '.configs/vulcan/knowledge.mts' })).toContain(
       "okf: { brand: 'Demo' }",
@@ -326,7 +362,10 @@ describe('config-groups: a split of the 0.5.0 scaffold', () => {
       "export const project = {\n  name: 'demo',\n  // The tools.\n  key: 'DEMO',",
     );
     expect(textOf({ changes, path: '.configs/vulcan/guard.mts' })).toBe(
-      "import type { VulcanConfig } from '@venizia/vulcan';\n\nexport const guard = {\n  outside: 'deny',\n} satisfies NonNullable<VulcanConfig.Guard>;\n",
+      "import type { VulcanConfig } from '@venizia/vulcan';\n\nexport const guard = {\n  outside: 'deny',\n} satisfies NonNullable<VulcanConfig.GuardType>;\n",
+    );
+    expect(textOf({ changes, path: CONFIG })).toContain(
+      "import type { VulcanConfigType } from '@venizia/vulcan';",
     );
     apply({ root: before.root, changes });
 
@@ -373,7 +412,7 @@ describe('vulcan config codemod', () => {
   test('--list names the codemod; an unknown name or option is a usage error', () => {
     const root = createProject({ files: {} });
 
-    expect(run(root, ['--list']).stdout).toBe('config-groups\ntype-names\n');
+    expect(run(root, ['--list']).stdout).toBe('config-groups\ntype-names\nconfig-types\n');
     expect(run(root, ['nope']).code).toBe(2);
     expect(run(root, ['type-names', '--split']).code).toBe(2);
     expect(run(root, ['type-names', '--split']).stderr).toContain('--split does not apply');
@@ -689,10 +728,10 @@ describe('config-groups --split: an index that uses export *', () => {
     const { changes } = ok(ConfigCodemod.run({ root: before.root, read: before.read }));
 
     expect(textOf({ changes, path: '.configs/vulcan/lists/apps.mts' })).toContain(
-      "VulcanConfig.Project['packages']",
+      "VulcanConfig.ProjectType['packages']",
     );
     expect(textOf({ changes, path: '.configs/vulcan/claude.mts' })).toContain(
-      "VulcanConfig.Agent['claude']",
+      "VulcanConfig.AgentType['claude']",
     );
     expect(changes.map((change) => change.path)).not.toContain('.configs/vulcan/unused.mts');
   });

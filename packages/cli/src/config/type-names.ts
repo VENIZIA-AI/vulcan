@@ -1,19 +1,7 @@
 import { TypeScriptCompiler } from '@venizia/vulcan-atlas';
-import { CodemodConstants, ConfigConstants } from './common/index.ts';
+import { CodemodConstants } from './common/index.ts';
 import type { IFileChange, TCodemodResult } from './common/index.ts';
 
-/** The files of a config that can hold a `packages` entry: the config, and the modules a split writes (the groups and the earlier names). */
-const MODULES = [
-  'project',
-  'agent',
-  'guard',
-  'board',
-  'knowledge',
-  'check',
-  'common',
-  'packages',
-  'index',
-];
 /** The keys of a package entry (an object with a `dir` and a `name`) that are renamed. */
 const PACKAGE_RENAMES: Readonly<Record<string, string>> = {
   kind: 'type',
@@ -36,10 +24,7 @@ export class ConfigTypeNames {
     read: (path: string) => string | undefined;
   }): TCodemodResult {
     const typescript = TypeScriptCompiler.load({ from: opts.root });
-    const paths = [
-      `${ConfigConstants.DIRECTORY}/${ConfigConstants.FILE}`,
-      ...MODULES.map((name) => `${CodemodConstants.MODULES_DIRECTORY}/${name}.mts`),
-    ];
+    const paths = [CodemodConstants.CONFIG_PATH, ...CodemodConstants.STANDARD_MODULE_PATHS];
     const changes: IFileChange[] = [];
     const notes: string[] = [];
 

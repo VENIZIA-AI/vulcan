@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 
-const parse = (guard: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ guard });
+const parse = (guard: unknown) => VulcanConfigSchema.safeParse({ guard });
 const messageOf = (result: ReturnType<typeof parse>): string =>
   result.success ? '' : result.error.message;
 
@@ -18,9 +18,9 @@ describe('guard.writes.commands and guard.git.askPush', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).guard.writes.commands).toEqual([]);
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).guard.git.askPush).toEqual([]);
-    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: { writes: {} } }).guard.git).toEqual({
+    expect(VulcanConfigSchema.parse({}).guard.writes.commands).toEqual([]);
+    expect(VulcanConfigSchema.parse({}).guard.git.askPush).toEqual([]);
+    expect(VulcanConfigSchema.parse({ guard: { writes: {} } }).guard.git).toEqual({
       askPush: [],
     });
   });
@@ -56,7 +56,7 @@ describe('guard.writes.commands and guard.git.askPush', () => {
 
 describe('claude.settings.env', () => {
   const parseEnv = (env: Record<string, unknown>) =>
-    VULCAN_CONFIG_SCHEMA.safeParse({ claude: { settings: { env } } });
+    VulcanConfigSchema.safeParse({ claude: { settings: { env } } });
 
   test.each([
     'VULCAN_GUARD_ASKS',
@@ -93,19 +93,18 @@ describe('claude.settings.env', () => {
   test('takes the other variables, and settings with no env', () => {
     expect(parseEnv({ MY_FLAG: '1', VULCAN_ACTOR: 'a' }).success).toBe(true);
     expect(
-      VULCAN_CONFIG_SCHEMA.safeParse({ claude: { settings: { permissions: { deny: [] } } } })
-        .success,
+      VulcanConfigSchema.safeParse({ claude: { settings: { permissions: { deny: [] } } } }).success,
     ).toBe(true);
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).claude.settings).toEqual({});
+    expect(VulcanConfigSchema.parse({}).claude.settings).toEqual({});
   });
 });
 
 describe('guard.asks', () => {
   test('defaults to ask, and takes ask or deny', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).guard.asks).toBe('ask');
-    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: {} }).guard.asks).toBe('ask');
+    expect(VulcanConfigSchema.parse({}).guard.asks).toBe('ask');
+    expect(VulcanConfigSchema.parse({ guard: {} }).guard.asks).toBe('ask');
     expect(parse({ asks: 'ask' }).success).toBe(true);
-    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: { asks: 'deny' } }).guard.asks).toBe('deny');
+    expect(VulcanConfigSchema.parse({ guard: { asks: 'deny' } }).guard.asks).toBe('deny');
   });
 
   test('anything else is refused', () => {
@@ -117,10 +116,10 @@ describe('guard.asks', () => {
 
 describe('guard.outside', () => {
   test('defaults to ask, and takes ask or deny', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).guard.outside).toBe('ask');
-    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: {} }).guard.outside).toBe('ask');
+    expect(VulcanConfigSchema.parse({}).guard.outside).toBe('ask');
+    expect(VulcanConfigSchema.parse({ guard: {} }).guard.outside).toBe('ask');
     expect(parse({ outside: 'ask' }).success).toBe(true);
-    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: { outside: 'deny' } }).guard.outside).toBe('deny');
+    expect(VulcanConfigSchema.parse({ guard: { outside: 'deny' } }).guard.outside).toBe('deny');
   });
 
   test('anything else is refused', () => {

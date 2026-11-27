@@ -20,7 +20,7 @@ The [rules reference](/references/rules) lists them. A slot is a base rule that 
 To choose an option, set the `rules` key in `.configs/vulcan.config.mts`:
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
@@ -28,7 +28,7 @@ export default {
       'V-W-01': 'on-user-word',
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 Rule `V-W-01` defines git write boundaries and provides two options:

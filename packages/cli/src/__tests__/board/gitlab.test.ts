@@ -6,7 +6,7 @@ import { BoardSettings } from '../../board/settings.ts';
 import { BoardAgentInfo } from '../../board/ui/state/agent-info.ts';
 import { BoardUrl } from '../../board/ui/app/url.ts';
 import type { IBoardViewEvent } from '../../board/ui/common/types.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
 import { git, initRepo } from '../helpers/git-repo.helper.ts';
 import { hermeticEnv } from '../helpers/hermetic.helper.ts';
@@ -340,18 +340,18 @@ describe('BoardGitlab.read: the project of origin', () => {
 });
 
 describe('provider in the config and the manifest', () => {
-  const parse = (provider: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ provider });
+  const parse = (provider: unknown) => VulcanConfigSchema.safeParse({ provider });
   const manifestOf = (provider?: unknown) =>
     JSON.parse(
       ProjectManifest.render({
         root: createProject({ files: {} }),
-        config: VULCAN_CONFIG_SCHEMA.parse(provider === undefined ? {} : { provider }),
+        config: VulcanConfigSchema.parse(provider === undefined ? {} : { provider }),
       }),
     );
 
   test('GitHub is the default and writes nothing to the manifest', () => {
-    expect(VULCAN_CONFIG_SCHEMA.parse({}).provider).toEqual({ type: 'github' });
-    expect(VULCAN_CONFIG_SCHEMA.parse({ provider: {} }).provider).toEqual({ type: 'github' });
+    expect(VulcanConfigSchema.parse({}).provider).toEqual({ type: 'github' });
+    expect(VulcanConfigSchema.parse({ provider: {} }).provider).toEqual({ type: 'github' });
     expect(manifestOf().provider).toBeUndefined();
     expect(manifestOf({ type: 'github' }).provider).toBeUndefined();
   });

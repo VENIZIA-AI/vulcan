@@ -10,20 +10,20 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { CommitHook, CommitHookPlan, CommitHookStates } from '../../commit/index.ts';
-import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { VulcanConfigSchema } from '../../config/index.ts';
 import { SyncStatuses } from '../../sync/index.ts';
 import { git } from '../helpers/git-repo.helper.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 
-const DENY = VULCAN_CONFIG_SCHEMA.parse({
+const DENY = VulcanConfigSchema.parse({
   commit: { message: { agent: { signature: 'deny' } } },
 });
-const SUBJECT_ONLY = VULCAN_CONFIG_SCHEMA.parse({
+const SUBJECT_ONLY = VulcanConfigSchema.parse({
   commit: { message: { subject: { pattern: '^x' } } },
 });
-const OFF = VULCAN_CONFIG_SCHEMA.parse({});
+const OFF = VulcanConfigSchema.parse({});
 
 const repo = (opts: { files?: Record<string, string> } = {}): string => {
   const root = createProject({ files: opts.files ?? {} });

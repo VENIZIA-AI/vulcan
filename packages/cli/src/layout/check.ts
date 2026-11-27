@@ -3,7 +3,7 @@ import { lstatSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { LayoutFolder, LayoutKeys } from '../common/layout-folder.ts';
 import { ProjectPackages } from '../config/packages.ts';
-import type { TResolvedConfig } from '../config/schema.ts';
+import type { TVulcanConfigOutput } from '../config/schema.ts';
 import type { TLayoutSettings } from '../config/sections/doctor/index.ts';
 import { HookConstants } from '../hooks/common/index.ts';
 import { GitQueries } from '../hooks/git-queries.ts';
@@ -168,7 +168,7 @@ export class LayoutCheck {
   }
 
   /** The folders the check reads: each package path and each backend, frontend and shared layout folder; else every outermost `src` folder. */
-  static roots(opts: { config: TResolvedConfig; files: string[] }): string[] {
+  static roots(opts: { config: TVulcanConfigOutput; files: string[] }): string[] {
     const declared = [
       ...ProjectPackages.resolve({ config: opts.config })
         .filter((entry) => !entry.retired)
@@ -243,7 +243,7 @@ export class LayoutCheck {
   /** The findings of the project at `root`, or the reason the check cannot run. */
   static scan(opts: {
     root: string;
-    config: TResolvedConfig;
+    config: TVulcanConfigOutput;
   }): { findings: ILayoutFinding[] } | { outside: true } | { error: string } {
     const tracked = LayoutCheck.trackedFiles({ root: opts.root });
 

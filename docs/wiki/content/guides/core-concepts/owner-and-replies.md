@@ -38,7 +38,7 @@ A wall of prose makes the owner hunt for the answer. A minimap table breaks a sc
 The `owner` block of the config holds the project's contract. Every default is English, and `enforce` defaults to `advise`. VULCAN does not check a reply against the shape: the session digest tells the model, and nothing else holds it to it.
 
 ```ts
-import type { VulcanConfig } from '@venizia/vulcan';
+import type { VulcanConfigType } from '@venizia/vulcan';
 
 export default {
   agent: {
@@ -47,7 +47,7 @@ export default {
       report: { enforce: 'off', headlineMaxSentences: 1 },
     },
   },
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 ```
 
 | `report.enforce` | What the session digest does |

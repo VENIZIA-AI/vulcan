@@ -295,3 +295,27 @@ visualize-type-field:
   downgrade:
     steps:
       - 'Pin the earlier `@venizia/vulcan` and rename `type` back to `kind` in the spec files.'
+config-type-names:
+  symbols:
+    - VulcanConfig
+    - VulcanConfig.Project
+    - VulcanConfig.Agent
+    - VulcanConfig.Guard
+    - VulcanConfig.Board
+    - VulcanConfig.Knowledge
+    - VulcanConfig.Check
+    - VulcanConfig.Common
+    - VulcanConfig.Groups
+    - TFlatConfig
+    - TResolvedConfig
+  upgrade:
+    steps:
+      - 'Rename the types in the config: `bun node_modules/.bin/vulcan migrate apply` has run the codemod already, or run `bun node_modules/.bin/vulcan config codemod config-types . --write` (without `--write` it lists what it would write). It reads `.configs/vulcan.config.mts` and the modules of `.configs/vulcan/`; fix by hand what it prints a note for.'
+      - 'Rename the same types in any other file of yours that imports them from `@venizia/vulcan`.'
+      - 'Run `bun check .configs/vulcan.config.mts` to type-check the config, then `bun node_modules/.bin/vulcan project doctor`, and commit.'
+  downgrade:
+    steps:
+      - 'Run `bun node_modules/.bin/vulcan config codemod config-types . --write --reverse` while the new `@venizia/vulcan` is still installed (`vulcan migrate apply --to <old version>` runs it), then pin the earlier version.'
+      - 'Rename back by hand the other files you changed.'
+  data: 'None: only type names change.'
+  codemod: config-types
