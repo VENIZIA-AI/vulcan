@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { EventLog, FlowState, PromptContext } from '../../events/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { wire } from './wire.helper.ts';
@@ -173,7 +173,7 @@ describe('the prompt context block', () => {
     // The script reads the real clock: a line of a fixed day leaves its window after three days.
     const root = project({ at: Date.now() });
     const run = (stdin: string) =>
-      spawnSyncBounded({
+      SpawnUtility.spawnSyncBounded({
         cmd: [process.execPath, HOOK],
         cwd: root,
         env: { ...process.env, CLAUDE_PROJECT_DIR: root, VULCAN_ACTOR: ACTOR },

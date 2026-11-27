@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 
@@ -14,7 +14,7 @@ export const runCli = (opts: {
   cwd: string;
   env?: Record<string, string>;
 }): ICliResult => {
-  const child = spawnSyncBounded({
+  const child = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, CLI, ...opts.args],
     cwd: opts.cwd,
     env: { ...process.env, ...opts.env },

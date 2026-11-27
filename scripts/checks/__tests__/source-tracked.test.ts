@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { Glob } from 'bun';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 
@@ -12,7 +12,7 @@ test('no source file is ignored by git', () => {
     ...new Glob('packages/*/{src,base,scripts}/**/*').scanSync({ cwd: ROOT, onlyFiles: true }),
     ...new Glob('scripts/**/*').scanSync({ cwd: ROOT, onlyFiles: true }),
   ].filter((file) => !file.includes('/node_modules/'));
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: ['git', 'check-ignore', '--stdin'],
     cwd: ROOT,
     stdin: new TextEncoder().encode(files.join('\n')),

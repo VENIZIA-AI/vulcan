@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { toolEvent } from '../helpers/hook-event.helper.ts';
 
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
@@ -87,7 +87,7 @@ const runHook = (opts: {
     delete environment.CLAUDE_PROJECT_DIR;
   }
 
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: ['/bin/sh', '-c', opts.command],
     cwd: opts.root,
     env: environment,

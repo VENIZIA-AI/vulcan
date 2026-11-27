@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const HOOK = join(ROOT, 'packages', 'cli', 'base', 'hooks', 'guard-writes.ts');
@@ -10,7 +10,7 @@ const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unk
 
 /** What the shipped guard-writes hook answers for a command in this repository: its decision and the first reason line. */
 const decide = (opts: { command: string }): { decision?: string; reason: string } => {
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: ['bun', HOOK],
     cwd: ROOT,
     env: { ...process.env, CLAUDE_PROJECT_DIR: ROOT },

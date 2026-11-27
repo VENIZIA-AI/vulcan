@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const SCRIPT = join(import.meta.dir, '..', 'force-update.sh');
 const roots: string[] = [];
@@ -18,7 +18,7 @@ const runForceUpdate = (opts: { manifest: object }): { stdout: string; manifest:
   roots.push(root);
   writeFileSync(join(root, 'package.json'), `${JSON.stringify(opts.manifest, null, 2)}\n`);
 
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: ['sh', SCRIPT, 'latest'],
     cwd: root,
     stdout: 'pipe',

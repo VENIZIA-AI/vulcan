@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 
@@ -50,7 +50,7 @@ const makeProject = (opts: { concepts: Record<string, string> }) => {
   const config = { okf: { coverage: [{ name: 'apps', path: 'apps/*' }] } };
 
   return (args: string[]) => {
-    const child = spawnSyncBounded({
+    const child = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, CLI, ...args],
       env: { ...process.env, VULCAN_CONFIG: JSON.stringify(config), VULCAN_PROJECT_ROOT: root },
       stdout: 'pipe',

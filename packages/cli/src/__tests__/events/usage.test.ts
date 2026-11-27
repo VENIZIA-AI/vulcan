@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { BoardFold } from '../../board/fold.ts';
 import { BoardTokens } from '../../board/tokens.ts';
 import { RecordValue } from '../../common/record.ts';
@@ -487,7 +487,7 @@ describe('the hooks that record', () => {
     stopHookActive: false,
   });
   const run = (opts: { script: string; root: string; input: unknown }) =>
-    spawnSyncBounded({
+    SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, join(HOOKS, opts.script)],
       cwd: opts.root,
       env: { ...process.env, CLAUDE_PROJECT_DIR: opts.root, VULCAN_ACTOR: ACTOR },

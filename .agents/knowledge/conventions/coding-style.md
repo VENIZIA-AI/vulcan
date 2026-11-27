@@ -17,7 +17,8 @@ The rules are the `V-C-*` rules in `packages/cli/base/rules.md`; this is how the
   (`V-C-04`); an instance is declared before it is awaited on (`await runner.run()`, never `await new X().run()`, `V-C-20`).
 - **Enumerable strings** are const classes, `extends ConstClass` (`values()`, `isValid`) where a value is validated (`V-C-08`, the `venizia` pack) - see any
   `common/constants.ts`.
-- **Scopes** are folders with `common/{constants,types,index}.ts` and an `index.ts` barrel;
+- **Scopes** are folders with `common/{constants,types,index}.ts` and an `index.ts` barrel (a few keep their
+  constants in `constants.ts` at the scope root: `local`, `owner`, `visualize`, `wiki`);
   cross-scope imports go through the barrel. A folder next to a same-named file
   (`src/x/` and `src/x.ts`) is imported as `./x/index`, never `./x`.
 - **No casts** (`V-C-10`): narrow with a type predicate over an options holder
@@ -29,6 +30,6 @@ The rules are the `V-C-*` rules in `packages/cli/base/rules.md`; this is how the
 - **Plain output.** No emoji or decorative glyphs in anything printed or shipped; section banners in
   scripts are `# -----`.
 - **Tests** name the module they cover (`sync/planner.test.ts`); helpers are `*.helper.ts`; every
-  child process in a test is bounded (`spawnSyncBounded`, or `timeout` plus `killSignal: 'SIGKILL'`).
+  child process in a test is bounded (`SpawnUtility.spawnSyncBounded`, or `timeout` plus `killSignal: 'SIGKILL'`).
 - `make lint-all` is the shared style (`@venizia/dev-configs`: oxlint, ESLint naming-convention;
   `bun fmt` formats with the `[fmt]` section of the root `bunfig.toml`) and must be clean.

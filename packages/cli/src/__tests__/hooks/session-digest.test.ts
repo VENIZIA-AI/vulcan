@@ -6,7 +6,7 @@ import { SessionDigest, SubagentCard } from '../../hooks/index.ts';
 import { BASE_DIRECTORY } from '../../common/index.ts';
 import { isolateOwnerReplySwitch } from '../helpers/owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 isolateOwnerReplySwitch();
@@ -104,7 +104,7 @@ test('the session-start hook prints the digest for CLAUDE_PROJECT_DIR', () => {
         "export default { agent: { rules: { 'V-W-01': 'on-user-word' } } };\n",
     },
   });
-  const child = spawnSyncBounded({
+  const child = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, HOOK],
     env: { ...process.env, CLAUDE_PROJECT_DIR: root },
     stdout: 'pipe',

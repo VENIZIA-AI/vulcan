@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { EventLog, FlowState } from '../../events/index.ts';
 import { FlowGuard } from '../../hooks/flow-guard.ts';
 import { wire } from '../events/wire.helper.ts';
@@ -220,7 +220,7 @@ describe('FlowGuard: the refusal says where it looked', () => {
 
 describe('the git guard script holds the rule', () => {
   const run = (opts: { root: string; command: string; env?: Record<string, string> }) =>
-    spawnSyncBounded({
+    SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, GUARD],
       cwd: opts.root,
       env: {

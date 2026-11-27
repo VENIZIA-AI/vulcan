@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { RunnerGuard } from '../../hooks/guard-runner.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
@@ -195,7 +195,7 @@ describe('RunnerGuard: an agent that runs a package by name', () => {
 
 describe('the guard-git hook runs it, for every agent that runs that script', () => {
   const run = (opts: { root: string; command: string; env?: Record<string, string> }) => {
-    const child = spawnSyncBounded({
+    const child = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, GIT_HOOK],
       env: { ...process.env, CLAUDE_PROJECT_DIR: opts.root, VULCAN_GUARDS: '', ...opts.env },
       stdin: Buffer.from(

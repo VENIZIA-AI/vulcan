@@ -29,6 +29,6 @@ Root tooling of the VULCAN monorepo, grouped by purpose. Each group keeps its te
 
 The tests in `checks/__tests__/` are gates run by `make test-scripts`; the folder holds more than the ones named here. `package-layout`,
 `library-targets`, `source-tracked`, `test-tmp-hygiene` and `no-framework-dependency` pin the shape
-of the repository, `ci-workflow` and `docs-workflow` pin the workflows, and the scripts above have tests of their own. The dependency catalog check and the test helpers (`spawnSyncBounded`, the temp-folder preload) are `@venizia/dev-configs`'s (`devz check catalog`, `@venizia/dev-configs/testing`), not kept here.
+of the repository, `ci-workflow` and `docs-workflow` pin the workflows, and the scripts above have tests of their own. The dependency catalog check and the test helpers (`SpawnUtility.spawnSyncBounded`, the temp-folder preload) are `@venizia/dev-configs`'s (`devz check catalog`, `@venizia/dev-configs/testing`), not kept here.
 `checks/__tests__/wiki-shared.test.ts` is the one file kept identical in the three wiki repositories: it fails when the shared theme
 folder differs from its `SHARED.json`, and when a VitePress piece its CSS overrides is gone.

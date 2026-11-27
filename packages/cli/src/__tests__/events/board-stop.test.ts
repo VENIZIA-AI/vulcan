@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { GitActivity } from '../../hooks/git-activity.ts';
 import type { TGitActivity } from '../../events/index.ts';
 import { BoardStop, EventHook, EventLog, FlowState } from '../../events/index.ts';
@@ -559,7 +559,7 @@ describe('the Bash line of the event hook', () => {
 
 describe('the scripts', () => {
   const run = (opts: { script: string; root: string; input: unknown }) =>
-    spawnSyncBounded({
+    SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, join(HOOKS, opts.script)],
       cwd: opts.root,
       env: { ...process.env, CLAUDE_PROJECT_DIR: opts.root, VULCAN_ACTOR: ACTOR },

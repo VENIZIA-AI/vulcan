@@ -2,13 +2,13 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  findRepositoryRoot,
+  RepoTmp,
   REPO_TMP_DIRECTORY,
   SPAWN_TIMEOUT_MS,
-  spawnSyncBounded,
+  SpawnUtility,
 } from '@venizia/dev-configs/testing';
 
-const REPO_ROOT = findRepositoryRoot(import.meta.dir);
+const REPO_ROOT = RepoTmp.findRoot({ start: import.meta.dir });
 const TEST_TMP = join(REPO_ROOT, REPO_TMP_DIRECTORY);
 
 const PACKAGES = join(REPO_ROOT, 'packages');
@@ -49,7 +49,7 @@ const systemTempLeaks = (): string[] =>
 
 /** Runs one test file with a bare `bun test` (no make) and the given TMPDIR; its exit code must be 0. */
 const runBare = (opts: { pkg: string; file: string; tmpdir: string }): void => {
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, 'test', '--max-concurrency=6', opts.file],
     cwd: join(PACKAGES, opts.pkg),
     env: { ...process.env, TMPDIR: opts.tmpdir },

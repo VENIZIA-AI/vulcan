@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { OutsideGuard } from '../../hooks/index.ts';
 import { fileToolEvent, toolEvent } from '../helpers/hook-event.helper.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -272,7 +272,7 @@ describe('the hook answers with a deny, whatever the project sets', () => {
     delete environment.VULCAN_GUARD_ASKS;
     delete environment.VULCAN_GUARD_OUTSIDE;
 
-    const result = spawnSyncBounded({
+    const result = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, HOOK],
       cwd: opts.root,
       env: { ...environment, ...opts.env },

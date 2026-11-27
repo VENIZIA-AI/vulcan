@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { CommandView, GitGuard, ProjectGuards, WriteGuard } from '../../hooks/index.ts';
 import type { IGitRunner, IProjectCommandCheck } from '../../hooks/index.ts';
 import { fileToolEvent } from '../helpers/hook-event.helper.ts';
@@ -501,7 +501,7 @@ describe('ProjectGuards.readPolicy', () => {
 });
 
 const hookRun = (opts: { hook: string; root: string; command: string }) => {
-  const child = spawnSyncBounded({
+  const child = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, opts.hook],
     env: { ...process.env, CLAUDE_PROJECT_DIR: opts.root, VULCAN_GUARDS: '' },
     // The wire names are snake_case: tuples keep them out of our own property names (V-C-14).
@@ -635,7 +635,7 @@ describe('a project with a config and no local manifest is a clone that did not 
   test('the guard-outside hook denies a write outside the project in such a clone, and `vulcan project sync` passes', () => {
     const root = createProject({ files: { [CONFIG]: 'export default {};\n' } });
     const input = fileToolEvent({ tool: 'Write', path: '/srv/vulcan-fixture/x.txt', cwd: root });
-    const run = spawnSyncBounded({
+    const run = SpawnUtility.spawnSyncBounded({
       cmd: [
         process.execPath,
         join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-outside.ts'),

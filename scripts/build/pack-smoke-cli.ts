@@ -23,7 +23,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { useRepoTmp } from '@venizia/dev-configs/testing';
+import { RepoTmp } from '@venizia/dev-configs/testing';
 import { SmokeEnv } from './smoke-env.ts';
 
 interface IStepResult {
@@ -510,9 +510,9 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
 };
 
 const tarballs: string[] = [];
-const sandbox = mkdtempSync(join(useRepoTmp(), 'vulcan-cli-smoke-'));
+const sandbox = mkdtempSync(join(RepoTmp.apply(), 'vulcan-cli-smoke-'));
 // The source lives beside the project, never inside it: the project's okf and git see none of it.
-const sourceSandbox = mkdtempSync(join(useRepoTmp(), 'vulcan-cli-smoke-source-'));
+const sourceSandbox = mkdtempSync(join(RepoTmp.apply(), 'vulcan-cli-smoke-source-'));
 let failure: string | undefined;
 
 try {

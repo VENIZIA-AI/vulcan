@@ -1,4 +1,4 @@
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 /**
  * `bun fmt --check` over the files matching `glob` under `root`, with the `bunfig.toml` found there:
@@ -9,7 +9,7 @@ export const checkFiles = (opts: {
   root: string;
   glob: string;
 }): { code: number; output: string } => {
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, 'fmt', '--no-script', '--check', opts.glob],
     cwd: opts.root,
   });

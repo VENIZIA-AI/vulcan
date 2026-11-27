@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { clearProjectConfig, useProjectConfig } from '../helpers/project.helper.ts';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 afterEach(clearProjectConfig);
 
 const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 
 const run = (opts: { args: string[] }) => {
-  const child = spawnSyncBounded({
+  const child = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, CLI, ...opts.args],
     // Explicit: a spawn does not see process.env changes made after startup (useProjectConfig).
     env: { ...process.env },

@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import {
   EventActor,
   EventActorNames,
@@ -982,5 +982,5 @@ describe('EventActor', () => {
 });
 
 test('git is available to the tests that need it', () => {
-  expect(spawnSyncBounded({ cmd: ['git', '--version'], cwd: '.' }).exitCode).toBe(0);
+  expect(SpawnUtility.spawnSyncBounded({ cmd: ['git', '--version'], cwd: '.' }).exitCode).toBe(0);
 });

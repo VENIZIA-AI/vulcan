@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { InteractiveRun } from '@/cli/interactive';
 import { MANIFEST_FILE } from '@/common/project-config';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const CLI = join(__dirname, '..', '..', 'cli', 'main.ts');
 
@@ -37,7 +37,7 @@ const makeProject = (): string => {
 };
 
 const run = (opts: { args: string[]; cwd: string }) => {
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, CLI, ...opts.args],
     cwd: opts.cwd,
     stdin: 'ignore',

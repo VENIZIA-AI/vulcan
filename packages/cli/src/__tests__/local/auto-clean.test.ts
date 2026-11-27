@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { EventLog } from '../../events/log.ts';
 import { LocalAutoClean } from '../../local/auto-clean.ts';
 import { AutoCleanRun } from '../../local/auto-clean-run.ts';
@@ -484,7 +484,7 @@ describe('the detached script and the session-start hook', () => {
     put({ root, path: 'tmp/old/a.txt', ago: 3 * DAY });
     put({ root, path: 'tmp/fresh/a.txt', ago: 5 * 60_000 });
 
-    const ok = spawnSyncBounded({
+    const ok = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, SCRIPT, root],
       stdout: 'pipe',
       stderr: 'pipe',
@@ -494,11 +494,14 @@ describe('the detached script and the session-start hook', () => {
     expect(has({ root, path: 'tmp/old' })).toBe(false);
     expect(has({ root, path: 'tmp/fresh/a.txt' })).toBe(true);
     expect(
-      spawnSyncBounded({ cmd: [process.execPath, SCRIPT], stdout: 'pipe', stderr: 'pipe' })
-        .exitCode,
+      SpawnUtility.spawnSyncBounded({
+        cmd: [process.execPath, SCRIPT],
+        stdout: 'pipe',
+        stderr: 'pipe',
+      }).exitCode,
     ).toBe(0);
     expect(
-      spawnSyncBounded({
+      SpawnUtility.spawnSyncBounded({
         cmd: [process.execPath, SCRIPT, join(root, 'nope')],
         stdout: 'pipe',
         stderr: 'pipe',
@@ -513,7 +516,7 @@ describe('the detached script and the session-start hook', () => {
 
     const start = (): { code: number; stderr: string; ms: number } => {
       const began = performance.now();
-      const child = spawnSyncBounded({
+      const child = SpawnUtility.spawnSyncBounded({
         cmd: [process.execPath, SESSION_START],
         env: { ...process.env, CLAUDE_PROJECT_DIR: root, VULCAN_AUTO_CLEAN: '' },
         stdout: 'pipe',
@@ -552,7 +555,7 @@ describe('the detached script and the session-start hook', () => {
 
     put({ root, path: 'tmp/old/a.txt', ago: 3 * DAY });
 
-    const child = spawnSyncBounded({
+    const child = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, SESSION_START],
       env: { ...process.env, CLAUDE_PROJECT_DIR: root },
       stdout: 'pipe',
