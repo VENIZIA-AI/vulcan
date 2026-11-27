@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { tmpdir } from 'node:os';
 import { CommandScopes } from '../../commands/scopes.ts';
 import { CommandTable } from '../../commands/table.ts';
-import { runCli } from '../run.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 /** Every old form and the argv of the handler that answers its replacement: one row per pair, so a change of a name is deliberate. */
 const PAIRS: { old: string; now: string; run: string[] }[] = [

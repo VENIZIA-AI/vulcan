@@ -19,7 +19,7 @@ The rules are the `V-C-*` rules in `packages/cli/base/rules.md`; this is how the
   `common/constants.ts`.
 - **Scopes** are folders with `common/{constants,types,index}.ts` and an `index.ts` barrel;
   cross-scope imports go through the barrel. A folder next to a same-named file
-  (`src/cli/` and `src/cli.ts`) is imported as `./cli/index`, never `./cli`.
+  (`src/x/` and `src/x.ts`) is imported as `./x/index`, never `./x`.
 - **No casts** (`V-C-10`): narrow with a type predicate over an options holder
   (`isRecord({ value })`), annotate a callback's return type, use `satisfies`.
 - **No silent catch** (`V-C-06`): a caught error goes to stderr with the function name in brackets.

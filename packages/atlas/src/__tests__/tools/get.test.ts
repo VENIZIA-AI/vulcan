@@ -7,8 +7,8 @@ import { ChunkStore } from '@/search/store';
 import { GetTool } from '@/tools/get.tool';
 import { join } from 'node:path';
 import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
-import { BrokenPage } from '../broken-page.helper';
-import { CapturedStderr } from '../stderr.helper';
+import { BrokenPage } from '../helpers/broken-page.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

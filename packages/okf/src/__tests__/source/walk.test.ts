@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { SourceScanner } from '../source/index.ts';
+import { SourceScanner } from '../../source/index.ts';
 
 const roots: string[] = [];
 

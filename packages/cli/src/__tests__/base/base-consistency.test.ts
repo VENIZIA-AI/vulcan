@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { BASE_DIRECTORY } from '../common/index.ts';
-import { SkillFrontmatter } from '../skills/index.ts';
+import { BASE_DIRECTORY } from '../../common/index.ts';
+import { SkillFrontmatter } from '../../skills/index.ts';
 
 const RULE_ID = /\bV-[A-Z]-\d\d\b/g;
 const TEXT_FILE = /\.(md|json|ts|mk)$/;

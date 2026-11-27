@@ -3,9 +3,9 @@ import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { CommandView, GitGuard, ProjectGuards, WriteGuard } from '../../hooks/index.ts';
 import type { IGitRunner, IProjectCommandCheck } from '../../hooks/index.ts';
-import { fileToolEvent } from '../hook-event.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { CapturedStderr } from '../stderr.helper.ts';
+import { fileToolEvent } from '../helpers/hook-event.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { CapturedStderr } from '../helpers/stderr.helper.ts';
 
 let stderr: CapturedStderr;
 

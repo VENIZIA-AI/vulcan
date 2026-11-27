@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { EventLog, FlowState, PromptContext } from '../../events/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { wire } from './wire.helper.ts';
 
 afterAll(removeProjects);

@@ -2,9 +2,9 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EventLog } from '../../events/log.ts';
-import { hermeticEnv } from '../hermetic.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { hermeticEnv } from '../helpers/hermetic.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 import { sampleLines } from './log-lines.helper.ts';
 
 afterAll(removeProjects);
@@ -247,7 +247,7 @@ describe('vulcan board serve', () => {
       const child = Bun.spawn(
         [
           process.execPath,
-          join(import.meta.dir, '..', '..', 'cli.ts'),
+          join(import.meta.dir, '..', '..', 'entry', 'cli.ts'),
           'board',
           'serve',
           '--no-github',

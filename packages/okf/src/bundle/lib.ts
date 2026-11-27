@@ -2,14 +2,14 @@
  * lib.ts - shared loader/parser for the OKF knowledge bundle.
  * Used by the generator, the checks and the coverage report.
  *
- * Repo-specific paths and denylists live in ./config.ts.
+ * Repo-specific paths and denylists live in ../common/config.ts.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, posix, relative } from 'node:path';
 
-import { PRUNE_DIRS, RESERVED_FILES } from './config.ts';
-import { OkfProject } from './project/index.ts';
-import { OkfFrontmatter } from './spec/frontmatter.ts';
+import { PRUNE_DIRS, RESERVED_FILES } from '../common/config.ts';
+import { OkfProject } from '../project/index.ts';
+import { OkfFrontmatter } from '../spec/frontmatter.ts';
 
 export type Concept = {
   id: string; // bundle-relative, leading slash, no extension - e.g. "/packages/core-server"

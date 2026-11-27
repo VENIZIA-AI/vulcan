@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { checkManifests } from '../format.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { checkManifests } from '../helpers/format.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
@@ -12,7 +12,7 @@ const FIXTURES = join(import.meta.dir, '..', 'fixtures');
 const WITH_LIB = `file:${join(FIXTURES, 'preset-with-lib')}`;
 const APP_ONLY = `file:${join(FIXTURES, 'preset-backend')}`;
 const ENV = { VULCAN_NO_INSTALL: '1' };
-const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
+const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 const hasScript = Bun.which('script') !== null;
 
 /** A monorepo made by init from the preset that also makes libraries, with a shared folder `libs`. */

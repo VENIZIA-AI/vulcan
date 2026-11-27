@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PublicSurface, SurfaceVerdicts, runSurfaceCommand } from '@/surface';
-import { clearAtlasProject, useAtlasProject } from '../project.helper';
+import { clearAtlasProject, useAtlasProject } from '../helpers/project.helper';
 
 const tmpDirs: string[] = [];
 

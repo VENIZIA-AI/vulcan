@@ -2,7 +2,7 @@ import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { GitArgument } from '@/common/git-argument';
 import { ProjectConfig } from '@/common/project-config';
 import { GitRepository } from '@/sources/git';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

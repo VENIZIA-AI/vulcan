@@ -1,7 +1,7 @@
 import { spyOn } from 'bun:test';
 import { SourceResolver } from '@/sources/resolver';
 import { SymbolCompute } from '@/symbols/compute';
-import type { CapturedStderr } from '../stderr.helper';
+import type { CapturedStderr } from '../helpers/stderr.helper';
 
 /**
  * The npm symbol fetches a test starts. A start from cache and a live refresh leave them running, so

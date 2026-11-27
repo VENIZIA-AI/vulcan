@@ -5,9 +5,9 @@ import { dirname, join } from 'node:path';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
-import { hermeticEnv } from '../hermetic.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { hermeticEnv } from '../helpers/hermetic.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

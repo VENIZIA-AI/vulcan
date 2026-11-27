@@ -11,10 +11,10 @@ import {
 import { join } from 'node:path';
 import { ConfigLoader, ProjectPackages } from '../../config/index.ts';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
-import { checkManifests } from '../format.helper.ts';
-import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
-import { createProject, packFolder, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { checkManifests } from '../helpers/format.helper.ts';
+import { copyWithFields, copyWithUrls } from '../helpers/preset.helper.ts';
+import { createProject, packFolder, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

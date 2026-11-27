@@ -5,8 +5,8 @@ import { ConfigCodemod } from '../../config/codemod.ts';
 import type { IFileChange, TCodemodResult } from '../../config/codemod.ts';
 import { ConfigFormat } from '../../config/format.ts';
 import { ConfigLoader } from '../../config/loader.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

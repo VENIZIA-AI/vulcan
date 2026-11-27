@@ -1,7 +1,7 @@
 import { BoardSources } from '../../common/index.ts';
 import type { IBoardData } from '../../common/index.ts';
 import type { IBoardViewEvent } from '../common/types.ts';
-import { BoardUrl } from '../url.ts';
+import { BoardUrl } from '../app/url.ts';
 import { BoardView } from './view.ts';
 
 export interface IOpenPr {

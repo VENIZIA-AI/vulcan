@@ -3,7 +3,7 @@ import { describe, expect, spyOn, test } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { AtlasSymbols, runSymbolsCommand } from '@/symbols/generator';
-import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../ignis-root.helper';
+import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../helpers/ignis-root.helper';
 
 describe('AtlasSymbols.sourcePathOf', () => {
   test('maps a dist/cjs declaration back to its source file', () => {

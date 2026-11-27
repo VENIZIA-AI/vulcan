@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { LayoutFolder } from '../../common/layout-folder.ts';
 import { ConfigLoader } from '../../config/index.ts';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

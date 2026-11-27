@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
 import { AtlasReleases } from '@/releases/generator';
-import { isFormatted } from '../format.helper';
+import { isFormatted } from '../helpers/format.helper';
 
 const ROOT = mkdtempSync(join(tmpdir(), 'atlas-order-'));
 

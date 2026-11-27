@@ -14,7 +14,7 @@
       "name": "@venizia/vulcan-atlas",
       "version": "0.5.0-10",
       "bin": {
-        "vulcan-atlas": "./dist/cjs/cli.js",
+        "vulcan-atlas": "./dist/cjs/cli/main.js",
       },
       "dependencies": {
         "typescript": "catalog:",
@@ -33,7 +33,7 @@
       "name": "@venizia/vulcan",
       "version": "0.5.0-10",
       "bin": {
-        "vulcan": "./src/cli.ts",
+        "vulcan": "./src/entry/cli.ts",
       },
       "dependencies": {
         "@clack/prompts": "catalog:",
@@ -54,7 +54,7 @@
       "name": "@venizia/vulcan-okf",
       "version": "0.5.0-10",
       "bin": {
-        "vulcan-okf": "./src/cli.ts",
+        "vulcan-okf": "./src/entry/cli.ts",
       },
       "devDependencies": {
         "@types/bun": "catalog:",

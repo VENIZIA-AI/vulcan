@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { copyFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../helpers/guard-manifest.helper.ts';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);

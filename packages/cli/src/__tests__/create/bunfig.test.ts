@@ -29,7 +29,7 @@ describe("the VULCAN repository's own bunfig.toml", () => {
     const root = join(import.meta.dir, '..', '..', '..', '..', '..');
 
     expect(readFileSync(join(root, 'bunfig.toml'), 'utf8')).toBe(
-      `${Bunfig.render()}\n[test]\npreload = ["@venizia/dev-configs/testing/tmpdir-preload", "./packages/cli/src/__tests__/guard-env.preload.ts"]\n`,
+      `${Bunfig.render()}\n[test]\npreload = ["@venizia/dev-configs/testing/tmpdir-preload", "./packages/cli/src/__tests__/helpers/guard-env.preload.ts"]\n`,
     );
   });
 });

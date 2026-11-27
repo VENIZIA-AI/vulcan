@@ -14,7 +14,7 @@ import { BoardTokens } from '../../board/tokens.ts';
 import { RecordValue } from '../../common/record.ts';
 import { EventLog, UsageMeter } from '../../events/index.ts';
 import type { IEvent } from '../../events/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { wire } from './wire.helper.ts';
 
 afterAll(removeProjects);

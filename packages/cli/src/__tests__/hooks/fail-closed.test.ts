@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
-import { toolEvent } from '../hook-event.helper.ts';
+import { toolEvent } from '../helpers/hook-event.helper.ts';
 
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const SHIPPED_SETTINGS = join(PACKAGE_ROOT, 'base', 'claude', 'settings.json');

@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { SymbolCompute } from '@/symbols';
-import { restoreVariable } from '../env.helper';
+import { restoreVariable } from '../helpers/env.helper';
 
 const roots: string[] = [];
 const previous = { registry: process.env.VULCAN_NPM_REGISTRY };

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { ChangelogCheck } from '../../check/changelogs.ts';
-import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
+import { clearProjectConfig, useProjectConfig } from '../helpers/project.helper.ts';
 
 afterEach(clearProjectConfig);
 

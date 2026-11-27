@@ -14,8 +14,8 @@ import { EventLog } from '../../events/log.ts';
 import { LocalAutoClean } from '../../local/auto-clean.ts';
 import { AutoCleanRun } from '../../local/auto-clean-run.ts';
 import { LocalScan } from '../../local/index.ts';
-import { git } from '../git-repo.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { git } from '../helpers/git-repo.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

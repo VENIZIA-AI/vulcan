@@ -8,8 +8,8 @@ import type { TConfigFormatResult } from '../../config/format.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
 import { WorkspaceDocs } from '../../create/workspace.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

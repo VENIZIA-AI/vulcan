@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { TypeScriptCompiler } from '@/common/compiler';
-import { clearAtlasProject, useAtlasProject } from '../project.helper';
+import { clearAtlasProject, useAtlasProject } from '../helpers/project.helper';
 
 const root = mkdtempSync(join(tmpdir(), 'atlas-compiler-'));
 

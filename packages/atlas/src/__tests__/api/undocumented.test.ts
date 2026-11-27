@@ -12,7 +12,7 @@ afterAll(() => {
   }
 });
 
-const CLI = join(__dirname, '..', '..', 'cli.ts');
+const CLI = join(__dirname, '..', '..', 'cli', 'main.ts');
 
 /** A project whose one package publishes its TypeScript source, with the files that package holds. */
 const sourceProject = (opts: { source: string; retired?: boolean }): string => {

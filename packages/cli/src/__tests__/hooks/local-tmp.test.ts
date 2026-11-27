@@ -14,10 +14,10 @@ import { ProjectContract } from '../../doctor/checks.ts';
 import { HookConstants, ProjectTmp } from '../../hooks/index.ts';
 import { CleanScopes, LocalScan } from '../../local/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
-import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
-import { GUARD_MANIFEST_FILE } from '../guard-manifest.helper.ts';
+import { isolateOwnerReplySwitch } from '../helpers/owner-reply-env.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
+import { GUARD_MANIFEST_FILE } from '../helpers/guard-manifest.helper.ts';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);

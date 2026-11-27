@@ -1,21 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { IBoardData } from '../common/index.ts';
-import { BoardLanguages, BoardTables } from './common/constants.ts';
-import type { TBoardLanguage } from './common/types.ts';
-import { AgentPane } from './components/agents.tsx';
-import { Detail } from './components/detail.tsx';
-import type { TDetail } from './components/detail.tsx';
-import { Header, THEMES } from './components/header.tsx';
-import type { TTheme } from './components/header.tsx';
-import { ItemPane, WORK_VIEWS } from './components/items.tsx';
-import type { TWorkView } from './components/items.tsx';
-import { Keys } from './components/keys.tsx';
+import type { IBoardData } from '../../common/index.ts';
+import { BoardLanguages, BoardTables } from '../common/constants.ts';
+import type { TBoardLanguage } from '../common/types.ts';
+import { AgentPane } from '../components/agents.tsx';
+import { Detail } from '../components/detail.tsx';
+import type { TDetail } from '../components/detail.tsx';
+import { Header, THEMES } from '../components/header.tsx';
+import type { TTheme } from '../components/header.tsx';
+import { ItemPane, WORK_VIEWS } from '../components/items.tsx';
+import type { TWorkView } from '../components/items.tsx';
+import { Keys } from '../components/keys.tsx';
 import { useLive, useNow, useStored } from './hooks.ts';
-import { UiContext } from './i18n/context.ts';
-import { BoardI18n } from './i18n/translate.ts';
-import { BoardCards } from './state/cards.ts';
-import { BoardView } from './state/view.ts';
-import { BoardWork } from './state/work.ts';
+import { UiContext } from '../i18n/context.ts';
+import { BoardI18n } from '../i18n/translate.ts';
+import { BoardCards } from '../state/cards.ts';
+import { BoardView } from '../state/view.ts';
+import { BoardWork } from '../state/work.ts';
 import { BoardStorage } from './storage.ts';
 
 /** What a snapshot of `vulcan board serve` replaces; the title, owner, key and logo stay as the page loaded them. */

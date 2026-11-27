@@ -2,16 +2,16 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CreateFlags } from '../create/common/index.ts';
-import { createProject, removeProjects } from './project.helper.ts';
-import { runCli } from './run.helper.ts';
+import { CreateFlags } from '../../create/common/index.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 
 const readVersion = (opts: { packageDirectory: string }): string =>
   JSON.parse(
     readFileSync(
-      join(import.meta.dir, '..', '..', '..', opts.packageDirectory, 'package.json'),
+      join(import.meta.dir, '..', '..', '..', '..', opts.packageDirectory, 'package.json'),
       'utf8',
     ),
   ).version;

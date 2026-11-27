@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { SourceLinkCheck, SourceRoots } from '../../wiki/index.ts';
 import type { IMissingSourceLink } from '../../wiki/index.ts';
-import { git } from '../git-repo.helper.ts';
+import { git } from '../helpers/git-repo.helper.ts';
 
 const roots: string[] = [];
 

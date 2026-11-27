@@ -11,7 +11,7 @@ import {
   NO_REGISTRY,
   TEMP_DIRECTORIES,
 } from './source-repo.helper';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

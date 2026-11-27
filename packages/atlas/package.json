@@ -18,7 +18,7 @@
     "directory": "packages/atlas"
   },
   "bin": {
-    "vulcan-atlas": "./dist/cjs/cli.js"
+    "vulcan-atlas": "./dist/cjs/cli/main.js"
   },
   "files": [
     "README.md",

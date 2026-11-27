@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
-import { driveTerminal, hasColour, KEYS } from '../terminal.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
+import { driveTerminal, hasColour, KEYS } from '../helpers/terminal.helper.ts';
 
 afterAll(removeProjects);
 

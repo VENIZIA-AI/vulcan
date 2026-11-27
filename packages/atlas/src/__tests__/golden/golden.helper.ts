@@ -1,8 +1,8 @@
 import type { TConstValue } from '@/common';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { IGNIS_ROOT } from '../ignis-root.helper';
-import { buildRepositoryServer } from '../server.helper';
+import { IGNIS_ROOT } from '../helpers/ignis-root.helper';
+import { buildRepositoryServer } from '../helpers/server.helper';
 
 /** The projects a golden question runs against. */
 export class GoldenProjects {

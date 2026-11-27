@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { AgentFiles } from '../../sync/agent-files.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

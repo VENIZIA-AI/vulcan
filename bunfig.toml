@@ -9,4 +9,4 @@ arrowParens = "always"
 flavor = "oxfmt"
 
 [test]
-preload = ["@venizia/dev-configs/testing/tmpdir-preload", "./packages/cli/src/__tests__/guard-env.preload.ts"]
+preload = ["@venizia/dev-configs/testing/tmpdir-preload", "./packages/cli/src/__tests__/helpers/guard-env.preload.ts"]

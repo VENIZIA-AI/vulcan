@@ -1,9 +1,9 @@
-import { COMMAND_LOADERS } from './commands/index.ts';
-import { CommandScopes } from './commands/scopes.ts';
-import { CommandTable } from './commands/table.ts';
-import type { IAcceptedArgs } from './commands/table.ts';
-import { ExitCodes, VulcanCommands } from './common/index.ts';
-import { PipedInputRefusal } from './ui/keyboard.ts';
+import { COMMAND_LOADERS } from '../commands/index.ts';
+import { CommandScopes } from '../commands/scopes.ts';
+import { CommandTable } from '../commands/table.ts';
+import type { IAcceptedArgs } from '../commands/table.ts';
+import { ExitCodes, VulcanCommands } from '../common/index.ts';
+import { PipedInputRefusal } from '../ui/keyboard.ts';
 
 const HELP_ALIASES = new Set(['--help', '-h']);
 const VERSION_ALIASES = new Set(['--version', '-v']);

@@ -1,12 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
-const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
+const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 const FILE = '.agents/local/profile.json';
 const CONFIG =
   "export default { project: { name: 'acme' }, agent: { rules: { 'V-W-01': 'on-user-word' } } };\n";

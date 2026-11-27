@@ -65,12 +65,12 @@ const collectStdout = async (opts: {
 };
 
 /**
- * Black-box, not in-process: spawns the real `bun src/cli.ts mcp` a client would run, so anything
+ * Black-box, not in-process: spawns the real `bun src/cli/main.ts mcp` a client would run, so anything
  * writing to stdout outside `Transport.run()` fails here, not at a client's stdio stream.
  */
 describe('stdout discipline - the mcp subprocess over real stdio', () => {
   test('writes nothing but JSON-RPC frames to stdout for initialize, tools/list and search', async () => {
-    const child = Bun.spawn(['bun', 'src/cli.ts', 'mcp', '--root', REPOSITORY_ROOT], {
+    const child = Bun.spawn(['bun', 'src/cli/main.ts', 'mcp', '--root', REPOSITORY_ROOT], {
       env: { ...process.env, VULCAN_MANIFEST: '', VULCAN_PROJECT_ROOT: '' },
       cwd: PACKAGE_ROOT,
       stdin: 'pipe',

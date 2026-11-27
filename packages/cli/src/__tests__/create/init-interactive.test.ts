@@ -1,14 +1,14 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createFakeCommand } from '../fake-command.helper.ts';
-import { createProject, packFolder, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createFakeCommand } from '../helpers/fake-command.helper.ts';
+import { createProject, packFolder, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
-const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
+const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 const BACKEND = join(import.meta.dir, '..', 'fixtures', 'preset-backend');
 const ANSWERS = ['my-product', 'services', 'core-api', 'libs'];
 const quote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;

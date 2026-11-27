@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
-const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
+const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 const OKF_INDEX = join(import.meta.dir, '..', '..', 'index.ts');
 
 const roots: string[] = [];

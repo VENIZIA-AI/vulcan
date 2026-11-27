@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ContentsFiles } from '../../generate/contents-files.ts';
-import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
+import { clearProjectConfig, useProjectConfig } from '../helpers/project.helper.ts';
 
 afterEach(clearProjectConfig);
 

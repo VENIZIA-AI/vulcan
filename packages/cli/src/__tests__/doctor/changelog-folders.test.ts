@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

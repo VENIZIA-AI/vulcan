@@ -5,11 +5,11 @@
  * Source-derived content is either a whole generated file (reference/*) or lives inside a managed
  * region delimited by `<!-- okf:generated:<id> start -->` and `<!-- okf:generated:<id> end -->`.
  * Everything else in the bundle is hand-authored and never touched. Project-specific
- * configuration lives in ./config.ts.
+ * configuration lives in ../common/config.ts.
  */
-import { check } from './check/index.ts';
-import { coverage } from './coverage-report/index.ts';
-import { gen } from './generate/index.ts';
+import { check } from '../check/index.ts';
+import { coverage } from '../coverage-report/index.ts';
+import { gen } from '../generate/index.ts';
 
 /** A project the user must fix (no config, a bad renderer module): its message, never a stack. */
 const isProjectError = (opts: { error: unknown }): opts is { error: Error } =>

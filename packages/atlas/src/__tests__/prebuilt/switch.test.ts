@@ -13,7 +13,7 @@ import { startFakeGithub } from './fake-github.helper';
 import type { IFakeGithub } from './fake-github.helper';
 import { makePrebuiltSource } from './pair.helper';
 
-const CLI = join(__dirname, '..', '..', 'cli.ts');
+const CLI = join(__dirname, '..', '..', 'cli', 'main.ts');
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {

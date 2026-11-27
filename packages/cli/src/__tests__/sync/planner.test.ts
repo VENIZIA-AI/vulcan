@@ -11,9 +11,9 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { DoctorRunner } from '../../doctor/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
-import { initRepo } from '../git-repo.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
+import { initRepo } from '../helpers/git-repo.helper.ts';
 
 afterAll(removeProjects);
 

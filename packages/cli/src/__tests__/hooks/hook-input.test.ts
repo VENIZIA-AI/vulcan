@@ -1,6 +1,6 @@
 import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { HookInput } from '../../hooks/index.ts';
-import { CapturedStderr } from '../stderr.helper.ts';
+import { CapturedStderr } from '../helpers/stderr.helper.ts';
 
 let stderr: CapturedStderr;
 

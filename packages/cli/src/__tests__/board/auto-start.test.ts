@@ -4,9 +4,9 @@ import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { LocalChoice } from '../../agents/local.ts';
 import { BoardAutoStart } from '../../board/auto-start.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
-import { CapturedStderr } from '../stderr.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
+import { CapturedStderr } from '../helpers/stderr.helper.ts';
 
 let stderr: CapturedStderr;
 

@@ -7,7 +7,7 @@ import { ChunkStore } from '@/search/store';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources';
 import { SymbolStore } from '@/symbols';
 import { ChangesTool, SearchTool } from '@/tools';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

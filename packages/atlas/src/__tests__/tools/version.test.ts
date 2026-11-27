@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

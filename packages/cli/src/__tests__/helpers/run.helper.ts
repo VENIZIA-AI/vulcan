@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
-const CLI = join(import.meta.dir, '..', 'cli.ts');
+const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 
 export interface ICliResult {
   code: number;

@@ -5,7 +5,7 @@ import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { EventLog, FlowState } from '../../events/index.ts';
 import { FlowGuard } from '../../hooks/flow-guard.ts';
 import { wire } from '../events/wire.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

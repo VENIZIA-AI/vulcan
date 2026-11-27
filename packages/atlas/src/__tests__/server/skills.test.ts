@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildRepositoryServer } from '../server.helper';
+import { buildRepositoryServer } from '../helpers/server.helper';
 import { SkillCatalog } from '@/skills';
 import { makeTempDirectory, TEMP_DIRECTORIES } from '../sources/source-repo.helper';
 

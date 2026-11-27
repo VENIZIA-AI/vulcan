@@ -2,8 +2,8 @@ import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:tes
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { AgentSignaturePolicies, CommitPolicy } from '../../commit/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { CapturedStderr } from '../stderr.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { CapturedStderr } from '../helpers/stderr.helper.ts';
 
 let stderr: CapturedStderr;
 

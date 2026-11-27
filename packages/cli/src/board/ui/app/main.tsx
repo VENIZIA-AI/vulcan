@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import type { IBoardData } from '../common/index.ts';
+import type { IBoardData } from '../../common/index.ts';
 import { App } from './app.tsx';
 
 const block = document.getElementById('board-data');

@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { LibPreset } from '../../create/lib-preset.ts';
 import { Preset } from '../../create/preset.ts';
 import type { ILocatedPreset } from '../../create/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

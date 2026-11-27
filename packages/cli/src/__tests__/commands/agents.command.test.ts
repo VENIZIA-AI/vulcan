@@ -1,14 +1,14 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, lstatSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { hermeticEnv } from '../hermetic.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { hermeticEnv } from '../helpers/hermetic.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
-const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
+const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 const PROJECT = {
   '.configs/vulcan.config.mts': "export default { agent: { rules: { 'V-W-01': 'read-only' } } };\n",
   'AGENTS.md': '# x\n',

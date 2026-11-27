@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { IBoardData } from '../common/index.ts';
+import type { IBoardData } from '../../common/index.ts';
 import { BoardStorage } from './storage.ts';
 
 /** A choice that survives a reload: `allowed` guards against a value some older page wrote. */

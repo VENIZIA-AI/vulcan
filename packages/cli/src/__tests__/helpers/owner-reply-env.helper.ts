@@ -1,5 +1,5 @@
 import { afterAll, beforeAll } from 'bun:test';
-import { OwnerReplySwitch } from '../owner/index.ts';
+import { OwnerReplySwitch } from '../../owner/index.ts';
 
 /** A test of the owner shape runs as if no launcher had set the switch, even inside a session that has it. */
 export const isolateOwnerReplySwitch = (): void => {

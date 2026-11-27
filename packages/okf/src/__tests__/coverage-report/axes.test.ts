@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { CoverageAxes } from '../../coverage-report/axes.ts';
 import { coverage } from '../../coverage-report/command.ts';
-import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
+import { clearProjectConfig, useProjectConfig } from '../helpers/project.helper.ts';
 
 afterEach(clearProjectConfig);
 

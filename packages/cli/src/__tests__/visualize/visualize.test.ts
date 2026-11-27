@@ -12,8 +12,8 @@ import { join } from 'node:path';
 import { Assets, HEAD_JS, PAGE_JS } from '../../visualize/assets.ts';
 import { ProjectTheme } from '../../visualize/theme.ts';
 import { SpecPage, VISUALIZE_SCHEMA, VisualizeLimits } from '../../visualize/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 import { fullSpec } from './spec.fixture.ts';
 import { renderSpec } from './render.helper.ts';
 

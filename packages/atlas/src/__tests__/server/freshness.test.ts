@@ -16,9 +16,9 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, spyOn, test, beforeEach } from 'bun:test';
-import { IGNIS_IS_PRESENT, IGNIS_ROOT } from '../ignis-root.helper';
-import { BrokenPage } from '../broken-page.helper';
-import { CapturedStderr } from '../stderr.helper';
+import { IGNIS_IS_PRESENT, IGNIS_ROOT } from '../helpers/ignis-root.helper';
+import { BrokenPage } from '../helpers/broken-page.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

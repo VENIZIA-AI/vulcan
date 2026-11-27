@@ -3,8 +3,8 @@ import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { ConflictMarkers } from '../../conflict-markers/index.ts';
-import { git, initRepo } from '../git-repo.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { git, initRepo } from '../helpers/git-repo.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

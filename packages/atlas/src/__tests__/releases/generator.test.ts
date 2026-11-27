@@ -3,7 +3,7 @@ import { ReleaseCompute } from '@/releases/compute';
 import { AtlasReleases, runReleasesCommand } from '@/releases/generator';
 import { ProjectConfig } from '@/common/project-config';
 import { IGNIS_PACKAGES } from '../fixtures/ignis-packages';
-import { ignisCommittedFileOf, IGNIS_HAS_HISTORY, IGNIS_ROOT } from '../ignis-root.helper';
+import { ignisCommittedFileOf, IGNIS_HAS_HISTORY, IGNIS_ROOT } from '../helpers/ignis-root.helper';
 
 const withFrontmatter = (opts: { frontmatter: string; body: string }): string =>
   `---\n${opts.frontmatter}\n---\n\n${opts.body}\n`;

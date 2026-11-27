@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { clearProjectConfig, useProjectConfig } from './project.helper.ts';
+import { clearProjectConfig, useProjectConfig } from '../helpers/project.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterEach(clearProjectConfig);
 
-const CLI = join(import.meta.dir, '..', 'cli.ts');
+const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 
 const run = (opts: { args: string[] }) => {
   const child = spawnSyncBounded({
@@ -53,7 +53,7 @@ describe('outside vulcan atlas', () => {
 
   test('a VULCAN_CONFIG that is not JSON stops with what to do, never a stack trace', () => {
     process.env.VULCAN_CONFIG = '';
-    process.env.VULCAN_PROJECT_ROOT = join(import.meta.dir, 'fixtures', 'sources');
+    process.env.VULCAN_PROJECT_ROOT = join(import.meta.dir, '..', 'fixtures', 'sources');
     const result = run({ args: ['check'] });
 
     expect(result.code).toBe(1);
@@ -66,7 +66,7 @@ describe('outside vulcan atlas', () => {
 
 describe('gen', () => {
   test('nothing configured: it says so and writes nothing', () => {
-    useProjectConfig({ root: join(import.meta.dir, 'fixtures', 'sources'), config: {} });
+    useProjectConfig({ root: join(import.meta.dir, '..', 'fixtures', 'sources'), config: {} });
     const result = run({ args: ['gen'] });
 
     expect(result.code).toBe(0);

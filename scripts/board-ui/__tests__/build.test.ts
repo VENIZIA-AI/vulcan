@@ -57,7 +57,7 @@ describe('BoardUiBuild.build', () => {
 
     expect(inputs).toContain('packages/cli/src/board/common/constants.ts');
     expect(inputs.some((file) => /\/preact@[\d.]+\//.test(file))).toBe(true);
-    expect(inputs.some((file) => file.endsWith('src/board/ui/app.tsx'))).toBe(true);
+    expect(inputs.some((file) => file.endsWith('src/board/ui/app/app.tsx'))).toBe(true);
   });
 
   test('on the Bun the project pins, the shipped page is the build of its source to the byte', async () => {

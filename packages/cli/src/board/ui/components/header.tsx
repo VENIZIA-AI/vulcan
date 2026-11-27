@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
-import { usePopover } from '../hooks.ts';
-import type { TLiveState } from '../hooks.ts';
+import { usePopover } from '../app/hooks.ts';
+import type { TLiveState } from '../app/hooks.ts';
 import { useT } from '../i18n/context.ts';
 import { BoardTime } from '../state/time.ts';
-import { BoardUrl } from '../url.ts';
+import { BoardUrl } from '../app/url.ts';
 import { ICONS, THEME_ICONS } from './icons.tsx';
 
 export type TTheme = 'light' | 'dark' | 'system';

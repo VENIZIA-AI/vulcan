@@ -2,10 +2,10 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
-import { git } from '../git-repo.helper.ts';
-import { hermeticEnv } from '../hermetic.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { git } from '../helpers/git-repo.helper.ts';
+import { hermeticEnv } from '../helpers/hermetic.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

@@ -2,7 +2,7 @@ import { AtlasConstants } from '@/common';
 import { Transport } from '@/protocol';
 import type { IToolHandler } from '@/protocol';
 import { describe, expect, spyOn, test, afterEach, beforeEach } from 'bun:test';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

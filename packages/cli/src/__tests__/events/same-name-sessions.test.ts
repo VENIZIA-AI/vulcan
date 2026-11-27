@@ -10,7 +10,7 @@ import {
 } from '../../events/index.ts';
 import type { IEvent, TGitActivity } from '../../events/index.ts';
 import { FlowGuard } from '../../hooks/flow-guard.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { wire } from './wire.helper.ts';
 
 afterAll(removeProjects);

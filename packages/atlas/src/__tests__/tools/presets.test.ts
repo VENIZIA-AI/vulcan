@@ -4,7 +4,7 @@ import type { IAtlasProject } from '@/common/project-config';
 import { Transport } from '@/protocol';
 import { PresetsTool } from '@/tools';
 import type { IOfficialPreset } from '@/tools/common';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

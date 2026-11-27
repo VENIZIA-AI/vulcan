@@ -153,11 +153,15 @@ export class SourceBoot {
       : DEFAULT_BUILD_TIMEOUT_MS;
   }
 
-  /** Where the atlas command line lives next to this module: `cli.ts` from source, `cli.js` from the build. */
+  /** Where the atlas command line lives next to this module: `cli/main.ts` from source, `cli/main.js` from the build. */
   static cliPath(): string {
     const base = join(__dirname, '..');
 
-    return [join(base, 'cli.ts'), join(base, 'cli.js')].find((path) => existsSync(path)) ?? '';
+    return (
+      [join(base, 'cli', 'main.ts'), join(base, 'cli', 'main.js')].find((path) =>
+        existsSync(path),
+      ) ?? ''
+    );
   }
 
   /**

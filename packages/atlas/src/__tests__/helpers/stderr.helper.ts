@@ -2,7 +2,7 @@ import { expect } from 'bun:test';
 import { format } from 'node:util';
 
 /**
- * The same class as `packages/cli/src/__tests__/stderr.helper.ts`, whose behaviour is tested beside that one.
+ * The same class as `packages/cli/src/__tests__/helpers/stderr.helper.ts`, whose behaviour is tested in the cli package.
  *
  * What one test writes to stderr: `console.error` (every atlas logger line) and, when asked,
  * `process.stderr.write` (a child's relayed output). A test claims each line it provokes; `restore`,

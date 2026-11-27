@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ConceptLoader, MarkdownText } from '../lib.ts';
+import { ConceptLoader, MarkdownText } from '../../bundle/lib.ts';
 
 describe('MarkdownText.extractLinks (OKF v0.2 §6.1)', () => {
   test('a bundle-absolute link, with or without an anchor', () => {

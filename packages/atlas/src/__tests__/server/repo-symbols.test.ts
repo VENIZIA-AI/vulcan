@@ -1,9 +1,9 @@
-import { buildRepositoryServer } from '../server.helper';
+import { buildRepositoryServer } from '../helpers/server.helper';
 import { afterAll, expect, spyOn, test, afterEach, beforeEach } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

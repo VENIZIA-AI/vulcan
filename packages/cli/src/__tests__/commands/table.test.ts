@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { COMMAND_LOADERS } from '../../commands/index.ts';
 import { CommandTable } from '../../commands/table.ts';
-import { runCli } from '../run.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 const FLAG_IN_TEXT = /--[a-z][a-z-]*/g;
 /** Words of a help block that look like flags and are not this command's: the help flag itself. */

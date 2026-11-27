@@ -18,7 +18,7 @@
     "directory": "packages/okf"
   },
   "bin": {
-    "vulcan-okf": "./src/cli.ts"
+    "vulcan-okf": "./src/entry/cli.ts"
   },
   "files": [
     "README.md",
