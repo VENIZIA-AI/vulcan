@@ -312,7 +312,17 @@ $ bun node_modules/.bin/vulcan atlas api
 usage: vulcan atlas api gen|check | undocumented [--package <dir, name or path>]...
 ```
 
-`api gen` writes `references/api/<entry>.md` under the wiki directory of the manifest (`knowledge.wiki`), one page for each `exports` entry (`@scope/name/subpath` becomes `scope-name-subpath.md`) and an `index.md` that counts the exports and the ones with TSDoc. An export is listed once, on the entry that declares it (the most specific entry of the package that owns its source file); an entry that only re-exports it names that entry in a short list at the end of its page. A page lists every export it declares by name with its kind, its TSDoc as prose, its declaration without that comment (members keep theirs) and the source file (no line number, so the check fails only when the API or its TSDoc changes); the exports with no TSDoc are named at the top. An export whose TSDoc says `@internal` is left out of the page and of its counts. A re-export of a third-party declaration shows its signature only. The pages are generated: link to them from a guide and never edit them. A page that no longer matches the declarations, or a generated page for an entry that was removed, is rewritten or deleted by the next `gen`. A file in the folder that `gen` did not write (it carries the generated note) is never touched.
+`api gen` writes `references/api/<entry>.md` under the wiki directory of the manifest (`knowledge.wiki`), one page for each `exports` entry (`@scope/name/subpath` becomes `scope-name-subpath.md`) and an `index.md` that counts the exports and the ones with TSDoc. An export is listed once, on the entry that declares it (the most specific entry of the package that owns its source file); an entry that only re-exports it names that entry in a short list at the end of its page. An entry whose page would pass 45,000 characters is split ([long entries](#long-entries)). A page lists every export it declares by name with its kind, its TSDoc as prose, its declaration without that comment (members keep theirs) and the source file (no line number, so the check fails only when the API or its TSDoc changes); the exports with no TSDoc are named at the top. An export whose TSDoc says `@internal` is left out of the page and of its counts. A re-export of a third-party declaration shows its signature only. The pages are generated: link to them from a guide and never edit them. A page that no longer matches the declarations, or a generated page for an entry that was removed, is rewritten or deleted by the next `gen`. A file in the folder that `gen` did not write (it carries the generated note) is never touched.
+
+### Long entries
+
+A bundler warns about a chunk over 500 kB, and a built API page is several times its markdown. So a long entry is split:
+
+- Its page keeps the same address and a heading for every export, so a link to an export still lands there.
+- Each heading links to the declaration on a part, `<entry>--part-<n>.md`, titled `@scope/name (n of m)`.
+- Link to the entry page from your own text: the address of a part can change when the API does.
+- An export too long for any page has a part of its own.
+- The next `gen` removes the parts an entry no longer needs.
 
 `api check` fails with exit code 1 and names the files when a page is missing, changed or no longer generated. A project with no `knowledge.wiki` gets an error, and `api` needs the same built `.d.ts` files as `symbols`.
 

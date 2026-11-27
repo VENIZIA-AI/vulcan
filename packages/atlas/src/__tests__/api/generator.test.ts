@@ -27,6 +27,115 @@ const record = (opts: Partial<ISymbolRecord> & { name: string }): ISymbolRecord 
   ...opts,
 });
 
+describe('ApiReference.filesOf with a long entry', () => {
+  const long = (name: string) =>
+    record({
+      name,
+      doc: 'Long.',
+      declaration: `export declare const ${name}: '${'x'.repeat(6000)}';`,
+    });
+  const names = [
+    ...Array.from({ length: 20 }, (_, at) => `value${String(at).padStart(2, '0')}`),
+    'with_mark',
+  ];
+  const files = ApiReference.filesOf({ records: names.map(long) });
+  const parts = [...files.keys()].filter((file) => file.startsWith('x-kit--part-')).sort();
+  const main = files.get('x-kit.md') ?? '';
+
+  test('the entry keeps its page and gets numbered parts, none over the limit', () => {
+    expect(parts).toEqual(['x-kit--part-1.md', 'x-kit--part-2.md', 'x-kit--part-3.md']);
+
+    for (const file of ['x-kit.md', ...parts]) {
+      expect((files.get(file) ?? '').length).toBeLessThanOrEqual(ApiReference.MAX_PAGE_CHARS);
+    }
+  });
+
+  test('every export is declared once, in a part, and keeps a heading on the entry page that links there', () => {
+    for (const name of names) {
+      const holders = parts.filter((file) => (files.get(file) ?? '').includes(`const ${name}:`));
+
+      expect(holders).toHaveLength(1);
+      expect(main).toContain(`## \`${name}\``);
+    }
+
+    expect(main).not.toContain('xxxxxxxxxx');
+    expect(main).toContain('[Declaration](/references/api/x-kit--part-1#value00)');
+    // A name the site's anchor would spell another way is linked to the page alone.
+    expect(main).toContain('[Declaration](/references/api/x-kit--part-3)');
+  });
+
+  test('a part names its entry, its number and the way back', () => {
+    const part = files.get('x-kit--part-2.md') ?? '';
+
+    expect(part).toContain('title: "@x/kit (2 of 3)"');
+    expect(part).toContain('[`@x/kit`](/references/api/x-kit)');
+    expect(ApiReference.isGenerated({ text: part })).toBe(true);
+  });
+
+  test('names that differ only in case, on one part, link to the anchor the site numbers', () => {
+    const split = ApiReference.filesOf({
+      records: [
+        ...['applicationEnvironment', 'ApplicationEnvironment', 'APPLICATIONENVIRONMENT'].map(long),
+        ...Array.from({ length: 8 }, (_, at) => long(`value0${at}`)),
+      ],
+    });
+    const page = split.get('x-kit.md') ?? '';
+    // The order of the sections of the part is the order the site numbers its anchors in.
+    const order = [...(split.get('x-kit--part-1.md') ?? '').matchAll(/^## `(\w+)`/gm)]
+      .map((found) => found[1] ?? '')
+      .filter((name) => name.toLowerCase() === 'applicationenvironment');
+
+    expect(order).toHaveLength(3);
+    order.forEach((name, at) => {
+      const suffix = at === 0 ? '' : `-${at}`;
+
+      expect(page).toContain(
+        `## \`${name}\`\n\n*function* - [Declaration](/references/api/x-kit--part-1#applicationenvironment${suffix})`,
+      );
+    });
+  });
+
+  test('a name outside ASCII is listed and linked to its part', () => {
+    const split = ApiReference.filesOf({
+      records: [...Array.from({ length: 12 }, (_, at) => long(`value${at}`)), long('đếm')],
+    });
+    const page = split.get('x-kit.md') ?? '';
+    const link =
+      /## `đếm`\n\n\*function\* - \[Declaration\]\(\/references\/api\/(x-kit--part-\d)\)/.exec(
+        page,
+      )?.[1];
+
+    expect(split.get(`${link}.md`)).toContain('const đếm:');
+  });
+
+  test('a subpath named like a part gets files of its own', () => {
+    const split = ApiReference.filesOf({
+      records: [
+        ...names.map(long),
+        record({ name: 'other', specifier: '@x/kit/part-1', subpath: './part-1' }),
+      ],
+    });
+
+    expect(split.get('x-kit-part-1.md')).toContain('# `@x/kit/part-1`');
+    expect(split.get('x-kit--part-1.md')).toContain('# `@x/kit (1 of 3)`');
+  });
+
+  test('one export over the limit has a part of its own', () => {
+    const huge = record({
+      name: 'huge',
+      declaration: `export declare const huge: '${'y'.repeat(ApiReference.MAX_PAGE_CHARS)}';`,
+    });
+    const split = ApiReference.filesOf({ records: [huge, long('small')] });
+
+    expect([...split.keys()].sort()).toEqual([
+      'index.md',
+      'x-kit--part-1.md',
+      'x-kit--part-2.md',
+      'x-kit.md',
+    ]);
+  });
+});
+
 describe('ApiReference.filesOf', () => {
   const records = [
     record({
@@ -353,6 +462,23 @@ describe('ApiReference.staleOf', () => {
     writeFileSync(join(dir, 'gone.md'), old);
 
     expect(ApiReference.staleOf({ expected: new Map(), directory: dir })).toEqual(['gone.md']);
+  });
+
+  test('the parts an entry no longer needs are named, which is what gen removes', () => {
+    const dir = directory();
+    const declaration = `export declare const big: '${'z'.repeat(ApiReference.MAX_PAGE_CHARS)}';`;
+    const long = ApiReference.filesOf({ records: [record({ name: 'big', declaration })] });
+
+    for (const [name, text] of long) {
+      writeFileSync(join(dir, name), text);
+    }
+
+    const short = ApiReference.filesOf({ records: [record({ name: 'big' })] });
+
+    expect(ApiReference.staleOf({ expected: short, directory: dir })).toEqual([
+      'x-kit--part-1.md',
+      'x-kit.md',
+    ]);
   });
 
   test('a directory that does not exist yet is all missing', () => {
