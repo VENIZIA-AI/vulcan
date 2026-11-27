@@ -1,9 +1,16 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { ProjectConfig } from '@/common/project-config';
 import type { IAtlasProject } from '@/common/project-config';
 import { Transport } from '@/protocol';
 import { PresetsTool } from '@/tools';
 import type { IOfficialPreset } from '@/tools/common';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 const MANIFEST = {
   schemaVersion: 1,
@@ -65,6 +72,11 @@ const ask = async (opts: {
 
   return reply.error === undefined ? JSON.parse(reply.result.content[0].text) : reply.error;
 };
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('the manifest carries what presets needs', () => {
   test('layout, presets and the kind of a package are read', () => {
@@ -587,6 +599,13 @@ describe('presets (nothing fits)', () => {
     const answer = await ask({ args: { name: 'Api 3' } });
 
     expect(answer.message).toContain('name');
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: presets |',
+        'name: Invalid string: must match pattern',
+      ],
+    });
   });
 });
 

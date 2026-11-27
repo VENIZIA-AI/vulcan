@@ -15,8 +15,15 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, spyOn, test } from 'bun:test';
+import { afterEach, describe, expect, spyOn, test, beforeEach } from 'bun:test';
 import { IGNIS_IS_PRESENT, IGNIS_ROOT } from '../ignis-root.helper';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 // __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
 // __tests__, and this package's module mode treats every file as CommonJS output.
@@ -51,6 +58,22 @@ afterEach(() => {
   tempDirectories.length = 0;
 });
 
+/** Loading the fixture corpus skips its one broken page, and says why. */
+const skippedBrokenPage = (times = 1): void => {
+  stderr.claim({
+    parts: [
+      '[CorpusLoader-load] skipped document | corpus: wiki | path: broken.md',
+      'invalid YAML frontmatter',
+    ],
+    times,
+  });
+};
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('FreshnessGuard', () => {
   test('rebuilds the store when a fixture file changes between two calls', () => {
     const roots = makeWikiRoot();
@@ -72,6 +95,8 @@ describe('FreshnessGuard', () => {
     const after = guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 });
 
     expect(after.hits.length).toBeGreaterThan(0);
+
+    skippedBrokenPage(2);
   });
 
   test('a same-count swap that preserves mtime is still seen, via the byte-size change', () => {
@@ -93,6 +118,8 @@ describe('FreshnessGuard', () => {
     const after = guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 });
 
     expect(after.hits.length).toBeGreaterThan(0);
+
+    skippedBrokenPage(2);
   });
 
   test('an unchanged corpus rebuilds nothing', () => {
@@ -110,6 +137,8 @@ describe('FreshnessGuard', () => {
     } finally {
       loadSpy.mockRestore();
     }
+
+    skippedBrokenPage();
   });
 
   test.skipIf(!IGNIS_IS_PRESENT)(
@@ -159,6 +188,8 @@ describe('FreshnessGuard', () => {
     } finally {
       loadSpy.mockRestore();
     }
+
+    skippedBrokenPage(2);
   });
 
   test('a declared root that does not exist yet starts empty, and is read once it appears', () => {
@@ -181,5 +212,7 @@ describe('FreshnessGuard', () => {
     expect(
       guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 }).hits.length,
     ).toBeGreaterThan(0);
+
+    skippedBrokenPage(2);
   });
 });

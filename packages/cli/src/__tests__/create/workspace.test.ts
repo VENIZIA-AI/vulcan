@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import {
   AppsBlock,
   WorkspaceManifest,
@@ -13,6 +13,13 @@ import { checkManifests } from '../format.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { AppsBlockProblems } from '../../create/common/index.ts';
 import type { IAppsBlock, IPreset } from '../../create/index.ts';
+import { CapturedStderr } from '../stderr.helper.ts';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 const PRESET: IPreset = {
   presetVersion: 1,
@@ -40,6 +47,11 @@ const BLOCK: IAppsBlock = {
 const projectModule = (opts: { project: string; key: string; block: IAppsBlock }): string =>
   WorkspaceDocs.renderSplitConfig(opts).find((file) => file.path === '.configs/vulcan/project.mts')
     ?.content ?? '';
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('workspace planners', () => {
   test('root manifest: private, workspaces, catalog, vulcan pinned exactly', () => {
@@ -230,6 +242,10 @@ describe('workspace planners', () => {
     const edited = AppsBlock.render({ block: BLOCK }).replace('"layout"', 'layout');
 
     expect(AppsBlock.parse({ source: edited })).toEqual({ ok: false, reason: 'invalid' });
+
+    stderr.claim({
+      parts: ['[AppsBlock.parse] the vulcan:apps block is not JSON | JSON Parse error'],
+    });
   });
 
   test('AppsBlock.addBullet inserts one bullet after the last bullet under Apps and leaves the rest', () => {

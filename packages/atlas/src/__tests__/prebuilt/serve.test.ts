@@ -17,6 +17,14 @@ import { startFakeGithub } from './fake-github.helper';
 import type { IFakeGithub } from './fake-github.helper';
 import { makePrebuiltSource, resigned, rowsOf } from './pair.helper';
 import type { IFixturePair } from './pair.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from '../sources/symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 const SOURCE = { name: 'src', repo: 'acme/src', ref: 'develop' };
 
@@ -85,6 +93,21 @@ const newCache = (): string => makeTempDirectory({ prefix: 'atlas-cache-' });
 const stderrLines = (opts: { spy: ReturnType<typeof spyOn> }): string[] =>
   opts.spy.mock.calls.map((call: unknown[]) => String(call[0]));
 
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('a source with keys is served from its prebuilt index (C10, C17)', () => {
   test('the index is the downloaded one, and the declared paths are not checked out', async () => {
     const source = makePrebuiltSource();
@@ -106,6 +129,8 @@ describe('a source with keys is served from its prebuilt index (C10, C17)', () =
     expect(JSON.parse(readFileSync(resolved.releasesFile ?? '', 'utf8'))).toEqual(
       source.pair.payload.releases,
     );
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('the second start comes from the cache and still says its index was prebuilt', async () => {
@@ -123,6 +148,8 @@ describe('a source with keys is served from its prebuilt index (C10, C17)', () =
     expect(again.mode).toBe('cache');
     expect(again.prebuiltBy).toBe('9.9.9');
     expect(fake.requests.length).toBe(requests);
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 
   test('the start notice names the prebuilt index', async () => {
@@ -142,6 +169,8 @@ describe('a source with keys is served from its prebuilt index (C10, C17)', () =
     const initialized = JSON.parse(result2 ?? 'null');
 
     expect(initialized.result.instructions).toContain('index: prebuilt, built by atlas 9.9.9');
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('the set on disk is a local set with one marker more (C17)', async () => {
@@ -164,6 +193,8 @@ describe('a source with keys is served from its prebuilt index (C10, C17)', () =
         readFileSync(join(dirname(built.indexFile ?? ''), name), 'utf8'),
       );
     }
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 });
 
@@ -223,6 +254,8 @@ describe("the answers equal a local build's (C11)", () => {
 
       expect(downloadedAnswer).toBe(builtAnswer);
     }
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 });
 
@@ -245,6 +278,8 @@ describe('when the tags moved since the pair was built (C18)', () => {
     ]);
     expect(existsSync(join(resolved.root, 'docs/changelogs'))).toBe(true);
     expect(existsSync(join(resolved.root, 'packages'))).toBe(false);
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.0.1' });
   });
 });
 
@@ -269,6 +304,8 @@ describe('a pair built from part of the history does not supply the release tabl
 
     expect(resolved.prebuiltBy).toBe('9.9.9');
     expect(existsSync(join(resolved.root, 'docs/changelogs'))).toBe(true);
+
+    await fetches.claimUnfetched({ stderr });
   });
 });
 
@@ -307,6 +344,8 @@ describe('every failure ends in a local build, with one line saying why (C12, C1
     const builtRows = await builtHere({});
 
     expect(rowsOf({ bytes: readFileSync(resolved.indexFile ?? '') })).toEqual(builtRows);
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('a storage host that is down', async () => {
@@ -331,6 +370,8 @@ describe('every failure ends in a local build, with one line saying why (C12, C1
     const builtRows = await builtHere({});
 
     expect(rowsOf({ bytes: readFileSync(resolved.indexFile ?? '') })).toEqual(builtRows);
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('a commit with no pair on the release', async () => {
@@ -354,6 +395,8 @@ describe('when nothing may be downloaded (C15, C19)', () => {
     answerFrom({ bare: source.bare });
     await resolve({ cacheDir: newCache() });
     expect(fake.requests).toEqual([]);
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('prebuilt off makes no request, though the manifest lists keys and a pair exists', async () => {
@@ -366,6 +409,8 @@ describe('when nothing may be downloaded (C15, C19)', () => {
 
     expect(fake.requests).toEqual([]);
     expect(resolved.prebuiltBy).toBeUndefined();
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('a forced pull downloads again; the cache does not stop it, and prebuilt is not skipped', async () => {
@@ -383,5 +428,7 @@ describe('when nothing may be downloaded (C15, C19)', () => {
     expect(fake.requests.length).toBeGreaterThan(before);
     expect(forced.mode).toBe('fresh');
     expect(forced.prebuiltBy).toBe('9.9.9');
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 });

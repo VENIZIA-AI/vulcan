@@ -8,6 +8,14 @@ import {
   NO_REGISTRY,
   TEMP_DIRECTORIES,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from './symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -32,6 +40,21 @@ const REF_LOOKUP_BOUND_MS = 15_000;
 /** A host that accepts a connection and never answers - the hang no remote call may wait out. */
 const listenSilently = () =>
   Bun.listen({ hostname: '127.0.0.1', port: 0, socket: { data: () => undefined } });
+
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 test(
   'a remote that never answers falls back to the newest cache within the ref lookup bound',
@@ -68,6 +91,14 @@ test(
     } finally {
       silent.stop(true);
     }
+
+    await fetches.claimUnfetched({ stderr });
+    stderr.claim({
+      parts: [
+        '[GitRepository.lsRemote] the remote could not be asked',
+        'git ls-remote exited on a timeout',
+      ],
+    });
   },
   { timeout: 40_000 },
 );

@@ -1,7 +1,19 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { GitArgument } from '@/common/git-argument';
 import { ProjectConfig } from '@/common/project-config';
 import { GitRepository } from '@/sources/git';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('GitArgument.isOptionLike', () => {
   test('a value that starts with a dash, after any space, is read by git as an option', () => {
@@ -34,6 +46,19 @@ describe('a repository that git would read as an option', () => {
     expect(() =>
       GitRepository.updateClone({ url: '--version', gitDir: '.agents/tmp/none' }),
     ).toThrow("the repository must not start with '-'");
+
+    stderr.claim({
+      parts: [
+        '[GitRepository.lsRemote] the remote could not be asked',
+        "the repository must not start with '-'",
+      ],
+    });
+    stderr.claim({
+      parts: [
+        '[GitRepository.lsRemote] the remote could not be asked',
+        "the ref must not start with '-'",
+      ],
+    });
   });
 });
 

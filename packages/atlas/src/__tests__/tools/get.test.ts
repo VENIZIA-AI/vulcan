@@ -6,7 +6,14 @@ import { Authorities } from '@/search/common';
 import { ChunkStore } from '@/search/store';
 import { GetTool } from '@/tools/get.tool';
 import { join } from 'node:path';
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 // __dirname, not import.meta: this package emits CommonJS.
 const FIXTURES_ROOT = join(__dirname, '../fixtures/corpus');
@@ -16,21 +23,35 @@ const FIXTURES_ROOT = join(__dirname, '../fixtures/corpus');
 const KNOWN_ID = 'changelog:2026-01-01-thing#a-sample-change';
 const LONG_ID = 'wiki:guide.md#registering-artifacts';
 
+/** The fixture corpus holds one broken page: every build skips it, and says why. */
 const buildFixtureStore = (): ChunkStore => {
-  const documents = CorpusLoader.getInstance().load({
-    roots: [
-      { corpus: Corpora.WIKI, directory: join(FIXTURES_ROOT, 'wiki'), exclude: ['excluded'] },
-      { corpus: Corpora.CHANGELOG, directory: join(FIXTURES_ROOT, 'changelogs') },
-      { corpus: Corpora.KNOWLEDGE, directory: join(FIXTURES_ROOT, 'knowledge') },
-    ],
-  });
+  const skipped = CapturedStderr.start();
 
-  const chunker = Chunker.getInstance();
-  const store = new ChunkStore();
+  try {
+    const documents = CorpusLoader.getInstance().load({
+      roots: [
+        { corpus: Corpora.WIKI, directory: join(FIXTURES_ROOT, 'wiki'), exclude: ['excluded'] },
+        { corpus: Corpora.CHANGELOG, directory: join(FIXTURES_ROOT, 'changelogs') },
+        { corpus: Corpora.KNOWLEDGE, directory: join(FIXTURES_ROOT, 'knowledge') },
+      ],
+    });
 
-  store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
+    const chunker = Chunker.getInstance();
+    const store = new ChunkStore();
 
-  return store;
+    store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
+
+    skipped.claim({
+      parts: [
+        '[CorpusLoader-load] skipped document | corpus: wiki | path: broken.md',
+        'invalid YAML frontmatter',
+      ],
+    });
+
+    return store;
+  } finally {
+    skipped.restore();
+  }
 };
 
 const callGet = async (opts: {
@@ -56,6 +77,11 @@ const callGet = async (opts: {
 
   return JSON.parse(reply ?? 'null');
 };
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('get tool', () => {
   const store = buildFixtureStore();
@@ -94,6 +120,13 @@ describe('get tool', () => {
     const reply = await callGet({ store, args: { id: 'wiki:missing#nope' } });
 
     expect(reply.error).toEqual({ code: -32602, message: 'unknown id; ids come from search' });
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: get |',
+        'unknown id; ids come from search',
+      ],
+    });
   });
 });
 
@@ -148,12 +181,26 @@ describe('get tool: a document id with no anchor reads the whole document (I4)',
     const reply = await callGet({ store, args: { id: 'wiki:no-such-document.md' } });
 
     expect(reply.error).toEqual({ code: -32602, message: 'unknown id; ids come from search' });
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: get |',
+        'unknown id; ids come from search',
+      ],
+    });
   });
 
   test('an id with an unknown corpus prefix is -32602 pointing back at search', async () => {
     const reply = await callGet({ store, args: { id: 'bogus:guide.md' } });
 
     expect(reply.error).toEqual({ code: -32602, message: 'unknown id; ids come from search' });
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: get |',
+        'unknown id; ids come from search',
+      ],
+    });
   });
 });
 
@@ -220,6 +267,10 @@ describe('get tool: code-point paging and cursor validation', () => {
     });
 
     expect(reply.error).toEqual({ code: -32602, message: 'invalid cursor' });
+
+    stderr.claim({
+      parts: ['[Transport-callTool] Tool call failed | tool: get |', 'invalid cursor'],
+    });
   });
 
   test('a cursor pointing past the end of the body is -32602 invalid cursor', async () => {
@@ -233,5 +284,9 @@ describe('get tool: code-point paging and cursor validation', () => {
     });
 
     expect(reply.error).toEqual({ code: -32602, message: 'invalid cursor' });
+
+    stderr.claim({
+      parts: ['[Transport-callTool] Tool call failed | tool: get |', 'invalid cursor'],
+    });
   });
 });

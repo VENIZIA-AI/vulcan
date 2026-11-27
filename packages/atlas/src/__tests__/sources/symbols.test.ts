@@ -10,6 +10,13 @@ import {
   NO_REGISTRY,
   TEMP_DIRECTORIES,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -88,6 +95,11 @@ const symbolOf = async (opts: {
   return reply;
 };
 
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 test("a source's package nobody installed answers from the npm tarball of its newest release", async () => {
   const source = makeSourceRepository();
   const registry = serveKernel();
@@ -126,6 +138,20 @@ test('a package npm does not have (a private one) leaves the pull whole and says
   } finally {
     await registry.stop(true);
   }
+
+  stderr.claim({
+    parts: [
+      '[fetchPublishedSymbols] no symbols for @x/kernel@1.0.0 yet',
+      '| source: src |',
+      'atlas: no npm tarball for @x/kernel@1.0.0 (404)',
+    ],
+  });
+  stderr.claim({
+    parts: [
+      '[Transport-callTool] Tool call failed | tool: symbol |',
+      'src: none of its packages is installed here or on npm',
+    ],
+  });
 });
 
 test('npm down at the pull: the failure is logged, and the next start fetches the symbols again', async () => {
@@ -184,6 +210,13 @@ test('a registry that stalls never holds up a start from cache', async () => {
     expect(resolved.symbolsPending).toBeDefined();
 
     await stalled.stop(true);
+    // The dropped connection ends the background fetch, which says so; the network error depends on timing.
+    await resolved.symbolsPending;
+
+    const lines = errorSpy.mock.calls.map((call) => call.join(' '));
+
+    expect(lines).toHaveLength(2);
+    expect(lines[1]).toContain('no symbols for @x/kernel@1.0.0');
   } finally {
     errorSpy.mockRestore();
   }

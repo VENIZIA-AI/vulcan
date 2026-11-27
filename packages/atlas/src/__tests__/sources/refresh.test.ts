@@ -13,6 +13,14 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from './symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -74,6 +82,21 @@ const newestOf = async (opts: { transport: ReturnType<typeof SourcesServer.build
   return answer.snapshot['@x/kernel'];
 };
 
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('a remote source keeps up with its ref while the server runs', () => {
   test('a release tag pushed after the start shows up after the interval, with no restart', async () => {
     const source = makeSourceRepository();
@@ -100,6 +123,9 @@ describe('a remote source keeps up with its ref while the server runs', () => {
 
     const result2 = await eventually({ read: () => newestOf({ transport }), expected: '1.1.0' });
     expect(result2).toBe('1.1.0');
+
+    await fetches.claimUnfetched({ stderr, some: true });
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0', some: true });
   });
 
   test('a new commit on the ref swaps the corpus: a search finds the new page', async () => {
@@ -135,6 +161,8 @@ describe('a remote source keeps up with its ref while the server runs', () => {
 
     const result2 = await eventually({ read: total, expected: 1 });
     expect(result2).toBe(1);
+
+    await fetches.claimUnfetched({ stderr, some: true });
   });
 
   test('inside the interval nothing is looked up again', async () => {
@@ -164,6 +192,8 @@ describe('a remote source keeps up with its ref while the server runs', () => {
     await Bun.sleep(30);
 
     expect(lookups).toBe(0);
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('a source that cannot be reached keeps serving what it has', async () => {
@@ -190,6 +220,10 @@ describe('a remote source keeps up with its ref while the server runs', () => {
 
     const result = await newestOf({ transport });
     expect(result).toBe('1.0.0');
+
+    await Bun.sleep(0);
+    await fetches.claimUnfetched({ stderr });
+    stderr.claimSome({ parts: ['[Refresher] kept what it served | error: the remote is down'] });
   });
 });
 
@@ -287,6 +321,8 @@ describe('Refresher', () => {
     await Bun.sleep(0);
 
     expect(ran).toBe(true);
+
+    stderr.claim({ parts: ['[Refresher] kept what it served | error: boom'] });
   });
 });
 

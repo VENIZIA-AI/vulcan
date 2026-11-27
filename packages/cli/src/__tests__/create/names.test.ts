@@ -1,9 +1,16 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { closeSync, mkdtempSync, openSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectNames } from '../../create/names.ts';
 import type { INameField, TAsk } from '../../create/index.ts';
+import { CapturedStderr } from '../stderr.helper.ts';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start({ processWrites: true });
+});
 
 const FIELDS: INameField[] = [
   { key: 'project', flag: '--project', question: 'Project name (the monorepo folder)' },
@@ -21,6 +28,11 @@ const scripted = (answers: (string | null)[]): TAsk => {
 
   return () => queue.shift() ?? null;
 };
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('ProjectNames.resolve', () => {
   test('flags fill every name without asking', async () => {
@@ -75,6 +87,9 @@ describe('ProjectNames.resolve', () => {
       ok: true,
       names: { project: 'my-product', backend: 'services', shared: '' },
     });
+
+    stderr.claim({ parts: ["'My Product' is not a name: lowercase letters, digits and '-'"] });
+    stderr.claim({ parts: ["'' is not a name: lowercase letters, digits and '-'"] });
   });
 
   test('an invalid flag value is an error', async () => {

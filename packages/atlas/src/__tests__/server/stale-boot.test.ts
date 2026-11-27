@@ -22,6 +22,14 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from '../sources/source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from '../sources/symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -91,6 +99,21 @@ const world = () => {
     source: { name: 'src', repo: repository.url, ref: 'develop' } as IAtlasSource,
   };
 };
+
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('a source served from its last good index while the remote is checked again', () => {
   test('is ready at once for the calls that wait, is not "indexing", and the fresh index replaces it', async () => {
@@ -180,6 +203,12 @@ describe('a source served from its last good index while the remote is checked a
       'a could not be refreshed (the remote is down) and stays at abcdef1',
     );
     expect(notice?.message).not.toContain('covers only');
+
+    stderr.claim({
+      parts: [
+        '[SourceBoot] source not refreshed, the last good index is served | source: a | reason: the remote is down',
+      ],
+    });
   });
 
   test('a hand-over that throws is a normal build: the source is not left unsettled and the queue goes on', async () => {
@@ -212,6 +241,12 @@ describe('a source served from its last good index while the remote is checked a
     expect(ready).toEqual(['a', 'b']);
     expect(boot.unavailable()).toEqual([]);
     expect(boot.progress().map((entry) => entry.state)).toEqual(['ready', 'ready']);
+
+    stderr.claim({
+      parts: [
+        '[SourceBoot] the last good index could not be opened, the source is built again | source: a | error: the index is corrupted',
+      ],
+    });
   });
 
   test('without a last good index a failure is unserved, as before', async () => {
@@ -227,6 +262,8 @@ describe('a source served from its last good index while the remote is checked a
     await boot.settled;
     expect(boot.unavailable().map((entry) => entry.source.name)).toEqual(['a']);
     expect(boot.progress()[0]?.state).toBe('failed');
+
+    stderr.claim({ parts: ['[SourceBoot] source not served | source: a | reason: nothing there'] });
   });
 
   test('the record is pruned to the declared sources when the boot starts', () => {
@@ -271,6 +308,8 @@ describe('the notice says how far each source has got', () => {
     expect(notice?.message).toContain('2 of 4 sources are ready');
     held.release({ name: 'c' } as IResolvedSource);
     await boot.fresh;
+
+    stderr.claim({ parts: ['[SourceBoot] source not served | source: b | reason: gone'] });
   });
 
   test('seconds so far against the usual time, and when to ask again', async () => {
@@ -358,6 +397,13 @@ describe('the record beside the cache', () => {
     expect(readdirSync(join(cacheDir, 'atlas')).filter((name) => name.endsWith('.tmp'))).toEqual(
       [],
     );
+
+    stderr.claim({
+      parts: [
+        '[SourceStatus] the record of the sources cannot be read, it is ignored | file:',
+        'JSON Parse error',
+      ],
+    });
   });
 });
 
@@ -376,6 +422,8 @@ describe('FileSourceMemory.lastGood', () => {
     expect(memory.lastGood({ source })?.sha).toBe(resolved.sha);
     // Another ref is another source.
     expect(memory.lastGood({ source: { ...source, ref: 'main' } })).toBeUndefined();
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
   });
 
   test('is not served after an atlas upgrade moved the index format (H2)', async () => {
@@ -387,6 +435,8 @@ describe('FileSourceMemory.lastGood', () => {
     expect(memory.lastGood({ source })).toBeDefined();
     writeFileSync(join(resolved.indexFile ?? '', '..', 'format'), '0\n');
     expect(memory.lastGood({ source })).toBeUndefined();
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
   });
 
   test('is not served when its index is gone from disk, or the set lost its complete marker', async () => {
@@ -397,6 +447,8 @@ describe('FileSourceMemory.lastGood', () => {
     memory.record({ source, entry: { state: 'ready', since: 1, resolved } });
     rmSync(join(resolved.indexFile ?? '', '..', 'complete'), { force: true });
     expect(memory.lastGood({ source })).toBeUndefined();
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
   });
 
   test('never serves an older index to a command that needs the fresh build (B1)', async () => {
@@ -407,6 +459,8 @@ describe('FileSourceMemory.lastGood', () => {
     fresh.record({ source, entry: { state: 'ready', since: 1, resolved } });
     expect(fresh.lastGood({ source })).toBeUndefined();
     expect(new FileSourceMemory({ cwd, cacheBase: cacheDir }).lastGood({ source })).toBeDefined();
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
   });
 
   test('with the docs pinned to the installed version, an upgrade drops the older index (B2)', async () => {
@@ -429,6 +483,8 @@ describe('FileSourceMemory.lastGood', () => {
     expect(memory.lastGood({ source })?.pin?.ref).toBe('kernel-v1.0.0');
     rmSync(join(cwd, 'node_modules'), { recursive: true, force: true });
     expect(memory.lastGood({ source })).toBeUndefined();
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
   });
 });
 
@@ -477,6 +533,8 @@ describe('a server that starts with a recorded source', () => {
 
     expect(second.notServed).toBeUndefined();
     expect(from(second)).toBe(from(first));
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
   });
 });
 
@@ -531,5 +589,7 @@ describe('the refresher and a source whose child is still building', () => {
     await boot.fresh;
     await poke();
     expect(pulls).toBe(1);
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
   });
 });

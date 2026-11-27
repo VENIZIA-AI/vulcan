@@ -6,7 +6,14 @@ import { VersionTool } from '@/tools/version.tool';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 const TABLE: IReleaseTable = {
   livePackages: ['kernel', 'helpers'],
@@ -80,6 +87,11 @@ const callVersion = async (opts: {
 
 const payloadOf = (reply: { result?: { content: { text: string }[] } }): IVersionPayload =>
   JSON.parse(reply.result?.content[0]?.text ?? '{}');
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('version tool', () => {
   test('resolves the real installed version out of node_modules, not the declared range', async () => {
@@ -381,6 +393,13 @@ describe('version tool', () => {
 
     expect(reply.error?.code).toBe(-32602);
     expect(reply.error?.message).toBe('no releases: no tag matches <dir>-v<version>');
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: version |',
+        'no releases: no tag matches <dir>-v<version>',
+      ],
+    });
   });
 
   test('dated entries with no release still have no versions to compare, and say why', async () => {
@@ -407,5 +426,12 @@ describe('version tool', () => {
     });
 
     expect(reply.error?.message).toBe('no release history: src was fetched without git');
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: version |',
+        'no release history: src was fetched without git',
+      ],
+    });
   });
 });

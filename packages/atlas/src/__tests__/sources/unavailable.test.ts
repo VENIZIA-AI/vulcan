@@ -13,6 +13,14 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from './symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -64,6 +72,21 @@ const makeUnadoptedSource = (): string => {
   return `file://${bare}`;
 };
 
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 test('a source that cannot be served is reported; the project and the other sources are still served', async () => {
   const cwd = makeConsumer();
   const { resolved, unavailable } = await SourceResolver.resolveServable({
@@ -98,6 +121,13 @@ test('a source that cannot be served is reported; the project and the other sour
   expect(initialized.result.instructions).toContain('- unadopted: UNAVAILABLE');
   expect(initialized.result.instructions).toContain('- gone: UNAVAILABLE');
   expect(JSON.stringify(searched.result)).toContain('okf:overview/lighthouse.md');
+
+  stderr.claim({
+    parts: [
+      '[GitRepository.lsRemote] the remote could not be asked',
+      "/no-such.git' does not appear to be a git repository",
+    ],
+  });
 });
 
 test('a project served with a reachable source keeps its own name', async () => {
@@ -116,6 +146,8 @@ test('a project served with a reachable source keeps its own name', async () => 
 
   expect(resolved.map((entry) => entry.name)).toEqual(['own', 'src']);
   expect(initialized.result.serverInfo.name).toBe('own-atlas');
+
+  await fetches.claimUnfetched({ stderr });
 });
 
 test('a fetched source whose codemodCommand is not allowed is the one source not served, naming the word', async () => {
@@ -147,4 +179,6 @@ test('a fetched source whose codemodCommand is not allowed is the one source not
   expect(unavailable.map((entry) => entry.source.name)).toEqual(['bad']);
   expect(unavailable[0].reason).toContain('"-c"');
   expect(unavailable[0].reason).toContain("source 'bad'");
+
+  await fetches.claimUnfetched({ stderr, source: 'good' });
 });

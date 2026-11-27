@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, describe, expect, test, beforeEach } from 'bun:test';
 import { chmodSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { UpgradeTarget } from '../../commands/upgrade.command.ts';
@@ -6,6 +6,13 @@ import { UpgradeFlags } from '../../common/index.ts';
 import { createFakeCommand } from '../fake-command.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
+import { CapturedStderr } from '../stderr.helper.ts';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start({ processWrites: true });
+});
 
 afterAll(removeProjects);
 afterEach(() => {
@@ -16,6 +23,11 @@ afterEach(() => {
 const withDistTags = (opts: { latest?: string; next?: string }): void => {
   process.env[UpgradeFlags.DIST_TAGS_ENV] = JSON.stringify(opts);
 };
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 test('defaults to the latest dist-tag, pinned exactly, as a devDependency', () => {
   expect(UpgradeTarget.buildArgs({})).toEqual([
@@ -52,6 +64,12 @@ test('--nightly falls back to the one tag that exists, and fails when there is n
   withDistTags({});
   const result2 = await UpgradeTarget.resolve({ args: ['--nightly'], cwd: '/nowhere' });
   expect(result2).toBeUndefined();
+
+  stderr.claim({
+    parts: [
+      'vulcan project upgrade: --nightly could not read the dist-tags of @venizia/vulcan - pass a version instead',
+    ],
+  });
 });
 
 test('UpgradeTarget.pickNightly compares prereleases by semver, not by text', () => {
@@ -263,4 +281,11 @@ test('no installed CLI after the install: exit 1, never a fallback to the old co
   const result = await UpgradeTarget.runInstalledSync({ cwd: root });
   expect(result).toBe(1);
   expect(existsSync(join(root, '.claude'))).toBe(false);
+
+  stderr.claim({
+    parts: [
+      'vulcan project upgrade: no installed vulcan at ',
+      '/node_modules/.bin/vulcan - the install did not complete',
+    ],
+  });
 });

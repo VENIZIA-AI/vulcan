@@ -1,7 +1,14 @@
 import { AtlasConstants } from '@/common';
 import { Transport } from '@/protocol';
 import type { IToolHandler } from '@/protocol';
-import { describe, expect, spyOn, test } from 'bun:test';
+import { describe, expect, spyOn, test, afterEach, beforeEach } from 'bun:test';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 const echo: IToolHandler = {
   definition: {
@@ -20,6 +27,11 @@ const failing: IToolHandler = {
 const buildTransport = () =>
   new Transport({ tools: [echo], serverName: 'atlas-test', serverVersion: '0.0.0' });
 const parse = (line: string | null) => JSON.parse(line ?? 'null');
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('Transport', () => {
   test('initialize answers with the supported version and the server info', async () => {
@@ -103,6 +115,10 @@ describe('Transport', () => {
     expect(result2).toBeNull();
     const result3 = await transport.handleLine({ line: '{not json' });
     expect(parse(result3).error.code).toBe(-32700);
+
+    stderr.claim({
+      parts: ['[Transport-handleLine] dropped malformed JSON-RPC line: JSON Parse error'],
+    });
   });
 
   test('a tool that throws becomes -32603 with the message', async () => {
@@ -118,6 +134,10 @@ describe('Transport', () => {
     const reply = parse(result);
 
     expect(reply.error).toEqual({ code: -32603, message: 'boom' });
+
+    stderr.claim({
+      parts: ['[Transport-callTool] Tool call failed | tool: fail |', 'Error: boom'],
+    });
   });
 
   test('tools/call with an unknown tool name is -32602 (invalid params)', async () => {
@@ -180,5 +200,12 @@ describe('Transport', () => {
     } finally {
       writeSpy.mockRestore();
     }
+
+    stderr.claim({
+      parts: ['[Transport-callTool] Tool call failed | tool: fail |', 'Error: boom'],
+    });
+    stderr.claim({
+      parts: ['[Transport-handleLine] dropped malformed JSON-RPC line: JSON Parse error'],
+    });
   });
 });

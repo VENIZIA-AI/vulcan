@@ -1,9 +1,16 @@
-import { afterAll, describe, expect, spyOn, test } from 'bun:test';
+import { afterAll, describe, expect, spyOn, test, afterEach, beforeEach } from 'bun:test';
 import * as fs from 'node:fs';
 import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PullLock } from '@/sources/lock';
 import { makeTempDirectory, TEMP_DIRECTORIES } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -24,6 +31,11 @@ const lockWith = (opts: { owner?: { pid: number; token: string } }): string => {
 };
 
 const goneLock = (): string => join(makeTempDirectory({ prefix: 'atlas-lock-' }), 'pull.lock');
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('PullLock.ageOf', () => {
   // The holder removes its lock at any moment, so a waiter that stats it must take "gone" as an answer: a
@@ -165,6 +177,10 @@ describe('PullLock.with: waiters of a lock a dead pull left', () => {
     expect(ran).toBe(true);
     expect(existsSync(lock)).toBe(false);
     expect(existsSync(guard)).toBe(false);
+
+    stderr.claim({
+      parts: ['[PullLock.with] took over a lock a dead pull left | lock:', 'pull.lock'],
+    });
   });
 
   test('a guard a live waiter holds keeps the stale lock where it is, until the guard is gone', async () => {
@@ -195,6 +211,10 @@ describe('PullLock.with: waiters of a lock a dead pull left', () => {
     await pulling;
 
     expect(ran).toBe(true);
+
+    stderr.claim({
+      parts: ['[PullLock.with] took over a lock a dead pull left | lock:', 'pull.lock'],
+    });
   });
 
   // The guard is taken from a waiter while it is reaping (a pause that outlasts the guard's age does this): it must
@@ -246,5 +266,9 @@ describe('PullLock.with: waiters of a lock a dead pull left', () => {
     } finally {
       spy.mockRestore();
     }
+
+    stderr.claim({
+      parts: ['[PullLock.with] took over a lock a dead pull left | lock:', 'pull.lock'],
+    });
   });
 });

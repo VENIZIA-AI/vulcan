@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, describe, expect, test, beforeEach } from 'bun:test';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { BoardCommand } from '../../board/command.ts';
@@ -7,6 +7,13 @@ import { BoardServer } from '../../board/server.ts';
 import { EventLog } from '../../events/log.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { line, sampleLines } from './log-lines.helper.ts';
+import { CapturedStderr } from '../stderr.helper.ts';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start({ processWrites: true });
+});
 
 afterAll(removeProjects);
 afterEach(() => BoardServer.stop());
@@ -31,6 +38,11 @@ const check = (opts: {
     token: TOKEN,
     hostname: HOSTNAME,
   });
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('BoardServer.check: who may read the board', () => {
   test('the page and the stream, with the token and a local Host', () => {
@@ -328,6 +340,13 @@ describe('BoardServer.openFile: the page the program that opens the browser is g
     await start({ openFolder: join(root, '.agents/local/vulcan.manifest.json/inner') });
 
     expect(BoardServer.openFile()).toBeUndefined();
+
+    stderr.claim({
+      parts: [
+        'board: cannot write the page that opens the browser: ENOTDIR',
+        '/.agents/local/vulcan.manifest.json/inner',
+      ],
+    });
   });
 });
 

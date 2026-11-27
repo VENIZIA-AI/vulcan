@@ -11,6 +11,14 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from '../sources/source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from '../sources/symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start({ processWrites: true });
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -46,6 +54,21 @@ const gate = <T>() => {
 
   return { promise, release, fail };
 };
+
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('SourceBoot', () => {
   test('never runs more builds at once than its cap, and every source finishes', async () => {
@@ -96,6 +119,10 @@ describe('SourceBoot', () => {
     expect(boot.unavailable().map((entry) => [entry.source.name, entry.reason])).toEqual([
       ['bad', 'the ref does not exist'],
     ]);
+
+    stderr.claim({
+      parts: ['[SourceBoot] source not served | source: bad | reason: the ref does not exist'],
+    });
   });
 
   test('waitFor returns at the time limit with sources still indexing, and at once when all are done', async () => {
@@ -261,6 +288,8 @@ describe('a server whose sources are still being indexed', () => {
     const again = await rpc({ server, method: 'initialize' });
 
     expect(again.result.instructions).not.toContain('INDEXING');
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('a call waits for a source that lands inside its time limit, and answers complete', async () => {
@@ -284,6 +313,8 @@ describe('a server whose sources are still being indexed', () => {
 
     expect(answer.notServed).toBeUndefined();
     expect(answer.hits.map((hit: { source: string }) => hit.source)).toContain('src');
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('a source that failed is named in every answer and in an error; the project still answers', async () => {
@@ -312,6 +343,18 @@ describe('a server whose sources are still being indexed', () => {
     expect(answer.notServed.indexing).toEqual([]);
     expect(unknown.error.message).toContain('unknown source');
     expect(unknown.error.message).toContain('gone could not be indexed');
+
+    stderr.claim({
+      parts: [
+        '[SourceBoot] source not served | source: gone | reason: the repository is not there',
+      ],
+    });
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: search |',
+        "unknown source 'gone'; known sources: own (1 of 2 sources are ready",
+      ],
+    });
   });
 
   test('sources are served in the config order whichever finishes first', async () => {
@@ -342,6 +385,9 @@ describe('a server whose sources are still being indexed', () => {
 
     expect(text.indexOf('- own: this repository')).toBeLessThan(text.indexOf('- one: '));
     expect(text.indexOf('- one: ')).toBeLessThan(text.indexOf('- two: '));
+
+    await fetches.claimUnfetched({ stderr, source: 'two' });
+    await fetches.claimUnfetched({ stderr, source: 'one' });
   });
 });
 
@@ -394,6 +440,9 @@ describe('a source indexed in a child process', () => {
     const exists = await Bun.file(resolved.indexFile ?? '').exists();
 
     expect(exists).toBe(true);
+
+    await stderr.arrival({ parts: ['[fetchPublishedSymbols]'] });
+    await fetches.claimUnfetched({ stderr });
   }, 150_000);
 
   test('a source that cannot be reached fails with the child message, not a hang', async () => {
@@ -416,6 +465,19 @@ describe('a source indexed in a child process', () => {
 
     expect(failure).toBeInstanceOf(Error);
     expect((failure as Error).message).toContain('is unreachable');
+
+    stderr.claim({
+      parts: [
+        '[GitRepository.lsRemote] the remote could not be asked',
+        "/no-such.git' does not appear to be a git repository",
+      ],
+    });
+    stderr.claim({
+      parts: ["vulcan-atlas: atlas: source 'gone' (file://", 'is unreachable and has no cache'],
+    });
+    stderr.claim({ parts: ['fatal: Could not read from remote repository.'] });
+    stderr.claim({ parts: ['Please make sure you have the correct access rights'] });
+    stderr.claim({ parts: ['and the repository exists.'] });
   }, 150_000);
 
   test('a child past the time limit is stopped and the source fails', async () => {

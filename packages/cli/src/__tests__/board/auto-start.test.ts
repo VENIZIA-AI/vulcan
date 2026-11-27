@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
@@ -6,6 +6,13 @@ import { LocalChoice } from '../../agents/local.ts';
 import { BoardAutoStart } from '../../board/auto-start.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
+import { CapturedStderr } from '../stderr.helper.ts';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(removeProjects);
 
@@ -50,6 +57,11 @@ const answering = (opts: { headers?: Record<string, string> }) =>
     port: 0,
     fetch: () => new Response('x', { status: 403, headers: opts.headers }),
   });
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('board.serve.autoStart is a personal setting', () => {
   test('the local file accepts it as a boolean and refuses anything else under board.serve', () => {
@@ -126,8 +138,10 @@ describe('the board started by a session', () => {
   test('another program holds the port: nothing is started, and one line says so in the log', async () => {
     const root = project({ autoStart: true });
     const server = answering({});
+    // Read before the stop: a stopped server has no port.
+    const { port } = server;
 
-    const result = await BoardAutoStart.tick({ root, port: server.port });
+    const result = await BoardAutoStart.tick({ root, port });
     expect(result).toBe('foreign');
     await server.stop(true);
     await Bun.sleep(100);
@@ -135,6 +149,12 @@ describe('the board started by a session', () => {
     expect(readFileSync(join(root, '.agents/tmp/board-serve.log'), 'utf8')).toContain(
       'is held by something that is not a VULCAN board',
     );
+
+    stderr.claim({
+      parts: [
+        `vulcan: [session-start] port ${port} is held by something that is not a VULCAN board, so no board was started`,
+      ],
+    });
   });
 
   test('a listener that never answers is not a board: the probe gives up after its short timeout', async () => {

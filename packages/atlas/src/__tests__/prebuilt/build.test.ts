@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
@@ -17,6 +17,14 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from '../sources/source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from '../sources/symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -37,6 +45,21 @@ const checkout = (): { work: string; out: string; bare: string; url: string } =>
 
 const files = (opts: { out: string }): string[] =>
   existsSync(opts.out) ? readdirSync(opts.out) : [];
+
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('atlas index: build and sign the index of HEAD (C5)', () => {
   test('a checkout with history gives a pair for HEAD that verifies and says what it holds', () => {
@@ -269,5 +292,7 @@ describe('atlas index equals what pull builds (C7)', () => {
 
     expect(fromPull.length).toBeGreaterThan(1);
     expect(fromBuild).toEqual(fromPull);
+
+    await fetches.claimUnfetched({ stderr });
   });
 });

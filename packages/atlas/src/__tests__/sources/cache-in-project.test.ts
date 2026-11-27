@@ -8,6 +8,14 @@ import {
   NO_REGISTRY,
   TEMP_DIRECTORIES,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from './symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -46,6 +54,21 @@ afterEach(() => {
   delete process.env.VULCAN_NPM_REGISTRY;
 });
 
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('SourceCache.cacheBaseOf', () => {
   test('defaults to .agents/local/cache under the working directory', () => {
     expect(DEFAULT_CACHE_DIRECTORY).toBe('.agents/local/cache');
@@ -80,6 +103,8 @@ describe('atlas writes nothing outside the project', () => {
     expect(resolved?.root.startsWith(join(cwd, '.agents/local/cache'))).toBe(true);
     expect(existsSync(join(cwd, '.agents/local/cache/atlas/v1'))).toBe(true);
     expect(readdirSync(fakeHome)).toEqual([]);
+
+    await fetches.claimUnfetched({ stderr });
   }, 60_000);
 
   test('--cache-dir moves the cache and the default location stays unused', async () => {
@@ -96,5 +121,7 @@ describe('atlas writes nothing outside the project', () => {
     expect(existsSync(join(cacheDir, 'atlas/v1'))).toBe(true);
     expect(existsSync(join(cwd, '.agents/local/cache'))).toBe(false);
     expect(readdirSync(fakeHome)).toEqual([]);
+
+    await fetches.claimUnfetched({ stderr });
   }, 60_000);
 });
