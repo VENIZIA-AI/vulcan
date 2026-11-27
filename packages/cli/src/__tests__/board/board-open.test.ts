@@ -33,6 +33,7 @@ const serveWithOpener = async (opts: {
 
     return true;
   };
+
   process.stderr.write = (chunk: string | Uint8Array): boolean => {
     stderr += String(chunk);
 

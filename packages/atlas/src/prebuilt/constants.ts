@@ -61,6 +61,7 @@ export class PublishConstants {
   static readonly RELEASE_NAME = 'atlas index';
   static readonly RELEASE_NOTES =
     'The signed atlas index of each commit of this repository, read by atlas. Maintained by CI; do not edit.';
+
   /** The newest branch-head pairs kept. */
   static readonly KEEP_HEADS = 20;
   /** Pairs kept in all: a release has 1000 assets at most, two to a pair. */

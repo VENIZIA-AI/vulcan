@@ -13,4 +13,4 @@ export const board = {
       'pnt-vulcan-1': 'rock',
     },
   },
-} satisfies VulcanConfig.Board;
+} satisfies VulcanConfig.BoardType;

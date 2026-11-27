@@ -12,6 +12,8 @@ import { RepoTmp } from '@venizia/dev-configs/testing';
 import { SmokeEnv } from './smoke-env.ts';
 
 const PACKAGE_DIRECTORY = resolve(import.meta.dir, '..', '..', 'packages', 'atlas');
+// atlas depends on okf at the train's version, which the registry does not serve before the release.
+const OKF_DIRECTORY = resolve(PACKAGE_DIRECTORY, '..', 'okf');
 const PACKAGE_NAME = '@venizia/vulcan-atlas';
 
 // A registry that refuses at once: the pull's npm symbol step skips instead of reaching npm.
@@ -88,37 +90,48 @@ const makeSource = (opts: { sandbox: string }): string => {
   return bare;
 };
 
-const main = (): void => {
-  const packed = run({ command: ['bun', 'pm', 'pack', '--quiet'], cwd: PACKAGE_DIRECTORY });
+/** Packs one package and answers the path of its tarball. */
+const pack = (opts: { directory: string }): string => {
+  const packed = run({ command: ['bun', 'pm', 'pack', '--quiet'], cwd: opts.directory });
 
   if (packed.status !== 0) {
     fail(`bun pm pack exited ${packed.status}\n${packed.stderr}`);
   }
 
-  const tarball = readdirSync(PACKAGE_DIRECTORY)
+  const tarball = readdirSync(opts.directory)
     .filter(name => name.endsWith('.tgz'))
-    .map(name => join(PACKAGE_DIRECTORY, name))
+    .map(name => join(opts.directory, name))
     .sort()
     .at(-1);
 
-  if (!tarball) {
-    fail('no tarball produced');
-  }
+  return tarball ?? fail(`no tarball produced in ${opts.directory}`);
+};
+
+const main = (): void => {
+  const okfTarball = pack({ directory: OKF_DIRECTORY });
+  const tarball = pack({ directory: PACKAGE_DIRECTORY });
 
   const sandbox = mkdtempSync(join(RepoTmp.apply(), 'vulcan-atlas-smoke-'));
 
   try {
     // Its own manifest first: without one `bun add` would take the nearest package.json above the sandbox.
-    writeFileSync(join(sandbox, 'package.json'), JSON.stringify({ name: 'smoke', private: true }));
+    writeFileSync(
+      join(sandbox, 'package.json'),
+      JSON.stringify({
+        name: 'smoke',
+        private: true,
+        overrides: { '@venizia/vulcan-okf': `file:${okfTarball}` },
+      }),
+    );
 
-    const installed = run({ command: ['bun', 'add', tarball!], cwd: sandbox });
+    const installed = run({ command: ['bun', 'add', tarball], cwd: sandbox });
 
     if (installed.status !== 0) {
       fail(`bun add ${tarball} exited ${installed.status}\n${installed.stderr}`);
     }
 
     const bare = makeSource({ sandbox });
-    const cli = join(sandbox, 'node_modules', ...PACKAGE_NAME.split('/'), 'dist', 'cjs', 'cli', 'main.js');
+    const cli = join(sandbox, 'node_modules', ...PACKAGE_NAME.split('/'), 'dist', 'esm', 'cli', 'main.js');
     const input = [
       {
         jsonrpc: '2.0',
@@ -188,7 +201,8 @@ const main = (): void => {
     );
   } finally {
     rmSync(sandbox, { recursive: true, force: true });
-    rmSync(tarball!, { force: true });
+    rmSync(tarball, { force: true });
+    rmSync(okfTarball, { force: true });
   }
 };
 

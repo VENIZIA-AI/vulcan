@@ -80,9 +80,11 @@ export const runChangelogsCommand = (opts: { command?: string; args?: string[] }
   }
 
   const project = ProjectConfig.readAtlasProject();
+
   const write = (text: string): void => {
     process.stderr.write(text);
   };
+
   const code = ChangelogCheck.run({ project, write });
 
   if (!isHistory) {

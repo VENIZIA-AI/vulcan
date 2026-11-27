@@ -105,6 +105,7 @@ describe('the guard-writes hook', () => {
     const stdout = await stdoutResponse.text();
 
     const result = await child.exited;
+
     return { code: result, stdout: stdout.trim() };
   };
 

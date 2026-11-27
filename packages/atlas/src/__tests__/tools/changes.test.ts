@@ -20,7 +20,6 @@ beforeEach(() => {
   stderr = CapturedStderr.start();
 });
 
-// __dirname, not import.meta: this package emits CommonJS.
 const REPOSITORY_ROOT = IGNIS_ROOT;
 
 const entry = (opts: {

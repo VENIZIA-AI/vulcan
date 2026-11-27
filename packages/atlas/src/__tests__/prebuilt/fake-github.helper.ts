@@ -56,6 +56,7 @@ export const startFakeGithub = (opts: { owner: string; repo: string }): IFakeGit
   };
   const base = `/repos/${opts.owner}/${opts.repo}`;
   let nextId = 100;
+
   const idOf = (name: string): number => {
     const known = ids.get(name);
 
@@ -68,6 +69,7 @@ export const startFakeGithub = (opts: { owner: string; repo: string }): IFakeGit
 
     return nextId;
   };
+
   const nameOf = (id: number): string | undefined =>
     [...assets.keys()].find((name) => idOf(name) === id);
 
@@ -132,6 +134,7 @@ export const startFakeGithub = (opts: { owner: string; repo: string }): IFakeGit
         releasesCreated.push(WireValue.recordOf({ value: result }));
 
         const result2 = await release().text();
+
         return new Response(result2, { status: 201 });
       }
 

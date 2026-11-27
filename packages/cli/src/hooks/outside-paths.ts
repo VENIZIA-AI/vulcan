@@ -52,6 +52,7 @@ export class OutsidePaths {
 
       try {
         target = lstatSync(next).isSymbolicLink() ? readlinkSync(next) : undefined;
+        // eslint-disable-next-line venizia/no-silent-catch -- a component that cannot be read is no link: the path is kept as text, as the doc comment says; a guard speaks only its protocol
       } catch {
         target = undefined;
       }

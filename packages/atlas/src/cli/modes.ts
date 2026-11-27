@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, parse } from 'node:path';
+import { VulcanError } from '@venizia/vulcan-okf';
 
 // The npm package name, not `AtlasConstants.SERVER_NAME` (`vulcan-atlas`, the bin/MCP server name) -
 // this is what identifies the package directory itself, from its own `package.json`.
@@ -51,7 +52,7 @@ export class ModeArguments {
   }
 
   /**
-   * Walks up from `startDirectory` (source runs from `src/`, the built CLI from `dist/cjs/` - a
+   * Walks up from `startDirectory` (source runs from `src/`, the built CLI from `dist/esm/` - a
    * fixed number of `..` segments is wrong for one of the two) until it finds the directory whose
    * `package.json` names this package. Never guesses from path shape; always reads and compares.
    */
@@ -61,9 +62,9 @@ export class ModeArguments {
     );
 
     if (!found) {
-      throw new Error(
-        `[ModeArguments.findPackageDirectory] no ${PACKAGE_NAME} package.json found | started at: ${opts.startDirectory}`,
-      );
+      throw VulcanError.of({
+        message: `[ModeArguments.findPackageDirectory] no ${PACKAGE_NAME} package.json found | started at: ${opts.startDirectory}`,
+      });
     }
 
     return found;

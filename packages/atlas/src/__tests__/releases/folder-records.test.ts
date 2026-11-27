@@ -54,7 +54,9 @@ const repo = (opts: { openBody?: string; inProgress?: boolean } = {}) => {
       stdio: 'ignore',
     });
   };
+
   const write = (path: string, text: string): void => writeFileSync(join(root, path), text);
+
   const release = (opts2: { tag: string }): void => {
     git(['commit', '-q', '--allow-empty', '-m', `chore: release ${opts2.tag}`]);
     git(['tag', '-a', opts2.tag, '-m', opts2.tag]);

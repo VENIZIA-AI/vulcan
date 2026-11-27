@@ -10,7 +10,7 @@ const TOOL_PACKAGES: Record<string, IToolPackage> = {
   [VulcanTools.ATLAS]: { packageName: '@venizia/vulcan-atlas', binName: 'vulcan-atlas' },
 };
 
-interface IPackageManifest {
+interface IToolManifest {
   bin?: string | Record<string, string>;
 }
 
@@ -37,7 +37,7 @@ export class ToolRunner {
       return undefined;
     }
 
-    const manifest: IPackageManifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    const manifest: IToolManifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
     const bin = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.[tool.binName];
 
     return bin === undefined ? undefined : join(dirname(manifestPath), bin);

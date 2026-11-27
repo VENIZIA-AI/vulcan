@@ -12,6 +12,7 @@ interface ICell {
 const blockersOf = (opts: { from: ICell; to: ICell; cells: Map<string, string> }): string[] => {
   const { from, to, cells } = opts;
   const crossed: ICell[] = [];
+
   const step = (start: number, end: number): number[] => {
     if (start === end) {
       return [];

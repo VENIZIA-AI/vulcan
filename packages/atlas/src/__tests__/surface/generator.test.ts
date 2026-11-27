@@ -175,6 +175,7 @@ describe('runSurfaceCommand check', () => {
     console.log = (line: string) => {
       out.push(line);
     };
+
     console.error = (line: string) => {
       err.push(line);
     };

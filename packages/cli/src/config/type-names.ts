@@ -43,6 +43,7 @@ export class ConfigTypeNames {
         typescript.ScriptKind.TS,
       );
       const edits: { start: number; end: number; text: string }[] = [];
+
       const visit = (node: Parameters<typeof typescript.forEachChild>[0]): void => {
         if (typescript.isObjectLiteralExpression(node)) {
           const keys = node.properties.flatMap((property) =>

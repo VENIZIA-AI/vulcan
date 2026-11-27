@@ -67,6 +67,7 @@ export class LayoutCheck {
     const generated = settings.generated.map((pattern) => new Glob(pattern));
     const findings: ILayoutFinding[] = [];
     const folders = new Map<string, { subfolders: Set<string>; loose: string[] }>();
+
     const folderOf = (where: { folder: string }) => {
       const entry = folders.get(where.folder) ?? { subfolders: new Set<string>(), loose: [] };
 

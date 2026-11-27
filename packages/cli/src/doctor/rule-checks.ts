@@ -255,6 +255,7 @@ export class RuleChecks {
       ) {
         return [];
       }
+      // eslint-disable-next-line venizia/no-silent-catch -- A link that does not resolve is judged by the version it names
     } catch {
       // A link that does not resolve is judged by the version it names.
     }

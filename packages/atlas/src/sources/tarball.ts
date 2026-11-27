@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { AtlasLimits, BoundedBody } from '@/common/limits';
 import { StderrLogger } from '@/common/logger';
+import { VulcanError } from '@venizia/vulcan-okf';
 import type { IRemoteRef } from './common';
 import { GitRepository } from './git';
 
@@ -113,15 +114,15 @@ export class GithubTarball {
     });
 
     if (isOver === true) {
-      throw new Error(
-        `atlas: the tarball of ${opts.owner}/${opts.repo} at ${opts.sha.slice(0, 8)} is over knowledge.atlas.limits.download (${cap} bytes) - raise it in the vulcan config if the source is meant to be that large`,
-      );
+      throw VulcanError.of({
+        message: `atlas: the tarball of ${opts.owner}/${opts.repo} at ${opts.sha.slice(0, 8)} is over knowledge.atlas.limits.download (${cap} bytes) - raise it in the vulcan config if the source is meant to be that large`,
+      });
     }
 
     if (body === undefined) {
-      throw new Error(
-        `atlas: no tarball of ${opts.owner}/${opts.repo} at ${opts.sha.slice(0, 8)} (${status})`,
-      );
+      throw VulcanError.of({
+        message: `atlas: no tarball of ${opts.owner}/${opts.repo} at ${opts.sha.slice(0, 8)} (${status})`,
+      });
     }
 
     const archive = join(opts.work, 'source.tgz');
@@ -143,7 +144,7 @@ export class GithubTarball {
     });
 
     if (listed.status !== 0) {
-      throw new Error(`atlas: could not read the tarball: ${listed.stderr}`);
+      throw VulcanError.of({ message: `atlas: could not read the tarball: ${listed.stderr}` });
     }
 
     const members = listed.stdout
@@ -174,7 +175,7 @@ export class GithubTarball {
     );
 
     if (unpacked.status !== 0) {
-      throw new Error(`atlas: could not unpack the tarball: ${unpacked.stderr}`);
+      throw VulcanError.of({ message: `atlas: could not unpack the tarball: ${unpacked.stderr}` });
     }
   }
 }

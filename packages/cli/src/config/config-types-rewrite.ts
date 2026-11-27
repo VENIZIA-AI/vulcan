@@ -1,3 +1,4 @@
+import { CodemodConstants } from './common/index.ts';
 import type { TSourceFile, TTypeScript } from './format.ts';
 
 const PACKAGE = '@venizia/vulcan';
@@ -23,7 +24,7 @@ interface ISpan {
   text: string;
 }
 
-interface IBinding {
+interface IImportBinding {
   imported: string;
   local: string;
   isAliased: boolean;
@@ -45,7 +46,7 @@ interface IReference {
 }
 
 interface IFileNames {
-  bindings: IBinding[];
+  bindings: IImportBinding[];
   references: IReference[];
   /** The names the file declares, or imports from another module. */
   declared: Set<string>;
@@ -122,7 +123,25 @@ export class ConfigTypeRewriter {
         opts.text,
       );
 
-    return { text, count: planned.spans.length, notes: [...names.notes, ...planned.notes] };
+    return {
+      text: planned.spans.length === 0 ? text : ConfigTypeRewriter.wrapExport({ text }),
+      count: planned.spans.length,
+      notes: [...names.notes, ...planned.notes],
+    };
+  }
+
+  /** The `export default { a, b } satisfies X;` of a split config, one property a line once it passes the formatter's width. */
+  static wrapExport(opts: { text: string }): string {
+    return opts.text.replace(
+      /^export default \{ ([\w, ]+) \} satisfies (\w+);$/m,
+      (line: string, names: string, type: string) =>
+        line.length <= CodemodConstants.LINE_WIDTH
+          ? line
+          : `export default {\n${names
+              .split(', ')
+              .map((name) => `  ${name},\n`)
+              .join('')}} satisfies ${type};`,
+    );
   }
 
   private static renamesOf(opts: { isReverse: boolean }): {
@@ -164,6 +183,7 @@ export class ConfigTypeRewriter {
     const isPackage = (node: TNode | undefined): boolean =>
       node !== undefined && typescript.isStringLiteral(node) && node.text === PACKAGE;
     const quote = (node: TNode): string => `\`${node.getText(source).split('\n')[0]}\``;
+
     const keyOf = (node: TNode): string | undefined => {
       const access = node.parent.parent;
 
@@ -174,6 +194,7 @@ export class ConfigTypeRewriter {
         ? access.indexType.literal.text
         : undefined;
     };
+
     const refer = (node: TNode, member?: TNode): void => {
       if (typescript.isIdentifier(node)) {
         found.references.push({
@@ -187,6 +208,7 @@ export class ConfigTypeRewriter {
         });
       }
     };
+
     const visit = (node: TNode): void => {
       if (typescript.isImportDeclaration(node)) {
         const clause = node.importClause;
@@ -312,17 +334,20 @@ export class ConfigTypeRewriter {
     const spans: ISpan[] = [];
     const notes: string[] = [];
     const targets: string[] = [];
-    const of = (imported: string): IBinding | undefined =>
+    const of = (imported: string): IImportBinding | undefined =>
       names.bindings.find((binding) => binding.imported === imported);
     const usesOf = (local: string): IReference[] =>
       names.references.filter((reference) => reference.local === local);
+
     const replace = (node: TNode, text: string): void => {
       spans.push({ start: node.getStart(source), end: node.getEnd(), text });
     };
+
     const bare = (local: string): IReference[] =>
       usesOf(local).filter((reference) => reference.member === undefined);
+
     // The specifier takes the new name; without an alias the uses take it too.
-    const retarget = (binding: IBinding, name: string, uses: IReference[]): void => {
+    const retarget = (binding: IImportBinding, name: string, uses: IReference[]): void => {
       const present = of(name);
 
       if (present !== undefined) {
@@ -429,7 +454,7 @@ export class ConfigTypeRewriter {
   }
 
   /** A specifier with its comma, or the whole import when it is the only one. */
-  private static removalOf(opts: { source: TSourceFile; binding: IBinding }): ISpan {
+  private static removalOf(opts: { source: TSourceFile; binding: IImportBinding }): ISpan {
     const { source, binding } = opts;
     const { siblings, specifier, statement } = binding;
     const at = siblings.indexOf(specifier);

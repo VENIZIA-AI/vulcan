@@ -110,12 +110,14 @@ const repo = () => {
       stdio: 'ignore',
     });
   };
+
   const write = (opts: { items: IItem[] }): void => {
     const files = folderOf({ version: '0.4.5', items: opts.items });
 
     writeFileSync(join(root, 'changes', '0.4.5', 'log.md'), files.log);
     writeFileSync(join(root, 'changes', '0.4.5', 'migration.yaml'), files.migration);
   };
+
   const tagged = (opts: { items: IItem[]; tags: string[] }): void => {
     write({ items: opts.items });
     git(['add', '-A']);
@@ -315,6 +317,7 @@ const foldedRepo = () => {
       stdio: 'ignore',
     });
   };
+
   const release = (tag: string): void => {
     git(['commit', '-q', '--allow-empty', '-m', `chore: ${tag}`]);
     git(['tag', '-a', tag, '-m', tag]);
@@ -448,12 +451,14 @@ describe('a folder that came into a line mid-cycle', () => {
         stdio: 'ignore',
       });
     };
+
     const item = (id: string, n: number): IItem => ({
       section: 'Breaking',
       id,
       packages: '@a/kernel',
       block: block({ n }),
     });
+
     const tagged = (tag: string, items?: IItem[]): void => {
       if (items !== undefined) {
         const files = folderOf({ version: '0.4.5', items });
@@ -730,6 +735,7 @@ describe('a plan to a line the folders do not reach says so', () => {
         stdio: 'ignore',
       });
     };
+
     const folder = (version: string): void => {
       const files = folderOf({
         version,

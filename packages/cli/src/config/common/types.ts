@@ -1,8 +1,10 @@
+import type { TLibraryType, TPackageType } from '@venizia/vulcan-atlas';
 import type { TConstValue } from '../../common/index.ts';
-import type { LibraryTypes, PackageTypes } from './constants.ts';
+import type { ConfigForms } from './constants.ts';
 
-export type TPackageType = TConstValue<typeof PackageTypes>;
-export type TLibraryType = TConstValue<typeof LibraryTypes>;
+export type { TLibraryType, TPackageType };
+
+export type TConfigForm = TConstValue<typeof ConfigForms>;
 
 /** One file the codemod writes (`text`) or deletes (no `text`), by path relative to the project root. */
 export interface IFileChange {

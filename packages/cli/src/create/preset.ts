@@ -101,6 +101,7 @@ export class Preset {
 
     try {
       return UTF8.decode(opts.content);
+      // eslint-disable-next-line venizia/no-silent-catch -- content that is not UTF-8 is not text: the caller copies it as bytes
     } catch {
       return undefined;
     }

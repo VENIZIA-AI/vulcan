@@ -220,11 +220,13 @@ describe('vulcan config format', () => {
 
   test('the doctor notes a config out of order, and says nothing of one in order', async () => {
     const config = (opts: { text: string }) => createProject({ files: { [CONFIG]: opts.text } });
+
     const notes = async (opts: { root: string }) => {
       const all = await DoctorRunner.runNotes({ root: opts.root, env: {} });
 
       return all.filter((note) => note.check === 'config-order');
     };
+
     const outOfOrder = await notes({
       root: config({ text: "export default {\n  agent: {},\n  project: { name: 'demo' },\n};\n" }),
     });
@@ -352,6 +354,7 @@ describe('doctor and a grouped file', () => {
           "export default {\n  agent: {\n    list: ['claude'],\n    claude: {},\n  },\n};\n",
       },
     });
+
     const messages = async (root: string): Promise<string[]> => {
       const notes = await DoctorRunner.runNotes({ root, env: {} });
 

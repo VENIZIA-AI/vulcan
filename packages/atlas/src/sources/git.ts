@@ -4,6 +4,7 @@ import { existsSync, rmSync } from 'node:fs';
 import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { GitArgument } from '@/common/git-argument';
 import { StderrLogger } from '@/common/logger';
+import { VulcanError } from '@venizia/vulcan-okf';
 import type { IRemoteRef } from './common';
 
 const GIT_BUFFER = 64 * 1024 * 1024;
@@ -34,10 +35,11 @@ export class GitRepository {
 
     return undefined;
   }
+
   /** A repository or a ref that git would read as an option is refused before any git call: it never reaches the command line. */
   static assertNotOption(opts: { name: string; value: string }): void {
     if (GitArgument.isOptionLike({ value: opts.value })) {
-      throw new Error(`the ${opts.name} must not start with '-'`);
+      throw VulcanError.of({ message: `the ${opts.name} must not start with '-'` });
     }
   }
 
@@ -54,9 +56,9 @@ export class GitRepository {
     });
 
     if (result.status !== 0) {
-      throw new Error(
-        `git ${opts.args[0]} exited ${result.status ?? 'on a timeout'}: ${(result.stderr ?? '').trim()}`,
-      );
+      throw VulcanError.of({
+        message: `git ${opts.args[0]} exited ${result.status ?? 'on a timeout'}: ${(result.stderr ?? '').trim()}`,
+      });
     }
 
     return result.stdout ?? '';

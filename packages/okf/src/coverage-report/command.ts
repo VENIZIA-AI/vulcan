@@ -1,3 +1,4 @@
+import { VulcanError } from '../common/error.ts';
 import { GenerationRegistry } from '../generate/index.ts';
 import { ConceptLoader } from '../bundle/lib.ts';
 import { SourceScanner } from '../source/index.ts';
@@ -49,10 +50,11 @@ export const coverage = async (): Promise<void> => {
 
   // The report would count an axis that covers nothing as fully covered.
   if (problems.length > 0) {
-    throw new Error(`okf: ${problems.join('; ')}`);
+    throw VulcanError.of({ message: `okf: ${problems.join('; ')}` });
   }
 
   lines.push('STRUCTURAL  (target 100% - one curated concept each)');
+
   for (const axis of axes) {
     struct({
       name: axis.name,
@@ -63,6 +65,7 @@ export const coverage = async (): Promise<void> => {
 
   // Reference axes - advisory; exhaustive coverage comes from generation.
   lines.push('', 'REFERENCE  (advisory - generated)');
+
   const ref = (opts: { name: string; count: number; generated: boolean }): void => {
     lines.push(
       `  ${pad({ value: opts.name, width: 15 })} ${pad({ value: String(opts.count), width: 6 })}  ` +

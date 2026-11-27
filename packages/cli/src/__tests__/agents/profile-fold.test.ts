@@ -31,6 +31,7 @@ const PROJECT = {
 };
 const withOld = (extra: Record<string, string> = {}): string =>
   createProject({ files: { ...PROJECT, [LEGACY]: JSON.stringify(OLD), ...extra } });
+
 const git = (root: string): void => {
   Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
 };

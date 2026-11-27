@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { VulcanError } from '../common/error.ts';
 import { defineRenderer } from './define.ts';
 import type { IRenderContext, IRenderer } from './define.ts';
 import { SourceCollector } from '../source/index.ts';
@@ -125,9 +126,9 @@ const bindingKeysSource = (opts: { context: IRenderContext }): string => {
   const source = opts.context.options.source;
 
   if (typeof source !== 'string') {
-    throw new Error(
-      'okf: renderer binding-keys needs options.source (the file that declares the keys)',
-    );
+    throw VulcanError.of({
+      message: 'okf: renderer binding-keys needs options.source (the file that declares the keys)',
+    });
   }
 
   return source;

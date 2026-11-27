@@ -28,6 +28,7 @@ export class OwnerProfile {
       (path) => {
         try {
           return lstatSync(path).isSymbolicLink();
+          // eslint-disable-next-line venizia/no-silent-catch -- a path that cannot be read is no link
         } catch {
           return false;
         }
@@ -127,6 +128,7 @@ export class OwnerProfile {
         ),
         dropped: checked.filter((item) => !item.isValid).map((item) => item.key),
       };
+      // eslint-disable-next-line venizia/no-silent-catch -- a profile that cannot be read keeps no machine keys
     } catch {
       return { kept: {}, dropped: [] };
     }

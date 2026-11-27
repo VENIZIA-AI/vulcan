@@ -102,7 +102,7 @@ describe('ModeArguments.findPackageDirectory', () => {
   test('finds the package directory from both a source-style and a dist-style start directory', () => {
     const packageDirectory = makePackageDirectory({ withSnapshot: false });
     const sourceStyleStart = join(packageDirectory, 'src');
-    const distStyleStart = join(packageDirectory, 'dist/cjs');
+    const distStyleStart = join(packageDirectory, 'dist/esm');
 
     mkdirSync(sourceStyleStart, { recursive: true });
     mkdirSync(distStyleStart, { recursive: true });

@@ -321,10 +321,14 @@ describe('SourceResolver.resolve', () => {
 
     renameSync(source.bare, `${source.bare}.away`);
 
-    const failure = await SourceResolver.resolve({ cwd, cacheDir, sources }).then(
-      () => undefined,
-      (error: unknown) => error,
-    );
+    let failure: unknown;
+
+    try {
+      await SourceResolver.resolve({ cwd, cacheDir, sources });
+    } catch (error) {
+      failure = error;
+    }
+
     const servable = await SourceResolver.resolveServable({ cwd, cacheDir, sources });
 
     renameSync(`${source.bare}.away`, source.bare);
@@ -383,14 +387,17 @@ describe('SourceResolver.resolve', () => {
   });
 
   test('unreachable with no cache stops, naming the source', async () => {
-    const failure = await SourceResolver.resolve({
-      cwd: consumer(),
-      cacheDir,
-      sources: [{ name: 'gone', repo: 'file:///nowhere/at/all.git', ref: 'develop' }],
-    }).then(
-      () => undefined,
-      (error: unknown) => error,
-    );
+    let failure: unknown;
+
+    try {
+      await SourceResolver.resolve({
+        cwd: consumer(),
+        cacheDir,
+        sources: [{ name: 'gone', repo: 'file:///nowhere/at/all.git', ref: 'develop' }],
+      });
+    } catch (error) {
+      failure = error;
+    }
 
     expect(String(failure)).toContain(
       "atlas: source 'gone' (file:///nowhere/at/all.git@develop) is unreachable and has no cache",
@@ -415,14 +422,17 @@ describe('SourceResolver.resolve', () => {
     commitAll({ work: source.work, message: 'chore: a bad name' });
     git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
 
-    const failure = await SourceResolver.resolve({
-      cwd: consumer(),
-      cacheDir,
-      sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
-    }).then(
-      () => undefined,
-      (error: unknown) => String(error),
-    );
+    let failure: string | undefined;
+
+    try {
+      await SourceResolver.resolve({
+        cwd: consumer(),
+        cacheDir,
+        sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
+      });
+    } catch (error) {
+      failure = String(error);
+    }
 
     expect(failure).toContain(
       `atlas: source 'src' (${source.url}@develop) - package name '../../../../escape' is not an npm package name`,

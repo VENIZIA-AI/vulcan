@@ -6,7 +6,6 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../helpers/ignis-root.helper';
 
-// __dirname, not import.meta: this package emits CommonJS.
 const REPOSITORY_ROOT = IGNIS_ROOT;
 // IGNIS's committed manifest: the symbols are what atlas reads from its built .d.ts today (D2).
 const MANIFEST = join(REPOSITORY_ROOT, '.agents/vulcan.manifest.json');

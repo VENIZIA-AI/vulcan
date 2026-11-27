@@ -30,6 +30,7 @@ const scratch = (): {
       stdio: 'ignore',
     });
   };
+
   const write = (path: string, text: string): void => writeFileSync(join(root, path), text);
 
   git(['init', '-q', '-b', 'develop']);

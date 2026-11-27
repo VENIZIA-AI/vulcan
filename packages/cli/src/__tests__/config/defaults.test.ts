@@ -36,6 +36,7 @@ const base = shippedOf({ value: BASE?.value });
 const pack = shippedOf({ value: PACK?.value });
 const project = (config: string): string =>
   createProject({ files: { '.configs/vulcan.config.mts': config } });
+
 const effective = async (config: string) => {
   const loaded = await ConfigLoader.load({ root: project(config) });
 

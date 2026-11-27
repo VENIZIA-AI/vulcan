@@ -16,7 +16,6 @@ beforeEach(() => {
   stderr = CapturedStderr.start();
 });
 
-// __dirname, not import.meta: this package emits CommonJS.
 const FIXTURES_ROOT = join(__dirname, '../fixtures/corpus');
 
 /** The fixture corpus holds one broken page: every build skips it, and says why. */

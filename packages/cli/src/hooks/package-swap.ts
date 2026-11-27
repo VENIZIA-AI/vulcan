@@ -52,6 +52,7 @@ export class PackageSwap {
       const parsed: unknown = JSON.parse(readFileSync(join(opts.folder, 'package.json'), 'utf8'));
 
       return isRecord(parsed) && typeof parsed['name'] === 'string' ? parsed['name'] : undefined;
+      // eslint-disable-next-line venizia/no-silent-catch -- a folder with no readable package.json has no name, as the doc comment says; a guard speaks only its protocol
     } catch {
       return undefined;
     }
@@ -88,6 +89,7 @@ export class PackageSwap {
 
         folder = parent;
       }
+      // eslint-disable-next-line venizia/no-silent-catch -- a path that cannot be resolved is not the installed package; a guard speaks only its protocol
     } catch {
       return false;
     }

@@ -174,6 +174,7 @@ export class BoardSettings {
 
     try {
       manifest = JSON.parse(readFileSync(join(opts.root, BoardConstants.MANIFEST_FILE), 'utf8'));
+      // eslint-disable-next-line venizia/no-silent-catch -- a manifest that cannot be read is no board settings: the defaults apply
     } catch {
       manifest = {};
     }

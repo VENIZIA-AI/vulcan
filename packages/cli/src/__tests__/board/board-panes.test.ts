@@ -92,6 +92,7 @@ describe.skipIf(!hasBrowser)(
   'the three panes: due badges, picking an agent, closing the detail',
   () => {
     const { html, ids } = page();
+
     const run = async (
       width: number,
     ): Promise<IPanes & { afterAgent: { total: number; name: string } }> => {

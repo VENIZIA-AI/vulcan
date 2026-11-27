@@ -37,3 +37,10 @@ export class BaseRuleChanges {
   static readonly CHANGED = 'changed';
   static readonly REMOVED = 'removed';
 }
+
+/** What git says of a path. */
+export class GitTrackStates {
+  static readonly TRACKED = 'tracked';
+  static readonly UNTRACKED = 'untracked';
+  static readonly UNKNOWN = 'unknown';
+}

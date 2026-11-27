@@ -42,7 +42,6 @@ const main = async (): Promise<void> => {
   });
 };
 
-// This package emits CommonJS: no top-level await.
 main().catch((error: unknown) => {
   process.stderr.write(`${String(error)}\n`);
   process.exit(1);

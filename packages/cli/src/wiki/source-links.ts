@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { VulcanError } from '@venizia/vulcan-okf';
 import { GitFiles } from '../common/git-files.ts';
 import { LayoutFolder, LayoutKeys } from '../common/layout-folder.ts';
 import type { ILayout } from '../common/layout-folder.ts';
@@ -68,7 +69,7 @@ const loadTracked = (opts: { root: string }): ITrackedPaths => {
   const tracked = GitFiles.tracked({ root: opts.root });
 
   if ('error' in tracked) {
-    throw new Error(`git ls-files failed in ${opts.root}: ${tracked.error}`);
+    throw VulcanError.of({ message: `git ls-files failed in ${opts.root}: ${tracked.error}` });
   }
 
   const files = new Set(tracked.files);

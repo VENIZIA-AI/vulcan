@@ -1,6 +1,7 @@
+import { VulcanError } from '@venizia/vulcan-okf';
 import { SpecCharts } from './charts.ts';
 import { NodeStates } from './constants.ts';
-import type { TChrome } from './constants.ts';
+import type { TArrowDirection, TChrome, TLinkEnd, TTextAnchor } from './constants.ts';
 import type { IDrawing } from './diagrams.ts';
 import { FigureLayout } from './layout.ts';
 import type { TVisualizeSpec } from './schema.ts';
@@ -109,6 +110,7 @@ const ordered = (opts: { architecture: TArchitecture }): TArchitecture => {
 
     return row === undefined ? 0 : row.boxes.findIndex((item) => item.id === box.id);
   };
+
   const sortLayer = (move: { row: number; towards: number }): void => {
     const { towards } = move;
     const layer = layers[move.row];
@@ -184,6 +186,18 @@ export class SpecArchitecture {
     const textWidthOf = (spec: TBox): number => boxWidth - (spec.state === undefined ? 24 : 50);
     const placed = new Map<string, IPlacedBox>();
 
+    const boxOf = (id: string): IPlacedBox => {
+      const box = placed.get(id);
+
+      if (box === undefined) {
+        throw VulcanError.of({
+          message: `[SpecArchitecture.render] no box was placed for '${id}'`,
+        });
+      }
+
+      return box;
+    };
+
     architecture.layers.forEach((layer, row) => {
       const total = layer.boxes.length * boxWidth + (layer.boxes.length - 1) * GAP;
       const start = PAD + (width - 2 * PAD - marginRoom - total) / 2;
@@ -217,6 +231,7 @@ export class SpecArchitecture {
 
     // Plan each link: the edges it leaves and enters, and a lane of each channel it runs along.
     const lanes = new Map<number, number>();
+
     const take = (channel: number): IStep => {
       const lane = lanes.get(channel) ?? 0;
 
@@ -224,10 +239,11 @@ export class SpecArchitecture {
 
       return { channel, lane };
     };
+
     let marginLanes = 0;
     const plans: IPlannedLink[] = known.map((link) => {
-      const from = placed.get(link.from) as IPlacedBox;
-      const to = placed.get(link.to) as IPlacedBox;
+      const from = boxOf(link.from);
+      const to = boxOf(link.to);
       const down = to.row >= from.row;
       const isSame = to.row === from.row;
       // A link between two boxes of one layer leaves and enters by the bottom edges, along the channel below the row.
@@ -260,8 +276,9 @@ export class SpecArchitecture {
     });
 
     // The ends on one edge of a box: lined up with the other end where the two boxes overlap, spread to SPACING.
-    type TEnd = { index: number; end: 'from' | 'to'; wanted: number };
+    type TEnd = { index: number; end: TLinkEnd; wanted: number };
     const ends = new Map<string, TEnd[]>();
+
     const addEnd = (box: IPlacedBox, side: TSide, entry: TEnd): void => {
       const key = `${box.spec.id}:${side}`;
 
@@ -280,7 +297,7 @@ export class SpecArchitecture {
     const xOf = new Map<string, number>();
 
     for (const [key, entries] of ends) {
-      const box = placed.get(key.split(':')[0] ?? '') as IPlacedBox;
+      const box = boxOf(key.split(':')[0] ?? '');
       const left = box.x + EDGE_INSET;
       const right = box.x + boxWidth - EDGE_INSET;
       const sorted = [...entries].sort(
@@ -307,6 +324,7 @@ export class SpecArchitecture {
       const toKey = `${index}:to`;
       const fromX = xOf.get(fromKey) ?? 0;
       const toX = xOf.get(toKey) ?? 0;
+
       const move = (key: string, target: number, box: IPlacedBox, side: TSide): boolean => {
         const clash = (ends.get(`${box.spec.id}:${side}`) ?? []).some(
           (entry) =>
@@ -335,11 +353,13 @@ export class SpecArchitecture {
     // The geometry of bands and channels, from the lanes the links need.
     const rows = architecture.layers.length;
     const bandHeight = TOP_ZONE + boxHeight + BOTTOM_PAD;
+
     const channelHeight = (channel: number): number => {
       const count = lanes.get(channel) ?? 0;
 
       return count === 0 ? (channel === rows - 1 ? 6 : 24) : 24 + SPACING * count;
     };
+
     const bandTops: number[] = [];
     const channelTops: number[] = [];
     let y = 4;
@@ -356,7 +376,8 @@ export class SpecArchitecture {
     const laneY = (step: IStep): number =>
       (channelTops[step.channel] ?? 0) + 22 + SPACING * step.lane;
     const marginX = (lane: number): number => width - PAD - marginRoom + 20 + SPACING * (lane - 1);
-    const head = (point: { x: number; y: number; toward: 'up' | 'down' }): string => {
+
+    const head = (point: { x: number; y: number; toward: TArrowDirection }): string => {
       const tip = point.toward === 'down' ? -7 : 7;
 
       return `<path d="M${point.x - 5} ${point.y + tip}L${point.x} ${point.y}L${point.x + 5} ${point.y + tip}" fill="none" class="dline"/>`;
@@ -394,11 +415,13 @@ export class SpecArchitecture {
 
       return { plan, points, endX, endY };
     });
+
     const legsOf = (index: number): IRect[] => {
       const points = routes[index]?.points ?? [];
 
       return points.slice(1).map((point, at) => legOf({ from: points[at] ?? point, to: point }));
     };
+
     const boxRects: IRect[] = [...placed.values()].map((box) =>
       grow(
         { left: box.x, right: box.x + boxWidth, top: boxTop(box.row), bottom: boxBottom(box.row) },
@@ -406,6 +429,7 @@ export class SpecArchitecture {
       ),
     );
     const placedLabels: IRect[] = [];
+
     const labelOf = (index: number): string => {
       const route = routes[index];
       const label = route?.plan.link.label ?? opts.chrome.uses;
@@ -417,7 +441,7 @@ export class SpecArchitecture {
       const textWidth = FigureLayout.textWidth({ text: label, size: LABEL_SIZE });
       const own = legsOf(index);
       const others = routes.flatMap((_, at) => (at === index ? [] : legsOf(at)));
-      type TCandidate = { x: number; y: number; anchor: 'middle' | 'start' | 'end' };
+      type TCandidate = { x: number; y: number; anchor: TTextAnchor };
       const candidates: TCandidate[] = [];
       const longestFirst = [...own].sort(
         (one, other) =>
@@ -466,6 +490,7 @@ export class SpecArchitecture {
           bottom: candidate.y + 3,
         };
       };
+
       const usable = (candidate: TCandidate): boolean => {
         const rect = rectOf(candidate);
         const nearest = Math.min(...own.map((segment) => distanceTo({ rect, segment })));
@@ -484,6 +509,7 @@ export class SpecArchitecture {
           !placedLabels.some((other) => touches(rect, other))
         );
       };
+
       const chosen = candidates.find(usable) ?? candidates[0];
 
       if (chosen === undefined) {
@@ -494,6 +520,7 @@ export class SpecArchitecture {
 
       return `<text class="dl" x="${chosen.x}" y="${chosen.y}" text-anchor="${chosen.anchor}">${FigureLayout.escapeText({ value: label })}</text>`;
     };
+
     const links = routes
       .map((route, index) => {
         const linePath = `M${route.points.map((point) => point.join(' ')).join('L')}`;
@@ -538,6 +565,7 @@ export class SpecArchitecture {
         layer.boxes.map((spec) => [spec.id, spec.label] as const),
       ),
     );
+
     // The state mark and the first word of a name stay together, so a break never leaves the mark behind.
     const nameOf = (spec: TBox): string => {
       if (spec.state === undefined) {
@@ -548,6 +576,7 @@ export class SpecArchitecture {
 
       return `<span class="nb"><span class="c-${NodeStates.toneOf(spec.state)} inl">${SpecCharts.stateIcon({ state: spec.state, size: 16 })}</span>${FigureLayout.escapeText({ value: first })}</span>${rest.length === 0 ? '' : ` ${FigureLayout.escapeText({ value: rest.join(' ') })}`}`;
     };
+
     const fallback = `<ul class="path">${architecture.layers.map((layer) => `<li><b>${FigureLayout.escapeText({ value: layer.label })}:</b> <span>${layer.boxes.map(nameOf).join(', ')}</span></li>`).join('')}${architecture.links.map((link) => `<li>${FigureLayout.escapeText({ value: names.get(link.from) ?? link.from })} <span class="verb">${FigureLayout.escapeText({ value: link.label ?? opts.chrome.uses })}</span> ${FigureLayout.escapeText({ value: names.get(link.to) ?? link.to })}</li>`).join('')}</ul>`;
 
     return {

@@ -895,6 +895,7 @@ const apps = { "layout": {}, "packages": [], "presets": [], "sources": [] };
 } satisfies VulcanConfig;
 `;
   const TYPE = "import type { VulcanConfig } from '@venizia/vulcan';\n";
+
   const split = (text: string) => {
     const result = ConfigCodemod.run({
       root: '/x',

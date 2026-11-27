@@ -76,6 +76,7 @@ export class BoardGitlab {
 
         host = parsed.hostname;
         path = parsed.pathname;
+        // eslint-disable-next-line venizia/no-silent-catch -- a remote that is not a URL is no GitLab remote
       } catch {
         return undefined;
       }
@@ -118,6 +119,7 @@ export class BoardGitlab {
 
     try {
       return { data: JSON.parse(result.stdout) };
+      // eslint-disable-next-line venizia/no-silent-catch -- the result carries the reason the board shows
     } catch {
       return { problem: 'glab did not answer with JSON' };
     }
@@ -351,6 +353,7 @@ export class BoardGitlab {
       source: BoardSources.GITLAB,
       ref: { repo: project },
     };
+
     const line = (part: {
       id: string;
       ts: string;
@@ -375,6 +378,7 @@ export class BoardGitlab {
         summary: part.check,
       };
     };
+
     const fromJobs = (Array.isArray(opts.jobs) ? opts.jobs : []).flatMap((job: unknown) =>
       RecordValue.isRecord(job) && typeof job.id === 'number'
         ? [

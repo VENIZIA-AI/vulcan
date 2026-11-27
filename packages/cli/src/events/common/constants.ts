@@ -75,6 +75,7 @@ export class EventStoreConstants {
      CREATE UNIQUE INDEX event_id ON event (id);
      CREATE INDEX event_ts ON event (ts);`,
   ];
+
   static readonly VERSION =
     EventStoreConstants.MAJOR * EventStoreConstants.MAJOR_STEP +
     EventStoreConstants.MIGRATIONS.length;
@@ -171,6 +172,7 @@ export class EventSizeUnits {
     MB: 1024 * 1024,
     GB: 1024 * 1024 * 1024,
   };
+
   static readonly PATTERN = /^(\d+(?:\.\d+)?)\s?(KB|MB|GB)$/i;
 }
 
@@ -309,11 +311,13 @@ export class EventSecrets {
     // The signature of a shared access URL, `sig=` in its query.
     /([?&]sig=)[A-Za-z0-9%+/=_-]{16,256}/g,
   ];
+
   /** Long runs that are secrets in a log line but hashes in a lockfile. */
   static readonly HIGH_ENTROPY: RegExp[] = [
     /\b[0-9a-fA-F]{64,}\b/g,
     /(?<![A-Za-z0-9+_])(?=[A-Za-z0-9+]*\d)(?=[A-Za-z0-9+]*[a-z])(?=[A-Za-z0-9+]*[A-Z])[A-Za-z0-9+]{40,}={0,2}/g,
   ];
+
   /**
    * Credentials inside a URL, up to the `@` before the host: `user:password` (the user may be empty, the password runs to
    * the last `@` before the host; a port and a path are not a password), and a DSN key `<32 hex>`.
@@ -322,6 +326,7 @@ export class EventSecrets {
     /(\/\/)[^\s/@:]{0,128}:(?!\d{1,5}(?:[/?#\s]|$))[^\s]{1,256}?(?=@[^\s/@?#]{1,253}(?:[/:?#\s]|$))/g,
     /(\/\/)[0-9a-fA-F]{32}(?::[0-9a-fA-F]{32})?(?=@)/g,
   ];
+
   /** Everything `EventText.redact` replaces, in the order it replaces it. */
   static readonly PATTERNS: RegExp[] = [
     EventSecrets.PRIVATE_KEY,
@@ -329,13 +334,21 @@ export class EventSecrets {
     ...EventSecrets.HIGH_ENTROPY,
     ...EventSecrets.URL_CREDENTIALS,
   ];
+
   /**
    * `name=value`, `name: value` and `"name": "value"` where the name says it is a secret, or has `pw`, `pass` or
    * `passphrase` as a whole part (`DB_PASS`, `pw_x`). A switch value (`true`, `off`, `1`) is not a secret.
    */
   static readonly ASSIGNMENT =
     /["']?(?<![A-Za-z0-9_.-])([A-Za-z0-9_.-]{0,64}(?:key|token|secret|password|passwd|pwd|credential)[A-Za-z0-9_.-]{0,64}|(?:[A-Za-z0-9_.-]{0,64}[_.-])?(?:pw|pass|passphrase)(?:[_.-][A-Za-z0-9_.-]{0,64})?)["']?\s{0,8}[:=]\s{0,8}(?!["']?(?:0|1|true|false|yes|no|on|off)(?![A-Za-z0-9_]))("[^"]{0,256}"|'[^']{0,256}'|\S{1,256})/gi;
+
   /** "the password is hunter2". */
   static readonly SPOKEN =
     /\b((?:password|passwd|passphrase|secret|token|api[ _-]?key)s?)\s{1,8}(?:is|are|was|were)\s{1,8}("[^"]{0,256}"|'[^']{0,256}'|\S{1,256})/gi;
+}
+
+/** Whose lines of a transcript count: the main session, or its subagents. */
+export class TranscriptSides {
+  static readonly MAIN = 'main';
+  static readonly SUB = 'sub';
 }

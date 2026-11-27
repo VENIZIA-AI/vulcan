@@ -43,6 +43,7 @@ const matchesNothing = (opts: { word: string; base: string }): boolean => {
     const glob = new Bun.Glob(opts.word.slice(at + 1).toLowerCase());
 
     return !readdirSync(folder).some((entry) => glob.match(entry.toLowerCase()));
+    // eslint-disable-next-line venizia/no-silent-catch -- an unreadable folder is not a miss (see the doc comment): the probe answers false, and a guard speaks only its protocol
   } catch {
     return false;
   }

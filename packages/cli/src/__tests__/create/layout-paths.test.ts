@@ -462,6 +462,7 @@ describe('vulcan package add --lib with several shared folders', () => {
 
 describe('vulcan package add --lib says why a folder it used was not recorded', () => {
   const lib = `file:${join(FIXTURES, 'preset-with-lib')}`;
+
   const project = (): string => {
     const parent = createProject({ files: {} });
     const init = runCli({
@@ -489,6 +490,7 @@ describe('vulcan package add --lib says why a folder it used was not recorded', 
 
     return join(parent, 'p');
   };
+
   const addLib = (opts: { root: string; name: string; dir: string }) =>
     runCli({
       args: ['package', 'add', '--preset', lib, '--lib', opts.name, '--dir', opts.dir],

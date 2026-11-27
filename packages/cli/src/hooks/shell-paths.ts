@@ -1,6 +1,6 @@
 import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join } from 'node:path';
-import type { TEnvironment } from './common/index.ts';
+import type { TEnvironment, TLinkPassage } from './common/index.ts';
 import { ShellConstants } from './common/index.ts';
 
 /** The links one path may pass through before it is taken for a loop, as the system counts them. */
@@ -18,6 +18,7 @@ export class ShellPaths {
           return fields[5];
         }
       }
+      // eslint-disable-next-line venizia/no-silent-catch -- no readable password file means the user is not known; a guard speaks only its protocol
     } catch {
       return undefined;
     }
@@ -103,7 +104,7 @@ export class ShellPaths {
     base: string;
     links: string[];
     isLastCounted: boolean;
-  }): 'made' | 'dangling' | undefined {
+  }): TLinkPassage | undefined {
     interface IStep {
       part: string;
       /** A link of the line at this name counts. */
@@ -151,6 +152,7 @@ export class ShellPaths {
 
       try {
         target = lstatSync(current).isSymbolicLink() ? readlinkSync(current) : undefined;
+        // eslint-disable-next-line venizia/no-silent-catch -- a component that cannot be read is no link; a guard speaks only its protocol
       } catch {
         target = undefined;
       }

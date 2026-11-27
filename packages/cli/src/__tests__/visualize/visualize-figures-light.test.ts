@@ -15,6 +15,7 @@ const htmlOf = (spec: Record<string, unknown>): string => {
 
   return result.page.html;
 };
+
 const CHROME = DEFAULT_CHROME;
 
 describe('figure parts are wide, text parts are not', () => {

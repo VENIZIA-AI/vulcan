@@ -1,6 +1,7 @@
 import { AtlasConstants } from '@/common';
 import { BaseHelper } from '@/common/helper';
 import { TextValue } from '@/common/text';
+import type { TNullable } from '@venizia/vulcan-okf';
 import { RpcError, RpcErrorCodes } from './common';
 import type { IRpcRequest, IRpcResponse, IToolDefinition, IToolHandler } from './common';
 
@@ -222,7 +223,7 @@ export class Transport extends BaseHelper {
   }
 
   private errorReply(opts: {
-    id: number | string | null | undefined;
+    id: TNullable<number | string>;
     code: number;
     message: string;
   }): string {

@@ -99,6 +99,26 @@ describe('a name imported twice', () => {
   });
 });
 
+describe('a long export line is written as the formatter writes it', () => {
+  const groups = ['project', 'agent', 'guard', 'board', 'knowledge', 'check', 'common'];
+  const file = (line: string) => `import type { VulcanConfig } from ${PACKAGE};\n\n${line}\n`;
+
+  test('over 100 characters after the rename: one property a line', () => {
+    const line = `export default { ${groups.join(', ')} } satisfies VulcanConfig;`;
+
+    expect(line.length).toBeLessThanOrEqual(100);
+    expect(rewrite({ text: file(line) })).toContain(
+      `export default {\n${groups.map((group) => `  ${group},\n`).join('')}} satisfies VulcanConfigType;\n`,
+    );
+  });
+
+  test('a short line stays on one line', () => {
+    expect(rewrite({ text: file('export default { project } satisfies VulcanConfig;') })).toContain(
+      'export default { project } satisfies VulcanConfigType;',
+    );
+  });
+});
+
 const BOTH = `import { defineConfig, type VulcanConfig } from ${PACKAGE};
 
 const agent: VulcanConfig.Agent = {};

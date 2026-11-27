@@ -458,11 +458,17 @@ describe('a source indexed in a child process', () => {
       ),
     });
 
-    const failure = await SourceBoot.indexInChild({
-      source: { name: 'gone', repo: `file://${cwd}/no-such.git`, ref: 'develop' },
-      args: ['--root', cwd, `--cache-dir=${cacheDir}`],
-      timeoutMs: 120_000,
-    }).catch((error: unknown) => error);
+    let failure: unknown;
+
+    try {
+      await SourceBoot.indexInChild({
+        source: { name: 'gone', repo: `file://${cwd}/no-such.git`, ref: 'develop' },
+        args: ['--root', cwd, `--cache-dir=${cacheDir}`],
+        timeoutMs: 120_000,
+      });
+    } catch (error) {
+      failure = error;
+    }
 
     expect(failure).toBeInstanceOf(Error);
     expect((failure as Error).message).toContain('is unreachable');
@@ -494,11 +500,17 @@ describe('a source indexed in a child process', () => {
       ),
     });
 
-    const failure = await SourceBoot.indexInChild({
-      source: { name: 'src', repo: repository.url, ref: 'develop' },
-      args: ['--root', cwd, `--cache-dir=${cacheDir}`],
-      timeoutMs: 1,
-    }).catch((error: unknown) => error);
+    let failure: unknown;
+
+    try {
+      await SourceBoot.indexInChild({
+        source: { name: 'src', repo: repository.url, ref: 'develop' },
+        args: ['--root', cwd, `--cache-dir=${cacheDir}`],
+        timeoutMs: 1,
+      });
+    } catch (error) {
+      failure = error;
+    }
 
     expect(failure).toBeInstanceOf(Error);
     expect((failure as Error).message).toContain('took longer than');

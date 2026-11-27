@@ -66,6 +66,7 @@ class RedisCli {
     '--pipe-timeout',
     '--memkeys-samples',
   ];
+
   /** The commands that only read; any other command, and the prompt (no command), asks. */
   static readonly READS = [
     'GET|MGET|STRLEN|EXISTS|TYPE|TTL|PTTL|KEYS|SCAN|SSCAN|HSCAN|ZSCAN|INFO|PING|DBSIZE|TIME|ECHO',
@@ -75,6 +76,7 @@ class RedisCli {
     'OBJECT|LATENCY|COMMAND',
     'CLIENT[ \t]+LIST|CONFIG[ \t]+GET|MEMORY[ \t]+USAGE|SLOWLOG[ \t]+GET',
   ].join('|');
+
   /** The modes that only read: they scan or sample the server and send no command. */
   static readonly READ_MODES = '^(?:--scan|--bigkeys|--stat|--latency)$';
 }
@@ -118,6 +120,7 @@ class Httpie {
     '--http-version',
     '--raw',
   ];
+
   static readonly READS = '(?:GET|HEAD|OPTIONS)';
   /**
    * A request item that sends data, so a POST: its first separator is `=` (not `==`, a query parameter),

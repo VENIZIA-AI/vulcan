@@ -14,9 +14,10 @@
       "name": "@venizia/vulcan-atlas",
       "version": "0.5.0-10",
       "bin": {
-        "vulcan-atlas": "./dist/cjs/cli/main.js",
+        "vulcan-atlas": "./dist/esm/cli/main.js",
       },
       "dependencies": {
+        "@venizia/vulcan-okf": "workspace:*",
         "typescript": "catalog:",
         "zod": "catalog:",
       },

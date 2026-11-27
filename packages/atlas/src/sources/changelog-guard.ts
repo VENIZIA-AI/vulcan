@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { VersionFolders } from '@/changelogs/version-folder';
+import { VulcanError } from '@venizia/vulcan-okf';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases';
 
@@ -60,15 +61,15 @@ export class ChangelogGuard {
       : 0;
 
     if (onDisk === 0 && (opts.committed ?? 0) > 0) {
-      throw new Error(
-        `atlas: ${opts.label} commits ${opts.committed} dated entries in ${shown}, but the checkout holds none, so its release table holds no changelog entry`,
-      );
+      throw VulcanError.of({
+        message: `atlas: ${opts.label} commits ${opts.committed} dated entries in ${shown}, but the checkout holds none, so its release table holds no changelog entry`,
+      });
     }
 
     if (onDisk > 0) {
-      throw new Error(
-        `atlas: ${opts.label} has ${onDisk} dated entries in ${shown}, but its release table holds none`,
-      );
+      throw VulcanError.of({
+        message: `atlas: ${opts.label} has ${onDisk} dated entries in ${shown}, but its release table holds none`,
+      });
     }
   }
 }

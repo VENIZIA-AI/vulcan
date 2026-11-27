@@ -5,6 +5,7 @@ import { fullSpec } from './spec.fixture.ts';
 import { renderSpec } from './render.helper.ts';
 
 const render = (spec: Record<string, unknown>) => renderSpec(spec);
+
 const rendered = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
@@ -14,6 +15,7 @@ const rendered = (spec: Record<string, unknown>): string => {
 
   return result.page.html;
 };
+
 const problems = (spec: Record<string, unknown>): string[] => {
   const result = render(spec);
 

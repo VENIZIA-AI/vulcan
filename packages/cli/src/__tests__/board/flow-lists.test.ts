@@ -43,6 +43,7 @@ const make = (opts: {
     ...(opts.next === undefined ? {} : { next: opts.next }),
     now: BASE + opts.minute * 60_000,
   });
+
 const fold = (events: IEvent[]) => {
   const log = BoardFold.fromLog({ events });
 

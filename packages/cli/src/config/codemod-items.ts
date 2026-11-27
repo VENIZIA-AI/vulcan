@@ -377,8 +377,7 @@ export class CodemodItemReader {
       return { body: `${opts.rename}: ${property.name.text}`, ...idPart };
     }
 
-    const name = (property as { name?: { getStart: (source: TSourceFile) => number; end: number } })
-      .name;
+    const name = property.name;
 
     if (name === undefined) {
       return { body: text, ...idPart };

@@ -1,4 +1,5 @@
 import { RecordValue } from '../common/record.ts';
+import type { TConfigForm } from './common/types.ts';
 
 /** Where each key of a group lands in the flat config the readers use: `to` is the flat top-level key, `inner` a key inside it. */
 interface IGroupKey {
@@ -67,7 +68,7 @@ export class ConfigGroups {
     ].sort((left, right) => right.flat.length - left.flat.length);
   }
 
-  private static retarget(opts: { path: string; from: 'flat' | 'grouped' }): string {
+  private static retarget(opts: { path: string; from: TConfigForm }): string {
     const to = opts.from === 'flat' ? 'grouped' : 'flat';
     const own = ConfigGroups.prefixes()
       .map((entry) => ({ from: entry[opts.from], to: entry[to] }))
@@ -199,6 +200,7 @@ export class ConfigGroups {
   } {
     const flat: Record<string, unknown> = {};
     const issues: string[] = [];
+
     const put = (key: string, inner: string | undefined, value: unknown): void => {
       if (inner === undefined) {
         const existing = flat[key];

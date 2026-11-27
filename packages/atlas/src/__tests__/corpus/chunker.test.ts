@@ -9,7 +9,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, spyOn, test } from 'bun:test';
 
-// __dirname, not import.meta: this package emits CommonJS.
 const FIXTURES_ROOT = join(__dirname, '../fixtures/corpus');
 
 const readFixtureDocument = (opts: {

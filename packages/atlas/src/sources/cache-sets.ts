@@ -12,6 +12,8 @@ import { randomUUID } from 'node:crypto';
 import { join, relative } from 'node:path';
 import { MANIFEST_FILE, ProjectConfig } from '@/common/project-config';
 import { AtlasConstants } from '@/common/constants';
+import { VulcanError } from '@venizia/vulcan-okf';
+import { StderrLogger } from '@/common/logger';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases/common';
 import { SourceCache } from './cache';
@@ -147,7 +149,12 @@ export class CacheSets {
       });
 
       return (CacheSets.committedEntriesOf({ checkout, project }) ?? 0) > 0;
-    } catch {
+    } catch (error) {
+      StderrLogger.get('CacheSets.hasLostChangelogs').debug(
+        'a set that cannot be read for this check | error: %s',
+        error,
+      );
+
       // A set that cannot be read for this check is judged as it was before: by being complete and current.
       return false;
     }
@@ -166,9 +173,9 @@ export class CacheSets {
     const file = ProjectConfig.manifestFileOf({ dir: opts.checkout });
 
     if (file === undefined) {
-      throw new Error(
-        `atlas: ${CacheSets.describe(opts)} has no ${MANIFEST_FILE} - its maintainers run \`vulcan project sync\` and commit it`,
-      );
+      throw VulcanError.of({
+        message: `atlas: ${CacheSets.describe(opts)} has no ${MANIFEST_FILE} - its maintainers run \`vulcan project sync\` and commit it`,
+      });
     }
 
     return ProjectConfig.toAtlasProject({

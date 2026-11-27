@@ -22,4 +22,4 @@ export const guard = {
       },
     ],
   },
-} satisfies NonNullable<VulcanConfig.Guard>;
+} satisfies NonNullable<VulcanConfig.GuardType>;

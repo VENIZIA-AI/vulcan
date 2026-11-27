@@ -180,12 +180,20 @@ describe('the tarball of a GitHub source', () => {
     AtlasLimits.configure({ download: MIB });
 
     try {
-      const failure = await GithubTarball.download({
-        owner: 'acme',
-        repo: 'src',
-        sha,
-        work: directory,
-      }).catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
+      let failure: unknown;
+
+      try {
+        const downloaded = await GithubTarball.download({
+          owner: 'acme',
+          repo: 'src',
+          sha,
+          work: directory,
+        });
+
+        failure = downloaded;
+      } catch (error) {
+        failure = error instanceof Error ? error.message : String(error);
+      }
 
       expect(failure).toContain(
         'atlas: the tarball of acme/src at aaaaaaaa is over knowledge.atlas.limits.download',
@@ -247,11 +255,19 @@ describe('the npm tarball of a package version', () => {
     AtlasLimits.configure({ download: MIB });
 
     try {
-      const failure = await SymbolCompute.symbolsOfPublished({
-        name: '@x/big',
-        version: '1.0.0',
-        cacheBase: makeTempDirectory({ prefix: 'atlas-npm-cache-' }),
-      }).catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
+      let failure: unknown;
+
+      try {
+        const symbols = await SymbolCompute.symbolsOfPublished({
+          name: '@x/big',
+          version: '1.0.0',
+          cacheBase: makeTempDirectory({ prefix: 'atlas-npm-cache-' }),
+        });
+
+        failure = symbols;
+      } catch (error) {
+        failure = error instanceof Error ? error.message : String(error);
+      }
 
       expect(failure).toContain(
         'atlas: the npm tarball of @x/big@1.0.0 is over knowledge.atlas.limits.download',

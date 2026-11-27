@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { TNullable } from '@venizia/vulcan-okf';
 import { ExitCodes, JsonValue, PACKAGE_NAME, UpgradeFlags } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { CreateConstants } from '../create/common/index.ts';
@@ -14,7 +15,7 @@ interface IDistTags {
 }
 
 /** A tag that is present must be a plain version; anything else cannot be compared or installed. */
-const parseTag = (opts: { tags: unknown; key: keyof IDistTags }): string | undefined | null => {
+const parseTag = (opts: { tags: unknown; key: keyof IDistTags }): TNullable<string> => {
   const value = JsonValue.readProperty({ value: opts.tags, key: opts.key });
 
   if (value === undefined) {
@@ -30,6 +31,7 @@ const parseDistTags = (opts: { text: string }): IDistTags | undefined => {
 
   try {
     parsed = JSON.parse(opts.text);
+    // eslint-disable-next-line venizia/no-silent-catch -- a reply that is not JSON has no tags: the caller says the registry could not be read
   } catch {
     return undefined;
   }
@@ -95,6 +97,7 @@ const readInstalledVersion = (opts: { cwd: string }): string | undefined => {
     });
 
     return typeof version === 'string' ? version : undefined;
+    // eslint-disable-next-line venizia/no-silent-catch -- no readable installed manifest is no installed version, which the caller reports
   } catch {
     return undefined;
   }

@@ -67,6 +67,7 @@ export class ProjectLayout {
    */
   static readonly PREPARE_SCRIPT =
     "if [ -f node_modules/.bin/vulcan ]; then bun node_modules/.bin/vulcan project sync --quiet < /dev/null || echo 'vulcan: sync did not finish: if the config is in the flat shape run bun node_modules/.bin/vulcan config codemod config-groups . --write, else run bun node_modules/.bin/vulcan project sync'; else echo 'vulcan: not installed yet: run bun install'; fi; exit 0";
+
   /** The default scratch folder of a session: short, so a browser's socket path fits, and outside `.agents/local/`. `local.tmp` replaces it. */
   static readonly TMP_DIRECTORY = '.agents/tmp';
   static readonly CLAUDE_SETTINGS_FILE = '.claude/settings.json';
@@ -79,6 +80,7 @@ export class ProjectLayout {
     `${ProjectLayout.TMP_DIRECTORY}/`,
     ...ProjectLayout.SECRET_PATTERNS,
   ];
+
   /** Everything an agent creates while it works lives under here, gitignored: nothing goes outside the project. */
   static readonly LOCAL_DIRECTORY = '.agents/local';
   /** Each directory under it, with when it goes: the one list `sync`, `doctor` and `clean` read. */
@@ -105,6 +107,7 @@ export class ProjectLayout {
       onDemand: true,
     },
   ] as const;
+
   /** What the scaffolded lint configs run; optional peers of dev-configs, so bun never installs them alone. */
   static readonly LINT_TOOLS = ['oxlint', 'oxlint-tsgolint', 'eslint'];
   /** Written into a scaffolded file the project must fill in; doctor fails the file while it holds this. */

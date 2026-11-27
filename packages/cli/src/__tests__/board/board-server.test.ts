@@ -228,6 +228,7 @@ const openStream = async (opts: {
 describe('BoardServer.openFile: the page the program that opens the browser is given', () => {
   const tokenOf = (server: { url: string }): string =>
     new URL(server.url).searchParams.get(BoardServe.TOKEN_PARAM) ?? '';
+
   const start = async (opts: { openFileTtlMs?: number; openFolder?: string } = {}) => {
     const { root, dir } = projectWithLog();
     const openFolder = opts.openFolder ?? join(root, '.agents/tmp');
@@ -242,6 +243,7 @@ describe('BoardServer.openFile: the page the program that opens the browser is g
 
     return { server, openFolder };
   };
+
   const gone = async (path: string): Promise<boolean> => {
     for (let waited = 0; waited < 3000; waited += 20) {
       if (!existsSync(path)) {
@@ -565,6 +567,7 @@ describe('vulcan board serve', () => {
 
       return true;
     };
+
     broken = true;
 
     try {
@@ -695,13 +698,21 @@ describe('vulcan board serve', () => {
     const { root, dir } = projectWithLog();
     const busy = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: () => new Response('x') });
     const port = busy.port ?? 0;
-    const failure = await BoardServer.start({
-      dir,
-      collect: () =>
-        BoardCommand.collect({ root, dir, since: SINCE, args: { repos: [], noGithub: true } }),
-      port,
-      strictPort: true,
-    }).catch((error: unknown) => error);
+    let failure: unknown;
+
+    try {
+      const started = await BoardServer.start({
+        dir,
+        collect: () =>
+          BoardCommand.collect({ root, dir, since: SINCE, args: { repos: [], noGithub: true } }),
+        port,
+        strictPort: true,
+      });
+
+      failure = started;
+    } catch (error) {
+      failure = error;
+    }
 
     expect(failure).toBeInstanceOf(Error);
     expect(String(failure)).toContain('in use');
@@ -723,12 +734,15 @@ describe('vulcan board serve', () => {
 
     await BoardServer.stop();
 
-    const reached = await fetch(server.url).then(
-      () => true,
-      () => false,
-    );
+    let failure: unknown;
 
-    expect(reached).toBe(false);
+    try {
+      await fetch(server.url);
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure).toBeDefined();
   });
 
   test('without --open the token is never written to the project: no file holds it, and the event log is untouched', async () => {
@@ -746,6 +760,7 @@ describe('vulcan board serve', () => {
     stream.close();
 
     const holders: string[] = [];
+
     const scan = (folder: string): void => {
       for (const entry of readdirSync(folder, { withFileTypes: true })) {
         const path = join(folder, entry.name);

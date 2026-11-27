@@ -21,6 +21,7 @@ const project = (opts: { legacy?: string } = {}): string =>
       ...(opts.legacy === undefined ? {} : { [ManifestConstants.LEGACY_FILE]: opts.legacy }),
     },
   });
+
 const configOf = (root: string) => {
   const parsed = VulcanConfigSchema.parse({
     name: 'acme',
@@ -43,6 +44,7 @@ describe('the descriptor and the local manifest', () => {
     expect(Object.keys(descriptor)).toEqual(
       Object.keys(whole).filter((key) => ManifestConstants.DESCRIPTOR_KEYS.includes(key)),
     );
+
     for (const key of Object.keys(descriptor)) {
       expect(descriptor[key], key).toEqual(whole[key]);
     }

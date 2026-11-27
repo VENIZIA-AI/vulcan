@@ -94,6 +94,7 @@ export class ConfigFormat {
 
       return keys;
     };
+
     const topKeys = keysOf(found.object, '');
 
     if ('reason' in topKeys) {

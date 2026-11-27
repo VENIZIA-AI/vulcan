@@ -3,6 +3,10 @@ export * from './spec/index.ts';
 
 export { ContentsList } from './generate/contents.ts';
 
+/** The error and the small types every VULCAN package shares. */
+export { VulcanError } from './common/error.ts';
+export type { TConstValue, TNullable } from './common/types.ts';
+
 /** The renderer API a project module builds on (`okf.renderers[].module`). */
 export { defineRenderer } from './generate/define.ts';
 export type {

@@ -312,6 +312,7 @@ const routeOf = (opts: {
   const lines = edgeLinesOf({ edge: opts.edge });
   const right = to.centre.x > from.centre.x ? 1 : -1;
   const down = to.centre.y > from.centre.y ? 1 : -1;
+
   const columnGapMiddle = (): number => {
     const column = right === 1 ? from.node.col : from.node.col - 1;
 
@@ -321,6 +322,7 @@ const routeOf = (opts: {
       (geometry.columnGaps[column] ?? 0) / 2
     );
   };
+
   const rowGapMiddle = (): number => {
     const row = down === 1 ? from.node.row : from.node.row - 1;
 
@@ -495,6 +497,7 @@ export class FigureLayout {
   static renderPathList(opts: { flow: TFlow }): string {
     const { flow } = opts;
     const byId = new Map(flow.nodes.map((node) => [node.id, node]));
+
     const nameOf = (id: string): string => {
       const node = byId.get(id);
       const mark =
@@ -504,6 +507,7 @@ export class FigureLayout {
 
       return `${mark}${FigureLayout.escaped(node?.label ?? id)}`;
     };
+
     const arrows = flow.edges
       .map(
         (edge) =>

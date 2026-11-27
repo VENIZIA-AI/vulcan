@@ -51,7 +51,7 @@ const SOURCES_MODULE = join(__dirname, '../../sources/index.ts');
 /** One cold start in its own process - what three MCP clients starting at once amount to. */
 const startInProcess = async (opts: { url: string; cwd: string; cacheDir: string }) => {
   const script = [
-    `const { SourceResolver } = require(${JSON.stringify(SOURCES_MODULE)});`,
+    `const { SourceResolver } = await import(${JSON.stringify(SOURCES_MODULE)});`,
     `SourceResolver.resolve({ cwd: ${JSON.stringify(opts.cwd)}, cacheDir: ${JSON.stringify(opts.cacheDir)}, sources: [{ name: 'src', repo: ${JSON.stringify(opts.url)}, ref: 'develop' }] })`,
     '  .then(([resolved]) => console.log(JSON.stringify({ sha: resolved.sha })))',
     '  .catch(error => { console.error(String(error)); process.exit(1); });',
@@ -92,6 +92,7 @@ const searchFor = async (opts: {
       params: { name: 'search', arguments: { query: opts.query } },
     }),
   });
+
   return JSON.stringify(JSON.parse(result ?? 'null'));
 };
 

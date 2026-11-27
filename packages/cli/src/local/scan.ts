@@ -16,6 +16,7 @@ const newestModifiedAt = (opts: { path: string }): number => {
 
   try {
     stat = lstatSync(opts.path);
+    // eslint-disable-next-line venizia/no-silent-catch -- a path that is gone has no age
   } catch {
     return 0;
   }
@@ -36,6 +37,7 @@ const sizeOf = (opts: { path: string }): number => {
 
   try {
     stat = lstatSync(opts.path);
+    // eslint-disable-next-line venizia/no-silent-catch -- a path that is gone has no size
   } catch {
     return 0;
   }
@@ -91,6 +93,7 @@ export class LocalScan {
       return real.startsWith(`${realRoot}${sep}`) && lstatSync(real).isDirectory()
         ? real
         : undefined;
+      // eslint-disable-next-line venizia/no-silent-catch -- a folder that cannot be resolved is not inside the local root
     } catch {
       return undefined;
     }
@@ -337,6 +340,7 @@ export class LocalScan {
       const real = realpathSync(folder);
 
       return `${real}${sep}`.startsWith(`${realpathSync(opts.root)}${sep}`) ? real : undefined;
+      // eslint-disable-next-line venizia/no-silent-catch -- a folder that cannot be resolved is not inside the project
     } catch {
       return undefined;
     }

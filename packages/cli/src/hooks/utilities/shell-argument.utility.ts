@@ -66,6 +66,7 @@ export class ShellArgumentUtility {
   static bracedWordsOf(opts: { word: string }): { words: string[]; isUnread: boolean } {
     const words: string[] = [];
     let isUnread = false;
+
     const expand = (word: string, from: number): void => {
       // Stops the expansion itself: thirty lists of two make a billion words.
       if (words.length > MAX_BRACE_WORDS) {

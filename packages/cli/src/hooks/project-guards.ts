@@ -1,10 +1,11 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { GuardDecisions, HookConstants } from './common/index.ts';
+import type { TWriteRule } from './common/index.ts';
 
 /** A command the project says is a database write or a deploy: guard-writes asks on a match. */
 export interface IProjectCommandCheck {
-  rule: 'V-W-02' | 'V-W-03';
+  rule: TWriteRule;
   what: string;
   pattern: RegExp;
 }
@@ -118,6 +119,7 @@ export class ProjectGuards {
       return readdirSync(join(opts.root, '.configs')).some((name) =>
         name.startsWith('vulcan.config.'),
       );
+      // eslint-disable-next-line venizia/no-silent-catch -- no .configs folder means no config; a guard speaks only its protocol
     } catch {
       return false;
     }

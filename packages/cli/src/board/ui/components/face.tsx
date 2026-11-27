@@ -1,3 +1,5 @@
+import type { TAgentStatus } from '../common/types.ts';
+
 type TPoint = [number, number];
 
 interface IShape {
@@ -76,9 +78,7 @@ const COLORS = ['#F5B83D', '#EF5B3A', '#8FD16F', '#5BB6E8', '#B28DE0', '#F28DB2'
 const SLEEP_COLOR = '#8E8FA3';
 const CHEEK = '#FF8A80';
 
-export type TFaceState = 'working' | 'you' | 'idle' | 'blocked';
-
-const Eyes = (props: { shape: IShape; state: TFaceState }) => {
+const Eyes = (props: { shape: IShape; state: TAgentStatus }) => {
   const { state } = props;
 
   return (
@@ -107,7 +107,7 @@ const Eyes = (props: { shape: IShape; state: TFaceState }) => {
   );
 };
 
-const Mouth = (props: { at: TPoint; state: TFaceState }) => {
+const Mouth = (props: { at: TPoint; state: TAgentStatus }) => {
   const [x, y] = props.at;
 
   if (props.state === 'working') {
@@ -125,7 +125,7 @@ const Mouth = (props: { at: TPoint; state: TFaceState }) => {
   return <ellipse cx={x} cy={y + 0.2} rx={1.4} ry={1} className="m-ink" />;
 };
 
-const Body = (props: { shape: IShape; state: TFaceState; fill: string }) => (
+const Body = (props: { shape: IShape; state: TAgentStatus; fill: string }) => (
   <>
     <path d={props.shape.d} fill={props.fill} className="m-o" strokeWidth={2.2} />
     <Eyes shape={props.shape} state={props.state} />
@@ -179,7 +179,7 @@ export class BoardFace {
  * Working, it digs with a hoe over a mound of soil; waiting on the owner, it waves under a yellow "?";
  * asleep, it is grey with closed eyes; stuck, it sweats. The motion is CSS and stops for reduced motion.
  */
-export const Mascot = (props: { state: TFaceState; name: string; shape: string }) => {
+export const Mascot = (props: { state: TAgentStatus; name: string; shape: string }) => {
   const shape = SHAPES[props.shape];
   const color = BoardFace.colorOf({ name: props.name });
 

@@ -17,6 +17,7 @@ const git = (opts: { root: string; args: string[] }): string | undefined => {
     });
 
     return result.exitCode === 0 ? result.stdout.toString().trim() : undefined;
+    // eslint-disable-next-line venizia/no-silent-catch -- no git, or not a repository: undefined is the answer the callers handle
   } catch {
     return undefined;
   }

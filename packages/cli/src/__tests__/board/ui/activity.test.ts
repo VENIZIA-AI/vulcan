@@ -172,6 +172,7 @@ describe('a message shows once on the agents pane, under its sender', () => {
     const events = BoardView.eventsOf({ data, showAll: false });
     const now = Date.parse(sent.ts);
     const rows = BoardView.rowsOf({ data, flows: views, events, translate: en, now });
+
     const cardOf = (name: string) => {
       const row = rows.find((one) => one.n === name);
 

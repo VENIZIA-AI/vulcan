@@ -135,6 +135,7 @@ const INDEX_PUBLIC_KEY = z.string().refine(
 const compiles = (value: string): boolean => {
   try {
     return new RegExp(value) instanceof RegExp;
+    // eslint-disable-next-line venizia/no-silent-catch -- a pattern that does not compile is the answer the helper gives
   } catch {
     return false;
   }

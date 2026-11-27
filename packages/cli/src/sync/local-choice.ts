@@ -104,6 +104,7 @@ export class LocalPlan {
       return RecordValue.isRecord(parsed) && ProfileKeys.isOld({ value: parsed })
         ? ProfileKeys.toNew({ value: parsed }).value
         : undefined;
+      // eslint-disable-next-line venizia/no-silent-catch -- a profile that cannot be read has nothing to move
     } catch {
       return undefined;
     }
@@ -126,6 +127,7 @@ export class LocalPlan {
 
     try {
       parsed = JSON.parse(readFileSync(path, 'utf8'));
+      // eslint-disable-next-line venizia/no-silent-catch -- a profile that cannot be read plans no key changes
     } catch {
       return [];
     }

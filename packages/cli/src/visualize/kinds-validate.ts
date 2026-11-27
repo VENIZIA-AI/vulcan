@@ -140,6 +140,7 @@ const checkTree = (opts: { tree: TTree }): string[] => {
   const ids = new Set<string>();
   let count = 0;
   let deepest = 0;
+
   const walk = (node: ITreeNode, depth: number): void => {
     count += 1;
     deepest = Math.max(deepest, depth);

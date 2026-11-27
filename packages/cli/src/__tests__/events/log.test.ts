@@ -400,6 +400,7 @@ describe('EventText', () => {
 
 describe('EventSecrets: each pattern takes time in proportion to its input', () => {
   const patterns = [...EventSecrets.PATTERNS, EventSecrets.ASSIGNMENT, EventSecrets.SPOKEN];
+
   const timeOf = (opts: { pattern: RegExp; piece: string; size: number }): number => {
     const text = opts.piece.repeat(Math.ceil(opts.size / opts.piece.length)).slice(0, opts.size);
     const start = performance.now();

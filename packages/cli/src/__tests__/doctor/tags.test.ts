@@ -13,6 +13,7 @@ const CONFIG = `export default { project: { packages: [
 
 const projectWithTags = (opts: { tags: string[]; config?: string }): string => {
   const root = createProject({ files: { '.configs/vulcan.config.mts': opts.config ?? CONFIG } });
+
   const git = (args: string[]): void => {
     execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
       cwd: root,

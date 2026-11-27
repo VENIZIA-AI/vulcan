@@ -48,10 +48,12 @@ export class BoardWatch {
         opts.onChange();
       }
     };
+
     const schedule = (): void => {
       clearTimeout(debounce);
       debounce = setTimeout(check, BoardServe.DEBOUNCE_MS);
     };
+
     const attach = (): void => {
       if (watcher !== undefined || !existsSync(opts.dir)) {
         return;

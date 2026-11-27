@@ -18,6 +18,7 @@ afterAll(removeProjects);
 
 const URL_WITH_TOKEN = 'http://board.localhost:4317/?t=0123456789abcdef0123456789abcdef';
 const folderOf = (): string => join(createProject({ files: {} }), 'tmp');
+
 const ageOf = (opts: { path: string; ms: number }): void => {
   const when = new Date(Date.now() - opts.ms);
 

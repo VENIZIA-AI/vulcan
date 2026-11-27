@@ -13,6 +13,7 @@ const pageOf = (spec: Record<string, unknown>): string => {
 
   return result.page.html;
 };
+
 const nodeOf = (id: string, label = 'x') => ({ id, label, row: 0, col: Number(id.slice(1)) });
 const flowOf = (opts: { nodes: ReturnType<typeof nodeOf>[]; label?: string }) => ({
   nodes: opts.nodes,

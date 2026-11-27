@@ -49,6 +49,7 @@ export class SettingsChecks {
         accessSync(dir, constants.W_OK);
 
         return undefined;
+        // eslint-disable-next-line venizia/no-silent-catch -- the problem text is the result: doctor prints it
       } catch {
         return 'is not writable by this user';
       }

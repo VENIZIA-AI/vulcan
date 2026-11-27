@@ -36,9 +36,11 @@ const project = (opts: { log?: boolean } = {}): string =>
     },
   });
 const dirOf = (root: string): string => join(root, '.agents/local/events');
+
 const write = (opts: { root: string; event: IEvent }): void => {
   EventLog.append({ dir: dirOf(opts.root), event: opts.event });
 };
+
 const flowLine = (opts: {
   root: string;
   at: number;

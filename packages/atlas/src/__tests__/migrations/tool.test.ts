@@ -245,6 +245,7 @@ describe('the registry check', () => {
         serverName: 'test',
         serverVersion: '0',
       });
+
     const ask = async (opts: { to: string; published: TPublishedLookup }) => {
       const line = await transport({ published: opts.published }).handleLine({
         line: JSON.stringify({

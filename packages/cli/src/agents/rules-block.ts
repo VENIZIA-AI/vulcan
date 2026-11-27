@@ -18,6 +18,7 @@ export class RulesBlock {
   static summaryOf(opts: { row: string }): string {
     const cell = (opts.row.split('|')[2] ?? '').replaceAll('**', '').replace(/\s+/g, ' ').trim();
     const [first = '', second = ''] = cell.split(/(?<=[.!?])\s+/);
+
     return first.length < SHORT_SUMMARY_CHARACTERS ? `${first} ${second}`.trim() : first;
   }
 
@@ -55,6 +56,7 @@ export class RulesBlock {
 
       return row === undefined ? undefined : `- ${id}: ${RulesBlock.summaryOf({ row })}`;
     };
+
     const dropped = opts.oftenDropped.map((id) => bullet(id)).filter((line) => line !== undefined);
     const build = (count: number): string =>
       [

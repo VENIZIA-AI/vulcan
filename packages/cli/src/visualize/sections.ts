@@ -5,6 +5,7 @@ import { SpecDiagrams } from './diagrams.ts';
 import type { IDrawing } from './diagrams.ts';
 import { GridSpans } from './grid-span.ts';
 import { IconSet } from './icons.ts';
+import { Labels } from './labels.ts';
 import { FigureLayout } from './layout.ts';
 import type { TVisualizeSpec } from './schema.ts';
 import { SourceRefs } from './sources.ts';
@@ -34,9 +35,10 @@ const dots = (opts: { score: number }): string =>
 export class SpecSections {
   /** The word of a state in the page's language. */
   static stateWord(opts: { chrome: TChrome; state: string }): string {
-    const key = MinimapStates.keyOf(opts.state) as keyof TChrome['minimapStates'];
-
-    return opts.chrome.minimapStates[key] ?? opts.state;
+    return (
+      Labels.wordOf({ words: opts.chrome.minimapStates, key: MinimapStates.keyOf(opts.state) }) ??
+      opts.state
+    );
   }
 
   /** A state as an icon and a word. */
@@ -127,13 +129,13 @@ export class SpecSections {
           ...(kinds.length > 1
             ? kinds.map(
                 (kind) =>
-                  `<li>${FigureLayout.escapeText({ value: chrome.nodeKinds[kind as keyof TChrome['nodeKinds']] ?? kind })}</li>`,
+                  `<li>${FigureLayout.escapeText({ value: Labels.wordOf({ words: chrome.nodeKinds, key: kind }) ?? kind })}</li>`,
               )
             : []),
           ...(variants.length > 1
             ? variants.map(
                 (variant) =>
-                  `<li>${variantSwatch({ variant })}<span>${FigureLayout.escapeText({ value: chrome.edgeVariants[variant as keyof TChrome['edgeVariants']] ?? variant })}</span></li>`,
+                  `<li>${variantSwatch({ variant })}<span>${FigureLayout.escapeText({ value: Labels.wordOf({ words: chrome.edgeVariants, key: variant }) ?? variant })}</span></li>`,
               )
             : []),
         ];

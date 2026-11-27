@@ -1,3 +1,4 @@
+import { VulcanError } from '@venizia/vulcan-okf';
 import type {
   AppSides,
   Corpora,
@@ -28,12 +29,12 @@ export class ConstClass {
     ];
 
     if (found.length === 0) {
-      throw new Error(`${this.name} has no values`);
+      throw VulcanError.of({ message: `${this.name} has no values` });
     }
 
     ConstClass.#cache.set(this, found);
 
-    // `this` is a subclass, so its string statics are the values of `TConstValue<T>`; the compiler cannot see that.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- `this` is a subclass, so its string statics are the values of `TConstValue<T>`; the compiler cannot see that
     return found as readonly [TConstValue<T>, ...TConstValue<T>[]];
   }
 

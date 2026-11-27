@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { VulcanError } from '@venizia/vulcan-okf';
 import type TypeScript from 'typescript';
 import { StderrLogger } from './logger';
 import { PROJECT_ROOT } from './project';
@@ -91,15 +92,15 @@ export class TypeScriptCompiler {
       }
     }
 
-    const fromAtlas = findTypeScript({ from: opts.own ?? dirname(__filename) });
+    const fromAtlas = findTypeScript({ from: opts.own ?? import.meta.dir });
     const own = fromAtlas === undefined ? undefined : requireFrom({ directory: fromAtlas });
 
     if (hasCompilerApi(own)) {
       return own;
     }
 
-    throw new Error(
-      `atlas: cannot find typescript (looked in ${opts.from} and in atlas's own install) - install it with \`bun add typescript\``,
-    );
+    throw VulcanError.of({
+      message: `atlas: cannot find typescript (looked in ${opts.from} and in atlas's own install) - install it with \`bun add typescript\``,
+    });
   }
 }

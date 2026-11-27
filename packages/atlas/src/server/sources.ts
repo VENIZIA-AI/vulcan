@@ -22,6 +22,7 @@ import {
   VersionTool,
 } from '@/tools';
 import { SkillCatalog } from '@/skills';
+import { VulcanError } from '@venizia/vulcan-okf';
 import { FreshnessGuard } from './freshness';
 import { ServerGuidance } from './guidance';
 import { SourceBoot } from './boot';
@@ -68,7 +69,9 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   const { cacheBase } = source;
 
   if (cacheBase === undefined) {
-    throw new Error(`atlas: remote source '${source.name}' was resolved without a cache base`);
+    throw VulcanError.of({
+      message: `atlas: remote source '${source.name}' was resolved without a cache base`,
+    });
   }
 
   const index = new ChunkStore({ serialized: readFileSync(source.indexFile ?? '') });
@@ -353,7 +356,11 @@ export class SourcesServer {
         : {
             definition: handler.definition,
             call: async (input) => {
-              const named = (input.args as { source?: unknown } | undefined)?.source;
+              const { args } = input;
+              const named =
+                typeof args === 'object' && args !== null && 'source' in args
+                  ? args.source
+                  : undefined;
 
               // A call that names a source waits for that one only; any other waits for all of them.
               await boot.waitFor({

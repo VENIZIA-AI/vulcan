@@ -24,6 +24,7 @@ const cli = (opts: { root: string; args: string[] }) =>
     env: { ...hermeticEnv(), VULCAN_ACTOR: 'pnt-vulcan-1' },
   });
 const linesOf = (root: string) => EventLog.read({ dir: join(root, '.agents/local/events') }).events;
+
 const branch = (opts: { root: string; name: string }): void => {
   mkdirSync(join(opts.root, '.git'), { recursive: true });
   writeFileSync(join(opts.root, '.git/HEAD'), `ref: refs/heads/${opts.name}\n`);

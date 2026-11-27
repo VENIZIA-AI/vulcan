@@ -1,5 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, relative } from 'node:path';
+import { VulcanError } from '../common/error.ts';
+import { RecordValue } from '../common/record.ts';
 import { OkfProject } from '../project/index.ts';
 import type { BindingClass, MakeTarget, SourceMapEntry } from './common/types.ts';
 import { SourceScanner } from './scanner.ts';
@@ -61,10 +63,10 @@ export class SourceCollector {
         stderr: 'pipe',
       });
     } catch (error) {
-      throw new Error(
-        `okf: make is not on PATH - the Makefile targets page needs it (${error instanceof Error ? error.message : String(error)})`,
-        { cause: error },
-      );
+      throw VulcanError.of({
+        message: `okf: make is not on PATH - the Makefile targets page needs it (${error instanceof Error ? error.message : String(error)})`,
+        cause: error,
+      });
     }
 
     // Asking for the target `:` prints the database and always ends in "No rule to make target ':'";
@@ -76,7 +78,7 @@ export class SourceCollector {
       .find((line) => line.includes('*** ') && !line.includes("No rule to make target ':'"));
 
     if (reason !== undefined) {
-      throw new Error(`okf: make failed: ${reason}`);
+      throw VulcanError.of({ message: `okf: make failed: ${reason}` });
     }
 
     const db = (made.stdout ?? '').toString();
@@ -214,18 +216,16 @@ export class SourceCollector {
         continue;
       }
 
-      const parsed = JSON.parse(readFileSync(manifest, 'utf8')) as {
-        name?: string;
-        description?: string;
-      };
+      const parsed = { value: JSON.parse(readFileSync(manifest, 'utf8')) };
+      const fields = RecordValue.isRecord(parsed) ? parsed.value : {};
 
       // Deliberately no `version` - it churns the bundle on every release.
       out.push({
         dir,
-        name: parsed.name ?? dir,
+        name: typeof fields.name === 'string' ? fields.name : dir,
         description: firstSentence({
           text: SourceCollector.sanitizeProse({
-            text: parsed.description ?? '',
+            text: typeof fields.description === 'string' ? fields.description : '',
             brand: OkfProject.read().brand,
           }),
         }),

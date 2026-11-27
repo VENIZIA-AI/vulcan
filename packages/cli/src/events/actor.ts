@@ -53,6 +53,7 @@ export class EventActor {
       files = readdirSync(directory)
         .filter((name) => SESSION_FILE.test(name))
         .slice(0, MAX_SESSION_FILES);
+      // eslint-disable-next-line venizia/no-silent-catch -- no session folder, or one that cannot be read, names no actor
     } catch {
       return undefined;
     }
@@ -103,6 +104,7 @@ export class EventActor {
               : Number(statSync(opts.file).mtimeMs),
         },
       ];
+      // eslint-disable-next-line venizia/no-silent-catch -- a session file that cannot be read is no candidate
     } catch {
       return undefined;
     }

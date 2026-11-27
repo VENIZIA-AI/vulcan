@@ -34,7 +34,7 @@ class BranchHistory {
 
 /** Where a merged branch may have gone: the checked-out branch of the root, then develop, then the default branch of origin. */
 const MERGE_TARGETS = [
-  { label: 'the branch checked out at the project root', args: [] as string[] },
+  { label: 'the branch checked out at the project root', args: [] },
   { label: 'origin/develop', args: ['origin/develop'] },
   { label: 'the default branch of origin', args: ['origin/HEAD'] },
 ];

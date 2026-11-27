@@ -1,9 +1,20 @@
 import type { TConstValue } from '../../common/index.ts';
 import type { IEventItem } from '../../events/common/index.ts';
-import type { BoardRoutes, BoardStates, ProviderTypes } from './constants.ts';
+import type {
+  AutoStartOutcomes,
+  BoardAgentStates,
+  BoardDecisionChoices,
+  BoardRoutes,
+  BoardStates,
+  ProviderTypes,
+} from './constants.ts';
 
 export type TBoardState = TConstValue<typeof BoardStates>;
 export type TProviderType = TConstValue<typeof ProviderTypes>;
+/** What `tick` did, for a test and for the note the hook prints. */
+export type TAutoStart = TConstValue<typeof AutoStartOutcomes>;
+export type TBoardDecisionChoice = TConstValue<typeof BoardDecisionChoices>;
+export type TBoardAgentState = TConstValue<typeof BoardAgentStates>;
 
 /** The code host the board reads, with the host name GitLab is asked at. */
 export interface IBoardProvider {
@@ -127,14 +138,14 @@ export interface IBoardFlow {
 }
 
 export interface IBoardDecision {
-  choice: 'approve' | 'later' | 'reject';
+  choice: TBoardDecisionChoice;
   at: string;
 }
 
 /** What the page shows of one agent. */
 export interface IBoardAgent {
   name: string;
-  state: 'working' | 'idle';
+  state: TBoardAgentState;
   current: string;
   since: string;
   checkedAt: string;

@@ -77,6 +77,7 @@ const makeProject = (opts: {
       regions: opts.regions ?? [],
     },
   };
+
   const run = (args: string[]) => {
     const child = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, CLI, ...args],

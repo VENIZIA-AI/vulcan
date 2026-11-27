@@ -382,6 +382,7 @@ describe('the history gate (C4)', () => {
   describe('a replacement pattern in the frontmatter is text', () => {
     const fm = (opts: { title: string; extra?: string }): string =>
       `---\ntitle: ${opts.title}\nversion: 0.4.1\npackages: ['@a/kernel']\n${opts.extra ?? ''}released: 2026-11-01\n---\n\n## Added\n- **A** \`a-item\`: a.\n`;
+
     const edit = (opts: { before: string; after: string }): string[] => {
       const root = mkdtempSync(join(tmpdir(), 'atlas-dollar-'));
 

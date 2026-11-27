@@ -18,6 +18,7 @@ export class ImportSpecifiers {
     const found: string[] = [];
     const literalOf = (node: TNode | undefined): string | undefined =>
       node !== undefined && typescript.isStringLiteralLike(node) ? node.text : undefined;
+
     const visit = (node: TNode): void => {
       if (typescript.isImportDeclaration(node)) {
         const specifier = literalOf(node.moduleSpecifier);

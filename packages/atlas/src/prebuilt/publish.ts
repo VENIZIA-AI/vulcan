@@ -5,6 +5,8 @@ import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { IndexPair } from './build';
 import { PrebuiltConstants, PublishConstants, PairNames } from './constants';
 import { WireValue } from '@/common/wire';
+import { VulcanError } from '@venizia/vulcan-okf';
+import { StderrLogger } from '@/common/logger';
 
 type TEnv = Record<string, string | undefined>;
 
@@ -38,7 +40,9 @@ const defaultBranchOf = (opts: { env: TEnv }): string | undefined => {
     return WireValue.stringOf({
       value: WireValue.recordOf({ value: event['repository'] })['default_branch'],
     });
-  } catch {
+  } catch (error) {
+    StderrLogger.get('defaultBranchOf').debug('the event file cannot be read | error: %s', error);
+
     return undefined;
   }
 };
@@ -87,14 +91,18 @@ const tagCommitsOf = (opts: { root: string }): Set<string> => {
 const safeJson = (opts: { text: string }): unknown => {
   try {
     return JSON.parse(opts.text);
-  } catch {
+  } catch (error) {
+    StderrLogger.get('safeJson').debug('a reply that is not JSON | error: %s', error);
+
     return undefined;
   }
 };
 
 const expectOk = (opts: { reply: IReply; what: string }): void => {
   if (opts.reply.status < 200 || opts.reply.status >= 300) {
-    throw new Error(`atlas index publish: ${opts.what} answered HTTP ${opts.reply.status}`);
+    throw VulcanError.of({
+      message: `atlas index publish: ${opts.what} answered HTTP ${opts.reply.status}`,
+    });
   }
 };
 
@@ -153,9 +161,9 @@ const ensureRelease = async (opts: {
   const raced = await pending;
 
   if (raced === undefined) {
-    throw new Error(
-      `atlas index publish: the release ${PrebuiltConstants.RELEASE_TAG} could not be made (HTTP ${created.status})`,
-    );
+    throw VulcanError.of({
+      message: `atlas index publish: the release ${PrebuiltConstants.RELEASE_TAG} could not be made (HTTP ${created.status})`,
+    });
   }
 
   return raced;
@@ -285,6 +293,7 @@ export class IndexPublish {
     const branches = [...new Set([defaultBranch, PublishConstants.DEVELOP_BRANCH])].filter(
       (branch): branch is string => branch !== undefined,
     );
+
     if (named.length > 0) {
       if (!isPlainRefName({ ref: named })) {
         return no(`'${named}' is not the plain name of a tag or a branch`);
@@ -483,9 +492,9 @@ export class IndexPublish {
         uploadBase.host !== uploadHost ||
         !uploadBase.pathname.startsWith(`/repos/${opts.env.GITHUB_REPOSITORY}/releases/`)
       ) {
-        throw new Error(
-          `atlas index publish: the release names an upload URL outside ${opts.env.GITHUB_REPOSITORY}`,
-        );
+        throw VulcanError.of({
+          message: `atlas index publish: the release names an upload URL outside ${opts.env.GITHUB_REPOSITORY}`,
+        });
       }
 
       const uploaded: string[] = [];

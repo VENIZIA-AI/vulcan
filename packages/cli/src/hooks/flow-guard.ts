@@ -90,6 +90,7 @@ export class FlowGuard {
           fix: `if this work already has a flow, put "Flow: <id>" in the message (or name the branch with its id); otherwise make one first with: ${ProjectLayout.VULCAN_COMMAND} flow add --title '<what this work is>' (it prints the id), then name the branch with that id (for example feature/<id>-<topic>) or put "Flow: <id>" in the message or the pull request body`,
         },
       ];
+      // eslint-disable-next-line venizia/no-silent-catch -- an event log that cannot be read is no hit, never a deny: V-P-13 must not block git on a broken log; a guard speaks only its protocol
     } catch {
       return [];
     }

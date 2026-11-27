@@ -138,6 +138,7 @@ const USES = {
 
 const treeHash = (opts: { root: string }): string => {
   const hash = createHash('sha256');
+
   const walk = (directory: string): void => {
     for (const name of readdirSync(directory).sort()) {
       const path = join(directory, name);

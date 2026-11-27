@@ -49,6 +49,7 @@ const project = (
 
   return root;
 };
+
 const input = (root: string) => ({
   hookEventName: 'UserPromptSubmit',
   sessionId: SESSION,

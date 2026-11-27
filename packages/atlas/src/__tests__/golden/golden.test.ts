@@ -66,10 +66,13 @@ describe('golden questions: the mechanism, on the acme fixture', () => {
       ask: { tool: 'no-such-tool', args: {} },
     };
 
-    const failure = await GoldenRunner.verdictOf({ question }).then(
-      () => '',
-      (error) => String(error),
-    );
+    let failure = '';
+
+    try {
+      await GoldenRunner.verdictOf({ question });
+    } catch (error) {
+      failure = String(error);
+    }
 
     expect(failure).toContain('no-such-tool failed');
   });

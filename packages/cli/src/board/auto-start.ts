@@ -6,9 +6,7 @@ import { LocalSettings } from '../common/local-settings.ts';
 import { EventSettings } from '../events/settings.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { BoardFlags, BoardServe } from './common/index.ts';
-
-/** What `tick` did, for a test and for the note the hook prints. */
-export type TAutoStart = 'off' | 'running' | 'started' | 'foreign' | 'failed';
+import type { TAutoStart } from './common/index.ts';
 
 /** What answers on the port: a VULCAN board, another program, or nothing. */
 type TPortState = 'board' | 'other' | 'free';
@@ -109,6 +107,7 @@ export class BoardAutoStart {
       closeSync(log);
 
       return 'started';
+      // eslint-disable-next-line venizia/no-silent-catch -- the outcome carries it: the hook prints its note for a board that failed to start
     } catch {
       return 'failed';
     }

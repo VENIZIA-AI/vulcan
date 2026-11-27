@@ -71,6 +71,7 @@ export class BoardCommand {
       root,
       ...(args.dir === undefined ? {} : { dir: resolve(opts.cwd, args.dir) }),
     });
+
     if (args.serve) {
       return BoardCommand.serve({
         args,
@@ -223,6 +224,7 @@ export class BoardCommand {
     });
     let github: { events: IBoardEvent[]; note: string } | undefined;
     let readAt = 0;
+
     const collect = (): IBoardData => {
       const since = opts.sinceOf();
 
@@ -240,6 +242,7 @@ export class BoardCommand {
         readGitUser: () => gitUser,
       });
     };
+
     const port = args.port === undefined ? BoardServe.DEFAULT_PORT : Number(args.port);
 
     try {

@@ -4,6 +4,26 @@ export class GuardDecisions {
   static readonly DENY = 'deny';
 }
 
+/** The base rule a write the guards catch falls under: a database write (V-W-02) or a deploy (V-W-03). */
+export class WriteRules {
+  static readonly DATABASE = 'V-W-02';
+  static readonly DEPLOY = 'V-W-03';
+}
+
+/** What a write to a path is judged against: the file itself, a folder removed with what it holds, or a folder written into with names not known. */
+export class ProtectedModes {
+  static readonly FILE = 'file';
+  static readonly REMOVAL = 'removal';
+  static readonly FOLDER = 'folder';
+  static readonly PUT = 'put';
+}
+
+/** How a path passes through a link: one the command made itself, or one that leads nowhere. */
+export class LinkPassages {
+  static readonly MADE = 'made';
+  static readonly DANGLING = 'dangling';
+}
+
 export class HookConstants {
   /** `ask` until the transcript shows the guard does not over-fire; a false positive costs one keystroke. */
   static readonly GUARD_DECISION = GuardDecisions.ASK;
@@ -27,15 +47,19 @@ export class HookConstants {
   /** What an answer says when the project (`guard.asks: 'deny'`) holds every ask. */
   static readonly HELD_ASK =
     'This project denies every call that would need a human to confirm it (guard.asks: deny). Nothing was run: hand this to the owner.';
+
   /** What an answer says when the launch environment (`VULCAN_GUARD_ASKS=deny`) holds every ask. */
   static readonly HELD_ASK_ENV =
     'This session denies every call that would need a human to confirm it (VULCAN_GUARD_ASKS=deny). Nothing was run: hand this to the owner.';
+
   /** What an answer says when the manifest exists and cannot be read: the hooks cannot tell what the project asked for, so an ask is a deny. */
   static readonly MANIFEST_UNREADABLE =
     'The manifest .agents/local/vulcan.manifest.json exists but cannot be read, so every call that would need a human to confirm it is denied. Nothing was run: the owner repairs the file or runs bun node_modules/.bin/vulcan project sync.';
+
   /** What an answer says when the project has a config but the local manifest was never written (a clone that did not sync, or one just upgraded): every ask is a deny until `vulcan project sync` runs, and that command passes. */
   static readonly MANIFEST_MISSING =
     'The local manifest .agents/local/vulcan.manifest.json is missing, so the hooks cannot tell what the project asked for and every call that would need a human to confirm it is denied. Nothing was run: run bun node_modules/.bin/vulcan project sync (that command passes), then try again.';
+
   /**
    * The files the guards read their policy from (the manifest, the config, Claude Code's project and launch settings, the installed package):
    * an agent that can write one can switch a guard off, so guard-outside denies it; the owner changes them by hand or through `vulcan project sync`.
@@ -63,6 +87,7 @@ export class HookConstants {
     'node_modules/.bun/@venizia+vulcan@*/**',
     'node_modules/.bin/vulcan',
   ];
+
   /** Branches no agent deletes or force-pushes (V-W-06). */
   static readonly PROTECTED_BRANCHES = new Set(['develop', 'main']);
   /**
@@ -80,6 +105,7 @@ export class HookConstants {
     '/tmp/claude-[0-9]*/*/*/scratchpad',
     '/tmp/claude-[0-9]*/*/*/scratchpad/**',
   ];
+
   /**
    * Tool-owned stores an agent may write into: package manager caches, the runtime dir for locks, the
    * agent tool's memory. Never a directory on PATH (`~/.bun/bin`) or a file git or a shell runs (`~/.gitconfig`).
@@ -145,8 +171,10 @@ export class WritePatterns {
 export class SqlUnseen {
   static readonly INPUT =
     'writing to a database through SQL that comes from a pipe or a file, which this check cannot see';
+
   static readonly FILE =
     'writing to a database through a SQL file whose contents this check cannot see';
+
   static readonly BUILT =
     'writing to a database through SQL built when the command runs, which this check cannot see';
 }

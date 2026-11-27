@@ -16,6 +16,7 @@ export class WorkspaceGlobs {
       return Array.isArray(list)
         ? list.filter((glob: unknown): glob is string => typeof glob === 'string')
         : [];
+      // eslint-disable-next-line venizia/no-silent-catch -- a package.json that cannot be read declares no workspaces
     } catch {
       return [];
     }

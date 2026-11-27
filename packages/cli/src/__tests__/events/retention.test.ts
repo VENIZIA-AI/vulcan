@@ -25,6 +25,7 @@ const folder = (opts: { days: Record<number, number> }): string => {
 
   return dir;
 };
+
 const names = (opts: { ago: number[] }): string[] => opts.ago.map((ago) => `${day(ago)}.jsonl`);
 const removed = (opts: { dir: string; limits?: Partial<typeof LIMITS> }): string[] =>
   EventRetention.plan({

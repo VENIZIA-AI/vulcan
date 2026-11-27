@@ -78,6 +78,7 @@ const recordsOfFixture = (): Map<string, ISymbolRecord> => {
 
 describe('the declaration a symbol record keeps', () => {
   const records = recordsOfFixture();
+
   const get = (name: string): ISymbolRecord => {
     const record = records.get(name);
 

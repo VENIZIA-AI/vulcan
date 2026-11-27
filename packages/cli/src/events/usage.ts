@@ -10,7 +10,7 @@ import {
 import { dirname, join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { EventConstants, EventTypes, EventSources } from './common/index.ts';
-import type { IEvent, IEventMark, IEventUsage } from './common/index.ts';
+import type { IEvent, IEventMark, IEventUsage, TTranscriptSide } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowSteps } from './flow-steps.ts';
@@ -75,7 +75,7 @@ export class UsageMeter {
     offset: number;
     skipMessage?: string;
     size?: number;
-    side?: 'main' | 'sub';
+    side?: TTranscriptSide;
     own?: string;
     fallback?: (opts: { time?: number }) => string | undefined;
   }): {
@@ -251,6 +251,7 @@ export class UsageMeter {
         value.sessionId === opts.own &&
         value.forkedFrom === undefined
       );
+      // eslint-disable-next-line venizia/no-silent-catch -- a transcript line that is not JSON is not the session start
     } catch {
       return false;
     }
@@ -275,6 +276,7 @@ export class UsageMeter {
           if (Number.isFinite(time)) {
             return time;
           }
+          // eslint-disable-next-line venizia/no-silent-catch -- A line cut by the end of the head, or a line that is not JSON: the next one is tried
         } catch {
           // A line cut by the end of the head, or a line that is not JSON: the next one is tried.
         }
@@ -289,7 +291,7 @@ export class UsageMeter {
   /** The id, the branch's flow, the time and the tokens of one transcript line, by model; `undefined` when it is not an assistant message with usage, or is of the other side. */
   private static messageOf(opts: {
     line: string;
-    side: 'main' | 'sub';
+    side: TTranscriptSide;
   }): (IMessage & { id: string }) | undefined {
     // A cheap test first: most lines of a transcript are tool results and user text, and are never parsed.
     if (!opts.line.includes(ASSISTANT)) {
@@ -300,6 +302,7 @@ export class UsageMeter {
 
     try {
       value = JSON.parse(opts.line);
+      // eslint-disable-next-line venizia/no-silent-catch -- a transcript line that is not JSON holds no message
     } catch {
       return undefined;
     }
@@ -387,7 +390,7 @@ export class UsageMeter {
     known: IEvent[];
     windowDays: number;
     session?: string;
-    side?: 'main' | 'sub';
+    side?: TTranscriptSide;
     flowSession?: string;
     agent?: string;
     now?: number;
@@ -596,6 +599,7 @@ export class UsageMeter {
       return RecordValue.isRecord(value) && typeof value.agentType === 'string'
         ? value.agentType
         : undefined;
+      // eslint-disable-next-line venizia/no-silent-catch -- a transcript line that is not JSON names no agent type
     } catch {
       return undefined;
     }

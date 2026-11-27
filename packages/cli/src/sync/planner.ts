@@ -208,6 +208,7 @@ const planSkillLinks = (opts: {
 
   const links = sources.map((source): ISyncAction => {
     const path = join(target, basename(source));
+
     const link = (): void => {
       mkdirSync(target, { recursive: true });
       symlinkSync(resolve(source), path);
@@ -278,6 +279,7 @@ export class SyncPlanner {
   /** One generated file: created, replaced when it differs from `text`, or unchanged. */
   private static planFile(opts: { root: string; file: string; text: string }): ISyncAction {
     const path = join(opts.root, opts.file);
+
     const write = (): void => {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, opts.text);

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { RecordValue } from '../common/index.ts';
 import { PortRegistry } from './workspace.ts';
 
 /** One app of the monorepo as `make dev` serves it: its port, and the paths worth opening. */
@@ -24,7 +25,7 @@ const readJson = (opts: { file: string }): Record<string, unknown> | undefined =
 const readRecordedUrls = (opts: { directory: string }): string[] => {
   const file = join(opts.directory, 'package.json');
   const recorded = existsSync(file) ? readJson({ file })?.vulcan : undefined;
-  const urls = (recorded as { urls?: unknown } | undefined)?.urls;
+  const urls = RecordValue.isRecord(recorded) ? recorded.urls : undefined;
 
   return Array.isArray(urls) ? urls.filter((url) => typeof url === 'string') : [];
 };

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { VulcanError } from '@venizia/vulcan-okf';
 import { ProjectGuards } from '../hooks/project-guards.ts';
 import { RunnerScan } from '../hooks/runner-scan.ts';
 
@@ -47,7 +48,9 @@ export class RunnersCheck {
     });
 
     if (listed.exitCode !== 0) {
-      throw new Error(`git ls-files failed in ${opts.root}: ${listed.stderr.toString().trim()}`);
+      throw VulcanError.of({
+        message: `git ls-files failed in ${opts.root}: ${listed.stderr.toString().trim()}`,
+      });
     }
 
     return listed.stdout
@@ -72,6 +75,7 @@ export class RunnersCheck {
       return /^released:/m.test(
         readFileSync(join(opts.root, `${version[1] ?? ''}${version[2]}`, 'log.md'), 'utf8'),
       );
+      // eslint-disable-next-line venizia/no-silent-catch -- a version with no readable log.md is not frozen
     } catch {
       return false;
     }

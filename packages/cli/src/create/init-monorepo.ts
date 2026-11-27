@@ -170,6 +170,7 @@ const writeMonorepo = (opts: {
   for (const file of WorkspaceDocs.renderSplitConfig({ project, key, block })) {
     ProjectFile.write({ root, path: file.path, content: file.content });
   }
+
   ProjectFile.write({
     root,
     path: '.agents/knowledge/index.md',
@@ -360,6 +361,8 @@ const runCreate = async (opts: {
     process.stderr.write(`${warning}\n`);
   }
 
+  const packageRow: [string, string][] =
+    scope === undefined ? [] : [['package', `${scope}/${app}`]];
   const confirmed = await WritePlan.confirm({
     title: `Create ${project}`,
     lines: WritePlan.planLines({
@@ -367,7 +370,7 @@ const runCreate = async (opts: {
         ['project', project],
         ['preset', `${located.packageName} ${located.packageVersion}`],
         [`${side} app`, `${folder}/${app}`],
-        ...(scope === undefined ? [] : [['package', `${scope}/${app}`] as [string, string]]),
+        ...packageRow,
         ['shared', shared === '' ? '(none)' : shared],
       ],
     }),

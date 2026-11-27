@@ -15,6 +15,7 @@ const fold = (opts: { lines?: ReturnType<typeof sampleLines>; extra?: IBoardEven
     agents: log.agents,
   };
 };
+
 const flowOf = (opts: {
   id: string;
   lines?: ReturnType<typeof sampleLines>;

@@ -2,7 +2,9 @@ import { existsSync } from 'node:fs';
 import { availableParallelism, freemem } from 'node:os';
 import { join } from 'node:path';
 import { StderrLogger } from '@/common/logger';
+import { VulcanError } from '@venizia/vulcan-okf';
 import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
+import type { TConstValue } from '@/common/types';
 import type { ISourceMemory } from './status';
 
 /** What one index build holds at its peak (460 MB measured on the largest source of a real project, rounded up); the builds at once are capped by free memory over it. */
@@ -23,6 +25,7 @@ const killChildrenOnExit = (): void => {
     }
   });
 };
+
 const BUILD_MEMORY_BYTES = 640 * 1024 ** 2;
 const DEFAULT_CALL_WAIT_MS = 20_000;
 const DEFAULT_BUILD_TIMEOUT_MS = 600_000;
@@ -44,11 +47,21 @@ interface IBootOptions {
   now?: () => number;
 }
 
+/** How far one source is: waiting for a slot, building in a child, served, or failed. */
+export class SourceProgressStates {
+  static readonly WAITING = 'waiting';
+  static readonly BUILDING = 'building';
+  static readonly READY = 'ready';
+  static readonly FAILED = 'failed';
+}
+
+export type TSourceProgressState = TConstValue<typeof SourceProgressStates>;
+
 /** How far one source is, for the notice and for `status`. */
 export interface ISourceProgress {
   source: string;
   /** `waiting` for a free slot, `building` in a child, `ready` once it is served. */
-  state: 'waiting' | 'building' | 'ready' | 'failed';
+  state: TSourceProgressState;
   /** Milliseconds since it began building; 0 while waiting or when ready. */
   elapsedMs: number;
   /** About how long a build takes, from the last successful one; absent when none was recorded. */
@@ -90,6 +103,7 @@ export class SourceBoot {
     onReady?: (opts: { resolved: IResolvedSource; isReplacement?: boolean }) => void;
     onFailed?: (opts: { unavailable: IUnavailableSource }) => void;
   } = {};
+
   private started = false;
   private remaining: number;
 
@@ -155,7 +169,7 @@ export class SourceBoot {
 
   /** Where the atlas command line lives next to this module: `cli/main.ts` from source, `cli/main.js` from the build. */
   static cliPath(): string {
-    const base = join(__dirname, '..');
+    const base = join(import.meta.dir, '..');
 
     return (
       [join(base, 'cli', 'main.ts'), join(base, 'cli', 'main.js')].find((path) =>
@@ -196,7 +210,14 @@ export class SourceBoot {
 
     children.add(child);
     killChildrenOnExit();
-    child.exited.then(() => children.delete(child)).catch(() => undefined);
+    child.exited
+      .then(() => children.delete(child))
+      .catch((error: unknown) => {
+        StderrLogger.get('SourceBoot.indexInChild').error(
+          'the child exit was not tracked | error: %s',
+          error,
+        );
+      });
     const tail: string[] = [];
     const errors = new TextDecoder();
     const relay = (async () => {
@@ -231,7 +252,7 @@ export class SourceBoot {
       const source: IResolvedSource | null = JSON.parse(line).source;
 
       if (source === null) {
-        throw new Error(`indexing ${opts.source.name} produced no source`);
+        throw VulcanError.of({ message: `indexing ${opts.source.name} produced no source` });
       }
 
       return source;
@@ -242,14 +263,14 @@ export class SourceBoot {
     clearTimeout(timer);
     await relay;
 
-    throw new Error(
-      timedOut
+    throw VulcanError.of({
+      message: timedOut
         ? `indexing ${opts.source.name} took longer than ${Math.round(opts.timeoutMs / 1000)} s and was stopped`
         : (tail.at(-1) ?? `indexing ${opts.source.name} exited with code ${code}`).replace(
             /^vulcan-atlas: /,
             '',
           ),
-    );
+    });
   }
 
   /** The declared sources, in the order the config lists them. */
@@ -290,7 +311,9 @@ export class SourceBoot {
     );
 
     for (let index = 0; index < workers; index += 1) {
-      this.work().catch(() => undefined);
+      this.work().catch((error: unknown) => {
+        StderrLogger.get('SourceBoot.start').error('a build worker stopped | error: %s', error);
+      });
     }
   }
 

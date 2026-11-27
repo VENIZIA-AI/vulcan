@@ -290,3 +290,54 @@ export class KindFigureConstants {
   static readonly LABEL_PX = 8.2;
   static readonly SMALL_PX = 6.6;
 }
+
+/** Where the theme of a page came from. */
+export class ThemeSources {
+  static readonly SPEC = 'spec';
+  static readonly PROJECT = 'project';
+  static readonly DEFAULT = 'default';
+}
+
+export type TThemeSource = TConstValue<typeof ThemeSources>;
+
+/** The forms a bar chart's data takes. */
+export class BarForms {
+  static readonly STATS = 'stats';
+  static readonly LINE = 'line';
+  static readonly BARS = 'bars';
+}
+
+export type TBarForm = TConstValue<typeof BarForms>;
+
+/** The forms the parts of a whole take. */
+export class PartsForms {
+  static readonly SEGMENTED = 'segmented';
+  static readonly RANKED = 'ranked';
+}
+
+export type TPartsForm = TConstValue<typeof PartsForms>;
+
+/** The two ends of a link. */
+export class LinkEnds {
+  static readonly FROM = 'from';
+  static readonly TO = 'to';
+}
+
+export type TLinkEnd = TConstValue<typeof LinkEnds>;
+
+/** Which way an arrow head points. */
+export class ArrowDirections {
+  static readonly UP = 'up';
+  static readonly DOWN = 'down';
+}
+
+export type TArrowDirection = TConstValue<typeof ArrowDirections>;
+
+/** Where an SVG text is anchored. */
+export class TextAnchors {
+  static readonly MIDDLE = 'middle';
+  static readonly START = 'start';
+  static readonly END = 'end';
+}
+
+export type TTextAnchor = TConstValue<typeof TextAnchors>;

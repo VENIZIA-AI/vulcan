@@ -10,6 +10,7 @@ import type { IAtlasProject } from '@/common/project-config';
 import { TextValue } from '@/common/text';
 import { BreakingBadge } from '@/migrations/badges';
 import { MigrationSchema } from '@/migrations/schema';
+import { VulcanError } from '@venizia/vulcan-okf';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
 import { FolderRecords } from './folder-records';
 import { ReleaseTemplate } from './template';
@@ -36,9 +37,9 @@ const git = (opts: { root: string; args: string[] }): string => {
   });
 
   if (result.status !== 0) {
-    throw new Error(
-      `[ReleaseCompute.compute] git ${opts.args[0]} exited ${result.status}\n${result.stderr ?? ''}`,
-    );
+    throw VulcanError.of({
+      message: `[ReleaseCompute.compute] git ${opts.args[0]} exited ${result.status}\n${result.stderr ?? ''}`,
+    });
   }
 
   return result.stdout ?? '';

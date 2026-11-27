@@ -55,9 +55,11 @@ const lines = (opts: { now: number }): IEvent[] => {
   const old = opts.now - 3 * DAY_MINUTES * 60_000;
   const make = (entry: TLine): IEvent => line({ base, ...entry });
   const out: IEvent[] = [];
+
   const add = (entry: TLine): void => {
     out.push(make(entry));
   };
+
   const flow = (entry: {
     id: string;
     minute: number;

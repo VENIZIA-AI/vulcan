@@ -1,3 +1,4 @@
+import { VulcanError } from '@venizia/vulcan-okf';
 import { VulcanCommands } from '../common/index.ts';
 
 /** One public command: `vulcan <scope> <action>`, run by the handler of `command` with `prefix` in front of the rest of the arguments. */
@@ -102,7 +103,9 @@ export class CommandScopes {
       );
 
     if (!known) {
-      throw new Error(`vulcan: no command '${opts.scope} ${opts.action}' in the scope table`);
+      throw VulcanError.of({
+        message: `vulcan: no command '${opts.scope} ${opts.action}' in the scope table`,
+      });
     }
 
     return [opts.scope, opts.action];

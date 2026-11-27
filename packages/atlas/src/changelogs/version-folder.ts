@@ -6,6 +6,7 @@ import { DirectoryPath } from '@/common/paths';
 import { RecordValue } from '@/common/record';
 import { TextValue } from '@/common/text';
 import { MIGRATION_NAME_PATTERN, MigrationItemSchema } from '@/migrations/schema';
+import { StderrLogger } from '@/common/logger';
 import type { TMigrationItem } from '@/migrations/schema';
 import { Resolve } from './resolve';
 
@@ -21,6 +22,15 @@ export class VersionSectionNames {
 
 export type TVersionSection = TConstValue<typeof VersionSectionNames>;
 
+/** What of a `log.md` frontmatter could not be read: the block, or one field of it. */
+export class UnreadableParts {
+  static readonly FRONTMATTER = 'frontmatter';
+  static readonly SUMMARY = 'summary';
+  static readonly HIGHLIGHTS = 'highlights';
+}
+
+export type TUnreadablePart = TConstValue<typeof UnreadableParts>;
+
 /** The sections of a version's `log.md`, in the order they must appear. */
 export class VersionSections {
   static readonly ORDER: TVersionSection[] = [
@@ -31,6 +41,7 @@ export class VersionSections {
     VersionSectionNames.FIXED,
     VersionSectionNames.SECURITY,
   ];
+
   /** The sections whose items owe a block in `migration.yaml`. */
   static readonly OWING: TVersionSection[] = [
     VersionSectionNames.BREAKING,
@@ -88,7 +99,7 @@ export interface IVersionFolder {
   /** `highlights:` of the frontmatter: the lines a version box shows; absent when the log has none. */
   highlights?: string[];
   /** What of the frontmatter could not be read: `frontmatter` (it does not parse), `summary` or `highlights` (the wrong type). The gate does not ask again for what is already reported. */
-  unreadable: ('frontmatter' | 'summary' | 'highlights')[];
+  unreadable: TUnreadablePart[];
   /** The blocks of `migration.yaml` by item id; empty when the file is absent or `{}`. */
   blocks: Record<string, TMigrationBlock>;
   /** Everything wrong with the folder that parsing can see; the gate adds the rules that need the project. */
@@ -165,7 +176,12 @@ export class VersionFolders {
         (opts.within === undefined ||
           DirectoryPath.isWithin({ path: opts.path, directory: opts.within }))
       );
-    } catch {
+    } catch (error) {
+      StderrLogger.get('VersionFolders.isDirectory').debug(
+        'not a readable directory | error: %s',
+        error,
+      );
+
       return false;
     }
   }
@@ -182,7 +198,12 @@ export class VersionFolders {
       }
 
       return readFileSync(opts.file, 'utf8');
-    } catch {
+    } catch (error) {
+      StderrLogger.get('VersionFolders.textOf').debug(
+        'a file that cannot be read | error: %s',
+        error,
+      );
+
       return undefined;
     }
   }
@@ -203,6 +224,7 @@ export class VersionFolders {
     };
     // Ids of items the log already reported and dropped: the migration file does not report them again.
     const rejected = new Set<string>();
+
     const fail: TFail = ({ file, message }) => {
       folder.problems.push({ file: `${opts.name}/${file}`, message });
     };
@@ -299,6 +321,7 @@ export class VersionFolders {
     const introLines: string[] = [];
     let current: IVersionItem | undefined;
     let currentLines: string[] = [];
+
     const closeItem = (): void => {
       if (current !== undefined) {
         current.body = currentLines.join('\n').trim();
@@ -307,6 +330,7 @@ export class VersionFolders {
       current = undefined;
       currentLines = [];
     };
+
     const keep = (text: string): void => {
       if (current !== undefined) {
         currentLines.push(text);

@@ -1,8 +1,18 @@
+import { VulcanError } from '@venizia/vulcan-okf';
 import { ProjectTheme, Theme } from '../visualize/theme.ts';
 import type { IThemeInput } from '../visualize/theme.ts';
+import type { TConstValue } from '../common/index.ts';
 
 /** One mode of the token set: token name to colour (`#rrggbb`, or `#rrggbbaa` for a line or a muted text). */
 export type TTokenMode = Record<string, string>;
+
+/** The two colour modes of a theme. */
+export class ThemeModes {
+  static readonly LIGHT = 'light';
+  static readonly DARK = 'dark';
+}
+
+export type TThemeMode = TConstValue<typeof ThemeModes>;
 
 /** What the project writes under `theme`: a preset, an accent, per-token overrides and the type and corner settings. */
 export interface IThemeConfig extends Partial<IThemeInput> {
@@ -142,6 +152,7 @@ export class ThemeTokens {
   static readonly FONT = "'Inter Display', system-ui, -apple-system, 'Segoe UI', sans-serif";
   static readonly MONO =
     "'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace";
+
   static readonly RADIUS = '4px';
   /** A corner radius: a bare `0` or a length, so nothing else (a brace, a tag) can reach a style element. */
   static readonly RADIUS_PATTERN = /^(?:0|\d+(?:\.\d+)?(?:px|rem|em))$/;
@@ -187,7 +198,7 @@ export class ThemeTokens {
     const resolved = ThemeTokens.resolve({});
 
     if (!resolved.ok) {
-      throw new Error('the default theme preset fails its own contrast check');
+      throw VulcanError.of({ message: 'the default theme preset fails its own contrast check' });
     }
 
     return resolved.tokens;
@@ -257,7 +268,7 @@ export class ThemeTokens {
   }
 
   /** Every pair of a mode below AA, each as a sentence that names the pair, the colours and the ratio. */
-  private static contrastProblems(opts: { name: 'light' | 'dark'; mode: TTokenMode }): string[] {
+  private static contrastProblems(opts: { name: TThemeMode; mode: TTokenMode }): string[] {
     const problems: string[] = [];
     // The greys of the board's panes sit beside the tokens, so a pair on one of them is read the same way.
     const mode = { ...opts.mode, ...ThemeTokens.SURFACES[opts.name] };

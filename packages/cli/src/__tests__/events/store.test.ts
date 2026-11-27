@@ -165,6 +165,7 @@ describe('EventStore', () => {
 
   test('a database of a newer breaking version is refused; a newer one that only adds is not', () => {
     const file = fileOf();
+
     const stamp = (version: number): void => {
       const db = new Database(file);
 
@@ -193,11 +194,13 @@ for (let i = 0; i < 25; i++) EventStore.append({ file: process.argv[2], events: 
     const runs = Array.from({ length: 8 }, () =>
       Bun.spawn([process.execPath, '-e', script, module, file], { stderr: 'pipe' }),
     );
+
     const failureOf = async (run: (typeof runs)[number]): Promise<string> => {
       const code = await run.exited;
 
       return code === 0 ? '' : new Response(run.stderr).text();
     };
+
     const failed = await Promise.all(runs.map(failureOf));
 
     expect(failed.filter((text) => text !== '')).toEqual([]);

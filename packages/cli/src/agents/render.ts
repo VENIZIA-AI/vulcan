@@ -124,6 +124,7 @@ export class McpConfig {
 
       try {
         parsed = JSON.parse(opts.text);
+        // eslint-disable-next-line venizia/no-silent-catch -- the result carries the reason: the caller reports a file that is not valid JSON
       } catch {
         return { ok: false, reason: 'not valid JSON' };
       }
@@ -208,6 +209,7 @@ export class McpConfig {
 
     try {
       document = JSON.parse(opts.text);
+      // eslint-disable-next-line venizia/no-silent-catch -- the result carries the reason: the caller reports a file that is not valid JSON
     } catch {
       return { ok: false, reason: 'not valid JSON - left untouched' };
     }

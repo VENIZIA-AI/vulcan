@@ -53,6 +53,7 @@ const project = (opts: { manifest?: object } = {}): string => {
 
   return root;
 };
+
 /** A path of the scan is relative to `.agents/local`, except `tmp/...`, which is the scratch folder `.agents/tmp`. */
 const placeOf = (opts: { root: string; path: string }): string =>
   opts.path === 'tmp' || opts.path.startsWith('tmp/')
@@ -77,6 +78,7 @@ const put = (opts: { root: string; path: string; text?: string; ago?: number }):
     }
   }
 };
+
 /** Gives a file and everything under it the time of `ago` milliseconds before NOW, links not followed. */
 const ageTree = (opts: { path: string; ago: number }): void => {
   const then = new Date(NOW - opts.ago);
@@ -89,6 +91,7 @@ const ageTree = (opts: { path: string; ago: number }): void => {
 
   utimesSync(opts.path, then, then);
 };
+
 const has = (opts: { root: string; path: string }): boolean => existsSync(placeOf(opts));
 
 describe('LocalAutoClean.tick: once a day, only when asked for', () => {
@@ -529,6 +532,7 @@ describe('the detached script and the session-start hook', () => {
         ms: performance.now() - began,
       };
     };
+
     const first = start();
 
     expect(first.code).toBe(0);

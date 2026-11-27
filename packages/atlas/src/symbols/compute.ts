@@ -14,6 +14,7 @@ import { AtlasTimeouts } from '@/common/constants';
 import { AtlasLimits, BoundedBody } from '@/common/limits';
 import { PackageEntries } from '@/common/package-entries';
 import { ProjectConfig } from '@/common/project-config';
+import { VulcanError } from '@venizia/vulcan-okf';
 import type { IAtlasProject } from '@/common/project-config';
 import type { ISymbolRecord } from './common';
 import { AtlasSymbols } from './generator';
@@ -41,11 +42,11 @@ const symbolsDirectoryOf = (opts: { cacheBase: string }): string =>
  */
 const cacheFileOf = (opts: { name: string; version: string; cacheBase: string }): string => {
   if (!ProjectConfig.isNpmPackageName({ name: opts.name })) {
-    throw new Error(`atlas: '${opts.name}' is not an npm package name`);
+    throw VulcanError.of({ message: `atlas: '${opts.name}' is not an npm package name` });
   }
 
   if (!CACHEABLE_VERSION.test(opts.version)) {
-    throw new Error(`atlas: '${opts.version}' is not a version`);
+    throw VulcanError.of({ message: `atlas: '${opts.version}' is not a version` });
   }
 
   return join(symbolsDirectoryOf(opts), `${opts.name.replace('/', '+')}@${opts.version}.json`);
@@ -135,9 +136,9 @@ export class SymbolCompute {
     });
 
     if (!response.ok) {
-      throw new Error(
-        `atlas: no npm tarball for ${opts.name}@${opts.version} (${response.status})`,
-      );
+      throw VulcanError.of({
+        message: `atlas: no npm tarball for ${opts.name}@${opts.version} (${response.status})`,
+      });
     }
 
     const scratch = join(opts.cacheBase, 'tmp');
@@ -153,9 +154,9 @@ export class SymbolCompute {
       const result = await BoundedBody.read({ response, cap });
 
       if (result === undefined) {
-        throw new Error(
-          `atlas: the npm tarball of ${opts.name}@${opts.version} is over knowledge.atlas.limits.download (${cap} bytes) - raise it in the vulcan config if the package is meant to be that large`,
-        );
+        throw VulcanError.of({
+          message: `atlas: the npm tarball of ${opts.name}@${opts.version} is over knowledge.atlas.limits.download (${cap} bytes) - raise it in the vulcan config if the package is meant to be that large`,
+        });
       }
 
       writeFileSync(tarball, result);
@@ -163,7 +164,9 @@ export class SymbolCompute {
       const unpacked = spawnSync('tar', ['-xzf', tarball, '-C', work], { encoding: 'utf8' });
 
       if (unpacked.status !== 0) {
-        throw new Error(`atlas: could not unpack ${opts.name}@${opts.version}: ${unpacked.stderr}`);
+        throw VulcanError.of({
+          message: `atlas: could not unpack ${opts.name}@${opts.version}: ${unpacked.stderr}`,
+        });
       }
 
       return SymbolCompute.symbolsOfInstalled({
@@ -185,6 +188,7 @@ export class SymbolCompute {
     let count = 0;
     let newestMtimeMs = 0;
     let totalBytes = 0;
+
     const scan = (folder: string, glob: Bun.Glob): void => {
       if (!existsSync(folder)) {
         return;

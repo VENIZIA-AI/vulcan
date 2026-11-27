@@ -213,6 +213,7 @@ const withinBudget = (opts: {
   };
   const rest = opts.entries.slice(opts.offset);
   let count = rest.length;
+
   const responseOf = (): IChangesResponse => {
     const entries = rest.slice(0, count);
     const nextOffset = opts.offset + count;

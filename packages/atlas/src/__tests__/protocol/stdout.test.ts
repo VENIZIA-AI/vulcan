@@ -2,8 +2,6 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
-// __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
-// __tests__, and this package's module mode treats every file as CommonJS output.
 const PACKAGE_ROOT = join(__dirname, '../../..');
 // A project read from its own committed manifest - no IGNIS checkout needed.
 const REPOSITORY_ROOT = join(__dirname, '..', 'fixtures', 'acme');
@@ -29,6 +27,7 @@ const isJsonRpcLine = (line: string): boolean => {
     const parsed: unknown = JSON.parse(line);
 
     return isRecord(parsed) && parsed.jsonrpc === '2.0';
+    // eslint-disable-next-line venizia/no-silent-catch -- a line that is not JSON is not a JSON-RPC line, which is what the test counts
   } catch {
     return false;
   }

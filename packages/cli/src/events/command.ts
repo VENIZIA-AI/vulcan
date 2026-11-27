@@ -1,5 +1,6 @@
 import { existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { TNullable } from '@venizia/vulcan-okf';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import {
@@ -10,7 +11,7 @@ import {
   EventStatuses,
   EventSubcommands,
 } from './common/index.ts';
-import type { IEvent, IEventItem, TEventType, TEventStatus } from './common/index.ts';
+import type { IEvent, IEventItem } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
@@ -105,11 +106,13 @@ export class EventCommand {
       EventFlags.ACTOR,
       EventFlags.DIR,
     ]);
+
     const fail = (message: string): number => {
       process.stderr.write(`event: ${message}\n`);
 
       return ExitCodes.USAGE;
     };
+
     const stray = Object.keys(values).find((flag) => !allowed.has(flag));
 
     if (stray !== undefined) {
@@ -431,13 +434,13 @@ export class EventCommand {
           })
         : EventActor.clean({ text: values[EventFlags.ACTOR] });
     const event: IEvent = EventLog.build({
-      type: type as TEventType,
+      type,
       summary,
       actor: actor === '' ? EventConstants.UNKNOWN_ACTOR : actor,
       source: EventSources.CLI,
       ...(flowId === undefined ? {} : { flowId }),
       ...(values[EventFlags.REF] === undefined ? {} : { ref: values[EventFlags.REF] }),
-      ...(status === undefined ? {} : { status: status as TEventStatus }),
+      ...(status === undefined || !EventStatuses.isValid(status) ? {} : { status }),
       ...(values[EventFlags.WHY] === undefined ? {} : { why: values[EventFlags.WHY] }),
       ...(values[EventFlags.CONTEXT] === undefined ? {} : { context: values[EventFlags.CONTEXT] }),
       ...(values[EventFlags.NEXT] === undefined ? {} : { next: values[EventFlags.NEXT] }),
@@ -559,7 +562,7 @@ export class EventCommand {
    */
   private static orderOf(opts: {
     value: string | undefined;
-  }): { ok: true; value: number | null | undefined } | { ok: false; message: string } {
+  }): { ok: true; value: TNullable<number> } | { ok: false; message: string } {
     if (opts.value === undefined) {
       return { ok: true, value: undefined };
     }

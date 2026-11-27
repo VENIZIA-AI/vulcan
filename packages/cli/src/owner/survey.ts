@@ -141,6 +141,7 @@ export class OwnerSurvey {
       defaultValue: string,
       validate?: (value: string) => string | undefined,
     ) => io.text({ message, defaultValue, validate });
+
     /** An optional free value: a single dash clears what an earlier run set. */
     const optional = async (
       message: string,
@@ -155,6 +156,7 @@ export class OwnerSurvey {
 
       return answer === CLEAR_ANSWER ? '' : answer;
     };
+
     const language = await text(
       'Reply language (a code such as en, fr, pt-BR)',
       existing?.language ?? opts.systemLanguage,

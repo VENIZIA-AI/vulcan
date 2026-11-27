@@ -8,6 +8,7 @@ export class DirectoryUtility {
       const stat = lstatSync(opts.path);
 
       return stat.isDirectory() && !stat.isSymbolicLink();
+      // eslint-disable-next-line venizia/no-silent-catch -- a path that cannot be read is not a real directory
     } catch {
       return false;
     }

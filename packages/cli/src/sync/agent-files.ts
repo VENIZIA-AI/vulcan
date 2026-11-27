@@ -13,7 +13,7 @@ import {
 } from '../agents/index.ts';
 import type { TAgentEntry } from '../agents/index.ts';
 import { SyncStatuses } from './common/index.ts';
-import type { ISyncAction } from './common/index.ts';
+import type { ISyncAction, TGitTrackState } from './common/index.ts';
 
 const NO_CHANGE = (): void => {};
 
@@ -259,7 +259,7 @@ export class AgentFiles {
    * What git says of a path: `tracked` (exit 0), `untracked` (exit 1), or `unknown` when git failed (exit 128: not a
    * repository, a broken index) or could not run. A caller that deletes asks for `untracked`, never for "not tracked".
    */
-  static trackState(opts: { root: string; path: string }): 'tracked' | 'untracked' | 'unknown' {
+  static trackState(opts: { root: string; path: string }): TGitTrackState {
     try {
       const { exitCode } = Bun.spawnSync(['git', 'ls-files', '--error-unmatch', opts.path], {
         cwd: opts.root,
@@ -268,6 +268,7 @@ export class AgentFiles {
       });
 
       return exitCode === 0 ? 'tracked' : exitCode === 1 ? 'untracked' : 'unknown';
+      // eslint-disable-next-line venizia/no-silent-catch -- no git, or not a repository: the state is unknown, which the caller handles
     } catch {
       return 'unknown';
     }

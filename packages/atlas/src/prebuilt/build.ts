@@ -8,6 +8,7 @@ import { MANIFEST_FILE, ProjectConfig } from '@/common/project-config';
 import { ReleaseCompute } from '@/releases/compute';
 import { GitRepository } from '@/sources/git';
 import { IndexBuild } from '@/sources/index-build';
+import { VulcanError } from '@venizia/vulcan-okf';
 import { PrebuiltConstants, PairNames } from './constants';
 import { Envelope } from './envelope';
 import type { IIndexPayload } from './envelope';
@@ -31,11 +32,12 @@ const commitOf = (opts: { root: string; commit?: string }): string => {
       args: ['rev-parse', '--verify', `${named}^{commit}`],
     }).trim();
   } catch {
-    throw new Error(
-      opts.commit === undefined
-        ? `atlas index: ${opts.root} has no commit to index`
-        : `atlas index: ${opts.commit} is not a commit of ${opts.root}`,
-    );
+    throw VulcanError.of({
+      message:
+        opts.commit === undefined
+          ? `atlas index: ${opts.root} has no commit to index`
+          : `atlas index: ${opts.commit} is not a commit of ${opts.root}`,
+    });
   }
 };
 
@@ -50,10 +52,13 @@ const repositoryOf = (opts: { root: string; repo?: string }): string => {
 
     return result.status === 0 ? GITHUB_REMOTE.exec(result.stdout.trim())?.[1] : undefined;
   };
+
   const named = opts.repo ?? process.env.GITHUB_REPOSITORY ?? origin();
 
   if (named === undefined || !REPOSITORY_NAME.test(named)) {
-    throw new Error('atlas index: cannot tell the repository - pass --repo <owner/name>');
+    throw VulcanError.of({
+      message: 'atlas index: cannot tell the repository - pass --repo <owner/name>',
+    });
   }
 
   return named.toLowerCase();
@@ -107,13 +112,13 @@ export class IndexPair {
     const out = resolve(root, opts.out);
 
     if (opts.privateKey === undefined || opts.privateKey.trim().length === 0) {
-      throw new Error(
-        `atlas index: no signing key - set ${PrebuiltConstants.KEY_ENV} to the private key \`atlas index keygen\` wrote`,
-      );
+      throw VulcanError.of({
+        message: `atlas index: no signing key - set ${PrebuiltConstants.KEY_ENV} to the private key \`atlas index keygen\` wrote`,
+      });
     }
 
     if (!isInside({ path: out, directory: root })) {
-      throw new Error('atlas index: --out must be a folder inside the project');
+      throw VulcanError.of({ message: 'atlas index: --out must be a folder inside the project' });
     }
 
     const sha = commitOf({ root, commit: opts.commit });
@@ -122,9 +127,10 @@ export class IndexPair {
       'true';
 
     if (shallow && opts.requireFullHistory === true) {
-      throw new Error(
-        'atlas index: the checkout is shallow, so its release table would come from part of the history - fetch it whole (actions/checkout: fetch-depth: 0)',
-      );
+      throw VulcanError.of({
+        message:
+          'atlas index: the checkout is shallow, so its release table would come from part of the history - fetch it whole (actions/checkout: fetch-depth: 0)',
+      });
     }
 
     const repo = repositoryOf({ root, repo: opts.repo });
@@ -141,9 +147,9 @@ export class IndexPair {
       const manifestFile = ProjectConfig.manifestFileOf({ dir: scratch });
 
       if (manifestFile === undefined) {
-        throw new Error(
-          `atlas index: ${sha.slice(0, 8)} has no ${MANIFEST_FILE} - run \`vulcan project sync\` and commit it`,
-        );
+        throw VulcanError.of({
+          message: `atlas index: ${sha.slice(0, 8)} has no ${MANIFEST_FILE} - run \`vulcan project sync\` and commit it`,
+        });
       }
 
       const project = ProjectConfig.toAtlasProject({

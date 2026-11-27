@@ -1,5 +1,6 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { TThemeSource } from './constants.ts';
 
 /** What a project (or one spec) says about its colour: the colour it is known by, and two optional helpers. */
 export interface IThemeInput {
@@ -10,8 +11,6 @@ export interface IThemeInput {
   /** The accent as text on light grounds, when `accent` is too light for text. */
   accentText?: string;
 }
-
-export type TThemeSource = 'spec' | 'project' | 'default';
 
 /** The colours of one theme, each already checked against the grounds it sits on. */
 export interface IThemePalette {
@@ -98,6 +97,7 @@ const mix = (opts: { base: string; toward: string; amount: number }): string => 
 
 const luminance = (hex: string): number => {
   const { r, g, b } = parse(hex);
+
   const channel = (value: number): number => {
     const scaled = value / 255;
 
@@ -415,6 +415,7 @@ export class ProjectTheme {
       return folder.isDirectory() && entry.isFile() && entry.size <= ProjectTheme.MAX_MANIFEST_BYTES
         ? readFileSync(file, 'utf8')
         : undefined;
+      // eslint-disable-next-line venizia/no-silent-catch -- a theme file that cannot be read is no project theme: the default applies
     } catch {
       return undefined;
     }
@@ -478,6 +479,7 @@ export class ProjectTheme {
     const tokens: unknown = Reflect.get(theme, 'tokens');
     const modeOf = (mode: string): unknown =>
       typeof tokens === 'object' && tokens !== null ? Reflect.get(tokens, mode) : undefined;
+
     const resolvedAccent = (mode: string): unknown => {
       const palette = modeOf(mode);
 
@@ -485,6 +487,7 @@ export class ProjectTheme {
         ? Reflect.get(palette, 'accent')
         : undefined;
     };
+
     const given: unknown = Reflect.get(theme, 'accent');
     const accent: unknown = given ?? resolvedAccent('light');
     const accentDark: unknown =

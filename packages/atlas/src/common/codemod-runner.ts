@@ -1,5 +1,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { VulcanError } from '@venizia/vulcan-okf';
+import { StderrLogger } from './logger';
 import { WireValue } from './wire';
 
 /** An npm package name, lower case: the same shape `ProjectConfig` validates a manifest's package names with. */
@@ -26,16 +28,16 @@ export class CodemodRunner {
     }
 
     if (!Array.isArray(opts.value) || opts.value.length === 0) {
-      throw new Error(
-        `atlas: ${opts.label}: knowledge.codemodCommand must be a non-empty list of words`,
-      );
+      throw VulcanError.of({
+        message: `atlas: ${opts.label}: knowledge.codemodCommand must be a non-empty list of words`,
+      });
     }
 
     return opts.value.map((word: unknown) => {
       if (typeof word !== 'string' || !CodemodRunner.WORD_PATTERN.test(word)) {
-        throw new Error(
-          `atlas: ${opts.label}: knowledge.codemodCommand word ${JSON.stringify(word)} is not allowed: a word is letters, digits, '.', '_' and '-', and starts with a letter or digit`,
-        );
+        throw VulcanError.of({
+          message: `atlas: ${opts.label}: knowledge.codemodCommand word ${JSON.stringify(word)} is not allowed: a word is letters, digits, '.', '_' and '-', and starts with a letter or digit`,
+        });
       }
 
       return word;
@@ -150,7 +152,12 @@ export class CodemodRunner {
 
     try {
       data = JSON.parse(readFileSync(join(opts.directory, 'package.json'), 'utf8'));
-    } catch {
+    } catch (error) {
+      StderrLogger.get('CodemodRunner.declaredBinOf').debug(
+        'no readable package.json | error: %s',
+        error,
+      );
+
       return undefined;
     }
 

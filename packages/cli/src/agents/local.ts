@@ -6,7 +6,7 @@ import { RecordValue } from '../common/record.ts';
 import { BOARD_AGENTS } from '../board/schema.ts';
 import { EventSettings } from '../events/settings.ts';
 import { AgentConstants } from './common/index.ts';
-import type { TLocalChoice } from './common/index.ts';
+import type { TLocalChoice, TLocalMigrationFailure } from './common/index.ts';
 import { ProfileKeys } from './profile-keys.ts';
 import { AgentTable } from './table.ts';
 
@@ -113,6 +113,7 @@ export class LocalChoice {
       return RecordValue.isRecord(before)
         ? Object.fromEntries(Object.entries(before).filter(([key]) => !OWNED_KEYS.includes(key)))
         : {};
+      // eslint-disable-next-line venizia/no-silent-catch -- an old file that cannot be read keeps nothing; migrate reports the unreadable file itself
     } catch {
       return {};
     }
@@ -152,14 +153,16 @@ export class LocalChoice {
    */
   static migrate(opts: {
     root: string;
-  }): { text: string; kept: string[]; left: string[] } | { failed: 'old' | 'profile' } {
+  }): { text: string; kept: string[]; left: string[] } | { failed: TLocalMigrationFailure } {
     const read = (file: string): unknown => {
       try {
         return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
+        // eslint-disable-next-line venizia/no-silent-catch -- undefined is the unreadable mark: migrate turns it into its failed result
       } catch {
         return undefined;
       }
     };
+
     const old = read(join(opts.root, AgentConstants.LEGACY_LOCAL_FILE));
     const current = read(join(opts.root, LOCAL_AGENTS_FILE));
 

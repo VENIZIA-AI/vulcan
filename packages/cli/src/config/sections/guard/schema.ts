@@ -5,6 +5,7 @@ import { REMOVED_OKF_KEY } from '../../common/schema.ts';
 const compiles = (value: string): boolean => {
   try {
     return new RegExp(value) instanceof RegExp;
+    // eslint-disable-next-line venizia/no-silent-catch -- a pattern that does not compile is the answer: the schema reports it as an issue
   } catch {
     return false;
   }

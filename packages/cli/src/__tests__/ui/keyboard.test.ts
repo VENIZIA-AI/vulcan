@@ -17,8 +17,15 @@ describe('MenuInput.guardAgainstPipedLines', () => {
 
       process.stdin.emit('data', Buffer.from('my-product\n'));
 
-      const result = await pending.catch((error: unknown) => error);
-      expect(result).toBeInstanceOf(PipedInputRefusal);
+      let failure: unknown;
+
+      try {
+        await pending;
+      } catch (error) {
+        failure = error;
+      }
+
+      expect(failure).toBeInstanceOf(PipedInputRefusal);
       expect(String(stderr.mock.calls[0]?.[0])).toContain('reads key presses, not lines');
     } finally {
       stderr.mockRestore();
@@ -35,16 +42,25 @@ describe('MenuInput.guardAgainstPipedLines', () => {
       const flow = async (): Promise<string> => {
         try {
           const result = await MenuInput.guardAgainstPipedLines(never);
+
           return result;
         } finally {
           cleaned.push('scratch removed');
         }
       };
+
       const pending = flow();
 
       process.stdin.emit('data', Buffer.from('\n'));
-      const result = await pending.catch((error: unknown) => error);
-      expect(result).toBeInstanceOf(PipedInputRefusal);
+      let failure: unknown;
+
+      try {
+        await pending;
+      } catch (error) {
+        failure = error;
+      }
+
+      expect(failure).toBeInstanceOf(PipedInputRefusal);
       expect(cleaned).toEqual(['scratch removed']);
     } finally {
       stderr.mockRestore();

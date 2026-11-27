@@ -56,6 +56,7 @@ export class EventSettings {
         if (typeof dir === 'string' && EventSettings.dirError({ dir }) === undefined) {
           return dir;
         }
+        // eslint-disable-next-line venizia/no-silent-catch -- A missing or unreadable file has no folder to name
       } catch {
         // A missing or unreadable file has no folder to name.
       }
@@ -98,6 +99,7 @@ export class EventSettings {
           ? { maxAgeDays }
           : {}),
       };
+      // eslint-disable-next-line venizia/no-silent-catch -- a manifest that cannot be read turns the event log off; hooks read this and must stay quiet
     } catch {
       return { log: false };
     }
@@ -113,6 +115,7 @@ export class EventSettings {
       const key = RecordValue.isRecord(block) ? block.key : undefined;
 
       return ProjectKey.parse({ value: key });
+      // eslint-disable-next-line venizia/no-silent-catch -- a manifest that cannot be read has no project key
     } catch {
       return undefined;
     }
