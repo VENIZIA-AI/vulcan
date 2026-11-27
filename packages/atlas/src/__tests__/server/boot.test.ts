@@ -441,7 +441,8 @@ describe('a source indexed in a child process', () => {
 
     expect(exists).toBe(true);
 
-    await stderr.arrival({ parts: ['[fetchPublishedSymbols]'] });
+    // The line comes from a child process of this slow test, which has its own long limit.
+    await stderr.arrival({ parts: ['[fetchPublishedSymbols]'], ms: 60_000 });
     await fetches.claimUnfetched({ stderr });
   }, 150_000);
 

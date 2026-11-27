@@ -22,7 +22,10 @@ TEST_TARGETS := $(addprefix test-,$(PACKAGES))
 # The one home of the test flags. `--parallel` runs the files across worker processes and implies
 # `--isolate`, so a mock, env or TLS setting one file leaks cannot pass or fail another.
 # ----------------------------------------------------------------------------
-BUN_TEST_FLAGS ?= --parallel
+# Never more than 10 tests or worker processes at once: more starves the machine, and tests then pass their time limit.
+# Bun's own defaults are 20 tests and one worker per core. A value given for BUN_TEST_FLAGS stays within 5 to 10.
+TEST_CONCURRENCY := 6
+BUN_TEST_FLAGS ?= --parallel=$(TEST_CONCURRENCY)
 # Packages whose tests run serially. Bun 1.4's parallel workers sometimes never reap a synchronous git
 # child (a <defunct> git under a stalled worker): atlas hung 1 run in 6 that way, 0 in 15 serially.
 SERIAL_TESTS := atlas
@@ -35,10 +38,10 @@ test-all: $(TEST_TARGETS) test-scripts
 # The wiki's own dependencies are installed first: one test checks the VitePress pieces the shared theme overrides.
 test-scripts:
 	@cd docs/wiki && bun install --frozen-lockfile --silent
-	@mkdir -p $(TEST_TMP)/.git && $(TEST_TMP_ENV) bun test scripts $(BUN_TEST_FLAGS)
+	@mkdir -p $(TEST_TMP)/.git && $(TEST_TMP_ENV) bun test scripts --max-concurrency=$(TEST_CONCURRENCY) $(BUN_TEST_FLAGS)
 
 $(TEST_TARGETS): test-%:
-	@mkdir -p $(TEST_TMP)/.git && cd packages/$* && $(TEST_TMP_ENV) $(or $(TEST_ENV_$*),$(TEST_ENV)) bun test $(if $(filter $*,$(SERIAL_TESTS)),,$(BUN_TEST_FLAGS))
+	@mkdir -p $(TEST_TMP)/.git && cd packages/$* && $(TEST_TMP_ENV) $(or $(TEST_ENV_$*),$(TEST_ENV)) bun test --max-concurrency=$(TEST_CONCURRENCY) $(if $(filter $*,$(SERIAL_TESTS)),,$(BUN_TEST_FLAGS))
 
 # ----------------------------------------------------------------------------
 # SMOKE TARGETS

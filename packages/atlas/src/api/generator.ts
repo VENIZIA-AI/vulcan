@@ -51,7 +51,7 @@ export class ApiReference {
   static readonly MAX_PAGE_CHARS = 45_000;
   /** What of that a part keeps for its frontmatter, title and the way back. */
   private static readonly PART_HEAD_CHARS = 1_000;
-  /** Between the file of an entry and the number of a part: no entry's own file name holds two dashes in a row. */
+  /** Between the file of an entry and the number of a part; two dashes, which an entry's own file name is not expected to hold. */
   private static readonly PART_SEPARATOR = '--part-';
   private static readonly GENERATED_NOTE =
     'Generated from the built declarations by `vulcan atlas api gen` - do not edit.';
@@ -356,25 +356,39 @@ export class ApiReference {
     };
   }
 
-  /**
-   * The anchor of each heading of a part, in order, as the site spells them: a plain name in lower case, with `-1`, `-2`
-   * for a later one that spells the same. Any other name gets none, so its link goes to the part alone.
-   */
+  /** The anchor of each heading of a part, in order, as the site spells them: `-1`, `-2` past one already taken. */
   private static anchorsOf(opts: { names: string[] }): string[] {
-    const seen = new Map<string, number>();
+    const taken = new Set<string>();
 
     return opts.names.map((name) => {
-      if (!/^[A-Za-z][A-Za-z0-9]*$/.test(name)) {
+      const slug = ApiReference.slugOf({ name });
+
+      if (slug === '') {
         return '';
       }
 
-      const slug = name.toLowerCase();
-      const before = seen.get(slug) ?? 0;
+      let anchor = slug;
 
-      seen.set(slug, before + 1);
+      for (let at = 1; taken.has(anchor); at++) {
+        anchor = `${slug}-${at}`;
+      }
 
-      return before === 0 ? `#${slug}` : `#${slug}-${before}`;
+      taken.add(anchor);
+
+      return `#${anchor}`;
     });
+  }
+
+  /** The anchor VitePress makes of a heading that is one name (its `slugify`). */
+  private static slugOf(opts: { name: string }): string {
+    return opts.name
+      .normalize('NFKD')
+      .replace(/[\u{300}-\u{36F}]/gu, '')
+      .replace(/[\s~`!@#$%^&*()\-_+=[\]{}|\\;:"'“”‘’<>,.?/]+/g, '-')
+      .replace(/-{2,}/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/^(\d)/, '_$1')
+      .toLowerCase();
   }
 
   /** The frontmatter, the title and the note every page of an entry starts with. */
