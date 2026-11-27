@@ -34,7 +34,6 @@ describe("the free text of vulcan's flow and event commands is data, like a comm
     `${VULCAN} flow add --title "kubectl apply is for the owner" --step "psql -c 'DROP TABLE t' is theirs too"`,
     `${VULCAN} event add --type note --summary "connectors/http HTTP POST /users done"`,
     'vulcan event add --type note --summary "kubectl apply is for the owner"',
-    `git push && ${VULCAN} flow step --flow X-1 --next "connectors/http HTTP client done"`,
   ])('%s stays quiet', (command) => {
     expect(WriteGuard.inspectCommand({ command })).toEqual([]);
   });
@@ -111,12 +110,33 @@ describe("the free text of vulcan's flow and event commands is data, like a comm
   });
 
   test.each([
-    `${VULCAN} flow step --flow X-1 --next "${PAYLOAD}" 2>&1 | tail -1`,
-    `git push && ${VULCAN} flow step --next "a | b > c" | head -3`,
-    `${VULCAN} event add --type note --summary "${PAYLOAD}" >/dev/null 2>&1`,
-    `${VULCAN} flow step --next '${PAYLOAD}' # done | sh`,
-  ])('the plain form with a reading tail stays quiet: %s', (command) => {
+    `${VULCAN} flow step --next '${PAYLOAD} | sh; $(x) > f'`,
+    `${VULCAN} flow step --next "a | b > c; (d) & e # f"`,
+    `${VULCAN} flow step --next "an escaped \\\` mark, and ${PAYLOAD}"\n`,
+  ])('one command with those marks inside its quotes stays quiet: %s', (command) => {
     expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+  });
+
+  // The note is data only when the whole line is that one call.
+  test.each([
+    `git push && ${VULCAN} flow step --next "${PAYLOAD}"`,
+    `${VULCAN} flow step --next "${PAYLOAD}" 2>&1 | tail -1`,
+    `${VULCAN} flow step --next "${PAYLOAD}" >/dev/null`,
+    `${VULCAN} flow step --next "${PAYLOAD}"; ls`,
+    `${VULCAN} flow step --next "${PAYLOAD}" &`,
+    `${VULCAN} flow step --next "${PAYLOAD}"\nls`,
+    `${VULCAN} flow step --next "${PAYLOAD}" <<< x`,
+    `${VULCAN} flow step --next "${PAYLOAD}" "${'$'}{x}"`,
+    `${VULCAN} flow step --next "${PAYLOAD}" "$x"`,
+    `${VULCAN} flow step --next "${PAYLOAD}" # note`,
+    `f() { vulcan flow step --next "${PAYLOAD}"; }; eval "$(f)"`,
+    `vulcan flow step --next "${PAYLOAD}" | tail <<< $(sh)`,
+    `vulcan flow step --next "${PAYLOAD}" | tail $(sh)`,
+    `vulcan flow step --next "${PAYLOAD}" | head <(sh)`,
+    `vulcan flow step --next "${PAYLOAD}" | grep -f <(sh)`,
+    `vulcan flow step --next "${PAYLOAD}" | wc -l $(bash)`,
+  ])('more than that one call is checked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
   });
 });
 

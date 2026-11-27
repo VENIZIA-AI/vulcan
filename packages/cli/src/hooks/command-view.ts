@@ -43,18 +43,12 @@ const VULCAN_BIN = 'node_modules/.bin/vulcan';
 /** The scopes of VULCAN whose arguments are titles and notes of the board: nothing in them is run. */
 const VULCAN_NOTE_SCOPES = new Set(['flow', 'event']);
 
-/** What a line says that is not code of its own: an escaped character, a quoted string, a comment. */
-const NOT_CODE = /\\.|'[^']*'|"(?:\\.|[^"\\])*"|(?<=^|\s)#[^\n]*/g;
-
-/** The redirects that send output nowhere new. */
-const DROPPED_OUTPUT = /(?:[12]?>\s*\/dev\/null|2>&1)(?![^\s;&|])/g;
-
-/** A line that gives `vulcan` or `bun` another meaning. */
-const REDEFINES =
-  /(?:^|[\s;&|(){}])(?:function\s+(?:vulcan|bun)(?![\w.-])|(?:vulcan|bun)\s*\(\s*\)|alias\s+(?:vulcan|bun)=)/;
-
-/** A pipe into a program that only shows what it reads. */
-const SHOWS = /^\s*(?:tail|head|grep|wc)(?=\s|;|&|$)/;
+/**
+ * A line that is one command and nothing else: no operator, redirect, parenthesis, comment, expansion or second line
+ * outside quotes, and no expansion or backtick inside double quotes.
+ */
+const ONE_COMMAND =
+  /^(?:[^'"`$|;&<>()#\\\n\r]|\\[^\n\r]|'[^'\n\r]*'|"(?:\\[^\n\r]|[^"\\`$\n\r])*")*$/;
 
 /** The `gh` options that take the repository as their value: that value is not the subcommand. */
 const GH_REPOSITORY_FLAGS = new Set(['-R', '--repo']);
@@ -129,9 +123,9 @@ const isGhRequest = (opts: { command: ISimpleCommand }): boolean => {
 
 export class CommandView {
   /**
-   * Whether a command is `vulcan flow ...` or `vulcan event ...` written plainly: its first word is `vulcan`, or
-   * `bun` with the project's bin, with no wrapper, assignment or keyword before it, outside any substitution or
-   * subshell, on a line that keeps the output to itself. Any other form is read like every command.
+   * Whether a command is `vulcan flow ...` or `vulcan event ...` and the whole line: its first word is `vulcan`, or
+   * `bun` with the project's bin, and the line holds nothing besides that one command. Anything else is read like
+   * every command.
    */
   private static isPlainNote(opts: { command: ISimpleCommand; line?: string }): boolean {
     const { command, line } = opts;
@@ -144,23 +138,9 @@ export class CommandView {
       isNote &&
       command.assignments.length === 0 &&
       command.scope === undefined &&
-      command.carrier === undefined &&
       line !== undefined &&
-      CommandView.keepsOutput({ line })
+      ONE_COMMAND.test(line.trim())
     );
-  }
-
-  /** Whether a line sends no output on to anything that could run it, and leaves `vulcan` and `bun` as they are. */
-  private static keepsOutput(opts: { line: string }): boolean {
-    // `$'...'` has its own quoting, which is not followed here.
-    if (opts.line.includes("$'")) {
-      return false;
-    }
-
-    const code = opts.line.replace(NOT_CODE, ' _ ').replace(DROPPED_OUTPUT, ' ');
-    const piped = code.replaceAll('||', ';').split('|').slice(1);
-
-    return !code.includes('>') && !REDEFINES.test(code) && piped.every((part) => SHOWS.test(part));
   }
 
   /** The text of one simple command: the words, a bare name for data, a reader's heredoc body appended. */
@@ -189,7 +169,7 @@ export class CommandView {
   static isDataOnly(opts: {
     command: ISimpleCommand;
     withMessages: boolean;
-    /** The whole line without its heredoc bodies; without it no note command is data. */
+    /** The whole line as written; without it no note command is data. */
     line?: string;
   }): boolean {
     const name = ShellPrograms.basenameOf({
@@ -228,7 +208,7 @@ export class CommandView {
     const parsed = ShellParser.parseChecked({ command: opts.command });
     const commands = parsed.commands.filter(
       (command) =>
-        !CommandView.isDataOnly({ command, withMessages: opts.withMessages, line: text }),
+        !CommandView.isDataOnly({ command, withMessages: opts.withMessages, line: opts.command }),
     );
     // Read from the commands, not the text, so a `| sh` in a comment or in quotes feeds nothing.
     const isWholeLine = parsed.commands.some(
@@ -241,7 +221,7 @@ export class CommandView {
     const texts = isWholeLine
       ? [text]
       : parsed.commands.map((command) =>
-          CommandView.textOf({ command, withMessages: opts.withMessages, line: text }),
+          CommandView.textOf({ command, withMessages: opts.withMessages, line: opts.command }),
         );
     const sources = isWholeLine ? [undefined] : parsed.commands;
 
