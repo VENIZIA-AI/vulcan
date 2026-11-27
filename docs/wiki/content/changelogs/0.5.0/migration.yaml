@@ -275,6 +275,17 @@ event-type-field:
     steps:
       - 'Pin the earlier `@venizia/vulcan`: it reads `kind`, so the lines the new sync moved are not read by it. Rename `type` back to `kind` in the day files of the log.'
   data: 'The event log of a machine is moved by `project sync` in place; a log copied from a machine that has not run it still has `kind` and is not read by the new board.'
+atlas-ships-esm:
+  symbols:
+    - '@venizia/vulcan-atlas'
+  upgrade:
+    steps:
+      - 'In a CommonJS file that `require()`s `@venizia/vulcan-atlas`, load it with `await import(...)`, or make the file an ES module and use `import`.'
+      - 'Run `bun install`, then restart your agent sessions: a running atlas MCP server was started by a path that moved to `dist/esm/`.'
+  downgrade:
+    steps:
+      - 'Pin the earlier `@venizia/vulcan-atlas`; an `import` of it keeps working there.'
+  data: 'None: only the module format and the folder of the built files change.'
 atlas-field-names:
   symbols:
     - '@venizia/vulcan-atlas'
