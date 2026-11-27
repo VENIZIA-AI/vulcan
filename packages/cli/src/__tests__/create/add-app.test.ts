@@ -989,7 +989,7 @@ describe('the vulcan:apps block of a split monorepo', () => {
     );
     writeFileSync(
       join(root, '.configs/vulcan/knowledge.mts'),
-      "import type { VulcanConfig } from '@venizia/vulcan';\n\nexport const knowledge = {} satisfies VulcanConfig.Knowledge;\n",
+      "import type { VulcanConfig } from '@venizia/vulcan';\n\nexport const knowledge = {} satisfies VulcanConfig.KnowledgeType;\n",
     );
     writeFileSync(join(root, CONFIG), `${readFileSync(join(root, CONFIG), 'utf8')}\n${moved}\n`);
 

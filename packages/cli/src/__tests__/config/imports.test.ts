@@ -13,12 +13,12 @@ afterAll(removeProjects);
 
 const SPLIT = {
   '.configs/vulcan.config.mts': [
-    "import type { VulcanConfig } from '@venizia/vulcan';",
+    "import type { VulcanConfigType } from '@venizia/vulcan';",
     "import { claude, doctor } from './vulcan/index.mts';",
     "import { extra } from './policy.js';",
     "import { shared } from '../src/shared.ts';",
     '',
-    "export default { project: { name: 'demo' }, agent: { claude }, check: { doctor }, common: { theme: extra }, board: { page: shared } } satisfies VulcanConfig;",
+    "export default { project: { name: 'demo' }, agent: { claude }, check: { doctor }, common: { theme: extra }, board: { page: shared } } satisfies VulcanConfigType;",
     '',
   ].join('\n'),
   '.configs/vulcan/index.mts':
@@ -162,7 +162,7 @@ describe('ConfigImports.scan: what the guards cannot protect', () => {
     const root = createProject({
       files: {
         '.configs/vulcan.config.mts': config(
-          "import type { VulcanConfig } from '@venizia/vulcan';\nimport { x } from '@nowhere/policy';\nimport { y } from 'declared-only';\nimport { z } from 'node:path';\nimport { w } from 'fs';\nimport { v } from '#missing';",
+          "import type { VulcanConfigType } from '@venizia/vulcan';\nimport { x } from '@nowhere/policy';\nimport { y } from 'declared-only';\nimport { z } from 'node:path';\nimport { w } from 'fs';\nimport { v } from '#missing';",
         ),
         'package.json': JSON.stringify({
           name: 'demo',

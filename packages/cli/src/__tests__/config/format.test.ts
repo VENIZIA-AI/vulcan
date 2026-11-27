@@ -44,7 +44,7 @@ const load = async (opts: { text: string }): Promise<unknown> => {
     : undefined;
 };
 
-const OUT_OF_ORDER = `import type { VulcanConfig } from '@venizia/vulcan';
+const OUT_OF_ORDER = `import type { VulcanConfigType } from '@venizia/vulcan';
 
 const extra = ['a'];
 
@@ -64,7 +64,7 @@ export default {
   ],
   later: extra,
   'name': 'demo' // no comma
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 `;
 
 describe('ConfigFormat.format', () => {
@@ -82,7 +82,7 @@ describe('ConfigFormat.format', () => {
     ]);
     expect(result.ok && result.moved).toEqual(['name', 'agents', 'packages', 'remove']);
     expect(formatted({ text: OUT_OF_ORDER }))
-      .toBe(`import type { VulcanConfig } from '@venizia/vulcan';
+      .toBe(`import type { VulcanConfigType } from '@venizia/vulcan';
 
 const extra = ['a'];
 
@@ -102,7 +102,7 @@ export default {
   custom: 1,
   later: extra,
   remove: { 'atlas.sources': ['vulcan'] }
-} satisfies VulcanConfig;
+} satisfies VulcanConfigType;
 `);
   });
 

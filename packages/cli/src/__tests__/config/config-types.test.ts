@@ -75,6 +75,30 @@ export const paths: VulcanConfig.Project['packages'] = [];
 `,
 };
 
+/** One name imported twice, in one statement and in two: only one of the two bindings could be followed. */
+const TWICE = [
+  `import type { VulcanConfig, VulcanConfig as V2 } from ${PACKAGE};
+
+export const a = {} satisfies VulcanConfig;
+export const b = {} satisfies V2.Board;
+`,
+  `import type { TFlatConfig } from ${PACKAGE};
+import type { TFlatConfig as Flat } from ${PACKAGE};
+
+export const a = (config: TFlatConfig): Flat => config;
+`,
+];
+
+describe('a name imported twice', () => {
+  test.each(TWICE)('leaves the file whole, with a note', (text) => {
+    const result = ok(run({ files: { [CONFIG]: text } }));
+
+    expect(result.changes).toEqual([]);
+    expect(result.notes.join('\n')).toContain('imports');
+    expect(result.notes.join('\n')).toContain('twice');
+  });
+});
+
 const BOTH = `import { defineConfig, type VulcanConfig } from ${PACKAGE};
 
 const agent: VulcanConfig.Agent = {};

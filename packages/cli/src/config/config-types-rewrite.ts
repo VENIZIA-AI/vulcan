@@ -75,6 +75,8 @@ export class ConfigTypeRewriter {
     const named = clause?.namedBindings;
 
     return (
+      typescript.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text === PACKAGE &&
       clause !== undefined &&
       clause.name === undefined &&
       clause.isTypeOnly &&
@@ -296,6 +298,17 @@ export class ConfigTypeRewriter {
     const { source, names } = opts;
     const { whole, flat, members, done } = ConfigTypeRewriter.renamesOf(opts);
     const [wholeBefore, wholeAfter] = whole;
+    // A name bound twice has two sets of uses, and a second run would take the other one: the file is left to its owner.
+    const twice = [NAMESPACE, wholeBefore, ...flat.keys()].find(
+      (name) => names.bindings.filter((binding) => binding.imported === name).length > 1,
+    );
+
+    if (twice !== undefined) {
+      return {
+        refusal: `the file imports ${twice} twice, so nothing of it is changed: keep one import, then run the codemod again`,
+      };
+    }
+
     const spans: ISpan[] = [];
     const notes: string[] = [];
     const targets: string[] = [];
