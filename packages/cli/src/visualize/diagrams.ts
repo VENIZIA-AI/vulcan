@@ -15,8 +15,6 @@ export interface IDrawing {
   fallback: string;
 }
 
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
-
 const box = (opts: {
   x: number;
   y: number;
@@ -30,7 +28,7 @@ const box = (opts: {
   const { x, y, width, height } = opts;
   const text = opts.icon === undefined ? 14 : 38;
 
-  return `<g class="dbox${opts.tone === undefined ? '' : ` c-${opts.tone}`}"><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="4"/>${opts.icon === undefined ? '' : `<g class="st" transform="translate(${x + 10} ${y + height / 2 - 10})">${opts.icon.replace('<svg', '<svg x="0" y="0"')}</g>`}<text class="t" x="${opts.icon === undefined ? x + width / 2 : x + text}" y="${y + height / 2 + (opts.sub === undefined ? 5 : -3)}" text-anchor="${opts.icon === undefined ? 'middle' : 'start'}">${escaped(opts.label)}</text>${opts.sub === undefined ? '' : `<text class="s" x="${opts.icon === undefined ? x + width / 2 : x + text}" y="${y + height / 2 + 15}" text-anchor="${opts.icon === undefined ? 'middle' : 'start'}">${escaped(opts.sub)}</text>`}</g>`;
+  return `<g class="dbox${opts.tone === undefined ? '' : ` c-${opts.tone}`}"><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="4"/>${opts.icon === undefined ? '' : `<g class="st" transform="translate(${x + 10} ${y + height / 2 - 10})">${opts.icon.replace('<svg', '<svg x="0" y="0"')}</g>`}<text class="t" x="${opts.icon === undefined ? x + width / 2 : x + text}" y="${y + height / 2 + (opts.sub === undefined ? 5 : -3)}" text-anchor="${opts.icon === undefined ? 'middle' : 'start'}">${FigureLayout.escapeText({ value: opts.label })}</text>${opts.sub === undefined ? '' : `<text class="s" x="${opts.icon === undefined ? x + width / 2 : x + text}" y="${y + height / 2 + 15}" text-anchor="${opts.icon === undefined ? 'middle' : 'start'}">${FigureLayout.escapeText({ value: opts.sub })}</text>`}</g>`;
 };
 
 const arrowHead = (opts: { x: number; y: number }): string =>
@@ -63,7 +61,7 @@ export class SpecDiagrams {
           const label = diagram.arrows?.[index];
           const arrow =
             index < diagram.nodes.length - 1
-              ? `<path d="M${x + bw + 4} 40H${x + bw + gap - 4}" class="dline"/>${arrowHead({ x: x + bw + gap - 4, y: 40 })}${label === undefined ? '' : `<text class="dl" x="${x + bw + gap / 2}" y="30" text-anchor="middle">${escaped(label)}</text>`}`
+              ? `<path d="M${x + bw + 4} 40H${x + bw + gap - 4}" class="dline"/>${arrowHead({ x: x + bw + gap - 4, y: 40 })}${label === undefined ? '' : `<text class="dl" x="${x + bw + gap / 2}" y="30" text-anchor="middle">${FigureLayout.escapeText({ value: label })}</text>`}`
               : '';
 
           return `${box({ x, y: 12, width: bw, height: 56, label: node.label, sub: node.sub })}${arrow}`;
@@ -76,7 +74,7 @@ export class SpecDiagrams {
         fallback: `<ol class="path">${diagram.nodes
           .map(
             (node, index) =>
-              `<li><b>${escaped(node.label)}</b>${node.sub === undefined ? '' : ` <span class="mut">${escaped(node.sub)}</span>`}${index < diagram.nodes.length - 1 && diagram.arrows?.[index] !== undefined ? `<span class="verb">${escaped(diagram.arrows[index] ?? '')}</span>` : ''}</li>`,
+              `<li><b>${FigureLayout.escapeText({ value: node.label })}</b>${node.sub === undefined ? '' : ` <span class="mut">${FigureLayout.escapeText({ value: node.sub })}</span>`}${index < diagram.nodes.length - 1 && diagram.arrows?.[index] !== undefined ? `<span class="verb">${FigureLayout.escapeText({ value: diagram.arrows[index] ?? '' })}</span>` : ''}</li>`,
           )
           .join('')}</ol>`,
       };
@@ -98,14 +96,14 @@ export class SpecDiagrams {
       .map((layer, row) => {
         const y = 8 + row * 62;
 
-        return `<g><rect x="4" y="${y}" width="${width - 8}" height="54" rx="4" class="dband"/><text class="dlab" x="14" y="${y + 31}">${escaped(layer.label)}</text>${layer.items.map((item, col) => box({ x: label + col * (iw + 10), y: y + 8, width: iw, height: 38, label: item })).join('')}</g>`;
+        return `<g><rect x="4" y="${y}" width="${width - 8}" height="54" rx="4" class="dband"/><text class="dlab" x="14" y="${y + 31}">${FigureLayout.escapeText({ value: layer.label })}</text>${layer.items.map((item, col) => box({ x: label + col * (iw + 10), y: y + 8, width: iw, height: 38, label: item })).join('')}</g>`;
       })
       .join('');
 
     return {
       svg: `<svg width="${width}" viewBox="0 0 ${width} ${diagram.layers.length * 62 + 12}" role="group" aria-label="layers">${parts}</svg>`,
       width,
-      fallback: `<ul class="path">${diagram.layers.map((layer) => `<li><b>${escaped(layer.label)}:</b> <span>${layer.items.map(escaped).join(', ')}</span></li>`).join('')}</ul>`,
+      fallback: `<ul class="path">${diagram.layers.map((layer) => `<li><b>${FigureLayout.escapeText({ value: layer.label })}:</b> <span>${layer.items.map((value: string) => FigureLayout.escapeText({ value })).join(', ')}</span></li>`).join('')}</ul>`,
     };
   }
 
@@ -124,8 +122,8 @@ export class SpecDiagrams {
     // so the title and the chips of two branches in one row sit at the same height, and the centre spans every row.
     const rows = Math.ceil(map.branches.length / 2) * 3;
     const cluster = (branch: (typeof map.branches)[number], index: number): string =>
-      `<li class="branch" data-s="${(index % 5) + 1}"><h3><i class="sw" data-s="${(index % 5) + 1}"></i>${escaped(branch.label)}</h3><ul class="chips">${branch.items.map((item) => `<li>${escaped(item)}</li>`).join('')}</ul>${branch.note === undefined ? '' : `<p class="mut">${escaped(branch.note)}</p>`}</li>`;
+      `<li class="branch" data-s="${(index % 5) + 1}"><h3><i class="sw" data-s="${(index % 5) + 1}"></i>${FigureLayout.escapeText({ value: branch.label })}</h3><ul class="chips">${branch.items.map((item) => `<li>${FigureLayout.escapeText({ value: item })}</li>`).join('')}</ul>${branch.note === undefined ? '' : `<p class="mut">${FigureLayout.escapeText({ value: branch.note })}</p>`}</li>`;
 
-    return `<div class="idea"><div class="centre win ${GridSpans.classOf({ count: rows, spans })}">${IconSet.iconSvg({ name: 'star', size: 22 })}<b>${escaped(map.center)}</b></div><ul class="bs" role="list">${map.branches.map((branch, index) => cluster(branch, index)).join('')}</ul></div>`;
+    return `<div class="idea"><div class="centre win ${GridSpans.classOf({ count: rows, spans })}">${IconSet.iconSvg({ name: 'star', size: 22 })}<b>${FigureLayout.escapeText({ value: map.center })}</b></div><ul class="bs" role="list">${map.branches.map((branch, index) => cluster(branch, index)).join('')}</ul></div>`;
   }
 }

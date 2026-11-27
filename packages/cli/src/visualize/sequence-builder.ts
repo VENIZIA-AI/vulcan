@@ -1,12 +1,10 @@
-import { KindFigureConstants } from './common/index.ts';
+import { KindFigureConstants } from './constants.ts';
 import type { IKindDrawing } from './common/index.ts';
 import type { TChrome } from './constants.ts';
 import { FigureLayout } from './layout.ts';
 import { MessageKinds } from './kinds-schema.ts';
 import type { TSequence } from './kinds-schema.ts';
 import { KindFigureUtility } from './utilities/kind-figure.utility.ts';
-
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
 // -----------------------------------------------------------------------------------------------------------------
 // Sequence
@@ -83,7 +81,7 @@ export class SequenceBuilder {
         const x1 = centre(from) + sign * 6;
         const x2 = centre(to) - sign * 6;
 
-        return `<g class="kmsg k-${kind}">${message.note === undefined ? '' : `<title>${escaped(message.note)}</title>`}<path class="kline${kind === MessageKinds.REPLY ? ' kdash' : ''}" d="M${x1} ${y}H${x2}"/>${KindFigureUtility.head({ x: x2, y, dx: sign, dy: 0, open: kind === MessageKinds.ASYNC })}<text class="ke kh" x="${(x1 + x2) / 2}" y="${y - 9}" text-anchor="middle"><tspan class="knum">${order + 1}.</tspan> ${escaped(message.label)}</text>${message.note === undefined ? '' : `<text class="ks kh" x="${(x1 + x2) / 2}" y="${y + 18}" text-anchor="middle">${escaped(message.note)}</text>`}</g>`;
+        return `<g class="kmsg k-${kind}">${message.note === undefined ? '' : `<title>${FigureLayout.escapeText({ value: message.note })}</title>`}<path class="kline${kind === MessageKinds.REPLY ? ' kdash' : ''}" d="M${x1} ${y}H${x2}"/>${KindFigureUtility.head({ x: x2, y, dx: sign, dy: 0, open: kind === MessageKinds.ASYNC })}<text class="ke kh" x="${(x1 + x2) / 2}" y="${y - 9}" text-anchor="middle"><tspan class="knum">${order + 1}.</tspan> ${FigureLayout.escapeText({ value: message.label })}</text>${message.note === undefined ? '' : `<text class="ks kh" x="${(x1 + x2) / 2}" y="${y + 18}" text-anchor="middle">${FigureLayout.escapeText({ value: message.note })}</text>`}</g>`;
       })
       .join('');
     const legend =
@@ -93,7 +91,7 @@ export class SequenceBuilder {
               const x = KindFigureConstants.MARGIN + index * 150;
               const y = height - 18;
 
-              return `<g class="klegend"><path class="kline${kind === MessageKinds.REPLY ? ' kdash' : ''}" d="M${x} ${y}H${x + 34}"/>${KindFigureUtility.head({ x: x + 34, y, dx: 1, dy: 0, open: kind === MessageKinds.ASYNC })}<text class="ks" x="${x + 46}" y="${y + 4}">${escaped(KindFigureUtility.wordOf({ chrome, key: MESSAGE_WORD[kind] ?? 'kindCall' }))}</text></g>`;
+              return `<g class="klegend"><path class="kline${kind === MessageKinds.REPLY ? ' kdash' : ''}" d="M${x} ${y}H${x + 34}"/>${KindFigureUtility.head({ x: x + 34, y, dx: 1, dy: 0, open: kind === MessageKinds.ASYNC })}<text class="ks" x="${x + 46}" y="${y + 4}">${FigureLayout.escapeText({ value: KindFigureUtility.wordOf({ chrome, key: MESSAGE_WORD[kind] ?? 'kindCall' }) })}</text></g>`;
             })
             .join('')
         : '';
@@ -109,11 +107,11 @@ export class SequenceBuilder {
         body: `${lifelines}${boxes}${messages}${legend}`,
       }),
       width,
-      list: `<div class="path kl ksq"><ul class="kparts">${sequence.participants.map((part) => `<li><b>${escaped(part.label)}</b>${part.sublabel === undefined ? '' : ` <span class="mut">${escaped(part.sublabel)}</span>`}</li>`).join('')}</ul><ol class="kmsgs">${sequence.messages
+      list: `<div class="path kl ksq"><ul class="kparts">${sequence.participants.map((part) => `<li><b>${FigureLayout.escapeText({ value: part.label })}</b>${part.sublabel === undefined ? '' : ` <span class="mut">${FigureLayout.escapeText({ value: part.sublabel })}</span>`}</li>`).join('')}</ul><ol class="kmsgs">${sequence.messages
         .map((message) => {
           const kind = message.type ?? MessageKinds.CALL;
 
-          return `<li class="k-${kind}"><b>${escaped(nameOf(message.from))}</b><span class="verb kv-${kind}">${escaped(message.label)}</span><b>${escaped(nameOf(message.to))}</b>${kind === MessageKinds.CALL ? '' : ` <span class="kword">${escaped(KindFigureUtility.wordOf({ chrome, key: MESSAGE_WORD[kind] ?? 'kindCall' }))}</span>`}${message.note === undefined ? '' : `<span class="knote">${escaped(message.note)}</span>`}</li>`;
+          return `<li class="k-${kind}"><b>${FigureLayout.escapeText({ value: nameOf(message.from) })}</b><span class="verb kv-${kind}">${FigureLayout.escapeText({ value: message.label })}</span><b>${FigureLayout.escapeText({ value: nameOf(message.to) })}</b>${kind === MessageKinds.CALL ? '' : ` <span class="kword">${FigureLayout.escapeText({ value: KindFigureUtility.wordOf({ chrome, key: MESSAGE_WORD[kind] ?? 'kindCall' }) })}</span>`}${message.note === undefined ? '' : `<span class="knote">${FigureLayout.escapeText({ value: message.note })}</span>`}</li>`;
         })
         .join('')}</ol></div>`,
       caption:

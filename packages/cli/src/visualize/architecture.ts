@@ -31,8 +31,6 @@ const SUB_LINE = 15;
 const LABEL_REACH = 12;
 const LABEL_MARGIN = 6;
 
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
-
 interface IRect {
   left: number;
   right: number;
@@ -367,7 +365,7 @@ export class SpecArchitecture {
     const bands = architecture.layers
       .map(
         (layer, row) =>
-          `<rect x="2" y="${bandTops[row]}" width="${width - 4}" height="${bandHeight}" rx="4" class="dband"/><text class="dlab" x="14" y="${(bandTops[row] ?? 0) + 22}">${escaped(layer.label)}</text>`,
+          `<rect x="2" y="${bandTops[row]}" width="${width - 4}" height="${bandHeight}" rx="4" class="dband"/><text class="dlab" x="14" y="${(bandTops[row] ?? 0) + 22}">${FigureLayout.escapeText({ value: layer.label })}</text>`,
       )
       .join('');
     // Every route first, so a label can be placed clear of the lines of the other links.
@@ -494,7 +492,7 @@ export class SpecArchitecture {
 
       placedLabels.push(rectOf(chosen));
 
-      return `<text class="dl" x="${chosen.x}" y="${chosen.y}" text-anchor="${chosen.anchor}">${escaped(label)}</text>`;
+      return `<text class="dl" x="${chosen.x}" y="${chosen.y}" text-anchor="${chosen.anchor}">${FigureLayout.escapeText({ value: label })}</text>`;
     };
     const links = routes
       .map((route, index) => {
@@ -519,20 +517,20 @@ export class SpecArchitecture {
         const titles = box.titleLines
           .map(
             (line, index) =>
-              `<text class="t" x="${textX}" y="${first + 14 + index * TITLE_LINE}" text-anchor="${anchor}">${escaped(line)}</text>`,
+              `<text class="t" x="${textX}" y="${first + 14 + index * TITLE_LINE}" text-anchor="${anchor}">${FigureLayout.escapeText({ value: line })}</text>`,
           )
           .join('');
         const subs = box.subLines
           .map(
             (line, index) =>
-              `<text class="s" x="${textX}" y="${first + box.titleLines.length * TITLE_LINE + 15 + index * SUB_LINE}" text-anchor="${anchor}">${escaped(line)}</text>`,
+              `<text class="s" x="${textX}" y="${first + box.titleLines.length * TITLE_LINE + 15 + index * SUB_LINE}" text-anchor="${anchor}">${FigureLayout.escapeText({ value: line })}</text>`,
           )
           .join('');
         const icon = hasIcon
           ? `<g class="st" transform="translate(${box.x + 10} ${top + boxHeight / 2 - 10})">${SpecCharts.stateIcon({ state: box.spec.state ?? '', size: 20 }).replace('<svg', '<svg x="0" y="0"')}</g>`
           : '';
 
-        return `<g class="dbox${tone === undefined ? '' : ` c-${tone}`}" data-box="${escaped(box.spec.id)}"><rect x="${box.x}" y="${top}" width="${boxWidth}" height="${boxHeight}" rx="4"/>${icon}${titles}${subs}</g>`;
+        return `<g class="dbox${tone === undefined ? '' : ` c-${tone}`}" data-box="${FigureLayout.escapeText({ value: box.spec.id })}"><rect x="${box.x}" y="${top}" width="${boxWidth}" height="${boxHeight}" rx="4"/>${icon}${titles}${subs}</g>`;
       })
       .join('');
     const names = new Map(
@@ -543,17 +541,17 @@ export class SpecArchitecture {
     // The state mark and the first word of a name stay together, so a break never leaves the mark behind.
     const nameOf = (spec: TBox): string => {
       if (spec.state === undefined) {
-        return escaped(spec.label);
+        return FigureLayout.escapeText({ value: spec.label });
       }
 
       const [first = '', ...rest] = spec.label.split(' ');
 
-      return `<span class="nb"><span class="c-${NodeStates.toneOf(spec.state)} inl">${SpecCharts.stateIcon({ state: spec.state, size: 16 })}</span>${escaped(first)}</span>${rest.length === 0 ? '' : ` ${escaped(rest.join(' '))}`}`;
+      return `<span class="nb"><span class="c-${NodeStates.toneOf(spec.state)} inl">${SpecCharts.stateIcon({ state: spec.state, size: 16 })}</span>${FigureLayout.escapeText({ value: first })}</span>${rest.length === 0 ? '' : ` ${FigureLayout.escapeText({ value: rest.join(' ') })}`}`;
     };
-    const fallback = `<ul class="path">${architecture.layers.map((layer) => `<li><b>${escaped(layer.label)}:</b> <span>${layer.boxes.map(nameOf).join(', ')}</span></li>`).join('')}${architecture.links.map((link) => `<li>${escaped(names.get(link.from) ?? link.from)} <span class="verb">${escaped(link.label ?? opts.chrome.uses)}</span> ${escaped(names.get(link.to) ?? link.to)}</li>`).join('')}</ul>`;
+    const fallback = `<ul class="path">${architecture.layers.map((layer) => `<li><b>${FigureLayout.escapeText({ value: layer.label })}:</b> <span>${layer.boxes.map(nameOf).join(', ')}</span></li>`).join('')}${architecture.links.map((link) => `<li>${FigureLayout.escapeText({ value: names.get(link.from) ?? link.from })} <span class="verb">${FigureLayout.escapeText({ value: link.label ?? opts.chrome.uses })}</span> ${FigureLayout.escapeText({ value: names.get(link.to) ?? link.to })}</li>`).join('')}</ul>`;
 
     return {
-      svg: `<svg width="${width}" viewBox="0 0 ${width} ${height}" role="group" aria-label="${escaped(opts.chrome.architecture)}">${bands}${links}${boxes}</svg>`,
+      svg: `<svg width="${width}" viewBox="0 0 ${width} ${height}" role="group" aria-label="${FigureLayout.escapeText({ value: opts.chrome.architecture })}">${bands}${links}${boxes}</svg>`,
       width,
       fallback,
     };
