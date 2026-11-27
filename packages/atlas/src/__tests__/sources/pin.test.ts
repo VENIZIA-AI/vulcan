@@ -14,6 +14,14 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from './symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -203,6 +211,21 @@ const SRC = (opts: { url: string; pin?: 'installed' | 'ref' }): IAtlasSource => 
   ...(opts.pin === undefined ? {} : { pin: opts.pin }),
 });
 
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('a source is served at the version the project has installed', () => {
   test('kernel 1.0.0 installed: the docs are the tag of 1.0.0, the release table still knows 1.1.0', async () => {
     const source = releasedSource();
@@ -219,6 +242,9 @@ describe('a source is served at the version the project has installed', () => {
     expect(sources[0].refProject?.root).not.toBe(sources[0].project.root);
     const result2 = await call({ transport, name: 'version' });
     expect(result2.snapshot['@x/kernel']).toBe('1.1.0');
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
+    await fetches.claimUnfetched({ stderr, release: '@x/helpers@0.5.0' });
   });
 
   test('kernel 1.1.0 installed: the docs are the tag of 1.1.0', async () => {
@@ -230,6 +256,9 @@ describe('a source is served at the version the project has installed', () => {
 
     const result = await forgeHits({ transport });
     expect(result).toBe(1);
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
+    await fetches.claimUnfetched({ stderr, release: '@x/helpers@0.5.0' });
   });
 
   test('two packages installed: the newest release among them decides, and the status says which', async () => {
@@ -245,6 +274,9 @@ describe('a source is served at the version the project has installed', () => {
     expect(result).toBe(1);
     expect(text).toContain('helpers-v0.5.0');
     expect(text).toContain('@x/helpers 0.5.0');
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
+    await fetches.claimUnfetched({ stderr, release: '@x/helpers@0.5.0' });
   });
 
   test('nothing installed: the ref is served, and the status says why', async () => {
@@ -260,6 +292,9 @@ describe('a source is served at the version the project has installed', () => {
     expect(text).toContain('develop');
     expect(text).toContain('none of its packages is installed');
     expect(sources[0].refProject).toBeUndefined();
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
+    await fetches.claimUnfetched({ stderr, release: '@x/helpers@0.5.0' });
   });
 
   test("a package installed under a workspace app's node_modules is the installed one", async () => {
@@ -273,6 +308,9 @@ describe('a source is served at the version the project has installed', () => {
     const result = await forgeHits({ transport });
     expect(result).toBe(0);
     expect(text).toContain('kernel-v1.0.0');
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
+    await fetches.claimUnfetched({ stderr, release: '@x/helpers@0.5.0' });
   });
 
   test('a linked package (file: or a workspace) is not a release: the ref is served', async () => {
@@ -286,6 +324,9 @@ describe('a source is served at the version the project has installed', () => {
     const result = await forgeHits({ transport });
     expect(result).toBe(1);
     expect(text).toContain('linked');
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
+    await fetches.claimUnfetched({ stderr, release: '@x/helpers@0.5.0' });
   });
 
   test('an installed version with no recorded release falls back to the ref', async () => {
@@ -299,6 +340,9 @@ describe('a source is served at the version the project has installed', () => {
     const result = await forgeHits({ transport });
     expect(result).toBe(1);
     expect(text).toContain('no release of @x/kernel 0.9.0');
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
+    await fetches.claimUnfetched({ stderr, release: '@x/helpers@0.5.0' });
   });
 
   test("pin: 'ref' keeps serving the ref whatever is installed", async () => {
@@ -313,6 +357,9 @@ describe('a source is served at the version the project has installed', () => {
     expect(result).toBe(1);
     expect(text).toContain('pin is ref');
     expect(sources[0].refProject).toBeUndefined();
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
+    await fetches.claimUnfetched({ stderr, release: '@x/helpers@0.5.0' });
   });
 
   test('the status line names the tag served and the version it comes from', async () => {
@@ -326,6 +373,9 @@ describe('a source is served at the version the project has installed', () => {
     expect(text).toContain('kernel-v1.0.0');
     expect(text).toContain('installed @x/kernel 1.0.0');
     expect(Buffer.byteLength(text)).toBeLessThan(2048);
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0' });
+    await fetches.claimUnfetched({ stderr, release: '@x/helpers@0.5.0' });
   });
 
   test('an upgrade while the server runs swaps the docs after the refresh interval', async () => {
@@ -344,5 +394,8 @@ describe('a source is served at the version the project has installed', () => {
 
     const result2 = await eventually({ read: () => forgeHits({ transport }), expected: 1 });
     expect(result2).toBe(1);
+
+    await fetches.claimUnfetched({ stderr, release: '@x/kernel@1.1.0', some: true });
+    await fetches.claimUnfetched({ stderr, release: '@x/helpers@0.5.0', some: true });
   });
 });

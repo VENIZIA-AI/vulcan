@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, spyOn, test } from 'bun:test';
+import { afterAll, describe, expect, spyOn, test, afterEach, beforeEach } from 'bun:test';
 import { GitLocal } from '@/common/git-local';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,6 +15,13 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -108,6 +115,11 @@ const planOf = (opts: {
     to: opts.to,
   }).plans[0];
 
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('a source cloned without blobs', () => {
   test('before its blobs are fetched, the plan says it read an earlier tag, is degraded, and apply refuses it', () => {
     const source = remote();
@@ -155,6 +167,13 @@ describe('a source cloned without blobs', () => {
     });
 
     expect(outcome.error).toBeDefined();
+
+    stderr.claim({
+      parts: [
+        '[FolderBlobs] the changelog blobs of the release tags were not fetched',
+        "git fetch exited 128: fatal: '/nowhere/at/all.git' does not appear",
+      ],
+    });
   });
 });
 
@@ -171,6 +190,13 @@ describe('FolderBlobs.prefetch does not throw and does not run on an old git', (
 
     expect(outcome.fetched).toBe(0);
     expect(outcome.error).toContain('git ls-tree');
+
+    stderr.claim({
+      parts: [
+        '[FolderBlobs] the changelog blobs of the release tags were not fetched',
+        'git ls-tree ENOENT',
+      ],
+    });
   });
 
   test('a git older than 2.44 fetches nothing: its cat-file would fetch a missing blob by itself', () => {
@@ -186,5 +212,12 @@ describe('FolderBlobs.prefetch does not throw and does not run on an old git', (
     } finally {
       spy.mockRestore();
     }
+
+    stderr.claim({
+      parts: [
+        '[FolderBlobs] the changelog blobs of the release tags were not fetched',
+        'this git is older than 2.44',
+      ],
+    });
   });
 });

@@ -10,8 +10,15 @@ import { ChangesTool } from '@/tools/changes.tool';
 import { GetTool } from '@/tools/get.tool';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { ignisCommittedFileOf, IGNIS_ROOT } from '../ignis-root.helper';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 // __dirname, not import.meta: this package emits CommonJS.
 const REPOSITORY_ROOT = IGNIS_ROOT;
@@ -93,6 +100,11 @@ const callChanges = async (opts: {
 
 const payloadOf = (reply: { result?: { content: { text: string }[] } }): IChangesPayload =>
   JSON.parse(reply.result?.content[0]?.text ?? '{}');
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('changes tool', () => {
   test('two versions of one package answer with the entries in that window', async () => {
@@ -204,6 +216,13 @@ describe('changes tool', () => {
     expect(reply.error?.message).toContain(
       'no release of @venizia/ignis-boot is recorded on this ref',
     );
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        'no release of @venizia/ignis-boot is recorded on this ref',
+      ],
+    });
   });
 
   test('an unknown package is -32602 naming the known ones, declared and unreleased included', async () => {
@@ -214,6 +233,13 @@ describe('changes tool', () => {
     // @venizia/ignis-boot is declared and has no release: it is offered like a released one.
     expect(reply.error?.message).toContain('@venizia/ignis-boot');
     expect(reply.error?.message).toContain('@venizia/ignis-helpers');
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        "unknown package 'kernl'; known packages: @venizia/dev-configs",
+      ],
+    });
   });
 
   test('an unknown version is -32602 naming the known ones', async () => {
@@ -222,6 +248,13 @@ describe('changes tool', () => {
     expect(reply.error?.code).toBe(-32602);
     expect(reply.error?.message).toContain("unknown version '9.9.9' for @venizia/ignis-kernel");
     expect(reply.error?.message).toContain('0.2.0-16');
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        "unknown version '9.9.9' for @venizia/ignis-kernel",
+      ],
+    });
   });
 
   test('the known-value list is capped at ten', async () => {
@@ -245,6 +278,13 @@ describe('changes tool', () => {
     const listed = (reply.error?.message ?? '').split('known versions: ')[1] ?? '';
 
     expect(listed.split(', ')).toHaveLength(10);
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        "unknown version 'nope' for kernel",
+      ],
+    });
   });
 
   test('a date is rejected where a version belongs, naming the versions that exist', async () => {
@@ -257,6 +297,13 @@ describe('changes tool', () => {
     expect(reply.error?.message).toContain(
       "unknown version '2026-08-31' for @venizia/ignis-kernel",
     );
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        "unknown version '2026-08-31' for @venizia/ignis-kernel",
+      ],
+    });
   });
 
   test('a version is rejected where a date belongs', async () => {
@@ -266,6 +313,13 @@ describe('changes tool', () => {
     expect(reply.error?.message).toBe(
       "to must be a YYYY-MM-DD date when no package is given; got '0.2.0-16'",
     );
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        "to must be a YYYY-MM-DD date when no package is given; got '0.2.0-16'",
+      ],
+    });
   });
 
   test('a long window is trimmed to the newest entries and says it was', async () => {
@@ -396,6 +450,19 @@ describe('changes tool', () => {
 
     expect(negative.error?.code).toBe(-32602);
     expect(fractional.error?.code).toBe(-32602);
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        'offset: Too small: expected number to be >=0',
+      ],
+    });
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        'offset: expected int, received number',
+      ],
+    });
   });
 
   test('a source with no releases and no entries says why instead of guessing', async () => {
@@ -409,6 +476,13 @@ describe('changes tool', () => {
 
     expect(reply.error?.code).toBe(-32602);
     expect(reply.error?.message).toBe('no releases: no tag matches <dir>-v<version>');
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        'no releases: no tag matches <dir>-v<version>',
+      ],
+    });
   });
 
   test('with dated entries and no release, dates still answer and versions say why they cannot', async () => {
@@ -428,6 +502,13 @@ describe('changes tool', () => {
       'changelog:2026-09-05-list-response',
     ]);
     expect(byPackage.error?.message).toBe('no release history: ignis was fetched without git');
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        'no release history: ignis was fetched without git',
+      ],
+    });
   });
 });
 

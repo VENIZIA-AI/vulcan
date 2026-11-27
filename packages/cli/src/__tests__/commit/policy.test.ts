@@ -1,8 +1,15 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { AgentSignaturePolicies, CommitPolicy } from '../../commit/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { CapturedStderr } from '../stderr.helper.ts';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(removeProjects);
 
@@ -13,6 +20,11 @@ const manifestOf = (opts: { root: string; config: object }): Record<string, unkn
 
 const projectWithManifest = (opts: { manifest: object }): string =>
   createProject({ files: { '.agents/local/vulcan.manifest.json': JSON.stringify(opts.manifest) } });
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('AgentSignaturePolicies', () => {
   test('two values, and isValid reads them', () => {
@@ -170,6 +182,13 @@ describe('CommitPolicy.read in a clone that did not sync', () => {
     expect(CommitPolicy.read({ root: unsynced })?.agentSignature).toBe('deny');
     expect(CommitPolicy.read({ root: legacyOnly })?.agentSignature).toBe('deny');
     expect(CommitPolicy.read({ root: createProject({ files: {} }) })).toBeUndefined();
+
+    stderr.claim({
+      parts: [
+        '[CommitPolicy.read] .agents/local/vulcan.manifest.json is missing: agent signatures are refused until you run vulcan project sync',
+      ],
+      times: 2,
+    });
   });
 });
 
@@ -218,11 +237,24 @@ describe('CommitPolicy.read', () => {
     expect(CommitPolicy.read({ root: noAgent })).toBeUndefined();
     expect(CommitPolicy.read({ root: badAllow })).toBeUndefined();
     expect(CommitPolicy.read({ root: emptyAllow })).toBeUndefined();
+
+    stderr.claim({
+      parts: [
+        '[CommitPolicy.read] ignoring check.commit.message in .agents/local/vulcan.manifest.json: not the shape vulcan project sync writes',
+      ],
+      times: 4,
+    });
   });
 
   test('a manifest that is not JSON is ignored', () => {
     const root = createProject({ files: { '.agents/local/vulcan.manifest.json': '{ nope' } });
 
     expect(CommitPolicy.read({ root })).toBeUndefined();
+
+    stderr.claim({
+      parts: [
+        '[CommitPolicy.read] .agents/local/vulcan.manifest.json is not JSON | JSON Parse error',
+      ],
+    });
   });
 });

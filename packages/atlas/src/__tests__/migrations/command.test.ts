@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -6,6 +6,13 @@ import { MigrateCommand } from '@/migrations';
 import { Transport } from '@/protocol';
 import { ReleaseStore } from '@/releases';
 import { MigrateTool } from '@/tools';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 const roots: string[] = [];
 
@@ -83,6 +90,11 @@ const run = async (opts: { args: string[] }) => {
   return { code, out: out.join(''), err: err.join('') };
 };
 
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('MigrateCommand.run', () => {
   test('plan prints Markdown by default and exits 0', async () => {
     const app = appDir();
@@ -146,6 +158,13 @@ describe('MigrateCommand.run', () => {
     expect(result.code).toBe(1);
     expect(result.err).toContain("unknown version '9.9.9'");
     expect(result.out).toBe('');
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: migrate |',
+        "unknown version '9.9.9' for @venizia/kernel",
+      ],
+    });
   });
 
   test('usage errors exit 2: no subcommand, another subcommand, no --to, an unknown flag, a bad format', async () => {

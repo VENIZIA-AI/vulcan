@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,6 +10,13 @@ import { ReleaseStore } from '@/releases';
 import type { IReleaseTable } from '@/releases';
 import { SourceReleases } from '@/sources';
 import { MigrateTool } from '@/tools';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 const roots: string[] = [];
 
@@ -81,6 +88,11 @@ const call = async (opts: {
     args: opts.args,
   });
 
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('the migrate tool', () => {
   test('C15.1: it answers the plan the engine builds, as JSON-able data', async () => {
     const app = appWith({ dependencies: { '@venizia/kernel': '1.0.0' } });
@@ -144,6 +156,13 @@ describe('the migrate tool', () => {
 
     expect(reply.error.code).toBe(-32602);
     expect(reply.error.message).toContain('to');
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: migrate |',
+        'to: expected string, received undefined',
+      ],
+    });
   });
 });
 
@@ -247,6 +266,25 @@ describe('the registry check', () => {
     expect(behind).toContain('newest the atlas knows is 2.0.0');
     expect(missing).toContain("unknown version '4.0.0'");
     expect(unasked).toContain("unknown version '3.0.0'");
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: migrate |',
+        '@venizia/kernel@3.0.0 is published to npm but the atlas does not know it',
+      ],
+    });
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: migrate |',
+        "unknown version '4.0.0' for @venizia/kernel",
+      ],
+    });
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: migrate |',
+        "unknown version '3.0.0' for @venizia/kernel",
+      ],
+    });
   });
 
   test('apply refuses a plan that stops short of npm, and --force runs it', () => {

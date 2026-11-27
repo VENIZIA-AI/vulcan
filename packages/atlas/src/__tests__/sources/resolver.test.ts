@@ -22,6 +22,14 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from './symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -42,6 +50,21 @@ afterEach(() => {
 
 const consumer = (): string => makeTempDirectory({ prefix: 'atlas-consumer-' });
 
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('SourceResolver.resolve', () => {
   test('a first start pulls the manifest and its declared paths only, and builds the index', async () => {
     const source = makeSourceRepository();
@@ -59,6 +82,8 @@ describe('SourceResolver.resolve', () => {
     expect(existsSync(join(resolved.root, 'packages'))).toBe(false);
     expect(existsSync(resolved.indexFile ?? '')).toBe(true);
     expect(resolved.project.name).toBe('src');
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('its releases are computed at the pull, so an offline start still has them', async () => {
@@ -76,6 +101,8 @@ describe('SourceResolver.resolve', () => {
     expect(releases.changelogs.map((entry: { id: string }) => entry.id)).toEqual([
       'changelog:2026-01-01-first',
     ]);
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('a source whose commit holds no changelog entry resolves with none: only entries that exist are owed', async () => {
@@ -93,6 +120,8 @@ describe('SourceResolver.resolve', () => {
     const releases = JSON.parse(readFileSync(resolved.releasesFile ?? '', 'utf8'));
 
     expect(releases.changelogs).toEqual([]);
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('a cached set whose release table lost its changelog is pulled again, not served', async () => {
@@ -111,6 +140,8 @@ describe('SourceResolver.resolve', () => {
     expect(healed.changelogs.map((entry: { id: string }) => entry.id)).toEqual([
       'changelog:2026-01-01-first',
     ]);
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 
   test('the same SHA again is served from the cache, with no clone', async () => {
@@ -131,6 +162,8 @@ describe('SourceResolver.resolve', () => {
     rmSync(join(source.bare, 'objects'), { recursive: true });
     renameSync(join(source.bare, 'objects.gone'), join(source.bare, 'objects'));
     expect(again.mode).toBe('cache');
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 
   test('a new commit on the ref is pulled on the next start', async () => {
@@ -152,6 +185,8 @@ describe('SourceResolver.resolve', () => {
     expect(second.mode).toBe('fresh');
     expect(second.sha).not.toBe(first.sha);
     expect(existsSync(join(second.root, 'docs/changelogs/2026-02-01-second.md'))).toBe(true);
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 
   test('a release tag pushed after its commit was pulled is read on the next start, with no new pull', async () => {
@@ -174,6 +209,8 @@ describe('SourceResolver.resolve', () => {
     ).toEqual(['1.0.0', '1.1.0']);
     // The corpus was not pulled again: the index is the one the first start built.
     expect(statSync(second.indexFile ?? '').mtimeMs).toBe(indexed);
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 
   test('pull forces a fetch even on the same SHA', async () => {
@@ -186,6 +223,8 @@ describe('SourceResolver.resolve', () => {
     const [forced] = await SourceResolver.resolve({ cwd, cacheDir, sources, force: true });
 
     expect(forced.mode).toBe('fresh');
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 
   test('an unreachable remote serves the newest cache, and says so', async () => {
@@ -213,6 +252,14 @@ describe('SourceResolver.resolve', () => {
     const initialized = JSON.parse(result2 ?? 'null');
 
     expect(initialized.result.instructions).toContain('OFFLINE: the remote was unreachable');
+
+    await fetches.claimUnfetched({ stderr });
+    stderr.claim({
+      parts: [
+        '[GitRepository.lsRemote] the remote could not be asked',
+        "/source.git' does not appear to be a git repository",
+      ],
+    });
   });
 
   test('a pull stamps the format its index was built at (C1)', async () => {
@@ -227,6 +274,8 @@ describe('SourceResolver.resolve', () => {
     expect(readFileSync(join(artifacts, 'format'), 'utf8')).toBe(
       `${AtlasConstants.INDEX_FORMAT}\n`,
     );
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test.each([
@@ -250,6 +299,8 @@ describe('SourceResolver.resolve', () => {
     expect(second.mode).toBe('fresh');
     expect(second.sha).toBe(first.sha);
     expect(readFileSync(formatFile, 'utf8')).toBe(`${AtlasConstants.INDEX_FORMAT}\n`);
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 
   test.each([
@@ -281,6 +332,15 @@ describe('SourceResolver.resolve', () => {
     expect(servable.resolved).toEqual([]);
     expect(servable.unavailable.map((entry) => entry.source.name)).toEqual(['src']);
     expect(servable.unavailable[0]?.reason).toContain('is unreachable and has no cache');
+
+    await fetches.claimUnfetched({ stderr });
+    stderr.claim({
+      parts: [
+        '[GitRepository.lsRemote] the remote could not be asked',
+        "/source.git' does not appear to be a git repository",
+      ],
+      times: 2,
+    });
   });
 
   test('offline, each ref falls back to the newest SHA pulled for that ref', async () => {
@@ -311,6 +371,15 @@ describe('SourceResolver.resolve', () => {
     expect(offlineDevelop.mode).toBe('offline-cache');
     expect(offlineDevelop.sha).toBe(onDevelop.sha);
     expect(offlineMain.sha).toBe(onMain.sha);
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
+    stderr.claim({
+      parts: [
+        '[GitRepository.lsRemote] the remote could not be asked',
+        "/source.git' does not appear to be a git repository",
+      ],
+      times: 2,
+    });
   });
 
   test('unreachable with no cache stops, naming the source', async () => {
@@ -326,6 +395,13 @@ describe('SourceResolver.resolve', () => {
     expect(String(failure)).toContain(
       "atlas: source 'gone' (file:///nowhere/at/all.git@develop) is unreachable and has no cache",
     );
+
+    stderr.claim({
+      parts: [
+        '[GitRepository.lsRemote] the remote could not be asked',
+        "'/nowhere/at/all.git' does not appear to be a git repository",
+      ],
+    });
   });
 
   test('a fetched manifest whose package name is not an npm name stops, naming the source and the name', async () => {

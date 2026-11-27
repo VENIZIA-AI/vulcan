@@ -6,26 +6,43 @@ import { ChunkStore } from '@/search/store';
 import { SymbolStore } from '@/symbols';
 import { SearchTool } from '@/tools/search.tool';
 import { join } from 'node:path';
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
+import { BrokenPage } from '../broken-page.helper';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 // __dirname, not import.meta: this package emits CommonJS.
 const FIXTURES_ROOT = join(__dirname, '../fixtures/corpus');
 
+/** The fixture corpus holds one broken page: every build skips it, and says why. */
 const buildFixtureStore = (): ChunkStore => {
-  const documents = CorpusLoader.getInstance().load({
-    roots: [
-      { corpus: Corpora.WIKI, directory: join(FIXTURES_ROOT, 'wiki'), exclude: ['excluded'] },
-      { corpus: Corpora.CHANGELOG, directory: join(FIXTURES_ROOT, 'changelogs') },
-      { corpus: Corpora.KNOWLEDGE, directory: join(FIXTURES_ROOT, 'knowledge') },
-    ],
-  });
+  const skipped = CapturedStderr.start();
 
-  const chunker = Chunker.getInstance();
-  const store = new ChunkStore();
+  try {
+    const documents = CorpusLoader.getInstance().load({
+      roots: [
+        { corpus: Corpora.WIKI, directory: join(FIXTURES_ROOT, 'wiki'), exclude: ['excluded'] },
+        { corpus: Corpora.CHANGELOG, directory: join(FIXTURES_ROOT, 'changelogs') },
+        { corpus: Corpora.KNOWLEDGE, directory: join(FIXTURES_ROOT, 'knowledge') },
+      ],
+    });
 
-  store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
+    const chunker = Chunker.getInstance();
+    const store = new ChunkStore();
 
-  return store;
+    store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
+
+    BrokenPage.claim({ stderr: skipped });
+
+    return store;
+  } finally {
+    skipped.restore();
+  }
 };
 
 const callSearch = async (opts: {
@@ -52,6 +69,11 @@ const callSearch = async (opts: {
   return JSON.parse(reply ?? 'null');
 };
 
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('search tool', () => {
   const store = buildFixtureStore();
 
@@ -60,6 +82,13 @@ describe('search tool', () => {
 
     expect(reply.error?.code).toBe(-32602);
     expect(reply.error?.message).toContain('query');
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: search |',
+        'query: expected string, received undefined',
+      ],
+    });
   });
 
   test('a valid search returns { total, hits } under the 2,000-character budget with the default limit', async () => {

@@ -10,6 +10,14 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from './symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -49,6 +57,21 @@ const pushCommit = (opts: { work: string; name: string }): string => {
   return git({ cwd: opts.work, args: ['rev-parse', 'HEAD'] });
 };
 
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('a source ref', () => {
   test('a commit SHA - full or short - is used as it is, and fetched', async () => {
     const source = makeSourceRepository();
@@ -74,6 +97,8 @@ describe('a source ref', () => {
 
     expect(byShort.sha).toBe(first);
     expect(byShort.mode).toBe('cache');
+
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 
   test('a short SHA on a cold cache is expanded once the clone is fetched', async () => {
@@ -87,6 +112,8 @@ describe('a source ref', () => {
 
     expect(resolved.sha).toBe(sha);
     expect(resolved.mode).toBe('fresh');
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('a ref the remote does not have is an error naming it - never the cache', async () => {
@@ -108,6 +135,8 @@ describe('a source ref', () => {
     );
 
     expect(failure).toContain("no branch or tag 'no-such-branch'");
+
+    await fetches.claimUnfetched({ stderr });
   });
 
   test('a ref matches a whole name: `release` never resolves to `feature/release`', async () => {

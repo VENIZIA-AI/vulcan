@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import type { IChunk } from '@/corpus';
 import { Transport } from '@/protocol';
 import { RpcErrorCodes } from '@/protocol/common';
@@ -7,6 +7,13 @@ import { ChunkStore } from '@/search/store';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources';
 import { SymbolStore } from '@/symbols';
 import { ChangesTool, SearchTool } from '@/tools';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 const chunk = (opts: { id: string; document: string; body: string }): IChunk => ({
   id: opts.id,
@@ -48,6 +55,11 @@ const ARDOR = indexOf({
     }),
     chunk({ id: 'wiki:shared.md#x', document: 'shared.md', body: 'Other shared words.' }),
   ],
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
 });
 
 describe('SourceChunks', () => {
@@ -110,6 +122,13 @@ describe('SourceChunks', () => {
 
     expect(reply.error?.code).toBe(RpcErrorCodes.INVALID_PARAMS);
     expect(reply.error?.message).toBe("unknown source 'other'; known sources: ignis, ardor");
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: search |',
+        "unknown source 'other'; known sources: ignis, ardor",
+      ],
+    });
   });
 
   test('the search tool schema offers the source filter', () => {
@@ -196,6 +215,13 @@ describe('SourceReleases', () => {
     expect(reply.error.message).toContain(
       '@venizia/ignis-kernel (ignis), @venizia/ardor-kernel (ardor)',
     );
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        "'kernel' names a package in more than one source",
+      ],
+    });
   });
 
   test('a date window spans every source, each entry naming its source', () => {
@@ -304,5 +330,12 @@ describe('SourceReleases with a local project that has no release on this ref', 
     const reply = await ask({ package: '@nx/nope' });
 
     expect(reply.error.message).toContain("unknown package '@nx/nope'");
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        "unknown package '@nx/nope'; known packages: @nx/core, @venizia/ignis-kernel",
+      ],
+    });
   });
 });

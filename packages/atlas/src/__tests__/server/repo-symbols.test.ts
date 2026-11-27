@@ -1,8 +1,15 @@
 import { buildRepositoryServer } from '../server.helper';
-import { afterAll, expect, spyOn, test } from 'bun:test';
+import { afterAll, expect, spyOn, test, afterEach, beforeEach } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 const roots: string[] = [];
 
@@ -67,6 +74,11 @@ const callSymbol = async (opts: { root: string; name: string }) => {
   return JSON.parse(line ?? 'null');
 };
 
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 test("repo mode answers symbol from the project's built declarations - no symbols.json", async () => {
   const reply = await callSymbol({ root: project({ built: true }), name: 'greet' });
 
@@ -130,6 +142,18 @@ test('an unbuilt project says to build first', async () => {
   const reply = await callSymbol({ root: project({ built: false }), name: 'greet' });
 
   expect(reply.error.message).toContain('no symbols - build the packages first');
+
+  stderr.claim({
+    parts: [
+      '[AtlasSymbols-recordsOf] skipped an export whose declaration file is missing | package: @shop/kit | subpath: . | path: backends/kit/dist/index.d.ts',
+    ],
+  });
+  stderr.claim({
+    parts: [
+      '[Transport-callTool] Tool call failed | tool: symbol |',
+      'shop: no symbols - build the packages first',
+    ],
+  });
 });
 
 test('built after the first question, the next one finds the symbol - the store loads again', async () => {
@@ -161,6 +185,13 @@ test('built after the first question, the next one finds the symbol - the store 
 
   expect(again.error).toBeUndefined();
   expect(again.result.content[0].text).toContain('greet(name: string): string');
+
+  stderr.claim({
+    parts: [
+      '[Transport-callTool] Tool call failed | tool: symbol |',
+      'shop: no symbols - build the packages first',
+    ],
+  });
 });
 
 test('a rebuild that changes a signature is seen without a restart - the store follows the .d.ts (D2)', async () => {
@@ -281,6 +312,9 @@ test('a source entry whose file is missing does not stop symbol: the other entri
 
     expect(reply.error).toBeUndefined();
     expect(reply.result.content[0].text).toContain('backends/kit/src/index.ts');
+    expect(warnSpy.mock.calls.map((call) => call.join(' ')).join('\n')).toContain(
+      '[AtlasSymbols-recordsOf] skipped an export whose declaration file',
+    );
   } finally {
     warnSpy.mockRestore();
   }

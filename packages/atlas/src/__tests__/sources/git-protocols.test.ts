@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, describe, expect, test, beforeEach } from 'bun:test';
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -11,6 +11,13 @@ import {
   NO_REGISTRY,
   TEMP_DIRECTORIES,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -44,6 +51,11 @@ const messageOf = (opts: { run: () => unknown }): string => {
     return error instanceof Error ? error.message : String(error);
   }
 };
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('AtlasGit.ALLOWED_PROTOCOLS', () => {
   test('names https, ssh and file, and nothing that is clear text or runs a command', () => {
@@ -120,6 +132,13 @@ describe('the transports git is given', () => {
       }),
     ).toContain('not allowed');
     expect(existsSync(marker)).toBe(false);
+
+    stderr.claim({
+      parts: [
+        '[GitRepository.lsRemote] the remote could not be asked',
+        "git ls-remote exited 128: fatal: transport 'ext' not allowed",
+      ],
+    });
   });
 
   test('a repository by file:// and by a plain path still clones, and asks for its refs', () => {

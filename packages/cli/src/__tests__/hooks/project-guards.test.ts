@@ -1,10 +1,17 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { CommandView, GitGuard, ProjectGuards, WriteGuard } from '../../hooks/index.ts';
 import type { IGitRunner, IProjectCommandCheck } from '../../hooks/index.ts';
 import { fileToolEvent } from '../hook-event.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { CapturedStderr } from '../stderr.helper.ts';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 /** What a project with no guard block in its manifest gets. */
 const EMPTY_POLICY = {
@@ -39,6 +46,11 @@ const hitsOf = (opts: { command: string; extra?: IProjectCommandCheck[] }): stri
   WriteGuard.inspectCommand({ command: opts.command, extra: opts.extra }).map(
     (hit) => `${hit.rule}: ${hit.message}`,
   );
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe("guard-writes asks on the project's own commands", () => {
   test("a project's migrate and deploy commands: nothing without the patterns, a V-W-02 and a V-W-03 ask with them", () => {
@@ -406,6 +418,12 @@ describe('ProjectGuards.readPolicy', () => {
     expect(
       ProjectGuards.readPolicy({ root: manifestWith({ guard: {} }), env: {} }).asksNote,
     ).toBeUndefined();
+
+    stderr.claim({
+      parts: [
+        "vulcan: [guard] the manifest could not be read, so the project's own patterns are off and every ask is a deny (JSON Parse error: Expected '}'",
+      ],
+    });
   });
 
   test('a manifest that exists and cannot be read holds every ask and keeps nothing else', () => {
@@ -421,6 +439,26 @@ describe('ProjectGuards.readPolicy', () => {
         asksNote: undefined,
       });
     }
+
+    stderr.claim({
+      parts: [
+        "vulcan: [guard] the manifest could not be read, so the project's own patterns are off and every ask is a deny (JSON Parse error: Expected '}'",
+      ],
+    });
+    stderr.claim({
+      parts: [
+        "vulcan: [guard] the manifest could not be read, so the project's own patterns are off and every ask is a deny (JSON Parse error: Unexpected EOF",
+      ],
+    });
+    stderr.claim({
+      parts: [
+        "vulcan: [guard] the manifest could not be read, so the project's own patterns are off and every ask is a deny (JSON Parse error: Unrecognized token '<'",
+      ],
+    });
+    stderr.claim({
+      parts: ['vulcan: [guard] the manifest is not an object, so every ask is a deny'],
+      times: 3,
+    });
   });
 
   test('a project without a manifest has no extra patterns', () => {
@@ -447,6 +485,18 @@ describe('ProjectGuards.readPolicy', () => {
 
     expect(policy.commands.map((check) => check.what)).toEqual(['good']);
     expect(policy.askPush).toEqual(['develop']);
+
+    stderr.claim({
+      parts: [
+        "vulcan: [guard] ignoring the pattern '(' of guard.writes.commands (Invalid regular expression",
+      ],
+    });
+    stderr.claim({
+      parts: [
+        'vulcan: [guard] ignoring a guard.writes.commands entry that has no usable rule, what or pattern',
+      ],
+      times: 2,
+    });
   });
 });
 

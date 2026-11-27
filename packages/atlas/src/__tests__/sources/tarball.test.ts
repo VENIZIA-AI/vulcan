@@ -14,6 +14,13 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -110,6 +117,11 @@ const serveGitHub = (opts: { bare: string; prefix: string }) => {
   return { server, seen };
 };
 
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
+
 describe('a source without git on the machine', () => {
   test('the commit from the ref advertisement, the declared paths from the tarball of that commit', async () => {
     const source = makeSourceRepository();
@@ -170,6 +182,19 @@ describe('a source without git on the machine', () => {
     } finally {
       await github.server.stop(true);
     }
+
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: version |',
+        'no release history: src was fetched without git',
+      ],
+    });
+    stderr.claim({
+      parts: [
+        '[Transport-callTool] Tool call failed | tool: changes |',
+        'no release history: src was fetched without git',
+      ],
+    });
   });
 
   test('a private repository: the token goes in the request headers, never in a message', async () => {
@@ -275,6 +300,10 @@ describe('a source without git on the machine', () => {
       } finally {
         silent.stop(true);
       }
+
+      stderr.claim({
+        parts: ['[fetchBody] the request failed', 'TimeoutError', 'The operation timed out.'],
+      });
     },
     { timeout: 40_000 },
   );

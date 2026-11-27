@@ -1,9 +1,16 @@
 import { buildRepositoryServer } from '../server.helper';
-import { afterAll, expect, test } from 'bun:test';
+import { afterAll, expect, test, afterEach, beforeEach } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { CapturedStderr } from '../stderr.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 const ROOT = mkdtempSync(join(tmpdir(), 'atlas-repo-releases-'));
 
@@ -15,6 +22,11 @@ const git = (args: string[]): void => {
     stdio: 'ignore',
   });
 };
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 test('repo mode answers changes from git: tags and declared changelogs, no release table', async () => {
   mkdirSync(join(ROOT, '.agents/knowledge'), { recursive: true });
@@ -96,6 +108,19 @@ test('repo mode with no tag the pattern reads says so on version and changes', a
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+
+  stderr.claim({
+    parts: [
+      '[Transport-callTool] Tool call failed | tool: version |',
+      "no releases: no tag matches v<version> in this ref's history",
+    ],
+  });
+  stderr.claim({
+    parts: [
+      '[Transport-callTool] Tool call failed | tool: changes |',
+      "no releases: no tag matches v<version> in this ref's history",
+    ],
+  });
 });
 
 /** A tagged repository whose manifest declares `changelogs` (or not), served in repo mode. */
@@ -153,6 +178,13 @@ test('changes with no changelog directory declared names the field and the expec
     'no dated changelog entries: the manifest declares no changelog directory - set knowledge.changelogs; ' +
       'atlas reads files named YYYY-MM-DD-<slug>.md from it, each with `packages: [<npm name>, ...]` frontmatter',
   );
+
+  stderr.claim({
+    parts: [
+      '[Transport-callTool] Tool call failed | tool: changes |',
+      'the manifest declares no changelog directory - set knowledge.changelogs',
+    ],
+  });
 });
 
 test('changes with an empty changelog directory names that directory and the expected layout', async () => {
@@ -161,4 +193,11 @@ test('changes with an empty changelog directory names that directory and the exp
     'no dated changelog entries in docs/changes - ' +
       'atlas reads files named YYYY-MM-DD-<slug>.md from it, each with `packages: [<npm name>, ...]` frontmatter',
   );
+
+  stderr.claim({
+    parts: [
+      '[Transport-callTool] Tool call failed | tool: changes |',
+      'no dated changelog entries in docs/changes',
+    ],
+  });
 });

@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DoctorChecks, DoctorRunner, Makefile } from '../../doctor/index.ts';
@@ -8,6 +8,13 @@ import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 import { initRepo } from '../git-repo.helper.ts';
+import { CapturedStderr } from '../stderr.helper.ts';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(removeProjects);
 isolateOwnerReplySwitch();
@@ -45,6 +52,11 @@ const findChecks = async (opts: { root: string }): Promise<string[]> => {
 
   return violations.map((violation) => violation.check);
 };
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('doctor', () => {
   test('a conformant, synced project has no violations and exits 0', async () => {
@@ -310,6 +322,8 @@ describe('doctor', () => {
     writeFileSync(join(root, '.claude', 'settings.json'), '{ nope');
     const result = await findChecks({ root });
     expect(result).toEqual([DoctorChecks.ADAPTERS]);
+
+    stderr.claim({ parts: ['[readSettingsFile] ', '/.claude/settings.json | JSON Parse error'] });
   });
 
   test('no @venizia/dev-configs devDependency', async () => {

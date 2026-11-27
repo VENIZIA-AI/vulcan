@@ -20,6 +20,14 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from './source-repo.helper';
+import { CapturedStderr } from '../stderr.helper';
+import { SymbolFetches } from './symbol-fetches.helper';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
@@ -57,13 +65,13 @@ const startInProcess = async (opts: { url: string; cwd: string; cacheDir: string
     timeout: 60_000,
     killSignal: 'SIGKILL',
   });
-  const [stdout, stderr, exitCode] = await Promise.all([
+  const [stdout, errors, exitCode] = await Promise.all([
     new Response(child.stdout).text(),
     new Response(child.stderr).text(),
     child.exited,
   ]);
 
-  return { exitCode, stdout: stdout.trim(), stderr: stderr.trim() };
+  return { exitCode, stdout: stdout.trim(), stderr: errors.trim() };
 };
 
 const searchFor = async (opts: {
@@ -86,6 +94,21 @@ const searchFor = async (opts: {
   });
   return JSON.stringify(JSON.parse(result ?? 'null'));
 };
+
+let fetches: SymbolFetches;
+
+beforeEach(() => {
+  fetches = SymbolFetches.watch();
+});
+
+afterEach(() => {
+  fetches.restore();
+});
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('a pull', () => {
   test(
@@ -144,6 +167,8 @@ describe('a pull', () => {
     expect(
       git({ cwd: join(cacheRoot, 'git'), args: ['worktree', 'list', '--porcelain'] }),
     ).not.toContain(pulled[0]);
+
+    await fetches.claimUnfetched({ stderr, times: 4 });
   });
 
   test('a source keeps the SHAs of its newest five refs only, so a pinned release no longer stays for good', async () => {
@@ -181,6 +206,8 @@ describe('a pull', () => {
     expect(refs).toEqual(['ref-v5', 'ref-v6', 'ref-v7', 'ref-v8', 'ref-v9']);
     // The five refs' SHAs, and the one a ref that just left held until the next pull prunes it.
     expect(sets.length).toBeLessThanOrEqual(6);
+
+    await fetches.claimUnfetched({ stderr, times: 9 });
   });
 
   test('a clone directory a killed pull left empty is cloned again, by a start and by pull', async () => {
@@ -203,6 +230,15 @@ describe('a pull', () => {
 
     expect(pulled.mode).toBe('fresh');
     expect(git({ cwd: gitDir, args: ['rev-parse', '--is-bare-repository'] })).toBe('true');
+
+    stderr.claim({
+      parts: [
+        '[GitRepository.updateClone] not a git repository, cloning again | directory:',
+        '/source/git',
+      ],
+      times: 2,
+    });
+    await fetches.claimUnfetched({ stderr, times: 2 });
   });
 
   test('a bundle committed as a symlink to a directory outside serves nothing from it', async () => {
@@ -231,5 +267,7 @@ describe('a pull', () => {
     // Positive control: the changelog beside it is still served.
     const result2 = await searchFor({ resolved, query: 'first change' });
     expect(result2).toContain('2026-01-01-first');
+
+    await fetches.claimUnfetched({ stderr });
   });
 });

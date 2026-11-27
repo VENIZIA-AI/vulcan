@@ -1,11 +1,23 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
 import { HookInput } from '../../hooks/index.ts';
+import { CapturedStderr } from '../stderr.helper.ts';
+
+let stderr: CapturedStderr;
+
+beforeEach(() => {
+  stderr = CapturedStderr.start();
+});
 
 const ROOT = '/work/project';
 
 /** The wire form Claude Code sends (snake_case), built as text so the names stay at this boundary. */
 const wire = (opts: { tool: string; input: string; cwd?: string }): string =>
   `{"tool_name":${JSON.stringify(opts.tool)},"tool_input":${opts.input},"cwd":${JSON.stringify(opts.cwd ?? '/tmp')}}`;
+
+/** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */
+afterEach(() => {
+  stderr.restore();
+});
 
 describe('HookInput.parse', () => {
   test('reads the tool, the file path and the command from the wire form', () => {
@@ -39,5 +51,7 @@ describe('HookInput.parse', () => {
     expect(HookInput.parse({ text: 'not json' })).toBeUndefined();
     expect(HookInput.parse({ text: '[]' })).toBeUndefined();
     expect(HookInput.parse({ text: '{"tool_input":{}}' })).toBeUndefined();
+
+    stderr.claim({ parts: ['[HookInput.parse] unreadable hook input | JSON Parse error'] });
   });
 });
