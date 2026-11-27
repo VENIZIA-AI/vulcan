@@ -57,6 +57,7 @@ try {
           isOver: state.FlowState.isOver,
         });
       }
+      // eslint-disable-next-line venizia/no-silent-catch -- a flow rule that cannot load is no hit, never an ask (V-P-13 is advisory); the hook speaks only its protocol
     } catch {
       flowHits = [];
     }
@@ -154,6 +155,7 @@ try {
           isHeldOnCrash = readdirSync(`${root}/.configs`).some((name) =>
             name.startsWith('vulcan.config.'),
           );
+          // eslint-disable-next-line venizia/no-silent-catch -- No .configs folder: no config, nothing to hold
         } catch {
           // No .configs folder: no config, nothing to hold.
         }
@@ -175,11 +177,12 @@ try {
               guard !== null &&
               'asks' in guard &&
               guard.asks === 'deny');
+          // eslint-disable-next-line venizia/no-silent-catch -- A manifest that exists and cannot be read holds every ask
         } catch {
-          // A manifest that exists and cannot be read holds every ask.
           isHeldOnCrash = true;
         }
       }
+      // eslint-disable-next-line venizia/no-silent-catch -- the crash path must still print its decision: a hold check that cannot run falls back to ask
     } catch {
       isHeldOnCrash = false;
     }

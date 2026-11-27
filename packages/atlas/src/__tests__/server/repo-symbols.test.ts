@@ -159,6 +159,7 @@ test('an unbuilt project says to build first', async () => {
 test('built after the first question, the next one finds the symbol - the store loads again', async () => {
   const root = project({ built: false });
   const server = buildRepositoryServer({ root, version: '0.0.0' });
+
   const ask = async () => {
     const line = await server.handleLine({
       line: JSON.stringify({
@@ -197,6 +198,7 @@ test('built after the first question, the next one finds the symbol - the store 
 test('a rebuild that changes a signature is seen without a restart - the store follows the .d.ts (D2)', async () => {
   const root = project({ built: true });
   const server = buildRepositoryServer({ root, version: '0.0.0' });
+
   const ask = async () => {
     const line = await server.handleLine({
       line: JSON.stringify({
@@ -251,6 +253,7 @@ test('a package that publishes its TypeScript source answers symbol, with no bui
 test('a source package follows an edit of a file its entry re-exports, without a restart', async () => {
   const root = sourceProject();
   const server = buildRepositoryServer({ root, version: '0.0.0' });
+
   const ask = async (name: string) => {
     const line = await server.handleLine({
       line: JSON.stringify({

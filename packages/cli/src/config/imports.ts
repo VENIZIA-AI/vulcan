@@ -88,6 +88,7 @@ const LOCAL_PROTOCOL = /^(?:file|link|workspace|portal):/;
 const readJson = (opts: { path: string }): unknown => {
   try {
     return JSON.parse(readFileSync(opts.path, 'utf8'));
+    // eslint-disable-next-line venizia/no-silent-catch -- a file that cannot be read or parsed is absent to the import check
   } catch {
     return undefined;
   }
@@ -154,6 +155,7 @@ export class ConfigImports {
     const isUnder = (path: string): boolean => path.startsWith(`${configs}${sep}`);
     const modules = new Set<string>();
     const problems: IConfigModuleProblem[] = [];
+
     const realOf = (path: string): string | undefined => {
       try {
         return realpathSync(path);
@@ -166,6 +168,7 @@ export class ConfigImports {
         return undefined;
       }
     };
+
     const configReal = realOf(config);
 
     if (configReal !== undefined && configReal !== config && !isUnder(configReal)) {
@@ -303,6 +306,7 @@ export class ConfigImports {
     aliases: IAliases;
   }): TResolved {
     const { specifier, aliases } = opts;
+
     const fileOf = (base: string, alias?: string): TResolved => {
       const path = resolveFile({ base });
 

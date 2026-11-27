@@ -31,6 +31,7 @@ const PAGE_CSS = ((): string => {
 })();
 
 const render = (spec: Record<string, unknown>) => renderSpec(spec);
+
 const rendered = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
@@ -40,11 +41,13 @@ const rendered = (spec: Record<string, unknown>): string => {
 
   return result.page.html;
 };
+
 const problems = (spec: Record<string, unknown>): string[] => {
   const result = render(spec);
 
   return result.ok ? [] : result.problems;
 };
+
 const withFlow = (change: (flow: Record<string, unknown[]>) => void): Record<string, unknown> => {
   const spec = fullSpec();
   const flow = spec['flow'] as Record<string, unknown[]>;

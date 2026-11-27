@@ -83,6 +83,7 @@ export class EventTypeMover {
 
           return move.moved === 0 ? [] : [{ path, move }];
         });
+      // eslint-disable-next-line venizia/no-silent-catch -- an event folder that cannot be read has nothing to move
     } catch {
       return [];
     }

@@ -39,6 +39,7 @@ export class LayoutConstants {
     processes: 'process',
     statuses: 'status',
   };
+
   /** Role words that end in s and are not plurals; a project adds its own in `check.layout.pluralAllow`. */
   static readonly NOT_PLURAL = [
     'access',

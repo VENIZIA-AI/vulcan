@@ -1,4 +1,5 @@
 import { relative, resolve, sep } from 'node:path';
+import { VulcanError } from '../common/error.ts';
 import type { IRenderedFile } from './define.ts';
 import type { ILoadedRenderer } from './registry.ts';
 
@@ -32,7 +33,8 @@ export class GeneratedPages {
       try {
         rendered = renderer.render({ context, facts: renderer.collect({ context }) });
       } catch (error) {
-        throw new Error(`okf: renderer '${renderer.id}' failed: ${messageOf(error)}`, {
+        throw VulcanError.of({
+          message: `okf: renderer '${renderer.id}' failed: ${messageOf(error)}`,
           cause: error,
         });
       }
@@ -41,15 +43,17 @@ export class GeneratedPages {
         const path = resolve(context.bundle, file.path);
 
         if (!path.startsWith(`${resolve(context.bundle)}${sep}`)) {
-          throw new Error(`okf: renderer '${renderer.id}' writes ${file.path}, outside the bundle`);
+          throw VulcanError.of({
+            message: `okf: renderer '${renderer.id}' writes ${file.path}, outside the bundle`,
+          });
         }
 
         const owner = pages.find((page) => page.path === path);
 
         if (owner !== undefined) {
-          throw new Error(
-            `okf: renderers '${owner.id}' and '${renderer.id}' both write ${relative(resolve(context.bundle), path)}`,
-          );
+          throw VulcanError.of({
+            message: `okf: renderers '${owner.id}' and '${renderer.id}' both write ${relative(resolve(context.bundle), path)}`,
+          });
         }
 
         pages.push({ id: renderer.id, path, content: file.content });

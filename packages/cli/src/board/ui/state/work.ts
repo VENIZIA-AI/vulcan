@@ -1,7 +1,7 @@
 import { BoardConstants, BoardStates } from '../../common/index.ts';
 import type { IBoardFlow, IBoardTokenRow } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
-import type { IFlowView, TTranslate } from '../common/types.ts';
+import type { IFlowView, TTranslate, TWorkColumn } from '../common/types.ts';
 import { BoardAgentInfo } from './agent-info.ts';
 import { BoardTime } from './time.ts';
 import { BoardView } from './view.ts';
@@ -15,20 +15,6 @@ interface ITokenNote {
   format: (value: number) => string;
   translate: (key: string) => string;
 }
-
-export type TWorkColumn =
-  | 'order'
-  | 'code'
-  | 'title'
-  | 'stage'
-  | 'state'
-  | 'holder'
-  | 'steps'
-  | 'pr'
-  | 'read'
-  | 'written'
-  | 'due'
-  | 'updated';
 
 /**
  * A column and its direction; `undefined` is the default order: active flows before parked and done ones, then the work

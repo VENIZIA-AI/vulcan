@@ -91,6 +91,7 @@ export class EventFlow {
         : isAbsolute(target)
           ? target
           : resolve(opts.directory, target);
+      // eslint-disable-next-line venizia/no-silent-catch -- a .git file that cannot be read names no git folder
     } catch {
       return undefined;
     }
@@ -99,6 +100,7 @@ export class EventFlow {
   private static headOf(opts: { gitdir: string }): string | undefined {
     try {
       return HEAD_REF.exec(readFileSync(join(opts.gitdir, 'HEAD'), 'utf8'))?.[1];
+      // eslint-disable-next-line venizia/no-silent-catch -- no readable HEAD names no branch
     } catch {
       return undefined;
     }

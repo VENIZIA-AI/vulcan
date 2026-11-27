@@ -174,6 +174,7 @@ describe('the allow-list of the project, under the launch environment that holds
         ['cwd', root],
       ]),
     );
+
     const answerOf = (env: Record<string, string>): string => {
       const environment: Record<string, string | undefined> = { ...process.env };
 

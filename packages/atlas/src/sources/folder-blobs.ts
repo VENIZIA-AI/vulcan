@@ -4,6 +4,7 @@ import { GitLocal } from '@/common/git-local';
 import { StderrLogger } from '@/common/logger';
 import type { IAtlasProject } from '@/common/project-config';
 import { ReleaseTemplate } from '@/releases/template';
+import { VulcanError } from '@venizia/vulcan-okf';
 import { GitRepository } from './git';
 
 const FETCH_CHUNK = 100;
@@ -53,7 +54,7 @@ export class FolderBlobs {
     const read = GitLocal.read(opts);
 
     if (read.stdout === undefined) {
-      throw new Error(read.error ?? `git ${opts.args[0]} failed`);
+      throw VulcanError.of({ message: read.error ?? `git ${opts.args[0]} failed` });
     }
 
     return read.stdout;
@@ -212,7 +213,7 @@ export class FolderBlobs {
     });
 
     if (checked.stdout === undefined) {
-      throw new Error(checked.error ?? 'git cat-file failed');
+      throw VulcanError.of({ message: checked.error ?? 'git cat-file failed' });
     }
 
     return checked.stdout

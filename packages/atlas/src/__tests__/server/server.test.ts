@@ -4,7 +4,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, spyOn, test } from 'bun:test';
-// __dirname, not import.meta: this package emits CommonJS. A project read from its own committed
+
+// A project read from its own committed
 // manifest; changes and symbol over a project are server/repo-releases and server/repo-symbols.
 const REPOSITORY_ROOT = join(__dirname, '..', 'fixtures', 'acme');
 const TEST_VERSION = '0.0.0-test';

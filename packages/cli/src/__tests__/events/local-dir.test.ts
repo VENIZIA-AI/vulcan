@@ -41,9 +41,11 @@ const project = (opts: { events?: object; local?: unknown } = {}): string =>
   });
 const ownLog = (root: string): string => join(root, '.agents/local/events');
 const linesIn = (dir: string) => EventLog.read({ dir }).events;
+
 const readdirSyncSafe = (dir: string): string[] => {
   try {
     return readdirSync(dir);
+    // eslint-disable-next-line venizia/no-silent-catch -- a folder that is not there lists nothing, which the test asserts
   } catch {
     return [];
   }

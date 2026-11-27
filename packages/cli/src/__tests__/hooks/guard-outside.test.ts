@@ -1316,6 +1316,7 @@ describe('OutsideGuard.inspect follows the links already on disk to the links of
 
     return root;
   };
+
   const hitsIn = (opts: { root: string; command: string }) =>
     OutsideGuard.inspect({
       input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: opts.root },
@@ -1394,6 +1395,7 @@ describe('OutsideGuard.inspect keeps the names of the links of the line as the s
 
     return root;
   };
+
   const hitsIn = (opts: { root: string; command: string }) =>
     OutsideGuard.inspect({
       input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: opts.root },

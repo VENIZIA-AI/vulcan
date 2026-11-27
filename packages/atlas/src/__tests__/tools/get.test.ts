@@ -16,7 +16,6 @@ beforeEach(() => {
   stderr = CapturedStderr.start();
 });
 
-// __dirname, not import.meta: this package emits CommonJS.
 const FIXTURES_ROOT = join(__dirname, '../fixtures/corpus');
 
 // The longest fixture chunk (guide.md's "Registering artifacts" section, well over 500 chars) -

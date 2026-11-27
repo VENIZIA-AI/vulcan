@@ -14,7 +14,6 @@ beforeEach(() => {
   stderr = CapturedStderr.start();
 });
 
-// __dirname, not import.meta: this package emits CommonJS.
 const FIXTURES_ROOT = join(__dirname, '../fixtures/corpus');
 
 /** Registered last: it fails on an unclaimed line, and a failing hook skips the hooks after it. */

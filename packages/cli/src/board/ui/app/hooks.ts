@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { IBoardData } from '../../common/index.ts';
+import type { TLiveState } from '../common/types.ts';
 import { BoardStorage } from './storage.ts';
 
 /** A choice that survives a reload: `allowed` guards against a value some older page wrote. */
@@ -37,8 +38,6 @@ export const useNow = (): number => {
   return now;
 };
 
-export type TLiveState = 'wait' | 'on' | 'off' | 'big';
-
 /** `vulcan board serve`: each snapshot of the stream replaces the data. A dropped stream is retried with a growing wait. */
 export const useLive = (opts: {
   data: IBoardData;
@@ -56,8 +55,10 @@ export const useLive = (opts: {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
     let failures = 0;
+
     const connect = (): void => {
       source = new EventSource(stream);
+
       source.onmessage = (message) => {
         failures = 0;
         const next = JSON.parse(message.data);
@@ -71,6 +72,7 @@ export const useLive = (opts: {
         opts.onData(next);
         setState('on');
       };
+
       source.onerror = () => {
         source?.close();
         setState('off');
@@ -141,6 +143,7 @@ export const usePopover = (opts: {
       [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
         (control) => control.offsetParent !== null,
       );
+
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -164,6 +167,7 @@ export const usePopover = (opts: {
       event.preventDefault();
       list[next].focus();
     };
+
     const onPress = (event: PointerEvent): void => {
       const target = event.target;
 

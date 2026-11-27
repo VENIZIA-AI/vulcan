@@ -50,6 +50,7 @@ export class OwnerConstants {
     OwnerSections.DETAIL,
     OwnerSections.DECISIONS,
   ];
+
   /** The English label set, the only one that ships: any other language is the owner's own. */
   static readonly DEFAULT_LABELS = {
     minimapColumns: DEFAULT_MINIMAP_COLUMNS,
@@ -69,6 +70,7 @@ export class OwnerConstants {
       recommend: 'I recommend **{x}**.',
     },
   };
+
   static readonly DEFAULT_HEADLINE_MAX_SENTENCES = 2;
   /** A language code: a 2-3 letter primary tag and optional subtags (`en`, `pt-BR`); never a word like `constructor`. */
   static readonly LANGUAGE_PATTERN = /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i;

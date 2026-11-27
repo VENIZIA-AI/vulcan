@@ -503,6 +503,7 @@ export class GitGuard {
 
       return run(call);
     };
+
     const hits = parsed.commands.flatMap((command) =>
       inspectOne({ command, cwd: opts.cwd, run: limited, askPush: opts.askPush ?? [] }),
     );

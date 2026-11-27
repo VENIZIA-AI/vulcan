@@ -1,9 +1,10 @@
 import type { ILayout } from '../../common/layout-folder.ts';
 import type { TConstValue } from '../../common/index.ts';
 import type { PackageTypes, TLibraryType } from '../../config/common/index.ts';
-import type { AppSides, AppsBlockProblems } from './constants.ts';
+import type { TAppSide } from '@venizia/vulcan-atlas';
+import type { AppsBlockProblems } from './constants.ts';
 
-export type TAppSide = TConstValue<typeof AppSides>;
+export type { TAppSide };
 /** What `add` makes: an app, or one of the library kinds. */
 export type TAddKind = typeof PackageTypes.APP | TLibraryType;
 export type TAppsBlockProblem = TConstValue<typeof AppsBlockProblems>;

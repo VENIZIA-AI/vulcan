@@ -83,6 +83,7 @@ describe('PullLock.with', () => {
   test('pulls of one cache take turns', async () => {
     const cacheRoot = makeTempDirectory({ prefix: 'atlas-lock-' });
     const order: string[] = [];
+
     const turn = async (name: string): Promise<void> => {
       await PullLock.with({
         cacheRoot,

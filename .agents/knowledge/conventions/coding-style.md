@@ -23,7 +23,14 @@ The rules are the `V-C-*` rules in `packages/cli/base/rules.md`; this is how the
   (`src/x/` and `src/x.ts`) is imported as `./x/index`, never `./x`.
 - **No casts** (`V-C-10`): narrow with a type predicate over an options holder
   (`isRecord({ value })`), annotate a callback's return type, use `satisfies`.
-- **No silent catch** (`V-C-06`): a caught error goes to stderr with the function name in brackets.
+- **No silent catch** (`V-C-06`): a caught error goes to stderr with the function name in brackets; in atlas a
+  probe or fallback logs at debug (`StderrLogger.get('Class.method').debug(...)`, silent by default). A catch that
+  must stay silent (a hook protocol, a probe whose answer is the fallback) carries
+  `// eslint-disable-next-line venizia/no-silent-catch -- <reason>`.
+- **Errors** are thrown with `throw VulcanError.of({ message, cause })` (`venizia/no-new-error`), `cause` only when
+  one is wrapped. `VulcanError` is the one error class of VULCAN, an `Error` in `packages/okf/src/common/error.ts`,
+  imported from `@venizia/vulcan-okf` (by relative path inside okf). The one `new Error` with a lint disable is
+  `ConstClass.values` in cli, because the blocking hooks load that file and must load no other package.
 - **Wire names** in snake_case stay behind string-literal access at the boundary (`V-C-14`).
 - **Blank lines** between logical steps: after declarations and blocks, before `return` and control
   flow.
@@ -31,5 +38,6 @@ The rules are the `V-C-*` rules in `packages/cli/base/rules.md`; this is how the
   scripts are `# -----`.
 - **Tests** name the module they cover (`sync/planner.test.ts`); helpers are `*.helper.ts`; every
   child process in a test is bounded (`SpawnUtility.spawnSyncBounded`, or `timeout` plus `killSignal: 'SIGKILL'`).
-- `make lint-all` is the shared style (`@venizia/dev-configs`: oxlint, ESLint naming-convention;
-  `bun fmt` formats with the `[fmt]` section of the root `bunfig.toml`) and must be clean.
+- `make lint-all` is the shared style (`@venizia/dev-configs`: oxlint, then ESLint with the full `houseConfigs` in
+  each package's `.configs/lints/eslint.config.mjs`, `venizia/no-parent-import` off until dev-configs ships it off;
+  `bun fmt` formats with the `[fmt]` section of the root `bunfig.toml`) and must be clean, warnings included.

@@ -54,6 +54,7 @@ export class DeclarationReply {
         seen.add(neighbour.name);
 
         const paragraphs = neighbour.declaration.split('\n\n').filter((item) => !shown.has(item));
+
         // Everything of it was shown with an earlier block: a header with no body would say nothing.
         if (paragraphs.length === 0) {
           continue;

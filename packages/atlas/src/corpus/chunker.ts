@@ -3,6 +3,7 @@ import type { TCorpus } from '@/common';
 import { Authorities, Stopwords } from '@/search/common';
 import { VersionFolders } from '@/changelogs/version-folder';
 import { BaseHelper } from '@/common/helper';
+import { VulcanError } from '@venizia/vulcan-okf';
 import type { IChunk, IDocument } from './common';
 
 const TINY_CHUNK_MAX_CHARS = 200;
@@ -323,7 +324,7 @@ const citationPrefixOf = (corpus: TCorpus): string => {
     }
 
     default: {
-      throw new Error(`[citationPrefixOf] unknown corpus | corpus: ${corpus}`);
+      throw VulcanError.of({ message: `[citationPrefixOf] unknown corpus | corpus: ${corpus}` });
     }
   }
 };

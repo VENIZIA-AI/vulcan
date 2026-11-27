@@ -296,6 +296,7 @@ describe('a flow line on the branch of a flow, open or over, makes a new flow', 
         ),
       )
       .join('\n');
+
   const made = (lines: Parameters<typeof log>[0]): string => {
     const root = createProject({
       files: {

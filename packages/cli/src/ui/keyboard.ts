@@ -18,9 +18,11 @@ export class MenuInput {
    */
   static async guardAgainstPipedLines<TResult>(run: () => Promise<TResult>): Promise<TResult> {
     let refuseMenu: (error: PipedInputRefusal) => void = () => {};
+
     const refused = new Promise<never>((_resolve, reject) => {
       refuseMenu = reject;
     });
+
     const refuse = (chunk: Buffer | string): void => {
       const bytes = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
 

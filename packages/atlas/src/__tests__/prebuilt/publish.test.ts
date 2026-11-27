@@ -377,12 +377,15 @@ describe('publishing a pair (C21, C23)', () => {
 
   test('an upload URL that names another host is refused, and nothing is sent there', async () => {
     fake.options.foreignUploadUrl = true;
-    const failure = await publish().then(
-      () => undefined,
-      (error: Error) => error,
-    );
+    let failure: unknown;
 
-    expect(failure?.message).toContain('outside acme/src');
+    try {
+      await publish();
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(String(failure)).toContain('outside acme/src');
     expect(fake.requests.filter((request) => request.server === 'storage')).toEqual([]);
     expect(fake.assets.size).toBe(0);
   });
@@ -394,17 +397,20 @@ describe('publishing a pair (C21, C23)', () => {
       cwd: makeTempDirectory({ prefix: 'atlas-shallow-cwd-' }),
       args: ['clone', '-q', '--depth', '1', `file://${bare}`, shallow],
     });
-    const failure = await IndexPublish.publish({
-      root: shallow,
-      env,
-      keyEnv: 'ATLAS_INDEX_KEY',
-      atlasVersion: '9.9.9',
-    }).then(
-      () => undefined,
-      (error: Error) => error,
-    );
+    let failure: unknown;
 
-    expect(failure?.message).toContain('fetch-depth: 0');
+    try {
+      await IndexPublish.publish({
+        root: shallow,
+        env,
+        keyEnv: 'ATLAS_INDEX_KEY',
+        atlasVersion: '9.9.9',
+      });
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(String(failure)).toContain('fetch-depth: 0');
     expect(fake.requests).toEqual([]);
   });
 

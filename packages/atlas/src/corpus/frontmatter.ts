@@ -1,5 +1,6 @@
 import { RecordValue } from '@/common/record';
 import { TextValue } from '@/common/text';
+import { VulcanError } from '@venizia/vulcan-okf';
 
 /** A leading `---` block; a page saved with CRLF line endings carries the same block. */
 export const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n)?/;
@@ -26,10 +27,10 @@ export class CorpusFrontmatter {
     try {
       parsed = Bun.YAML.parse(match[1]);
     } catch (error) {
-      throw new Error(
-        `[CorpusFrontmatter.parse] invalid YAML frontmatter | file: ${path} | ${TextValue.messageOf({ error })}`,
-        { cause: error },
-      );
+      throw VulcanError.of({
+        message: `[CorpusFrontmatter.parse] invalid YAML frontmatter | file: ${path} | ${TextValue.messageOf({ error })}`,
+        cause: error,
+      });
     }
 
     return { data: RecordValue.orEmpty({ value: parsed }), body: text.slice(match[0].length) };

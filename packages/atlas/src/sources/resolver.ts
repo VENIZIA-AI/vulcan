@@ -1,6 +1,7 @@
 import { readFileSync, rmSync } from 'node:fs';
 import { ProjectConfig } from '@/common/project-config';
 import { SourcePins } from '@/common/constants';
+import { VulcanError } from '@venizia/vulcan-okf';
 import { SourceCache } from './cache';
 import { CacheSets } from './cache-sets';
 import type { IAtlasSource, IRemoteRef, IResolvedSource, IUnavailableSource } from './common';
@@ -39,9 +40,9 @@ const lookUpRef = async (opts: {
   }
 
   if (!opts.byGit) {
-    throw new Error(
-      `atlas: ${CacheSets.describe(opts)} - a short commit hash needs git on this machine; give all 40 characters`,
-    );
+    throw VulcanError.of({
+      message: `atlas: ${CacheSets.describe(opts)} - a short commit hash needs git on this machine; give all 40 characters`,
+    });
   }
 
   const known = GitRepository.hasClone({ gitDir })
@@ -81,7 +82,9 @@ const resolveRemote = async (opts: {
   const refused = GitRepository.refusedTransportOf({ repo: opts.source.repo });
 
   if (refused !== undefined) {
-    throw new Error(`atlas: ${CacheSets.describe(opts)} uses ${refused} - use https or ssh`);
+    throw VulcanError.of({
+      message: `atlas: ${CacheSets.describe(opts)} uses ${refused} - use https or ssh`,
+    });
   }
 
   const cacheRoot = SourceCache.cacheRootOf({ repo: opts.source.repo, cacheBase: opts.cacheBase });
@@ -89,9 +92,9 @@ const resolveRemote = async (opts: {
   const github = GithubTarball.githubRepoOf(opts.source);
 
   if (!byGit && github === undefined) {
-    throw new Error(
-      `atlas: ${CacheSets.describe(opts)} needs git on this machine - only an owner/repo source has a tarball path`,
-    );
+    throw VulcanError.of({
+      message: `atlas: ${CacheSets.describe(opts)} needs git on this machine - only an owner/repo source has a tarball path`,
+    });
   }
 
   const token = byGit ? undefined : GithubCredentials.tokenOf();
@@ -101,7 +104,9 @@ const resolveRemote = async (opts: {
     const cached = CacheSets.lastServedFor({ cacheRoot, ref: opts.source.ref });
 
     if (cached === undefined) {
-      throw new Error(`atlas: ${CacheSets.describe(opts)} is unreachable and has no cache`);
+      throw VulcanError.of({
+        message: `atlas: ${CacheSets.describe(opts)} is unreachable and has no cache`,
+      });
     }
 
     return CacheSets.servedFrom({
@@ -117,9 +122,9 @@ const resolveRemote = async (opts: {
 
   // The remote answered: a ref it does not have is a mistake to report, never a reason to go offline.
   if (sha === undefined) {
-    throw new Error(
-      `atlas: ${CacheSets.describe(opts)} - the remote has no ${GitRepository.isCommitSha({ ref: opts.source.ref }) ? 'commit' : 'branch or tag'} '${opts.source.ref}'`,
-    );
+    throw VulcanError.of({
+      message: `atlas: ${CacheSets.describe(opts)} - the remote has no ${GitRepository.isCommitSha({ ref: opts.source.ref }) ? 'commit' : 'branch or tag'} '${opts.source.ref}'`,
+    });
   }
 
   if (!opts.force && CacheSets.isCurrentSet({ cacheRoot, sha })) {

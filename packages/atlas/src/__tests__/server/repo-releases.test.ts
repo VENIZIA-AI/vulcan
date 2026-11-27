@@ -89,6 +89,7 @@ test('repo mode with no tag the pattern reads says so on version and changes', a
     execFileSync('git', ['init', '-q', '-b', 'develop'], { cwd: root, stdio: 'ignore' });
 
     const transport = buildRepositoryServer({ root, version: '0.0.0' });
+
     const call = async (opts: { name: string; arguments: object }) => {
       const line = await transport.handleLine({
         line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: opts }),

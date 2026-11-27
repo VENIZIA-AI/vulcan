@@ -154,11 +154,20 @@ describe('the symbols cache', () => {
     expect(() =>
       SymbolCompute.cached({ cacheBase: cacheDir, name: '@x/kit', version: '1.0.0/../../escape' }),
     ).toThrow("atlas: '1.0.0/../../escape' is not a version");
-    const result = await SymbolCompute.symbolsOfPublished({
-      cacheBase: cacheDir,
-      name: '@x/kit',
-      version: '1.0.0/../x',
-    }).catch((error: unknown) => error);
+    let result: unknown;
+
+    try {
+      const symbols = await SymbolCompute.symbolsOfPublished({
+        cacheBase: cacheDir,
+        name: '@x/kit',
+        version: '1.0.0/../x',
+      });
+
+      result = symbols;
+    } catch (error) {
+      result = error;
+    }
+
     expect(String(result)).toContain("atlas: '1.0.0/../x' is not a version");
   });
 });
@@ -213,14 +222,17 @@ describe('SymbolCompute.symbolsOfPublished (D2)', () => {
     process.env.VULCAN_NPM_REGISTRY = `http://localhost:${registry.port}`;
 
     try {
-      const failure = await SymbolCompute.symbolsOfPublished({
-        cacheBase: cacheDir,
-        name: '@x/kit',
-        version: '9.9.9',
-      }).then(
-        () => undefined,
-        (error: unknown) => error,
-      );
+      let failure: unknown;
+
+      try {
+        await SymbolCompute.symbolsOfPublished({
+          cacheBase: cacheDir,
+          name: '@x/kit',
+          version: '9.9.9',
+        });
+      } catch (error) {
+        failure = error;
+      }
 
       expect(String(failure)).toContain('atlas: no npm tarball for @x/kit@9.9.9 (404)');
     } finally {

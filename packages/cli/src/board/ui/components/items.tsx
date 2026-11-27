@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BoardConstants } from '../../common/index.ts';
-import type { IFlowView } from '../common/types.ts';
+import type { IFlowView, TWorkView } from '../common/types.ts';
 import { usePopover } from '../app/hooks.ts';
 import { useUi } from '../i18n/context.ts';
 import { BoardView } from '../state/view.ts';
@@ -11,7 +11,6 @@ import { ICONS } from './icons.tsx';
 import { Filters } from './item-filters.tsx';
 import { Groups, WorkTable } from './item-lists.tsx';
 
-export type TWorkView = 'cards' | 'compact' | 'table';
 export const WORK_VIEWS: TWorkView[] = ['cards', 'compact', 'table'];
 
 const VIEW_ICONS: Record<TWorkView, ReactNode> = {
@@ -48,10 +47,12 @@ export const ItemPane = (props: {
     Number(filter.staleOnly);
   const fButton = useRef<HTMLButtonElement>(null);
   const sheet = useRef<HTMLDivElement>(null);
+
   const closeFilters = (): void => {
     setFiltersOpen(false);
     fButton.current?.focus();
   };
+
   const all = useMemo(
     () =>
       BoardWork.listOf({
@@ -82,6 +83,7 @@ export const ItemPane = (props: {
       view.flow.id === BoardConstants.UNSORTED &&
       (props.agent === null || BoardView.involves({ view, name: props.agent })),
   );
+
   const onFilter = (next: IWorkFilter): void => {
     const { agent, ...others } = next;
 
@@ -91,6 +93,7 @@ export const ItemPane = (props: {
       props.onAgent(agent);
     }
   };
+
   let body: ReactNode = null;
 
   if (all.length === 0) {

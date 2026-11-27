@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { BoardTables } from '../common/constants.ts';
-import type { IFlowView } from '../common/types.ts';
+import type { IFlowView, TSortOrder, TWorkColumn } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
 import { BoardCards } from '../state/cards.ts';
 import { BoardWork, WORK_COLUMNS } from '../state/work.ts';
-import type { TWorkColumn, TWorkSort } from '../state/work.ts';
+import type { TWorkSort } from '../state/work.ts';
 import { Chevron, SortArrow, StatusMark } from './icons.tsx';
 import { ItemCard, CompactRow, TableRow } from './item-rows.tsx';
 
@@ -106,7 +106,7 @@ export const WorkTable = (props: {
           <tr>
             {WORK_COLUMNS.map((column) => {
               const active = sort?.column === column;
-              let order: 'ascending' | 'descending' | undefined;
+              let order: TSortOrder | undefined;
 
               if (active) {
                 order = sort.descending ? 'descending' : 'ascending';

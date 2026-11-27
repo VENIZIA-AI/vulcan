@@ -662,6 +662,7 @@ describe('doctor: bun fmt (warnings)', () => {
 
     return warnings.filter((item) => item.check === DoctorChecks.FORMAT);
   };
+
   const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
   const project = (opts: { files: Record<string, string | null> }): string =>
     createSyncedProject({
@@ -857,11 +858,13 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
         },
       },
     });
+
   const mcpWarnings = async (opts: { root: string }) => {
     const warnings = await DoctorRunner.runWarnings(opts);
 
     return warnings.filter((item) => item.check === DoctorChecks.MCP);
   };
+
   // sync writes the canonical file; a test then replaces it, as a hand edit or a tracked file would.
   const project = (opts: { mcp?: string; agents?: string[] }) => {
     const root = createSyncedProject({ files: CONFORMANT });
@@ -992,6 +995,7 @@ describe('the owner reply switch', () => {
           "export default { agent: { rules: { 'V-W-01': 'read-only' } } };\n",
       },
     });
+
     const notesOf = async (env: Record<string, string>): Promise<string[]> => {
       const notes = await DoctorRunner.runNotes({ root, env });
 
@@ -1022,6 +1026,7 @@ describe('the owner reply switch', () => {
         '.claude/settings.json': JSON.stringify({ env: { VULCAN_OWNER_REPLY: 'on' } }),
       },
     });
+
     const warningsOf = async (root: string): Promise<string[]> => {
       const warnings = await DoctorRunner.runWarnings({ root });
 

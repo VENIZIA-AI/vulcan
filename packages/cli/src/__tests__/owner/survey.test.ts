@@ -1,11 +1,10 @@
 import { describe, expect, test } from 'bun:test';
+import type { TNullable } from '@venizia/vulcan-okf';
 import { OwnerSurvey, PROFILE_SCHEMA } from '../../owner/index.ts';
 import type { ISurveyIo } from '../../owner/index.ts';
 
 /** A form io fed from a queue of answers; `undefined` takes the default, `null` cancels. */
-const ioWith = (
-  answers: (string | boolean | null | undefined)[],
-): { io: ISurveyIo; asked: string[] } => {
+const ioWith = (answers: TNullable<string | boolean>[]): { io: ISurveyIo; asked: string[] } => {
   const queue = [...answers];
   const asked: string[] = [];
 
@@ -195,7 +194,7 @@ describe('OwnerSurvey.run', () => {
   });
 
   test.each([0, 1, 3, 6, 9])('a cancel at question %d gives nothing', async (position) => {
-    const answers: (string | null | undefined)[] = Array.from({ length: 10 }, () => undefined);
+    const answers: TNullable<string>[] = Array.from({ length: 10 }, () => undefined);
 
     answers[position] = null;
 

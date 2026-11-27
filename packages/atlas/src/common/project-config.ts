@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { VulcanError } from '@venizia/vulcan-okf';
 import { CodemodRunner } from './codemod-runner';
 import { GitArgument } from './git-argument';
 import { AtlasLimits } from './limits';
@@ -116,7 +117,9 @@ const packagesOf = (opts: { value: unknown; label: string }): IAtlasPackage[] =>
     const name = WireValue.stringOf({ value: entry.name }) ?? dir;
 
     if (!isNpmName({ name })) {
-      throw new Error(`atlas: ${opts.label} - package name '${name}' is not an npm package name`);
+      throw VulcanError.of({
+        message: `atlas: ${opts.label} - package name '${name}' is not an npm package name`,
+      });
     }
 
     return [
@@ -243,19 +246,20 @@ export class ProjectConfig {
 
     // compared as text with the date of a dated file: anything but a plain day would silently decide wrong
     if (datedUntil !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(datedUntil)) {
-      throw new Error(
-        `atlas: ${opts.source ?? `project '${projectName}'`} - knowledge.datedUntil '${datedUntil}' is not a date (YYYY-MM-DD)`,
-      );
+      throw VulcanError.of({
+        message: `atlas: ${opts.source ?? `project '${projectName}'`} - knowledge.datedUntil '${datedUntil}' is not a date (YYYY-MM-DD)`,
+      });
     }
+
     const rawSiteUrl = WireValue.stringOf({ value: knowledge.siteUrl });
     // a fetched manifest is data from elsewhere: only a plain web address becomes a link, normalized here once
     const parsedSiteUrl =
       rawSiteUrl === undefined ? undefined : SiteUrl.parse({ value: rawSiteUrl });
 
     if (parsedSiteUrl !== undefined && 'problem' in parsedSiteUrl) {
-      throw new Error(
-        `atlas: ${opts.source ?? `project '${projectName}'`} - knowledge.siteUrl ${parsedSiteUrl.problem}`,
-      );
+      throw VulcanError.of({
+        message: `atlas: ${opts.source ?? `project '${projectName}'`} - knowledge.siteUrl ${parsedSiteUrl.problem}`,
+      });
     }
 
     const siteUrl = parsedSiteUrl?.href;
@@ -266,9 +270,9 @@ export class ProjectConfig {
     });
 
     if (manifest.schemaVersion !== MANIFEST_SCHEMA_VERSION) {
-      throw new Error(
-        `atlas: the manifest is schemaVersion ${String(manifest.schemaVersion)}; @venizia/vulcan-atlas reads ${MANIFEST_SCHEMA_VERSION} - upgrade @venizia/vulcan`,
-      );
+      throw VulcanError.of({
+        message: `atlas: the manifest is schemaVersion ${String(manifest.schemaVersion)}; @venizia/vulcan-atlas reads ${MANIFEST_SCHEMA_VERSION} - upgrade @venizia/vulcan`,
+      });
     }
 
     return {
@@ -366,9 +370,9 @@ export class ProjectConfig {
       handedManifest({ root }) ?? (file === undefined ? undefined : readFileSync(file, 'utf8'));
 
     if (text === undefined) {
-      throw new Error(
-        `atlas: no project manifest (${MANIFEST_FILE}) - run \`vulcan project sync\``,
-      );
+      throw VulcanError.of({
+        message: `atlas: no project manifest (${MANIFEST_FILE}) - run \`vulcan project sync\``,
+      });
     }
 
     return ProjectConfig.toAtlasProject({ root, manifest: JSON.parse(text) });
@@ -379,9 +383,10 @@ export class ProjectConfig {
     const live = opts.project.packages.filter((entry) => !entry.retired).map((entry) => entry.dir);
 
     if (live.length === 0) {
-      throw new Error(
-        'atlas: add packages to .configs/vulcan.config.* - the package directories under packages/, in release order',
-      );
+      throw VulcanError.of({
+        message:
+          'atlas: add packages to .configs/vulcan.config.* - the package directories under packages/, in release order',
+      });
     }
 
     return live;

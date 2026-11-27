@@ -55,3 +55,9 @@ export class AgentConstants {
   /** The first line of the template: a file that starts with it is sync's, to rewrite or remove. */
   static readonly GUARD_EXTENSION_MARKER = '// Written by `vulcan project sync`';
 }
+
+/** Which file the move of the local choices could not read. */
+export class LocalMigrationFailures {
+  static readonly OLD = 'old';
+  static readonly PROFILE = 'profile';
+}

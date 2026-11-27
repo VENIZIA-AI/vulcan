@@ -33,6 +33,7 @@ export class BoardTables {
     'Phát hành',
     'Bàn giao',
   ];
+
   static readonly STATE_TEXT: Record<string, string> = {
     you: 'Cần anh',
     blocked: 'Bị chặn',
@@ -40,6 +41,7 @@ export class BoardTables {
     parked: 'st.parked',
     done: 'Xong',
   };
+
   static readonly KIND_TEXT: Record<string, string> = {
     request: 'đề xuất',
     decision: 'quyết định',
@@ -58,6 +60,7 @@ export class BoardTables {
     flow: 'k.flow',
     agent: 'k.agent',
   };
+
   /** The groups of the list, in order, with the swatch colour and whether they start open. */
   static readonly GROUPS = [
     { key: 'you', label: 'g.you', swatch: 'var(--ink)', open: true },
@@ -66,6 +69,7 @@ export class BoardTables {
     { key: 'parked', label: 'g.parked', swatch: 'var(--line-2)', open: false },
     { key: 'done', label: 'g.done', swatch: 'var(--ok)', open: false },
   ];
+
   /** How the board view orders the cards of a stage. */
   static readonly STATE_ORDER = ['you', 'blocked', 'running', 'parked', 'done'];
 }
@@ -78,10 +82,69 @@ export class BoardStateWords {
     idle: 'Rảnh',
     blocked: 'Bị chặn',
   };
+
   static readonly WORD: Record<string, string> = {
     working: 'đang làm',
     you: 'chờ anh',
     idle: 'rảnh',
     blocked: 'bị chặn',
   };
+}
+
+/** A kept on or off choice, as the browser stores it. */
+export class BoardSwitches {
+  static readonly OFF = '0';
+  static readonly ON = '1';
+}
+
+/** The themes the header switches between. */
+export class BoardThemes {
+  static readonly LIGHT = 'light';
+  static readonly DARK = 'dark';
+  static readonly SYSTEM = 'system';
+}
+
+/** The state of the stream of `vulcan board serve`. */
+export class BoardLiveStates {
+  static readonly WAIT = 'wait';
+  static readonly ON = 'on';
+  static readonly OFF = 'off';
+  static readonly BIG = 'big';
+}
+
+/** How the work is drawn. */
+export class BoardWorkViews {
+  static readonly CARDS = 'cards';
+  static readonly COMPACT = 'compact';
+  static readonly TABLE = 'table';
+}
+
+/** The columns of the work table. */
+export class BoardWorkColumns {
+  static readonly ORDER = 'order';
+  static readonly CODE = 'code';
+  static readonly TITLE = 'title';
+  static readonly STAGE = 'stage';
+  static readonly STATE = 'state';
+  static readonly HOLDER = 'holder';
+  static readonly STEPS = 'steps';
+  static readonly PR = 'pr';
+  static readonly READ = 'read';
+  static readonly WRITTEN = 'written';
+  static readonly DUE = 'due';
+  static readonly UPDATED = 'updated';
+}
+
+/** The direction of a sorted column. */
+export class BoardSortOrders {
+  static readonly ASCENDING = 'ascending';
+  static readonly DESCENDING = 'descending';
+}
+
+/** What an agent is shown as. */
+export class BoardAgentStatuses {
+  static readonly BLOCKED = 'blocked';
+  static readonly YOU = 'you';
+  static readonly WORKING = 'working';
+  static readonly IDLE = 'idle';
 }

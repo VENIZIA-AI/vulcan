@@ -1,3 +1,4 @@
+import { VulcanError } from '../common/error.ts';
 // --- managed regions ---
 
 export class ManagedRegion {
@@ -41,19 +42,23 @@ export class ManagedRegion {
     const region = `okf: ${file}: managed region '${id}'`;
 
     if (startAt === -1 || endAt === -1) {
-      throw new Error(`${region} is missing its markers - add ${start} and ${end}`);
+      throw VulcanError.of({
+        message: `${region} is missing its markers - add ${start} and ${end}`,
+      });
     }
 
     if (text.indexOf(start, startAt + 1) !== -1) {
-      throw new Error(`${region} is malformed - a duplicate start marker`);
+      throw VulcanError.of({ message: `${region} is malformed - a duplicate start marker` });
     }
 
     if (text.indexOf(end, endAt + 1) !== -1) {
-      throw new Error(`${region} is malformed - a duplicate end marker`);
+      throw VulcanError.of({ message: `${region} is malformed - a duplicate end marker` });
     }
 
     if (startAt + start.length > endAt) {
-      throw new Error(`${region} is malformed - the end marker precedes the start marker`);
+      throw VulcanError.of({
+        message: `${region} is malformed - the end marker precedes the start marker`,
+      });
     }
 
     return { start, end, startAt, endAt };

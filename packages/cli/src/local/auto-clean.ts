@@ -40,6 +40,7 @@ export class LocalAutoClean {
       const local = RecordValue.isRecord(manifest) ? manifest.local : undefined;
 
       return !(RecordValue.isRecord(local) && local.autoClean === false);
+      // eslint-disable-next-line venizia/no-silent-catch -- a manifest that cannot be read keeps the default: auto-clean on
     } catch {
       return true;
     }
@@ -67,6 +68,7 @@ export class LocalAutoClean {
           reported: value.reported,
         };
       }
+      // eslint-disable-next-line venizia/no-silent-catch -- No stamp, or one that is not ours: the clean is due
     } catch {
       // No stamp, or one that is not ours: the clean is due.
     }

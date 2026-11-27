@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { VulcanError } from '../common/error.ts';
 import { RecordValue } from '../common/record.ts';
 import { OkfProjectConstants } from './common/index.ts';
 import type {
@@ -127,12 +128,11 @@ const parsedOf = (opts: { text: string }): unknown => {
   try {
     return JSON.parse(opts.text);
   } catch (error) {
-    throw new Error(
-      'okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan atlas` or `vulcan okf`',
-      {
-        cause: error,
-      },
-    );
+    throw VulcanError.of({
+      message:
+        'okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan atlas` or `vulcan okf`',
+      cause: error,
+    });
   }
 };
 
@@ -149,7 +149,7 @@ export class OkfProject {
     const root = process.env[OkfProjectConstants.ROOT_ENV];
 
     if (text === undefined || root === undefined) {
-      throw new Error('okf: no project config - run through `vulcan okf`');
+      throw VulcanError.of({ message: 'okf: no project config - run through `vulcan okf`' });
     }
 
     if (cached?.text === text && cached.root === root) {

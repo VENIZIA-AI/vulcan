@@ -152,6 +152,7 @@ export class EventRetention {
         rmSync(join(opts.dir, file.name), { force: true });
         files += 1;
         bytes += file.bytes;
+        // eslint-disable-next-line venizia/no-silent-catch -- Left in place; the next run tries again
       } catch {
         // Left in place; the next run tries again.
       }
@@ -163,6 +164,7 @@ export class EventRetention {
   private static sizeOf(opts: { path: string }): number {
     try {
       return statSync(opts.path).size;
+      // eslint-disable-next-line venizia/no-silent-catch -- a file that is gone has no size
     } catch {
       return 0;
     }

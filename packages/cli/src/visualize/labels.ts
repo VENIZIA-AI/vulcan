@@ -28,6 +28,14 @@ const bundledOf = (opts: { language?: string }): TChrome => {
 };
 
 export class Labels {
+  /** The word one map of the chrome holds for a key, or `undefined` for a key it does not name. */
+  static wordOf(opts: {
+    words: Readonly<Record<string, string>>;
+    key: string;
+  }): string | undefined {
+    return opts.words[opts.key];
+  }
+
   /** The strings of the page: the bundled words of the page's language, with whatever the spec replaces. */
   static chromeOf(opts: { spec: TVisualizeSpec; language?: string }): TChrome {
     const given = opts.spec.chrome ?? {};

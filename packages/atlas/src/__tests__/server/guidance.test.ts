@@ -266,6 +266,7 @@ describe('a server built from a project', () => {
     const result = await transport.handleLine({
       line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: opts.method, params: {} }),
     });
+
     return JSON.parse(result ?? 'null');
   };
 

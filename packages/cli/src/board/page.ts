@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../common/paths.ts';
 import { BoardConstants } from './common/index.ts';
 import { ThemeTokens } from '../theme/index.ts';
-import type { IThemeTokens } from '../theme/index.ts';
+import type { IThemeTokens, TThemeMode } from '../theme/index.ts';
 import type { IBoardData } from './common/index.ts';
 
 /** The token the board calls by another name: the custom properties of its shell. `--focus` and `--r` follow below. */
@@ -62,7 +62,7 @@ export class BoardPage {
    */
   static tokensStyle(opts: { tokens?: IThemeTokens }): string {
     const tokens = opts.tokens ?? ThemeTokens.defaults();
-    const declare = (mode: 'light' | 'dark'): string =>
+    const declare = (mode: TThemeMode): string =>
       `${ThemeTokens.declarations({ mode: { ...tokens[mode], ...ThemeTokens.SURFACES[mode] }, names: TOKEN_PROPERTIES })};--focus:${tokens[mode].accent}`;
     const light = `${declare('light')};--r:${tokens.radius}`;
     const dark = declare('dark');

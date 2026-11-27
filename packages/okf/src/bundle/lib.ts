@@ -6,6 +6,7 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, posix, relative } from 'node:path';
+import { VulcanError } from '../common/error.ts';
 
 import { PRUNE_DIRS, RESERVED_FILES } from '../common/config.ts';
 import { OkfProject } from '../project/index.ts';
@@ -132,7 +133,9 @@ export class ConceptLoader {
     const parsed = OkfFrontmatter.parseMapping({ yaml });
 
     if (!parsed.ok) {
-      throw new Error(`invalid YAML frontmatter in ${opts.file} - ${parsed.reason}`);
+      throw VulcanError.of({
+        message: `invalid YAML frontmatter in ${opts.file} - ${parsed.reason}`,
+      });
     }
 
     return { data: parsed.data, body };
@@ -175,7 +178,7 @@ export class ConceptLoader {
     try {
       return ConceptLoader.load();
     } catch (error) {
-      console.error(`okf: ${(error as Error).message}`);
+      console.error(`okf: ${error instanceof Error ? error.message : String(error)}`);
       process.exit(1);
     }
   }

@@ -82,8 +82,10 @@ const run = async (opts: { hook: string; payload: string }) => {
   const stderr = await stderrResponse.text();
 
   const result2 = await child.exited;
+
   return { code: result2, stdout, stderr };
 };
+
 const bash = (command: string): string =>
   `{"tool_name":"Bash","tool_input":{"command":${JSON.stringify(command)}},"cwd":${JSON.stringify(root)}}`;
 const decisionOf = (stdout: string): string =>

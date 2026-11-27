@@ -3,6 +3,7 @@ import { AtlasGit } from '@/common/constants';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { ModeArguments, ModeUsageError } from '@/cli/modes';
+import { VulcanError } from '@venizia/vulcan-okf';
 import { IndexPair } from './build';
 import { IndexPublish } from './publish';
 import { PrebuiltConstants } from './constants';
@@ -48,13 +49,15 @@ export class IndexKeygen {
       }).status === 0;
 
     if (!ignored) {
-      throw new Error(
-        `atlas index keygen: ${PrebuiltConstants.KEY_FILE} is not covered by .gitignore here (or ${opts.root} is not a git repository): a private key must never be committable`,
-      );
+      throw VulcanError.of({
+        message: `atlas index keygen: ${PrebuiltConstants.KEY_FILE} is not covered by .gitignore here (or ${opts.root} is not a git repository): a private key must never be committable`,
+      });
     }
 
     if (existsSync(file)) {
-      throw new Error(`atlas index keygen: ${file} already exists - it is never overwritten`);
+      throw VulcanError.of({
+        message: `atlas index keygen: ${file} already exists - it is never overwritten`,
+      });
     }
 
     const pair = PrebuiltKeys.generatePair();

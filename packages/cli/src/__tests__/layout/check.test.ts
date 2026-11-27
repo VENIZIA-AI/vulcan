@@ -367,6 +367,7 @@ describe('vulcan check layout', () => {
 
       return runCli({ args: ['check', 'layout'], cwd: root });
     };
+
     const long = codeOf({ 'src/long.ts': PROJECT['src/long.ts'] });
 
     expect(long.code, long.stderr).toBe(0);

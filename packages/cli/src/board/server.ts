@@ -173,6 +173,7 @@ export class BoardServer {
       ...(opts.openFolder === undefined ? {} : { openFolder: opts.openFolder }),
       openFileTtlMs: opts.openFileTtlMs ?? BoardServe.OPEN_FILE_TTL_MS,
     };
+
     const publish = (): void => {
       const data = BoardServer.snapshotOf({ collect: opts.collect });
 

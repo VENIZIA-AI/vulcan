@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { IBoardData } from '../../common/index.ts';
 import { BoardLanguages, BoardTables } from '../common/constants.ts';
-import type { TBoardLanguage } from '../common/types.ts';
+import type { TBoardLanguage, TSwitch, TTheme, TWorkView } from '../common/types.ts';
 import { AgentPane } from '../components/agents.tsx';
 import { Detail } from '../components/detail.tsx';
 import type { TDetail } from '../components/detail.tsx';
 import { Header, THEMES } from '../components/header.tsx';
-import type { TTheme } from '../components/header.tsx';
 import { ItemPane, WORK_VIEWS } from '../components/items.tsx';
-import type { TWorkView } from '../components/items.tsx';
 import { Keys } from '../components/keys.tsx';
 import { useLive, useNow, useStored } from './hooks.ts';
 import { UiContext } from '../i18n/context.ts';
@@ -46,12 +44,12 @@ export const App = (props: { data: IBoardData }) => {
     initial: 'light',
     allowed: THEMES,
   });
-  const [plumbing, setPlumbing] = useStored<'0' | '1'>({
+  const [plumbing, setPlumbing] = useStored<TSwitch>({
     key: `${prefix}plumbing`,
     initial: '0',
     allowed: ['0', '1'],
   });
-  const [agentDetails, setAgentDetails] = useStored<'0' | '1'>({
+  const [agentDetails, setAgentDetails] = useStored<TSwitch>({
     key: `${prefix}agentDetails`,
     initial: '1',
     allowed: ['0', '1'],
@@ -115,6 +113,7 @@ export const App = (props: { data: IBoardData }) => {
       ? flows.some((view) => view.flow.id === detail.id)
       : rows.some((row) => row.n === detail.name));
   const selectFlow = (id: string): void => setDetail({ kind: 'flow', id });
+
   const pickAgent = (name: string): void => {
     if (agent === name) {
       setAgent(null);

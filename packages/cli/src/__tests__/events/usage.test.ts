@@ -102,6 +102,7 @@ const project = (opts: { log?: boolean } = {}): string =>
 const dirOf = (root: string): string => join(root, '.agents/local/events');
 const usageOf = (root: string) =>
   EventLog.read({ dir: dirOf(root) }).events.filter((event) => event.type === 'usage');
+
 /** A flow line of the log: by default the one `SESSION` opened. */
 const openFlow = (
   root: string,
@@ -120,6 +121,7 @@ const openFlow = (
     }),
   });
 };
+
 const record = (opts: {
   root: string;
   file: string;

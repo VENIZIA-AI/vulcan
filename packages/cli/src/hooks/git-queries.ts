@@ -15,6 +15,7 @@ export class GitQueries {
     'GIT_ASKPASS',
     'GIT_PAGER',
   ];
+
   /** `GIT_CONFIG_KEY_<n>` and `GIT_CONFIG_VALUE_<n>`: configuration given through the environment. */
   private static readonly CONFIG_PAIR = /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/;
   /** The queries that read the content of tracked files, so git may run a filter on it. */

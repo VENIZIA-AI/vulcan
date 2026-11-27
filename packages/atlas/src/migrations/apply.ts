@@ -267,6 +267,7 @@ export class MigrateApply {
   }): number {
     const { result } = opts;
     const outcomes: Record<string, ICodemodOutcome[]> = {};
+
     // A source that was not served may hold steps this plan lacks: the rewrite waits for the whole plan, or for --force.
     if (result.notServed !== undefined && !opts.force) {
       opts.err(

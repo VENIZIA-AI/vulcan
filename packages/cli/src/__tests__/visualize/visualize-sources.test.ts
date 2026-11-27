@@ -4,6 +4,7 @@ import { fullSpec } from './spec.fixture.ts';
 import { renderSpec } from './render.helper.ts';
 
 const render = (spec: Record<string, unknown>) => renderSpec(spec);
+
 const rendered = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
@@ -13,11 +14,13 @@ const rendered = (spec: Record<string, unknown>): string => {
 
   return result.page.html;
 };
+
 const problems = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
   return result.ok ? '' : result.problems.join('\n');
 };
+
 const COMMIT = 'a55559a1b2c3d4e5f60718293a4b5c6d7e8f9012';
 const OTHER = '1234567890abcdef1234567890abcdef12345678';
 const source = (change: Record<string, unknown> = {}) => ({

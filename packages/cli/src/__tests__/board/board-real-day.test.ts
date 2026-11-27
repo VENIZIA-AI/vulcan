@@ -63,6 +63,7 @@ describe.skipIf(!hasBrowser)('a busy multi-agent day, in a real browser', () => 
     '<script type="application/json"',
     '<script>window.__errs=[];addEventListener("error",(e)=>__errs.push(e.message))</script><script type="application/json"',
   );
+
   const run = async (width: number): Promise<IResult> => {
     const raw = await BrowserPage.measure<string>({
       html,

@@ -103,6 +103,7 @@ test('a source that cannot be served is reported; the project and the other sour
   expect(unavailable[0].reason).toContain('.agents/atlas.manifest.json');
 
   const server = SourcesServer.build({ sources: resolved, unavailable, cwd, version: '0.0.0' });
+
   const call = async (opts: { method: string; params: object }) => {
     const line = await server.handleLine({
       line: JSON.stringify({ jsonrpc: '2.0', id: 1, ...opts }),
@@ -110,6 +111,7 @@ test('a source that cannot be served is reported; the project and the other sour
 
     return JSON.parse(line ?? 'null');
   };
+
   const initialized = await call({ method: 'initialize', params: {} });
   const searched = await call({
     method: 'tools/call',

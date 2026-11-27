@@ -27,6 +27,7 @@ import type { ISyncAction, TSettings } from './common/index.ts';
 import { isSettingsObject, ProjectSettings } from './settings.ts';
 
 const NO_CHANGE = (): void => {};
+
 /** Parents sync may delete once empty: its own agent folders, never `.agents` or the project. */
 const OWN_FOLDERS = new Set(['.cursor', '.codex', '.pi', '.omp', '.vscode', '.claude']);
 
@@ -35,6 +36,7 @@ const removeIfEmpty = (opts: { path: string }): void => {
     if (existsSync(opts.path) && readdirSync(opts.path).length === 0) {
       rmdirSync(opts.path);
     }
+    // eslint-disable-next-line venizia/no-silent-catch -- A folder that cannot be removed stays; it is the user's to clean
   } catch {
     // A folder that cannot be removed stays; it is the user's to clean.
   }
@@ -45,6 +47,7 @@ const readJsonObject = (opts: { path: string }): TSettings | undefined => {
     const parsed = { value: JSON.parse(readFileSync(opts.path, 'utf8')) };
 
     return isSettingsObject(parsed) ? parsed.value : undefined;
+    // eslint-disable-next-line venizia/no-silent-catch -- a settings file that cannot be read is left untouched
   } catch {
     return undefined;
   }

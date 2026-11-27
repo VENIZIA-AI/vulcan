@@ -7,6 +7,7 @@ import { FRONTMATTER_PATTERN } from '@/corpus/frontmatter';
 import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import type { IAtlasProject } from '@/common/project-config';
 import { ReleaseCompute } from '@/releases/compute';
+import { StderrLogger } from '@/common/logger';
 import type { IChangelogProblem } from './check';
 
 const DATED_NAME = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
@@ -164,7 +165,12 @@ export class ChangelogHistory {
           ChangelogHistory.withoutDisplayKeys({ text: before }) !==
             ChangelogHistory.withoutDisplayKeys({ text: after })
         );
-      } catch {
+      } catch (error) {
+        StderrLogger.get('ChangelogHistory.changedFiles').debug(
+          'a file whose text cannot be compared counts as changed | error: %s',
+          error,
+        );
+
         return true;
       }
     });
@@ -208,7 +214,12 @@ export class ChangelogHistory {
       const released = Resolve.splitFrontmatter(opts.log).data.released;
 
       return typeof released === 'string' && released !== '';
-    } catch {
+    } catch (error) {
+      StderrLogger.get('ChangelogHistory.isReleased').debug(
+        'a log whose frontmatter does not parse is not released | error: %s',
+        error,
+      );
+
       return false;
     }
   }

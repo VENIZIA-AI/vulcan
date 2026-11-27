@@ -461,6 +461,7 @@ describe('ApiReference.staleOf', () => {
 
     return join(root, 'api');
   };
+
   const expected = new Map([
     ['a.md', 'one'],
     ['index.md', 'two'],

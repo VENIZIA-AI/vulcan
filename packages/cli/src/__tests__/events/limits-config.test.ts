@@ -114,11 +114,13 @@ describe("vulcan project doctor and the size of today's event file", () => {
 
     return { root, dir };
   };
+
   const warnings = async (root: string) => {
     const all = await DoctorRunner.runWarnings({ root });
 
     return all.filter((entry) => entry.check === DoctorChecks.EVENTS_SIZE);
   };
+
   const today = (): string => `${EventLog.dayOf({ time: Date.now() })}.jsonl`;
 
   test("warns when today's file alone is over maxSize, and says nothing is truncated", async () => {

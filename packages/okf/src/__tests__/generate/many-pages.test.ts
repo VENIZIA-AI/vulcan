@@ -39,6 +39,7 @@ const makeProject = (opts: { modules: { id: string; render: string }[] }) => {
       })),
     },
   };
+
   const run = (args: string[]) => {
     const child = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, CLI, ...args],

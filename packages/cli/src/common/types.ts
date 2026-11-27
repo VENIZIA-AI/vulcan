@@ -1,5 +1,6 @@
-/** The values of a const class's static fields: `TConstValue<typeof Colors>` is `'red' | 'blue'`. */
-export type TConstValue<TClass> = Extract<TClass[keyof TClass], string | number> & {};
+import type { TConstValue } from '@venizia/vulcan-okf';
+
+export type { TConstValue };
 
 /**
  * The base of a const class that validates values: `class Colors extends ConstClass { static readonly RED = 'red'; }`.
@@ -18,12 +19,13 @@ export class ConstClass {
     ];
 
     if (found.length === 0) {
+      // eslint-disable-next-line venizia/no-new-error -- the blocking hooks load this file, and they must run with no third-party package resolvable (the pack smoke breaks them)
       throw new Error(`${this.name} has no values`);
     }
 
     ConstClass.#cache.set(this, found);
 
-    // `this` is a subclass, so its string statics are the values of `TConstValue<T>`; the compiler cannot see that.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- `this` is a subclass, so its string statics are the values of `TConstValue<T>`; the compiler cannot see that
     return found as readonly [TConstValue<T>, ...TConstValue<T>[]];
   }
 

@@ -155,8 +155,8 @@ export class BoardStop {
       SessionMark.write({ dir, folder: EventConstants.STALE_REMINDER_DIR, actor, now });
       SessionMark.prune({ dir, folder: EventConstants.STALE_REMINDER_DIR, now });
       SessionMark.prune({ dir, folder: EventConstants.OWN_EDIT_DIR, now });
+      // eslint-disable-next-line venizia/no-silent-catch -- A reminder that cannot be remembered would repeat every turn: no reminder
     } catch {
-      // A reminder that cannot be remembered would repeat every turn: no reminder.
       return undefined;
     }
 
@@ -190,6 +190,7 @@ export class BoardStop {
         .some((path) => {
           try {
             return statSync(join(opts.root, path)).mtimeMs > opts.since;
+            // eslint-disable-next-line venizia/no-silent-catch -- a file that is gone was not edited since
           } catch {
             return false;
           }

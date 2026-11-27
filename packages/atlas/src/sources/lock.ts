@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { StderrLogger } from '@/common/logger';
+import { VulcanError } from '@venizia/vulcan-okf';
 
 const LOCK = 'pull.lock';
 const OWNER = 'owner.json';
@@ -164,9 +165,9 @@ export class PullLock {
       }
 
       if (Date.now() > deadline) {
-        throw new Error(
-          `atlas: ${opts.label} - another pull has held ${lock} for over ${WAIT_MS / 60_000} minutes`,
-        );
+        throw VulcanError.of({
+          message: `atlas: ${opts.label} - another pull has held ${lock} for over ${WAIT_MS / 60_000} minutes`,
+        });
       }
 
       if (!waited) {
@@ -179,6 +180,7 @@ export class PullLock {
 
     try {
       const result = await opts.run();
+
       return result;
     } finally {
       if (ownerOf({ lock })?.token === token) {

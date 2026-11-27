@@ -30,6 +30,7 @@ export class DoctorCheckUtility {
       return typeof value === 'object' && value !== null && !Array.isArray(value)
         ? Object.fromEntries(Object.entries(value))
         : undefined;
+      // eslint-disable-next-line venizia/no-silent-catch -- undefined is the unreadable answer each doctor check reports in its own words
     } catch {
       return undefined;
     }

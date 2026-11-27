@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { VulcanError } from '@venizia/vulcan-okf';
 import { BoardServe } from './common/index.ts';
 
 /**
@@ -53,7 +54,7 @@ export class BoardOpenFile {
         !stat.isDirectory() ||
         (uid !== undefined && (stat.uid !== uid || (stat.mode & 0o077) !== 0))
       ) {
-        throw new Error(`${directory} is not a private folder of this user`);
+        throw VulcanError.of({ message: `${directory} is not a private folder of this user` });
       }
 
       const path = join(directory, BoardServe.OPEN_FILE_NAME);

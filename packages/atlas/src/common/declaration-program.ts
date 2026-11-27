@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { VulcanError } from '@venizia/vulcan-okf';
 import type TypeScript from 'typescript';
 import { TypeScriptCompiler } from './compiler';
 
@@ -26,7 +27,9 @@ export class DeclarationProgram {
     const missing = opts.files.find((file) => !existsSync(file));
 
     if (missing !== undefined) {
-      throw new Error(`[${opts.scope}] ${missing} does not exist - build the package first`);
+      throw VulcanError.of({
+        message: `[${opts.scope}] ${missing} does not exist - build the package first`,
+      });
     }
 
     const compiler = TypeScriptCompiler.get();
@@ -43,7 +46,7 @@ export class DeclarationProgram {
     const moduleSymbol = source ? this.checker.getSymbolAtLocation(source) : undefined;
 
     if (!moduleSymbol) {
-      throw new Error(`[${this.scope}] ${opts.file} is not a module`);
+      throw VulcanError.of({ message: `[${this.scope}] ${opts.file} is not a module` });
     }
 
     return { checker: this.checker, moduleSymbol };

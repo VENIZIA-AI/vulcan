@@ -92,6 +92,7 @@ const searchFor = async (opts: {
       params: { name: 'search', arguments: { query: opts.query } },
     }),
   });
+
   return JSON.stringify(JSON.parse(result ?? 'null'));
 };
 

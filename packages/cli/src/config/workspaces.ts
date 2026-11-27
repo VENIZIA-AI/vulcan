@@ -160,6 +160,7 @@ export class WorkspacePackages {
       );
 
       return RecordValue.isRecord(file) && file.private === true;
+      // eslint-disable-next-line venizia/no-silent-catch -- a member with no readable package.json is not private
     } catch {
       return false;
     }
@@ -172,6 +173,7 @@ export class WorkspacePackages {
       );
 
       return RecordValue.isRecord(file) ? file.name : undefined;
+      // eslint-disable-next-line venizia/no-silent-catch -- a member with no readable package.json has no name
     } catch {
       return undefined;
     }

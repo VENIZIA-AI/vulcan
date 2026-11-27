@@ -1,3 +1,5 @@
+import type { TSortOrder } from '../common/types.ts';
+
 const STROKE = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.5 } as const;
 
 /** The three themes, drawn as the button that switches them. */
@@ -36,7 +38,7 @@ export const Chevron = () => (
 );
 
 /** The order of a sorted column; two faint arrows on a column that is not sorted. */
-export const SortArrow = (props: { order: 'ascending' | 'descending' | undefined }) => (
+export const SortArrow = (props: { order: TSortOrder | undefined }) => (
   <svg className={`sort${props.order ? ' on' : ''}`} viewBox="0 0 10 12" aria-hidden="true">
     {props.order === 'descending' ? null : <path d="M2.5 5 5 2.5 7.5 5" {...STROKE} />}
     {props.order === 'ascending' ? null : <path d="M2.5 7 5 9.5 7.5 7" {...STROKE} />}

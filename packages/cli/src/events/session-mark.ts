@@ -22,8 +22,8 @@ export class SessionMark {
       const time = Number(readFileSync(SessionMark.fileOf(opts), 'utf8'));
 
       return Number.isFinite(time) ? time : undefined;
+      // eslint-disable-next-line venizia/no-silent-catch -- No mark yet
     } catch {
-      // No mark yet.
       return undefined;
     }
   }
@@ -50,6 +50,7 @@ export class SessionMark {
           unlinkSync(path);
         }
       }
+      // eslint-disable-next-line venizia/no-silent-catch -- Best effort: an old file is a few bytes
     } catch {
       // Best effort: an old file is a few bytes.
     }

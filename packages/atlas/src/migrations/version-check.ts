@@ -48,9 +48,11 @@ export class VersionCheck {
   }): IChangelogProblem[] {
     const { folder } = opts;
     const problems: IChangelogProblem[] = [...folder.problems];
+
     const fail = ({ file, message }: { file: string; message: string }): void => {
       problems.push({ file: `${folder.name}/${file}`, message });
     };
+
     for (const item of folder.items) {
       for (const name of item.packages.filter((entry) => !opts.names.includes(entry))) {
         fail({

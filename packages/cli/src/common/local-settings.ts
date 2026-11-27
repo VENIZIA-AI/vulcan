@@ -66,6 +66,7 @@ export class LocalSettings {
         ...(RecordValue.isRecord(agents) ? { boardAgents: agents } : {}),
         ...(typeof autoStart === 'boolean' ? { autoStart } : {}),
       };
+      // eslint-disable-next-line venizia/no-silent-catch -- no readable local settings file: the defaults apply
     } catch {
       return {};
     }

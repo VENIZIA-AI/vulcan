@@ -1,4 +1,5 @@
 import { readSync } from 'node:fs';
+import type { TNullable } from '@venizia/vulcan-okf';
 
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
@@ -64,6 +65,7 @@ export class ProjectNames {
     ask: TAsk;
   }): Promise<string | null> {
     const { field } = opts;
+
     const validate = (value: string): string | undefined => {
       const name = value.trim() === '' ? (field.previous ?? '') : value.trim();
 
@@ -106,7 +108,7 @@ export class ProjectNames {
    * The optional scope question of a menu: a package scope typed, or nothing for a bare name. Asked only
    * where menus are drawn; a plain terminal and a script give `--scope`. `null` is a cancel.
    */
-  static async askScope(): Promise<string | undefined | null> {
+  static async askScope(): Promise<TNullable<string>> {
     const answer = await TerminalPrompt.promptText({
       message: 'Package scope (optional, like @acme; empty for none)',
       validate: (value) =>

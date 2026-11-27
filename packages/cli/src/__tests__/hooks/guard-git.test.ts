@@ -28,6 +28,7 @@ const runner =
 
     return undefined;
   };
+
 const decisions = (opts: { command: string; run?: IGitRunner }): string[] =>
   GitGuard.inspect({
     command: opts.command,
@@ -230,6 +231,7 @@ describe('GitGuard.inspect against a real repository', () => {
   const git = (opts: { cwd: string; args: string[] }): void => {
     expect(Bun.spawnSync(['git', ...opts.args], { cwd: opts.cwd }).exitCode).toBe(0);
   };
+
   const repository = (): string => {
     const root = createProject({ files: { 'a.txt': 'a' } });
 
@@ -267,6 +269,7 @@ describe('GitGuard.inspect asks before a blanket stage that is large', () => {
   /** A fake `git status --porcelain` of `tracked` modified paths and `untracked` new ones; counts the queries made. */
   const status = (opts: { tracked: number; untracked: number }) => {
     const calls: string[] = [];
+
     const run: IGitRunner = (call) => {
       calls.push([call.program, ...call.args].join(' '));
 
@@ -282,6 +285,7 @@ describe('GitGuard.inspect asks before a blanket stage that is large', () => {
 
     return { run, calls };
   };
+
   const answer = (opts: { command: string; tracked: number; untracked?: number }) => {
     const fake = status({ tracked: opts.tracked, untracked: opts.untracked ?? 0 });
     const hits = GitGuard.inspect({ command: opts.command, cwd: '/p', run: fake.run });
@@ -369,6 +373,7 @@ describe('a blanket stage is counted file by file on a real repository', () => {
   const git = (opts: { cwd: string; args: string[] }): void => {
     expect(Bun.spawnSync(['git', ...opts.args], { cwd: opts.cwd }).exitCode).toBe(0);
   };
+
   const repository = (opts: { tracked?: number } = {}): string => {
     const files: Record<string, string> = { 'a.txt': 'a', '.gitignore': 'ignored/\n' };
 
@@ -386,6 +391,7 @@ describe('a blanket stage is counted file by file on a real repository', () => {
 
     return root;
   };
+
   const files = (opts: { root: string; folder: string; count: number; text?: string }): void => {
     mkdirSync(join(opts.root, opts.folder), { recursive: true });
 
@@ -393,6 +399,7 @@ describe('a blanket stage is counted file by file on a real repository', () => {
       writeFileSync(join(opts.root, opts.folder, `f${index}.txt`), opts.text ?? 'new');
     }
   };
+
   const asks = (opts: { root: string; command: string }): string[] =>
     GitGuard.inspect({ command: opts.command, cwd: opts.root }).map((hit) => hit.decision);
 

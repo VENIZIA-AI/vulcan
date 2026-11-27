@@ -126,6 +126,7 @@ const normalise = (colour: string): string => {
     ? `#${lower[1]}${lower[1]}${lower[2]}${lower[2]}${lower[3]}${lower[3]}`
     : lower;
 };
+
 const walk = (folder: string): string[] =>
   readdirSync(join(ROOT, folder), { withFileTypes: true }).flatMap((entry) => {
     const path = join(folder, entry.name);

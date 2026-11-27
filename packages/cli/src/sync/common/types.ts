@@ -1,5 +1,5 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { BaseRuleChanges, SyncStatuses } from './constants.ts';
+import type { BaseRuleChanges, GitTrackStates, SyncStatuses } from './constants.ts';
 
 type TSyncStatus = TConstValue<typeof SyncStatuses>;
 
@@ -21,3 +21,5 @@ export interface IBaseRuleChange {
   change: TBaseRuleChange;
   text: string;
 }
+
+export type TGitTrackState = TConstValue<typeof GitTrackStates>;

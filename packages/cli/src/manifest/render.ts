@@ -36,6 +36,7 @@ export class ManifestConstants {
     'atlas',
     'theme',
   ];
+
   static readonly SCHEMA_VERSION = 1;
   static readonly PROJECT_RULES = '.agents/rules.md';
   static readonly ENV = EnvVariables.VULCAN_MANIFEST;

@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { VulcanError } from '../common/error.ts';
 import { OkfProject } from '../project/index.ts';
 import type { IOkfRendererEntry } from '../project/index.ts';
 import { CONTENTS_ID } from './contents.ts';
@@ -36,9 +37,9 @@ const builtInRenderer = (opts: { id: string }): IRenderer => {
   const renderer = BUILT_IN_RENDERERS[opts.id];
 
   if (renderer === undefined) {
-    throw new Error(
-      `okf: '${opts.id}' is not a built-in renderer (${Object.keys(BUILT_IN_RENDERERS).join(', ')}) - give it a module`,
-    );
+    throw VulcanError.of({
+      message: `okf: '${opts.id}' is not a built-in renderer (${Object.keys(BUILT_IN_RENDERERS).join(', ')}) - give it a module`,
+    });
   }
 
   return renderer;
@@ -53,22 +54,22 @@ const moduleRenderer = async (opts: {
   const file = join(opts.root, opts.module);
 
   if (!existsSync(file)) {
-    throw new Error(`okf: renderer module ${opts.module} not found`);
+    throw VulcanError.of({ message: `okf: renderer module ${opts.module} not found` });
   }
 
   const imported: { default?: unknown } = await import(file);
   const exported = { value: imported.default };
 
   if (!isRenderer(exported)) {
-    throw new Error(
-      `okf: renderer module ${opts.module} must default-export defineRenderer({ ... })`,
-    );
+    throw VulcanError.of({
+      message: `okf: renderer module ${opts.module} must default-export defineRenderer({ ... })`,
+    });
   }
 
   if (exported.value.id !== opts.id) {
-    throw new Error(
-      `okf: renderer module ${opts.module} defines '${exported.value.id}', the config names '${opts.id}'`,
-    );
+    throw VulcanError.of({
+      message: `okf: renderer module ${opts.module} defines '${exported.value.id}', the config names '${opts.id}'`,
+    });
   }
 
   return exported.value;
@@ -108,7 +109,7 @@ export class GenerationRegistry {
 
     for (const entry of project.renderers) {
       if (renderers.some((loaded) => loaded.renderer.id === entry.id)) {
-        throw new Error(`okf: two renderers with id '${entry.id}'`);
+        throw VulcanError.of({ message: `okf: two renderers with id '${entry.id}'` });
       }
 
       const renderer = await loadRenderer({ root: project.root, entry });
@@ -118,9 +119,9 @@ export class GenerationRegistry {
 
     const regions = project.regions.map((region) => {
       if (region.id === CONTENTS_ID) {
-        throw new Error(
-          `okf: region id '${CONTENTS_ID}' is reserved for the contents list okf writes - rename the region`,
-        );
+        throw VulcanError.of({
+          message: `okf: region id '${CONTENTS_ID}' is reserved for the contents list okf writes - rename the region`,
+        });
       }
 
       const loaded = renderers.find((candidate) => candidate.renderer.id === region.renderer) ?? {
@@ -130,9 +131,9 @@ export class GenerationRegistry {
       const { renderer, context } = loaded;
 
       if (renderer.region === undefined) {
-        throw new Error(
-          `okf: region '${region.id}' names renderer '${region.renderer}', which renders no region`,
-        );
+        throw VulcanError.of({
+          message: `okf: region '${region.id}' names renderer '${region.renderer}', which renders no region`,
+        });
       }
 
       const renderRegion = renderer.region.bind(renderer);

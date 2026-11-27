@@ -292,6 +292,7 @@ describe('SourceReleases with a local project that has no release on this ref', 
       { name: 'other', releases: local },
     ],
   });
+
   const ask = async (args: Record<string, unknown>) => {
     const transport = new Transport({
       tools: [ChangesTool.build({ releases })],

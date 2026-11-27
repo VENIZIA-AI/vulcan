@@ -9,6 +9,7 @@ import { SubProcess } from './process.ts';
 const removeIfEmpty = (opts: { directory: string }): void => {
   try {
     rmdirSync(opts.directory);
+    // eslint-disable-next-line venizia/no-silent-catch -- a folder that is not empty, or not there, stays as it is
   } catch {
     // not empty, or not there
   }

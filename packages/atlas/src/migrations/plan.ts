@@ -260,6 +260,7 @@ export class MigratePlan {
           });
         });
     const siteUrl = releases.siteUrlOf({ package: opts.package });
+
     const stateStep = (move: IStateMove): IMigrationStep | undefined => {
       const { block } = move.item;
 
@@ -296,6 +297,7 @@ export class MigratePlan {
 
       return step;
     };
+
     const stateSteps = (which: TStepDirection): IMigrationStep[] =>
       read.moves
         .filter((move) => move.direction === which)

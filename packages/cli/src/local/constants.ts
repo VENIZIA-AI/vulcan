@@ -48,6 +48,7 @@ export class LocalConstants {
     'auto-clean.json',
     '.gitkeep',
   ]);
+
   /**
    * Scratch folders a browser leaves directly under the temp folder it was given (`.agents/local` when it is
    * the folder that is short enough for Chrome's socket). They are tmp that sits one level too high.
@@ -61,6 +62,7 @@ export class LocalConstants {
     'coverage',
     '.cache',
   ];
+
   static readonly REBUILDABLE_SUFFIXES = ['.tsbuildinfo'];
   /** The name of a release candidate: a version, with an optional `v`. Any other name in `release-candidates/` is kept. */
   static readonly RELEASE_VERSION = /^v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;

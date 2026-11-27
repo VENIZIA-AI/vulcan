@@ -408,6 +408,7 @@ export class ShellWrites {
           );
         }
       }
+
       for (const word of maker?.hardSources ?? []) {
         targets.push({
           word,

@@ -17,7 +17,6 @@ beforeEach(() => {
   stderr = CapturedStderr.start();
 });
 
-// __dirname, not import.meta: this package emits CommonJS.
 const FIXTURES_ROOT = join(__dirname, '../fixtures/corpus');
 
 const record = (opts: Partial<ISymbolRecord> & { name: string }): ISymbolRecord => ({

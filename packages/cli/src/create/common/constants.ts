@@ -34,6 +34,7 @@ export class CreateConstants {
     '_env',
     '_env.example',
   ];
+
   static readonly STDIN_DESCRIPTOR = 0;
   /** Tests only: set to `1`, every install, git and check command is printed as skipped instead of run. */
   static readonly NO_INSTALL_ENV = EnvVariables.VULCAN_NO_INSTALL;
@@ -43,6 +44,7 @@ export class CreateConstants {
   static readonly GIT_ENV = EnvVariables.VULCAN_GIT;
   static readonly APPS_BLOCK_START =
     '// vulcan:apps:start - written by vulcan project init and add; edit outside this block';
+
   static readonly APPS_BLOCK_END = '// vulcan:apps:end';
 }
 

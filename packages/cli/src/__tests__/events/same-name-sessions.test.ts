@@ -54,6 +54,7 @@ const project = (): string => {
 
   return root;
 };
+
 const log = (root: string): IEvent[] =>
   EventLog.read({ dir: join(root, '.agents/local/events') }).events;
 const hook = (opts: {

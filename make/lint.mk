@@ -1,7 +1,7 @@
 # Lint and format the packages.
 
 # Each package lints itself, from its own .configs/lints/ and with its own tools (its node_modules/.bin); `bun fmt` formats with the root bunfig.toml.
-# oxlint owns the rules, ESLint runs only naming-convention (oxlint has no port yet), bun fmt formats.
+# oxlint owns the rules it has a port of, ESLint runs the house rules (houseConfigs of @venizia/dev-configs), bun fmt formats.
 LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FIX_PKG_TARGETS := $(addprefix lint-fix-,$(PACKAGES))
 TYPECHECK_PKG_TARGETS := $(addprefix typecheck-,$(PACKAGES))

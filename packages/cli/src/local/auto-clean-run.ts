@@ -88,8 +88,8 @@ export class AutoCleanRun {
       }
 
       return false;
+      // eslint-disable-next-line venizia/no-silent-catch -- What cannot be read cannot be judged: it stays
     } catch {
-      // What cannot be read cannot be judged: it stays.
       return true;
     }
   }

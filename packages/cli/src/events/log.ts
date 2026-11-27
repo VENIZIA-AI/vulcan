@@ -291,6 +291,7 @@ export class EventLog {
 
     try {
       value = JSON.parse(opts.line);
+      // eslint-disable-next-line venizia/no-silent-catch -- a line that is not JSON is skipped: the event log reader counts it as no event
     } catch {
       return undefined;
     }
@@ -363,9 +364,9 @@ export class EventLog {
       ts: clean(ts),
       ...(flowId === undefined ? {} : { flowId: clean(flowId) }),
       actor: clean(actor),
-      type: type as TEventType,
+      type,
       summary: text(summary, EventConstants.SUMMARY_MAX),
-      ...(status === undefined ? {} : { status: status as TEventStatus }),
+      ...(status === undefined ? {} : { status }),
       ...(ref === undefined ? {} : { ref: text(ref, EventConstants.REF_MAX) }),
       ...(why === undefined ? {} : { why: text(why, EventConstants.SUMMARY_MAX) }),
       ...(context === undefined ? {} : { context: text(context, EventConstants.CONTEXT_MAX) }),

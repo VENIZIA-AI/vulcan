@@ -1,6 +1,7 @@
 import { Database, SQLiteError } from 'bun:sqlite';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { VulcanError } from '@venizia/vulcan-okf';
 import { EventStoreConstants } from './common/index.ts';
 import type { IEvent, IEventRead } from './common/index.ts';
 import { EventLog } from './log.ts';
@@ -80,10 +81,11 @@ export class EventStore {
       db.run('PRAGMA foreign_keys = ON');
 
       const version = EventStore.versionOf({ db });
+
       if (Math.floor(version / EventStoreConstants.MAJOR_STEP) > EventStoreConstants.MAJOR) {
-        throw new Error(
-          `${opts.file} was written by a newer vulcan (schema ${version}): upgrade @venizia/vulcan here`,
-        );
+        throw VulcanError.of({
+          message: `${opts.file} was written by a newer vulcan (schema ${version}): upgrade @venizia/vulcan here`,
+        });
       }
 
       if (version < EventStoreConstants.VERSION) {

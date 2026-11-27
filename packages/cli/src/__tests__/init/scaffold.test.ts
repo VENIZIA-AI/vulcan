@@ -162,6 +162,7 @@ describe('vulcan project init', () => {
     const ignored = (opts: { root: string; name: string }): boolean =>
       Bun.spawnSync(['git', 'check-ignore', '-q', '--no-index', opts.name], { cwd: opts.root })
         .exitCode === 0;
+
     const initialised = (gitignore: string): { root: string; stderr: string } => {
       const root = createProject({
         files: { '.gitignore': gitignore, 'package.json': STYLED_PACKAGE },

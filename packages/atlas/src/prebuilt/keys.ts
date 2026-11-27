@@ -1,4 +1,5 @@
 import { createPrivateKey, createPublicKey, generateKeyPairSync } from 'node:crypto';
+import { StderrLogger } from '@/common/logger';
 import type { KeyObject } from 'node:crypto';
 import { PrebuiltConstants } from './constants';
 
@@ -34,7 +35,12 @@ export class PrebuiltKeys {
         format: 'der',
         type: 'spki',
       });
-    } catch {
+    } catch (error) {
+      StderrLogger.get('PrebuiltKeys.publicKeyOf').debug(
+        'not a valid public key | error: %s',
+        error,
+      );
+
       return undefined;
     }
   }

@@ -84,6 +84,7 @@ export class ConfigLayers {
   } {
     const layers: IConfigLayer[] = [];
     const problems: IShippedProblem[] = [];
+
     const read = (given: { name: string; file: string; load: () => unknown }): void => {
       try {
         const value = given.load();

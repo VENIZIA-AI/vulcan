@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+import { VulcanError } from '@venizia/vulcan-okf';
+import { StderrLogger } from '@/common/logger';
 import { AtlasCommands, AtlasConstants } from '../common';
 import { InteractiveRun, ModeArguments, ModeUsageError, SourceArguments } from './index';
 import { AtlasStatus } from './status';
@@ -48,11 +50,11 @@ const readSubcommand = (opts: { argv: string[] }): string => {
 /** The version atlas reports: its own package.json's. A package.json without one is an invalid manifest. */
 const packageVersion = (): string => {
   const version = ModeArguments.readPackageVersion({
-    directory: ModeArguments.findPackageDirectory({ startDirectory: __dirname }),
+    directory: ModeArguments.findPackageDirectory({ startDirectory: import.meta.dir }),
   });
 
   if (version === undefined) {
-    throw new Error('its package.json declares no version');
+    throw VulcanError.of({ message: 'its package.json declares no version' });
   }
 
   return version;
@@ -382,7 +384,12 @@ const main = async (): Promise<void> => {
           process.exit(2);
         }
       })
-      .catch(() => undefined);
+      .catch((error: unknown) => {
+        StderrLogger.get('main').error(
+          'the check for a server with nothing to serve failed | error: %s',
+          error,
+        );
+      });
   }
 
   await server.run();

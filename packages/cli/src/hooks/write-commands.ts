@@ -307,6 +307,7 @@ export class WriteCommands {
 
       if (attached !== '') {
         values.push(attached);
+
         return;
       }
 

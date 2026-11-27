@@ -280,11 +280,15 @@ describe('vulcan board serve', () => {
 
       const result2 = await child.exited;
       expect(result2).toBe(0);
-      const result3 = await fetch(fallback ?? url).then(
-        () => true,
-        () => false,
-      );
-      expect(result3).toBe(false);
+      let failure: unknown;
+
+      try {
+        await fetch(fallback ?? url);
+      } catch (error) {
+        failure = error;
+      }
+
+      expect(failure).toBeDefined();
     },
   );
 });

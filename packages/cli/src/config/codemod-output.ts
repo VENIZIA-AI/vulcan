@@ -439,7 +439,9 @@ export class CodemodOutputBuilder {
 
     changes.unshift({
       path: CodemodConstants.CONFIG_PATH,
-      text: `${header === '' ? '' : `${header}\n`}import type { VulcanConfigType } from '@venizia/vulcan';\nimport { ${written.join(', ')} } from './vulcan/index.mts';\n\n${above === '' ? '' : `${above}\n`}export default { ${ConfigKeyOrder.GROUPS.filter((group) => written.includes(group)).join(', ')} } satisfies VulcanConfigType;\n`,
+      text: ConfigTypeRewriter.wrapExport({
+        text: `${header === '' ? '' : `${header}\n`}import type { VulcanConfigType } from '@venizia/vulcan';\nimport { ${written.join(', ')} } from './vulcan/index.mts';\n\n${above === '' ? '' : `${above}\n`}export default { ${ConfigKeyOrder.GROUPS.filter((group) => written.includes(group)).join(', ')} } satisfies VulcanConfigType;\n`,
+      }),
     });
     changes.push({
       path: `${CodemodConstants.MODULES_DIRECTORY}/index.mts`,

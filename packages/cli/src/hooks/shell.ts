@@ -29,6 +29,7 @@ export class ShellUnread {
   /** The line is over `ShellBudget`, or nests past the depth limit. */
   static readonly OVER_BUDGET =
     'this command line is larger, or nests deeper, than the guard reads, so it could not be checked';
+
   /** The scanner could not follow part of the line to its end. */
   static readonly UNCERTAIN =
     'this command line has a quote, substitution or heredoc that does not close, or a form the guard does not follow, so it could not be checked';
@@ -125,6 +126,7 @@ export class ShellParser {
     const groups: string[] = [];
     const scopeOf = (): string =>
       `${base}${groups.filter((group) => group !== CASE_GROUP).join('')}`;
+
     const nest = (nested: { texts: string[] }): void => {
       for (const nestedText of nested.texts) {
         nestedTexts.push({ text: nestedText, scope: scopeOf(), carrier: current });
@@ -508,6 +510,7 @@ export class ShellParser {
   }): ISimpleCommand[] {
     try {
       return ShellParser.parseWithBudget(opts);
+      // eslint-disable-next-line venizia/no-silent-catch -- a parse that throws (a stack or memory limit) marks the budget over, which the caller turns into an ask: the error is the signal, not a message
     } catch {
       opts.budget.isOver = true;
 

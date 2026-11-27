@@ -32,6 +32,7 @@ const project = (opts: { autoStart?: boolean; log?: boolean }): string =>
       'node_modules/.bin/vulcan': FAKE,
     },
   });
+
 const waitFor = async (file: string): Promise<boolean> => {
   for (let at = 0; at < 100; at += 1) {
     if (existsSync(file)) {
@@ -43,6 +44,7 @@ const waitFor = async (file: string): Promise<boolean> => {
 
   return false;
 };
+
 const freePort = (): number => {
   const server = Bun.listen({ hostname: '127.0.0.1', port: 0, socket: { data() {} } });
   const { port } = server;
@@ -51,6 +53,7 @@ const freePort = (): number => {
 
   return port;
 };
+
 const answering = (opts: { headers?: Record<string, string> }) =>
   Bun.serve({
     hostname: '127.0.0.1',

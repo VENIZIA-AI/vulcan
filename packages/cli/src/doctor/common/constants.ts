@@ -83,6 +83,7 @@ export class PrivateValueScan {
   /** An address standing on its own: no letter, digit, `_`, `.`, `-` or `,` touches it, so numbers of SVG path data and versions are not one. */
   static readonly IPV4 =
     /(?<![\w.,-])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\w.,-])/g;
+
   /** Loopback, any, broadcast and the three documentation ranges: no machine is named. */
   static readonly ALLOWED_IPV4 = [
     /^127\./,
@@ -92,8 +93,10 @@ export class PrivateValueScan {
     /^198\.51\.100\./,
     /^203\.0\.113\./,
   ];
+
   static readonly MACHINE_PATH =
     /\/home\/[a-z_][\w.-]*\/|\/Users\/[A-Za-z_][\w.-]*\/|[A-Za-z]:\\Users\\[\w.-]+\\/g;
+
   /** Lockfiles, diagrams, snapshots, tests and fixtures hold hashes and fake values on purpose. */
   static readonly SKIPPED_PATHS = [
     /(^|\/)(bun\.lock|package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$/,
@@ -101,6 +104,7 @@ export class PrivateValueScan {
     /(^|\/)(__tests__|fixtures|golden)\//,
     /\.test\.[^/]*$/,
   ];
+
   static readonly MAX_BYTES = 1_000_000;
 }
 
@@ -109,6 +113,7 @@ export class DoctorConstants {
   static readonly CHANGELOG_FOLDERS_FROM = '0.4.10-16';
   static readonly MAKE_INCLUDE_PATTERN =
     /^-?include\s+\S*@venizia\/vulcan\/base\/make\/vulcan\.mk\s*$/m;
+
   /** The `[fmt]` table header of a `bunfig.toml`, on a line of its own, a trailing comment allowed. */
   static readonly BUNFIG_FMT_SECTION = /^\s*\[fmt\]\s*(#.*)?$/m;
   static readonly BUNFIG_FMT_FLAVOR = /^\s*flavor\s*=\s*["']oxfmt["']/m;

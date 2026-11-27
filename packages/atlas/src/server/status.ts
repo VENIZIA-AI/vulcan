@@ -15,11 +15,30 @@ import { SourcePins } from '@/common/constants';
 import { InstalledPackages } from '@/sources/installed';
 import { SourceResolver } from '@/sources/resolver';
 import type { IAtlasSource, IResolvedSource } from '@/sources/common';
+import type { TConstValue } from '@/common/types';
+
+/** The state of one source in the record. */
+export class SourceRecordStates {
+  static readonly BUILDING = 'building';
+  static readonly READY = 'ready';
+  static readonly FAILED = 'failed';
+}
+
+/** What a warning about one source of the record says. */
+export class SourceProblemTypes {
+  static readonly FAILED = 'failed';
+  static readonly REFRESH_FAILED = 'refresh-failed';
+  static readonly HUNG = 'hung';
+  static readonly ABANDONED = 'abandoned';
+}
+
+export type TSourceRecordState = TConstValue<typeof SourceRecordStates>;
+export type TSourceProblemType = TConstValue<typeof SourceProblemTypes>;
 
 /** What the last server run recorded about one source. */
 export interface ISourceRecord {
   /** `building` while a child indexes it, `ready` once it is served, `failed` with the reason. */
-  state: 'building' | 'ready' | 'failed';
+  state: TSourceRecordState;
   /** When the state began, milliseconds since the epoch. */
   since: number;
   /** The server process that began the build: a `building` record whose process is gone was left by a closed session. */
@@ -36,7 +55,7 @@ export interface ISourceRecord {
 export interface ISourceProblem {
   source: string;
   /** `failed`: never served; `refresh-failed`: served from an older index, the last check failed; `hung`: building too long by a live server; `abandoned`: building, but the server that began it is gone. */
-  type: 'failed' | 'refresh-failed' | 'hung' | 'abandoned';
+  type: TSourceProblemType;
   detail: string;
 }
 
@@ -56,7 +75,7 @@ const isAlive = (opts: { pid: number }): boolean => {
 
     return true;
   } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM';
+    return error instanceof Error && 'code' in error && error.code === 'EPERM';
   }
 };
 

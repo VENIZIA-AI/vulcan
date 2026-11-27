@@ -163,6 +163,7 @@ describe('vulcan project sync and the event hooks', () => {
         root: (() => {
           const root = projectWith({});
           sync({ root });
+
           return root;
         })(),
       }),
@@ -199,6 +200,7 @@ describe('vulcan project sync and the event hooks', () => {
 
 describe('the hook stays light', () => {
   const transpiler = new Bun.Transpiler({ loader: 'ts' });
+
   const reached = (opts: { entry: string }) => {
     const files = new Set<string>();
     const packages = new Set<string>();

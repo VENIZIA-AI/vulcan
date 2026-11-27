@@ -230,6 +230,7 @@ describe('Preset.locate shared kind', () => {
         ...opts.files,
       },
     });
+
   const locateSource = (opts: { source: string }): ILocatedPreset => {
     const result = Preset.locate({ spec: { range: `file:${opts.source}` }, root: '/unused' });
 

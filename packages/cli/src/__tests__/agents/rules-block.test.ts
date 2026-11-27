@@ -96,9 +96,11 @@ describe('RulesBlock.render', () => {
     );
     expect(block.trimEnd().endsWith('<!-- vulcan:rules:end -->')).toBe(true);
     expect(block).toContain('- V-W-01: this project: `on-user-word`');
+
     for (const id of ['V-W-02', 'V-W-03', 'V-W-06', 'V-P-07', 'V-B-03']) {
       expect(block, id).toContain(`- ${id}: `);
     }
+
     expect(block).toContain('go in `.agents/tmp`, never /tmp');
     expect(block).toContain('export TMPDIR="$PWD/.agents/tmp"');
   });

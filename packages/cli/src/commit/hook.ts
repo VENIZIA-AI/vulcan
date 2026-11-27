@@ -1,5 +1,6 @@
 import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { VulcanError } from '@venizia/vulcan-okf';
 import type { TVulcanConfigOutput } from '../config/index.ts';
 import type { ISyncAction } from '../sync/common/index.ts';
 import { SyncStatuses } from '../sync/common/index.ts';
@@ -33,6 +34,7 @@ const git = (opts: { root: string; args: string[] }): string | undefined => {
     });
 
     return result.exitCode === 0 ? result.stdout.toString().trim() : undefined;
+    // eslint-disable-next-line venizia/no-silent-catch -- no git, or not a repository: undefined is the answer the callers handle
   } catch {
     return undefined;
   }
@@ -53,7 +55,7 @@ export class CommitHook {
    */
   static template(opts: { prefix: string }): string {
     if (!CommitHook.isWritable({ prefix: opts.prefix })) {
-      throw new Error(CommitHook.REFUSAL);
+      throw VulcanError.of({ message: CommitHook.REFUSAL });
     }
 
     const folder = CommitHook.folderOf({ prefix: opts.prefix });

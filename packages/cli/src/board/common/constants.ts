@@ -84,6 +84,7 @@ export class BoardServe {
   /** A `board.hostname` must be one the browser resolves itself: a name that only resolves to loopback through DNS is what a rebinding page uses. */
   static readonly HOSTNAME =
     /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.localhost$/;
+
   static readonly DEFAULT_PORT = 4317;
   /** Every refusal of the server carries this header, so a probe can tell a VULCAN board from another listener without a token. */
   static readonly IDENTITY_HEADER = 'x-vulcan-board';
@@ -163,6 +164,7 @@ export class BoardConstants {
   /** A bare host name with an optional port: no scheme, path or credentials, so it can never carry a token elsewhere. */
   static readonly GITLAB_HOST =
     /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*(?::\d{1,5})?$/;
+
   /** How many pipelines have their jobs read. */
   static readonly GITLAB_JOB_PIPELINES = 10;
   /** A `needs-owner` line whose whole summary is one of these is the harness waiting, not a person asking. */
@@ -171,6 +173,7 @@ export class BoardConstants {
     'permission_prompt',
     'elicitation_dialog',
   ]);
+
   /** Kinds that mean someone did work on the flow, for the holder. */
   static readonly WORK_KINDS = [
     BoardKinds.ASSIGN,
@@ -180,6 +183,7 @@ export class BoardConstants {
     BoardKinds.FIX,
     BoardKinds.NOTE,
   ];
+
   /** A later line of one of these kinds answers an ask when no decision does. */
   static readonly PROGRESS_KINDS = [
     BoardKinds.COMMIT,
@@ -189,4 +193,26 @@ export class BoardConstants {
     BoardKinds.RELEASE,
     BoardKinds.HANDOFF,
   ];
+}
+
+/** What the automatic start of the board did. */
+export class AutoStartOutcomes {
+  static readonly OFF = 'off';
+  static readonly RUNNING = 'running';
+  static readonly STARTED = 'started';
+  static readonly FOREIGN = 'foreign';
+  static readonly FAILED = 'failed';
+}
+
+/** The owner's answer to a flow, as the page says it. */
+export class BoardDecisionChoices {
+  static readonly APPROVE = 'approve';
+  static readonly LATER = 'later';
+  static readonly REJECT = 'reject';
+}
+
+/** Whether an agent is at work. */
+export class BoardAgentStates {
+  static readonly WORKING = 'working';
+  static readonly IDLE = 'idle';
 }

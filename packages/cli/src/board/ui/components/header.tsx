@@ -1,12 +1,11 @@
 import { useRef, useState } from 'react';
 import { usePopover } from '../app/hooks.ts';
-import type { TLiveState } from '../app/hooks.ts';
+import type { TLiveState, TTheme } from '../common/types.ts';
 import { useT } from '../i18n/context.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardUrl } from '../app/url.ts';
 import { ICONS, THEME_ICONS } from './icons.tsx';
 
-export type TTheme = 'light' | 'dark' | 'system';
 export const THEMES: TTheme[] = ['light', 'dark', 'system'];
 const THEME_NAMES: Record<TTheme, string> = { light: 'sáng', dark: 'tối', system: 'theo máy' };
 
@@ -36,10 +35,12 @@ export const Header = (props: IHeaderProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const moreButton = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLSpanElement>(null);
+
   const closeMenu = (): void => {
     setMenuOpen(false);
     moreButton.current?.focus();
   };
+
   const choose = (action: () => void) => (): void => {
     action();
 

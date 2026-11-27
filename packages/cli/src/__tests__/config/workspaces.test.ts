@@ -10,6 +10,7 @@ afterAll(removeProjects);
 
 const manifest = (name: string | undefined, extra: object = {}): string =>
   JSON.stringify({ ...(name === undefined ? {} : { name }), ...extra });
+
 const monorepo = (
   opts: {
     workspaces?: unknown;
@@ -40,11 +41,13 @@ const monorepo = (
 
 const git = (opts: { cwd: string; args: string[] }) =>
   Bun.spawnSync(['git', ...opts.args], { cwd: opts.cwd, stdout: 'pipe', stderr: 'pipe' });
+
 const repository = (root: string): void => {
   git({ cwd: root, args: ['init', '-q', '-b', 'develop'] });
   git({ cwd: root, args: ['config', 'user.email', 'a@example.com'] });
   git({ cwd: root, args: ['config', 'user.name', 'a'] });
 };
+
 const names = (root: string): string[] =>
   WorkspacePackages.derive({ root }).packages.map((entry) => entry.name);
 

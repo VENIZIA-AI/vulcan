@@ -76,6 +76,7 @@ describe('the folder history of a source pinned to an older tag', () => {
       },
     });
   };
+
   const namesOf = (opts: { refProject?: ReturnType<typeof projectWith> }): string[] => {
     const project = projectWith({ folders: ['0.4.8'] });
     const store = ServedReleases.storeOf({

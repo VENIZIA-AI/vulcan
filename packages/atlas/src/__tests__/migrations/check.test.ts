@@ -425,6 +425,7 @@ describe('ChangelogCheck.run', () => {
       migrationFrom: '2026-11-13',
     });
     const lines: string[] = [];
+
     const write = (text: string): void => {
       lines.push(text);
     };
@@ -482,6 +483,7 @@ else process.exit(2);
         release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
       },
     });
+
     const run = (): { code: number; output: string; ran: boolean } => {
       const lines: string[] = [];
       const code = ChangelogCheck.run({ project, write: (text) => lines.push(text) });

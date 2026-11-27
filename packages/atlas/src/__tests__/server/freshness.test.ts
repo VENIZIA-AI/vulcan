@@ -26,8 +26,6 @@ beforeEach(() => {
   stderr = CapturedStderr.start();
 });
 
-// __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
-// __tests__, and this package's module mode treats every file as CommonJS output.
 const REPOSITORY_ROOT = IGNIS_ROOT;
 const FIXTURES = join(__dirname, '../fixtures/corpus');
 const FRESHNESS_MARKER = 'zzzfreshnessmarkerzzz';

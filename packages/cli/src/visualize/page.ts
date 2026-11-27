@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { VulcanError } from '@venizia/vulcan-okf';
 import { Assets, HEAD_JS, PAGE_JS } from './assets.ts';
 import type { TChrome } from './constants.ts';
 import { IconSet } from './icons.ts';
@@ -85,7 +86,7 @@ const stateOf = (opts: {
   const state = BANNER_STATE[spec.status.state] ?? 'info';
   const word =
     spec.status.label ??
-    chrome.statusStates[spec.status.state as keyof TChrome['statusStates']] ??
+    Labels.wordOf({ words: chrome.statusStates, key: spec.status.state }) ??
     spec.status.state;
 
   return { state, word };
@@ -140,9 +141,9 @@ const DEFAULT_THEME = ((): IResolvedTheme => {
   const resolved = ProjectTheme.resolve({});
 
   if (!resolved.ok) {
-    throw new Error(
-      `the default theme does not pass its own checks: ${resolved.problems.join('; ')}`,
-    );
+    throw VulcanError.of({
+      message: `the default theme does not pass its own checks: ${resolved.problems.join('; ')}`,
+    });
   }
 
   return resolved.theme;

@@ -1,7 +1,15 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { GuardDecisions, ShellModes } from './constants.ts';
+import type {
+  GuardDecisions,
+  LinkPassages,
+  ProtectedModes,
+  ShellModes,
+  WriteRules,
+} from './constants.ts';
 
 export type TGuardDecision = TConstValue<typeof GuardDecisions>;
+export type TWriteRule = TConstValue<typeof WriteRules>;
+export type TLinkPassage = TConstValue<typeof LinkPassages>;
 
 export interface IWriteCheck {
   rule: string;
@@ -152,8 +160,7 @@ export interface IHeredoc {
 
 export type TEnvironment = Record<string, string | undefined>;
 
-/** What a write to a path is judged against: the file itself, a folder removed with what it holds, or a folder written into with names not known. */
-export type TProtectedMode = 'file' | 'removal' | 'folder' | 'put';
+export type TProtectedMode = TConstValue<typeof ProtectedModes>;
 
 /** A path a command writes, and the folder it is taken from. */
 export interface IWriteTarget {
@@ -210,7 +217,7 @@ export interface IOptionValues {
 
 /** One row of the table: a program, with its aliases, and what it is called with that writes. */
 export interface IWriteCommandRow {
-  rule: 'V-W-02' | 'V-W-03';
+  rule: TWriteRule;
   what: string;
   /** The names it is run by. None: the pattern stands alone (`db:migrate` in any command). */
   programs: readonly string[];

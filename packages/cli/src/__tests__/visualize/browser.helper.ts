@@ -153,6 +153,7 @@ export class BrowserPage {
 
             return connected;
           }
+          // eslint-disable-next-line venizia/no-silent-catch -- Still starting
         } catch {
           // Still starting.
         }
@@ -355,6 +356,7 @@ export class BrowserPage {
       return dirname(folder) === resolvePath(opts.short) && SCRATCH_FOLDER.test(basename(folder))
         ? folder
         : undefined;
+      // eslint-disable-next-line venizia/no-silent-catch -- a folder that cannot be resolved is no scratch folder of this run
     } catch {
       return undefined;
     }

@@ -48,6 +48,7 @@ export class ConfigConstants {
     'vulcan/check.mts',
     'vulcan/common.mts',
   ];
+
   static readonly DEFAULT_KNOWLEDGE_BUNDLE = '.agents/knowledge';
   static readonly RULE_ID_PATTERN = /^(?:[A-Z]+-)?[A-Z]-\d{2}$/;
   /**
@@ -117,6 +118,7 @@ export class ConfigKeyOrder {
     'local',
     'theme',
   ];
+
   static readonly LAST = 'remove';
 
   /** Where a key goes: its index in `KEYS`, after them when it is not listed, and `remove` last. */
@@ -198,6 +200,9 @@ export class ConfigKeyOrder {
 
 /** Where the codemod `config-groups` reads and writes, and the columns it indents to. */
 export class CodemodConstants {
+  /** The line width the formatter of the shared configs keeps. */
+  static readonly LINE_WIDTH = 100;
+
   static readonly CONFIG_PATH = `${ConfigConstants.DIRECTORY}/${ConfigConstants.FILE}`;
   static readonly MODULES_DIRECTORY = `${ConfigConstants.DIRECTORY}/vulcan`;
   /** The modules a split writes (the groups and the earlier names), which can hold a part of the config whether it imports them or not. */
@@ -212,8 +217,15 @@ export class CodemodConstants {
     'packages',
     'index',
   ].map((name) => `${this.MODULES_DIRECTORY}/${name}.mts`);
+
   /** Where the properties sit in a group (inside `group: {`) and in a group module (inside `export const group = {`). */
   static readonly GROUP_COLUMN = 4;
   static readonly MODULE_COLUMN = 2;
   static readonly TOP_COLUMN = 2;
+}
+
+/** The two forms of a config path: the flat one the readers use, and the grouped one of the file. */
+export class ConfigForms {
+  static readonly FLAT = 'flat';
+  static readonly GROUPED = 'grouped';
 }

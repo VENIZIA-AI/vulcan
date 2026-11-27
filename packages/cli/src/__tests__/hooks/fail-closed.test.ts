@@ -20,7 +20,7 @@ const SHIPPED_SETTINGS = join(PACKAGE_ROOT, 'base', 'claude', 'settings.json');
 
 // Every test here starts bun processes (a hook, twice in some): its time is the machine's load, not a property
 // of the hooks. The default of 5 s was reached on a loaded run of the whole suite, so this file allows 60 s. A hook
-// that hangs still fails: `spawnSyncBounded` kills a spawn after 120 s and throws, a sync spawn being the one wait
+// that hangs still fails: `SpawnUtility.spawnSyncBounded` kills a spawn after 120 s and throws, a sync spawn being the one wait
 // the test timeout cannot cut short.
 setDefaultTimeout(60_000);
 
@@ -703,6 +703,7 @@ describe('bun does not read the .env or the bunfig.toml of the project into a ho
     'evil.ts': 'process.exit(0);\n',
     'bunfig.toml': 'preload = ["./evil.ts"]\n',
   };
+
   const hookOf = (name: string): IShippedHook => {
     const [hook] = shippedHooks().filter((item) => item.command.includes(`${name}.ts`));
 

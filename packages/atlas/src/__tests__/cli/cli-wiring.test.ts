@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// __dirname, not import.meta: this package emits CommonJS.
 const SOURCE = readFileSync(join(__dirname, '..', '..', 'cli', 'main.ts'), 'utf8');
 
 /** The body of one subcommand's branch in the entry file, up to the next `}` at its indent. */

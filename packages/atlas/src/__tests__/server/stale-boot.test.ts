@@ -57,6 +57,7 @@ const gate = <T>() => {
 
   return { promise, release };
 };
+
 const declared = (names: string[]): IAtlasSource[] =>
   names.map((name) => ({ name, repo: `file:///none/${name}.git`, ref: 'develop' }));
 const memoryOf = (opts: {
@@ -505,6 +506,7 @@ describe('a server that starts with a recorded source', () => {
     const held = gate<IResolvedSource>();
     const boot = new SourceBoot({ sources: [source], memory, indexer: () => held.promise });
     const server = SourcesServer.build({ sources: resolved, cwd, version: '0.0.0', boot });
+
     const ask = async () => {
       const line = await server.handleLine({
         line: JSON.stringify({
@@ -517,6 +519,7 @@ describe('a server that starts with a recorded source', () => {
 
       return JSON.parse(JSON.parse(line ?? 'null').result.content[0].text);
     };
+
     const first = await ask();
     const from = (answer: { hits: { source: string }[] }) =>
       answer.hits.filter((hit) => hit.source === 'src').length;
@@ -568,6 +571,7 @@ describe('the refresher and a source whose child is still building', () => {
         },
       },
     });
+
     const poke = async (): Promise<void> => {
       clock += 100;
       await server.handleLine({

@@ -175,6 +175,7 @@ export class ShellFolders {
    */
   private static loopNamesOf(opts: { commands: ISimpleCommand[] }): Map<string, number> {
     const counts = new Map<string, number>();
+
     const bump = (name: string): void => {
       counts.set(name, (counts.get(name) ?? 0) + 1);
     };
@@ -287,6 +288,7 @@ export class ShellFolders {
       );
     // The folder each command started in, for the command lines its words carry.
     const started = new Map<ISimpleCommand, IShellFolder>();
+
     const stateOf = (scope: string, carrier: ISimpleCommand | undefined): IFolderState => {
       const known = states.get(scope);
 
@@ -433,6 +435,7 @@ export class ShellFolders {
           }
         }
       }
+
       const program = ShellPrograms.programOf({ command });
       const name = ShellPrograms.basenameOf({ word: program.name });
 

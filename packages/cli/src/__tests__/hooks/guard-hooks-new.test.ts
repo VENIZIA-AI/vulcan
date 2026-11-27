@@ -32,6 +32,7 @@ const runHook = async (opts: {
   const stdout = await stdoutResponse.text();
 
   const result = await child.exited;
+
   return { code: result, stdout: stdout.trim() };
 };
 
@@ -495,8 +496,10 @@ describe('the kill switch does not depend on the install being healthy', () => {
         const stdout = await stdoutResponse.text();
 
         const result = await child.exited;
+
         return { code: result, stderr, stdout };
       };
+
       const failing = await run({});
       const off = await run({ VULCAN_GUARDS: 'off' });
 

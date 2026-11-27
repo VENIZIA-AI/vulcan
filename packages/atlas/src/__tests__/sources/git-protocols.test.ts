@@ -171,10 +171,13 @@ describe('a source that names an http:// or git:// URL', () => {
     ['git://127.0.0.1:1/acme/src.git', 'git://'],
     ['ext::sh -c "id"', 'remote-helper'],
   ])('%p is refused, naming the source and saying to use https or ssh', async (repo, word) => {
-    const failure = await resolveSource({ repo }).then(
-      () => '',
-      (error: unknown) => (error instanceof Error ? error.message : String(error)),
-    );
+    let failure = '';
+
+    try {
+      await resolveSource({ repo });
+    } catch (error) {
+      failure = error instanceof Error ? error.message : String(error);
+    }
 
     expect(failure).toContain("source 'src'");
     expect(failure).toContain(word);

@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Resolve } from '@/changelogs/resolve';
 import { SkillSources } from '@/common/constants';
+import { StderrLogger } from '@/common/logger';
 import type { TSkillSource } from '@/common/types';
 
 const SKILL_FILE = 'SKILL.md';
@@ -28,7 +29,12 @@ const descriptionOf = (opts: { directory: string; name: string }): string => {
     ).data;
 
     return typeof description === 'string' ? description : '';
-  } catch {
+  } catch (error) {
+    StderrLogger.get('descriptionOf').debug(
+      'a skill whose description cannot be read | error: %s',
+      error,
+    );
+
     return '';
   }
 };
@@ -38,6 +44,7 @@ export class SkillCatalog {
   static triggerOf(opts: { description: string }): { text: string; hasUseWhen: boolean } {
     const description = opts.description.trim().replace(/\s+/g, ' ');
     const found = USE_WHEN.exec(description);
+
     const sentenceOf = (text: string): string => {
       const end = text.search(/\.(\s|$)/);
 

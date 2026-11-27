@@ -167,11 +167,13 @@ export class CloneChecks {
     }
 
     const scripts: unknown = manifest['scripts'];
+
     const scriptOf = (name: string): string | undefined => {
       const script = RecordValue.isRecord(scripts) ? scripts[name] : undefined;
 
       return typeof script === 'string' ? script : undefined;
     };
+
     const names = ['prepare', 'postinstall'];
     const isCurrent = (script: string | undefined): boolean =>
       script !== undefined &&

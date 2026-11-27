@@ -195,6 +195,7 @@ describe.skipIf(!hasBrowser)(
       '<script type="application/json"',
       '<script>window.__errs=[];addEventListener("error",(e)=>__errs.push(e.message))</script><script type="application/json"',
     );
+
     const run = async (dark: boolean): Promise<IResult> => {
       const raw = await BrowserPage.measure<string>({
         html,

@@ -245,6 +245,7 @@ describe('vulcan event add', () => {
 
 describe('vulcan event tail', () => {
   const NOW = Date.now();
+
   const seed = (): string => {
     const root = project();
     const dir = join(root, '.agents/local/events');

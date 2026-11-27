@@ -42,6 +42,7 @@ export class BoardLogo {
       return /<svg[\s>]/i.test(svg.toString('utf8', 0, 2000))
         ? `data:image/svg+xml;base64,${svg.toString('base64')}`
         : undefined;
+      // eslint-disable-next-line venizia/no-silent-catch -- a logo that cannot be read is no logo: the board shows its own mark
     } catch {
       return undefined;
     }

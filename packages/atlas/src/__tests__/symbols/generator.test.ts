@@ -89,9 +89,11 @@ describe('runSymbolsCommand', () => {
         "usage: vulcan atlas symbols (no subcommand: 'gen' is not one)",
       );
       error.mockClear();
+
       // A flag gets past the argument check: whatever happens next is not the usage.
       try {
         runSymbolsCommand({ command: '--help' });
+        // eslint-disable-next-line venizia/no-silent-catch -- the real command reads the project; only the usage line matters here
       } catch {
         // The real command reads the project; only the usage line matters here.
       }

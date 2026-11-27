@@ -21,6 +21,7 @@ export class CompareChecks {
   }): string[] {
     const { from, to, cells } = opts;
     const crossed: ICell[] = [];
+
     const between = (start: number, end: number): number[] => {
       const sign = end > start ? 1 : -1;
       const found: number[] = [];

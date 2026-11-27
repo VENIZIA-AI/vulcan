@@ -199,6 +199,7 @@ export class LifecycleBuilder {
 
       return LifecycleBuilder.portOffset({ index });
     };
+
     const drawn = routes.map((route): { line: string; text: string } => {
       const a = places.get(route.from);
       const b = places.get(route.to);

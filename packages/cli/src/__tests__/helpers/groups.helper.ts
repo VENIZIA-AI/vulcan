@@ -6,6 +6,7 @@ const RecordLike = (value: unknown): value is Record<string, unknown> =>
 /** A flat config object (what the schema parses) as the grouped file a project writes: for a test that needs both. */
 export const groupsOf = (opts: { flat: Record<string, unknown> }): Record<string, unknown> => {
   const out: Record<string, Record<string, unknown>> = {};
+
   const put = (group: string, key: string | undefined, value: unknown): void => {
     out[group] = { ...out[group], ...(key === undefined ? (value as object) : { [key]: value }) };
   };

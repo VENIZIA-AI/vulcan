@@ -16,6 +16,7 @@ const html = BoardPage.render({ data }).replace(
   '<script>window.__errs=[];addEventListener("error",(e)=>__errs.push(e.message))</script><script type="application/json"',
 );
 const WAIT = 'const wait = () => new Promise((resolve) => setTimeout(resolve, 80));';
+
 const run = async <TResult>(opts: { expression: string; width?: number }): Promise<TResult> => {
   const raw = await BrowserPage.measure<string>({
     html,

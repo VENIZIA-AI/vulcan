@@ -1,9 +1,10 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { EventTypes, EventStatuses, GitActivities } from './constants.ts';
+import type { EventTypes, EventStatuses, GitActivities, TranscriptSides } from './constants.ts';
 
 export type TEventType = TConstValue<typeof EventTypes>;
 export type TEventStatus = TConstValue<typeof EventStatuses>;
 export type TGitActivity = TConstValue<typeof GitActivities>;
+export type TTranscriptSide = TConstValue<typeof TranscriptSides>;
 
 /** Whether the board would show a flow as over (Done or Parked): `FlowState.isOver`, given to the hooks that need it. */
 export type TIsOver = (opts: { events: IEvent[]; flowId: string; key?: string }) => boolean;

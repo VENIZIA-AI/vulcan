@@ -141,6 +141,7 @@ describe('a remote source keeps up with its ref while the server runs', () => {
       version: '0.0.0',
       refresh: { intervalMs: 20 },
     });
+
     const total = async () => {
       const answer = await call({ transport, name: 'search', args: { query: 'bellows' } });
 
@@ -260,7 +261,9 @@ describe('Refresher', () => {
   test('a poke inside the interval does nothing; after it, one refresh runs; a second poke while it runs is ignored', async () => {
     let now = 0;
     let runs = 0;
+
     let release: () => void = () => {};
+
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });

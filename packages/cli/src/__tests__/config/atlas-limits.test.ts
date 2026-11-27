@@ -9,11 +9,13 @@ const MIB = 1024 * 1024;
 const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
 
 const parse = (atlas: unknown) => VulcanConfigSchema.safeParse({ atlas });
+
 const messagesOf = (atlas: unknown): string => {
   const result = parse(atlas);
 
   return result.success ? '' : result.error.issues.map((issue) => issue.message).join('\n');
 };
+
 const render = (atlas: object): { atlas?: Record<string, unknown> } =>
   JSON.parse(ProjectManifest.render({ root, config: VulcanConfigSchema.parse({ atlas }) }));
 

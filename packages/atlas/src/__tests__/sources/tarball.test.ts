@@ -163,6 +163,7 @@ describe('a source without git on the machine', () => {
         cwd: resolved.root,
         version: '0.0.0',
       });
+
       const call = async (opts: { name: string; arguments: object }) => {
         const line = await server.handleLine({
           line: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: opts }),
@@ -170,6 +171,7 @@ describe('a source without git on the machine', () => {
 
         return JSON.parse(line ?? 'null');
       };
+
       const version = await call({ name: 'version', arguments: {} });
       const byPackage = await call({ name: 'changes', arguments: { package: '@x/kernel' } });
       const byDate = await call({ name: 'changes', arguments: { to: '2026-01-01' } });
@@ -223,14 +225,17 @@ describe('a source without git on the machine', () => {
       expect(github.seen.length).toBeGreaterThan(1);
       expect(github.seen.every((request) => carries(request.authorization))).toBe(true);
 
-      const failure = await SourceResolver.resolve({
-        cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
-        cacheDir,
-        sources: [{ name: 'missing', repo: 'acme/missing', ref: 'develop' }],
-      }).then(
-        () => undefined,
-        (error: unknown) => String(error),
-      );
+      let failure: string | undefined;
+
+      try {
+        await SourceResolver.resolve({
+          cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+          cacheDir,
+          sources: [{ name: 'missing', repo: 'acme/missing', ref: 'develop' }],
+        });
+      } catch (error) {
+        failure = String(error);
+      }
 
       expect(failure).toContain("source 'missing'");
       expect(failure).not.toContain('ghs_secret_value');
@@ -285,14 +290,17 @@ describe('a source without git on the machine', () => {
       const started = Date.now();
 
       try {
-        const failure = await SourceResolver.resolve({
-          cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
-          cacheDir,
-          sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],
-        }).then(
-          () => undefined,
-          (error: unknown) => String(error),
-        );
+        let failure: string | undefined;
+
+        try {
+          await SourceResolver.resolve({
+            cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+            cacheDir,
+            sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],
+          });
+        } catch (error) {
+          failure = String(error);
+        }
 
         expect(failure).toContain('is unreachable and has no cache');
         // The ref lookup's bound (10 s), and room around it.

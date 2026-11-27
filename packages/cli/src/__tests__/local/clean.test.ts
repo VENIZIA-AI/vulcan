@@ -632,9 +632,11 @@ describe('doctor and what an agent left behind', () => {
 
 describe("the layout: on-demand folders, release candidates, events and a browser's scratch folders", () => {
   const HOUR = 60 * 60 * 1000;
+
   const tagged = (opts: { root: string; version: string }): void => {
     git({ cwd: opts.root, args: ['tag', `v${opts.version}`] });
   };
+
   const old = (opts: { root: string; path: string; hours: number }): void => {
     const target = join(opts.root, '.agents/local', opts.path);
     const then = new Date(Date.now() - opts.hours * HOUR);
@@ -642,6 +644,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     utimesSync(join(target, 'SingletonSocket'), then, then);
     utimesSync(target, then, then);
   };
+
   const chrome = (opts: { root: string; name: string; hours: number }): void => {
     file({ root: opts.root, path: `${opts.name}/SingletonSocket`, text: 's' });
     old({ root: opts.root, path: opts.name, hours: opts.hours });
@@ -1105,6 +1108,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
 
 describe('vulcan project clean --events and the configured log', () => {
   const day = (ago: number): string => EventLog.dayOf({ time: Date.now() - ago * DAY });
+
   const shared = (opts: { manifest?: object; days: number[] }): { root: string; dir: string } => {
     const dir = createProject({ files: {} });
     const root = repository();

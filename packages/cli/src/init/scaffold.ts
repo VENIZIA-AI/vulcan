@@ -33,14 +33,14 @@ interface IScaffoldResult {
   todo: string[];
 }
 
-interface IPackageManifest {
+interface IRootManifest {
   name?: unknown;
   workspaces?: unknown;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
 }
 
-const readManifest = (opts: { root: string }): IPackageManifest | undefined => {
+const readManifest = (opts: { root: string }): IRootManifest | undefined => {
   const file = join(opts.root, 'package.json');
 
   if (!existsSync(file)) {
@@ -48,7 +48,7 @@ const readManifest = (opts: { root: string }): IPackageManifest | undefined => {
   }
 
   try {
-    const manifest: IPackageManifest = JSON.parse(readFileSync(file, 'utf8'));
+    const manifest: IRootManifest = JSON.parse(readFileSync(file, 'utf8'));
 
     return manifest;
   } catch (error) {

@@ -26,6 +26,7 @@ const app = (): string => {
 
   return root;
 };
+
 const file = (path: string): void => {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, '#!/usr/bin/env bun\n');

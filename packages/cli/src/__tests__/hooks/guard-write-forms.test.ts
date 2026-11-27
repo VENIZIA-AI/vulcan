@@ -405,6 +405,7 @@ describe('an in-place edit, an extraction and a git init are writes', () => {
 describe("Bun's own copy of the installed package, and the bin the owner runs", () => {
   const STORE = 'node_modules/.bun/@venizia+vulcan@1';
   const PACKAGE = `${STORE}/node_modules/@venizia/vulcan`;
+
   /** A project laid out as Bun does: the package a link in node_modules/@venizia points into node_modules/.bun. */
   const linked = (): string => {
     const base = createProject({ files: { 'package.json': '{}' } });
@@ -420,6 +421,7 @@ describe("Bun's own copy of the installed package, and the bin the owner runs", 
 
     return base;
   };
+
   const denied = (opts: { root: string; command: string }): boolean =>
     hitsOf(opts).some((hit) => hit.isProtected === true);
 

@@ -4,6 +4,7 @@ import type { ISectionContext } from './common/index.ts';
 import { NodeStates } from './constants.ts';
 import type { TChrome } from './constants.ts';
 import { IconSet } from './icons.ts';
+import { Labels } from './labels.ts';
 import { FigureLayout } from './layout.ts';
 import type { TVisualizeSpec } from './schema.ts';
 import { SpecSections } from './sections.ts';
@@ -165,8 +166,7 @@ export class ReportSectionsBuilder {
       title: chrome.evidence,
       body: `<ul class="ledger">${evidence
         .map((row) => {
-          const word =
-            chrome.evidenceLabels[row.label as keyof TChrome['evidenceLabels']] ?? row.label;
+          const word = Labels.wordOf({ words: chrome.evidenceLabels, key: row.label }) ?? row.label;
 
           return `<li class="ev"><span class="badge ev-${FigureLayout.escapeText({ value: row.label })}">${IconSet.iconSvg({ name: row.label, size: 16 })}${FigureLayout.escapeText({ value: word })}</span><span class="cl"><b>${FigureLayout.escapeText({ value: row.claim })}</b><span class="pr">${FigureLayout.escapeText({ value: row.probe })}</span></span><span class="rs">${FigureLayout.escapeText({ value: row.result })}</span></li>`;
         })

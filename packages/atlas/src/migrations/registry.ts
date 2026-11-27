@@ -1,6 +1,7 @@
 import { AtlasTimeouts } from '@/common/constants';
 import type { IReleaseIndex } from '@/releases';
 import { ToolErrors } from '@/tools/common';
+import { StderrLogger } from '@/common/logger';
 import type { IMigrationPlan, IMigrationResult } from './plan';
 
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
@@ -50,7 +51,12 @@ export class MigrateRegistry {
       );
 
       return { tags, versions: Object.keys(recordOf({ value: body.versions })) };
-    } catch {
+    } catch (error) {
+      StderrLogger.get('MigrateRegistry.published').debug(
+        'a registry reply that cannot be read | error: %s',
+        error,
+      );
+
       return undefined;
     }
   }
