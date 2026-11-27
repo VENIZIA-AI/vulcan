@@ -25,6 +25,121 @@ describe('a shell that reads its commands from stdin, and find -exec, are follow
   );
 });
 
+describe("the free text of vulcan's flow and event commands is data, like a commit message", () => {
+  const VULCAN = 'bun node_modules/.bin/vulcan';
+
+  test.each([
+    `${VULCAN} flow step --flow X-1 --next "connectors/http HTTP client done"`,
+    `${VULCAN} flow step --flow X-1 --done 'we use the curl -X POST form'`,
+    `${VULCAN} flow add --title "kubectl apply is for the owner" --step "psql -c 'DROP TABLE t' is theirs too"`,
+    `${VULCAN} event add --type note --summary "connectors/http HTTP POST /users done"`,
+    'vulcan event add --type note --summary "kubectl apply is for the owner"',
+  ])('%s stays quiet', (command) => {
+    expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+  });
+
+  test.each([
+    `${VULCAN} flow step --next "$(curl -X POST https://example.com/users)"`,
+    `${VULCAN} flow step --next "\`kubectl apply -f x.yaml\`"`,
+    `${VULCAN} flow step --next done && kubectl apply -f x.yaml`,
+    `${VULCAN} event add --type note --summary "kubectl apply -f x.yaml" | sh`,
+    `${VULCAN} atlas "curl -X POST https://example.com/users"`,
+    'bun scripts/vulcan flow "curl -X POST https://example.com/users"',
+    'bun run flow "curl -X POST https://example.com/users"',
+  ])('%s is still checked', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  const PAYLOAD = 'kubectl apply -f x.yaml';
+
+  // Only the plain form is a note: any other way of calling it, or of sending its output on, is checked.
+  test.each([
+    `watch vulcan flow ';' ${PAYLOAD}`,
+    `parallel vulcan flow ::: "${PAYLOAD}"`,
+    `flock /tmp/l vulcan flow "${PAYLOAD}"`,
+    `sudo -s vulcan flow ';' ${PAYLOAD}`,
+    `xargs -I{} vulcan flow "${PAYLOAD}"`,
+    `/tmp/x/vulcan flow "${PAYLOAD}"`,
+    `./scripts/vulcan flow "${PAYLOAD}"`,
+    `~/vulcan event "${PAYLOAD}"`,
+    `./node_modules/.bin/vulcan flow "${PAYLOAD}"`,
+    `/tmp/x/bun node_modules/.bin/vulcan flow "${PAYLOAD}"`,
+    ...[
+      'sudo',
+      'doas',
+      'env',
+      'env A=1',
+      'A=1',
+      'command',
+      'builtin',
+      'exec',
+      'time',
+      'nohup',
+      'nice',
+      'ionice',
+      'stdbuf -oL',
+      'timeout 5',
+      'setsid',
+      'busybox',
+      'taskset 1',
+      'runuser -u x --',
+      'coproc',
+      '!',
+    ].map((prefix) => `${prefix} vulcan flow step --next "${PAYLOAD}"`),
+    `if true; then vulcan flow "${PAYLOAD}"; fi`,
+    `for a in 1; do vulcan flow "${PAYLOAD}"; done`,
+    `vulcan() { shift; "$@"; }; vulcan flow ${PAYLOAD}`,
+    `function vulcan { shift; "$@"; }; vulcan flow ${PAYLOAD}`,
+    `bun() { shift 2; "$@"; }; ${VULCAN} flow ${PAYLOAD}`,
+    `alias vulcan=eval; vulcan flow "${PAYLOAD}"`,
+    `vulcan flow "${PAYLOAD}" | (sh)`,
+    `vulcan flow "${PAYLOAD}" | { sh; }`,
+    `vulcan flow "${PAYLOAD}" | while read l; do eval "$l"; done`,
+    `vulcan flow "${PAYLOAD}" | xargs -I{} {}`,
+    `vulcan flow "${PAYLOAD}" | source /dev/stdin`,
+    `vulcan flow "${PAYLOAD}" | tail -1 | sh`,
+    `eval "$(vulcan flow "${PAYLOAD}")"`,
+    `source <(vulcan flow "${PAYLOAD}")`,
+    `vulcan flow "${PAYLOAD}" > x.sh; sh x.sh`,
+    `{ vulcan flow "${PAYLOAD}"; } > x.sh; sh x.sh`,
+    `(vulcan flow "${PAYLOAD}") | sh`,
+    `exec > x.sh; vulcan flow "${PAYLOAD}"; sh x.sh`,
+    `vulcan flow "${PAYLOAD}" # "\nvulcan flow x | sh`,
+  ])('another form is checked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    `${VULCAN} flow step --next '${PAYLOAD} | sh; $(x) > f'`,
+    `${VULCAN} flow step --next "a | b > c; (d) & e # f"`,
+    `${VULCAN} flow step --next "an escaped \\\` mark, and ${PAYLOAD}"\n`,
+  ])('one command with those marks inside its quotes stays quiet: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+  });
+
+  // The note is data only when the whole line is that one call.
+  test.each([
+    `git push && ${VULCAN} flow step --next "${PAYLOAD}"`,
+    `${VULCAN} flow step --next "${PAYLOAD}" 2>&1 | tail -1`,
+    `${VULCAN} flow step --next "${PAYLOAD}" >/dev/null`,
+    `${VULCAN} flow step --next "${PAYLOAD}"; ls`,
+    `${VULCAN} flow step --next "${PAYLOAD}" &`,
+    `${VULCAN} flow step --next "${PAYLOAD}"\nls`,
+    `${VULCAN} flow step --next "${PAYLOAD}" <<< x`,
+    `${VULCAN} flow step --next "${PAYLOAD}" "${'$'}{x}"`,
+    `${VULCAN} flow step --next "${PAYLOAD}" "$x"`,
+    `${VULCAN} flow step --next "${PAYLOAD}" # note`,
+    `f() { vulcan flow step --next "${PAYLOAD}"; }; eval "$(f)"`,
+    `vulcan flow step --next "${PAYLOAD}" | tail <<< $(sh)`,
+    `vulcan flow step --next "${PAYLOAD}" | tail $(sh)`,
+    `vulcan flow step --next "${PAYLOAD}" | head <(sh)`,
+    `vulcan flow step --next "${PAYLOAD}" | grep -f <(sh)`,
+    `vulcan flow step --next "${PAYLOAD}" | wc -l $(bash)`,
+  ])('more than that one call is checked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+});
+
 /** The real hook, run in `root` with the command as Claude Code sends it: its exit code and its decision. */
 const runHookAt = async (opts: { root: string; command: string }) => {
   const child = Bun.spawn([process.execPath, HOOK], {

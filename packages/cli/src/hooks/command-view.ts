@@ -37,6 +37,19 @@ const MESSAGE_PROGRAMS = new Set(['git', 'gh']);
  */
 const GH_REQUESTS = new Set(['api', 'secret', 'variable']);
 
+/** The project's own VULCAN bin, as `bun` is given it. */
+const VULCAN_BIN = 'node_modules/.bin/vulcan';
+
+/** The scopes of VULCAN whose arguments are titles and notes of the board: nothing in them is run. */
+const VULCAN_NOTE_SCOPES = new Set(['flow', 'event']);
+
+/**
+ * A line that is one command and nothing else: no operator, redirect, parenthesis, comment, expansion or second line
+ * outside quotes, and no expansion or backtick inside double quotes.
+ */
+const ONE_COMMAND =
+  /^(?:[^'"`$|;&<>()#\\\n\r]|\\[^\n\r]|'[^'\n\r]*'|"(?:\\[^\n\r]|[^"\\`$\n\r])*")*$/;
+
 /** The `gh` options that take the repository as their value: that value is not the subcommand. */
 const GH_REPOSITORY_FLAGS = new Set(['-R', '--repo']);
 
@@ -109,12 +122,37 @@ const isGhRequest = (opts: { command: ISimpleCommand }): boolean => {
 };
 
 export class CommandView {
+  /**
+   * Whether a command is `vulcan flow ...` or `vulcan event ...` and the whole line: its first word is `vulcan`, or
+   * `bun` with the project's bin, and the line holds nothing besides that one command. Anything else is read like
+   * every command.
+   */
+  private static isPlainNote(opts: { command: ISimpleCommand; line?: string }): boolean {
+    const { command, line } = opts;
+    const [first, second, third] = command.words;
+    const isNote =
+      (first === 'vulcan' && VULCAN_NOTE_SCOPES.has(second ?? '')) ||
+      (first === 'bun' && second === VULCAN_BIN && VULCAN_NOTE_SCOPES.has(third ?? ''));
+
+    return (
+      isNote &&
+      command.assignments.length === 0 &&
+      command.scope === undefined &&
+      line !== undefined &&
+      ONE_COMMAND.test(line.trim())
+    );
+  }
+
   /** The text of one simple command: the words, a bare name for data, a reader's heredoc body appended. */
-  private static textOf(opts: { command: ISimpleCommand; withMessages: boolean }): string {
+  private static textOf(opts: {
+    command: ISimpleCommand;
+    withMessages: boolean;
+    line: string;
+  }): string {
     const { command } = opts;
     const name = ShellPrograms.basenameOf({ word: ShellPrograms.programOf({ command }).name });
 
-    if (CommandView.isDataOnly({ command, withMessages: opts.withMessages })) {
+    if (CommandView.isDataOnly(opts)) {
       return name;
     }
 
@@ -125,10 +163,15 @@ export class CommandView {
   }
 
   /**
-   * Whether the arguments of a command are data. `withMessages` adds `git` and `gh` (their arguments are
-   * messages to the write guards).
+   * Whether the arguments of a command are data. `withMessages` adds `git`, `gh` and a plain `vulcan flow` or
+   * `vulcan event` call (their arguments are messages to the write guards).
    */
-  static isDataOnly(opts: { command: ISimpleCommand; withMessages: boolean }): boolean {
+  static isDataOnly(opts: {
+    command: ISimpleCommand;
+    withMessages: boolean;
+    /** The whole line as written; without it no note command is data. */
+    line?: string;
+  }): boolean {
     const name = ShellPrograms.basenameOf({
       word: ShellPrograms.programOf({ command: opts.command }).name,
     });
@@ -139,6 +182,10 @@ export class CommandView {
 
     if (name === 'gh' && isGhRequest({ command: opts.command })) {
       return false;
+    }
+
+    if (opts.withMessages && CommandView.isPlainNote(opts)) {
+      return true;
     }
 
     return READ_ONLY_PROGRAMS.has(name) || (opts.withMessages && MESSAGE_PROGRAMS.has(name));
@@ -160,7 +207,8 @@ export class CommandView {
     const { text } = ShellParser.splitHeredocs({ command: opts.command });
     const parsed = ShellParser.parseChecked({ command: opts.command });
     const commands = parsed.commands.filter(
-      (command) => !CommandView.isDataOnly({ command, withMessages: opts.withMessages }),
+      (command) =>
+        !CommandView.isDataOnly({ command, withMessages: opts.withMessages, line: opts.command }),
     );
     // Read from the commands, not the text, so a `| sh` in a comment or in quotes feeds nothing.
     const isWholeLine = parsed.commands.some(
@@ -173,7 +221,7 @@ export class CommandView {
     const texts = isWholeLine
       ? [text]
       : parsed.commands.map((command) =>
-          CommandView.textOf({ command, withMessages: opts.withMessages }),
+          CommandView.textOf({ command, withMessages: opts.withMessages, line: opts.command }),
         );
     const sources = isWholeLine ? [undefined] : parsed.commands;
 
