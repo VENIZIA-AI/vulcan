@@ -3,7 +3,8 @@
 # The test environment, in one place (no committed env file). Every package runs with it; atlas also
 # reads the sibling IGNIS checkout its repo-mode and generator tests need (IGNIS_ROOT overrides, tests only).
 TEST_ENV := NODE_ENV=test APP_ENV_LOGGER_LEVEL=error
-TEST_ENV_atlas := NODE_ENV=test APP_ENV_LOGGER_LEVEL=warn IGNIS_ROOT=../../../ignis
+IGNIS_ROOT ?= ../../../ignis
+TEST_ENV_atlas := NODE_ENV=test APP_ENV_LOGGER_LEVEL=warn IGNIS_ROOT=$(IGNIS_ROOT)
 
 # Every test and smoke makes its temp folders under here, inside the repository and gitignored: nothing
 # is written to the system temp directory. git is told not to look above it, so a test project is never
@@ -23,7 +24,9 @@ TEST_TARGETS := $(addprefix test-,$(PACKAGES))
 # `--isolate`, so a mock, env or TLS setting one file leaks cannot pass or fail another.
 # ----------------------------------------------------------------------------
 # Never more than 10 tests or worker processes at once: more starves the machine, and tests then pass their time limit.
-# Bun's own defaults are 20 tests and one worker per core. A value given for BUN_TEST_FLAGS stays within 5 to 10.
+# Bun's own defaults are one worker per core and 20 tests. The workers are what loads the machine, so `--parallel` is the
+# limit that matters; `--max-concurrency` only bounds `test.concurrent` tests. A value given for BUN_TEST_FLAGS stays
+# within 5 to 10.
 TEST_CONCURRENCY := 6
 BUN_TEST_FLAGS ?= --parallel=$(TEST_CONCURRENCY)
 # Packages whose tests run serially. Bun 1.4's parallel workers sometimes never reap a synchronous git

@@ -33,8 +33,46 @@ describe('ci.yml: every pull request runs the gates, and nothing else starts it'
     expect(triggers['workflow_dispatch'] ?? {}).toEqual({});
   });
 
+  /** The `with` of every checkout step of a job, in order. */
+  const checkoutsOf = (name: string): Record<string, unknown>[] => {
+    const steps = recordAt({ value: recordAt({ value: workflow, key: 'jobs' }), key: name })[
+      'steps'
+    ];
+
+    return (Array.isArray(steps) ? steps : []).flatMap((step: unknown) => {
+      const item = { value: step };
+
+      return isRecord(item) && String(item.value['uses']).startsWith('actions/checkout@')
+        ? [recordAt({ value: step, key: 'with' })]
+        : [];
+    });
+  };
+
   test('both jobs keep the full history the release table is computed from', () => {
-    expect(text.match(/fetch-depth: 0/g)?.length).toBe(2);
+    for (const job of Object.keys(recordAt({ value: workflow, key: 'jobs' }))) {
+      const own = checkoutsOf(job).filter((checkout) => checkout['repository'] === undefined);
+
+      expect({ job, depths: own.map((checkout) => checkout['fetch-depth']) }).toEqual({
+        job,
+        depths: [0],
+      });
+    }
+  });
+
+  test('another repository is checked out only to be read: one commit, no token kept, under the tmp folder', () => {
+    const others = Object.keys(recordAt({ value: workflow, key: 'jobs' }))
+      .flatMap(checkoutsOf)
+      .filter((checkout) => checkout['repository'] !== undefined);
+
+    expect(others).toEqual([
+      {
+        repository: 'VENIZIA-AI/ignis',
+        ref: expect.stringMatching(/^[0-9a-f]{40}$/),
+        path: '.agents/tmp/ignis',
+        'fetch-depth': 0,
+        'persist-credentials': false,
+      },
+    ]);
   });
 
   test('there is no path filter: a required check on a pull request without a run waits for ever', () => {

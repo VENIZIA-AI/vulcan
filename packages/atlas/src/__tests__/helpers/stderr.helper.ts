@@ -63,7 +63,10 @@ export class CapturedStderr {
   async arrival(opts: { parts: string[]; ms?: number }): Promise<void> {
     const ms = opts.ms ?? 4000;
 
-    for (let attempt = 0; attempt * 25 < ms; attempt += 1) {
+    const deadline = Date.now() + ms;
+
+    // By the clock: a loaded machine sleeps longer than asked.
+    while (Date.now() < deadline) {
       if (this.lines.some((line) => opts.parts.every((part) => line.includes(part)))) {
         return;
       }

@@ -9,8 +9,8 @@ import { join } from 'node:path';
 export const IGNIS_ROOT = process.env.IGNIS_ROOT ?? join(__dirname, '../../../../../../ignis');
 
 /**
- * A checkout's content - its wiki and knowledge bundle. VULCAN's CI clones no IGNIS (the release ships
- * code only), so the tests that measure atlas against IGNIS's real corpus skip there.
+ * A checkout's content - its wiki and knowledge bundle. VULCAN's checks read IGNIS at a fixed
+ * commit; its release run clones none (it ships code only), so these tests skip there.
  */
 export const IGNIS_IS_PRESENT = existsSync(join(IGNIS_ROOT, '.agents', 'knowledge'));
 
