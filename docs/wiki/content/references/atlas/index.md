@@ -319,7 +319,8 @@ usage: vulcan atlas api gen|check | undocumented [--package <dir, name or path>]
 A bundler warns about a chunk over 500 kB, and a built API page is several times its markdown. So a long entry is split:
 
 - Its page keeps the same address and a heading for every export, so a link to an export still lands there.
-- Each heading links to the declaration on a part, `<entry>-part-<n>.md`, titled `@scope/name (n of m)`.
+- Each heading links to the declaration on a part, `<entry>--part-<n>.md`, titled `@scope/name (n of m)`.
+- Link to the entry page from your own text: the address of a part can change when the API does.
 - An export too long for any page has a part of its own.
 - The next `gen` removes the parts an entry no longer needs.
 

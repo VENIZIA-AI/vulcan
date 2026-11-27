@@ -49,6 +49,10 @@ export class ApiReference {
    * markdown, so this keeps its chunk under the bundler's default warning of 500 kB.
    */
   static readonly MAX_PAGE_CHARS = 45_000;
+  /** What of that a part keeps for its frontmatter, title and the way back. */
+  private static readonly PART_HEAD_CHARS = 1_000;
+  /** Between the file of an entry and the number of a part: no entry's own file name holds two dashes in a row. */
+  private static readonly PART_SEPARATOR = '--part-';
   private static readonly GENERATED_NOTE =
     'Generated from the built declarations by `vulcan atlas api gen` - do not edit.';
 
@@ -318,7 +322,7 @@ export class ApiReference {
       const title = `${opts.specifier} (${at + 1} of ${groups.length})`;
 
       return {
-        file: `${stem}-part-${at + 1}.md`,
+        file: `${stem}${ApiReference.PART_SEPARATOR}${at + 1}.md`,
         text: [
           ...ApiReference.headOf({ title, specifier: opts.specifier }),
           `Part ${at + 1} of ${groups.length} of [\`${opts.specifier}\`](/${ApiReference.DIRECTORY}/${stem}).`,
@@ -327,21 +331,17 @@ export class ApiReference {
         ].join('\n'),
       };
     });
-    const listed = groups.flatMap((group, at) =>
-      group.flatMap(({ record }) => {
-        // The site spells the anchor of a plain name in lower case; any other name is linked to the part alone.
-        const anchor = /^[A-Za-z][A-Za-z0-9]*$/.test(record.name)
-          ? `#${record.name.toLowerCase()}`
-          : '';
+    const listed = groups.flatMap((group, at) => {
+      const anchors = ApiReference.anchorsOf({ names: group.map(({ record }) => record.name) });
+      const part = `/${ApiReference.DIRECTORY}/${stem}${ApiReference.PART_SEPARATOR}${at + 1}`;
 
-        return [
-          `## \`${record.name}\``,
-          '',
-          `*${record.category}* - [Declaration](/${ApiReference.DIRECTORY}/${stem}-part-${at + 1}${anchor})`,
-          '',
-        ];
-      }),
-    );
+      return group.flatMap(({ record }, index) => [
+        `## \`${record.name}\``,
+        '',
+        `*${record.category}* - [Declaration](${part}${anchors[index]})`,
+        '',
+      ]);
+    });
 
     return {
       ...page,
@@ -354,6 +354,27 @@ export class ApiReference {
       ].join('\n'),
       parts,
     };
+  }
+
+  /**
+   * The anchor of each heading of a part, in order, as the site spells them: a plain name in lower case, with `-1`, `-2`
+   * for a later one that spells the same. Any other name gets none, so its link goes to the part alone.
+   */
+  private static anchorsOf(opts: { names: string[] }): string[] {
+    const seen = new Map<string, number>();
+
+    return opts.names.map((name) => {
+      if (!/^[A-Za-z][A-Za-z0-9]*$/.test(name)) {
+        return '';
+      }
+
+      const slug = name.toLowerCase();
+      const before = seen.get(slug) ?? 0;
+
+      seen.set(slug, before + 1);
+
+      return before === 0 ? `#${slug}` : `#${slug}-${before}`;
+    });
   }
 
   /** The frontmatter, the title and the note every page of an entry starts with. */
@@ -375,8 +396,7 @@ export class ApiReference {
   private static groupsOf<Section extends { lines: string[] }>(opts: {
     sections: Section[];
   }): Section[][] {
-    // Room for the head of a part.
-    const budget = ApiReference.MAX_PAGE_CHARS - 1000;
+    const budget = ApiReference.MAX_PAGE_CHARS - ApiReference.PART_HEAD_CHARS;
     const groups: Section[][] = [];
     let size = 0;
 
