@@ -3,7 +3,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync } from 'nod
 import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import { ProjectContract } from '../../doctor/checks.ts';
+import { LocalChecks } from '../../doctor/local-checks.ts';
 import { LocalPlan } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
@@ -33,7 +33,7 @@ describe('the launch file of an earlier release', () => {
     });
 
     Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
-    const found = ProjectContract.checkLocalWorkspace({
+    const found = LocalChecks.checkLocalWorkspace({
       root,
       config: CONFIG,
       configFile: '',
@@ -44,9 +44,7 @@ describe('the launch file of an earlier release', () => {
     expect(found[0]?.message).toContain('vulcan project sync');
     apply({ root });
     expect(existsSync(join(root, LAUNCH))).toBe(false);
-    expect(ProjectContract.checkLocalWorkspace({ root, config: CONFIG, configFile: '' })).toEqual(
-      [],
-    );
+    expect(LocalChecks.checkLocalWorkspace({ root, config: CONFIG, configFile: '' })).toEqual([]);
   });
 
   test('a symlinked .agents/local: the leftover is removed where the link leads, and the link stays', () => {

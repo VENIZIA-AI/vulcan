@@ -5,7 +5,8 @@ import { AgentConstants } from '../../agents/common/constants.ts';
 import { LocalChoice } from '../../agents/index.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { OwnerProfile } from '../../owner/index.ts';
-import { ProjectContract } from '../../doctor/checks.ts';
+import { SettingsChecks } from '../../doctor/settings-checks.ts';
+import { CloneChecks } from '../../doctor/clone-checks.ts';
 import {
   EventConstants,
   EventHook,
@@ -212,12 +213,12 @@ describe('the local file and doctor', () => {
 
   test('a folder that is not there is reported against the local file, a committed one against the config', () => {
     const root = project({ local: { board: { events: { dir: '/does/not/exist/events' } } } });
-    const [own] = ProjectContract.checkEventsDir(ctx(root));
+    const [own] = SettingsChecks.checkEventsDir(ctx(root));
 
     expect(own?.file).toBe(LOCAL);
     expect(own?.message).toContain('/does/not/exist/events');
 
-    const committed = ProjectContract.checkEventsDir({
+    const committed = SettingsChecks.checkEventsDir({
       ...ctx(project()),
       config: VULCAN_CONFIG_SCHEMA.parse({ events: { dir: '/does/not/exist/team' } }),
     });
@@ -237,7 +238,7 @@ describe('the local file and doctor', () => {
     expect(read.ok ? '' : read.error).toContain('profile.json: board.events.dir');
     expect(EventSettings.dirOf({ root })).toBe(team);
 
-    const messages = ProjectContract.checkAgents(ctx(root)).map((violation) => violation.message);
+    const messages = CloneChecks.checkAgents(ctx(root)).map((violation) => violation.message);
 
     expect(messages.join('\n')).toContain('events.dir');
   });

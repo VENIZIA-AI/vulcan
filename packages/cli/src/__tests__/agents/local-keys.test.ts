@@ -5,7 +5,8 @@ import { LOCAL_AGENTS_FILE, LocalChoice } from '../../agents/index.ts';
 import { OwnerProfile } from '../../owner/index.ts';
 import { LocalSettings } from '../../common/local-settings.ts';
 import { BoardSettings } from '../../board/settings.ts';
-import { ProjectContract } from '../../doctor/checks.ts';
+import { OwnerChecks } from '../../doctor/owner-checks.ts';
+import { LocalChecks } from '../../doctor/local-checks.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { ProjectTmp } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -89,7 +90,7 @@ describe('the local file reads board.agents and local.tmp', () => {
     expect(profile.ok).toBe(false);
     expect(profile.ok ? '' : profile.error).toContain('boards');
 
-    const messages = ProjectContract.checkProfile({
+    const messages = OwnerChecks.checkProfile({
       root,
       config: VULCAN_CONFIG_SCHEMA.parse({}),
       configFile: '.configs/vulcan.config.mts',
@@ -236,7 +237,7 @@ describe('vulcan project doctor', () => {
 
   test('a problem of a tmp folder from the local file is reported against that file', () => {
     const root = projectWith({ local: { common: { local: { tmp: 'shared' } } } });
-    const violations = ProjectContract.checkTmpFolder({
+    const violations = LocalChecks.checkTmpFolder({
       root,
       config: VULCAN_CONFIG_SCHEMA.parse({ layout: { shared: 'shared' } }),
       configFile: '.configs/vulcan.config.mts',

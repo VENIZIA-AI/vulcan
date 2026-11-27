@@ -45,7 +45,7 @@ describe('the config shown in the docs is in the groups', () => {
 
   test('a flat key named between escaped backticks in a source string is found, a test is not read', () => {
     const text = 'message: `set \\`events.log\\` and \\`board.events.log\\``';
-    const hits = scan(text, 'packages/cli/src/doctor/checks.ts');
+    const hits = scan(text, 'packages/cli/src/doctor/mcp-checks.ts');
 
     expect(hits).toHaveLength(1);
     expect(hits[0]).toMatchObject({

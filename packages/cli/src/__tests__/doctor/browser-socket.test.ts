@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ProjectContract } from '../../doctor/checks.ts';
+import { LocalChecks } from '../../doctor/local-checks.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { BrowserSocket } from '../../local/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -49,7 +49,7 @@ describe('vulcan project doctor: the project tmp folder and a browser socket', (
   test('a deep checkout: the warning names the folder, the length, the limit and the shorter path', async () => {
     const root = deepProject();
     const folder = join(root, TMP);
-    const found = ProjectContract.checkBrowserSocket({ root });
+    const found = LocalChecks.checkBrowserSocket({ root });
     const fitting = BrowserSocket.PATH_MAX - (join(TMP, BrowserSocket.longest()).length + 1);
 
     expect(found).toHaveLength(1);
@@ -72,8 +72,8 @@ describe('vulcan project doctor: the project tmp folder and a browser socket', (
   test('a trailing slash on the root changes nothing', () => {
     const root = deepProject();
 
-    expect(ProjectContract.checkBrowserSocket({ root: `${root}/` })).toEqual(
-      ProjectContract.checkBrowserSocket({ root }),
+    expect(LocalChecks.checkBrowserSocket({ root: `${root}/` })).toEqual(
+      LocalChecks.checkBrowserSocket({ root }),
     );
   });
 });

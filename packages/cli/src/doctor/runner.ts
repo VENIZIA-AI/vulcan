@@ -1,14 +1,19 @@
 import { relative } from 'node:path';
 import { LocalSettings } from '../common/local-settings.ts';
 import { ConfigLoader } from '../config/index.ts';
-import { ProjectContract } from './checks.ts';
-import type { ICheckContext } from './checks.ts';
+import { RuleChecks } from './rule-checks.ts';
+import { CloneChecks } from './clone-checks.ts';
+import { WorkspaceChecks } from './workspace-checks.ts';
+import { LocalChecks } from './local-checks.ts';
+import { SettingsChecks } from './settings-checks.ts';
+import { OwnerChecks } from './owner-checks.ts';
+import { McpChecks } from './mcp-checks.ts';
 import { ConfigModulesCheck, ConfigOrderCheck } from './config-order.ts';
 import { FileLayoutCheck } from './file-layout.ts';
 import { SkillLint } from './skills.ts';
 import { TagCheck } from './tags.ts';
 import { DoctorChecks } from './common/index.ts';
-import type { IViolation } from './common/index.ts';
+import type { ICheckContext, IViolation } from './common/index.ts';
 
 /** Runs the doctor checks and sorts their findings into violations, notes and warnings; used by `vulcan project doctor`. */
 export class DoctorRunner {
@@ -33,21 +38,21 @@ export class DoctorRunner {
     };
 
     return [
-      ...ProjectContract.checkLayout(context),
-      ...ProjectContract.checkRuleIds(context),
-      ...ProjectContract.checkRuleSlots(context),
-      ...ProjectContract.checkSkills(context),
-      ...ProjectContract.checkMake(context),
-      ...ProjectContract.checkAdapters(context),
-      ...ProjectContract.checkAgents(context),
-      ...ProjectContract.checkManifest(context),
-      ...ProjectContract.checkChangelogFolders(context),
+      ...RuleChecks.checkLayout(context),
+      ...RuleChecks.checkRuleIds(context),
+      ...RuleChecks.checkRuleSlots(context),
+      ...RuleChecks.checkSkills(context),
+      ...RuleChecks.checkMake(context),
+      ...CloneChecks.checkAdapters(context),
+      ...CloneChecks.checkAgents(context),
+      ...RuleChecks.checkManifest(context),
+      ...RuleChecks.checkChangelogFolders(context),
       ...TagCheck.check(context),
       ...SkillLint.check(context),
-      ...ProjectContract.checkStyle(context),
-      ...ProjectContract.checkScaffold(context),
-      ...ProjectContract.checkApps(context),
-      ...ProjectContract.checkTmpFolder(context),
+      ...WorkspaceChecks.checkStyle(context),
+      ...WorkspaceChecks.checkScaffold(context),
+      ...WorkspaceChecks.checkApps(context),
+      ...LocalChecks.checkTmpFolder(context),
     ];
   }
 
@@ -119,13 +124,13 @@ export class DoctorRunner {
     const { context } = opts;
 
     return [
-      ...ProjectContract.checkConfigDefaults(context),
+      ...SettingsChecks.checkConfigDefaults(context),
       ...ConfigOrderCheck.check(context),
-      ...ProjectContract.checkBoardAutoStart(context),
-      ...ProjectContract.checkPrepareScript(context),
-      ...ProjectContract.checkAtlasBlock(context),
-      ...ProjectContract.checkAcknowledgedValues(context),
-      ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
+      ...SettingsChecks.checkBoardAutoStart(context),
+      ...CloneChecks.checkPrepareScript(context),
+      ...CloneChecks.checkAtlasBlock(context),
+      ...OwnerChecks.checkAcknowledgedValues(context),
+      ...OwnerChecks.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
     ];
   }
 
@@ -133,28 +138,28 @@ export class DoctorRunner {
     const { context } = opts;
 
     return [
-      ...ProjectContract.checkStaleRemove(context),
+      ...SettingsChecks.checkStaleRemove(context),
       ...ConfigModulesCheck.check(context),
-      ...ProjectContract.checkClaudeSettingsTracked(context),
-      ...ProjectContract.checkAtlasSources(context),
-      ...ProjectContract.checkMcpAtlas(context),
-      ...ProjectContract.checkCommitHook(context),
-      ...ProjectContract.checkEventsDir(context),
-      ...ProjectContract.checkEventsSize(context),
-      ...ProjectContract.checkProjectKey(context),
-      ...ProjectContract.checkWorkspacePackages(context),
-      ...ProjectContract.checkBrowserSocket({
+      ...CloneChecks.checkClaudeSettingsTracked(context),
+      ...CloneChecks.checkAtlasSources(context),
+      ...McpChecks.checkMcpAtlas(context),
+      ...CloneChecks.checkCommitHook(context),
+      ...SettingsChecks.checkEventsDir(context),
+      ...SettingsChecks.checkEventsSize(context),
+      ...SettingsChecks.checkProjectKey(context),
+      ...WorkspaceChecks.checkWorkspacePackages(context),
+      ...LocalChecks.checkBrowserSocket({
         root: context.root,
         tmp: LocalSettings.read({ root: context.root }).tmp ?? context.config.local.tmp,
       }),
-      ...ProjectContract.checkSkillTriggers(context),
-      ...ProjectContract.checkFormat(context),
-      ...ProjectContract.checkLocalWorkspace(context),
-      ...ProjectContract.checkProfile(context),
-      ...ProjectContract.checkOwnerReplySettings(context),
-      ...ProjectContract.checkStaleLocal(context),
-      ...ProjectContract.checkUnknownLocal(context),
-      ...ProjectContract.checkPrivateValues(context),
+      ...RuleChecks.checkSkillTriggers(context),
+      ...WorkspaceChecks.checkFormat(context),
+      ...LocalChecks.checkLocalWorkspace(context),
+      ...OwnerChecks.checkProfile(context),
+      ...OwnerChecks.checkOwnerReplySettings(context),
+      ...LocalChecks.checkStaleLocal(context),
+      ...LocalChecks.checkUnknownLocal(context),
+      ...OwnerChecks.checkPrivateValues(context),
     ];
   }
 }

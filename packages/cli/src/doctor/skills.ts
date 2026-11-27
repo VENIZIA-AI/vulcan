@@ -1,8 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import type { ICheckContext } from './checks.ts';
 import { DoctorChecks } from './common/index.ts';
-import type { IViolation } from './common/index.ts';
+import type { ICheckContext, IViolation } from './common/index.ts';
 import { SkillFrontmatter } from '../skills/index.ts';
 
 /**

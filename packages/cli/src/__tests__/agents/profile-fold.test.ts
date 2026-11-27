@@ -6,7 +6,7 @@ import { LocalChoice } from '../../agents/index.ts';
 import { LocalSettings } from '../../common/local-settings.ts';
 import { EventSettings } from '../../events/index.ts';
 import { OwnerProfile } from '../../owner/index.ts';
-import { ProjectContract } from '../../doctor/checks.ts';
+import { OwnerChecks } from '../../doctor/owner-checks.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { LocalPlan } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -479,7 +479,7 @@ describe('sync moves the old machine keys of the profile to the groups, once', (
 
   test('doctor tells an old key to run sync, not to reset', () => {
     const root = withProfile({ schemaVersion: 1, agents: ['claude'] });
-    const messages = ProjectContract.checkProfile({
+    const messages = OwnerChecks.checkProfile({
       root,
       config: VULCAN_CONFIG_SCHEMA.parse({}),
       configFile: '.configs/vulcan.config.mts',

@@ -3,9 +3,8 @@ import { LayoutBaseline } from '../layout/baseline.ts';
 import { LayoutCheck } from '../layout/check.ts';
 import { LayoutConstants, LayoutRules } from '../layout/common/index.ts';
 import type { ILayoutFinding } from '../layout/common/index.ts';
-import type { ICheckContext } from './checks.ts';
 import { DoctorChecks } from './common/index.ts';
-import type { IViolation } from './common/index.ts';
+import type { ICheckContext, IViolation } from './common/index.ts';
 
 const SHOWN_PATHS = 3;
 const COMMAND = `${ProjectLayout.VULCAN_COMMAND} check layout`;
