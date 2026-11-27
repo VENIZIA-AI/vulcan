@@ -39,9 +39,9 @@ bun node_modules/.bin/vulcan okf check
 - The descriptor `.agents/atlas.manifest.json` is generated and committed; the manifest the hooks read, `.agents/local/vulcan.manifest.json`, is local to each clone. CI runs `vulcan project sync`, then fails when the committed descriptor differs from what sync wrote (`git diff --exit-code`, a step that is not a make target, so `make gates` does not run it), then runs `vulcan project doctor`, whose check C1 fails a stale or hand-edited copy; `.githooks/pre-commit` runs `vulcan project doctor` too.
 - Type-checking is `bun check --no-pretty` (Bun >= 1.4.4), the same errors as `tsc --noEmit` including options inherited through `extends`; `tsc` stays only where it emits (atlas `dist`).
 - Tests first: a test that fails, then the change.
-- CI checks IGNIS out at the commit `ci.yml` names, only to read it (nothing there is installed, built or run), and
-  installs Chrome: the corpus and browser tests run, the ones that need IGNIS built are skipped. Raise the commit by a
-  pull request.
+- CI checks IGNIS out at the commit `ci.yml` names, only to read it (nothing there is installed, built or run):
+  the corpus tests run, the ones that need IGNIS built are skipped. Raise the commit by a pull request. The browser
+  tests use the Chrome the runner image has.
 - A change that touches the generators or okf is checked against IGNIS read-only: `check` from
   inside IGNIS must stay fresh. Never run `gen` there.
 - `vulcan atlas` runs atlas's built `dist`; run `make atlas` before checking it that way.

@@ -140,17 +140,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # The layout tests measure pages in a real browser. The package comes from its vendor and is not pinned.
-      - name: Install Chrome
-        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
-        run: |
-          if ! command -v google-chrome > /dev/null; then
-            curl --fail --silent --show-error --location --output "$RUNNER_TEMP/chrome.deb" \
-              https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-            sudo apt-get install --yes "$RUNNER_TEMP/chrome.deb"
-          fi
-          google-chrome --version
-
       # The make targets own the test flags (BUN_TEST_FLAGS, default --parallel=6), so CI and a
       # developer's `make test` run the very same command.
       - name: Test
