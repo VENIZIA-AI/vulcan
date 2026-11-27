@@ -7,7 +7,6 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { RepoTmp } from '@venizia/dev-configs/testing';
 import { ProjectTmp } from '../../hooks/project-tmp.ts';
@@ -68,7 +67,7 @@ export class BrowserPage {
   }): string[] {
     const local = join(opts.root, '.agents', 'local');
     const named = [
-      opts.override,
+      opts.override ? resolvePath(opts.override) : undefined,
       ProjectTmp.projectOf({ root: opts.root }),
       join(local, 'tmp'),
       local,
@@ -92,7 +91,8 @@ export class BrowserPage {
       return false;
     }
 
-    const folder = mkdtempSync(join(tmpdir(), 'vz-browser-'));
+    // The repository's test folder, also outside a test session: never the system temp folder.
+    const folder = mkdtempSync(join(RepoTmp.apply(), 'vz-browser-'));
 
     BrowserPage.folder = folder;
 

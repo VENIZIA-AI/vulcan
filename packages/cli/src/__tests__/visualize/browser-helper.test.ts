@@ -79,6 +79,31 @@ describe('BrowserPage.candidatesOf: the folders tried for the temp folder of Chr
     ]);
   });
 
+  test('a named folder is read as a path: written another way, it is the same folder', () => {
+    const root = createProject({
+      files: {
+        'tmp/.keep': '',
+        '.agents/local/profile.json': '{"common":{"local":{"tmp":"tmp"}}}',
+      },
+    });
+    const folder = createProject({ files: {} });
+    const override = `${join(root, 'tmp')}/`;
+
+    expect(
+      BrowserPage.candidatesOf({ root, folder, override }).filter(
+        (entry) => entry === join(root, 'tmp'),
+      ),
+    ).toHaveLength(1);
+    expect(BrowserPage.candidatesOf({ root, folder, override })[0]).toBe(join(root, 'tmp'));
+  });
+
+  test('an empty name is no folder', () => {
+    const root = createProject({ files: {} });
+    const folder = createProject({ files: {} });
+
+    expect(BrowserPage.candidatesOf({ root, folder, override: '' })[0]).not.toBe(process.cwd());
+  });
+
   test('a named folder comes first; one that does not exist, or comes twice, is left out', () => {
     const root = createProject({ files: { '.agents/tmp/.keep': '' } });
     const folder = createProject({ files: {} });
