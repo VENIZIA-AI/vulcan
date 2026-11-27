@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { SourceArguments } from '@/cli/sources';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import {
   git,
   makeSourceRepository,
@@ -50,7 +50,7 @@ describe('--source', () => {
 
 describe('vulcan-atlas over git sources', () => {
   const run = (opts: { args: string[]; cwd: string; cache: string; input?: string }) => {
-    const result = spawnSyncBounded({
+    const result = SpawnUtility.spawnSyncBounded({
       cmd: [
         process.execPath,
         join(PACKAGE_ROOT, 'src/cli/main.ts'),
@@ -73,7 +73,7 @@ describe('vulcan-atlas over git sources', () => {
   };
 
   test('--cache-dir with no value is a usage error: exit 2, nothing on stdout', () => {
-    const result = spawnSyncBounded({
+    const result = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, join(PACKAGE_ROOT, 'src/cli/main.ts'), 'mcp', '--cache-dir'],
       cwd: makeTempDirectory({ prefix: 'atlas-nocache-' }),
       env: { ...process.env, VULCAN_NPM_REGISTRY: NO_REGISTRY },

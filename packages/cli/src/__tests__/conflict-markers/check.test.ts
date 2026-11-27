@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { ConflictMarkers } from '../../conflict-markers/index.ts';
 import { git, initRepo } from '../helpers/git-repo.helper.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -88,7 +88,7 @@ describe('the conflict marker gate', () => {
   test('the shipped script runs it in the folder it is started in', () => {
     const root = repository({ 'a.md': `${THEIRS}\n` });
     const script = join(import.meta.dir, '..', '..', '..', 'base', 'checks', 'conflict-markers.ts');
-    const child = spawnSyncBounded({
+    const child = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, script],
       cwd: root,
       stdout: 'pipe',

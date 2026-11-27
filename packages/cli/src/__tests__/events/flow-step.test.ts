@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { join } from 'node:path';
 import { EventHook, EventLog, FlowState, FlowSteps } from '../../events/index.ts';
 import { hermeticEnv } from '../helpers/hermetic.helper.ts';
@@ -387,7 +387,7 @@ describe('the hook script with a task list', () => {
   test('the script loads the flow check itself, writes the merged steps and prints nothing', () => {
     const root = project();
     const id = open(root);
-    const child = spawnSyncBounded({
+    const child = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'event.ts')],
       cwd: root,
       env: { ...process.env, CLAUDE_PROJECT_DIR: root, VULCAN_ACTOR: 'pnt-vulcan-1' },

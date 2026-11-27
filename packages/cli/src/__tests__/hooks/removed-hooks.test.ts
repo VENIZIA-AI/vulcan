@@ -2,7 +2,7 @@ import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const OLD_OPEN_ENTRY = readFileSync(
@@ -39,7 +39,7 @@ describe('an entry an older vulcan project sync wrote for a removed fail-open ho
   for (const hook of REMOVED_OPEN) {
     test(`${hook}: with its file gone, the old entry still passes the call`, () => {
       const root = projectWithThisPackage();
-      const result = spawnSyncBounded({
+      const result = SpawnUtility.spawnSyncBounded({
         cmd: ['/bin/sh', '-c', OLD_OPEN_ENTRY.split('@@HOOK@@').join(hook)],
         cwd: root,
         env: { ...process.env, CLAUDE_PROJECT_DIR: root },

@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { GUARD_HOOK_NAME, GuardHook } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { GUARD_MANIFEST_FILE, guardManifest } from '../helpers/guard-manifest.helper.ts';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
@@ -37,7 +37,7 @@ const eventOf = (opts: { root: string; name: string; args: Record<string, unknow
   });
 
 const run = (opts: { stdin: string; root: string; env?: Record<string, string> }) => {
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, SCRIPT],
     cwd: opts.root,
     env: { ...process.env, ...opts.env },
@@ -178,7 +178,7 @@ describe('the hook command wrapper in .agents/hooks.json', () => {
       delete environment.VULCAN_GUARD_ASKS;
     }
 
-    const result = spawnSyncBounded({
+    const result = SpawnUtility.spawnSyncBounded({
       cmd: ['/bin/sh', '-c', commandOf()],
       cwd: join(opts.root, '.agents'),
       env: environment,

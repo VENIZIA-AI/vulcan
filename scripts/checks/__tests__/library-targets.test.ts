@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 // VULCAN's packages are libraries: they keep Makefile targets, and their package.json scripts carry
@@ -12,7 +12,7 @@ const LEGACY_SCRIPTS = ['dev', 'start', 'build', 'rebuild', 'preview', 'server:p
 describe('the root Makefile exposes the library target set', () => {
   for (const target of LIBRARY_TARGETS) {
     test(`make ${target}`, () => {
-      const result = spawnSyncBounded({
+      const result = SpawnUtility.spawnSyncBounded({
         cmd: ['make', '-n', target],
         cwd: ROOT,
         stdout: 'pipe',
@@ -25,12 +25,12 @@ describe('the root Makefile exposes the library target set', () => {
   }
 
   test('lint-fix applies the fixes and typecheck checks every package', () => {
-    const lintFix = spawnSyncBounded({
+    const lintFix = SpawnUtility.spawnSyncBounded({
       cmd: ['make', '-n', 'lint-fix'],
       cwd: ROOT,
       stdout: 'pipe',
     });
-    const typecheck = spawnSyncBounded({
+    const typecheck = SpawnUtility.spawnSyncBounded({
       cmd: ['make', '-n', 'typecheck'],
       cwd: ROOT,
       stdout: 'pipe',
@@ -41,7 +41,7 @@ describe('the root Makefile exposes the library target set', () => {
   });
 
   const dryRun = (opts: { cwd: string; target: string }) =>
-    spawnSyncBounded({
+    SpawnUtility.spawnSyncBounded({
       cmd: ['make', '-n', opts.target],
       cwd: opts.cwd,
       stdout: 'pipe',
@@ -75,7 +75,7 @@ describe('the root Makefile exposes the library target set', () => {
   });
 
   test('make help lists them', () => {
-    const help = spawnSyncBounded({
+    const help = SpawnUtility.spawnSyncBounded({
       cmd: ['make', 'help'],
       cwd: ROOT,
       stdout: 'pipe',

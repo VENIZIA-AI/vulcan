@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { EventHook, EventLog } from '../../events/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { wire } from './wire.helper.ts';
@@ -352,7 +352,7 @@ describe('EventHook.run', () => {
 
 describe('the hook script', () => {
   const run = (opts: { root: string; input: string; env?: Record<string, string> }) =>
-    spawnSyncBounded({
+    SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, SCRIPT],
       cwd: opts.root,
       env: { ...process.env, CLAUDE_PROJECT_DIR: opts.root, VULCAN_ACTOR: 'a-1', ...opts.env },

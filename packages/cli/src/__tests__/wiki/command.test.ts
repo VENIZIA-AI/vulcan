@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runAnchorsCommand, runSourceLinksCommand } from '../../wiki/index.ts';
 import { git } from '../helpers/git-repo.helper.ts';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const roots: string[] = [];
 
@@ -110,18 +110,21 @@ describe('the shipped entry scripts', () => {
 
   test('wiki-source-links exits 1 and names the missing flag when --repo is absent', () => {
     const root = repository({ link: 'packages/x/y.ts' });
-    const result = spawnSyncBounded({ cmd: ['bun', entry('wiki-source-links')], cwd: root });
+    const result = SpawnUtility.spawnSyncBounded({
+      cmd: ['bun', entry('wiki-source-links')],
+      cwd: root,
+    });
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr.toString()).toContain('--repo <owner/name> is required');
   });
 
   test('wiki-source-links exits 0 on a tracked path and 1 on a missing one', () => {
-    const ok = spawnSyncBounded({
+    const ok = SpawnUtility.spawnSyncBounded({
       cmd: ['bun', entry('wiki-source-links'), '--repo', 'VENIZIA-AI/acme'],
       cwd: repository({ link: 'packages/x/y.ts' }),
     });
-    const bad = spawnSyncBounded({
+    const bad = SpawnUtility.spawnSyncBounded({
       cmd: ['bun', entry('wiki-source-links'), '--repo', 'VENIZIA-AI/acme'],
       cwd: repository({ link: 'packages/x/gone.ts' }),
     });
@@ -135,7 +138,7 @@ describe('the shipped entry scripts', () => {
   test('wiki-source-links reads the layout of the config: a broken link under its folder fails', () => {
     const root = repository({ link: 'packages/x/y.ts' });
     const run = () =>
-      spawnSyncBounded({
+      SpawnUtility.spawnSyncBounded({
         cmd: ['bun', entry('wiki-source-links'), '--repo', 'VENIZIA-AI/acme'],
         cwd: root,
       });
@@ -171,7 +174,7 @@ describe('the shipped entry scripts', () => {
       'export default { project: { layout: 3 } };\n',
     );
 
-    const result = spawnSyncBounded({
+    const result = SpawnUtility.spawnSyncBounded({
       cmd: ['bun', entry('wiki-source-links'), '--repo', 'VENIZIA-AI/acme'],
       cwd: root,
     });
@@ -182,7 +185,7 @@ describe('the shipped entry scripts', () => {
   });
 
   test('wiki-anchors exits 1 and says to build first when there is no dist', () => {
-    const result = spawnSyncBounded({
+    const result = SpawnUtility.spawnSyncBounded({
       cmd: ['bun', entry('wiki-anchors')],
       cwd: repository({ link: 'packages/x/y.ts' }),
     });

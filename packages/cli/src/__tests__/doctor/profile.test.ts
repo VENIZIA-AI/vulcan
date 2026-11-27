@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
@@ -66,7 +66,7 @@ describe('doctor and the personal profile', () => {
       ['init', '-q'],
       ['add', '-f', '.agents/local/profile.json'],
     ]) {
-      expect(spawnSyncBounded({ cmd: ['git', ...args], cwd: root }).exitCode).toBe(0);
+      expect(SpawnUtility.spawnSyncBounded({ cmd: ['git', ...args], cwd: root }).exitCode).toBe(0);
     }
 
     const result = await profileWarnings({ root });

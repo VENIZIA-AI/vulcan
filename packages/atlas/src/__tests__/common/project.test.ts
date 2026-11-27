@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const PROJECT_MODULE = join(__dirname, '..', '..', 'common', 'project.ts');
 const roots: string[] = [];
@@ -18,7 +18,7 @@ test('the project root is the working directory, never an IGNIS_ROOT left in the
 
   roots.push(cwd);
 
-  const child = spawnSyncBounded({
+  const child = SpawnUtility.spawnSyncBounded({
     cmd: [
       process.execPath,
       '-e',

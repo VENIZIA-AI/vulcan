@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { GUARD_MANIFEST_FILE, guardManifest } from '../helpers/guard-manifest.helper.ts';
 import { fileToolEvent } from '../helpers/hook-event.helper.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -68,7 +68,7 @@ const SOURCES: IAskSource[] = [
 ];
 
 const git = (opts: { root: string; args: string[] }): void => {
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: ['git', '-c', 'user.name=t', '-c', 'user.email=t@example.test', ...opts.args],
     cwd: opts.root,
     env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null' },
@@ -129,7 +129,7 @@ const answerOf = (opts: {
         ['cwd', opts.root],
       ]),
     );
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, join(HOOKS, `${opts.hook}.ts`)],
     cwd: opts.root,
     env: environment,

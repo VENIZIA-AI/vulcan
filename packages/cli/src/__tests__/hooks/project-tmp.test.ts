@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { ProjectLayout } from '../../common/index.ts';
 import { HookConstants, ProjectTmp } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -53,7 +53,7 @@ describe('ProjectTmp.exportProjectTmp', () => {
     mkdirSync(root, { recursive: true });
     expect(ProjectTmp.exportProjectTmp({ root, envFile })).toBe(true);
 
-    const shell = spawnSyncBounded({
+    const shell = SpawnUtility.spawnSyncBounded({
       cmd: ['sh', '-c', `. '${envFile}'; printf '%s' "$TMPDIR"`],
       stdout: 'pipe',
     });
@@ -77,7 +77,7 @@ describe('ProjectTmp.exportProjectTmp', () => {
 
     ProjectTmp.exportProjectTmp({ root, envFile });
 
-    const shell = spawnSyncBounded({
+    const shell = SpawnUtility.spawnSyncBounded({
       cmd: [
         'sh',
         '-c',
@@ -96,7 +96,7 @@ describe('the session-start hook', () => {
   test('writes the export when Claude Code gives it a file, and still prints the digest', () => {
     const root = createProject({ files: {} });
     const envFile = join(root, 'env-file.sh');
-    const child = spawnSyncBounded({
+    const child = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, HOOK],
       env: {
         ...process.env,
@@ -118,7 +118,11 @@ describe('the session-start hook', () => {
 
     delete env.CLAUDE_ENV_FILE;
 
-    const child = spawnSyncBounded({ cmd: [process.execPath, HOOK], env, stdout: 'pipe' });
+    const child = SpawnUtility.spawnSyncBounded({
+      cmd: [process.execPath, HOOK],
+      env,
+      stdout: 'pipe',
+    });
 
     expect(child.exitCode).toBe(0);
     expect(existsSync(join(root, '.agents/tmp'))).toBe(false);

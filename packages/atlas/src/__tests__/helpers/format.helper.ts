@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 /** The `[fmt]` section `vulcan project init` writes to the project root. */
 const BUNFIG =
@@ -18,7 +18,7 @@ export const isFormatted = (opts: {
     writeFileSync(join(root, 'bunfig.toml'), BUNFIG);
     writeFileSync(join(root, opts.file), opts.text);
 
-    const result = spawnSyncBounded({
+    const result = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, 'fmt', '--no-script', '--check', opts.file],
       cwd: root,
     });

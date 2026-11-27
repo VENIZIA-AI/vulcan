@@ -9,7 +9,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
-import { findRepositoryRoot } from '@venizia/dev-configs/testing';
+import { RepoTmp } from '@venizia/dev-configs/testing';
 import { BrowserSocket } from '../../local/browser-socket.ts';
 
 /** What a measuring run is asked: the page text, the width of the window, and the colour scheme. */
@@ -73,7 +73,7 @@ export class BrowserPage {
 
     // The child gets the first of these folders in which Chrome's socket path fits: the one named by
     // VULCAN_BROWSER_TMPDIR, the project's scratch folder, the project's `.agents/local` (shorter by `tmp/`), the test folder.
-    const local = join(findRepositoryRoot(import.meta.dir), '.agents', 'local');
+    const local = join(RepoTmp.findRoot({ start: import.meta.dir }), '.agents', 'local');
     const candidates = [
       process.env['VULCAN_BROWSER_TMPDIR'],
       join(local, 'tmp'),

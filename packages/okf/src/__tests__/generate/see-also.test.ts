@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 
@@ -35,7 +35,7 @@ const makeProject = (opts: { okf: object; concepts?: Record<string, string> }) =
   }
 
   const run = (args: string[]) => {
-    const child = spawnSyncBounded({
+    const child = SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, CLI, ...args],
       env: {
         ...process.env,

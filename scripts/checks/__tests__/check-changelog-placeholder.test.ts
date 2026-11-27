@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { ChangelogPlaceholder } from '../check-changelog-placeholder.ts';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
@@ -32,7 +32,7 @@ const plant = (opts: { files: Record<string, string> }): string => {
 };
 
 const run = (opts: { root: string }) => {
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, SCRIPT, '--root', opts.root],
     stdout: 'pipe',
     stderr: 'pipe',

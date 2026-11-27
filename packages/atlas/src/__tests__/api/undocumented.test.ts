@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 const roots: string[] = [];
 
@@ -54,7 +54,7 @@ const sourceProject = (opts: { source: string; retired?: boolean }): string => {
 };
 
 const run = (opts: { root: string; args: string[] }) =>
-  spawnSyncBounded({
+  SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, CLI, 'api', ...opts.args],
     cwd: opts.root,
     stdout: 'pipe',

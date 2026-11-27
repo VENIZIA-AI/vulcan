@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { ProjectLayout } from '../../common/constants.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { CloneChecks } from '../../doctor/clone-checks.ts';
@@ -14,7 +14,7 @@ const context = (root: string) => ({
   configFile: '.configs/vulcan.config.mts',
 });
 const runPrepare = (root: string) =>
-  spawnSyncBounded({
+  SpawnUtility.spawnSyncBounded({
     cmd: ['sh', '-c', ProjectLayout.PREPARE_SCRIPT],
     cwd: root,
     env: { ...process.env },

@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import vulcanGuards from '../../../base/extensions/vulcan-guards.ts';
 import { CodexHooks, GuardHook, GUARD_HOOK_NAME } from '../../agents/index.ts';
 import { LoaderEnvironment } from '../../hooks/loader-environment.ts';
@@ -60,7 +60,7 @@ const shell = (opts: {
   env: Record<string, string>;
   stdin?: string;
 }) => {
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: ['/bin/sh', '-c', opts.command],
     cwd: opts.cwd,
     env: { ...process.env, GIT_CEILING_DIRECTORIES: dirname(opts.cwd), ...opts.env },

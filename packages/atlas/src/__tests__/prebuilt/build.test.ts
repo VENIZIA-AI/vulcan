@@ -6,7 +6,7 @@ import { AtlasConstants } from '@/common';
 import { Envelope, IndexPair, PrebuiltKeys } from '@/prebuilt';
 import { GitRepository } from '@/sources/git';
 import { SourceResolver } from '@/sources';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { payloadOf, rowsOf } from './pair.helper';
 import {
   commitAll,
@@ -169,7 +169,7 @@ describe('atlas index: build and sign the index of HEAD (C5)', () => {
   test('the command runs from the command line, reading the key from the environment', () => {
     const { work, out } = checkout();
     const run = (opts: { env: Record<string, string> }) =>
-      spawnSyncBounded({
+      SpawnUtility.spawnSyncBounded({
         cmd: [
           process.execPath,
           join(PACKAGE_ROOT, 'src/cli/main.ts'),

@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { CodexHooks } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { GUARD_MANIFEST_FILE, guardManifest } from '../helpers/guard-manifest.helper.ts';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
@@ -40,7 +40,7 @@ const eventOf = (opts: { root: string; tool: string; command: string }): string 
   );
 
 const run = (opts: { root: string; stdin: string; env?: Record<string, string> }) => {
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, SCRIPT],
     cwd: opts.root,
     env: { ...process.env, ...opts.env },
@@ -190,7 +190,7 @@ describe('the hook command wrapper in .codex/hooks.json', () => {
   };
 
   const runWrapper = (opts: { root: string; stdin: string }) => {
-    const result = spawnSyncBounded({
+    const result = SpawnUtility.spawnSyncBounded({
       cmd: ['/bin/sh', '-c', commandOf()],
       cwd: opts.root,
       // No git repository above the project, so the project is the working directory.

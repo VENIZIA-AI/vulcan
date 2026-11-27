@@ -122,7 +122,7 @@ const ownerHtml = (opts: { spec: TVisualizeSpec; chrome: TChrome }): string => {
   const fact = (label: string, value: string | undefined): string =>
     value === undefined
       ? ''
-      : `<p class="fact"><b>${FigureLayout.escapeText({ value: label })}</b> ${FigureLayout.escapeText({ value: value })}</p>`;
+      : `<p class="fact"><b>${FigureLayout.escapeText({ value: label })}</b> ${FigureLayout.escapeText({ value })}</p>`;
 
   let list = '';
 

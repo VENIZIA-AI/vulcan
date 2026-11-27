@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { PackageSwap } from '../../hooks/package-swap.ts';
 import { toolEvent } from '../helpers/hook-event.helper.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
@@ -142,7 +142,7 @@ describe('a package manager that takes the guard package from somewhere else is 
 describe('the hook refuses the attack that was proven', () => {
   const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-git.ts');
   const answerOf = (command: string): string =>
-    spawnSyncBounded({
+    SpawnUtility.spawnSyncBounded({
       cmd: [process.execPath, HOOK],
       cwd: root,
       env: { ...process.env, CLAUDE_PROJECT_DIR: root },

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { checkManifests } from '../helpers/format.helper.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { runCli } from '../helpers/run.helper.ts';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
@@ -432,7 +432,7 @@ describe('add asks which kind when neither flag is given', () => {
       const command = [process.execPath, CLI, 'package', 'add', ...opts.args]
         .map((part) => `'${part.replaceAll("'", "'\\''")}'`)
         .join(' ');
-      const child = spawnSyncBounded({
+      const child = SpawnUtility.spawnSyncBounded({
         cmd: ['script', '-qec', command, '/dev/null'],
         cwd: opts.root,
         env: { ...process.env, TERM: 'dumb', ...ENV },

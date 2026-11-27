@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { hermeticEnv } from '../helpers/hermetic.helper.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { runCli } from '../helpers/run.helper.ts';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
@@ -297,7 +297,7 @@ describe('vulcan agent setup', () => {
     test('Enter keeps the stored list and the question says so', () => {
       const root = synced({ agents: 'omp' });
       const command = `'${process.execPath}' '${CLI}' agent setup`;
-      const child = spawnSyncBounded({
+      const child = SpawnUtility.spawnSyncBounded({
         cmd: ['script', '-qec', command, '/dev/null'],
         cwd: root,
         env: { ...process.env, TERM: 'dumb', ...ENV },
@@ -314,7 +314,7 @@ describe('vulcan agent setup', () => {
     test('asks again with the stored list shown, and applies the answer', () => {
       const root = synced({ agents: 'omp' });
       const command = `'${process.execPath}' '${CLI}' agent setup`;
-      const child = spawnSyncBounded({
+      const child = SpawnUtility.spawnSyncBounded({
         cmd: ['script', '-qec', command, '/dev/null'],
         cwd: root,
         env: { ...process.env, TERM: 'dumb', ...ENV },

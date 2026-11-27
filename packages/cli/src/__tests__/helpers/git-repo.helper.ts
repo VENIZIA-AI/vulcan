@@ -1,4 +1,4 @@
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 /** Git without the machine's configuration: no global hook, identity or template reaches a test repository. */
 const GIT_ENV = {
@@ -11,7 +11,11 @@ const GIT_ENV = {
 
 /** Runs `git args` in `cwd`; throws with git's own message when it fails. */
 export const git = (opts: { cwd: string; args: string[] }): string => {
-  const result = spawnSyncBounded({ cmd: ['git', ...opts.args], cwd: opts.cwd, env: GIT_ENV });
+  const result = SpawnUtility.spawnSyncBounded({
+    cmd: ['git', ...opts.args],
+    cwd: opts.cwd,
+    env: GIT_ENV,
+  });
 
   if (result.exitCode !== 0) {
     throw new Error(`git ${opts.args.join(' ')} failed: ${result.stderr.toString()}`);

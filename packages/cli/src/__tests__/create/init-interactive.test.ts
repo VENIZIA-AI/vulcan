@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { createFakeCommand } from '../helpers/fake-command.helper.ts';
 import { createProject, packFolder, removeProjects } from '../helpers/project.helper.ts';
 import { runCli } from '../helpers/run.helper.ts';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
@@ -23,7 +23,7 @@ const runInTerminal = (opts: {
   env: Record<string, string>;
 }) => {
   const command = [process.execPath, CLI, ...opts.args].map(quote).join(' ');
-  const child = spawnSyncBounded({
+  const child = SpawnUtility.spawnSyncBounded({
     cmd: ['script', '-qec', command, '/dev/null'],
     cwd: opts.cwd,
     env: { ...process.env, TERM: 'dumb', ...opts.env },

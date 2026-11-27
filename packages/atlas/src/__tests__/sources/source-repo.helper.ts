@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 /** A registry that refuses at once: a test never reaches npm, and a pull's tarball step skips fast. */
 export const NO_REGISTRY = 'http://127.0.0.1:9';
@@ -29,7 +29,7 @@ export const install = (opts: { root: string; name: string; version: string }): 
 };
 
 export const git = (opts: { cwd: string; args: string[] }): string => {
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', ...opts.args],
     cwd: opts.cwd,
     stdout: 'pipe',

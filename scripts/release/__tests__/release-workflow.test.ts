@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { PublishCondition } from '../../checks/publish-condition.ts';
 
 const WORKFLOW = join(
@@ -94,7 +94,7 @@ const findStep = (opts: { name: string }): IWorkflowStep => {
 };
 
 const run = (opts: { cmd: string[]; cwd: string; env?: Record<string, string> }) => {
-  const result = spawnSyncBounded({
+  const result = SpawnUtility.spawnSyncBounded({
     cmd: opts.cmd,
     cwd: opts.cwd,
     env: {

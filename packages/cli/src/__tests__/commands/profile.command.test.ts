@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
-import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { SpawnUtility } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
@@ -18,7 +18,7 @@ const profile = (opts: {
   lines?: string[];
   env?: Record<string, string>;
 }) => {
-  const child = spawnSyncBounded({
+  const child = SpawnUtility.spawnSyncBounded({
     cmd: [process.execPath, CLI, 'profile', ...(opts.args ?? [])],
     cwd: opts.root,
     env: { ...process.env, TERM: 'dumb', LANG: 'en_US.UTF-8', ...opts.env },
