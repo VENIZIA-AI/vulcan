@@ -14,6 +14,14 @@ export interface IDeclarationText {
 /** A `lib.*.d.ts` of the compiler: `Promise`, `Record` and the like never document the export that uses them. */
 const LIB_FILE = /[\\/]lib\.[^\\/]*\.d\.ts$/;
 
+/** A declaration apart from the unexported ones it uses, each with the statement it was read from. */
+export interface IDeclarationParts {
+  body: string;
+  comment: string;
+  readonly locals: readonly { statement: TypeScript.Node; text: string }[];
+  readonly uses: readonly string[];
+}
+
 /**
  * The text of one declaration read from a built `.d.ts`: the same text for the `symbol` tool and for
  * the generated API pages, so a reader of either sees what the package ships.
@@ -22,6 +30,11 @@ export class DeclarationText {
   /** A class of hundreds of members is cut here, at a line, and says so. */
   static readonly RECORD_MAX_CHARS = 40_000;
   static readonly CUT_MARK = '// ... cut';
+  /** A namespace lists declarations the other records of a run already read; what is read depends on the checker. */
+  private static readonly parts = new WeakMap<
+    TypeScript.TypeChecker,
+    WeakMap<TypeScript.Declaration, IDeclarationParts>
+  >();
 
   static of(opts: {
     declaration: TypeScript.Declaration;
@@ -32,6 +45,38 @@ export class DeclarationText {
       return { declaration: '', doc: '', uses: [] };
     }
 
+    const own = DeclarationText.partsOf(opts);
+    const text = [
+      DeclarationText.commented({ comment: own.comment, body: own.body }),
+      ...own.locals.map((local) => local.text),
+    ].join('\n\n');
+
+    return {
+      declaration: DeclarationText.cut({ text, max: DeclarationText.RECORD_MAX_CHARS }),
+      doc: DeclarationText.cleanDoc({ comment: own.comment }),
+      uses: [...own.uses],
+    };
+  }
+
+  /** Read once per checker: the same object each time, which a caller never changes. */
+  static partsOf(opts: {
+    declaration: TypeScript.Declaration;
+    checker: TypeScript.TypeChecker;
+  }): IDeclarationParts {
+    const read =
+      DeclarationText.parts.get(opts.checker) ??
+      new WeakMap<TypeScript.Declaration, IDeclarationParts>();
+    const parts = read.get(opts.declaration) ?? DeclarationText.readParts(opts);
+
+    DeclarationText.parts.set(opts.checker, read.set(opts.declaration, parts));
+
+    return parts;
+  }
+
+  private static readParts(opts: {
+    declaration: TypeScript.Declaration;
+    checker: TypeScript.TypeChecker;
+  }): IDeclarationParts {
     const statement = DeclarationText.statementOf({ declaration: opts.declaration });
     const own = DeclarationText.textOf({ statement, declaration: opts.declaration });
     const locals: TypeScript.Node[] = [];
@@ -47,30 +92,33 @@ export class DeclarationText {
       seen: new Set<TypeScript.Node>([statement]),
     });
 
-    const parts = [
-      own.text,
-      ...locals.map(
-        (local) => DeclarationText.textOf({ statement: local, declaration: local }).text,
-      ),
-    ];
-
     return {
-      declaration: DeclarationText.cut({
-        text: parts.join('\n\n'),
-        max: DeclarationText.RECORD_MAX_CHARS,
-      }),
-      doc: DeclarationText.cleanDoc({ comment: own.comment }),
+      ...own,
+      locals: locals.map((local) => ({
+        statement: local,
+        text: DeclarationText.commented(
+          DeclarationText.textOf({ statement: local, declaration: local }),
+        ),
+      })),
       uses: [...new Set(uses)].filter((name) => name !== ownName),
     };
   }
 
+  /** A body under its TSDoc block, when it has one. */
+  static commented(opts: { comment: string; body: string }): string {
+    return opts.comment === '' ? opts.body : `${opts.comment}\n${opts.body}`;
+  }
+
+  /** The TSDoc block above the statement of a declaration, as written; empty when there is none. */
+  static commentOf(opts: { declaration: TypeScript.Declaration }): string {
+    const statement = DeclarationText.statementOf(opts);
+
+    return DeclarationText.textOf({ statement, declaration: opts.declaration }).comment;
+  }
+
   /** The TSDoc of an export alone, for a declaration in a source file, where the statement text would hold bodies. */
   static docOf(opts: { declaration: TypeScript.Declaration }): string {
-    const statement = DeclarationText.statementOf({ declaration: opts.declaration });
-
-    return DeclarationText.cleanDoc({
-      comment: DeclarationText.textOf({ statement, declaration: opts.declaration }).comment,
-    });
+    return DeclarationText.cleanDoc({ comment: DeclarationText.commentOf(opts) });
   }
 
   /** The text without its leading TSDoc block, for a reader that shows the prose apart from the code. */
@@ -116,7 +164,7 @@ export class DeclarationText {
 
   /** A statement with its TSDoc block; a variable statement of several names keeps only the one asked for. */
   private static textOf(opts: { statement: TypeScript.Node; declaration: TypeScript.Node }): {
-    text: string;
+    body: string;
     comment: string;
   } {
     const compiler = TypeScriptCompiler.get();
@@ -137,7 +185,7 @@ export class DeclarationText {
       ? `export declare const ${opts.declaration.getText(sourceFile)};`
       : statement.getText(sourceFile);
 
-    return { text: comment === '' ? body : `${comment}\n${body}`, comment };
+    return { body, comment };
   }
 
   /**

@@ -19,8 +19,8 @@ import type { IAtlasProject } from '@/common/project-config';
 import type { ISymbolRecord } from './common';
 import { AtlasSymbols } from './generator';
 
-/** The cache layout this atlas reads and writes (V3); a cache from another layout is never read. */
-const SYMBOLS_SCHEMA_VERSION = 3;
+/** The cache layout this atlas reads and writes (V4); a cache from another layout is never read. */
+const SYMBOLS_SCHEMA_VERSION = 4;
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 /** The characters a semver version is spelled with - never a `/`. */
 const CACHEABLE_VERSION = /^[0-9A-Za-z.+-]+$/;

@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { TypeScriptCompiler } from '@/common/compiler';
 import { PackageEntries } from '@/common/package-entries';
 import type { ISymbolRecord } from '@/symbols';
 import { AtlasSymbols } from '@/symbols/generator';
@@ -116,19 +117,46 @@ describe('the declaration a symbol record keeps', () => {
     expect(get('Door').uses).not.toContain('Door');
   });
 
-  test('a module re-exported as a namespace has no declaration of its own, not the whole file', () => {
-    expect(get('ns').declaration).toBeUndefined();
+  test('a module re-exported as a namespace lists its members, not the file', () => {
+    expect(get('ns').declaration).toBe(
+      'export declare namespace ns {\n    /** Documented elsewhere. */\n    function inner(): void;\n}',
+    );
     expect(get('ns').doc).toBeUndefined();
   });
 
   test('a namespace export keeps the TSDoc written on the export statement', () => {
     expect(get('allDoors').doc).toBe('All the doors.\n\n@remarks one import for every door');
-    expect(get('allDoors').declaration).toBeUndefined();
+    expect(get('allDoors').declaration).toContain('export declare namespace allDoors {');
   });
 
   test('a variable declared with another keeps its own declaration', () => {
     expect(get('a').declaration).toBe('export declare const a: number;');
     expect(get('b').declaration).toBe('export declare const b: string;');
+  });
+});
+
+describe('a declaration listed twice in one run', () => {
+  test('is read once per checker, and a new checker reads it again', () => {
+    const compiler = TypeScriptCompiler.get();
+    const root = mkdtempSync(join(tmpdir(), 'atlas-declaration-cache-'));
+    const path = join(root, 'index.d.ts');
+
+    roots.push(root);
+    writeFileSync(path, 'export declare function plain(): void;\n');
+
+    const program = compiler.createProgram([path], {});
+    const declaration = program.getSourceFile(path)?.statements[0];
+
+    if (declaration === undefined || !compiler.isFunctionDeclaration(declaration)) {
+      throw new Error('no declaration');
+    }
+
+    const checker = program.getTypeChecker();
+    const first = DeclarationText.partsOf({ declaration, checker });
+    const other = compiler.createProgram([path], {}).getTypeChecker();
+
+    expect(DeclarationText.partsOf({ declaration, checker })).toBe(first);
+    expect(DeclarationText.partsOf({ declaration, checker: other })).not.toBe(first);
   });
 });
 
