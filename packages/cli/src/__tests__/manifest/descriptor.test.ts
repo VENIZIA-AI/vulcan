@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { git, initRepo } from '../helpers/git-repo.helper.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import { ProjectContract } from '../../doctor/checks.ts';
+import { RuleChecks } from '../../doctor/rule-checks.ts';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { runCli } from '../helpers/run.helper.ts';
@@ -87,7 +87,7 @@ describe('the descriptor and the local manifest', () => {
 
   test('doctor names the temporary copy: missing or stale, commit it, kept until the stable release', () => {
     const root = project();
-    const found = ProjectContract.checkManifest({
+    const found = RuleChecks.checkManifest({
       root,
       config: configOf(root).config,
       configFile: '.configs/vulcan.config.mts',
@@ -100,7 +100,7 @@ describe('the descriptor and the local manifest', () => {
 
   test('doctor asks for the descriptor to be committed and the local manifest only to be synced', () => {
     const root = project();
-    const found = ProjectContract.checkManifest({
+    const found = RuleChecks.checkManifest({
       root,
       config: configOf(root).config,
       configFile: '.configs/vulcan.config.mts',
@@ -158,7 +158,7 @@ describe('a repository that publishes no package has no descriptor', () => {
     expect(existsSync(join(root, ManifestConstants.FILE))).toBe(true);
     expect(existsSync(join(root, ManifestConstants.DESCRIPTOR_FILE))).toBe(false);
     expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(false);
-    expect(ProjectContract.checkManifest(appConfig(root))).toEqual([]);
+    expect(RuleChecks.checkManifest(appConfig(root))).toEqual([]);
   });
 
   test('a descriptor left untracked by an earlier sync is deleted; doctor asks for the sync until then', () => {
@@ -179,9 +179,9 @@ describe('a repository that publishes no package has no descriptor', () => {
       ],
     });
 
-    expect(
-      ProjectContract.checkManifest(appConfig(root)).map((entry) => entry.message),
-    ).toContainEqual(expect.stringContaining('left from an earlier sync'));
+    expect(RuleChecks.checkManifest(appConfig(root)).map((entry) => entry.message)).toContainEqual(
+      expect.stringContaining('left from an earlier sync'),
+    );
 
     const run = runCli({ args: ['project', 'sync', '--agents', 'claude'], cwd: root });
 
@@ -216,7 +216,7 @@ describe('a repository that publishes no package has no descriptor', () => {
     expect(run.code, run.stderr).toBe(0);
     expect(descriptor.name).toBe('shop');
     expect(existsSync(join(root, ManifestConstants.LEGACY_FILE))).toBe(true);
-    expect(ProjectContract.checkManifest(appConfig(root))).toEqual([]);
+    expect(RuleChecks.checkManifest(appConfig(root))).toEqual([]);
     expect(run.stderr).not.toContain('git rm --cached');
   });
 });

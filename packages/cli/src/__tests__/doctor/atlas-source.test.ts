@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { ProjectContract } from '../../doctor/checks.ts';
+import { CloneChecks } from '../../doctor/clone-checks.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
@@ -33,7 +33,7 @@ const recorded = (sources: Record<string, object>, at = STATUS): string =>
 describe('doctor and the atlas sources the last server run recorded', () => {
   test('a failed source and a failed refresh are warnings; a ready one, a recent build and no record are quiet', () => {
     const now = Date.now();
-    const failed = ProjectContract.checkAtlasSources(
+    const failed = CloneChecks.checkAtlasSources(
       context(recorded({ ignis: { state: 'failed', since: now, error: 'the remote is down' } })),
     );
 
@@ -42,7 +42,7 @@ describe('doctor and the atlas sources the last server run recorded', () => {
     expect(failed[0]?.message).toContain('ignis: failed (the remote is down)');
     expect(failed[0]?.message).toContain('atlas status');
 
-    const refresh = ProjectContract.checkAtlasSources(
+    const refresh = CloneChecks.checkAtlasSources(
       context(
         recorded({
           ignis: { state: 'failed', since: now, error: 'offline', resolved: { name: 'ignis' } },
@@ -57,7 +57,7 @@ describe('doctor and the atlas sources the last server run recorded', () => {
       recorded({ ignis: { state: 'building', since: now - 30_000, pid: process.pid } }),
       createProject({ files: { '.agents/vulcan.manifest.json': MANIFEST } }),
     ]) {
-      expect(ProjectContract.checkAtlasSources(context(root))).toEqual([]);
+      expect(CloneChecks.checkAtlasSources(context(root))).toEqual([]);
     }
   });
 
@@ -65,12 +65,12 @@ describe('doctor and the atlas sources the last server run recorded', () => {
     const old = Date.now() - 11 * 60_000;
 
     expect(
-      ProjectContract.checkAtlasSources(
+      CloneChecks.checkAtlasSources(
         context(recorded({ ardor: { state: 'building', since: old, pid: process.pid } })),
       )[0]?.message,
     ).toContain('ardor: hung');
     expect(
-      ProjectContract.checkAtlasSources(
+      CloneChecks.checkAtlasSources(
         context(recorded({ ardor: { state: 'building', since: old, pid: 2 ** 22 - 1 } })),
       ),
     ).toEqual([]);
@@ -80,7 +80,7 @@ describe('doctor and the atlas sources the last server run recorded', () => {
     const now = Date.now();
 
     expect(
-      ProjectContract.checkAtlasSources(
+      CloneChecks.checkAtlasSources(
         context(recorded({ gone: { state: 'failed', since: now, error: 'x' } })),
       ),
     ).toEqual([]);
@@ -90,6 +90,6 @@ describe('doctor and the atlas sources the last server run recorded', () => {
       'elsewhere/atlas/status.json',
     );
 
-    expect(ProjectContract.checkAtlasSources(context(root))).toEqual([]);
+    expect(CloneChecks.checkAtlasSources(context(root))).toEqual([]);
   });
 });

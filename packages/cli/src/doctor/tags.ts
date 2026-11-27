@@ -1,9 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { TextValue } from '../common/text.ts';
 import { ProjectPackages } from '../config/index.ts';
-import type { ICheckContext } from './checks.ts';
 import { DoctorChecks } from './common/index.ts';
-import type { IViolation } from './common/index.ts';
+import type { ICheckContext, IViolation } from './common/index.ts';
 
 /** The tag pattern as a regular expression that captures `<dir>`. */
 const tagPatternOf = (opts: { template: string }): RegExp =>

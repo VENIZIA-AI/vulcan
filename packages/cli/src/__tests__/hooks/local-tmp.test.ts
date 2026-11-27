@@ -10,7 +10,7 @@ import {
 import { join } from 'node:path';
 import { PresetScratch } from '../../create/scratch.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import { ProjectContract } from '../../doctor/checks.ts';
+import { LocalChecks } from '../../doctor/local-checks.ts';
 import { HookConstants, ProjectTmp } from '../../hooks/index.ts';
 import { CleanScopes, LocalScan } from '../../local/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
@@ -184,9 +184,7 @@ describe('vulcan project doctor: local.tmp that cannot hold a browser socket', (
   });
 
   test('a deep checkout fails with the length, even with a short folder', () => {
-    const found = ProjectContract.checkTmpFolder(
-      contextOf({ root: `/${'a'.repeat(80)}`, tmp: 't' }),
-    );
+    const found = LocalChecks.checkTmpFolder(contextOf({ root: `/${'a'.repeat(80)}`, tmp: 't' }));
 
     expect(found).toHaveLength(1);
     expect(found[0]?.file).toBe('.configs/vulcan.config.mts');
@@ -195,9 +193,9 @@ describe('vulcan project doctor: local.tmp that cannot hold a browser socket', (
   });
 
   test('a short checkout passes, and so does a project without the key', () => {
-    expect(ProjectContract.checkTmpFolder(contextOf({ root: '/work/acme', tmp: 't' }))).toEqual([]);
+    expect(LocalChecks.checkTmpFolder(contextOf({ root: '/work/acme', tmp: 't' }))).toEqual([]);
     expect(
-      ProjectContract.checkTmpFolder({
+      LocalChecks.checkTmpFolder({
         root: `/${'a'.repeat(80)}`,
         config: VULCAN_CONFIG_SCHEMA.parse({}),
         configFile: 'c',
@@ -293,7 +291,7 @@ describe('the review of local.tmp', () => {
   });
 
   test('doctor fails a folder that is, or holds, a layout folder', () => {
-    const found = ProjectContract.checkTmpFolder(
+    const found = LocalChecks.checkTmpFolder(
       contextOf({ tmp: 'apps', layout: { backend: 'apps/api' } }),
     );
 
@@ -307,7 +305,7 @@ describe('the review of local.tmp', () => {
     Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
     Bun.spawnSync(['git', 'add', 'tmp/kept.txt'], { cwd: root });
 
-    const found = ProjectContract.checkTmpFolder({
+    const found = LocalChecks.checkTmpFolder({
       root,
       config: VULCAN_CONFIG_SCHEMA.parse({ local: { tmp: 'tmp' } }),
       configFile: '.configs/vulcan.config.mts',
@@ -322,7 +320,7 @@ describe('the review of local.tmp', () => {
 
     mkdirSync(join(deep, '.agents/local'), { recursive: true });
 
-    expect(ProjectContract.checkBrowserSocket({ root: deep })).toHaveLength(1);
-    expect(ProjectContract.checkBrowserSocket({ root: deep, tmp: 'tmp' })).toEqual([]);
+    expect(LocalChecks.checkBrowserSocket({ root: deep })).toHaveLength(1);
+    expect(LocalChecks.checkBrowserSocket({ root: deep, tmp: 'tmp' })).toEqual([]);
   });
 });

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { ProjectLayout } from '../../common/constants.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import { ProjectContract } from '../../doctor/checks.ts';
+import { CloneChecks } from '../../doctor/clone-checks.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
@@ -73,12 +73,12 @@ describe('doctor and the prepare script', () => {
       },
     });
     const noPackage = createProject({ files: {} });
-    const found = ProjectContract.checkPrepareScript(context(none));
+    const found = CloneChecks.checkPrepareScript(context(none));
 
     expect(found).toHaveLength(1);
     expect(found[0]?.message).toContain('"prepare"');
     expect(found[0]?.message).toContain('vulcan project sync');
-    expect(ProjectContract.checkPrepareScript(context(has))).toEqual([]);
+    expect(CloneChecks.checkPrepareScript(context(has))).toEqual([]);
 
     for (const script of [
       { postinstall: 'bun node_modules/.bin/vulcan project sync' },
@@ -88,10 +88,10 @@ describe('doctor and the prepare script', () => {
         files: { 'package.json': JSON.stringify({ scripts: script }) },
       });
 
-      expect(ProjectContract.checkPrepareScript(context(other))).toEqual([]);
+      expect(CloneChecks.checkPrepareScript(context(other))).toEqual([]);
     }
 
-    expect(ProjectContract.checkPrepareScript(context(noPackage))).toEqual([]);
+    expect(CloneChecks.checkPrepareScript(context(noPackage))).toEqual([]);
   });
 
   test('the old name in the install script is called out with the script to use; a script that has both forms is quiet', () => {
@@ -102,7 +102,7 @@ describe('doctor and the prepare script', () => {
         }),
       },
     });
-    const found = ProjectContract.checkPrepareScript(context(old));
+    const found = CloneChecks.checkPrepareScript(context(old));
 
     expect(found).toHaveLength(1);
     expect(found[0]?.message).toContain('the old `sync` name');
@@ -119,7 +119,7 @@ describe('doctor and the prepare script', () => {
       },
     });
 
-    expect(ProjectContract.checkPrepareScript(context(both))).toEqual([]);
+    expect(CloneChecks.checkPrepareScript(context(both))).toEqual([]);
   });
 
   test('git tracking .claude/settings.json is a warning with the git command; untracked is quiet', () => {
@@ -132,10 +132,10 @@ describe('doctor and the prepare script', () => {
 
     Bun.spawnSync(['git', 'add', '-f', '.claude/settings.json'], { cwd: tracked });
 
-    const found = ProjectContract.checkClaudeSettingsTracked(context(tracked));
+    const found = CloneChecks.checkClaudeSettingsTracked(context(tracked));
 
     expect(found).toHaveLength(1);
     expect(found[0]?.message).toContain('git rm --cached .claude/settings.json');
-    expect(ProjectContract.checkClaudeSettingsTracked(context(untracked))).toEqual([]);
+    expect(CloneChecks.checkClaudeSettingsTracked(context(untracked))).toEqual([]);
   });
 });

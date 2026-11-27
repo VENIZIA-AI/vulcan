@@ -70,7 +70,7 @@ describe('the retired command forms', () => {
       'packages/cli/src/__tests__/sync/mcp-json.test.ts': 2,
       'packages/cli/src/agents/render.ts': 2,
       'packages/cli/src/commands/upgrade.command.ts': 1,
-      'packages/cli/src/doctor/checks.ts': 2,
+      'packages/cli/src/doctor/mcp-checks.ts': 2,
     });
   });
 });
