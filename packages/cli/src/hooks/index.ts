@@ -14,4 +14,5 @@ export * from './project-tmp.ts';
 export * from './project-guards.ts';
 export * from './codex-patch.ts';
 export * from './shell.ts';
+export * from './shell-programs.ts';
 export * from './command-view.ts';

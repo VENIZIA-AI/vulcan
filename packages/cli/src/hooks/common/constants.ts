@@ -105,3 +105,48 @@ export class HookConstants {
     '/dev/tty',
   ];
 }
+
+/** How a shell runs: the text of `-c`, a script file, its standard input, or nothing (`-n` only checks the syntax). */
+export class ShellModes {
+  static readonly COMMAND = 'command';
+  static readonly FILE = 'file';
+  static readonly STDIN = 'stdin';
+  static readonly CHECK = 'check';
+}
+
+/** What the parser reads of one command line at most: a guard that reads more would be slow, and a slow guard is skipped. */
+export class ShellBudget {
+  static readonly MAX_COMMANDS = 2000;
+  static readonly MAX_WORDS = 20_000;
+  /** The characters of a line and of every text nested in it, together: a line over it is not read at all. */
+  static readonly MAX_CHARS = 100_000;
+  /** Quotes, substitutions and arithmetic open inside each other at once: a line deeper than this is not followed. */
+  static readonly MAX_NESTING = 64;
+}
+
+/** What the shell readers share: the characters that end a word, the nesting depth, the form of a plain variable. */
+export class ShellConstants {
+  /** What stops an unquoted word. */
+  static readonly WORD_END = new Set([' ', '\t', '\n', ';', '|', '&', '<', '>', '(', ')']);
+  static readonly MAX_DEPTH = 4;
+  /** A variable as the shell takes it with no operator: `$NAME` or `${NAME}`. */
+  static readonly VARIABLE = /\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})/g;
+}
+
+/** The pieces of the write patterns that the table and its compiler share. */
+export class WritePatterns {
+  /** A verb ends at a blank, a quote or an operator, so `set` is not `set-context`. */
+  static readonly VERB_END = String.raw`(?=[\s"';|&)]|$)`;
+  /** The rest of one simple command, for a verb that may come anywhere after the program. */
+  static readonly REST = String.raw`[^|;&\n]*?`;
+}
+
+/** Why the SQL a database client runs cannot be seen. */
+export class SqlUnseen {
+  static readonly INPUT =
+    'writing to a database through SQL that comes from a pipe or a file, which this check cannot see';
+  static readonly FILE =
+    'writing to a database through a SQL file whose contents this check cannot see';
+  static readonly BUILT =
+    'writing to a database through SQL built when the command runs, which this check cannot see';
+}

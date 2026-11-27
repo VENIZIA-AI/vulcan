@@ -1,7 +1,7 @@
 import { ShellParser, ShellUnread } from './shell.ts';
-import type { ISimpleCommand } from './shell.ts';
+import { ShellPrograms } from './shell-programs.ts';
 import { GuardDecisions, HookConstants } from './common/index.ts';
-import type { IGitHit, IGitRunner } from './common/index.ts';
+import type { IGitHit, IGitRunner, ISimpleCommand } from './common/index.ts';
 import { GitQueries } from './git-queries.ts';
 import { ProjectGuards } from './project-guards.ts';
 
@@ -422,8 +422,8 @@ const inspectOne = (opts: {
   run: IGitRunner;
   askPush: string[];
 }): IGitHit[] => {
-  const program = ShellParser.programOf({ command: opts.command });
-  const name = ShellParser.basenameOf({ word: program.name });
+  const program = ShellPrograms.programOf({ command: opts.command });
+  const name = ShellPrograms.basenameOf({ word: program.name });
 
   if (name === 'gh') {
     return [

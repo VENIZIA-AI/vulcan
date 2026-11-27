@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { OutsideGuard, RunnerGuard } from '../../hooks/index.ts';
 import { ShellParser } from '../../hooks/shell.ts';
+import { ShellPrograms } from '../../hooks/shell-programs.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
@@ -129,11 +130,11 @@ describe('create, init and a global add fetch a package by name', () => {
   });
 });
 
-describe('ShellParser.programOf reads past the launchers', () => {
+describe('ShellPrograms.programOf reads past the launchers', () => {
   const programOf = (line: string): string => {
     const [command] = ShellParser.parseChecked({ command: line }).commands;
 
-    return command === undefined ? '' : ShellParser.programOf({ command }).name;
+    return command === undefined ? '' : ShellPrograms.programOf({ command }).name;
   };
 
   test.each([

@@ -5,6 +5,7 @@ import type { IGitHit } from './common/index.ts';
 import { PackageRunners } from './package-runners.ts';
 import { ShellFolders } from './shell-folders.ts';
 import { ShellParser } from './shell.ts';
+import { ShellPrograms } from './shell-programs.ts';
 
 const NAME = '@venizia/vulcan';
 const RULE = 'V-S-05';
@@ -112,9 +113,9 @@ export class PackageSwap {
     const hits: IGitHit[] = [];
 
     for (const [index, command] of parsed.commands.entries()) {
-      const program = ShellParser.programOf({ command });
+      const program = ShellPrograms.programOf({ command });
 
-      if (MANAGERS.has(ShellParser.basenameOf({ word: program.name }))) {
+      if (MANAGERS.has(ShellPrograms.basenameOf({ word: program.name }))) {
         const folder = folders[index];
 
         hits.push(

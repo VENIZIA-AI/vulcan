@@ -7,7 +7,8 @@ import { RunnerScan } from './runner-scan.ts';
 import type { IRunnerUse } from './runner-scan.ts';
 import { ShellFolders } from './shell-folders.ts';
 import { ShellParser } from './shell.ts';
-import type { ISimpleCommand } from './shell.ts';
+import { ShellPrograms } from './shell-programs.ts';
+import type { ISimpleCommand } from './common/index.ts';
 
 /** One reason a command is refused: a package run by name. */
 export interface IRunnerHit {
@@ -43,8 +44,8 @@ export class RunnerGuard {
 
   /** The runner a simple command is and the words after it, or `undefined` when it runs no package by name. */
   private static runnerOf(opts: { command: ISimpleCommand }): IRunnerCall | undefined {
-    const program = ShellParser.programOf({ command: opts.command });
-    const name = ShellParser.basenameOf({ word: program.name });
+    const program = ShellPrograms.programOf({ command: opts.command });
+    const name = ShellPrograms.basenameOf({ word: program.name });
 
     if (!RunnerGuard.LAUNCHERS.has(name)) {
       return PackageRunners.find({ program: name, args: program.args });
@@ -52,7 +53,7 @@ export class RunnerGuard {
 
     // `xargs bunx` runs the program with a name from its input: read the words after the launcher's own options as a command
     for (let index = 0; index < program.args.length; index += 1) {
-      const word = ShellParser.basenameOf({ word: program.args[index] ?? '' });
+      const word = ShellPrograms.basenameOf({ word: program.args[index] ?? '' });
 
       if (PackageRunners.isProgram({ name: word }) || PackageRunners.WRAPPERS.has(word)) {
         return PackageRunners.find({ program: word, args: program.args.slice(index + 1) });
@@ -67,9 +68,9 @@ export class RunnerGuard {
    * `env --chdir=<dir>`, and `eval`, `source` or `.`, whose text is a line of its own. Then no folder is known.
    */
   private static movesFolder(opts: { command: ISimpleCommand }): boolean {
-    const names = opts.command.words.map((word) => ShellParser.basenameOf({ word }));
-    const program = ShellParser.basenameOf({
-      word: ShellParser.programOf({ command: opts.command }).name,
+    const names = opts.command.words.map((word) => ShellPrograms.basenameOf({ word }));
+    const program = ShellPrograms.basenameOf({
+      word: ShellPrograms.programOf({ command: opts.command }).name,
     });
 
     if (

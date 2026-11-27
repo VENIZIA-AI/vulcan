@@ -1,82 +1,30 @@
-import { lstatSync, readdirSync, readlinkSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { ShellParser, ShellUnread } from './shell.ts';
 import { ShellFolders, loopCombinations } from './shell-folders.ts';
-import type { TEnvironment } from './shell-folders.ts';
+import { ShellPaths } from './shell-paths.ts';
 import { ShellWrites } from './shell-writes.ts';
-import type { IWriteTarget } from './shell-writes.ts';
 import { HookConstants } from './common/index.ts';
+import { OutsidePaths } from './outside-paths.ts';
 import { ProjectTmp } from './project-tmp.ts';
-import { ProtectedNames } from './protected-names.ts';
-import type { IManifestHookInput, IOutsideHit } from './common/index.ts';
+import type {
+  IManifestHookInput,
+  IOutsideHit,
+  IWriteTarget,
+  TEnvironment,
+  TProtectedMode,
+} from './common/index.ts';
 
 const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
-/** The links one path may pass through before it is taken for a loop, as the OS counts them. */
-const MAX_LINKS = 40;
-
-/** The components of a path, without the empty and `.` ones, last first, so `pop` takes the next. */
-const partsOf = (opts: { path: string }): string[] =>
-  opts.path
-    .split('/')
-    .filter((part) => part !== '' && part !== '.')
-    .reverse();
-
-/**
- * The file the OS opens for an absolute path that has not been folded: each component in turn, a symlink
- * followed where it stands, so a `..` after a link goes to the parent of the link's target and not to the
- * parent of the link. What does not exist is kept as text, a dangling link followed to where it points. A path
- * that goes through more links than the OS follows has no file: `undefined`.
- */
-const realOf = (opts: { path: string }): string | undefined => {
-  const pending = partsOf({ path: opts.path });
-  let current = '/';
-  let links = 0;
-
-  while (pending.length > 0) {
-    const part = pending.pop() ?? '';
-
-    if (part === '..') {
-      current = dirname(current);
-      continue;
-    }
-
-    const next = join(current, part);
-    let target: string | undefined;
-
-    try {
-      target = lstatSync(next).isSymbolicLink() ? readlinkSync(next) : undefined;
-    } catch {
-      target = undefined;
-    }
-
-    if (target === undefined) {
-      current = next;
-      continue;
-    }
-
-    links += 1;
-
-    if (links > MAX_LINKS) {
-      return undefined;
-    }
-
-    if (isAbsolute(target)) {
-      current = '/';
-    }
-
-    pending.push(...partsOf({ path: target }));
-  }
-
-  return current;
-};
 /**
  * A path of plain folders (no `..`) whose last name holds one `[...]` of plain characters: a VitePress route file such as
  * `content/[version].md`. Nothing else in it is a pattern, an expansion or a shell metacharacter (a zsh glob qualifier
  * needs one), and the only glob is in the last name.
  */
 const BRACKET_NAME = /^\/?(?:(?!\.\.\/)[\w.-]+\/)*[\w.-]*\[[\w.-]+\][\w.-]*$/;
+
 /** The files that name a process by number or as `self`: their target depends on who opens them. */
 const PROCESS_FILES = /^\/(?:proc(?:\/|$)|dev\/fd(?:\/|$))/;
 
@@ -100,150 +48,8 @@ const matchesNothing = (opts: { word: string; base: string }): boolean => {
   }
 };
 
-const isInside = (opts: { path: string; root: string }): boolean =>
-  opts.path === opts.root || opts.path.startsWith(`${opts.root}${sep}`);
-
-/** What a write to a path is judged against: the file itself, a folder removed with what it holds, or a folder written into with names not known. */
-type TProtectedMode = 'file' | 'removal' | 'folder' | 'put';
-
-/**
- * Whether `path` is one of the files the guards read their policy from (`HookConstants.PROTECTED_FILES`), relative to the project
- * root. A removal or a move also takes a folder that holds one of them (`rm -rf .claude`), bar `node_modules`, whose removal leaves
- * the guards missing and the call blocked until `bun install`. A folder written into with names this check cannot tell (`tar -C`,
- * `cp -a dir/. folder`, `find folder -delete`) is protected when it holds one of them, is inside the installed package, or is the root.
- */
-/** Where the installed package really is, when `node_modules/@venizia/vulcan` is a link into `node_modules` (Bun's store): that tree, and the folders above it. */
-interface IPackageStore {
-  tree: string;
-  parents: string[];
-}
-
-/**
- * The real place of the installed package when it is a copy under `node_modules` and not where its link stands, or `undefined`. A link to a
- * source folder (a workspace, this repository) is the project's own code, which an agent develops: it is not protected as the store is.
- */
-const packageStoreOf = (opts: { root: string }): IPackageStore | undefined => {
-  const link = join(opts.root, 'node_modules', '@venizia', 'vulcan');
-  const real = realOf({ path: link });
-
-  if (real === undefined || real === link || !real.startsWith(`${opts.root}/node_modules/`)) {
-    return undefined;
-  }
-
-  const parts = real
-    .slice(opts.root.length + 1)
-    .toLowerCase()
-    .split('/');
-  const parents = parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).join('/'));
-
-  return { tree: parts.join('/'), parents: parents.filter((parent) => parent !== 'node_modules') };
-};
-
-const isProtectedFile = (opts: {
-  path: string;
-  root: string;
-  mode: TProtectedMode;
-  store?: IPackageStore;
-  /** The local modules the config imports (`guard.configModules` of the manifest), relative to the root. */
-  extra: string[];
-}): boolean => {
-  if (opts.mode === 'folder' && opts.path === opts.root) {
-    return true;
-  }
-
-  if (!isInside({ path: opts.path, root: opts.root }) || opts.path === opts.root) {
-    return false;
-  }
-
-  // Without regard to case: on a case-insensitive file system `.claude/Settings.local.json` is the real file.
-  const relative = opts.path.slice(opts.root.length + 1).toLowerCase();
-  const globs = [...HookConstants.PROTECTED_FILES, ...opts.extra].map((pattern) =>
-    pattern.toLowerCase(),
-  );
-
-  if (globs.some((pattern) => new Bun.Glob(pattern).match(relative))) {
-    return true;
-  }
-
-  // The real place of the package: it, and what is under it, is the package whatever the link says; the folders above it are replaced as the ones above the link are.
-  const { store } = opts;
-
-  if (store !== undefined) {
-    if (relative === store.tree || relative.startsWith(`${store.tree}/`)) {
-      return true;
-    }
-
-    if ((opts.mode === 'put' || opts.mode === 'folder') && store.parents.includes(relative)) {
-      return true;
-    }
-  }
-
-  if (
-    (opts.mode === 'put' || opts.mode === 'folder') &&
-    ['node_modules/.bun', 'node_modules/.bin'].includes(relative)
-  ) {
-    return true;
-  }
-
-  // The folders above the installed package: replacing one replaces the guards. Removing one is left to `bun install`.
-  if (relative === 'node_modules/@venizia' && opts.mode !== 'removal') {
-    return true;
-  }
-
-  if (relative === 'node_modules' && (opts.mode === 'put' || opts.mode === 'folder')) {
-    return true;
-  }
-
-  if (
-    opts.mode === 'folder' &&
-    globs.some((pattern) => new Bun.Glob(pattern).match(`${relative}/x`))
-  ) {
-    return true;
-  }
-
-  return (
-    (opts.mode === 'folder' || (opts.mode === 'removal' && !relative.startsWith('node_modules'))) &&
-    globs.some((pattern) => pattern.startsWith(`${relative}/`))
-  );
-};
-
 /** A word with a pattern in it: the shell expands `*`, `?` and `[...]` into the names that match. */
 const GLOB_CHARACTER = /[*?[]/;
-
-/**
- * Whether a glob (an absolute path with a pattern in it) can match a file the guards read their policy from, or a folder that holds one.
- * A name that starts with a dot is matched only by a segment that starts with one, as the shell does; the installed package is left out,
- * as for `rm -rf node_modules`.
- */
-/** `modules` are names as written, never escaped: each part is matched by the segment of the glob. */
-const globReachesProtected = (opts: { glob: string; root: string; modules: string[] }): boolean => {
-  if (!isInside({ path: opts.glob, root: opts.root })) {
-    return false;
-  }
-
-  const relative = opts.glob.slice(opts.root.length + 1).toLowerCase();
-  const segments = relative.split('/').filter((segment) => segment !== '');
-
-  return [...ProtectedNames.REACH, ...ProtectedNames.reachOf({ files: opts.modules })].some(
-    (name) => {
-      const names = name.split('/');
-      // A `**` part takes every name below the folders before it.
-      const deep = names.indexOf('**');
-      const fixed = deep === -1 ? names : names.slice(0, deep);
-
-      return (
-        (deep === -1 ? names.length === segments.length : segments.length > fixed.length) &&
-        fixed.every((part, index) => {
-          const segment = segments[index] ?? '';
-
-          return (
-            (!part.startsWith('.') || segment.startsWith('.')) && new Bun.Glob(segment).match(part)
-          );
-        })
-      );
-    },
-  );
-};
 
 /**
  * A tool-owned pattern as an absolute glob: `~` and variables expanded, a bare directory taking everything
@@ -312,8 +118,9 @@ export class OutsideGuard {
   }): IOutsideHit[] {
     const env = opts.env ?? process.env;
     const home = opts.home ?? env.HOME ?? '';
-    const root = realOf({ path: resolve(opts.projectRoot) }) ?? resolve(opts.projectRoot);
-    const store = packageStoreOf({ root });
+    const root =
+      OutsidePaths.realOf({ path: resolve(opts.projectRoot) }) ?? resolve(opts.projectRoot);
+    const store = OutsidePaths.packageStoreOf({ root });
     // A name is matched as a glob: a bracket or a star in a module's name stands for itself.
     const modules = opts.configModules ?? [];
     const extra = modules.map((file) =>
@@ -448,7 +255,7 @@ export class OutsideGuard {
         matchesNothing({ word: target.word, base: target.base });
       const expanded = isLiteralBracket
         ? target.word
-        : ShellFolders.expandPath({
+        : ShellPaths.expandPath({
             word: target.word,
             home,
             env: { ...env, ...target.vars },
@@ -465,10 +272,10 @@ export class OutsideGuard {
         const pattern = isAbsolute(target.word) ? target.word : `${target.base}/${target.word}`;
         const cut = pattern.search(GLOB_CHARACTER);
         const folder = pattern.slice(0, pattern.lastIndexOf('/', cut) + 1) || '/';
-        const real = realOf({ path: folder });
+        const real = OutsidePaths.realOf({ path: folder });
         const reaches =
           real !== undefined &&
-          globReachesProtected({
+          OutsidePaths.globReachesProtected({
             glob: `${real === '/' ? '' : real}/${pattern.slice(folder.length)}`,
             root,
             modules,
@@ -499,7 +306,7 @@ export class OutsideGuard {
 
       if (expanded === undefined) {
         // Part of the word is unknown, but the folder in front of it may not be: that folder decides.
-        const lands = ShellFolders.folderOfUnknown({
+        const lands = ShellPaths.folderOfUnknown({
           word: target.word,
           home,
           env: { ...env, ...target.vars },
@@ -508,11 +315,11 @@ export class OutsideGuard {
           isKnown: target.isKnown ?? true,
           assigned,
         });
-        const folder = lands === undefined ? undefined : realOf({ path: lands });
+        const folder = lands === undefined ? undefined : OutsidePaths.realOf({ path: lands });
 
         if (
           folder !== undefined &&
-          !isInside({ path: folder, root }) &&
+          !OutsidePaths.isInside({ path: folder, root }) &&
           !matchesAny({ path: `${folder}/x`, patterns })
         ) {
           hits.push({
@@ -548,7 +355,7 @@ export class OutsideGuard {
       const through =
         target.isNameInFolder === true || target.isIntoFolder === true
           ? undefined
-          : ShellFolders.passesThrough({
+          : ShellPaths.passesThrough({
               path: expanded,
               base: target.base,
               links: target.links ?? [],
@@ -601,7 +408,7 @@ export class OutsideGuard {
       }
 
       // Not folded here: a `..` after a symlink goes where the link points, which `realOf` follows.
-      const path = realOf({ path: written });
+      const path = OutsidePaths.realOf({ path: written });
 
       if (path === undefined) {
         hits.push({
@@ -625,8 +432,8 @@ export class OutsideGuard {
               : 'file';
 
       if (
-        isProtectedFile({ path, root, mode, store, extra }) ||
-        isProtectedFile({ path: resolve(written), root, mode, store, extra })
+        OutsidePaths.isProtectedFile({ path, root, mode, store, extra }) ||
+        OutsidePaths.isProtectedFile({ path: resolve(written), root, mode, store, extra })
       ) {
         hits.push({
           path,
@@ -643,7 +450,7 @@ export class OutsideGuard {
         continue;
       }
 
-      if (!isInside({ path, root }) && !matchesAny({ path, patterns })) {
+      if (!OutsidePaths.isInside({ path, root }) && !matchesAny({ path, patterns })) {
         hits.push({
           path,
           message: target.message,

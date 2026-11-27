@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ShellBudget, ShellParser } from '../../hooks/index.ts';
+import { ShellBudget, ShellParser, ShellPrograms } from '../../hooks/index.ts';
 
 const wordsOf = (command: string): string[][] =>
   ShellParser.parse({ command }).map((simple) => simple.words);
@@ -129,20 +129,20 @@ describe('ShellParser.parse', () => {
   ])('programOf reads past the options of the wrappers in %s', (command) => {
     const [simple] = ShellParser.parse({ command });
 
-    expect(ShellParser.programOf({ command: simple! }).name).toBe('git');
-    expect(ShellParser.programOf({ command: simple! }).args).toEqual(['status']);
+    expect(ShellPrograms.programOf({ command: simple! }).name).toBe('git');
+    expect(ShellPrograms.programOf({ command: simple! }).args).toEqual(['status']);
   });
 
   test('an option whose value is the next word: the value is not taken for the program', () => {
     const [simple] = ShellParser.parse({ command: 'xargs -n 1 -I {} sudo -u root git log' });
 
-    expect(ShellParser.programOf({ command: simple! }).name).toBe('git');
+    expect(ShellPrograms.programOf({ command: simple! }).name).toBe('git');
   });
 
   test('ShellParser.programOf skips wrappers and flags before the program', () => {
     const [command] = ShellParser.parse({ command: 'sudo -n env git status' });
 
-    expect(ShellParser.programOf({ command: command! })).toEqual({
+    expect(ShellPrograms.programOf({ command: command! })).toEqual({
       name: 'git',
       index: 3,
       args: ['status'],
@@ -170,7 +170,8 @@ describe('ShellParser.parse', () => {
     expect(
       ShellParser.parse({ command }).some(
         (simple) =>
-          ShellParser.programOf({ command: simple }).name === 'git' && simple.words.includes('-f'),
+          ShellPrograms.programOf({ command: simple }).name === 'git' &&
+          simple.words.includes('-f'),
       ),
     ).toBe(true);
   });
@@ -187,7 +188,8 @@ describe('ShellParser.parse', () => {
     expect(
       ShellParser.parse({ command }).some(
         (simple) =>
-          ShellParser.programOf({ command: simple }).name === 'git' && simple.words.includes('-f'),
+          ShellPrograms.programOf({ command: simple }).name === 'git' &&
+          simple.words.includes('-f'),
       ),
     ).toBe(false);
   });
@@ -195,7 +197,7 @@ describe('ShellParser.parse', () => {
   const isForcePush = (command: string): boolean =>
     ShellParser.parse({ command }).some(
       (simple) =>
-        ShellParser.programOf({ command: simple }).name === 'git' && simple.words.includes('-f'),
+        ShellPrograms.programOf({ command: simple }).name === 'git' && simple.words.includes('-f'),
     );
 
   // GNU getopt accepts any unique prefix of a long option; only --split-string starts with an s.
@@ -212,7 +214,7 @@ describe('ShellParser.parse', () => {
   test('other long options are shortened the same way when they take a value', () => {
     const [simple] = ShellParser.parse({ command: 'nice --adj 5 git status' });
 
-    expect(ShellParser.programOf({ command: simple! }).name).toBe('git');
+    expect(ShellPrograms.programOf({ command: simple! }).name).toBe('git');
   });
 
   // env reads its own options again inside the value.
@@ -303,19 +305,19 @@ describe('ShellParser.parse', () => {
   });
 
   test('ShellParser.splitEnvString splits by env rules', () => {
-    expect(ShellParser.splitEnvString({ value: 'a b  c' })).toEqual(['a', 'b', 'c']);
-    expect(ShellParser.splitEnvString({ value: 'a \'b c\' "d e"' })).toEqual(['a', 'b c', 'd e']);
-    expect(ShellParser.splitEnvString({ value: 'a\\_b' })).toEqual(['a', 'b']);
-    expect(ShellParser.splitEnvString({ value: '"a\\_b"' })).toEqual(['a b']);
-    expect(ShellParser.splitEnvString({ value: 'a\\cb c' })).toEqual(['a']);
-    expect(ShellParser.splitEnvString({ value: 'a # comment' })).toEqual(['a']);
-    expect(ShellParser.splitEnvString({ value: 'a#b' })).toEqual(['a#b']);
-    expect(ShellParser.splitEnvString({ value: "'a\\'b' c" })).toEqual(["a'b", 'c']);
-    expect(ShellParser.splitEnvString({ value: "'a\\nb'" })).toEqual(['a\\nb']);
-    expect(ShellParser.splitEnvString({ value: 'a\\nb' })).toEqual(['a\nb']);
-    expect(ShellParser.splitEnvString({ value: '' })).toEqual([]);
-    expect(ShellParser.splitEnvString({ value: '""' })).toEqual(['']);
-    expect(ShellParser.splitEnvString({ value: 'a;b|c $(d)' })).toEqual(['a;b|c', '$(d)']);
+    expect(ShellPrograms.splitEnvString({ value: 'a b  c' })).toEqual(['a', 'b', 'c']);
+    expect(ShellPrograms.splitEnvString({ value: 'a \'b c\' "d e"' })).toEqual(['a', 'b c', 'd e']);
+    expect(ShellPrograms.splitEnvString({ value: 'a\\_b' })).toEqual(['a', 'b']);
+    expect(ShellPrograms.splitEnvString({ value: '"a\\_b"' })).toEqual(['a b']);
+    expect(ShellPrograms.splitEnvString({ value: 'a\\cb c' })).toEqual(['a']);
+    expect(ShellPrograms.splitEnvString({ value: 'a # comment' })).toEqual(['a']);
+    expect(ShellPrograms.splitEnvString({ value: 'a#b' })).toEqual(['a#b']);
+    expect(ShellPrograms.splitEnvString({ value: "'a\\'b' c" })).toEqual(["a'b", 'c']);
+    expect(ShellPrograms.splitEnvString({ value: "'a\\nb'" })).toEqual(['a\\nb']);
+    expect(ShellPrograms.splitEnvString({ value: 'a\\nb' })).toEqual(['a\nb']);
+    expect(ShellPrograms.splitEnvString({ value: '' })).toEqual([]);
+    expect(ShellPrograms.splitEnvString({ value: '""' })).toEqual(['']);
+    expect(ShellPrograms.splitEnvString({ value: 'a;b|c $(d)' })).toEqual(['a;b|c', '$(d)']);
   });
 
   // The cost of a line is linear in its length, whatever it repeats; what is not read is said.
@@ -331,7 +333,7 @@ describe('ShellParser.parse', () => {
         parsed.isOverBudget ||
           parsed.commands.some(
             (simple) =>
-              ShellParser.programOf({ command: simple }).name === 'git' &&
+              ShellPrograms.programOf({ command: simple }).name === 'git' &&
               simple.words.includes('-f'),
           ),
       ).toBe(true);
@@ -372,7 +374,7 @@ describe('ShellParser.parse', () => {
 
   test('a value that is not a command line is read as what it is, and nesting stops at the depth limit', () => {
     expect(
-      ShellParser.programOf({
+      ShellPrograms.programOf({
         command: ShellParser.parse({ command: 'env -S "FOO=1 git status"' })[0]!,
       }).splitCommands,
     ).toEqual([['env', 'FOO=1', 'git', 'status']]);
@@ -394,12 +396,12 @@ describe('ShellParser.parse', () => {
 
   test('shell keywords and braces open a command', () => {
     expect(
-      ShellParser.programOf({ command: ShellParser.parse({ command: '{ git status; }' })[0]! })
+      ShellPrograms.programOf({ command: ShellParser.parse({ command: '{ git status; }' })[0]! })
         .name,
     ).toBe('git');
     expect(
       ShellParser.parse({ command: 'if true; then git status; fi' }).map(
-        (c) => ShellParser.programOf({ command: c }).name,
+        (c) => ShellPrograms.programOf({ command: c }).name,
       ),
     ).toContain('git');
   });
@@ -411,12 +413,12 @@ describe('ShellParser.parse', () => {
 });
 
 const programsOf = (command: string): string[] =>
-  ShellParser.parse({ command }).map((simple) => ShellParser.programOf({ command: simple }).name);
+  ShellParser.parse({ command }).map((simple) => ShellPrograms.programOf({ command: simple }).name);
 
 const pushOf = (command: string): boolean =>
   ShellParser.parse({ command }).some(
     (simple) =>
-      ShellParser.programOf({ command: simple }).name === 'git' && simple.words.includes('-f'),
+      ShellPrograms.programOf({ command: simple }).name === 'git' && simple.words.includes('-f'),
   );
 
 /** Ordinary lines and the commands they are read as: the same before and after the scanner learnt comments and quotes. */
@@ -825,7 +827,7 @@ describe('a redirect after a keyword that ends a compound command', () => {
     expect(closing?.words).toEqual([keyword]);
     expect(closing?.input?.files).toEqual(['$S']);
     expect(
-      ShellParser.programOf({ command: closing as NonNullable<typeof closing> }).name,
+      ShellPrograms.programOf({ command: closing as NonNullable<typeof closing> }).name,
     ).not.toBe('$S');
   });
 
@@ -838,7 +840,8 @@ describe('a redirect after a keyword that ends a compound command', () => {
     expect(closing?.words).toEqual(['}']);
     expect(subshell?.words).toEqual(['cat']);
     expect(
-      ShellParser.programOf({ command: unknown[1] as NonNullable<(typeof unknown)[number]> }).name,
+      ShellPrograms.programOf({ command: unknown[1] as NonNullable<(typeof unknown)[number]> })
+        .name,
     ).toBe('$CMD');
   });
 

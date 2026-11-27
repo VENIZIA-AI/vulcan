@@ -1,5 +1,6 @@
-import { ShellParser, ShellPrograms } from './shell.ts';
-import type { ISimpleCommand } from './shell.ts';
+import { ShellParser } from './shell.ts';
+import { ShellPrograms } from './shell-programs.ts';
+import type { ISimpleCommand } from './common/index.ts';
 
 /** Programs that only read or print what they are given: their arguments are text to find or show, never a command to run. */
 const READ_ONLY_PROGRAMS = new Set([
@@ -98,7 +99,7 @@ export interface ICommandView {
 
 /** Whether a `gh` command is a request: its subcommand (the first word that is not an option or an option's value) is one of `GH_REQUESTS`. */
 const isGhRequest = (opts: { command: ISimpleCommand }): boolean => {
-  const { args } = ShellParser.programOf({ command: opts.command });
+  const { args } = ShellPrograms.programOf({ command: opts.command });
   const subcommand = args.find(
     (word, index) =>
       !word.startsWith('-') && !(index > 0 && GH_REPOSITORY_FLAGS.has(args[index - 1] ?? '')),
@@ -111,7 +112,7 @@ export class CommandView {
   /** The text of one simple command: the words, a bare name for data, a reader's heredoc body appended. */
   private static textOf(opts: { command: ISimpleCommand; withMessages: boolean }): string {
     const { command } = opts;
-    const name = ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name });
+    const name = ShellPrograms.basenameOf({ word: ShellPrograms.programOf({ command }).name });
 
     if (CommandView.isDataOnly({ command, withMessages: opts.withMessages })) {
       return name;
@@ -128,8 +129,8 @@ export class CommandView {
    * messages to the write guards).
    */
   static isDataOnly(opts: { command: ISimpleCommand; withMessages: boolean }): boolean {
-    const name = ShellParser.basenameOf({
-      word: ShellParser.programOf({ command: opts.command }).name,
+    const name = ShellPrograms.basenameOf({
+      word: ShellPrograms.programOf({ command: opts.command }).name,
     });
 
     if (name === 'find') {
@@ -165,7 +166,9 @@ export class CommandView {
     const isWholeLine = parsed.commands.some(
       (command) =>
         command.input?.pipedFrom !== undefined &&
-        PIPE_RUNNERS.has(ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name })),
+        PIPE_RUNNERS.has(
+          ShellPrograms.basenameOf({ word: ShellPrograms.programOf({ command }).name }),
+        ),
     );
     const texts = isWholeLine
       ? [text]

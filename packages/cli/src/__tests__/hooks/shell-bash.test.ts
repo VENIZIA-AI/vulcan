@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ShellParser } from '../../hooks/index.ts';
+import { ShellParser, ShellPrograms } from '../../hooks/index.ts';
 import { BASH_CASES } from './shell-bash-corpus.ts';
 
 const BASH = '/bin/bash';
@@ -13,13 +13,13 @@ const programsOf = (line: string): { programs: Set<string>; isFlagged: boolean }
   const programs = new Set<string>();
 
   for (const command of parsed.commands) {
-    const program = ShellParser.programOf({ command });
+    const program = ShellPrograms.programOf({ command });
 
     programs.add(program.name);
 
     for (const words of program.splitCommands) {
       programs.add(
-        ShellParser.programOf({ command: { words, redirects: [], assignments: [] } }).name,
+        ShellPrograms.programOf({ command: { words, redirects: [], assignments: [] } }).name,
       );
     }
   }

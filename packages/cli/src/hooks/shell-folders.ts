@@ -1,10 +1,9 @@
-import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
-import { ShellParser } from './shell.ts';
-import type { ISimpleCommand } from './shell.ts';
+import { isAbsolute, resolve } from 'node:path';
+import { ShellPrograms } from './shell-programs.ts';
 import { LinkMakers } from './link-makers.ts';
-
-export type TEnvironment = Record<string, string | undefined>;
+import type { ISimpleCommand, TEnvironment } from './common/index.ts';
+import { ShellConstants } from './common/index.ts';
+import { ShellPaths } from './shell-paths.ts';
 
 /** The folder a simple command runs in, as far as the line shows it. */
 export interface IShellFolder {
@@ -72,9 +71,6 @@ export const loopCombinations = (opts: {
   return combinations;
 };
 
-/** A variable as the shell takes it with no operator: `$NAME` or `${NAME}`. */
-const VARIABLE = /\$(?:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)\})/g;
-
 /** Programs that run the command they are given as words: a link made through one is not read where it is made. */
 const RUNNERS_OF_COMMANDS = new Set([
   'xargs',
@@ -96,9 +92,6 @@ const RUNNERS_OF_COMMANDS = new Set([
   'nsenter',
   'unshare',
 ]);
-
-/** The links one path may pass through before it is taken for a loop, as the system counts them. */
-const MAX_LINK_HOPS = 40;
 
 /** The most values one `for` list may hold before the guard stops following it. */
 const MAX_LOOP_VALUES = 16;
@@ -136,7 +129,7 @@ const commandWordsOf = (opts: { words: string[] }): string[] => {
 const literalOf = (opts: { value: string; vars: Record<string, string> }): string | undefined => {
   let unresolved = false;
   const value = opts.value.replace(
-    VARIABLE,
+    ShellConstants.VARIABLE,
     (_, bare: string | undefined, braced: string | undefined) => {
       const name = bare ?? braced ?? '';
       const known = Object.hasOwn(opts.vars, name) ? opts.vars[name] : undefined;
@@ -155,226 +148,6 @@ const literalOf = (opts: { value: string; vars: Record<string, string> }): strin
 export class ShellFolders {
   /** The builtins that change the shell's folder. */
   static readonly MOVING_COMMANDS: ReadonlySet<string> = new Set(['cd', 'pushd', 'popd']);
-
-  /** The home folder of a user, read from the password file; `undefined` for a name it does not list. */
-  private static homeOf(opts: { name: string }): string | undefined {
-    try {
-      for (const line of readFileSync('/etc/passwd', 'utf8').split('\n')) {
-        const fields = line.split(':');
-
-        if (fields[0] === opts.name) {
-          return fields[5];
-        }
-      }
-    } catch {
-      return undefined;
-    }
-
-    return undefined;
-  }
-
-  /**
-   * `~` and `$NAME` / `${NAME}` expanded; `undefined` when a variable is unset or the word is not a plain path.
-   * `$PWD` is the folder the command runs in (`cwd`), not the `PWD` of this hook's own process.
-   */
-  static expandPath(opts: {
-    word: string;
-    home: string;
-    env: TEnvironment;
-    cwd?: string;
-  }): string | undefined {
-    if (opts.word === '' || /[`*?[]/.test(opts.word) || opts.word.includes('$(')) {
-      return undefined;
-    }
-
-    let unresolved = false;
-    // `~` is the home folder, `~+` the working folder, `~name` the home of that user. A name the password file does
-    // not list, and `~-` (the shell's previous folder, not known here), stay as written: a plain path, as bash
-    // leaves an unknown `~name`.
-    const tilde = opts.word.startsWith('~') ? /^~([^/]*)/.exec(opts.word) : null;
-    const user = tilde?.[1] ?? '';
-    let home: string | undefined = user === '' ? opts.home : undefined;
-
-    if (user === '+') {
-      home = opts.cwd;
-    } else if (user !== '' && user !== '-') {
-      home = ShellFolders.homeOf({ name: user });
-    }
-
-    const withHome =
-      tilde === null || home === undefined
-        ? opts.word
-        : `${home}${opts.word.slice(tilde[0].length)}`;
-    const expanded = withHome.replace(
-      VARIABLE,
-      (_, bare: string | undefined, braced: string | undefined) => {
-        const name = bare ?? braced ?? '';
-        const value = name === 'PWD' && opts.cwd !== undefined ? opts.cwd : opts.env[name];
-
-        if (value === undefined || value === '') {
-          unresolved = true;
-        }
-
-        return value ?? '';
-      },
-    );
-
-    // A `$` left over is an expansion with an operator (`${S/a/..}`, `${S#x}`, `${!S}`) or a special parameter (`$$`, `$?`):
-    // the value is not the plain text of a variable, so the word is not worked out.
-    return unresolved || expanded.includes('$') ? undefined : expanded;
-  }
-
-  /** The name as the system sees it: the real path of the part that exists, then the rest as written. */
-  static physicalOf(opts: { path: string }): string {
-    const rest: string[] = [];
-    let existing = opts.path;
-
-    while (existing !== dirname(existing)) {
-      try {
-        return join(realpathSync(existing), ...rest.reverse());
-      } catch {
-        rest.push(basename(existing));
-        existing = dirname(existing);
-      }
-    }
-
-    return opts.path;
-  }
-
-  /**
-   * Whether the path, read name by name from `base`, passes through one of `links` (absolute names): a link is followed where it
-   * points, so what comes after it, a `..` included, is not where the text says. The last name counts only when `isLastCounted` (a
-   * `cd` into the link itself), not for a file written at the link's own name.
-   */
-  static passesThrough(opts: {
-    path: string;
-    base: string;
-    links: string[];
-    isLastCounted: boolean;
-  }): 'made' | 'dangling' | undefined {
-    interface IStep {
-      part: string;
-      /** A link of the line at this name counts. */
-      counts: boolean;
-      /** The last name of the path being read. */
-      isEnd: boolean;
-    }
-
-    const parts = opts.path.split('/').filter((part) => part !== '' && part !== '.');
-    const pending: IStep[] = parts
-      .map((part, index) => ({
-        part,
-        counts: index < parts.length - 1 || opts.isLastCounted,
-        isEnd: index === parts.length - 1,
-      }))
-      .reverse();
-    let current = isAbsolute(opts.path) ? '/' : opts.base;
-    let hops = 0;
-
-    for (;;) {
-      const step = pending.pop();
-
-      if (step === undefined) {
-        return undefined;
-      }
-
-      if (step.part === '..') {
-        if (opts.links.includes(current)) {
-          return 'made';
-        }
-
-        current = dirname(current);
-        continue;
-      }
-
-      current = join(current, step.part);
-
-      if (step.counts && opts.links.includes(current)) {
-        return 'made';
-      }
-
-      // A link already on disk is followed where it points: it may lead to a link this line makes, and a link that points at
-      // nothing yet, in the middle of a path, is where this line may make the folder it needs.
-      let target: string | undefined;
-
-      try {
-        target = lstatSync(current).isSymbolicLink() ? readlinkSync(current) : undefined;
-      } catch {
-        target = undefined;
-      }
-
-      if (target === undefined) {
-        continue;
-      }
-
-      hops += 1;
-
-      // A name the command makes itself is not a path through a link of the line, even when it dangles.
-      if (hops > MAX_LINK_HOPS) {
-        return 'made';
-      }
-
-      if ((!step.isEnd || step.counts) && !existsSync(current)) {
-        return 'dangling';
-      }
-
-      current = isAbsolute(target) ? '/' : dirname(current);
-
-      const followed = target.split('/').filter((part) => part !== '' && part !== '.');
-
-      pending.push(
-        ...followed
-          .map((part, index) => ({
-            part,
-            counts: true,
-            isEnd: step.isEnd && index === followed.length - 1,
-          }))
-          .reverse(),
-      );
-    }
-  }
-
-  /**
-   * The folder a word lands in when part of it cannot be worked out (`/etc/$X`, `~/.ssh/key$N`, `/etc/*.conf`): the
-   * longest run of folders in front of the unknown part that `expandPath` can work out; a name with no folder in
-   * front of it is in `base`. `undefined` when the first folder is the unknown part (`$D/x`; `$f` when the line
-   * assigned `f`, whose value may be a path of its own), the word is `~` followed by an unknown name, or it is taken
-   * from a `base` the guard lost (`isKnown` false).
-   */
-  static folderOfUnknown(opts: {
-    word: string;
-    home: string;
-    env: TEnvironment;
-    cwd?: string;
-    base: string;
-    isKnown: boolean;
-    /** The names the line assigned. */
-    assigned: ReadonlySet<string>;
-  }): string | undefined {
-    const parts = opts.word.split('/');
-
-    for (let count = parts.length - 1; count >= 1; count -= 1) {
-      const folder = ShellFolders.expandPath({
-        word: `${parts.slice(0, count).join('/')}/`,
-        home: opts.home,
-        env: opts.env,
-        cwd: opts.cwd,
-      });
-
-      if (folder !== undefined) {
-        return isAbsolute(folder) ? folder : opts.isKnown ? `${opts.base}/${folder}` : undefined;
-      }
-    }
-
-    const name = /^\$\{?(\w+)/.exec(opts.word)?.[1];
-    const isUnknown =
-      !opts.isKnown ||
-      parts.length > 1 ||
-      opts.word.startsWith('~') ||
-      (name !== undefined && opts.assigned.has(name));
-
-    return isUnknown ? undefined : opts.base;
-  }
 
   /**
    * How often each name is assigned on the line. A word `NAME=value` counts as an assignment too, because the parser
@@ -490,7 +263,7 @@ export class ShellFolders {
     const assigned = ShellFolders.assignedNames({ commands: opts.commands });
     const isLoopFollowed = !opts.commands.some((command) =>
       REBINDING_PROGRAMS.has(
-        ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name }),
+        ShellPrograms.basenameOf({ word: ShellPrograms.programOf({ command }).name }),
       ),
     );
     const loops: IOpenLoop[] = [];
@@ -500,8 +273,8 @@ export class ShellFolders {
       (command) =>
         (command.scope ?? '').includes('>') &&
         (LinkMakers.of({
-          name: ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name }),
-          args: ShellParser.programOf({ command }).args,
+          name: ShellPrograms.basenameOf({ word: ShellPrograms.programOf({ command }).name }),
+          args: ShellPrograms.programOf({ command }).args,
         })?.names.length ?? 0) > 0,
     );
     const loopNames = ShellFolders.loopNamesOf({ commands: opts.commands });
@@ -573,21 +346,21 @@ export class ShellFolders {
       started.set(command, folder);
 
       // A symbolic link the line makes is a name later words may go through: the system follows it when they run.
-      const made = ShellParser.programOf({ command });
+      const made = ShellPrograms.programOf({ command });
       const maker = LinkMakers.of({
-        name: ShellParser.basenameOf({ word: made.name }),
+        name: ShellPrograms.basenameOf({ word: made.name }),
         args: made.args,
       });
 
       const carried = LinkMakers.carriedTo({
-        name: ShellParser.basenameOf({ word: made.name }),
+        name: ShellPrograms.basenameOf({ word: made.name }),
         args: made.args,
       });
 
       for (const name of [...(maker?.names ?? []), ...carried]) {
         // A name that holds a loop variable stands for each of its values.
         for (const vars of loopCombinations({ word: name, loops: folder.loops })) {
-          const expanded = ShellFolders.expandPath({
+          const expanded = ShellPaths.expandPath({
             word: name,
             home: opts.home,
             env: { ...opts.env, ...state.vars, ...vars },
@@ -600,15 +373,15 @@ export class ShellFolders {
             const lexical = isAbsolute(expanded) ? expanded : resolve(state.base, expanded);
 
             // The walk of a path is physical, through the links already on disk: the name is kept both ways.
-            links.push(lexical, ShellFolders.physicalOf({ path: lexical }));
+            links.push(lexical, ShellPaths.physicalOf({ path: lexical }));
           }
         }
       }
 
       // A program that runs another one with the words it is given may run `ln` or `cp` where this check does not read it.
       if (
-        command.words.some((word) => RUNNERS_OF_COMMANDS.has(ShellParser.basenameOf({ word }))) &&
-        command.words.some((word) => ['ln', 'cp'].includes(ShellParser.basenameOf({ word })))
+        command.words.some((word) => RUNNERS_OF_COMMANDS.has(ShellPrograms.basenameOf({ word }))) &&
+        command.words.some((word) => ['ln', 'cp'].includes(ShellPrograms.basenameOf({ word })))
       ) {
         hasUnknownLink = true;
       }
@@ -660,8 +433,8 @@ export class ShellFolders {
           }
         }
       }
-      const program = ShellParser.programOf({ command });
-      const name = ShellParser.basenameOf({ word: program.name });
+      const program = ShellPrograms.programOf({ command });
+      const name = ShellPrograms.basenameOf({ word: program.name });
 
       if (!ShellFolders.MOVING_COMMANDS.has(name)) {
         return folder;
@@ -722,7 +495,7 @@ export class ShellFolders {
     const expanded =
       target === undefined || /^[-+]/.test(target) || opts.literalDollars.includes(target)
         ? undefined
-        : ShellFolders.expandPath({ word: target, home: opts.home, env: opts.env, cwd: state.pwd });
+        : ShellPaths.expandPath({ word: target, home: opts.home, env: opts.env, cwd: state.pwd });
 
     if (opts.name === 'pushd') {
       state.stack.push({ base: state.base, pwd: state.pwd, isKnown: state.isKnown });
@@ -738,7 +511,7 @@ export class ShellFolders {
     // A `cd` through a link the line just made lands where the link points, which the folder tree on disk does not show yet.
     const isLinked =
       expanded !== undefined &&
-      ShellFolders.passesThrough({
+      ShellPaths.passesThrough({
         path: expanded,
         base: state.base,
         links: opts.links,
