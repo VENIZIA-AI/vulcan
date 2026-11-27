@@ -3,9 +3,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { join } from 'node:path';
 import { EventHook, EventLog, FlowState, FlowSteps } from '../../events/index.ts';
-import { hermeticEnv } from '../hermetic.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { hermeticEnv } from '../helpers/hermetic.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 import { wire } from './wire.helper.ts';
 
 afterAll(removeProjects);

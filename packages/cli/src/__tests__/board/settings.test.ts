@@ -4,10 +4,10 @@ import { join } from 'node:path';
 import { BoardSettings } from '../../board/settings.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
-import { git } from '../git-repo.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
-import { hermeticEnv } from '../hermetic.helper.ts';
+import { git } from '../helpers/git-repo.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
+import { hermeticEnv } from '../helpers/hermetic.helper.ts';
 
 afterAll(removeProjects);
 

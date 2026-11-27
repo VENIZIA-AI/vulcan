@@ -4,17 +4,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ToolRunner } from '../../commands/x.command.ts';
 import { VulcanTools } from '../../common/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
-const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
+const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 
 describe('vulcan x', () => {
   test('resolves the okf bin from the installed package', () => {
-    expect(ToolRunner.resolveBin({ name: VulcanTools.OKF })).toMatch(/okf\/src\/cli\.ts$/);
+    expect(ToolRunner.resolveBin({ name: VulcanTools.OKF })).toMatch(/okf\/src\/entry\/cli\.ts$/);
   });
 
   test('an unknown tool exits 1 and lists the known tools on stderr', () => {

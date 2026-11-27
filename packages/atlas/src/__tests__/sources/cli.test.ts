@@ -53,7 +53,7 @@ describe('vulcan-atlas over git sources', () => {
     const result = spawnSyncBounded({
       cmd: [
         process.execPath,
-        join(PACKAGE_ROOT, 'src/cli.ts'),
+        join(PACKAGE_ROOT, 'src/cli/main.ts'),
         ...opts.args,
         '--cache-dir',
         opts.cache,
@@ -74,7 +74,7 @@ describe('vulcan-atlas over git sources', () => {
 
   test('--cache-dir with no value is a usage error: exit 2, nothing on stdout', () => {
     const result = spawnSyncBounded({
-      cmd: [process.execPath, join(PACKAGE_ROOT, 'src/cli.ts'), 'mcp', '--cache-dir'],
+      cmd: [process.execPath, join(PACKAGE_ROOT, 'src/cli/main.ts'), 'mcp', '--cache-dir'],
       cwd: makeTempDirectory({ prefix: 'atlas-nocache-' }),
       env: { ...process.env, VULCAN_NPM_REGISTRY: NO_REGISTRY },
       stdin: 'ignore',

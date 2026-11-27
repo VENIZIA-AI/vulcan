@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectNames } from '../../create/names.ts';
 import type { INameField, TAsk } from '../../create/index.ts';
-import { CapturedStderr } from '../stderr.helper.ts';
+import { CapturedStderr } from '../helpers/stderr.helper.ts';
 
 let stderr: CapturedStderr;
 

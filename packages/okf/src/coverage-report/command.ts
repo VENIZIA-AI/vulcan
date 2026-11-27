@@ -1,5 +1,5 @@
 import { GenerationRegistry } from '../generate/index.ts';
-import { ConceptLoader } from '../lib.ts';
+import { ConceptLoader } from '../bundle/lib.ts';
 import { SourceScanner } from '../source/index.ts';
 import { CoverageAxes } from './axes.ts';
 

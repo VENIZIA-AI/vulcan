@@ -11,8 +11,8 @@ import { GetTool } from '@/tools/get.tool';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test, afterEach, beforeEach } from 'bun:test';
-import { ignisCommittedFileOf, IGNIS_ROOT } from '../ignis-root.helper';
-import { CapturedStderr } from '../stderr.helper';
+import { ignisCommittedFileOf, IGNIS_ROOT } from '../helpers/ignis-root.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

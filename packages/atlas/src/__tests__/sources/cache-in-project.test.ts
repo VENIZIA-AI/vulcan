@@ -8,7 +8,7 @@ import {
   NO_REGISTRY,
   TEMP_DIRECTORIES,
 } from './source-repo.helper';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 import { SymbolFetches } from './symbol-fetches.helper';
 
 let stderr: CapturedStderr;

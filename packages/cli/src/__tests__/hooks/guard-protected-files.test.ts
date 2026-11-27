@@ -3,8 +3,8 @@ import { mkdirSync, symlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { OutsideGuard } from '../../hooks/index.ts';
-import { fileToolEvent, toolEvent } from '../hook-event.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { fileToolEvent, toolEvent } from '../helpers/hook-event.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

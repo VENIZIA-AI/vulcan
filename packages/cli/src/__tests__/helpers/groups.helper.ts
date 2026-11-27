@@ -1,4 +1,4 @@
-import { ConfigGroups } from '../config/index.ts';
+import { ConfigGroups } from '../../config/index.ts';
 
 const RecordLike = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

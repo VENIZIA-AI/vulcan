@@ -3,7 +3,7 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../../common/index.ts';
 import { DoctorChecks, DoctorRunner, SkillLint } from '../../doctor/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

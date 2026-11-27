@@ -18,7 +18,7 @@
     "directory": "packages/cli"
   },
   "bin": {
-    "vulcan": "./src/cli.ts"
+    "vulcan": "./src/entry/cli.ts"
   },
   "files": [
     "README.md",
@@ -33,7 +33,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
-    "./okf": "./src/okf.ts",
+    "./okf": "./src/okf/index.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {

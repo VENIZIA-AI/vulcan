@@ -17,7 +17,7 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from '../sources/source-repo.helper';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 import { SymbolFetches } from '../sources/symbol-fetches.helper';
 
 let stderr: CapturedStderr;
@@ -172,7 +172,7 @@ describe('atlas index: build and sign the index of HEAD (C5)', () => {
       spawnSyncBounded({
         cmd: [
           process.execPath,
-          join(PACKAGE_ROOT, 'src/cli.ts'),
+          join(PACKAGE_ROOT, 'src/cli/main.ts'),
           'index',
           '--out',
           out,

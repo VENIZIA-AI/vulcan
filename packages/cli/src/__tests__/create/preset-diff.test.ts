@@ -12,9 +12,9 @@ import { join } from 'node:path';
 import type { IRecordedPreset, TAppSide } from '../../create/common/index.ts';
 import { LineDiff } from '../../create/diff.ts';
 import { PresetDiff } from '../../create/preset-diff.ts';
-import { copyWithFields } from '../preset.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { copyWithFields } from '../helpers/preset.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

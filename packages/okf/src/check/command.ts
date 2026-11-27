@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { RESERVED_FILES } from '../config.ts';
+import { RESERVED_FILES } from '../common/config.ts';
 import { OkfProject } from '../project/index.ts';
 import { IssueSeverities, OkfVersions, BundleConformance } from '../spec/index.ts';
 import type { IBundleFile, IConformanceIssue } from '../spec/index.ts';

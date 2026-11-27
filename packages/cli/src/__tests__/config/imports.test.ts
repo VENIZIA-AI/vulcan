@@ -6,8 +6,8 @@ import { ConfigLoader } from '../../config/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
 import { ProjectGuards } from '../../hooks/project-guards.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

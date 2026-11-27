@@ -14,7 +14,7 @@ import { GitActivity } from '../../hooks/git-activity.ts';
 import type { TGitActivity } from '../../events/index.ts';
 import { BoardStop, EventHook, EventLog, FlowState } from '../../events/index.ts';
 import type { IEvent } from '../../events/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { wire } from './wire.helper.ts';
 
 afterAll(removeProjects);

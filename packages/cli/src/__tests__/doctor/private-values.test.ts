@@ -5,10 +5,10 @@ import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { PrivateValueScan } from '../../doctor/common/index.ts';
 import { PrivateValues } from '../../doctor/private-values.ts';
-import { git, initRepo } from '../git-repo.helper.ts';
-import { hermeticEnv } from '../hermetic.helper.ts';
-import { runCli } from '../run.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { git, initRepo } from '../helpers/git-repo.helper.ts';
+import { hermeticEnv } from '../helpers/hermetic.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

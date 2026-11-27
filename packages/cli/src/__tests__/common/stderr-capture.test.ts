@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CapturedStderr } from './stderr.helper.ts';
+import { CapturedStderr } from '../helpers/stderr.helper.ts';
 
 describe('CapturedStderr', () => {
   test('a line written in pieces is one line, and the callback of a write is called', async () => {

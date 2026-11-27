@@ -5,7 +5,7 @@ import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import vulcanGuards from '../../../base/extensions/vulcan-guards.ts';
 import { CodexHooks, GuardHook, GUARD_HOOK_NAME } from '../../agents/index.ts';
 import { LoaderEnvironment } from '../../hooks/loader-environment.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

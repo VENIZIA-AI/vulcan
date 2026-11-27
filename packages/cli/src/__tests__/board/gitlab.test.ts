@@ -4,14 +4,14 @@ import { join } from 'node:path';
 import { BoardGitlab } from '../../board/gitlab.ts';
 import { BoardSettings } from '../../board/settings.ts';
 import { BoardAgentInfo } from '../../board/ui/state/agent-info.ts';
-import { BoardUrl } from '../../board/ui/url.ts';
+import { BoardUrl } from '../../board/ui/app/url.ts';
 import type { IBoardViewEvent } from '../../board/ui/common/types.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
-import { git, initRepo } from '../git-repo.helper.ts';
-import { hermeticEnv } from '../hermetic.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { git, initRepo } from '../helpers/git-repo.helper.ts';
+import { hermeticEnv } from '../helpers/hermetic.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

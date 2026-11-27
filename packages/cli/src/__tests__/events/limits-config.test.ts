@@ -6,7 +6,7 @@ import { EventLog } from '../../events/log.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { EventSettings } from '../../events/settings.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
-import { createProject } from '../project.helper.ts';
+import { createProject } from '../helpers/project.helper.ts';
 
 const parse = (events: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ events });
 const manifestOf = (config: object) =>

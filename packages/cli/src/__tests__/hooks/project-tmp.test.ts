@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { ProjectLayout } from '../../common/index.ts';
 import { HookConstants, ProjectTmp } from '../../hooks/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

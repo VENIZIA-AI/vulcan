@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
 import { PackageMap } from '@/common/package-map';
-import { clearAtlasProject, useAtlasProject } from '../project.helper';
+import { clearAtlasProject, useAtlasProject } from '../helpers/project.helper';
 
 const roots: string[] = [];
 

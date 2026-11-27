@@ -3,10 +3,10 @@ import { chmodSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { UpgradeTarget } from '../../commands/upgrade.command.ts';
 import { UpgradeFlags } from '../../common/index.ts';
-import { createFakeCommand } from '../fake-command.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
-import { CapturedStderr } from '../stderr.helper.ts';
+import { createFakeCommand } from '../helpers/fake-command.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
+import { CapturedStderr } from '../helpers/stderr.helper.ts';
 
 let stderr: CapturedStderr;
 

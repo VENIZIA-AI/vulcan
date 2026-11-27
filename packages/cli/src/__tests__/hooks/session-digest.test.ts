@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { RulesBlock } from '../../agents/index.ts';
 import { SessionDigest, SubagentCard } from '../../hooks/index.ts';
 import { BASE_DIRECTORY } from '../../common/index.ts';
-import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { isolateOwnerReplySwitch } from '../helpers/owner-reply-env.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);

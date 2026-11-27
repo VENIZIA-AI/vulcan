@@ -6,7 +6,7 @@ import { MigrateCommand } from '@/migrations';
 import { Transport } from '@/protocol';
 import { ReleaseStore } from '@/releases';
 import { MigrateTool } from '@/tools';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

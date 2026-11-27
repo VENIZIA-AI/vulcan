@@ -2,8 +2,8 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { ConfigLayers, ConfigLoader, VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import type { IConfigLayer } from '../../config/index.ts';
 import { RulePacks } from '../../rules/packs.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

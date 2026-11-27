@@ -8,8 +8,8 @@ import { BoardStop, EventLog, FlowState } from '../../events/index.ts';
 import { HookConstants } from '../../hooks/common/constants.ts';
 import { AutoCleanRun } from '../../local/auto-clean-run.ts';
 import { LocalClean } from '../../local/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 import { wire } from './wire.helper.ts';
 
 afterAll(removeProjects);

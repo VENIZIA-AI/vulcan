@@ -10,7 +10,7 @@ import { BoardCards } from '../state/cards.ts';
 import type { IAgentCard } from '../state/cards.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardWork } from '../state/work.ts';
-import { BoardUrl } from '../url.ts';
+import { BoardUrl } from '../app/url.ts';
 import { AGENT_TONES } from './agents.tsx';
 import { Bar, Checklist, EventItem, Mark } from './bits.tsx';
 import { BoardFace, Mascot } from './face.tsx';

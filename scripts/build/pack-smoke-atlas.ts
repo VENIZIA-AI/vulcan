@@ -118,7 +118,7 @@ const main = (): void => {
     }
 
     const bare = makeSource({ sandbox });
-    const cli = join(sandbox, 'node_modules', ...PACKAGE_NAME.split('/'), 'dist', 'cjs', 'cli.js');
+    const cli = join(sandbox, 'node_modules', ...PACKAGE_NAME.split('/'), 'dist', 'cjs', 'cli', 'main.js');
     const input = [
       {
         jsonrpc: '2.0',

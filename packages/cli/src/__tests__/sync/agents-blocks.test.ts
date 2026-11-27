@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { ContentsList } from '@venizia/vulcan-okf';
 import { RulesBlock } from '../../agents/index.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

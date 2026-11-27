@@ -4,7 +4,7 @@ import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { EventSettings } from '../../events/settings.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

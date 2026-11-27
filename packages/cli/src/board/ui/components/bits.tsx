@@ -5,7 +5,7 @@ import { BoardTables } from '../common/constants.ts';
 import type { IBoardViewEvent } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
 import { BoardTime } from '../state/time.ts';
-import { BoardUrl } from '../url.ts';
+import { BoardUrl } from '../app/url.ts';
 
 const isBad = (event: { status?: string }): boolean =>
   event.status === 'fail' || event.status === 'blocked';

@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
-import { OkfProject } from '../project/index.ts';
-import { clearProjectConfig, useProjectConfig } from './project.helper.ts';
+import { OkfProject } from '../../project/index.ts';
+import { clearProjectConfig, useProjectConfig } from '../helpers/project.helper.ts';
 
 afterEach(clearProjectConfig);
 

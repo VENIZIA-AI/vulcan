@@ -4,7 +4,7 @@
  * reads its own `process.argv`.
  */
 import { join } from 'node:path';
-import { ConstClass } from './common/types.ts';
+import { ConstClass } from '../common/types.ts';
 
 class OkfCommands extends ConstClass {
   static readonly CHECK = 'check';

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { BoardConstants, BoardStates } from '../../common/index.ts';
 import { BoardTables, BoardUiConstants } from '../common/constants.ts';
 import type { IFlowView, TTranslate } from '../common/types.ts';
-import { usePopover } from '../hooks.ts';
+import { usePopover } from '../app/hooks.ts';
 import { useUi } from '../i18n/context.ts';
 import { BoardCards } from '../state/cards.ts';
 import type { IItemCard } from '../state/cards.ts';

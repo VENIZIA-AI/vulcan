@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { GitGuard } from '../../hooks/index.ts';
 import type { IGitRunner } from '../../hooks/index.ts';
-import { git as runGit, initRepo } from '../git-repo.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { git as runGit, initRepo } from '../helpers/git-repo.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

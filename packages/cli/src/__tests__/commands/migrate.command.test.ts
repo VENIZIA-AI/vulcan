@@ -10,10 +10,10 @@ import {
 import { dirname, join } from 'node:path';
 import { ToolRunner } from '../../commands/x.command.ts';
 import { VulcanTools } from '../../common/index.ts';
-import { commitAll, git, initRepo } from '../git-repo.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
-import type { ICliResult } from '../run.helper.ts';
+import { commitAll, git, initRepo } from '../helpers/git-repo.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
+import type { ICliResult } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

@@ -6,7 +6,7 @@ import { InteractiveRun } from '@/cli/interactive';
 import { MANIFEST_FILE } from '@/common/project-config';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
-const CLI = join(__dirname, '..', '..', 'cli.ts');
+const CLI = join(__dirname, '..', '..', 'cli', 'main.ts');
 
 const tempDirectories: string[] = [];
 

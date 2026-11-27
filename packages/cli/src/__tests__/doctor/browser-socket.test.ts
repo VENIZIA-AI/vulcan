@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { ProjectContract } from '../../doctor/checks.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { BrowserSocket } from '../../local/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

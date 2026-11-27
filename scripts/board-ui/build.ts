@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
 const CLI = 'packages/cli';
-const ENTRY = `${CLI}/src/board/ui/main.tsx`;
+const ENTRY = `${CLI}/src/board/ui/app/main.tsx`;
 const SHELL = `${CLI}/src/board/ui/shell.html`;
 const SCRIPT_MARKER = '<!--BOARD_SCRIPT-->';
 

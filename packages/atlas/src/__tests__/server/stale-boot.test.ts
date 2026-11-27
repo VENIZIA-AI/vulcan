@@ -22,7 +22,7 @@ import {
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from '../sources/source-repo.helper';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 import { SymbolFetches } from '../sources/symbol-fetches.helper';
 
 let stderr: CapturedStderr;

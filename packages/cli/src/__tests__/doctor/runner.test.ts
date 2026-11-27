@@ -4,11 +4,11 @@ import { join } from 'node:path';
 import { DoctorChecks, DoctorRunner, Makefile } from '../../doctor/index.ts';
 import { LocalChoice } from '../../agents/index.ts';
 import { Bunfig } from '../../create/bunfig.ts';
-import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
-import { initRepo } from '../git-repo.helper.ts';
-import { CapturedStderr } from '../stderr.helper.ts';
+import { isolateOwnerReplySwitch } from '../helpers/owner-reply-env.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
+import { initRepo } from '../helpers/git-repo.helper.ts';
+import { CapturedStderr } from '../helpers/stderr.helper.ts';
 
 let stderr: CapturedStderr;
 

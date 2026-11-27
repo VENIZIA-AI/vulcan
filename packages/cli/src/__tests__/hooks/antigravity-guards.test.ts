@@ -2,8 +2,8 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { GUARD_HOOK_NAME, GuardHook } from '../../agents/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../helpers/guard-manifest.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);

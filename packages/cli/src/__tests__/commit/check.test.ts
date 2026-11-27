@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { git, initRepo } from '../git-repo.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { git, initRepo } from '../helpers/git-repo.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 
@@ -312,7 +312,7 @@ describe('the command does not load atlas', () => {
   };
 
   test('the router and the command reach atlas through no static import', () => {
-    expect(packagesReachedFrom({ entry: join(SRC, 'router.ts') })).not.toContain(
+    expect(packagesReachedFrom({ entry: join(SRC, 'entry', 'router.ts') })).not.toContain(
       '@venizia/vulcan-atlas',
     );
     expect(

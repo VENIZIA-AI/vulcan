@@ -8,8 +8,8 @@ import type { TLayoutSettings } from '../../config/sections/doctor/index.ts';
 import { LayoutBaseline } from '../../layout/baseline.ts';
 import { LayoutCheck } from '../../layout/check.ts';
 import type { ILayoutFileText } from '../../layout/common/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

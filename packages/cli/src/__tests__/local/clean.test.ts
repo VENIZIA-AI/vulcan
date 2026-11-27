@@ -14,8 +14,8 @@ import { EventLog } from '../../events/log.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { SocketWarning } from '../doctor/socket-warning.helper.ts';
 import { CleanScopes, LocalClean, LocalConstants, LocalScan } from '../../local/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

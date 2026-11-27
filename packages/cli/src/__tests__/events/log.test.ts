@@ -13,8 +13,8 @@ import {
   EventSettings,
   EventText,
 } from '../../events/index.ts';
-import { git } from '../git-repo.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { git } from '../helpers/git-repo.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

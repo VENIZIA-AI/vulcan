@@ -4,7 +4,7 @@ import { BoardCommand } from '../../board/command.ts';
 import { BoardPage } from '../../board/page.ts';
 import { BoardServer } from '../../board/server.ts';
 import { EventLog } from '../../events/log.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { BrowserPage } from '../visualize/browser.helper.ts';
 import { line, sampleLines } from './log-lines.helper.ts';
 import { sampleData } from './sample-data.helper.ts';

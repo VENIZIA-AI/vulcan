@@ -10,7 +10,7 @@ import { ReleaseStore } from '@/releases';
 import type { IReleaseTable } from '@/releases';
 import { SourceReleases } from '@/sources';
 import { MigrateTool } from '@/tools';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

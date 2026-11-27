@@ -3,9 +3,9 @@ import { join } from 'node:path';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 import { ConfigLoader } from '../../config/index.ts';
 import { SessionDigest } from '../../hooks/index.ts';
-import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
+import { isolateOwnerReplySwitch } from '../helpers/owner-reply-env.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../helpers/guard-manifest.helper.ts';
 
 afterAll(removeProjects);
 isolateOwnerReplySwitch();

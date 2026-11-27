@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { PRUNE_DIRS } from '../config.ts';
+import { PRUNE_DIRS } from '../common/config.ts';
 import { OkfProject } from '../project/index.ts';
 
 export class SourceScanner {

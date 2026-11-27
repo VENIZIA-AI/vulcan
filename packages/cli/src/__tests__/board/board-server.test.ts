@@ -5,9 +5,9 @@ import { BoardCommand } from '../../board/command.ts';
 import { BoardServe } from '../../board/common/index.ts';
 import { BoardServer } from '../../board/server.ts';
 import { EventLog } from '../../events/log.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { line, sampleLines } from './log-lines.helper.ts';
-import { CapturedStderr } from '../stderr.helper.ts';
+import { CapturedStderr } from '../helpers/stderr.helper.ts';
 
 let stderr: CapturedStderr;
 

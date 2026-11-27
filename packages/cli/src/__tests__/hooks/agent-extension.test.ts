@@ -2,8 +2,8 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import vulcanGuards from '../../../base/extensions/vulcan-guards.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../helpers/guard-manifest.helper.ts';
 
 afterAll(removeProjects);
 

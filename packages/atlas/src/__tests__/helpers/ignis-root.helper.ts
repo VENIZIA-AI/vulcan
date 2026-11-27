@@ -6,7 +6,7 @@ import { join } from 'node:path';
  * The IGNIS checkout the repo-mode tests read. Atlas moved from IGNIS into VULCAN, so the live tree
  * is no longer this package's grandparent: set `IGNIS_ROOT`, or keep IGNIS as a sibling of VULCAN.
  */
-export const IGNIS_ROOT = process.env.IGNIS_ROOT ?? join(__dirname, '../../../../../ignis');
+export const IGNIS_ROOT = process.env.IGNIS_ROOT ?? join(__dirname, '../../../../../../ignis');
 
 /**
  * A checkout's content - its wiki and knowledge bundle. VULCAN's checks read IGNIS at a fixed

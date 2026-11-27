@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { BoardOpenFile } from '../../board/open-file.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

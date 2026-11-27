@@ -2,9 +2,9 @@ import { afterAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { join } from 'node:path';
 import { BoardFold } from '../../board/fold.ts';
 import { EventLog, FlowSteps } from '../../events/index.ts';
-import { hermeticEnv } from '../hermetic.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { hermeticEnv } from '../helpers/hermetic.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 setDefaultTimeout(30_000);

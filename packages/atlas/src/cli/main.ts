@@ -1,26 +1,26 @@
 #!/usr/bin/env bun
-import { AtlasCommands, AtlasConstants } from './common';
-import { InteractiveRun, ModeArguments, ModeUsageError, SourceArguments } from './cli/index';
-import { AtlasStatus } from './cli/status';
-import { runReleasesCommand } from './releases/generator';
+import { AtlasCommands, AtlasConstants } from '../common';
+import { InteractiveRun, ModeArguments, ModeUsageError, SourceArguments } from './index';
+import { AtlasStatus } from './status';
+import { runReleasesCommand } from '../releases/generator';
 import {
   FileSourceMemory,
   Refresher,
   SourceBoot,
   SourcesServer,
   SourceStatus,
-} from './server/index';
-import type { Transport } from './protocol/index';
-import { AtlasLimits } from './common/limits';
-import { ProjectConfig } from './common/project-config';
-import { TextValue } from './common/text';
-import { runIndexCommand } from './prebuilt/index';
-import { SourceCache, SourceResolver } from './sources/index';
-import type { IAtlasSource } from './sources/index';
-import { runApiCommand } from './api/index';
-import { runSurfaceCommand } from './surface/index';
-import { runSymbolsCommand } from './symbols/generator';
-import { MigrateCommand, runChangelogsCommand } from './migrations/index';
+} from '../server/index';
+import type { Transport } from '../protocol/index';
+import { AtlasLimits } from '../common/limits';
+import { ProjectConfig } from '../common/project-config';
+import { TextValue } from '../common/text';
+import { runIndexCommand } from '../prebuilt/index';
+import { SourceCache, SourceResolver } from '../sources/index';
+import type { IAtlasSource } from '../sources/index';
+import { runApiCommand } from '../api/index';
+import { runSurfaceCommand } from '../surface/index';
+import { runSymbolsCommand } from '../symbols/generator';
+import { MigrateCommand, runChangelogsCommand } from '../migrations/index';
 
 const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | status [--root <dir>] | <surface|api|symbols|releases|changelogs check|changelogs notes> | migrate plan [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--format md|json] [--verbose] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] [--no-prebuilt] | migrate apply [--package <name>] [--from <version>] --to <version|latest|next> [--app <dir>] [--force] | help`;
 

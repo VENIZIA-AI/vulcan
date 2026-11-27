@@ -2,11 +2,11 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
-import { createFakeCommand } from '../fake-command.helper.ts';
-import { checkFiles, FORMATTED_GLOB } from '../format.helper.ts';
-import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
-import { createProject, packFolder, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createFakeCommand } from '../helpers/fake-command.helper.ts';
+import { checkFiles, FORMATTED_GLOB } from '../helpers/format.helper.ts';
+import { copyWithFields, copyWithUrls } from '../helpers/preset.helper.ts';
+import { createProject, packFolder, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 
 afterAll(removeProjects);
 

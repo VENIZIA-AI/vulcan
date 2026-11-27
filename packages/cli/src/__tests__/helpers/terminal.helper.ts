@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-const CLI = join(import.meta.dir, '..', 'cli.ts');
+const CLI = join(import.meta.dir, '..', '..', 'entry', 'cli.ts');
 const ESC = String.fromCharCode(27);
 const ANSI = new RegExp(`${ESC}\\[[0-9;?]*[A-Za-z]`, 'g');
 const COLOUR = new RegExp(`${ESC}\\[(?:3[0-7]|9[0-7])m`);

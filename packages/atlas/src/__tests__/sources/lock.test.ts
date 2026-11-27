@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync 
 import { join } from 'node:path';
 import { PullLock } from '@/sources/lock';
 import { makeTempDirectory, TEMP_DIRECTORIES } from './source-repo.helper';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 
 let stderr: CapturedStderr;
 

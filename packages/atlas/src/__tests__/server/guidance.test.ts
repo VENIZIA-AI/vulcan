@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { buildRepositoryServer } from '../server.helper';
+import { buildRepositoryServer } from '../helpers/server.helper';
 import { ServerGuidance } from '@/server/guidance';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IResolvedSource } from '@/sources/common';

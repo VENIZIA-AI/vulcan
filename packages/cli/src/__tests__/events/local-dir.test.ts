@@ -15,8 +15,8 @@ import {
   UsageMeter,
 } from '../../events/index.ts';
 import { FlowGuard } from '../../hooks/flow-guard.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
-import { runCli } from '../run.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
+import { runCli } from '../helpers/run.helper.ts';
 import { wire } from './wire.helper.ts';
 
 afterAll(removeProjects);

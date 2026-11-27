@@ -12,8 +12,8 @@ import { dirname, join } from 'node:path';
 import { CommitHook, CommitHookPlan, CommitHookStates } from '../../commit/index.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { SyncStatuses } from '../../sync/index.ts';
-import { git } from '../git-repo.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { git } from '../helpers/git-repo.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

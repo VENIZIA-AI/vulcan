@@ -9,11 +9,11 @@ import {
 import { OkfFrontmatter } from '@venizia/vulcan-okf';
 import { ProjectLayout } from '../../common/constants.ts';
 import { Bunfig } from '../../create/bunfig.ts';
-import { checkManifests } from '../format.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { checkManifests } from '../helpers/format.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { AppsBlockProblems } from '../../create/common/index.ts';
 import type { IAppsBlock, IPreset } from '../../create/index.ts';
-import { CapturedStderr } from '../stderr.helper.ts';
+import { CapturedStderr } from '../helpers/stderr.helper.ts';
 
 let stderr: CapturedStderr;
 

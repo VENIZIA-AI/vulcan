@@ -2,8 +2,8 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { PackageSwap } from '../../hooks/package-swap.ts';
-import { toolEvent } from '../hook-event.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { toolEvent } from '../helpers/hook-event.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

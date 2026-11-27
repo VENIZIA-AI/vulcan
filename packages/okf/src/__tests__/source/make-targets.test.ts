@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SourceCollector } from '../../source/collectors.ts';
-import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
+import { clearProjectConfig, useProjectConfig } from '../helpers/project.helper.ts';
 
 const roots: string[] = [];
 

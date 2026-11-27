@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BASE_DIRECTORY } from '../common/index.ts';
-import { SkillLint } from '../doctor/index.ts';
+import { BASE_DIRECTORY } from '../../common/index.ts';
+import { SkillLint } from '../../doctor/index.ts';
 import { SkillCatalog } from '@venizia/vulcan-atlas';
-import { SkillFrontmatter } from '../skills/index.ts';
-import { VisualizeLimits } from '../visualize/index.ts';
+import { SkillFrontmatter } from '../../skills/index.ts';
+import { VisualizeLimits } from '../../visualize/index.ts';
 
 const SKILLS_DIRECTORY = join(BASE_DIRECTORY, 'skills');
 const PROJECT_NAMES = /\bIGNIS\b|\bARDOR\b|\bBANA\b|ignis-docs|VENIZIA-AI\/ignis/i;

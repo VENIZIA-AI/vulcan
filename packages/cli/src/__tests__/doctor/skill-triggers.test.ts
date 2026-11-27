@@ -3,7 +3,7 @@ import { ProjectLayout } from '../../common/index.ts';
 import { Bunfig } from '../../create/bunfig.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { SocketWarning } from './socket-warning.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

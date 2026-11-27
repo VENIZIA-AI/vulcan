@@ -74,16 +74,16 @@ The [renderers reference](../../docs/wiki/content/references/okf/renderers.md) s
 
 | Path | Role |
 |---|---|
-| `src/cli.ts` | `vulcan-okf` entry; spawns `src/run.ts`, the command runner |
+| `src/entry/cli.ts` | `vulcan-okf` entry; spawns `src/entry/run.ts`, the command runner |
 | `src/index.ts` | the public API: the OKF v0.2 conformance layer |
 | `src/source/` | source scanning and the shared fact collectors (one per fact, used by gen and coverage) |
 | `src/generate/` | `gen`: the built-in renderers, project modules (`defineRenderer`), regions and contents lists |
 | `src/check/` | `check`: OKF conformance, plus the house rules under `--strict` |
 | `src/coverage-report/` | `coverage`: the bundle against the source inventory |
-| `src/lib.ts` | bundle loader: frontmatter, links, concept model |
+| `src/bundle/lib.ts` | bundle loader: frontmatter, links, concept model |
 | `src/spec/` | OKF v0.2 conformance - pure, never throws |
 | `src/project/` | reads the project config `vulcan atlas` or `vulcan okf` hands okf - everything project-specific |
-| `src/config.ts` | constants that hold for every project: pruned directories, reserved files |
+| `src/common/config.ts` | constants that hold for every project: pruned directories, reserved files |
 
 ---
 

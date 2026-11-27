@@ -1,4 +1,4 @@
-import { buildRepositoryServer } from '../server.helper';
+import { buildRepositoryServer } from '../helpers/server.helper';
 import { join } from 'node:path';
 import { expect, test } from 'bun:test';
 

@@ -17,7 +17,7 @@ import {
   OwnerView,
   PROFILE_SCHEMA,
 } from '../../owner/index.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

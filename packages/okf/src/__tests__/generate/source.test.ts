@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { RenderContext } from '../../generate/define.ts';
-import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
+import { clearProjectConfig, useProjectConfig } from '../helpers/project.helper.ts';
 
 afterEach(clearProjectConfig);
 

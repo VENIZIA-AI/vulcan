@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
-import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
-import { fileToolEvent } from '../hook-event.helper.ts';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../helpers/guard-manifest.helper.ts';
+import { fileToolEvent } from '../helpers/hook-event.helper.ts';
+import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
 afterAll(removeProjects);
 

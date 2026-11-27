@@ -17,7 +17,7 @@ import { startFakeGithub } from './fake-github.helper';
 import type { IFakeGithub } from './fake-github.helper';
 import { makePrebuiltSource, resigned, rowsOf } from './pair.helper';
 import type { IFixturePair } from './pair.helper';
-import { CapturedStderr } from '../stderr.helper';
+import { CapturedStderr } from '../helpers/stderr.helper';
 import { SymbolFetches } from '../sources/symbol-fetches.helper';
 
 let stderr: CapturedStderr;
