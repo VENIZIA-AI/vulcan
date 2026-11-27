@@ -37,6 +37,12 @@ const MESSAGE_PROGRAMS = new Set(['git', 'gh']);
  */
 const GH_REQUESTS = new Set(['api', 'secret', 'variable']);
 
+/** The project's own VULCAN bin, as `bun` is given it. */
+const VULCAN_BIN = 'node_modules/.bin/vulcan';
+
+/** The scopes of VULCAN whose arguments are titles and notes of the board: nothing in them is run. */
+const VULCAN_NOTE_SCOPES = new Set(['flow', 'event']);
+
 /** The `gh` options that take the repository as their value: that value is not the subcommand. */
 const GH_REPOSITORY_FLAGS = new Set(['-R', '--repo']);
 
@@ -109,6 +115,18 @@ const isGhRequest = (opts: { command: ISimpleCommand }): boolean => {
 };
 
 export class CommandView {
+  /** Whether a command is `vulcan flow ...` or `vulcan event ...`, by its name or by the project's bin under `bun`. */
+  private static isVulcanNote(opts: { command: ISimpleCommand }): boolean {
+    const { name, args } = ShellPrograms.programOf({ command: opts.command });
+    const program = ShellPrograms.basenameOf({ word: name });
+
+    if (program === 'bun') {
+      return args[0] === VULCAN_BIN && VULCAN_NOTE_SCOPES.has(args[1] ?? '');
+    }
+
+    return program === 'vulcan' && VULCAN_NOTE_SCOPES.has(args[0] ?? '');
+  }
+
   /** The text of one simple command: the words, a bare name for data, a reader's heredoc body appended. */
   private static textOf(opts: { command: ISimpleCommand; withMessages: boolean }): string {
     const { command } = opts;
@@ -125,8 +143,8 @@ export class CommandView {
   }
 
   /**
-   * Whether the arguments of a command are data. `withMessages` adds `git` and `gh` (their arguments are
-   * messages to the write guards).
+   * Whether the arguments of a command are data. `withMessages` adds `git`, `gh` and the notes of
+   * `vulcan flow` and `vulcan event` (their arguments are messages to the write guards).
    */
   static isDataOnly(opts: { command: ISimpleCommand; withMessages: boolean }): boolean {
     const name = ShellPrograms.basenameOf({
@@ -139,6 +157,10 @@ export class CommandView {
 
     if (name === 'gh' && isGhRequest({ command: opts.command })) {
       return false;
+    }
+
+    if (opts.withMessages && CommandView.isVulcanNote({ command: opts.command })) {
+      return true;
     }
 
     return READ_ONLY_PROGRAMS.has(name) || (opts.withMessages && MESSAGE_PROGRAMS.has(name));

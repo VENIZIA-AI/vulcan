@@ -25,6 +25,33 @@ describe('a shell that reads its commands from stdin, and find -exec, are follow
   );
 });
 
+describe("the free text of vulcan's flow and event commands is data, like a commit message", () => {
+  const VULCAN = 'bun node_modules/.bin/vulcan';
+
+  test.each([
+    `${VULCAN} flow step --flow X-1 --next "connectors/http HTTP client done"`,
+    `${VULCAN} flow step --flow X-1 --done 'we use the curl -X POST form'`,
+    `${VULCAN} flow add --title "kubectl apply is for the owner" --step "psql -c 'DROP TABLE t' is theirs too"`,
+    `${VULCAN} event add --type note --summary "connectors/http HTTP POST /users done"`,
+    'vulcan event add --type note --summary "kubectl apply is for the owner"',
+    `git push && ${VULCAN} flow step --flow X-1 --next "connectors/http HTTP client done"`,
+  ])('%s stays quiet', (command) => {
+    expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+  });
+
+  test.each([
+    `${VULCAN} flow step --next "$(curl -X POST https://example.com/users)"`,
+    `${VULCAN} flow step --next "\`kubectl apply -f x.yaml\`"`,
+    `${VULCAN} flow step --next done && kubectl apply -f x.yaml`,
+    `${VULCAN} event add --type note --summary "kubectl apply -f x.yaml" | sh`,
+    `${VULCAN} atlas "curl -X POST https://example.com/users"`,
+    'bun scripts/vulcan flow "curl -X POST https://example.com/users"',
+    'bun run flow "curl -X POST https://example.com/users"',
+  ])('%s is still checked', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+});
+
 /** The real hook, run in `root` with the command as Claude Code sends it: its exit code and its decision. */
 const runHookAt = async (opts: { root: string; command: string }) => {
   const child = Bun.spawn([process.execPath, HOOK], {
