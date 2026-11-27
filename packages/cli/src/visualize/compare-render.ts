@@ -4,7 +4,7 @@ import type { TChrome } from './constants.ts';
 import type { IDrawing } from './diagrams.ts';
 import { FigureLayout } from './layout.ts';
 import { SpecSections } from './sections.ts';
-import type { ISectionContext } from './sections.ts';
+import type { ISectionContext } from './common/index.ts';
 import { SourceRefs } from './sources.ts';
 
 const escaped = (value: string): string => FigureLayout.escapeText({ value });
