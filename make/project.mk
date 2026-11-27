@@ -1,9 +1,9 @@
 # The shared build and lint targets of one package. A package Makefile sets the variables below
 # and includes this file.
 #
-#   FORMATS      cjs (default) | plain - cjs emits dist/cjs; plain emits nothing, `build` only type-checks
-#   CJS_TSCONFIG the program the CJS pass emits (default .configs/builders/tsconfig.build.json)
-#   CJS_OUT      where the CJS pass lands (default dist/cjs); empty: the tsconfig's own outDir
+#   FORMATS      esm (default) | plain - esm emits dist/esm; plain emits nothing, `build` only type-checks
+#   ESM_TSCONFIG the program the ESM pass emits (default .configs/builders/tsconfig.build.json)
+#   ESM_OUT      where the ESM pass lands (default dist/esm); empty: the tsconfig's own outDir
 #   POST_BUILD   a shell step only this package has, run after the emit
 #
 # Every tool comes from the package's node_modules/.bin, by absolute path: a recipe never depends on
@@ -21,13 +21,13 @@ TSC_ALIAS := $(BIN)/tsc-alias
 # stays only where it emits), `bun fmt` formats with the [fmt] section of the root bunfig.toml.
 TYPECHECK := bun check --no-pretty
 
-FORMATS ?= cjs
-CJS_TSCONFIG ?= .configs/builders/tsconfig.build.json
-CJS_OUT ?= dist/cjs
+FORMATS ?= esm
+ESM_TSCONFIG ?= .configs/builders/tsconfig.build.json
+ESM_OUT ?= dist/esm
 
 # The programs `build` emits, each type-checked before `rebuild` deletes dist: one that fails after
 # clean leaves an empty dist.
-EMIT_TSCONFIGS := $(if $(filter cjs,$(FORMATS)),$(CJS_TSCONFIG))
+EMIT_TSCONFIGS := $(if $(filter esm,$(FORMATS)),$(ESM_TSCONFIG))
 
 include $(dir $(lastword $(MAKEFILE_LIST)))fmt.mk
 
@@ -44,15 +44,17 @@ typecheck:
 	@$(TYPECHECK) -p tsconfig.json
 	@for config in $(filter-out tsconfig.json,$(EMIT_TSCONFIGS)); do $(TYPECHECK) -p $$config || exit 1; done
 
+# --resolve-full-paths writes the file extension on every relative import: without it a nodenext consumer
+# of the declarations silently loses the types.
 # tsc-alias reads the ROOT tsconfig: pointed at a .configs/ file it resolves `paths` against
 # .configs/ and leaves every `@/` import unrewritten.
 build:
 	@echo "START | Building $(notdir $(CURDIR))..."
 	@$(TYPECHECK) -p tsconfig.json
-ifneq ($(filter cjs,$(FORMATS)),)
-	@echo ">>> Building CJS..."
-	@$(TSC) -p $(CJS_TSCONFIG) --extendedDiagnostics
-	@$(TSC_ALIAS) -p tsconfig.json $(if $(CJS_OUT),--outDir $(CJS_OUT))
+ifneq ($(filter esm,$(FORMATS)),)
+	@echo ">>> Building ESM..."
+	@$(TSC) -p $(ESM_TSCONFIG) --extendedDiagnostics
+	@$(TSC_ALIAS) -p tsconfig.json --resolve-full-paths $(if $(ESM_OUT),--outDir $(ESM_OUT))
 endif
 	$(if $(POST_BUILD),@$(POST_BUILD))
 	@echo "DONE | Build completed."

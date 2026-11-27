@@ -18,7 +18,7 @@
     "directory": "packages/atlas"
   },
   "bin": {
-    "vulcan-atlas": "./dist/cjs/cli/main.js"
+    "vulcan-atlas": "./dist/esm/cli/main.js"
   },
   "files": [
     "README.md",
@@ -27,13 +27,14 @@
     "!**/__tests__",
     "!**/*.tsbuildinfo"
   ],
+  "type": "module",
   "sideEffects": false,
-  "main": "./dist/cjs/index.js",
-  "types": "./dist/cjs/index.d.ts",
+  "main": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/cjs/index.d.ts",
-      "default": "./dist/cjs/index.js"
+      "types": "./dist/esm/index.d.ts",
+      "default": "./dist/esm/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -46,6 +47,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@venizia/vulcan-okf": "workspace:*",
     "typescript": "catalog:",
     "zod": "catalog:"
   },

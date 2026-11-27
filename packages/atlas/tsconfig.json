@@ -2,10 +2,12 @@
   "$schema": "http://json.schemastore.org/tsconfig",
   "extends": "@venizia/dev-configs/tsconfig.common.json",
   "compilerOptions": {
-    // The shared preset sets these today; atlas is published as CommonJS, so a change of the preset must not move it.
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "outDir": "dist/cjs",
+    // atlas is published as ES modules whose source imports have no extension (the build adds them), so a change of the shared preset must not move these.
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "outDir": "dist/esm",
+    // okf ships its source, whose relative imports end in .ts: atlas reads it for its types.
+    "rewriteRelativeImportExtensions": true,
     "rootDir": "src",
     "paths": { "@/*": ["./src/*"] },
     "useDefineForClassFields": false

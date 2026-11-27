@@ -1,3 +1,3 @@
-FORMATS := cjs
+FORMATS := esm
 
 include ../../make/project.mk
