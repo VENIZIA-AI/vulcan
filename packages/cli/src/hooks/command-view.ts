@@ -44,11 +44,26 @@ const VULCAN_BIN = 'node_modules/.bin/vulcan';
 const VULCAN_NOTE_SCOPES = new Set(['flow', 'event']);
 
 /**
- * A line that is one command and nothing else: no operator, redirect, parenthesis, comment, expansion or second line
+ * A line that is one command and nothing else: no operator, redirect, parenthesis, brace, comment, expansion or second line
  * outside quotes, and no expansion or backtick inside double quotes.
  */
 const ONE_COMMAND =
-  /^(?:[^'"`$|;&<>()#\\\n\r]|\\[^\n\r]|'[^'\n\r]*'|"(?:\\[^\n\r]|[^"\\`$\n\r])*")*$/;
+  /^(?:[^'"`$|;&<>(){}#\\\n\r]|\\[^\n\r]|'[^'\n\r]*'|"(?:\\[^\n\r]|[^"\\`$\n\r])*")*$/;
+
+/** What a line says that runs nothing of its own: an escaped character and a single-quoted string; or a double-quoted one, kept for what it expands. */
+const LITERAL_TEXT = /\\.|'[^']*'|("(?:\\.|[^"\\])*")/g;
+
+/** The same with double-quoted strings and comments too: what is left is the line's own operators and names. */
+const NOT_CODE = /\\.|'[^']*'|"(?:\\.|[^"\\])*"|(?<=^|\s)#[^\n]*/g;
+
+/** A substitution, a process substitution, or the `$'...'` quoting, which is not followed here. */
+const SUBSTITUTES = /\$\(|`|<\(|>\(|\$'/;
+
+/** The redirects that send output nowhere new. */
+const DROPPED_OUTPUT = /(?:[12]?>\s*\/dev\/null|[12]?>&[12])(?![^\s;&|)])/g;
+
+/** The program a pipe feeds, read past `xargs` and its switches. */
+const PIPED_PROGRAM = /^\s*(?:xargs\s+(?:-\S+\s+)*)?([\w.-]*)(?=\s|;|&|\)|$)/;
 
 /** The `gh` options that take the repository as their value: that value is not the subcommand. */
 const GH_REPOSITORY_FLAGS = new Set(['-R', '--repo']);
@@ -143,6 +158,43 @@ export class CommandView {
     );
   }
 
+  /**
+   * Whether a reading or message program is written so that its arguments stay data: its first word is its name (or
+   * `xargs`), with no wrapper, path or keyword before it, and the line neither gives that name another meaning,
+   * substitutes a command, writes output to a file, nor pipes into a program that does more than read.
+   */
+  private static keepsArguments(opts: {
+    command: ISimpleCommand;
+    name: string;
+    line?: string;
+  }): boolean {
+    const { name, line } = opts;
+    const first = opts.command.words[0];
+
+    if (first !== name && first !== 'xargs') {
+      return false;
+    }
+
+    if (line === undefined) {
+      return true;
+    }
+
+    const expanded = line.replace(LITERAL_TEXT, (_: string, quoted?: string) => quoted ?? ' _ ');
+    const code = line.replace(NOT_CODE, ' _ ').replace(DROPPED_OUTPUT, ' ');
+    const safe = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const redefines = new RegExp(
+      `(?:^|[\\s;&|(){}])(?:function\\s+${safe}(?![\\w.-])|${safe}\\s*\\(\\s*\\)|alias\\s+${safe}=)`,
+    );
+    const piped = code.replaceAll('||', ';').split('|').slice(1);
+
+    return (
+      !SUBSTITUTES.test(expanded) &&
+      !code.includes('>') &&
+      !redefines.test(code) &&
+      piped.every((part) => READ_ONLY_PROGRAMS.has(PIPED_PROGRAM.exec(part)?.[1] ?? ''))
+    );
+  }
+
   /** The text of one simple command: the words, a bare name for data, a reader's heredoc body appended. */
   private static textOf(opts: {
     command: ISimpleCommand;
@@ -176,10 +228,6 @@ export class CommandView {
       word: ShellPrograms.programOf({ command: opts.command }).name,
     });
 
-    if (name === 'find') {
-      return !opts.command.words.some((word) => FIND_RUNS.has(word));
-    }
-
     if (name === 'gh' && isGhRequest({ command: opts.command })) {
       return false;
     }
@@ -188,7 +236,12 @@ export class CommandView {
       return true;
     }
 
-    return READ_ONLY_PROGRAMS.has(name) || (opts.withMessages && MESSAGE_PROGRAMS.has(name));
+    const isData =
+      name === 'find'
+        ? !opts.command.words.some((word) => FIND_RUNS.has(word))
+        : READ_ONLY_PROGRAMS.has(name) || (opts.withMessages && MESSAGE_PROGRAMS.has(name));
+
+    return isData && CommandView.keepsArguments({ ...opts, name });
   }
 
   /**
