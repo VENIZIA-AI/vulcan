@@ -1,9 +1,11 @@
 import type { ILayout } from '../../common/layout-folder.ts';
 import type { TConstValue } from '../../common/index.ts';
-import type { TLibraryType } from '../../config/common/index.ts';
+import type { PackageTypes, TLibraryType } from '../../config/common/index.ts';
 import type { AppSides, AppsBlockProblems } from './constants.ts';
 
 export type TAppSide = TConstValue<typeof AppSides>;
+/** What `add` makes: an app, or one of the library kinds. */
+export type TAddKind = typeof PackageTypes.APP | TLibraryType;
 export type TAppsBlockProblem = TConstValue<typeof AppsBlockProblems>;
 
 /** One name init or add needs: the flag that carries it, the question that asks it. */

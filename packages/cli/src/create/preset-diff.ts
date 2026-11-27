@@ -7,6 +7,7 @@ import type { ILayout } from '../common/layout-folder.ts';
 import { ConfigLoader, LibraryTypes, PackageTypes, ProjectPackages } from '../config/index.ts';
 import type { IProjectPackage, TLibraryType } from '../config/index.ts';
 import { AppScaffold } from './add-app.ts';
+import { ApiProxyResolver } from './api-proxy.ts';
 import { AppSides, CreateConstants, CreateFlags, PresetDiffStatuses } from './common/index.ts';
 import type { ILocatedPreset, IRecordedPreset, IPresetSpec, TAppSide } from './common/index.ts';
 import { LineDiff } from './diff.ts';
@@ -526,7 +527,7 @@ export class PresetDiff {
       );
 
       if (usesApiUrl) {
-        const api = await AppScaffold.resolveApiUrl({
+        const api = await ApiProxyResolver.resolveApiUrl({
           root: cwd,
           args,
           interactive: false,

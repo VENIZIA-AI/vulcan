@@ -6,7 +6,7 @@ import { ProjectScaffold } from '../init/index.ts';
 import { ProjectPackages, WorkspacePackages, pathKeyOf } from '../config/index.ts';
 import { DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { ICheckContext, IViolation } from './common/index.ts';
-import { CheckSupport } from './common/check-support.ts';
+import { DoctorCheckUtility } from './utilities/doctor-check.utility.ts';
 
 const hasStylePackage = (opts: { directory: string }): boolean => {
   const file = join(opts.directory, 'package.json');
@@ -56,7 +56,7 @@ const OXFMT_LOADED_ADVICE =
 const formatOwners = (opts: ICheckContext): string[] => [
   ...new Set([
     '.',
-    ...CheckSupport.listDirectories({ directory: join(opts.root, 'packages') }).map((name) =>
+    ...DoctorCheckUtility.listDirectories({ directory: join(opts.root, 'packages') }).map((name) =>
       join('packages', name),
     ),
     ...ProjectPackages.resolve({ config: opts.config })
@@ -77,8 +77,8 @@ export class WorkspaceChecks {
     const owners = [
       ...new Set([
         '.',
-        ...CheckSupport.listDirectories({ directory: join(opts.root, 'packages') }).map((name) =>
-          join('packages', name),
+        ...DoctorCheckUtility.listDirectories({ directory: join(opts.root, 'packages') }).map(
+          (name) => join('packages', name),
         ),
         ...ProjectPackages.resolve({ config: opts.config }).map(
           (entry) => relative(opts.root, join(opts.root, entry.path)) || '.',
@@ -105,7 +105,7 @@ export class WorkspaceChecks {
         !hasStylePackage({ directory: join(opts.root, owner) })
       ) {
         violations.push(
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.STYLE,
             file: join(owner, 'package.json'),
             message: `add ${ProjectLayout.STYLE_PACKAGE} as a devDependency - here, or at the root`,
@@ -115,12 +115,12 @@ export class WorkspaceChecks {
 
       for (const file of found) {
         if (
-          !CheckSupport.readText({ file: join(opts.root, file) }).includes(
+          !DoctorCheckUtility.readText({ file: join(opts.root, file) }).includes(
             ProjectLayout.STYLE_PACKAGE,
           )
         ) {
           violations.push(
-            CheckSupport.createViolation({
+            DoctorCheckUtility.createViolation({
               check: DoctorChecks.STYLE,
               file,
               message: `build on the shared style: import from ${ProjectLayout.STYLE_PACKAGE}`,
@@ -132,7 +132,7 @@ export class WorkspaceChecks {
 
     if (lintConfigs === 0 && !isRootDeclared) {
       violations.push(
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.STYLE,
           file: 'package.json',
           message: `add ${ProjectLayout.STYLE_PACKAGE} as a devDependency`,
@@ -156,7 +156,7 @@ export class WorkspaceChecks {
       ProjectPackages.resolve({ config: opts.config }).length === 0
     ) {
       violations.push(
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.SCAFFOLD,
           file: opts.configFile,
           message:
@@ -168,12 +168,12 @@ export class WorkspaceChecks {
     const index = join(opts.config.knowledge.bundle, 'index.md');
 
     if (
-      CheckSupport.readText({ file: join(opts.root, index) }).includes(
+      DoctorCheckUtility.readText({ file: join(opts.root, index) }).includes(
         ProjectLayout.SCAFFOLD_MARKER,
       )
     ) {
       violations.push(
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.SCAFFOLD,
           file: index,
           message: `still the scaffold - describe the project, then delete the ${ProjectLayout.SCAFFOLD_MARKER} line`,
@@ -203,7 +203,7 @@ export class WorkspaceChecks {
           side !== LayoutKeys.OTHER && !ProjectScaffold.coversFolder({ globs, folder }),
       )
       .map(({ side, folder }) =>
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.APPS,
           file: 'package.json',
           message: `layout.${side} '${folder}' is not in package.json workspaces - add '${folder}/*'`,
@@ -224,7 +224,7 @@ export class WorkspaceChecks {
         // A library lives where the project keeps libraries; it only has to be a workspace.
         if (!ProjectScaffold.coversFolder({ globs, folder: parent })) {
           violations.push(
-            CheckSupport.createViolation({
+            DoctorCheckUtility.createViolation({
               check: DoctorChecks.APPS,
               file: opts.configFile,
               message: `package ${entry.dir} lives at ${entry.path}, which no workspace glob covers - add '${parent}/*' to workspaces`,
@@ -240,7 +240,7 @@ export class WorkspaceChecks {
         !otherNames.includes(entry.path)
       ) {
         violations.push(
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.APPS,
             file: opts.configFile,
             message: `package ${entry.dir} lives at ${entry.path}, outside every layout folder (${names.join(', ')})`,
@@ -284,7 +284,7 @@ export class WorkspaceChecks {
       text === undefined
         ? []
         : [
-            CheckSupport.createViolation({
+            DoctorCheckUtility.createViolation({
               check: DoctorChecks.WORKSPACE_PACKAGES,
               file: opts.configFile,
               message: text,
@@ -304,11 +304,11 @@ export class WorkspaceChecks {
   static checkFormat(opts: ICheckContext): IViolation[] {
     const warnings: IViolation[] = [];
     const bunfig = join(opts.root, 'bunfig.toml');
-    const bunfigText = CheckSupport.readText({ file: bunfig });
+    const bunfigText = DoctorCheckUtility.readText({ file: bunfig });
 
     if (!existsSync(bunfig)) {
       warnings.push(
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.FORMAT,
           file: 'bunfig.toml',
           message: `missing - ${FMT_SECTION_ADVICE}`,
@@ -316,7 +316,7 @@ export class WorkspaceChecks {
       );
     } else if (!DoctorConstants.BUNFIG_FMT_SECTION.test(bunfigText)) {
       warnings.push(
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.FORMAT,
           file: 'bunfig.toml',
           message: `no [fmt] section - ${FMT_SECTION_ADVICE}`,
@@ -324,7 +324,7 @@ export class WorkspaceChecks {
       );
     } else if (!DoctorConstants.BUNFIG_FMT_FLAVOR.test(bunfigText)) {
       warnings.push(
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.FORMAT,
           file: 'bunfig.toml',
           message: `[fmt] has no flavor = "oxfmt" - ${FMT_FLAVOR_ADVICE}`,
@@ -338,7 +338,7 @@ export class WorkspaceChecks {
 
       if (readScriptNames({ file: join(opts.root, manifest) })?.includes('fmt')) {
         warnings.push(
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.FORMAT,
             file: manifest,
             message:
@@ -352,11 +352,11 @@ export class WorkspaceChecks {
       if (
         owner !== '.' &&
         DoctorConstants.BUNFIG_FMT_SECTION.test(
-          CheckSupport.readText({ file: join(opts.root, copy) }),
+          DoctorCheckUtility.readText({ file: join(opts.root, copy) }),
         )
       ) {
         warnings.push(
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.FORMAT,
             file: copy,
             message:
@@ -368,7 +368,7 @@ export class WorkspaceChecks {
       for (const file of DoctorConstants.OXFMT_AUTOLOADED_FILES) {
         if (existsSync(join(opts.root, owner, file))) {
           warnings.push(
-            CheckSupport.createViolation({
+            DoctorCheckUtility.createViolation({
               check: DoctorChecks.FORMAT,
               file: join(owner, file),
               message: OXFMT_LOADED_ADVICE,
@@ -382,7 +382,7 @@ export class WorkspaceChecks {
           DoctorConstants.OXFMT_CONFIG_FILE.test(name),
         )) {
           warnings.push(
-            CheckSupport.createViolation({
+            DoctorCheckUtility.createViolation({
               check: DoctorChecks.FORMAT,
               file: join(formatters, file),
               message:

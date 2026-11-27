@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import type { IViolation, TDoctorCheck } from './types.ts';
+import type { IViolation, TDoctorCheck } from '../common/types.ts';
 
 /** What the doctor checks share: building a violation and reading the files of a project. */
-export class CheckSupport {
+export class DoctorCheckUtility {
   static createViolation(opts: { check: TDoctorCheck; file: string; message: string }): IViolation {
     return {
       check: opts.check,

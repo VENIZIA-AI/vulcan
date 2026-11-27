@@ -26,7 +26,8 @@ import { NextStep } from './next.ts';
 import { SubProcess } from './process.ts';
 import { ProfilePrompt } from '../commands/profile.command.ts';
 import { PresetScratch } from './scratch.ts';
-import { WorkspaceDocs, WorkspaceManifest, PresetRecord } from './workspace.ts';
+import { WorkspaceManifest, PresetRecord } from './workspace.ts';
+import { WorkspaceDocs } from './workspace-docs.ts';
 
 /** The VULCAN layer files; the knowledge index is rendered from the apps, not copied. */
 const LAYER_FILES = [

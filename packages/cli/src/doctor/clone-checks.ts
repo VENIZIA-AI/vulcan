@@ -7,7 +7,7 @@ import { AgentFiles, AgentsBlockPlan, SyncPlanner, SyncStatuses } from '../sync/
 import { AtlasStatus } from '@venizia/vulcan-atlas';
 import { DoctorChecks } from './common/index.ts';
 import type { ICheckContext, IViolation } from './common/index.ts';
-import { CheckSupport } from './common/check-support.ts';
+import { DoctorCheckUtility } from './utilities/doctor-check.utility.ts';
 
 /** The checks of what a clone gets from sync and install: the agent files, the commit hook, the install script and the atlas sources. */
 export class CloneChecks {
@@ -27,7 +27,7 @@ export class CloneChecks {
       absent.length === 0
         ? []
         : [
-            CheckSupport.createViolation({
+            DoctorCheckUtility.createViolation({
               check: DoctorChecks.ADAPTERS,
               file: relative(opts.root, absent[0].path),
               message: `not synced yet - run '${ProjectLayout.VULCAN_COMMAND} project sync' (make vulcan-sync) first`,
@@ -37,7 +37,7 @@ export class CloneChecks {
     return [
       ...violations,
       ...differing.map((action) =>
-        CheckSupport.createViolation({
+        DoctorCheckUtility.createViolation({
           check: DoctorChecks.ADAPTERS,
           file: relative(opts.root, action.path),
           message:
@@ -56,7 +56,7 @@ export class CloneChecks {
     return stored.ok
       ? []
       : [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.AGENTS,
             file: AgentConstants.LOCAL_FILE,
             message: stored.error,
@@ -77,7 +77,7 @@ export class CloneChecks {
     switch (status.state) {
       case CommitHookStates.MISSING: {
         return [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.COMMIT_HOOK,
             file,
             message: `the commit-msg hook is not installed, so commit messages are not checked - ${fix}`,
@@ -87,7 +87,7 @@ export class CloneChecks {
 
       case CommitHookStates.STALE: {
         return [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.COMMIT_HOOK,
             file,
             message: `the commit-msg hook is out of date - ${fix}`,
@@ -97,7 +97,7 @@ export class CloneChecks {
 
       case CommitHookStates.LEGACY: {
         return [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.COMMIT_HOOK,
             file,
             message: `the commit-msg hook is out of date: ${status.note ?? fix}`,
@@ -107,7 +107,7 @@ export class CloneChecks {
 
       case CommitHookStates.UNWIRED: {
         return [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.COMMIT_HOOK,
             file,
             message: `the commit-msg hook does not run the commit check - ${status.note ?? fix}`,
@@ -117,7 +117,7 @@ export class CloneChecks {
 
       case CommitHookStates.OTHER_PROJECT: {
         return [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.COMMIT_HOOK,
             file,
             message: `this project's commit check is not installed: ${status.note ?? fix}`,
@@ -144,7 +144,7 @@ export class CloneChecks {
     return problems.length === 0
       ? []
       : [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.ATLAS_SOURCE,
             file: AtlasStatus.recordFileOf({ root: opts.root }),
             message: `an atlas source is not served as it should be: ${problems
@@ -160,7 +160,7 @@ export class CloneChecks {
    * for a project that has a root `package.json`.
    */
   static checkPrepareScript(opts: ICheckContext): IViolation[] {
-    const manifest = CheckSupport.readJsonObject({ file: join(opts.root, 'package.json') });
+    const manifest = DoctorCheckUtility.readJsonObject({ file: join(opts.root, 'package.json') });
 
     if (manifest === undefined) {
       return [];
@@ -187,7 +187,7 @@ export class CloneChecks {
     }
 
     return [
-      CheckSupport.createViolation({
+      DoctorCheckUtility.createViolation({
         check: DoctorChecks.PREPARE,
         file: 'package.json',
         message: names.some((name) => isOld(scriptOf(name)))
@@ -201,7 +201,7 @@ export class CloneChecks {
   static checkClaudeSettingsTracked(opts: ICheckContext): IViolation[] {
     return AgentFiles.isTracked({ root: opts.root, path: ProjectLayout.CLAUDE_SETTINGS_FILE })
       ? [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.CLAUDE_SETTINGS,
             file: ProjectLayout.CLAUDE_SETTINGS_FILE,
             message: `git tracks this file, which \`vulcan project sync\` writes in every clone: run git rm --cached ${ProjectLayout.CLAUDE_SETTINGS_FILE} (sync keeps it out of git from then on)`,
@@ -217,7 +217,7 @@ export class CloneChecks {
     return merged === undefined || !merged.changed
       ? []
       : [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.AGENTS,
             file: 'AGENTS.md',
             message: `the Atlas or rules block of AGENTS.md is missing or out of date - run '${ProjectLayout.VULCAN_COMMAND} project sync'`,

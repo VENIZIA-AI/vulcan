@@ -1,5 +1,7 @@
 import { EnvVariables } from '../../common/env-variables.ts';
 import { ConstClass } from '../../common/types.ts';
+import { LibraryTypes, PackageTypes } from '../../config/common/index.ts';
+import type { TAddKind } from './types.ts';
 
 export class AppSides extends ConstClass {
   static readonly BACKEND = 'backend';
@@ -74,4 +76,30 @@ export class PresetDiffStatuses {
   static readonly SAME = 'same';
   static readonly DIFFERS = 'differs';
   static readonly MISSING = 'missing';
+}
+
+/** Texts of `add` that more than one of its files says. */
+export class AddConstants {
+  static readonly MISSING_API = `missing ${CreateFlags.API} <app> or ${CreateFlags.NO_API}`;
+}
+
+/** What `add` can make: per kind its flag and words, the order a menu lists them in, and the sentence that asks for one. */
+export class AddKinds {
+  /** Per kind: the flag that names it and the words a menu and a message describe it with. */
+  static readonly TABLE: Record<TAddKind, { flag: string; hint: string }> = {
+    [PackageTypes.APP]: { flag: CreateFlags.APP, hint: 'a runnable app' },
+    [LibraryTypes.LIB]: { flag: CreateFlags.LIB, hint: 'a library other apps import' },
+    [LibraryTypes.SHARED]: {
+      flag: CreateFlags.SHARED,
+      hint: 'a side-neutral package other apps import',
+    },
+  };
+
+  static readonly ORDER: TAddKind[] = [PackageTypes.APP, LibraryTypes.LIB, LibraryTypes.SHARED];
+
+  private static readonly DESCRIBED = this.ORDER.map(
+    (kind) => `\`${this.TABLE[kind].flag} <name>\` (${this.TABLE[kind].hint})`,
+  );
+
+  static readonly SAY_WHAT = `say what to create - ${this.DESCRIBED.slice(0, -1).join(', ')} or ${this.DESCRIBED.at(-1)}`;
 }

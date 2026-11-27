@@ -11,7 +11,7 @@ import { LocalFormat } from '../local/index.ts';
 import { LocalSettings } from '../common/local-settings.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { ICheckContext, IViolation } from './common/index.ts';
-import { CheckSupport } from './common/check-support.ts';
+import { DoctorCheckUtility } from './utilities/doctor-check.utility.ts';
 
 /** The checks of the settings of the config: the event log, the board, the project key and the shipped layers. */
 export class SettingsChecks {
@@ -57,7 +57,7 @@ export class SettingsChecks {
     return problem === undefined
       ? []
       : [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.EVENTS_DIR,
             file: isOwn ? AgentConstants.LOCAL_FILE : opts.configFile,
             message: `board.events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
@@ -69,7 +69,7 @@ export class SettingsChecks {
   static checkBoardAutoStart(opts: ICheckContext): IViolation[] {
     return LocalSettings.read({ root: opts.root }).autoStart === true && !opts.config.events.log
       ? [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.BOARD_AUTOSTART,
             file: opts.configFile,
             message:
@@ -90,7 +90,7 @@ export class SettingsChecks {
     return same.length === 0
       ? []
       : [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.CONFIG_DEFAULTS,
             file: opts.configFile,
             message: `${same.length} value(s) of this config repeat what VULCAN ships: run \`${ProjectLayout.VULCAN_COMMAND} config diff\` to list them, then delete them`,
@@ -101,7 +101,7 @@ export class SettingsChecks {
   /** A `remove` entry that takes out nothing (the item is not in the merged array, or the array is not one a layer fills): a stale opt-out. A warning. */
   static checkStaleRemove(opts: ICheckContext): IViolation[] {
     return (opts.layers?.merge.unmatched ?? []).map((entry) =>
-      CheckSupport.createViolation({
+      DoctorCheckUtility.createViolation({
         check: DoctorChecks.CONFIG_REMOVE,
         file: opts.configFile,
         message: `remove: ${ConfigGroups.groupedEntryOf({ entry })} matches nothing, so it does nothing: delete it`,
@@ -127,7 +127,7 @@ export class SettingsChecks {
 
     return plan.todayOver
       ? [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.EVENTS_SIZE,
             file: opts.configFile,
             message: `today's event file in ${dir} is ${LocalFormat.formatBytes({ bytes: plan.todayBytes })}, over board.events.maxSize (${settings.maxSize ?? EventConstants.DEFAULT_MAX_SIZE}); nothing is truncated and today's file is never removed - raise maxSize or write fewer events`,
@@ -143,7 +143,7 @@ export class SettingsChecks {
   static checkProjectKey(opts: ICheckContext): IViolation[] {
     return opts.config.events.log && opts.config.project === undefined
       ? [
-          CheckSupport.createViolation({
+          DoctorCheckUtility.createViolation({
             check: DoctorChecks.PROJECT_KEY,
             file: opts.configFile,
             message: `the event log is on and project.key is not set, so no flow can be created: add project: { key: 'KEY' } (${ProjectKey.MESSAGE}), then run vulcan project sync`,
