@@ -88,7 +88,7 @@ jobs:
     steps:
       # Full history: the merge trial of a stable needs the branches and their common ancestor.
       - name: Checkout the dispatched commit
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
@@ -101,7 +101,7 @@ jobs:
       # The Node of the publish job, so that the global npm below lands in a folder this job owns: the runner's own
       # /usr/local is not writable, and a global install without a setup-node fails there with EACCES.
       - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.22.1
           package-manager-cache: false
@@ -129,7 +129,7 @@ jobs:
 
     steps:
       - name: Checkout the dispatched commit
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
@@ -234,13 +234,13 @@ jobs:
       # the one the run title shows. The release commit is pushed to develop below with a rebase and a retry
       # if develop moved, and the tag goes on the commit as built.
       - name: Checkout the dispatched commit
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.22.1
           registry-url: 'https://registry.npmjs.org'

@@ -533,7 +533,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, C20
         change: (workflow) => {
           for (const step of stepsOf({ workflow, name: 'test' })) {
             if (typeof step['uses'] === 'string' && step['uses'].startsWith('actions/checkout@')) {
-              step['uses'] = 'actions/checkout@v6.0.3';
+              step['uses'] = 'actions/checkout@v7.0.1';
             }
           }
         },
@@ -955,7 +955,7 @@ describe('the release workflow keeps the guard of the global npm install (C32)',
             steps.unshift({ name: 'Short', run: 'npm i -g npm@11.21.1' });
             steps.push({
               name: NODE_STEP,
-              uses: 'actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e',
+              uses: 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1',
             });
           }
         },
