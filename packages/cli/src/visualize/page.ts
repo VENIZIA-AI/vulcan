@@ -17,8 +17,6 @@ import { SpecSections } from './sections.ts';
 import { ReportSectionsBuilder } from './report-sections.ts';
 import type { ISectionContext } from './common/index.ts';
 
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
-
 /** A figure is drawn at most this much larger than its natural width, so a short flow does not turn into a poster. */
 const FIGURE_MAX = 1.25;
 /** The page becomes one column at and below this viewport width. */
@@ -98,11 +96,15 @@ const headHtml = (opts: { ctx: ISectionContext; toc: string }): string => {
   const { spec, chrome } = opts.ctx;
   const { state, word } = stateOf({ spec, chrome });
   const meta = [
-    spec.asOf === undefined ? '' : `<span>${escaped(chrome.asOf)}: ${escaped(spec.asOf)}</span>`,
-    spec.scope === undefined ? '' : `<span>${escaped(chrome.scope)}: ${escaped(spec.scope)}</span>`,
+    spec.asOf === undefined
+      ? ''
+      : `<span>${FigureLayout.escapeText({ value: chrome.asOf })}: ${FigureLayout.escapeText({ value: spec.asOf })}</span>`,
+    spec.scope === undefined
+      ? ''
+      : `<span>${FigureLayout.escapeText({ value: chrome.scope })}: ${FigureLayout.escapeText({ value: spec.scope })}</span>`,
   ].join('');
 
-  return `<header class="head" data-slide><div class="wrap">${SpecSections.chip({ chrome, state, size: 18, label: word })}<h1>${escaped(spec.title)}</h1><p class="lede">${escaped(spec.verdict)}</p>${meta === '' ? '' : `<p class="meta">${meta}</p>`}${opts.toc}</div></header>`;
+  return `<header class="head" data-slide><div class="wrap">${SpecSections.chip({ chrome, state, size: 18, label: word })}<h1>${FigureLayout.escapeText({ value: spec.title })}</h1><p class="lede">${FigureLayout.escapeText({ value: spec.verdict })}</p>${meta === '' ? '' : `<p class="meta">${meta}</p>`}${opts.toc}</div></header>`;
 };
 
 /**
@@ -118,17 +120,19 @@ const ownerHtml = (opts: { spec: TVisualizeSpec; chrome: TChrome }): string => {
   }
 
   const fact = (label: string, value: string | undefined): string =>
-    value === undefined ? '' : `<p class="fact"><b>${escaped(label)}</b> ${escaped(value)}</p>`;
+    value === undefined
+      ? ''
+      : `<p class="fact"><b>${FigureLayout.escapeText({ value: label })}</b> ${FigureLayout.escapeText({ value: value })}</p>`;
 
   let list = '';
 
   if (spec.actions !== undefined) {
-    list = `<ol class="check">${spec.actions.map((action) => `<li>${escaped(action)}</li>`).join('')}</ol>`;
+    list = `<ol class="check">${spec.actions.map((action) => `<li>${FigureLayout.escapeText({ value: action })}</li>`).join('')}</ol>`;
   } else if (strip !== undefined) {
-    list = `<p class="ask">${escaped(strip.next)}</p>`;
+    list = `<p class="ask">${FigureLayout.escapeText({ value: strip.next })}</p>`;
   }
 
-  return `<section class="part own" id="next" data-slide><div class="wrap"><h2 class="vh">${escaped(chrome.next)}</h2>${list}${fact(chrome.blockedBy, strip?.blockedBy)}${fact(chrome.healthy, strip?.healthy)}${fact(chrome.changed, strip?.changed)}</div></section>`;
+  return `<section class="part own" id="next" data-slide><div class="wrap"><h2 class="vh">${FigureLayout.escapeText({ value: chrome.next })}</h2>${list}${fact(chrome.blockedBy, strip?.blockedBy)}${fact(chrome.healthy, strip?.healthy)}${fact(chrome.changed, strip?.changed)}</div></section>`;
 };
 
 /** The theme of a page that is given none: the default preset. */
@@ -166,13 +170,13 @@ export class PageShell {
     const links = SpecSections.sectionLinks({ spec, chrome })
       .map(
         (link) =>
-          `<a href="#${link.id}">${escaped(link.title)}${link.count === undefined ? '' : ` <span>· ${escaped(link.count)}</span>`}</a>`,
+          `<a href="#${link.id}">${FigureLayout.escapeText({ value: link.title })}${link.count === undefined ? '' : ` <span>· ${FigureLayout.escapeText({ value: link.count })}</span>`}</a>`,
       )
       .join('');
     const toc =
       links === ''
         ? ''
-        : `<nav class="toc" aria-label="${escaped(chrome.navLabel)}">${links}</nav>`;
+        : `<nav class="toc" aria-label="${FigureLayout.escapeText({ value: chrome.navLabel })}">${links}</nav>`;
     const body = [
       headHtml({ ctx, toc }),
       ownerHtml({ spec, chrome }),
@@ -230,12 +234,12 @@ export class PageShell {
       spec.decisions !== undefined;
     const present = readOnly
       ? ''
-      : `<button class="btn js-only" id="present" type="button" data-on="${escaped(chrome.present)}" data-off="${escaped(chrome.exitPresent)}">${escaped(chrome.present)}</button>`;
-    const bar = `<header class="top"><div class="wrap">${present}<button class="theme" id="theme" type="button" aria-label="${escaped(chrome.themeToDark)}" data-to-light="${escaped(chrome.themeToLight)}" data-to-dark="${escaped(chrome.themeToDark)}">${IconSet.iconSvg({ name: 'sun', size: 20, className: 'sun' })}${IconSet.iconSvg({ name: 'moon', size: 20, className: 'moon' })}<span class="tip" aria-hidden="true"></span></button></div></header>`;
+      : `<button class="btn js-only" id="present" type="button" data-on="${FigureLayout.escapeText({ value: chrome.present })}" data-off="${FigureLayout.escapeText({ value: chrome.exitPresent })}">${FigureLayout.escapeText({ value: chrome.present })}</button>`;
+    const bar = `<header class="top"><div class="wrap">${present}<button class="theme" id="theme" type="button" aria-label="${FigureLayout.escapeText({ value: chrome.themeToDark })}" data-to-light="${FigureLayout.escapeText({ value: chrome.themeToLight })}" data-to-dark="${FigureLayout.escapeText({ value: chrome.themeToDark })}">${IconSet.iconSvg({ name: 'sun', size: 20, className: 'sun' })}${IconSet.iconSvg({ name: 'moon', size: 20, className: 'moon' })}<span class="tip" aria-hidden="true"></span></button></div></header>`;
     const deck = readOnly
       ? ''
-      : `<nav class="deck" aria-label="${escaped(chrome.slide)}"><button class="btn" id="slide-prev" type="button">${escaped(chrome.previous)}</button><span id="slide-count" aria-live="polite"></span><button class="btn" id="slide-next" type="button">${escaped(chrome.following)}</button></nav>`;
+      : `<nav class="deck" aria-label="${FigureLayout.escapeText({ value: chrome.slide })}"><button class="btn" id="slide-prev" type="button">${FigureLayout.escapeText({ value: chrome.previous })}</button><span id="slide-count" aria-live="polite"></span><button class="btn" id="slide-next" type="button">${FigureLayout.escapeText({ value: chrome.following })}</button></nav>`;
 
-    return `<!doctype html><html lang="${escaped(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="${escaped(policy)}"><meta name="generator" content="vulcan page new"><title>${escaped(spec.title)}</title><script>${HEAD_JS}</script><style>${css}</style></head><body>${bar}<main>${body}</main><footer class="foot"><div class="wrap"><p>${escaped(chrome.footer)}</p></div></footer>${deck}<script>${PAGE_JS}</script></body></html>`;
+    return `<!doctype html><html lang="${FigureLayout.escapeText({ value: language })}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="${FigureLayout.escapeText({ value: policy })}"><meta name="generator" content="vulcan page new"><title>${FigureLayout.escapeText({ value: spec.title })}</title><script>${HEAD_JS}</script><style>${css}</style></head><body>${bar}<main>${body}</main><footer class="foot"><div class="wrap"><p>${FigureLayout.escapeText({ value: chrome.footer })}</p></div></footer>${deck}<script>${PAGE_JS}</script></body></html>`;
   }
 }

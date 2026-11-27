@@ -139,7 +139,7 @@ describe('ShellParser.parse', () => {
     expect(ShellPrograms.programOf({ command: simple! }).name).toBe('git');
   });
 
-  test('ShellParser.programOf skips wrappers and flags before the program', () => {
+  test('ShellPrograms.programOf skips wrappers and flags before the program', () => {
     const [command] = ShellParser.parse({ command: 'sudo -n env git status' });
 
     expect(ShellPrograms.programOf({ command: command! })).toEqual({
@@ -304,7 +304,7 @@ describe('ShellParser.parse', () => {
     expect(firstWords('echo "$\'x\'"')).toEqual(['echo', "$'x'"]);
   });
 
-  test('ShellParser.splitEnvString splits by env rules', () => {
+  test('ShellPrograms.splitEnvString splits by env rules', () => {
     expect(ShellPrograms.splitEnvString({ value: 'a b  c' })).toEqual(['a', 'b', 'c']);
     expect(ShellPrograms.splitEnvString({ value: 'a \'b c\' "d e"' })).toEqual(['a', 'b c', 'd e']);
     expect(ShellPrograms.splitEnvString({ value: 'a\\_b' })).toEqual(['a', 'b']);

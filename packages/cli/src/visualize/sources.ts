@@ -59,8 +59,6 @@ interface ISourceUse {
   source: TSource;
 }
 
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
-
 const REPO = /^[A-Za-z0-9][A-Za-z0-9._-]*(\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 const LINES = /^([1-9]\d{0,6})(?:-([1-9]\d{0,6}))?$/;
@@ -83,7 +81,7 @@ export class SourceRefs {
 
   /** The source as markup: its text in a code element, escaped like every other text. */
   static html(opts: { source: TSource }): string {
-    return `<code class="src">${escaped(SourceRefs.textOf({ source: opts.source }))}</code>`;
+    return `<code class="src">${FigureLayout.escapeText({ value: SourceRefs.textOf({ source: opts.source }) })}</code>`;
   }
 
   /** What is wrong with one source, in words, or nothing. */
@@ -224,7 +222,7 @@ export class SourceRefs {
     return `<ol class="srcs">${opts.entries
       .map(
         (entry) =>
-          `<li><code class="src">${escaped(entry.text)}</code><span class="by">${entry.by.map(escaped).join(', ')}</span></li>`,
+          `<li><code class="src">${FigureLayout.escapeText({ value: entry.text })}</code><span class="by">${entry.by.map((value: string) => FigureLayout.escapeText({ value })).join(', ')}</span></li>`,
       )
       .join('')}</ol>`;
   }
@@ -235,7 +233,10 @@ export class PageTerms {
   /** The body of the `terms` part: a definition list. */
   static listHtml(opts: { terms: TTerms }): string {
     return `<dl class="terms">${opts.terms
-      .map((item) => `<div><dt>${escaped(item.term)}</dt><dd>${escaped(item.meaning)}</dd></div>`)
+      .map(
+        (item) =>
+          `<div><dt>${FigureLayout.escapeText({ value: item.term })}</dt><dd>${FigureLayout.escapeText({ value: item.meaning })}</dd></div>`,
+      )
       .join('')}</dl>`;
   }
 

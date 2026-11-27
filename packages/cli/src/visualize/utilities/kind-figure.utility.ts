@@ -1,8 +1,6 @@
-import { KindFigureConstants } from '../common/index.ts';
+import { KindFigureConstants } from '../constants.ts';
 import type { TChrome } from '../constants.ts';
 import { FigureLayout } from '../layout.ts';
-
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
 /** The words, the wrapped text and the SVG pieces the figures of the new kinds are drawn with. */
 export class KindFigureUtility {
@@ -61,7 +59,7 @@ export class KindFigureUtility {
     return `<text class="${opts.cls}" x="${opts.x}" y="${opts.y}"${opts.anchor === undefined ? '' : ` text-anchor="${opts.anchor}"`}>${opts.lines
       .map(
         (line, index) =>
-          `<tspan x="${opts.x}" dy="${index === 0 ? 0 : opts.step}">${escaped(line)}${index < opts.lines.length - 1 ? ' ' : ''}</tspan>`,
+          `<tspan x="${opts.x}" dy="${index === 0 ? 0 : opts.step}">${FigureLayout.escapeText({ value: line })}${index < opts.lines.length - 1 ? ' ' : ''}</tspan>`,
       )
       .join('')}</text>`;
   }
@@ -80,6 +78,6 @@ export class KindFigureUtility {
   }
 
   static svgOf(opts: { width: number; height: number; label: string; body: string }): string {
-    return `<svg class="kf" width="${opts.width}" height="${opts.height}" viewBox="0 0 ${opts.width} ${opts.height}" role="group" aria-label="${escaped(opts.label)}">${opts.body}</svg>`;
+    return `<svg class="kf" width="${opts.width}" height="${opts.height}" viewBox="0 0 ${opts.width} ${opts.height}" role="group" aria-label="${FigureLayout.escapeText({ value: opts.label })}">${opts.body}</svg>`;
   }
 }

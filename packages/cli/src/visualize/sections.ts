@@ -10,8 +10,6 @@ import type { TVisualizeSpec } from './schema.ts';
 import { SourceRefs } from './sources.ts';
 import type { ISectionContext } from './common/index.ts';
 
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
-
 /** The numeral column and the gap of an explainer step: space a step diagram does not have beside the text. */
 const EXPLAINER_INSET = 128;
 /** The padding of a figure's frame (`.win`) on both sides: space the figure does not have. */
@@ -28,7 +26,7 @@ const jsonForScript = (opts: { value: unknown }): string =>
 
 /** One variant of an arrow as a short line, drawn with the same rules as the arrows of the figure. */
 const variantSwatch = (opts: { variant: string }): string =>
-  `<svg class="lg" viewBox="0 0 44 12" aria-hidden="true"><g class="edge ${escaped(opts.variant)}"><path d="M0 6H44"/></g></svg>`;
+  `<svg class="lg" viewBox="0 0 44 12" aria-hidden="true"><g class="edge ${FigureLayout.escapeText({ value: opts.variant })}"><path d="M0 6H44"/></g></svg>`;
 
 const dots = (opts: { score: number }): string =>
   `<span class="dots" role="img" aria-label="${opts.score} / 5">${Array.from({ length: 5 }, (_, index) => `<i${index < opts.score ? ' class="on"' : ''}></i>`).join('')}</span>`;
@@ -43,7 +41,7 @@ export class SpecSections {
 
   /** A state as an icon and a word. */
   static chip(opts: { chrome: TChrome; state: string; size?: number; label?: string }): string {
-    return `<span class="chip c-${NodeStates.toneOf(opts.state)}">${SpecCharts.stateIcon({ state: opts.state, size: opts.size ?? 16 })}<span>${escaped(opts.label ?? SpecSections.stateWord(opts))}</span></span>`;
+    return `<span class="chip c-${NodeStates.toneOf(opts.state)}">${SpecCharts.stateIcon({ state: opts.state, size: opts.size ?? 16 })}<span>${FigureLayout.escapeText({ value: opts.label ?? SpecSections.stateWord(opts) })}</span></span>`;
   }
 
   /** The contents line: the parts that exist, in the order of the page, each with the count a reader wants first. */
@@ -129,23 +127,23 @@ export class SpecSections {
           ...(kinds.length > 1
             ? kinds.map(
                 (kind) =>
-                  `<li>${escaped(chrome.nodeKinds[kind as keyof TChrome['nodeKinds']] ?? kind)}</li>`,
+                  `<li>${FigureLayout.escapeText({ value: chrome.nodeKinds[kind as keyof TChrome['nodeKinds']] ?? kind })}</li>`,
               )
             : []),
           ...(variants.length > 1
             ? variants.map(
                 (variant) =>
-                  `<li>${variantSwatch({ variant })}<span>${escaped(chrome.edgeVariants[variant as keyof TChrome['edgeVariants']] ?? variant)}</span></li>`,
+                  `<li>${variantSwatch({ variant })}<span>${FigureLayout.escapeText({ value: chrome.edgeVariants[variant as keyof TChrome['edgeVariants']] ?? variant })}</span></li>`,
               )
             : []),
         ];
     const play =
       flow.edges.length > 0 && !plain
-        ? `<button class="btn" id="play" type="button" aria-pressed="false" data-play="${escaped(chrome.play)}" data-pause="${escaped(chrome.pause)}">${escaped(chrome.play)}</button>`
+        ? `<button class="btn" id="play" type="button" aria-pressed="false" data-play="${FigureLayout.escapeText({ value: chrome.play })}" data-pause="${FigureLayout.escapeText({ value: chrome.pause })}">${FigureLayout.escapeText({ value: chrome.play })}</button>`
         : '';
     const all =
       steps.length > 0
-        ? `<button class="btn" id="all" type="button" hidden>${escaped(chrome.allSteps)}</button>`
+        ? `<button class="btn" id="all" type="button" hidden>${FigureLayout.escapeText({ value: chrome.allSteps })}</button>`
         : '';
 
     opts.ctx.fits.add(`${width}:0:${WIN_FRAME}`);
@@ -182,9 +180,9 @@ export class SpecSections {
       legend.length === 0 ? '' : `<ul class="legend">${legend.join('')}</ul>`
     }${
       steps.length > 0
-        ? `<ol class="steps">${steps.map((step, index) => `<li><button type="button" aria-pressed="false"><b>${escaped(step.title)}</b><span>${index + 1} / ${steps.length}</span></button><p class="explain">${escaped(step.note)}${step.source === undefined ? '' : ` ${SourceRefs.html({ source: step.source })}`}</p></li>`).join('')}</ol>`
+        ? `<ol class="steps">${steps.map((step, index) => `<li><button type="button" aria-pressed="false"><b>${FigureLayout.escapeText({ value: step.title })}</b><span>${index + 1} / ${steps.length}</span></button><p class="explain">${FigureLayout.escapeText({ value: step.note })}${step.source === undefined ? '' : ` ${SourceRefs.html({ source: step.source })}`}</p></li>`).join('')}</ol>`
         : ''
-    }<div class="say js-only"><p id="say" aria-live="polite">${plain ? '' : escaped(chrome.detailHint)}</p><div class="ctl">${play}${all}</div></div>${
+    }<div class="say js-only"><p id="say" aria-live="polite">${plain ? '' : FigureLayout.escapeText({ value: chrome.detailHint })}</p><div class="ctl">${play}${all}</div></div>${
       steps.length > 0
         ? `<script type="application/json" id="steps">${jsonForScript({ value: stepsJson })}</script>`
         : ''
@@ -233,18 +231,18 @@ export class SpecSections {
     const rows =
       (hasBadge ? 1 : 0) + 2 + (hasLine ? 1 : 0) + comparison.criteria.length + mostPros + mostCons;
     const proRow = (row: { icon: string; word: string; text: string; kind: string }): string =>
-      `<li class="${row.kind}">${IconSet.iconSvg({ name: row.icon, size: 16 })}<span><span class="vh">${escaped(row.word)}: </span>${escaped(row.text)}</span></li>`;
+      `<li class="${row.kind}">${IconSet.iconSvg({ name: row.icon, size: 16 })}<span><span class="vh">${FigureLayout.escapeText({ value: row.word })}: </span>${FigureLayout.escapeText({ value: row.text })}</span></li>`;
     const cards = comparison.options
       .map(
         (option, index) =>
-          `<article class="opt${option.recommended === true ? ' rec' : ''} ${GridSpans.classOf({ count: rows, spans })}">${hasBadge ? `<span class="tag-slot">${option.recommended === true ? `<span class="tag">${escaped(chrome.recommended)}</span>` : ''}</span>` : ''}<p class="tot">${totals[index]}<small> ${escaped(chrome.outOf)} ${max}</small></p><h3>${escaped(option.name)}</h3>${hasLine ? `<p class="ln">${option.line === undefined ? '' : escaped(option.line)}</p>` : ''}<div class="crit ${GridSpans.classOf({ count: comparison.criteria.length, spans })}">${comparison.criteria.map((criterion, i) => `<div><span>${escaped(criterion)}</span>${dots({ score: option.scores[i] ?? 0 })}</div>`).join('')}</div>${mostPros === 0 ? '' : `<ul class="pc proslist ${GridSpans.classOf({ count: mostPros, spans })}">${(option.pros ?? []).map((pro) => proRow({ icon: 'plus', word: chrome.pros, text: pro, kind: 'p' })).join('')}</ul>`}${mostCons === 0 ? '' : `<ul class="pc conslist ${GridSpans.classOf({ count: mostCons, spans })}">${(option.cons ?? []).map((con) => proRow({ icon: 'minus', word: chrome.cons, text: con, kind: 'c' })).join('')}</ul>`}</article>`,
+          `<article class="opt${option.recommended === true ? ' rec' : ''} ${GridSpans.classOf({ count: rows, spans })}">${hasBadge ? `<span class="tag-slot">${option.recommended === true ? `<span class="tag">${FigureLayout.escapeText({ value: chrome.recommended })}</span>` : ''}</span>` : ''}<p class="tot">${totals[index]}<small> ${FigureLayout.escapeText({ value: chrome.outOf })} ${max}</small></p><h3>${FigureLayout.escapeText({ value: option.name })}</h3>${hasLine ? `<p class="ln">${option.line === undefined ? '' : FigureLayout.escapeText({ value: option.line })}</p>` : ''}<div class="crit ${GridSpans.classOf({ count: comparison.criteria.length, spans })}">${comparison.criteria.map((criterion, i) => `<div><span>${FigureLayout.escapeText({ value: criterion })}</span>${dots({ score: option.scores[i] ?? 0 })}</div>`).join('')}</div>${mostPros === 0 ? '' : `<ul class="pc proslist ${GridSpans.classOf({ count: mostPros, spans })}">${(option.pros ?? []).map((pro) => proRow({ icon: 'plus', word: chrome.pros, text: pro, kind: 'p' })).join('')}</ul>`}${mostCons === 0 ? '' : `<ul class="pc conslist ${GridSpans.classOf({ count: mostCons, spans })}">${(option.cons ?? []).map((con) => proRow({ icon: 'minus', word: chrome.cons, text: con, kind: 'c' })).join('')}</ul>`}</article>`,
       )
       .join('');
 
     return SpecSections.section({
       id: 'comparison',
       title: chrome.comparison,
-      body: `<div class="ranks"><p class="lab">${escaped(chrome.total)}, ${escaped(chrome.outOf)} ${max}</p>${SpecCharts.renderTotals({ names: comparison.options.map((option) => option.name), totals, best, max, chrome })}</div><div class="opts n${comparison.options.length}">${cards}</div>${comparison.note === undefined ? '' : `<p class="note">${IconSet.iconSvg({ name: 'info', size: 16 })} ${escaped(comparison.note)}</p>`}`,
+      body: `<div class="ranks"><p class="lab">${FigureLayout.escapeText({ value: chrome.total })}, ${FigureLayout.escapeText({ value: chrome.outOf })} ${max}</p>${SpecCharts.renderTotals({ names: comparison.options.map((option) => option.name), totals, best, max, chrome })}</div><div class="opts n${comparison.options.length}">${cards}</div>${comparison.note === undefined ? '' : `<p class="note">${IconSet.iconSvg({ name: 'info', size: 16 })} ${FigureLayout.escapeText({ value: comparison.note })}</p>`}`,
     });
   }
 
@@ -273,7 +271,7 @@ export class SpecSections {
       body: `<ol class="ex">${explainer.steps
         .map(
           (step, index) =>
-            `<li class="estep"><span class="no">${index + 1}</span><div class="sb"><h3>${escaped(step.title)}</h3><p>${escaped(step.text)}</p></div>${step.diagram === undefined ? '' : `<div class="dg">${SpecSections.figure({ ctx: opts.ctx, drawing: SpecDiagrams.render({ diagram: step.diagram }), inset: EXPLAINER_INSET })}</div>`}</li>`,
+            `<li class="estep"><span class="no">${index + 1}</span><div class="sb"><h3>${FigureLayout.escapeText({ value: step.title })}</h3><p>${FigureLayout.escapeText({ value: step.text })}</p></div>${step.diagram === undefined ? '' : `<div class="dg">${SpecSections.figure({ ctx: opts.ctx, drawing: SpecDiagrams.render({ diagram: step.diagram }), inset: EXPLAINER_INSET })}</div>`}</li>`,
         )
         .join('')}</ol>`,
     });
@@ -293,7 +291,7 @@ export class SpecSections {
       body: `<ol class="tl">${timeline.items
         .map(
           (item) =>
-            `<li class="c-${item.state === undefined ? 'mut' : NodeStates.toneOf(item.state)}"><span class="dot">${item.state === undefined ? '' : SpecCharts.stateIcon({ state: item.state, size: 18 })}</span><time>${escaped(item.date)}</time><h3>${escaped(item.title)}</h3>${item.state === undefined ? '' : `<span class="vh">${escaped(SpecSections.stateWord({ chrome, state: item.state }))}</span>`}${item.text === undefined ? '' : `<p>${escaped(item.text)}</p>`}</li>`,
+            `<li class="c-${item.state === undefined ? 'mut' : NodeStates.toneOf(item.state)}"><span class="dot">${item.state === undefined ? '' : SpecCharts.stateIcon({ state: item.state, size: 18 })}</span><time>${FigureLayout.escapeText({ value: item.date })}</time><h3>${FigureLayout.escapeText({ value: item.title })}</h3>${item.state === undefined ? '' : `<span class="vh">${FigureLayout.escapeText({ value: SpecSections.stateWord({ chrome, state: item.state }) })}</span>`}${item.text === undefined ? '' : `<p>${FigureLayout.escapeText({ value: item.text })}</p>`}</li>`,
         )
         .join('')}</ol>`,
     });
@@ -312,11 +310,11 @@ export class SpecSections {
       items: { text: string; change?: string }[];
       kind: TChangeKind;
     }): string =>
-      `<section class="ba"><h3>${escaped(given.title)}</h3><ul>${given.items
+      `<section class="ba"><h3>${FigureLayout.escapeText({ value: given.title })}</h3><ul>${given.items
         .map((item) =>
           item.change === given.kind
-            ? `<li class="${given.kind === ChangeKinds.ADDED ? 'add' : 'del'}">${IconSet.iconSvg({ name: given.kind === ChangeKinds.ADDED ? 'plus' : 'minus', size: 16 })}<span><b class="wd">${escaped(given.kind === ChangeKinds.ADDED ? chrome.added : chrome.removed)}</b><span class="tx">${escaped(item.text)}</span></span></li>`
-            : `<li class="same">${IconSet.iconSvg({ name: 'minus', size: 16 })}<span>${escaped(item.text)}</span></li>`,
+            ? `<li class="${given.kind === ChangeKinds.ADDED ? 'add' : 'del'}">${IconSet.iconSvg({ name: given.kind === ChangeKinds.ADDED ? 'plus' : 'minus', size: 16 })}<span><b class="wd">${FigureLayout.escapeText({ value: given.kind === ChangeKinds.ADDED ? chrome.added : chrome.removed })}</b><span class="tx">${FigureLayout.escapeText({ value: item.text })}</span></span></li>`
+            : `<li class="same">${IconSet.iconSvg({ name: 'minus', size: 16 })}<span>${FigureLayout.escapeText({ value: item.text })}</span></li>`,
         )
         .join('')}</ul></section>`;
 
@@ -342,14 +340,14 @@ export class SpecSections {
     return SpecSections.section({
       id: 'decision-record',
       title: chrome.decisionRecord,
-      body: `<div class="dr"><div><h3 class="dh">${escaped(chrome.context)}</h3><p class="ctx">${escaped(decisionRecord.context)}</p></div><div><h3 class="dh">${escaped(chrome.optionsConsidered)}</h3><div class="opts n${decisionRecord.options.length}">${decisionRecord.options
+      body: `<div class="dr"><div><h3 class="dh">${FigureLayout.escapeText({ value: chrome.context })}</h3><p class="ctx">${FigureLayout.escapeText({ value: decisionRecord.context })}</p></div><div><h3 class="dh">${FigureLayout.escapeText({ value: chrome.optionsConsidered })}</h3><div class="opts n${decisionRecord.options.length}">${decisionRecord.options
         .map(
           (option) =>
-            `<article class="opt${option.chosen === true ? ' rec' : ''} ${GridSpans.classOf({ count: recordRows, spans: opts.ctx.spans })}">${hasChosen ? `<span class="tag-slot">${option.chosen === true ? `<span class="tag">${escaped(chrome.chosen)}</span>` : ''}</span>` : ''}<h3>${escaped(option.name)}</h3><p class="ln">${escaped(option.summary)}</p></article>`,
+            `<article class="opt${option.chosen === true ? ' rec' : ''} ${GridSpans.classOf({ count: recordRows, spans: opts.ctx.spans })}">${hasChosen ? `<span class="tag-slot">${option.chosen === true ? `<span class="tag">${FigureLayout.escapeText({ value: chrome.chosen })}</span>` : ''}</span>` : ''}<h3>${FigureLayout.escapeText({ value: option.name })}</h3><p class="ln">${FigureLayout.escapeText({ value: option.summary })}</p></article>`,
         )
         .join(
           '',
-        )}</div></div><blockquote class="pull">${IconSet.iconSvg({ name: 'quote', size: 24 })}<h3 class="dh">${escaped(chrome.decision)}</h3><p class="big">${escaped(decisionRecord.decision)}</p></blockquote><div><h3 class="dh">${escaped(chrome.consequences)}</h3><ul class="cons">${decisionRecord.consequences.map((consequence) => `<li>${IconSet.iconSvg({ name: 'check', size: 18 })}<span>${escaped(consequence)}</span></li>`).join('')}</ul></div></div>`,
+        )}</div></div><blockquote class="pull">${IconSet.iconSvg({ name: 'quote', size: 24 })}<h3 class="dh">${FigureLayout.escapeText({ value: chrome.decision })}</h3><p class="big">${FigureLayout.escapeText({ value: decisionRecord.decision })}</p></blockquote><div><h3 class="dh">${FigureLayout.escapeText({ value: chrome.consequences })}</h3><ul class="cons">${decisionRecord.consequences.map((consequence) => `<li>${IconSet.iconSvg({ name: 'check', size: 18 })}<span>${FigureLayout.escapeText({ value: consequence })}</span></li>`).join('')}</ul></div></div>`,
     });
   }
 
@@ -368,14 +366,14 @@ export class SpecSections {
       body: `<ol class="decs">${decisions
         .map(
           (item) =>
-            `<li class="dec"><h3>${escaped(item.question)}</h3><ul class="dopts">${item.options
+            `<li class="dec"><h3>${FigureLayout.escapeText({ value: item.question })}</h3><ul class="dopts">${item.options
               .map(
                 (option) =>
-                  `<li class="dopt${option.recommended === true ? ' rec' : ''}"><b>${escaped(option.label)}${option.recommended === true ? `<span class="tag">${escaped(chrome.recommended)}</span>` : ''}</b><span>${escaped(option.effect)}</span></li>`,
+                  `<li class="dopt${option.recommended === true ? ' rec' : ''}"><b>${FigureLayout.escapeText({ value: option.label })}${option.recommended === true ? `<span class="tag">${FigureLayout.escapeText({ value: chrome.recommended })}</span>` : ''}</b><span>${FigureLayout.escapeText({ value: option.effect })}</span></li>`,
               )
               .join(
                 '',
-              )}</ul><p class="why"><b>${escaped(chrome.why)}:</b> ${escaped(item.why)}</p>${item.detail === undefined ? '' : `<p class="dt">${escaped(item.detail)}</p>`}</li>`,
+              )}</ul><p class="why"><b>${FigureLayout.escapeText({ value: chrome.why })}:</b> ${FigureLayout.escapeText({ value: item.why })}</p>${item.detail === undefined ? '' : `<p class="dt">${FigureLayout.escapeText({ value: item.detail })}</p>`}</li>`,
         )
         .join('')}</ol>`,
     });
@@ -402,7 +400,7 @@ export class SpecSections {
       body: `<ol class="rows">${minimap
         .map(
           (row, index) =>
-            `<li class="srow c-${NodeStates.toneOf(row.status)}${row.status === 'done' ? ' done' : ''}${index === next ? ' next' : ''}">${row.status === 'not started' ? `<span class="no" aria-hidden="true">${index + 1}</span>` : SpecCharts.stateIcon({ state: row.status, size: 18 })}<b>${escaped(row.task)}</b><span class="vh">${escaped(SpecSections.stateWord({ chrome, state: row.status }))}</span>${row.note === undefined ? '' : `<span class="nt">${escaped(row.note)}</span>`}</li>`,
+            `<li class="srow c-${NodeStates.toneOf(row.status)}${row.status === 'done' ? ' done' : ''}${index === next ? ' next' : ''}">${row.status === 'not started' ? `<span class="no" aria-hidden="true">${index + 1}</span>` : SpecCharts.stateIcon({ state: row.status, size: 18 })}<b>${FigureLayout.escapeText({ value: row.task })}</b><span class="vh">${FigureLayout.escapeText({ value: SpecSections.stateWord({ chrome, state: row.status }) })}</span>${row.note === undefined ? '' : `<span class="nt">${FigureLayout.escapeText({ value: row.note })}</span>`}</li>`,
         )
         .join(
           '',
@@ -419,7 +417,7 @@ export class SpecSections {
     extra?: string;
     isWide?: boolean;
   }): string {
-    return `<section class="part${opts.extra === undefined ? '' : ` ${opts.extra}`}" id="${opts.id}" data-slide><div class="wrap${opts.isWide === true ? ' fw' : ''}"><h2 class="sh">${escaped(opts.title)}</h2>${opts.body}</div></section>`;
+    return `<section class="part${opts.extra === undefined ? '' : ` ${opts.extra}`}" id="${opts.id}" data-slide><div class="wrap${opts.isWide === true ? ' fw' : ''}"><h2 class="sh">${FigureLayout.escapeText({ value: opts.title })}</h2>${opts.body}</div></section>`;
   }
 
   /** A drawing in a light window; below the width where its text would pass 12 px the list takes its place. */

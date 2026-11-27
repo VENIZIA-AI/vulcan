@@ -14,8 +14,6 @@ export interface INewKindsContext {
   fits: Set<string>;
 }
 
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
-
 // -----------------------------------------------------------------------------------------------------------------
 // Sections
 // -----------------------------------------------------------------------------------------------------------------
@@ -26,7 +24,7 @@ const frame = (opts: { ctx: INewKindsContext; drawing: IKindDrawing }): string =
 
   opts.ctx.fits.add(`${width}`);
 
-  return `<figure class="kfig"><div class="fig f${width}${width * 1.25 <= 928 ? ' at' : ''}">${opts.drawing.svg}</div>${opts.drawing.list}<figcaption>${escaped(opts.drawing.caption)}</figcaption></figure>`;
+  return `<figure class="kfig"><div class="fig f${width}${width * 1.25 <= 928 ? ' at' : ''}">${opts.drawing.svg}</div>${opts.drawing.list}<figcaption>${FigureLayout.escapeText({ value: opts.drawing.caption })}</figcaption></figure>`;
 };
 
 export class KindsRender {

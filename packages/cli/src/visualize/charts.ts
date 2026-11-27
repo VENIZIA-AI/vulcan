@@ -8,8 +8,6 @@ import type { TVisualizeSpec } from './schema.ts';
 
 type TChart = NonNullable<NonNullable<TVisualizeSpec['findings']>['charts']>[number];
 
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
-
 const shorten = (opts: { value: string; max: number }): string =>
   opts.value.length <= opts.max ? opts.value : `${opts.value.slice(0, opts.max - 1)}…`;
 
@@ -67,19 +65,19 @@ export class SpecCharts {
    */
   private static bars(opts: { title: string; unit?: string; rows: IRow[] }): string {
     const { rows } = opts;
-    const unit = escaped(opts.unit ?? '');
+    const unit = FigureLayout.escapeText({ value: opts.unit ?? '' });
     const isDiverging = rows.some((row) => row.value < 0);
     const largest = Math.max(...rows.map((row) => Math.abs(row.value)), 1);
     const rowHeight = 30;
     const left = 120;
     const plot = 150;
 
-    return `<svg viewBox="0 0 ${VIEW_WIDTH} ${rows.length * rowHeight + 8}" role="img" aria-label="${escaped(opts.title)}">${rows
+    return `<svg viewBox="0 0 ${VIEW_WIDTH} ${rows.length * rowHeight + 8}" role="img" aria-label="${FigureLayout.escapeText({ value: opts.title })}">${rows
       .map((row, index) => {
         const y = index * rowHeight + 6;
         const share = Math.abs(row.value) / largest;
         const text = `${SpecCharts.formatNumber({ value: row.value })}${unit}`;
-        const label = `<title>${escaped(row.label)}: ${text}</title><text x="0" y="${y + 16}" class="ct">${escaped(shorten({ value: row.label, max: 18 }))}</text>`;
+        const label = `<title>${FigureLayout.escapeText({ value: row.label })}: ${text}</title><text x="0" y="${y + 16}" class="ct">${FigureLayout.escapeText({ value: shorten({ value: row.label, max: 18 }) })}</text>`;
 
         if (isDiverging) {
           const half = plot / 2;
@@ -101,7 +99,7 @@ export class SpecCharts {
     return `<ul class="stats">${opts.rows
       .map(
         (row) =>
-          `<li><b>${SpecCharts.formatNumber({ value: row.value })}${escaped(opts.unit ?? '')}</b><span>${escaped(row.label)}</span></li>`,
+          `<li><b>${SpecCharts.formatNumber({ value: row.value })}${FigureLayout.escapeText({ value: opts.unit ?? '' })}</b><span>${FigureLayout.escapeText({ value: row.label })}</span></li>`,
       )
       .join('')}</ul>`;
   }
@@ -155,7 +153,7 @@ export class SpecCharts {
     // Four lines or fewer are named at their end; more are named by the legend alone.
     const isNamed = series.length <= 4;
 
-    return `<svg viewBox="0 0 ${VIEW_WIDTH} ${top + height + 34}" role="img" aria-label="${escaped(opts.title)}">${ticks
+    return `<svg viewBox="0 0 ${VIEW_WIDTH} ${top + height + 34}" role="img" aria-label="${FigureLayout.escapeText({ value: opts.title })}">${ticks
       .map(
         (tick) =>
           `<line x1="${left}" x2="${VIEW_WIDTH - right}" y1="${y(tick)}" y2="${y(tick)}" class="cgrid"/><text x="${left - 6}" y="${y(tick) + 4}" text-anchor="end" class="ct">${SpecCharts.formatNumber({ value: tick })}</text>`,
@@ -163,7 +161,7 @@ export class SpecCharts {
       .join('')}${labels
       .map((label, index) =>
         index % every === 0
-          ? `<text x="${x(index)}" y="${top + height + 20}" text-anchor="middle" class="ct">${escaped(shorten({ value: label, max: 8 }))}</text>`
+          ? `<text x="${x(index)}" y="${top + height + 20}" text-anchor="middle" class="ct">${FigureLayout.escapeText({ value: shorten({ value: label, max: 8 }) })}</text>`
           : '',
       )
       .join('')}${series
@@ -176,11 +174,11 @@ export class SpecCharts {
         return `<g><path d="${path}" fill="none" stroke="${colour}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${points
           .map(
             (value, i) =>
-              `<circle cx="${x(i)}" cy="${y(value)}" r="4.5" fill="${colour}" class="cring"><title>${escaped(s.name)}, ${escaped(labels[i] ?? '')}: ${SpecCharts.formatNumber({ value })}${escaped(opts.unit ?? '')}</title></circle>`,
+              `<circle cx="${x(i)}" cy="${y(value)}" r="4.5" fill="${colour}" class="cring"><title>${FigureLayout.escapeText({ value: s.name })}, ${FigureLayout.escapeText({ value: labels[i] ?? '' })}: ${SpecCharts.formatNumber({ value })}${FigureLayout.escapeText({ value: opts.unit ?? '' })}</title></circle>`,
           )
           .join(
             '',
-          )}${isNamed ? `<text x="${VIEW_WIDTH - right + 8}" y="${(labelY.get(index) ?? y(last)) + 4}" class="cv">${escaped(shorten({ value: s.name, max: 8 }))}</text>` : ''}</g>`;
+          )}${isNamed ? `<text x="${VIEW_WIDTH - right + 8}" y="${(labelY.get(index) ?? y(last)) + 4}" class="cv">${FigureLayout.escapeText({ value: shorten({ value: s.name, max: 8 }) })}</text>` : ''}</g>`;
       })
       .join('')}</svg>`;
   }
@@ -195,10 +193,10 @@ export class SpecCharts {
     const width = VIEW_WIDTH - 2 * (opts.parts.length - 1);
     let at = 0;
 
-    return `<svg viewBox="0 0 ${VIEW_WIDTH} 36" class="seg-svg" role="img" aria-label="${escaped(opts.title)}">${opts.parts
+    return `<svg viewBox="0 0 ${VIEW_WIDTH} 36" class="seg-svg" role="img" aria-label="${FigureLayout.escapeText({ value: opts.title })}">${opts.parts
       .map((part, index) => {
         const size = (part.value / total) * width;
-        const out = `<rect x="${at.toFixed(2)}" y="0" width="${Math.max(0, size).toFixed(2)}" height="36" rx="3" fill="${partColour({ index, state: part.state })}"><title>${escaped(part.label)}: ${SpecCharts.formatNumber({ value: part.value })}${escaped(opts.unit ?? '')}</title></rect>`;
+        const out = `<rect x="${at.toFixed(2)}" y="0" width="${Math.max(0, size).toFixed(2)}" height="36" rx="3" fill="${partColour({ index, state: part.state })}"><title>${FigureLayout.escapeText({ value: part.label })}: ${SpecCharts.formatNumber({ value: part.value })}${FigureLayout.escapeText({ value: opts.unit ?? '' })}</title></rect>`;
 
         at += size + 2;
 
@@ -224,7 +222,7 @@ export class SpecCharts {
     // Totals that are all the same say nothing, so they are not printed.
     const hasTotals = new Set(totals).size > 1;
 
-    return `<svg viewBox="0 0 ${VIEW_WIDTH} ${opts.groups.length * rowHeight + 8}" role="img" aria-label="${escaped(opts.title)}">${opts.groups
+    return `<svg viewBox="0 0 ${VIEW_WIDTH} ${opts.groups.length * rowHeight + 8}" role="img" aria-label="${FigureLayout.escapeText({ value: opts.title })}">${opts.groups
       .map((group, row) => {
         const y = row * rowHeight + 6;
         let at = left;
@@ -234,7 +232,7 @@ export class SpecCharts {
             const out =
               size <= 0
                 ? ''
-                : `<rect x="${at.toFixed(2)}" y="${y + 2}" width="${Math.max(0, size - 2).toFixed(2)}" height="18" fill="${s.isOther ? 'var(--muted)' : (SLOTS[index] ?? 'var(--s5)')}"><title>${escaped(group)}, ${escaped(s.name)}: ${SpecCharts.formatNumber({ value: s.values[row] ?? 0 })}${escaped(opts.unit ?? '')}</title></rect>`;
+                : `<rect x="${at.toFixed(2)}" y="${y + 2}" width="${Math.max(0, size - 2).toFixed(2)}" height="18" fill="${s.isOther ? 'var(--muted)' : (SLOTS[index] ?? 'var(--s5)')}"><title>${FigureLayout.escapeText({ value: group })}, ${FigureLayout.escapeText({ value: s.name })}: ${SpecCharts.formatNumber({ value: s.values[row] ?? 0 })}${FigureLayout.escapeText({ value: opts.unit ?? '' })}</title></rect>`;
 
             at += size;
 
@@ -242,7 +240,7 @@ export class SpecCharts {
           })
           .join('');
 
-        return `<g><text x="0" y="${y + 16}" class="ct">${escaped(shorten({ value: group, max: 14 }))}</text>${segments}${hasTotals ? `<text x="${at + 6}" y="${y + 16}" class="cv">${SpecCharts.formatNumber({ value: totals[row] ?? 0 })}${escaped(opts.unit ?? '')}</text>` : ''}</g>`;
+        return `<g><text x="0" y="${y + 16}" class="ct">${FigureLayout.escapeText({ value: shorten({ value: group, max: 14 }) })}</text>${segments}${hasTotals ? `<text x="${at + 6}" y="${y + 16}" class="cv">${SpecCharts.formatNumber({ value: totals[row] ?? 0 })}${FigureLayout.escapeText({ value: opts.unit ?? '' })}</text>` : ''}</g>`;
       })
       .join('')}</svg>`;
   }
@@ -258,7 +256,7 @@ export class SpecCharts {
         // Past its limit the bar is full and takes the warning tone, and the reading says the true figure.
         const tone = ratio > 100 ? 't-warn' : 't-info';
 
-        return `<li><span class="ml">${escaped(row.label)}</span><svg class="mb" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="${escaped(row.label)}: ${Math.round(ratio)}%"><rect class="${tone}" x="0" width="${share.toFixed(2)}" height="8"/></svg><b>${SpecCharts.formatNumber({ value: row.value })} / ${SpecCharts.formatNumber({ value: row.of })}${escaped(row.unit ?? '')}</b></li>`;
+        return `<li><span class="ml">${FigureLayout.escapeText({ value: row.label })}</span><svg class="mb" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="${FigureLayout.escapeText({ value: row.label })}: ${Math.round(ratio)}%"><rect class="${tone}" x="0" width="${share.toFixed(2)}" height="8"/></svg><b>${SpecCharts.formatNumber({ value: row.value })} / ${SpecCharts.formatNumber({ value: row.of })}${FigureLayout.escapeText({ value: row.unit ?? '' })}</b></li>`;
       })
       .join('')}</ul>`;
   }
@@ -269,7 +267,7 @@ export class SpecCharts {
       opts.rows.every((row) => /^[-+]?[\d.,]+\s?[%a-zA-Z]{0,3}$/.test((row[at] ?? '').trim())),
     );
 
-    return `<div class="tw"><table class="data"><thead><tr>${opts.columns.map((name, at) => `<th${isNumeric[at] === true ? ' class="r"' : ''}>${escaped(name)}</th>`).join('')}</tr></thead><tbody>${opts.rows.map((row) => `<tr>${row.map((cell, at) => `<td${isNumeric[at] === true ? ' class="r"' : ''}>${escaped(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    return `<div class="tw"><table class="data"><thead><tr>${opts.columns.map((name, at) => `<th${isNumeric[at] === true ? ' class="r"' : ''}>${FigureLayout.escapeText({ value: name })}</th>`).join('')}</tr></thead><tbody>${opts.rows.map((row) => `<tr>${row.map((cell, at) => `<td${isNumeric[at] === true ? ' class="r"' : ''}>${FigureLayout.escapeText({ value: cell })}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
 
   /** The figures of a number and, when it has a trend, a small line beside it: no axis, the last point marked. */
@@ -291,7 +289,7 @@ export class SpecCharts {
           ? opts.chrome.trendDown
           : opts.chrome.trendFlat;
 
-    return `<svg class="spark" viewBox="0 0 60 18" role="img" aria-label="${escaped(word)}"><path d="${path}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(last).toFixed(1)}" cy="${y(opts.points[last] ?? 0).toFixed(1)}" r="2.5" fill="var(--s1)"/></svg>`;
+    return `<svg class="spark" viewBox="0 0 60 18" role="img" aria-label="${FigureLayout.escapeText({ value: word })}"><path d="${path}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(last).toFixed(1)}" cy="${y(opts.points[last] ?? 0).toFixed(1)}" r="2.5" fill="var(--s1)"/></svg>`;
   }
 
   private static legend(opts: {
@@ -306,7 +304,7 @@ export class SpecCharts {
       return `<ul class="clegend">${opts.parts
         .map(
           (part, index) =>
-            `<li><i class="sw" ${swatch({ index, state: part.state })}></i><span>${escaped(part.label)}</span><b>${SpecCharts.formatNumber({ value: part.value })}${escaped(opts.unit ?? '')}</b><em>${Math.round((part.value / total) * 100)}%</em></li>`,
+            `<li><i class="sw" ${swatch({ index, state: part.state })}></i><span>${FigureLayout.escapeText({ value: part.label })}</span><b>${SpecCharts.formatNumber({ value: part.value })}${FigureLayout.escapeText({ value: opts.unit ?? '' })}</b><em>${Math.round((part.value / total) * 100)}%</em></li>`,
         )
         .join('')}</ul>`;
     }
@@ -321,7 +319,7 @@ export class SpecCharts {
                 : `data-s="${index + 1}"`
               : `data-t="${s.name === opts.emphasis ? 'warn' : 'mut'}"`;
 
-          return `<li><i class="sw" ${tone}></i><span>${escaped(s.name)}</span></li>`;
+          return `<li><i class="sw" ${tone}></i><span>${FigureLayout.escapeText({ value: s.name })}</span></li>`;
         })
         .join('')}</ul>`;
     }
@@ -359,7 +357,7 @@ export class SpecCharts {
       return '';
     }
 
-    return `<details class="tv"><summary>${escaped(chrome.tableView)}</summary><div class="tw"><table><thead><tr>${head.map((cell) => `<th>${escaped(cell)}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escaped(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`;
+    return `<details class="tv"><summary>${FigureLayout.escapeText({ value: chrome.tableView })}</summary><div class="tw"><table><thead><tr>${head.map((cell) => `<th>${FigureLayout.escapeText({ value: cell })}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${FigureLayout.escapeText({ value: cell })}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`;
   }
 
   /** The drawing of a chart and its legend: the form is chosen here from the data, never by the spec. */
@@ -460,7 +458,7 @@ export class SpecCharts {
     // A table takes the whole row.
     const wide = chart.type === 'table' || opts.isWide === true ? ' wide' : '';
 
-    return `<figure class="chart ${chart.type}${wide}"><figcaption class="lab">${escaped(chart.title)}</figcaption><div class="cbody">${body}${legend}</div>${SpecCharts.tableView({ chart, chrome: opts.chrome })}</figure>`;
+    return `<figure class="chart ${chart.type}${wide}"><figcaption class="lab">${FigureLayout.escapeText({ value: chart.title })}</figcaption><div class="cbody">${body}${legend}</div>${SpecCharts.tableView({ chart, chrome: opts.chrome })}</figure>`;
   }
 
   /** Total scores of a comparison as horizontal bars out of the maximum, the recommendation in the accent. */
@@ -474,14 +472,14 @@ export class SpecCharts {
     const rowHeight = 34;
     const plot = 150;
 
-    return `<svg viewBox="0 0 ${VIEW_WIDTH} ${opts.names.length * rowHeight + 6}" role="img" aria-label="${escaped(opts.chrome.total)}: ${opts.names.map((n, i) => `${escaped(n)} ${opts.totals[i]}`).join(', ')}">${opts.names
+    return `<svg viewBox="0 0 ${VIEW_WIDTH} ${opts.names.length * rowHeight + 6}" role="img" aria-label="${FigureLayout.escapeText({ value: opts.chrome.total })}: ${opts.names.map((n, i) => `${FigureLayout.escapeText({ value: n })} ${opts.totals[i]}`).join(', ')}">${opts.names
       .map((name, index) => {
         const y = index * rowHeight + 4;
         const total = opts.totals[index] ?? 0;
         const width = Math.max(2, Math.round((total / opts.max) * plot));
         const isBest = index === opts.best;
 
-        return `<g><title>${escaped(name)}: ${total} ${escaped(opts.chrome.outOf)} ${opts.max}</title><text x="0" y="${y + 19}" class="ct${isBest ? ' strong' : ''}">${escaped(shorten({ value: name, max: 18 }))}</text><rect x="120" y="${y + 5}" width="${plot}" height="20" rx="4" class="ctrack"/><path d="${barPath({ x: 120, y: y + 5, width, height: 20 })}" fill="${isBest ? 'var(--accent)' : 'var(--muted)'}" opacity="${isBest ? 1 : 0.6}"/><text x="${120 + width + 6}" y="${y + 20}" class="cv">${total}</text></g>`;
+        return `<g><title>${FigureLayout.escapeText({ value: name })}: ${total} ${FigureLayout.escapeText({ value: opts.chrome.outOf })} ${opts.max}</title><text x="0" y="${y + 19}" class="ct${isBest ? ' strong' : ''}">${FigureLayout.escapeText({ value: shorten({ value: name, max: 18 }) })}</text><rect x="120" y="${y + 5}" width="${plot}" height="20" rx="4" class="ctrack"/><path d="${barPath({ x: 120, y: y + 5, width, height: 20 })}" fill="${isBest ? 'var(--accent)' : 'var(--muted)'}" opacity="${isBest ? 1 : 0.6}"/><text x="${120 + width + 6}" y="${y + 20}" class="cv">${total}</text></g>`;
       })
       .join('')}</svg>`;
   }

@@ -1,9 +1,9 @@
 import { posix } from 'node:path';
+import { CodemodItemReader } from './codemod-items.ts';
 import { ConfigConstants, ConfigKeyOrder, CodemodConstants } from './common/index.ts';
 import type { ICodemodItem, IFileChange, TCodemodResult } from './common/index.ts';
 import type { TSourceFile, TTypeScript } from './format.ts';
 import { CodemodFoldReader } from './codemod-fold.ts';
-import { CodemodTextUtility } from './utilities/codemod-text.utility.ts';
 
 /** The markers of the block `vulcan package add` rewrites (`CreateConstants.APPS_BLOCK_START` begins with the first; the create layer imports this one, so it is not imported here). */
 const APPS_BLOCK_START = '// vulcan:apps:start';
@@ -60,7 +60,7 @@ export class CodemodOutputBuilder {
     isFirst?: boolean;
   }): string {
     const by = opts.column - opts.item.column;
-    let leading = CodemodTextUtility.shift({ text: opts.item.leading, by, first: true });
+    let leading = CodemodItemReader.shift({ text: opts.item.leading, by, first: true });
 
     if (opts.comment !== undefined && opts.comment !== '') {
       const indent = ' '.repeat(opts.column);
@@ -75,7 +75,7 @@ export class CodemodOutputBuilder {
       leading = leading.replace(/^\n+/, '');
     }
 
-    const body = CodemodTextUtility.shift({ text: opts.body ?? opts.item.body, by, first: false });
+    const body = CodemodItemReader.shift({ text: opts.body ?? opts.item.body, by, first: false });
 
     return `${leading}${body},${opts.item.trailing}`;
   }
@@ -296,7 +296,7 @@ export class CodemodOutputBuilder {
 
         foldedNames.add(binding.name);
         bodies.set(item, {
-          body: `${item.key}: ${CodemodTextUtility.shift({ text: value.text, by: CodemodConstants.MODULE_COLUMN, first: false })}`,
+          body: `${item.key}: ${CodemodItemReader.shift({ text: value.text, by: CodemodConstants.MODULE_COLUMN, first: false })}`,
           comment: value.comment,
         });
       }
@@ -333,14 +333,14 @@ export class CodemodOutputBuilder {
       if (group === 'guard') {
         const [only] = items;
 
-        const comment = CodemodTextUtility.shift({
+        const comment = CodemodItemReader.shift({
           text: only.leading,
           by: -CodemodConstants.TOP_COLUMN,
           first: true,
         }).trimEnd();
 
         lines.push(
-          `${comment === '' ? '' : `${comment}\n`}export const guard = ${CodemodTextUtility.shift({ text: only.value ?? 'undefined', by: -CodemodConstants.TOP_COLUMN, first: false })} satisfies ${GROUP_TYPE[group]};`,
+          `${comment === '' ? '' : `${comment}\n`}export const guard = ${CodemodItemReader.shift({ text: only.value ?? 'undefined', by: -CodemodConstants.TOP_COLUMN, first: false })} satisfies ${GROUP_TYPE[group]};`,
         );
       } else {
         lines.push(`export const ${group} = {`);

@@ -7,8 +7,6 @@ import { SpecSections } from './sections.ts';
 import type { ISectionContext } from './common/index.ts';
 import { SourceRefs } from './sources.ts';
 
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
-
 /** The two sides of an arrow that is not in both. */
 const ADDED = 'added';
 const REMOVED = 'removed';
@@ -81,7 +79,7 @@ export class CompareView {
     // A function as the replacement: a string would read `$&`, `$'` and `` $` `` in the spec's text as patterns.
     let named = svg.replace(
       'aria-label="flow"',
-      () => `aria-label="${escaped(chrome.compareView)}"`,
+      () => `aria-label="${FigureLayout.escapeText({ value: chrome.compareView })}"`,
     );
 
     // A changed arrow says its words when it is hovered or read by a screen reader, with the verb after them.
@@ -89,11 +87,13 @@ export class CompareView {
       const side = CompareView.sideOf({ edge });
 
       if (side !== EdgeSides.BOTH) {
-        const name = escaped(`${edge.from}>${edge.to}`);
-        const word = escaped(`${CompareView.wordOf({ compare, chrome, side })}: ${edge.label}`);
+        const name = FigureLayout.escapeText({ value: `${edge.from}>${edge.to}` });
+        const word = FigureLayout.escapeText({
+          value: `${CompareView.wordOf({ compare, chrome, side })}: ${edge.label}`,
+        });
 
         named = named.replace(
-          `data-edge="${name}"><title>${escaped(CompareView.signedLabel({ edge }))}</title>`,
+          `data-edge="${name}"><title>${FigureLayout.escapeText({ value: CompareView.signedLabel({ edge }) })}</title>`,
           () => `data-edge="${name}"><title>${word}</title>`,
         );
       }
@@ -110,7 +110,7 @@ export class CompareView {
   private static listOf(opts: { compare: TCompare; chrome: TChrome }): string {
     const { compare, chrome } = opts;
     const names = new Map(compare.nodes.map((node) => [node.id, node.label]));
-    const nameOf = (id: string): string => escaped(names.get(id) ?? id);
+    const nameOf = (id: string): string => FigureLayout.escapeText({ value: names.get(id) ?? id });
     const groups: { side: string; head: string; cls: string }[] = [
       { side: EdgeSides.BOTH, head: chrome.inBoth, cls: 'same' },
       {
@@ -130,10 +130,10 @@ export class CompareView {
 
         return edges.length === 0
           ? ''
-          : `<p class="cg ${group.cls}">${escaped(group.head)}</p><ol>${edges
+          : `<p class="cg ${group.cls}">${FigureLayout.escapeText({ value: group.head })}</p><ol>${edges
               .map(
                 (edge) =>
-                  `<li><b>${nameOf(edge.from)}</b><span class="verb ${group.cls}">${escaped(edge.label)}</span><b>${nameOf(edge.to)}</b></li>`,
+                  `<li><b>${nameOf(edge.from)}</b><span class="verb ${group.cls}">${FigureLayout.escapeText({ value: edge.label })}</span><b>${nameOf(edge.to)}</b></li>`,
               )
               .join('')}</ol>`;
       })
@@ -142,7 +142,7 @@ export class CompareView {
       .filter((node) => node.sublabel !== undefined || node.source !== undefined)
       .map(
         (node) =>
-          `<li><b>${escaped(node.label)}</b>${node.sublabel === undefined ? '' : escaped(node.sublabel)}${node.source === undefined ? '' : SourceRefs.html({ source: node.source })}</li>`,
+          `<li><b>${FigureLayout.escapeText({ value: node.label })}</b>${node.sublabel === undefined ? '' : FigureLayout.escapeText({ value: node.sublabel })}${node.source === undefined ? '' : SourceRefs.html({ source: node.source })}</li>`,
       )
       .join('');
 
@@ -159,7 +159,7 @@ export class CompareView {
     ]
       .map(
         (item) =>
-          `<li>${CompareView.swatch({ variant: item.variant })}<span>${escaped(item.word)}</span></li>`,
+          `<li>${CompareView.swatch({ variant: item.variant })}<span>${FigureLayout.escapeText({ value: item.word })}</span></li>`,
       )
       .join('');
 
@@ -189,7 +189,7 @@ export class CompareView {
       id: 'compare',
       isWide: true,
       title: chrome.compareView,
-      body: `<figure class="kfig">${SpecSections.figure({ ctx: opts.ctx, drawing: CompareView.drawing({ compare, chrome }) })}<figcaption>${escaped(caption)}</figcaption></figure>`,
+      body: `<figure class="kfig">${SpecSections.figure({ ctx: opts.ctx, drawing: CompareView.drawing({ compare, chrome }) })}<figcaption>${FigureLayout.escapeText({ value: caption })}</figcaption></figure>`,
     });
   }
 }

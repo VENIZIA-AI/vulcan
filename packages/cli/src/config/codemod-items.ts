@@ -9,7 +9,6 @@ import type {
   TTypeScript,
 } from './format.ts';
 import { ConfigGroups } from './groups.ts';
-import { CodemodTextUtility } from './utilities/codemod-text.utility.ts';
 
 /** What the old flat keys become: the group and the key inside it. `project`, `doctor`, `knowledge`, `guard` and `remove` are handled apart. */
 const PLACE: Readonly<Record<string, { group: string; key: string }>> = {
@@ -35,6 +34,26 @@ const PLACE: Readonly<Record<string, { group: string; key: string }>> = {
 
 /** The properties of a config, flat or grouped, cut into items that carry their comments to a group. */
 export class CodemodItemReader {
+  /** `text` with every line moved `by` columns (negative: that many leading spaces taken off); the first line only when `first`. */
+  static shift(opts: { text: string; by: number; first: boolean }): string {
+    if (opts.by === 0) {
+      return opts.text;
+    }
+
+    return opts.text
+      .split('\n')
+      .map((line, index) => {
+        if (line === '' || (index === 0 && !opts.first)) {
+          return line;
+        }
+
+        return opts.by > 0
+          ? `${' '.repeat(opts.by)}${line}`
+          : line.replace(new RegExp(`^ {0,${-opts.by}}`), '');
+      })
+      .join('\n');
+  }
+
   static itemsOfFlat(opts: {
     typescript: TTypeScript;
     source: TSourceFile;
@@ -216,7 +235,7 @@ export class CodemodItemReader {
     segment: IPropertySegment;
   }): ICodemodItem[] {
     // The comment lines at the column of the keys; the indentation that ends `leading` is the key's own, which the first key brings.
-    const above = CodemodTextUtility.shift({
+    const above = CodemodItemReader.shift({
       text: opts.segment.leading,
       by: CodemodConstants.GROUP_COLUMN - CodemodConstants.TOP_COLUMN,
       first: true,

@@ -1,4 +1,4 @@
-import { KindFigureConstants } from './common/index.ts';
+import { KindFigureConstants } from './constants.ts';
 import type { IKindDrawing } from './common/index.ts';
 import { SpecCharts } from './charts.ts';
 import type { TChrome } from './constants.ts';
@@ -7,8 +7,6 @@ import type { ITreeNode } from './kinds-schema.ts';
 import type { TTree } from './kinds-schema.ts';
 import { SpecSections } from './sections.ts';
 import { KindFigureUtility } from './utilities/kind-figure.utility.ts';
-
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
 // -----------------------------------------------------------------------------------------------------------------
 // Tree
@@ -90,7 +88,7 @@ export class TreeBuilder {
         const textX = row.x + 14 + row.icon;
         const state = row.node.state;
 
-        return `<g class="knode${state === undefined ? '' : ` kn-${state.replaceAll(' ', '-')}`}"><rect class="kbox" x="${row.x}" y="${row.y}" width="${row.boxWidth}" height="${row.boxHeight}" rx="4"/>${state === undefined ? '' : `<g class="kic" transform="translate(${row.x + 12} ${centre - 8})">${SpecCharts.stateIcon({ state, size: 16 }).replace('<svg', '<svg x="0" y="0"')}</g>`}<text class="kt" x="${textX}" y="${row.hasSub ? row.y + 21 : centre + 5}">${escaped(row.node.label)}</text>${row.word === undefined ? '' : `<text class="kw" x="${row.x + row.boxWidth - 12}" y="${row.hasSub ? row.y + 21 : centre + 4}" text-anchor="end">${escaped(row.word)}</text>`}${row.node.sublabel === undefined ? '' : `<text class="ks" x="${textX}" y="${row.y + 39}">${escaped(row.node.sublabel)}</text>`}</g>`;
+        return `<g class="knode${state === undefined ? '' : ` kn-${state.replaceAll(' ', '-')}`}"><rect class="kbox" x="${row.x}" y="${row.y}" width="${row.boxWidth}" height="${row.boxHeight}" rx="4"/>${state === undefined ? '' : `<g class="kic" transform="translate(${row.x + 12} ${centre - 8})">${SpecCharts.stateIcon({ state, size: 16 }).replace('<svg', '<svg x="0" y="0"')}</g>`}<text class="kt" x="${textX}" y="${row.hasSub ? row.y + 21 : centre + 5}">${FigureLayout.escapeText({ value: row.node.label })}</text>${row.word === undefined ? '' : `<text class="kw" x="${row.x + row.boxWidth - 12}" y="${row.hasSub ? row.y + 21 : centre + 4}" text-anchor="end">${FigureLayout.escapeText({ value: row.word })}</text>`}${row.node.sublabel === undefined ? '' : `<text class="ks" x="${textX}" y="${row.y + 39}">${FigureLayout.escapeText({ value: row.node.sublabel })}</text>`}</g>`;
       })
       .join('');
     const outline = (node: ITreeNode): string => {
@@ -101,7 +99,7 @@ export class TreeBuilder {
           ? ''
           : `<ul class="kt-in">${node.children.map(outline).join('')}</ul>`;
 
-      return `<li><b>${escaped(node.label)}</b>${node.sublabel === undefined ? '' : ` <span class="mut">${escaped(node.sublabel)}</span>`}${state}${inner}</li>`;
+      return `<li><b>${FigureLayout.escapeText({ value: node.label })}</b>${node.sublabel === undefined ? '' : ` <span class="mut">${FigureLayout.escapeText({ value: node.sublabel })}</span>`}${state}${inner}</li>`;
     };
     const label = `${chrome.tree}: ${tree.root.label}`;
 

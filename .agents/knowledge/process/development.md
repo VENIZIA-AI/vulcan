@@ -21,7 +21,7 @@ A test fails when `ci.yml` has a make line the reader misses, or when CI loses o
 
 ```bash
 make build             # type-check every package with `bun check`; only atlas emits (tsc)
-make lint-all          # every package, then scripts/
+make lint-all          # every package, then scripts/ and the repository checks (the source layout among them)
 make test              # every package suite (6 workers, 6 tests at once; never over 10), then scripts/
 make catalog-check
 make docs wiki-links-check wiki-anchors-check   # wiki-links-check runs conflict-markers-check first

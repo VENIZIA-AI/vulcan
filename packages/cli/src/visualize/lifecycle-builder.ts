@@ -1,12 +1,10 @@
-import { KindFigureConstants } from './common/index.ts';
+import { KindFigureConstants } from './constants.ts';
 import type { IKindDrawing } from './common/index.ts';
 import type { TChrome } from './constants.ts';
 import { FigureLayout } from './layout.ts';
 import { LifecycleKinds } from './kinds-schema.ts';
 import type { TLifecycle } from './kinds-schema.ts';
 import { KindFigureUtility } from './utilities/kind-figure.utility.ts';
-
-const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
 // -----------------------------------------------------------------------------------------------------------------
 // Lifecycle
@@ -249,7 +247,7 @@ export class LifecycleBuilder {
 
         return {
           line: `<path class="kline" d="M${x} ${y1}V${y2}"/>${KindFigureUtility.head({ x, y: y2, dx: 0, dy: down ? 1 : -1 })}`,
-          text: `<text class="${labelHalo}" x="${left ? x - 8 : x + 8}" y="${(y1 + y2) / 2 + 4}" text-anchor="${left ? 'end' : 'start'}">${escaped(route.label)}</text>`,
+          text: `<text class="${labelHalo}" x="${left ? x - 8 : x + 8}" y="${(y1 + y2) / 2 + 4}" text-anchor="${left ? 'end' : 'start'}">${FigureLayout.escapeText({ value: route.label })}</text>`,
         };
       }
 
@@ -265,7 +263,7 @@ export class LifecycleBuilder {
 
         return {
           line: `<path class="kline" d="M${x1} ${y1}V${level}H${x2}V${y2}"/>${KindFigureUtility.head({ x: x2, y: y2, dx: 0, dy: down ? 1 : -1 })}`,
-          text: `<text class="${labelHalo}" x="${(x1 + x2) / 2}" y="${level - 6}" text-anchor="middle">${escaped(route.label)}</text>`,
+          text: `<text class="${labelHalo}" x="${(x1 + x2) / 2}" y="${level - 6}" text-anchor="middle">${FigureLayout.escapeText({ value: route.label })}</text>`,
         };
       }
 
@@ -281,7 +279,7 @@ export class LifecycleBuilder {
 
       return {
         line: `<path class="kline" d="M${x1} ${edge}V${level}H${x2}V${edge}"/>${KindFigureUtility.head({ x: x2, y: edge, dx: 0, dy: side === 'top' ? 1 : -1 })}`,
-        text: `<text class="${labelHalo}" x="${(x1 + x2) / 2}" y="${level - 6}" text-anchor="middle">${escaped(route.label)}</text>`,
+        text: `<text class="${labelHalo}" x="${(x1 + x2) / 2}" y="${level - 6}" text-anchor="middle">${FigureLayout.escapeText({ value: route.label })}</text>`,
       };
     });
     const lines = drawn.map((item) => item.line).join('');
@@ -298,7 +296,7 @@ export class LifecycleBuilder {
         const y = rowTop(place.row);
         const kind = item.state.type ?? LifecycleKinds.NORMAL;
 
-        return `<g class="kstate kk-${kind}">${item.word === undefined ? '' : `<title>${escaped(item.word)}</title>`}<rect class="kbox" x="${x}" y="${y}" width="${BOX_WIDTH}" height="${boxHeight}" rx="4"/>${kind === LifecycleKinds.END ? `<rect class="kinner" x="${x + 5}" y="${y + 5}" width="${BOX_WIDTH - 10}" height="${boxHeight - 10}" rx="2"/>` : ''}${KindFigureUtility.textLines({ cls: 'kt', x: x + 14, y: y + item.first, lines: item.labelLines, step: 17 })}${item.subLines.length === 0 ? '' : KindFigureUtility.textLines({ cls: 'ks', x: x + 14, y: y + item.last + 17, lines: item.subLines, step: 15 })}</g>`;
+        return `<g class="kstate kk-${kind}">${item.word === undefined ? '' : `<title>${FigureLayout.escapeText({ value: item.word })}</title>`}<rect class="kbox" x="${x}" y="${y}" width="${BOX_WIDTH}" height="${boxHeight}" rx="4"/>${kind === LifecycleKinds.END ? `<rect class="kinner" x="${x + 5}" y="${y + 5}" width="${BOX_WIDTH - 10}" height="${boxHeight - 10}" rx="2"/>` : ''}${KindFigureUtility.textLines({ cls: 'kt', x: x + 14, y: y + item.first, lines: item.labelLines, step: 17 })}${item.subLines.length === 0 ? '' : KindFigureUtility.textLines({ cls: 'ks', x: x + 14, y: y + item.last + 17, lines: item.subLines, step: 15 })}</g>`;
       })
       .join('');
     const [first] = order;
@@ -328,7 +326,7 @@ export class LifecycleBuilder {
           const word = wordFor(state);
           const out = lifecycle.transitions.filter((transition) => transition.from === state.id);
 
-          return `<li class="kst kk-${state.type ?? LifecycleKinds.NORMAL}"><b>${escaped(state.label)}</b>${state.sublabel === undefined ? '' : ` <span class="mut">${escaped(state.sublabel)}</span>`}${word === undefined ? '' : ` <span class="kword">${escaped(word)}</span>`}${out.length === 0 ? '' : `<ul class="kout">${out.map((transition) => `<li><span class="verb">${escaped(transition.label)}</span><b>${escaped(nameOf(transition.to))}</b></li>`).join('')}</ul>`}</li>`;
+          return `<li class="kst kk-${state.type ?? LifecycleKinds.NORMAL}"><b>${FigureLayout.escapeText({ value: state.label })}</b>${state.sublabel === undefined ? '' : ` <span class="mut">${FigureLayout.escapeText({ value: state.sublabel })}</span>`}${word === undefined ? '' : ` <span class="kword">${FigureLayout.escapeText({ value: word })}</span>`}${out.length === 0 ? '' : `<ul class="kout">${out.map((transition) => `<li><span class="verb">${FigureLayout.escapeText({ value: transition.label })}</span><b>${FigureLayout.escapeText({ value: nameOf(transition.to) })}</b></li>`).join('')}</ul>`}</li>`;
         })
         .join('')}</ul>`,
       caption:
