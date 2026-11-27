@@ -127,10 +127,25 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make vulcan-sync
 
+      # Atlas is tested against a real corpus: IGNIS at a fixed commit, read and never installed, built or run. Raise
+      # the commit by a pull request, which shows what the newer corpus changes.
+      - name: Checkout IGNIS to read
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: VENIZIA-AI/ignis
+          ref: 9d3b65f8334c7257b1a126b375a64ea6e82ead35
+          path: .agents/tmp/ignis
+          # Some tests derive its release table from its tags and history.
+          fetch-depth: 0
+          persist-credentials: false
+
       # The make targets own the test flags (BUN_TEST_FLAGS, default --parallel=6), so CI and a
       # developer's `make test` run the very same command.
       - name: Test
         if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        env:
+          IGNIS_ROOT: ${{ github.workspace }}/.agents/tmp/ignis
         run: make test
 
       # The packed tarballs, installed alone in an empty project and run.

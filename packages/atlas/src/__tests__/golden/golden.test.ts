@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { IGNIS_IS_BUILT } from '../ignis-root.helper';
 import { GOLDEN_QUESTIONS } from './golden-questions';
 import { GoldenProjects, GoldenRunner, GoldenVerdicts } from './golden.helper';
 import type { IGoldenQuestion, TGoldenVerdict } from './golden.helper';
@@ -78,20 +79,30 @@ describe('golden questions: the scoreboard', () => {
   const verdicts = new Map<string, TGoldenVerdict>();
 
   for (const question of GOLDEN_QUESTIONS) {
-    const present = GoldenProjects.isPresent({ project: question.project });
+    // `symbol` answers from built declarations: a checkout that is not built (CI reads IGNIS and runs none of it), or
+    // that another session is editing and rebuilding, cannot be asked.
+    const isBuilt =
+      question.project !== GoldenProjects.IGNIS || question.ask.tool !== 'symbol' || IGNIS_IS_BUILT;
+    const present = GoldenProjects.isPresent({ project: question.project }) && isBuilt;
 
     if (!present) {
       verdicts.set(question.id, GoldenVerdicts.SKIPPED);
     }
 
-    test.skipIf(!present)(`${question.id}: ${question.question}`, async () => {
-      const verdict = await GoldenRunner.verdictOf({ question });
+    test.skipIf(!present)(
+      `${question.id}: ${question.question}`,
+      async () => {
+        const verdict = await GoldenRunner.verdictOf({ question });
 
-      verdicts.set(question.id, verdict);
+        verdicts.set(question.id, verdict);
 
-      // A stale mark and a regression both fail: the list says what atlas serves today, or it says nothing.
-      expect([GoldenVerdicts.ANSWERED, GoldenVerdicts.OPEN]).toContain(verdict);
-    });
+        // A stale mark and a regression both fail: the list says what atlas serves today, or it says nothing.
+        expect([GoldenVerdicts.ANSWERED, GoldenVerdicts.OPEN]).toContain(verdict);
+        // The first question of a project indexes its whole checkout, and the first `symbol` one compiles its
+        // declarations: seconds on a loaded machine, past the five a test gets by default.
+      },
+      60_000,
+    );
   }
 
   afterAll(() => {
@@ -100,7 +111,7 @@ describe('golden questions: the scoreboard', () => {
 
     console.log(
       `golden questions: ${count(GoldenVerdicts.ANSWERED)} answered, ${count(GoldenVerdicts.OPEN)} open, ` +
-        `${count(GoldenVerdicts.SKIPPED)} skipped (no checkout), of ${GOLDEN_QUESTIONS.length}`,
+        `${count(GoldenVerdicts.SKIPPED)} skipped (no checkout or no build), of ${GOLDEN_QUESTIONS.length}`,
     );
   });
 });
