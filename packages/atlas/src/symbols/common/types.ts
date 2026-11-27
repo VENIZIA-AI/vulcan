@@ -30,7 +30,7 @@ export interface ISymbolRecord {
    * built `.d.ts`. Never served.
    */
   shape?: string;
-  /** Present and true when `file` points inside `node_modules`: the export re-exports a third-party declaration, so the path is an install detail, not repository source. */
+  /** Present and true when `file` is in a `node_modules` folder, below the package or beside it (hoisted): the export re-exports a third-party declaration, so the path is an install detail, not repository source. */
   external?: boolean;
   /** The declaration as the built `.d.ts` has it: its TSDoc, its members, the unexported declarations it uses. Capped. */
   declaration?: string;
@@ -38,6 +38,8 @@ export interface ISymbolRecord {
   doc?: string;
   /** Names of exported symbols the declaration refers to. */
   uses?: string[];
+  /** Present and true for a module re-exported as a namespace: its declaration lists the members, and it owes no TSDoc. */
+  isModuleNamespace?: boolean;
 }
 
 /** What `search` adds beside its hits when the query is one identifier the table knows - no signature, no docs, so the reply budget barely moves. */

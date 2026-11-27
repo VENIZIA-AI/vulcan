@@ -20,10 +20,12 @@ import type TypeScript from 'typescript';
 import { PublicSurface } from '@/surface';
 import type { ISymbolRecord } from './common';
 import { DeclarationText } from './declaration-text';
+import { NamespaceText } from './namespace-text';
+import { SymbolShape } from './shape';
 import { SourceSignature } from './source-signature';
+import { ThirdPartyUtility } from './utilities/third-party.utility';
 
 const SIGNATURE_MAX_CHARS = 300;
-const SHAPE_LENGTH = 12;
 
 interface ISymbolTable {
   generatedFrom: string;
@@ -308,7 +310,7 @@ export class AtlasSymbols {
         ? AtlasSymbols.locationOf({ repoRoot, declaration })
         : { file: repoRelative({ repoRoot, path: file }), line: 1 };
 
-      const isExternal = location.file.includes('node_modules');
+      const isExternal = ThirdPartyUtility.isThirdParty({ repoRoot, path: location.file });
       const text =
         declaration !== undefined &&
         !isExternal &&
@@ -333,12 +335,16 @@ export class AtlasSymbols {
                 : AtlasSymbols.signatureOf({ declaration }),
             })
           : '',
-        ...(declaration ? { shape: AtlasSymbols.shapeOf({ declaration }) } : {}),
+        ...(declaration ? { shape: SymbolShape.of({ declaration }) } : {}),
         ...(text === undefined ? {} : { declaration: text.declaration, uses: text.uses }),
         ...(doc === undefined ? {} : { doc }),
       };
 
-      return isExternal ? { ...record, external: true } : record;
+      if (isExternal) {
+        return { ...record, external: true };
+      }
+
+      return { ...record, ...NamespaceText.fieldsOf({ repoRoot, checker, symbol, resolved }) };
     });
   }
 
@@ -488,19 +494,6 @@ export class AtlasSymbols {
     }
 
     return { sources: parsed.sources, lines: decodeMappings(parsed.mappings) };
-  }
-
-  /**
-   * The whole declaration as the compiler prints it without comments - so layout and comments never
-   * move it - reduced to a digest. A class or interface counts its members; a function, every parameter.
-   */
-  private static shapeOf(opts: { declaration: TypeScript.Declaration }): string {
-    const compiler = TypeScriptCompiler.get();
-    const printed = compiler
-      .createPrinter({ removeComments: true })
-      .printNode(compiler.EmitHint.Unspecified, opts.declaration, opts.declaration.getSourceFile());
-
-    return new Bun.CryptoHasher('sha256').update(printed).digest('hex').slice(0, SHAPE_LENGTH);
   }
 
   /**

@@ -312,7 +312,33 @@ $ bun node_modules/.bin/vulcan atlas api
 usage: vulcan atlas api gen|check | undocumented [--package <dir, name or path>]...
 ```
 
-`api gen` writes `references/api/<entry>.md` under the wiki directory of the manifest (`knowledge.wiki`), one page for each `exports` entry (`@scope/name/subpath` becomes `scope-name-subpath.md`) and an `index.md` that counts the exports and the ones with TSDoc. An export is listed once, on the entry that declares it (the most specific entry of the package that owns its source file); an entry that only re-exports it names that entry in a short list at the end of its page. An entry whose page would pass 45,000 characters is split ([long entries](#long-entries)). A page lists every export it declares by name with its kind, its TSDoc as prose, its declaration without that comment (members keep theirs) and the source file (no line number, so the check fails only when the API or its TSDoc changes); the exports with no TSDoc are named at the top. An export whose TSDoc says `@internal` is left out of the page and of its counts. A re-export of a third-party declaration shows its signature only. The pages are generated: link to them from a guide and never edit them. A page that no longer matches the declarations, or a generated page for an entry that was removed, is rewritten or deleted by the next `gen`. A file in the folder that `gen` did not write (it carries the generated note) is never touched.
+`api gen` writes `references/api/<entry>.md` under the wiki directory of the manifest (`knowledge.wiki`), one page for each `exports` entry (`@scope/name/subpath` becomes `scope-name-subpath.md`) and an `index.md` that counts the exports and the ones with TSDoc. An export is listed once, on the entry that declares it (the most specific entry of the package that owns its source file); an entry that only re-exports it names that entry in a short list at the end of its page. An entry whose page would pass 45,000 characters is split ([long entries](#long-entries)). A page lists every export it declares by name with its kind, its TSDoc as prose, its declaration without that comment (members keep theirs) and the source file (no line number, so the check fails only when the API or its TSDoc changes); the exports with no TSDoc are named at the top. An export whose TSDoc says `@internal` is left out of the page and of its counts. A re-export of a third-party declaration shows its signature only. A module re-exported as a namespace lists [its members](#namespaces). The pages are generated: link to them from a guide and never edit them. A page that no longer matches the declarations, or a generated page for an entry that was removed, is rewritten or deleted by the next `gen`. A file in the folder that `gen` did not write (it carries the generated note) is never touched.
+
+### Namespaces
+
+An export written `export * as X from`, or `import * as X` followed by `export { X }` (also `export { X as Y }`), is listed
+with its members, each with its type and TSDoc, as the members of a class are:
+
+```ts
+export declare namespace HTTP {
+    /** The verbs. */
+    const Methods: {
+        readonly GET: "get";
+    };
+    namespace Status {
+        const OK: 200;
+    }
+}
+```
+
+- Members are sorted by name. An overloaded function shows every overload.
+- A member exported under another name than it is declared with has a comment, `// exported as`, that gives it.
+- Nested namespaces are listed down to 8 deep. A module already listed in the same export, a cycle included, is named instead.
+- A member that comes from a third-party package is named only.
+- The text is cut at 40,000 characters and says so, as for a long class.
+- It needs declaration files: for a package that publishes its TypeScript source, the record says `namespace X` only.
+
+The `symbol` tool answers with this text, cut at 10,000 characters, looked up by the name of the namespace, not of a member.
 
 ### Long entries
 

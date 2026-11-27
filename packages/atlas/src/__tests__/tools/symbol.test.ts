@@ -338,6 +338,32 @@ describe('symbol tool: the declaration', () => {
     BrokenPage.claim({ stderr });
   });
 
+  test('a match without a declaration does not stand in for the one that has it', async () => {
+    const records = [
+      record({
+        name: 'Both',
+        shape: 'same',
+        package: '@venizia/ignis',
+        specifier: '@venizia/ignis',
+      }),
+      withText({
+        name: 'Both',
+        shape: 'same',
+        package: '@venizia/ignis-kernel',
+        specifier: '@venizia/ignis-kernel',
+      }),
+    ];
+    const payload = await serve({ records, name: 'Both' });
+    const [first, second] = payload.matches;
+
+    expect(first.declaration).toBeUndefined();
+    expect(first.declarationOf).toBeUndefined();
+    expect(second.declaration).toContain('declare Both;');
+    expect(second.declarationOf).toBeUndefined();
+
+    BrokenPage.claim({ stderr });
+  });
+
   test('a name exported by two packages with one shape is spelled out once', async () => {
     const records = [
       withText({
