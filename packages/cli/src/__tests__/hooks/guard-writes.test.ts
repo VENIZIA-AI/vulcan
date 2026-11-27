@@ -129,6 +129,7 @@ describe("the free text of vulcan's flow and event commands is data, like a comm
     `${VULCAN} flow step --next "${PAYLOAD}" "${'$'}{x}"`,
     `${VULCAN} flow step --next "${PAYLOAD}" "$x"`,
     `${VULCAN} flow step --next "${PAYLOAD}" # note`,
+    `${VULCAN} flow step --next x {a,b} "${PAYLOAD}"`,
     `f() { vulcan flow step --next "${PAYLOAD}"; }; eval "$(f)"`,
     `vulcan flow step --next "${PAYLOAD}" | tail <<< $(sh)`,
     `vulcan flow step --next "${PAYLOAD}" | tail $(sh)`,
@@ -188,6 +189,58 @@ const CASES: { name: string; command: string; flagged: boolean }[] = [
   { name: 'docker compose up', command: 'docker compose up -d', flagged: true },
   { name: 'run a migration', command: 'bun run db:migrate:public:develop', flagged: true },
 ];
+
+describe('the arguments of a reading or message program are data only on a line that keeps them there', () => {
+  const PAYLOAD = 'kubectl apply -f x.yaml';
+
+  test.each([
+    `git commit -m "${PAYLOAD}"`,
+    `git add a && git commit -m "docs: ${PAYLOAD}" && git push`,
+    `rg -n "${PAYLOAD}" docs/ | head`,
+    `cd docs && grep -rn "${PAYLOAD}" . | sort | uniq`,
+    `xargs rg "${PAYLOAD}"`,
+    `find . -type f | xargs rg -n "${PAYLOAD}"`,
+    `rg -n "${PAYLOAD}" docs/ 2>/dev/null | wc -l`,
+    `grep -c "${PAYLOAD}" f 2>&1`,
+    `LC_ALL=C grep "${PAYLOAD}" f`,
+    `grep '$(x) <(y) > z | sh' notes.md && echo "${PAYLOAD}"`,
+    `git log --grep "${PAYLOAD}" # > not a redirect | sh`,
+  ])('quiet: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+  });
+
+  test.each([
+    `watch git log ';' ${PAYLOAD}`,
+    `sudo grep "${PAYLOAD}" f`,
+    `/tmp/e/git log "${PAYLOAD}"`,
+    `./grep "${PAYLOAD}" f`,
+    `git() { shift; "$@"; }; git log ${PAYLOAD}`,
+    `function echo { eval "$@"; }; echo "${PAYLOAD}"`,
+    `alias echo=eval; echo "${PAYLOAD}"`,
+    `echo "${PAYLOAD}" | (sh)`,
+    `echo "${PAYLOAD}" | { sh; }`,
+    `echo "${PAYLOAD}" | while read l; do eval "$l"; done`,
+    `echo "${PAYLOAD}" | tail -1 | sh`,
+    `echo "${PAYLOAD}" | xargs -I{} sh -c {}`,
+    `echo "${PAYLOAD}" |& sh`,
+    `f() { echo "${PAYLOAD}"; }; eval "$(f)"`,
+    `echo "${PAYLOAD}" > x.sh; sh x.sh`,
+    `echo "${PAYLOAD}" >> x.sh && sh x.sh`,
+    `echo "${PAYLOAD}" >| x.sh; sh x.sh`,
+    `echo "${PAYLOAD}" &> x.sh; sh x.sh`,
+    `echo "${PAYLOAD}" 2> x.sh >&2; sh x.sh`,
+    `exec > x.sh; echo "${PAYLOAD}"; sh x.sh`,
+    `echo "${PAYLOAD}" | tail $(sh)`,
+    `echo "${PAYLOAD}" | grep -f <(sh) x`,
+    `grep -f <(sh) "${PAYLOAD}"`,
+    `echo "${PAYLOAD}" | head "$(sh)"`,
+    `echo "${PAYLOAD}" | wc -l \`sh\``,
+    `echo "${PAYLOAD}" >(sh)`,
+    `echo $'it\\'s' "${PAYLOAD}" | sh`,
+  ])('checked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+});
 
 describe('WriteGuard.inspectCommand', () => {
   for (const testCase of CASES) {
