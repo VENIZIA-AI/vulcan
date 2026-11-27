@@ -8,4 +8,4 @@ export const project = {
     { dir: 'atlas', name: '@venizia/vulcan-atlas' },
     { dir: 'cli', name: '@venizia/vulcan' },
   ],
-} satisfies VulcanConfig.Project;
+} satisfies VulcanConfig.ProjectType;

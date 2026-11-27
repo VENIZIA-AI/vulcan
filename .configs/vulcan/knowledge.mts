@@ -18,4 +18,4 @@ export const knowledge = {
     // the private key is the Actions secret ATLAS_INDEX_KEY and exists nowhere else.
     index: { keys: ['RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ='] },
   },
-} satisfies VulcanConfig.Knowledge;
+} satisfies VulcanConfig.KnowledgeType;

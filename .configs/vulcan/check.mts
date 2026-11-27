@@ -18,4 +18,4 @@ export const check = {
       ],
     },
   },
-} satisfies VulcanConfig.Check;
+} satisfies VulcanConfig.CheckType;

@@ -6,4 +6,4 @@ export const common = {
   theme: { accent: '#8a5a20', accentDark: '#dead6a' },
   // The venizia pack adds the three repositories of the stack as atlas sources; this one is the repository itself.
   remove: { 'knowledge.atlas.sources': ['vulcan'] },
-} satisfies VulcanConfig.Common;
+} satisfies VulcanConfig.CommonType;
