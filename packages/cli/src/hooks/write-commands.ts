@@ -95,6 +95,12 @@ export class WriteCommands {
   /** The words that pass an assignment among their arguments on to a later program. */
   static readonly ASSIGNERS = new Set(['declare', 'env', 'export', 'readonly', 'typeset']);
 
+  /** A word the shell hands on as written: no expansion, substitution, glob or brace. */
+  static readonly LITERAL_WORD = /^[A-Za-z0-9_@%+=:,./~-]*$/;
+
+  /** An `xargs` option that sets a placeholder: the first group is `-I`, the second a name attached to the option. */
+  static readonly XARGS_REPLACE = /^(?:-[0prtx]*(?:(I)|i)|--replace(?:=|$))(.*)$/;
+
   /** A client command that runs a SQL file: psql's `\i`, mysql's `source` and `\.`, sqlite3's `.read`. */
   static readonly SQL_FILE_COMMAND =
     /(?:^|;)\s*(?:\\(?:i|ir|include|include_relative|\.)\s|source\s|\.(?:read|import|restore)\s)/im;
@@ -375,7 +381,7 @@ export class WriteCommands {
         const match = WriteCommands.RG_RUNS.exec(word);
         const value = match?.[1] ?? args[index + 1];
 
-        return match !== null && (value === undefined || value.includes('{}'));
+        return match !== null && !WriteCommands.isNamedProgram({ command, value });
       });
     const passed = WriteCommands.ASSIGNERS.has(command.words[0] ?? '') ? command.words : [];
     const hasConfig = [...command.assignments, ...passed].some((word) =>
@@ -385,6 +391,48 @@ export class WriteCommands {
     return isUnnamed || hasConfig
       ? [WriteCommands.hitOf({ message: '`rg` can run a program that the line does not show' })]
       : [];
+  }
+
+  /**
+   * Whether the value of a program option names its program on the line: one literal word (an empty one names none and
+   * runs nothing) that holds no placeholder of `xargs`.
+   */
+  private static isNamedProgram(opts: {
+    command: ISimpleCommand;
+    value: string | undefined;
+  }): boolean {
+    const { command, value } = opts;
+
+    if (value === undefined || !WriteCommands.LITERAL_WORD.test(value)) {
+      return false;
+    }
+
+    return !WriteCommands.placeholdersOf({ words: command.words }).some((placeholder) =>
+      value.includes(placeholder),
+    );
+  }
+
+  /** The names `xargs` replaces with its input: `-I NAME`, `-INAME`, `-i`, `--replace`. */
+  private static placeholdersOf(opts: { words: readonly string[] }): string[] {
+    const { words } = opts;
+    const start = words.indexOf('xargs');
+
+    if (start === -1) {
+      return [];
+    }
+
+    return words.slice(start + 1).flatMap((word, index, rest) => {
+      const match = WriteCommands.XARGS_REPLACE.exec(word);
+
+      if (match === null) {
+        return [];
+      }
+
+      // `-I` takes the next word as its name; `-i` and `--replace` alone mean `{}`.
+      const name = match[2] || (match[1] === undefined ? '' : (rest[index + 1] ?? ''));
+
+      return name === '' ? [] : [name];
+    });
   }
 
   private static fedHitsOf(opts: { program: string; by: string }): IWriteHit[] {
