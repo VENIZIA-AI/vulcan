@@ -215,9 +215,52 @@ describe('an appended variable is not read as its old value', () => {
     ).toBeGreaterThan(0);
   });
 
-  test('a variable set once stays followed', () => {
-    expect(bash({ command: 'S=ok; echo a > $S/b' })).toEqual([]);
+  test.each([
+    'PWD+=/../../escaped; echo hit > $PWD',
+    'PWD=ok; PWD+=/../../escaped; echo hit > $PWD',
+    '{ CLAUDE_PROJECT_DIR+=/../escaped; echo hit > $CLAUDE_PROJECT_DIR; }',
+    '{ S+=/../../escaped; echo hit > $S; }',
+    'if true; then S+=/../../escaped; fi; echo hit > $S',
+    '! S+=/../../escaped; echo hit > $S',
+    'for i in 1; do S+=/../../escaped; done; echo hit > $S',
+    'f(){ S+=/../../escaped; }; f; echo hit > $S',
+    'eval S+=/../../escaped; echo hit > $S',
+    'S+=/../../escaped; bash -c "echo hit > $S"',
+    'for S in ok; do S+=/../../tmp; echo a > $S/b; done',
+    'time S+=/../../escaped; echo hit > $S',
+    'declare S+=/../../escaped; echo hit > $S',
+    'typeset S+=/../../escaped; echo hit > $S',
+    'readonly S+=/../../escaped; echo hit > $S',
+    'command export S+=/../../escaped; echo hit > $S',
+    'builtin export S+=/../../escaped; echo hit > $S',
+    'S+=/../../escaped > $S',
+    'true | S+=/../../escaped; echo hit > $S',
+    "S=.claude/settings; S+=.json; echo '{}' > $S",
+    'cd /etc && f+=$(date) && echo x > $f',
+  ])('%s is flagged, the name held by the environment or not', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+    expect(
+      bash({
+        command,
+        env: { ...ENV, S: 'sub', PWD: PROJECT, CLAUDE_PROJECT_DIR: PROJECT },
+      }).length,
+    ).toBeGreaterThan(0);
   });
+
+  test.each([
+    'HOME=$HOME; cp a $HOME/x',
+    'HOME=/x true; touch $HOME/y',
+    'HOME=$HOME; echo a > $HOME/x',
+  ])('%s is still flagged: the environment reading stays', (command) => {
+    expect(bash({ command, env: { ...ENV, HOME: '/etc' } }).length).toBeGreaterThan(0);
+  });
+
+  test.each(['S=ok; echo a > $S/b', 'for S in ok; do echo a > $S/b; done'])(
+    '%s stays followed',
+    (command) => {
+      expect(bash({ command, env: { ...ENV, S: '/etc' } })).toEqual([]);
+    },
+  );
 });
 
 describe('OutsideGuard.inspect passes', () => {

@@ -179,11 +179,14 @@ export class OutsideGuard {
           configModules: modules,
         })) {
           // A word that names a `for` variable stands for each of its values in turn.
-          for (const vars of loopCombinations({ word: target.word, loops: folder.loops })) {
+          const readings = loopCombinations({ word: target.word, loops: folder.loops }).flatMap(
+            (loopVars) => ShellFolders.readingsOf({ word: target.word, folder, loopVars }),
+          );
+
+          for (const reading of readings) {
             targets.push({
               ...target,
-              pwd: folder.pwd,
-              vars: { ...folder.vars, ...vars },
+              ...reading,
               isKnown: folder.isKnown,
               links: folder.links,
               hasUnknownLink: folder.hasUnknownLink,

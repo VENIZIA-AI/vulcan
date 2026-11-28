@@ -16,6 +16,11 @@ export interface IShellFolder {
   /** The plain `NAME=value` words an earlier command of this same shell set; they win over the environment in a word. */
   vars: TEnvironment;
   /**
+   * The names the line sets somewhere and this command's shell holds no plain value for, each `undefined`; `PWD` is one
+   * whenever the line sets it. What the shell reads there may be the environment's value, or none the check can know.
+   */
+  unset: TEnvironment;
+  /**
    * The variables of the `for NAME in a b` loops the command sits in, with the literal values each takes. The word of a
    * command that names one stands for every value in turn.
    */
@@ -26,9 +31,9 @@ export interface IShellFolder {
   hasUnknownLink: boolean;
 }
 
-interface IFolderState extends Omit<IShellFolder, 'loops' | 'links' | 'hasUnknownLink'> {
+interface IFolderState extends Omit<IShellFolder, 'loops' | 'links' | 'hasUnknownLink' | 'unset'> {
   /** The folders `pushd` saved, for `popd`. */
-  stack: Omit<IShellFolder, 'vars' | 'loops' | 'links' | 'hasUnknownLink'>[];
+  stack: Omit<IShellFolder, 'vars' | 'loops' | 'links' | 'hasUnknownLink' | 'unset'>[];
   /** A `cd`, `pushd` or `popd` ran in this scope. */
   hasMoved: boolean;
 }
@@ -204,6 +209,44 @@ export class ShellFolders {
     return counts;
   }
 
+  /** The names the line sets: assigned, or the variable of a `for` header. */
+  private static setNamesOf(opts: { commands: ISimpleCommand[] }): Set<string> {
+    const headers = opts.commands.flatMap((command) => {
+      const [first, name] = commandWordsOf({ words: command.words });
+
+      return first === 'for' && name !== undefined ? [name] : [];
+    });
+
+    return new Set([...ShellFolders.assignedNames(opts), ...headers]);
+  }
+
+  /**
+   * How a word of a command is read: with the values the check holds, and, when it names a variable the line sets without
+   * a value the check holds, also with that name unknown. Both are judged, so the second reading only adds findings.
+   */
+  static readingsOf(opts: {
+    word: string;
+    folder: IShellFolder;
+    loopVars: Record<string, string>;
+  }): { pwd: string | undefined; vars: TEnvironment }[] {
+    const { word, folder, loopVars } = opts;
+    const held = { pwd: folder.pwd, vars: { ...folder.vars, ...loopVars } };
+    const unknown = Object.keys(folder.unset).filter((name) => !Object.hasOwn(loopVars, name));
+    const isNamed = unknown.some((name) => new RegExp(`\\$\\{?${name}\\b`).test(word));
+
+    if (!isNamed) {
+      return [held];
+    }
+
+    return [
+      held,
+      {
+        pwd: unknown.includes('PWD') ? undefined : folder.pwd,
+        vars: { ...folder.vars, ...folder.unset, ...loopVars },
+      },
+    ];
+  }
+
   /** The names the line assigns. */
   static assignedNames(opts: { commands: ISimpleCommand[] }): Set<string> {
     return new Set(ShellFolders.assignmentCounts(opts).keys());
@@ -279,6 +322,7 @@ export class ShellFolders {
         })?.names.length ?? 0) > 0,
     );
     const loopNames = ShellFolders.loopNamesOf({ commands: opts.commands });
+    const setNames = [...ShellFolders.setNamesOf({ commands: opts.commands })];
     // `cd x` looks for `x` in each folder of CDPATH first: set in the environment of the hook or named anywhere on the line
     // (a prefix assignment, `export`, `declare`), it may put a plain relative name in another folder.
     const hasCdpath =
@@ -333,6 +377,11 @@ export class ShellFolders {
         pwd: state.pwd,
         isKnown: state.isKnown,
         vars: { ...state.vars },
+        unset: Object.fromEntries(
+          setNames.flatMap((variable) =>
+            variable === 'PWD' || state.vars[variable] === undefined ? [[variable, undefined]] : [],
+          ),
+        ),
         // A command line a word carries (`sh -c`, `$(...)`) is another shell: it does not see the loop variables.
         loops: isNested
           ? {}
