@@ -89,6 +89,12 @@ export class WriteCommands {
   /** The `rg` options that name a program to run; the group is a value attached to them. */
   static readonly RG_RUNS = /^--(?:pre|hostname-bin)(?:=([\s\S]*))?$/;
 
+  /** An assignment that gives `rg` a config file, which can name a program to run; empty or `/dev/null` gives none. */
+  static readonly RG_CONFIG = /^RIPGREP_CONFIG_PATH=(?!(?:\/dev\/null)?$)/;
+
+  /** The words that pass an assignment among their arguments on to a later program. */
+  static readonly ASSIGNERS = new Set(['declare', 'env', 'export', 'readonly', 'typeset']);
+
   /** A client command that runs a SQL file: psql's `\i`, mysql's `source` and `\.`, sqlite3's `.read`. */
   static readonly SQL_FILE_COMMAND =
     /(?:^|;)\s*(?:\\(?:i|ir|include|include_relative|\.)\s|source\s|\.(?:read|import|restore)\s)/im;
@@ -352,7 +358,33 @@ export class WriteCommands {
       ...byRg.flatMap((fed) =>
         WriteCommands.fedHitsOf({ program: ShellPrograms.basenameOf({ word: fed }), by: 'rg' }),
       ),
+      ...WriteCommands.unseenRgHitsOf({ command: opts.command, program, args }),
     ];
+  }
+
+  /** `rg` told to run what the line does not show: a `--pre` with no program or a placeholder, or a config file. */
+  private static unseenRgHitsOf(opts: {
+    command: ISimpleCommand;
+    program: string;
+    args: readonly string[];
+  }): IWriteHit[] {
+    const { command, program, args } = opts;
+    const isUnnamed =
+      program === 'rg' &&
+      args.some((word, index) => {
+        const match = WriteCommands.RG_RUNS.exec(word);
+        const value = match?.[1] ?? args[index + 1];
+
+        return match !== null && (value === undefined || value.includes('{}'));
+      });
+    const passed = WriteCommands.ASSIGNERS.has(command.words[0] ?? '') ? command.words : [];
+    const hasConfig = [...command.assignments, ...passed].some((word) =>
+      WriteCommands.RG_CONFIG.test(word),
+    );
+
+    return isUnnamed || hasConfig
+      ? [WriteCommands.hitOf({ message: '`rg` can run a program that the line does not show' })]
+      : [];
   }
 
   private static fedHitsOf(opts: { program: string; by: string }): IWriteHit[] {

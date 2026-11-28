@@ -396,6 +396,30 @@ describe('a line that changes what its commands mean, or an option that runs or 
     },
   );
 
+  test.each([
+    'find . -name x | xargs rg pat --pre',
+    'rg pat . --pre',
+    'echo kubectl | xargs -I{} rg --pre {} pat f',
+    'find . -exec rg --pre={} pat f ";"',
+    'RIPGREP_CONFIG_PATH=./rc rg pat',
+    'export RIPGREP_CONFIG_PATH=./rc; rg pat',
+    'env RIPGREP_CONFIG_PATH=./rc rg pat',
+    'export RIPGREP_CONFIG_PATH=./rc',
+  ])('rg running what the line does not show is asked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    "rg --pre '' pat docs",
+    'rg --pre= pat docs',
+    'RIPGREP_CONFIG_PATH= rg pat',
+    'RIPGREP_CONFIG_PATH=/dev/null rg pat',
+    'rg "RIPGREP_CONFIG_PATH=x" docs',
+    'git commit -m "RIPGREP_CONFIG_PATH=x"',
+  ])('quiet: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+  });
+
   test('a long line is read once: it is answered quickly', () => {
     const command = `${'ls;'.repeat(1998)} echo ${'""'.repeat(40_000)}; ${K}`;
     const started = performance.now();
