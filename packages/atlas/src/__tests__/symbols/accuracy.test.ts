@@ -1,40 +1,30 @@
-import { ProjectConfig } from '@/common/project-config';
-import { SymbolCompute } from '@/symbols';
+import { PackageEntries } from '@/common/package-entries';
+import { AtlasSymbols } from '@/symbols/generator';
 import type { ISymbolRecord } from '@/symbols';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, test } from 'bun:test';
-import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../helpers/ignis-root.helper';
+import { afterAll, describe, expect, test } from 'bun:test';
+import { SymbolWorkspace } from '../helpers/symbol-workspace.helper';
 
-const REPOSITORY_ROOT = IGNIS_ROOT;
-// IGNIS's committed manifest: the symbols are what atlas reads from its built .d.ts today (D2).
-const MANIFEST = join(REPOSITORY_ROOT, '.agents/vulcan.manifest.json');
+// A workspace the test builds itself: sources, declarations and declaration maps, the same on every machine.
+const workspace = SymbolWorkspace.create();
+const REPOSITORY_ROOT = workspace.root;
 const SAMPLE_SIZE = 50;
 
-/**
- * Back-compat aliases: `export { BaseRelationalEntity as BaseEntity }` and friends have no
- * declaration of their own, so `file:line` points at what they alias and the line names the
- * aliased symbol. Listed, never skipped - the sample measures every other symbol.
- */
-const KNOWN_ALIASES = new Set<string>([
-  'BaseDataSource',
-  'BaseEntity',
-  'BasePostgresEntity',
-  'IApplicationConfigs',
-  'TypesenseBaseRepository',
-]);
+afterAll(workspace.remove);
 
 /**
- * The aliases whose declaration file never spells the alias out at all - pinned exactly, so a new
- * one fails here instead of hiding. `IApplicationConfigs` is absent: its file imports that name
- * from kernel on another line.
+ * Re-exports under another name (`export { BaseRelationalEntity as BaseEntity }`) have no declaration of their own, so
+ * `file:line` points at what they alias and the line names the aliased symbol. Listed, never skipped - the sample
+ * measures every other symbol.
  */
-const ALIASES_MISSING_FROM_THEIR_FILE = new Set<string>([
-  'BaseDataSource',
-  'BaseEntity',
-  'BasePostgresEntity',
-  'TypesenseBaseRepository',
-]);
+const KNOWN_ALIASES = new Set<string>(['BaseEntity', 'IConfigs']);
+
+/**
+ * The aliases whose declaration file never spells the alias out at all - pinned exactly, so a new one fails here
+ * instead of hiding. `IConfigs` is absent: its file spells that name on another line.
+ */
+const ALIASES_MISSING_FROM_THEIR_FILE = new Set<string>(['BaseEntity']);
 
 /** Whether the file `entry` names exists and mentions the symbol at all - the line-level check is the sample's job. */
 const fileMentionsItsName = (opts: { entry: ISymbolRecord }): boolean => {
@@ -72,22 +62,23 @@ const sampleOf = (opts: { symbols: ISymbolRecord[]; size: number }): ISymbolReco
   return picked;
 };
 
-const hasManifest = existsSync(MANIFEST);
-
-describe.skipIf(!hasManifest || !IGNIS_IS_BUILT)('symbol accuracy on a 50-symbol sample', () => {
-  const symbols =
-    hasManifest && IGNIS_IS_BUILT
-      ? SymbolCompute.symbolsOfRepository({
-          project: ProjectConfig.readAtlasProject({ root: REPOSITORY_ROOT }),
-        })
-      : [];
+describe('symbol accuracy on a 50-symbol sample', () => {
+  const symbols = AtlasSymbols.recordsOf({
+    repoRoot: REPOSITORY_ROOT,
+    packages: SymbolWorkspace.PACKAGES.map((dir) =>
+      PackageEntries.readDirectory({
+        directory: join(REPOSITORY_ROOT, 'packages', dir),
+        name: dir,
+      }),
+    ),
+  });
   // The aliases are pinned by the whole-table test below; the sample measures the rest.
   const sample = sampleOf({
     symbols: symbols.filter((entry) => !KNOWN_ALIASES.has(entry.name)),
     size: SAMPLE_SIZE,
   });
 
-  test('the sample covers every package the table names, at the full sample size', () => {
+  test('the sample covers every package of the workspace, at the full sample size', () => {
     expect(sample).toHaveLength(SAMPLE_SIZE);
     expect(new Set(sample.map((entry) => entry.package)).size).toBe(
       new Set(symbols.map((entry) => entry.package)).size,
