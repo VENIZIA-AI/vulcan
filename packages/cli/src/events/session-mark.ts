@@ -9,6 +9,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { EventConstants } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /**
  * A time per session, kept in a small private file of a folder of the events folder and named by the actor, for what
@@ -18,14 +19,14 @@ import { EventConstants } from './common/index.ts';
 export class SessionMark {
   /** The time in the actor's file, or `undefined` when there is none or it cannot be read. */
   static read(opts: { dir: string; folder: string; actor: string }): number | undefined {
-    try {
-      const time = Number(readFileSync(SessionMark.fileOf(opts), 'utf8'));
+    return FallbackUtility.of({
+      read: () => {
+        const time = Number(readFileSync(SessionMark.fileOf(opts), 'utf8'));
 
-      return Number.isFinite(time) ? time : undefined;
-      // eslint-disable-next-line venizia/no-silent-catch -- No mark yet
-    } catch {
-      return undefined;
-    }
+        return Number.isFinite(time) ? time : undefined;
+      },
+      otherwise: undefined,
+    });
   }
 
   /** Writes `now` to the actor's file, mode 0600, through a rename so a reader never sees half a file. Throws on failure. */
@@ -42,18 +43,17 @@ export class SessionMark {
   static prune(opts: { dir: string; folder: string; now: number }): void {
     const folder = join(opts.dir, opts.folder);
 
-    try {
-      for (const name of readdirSync(folder)) {
-        const path = join(folder, name);
+    FallbackUtility.attempt({
+      run: () => {
+        for (const name of readdirSync(folder)) {
+          const path = join(folder, name);
 
-        if (opts.now - statSync(path).mtimeMs > EventConstants.STALE_REMINDER_KEEP_MS) {
-          unlinkSync(path);
+          if (opts.now - statSync(path).mtimeMs > EventConstants.STALE_REMINDER_KEEP_MS) {
+            unlinkSync(path);
+          }
         }
-      }
-      // eslint-disable-next-line venizia/no-silent-catch -- Best effort: an old file is a few bytes
-    } catch {
-      // Best effort: an old file is a few bytes.
-    }
+      },
+    });
   }
 
   private static fileOf(opts: { dir: string; folder: string; actor: string }): string {

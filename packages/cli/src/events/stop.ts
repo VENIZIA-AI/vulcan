@@ -11,6 +11,7 @@ import { SessionFlow } from './session-flow.ts';
 import type { ISessionFlow } from './session-flow.ts';
 import { SessionMark } from './session-mark.ts';
 import { EventSettings } from './settings.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** Whether a tracked file of the project was modified after a time (milliseconds). */
 type TEdited = (opts: { root: string; since: number }) => boolean;
@@ -151,12 +152,19 @@ export class BoardStop {
       return undefined;
     }
 
-    try {
-      SessionMark.write({ dir, folder: EventConstants.STALE_REMINDER_DIR, actor, now });
-      SessionMark.prune({ dir, folder: EventConstants.STALE_REMINDER_DIR, now });
-      SessionMark.prune({ dir, folder: EventConstants.OWN_EDIT_DIR, now });
-      // eslint-disable-next-line venizia/no-silent-catch -- A reminder that cannot be remembered would repeat every turn: no reminder
-    } catch {
+    // A reminder that cannot be remembered would repeat every turn: no reminder.
+    const isRemembered = FallbackUtility.of({
+      read: () => {
+        SessionMark.write({ dir, folder: EventConstants.STALE_REMINDER_DIR, actor, now });
+        SessionMark.prune({ dir, folder: EventConstants.STALE_REMINDER_DIR, now });
+        SessionMark.prune({ dir, folder: EventConstants.OWN_EDIT_DIR, now });
+
+        return true;
+      },
+      otherwise: false,
+    });
+
+    if (!isRemembered) {
       return undefined;
     }
 
@@ -188,12 +196,10 @@ export class BoardStop {
         .split('\n')
         .filter((path) => path !== '')
         .some((path) => {
-          try {
-            return statSync(join(opts.root, path)).mtimeMs > opts.since;
-            // eslint-disable-next-line venizia/no-silent-catch -- a file that is gone was not edited since
-          } catch {
-            return false;
-          }
+          return FallbackUtility.of({
+            read: () => statSync(join(opts.root, path)).mtimeMs > opts.since,
+            otherwise: false,
+          });
         })
     );
   }

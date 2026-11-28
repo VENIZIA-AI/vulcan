@@ -2,6 +2,7 @@ import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from 
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import type { TEnvironment, TLinkPassage } from './common/index.ts';
 import { ShellConstants } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** The links one path may pass through before it is taken for a loop, as the system counts them. */
 const MAX_LINK_HOPS = 40;
@@ -10,20 +11,20 @@ const MAX_LINK_HOPS = 40;
 export class ShellPaths {
   /** The home folder of a user, read from the password file; `undefined` for a name it does not list. */
   private static homeOf(opts: { name: string }): string | undefined {
-    try {
-      for (const line of readFileSync('/etc/passwd', 'utf8').split('\n')) {
-        const fields = line.split(':');
+    return FallbackUtility.of({
+      read: () => {
+        for (const line of readFileSync('/etc/passwd', 'utf8').split('\n')) {
+          const fields = line.split(':');
 
-        if (fields[0] === opts.name) {
-          return fields[5];
+          if (fields[0] === opts.name) {
+            return fields[5];
+          }
         }
-      }
-      // eslint-disable-next-line venizia/no-silent-catch -- no readable password file means the user is not known; a guard speaks only its protocol
-    } catch {
-      return undefined;
-    }
 
-    return undefined;
+        return undefined;
+      },
+      otherwise: undefined,
+    });
   }
 
   /**
@@ -148,14 +149,10 @@ export class ShellPaths {
 
       // A link already on disk is followed where it points: it may lead to a link this line makes, and a link that points at
       // nothing yet, in the middle of a path, is where this line may make the folder it needs.
-      let target: string | undefined;
-
-      try {
-        target = lstatSync(current).isSymbolicLink() ? readlinkSync(current) : undefined;
-        // eslint-disable-next-line venizia/no-silent-catch -- a component that cannot be read is no link; a guard speaks only its protocol
-      } catch {
-        target = undefined;
-      }
+      const target = FallbackUtility.of({
+        read: () => (lstatSync(current).isSymbolicLink() ? readlinkSync(current) : undefined),
+        otherwise: undefined,
+      });
 
       if (target === undefined) {
         continue;

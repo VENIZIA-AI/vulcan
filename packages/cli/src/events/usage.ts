@@ -16,6 +16,7 @@ import { EventFlow } from './flow.ts';
 import { FlowSteps } from './flow-steps.ts';
 import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** The four counts of one iteration or one message, and the thinking part of the output when the message says it. */
 interface ITokens {
@@ -242,19 +243,19 @@ export class UsageMeter {
       return false;
     }
 
-    try {
-      const value: unknown = JSON.parse(opts.line);
+    return FallbackUtility.of({
+      read: () => {
+        const value: unknown = JSON.parse(opts.line);
 
-      return (
-        RecordValue.isRecord(value) &&
-        value.type === 'user' &&
-        value.sessionId === opts.own &&
-        value.forkedFrom === undefined
-      );
-      // eslint-disable-next-line venizia/no-silent-catch -- a transcript line that is not JSON is not the session start
-    } catch {
-      return false;
-    }
+        return (
+          RecordValue.isRecord(value) &&
+          value.type === 'user' &&
+          value.sessionId === opts.own &&
+          value.forkedFrom === undefined
+        );
+      },
+      otherwise: false,
+    });
   }
 
   /** The timestamp of the first line of a transcript that has one, or `undefined`: where the session began. */
@@ -266,19 +267,26 @@ export class UsageMeter {
       const read = readSync(descriptor, buffer, 0, HEAD, 0);
 
       for (const line of buffer.subarray(0, read).toString('utf8').split('\n')) {
-        try {
-          const value: unknown = JSON.parse(line);
-          const time =
-            RecordValue.isRecord(value) && typeof value.timestamp === 'string'
-              ? Date.parse(value.timestamp)
-              : Number.NaN;
+        // A line cut by the end of the head is not JSON either: the next one is tried.
+        const found = FallbackUtility.of({
+          read: () => {
+            const value: unknown = JSON.parse(line);
+            const time =
+              RecordValue.isRecord(value) && typeof value.timestamp === 'string'
+                ? Date.parse(value.timestamp)
+                : Number.NaN;
 
-          if (Number.isFinite(time)) {
-            return time;
-          }
-          // eslint-disable-next-line venizia/no-silent-catch -- A line cut by the end of the head, or a line that is not JSON: the next one is tried
-        } catch {
-          // A line cut by the end of the head, or a line that is not JSON: the next one is tried.
+            if (Number.isFinite(time)) {
+              return time;
+            }
+
+            return undefined;
+          },
+          otherwise: undefined,
+        });
+
+        if (found !== undefined) {
+          return found;
         }
       }
 
@@ -298,12 +306,9 @@ export class UsageMeter {
       return undefined;
     }
 
-    let value: unknown;
+    const value = FallbackUtility.parseJson({ text: opts.line });
 
-    try {
-      value = JSON.parse(opts.line);
-      // eslint-disable-next-line venizia/no-silent-catch -- a transcript line that is not JSON holds no message
-    } catch {
+    if (value === undefined) {
       return undefined;
     }
 
@@ -593,16 +598,16 @@ export class UsageMeter {
 
   /** The `agentType` of a subagent's `.meta.json`, or `undefined`. */
   private static agentTypeOf(opts: { file: string }): string | undefined {
-    try {
-      const value: unknown = JSON.parse(readFileSync(opts.file, 'utf8'));
+    return FallbackUtility.of({
+      read: () => {
+        const value: unknown = JSON.parse(readFileSync(opts.file, 'utf8'));
 
-      return RecordValue.isRecord(value) && typeof value.agentType === 'string'
-        ? value.agentType
-        : undefined;
-      // eslint-disable-next-line venizia/no-silent-catch -- a transcript line that is not JSON names no agent type
-    } catch {
-      return undefined;
-    }
+        return RecordValue.isRecord(value) && typeof value.agentType === 'string'
+          ? value.agentType
+          : undefined;
+      },
+      otherwise: undefined,
+    });
   }
 
   /** What every record of one hook call shares, the log read once; `undefined` with `events.log` off. */

@@ -5,22 +5,23 @@ import { BASE_DIRECTORY } from '../common/index.ts';
 import { LocalSettings } from '../common/local-settings.ts';
 import { SyncConstants, SyncStatuses } from './common/index.ts';
 import type { ISyncAction } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const NO_CHANGE = (): void => {};
 
 const git = (opts: { root: string; args: string[] }): string | undefined => {
-  try {
-    const result = Bun.spawnSync(['git', ...opts.args], {
-      cwd: opts.root,
-      stdout: 'pipe',
-      stderr: 'ignore',
-    });
+  return FallbackUtility.of({
+    read: () => {
+      const result = Bun.spawnSync(['git', ...opts.args], {
+        cwd: opts.root,
+        stdout: 'pipe',
+        stderr: 'ignore',
+      });
 
-    return result.exitCode === 0 ? result.stdout.toString().trim() : undefined;
-    // eslint-disable-next-line venizia/no-silent-catch -- no git, or not a repository: undefined is the answer the callers handle
-  } catch {
-    return undefined;
-  }
+      return result.exitCode === 0 ? result.stdout.toString().trim() : undefined;
+    },
+    otherwise: undefined,
+  });
 };
 
 export class ExcludePlan {

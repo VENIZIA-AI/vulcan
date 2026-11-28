@@ -14,6 +14,7 @@ import {
 import type { TAgentEntry } from '../agents/index.ts';
 import { SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TGitTrackState } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const NO_CHANGE = (): void => {};
 
@@ -260,18 +261,18 @@ export class AgentFiles {
    * repository, a broken index) or could not run. A caller that deletes asks for `untracked`, never for "not tracked".
    */
   static trackState(opts: { root: string; path: string }): TGitTrackState {
-    try {
-      const { exitCode } = Bun.spawnSync(['git', 'ls-files', '--error-unmatch', opts.path], {
-        cwd: opts.root,
-        stdout: 'ignore',
-        stderr: 'ignore',
-      });
+    return FallbackUtility.of({
+      read: () => {
+        const { exitCode } = Bun.spawnSync(['git', 'ls-files', '--error-unmatch', opts.path], {
+          cwd: opts.root,
+          stdout: 'ignore',
+          stderr: 'ignore',
+        });
 
-      return exitCode === 0 ? 'tracked' : exitCode === 1 ? 'untracked' : 'unknown';
-      // eslint-disable-next-line venizia/no-silent-catch -- no git, or not a repository: the state is unknown, which the caller handles
-    } catch {
-      return 'unknown';
-    }
+        return exitCode === 0 ? 'tracked' : exitCode === 1 ? 'untracked' : 'unknown';
+      },
+      otherwise: 'unknown',
+    });
   }
 
   /** A file git tracks cannot be hidden by an exclude entry, and a per-developer edit would show as a diff. */

@@ -15,6 +15,7 @@ import { RecordValue } from '../common/record.ts';
 import { OwnerConstants } from './constants.ts';
 import { PROFILE_SCHEMA } from './schema.ts';
 import type { TProfile } from './schema.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 type TProfileRead = { ok: true; profile: TProfile | undefined } | { ok: false; error: string };
 
@@ -26,12 +27,10 @@ export class OwnerProfile {
   static linkedAt(opts: { root: string }): string | undefined {
     return [join(opts.root, OwnerConstants.PROFILE_FILE), join(opts.root, '.agents', 'local')].find(
       (path) => {
-        try {
-          return lstatSync(path).isSymbolicLink();
-          // eslint-disable-next-line venizia/no-silent-catch -- a path that cannot be read is no link
-        } catch {
-          return false;
-        }
+        return FallbackUtility.of({
+          read: () => lstatSync(path).isSymbolicLink(),
+          otherwise: false,
+        });
       },
     );
   }
@@ -106,32 +105,32 @@ export class OwnerProfile {
     kept: Record<string, unknown>;
     dropped: string[];
   } {
-    try {
-      const file: unknown = JSON.parse(
-        readFileSync(join(opts.root, OwnerConstants.PROFILE_FILE), 'utf8'),
-      );
-      // A profile `sync` has not moved yet has the old keys: they are read at their new paths, so a reset keeps them.
-      const current = RecordValue.isRecord(file) ? ProfileKeys.toNew({ value: file }).value : {};
-      const found = Object.entries(current).filter(([key]) => Object.hasOwn(MACHINE_KEYS, key));
-      const checked = found.map(([key, value]) => ({
-        key,
-        value,
-        isValid:
-          Object.entries(MACHINE_KEYS)
-            .find(([name]) => name === key)?.[1]
-            ?.safeParse(value).success === true,
-      }));
+    return FallbackUtility.of({
+      read: () => {
+        const file: unknown = JSON.parse(
+          readFileSync(join(opts.root, OwnerConstants.PROFILE_FILE), 'utf8'),
+        );
+        // A profile `sync` has not moved yet has the old keys: they are read at their new paths, so a reset keeps them.
+        const current = RecordValue.isRecord(file) ? ProfileKeys.toNew({ value: file }).value : {};
+        const found = Object.entries(current).filter(([key]) => Object.hasOwn(MACHINE_KEYS, key));
+        const checked = found.map(([key, value]) => ({
+          key,
+          value,
+          isValid:
+            Object.entries(MACHINE_KEYS)
+              .find(([name]) => name === key)?.[1]
+              ?.safeParse(value).success === true,
+        }));
 
-      return {
-        kept: Object.fromEntries(
-          checked.filter((item) => item.isValid).map((item) => [item.key, item.value]),
-        ),
-        dropped: checked.filter((item) => !item.isValid).map((item) => item.key),
-      };
-      // eslint-disable-next-line venizia/no-silent-catch -- a profile that cannot be read keeps no machine keys
-    } catch {
-      return { kept: {}, dropped: [] };
-    }
+        return {
+          kept: Object.fromEntries(
+            checked.filter((item) => item.isValid).map((item) => [item.key, item.value]),
+          ),
+          dropped: checked.filter((item) => !item.isValid).map((item) => item.key),
+        };
+      },
+      otherwise: { kept: {}, dropped: [] },
+    });
   }
 
   /**

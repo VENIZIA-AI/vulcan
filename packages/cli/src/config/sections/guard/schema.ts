@@ -1,14 +1,13 @@
 import { z } from 'zod';
 import { GuardDecisions } from '../../../hooks/common/constants.ts';
 import { REMOVED_OKF_KEY } from '../../common/schema.ts';
+import { FallbackUtility } from '../../../common/utilities/fallback.utility.ts';
 
 const compiles = (value: string): boolean => {
-  try {
-    return new RegExp(value) instanceof RegExp;
-    // eslint-disable-next-line venizia/no-silent-catch -- a pattern that does not compile is the answer: the schema reports it as an issue
-  } catch {
-    return false;
-  }
+  return FallbackUtility.of({
+    read: () => new RegExp(value) instanceof RegExp,
+    otherwise: false,
+  });
 };
 
 /** A command the project says is a database write (V-W-02) or a deploy (V-W-03): guard-writes asks when its pattern matches. */

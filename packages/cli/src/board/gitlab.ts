@@ -10,6 +10,7 @@ import {
 } from './common/index.ts';
 import type { IBoardEvent } from './common/index.ts';
 import { BoardGithub } from './github.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const text = RecordValue.textOf;
 const FINISHED = new Set(['success', 'failed', 'canceled', 'skipped']);
@@ -71,15 +72,14 @@ export class BoardGitlab {
     let path = scp?.[2] ?? '';
 
     if (scp === null) {
-      try {
-        const parsed = new URL(opts.url);
+      const parsed = FallbackUtility.of({ read: () => new URL(opts.url), otherwise: undefined });
 
-        host = parsed.hostname;
-        path = parsed.pathname;
-        // eslint-disable-next-line venizia/no-silent-catch -- a remote that is not a URL is no GitLab remote
-      } catch {
+      if (parsed === undefined) {
         return undefined;
       }
+
+      host = parsed.hostname;
+      path = parsed.pathname;
     }
 
     const cleaned = path.replace(/^\/+|\/+$/g, '').replace(/\.git$/, '');
@@ -117,12 +117,10 @@ export class BoardGitlab {
       return { problem: (result.stderr ?? '').trim().split('\n')[0] || 'glab failed' };
     }
 
-    try {
-      return { data: JSON.parse(result.stdout) };
-      // eslint-disable-next-line venizia/no-silent-catch -- the result carries the reason the board shows
-    } catch {
-      return { problem: 'glab did not answer with JSON' };
-    }
+    return FallbackUtility.of({
+      read: () => ({ data: JSON.parse(result.stdout) }),
+      otherwise: { problem: 'glab did not answer with JSON' },
+    });
   }
 
   private static listOf(opts: {

@@ -12,6 +12,7 @@ import type {
   TEventStatus,
 } from './common/index.ts';
 import { EventText } from './text.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const ID_TIME_WIDTH = 9;
 const ID_RANDOM_BYTES = 4;
@@ -287,12 +288,9 @@ export class EventLog {
 
   /** One line as an event, or `undefined` when it is not the shape this writes. */
   static parse(opts: { line: string }): IEvent | undefined {
-    let value: unknown;
+    const value = FallbackUtility.parseJson({ text: opts.line });
 
-    try {
-      value = JSON.parse(opts.line);
-      // eslint-disable-next-line venizia/no-silent-catch -- a line that is not JSON is skipped: the event log reader counts it as no event
-    } catch {
+    if (value === undefined) {
       return undefined;
     }
 

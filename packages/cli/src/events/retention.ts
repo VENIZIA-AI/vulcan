@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { EventConstants, EventSizeUnits } from './common/index.ts';
 import type { IEventLimits, IEventSettings } from './common/index.ts';
 import { EventLog } from './log.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 export interface IRetentionFile {
   name: string;
@@ -148,25 +149,23 @@ export class EventRetention {
     let bytes = 0;
 
     for (const file of opts.plan.remove) {
-      try {
-        rmSync(join(opts.dir, file.name), { force: true });
-        files += 1;
-        bytes += file.bytes;
-        // eslint-disable-next-line venizia/no-silent-catch -- Left in place; the next run tries again
-      } catch {
-        // Left in place; the next run tries again.
-      }
+      // Left in place; the next run tries again.
+      FallbackUtility.attempt({
+        run: () => {
+          rmSync(join(opts.dir, file.name), { force: true });
+          files += 1;
+          bytes += file.bytes;
+        },
+      });
     }
 
     return { files, bytes };
   }
 
   private static sizeOf(opts: { path: string }): number {
-    try {
-      return statSync(opts.path).size;
-      // eslint-disable-next-line venizia/no-silent-catch -- a file that is gone has no size
-    } catch {
-      return 0;
-    }
+    return FallbackUtility.of({
+      read: () => statSync(opts.path).size,
+      otherwise: 0,
+    });
   }
 }

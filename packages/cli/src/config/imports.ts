@@ -6,6 +6,7 @@ import { RecordValue } from '../common/record.ts';
 import { ConfigConstants } from './common/index.ts';
 import { ImportSpecifiers } from './import-specifiers.ts';
 import { ConfigLoader } from './loader.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** What an import may name without its extension, in the order a runtime tries them. */
 const EXTENSIONS = ['.mts', '.ts', '.mjs', '.js', '.cts', '.cjs', '.json'];
@@ -86,12 +87,10 @@ type TResolved =
 const LOCAL_PROTOCOL = /^(?:file|link|workspace|portal):/;
 
 const readJson = (opts: { path: string }): unknown => {
-  try {
-    return JSON.parse(readFileSync(opts.path, 'utf8'));
-    // eslint-disable-next-line venizia/no-silent-catch -- a file that cannot be read or parsed is absent to the import check
-  } catch {
-    return undefined;
-  }
+  return FallbackUtility.of({
+    read: () => JSON.parse(readFileSync(opts.path, 'utf8')),
+    otherwise: undefined,
+  });
 };
 
 const errorText = (error: unknown): string =>

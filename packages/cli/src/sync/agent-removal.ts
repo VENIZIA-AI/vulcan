@@ -25,6 +25,7 @@ import { BASE_DIRECTORY, BaseDirectory } from '../common/index.ts';
 import { SyncConstants, SyncLinks, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
 import { isSettingsObject, ProjectSettings } from './settings.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const NO_CHANGE = (): void => {};
 
@@ -32,25 +33,25 @@ const NO_CHANGE = (): void => {};
 const OWN_FOLDERS = new Set(['.cursor', '.codex', '.pi', '.omp', '.vscode', '.claude']);
 
 const removeIfEmpty = (opts: { path: string }): void => {
-  try {
-    if (existsSync(opts.path) && readdirSync(opts.path).length === 0) {
-      rmdirSync(opts.path);
-    }
-    // eslint-disable-next-line venizia/no-silent-catch -- A folder that cannot be removed stays; it is the user's to clean
-  } catch {
-    // A folder that cannot be removed stays; it is the user's to clean.
-  }
+  // A folder that cannot be removed stays; it is the user's to clean.
+  FallbackUtility.attempt({
+    run: () => {
+      if (existsSync(opts.path) && readdirSync(opts.path).length === 0) {
+        rmdirSync(opts.path);
+      }
+    },
+  });
 };
 
 const readJsonObject = (opts: { path: string }): TSettings | undefined => {
-  try {
-    const parsed = { value: JSON.parse(readFileSync(opts.path, 'utf8')) };
+  return FallbackUtility.of({
+    read: () => {
+      const parsed = { value: JSON.parse(readFileSync(opts.path, 'utf8')) };
 
-    return isSettingsObject(parsed) ? parsed.value : undefined;
-    // eslint-disable-next-line venizia/no-silent-catch -- a settings file that cannot be read is left untouched
-  } catch {
-    return undefined;
-  }
+      return isSettingsObject(parsed) ? parsed.value : undefined;
+    },
+    otherwise: undefined,
+  });
 };
 
 /** A skill link sync made: a symlink into the shipped skills, stable or in the package, or into `.agents/skills`. */

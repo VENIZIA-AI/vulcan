@@ -7,6 +7,7 @@ import { LocalClean } from './clean.ts';
 import { CleanScopes, LocalStates } from './constants.ts';
 import { LocalScan } from './scan.ts';
 import { EventLog } from '../events/log.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** The safe part of `.agents/local/`, removed by itself. A wrong guess here would cost nothing a build or a day cannot give back. */
 export class AutoCleanRun {
@@ -67,31 +68,32 @@ export class AutoCleanRun {
   static holdsRepository(opts: { path: string; budget?: { left: number } }): boolean {
     const budget = opts.budget ?? { left: AutoCleanRun.LOOK_LIMIT };
 
-    try {
-      if (!lstatSync(opts.path).isDirectory()) {
+    // What cannot be read cannot be judged: it stays.
+    return FallbackUtility.of({
+      read: () => {
+        if (!lstatSync(opts.path).isDirectory()) {
+          return false;
+        }
+
+        for (const name of readdirSync(opts.path)) {
+          budget.left -= 1;
+
+          if (budget.left < 0 || name === '.git') {
+            return true;
+          }
+
+          if (
+            name !== 'node_modules' &&
+            AutoCleanRun.holdsRepository({ path: join(opts.path, name), budget })
+          ) {
+            return true;
+          }
+        }
+
         return false;
-      }
-
-      for (const name of readdirSync(opts.path)) {
-        budget.left -= 1;
-
-        if (budget.left < 0 || name === '.git') {
-          return true;
-        }
-
-        if (
-          name !== 'node_modules' &&
-          AutoCleanRun.holdsRepository({ path: join(opts.path, name), budget })
-        ) {
-          return true;
-        }
-      }
-
-      return false;
-      // eslint-disable-next-line venizia/no-silent-catch -- What cannot be read cannot be judged: it stays
-    } catch {
-      return true;
-    }
+      },
+      otherwise: true,
+    });
   }
 
   /** How many entries are looked at before a tree counts as holding a repository. */

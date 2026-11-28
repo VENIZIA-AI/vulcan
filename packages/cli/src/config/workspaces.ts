@@ -5,6 +5,7 @@ import { RecordValue } from '../common/record.ts';
 import { WorkspaceGlobs } from './common/index.ts';
 import type { IProjectPackage } from './packages.ts';
 import { VulcanConfigSchema } from './schema.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** A workspace member that is not a package of the derived list, and why. */
 export interface ISkippedMember {
@@ -154,28 +155,28 @@ export class WorkspacePackages {
 
   /** Whether the member's `package.json` says `"private": true`: a package that is never published, so no release table needs it. */
   static isPrivate(opts: { root: string; folder: string }): boolean {
-    try {
-      const file: unknown = JSON.parse(
-        readFileSync(join(opts.root, opts.folder, PACKAGE_FILE), 'utf8'),
-      );
+    return FallbackUtility.of({
+      read: () => {
+        const file: unknown = JSON.parse(
+          readFileSync(join(opts.root, opts.folder, PACKAGE_FILE), 'utf8'),
+        );
 
-      return RecordValue.isRecord(file) && file.private === true;
-      // eslint-disable-next-line venizia/no-silent-catch -- a member with no readable package.json is not private
-    } catch {
-      return false;
-    }
+        return RecordValue.isRecord(file) && file.private === true;
+      },
+      otherwise: false,
+    });
   }
 
   private static nameOf(opts: { root: string; folder: string }): unknown {
-    try {
-      const file: unknown = JSON.parse(
-        readFileSync(join(opts.root, opts.folder, PACKAGE_FILE), 'utf8'),
-      );
+    return FallbackUtility.of({
+      read: () => {
+        const file: unknown = JSON.parse(
+          readFileSync(join(opts.root, opts.folder, PACKAGE_FILE), 'utf8'),
+        );
 
-      return RecordValue.isRecord(file) ? file.name : undefined;
-      // eslint-disable-next-line venizia/no-silent-catch -- a member with no readable package.json has no name
-    } catch {
-      return undefined;
-    }
+        return RecordValue.isRecord(file) ? file.name : undefined;
+      },
+      otherwise: undefined,
+    });
   }
 }

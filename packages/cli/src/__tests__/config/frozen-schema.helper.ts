@@ -32,6 +32,7 @@ import {
   PackageTypes,
   TemplatePlaceholders,
 } from '../../config/common/index.ts';
+import { FallbackUtility } from '../../common/utilities/fallback.utility.ts';
 
 const KIND = z.custom<TPrivateValueKind>(
   (value) => typeof value === 'string' && PrivateValueKinds.isValid(value),
@@ -133,12 +134,10 @@ const INDEX_PUBLIC_KEY = z.string().refine(
 );
 
 const compiles = (value: string): boolean => {
-  try {
-    return new RegExp(value) instanceof RegExp;
-    // eslint-disable-next-line venizia/no-silent-catch -- a pattern that does not compile is the answer the helper gives
-  } catch {
-    return false;
-  }
+  return FallbackUtility.of({
+    read: () => new RegExp(value) instanceof RegExp,
+    otherwise: false,
+  });
 };
 
 const GUARD_COMMAND = z.strictObject({

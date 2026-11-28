@@ -10,6 +10,7 @@ import { BoardAgentSetting } from './agent-setting.ts';
 import { BoardLogo } from './logo.ts';
 import { BOARD_AGENT, BOARD_AGENTS } from './schema.ts';
 import type { TBoardAgentSetting } from './schema.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 export interface IBoardSettings {
   title: string;
@@ -170,14 +171,11 @@ export class BoardSettings {
 
   /** `resolve` for the project at `root`: its manifest, the git user (read by `readGitUser`, by default from git), and the logo file. */
   static read(opts: { root: string; readGitUser?: () => string | undefined }): IBoardSettings {
-    let manifest: unknown;
-
-    try {
-      manifest = JSON.parse(readFileSync(join(opts.root, BoardConstants.MANIFEST_FILE), 'utf8'));
-      // eslint-disable-next-line venizia/no-silent-catch -- a manifest that cannot be read is no board settings: the defaults apply
-    } catch {
-      manifest = {};
-    }
+    const manifest = FallbackUtility.of({
+      read: (): unknown =>
+        JSON.parse(readFileSync(join(opts.root, BoardConstants.MANIFEST_FILE), 'utf8')),
+      otherwise: {},
+    });
 
     const own = LocalSettings.read({ root: opts.root }).boardAgents;
     const checked = own === undefined ? undefined : BOARD_AGENTS.safeParse(own);

@@ -15,6 +15,7 @@ import type {
   TEnvironment,
   TProtectedMode,
 } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
@@ -38,15 +39,15 @@ const matchesNothing = (opts: { word: string; base: string }): boolean => {
     ? opts.word.slice(0, at + 1)
     : join(opts.base, opts.word.slice(0, at + 1));
 
-  try {
-    // both sides in lower case: bash `nocaseglob` matches without regard to case, so this can only ask more often
-    const glob = new Bun.Glob(opts.word.slice(at + 1).toLowerCase());
+  return FallbackUtility.of({
+    read: () => {
+      // both sides in lower case: bash `nocaseglob` matches without regard to case, so this can only ask more often
+      const glob = new Bun.Glob(opts.word.slice(at + 1).toLowerCase());
 
-    return !readdirSync(folder).some((entry) => glob.match(entry.toLowerCase()));
-    // eslint-disable-next-line venizia/no-silent-catch -- an unreadable folder is not a miss (see the doc comment): the probe answers false, and a guard speaks only its protocol
-  } catch {
-    return false;
-  }
+      return !readdirSync(folder).some((entry) => glob.match(entry.toLowerCase()));
+    },
+    otherwise: false,
+  });
 };
 
 /** A word with a pattern in it: the shell expands `*`, `?` and `[...]` into the names that match. */

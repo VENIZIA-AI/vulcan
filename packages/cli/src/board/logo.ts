@@ -2,6 +2,7 @@ import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { PresetPath } from '../create/common/preset-path.ts';
 import { BoardConstants } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** The `board.logo` file: which paths the config accepts and the one place that reads the file. */
 export class BoardLogo {
@@ -24,27 +25,27 @@ export class BoardLogo {
       return undefined;
     }
 
-    try {
-      const real = realpathSync(join(opts.root, opts.path));
+    return FallbackUtility.of({
+      read: () => {
+        const real = realpathSync(join(opts.root, opts.path));
 
-      if (PresetPath.escapes({ root: realpathSync(opts.root), path: real })) {
-        return undefined;
-      }
+        if (PresetPath.escapes({ root: realpathSync(opts.root), path: real })) {
+          return undefined;
+        }
 
-      const stat = statSync(real);
+        const stat = statSync(real);
 
-      if (!stat.isFile() || stat.size > BoardConstants.LOGO_MAX_BYTES) {
-        return undefined;
-      }
+        if (!stat.isFile() || stat.size > BoardConstants.LOGO_MAX_BYTES) {
+          return undefined;
+        }
 
-      const svg = readFileSync(real);
+        const svg = readFileSync(real);
 
-      return /<svg[\s>]/i.test(svg.toString('utf8', 0, 2000))
-        ? `data:image/svg+xml;base64,${svg.toString('base64')}`
-        : undefined;
-      // eslint-disable-next-line venizia/no-silent-catch -- a logo that cannot be read is no logo: the board shows its own mark
-    } catch {
-      return undefined;
-    }
+        return /<svg[\s>]/i.test(svg.toString('utf8', 0, 2000))
+          ? `data:image/svg+xml;base64,${svg.toString('base64')}`
+          : undefined;
+      },
+      otherwise: undefined,
+    });
   }
 }

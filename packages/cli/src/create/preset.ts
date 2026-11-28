@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { JsonValue } from '../common/index.ts';
 import { AppSides, CreateConstants, PresetPath } from './common/index.ts';
 import type { ILocatedPreset, IPresetSpec, TAppSide, TPresetResult } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const PRESET_SCHEMA = z
   .object({
@@ -99,12 +100,10 @@ export class Preset {
       return undefined;
     }
 
-    try {
-      return UTF8.decode(opts.content);
-      // eslint-disable-next-line venizia/no-silent-catch -- content that is not UTF-8 is not text: the caller copies it as bytes
-    } catch {
-      return undefined;
-    }
+    return FallbackUtility.of({
+      read: () => UTF8.decode(opts.content),
+      otherwise: undefined,
+    });
   }
 
   static parseSpec(opts: { value: string; cwd: string }): IPresetSpec {

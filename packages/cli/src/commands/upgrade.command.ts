@@ -5,6 +5,7 @@ import { ExitCodes, JsonValue, PACKAGE_NAME, UpgradeFlags } from '../common/inde
 import type { ICommandContext } from '../common/index.ts';
 import { CreateConstants } from '../create/common/index.ts';
 import { SubProcess } from '../create/process.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** `latest` is the stable channel: never a prerelease. */
 const DEFAULT_TARGET = 'latest';
@@ -27,12 +28,9 @@ const parseTag = (opts: { tags: unknown; key: keyof IDistTags }): TNullable<stri
 
 /** The `latest` and `next` tags of a registry answer, or undefined when it is not an object of versions. */
 const parseDistTags = (opts: { text: string }): IDistTags | undefined => {
-  let parsed: unknown;
+  const parsed = FallbackUtility.parseJson({ text: opts.text });
 
-  try {
-    parsed = JSON.parse(opts.text);
-    // eslint-disable-next-line venizia/no-silent-catch -- a reply that is not JSON has no tags: the caller says the registry could not be read
-  } catch {
+  if (parsed === undefined) {
     return undefined;
   }
 
@@ -90,17 +88,17 @@ const readInstalledVersion = (opts: { cwd: string }): string | undefined => {
     return undefined;
   }
 
-  try {
-    const version = JsonValue.readProperty({
-      value: JSON.parse(readFileSync(file, 'utf8')),
-      key: 'version',
-    });
+  return FallbackUtility.of({
+    read: () => {
+      const version = JsonValue.readProperty({
+        value: JSON.parse(readFileSync(file, 'utf8')),
+        key: 'version',
+      });
 
-    return typeof version === 'string' ? version : undefined;
-    // eslint-disable-next-line venizia/no-silent-catch -- no readable installed manifest is no installed version, which the caller reports
-  } catch {
-    return undefined;
-  }
+      return typeof version === 'string' ? version : undefined;
+    },
+    otherwise: undefined,
+  });
 };
 
 export class UpgradeTarget {

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { EventConstants } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const GITDIR_LINE = /^gitdir:\s*(.+)$/m;
 const HEAD_REF = /^ref:\s*refs\/heads\/(.+?)\s*$/m;
@@ -79,30 +80,28 @@ export class EventFlow {
       return undefined;
     }
 
-    try {
-      if (statSync(path).isDirectory()) {
-        return path;
-      }
+    return FallbackUtility.of({
+      read: () => {
+        if (statSync(path).isDirectory()) {
+          return path;
+        }
 
-      const target = GITDIR_LINE.exec(readFileSync(path, 'utf8'))?.[1]?.trim();
+        const target = GITDIR_LINE.exec(readFileSync(path, 'utf8'))?.[1]?.trim();
 
-      return target === undefined
-        ? undefined
-        : isAbsolute(target)
-          ? target
-          : resolve(opts.directory, target);
-      // eslint-disable-next-line venizia/no-silent-catch -- a .git file that cannot be read names no git folder
-    } catch {
-      return undefined;
-    }
+        return target === undefined
+          ? undefined
+          : isAbsolute(target)
+            ? target
+            : resolve(opts.directory, target);
+      },
+      otherwise: undefined,
+    });
   }
 
   private static headOf(opts: { gitdir: string }): string | undefined {
-    try {
-      return HEAD_REF.exec(readFileSync(join(opts.gitdir, 'HEAD'), 'utf8'))?.[1];
-      // eslint-disable-next-line venizia/no-silent-catch -- no readable HEAD names no branch
-    } catch {
-      return undefined;
-    }
+    return FallbackUtility.of({
+      read: () => HEAD_REF.exec(readFileSync(join(opts.gitdir, 'HEAD'), 'utf8'))?.[1],
+      otherwise: undefined,
+    });
   }
 }
