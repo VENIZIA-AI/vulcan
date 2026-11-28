@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, setSystemTime, test } from 'bun:test';
 import {
   appendFileSync,
   mkdirSync,
@@ -729,6 +729,27 @@ describe('the flow of each line of a transcript', () => {
     ]);
     expect(lines.every((line) => line.flowId === FLOW)).toBe(true);
     expect(stop(root, file)).toEqual([]);
+  });
+
+  test('two marks written in one millisecond: the one further in the transcript is the one read from', () => {
+    setSystemTime(new Date());
+
+    try {
+      // The ids of two lines of one millisecond sort by chance, so the case is run many times.
+      for (let round = 0; round < 20; round += 1) {
+        const root = project();
+        const file = join(root, 't.jsonl');
+
+        writeFileSync(file, assistant({ id: 'm1', top: { out: 10 }, branch: BRANCH }));
+        stop(root, file);
+        appendFileSync(file, assistant({ id: 'm2', top: { out: 7 }, branch: BRANCH }));
+        stop(root, file);
+
+        expect(stop(root, file), `round ${round}`).toEqual([]);
+      }
+    } finally {
+      setSystemTime();
+    }
   });
 
   test('a Stop reads no subagent transcript the log has no mark for: an old one is never booked afterwards', () => {
