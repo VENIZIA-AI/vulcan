@@ -1,3 +1,5 @@
+import { StderrLogger } from '@venizia/vulcan-okf';
+
 export class BunFormatter {
   /**
    * `text` as `bun fmt` formats the file named `opts.file` (only the extension and name matter: the
@@ -14,7 +16,7 @@ export class BunFormatter {
     );
 
     if (result.exitCode !== 0) {
-      console.error(
+      StderrLogger.note(
         `[BunFormatter.format] bun fmt exited ${result.exitCode}, ${opts.file} is left as rendered | ${result.stderr.toString().trim()}`,
       );
 

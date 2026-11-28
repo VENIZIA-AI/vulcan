@@ -1,5 +1,5 @@
 import type { IBoardActivity } from '../../common/index.ts';
-import type { IBoardViewEvent, TTranslate } from '../common/types.ts';
+import type { TBoardViewEvent, TTranslate } from '../common/types.ts';
 
 /**
  * The verb of each type of log line an agent card can show as its latest; a type with no verb shows its words alone.
@@ -22,7 +22,7 @@ const WORDLESS = new Set<string>(['usage', 'session-start']);
 
 /** The one sentence the Latest list says of a line. */
 export class BoardLatest {
-  static textOf(opts: { event: IBoardViewEvent; translate: TTranslate }): string {
+  static textOf(opts: { event: TBoardViewEvent; translate: TTranslate }): string {
     const { event, translate } = opts;
     let verb: string;
 

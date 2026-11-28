@@ -1,6 +1,6 @@
 import { BoardSources } from '../../common/index.ts';
 import type { IBoardData } from '../../common/index.ts';
-import type { IBoardViewEvent } from '../common/types.ts';
+import type { TBoardViewEvent } from '../common/types.ts';
 import { BoardUrl } from '../app/url.ts';
 import { BoardView } from './view.ts';
 
@@ -16,7 +16,7 @@ export interface IOpenPr {
 /** What the card of one agent says beyond its row: its last lines, its open pull requests, the messages nobody answered. */
 export class BoardAgentInfo {
   /** Who sent a message line and who got it: a sent line is the actor's to `to`; a received one is the actor's from `from`. */
-  static endsOf(opts: { data: IBoardData; message: IBoardViewEvent }): {
+  static endsOf(opts: { data: IBoardData; message: TBoardViewEvent }): {
     sender?: string;
     receiver?: string;
   } {
@@ -51,7 +51,7 @@ export class BoardAgentInfo {
   }
 
   /** The pull requests the lines speak of, each with who opened it, whether it merged or closed, and the state of its newest check. */
-  static prsOf(opts: { events: IBoardViewEvent[] }): (IOpenPr & {
+  static prsOf(opts: { events: TBoardViewEvent[] }): (IOpenPr & {
     by?: string;
     merged: boolean;
     closed: boolean;
@@ -88,10 +88,10 @@ export class BoardAgentInfo {
     return Object.values(prs);
   }
 
-  static of(opts: { data: IBoardData; events: IBoardViewEvent[]; name: string }): {
-    mine: IBoardViewEvent[];
+  static of(opts: { data: IBoardData; events: TBoardViewEvent[]; name: string }): {
+    mine: TBoardViewEvent[];
     open: IOpenPr[];
-    pending: IBoardViewEvent[];
+    pending: TBoardViewEvent[];
   } {
     const { data, events, name } = opts;
     const messages = events
@@ -114,7 +114,7 @@ export class BoardAgentInfo {
   }
 
   /** Whether the receiver logged the message as got: the line is its own, or it has a received line with the same words. */
-  static isDelivered(opts: { message: IBoardViewEvent; events: IBoardViewEvent[] }): boolean {
+  static isDelivered(opts: { message: TBoardViewEvent; events: TBoardViewEvent[] }): boolean {
     const { message } = opts;
 
     return (
@@ -131,11 +131,11 @@ export class BoardAgentInfo {
   /** The messages to `name` newer than the last one it sent, each message once (sender, receiver, words and minute). */
   private static pendingOf(opts: {
     data: IBoardData;
-    messages: IBoardViewEvent[];
+    messages: TBoardViewEvent[];
     name: string;
-  }): IBoardViewEvent[] {
+  }): TBoardViewEvent[] {
     const { data, messages, name } = opts;
-    const ends = (message: IBoardViewEvent) => BoardAgentInfo.endsOf({ data, message });
+    const ends = (message: TBoardViewEvent) => BoardAgentInfo.endsOf({ data, message });
     const lastSent = messages.filter((message) => ends(message).sender === name).at(-1)?.ts ?? '';
     const seen = new Set<string>();
 

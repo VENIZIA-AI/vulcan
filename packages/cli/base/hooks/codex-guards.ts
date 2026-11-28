@@ -24,7 +24,7 @@ const textOf = (value: unknown): string | undefined =>
 const parseJson = (opts: { text: string }): unknown => {
   try {
     return JSON.parse(opts.text);
-    // eslint-disable-next-line venizia/no-silent-catch -- a payload that is not JSON reads as absent and the guard decides on that; the hook speaks only its protocol on stdout and stderr
+    // eslint-disable-next-line @venizia/no-silent-catch -- a payload that is not JSON reads as absent and the guard decides on that; the hook speaks only its protocol on stdout and stderr
   } catch {
     return undefined;
   }

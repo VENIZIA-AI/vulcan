@@ -57,7 +57,7 @@ describe('vulcan atlas status: what the last server run recorded', () => {
 
     try {
       sources = JSON.parse(readFileSync(file, 'utf8')).sources;
-      // eslint-disable-next-line venizia/no-silent-catch -- no status file yet is an empty record: the helper adds the first entry
+      // eslint-disable-next-line @venizia/no-silent-catch -- no status file yet is an empty record: the helper adds the first entry
     } catch {
       sources = {};
     }

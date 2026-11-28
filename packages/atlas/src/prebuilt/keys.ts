@@ -1,5 +1,5 @@
 import { createPrivateKey, createPublicKey, generateKeyPairSync } from 'node:crypto';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import type { KeyObject } from 'node:crypto';
 import { PrebuiltConstants } from './constants';
 

@@ -39,23 +39,21 @@ const isReleaseTable = (value: unknown): value is IReleaseTable =>
   'packageMap' in value &&
   Array.isArray(value.packageMap);
 
-const PayloadSchema = z
-  .object({
-    format: z.number().int().positive(),
-    sha: z.string().regex(/^[0-9a-f]{40}$/),
-    repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
-    atlas: z.string().min(1),
-    builtAt: z.string().min(1),
-    bytes: z.number().int().positive(),
-    digest: z.string().regex(/^[0-9a-f]{64}$/),
-    tags: z.string(),
-    history: z.boolean(),
-    // The table as written: a schema object would put its own keys first, and the order is the signed bytes'.
-    releases: z.custom<IReleaseTable>(isReleaseTable),
-  })
-  .strict();
+const PayloadSchema = z.strictObject({
+  format: z.number().int().positive(),
+  sha: z.string().regex(/^[0-9a-f]{40}$/),
+  repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
+  atlas: z.string().min(1),
+  builtAt: z.string().min(1),
+  bytes: z.number().int().positive(),
+  digest: z.string().regex(/^[0-9a-f]{64}$/),
+  tags: z.string(),
+  history: z.boolean(),
+  // The table as written: a schema object would put its own keys first, and the order is the signed bytes'.
+  releases: z.custom<IReleaseTable>(isReleaseTable),
+});
 
-const EnvelopeSchema = z.object({ payload: z.string(), signature: z.string() }).strict();
+const EnvelopeSchema = z.strictObject({ payload: z.string(), signature: z.string() });
 
 export type TPairCheck = { ok: true; payload: IIndexPayload } | { ok: false; reason: string };
 

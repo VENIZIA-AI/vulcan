@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { GitGuard } from '../../hooks/index.ts';
-import type { IGitRunner } from '../../hooks/index.ts';
+import type { TGitRunner } from '../../hooks/index.ts';
 import { git as runGit, initRepo } from '../helpers/git-repo.helper.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 
@@ -10,7 +10,7 @@ afterAll(removeProjects);
 
 /** A fake `git`/`gh`: the current branch, the merged branches and the head branch of a pull request. */
 const runner =
-  (opts: { current?: string; merged?: string[]; head?: string }): IGitRunner =>
+  (opts: { current?: string; merged?: string[]; head?: string }): TGitRunner =>
   (call) => {
     const text = [call.program, ...call.args].join(' ');
 
@@ -29,7 +29,7 @@ const runner =
     return undefined;
   };
 
-const decisions = (opts: { command: string; run?: IGitRunner }): string[] =>
+const decisions = (opts: { command: string; run?: TGitRunner }): string[] =>
   GitGuard.inspect({
     command: opts.command,
     cwd: '/p',
@@ -270,7 +270,7 @@ describe('GitGuard.inspect asks before a blanket stage that is large', () => {
   const status = (opts: { tracked: number; untracked: number }) => {
     const calls: string[] = [];
 
-    const run: IGitRunner = (call) => {
+    const run: TGitRunner = (call) => {
       calls.push([call.program, ...call.args].join(' '));
 
       if (call.args[0] === 'status') {
@@ -348,7 +348,7 @@ describe('GitGuard.inspect asks before a blanket stage that is large', () => {
   });
 
   test('a status that cannot be read lets the command pass', () => {
-    const run: IGitRunner = () => undefined;
+    const run: TGitRunner = () => undefined;
 
     expect(GitGuard.inspect({ command: 'git add -A', cwd: '/p', run })).toEqual([]);
   });

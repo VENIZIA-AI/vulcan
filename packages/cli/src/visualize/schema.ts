@@ -11,15 +11,15 @@ import {
   VisualizeLimits,
 } from './constants.ts';
 import type { TChangeKind } from './constants.ts';
-import { COMPARE_SCHEMA } from './compare-schema.ts';
+import { CompareSchema } from './compare-schema.ts';
 import {
-  GRADES_SCHEMA,
-  LIFECYCLE_SCHEMA,
-  METRICS_SCHEMA,
-  SEQUENCE_SCHEMA,
-  TREE_SCHEMA,
+  GradesSchema,
+  LifecycleSchema,
+  MetricsSchema,
+  SequenceSchema,
+  TreeSchema,
 } from './kinds-schema.ts';
-import { SOURCE_SCHEMA, TERMS_SCHEMA } from './sources.ts';
+import { SourceSchema, TermsSchema } from './sources.ts';
 
 /** One line of plain text: no markup is interpreted anywhere, it is all escaped. */
 const text = (max: number) =>
@@ -34,7 +34,7 @@ const CODE_LIKE = /`|=>|\w_\w|\.\w+\(|(?:^|\s)--\w|[<>{}]/;
 const plain = (max: number) =>
   text(max).refine((value) => !CODE_LIKE.test(value), 'no code here: put it in the detail');
 /** One line of a code block: it may be indented or empty, and holds no control character. */
-const CODE_LINE = z
+const CodeLineSchema = z
   .string()
   .max(VisualizeLimits.MAX_CODE_LINE)
   .regex(/^[^\p{Cc}\u202A-\u202E\u2066-\u2069]*$/u, 'one line of code');
@@ -43,56 +43,58 @@ const choice = (opts: { set: Iterable<string> }) =>
   z
     .string()
     .regex(new RegExp(`^(${[...opts.set].join('|')})$`), `one of: ${[...opts.set].join(', ')}`);
-const ID = z
+const IdSchema = z
   .string()
   .regex(/^[a-z][a-z0-9-]{0,31}$/, 'lowercase letters, digits and -, at most 32');
-const GRID = z
+const GridSchema = z
   .number()
   .int()
   .min(0)
   .max(VisualizeLimits.MAX_GRID - 1);
 /** A link is https and nothing else: no script, no data, no relative path to guess at. */
-const HTTPS = z
+const HttpsSchema = z
   .string()
   .max(500)
   .regex(/^https:\/\/[^\s"'<>\p{Cc}]+$/u, 'an https URL');
-const HEX_COLOUR = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #3f5266');
+const HexColourSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #3f5266');
 const rows = <T extends z.ZodType>(item: T) =>
   z.array(item).min(1).max(VisualizeLimits.MAX_ROWS_PER_TABLE);
 
-const STATE = choice({ set: NodeStates.SCHEME_SET });
+const StateSchema = choice({ set: NodeStates.SCHEME_SET });
 
-const NODE = z.strictObject({
-  id: ID,
+const NodeSchema = z.strictObject({
+  id: IdSchema,
   label: text(VisualizeLimits.MAX_LABEL),
   sublabel: text(VisualizeLimits.MAX_LABEL).optional(),
   detail: text(VisualizeLimits.MAX_DETAIL).optional(),
-  row: GRID,
-  col: GRID,
+  row: GridSchema,
+  col: GridSchema,
   type: choice({ set: NodeKinds.values() }).optional(),
-  state: STATE.optional(),
+  state: StateSchema.optional(),
   /** Where the box comes from: shown as `repo@commit:path:lines` in its detail. */
-  source: SOURCE_SCHEMA.optional(),
+  source: SourceSchema.optional(),
 });
 
-const EDGE = z.strictObject({
-  from: ID,
-  to: ID,
+const EdgeSchema = z.strictObject({
+  from: IdSchema,
+  to: IdSchema,
   /** Every arrow says what it does: a verb. */
   label: text(VisualizeLimits.MAX_EDGE_LABEL),
   variant: choice({ set: EdgeVariants.values() }).optional(),
 });
 
-const STEP = z.strictObject({
+const StepSchema = z.strictObject({
   title: text(VisualizeLimits.MAX_LABEL),
   note: text(VisualizeLimits.MAX_SENTENCE),
-  nodes: z.array(ID).max(VisualizeLimits.MAX_NODES).default([]),
+  nodes: z.array(IdSchema).max(VisualizeLimits.MAX_NODES).default([]),
   /** An edge is named `from>to`. */
   edges: z
     .array(z.string().regex(/^[a-z][a-z0-9-]*>[a-z][a-z0-9-]*$/))
     .max(VisualizeLimits.MAX_EDGES)
     .default([]),
-  source: SOURCE_SCHEMA.optional(),
+  source: SourceSchema.optional(),
 });
 
 const SIDE = (changed: TChangeKind) =>
@@ -108,9 +110,9 @@ const SIDE = (changed: TChangeKind) =>
 
 const LIST = (max = VisualizeLimits.MAX_LIST) =>
   z.array(text(VisualizeLimits.MAX_SENTENCE)).min(1).max(max);
-const NUMBER = z.number().finite().min(-1_000_000_000).max(1_000_000_000);
+const NumberSchema = z.number().finite().min(-1_000_000_000).max(1_000_000_000);
 
-const COMPARISON = z.strictObject({
+const ComparisonSchema = z.strictObject({
   criteria: z.array(text(VisualizeLimits.MAX_LABEL)).min(1).max(VisualizeLimits.MAX_CRITERIA),
   options: z
     .array(
@@ -129,7 +131,7 @@ const COMPARISON = z.strictObject({
   note: text(VisualizeLimits.MAX_SENTENCE).optional(),
 });
 
-const IDEA_MAP = z.strictObject({
+const IdeaMapSchema = z.strictObject({
   center: text(VisualizeLimits.MAX_LABEL),
   branches: z
     .array(
@@ -146,7 +148,7 @@ const IDEA_MAP = z.strictObject({
     .max(VisualizeLimits.MAX_BRANCHES),
 });
 
-const DIAGRAM = z.discriminatedUnion('type', [
+const DiagramSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('row'),
     nodes: z
@@ -175,20 +177,20 @@ const DIAGRAM = z.discriminatedUnion('type', [
   }),
 ]);
 
-const EXPLAINER = z.strictObject({
+const ExplainerSchema = z.strictObject({
   steps: z
     .array(
       z.strictObject({
         title: text(VisualizeLimits.MAX_LABEL),
         text: text(VisualizeLimits.MAX_SENTENCE),
-        diagram: DIAGRAM.optional(),
+        diagram: DiagramSchema.optional(),
       }),
     )
     .min(1)
     .max(VisualizeLimits.MAX_EXPLAINER_STEPS),
 });
 
-const ARCHITECTURE = z.strictObject({
+const ArchitectureSchema = z.strictObject({
   layers: z
     .array(
       z.strictObject({
@@ -196,10 +198,10 @@ const ARCHITECTURE = z.strictObject({
         boxes: z
           .array(
             z.strictObject({
-              id: ID,
+              id: IdSchema,
               label: text(VisualizeLimits.MAX_LABEL),
               sub: text(VisualizeLimits.MAX_LABEL).optional(),
-              state: STATE.optional(),
+              state: StateSchema.optional(),
             }),
           )
           .min(1)
@@ -210,27 +212,31 @@ const ARCHITECTURE = z.strictObject({
     .max(VisualizeLimits.MAX_LAYERS),
   links: z
     .array(
-      z.strictObject({ from: ID, to: ID, label: text(VisualizeLimits.MAX_EDGE_LABEL).optional() }),
+      z.strictObject({
+        from: IdSchema,
+        to: IdSchema,
+        label: text(VisualizeLimits.MAX_EDGE_LABEL).optional(),
+      }),
     )
     .max(VisualizeLimits.MAX_LINKS)
     .default([]),
 });
 
-const TIMELINE = z.strictObject({
+const TimelineSchema = z.strictObject({
   items: z
     .array(
       z.strictObject({
         date: text(VisualizeLimits.MAX_LABEL),
         title: text(VisualizeLimits.MAX_LABEL),
         text: text(VisualizeLimits.MAX_SENTENCE).optional(),
-        state: STATE.optional(),
+        state: StateSchema.optional(),
       }),
     )
     .min(2)
     .max(VisualizeLimits.MAX_TIMELINE),
 });
 
-const CELL = text(VisualizeLimits.MAX_CELL);
+const CellSchema = text(VisualizeLimits.MAX_CELL);
 const TOO_MANY_POINTS = `at most ${VisualizeLimits.MAX_POINTS} points: more than that is a table`;
 
 /** The charts that need no choice of form from the agent: the page draws them as the data says. */
@@ -248,7 +254,7 @@ const MORE_CHARTS = [
       .array(
         z.strictObject({
           name: text(VisualizeLimits.MAX_LABEL),
-          values: z.array(NUMBER.min(0)).min(2).max(VisualizeLimits.MAX_POINTS),
+          values: z.array(NumberSchema.min(0)).min(2).max(VisualizeLimits.MAX_POINTS),
         }),
       )
       .min(2)
@@ -261,9 +267,9 @@ const MORE_CHARTS = [
       .array(
         z.strictObject({
           label: text(VisualizeLimits.MAX_LABEL),
-          value: NUMBER.min(0),
+          value: NumberSchema.min(0),
           /** The limit or the whole the value is read against. */
-          of: NUMBER.positive(),
+          of: NumberSchema.positive(),
           unit: text(16).optional(),
         }),
       )
@@ -274,11 +280,11 @@ const MORE_CHARTS = [
     type: z.literal('table'),
     title: text(VisualizeLimits.MAX_LABEL),
     columns: z.array(text(VisualizeLimits.MAX_LABEL)).min(2).max(VisualizeLimits.MAX_TABLE_COLUMNS),
-    rows: z.array(z.array(CELL)).min(1).max(VisualizeLimits.MAX_TABLE_ROWS),
+    rows: z.array(z.array(CellSchema)).min(1).max(VisualizeLimits.MAX_TABLE_ROWS),
   }),
 ] as const;
 
-const CHART = z.discriminatedUnion('type', [
+const ChartSchema = z.discriminatedUnion('type', [
   ...MORE_CHARTS,
   z.strictObject({
     type: z.literal('bar'),
@@ -289,7 +295,7 @@ const CHART = z.discriminatedUnion('type', [
       .min(2)
       .max(VisualizeLimits.MAX_POINTS, TOO_MANY_POINTS),
     /** One value per label. A negative value draws the bars around a zero line. */
-    values: z.array(NUMBER).min(2).max(VisualizeLimits.MAX_POINTS, TOO_MANY_POINTS),
+    values: z.array(NumberSchema).min(2).max(VisualizeLimits.MAX_POINTS, TOO_MANY_POINTS),
   }),
   z.strictObject({
     type: z.literal('line'),
@@ -303,7 +309,7 @@ const CHART = z.discriminatedUnion('type', [
       .array(
         z.strictObject({
           name: text(VisualizeLimits.MAX_LABEL),
-          values: z.array(NUMBER).min(3).max(VisualizeLimits.MAX_POINTS),
+          values: z.array(NumberSchema).min(3).max(VisualizeLimits.MAX_POINTS),
         }),
       )
       .min(1)
@@ -319,8 +325,8 @@ const CHART = z.discriminatedUnion('type', [
       .array(
         z.strictObject({
           label: text(VisualizeLimits.MAX_LABEL),
-          value: NUMBER.min(0),
-          state: STATE.optional(),
+          value: NumberSchema.min(0),
+          state: StateSchema.optional(),
         }),
       )
       .min(2)
@@ -329,40 +335,42 @@ const CHART = z.discriminatedUnion('type', [
 ]);
 
 /** What a written section holds: a small typed list, never markup. `code` spans inside a text are shown as code. */
-const BLOCK = z.discriminatedUnion('type', [
+const BlockSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('p'), text: text(VisualizeLimits.MAX_SENTENCE) }),
   z.strictObject({ type: z.literal('quote'), text: text(VisualizeLimits.MAX_SENTENCE) }),
   z.strictObject({
     type: z.literal('code'),
-    lines: z.array(CODE_LINE).min(1).max(VisualizeLimits.MAX_CODE_LINES),
+    lines: z.array(CodeLineSchema).min(1).max(VisualizeLimits.MAX_CODE_LINES),
   }),
   z.strictObject({ type: z.literal('ul'), items: LIST(12) }),
   z.strictObject({ type: z.literal('ol'), items: LIST(12) }),
 ]);
 
-const FINDINGS = z.strictObject({
+const FindingsSchema = z.strictObject({
   numbers: z
     .array(
       z.strictObject({
         value: text(16),
         label: text(VisualizeLimits.MAX_LABEL),
-        state: STATE.optional(),
+        state: StateSchema.optional(),
         /** Where the figure is heading: a small line beside it, no axis. */
-        trend: z.array(NUMBER).min(3).max(VisualizeLimits.MAX_POINTS).optional(),
+        trend: z.array(NumberSchema).min(3).max(VisualizeLimits.MAX_POINTS).optional(),
       }),
     )
     .min(1)
     .max(VisualizeLimits.MAX_TILES)
     .optional(),
-  charts: z.array(CHART).min(1).max(VisualizeLimits.MAX_CHARTS).optional(),
+  charts: z.array(ChartSchema).min(1).max(VisualizeLimits.MAX_CHARTS).optional(),
   callouts: z
-    .array(z.strictObject({ text: text(VisualizeLimits.MAX_SENTENCE), state: STATE.optional() }))
+    .array(
+      z.strictObject({ text: text(VisualizeLimits.MAX_SENTENCE), state: StateSchema.optional() }),
+    )
     .min(1)
     .max(4)
     .optional(),
 });
 
-const DECISION_RECORD = z.strictObject({
+const DecisionRecordSchema = z.strictObject({
   context: text(VisualizeLimits.MAX_SENTENCE),
   options: z
     .array(
@@ -379,7 +387,7 @@ const DECISION_RECORD = z.strictObject({
 });
 
 /** The words of the page, English by default; any of them may be replaced (the owner's language). */
-const CHROME = z
+const ChromeSchema = z
   .strictObject({
     ...Object.fromEntries(
       Object.entries(DEFAULT_CHROME)
@@ -434,16 +442,16 @@ const CHROME = z
   .optional();
 
 /** The spec of one page, strict: an unknown key is a typo, and a typo is an error. */
-export const VISUALIZE_SCHEMA = z.strictObject({
+export const VisualizeSpecSchema = z.strictObject({
   schemaVersion: z.literal(VisualizeLimits.SCHEMA_VERSION),
   /** The takeaway, not a topic. */
   title: text(VisualizeLimits.MAX_TITLE),
   /** The accent of this page; it wins over the project's `theme`. A six-digit hex colour. */
-  accent: HEX_COLOUR.optional(),
+  accent: HexColourSchema.optional(),
   /** The accent on dark grounds; derived from `accent` when absent. */
-  accentDark: HEX_COLOUR.optional(),
+  accentDark: HexColourSchema.optional(),
   /** A darker accent for text, when `accent` is too light to be read as text. */
-  accentText: HEX_COLOUR.optional(),
+  accentText: HexColourSchema.optional(),
   status: z.strictObject({
     state: choice({ set: StatusStates.values() }),
     label: text(VisualizeLimits.MAX_LABEL).optional(),
@@ -475,26 +483,26 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   actions: LIST().optional(),
   flow: z
     .strictObject({
-      nodes: z.array(NODE).min(1).max(VisualizeLimits.MAX_NODES),
-      edges: z.array(EDGE).max(VisualizeLimits.MAX_EDGES).default([]),
-      steps: z.array(STEP).max(VisualizeLimits.MAX_STEPS).default([]),
+      nodes: z.array(NodeSchema).min(1).max(VisualizeLimits.MAX_NODES),
+      edges: z.array(EdgeSchema).max(VisualizeLimits.MAX_EDGES).default([]),
+      steps: z.array(StepSchema).max(VisualizeLimits.MAX_STEPS).default([]),
     })
     .optional(),
-  architecture: ARCHITECTURE.optional(),
-  comparison: COMPARISON.optional(),
-  ideaMap: IDEA_MAP.optional(),
-  explainer: EXPLAINER.optional(),
-  timeline: TIMELINE.optional(),
-  findings: FINDINGS.optional(),
-  grades: GRADES_SCHEMA.optional(),
-  metrics: METRICS_SCHEMA.optional(),
-  sequence: SEQUENCE_SCHEMA.optional(),
-  lifecycle: LIFECYCLE_SCHEMA.optional(),
-  tree: TREE_SCHEMA.optional(),
-  compare: COMPARE_SCHEMA.optional(),
+  architecture: ArchitectureSchema.optional(),
+  comparison: ComparisonSchema.optional(),
+  ideaMap: IdeaMapSchema.optional(),
+  explainer: ExplainerSchema.optional(),
+  timeline: TimelineSchema.optional(),
+  findings: FindingsSchema.optional(),
+  grades: GradesSchema.optional(),
+  metrics: MetricsSchema.optional(),
+  sequence: SequenceSchema.optional(),
+  lifecycle: LifecycleSchema.optional(),
+  tree: TreeSchema.optional(),
+  compare: CompareSchema.optional(),
   /** The words of the page a reader may not know; one that never appears in the page is a warning. */
-  terms: TERMS_SCHEMA.optional(),
-  decisionRecord: DECISION_RECORD.optional(),
+  terms: TermsSchema.optional(),
+  decisionRecord: DecisionRecordSchema.optional(),
   beforeAfter: z
     .strictObject({ before: SIDE(ChangeKinds.REMOVED), after: SIDE(ChangeKinds.ADDED) })
     .optional(),
@@ -524,7 +532,7 @@ export const VISUALIZE_SCHEMA = z.strictObject({
     .array(
       z.strictObject({
         title: text(VisualizeLimits.MAX_LABEL),
-        blocks: z.array(BLOCK).min(1).max(VisualizeLimits.MAX_BLOCKS),
+        blocks: z.array(BlockSchema).min(1).max(VisualizeLimits.MAX_BLOCKS),
       }),
     )
     .min(1)
@@ -552,8 +560,10 @@ export const VISUALIZE_SCHEMA = z.strictObject({
       text: text(VisualizeLimits.MAX_SENTENCE),
     }),
   ).optional(),
-  links: rows(z.strictObject({ label: text(VisualizeLimits.MAX_LABEL), href: HTTPS })).optional(),
-  chrome: CHROME,
+  links: rows(
+    z.strictObject({ label: text(VisualizeLimits.MAX_LABEL), href: HttpsSchema }),
+  ).optional(),
+  chrome: ChromeSchema,
 });
 
-export type TVisualizeSpec = z.output<typeof VISUALIZE_SCHEMA>;
+export type TVisualizeSpec = z.output<typeof VisualizeSpecSchema>;

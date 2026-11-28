@@ -1,3 +1,4 @@
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { Glob } from 'bun';
 import {
   chmodSync,
@@ -16,7 +17,7 @@ import { AppSides, CreateConstants, PresetPath } from './common/index.ts';
 import type { ILocatedPreset, IPresetSpec, TAppSide, TPresetResult } from './common/index.ts';
 import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
-const PRESET_SCHEMA = z
+const PresetSchema = z
   .object({
     presetVersion: z.number(),
     side: z.string().refine((value): value is TAppSide => AppSides.isValid(value), {
@@ -130,7 +131,7 @@ export class Preset {
     try {
       return JSON.parse(readFileSync(opts.file, 'utf8'));
     } catch (error) {
-      console.error(
+      StderrLogger.note(
         `[Preset.readJson] ${opts.file} | ${error instanceof Error ? error.message : String(error)}`,
       );
 
@@ -190,7 +191,7 @@ export class Preset {
       };
     }
 
-    const parsed = PRESET_SCHEMA.safeParse(raw);
+    const parsed = PresetSchema.safeParse(raw);
 
     if (!parsed.success) {
       const issues = parsed.error.issues

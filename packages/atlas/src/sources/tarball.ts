@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { AtlasLimits, BoundedBody } from '@/common/limits';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { VulcanError } from '@venizia/vulcan-okf';
 import type { IRemoteRef } from './common';
 import { GitRepository } from './git';

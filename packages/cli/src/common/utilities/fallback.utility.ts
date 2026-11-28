@@ -10,7 +10,6 @@ export class FallbackUtility {
   }): TValue | TOtherwise {
     try {
       return opts.read();
-      // eslint-disable-next-line venizia/no-silent-catch -- the fallback is the answer: each caller's otherwise says what a throw means
     } catch {
       return opts.otherwise;
     }

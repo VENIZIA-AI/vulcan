@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import type { IBoardItem } from '../../common/index.ts';
+import type { TBoardItem } from '../../common/index.ts';
 import { BoardSources } from '../../common/index.ts';
 import { BoardTables } from '../common/constants.ts';
-import type { IBoardViewEvent } from '../common/types.ts';
+import type { TBoardViewEvent } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardUrl } from '../app/url.ts';
@@ -41,7 +41,7 @@ export const Bar = (props: { done: number; total: number }) => (
 );
 
 /** A list of a flow line as a checklist; the checked ones are done. Nothing when the line gave none. */
-export const Checklist = (props: { items: IBoardItem[] | undefined }) => {
+export const Checklist = (props: { items: TBoardItem[] | undefined }) => {
   const { items } = props;
 
   if (items === undefined || items.length === 0) {
@@ -62,7 +62,7 @@ export const Checklist = (props: { items: IBoardItem[] | undefined }) => {
 };
 
 /** Who a line came from (a message the actor got) or went to. */
-const Route = (props: { event: IBoardViewEvent }) => {
+const Route = (props: { event: TBoardViewEvent }) => {
   const { event } = props;
 
   if (event.incoming) {
@@ -83,7 +83,7 @@ const Route = (props: { event: IBoardViewEvent }) => {
 };
 
 /** One line of a flow: when, who to whom, what, and where it came from when that changes how to read it. */
-export const EventItem = (props: { event: IBoardViewEvent; chip?: ReactNode }) => {
+export const EventItem = (props: { event: TBoardViewEvent; chip?: ReactNode }) => {
   const { t } = useUi();
   const { event } = props;
   const approx = BoardTime.isApproximate({ source: event.source });

@@ -2,13 +2,13 @@ import { z } from 'zod';
 import { LoaderEnvironment } from '../../../hooks/loader-environment.ts';
 import { CodingAgents } from '../../common/index.ts';
 
-const CODING_AGENT = z.string().refine((value) => CodingAgents.isValid(value), {
+const CodingAgentSchema = z.string().refine((value) => CodingAgents.isValid(value), {
   message: `one of: ${[...CodingAgents.SCHEME_SET].join(', ')}`,
 });
 
 export const AGENTS_SECTION = {
   /** The project's suggested agents; each developer's own choice lives in `.agents/local/profile.json`. */
-  agents: z.array(CODING_AGENT).optional(),
+  agents: z.array(CodingAgentSchema).optional(),
 };
 
 export const CLAUDE_SECTION = {

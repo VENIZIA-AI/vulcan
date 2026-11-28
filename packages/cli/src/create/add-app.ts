@@ -1,3 +1,4 @@
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
@@ -41,7 +42,7 @@ const readRootManifest = (opts: { path: string }): TRootManifest | undefined => 
   try {
     return JSON.parse(readFileSync(opts.path, 'utf8'));
   } catch (error) {
-    console.error(
+    StderrLogger.note(
       `[readRootManifest] ${opts.path} | ${error instanceof Error ? error.message : String(error)}`,
     );
 

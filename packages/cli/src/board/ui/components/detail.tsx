@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import type { IBoardData, IBoardTokenRow, IBoardTokens } from '../../common/index.ts';
 import { BoardConstants } from '../../common/index.ts';
 import { BoardStateWords, BoardTables } from '../common/constants.ts';
-import type { IAgentRow, IBoardViewEvent, IFlowView } from '../common/types.ts';
+import type { IAgentRow, TBoardViewEvent, IFlowView } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
 import { BoardAgentInfo } from '../state/agent-info.ts';
 import { BoardCards } from '../state/cards.ts';
@@ -251,7 +251,7 @@ const AgentDetail = (props: {
   row: IAgentRow;
   card: IAgentCard;
   data: IBoardData;
-  events: IBoardViewEvent[];
+  events: TBoardViewEvent[];
   shape: string;
   onFlow: (id: string) => void;
 }) => {
@@ -362,7 +362,7 @@ export const Detail = (props: {
   rows: IAgentRow[];
   cards: Record<string, IAgentCard>;
   data: IBoardData;
-  events: IBoardViewEvent[];
+  events: TBoardViewEvent[];
   everything: boolean;
   onEverything: (value: boolean) => void;
   onFlow: (id: string) => void;

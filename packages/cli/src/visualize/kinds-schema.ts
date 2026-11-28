@@ -40,16 +40,16 @@ const choice = (opts: { set: Iterable<string> }) =>
   z
     .string()
     .regex(new RegExp(`^(${[...opts.set].join('|')})$`), `one of: ${[...opts.set].join(', ')}`);
-const ID = z
+const IdSchema = z
   .string()
   .regex(/^[a-z][a-z0-9-]{0,31}$/, 'lowercase letters, digits and -, at most 32');
 
 /** Who talks to whom over time: lanes for the participants, one arrow per message, in order. */
-export const SEQUENCE_SCHEMA = z.strictObject({
+export const SequenceSchema = z.strictObject({
   participants: z
     .array(
       z.strictObject({
-        id: ID,
+        id: IdSchema,
         label: text(VisualizeLimits.MAX_LABEL),
         sublabel: text(VisualizeLimits.MAX_LABEL).optional(),
       }),
@@ -59,8 +59,8 @@ export const SEQUENCE_SCHEMA = z.strictObject({
   messages: z
     .array(
       z.strictObject({
-        from: ID,
-        to: ID,
+        from: IdSchema,
+        to: IdSchema,
         /** A verb phrase: what the sender does. */
         label: text(VisualizeLimits.MAX_EDGE_LABEL),
         type: choice({ set: MessageKinds.values() }).optional(),
@@ -74,11 +74,11 @@ export const SEQUENCE_SCHEMA = z.strictObject({
 });
 
 /** States and what moves a thing from one to the next: one start, at least one end. */
-export const LIFECYCLE_SCHEMA = z.strictObject({
+export const LifecycleSchema = z.strictObject({
   states: z
     .array(
       z.strictObject({
-        id: ID,
+        id: IdSchema,
         label: text(VisualizeLimits.MAX_LABEL),
         sublabel: text(VisualizeLimits.MAX_LABEL).optional(),
         type: choice({ set: LifecycleKinds.values() }).optional(),
@@ -89,8 +89,8 @@ export const LIFECYCLE_SCHEMA = z.strictObject({
   transitions: z
     .array(
       z.strictObject({
-        from: ID,
-        to: ID,
+        from: IdSchema,
+        to: IdSchema,
         /** The trigger: what makes the state change. */
         label: text(VisualizeLimits.MAX_EDGE_LABEL),
       }),
@@ -111,7 +111,7 @@ export interface ITreeNode {
 
 const treeNode = (opts: { level: number }): z.ZodType<ITreeNode> =>
   z.strictObject({
-    id: ID,
+    id: IdSchema,
     label: text(VisualizeLimits.MAX_LABEL),
     sublabel: text(VisualizeLimits.MAX_LABEL).optional(),
     state: choice({ set: NodeStates.SCHEME_SET }).optional(),
@@ -129,7 +129,7 @@ const treeNode = (opts: { level: number }): z.ZodType<ITreeNode> =>
   });
 
 /** A hierarchy: a root, children nested up to four levels, at most 25 nodes in all. */
-export const TREE_SCHEMA = z.strictObject({
+export const TreeSchema = z.strictObject({
   root: treeNode({ level: 0 }),
   caption: text(VisualizeLimits.MAX_SENTENCE).optional(),
 });
@@ -142,10 +142,10 @@ export class GradeLetters extends ConstClass {
 }
 
 /** The colour of a part of a bar: the page's state tones. */
-const PART_TONE = choice({ set: new Set(['ok', 'warn', 'bad', 'info']) });
+const PartToneSchema = choice({ set: new Set(['ok', 'warn', 'bad', 'info']) });
 
 /** A grade for each area, as a chip that always shows its letter. */
-export const GRADES_SCHEMA = z
+export const GradesSchema = z
   .array(
     z.strictObject({
       label: text(VisualizeLimits.MAX_LABEL),
@@ -157,7 +157,7 @@ export const GRADES_SCHEMA = z
   .max(12);
 
 /** Numbers as cards: a value, what it is of, and a bar split into its parts. */
-export const METRICS_SCHEMA = z
+export const MetricsSchema = z
   .array(
     z.strictObject({
       value: text(16),
@@ -169,7 +169,7 @@ export const METRICS_SCHEMA = z
           z.strictObject({
             label: text(VisualizeLimits.MAX_LABEL),
             value: z.number().min(0).max(1_000_000_000),
-            tone: PART_TONE.default('info'),
+            tone: PartToneSchema.default('info'),
           }),
         )
         .min(2)
@@ -180,8 +180,8 @@ export const METRICS_SCHEMA = z
   .min(1)
   .max(6);
 
-export type TSequence = z.output<typeof SEQUENCE_SCHEMA>;
-export type TLifecycle = z.output<typeof LIFECYCLE_SCHEMA>;
-export type TTree = z.output<typeof TREE_SCHEMA>;
-export type TGrades = z.output<typeof GRADES_SCHEMA>;
-export type TMetrics = z.output<typeof METRICS_SCHEMA>;
+export type TSequence = z.output<typeof SequenceSchema>;
+export type TLifecycle = z.output<typeof LifecycleSchema>;
+export type TTree = z.output<typeof TreeSchema>;
+export type TGrades = z.output<typeof GradesSchema>;
+export type TMetrics = z.output<typeof MetricsSchema>;

@@ -1,3 +1,4 @@
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
@@ -22,7 +23,7 @@ export class CommitPolicy {
         return undefined;
       }
 
-      console.error(
+      StderrLogger.note(
         `[CommitPolicy.read] ${MANIFEST_FILE} is missing: agent signatures are refused until you run vulcan project sync`,
       );
 
@@ -37,7 +38,7 @@ export class CommitPolicy {
     try {
       manifest = JSON.parse(readFileSync(file, 'utf8'));
     } catch (error) {
-      console.error(
+      StderrLogger.note(
         `[CommitPolicy.read] ${MANIFEST_FILE} is not JSON | ${error instanceof Error ? error.message : String(error)}`,
       );
 
@@ -54,7 +55,7 @@ export class CommitPolicy {
     const policy = CommitPolicy.parse({ block });
 
     if (policy === undefined) {
-      console.error(
+      StderrLogger.note(
         `[CommitPolicy.read] ignoring check.commit.message in ${MANIFEST_FILE}: not the shape vulcan project sync writes - run vulcan project sync`,
       );
     }

@@ -22,7 +22,7 @@ export class SourceLimits {
  * Where a claim comes from: a repository, the commit it was read at, a path in it and, when it helps, the lines. The shape
  * is checked by `SourceRefs.check` (a commit is 40 lowercase hex characters, a path is relative), so the refusal says why.
  */
-export const SOURCE_SCHEMA = z.strictObject({
+export const SourceSchema = z.strictObject({
   repo: text(100).describe('the repository, like owner/name'),
   commit: text(64).describe('the full commit: exactly 40 lowercase hex characters'),
   path: text(200).describe('a path inside the repository: relative, without ..'),
@@ -30,7 +30,7 @@ export const SOURCE_SCHEMA = z.strictObject({
 });
 
 /** The words of the page that a reader may not know, each with what it means here. */
-export const TERMS_SCHEMA = z
+export const TermsSchema = z
   .array(
     z.strictObject({
       term: text(SourceLimits.MAX_TERM),
@@ -40,8 +40,8 @@ export const TERMS_SCHEMA = z
   .min(1)
   .max(SourceLimits.MAX_TERMS);
 
-export type TSource = z.output<typeof SOURCE_SCHEMA>;
-export type TTerms = z.output<typeof TERMS_SCHEMA>;
+export type TSource = z.output<typeof SourceSchema>;
+export type TTerms = z.output<typeof TermsSchema>;
 
 /** A source and every place on the page that points at it. */
 export interface ISourceEntry {

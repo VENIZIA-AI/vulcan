@@ -16,7 +16,7 @@ import type {
   IBoardEvent,
   IBoardFlow,
   IBoardTokens,
-  IBoardItem,
+  TBoardItem,
   TBoardState,
 } from './common/index.ts';
 
@@ -226,8 +226,8 @@ export class BoardFold {
     why?: string;
     context?: string;
     next?: string;
-    steps?: IBoardItem[];
-    checks?: IBoardItem[];
+    steps?: TBoardItem[];
+    checks?: TBoardItem[];
     apps?: string[];
     due?: string;
     order?: number;

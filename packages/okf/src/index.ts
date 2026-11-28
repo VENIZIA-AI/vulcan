@@ -5,6 +5,8 @@ export { ContentsList } from './generate/contents.ts';
 
 /** The error and the small types every VULCAN package shares. */
 export { VulcanError } from './common/error.ts';
+export { LogLevels, StderrLogger } from './common/stderr-logger.ts';
+export type { ILogger, TLogLevel } from './common/stderr-logger.ts';
 export { ConstClass } from './common/types.ts';
 export type { TConstValue, TNullable } from './common/types.ts';
 

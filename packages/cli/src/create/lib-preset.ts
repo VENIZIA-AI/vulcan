@@ -20,7 +20,7 @@ const GENERATED_FIELDS: Record<string, string> = {
   peerDependencies: 'peerDependencies',
 };
 
-const LIB_SCHEMA = z
+const LibSchema = z
   .strictObject({
     presetVersion: z.number(),
     summary: z.string(),
@@ -75,7 +75,7 @@ const LIB_SCHEMA = z
     }
   });
 
-export type TLibPreset = Omit<z.infer<typeof LIB_SCHEMA>, 'files'> & {
+export type TLibPreset = Omit<z.infer<typeof LibSchema>, 'files'> & {
   /** The folder holding the files to copy, absolute. */
   files: string;
 };
@@ -117,7 +117,7 @@ export class LibPreset {
       };
     }
 
-    const parsed = LIB_SCHEMA.safeParse(raw);
+    const parsed = LibSchema.safeParse(raw);
 
     if (!parsed.success) {
       const issues = parsed.error.issues

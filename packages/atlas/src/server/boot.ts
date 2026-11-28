@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { availableParallelism, freemem } from 'node:os';
 import { join } from 'node:path';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { VulcanError } from '@venizia/vulcan-okf';
 import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
 import type { TConstValue } from '@/common/types';

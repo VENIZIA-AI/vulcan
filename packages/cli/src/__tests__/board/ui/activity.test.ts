@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { IBoardData } from '../../../board/common/index.ts';
 import { BoardFold } from '../../../board/fold.ts';
 import { BoardLanguages } from '../../../board/ui/common/constants.ts';
-import type { IBoardViewEvent } from '../../../board/ui/common/types.ts';
+import type { TBoardViewEvent } from '../../../board/ui/common/types.ts';
 import { BoardI18n } from '../../../board/ui/i18n/translate.ts';
 import { BoardAgentInfo } from '../../../board/ui/state/agent-info.ts';
 import { BoardCards } from '../../../board/ui/state/cards.ts';
@@ -101,7 +101,7 @@ describe('an agent card: state and latest from the newest line of any type', () 
 });
 
 describe('a message not replied yet: delivered when the receiver logged it', () => {
-  const sent: IBoardViewEvent = {
+  const sent: TBoardViewEvent = {
     id: 's',
     flowId: 'F-1',
     ts: commit.ts,
@@ -112,7 +112,7 @@ describe('a message not replied yet: delivered when the receiver logged it', () 
     summary: 'ready?',
     source: 'cli',
   };
-  const got: IBoardViewEvent = {
+  const got: TBoardViewEvent = {
     ...sent,
     id: 'g',
     actor: 'api-lead',

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { TNullable } from '@venizia/vulcan-okf';
-import { OwnerSurvey, PROFILE_SCHEMA } from '../../owner/index.ts';
+import { OwnerSurvey, ProfileSchema } from '../../owner/index.ts';
 import type { ISurveyIo } from '../../owner/index.ts';
 
 /** A form io fed from a queue of answers; `undefined` takes the default, `null` cancels. */
@@ -66,7 +66,7 @@ describe('OwnerSurvey.run', () => {
     const profile = await OwnerSurvey.run({ io, systemLanguage: 'en' });
 
     expect(profile).toEqual(
-      PROFILE_SCHEMA.parse({
+      ProfileSchema.parse({
         schemaVersion: 1,
         language: 'en',
         address: { formality: 'neutral' },
@@ -150,7 +150,7 @@ describe('OwnerSurvey.run', () => {
 
     expect(keep?.labels).toEqual({});
 
-    const existing = PROFILE_SCHEMA.parse({
+    const existing = ProfileSchema.parse({
       schemaVersion: 1,
       language: 'fr',
       labels: {
@@ -175,7 +175,7 @@ describe('OwnerSurvey.run', () => {
   });
 
   test('run again, the earlier answers are the defaults and the stricter enforce is kept', async () => {
-    const existing = PROFILE_SCHEMA.parse({
+    const existing = ProfileSchema.parse({
       schemaVersion: 1,
       language: 'en',
       address: { you: 'Alex', formality: 'formal' },
