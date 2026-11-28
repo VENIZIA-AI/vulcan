@@ -172,7 +172,7 @@ export class BrowserPage {
 
             return connected;
           }
-          // eslint-disable-next-line venizia/no-silent-catch -- Still starting
+          // eslint-disable-next-line @venizia/no-silent-catch -- Still starting
         } catch {
           // Still starting.
         }

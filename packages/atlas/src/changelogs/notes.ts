@@ -25,7 +25,7 @@ export class VersionNotes {
       const parsed: unknown = Bun.YAML.parse(opts.migration);
 
       return typeof parsed === 'object' && parsed !== null && Object.keys(parsed).length > 0;
-      // eslint-disable-next-line venizia/no-silent-catch -- this file imports nothing (the release scripts load it from the repository), so it has no logger; the gate reports the file
+      // eslint-disable-next-line @venizia/no-silent-catch -- this file imports nothing (the release scripts load it from the repository), so it has no logger; the gate reports the file
     } catch {
       // A file that does not parse is not "no block": it ships, and the gate is where it fails.
       return true;

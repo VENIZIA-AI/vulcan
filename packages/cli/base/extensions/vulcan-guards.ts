@@ -158,7 +158,7 @@ const isHeldIn = (opts: { root: string }): boolean => {
       return readdirSync(join(opts.root, '.configs')).some((name) =>
         name.startsWith('vulcan.config.'),
       );
-      // eslint-disable-next-line venizia/no-silent-catch -- no .configs folder means no config; a guard speaks only its protocol
+      // eslint-disable-next-line @venizia/no-silent-catch -- no .configs folder means no config; a guard speaks only its protocol
     } catch {
       return false;
     }
@@ -169,7 +169,7 @@ const isHeldIn = (opts: { root: string }): boolean => {
     const guard = isRecord(manifest) ? manifest.guard : undefined;
 
     return !isRecord(manifest) || (isRecord(guard) && guard.asks === Answers.DENY);
-    // eslint-disable-next-line venizia/no-silent-catch -- a manifest that exists and cannot be read holds every ask; a guard speaks only its protocol
+    // eslint-disable-next-line @venizia/no-silent-catch -- a manifest that exists and cannot be read holds every ask; a guard speaks only its protocol
   } catch {
     return true;
   }

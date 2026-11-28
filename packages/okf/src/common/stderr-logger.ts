@@ -10,6 +10,7 @@ export class LogLevels extends ConstClass {
   static readonly EMERG = 'emerg';
 }
 
+/** One of the levels of `LogLevels`. */
 export type TLogLevel = TConstValue<typeof LogLevels>;
 
 /** A scoped logger; `for` narrows the scope to one method. Every line goes to stderr. */

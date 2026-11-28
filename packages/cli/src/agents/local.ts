@@ -28,7 +28,7 @@ const REMOVED_KEY = (opts: { to: string }) =>
     })
     .optional();
 
-/** The machine's keys of the profile, in the groups of the config: the shape the owner's `PROFILE_SCHEMA` and the reader of the choice share. */
+/** The machine's keys of the profile, in the groups of the config: the shape the owner's `ProfileSchema` and the reader of the choice share. */
 export const MACHINE_KEYS = {
   /** `list` is the agents of this machine, over `agent.list` of the committed config. */
   agent: z.strictObject({ list: z.array(z.string()).optional() }).optional(),
