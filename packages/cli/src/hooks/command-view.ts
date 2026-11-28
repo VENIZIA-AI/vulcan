@@ -1,32 +1,7 @@
 import { ShellParser } from './shell.ts';
 import { ShellPrograms } from './shell-programs.ts';
-import type { ISimpleCommand } from './common/index.ts';
-
-/** Programs that only read or print what they are given: their arguments are text to find or show, never a command to run. */
-const READ_ONLY_PROGRAMS = new Set([
-  'rg',
-  'grep',
-  'egrep',
-  'fgrep',
-  'ag',
-  'ack',
-  'cat',
-  'less',
-  'more',
-  'head',
-  'tail',
-  'wc',
-  'ls',
-  'diff',
-  'sort',
-  'uniq',
-  'echo',
-  'printf',
-  'man',
-  'file',
-  'stat',
-  'which',
-]);
+import { LineReader } from './line-reading.ts';
+import type { ILineReading, ISimpleCommand } from './common/index.ts';
 
 /** Programs whose arguments are messages and titles for the write guards (a commit message, an issue body). */
 const MESSAGE_PROGRAMS = new Set(['git', 'gh']);
@@ -42,28 +17,6 @@ const VULCAN_BIN = 'node_modules/.bin/vulcan';
 
 /** The scopes of VULCAN whose arguments are titles and notes of the board: nothing in them is run. */
 const VULCAN_NOTE_SCOPES = new Set(['flow', 'event']);
-
-/**
- * A line that is one command and nothing else: no operator, redirect, parenthesis, brace, comment, expansion or second line
- * outside quotes, and no expansion or backtick inside double quotes.
- */
-const ONE_COMMAND =
-  /^(?:[^'"`$|;&<>(){}#\\\n\r]|\\[^\n\r]|'[^'\n\r]*'|"(?:\\[^\n\r]|[^"\\`$\n\r])*")*$/;
-
-/** What a line says that runs nothing of its own: an escaped character and a single-quoted string; or a double-quoted one, kept for what it expands. */
-const LITERAL_TEXT = /\\.|'[^']*'|("(?:\\.|[^"\\])*")/g;
-
-/** The same with double-quoted strings and comments too: what is left is the line's own operators and names. */
-const NOT_CODE = /\\.|'[^']*'|"(?:\\.|[^"\\])*"|(?<=^|\s)#[^\n]*/g;
-
-/** A substitution, a process substitution, or the `$'...'` quoting, which is not followed here. */
-const SUBSTITUTES = /\$\(|`|<\(|>\(|\$'/;
-
-/** The redirects that send output nowhere new. */
-const DROPPED_OUTPUT = /(?:[12]?>\s*\/dev\/null|[12]?>&[12])(?![^\s;&|)])/g;
-
-/** The program a pipe feeds, read past `xargs` and its switches. */
-const PIPED_PROGRAM = /^\s*(?:xargs\s+(?:-\S+\s+)*)?([\w.-]*)(?=\s|;|&|\)|$)/;
 
 /** The `gh` options that take the repository as their value: that value is not the subcommand. */
 const GH_REPOSITORY_FLAGS = new Set(['-R', '--repo']);
@@ -142,7 +95,7 @@ export class CommandView {
    * `bun` with the project's bin, and the line holds nothing besides that one command. Anything else is read like
    * every command.
    */
-  private static isPlainNote(opts: { command: ISimpleCommand; line?: string }): boolean {
+  private static isPlainNote(opts: { command: ISimpleCommand; line?: ILineReading }): boolean {
     const { command, line } = opts;
     const [first, second, third] = command.words;
     const isNote =
@@ -153,53 +106,29 @@ export class CommandView {
       isNote &&
       command.assignments.length === 0 &&
       command.scope === undefined &&
-      line !== undefined &&
-      ONE_COMMAND.test(line.trim())
+      line?.isOneCommand === true
     );
   }
 
   /**
    * Whether a reading or message program is written so that its arguments stay data: its first word is its name (or
-   * `xargs`), with no wrapper, path or keyword before it, and the line neither gives that name another meaning,
-   * substitutes a command, writes output to a file, nor pipes into a program that does more than read.
+   * `xargs`), with no wrapper, path or keyword before it, on a line that keeps them (`LineReader.read`).
    */
   private static keepsArguments(opts: {
     command: ISimpleCommand;
     name: string;
-    line?: string;
+    line?: ILineReading;
   }): boolean {
-    const { name, line } = opts;
     const first = opts.command.words[0];
 
-    if (first !== name && first !== 'xargs') {
-      return false;
-    }
-
-    if (line === undefined) {
-      return true;
-    }
-
-    const expanded = line.replace(LITERAL_TEXT, (_: string, quoted?: string) => quoted ?? ' _ ');
-    const code = line.replace(NOT_CODE, ' _ ').replace(DROPPED_OUTPUT, ' ');
-    const safe = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const redefines = new RegExp(
-      `(?:^|[\\s;&|(){}])(?:function\\s+${safe}(?![\\w.-])|${safe}\\s*\\(\\s*\\)|alias\\s+${safe}=)`,
-    );
-    const piped = code.replaceAll('||', ';').split('|').slice(1);
-
-    return (
-      !SUBSTITUTES.test(expanded) &&
-      !code.includes('>') &&
-      !redefines.test(code) &&
-      piped.every((part) => READ_ONLY_PROGRAMS.has(PIPED_PROGRAM.exec(part)?.[1] ?? ''))
-    );
+    return (first === opts.name || first === 'xargs') && opts.line?.keepsData !== false;
   }
 
   /** The text of one simple command: the words, a bare name for data, a reader's heredoc body appended. */
   private static textOf(opts: {
     command: ISimpleCommand;
     withMessages: boolean;
-    line: string;
+    line: ILineReading;
   }): string {
     const { command } = opts;
     const name = ShellPrograms.basenameOf({ word: ShellPrograms.programOf({ command }).name });
@@ -211,7 +140,7 @@ export class CommandView {
     const body =
       command.heredoc !== undefined && HEREDOC_READERS.has(name) ? `\n${command.heredoc}` : '';
 
-    return `${command.words.join(' ')}${body}`;
+    return `${[...command.words, ...LineReader.ranOf({ command })].join(' ')}${body}`;
   }
 
   /**
@@ -221,8 +150,8 @@ export class CommandView {
   static isDataOnly(opts: {
     command: ISimpleCommand;
     withMessages: boolean;
-    /** The whole line as written; without it no note command is data. */
-    line?: string;
+    /** What the whole line allows; without it no note command is data. */
+    line?: ILineReading;
   }): boolean {
     const name = ShellPrograms.basenameOf({
       word: ShellPrograms.programOf({ command: opts.command }).name,
@@ -239,7 +168,8 @@ export class CommandView {
     const isData =
       name === 'find'
         ? !opts.command.words.some((word) => FIND_RUNS.has(word))
-        : READ_ONLY_PROGRAMS.has(name) || (opts.withMessages && MESSAGE_PROGRAMS.has(name));
+        : LineReader.READ_ONLY_PROGRAMS.has(name) ||
+          (opts.withMessages && MESSAGE_PROGRAMS.has(name));
 
     return isData && CommandView.keepsArguments({ ...opts, name });
   }
@@ -259,9 +189,9 @@ export class CommandView {
   static viewOf(opts: { command: string; withMessages: boolean }): ICommandView {
     const { text } = ShellParser.splitHeredocs({ command: opts.command });
     const parsed = ShellParser.parseChecked({ command: opts.command });
+    const line = LineReader.read({ line: opts.command, text, commands: parsed.commands });
     const commands = parsed.commands.filter(
-      (command) =>
-        !CommandView.isDataOnly({ command, withMessages: opts.withMessages, line: opts.command }),
+      (command) => !CommandView.isDataOnly({ command, withMessages: opts.withMessages, line }),
     );
     // Read from the commands, not the text, so a `| sh` in a comment or in quotes feeds nothing.
     const isWholeLine = parsed.commands.some(
@@ -274,7 +204,7 @@ export class CommandView {
     const texts = isWholeLine
       ? [text]
       : parsed.commands.map((command) =>
-          CommandView.textOf({ command, withMessages: opts.withMessages, line: opts.command }),
+          CommandView.textOf({ command, withMessages: opts.withMessages, line }),
         );
     const sources = isWholeLine ? [undefined] : parsed.commands;
 

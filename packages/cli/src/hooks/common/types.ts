@@ -72,6 +72,14 @@ export interface IOutsideHit {
 }
 
 /** One simple command of a shell line: its words, the files it redirects into, its leading `NAME=value` words. */
+/** What a whole command line allows, read once for all of its commands. */
+export interface ILineReading {
+  /** The line is one command and nothing else. */
+  isOneCommand: boolean;
+  /** Nothing on the line can run or keep what a reading or message program is given. */
+  keepsData: boolean;
+}
+
 export interface ISimpleCommand {
   words: string[];
   redirects: string[];

@@ -330,6 +330,31 @@ export class WriteCommands {
     return previous !== undefined && opts.client.inline.exec(previous)?.[1] === '';
   }
 
+  /**
+   * A program of the table that `xargs` runs with nothing but options of its own: its command comes from the input of
+   * `xargs`, which no pattern can read.
+   */
+  static inspectXargs(opts: { command: ISimpleCommand }): IWriteHit[] {
+    if (!opts.command.words.includes('xargs')) {
+      return [];
+    }
+
+    const { name, args } = ShellPrograms.programOf({ command: opts.command });
+    const program = ShellPrograms.basenameOf({ word: name });
+    const check = WriteCommands.CHECKS.find((row) => row.programs.has(program));
+
+    if (check === undefined || args.some((word) => !word.startsWith('-'))) {
+      return [];
+    }
+
+    return [
+      {
+        rule: check.rule,
+        message: `${check.what}: \`xargs\` gives ${program} its command from the input`,
+      },
+    ];
+  }
+
   private static hitOf(opts: { message: string }): IWriteHit {
     return { rule: 'V-W-02', message: opts.message };
   }
