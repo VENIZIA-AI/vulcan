@@ -27,7 +27,7 @@ const PATCH_VERBS = new Set(['patch', 'patch-commit']);
 const NOT_A_VERB = new Set(['run', 'exec', 'x', 'dlx', 'create', 'init', 'pm', 'pkg']);
 /** The flags and variables that decide where an install takes its packages from. */
 const SOURCE_FLAGS = /^--(?:registry|cache-dir|config)(?:=|$)/;
-const SOURCE_VARIABLES = /^(?:BUN_CONFIG_REGISTRY|npm_config_registry|NPM_CONFIG_REGISTRY)=/;
+const SOURCE_VARIABLES = /^(?:BUN_CONFIG_REGISTRY|npm_config_registry|NPM_CONFIG_REGISTRY)\+?=/;
 /** The flags that move the folder a package manager runs in, and the ones whose value is not a package. */
 const FOLDER_FLAGS = /^(?:--cwd|--prefix|--dir|-C)(?:=|$)/;
 const VALUE_FLAGS =

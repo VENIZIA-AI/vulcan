@@ -38,6 +38,8 @@ const decisions = (opts: { command: string; run?: TGitRunner }): string[] =>
 
 describe('GitGuard.inspect denies', () => {
   test.each([
+    'A+=1 git push --force origin main',
+    'ls | xargs -J git push --force origin main',
     'git branch -D develop',
     'git branch -d main',
     'git branch --delete develop',

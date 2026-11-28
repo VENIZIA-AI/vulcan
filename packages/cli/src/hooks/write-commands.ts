@@ -89,6 +89,21 @@ export class WriteCommands {
   /** The `rg` options that name a program to run; the group is a value attached to them. */
   static readonly RG_RUNS = /^--(?:pre|hostname-bin)(?:=([\s\S]*))?$/;
 
+  /** An assignment that gives `rg` a config file, which can name a program to run; empty or `/dev/null` gives none. */
+  static readonly RG_CONFIG = /^RIPGREP_CONFIG_PATH\+?=(?!(?:\/dev\/null)?$)/;
+
+  /** The programs that pass an assignment among their arguments on to a later program. */
+  static readonly ASSIGNERS = new Set(['declare', 'export', 'local', 'readonly', 'typeset']);
+
+  /** A word the shell hands on as written: no expansion, substitution, glob or brace. */
+  static readonly LITERAL_WORD = /^[A-Za-z0-9_@%+=:,./~-]*$/;
+
+  /** An `xargs` option that sets a placeholder: the first group is `-I` or `-J`, the second a name attached to it. */
+  static readonly XARGS_REPLACE = /^(?:-[0oprtx]*(?:([IJ])|i)|--r[eplac]*(?:=|$))(.*)$/;
+
+  /** The BSD `xargs -J`, alone or ending a group of switches; the group is a name attached to it. */
+  static readonly XARGS_BSD_REPLACE = /^-[0oprtx]*J(.*)$/;
+
   /** A client command that runs a SQL file: psql's `\i`, mysql's `source` and `\.`, sqlite3's `.read`. */
   static readonly SQL_FILE_COMMAND =
     /(?:^|;)\s*(?:\\(?:i|ir|include|include_relative|\.)\s|source\s|\.(?:read|import|restore)\s)/im;
@@ -341,9 +356,21 @@ export class WriteCommands {
    * or as the program `rg` runs on each file (`--pre`) or for its links (`--hostname-bin`).
    */
   static inspectFed(opts: { command: ISimpleCommand }): IWriteHit[] {
-    const { name, args } = ShellPrograms.programOf({ command: opts.command });
+    const placeholders = WriteCommands.placeholdersOf({ command: opts.command });
+
+    return WriteCommands.readingsOf({ command: opts.command }).flatMap((command) =>
+      WriteCommands.fedOf({ command, placeholders }),
+    );
+  }
+
+  private static fedOf(opts: {
+    command: ISimpleCommand;
+    placeholders: readonly string[];
+  }): IWriteHit[] {
+    const { command, placeholders } = opts;
+    const { name, index, args } = ShellPrograms.programOf({ command });
     const program = ShellPrograms.basenameOf({ word: name });
-    const byXargs = opts.command.words.includes('xargs') ? [program] : [];
+    const byXargs = WriteCommands.xargsAt({ words: command.words, index }) === -1 ? [] : [program];
     const byRg =
       program === 'rg' ? WriteCommands.valuesOf({ args, option: WriteCommands.RG_RUNS }) : [];
 
@@ -352,7 +379,107 @@ export class WriteCommands {
       ...byRg.flatMap((fed) =>
         WriteCommands.fedHitsOf({ program: ShellPrograms.basenameOf({ word: fed }), by: 'rg' }),
       ),
+      ...WriteCommands.unseenRgHitsOf({ command, program, index, args, placeholders }),
     ];
+  }
+
+  /** `rg` told to run what the line does not show: a `--pre` with no program or a placeholder, or a config file. */
+  private static unseenRgHitsOf(opts: {
+    command: ISimpleCommand;
+    program: string;
+    index: number;
+    args: readonly string[];
+    placeholders: readonly string[];
+  }): IWriteHit[] {
+    const { command, program, index: at, args, placeholders } = opts;
+    const isUnnamed =
+      program === 'rg' &&
+      args.some((word, index) => {
+        const match = WriteCommands.RG_RUNS.exec(word);
+        const value = match?.[1] ?? args[index + 1];
+
+        return match !== null && !WriteCommands.isNamedProgram({ value, placeholders });
+      });
+    // Before the program stand its assignments and wrappers (`env`); after it, what a builtin passes on.
+    const passed = WriteCommands.ASSIGNERS.has(program) ? args : [];
+    const given = [...command.assignments, ...command.words.slice(0, at), ...passed];
+    const hasConfig = given.some((word) => WriteCommands.RG_CONFIG.test(word));
+
+    return isUnnamed || hasConfig
+      ? [WriteCommands.hitOf({ message: '`rg` can run a program that the line does not show' })]
+      : [];
+  }
+
+  /**
+   * Whether the value of a program option names its program on the line: one literal word (an empty one names none and
+   * runs nothing) that holds no placeholder of `xargs`.
+   */
+  private static isNamedProgram(opts: {
+    value: string | undefined;
+    placeholders: readonly string[];
+  }): boolean {
+    const { value, placeholders } = opts;
+
+    return (
+      value !== undefined &&
+      WriteCommands.LITERAL_WORD.test(value) &&
+      !placeholders.some((placeholder) => value.includes(placeholder))
+    );
+  }
+
+  /** Where `xargs` stands as a wrapper or the program, by its name or a path to it; -1 when it does not. */
+  private static xargsAt(opts: { words: readonly string[]; index: number }): number {
+    return opts.words
+      .slice(0, opts.index + 1)
+      .findIndex((word) => ShellPrograms.basenameOf({ word }) === 'xargs');
+  }
+
+  /**
+   * The command as written. With the BSD `xargs -J NAME` (also grouped, `-oJ`, or its name attached), also without
+   * those words: another `xargs` takes no value there, so both readings are checked.
+   */
+  private static readingsOf(opts: { command: ISimpleCommand }): ISimpleCommand[] {
+    const { command } = opts;
+    const { index } = ShellPrograms.programOf({ command });
+    const start = WriteCommands.xargsAt({ words: command.words, index });
+
+    if (start === -1) {
+      return [command];
+    }
+
+    const at = command.words.findIndex(
+      (word, position) => position > start && WriteCommands.XARGS_BSD_REPLACE.test(word),
+    );
+    const attached = WriteCommands.XARGS_BSD_REPLACE.exec(command.words[at] ?? '')?.[1];
+
+    return at === -1
+      ? [command]
+      : [command, { ...command, words: command.words.toSpliced(at, attached === '' ? 2 : 1) }];
+  }
+
+  /**
+   * The names `xargs` replaces with its input: the one given to `-I`, `-J` or `--replace`, attached or (for `-I` and
+   * `-J`) as the next word. `-i` and `--replace` alone mean `{}`, which is no literal word anyway.
+   */
+  private static placeholdersOf(opts: { command: ISimpleCommand }): string[] {
+    const { words } = opts.command;
+    const start = words.findIndex((word) => ShellPrograms.basenameOf({ word }) === 'xargs');
+
+    if (start === -1) {
+      return [];
+    }
+
+    return words.slice(start + 1).flatMap((word, index, rest) => {
+      const match = WriteCommands.XARGS_REPLACE.exec(word);
+
+      if (match === null) {
+        return [];
+      }
+
+      const name = match[2] || (match[1] === undefined ? '' : (rest[index + 1] ?? ''));
+
+      return name === '' ? [] : [name];
+    });
   }
 
   private static fedHitsOf(opts: { program: string; by: string }): IWriteHit[] {

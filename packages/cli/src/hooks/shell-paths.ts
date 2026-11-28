@@ -63,7 +63,8 @@ export class ShellPaths {
       ShellConstants.VARIABLE,
       (_, bare: string | undefined, braced: string | undefined) => {
         const name = bare ?? braced ?? '';
-        const value = name === 'PWD' && opts.cwd !== undefined ? opts.cwd : opts.env[name];
+        const inherited = Object.hasOwn(opts.env, name) ? opts.env[name] : undefined;
+        const value = name === 'PWD' && opts.cwd !== undefined ? opts.cwd : inherited;
 
         if (value === undefined || value === '') {
           unresolved = true;

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import { ShellParser, ShellUnread } from './shell.ts';
 import { ShellFolders, loopCombinations } from './shell-folders.ts';
+import { ShellNames } from './shell-names.ts';
 import { ShellPaths } from './shell-paths.ts';
 import { ShellWrites } from './shell-writes.ts';
 import { HookConstants } from './common/index.ts';
@@ -180,10 +181,17 @@ export class OutsideGuard {
         })) {
           // A word that names a `for` variable stands for each of its values in turn.
           for (const vars of loopCombinations({ word: target.word, loops: folder.loops })) {
+            const held = { ...folder.vars, ...vars };
+
             targets.push({
               ...target,
               pwd: folder.pwd,
-              vars: { ...folder.vars, ...vars },
+              vars: held,
+              isUnfollowed: ShellNames.isUnfollowed({
+                word: target.word,
+                setNames: folder.setNames,
+                held,
+              }),
               isKnown: folder.isKnown,
               links: folder.links,
               hasUnknownLink: folder.hasUnknownLink,
@@ -236,6 +244,23 @@ export class OutsideGuard {
           isUnread: true,
         });
         continue;
+      }
+
+      // Judged on, too: the value of the environment may still be what the shell reads. A source and a name inside a folder
+      // are not the destination itself.
+      if (
+        target.isUnfollowed === true &&
+        target.isLinkRead !== true &&
+        target.isNameInFolder !== true &&
+        target.isIntoFolder !== true &&
+        target.hasLiteralDollar !== true
+      ) {
+        hits.push({
+          path: target.word,
+          message: `${target.message}: the target reads a variable the line sets, whose value this check cannot follow`,
+          isAgentToolScratchpad: false,
+          isUnread: true,
+        });
       }
 
       if (target.hasLiteralDollar === true) {

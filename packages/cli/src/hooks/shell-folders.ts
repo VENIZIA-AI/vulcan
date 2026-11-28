@@ -1,6 +1,7 @@
 import { isAbsolute, resolve } from 'node:path';
 import { ShellPrograms } from './shell-programs.ts';
 import { LinkMakers } from './link-makers.ts';
+import { ShellNames } from './shell-names.ts';
 import type { ISimpleCommand, TEnvironment } from './common/index.ts';
 import { ShellConstants } from './common/index.ts';
 import { ShellPaths } from './shell-paths.ts';
@@ -15,6 +16,8 @@ export interface IShellFolder {
   isKnown: boolean;
   /** The plain `NAME=value` words an earlier command of this same shell set; they win over the environment in a word. */
   vars: Record<string, string>;
+  /** Every name the line sets anywhere (`ShellNames.setBy`): one a word reads with no value here is not known. */
+  setNames: ReadonlySet<string>;
   /**
    * The variables of the `for NAME in a b` loops the command sits in, with the literal values each takes. The word of a
    * command that names one stands for every value in turn.
@@ -26,9 +29,12 @@ export interface IShellFolder {
   hasUnknownLink: boolean;
 }
 
-interface IFolderState extends Omit<IShellFolder, 'loops' | 'links' | 'hasUnknownLink'> {
+interface IFolderState extends Omit<
+  IShellFolder,
+  'loops' | 'links' | 'hasUnknownLink' | 'setNames'
+> {
   /** The folders `pushd` saved, for `popd`. */
-  stack: Omit<IShellFolder, 'vars' | 'loops' | 'links' | 'hasUnknownLink'>[];
+  stack: Omit<IShellFolder, 'vars' | 'loops' | 'links' | 'hasUnknownLink' | 'setNames'>[];
   /** A `cd`, `pushd` or `popd` ran in this scope. */
   hasMoved: boolean;
 }
@@ -126,7 +132,7 @@ const commandWordsOf = (opts: { words: string[] }): string[] => {
 };
 
 /** The value of an assignment with the variables the line already holds put in; `undefined` when it is not plain. */
-const literalOf = (opts: { value: string; vars: Record<string, string> }): string | undefined => {
+const literalOf = (opts: { value: string; vars: TEnvironment }): string | undefined => {
   let unresolved = false;
   const value = opts.value.replace(
     ShellConstants.VARIABLE,
@@ -150,7 +156,7 @@ export class ShellFolders {
   static readonly MOVING_COMMANDS: ReadonlySet<string> = new Set(['cd', 'pushd', 'popd']);
 
   /**
-   * How often each name is assigned on the line. A word `NAME=value` counts as an assignment too, because the parser
+   * How often each name is assigned on the line, `+=` included. A word `NAME=value` counts as an assignment too, because the parser
    * keeps it as a word where a keyword (`do`, `then`) stands in front of it.
    */
   private static assignmentCounts(opts: { commands: ISimpleCommand[] }): Map<string, number> {
@@ -158,7 +164,7 @@ export class ShellFolders {
 
     for (const command of opts.commands) {
       for (const word of [...command.assignments, ...command.words]) {
-        const name = /^([A-Za-z_]\w*)=/.exec(word)?.[1];
+        const name = /^([A-Za-z_]\w*)\+?=/.exec(word)?.[1];
 
         if (name !== undefined) {
           counts.set(name, (counts.get(name) ?? 0) + 1);
@@ -226,18 +232,14 @@ export class ShellFolders {
       ...command.assignments.map((assignment) => assignment.slice(assignment.indexOf('=') + 1)),
     ]);
 
+    // Every word the texts hold outside a plain `$name` or `${name}`, read once for all the names.
+    const mentioned = new Set(
+      texts.flatMap((text) => text.replace(/\$\{\w+\}|\$\w+/g, ' ').match(/\w+/g) ?? []),
+    );
+
     return new Set(
       [...counts.entries()]
-        .filter(
-          ([name, count]) =>
-            count > 1 ||
-            !/^[A-Za-z_]\w*$/.test(name) ||
-            texts.some((text) =>
-              new RegExp(`\\b${name}\\b`).test(
-                text.replaceAll(`\${${name}}`, '').replaceAll(`$${name}`, ''),
-              ),
-            ),
-        )
+        .filter(([name, count]) => count > 1 || mentioned.has(name))
         .map(([name]) => name),
     );
   }
@@ -279,6 +281,7 @@ export class ShellFolders {
         })?.names.length ?? 0) > 0,
     );
     const loopNames = ShellFolders.loopNamesOf({ commands: opts.commands });
+    const setNames = ShellNames.setBy({ commands: opts.commands });
     // `cd x` looks for `x` in each folder of CDPATH first: set in the environment of the hook or named anywhere on the line
     // (a prefix assignment, `export`, `declare`), it may put a plain relative name in another folder.
     const hasCdpath =
@@ -333,6 +336,7 @@ export class ShellFolders {
         pwd: state.pwd,
         isKnown: state.isKnown,
         vars: { ...state.vars },
+        setNames,
         // A command line a word carries (`sh -c`, `$(...)`) is another shell: it does not see the loop variables.
         loops: isNested
           ? {}
@@ -422,6 +426,12 @@ export class ShellFolders {
           ? command.words.filter((word) => word.includes('='))
           : command.assignments) {
           const at = assignment.indexOf('=');
+
+          // An appended value is not worked out: the name holds none here.
+          if (assignment[at - 1] === '+') {
+            continue;
+          }
+
           const name = assignment.slice(0, at);
           const value = literalOf({ value: assignment.slice(at + 1), vars: state.vars });
 
@@ -461,6 +471,7 @@ export class ShellFolders {
         literalDollars: command.literalDollars ?? [],
         hasCdpath,
         links: folder.links,
+        setNames,
       });
 
       return folder;
@@ -478,6 +489,7 @@ export class ShellFolders {
     hasCdpath: boolean;
     /** The symbolic links the line made before this `cd`. */
     links: string[];
+    setNames: ReadonlySet<string>;
     home: string;
     env: TEnvironment;
   }): void {
@@ -496,7 +508,10 @@ export class ShellFolders {
     const target = destination ?? (opts.name === 'cd' && opts.home !== '' ? '~' : undefined);
     // `cd -` and `pushd +N` name a folder from the shell's own history.
     const expanded =
-      target === undefined || /^[-+]/.test(target) || opts.literalDollars.includes(target)
+      target === undefined ||
+      /^[-+]/.test(target) ||
+      opts.literalDollars.includes(target) ||
+      ShellNames.isUnfollowed({ word: target, setNames: opts.setNames, held: state.vars })
         ? undefined
         : ShellPaths.expandPath({ word: target, home: opts.home, env: opts.env, cwd: state.pwd });
 

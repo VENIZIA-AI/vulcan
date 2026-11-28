@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { WriteGuard } from '../../hooks/index.ts';
+import { ShellParser, ShellPrograms, WriteGuard } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
@@ -393,6 +393,91 @@ describe('a line that changes what its commands mean, or an option that runs or 
     'quiet: %s',
     (command) => {
       expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+    },
+  );
+
+  test.each([
+    'find . -name x | xargs rg pat --pre',
+    'rg pat . --pre',
+    'echo kubectl | xargs -I{} rg --pre {} pat f',
+    'find . -exec rg --pre={} pat f ";"',
+    'RIPGREP_CONFIG_PATH=./rc rg pat',
+    'echo kubectl | xargs -I X rg --pre X pat f',
+    'echo kubectl | xargs -IPROG rg --pre=PROG pat f',
+    'echo kubectl | xargs -I % rg --hostname-bin %.sh pat f',
+    'echo kubectl | xargs --replace=Q rg --pre Q pat f',
+    'echo kubectl | xargs -i rg --pre {} pat f',
+    'rg --pre "$P" pat f',
+    'rg --pre=$HOME/bin/x pat f',
+    'rg --pre "$(which kubectl)" pat f',
+    'rg --pre $(which kubectl) pat f',
+    'rg --pre `which kubectl` pat f',
+    'rg --pre="`which kubectl`" pat f',
+    'rg --hostname-bin ./kube* pat f',
+    'rg --pre ./kubect? pat f',
+    'rg --pre ./[k]ubectl pat f',
+    'rg --pre {kubectl,x} pat f',
+    'export RIPGREP_CONFIG_PATH=./rc; rg pat',
+    'env RIPGREP_CONFIG_PATH=./rc rg pat',
+    'export RIPGREP_CONFIG_PATH=./rc',
+    'if true; then export RIPGREP_CONFIG_PATH=./rc; fi',
+    '{ export RIPGREP_CONFIG_PATH=./rc; }',
+    'for f in a; do export RIPGREP_CONFIG_PATH=./rc; done',
+    '! export RIPGREP_CONFIG_PATH=./rc',
+    'time export RIPGREP_CONFIG_PATH=./rc',
+    'time RIPGREP_CONFIG_PATH=./rc rg pat',
+    'if RIPGREP_CONFIG_PATH=./rc rg pat; then true; fi',
+    '/usr/bin/env RIPGREP_CONFIG_PATH=./rc rg pat',
+    'sudo env RIPGREP_CONFIG_PATH=./rc rg pat',
+    'nice env RIPGREP_CONFIG_PATH=./rc rg pat',
+    'timeout 5 env RIPGREP_CONFIG_PATH=./rc rg pat',
+    'sudo RIPGREP_CONFIG_PATH=./rc rg pat',
+    'builtin export RIPGREP_CONFIG_PATH=./rc',
+    'command export RIPGREP_CONFIG_PATH=./rc',
+    'f() { local RIPGREP_CONFIG_PATH=./rc; rg pat; }',
+    'RIPGREP_CONFIG_PATH+=./rc rg pat',
+    'export RIPGREP_CONFIG_PATH+=./rc',
+    'echo kubectl | /usr/bin/xargs -I X rg --pre X pat f',
+    'echo kubectl | xargs --rep=Q rg --pre Q pat f',
+    'echo kubectl | xargs --repl=Q rg --pre Q pat f',
+    'echo kubectl | xargs -J % rg --pre % pat f',
+    'echo kubectl | xargs -oI X rg --pre X pat f',
+    'ls | xargs -oJ NAME rg --pre NAME x',
+    'ls | xargs -pJ NAME rg --pre=NAME x',
+    'ls | xargs -oJNAME rg --pre NAME x',
+    'A+=1 kubectl apply -f x.yaml',
+    'A+=1 RIPGREP_CONFIG_PATH=./rc rg pat',
+    'A+=1 B+=2 rg pat . --pre',
+    "echo 'apply -f x.yaml' | /usr/bin/xargs kubectl",
+  ])('rg running what the line does not show is asked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    "rg --pre '' pat docs",
+    'find . | xargs rg --pre pdftotext pat',
+    'find . | xargs -I X rg --pre pdftotext pat X',
+    'rg --pre ~/bin/pre.sh pat docs',
+    'rg --pre= pat docs',
+    'RIPGREP_CONFIG_PATH= rg pat',
+    'RIPGREP_CONFIG_PATH=/dev/null rg pat',
+    'rg "RIPGREP_CONFIG_PATH=x" docs',
+    'rg --pre cat pat dir/xargs',
+    'rg pat docs/xargs',
+    'echo RIPGREP_CONFIG_PATH=x',
+    'sudo rg "RIPGREP_CONFIG_PATH=x" docs',
+    'if true; then echo "RIPGREP_CONFIG_PATH=x"; fi',
+    'git commit -m "RIPGREP_CONFIG_PATH=x"',
+  ])('quiet: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+  });
+
+  test.each(['A+=1 rm -rf /', 'A+=1 B=2 rm -rf /', 'env A+=1 rm -rf /'])(
+    'an appending assignment is no program: %s',
+    (line) => {
+      const [command] = ShellParser.parse({ command: line });
+
+      expect(command === undefined ? '' : ShellPrograms.programOf({ command }).name).toBe('rm');
     },
   );
 

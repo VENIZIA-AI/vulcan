@@ -189,6 +189,156 @@ describe('OutsideGuard.inspect flags what a review found', () => {
   });
 });
 
+describe('an appended variable is not read as its old value', () => {
+  test.each([
+    'S=.claude/settings; S+=.json; echo x > $S',
+    'S=.agents/local/; S+=vulcan.manifest.json; echo x > $S',
+    'S=sub; S+=/../../escaped; echo hit > $S',
+    'D=ok; D+=/../../../../tmp; cd $D && echo a > b',
+    'export S=ok; S+=/../../tmp; echo a > $S/b',
+    'S=ok && S+=/../../tmp && echo a > $S/b',
+    'S=ok; S+=/../../tmp true; echo a > $S/b',
+    'S=ok; S+=(x); echo a > $S/b',
+    'S=ok; export S+=/../../tmp; echo a > $S/b',
+    'HOME+=/x; echo a > $HOME/b',
+    'export HOME+=/x; echo a > $HOME/b',
+    'export TMPDIR+=/../../../tmp',
+    'TMPDIR+=/../../../tmp bun test',
+    'A+=$(true) export TMPDIR+=/../../../tmp',
+  ])('%s is flagged', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test('an appended variable of the environment is no longer read from it', () => {
+    expect(
+      bash({ command: 'S+=/../../tmp; echo a > $S/b', env: { ...ENV, S: 'ok' } }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'PWD+=/../../escaped; echo hit > $PWD',
+    'PWD=ok; PWD+=/../../escaped; echo hit > $PWD',
+    '{ CLAUDE_PROJECT_DIR+=/../escaped; echo hit > $CLAUDE_PROJECT_DIR; }',
+    '{ S+=/../../escaped; echo hit > $S; }',
+    'if true; then S+=/../../escaped; fi; echo hit > $S',
+    '! S+=/../../escaped; echo hit > $S',
+    'for i in 1; do S+=/../../escaped; done; echo hit > $S',
+    'f(){ S+=/../../escaped; }; f; echo hit > $S',
+    'eval S+=/../../escaped; echo hit > $S',
+    'S+=/../../escaped; bash -c "echo hit > $S"',
+    'for S in ok; do S+=/../../tmp; echo a > $S/b; done',
+    'time S+=/../../escaped; echo hit > $S',
+    'declare S+=/../../escaped; echo hit > $S',
+    'typeset S+=/../../escaped; echo hit > $S',
+    'readonly S+=/../../escaped; echo hit > $S',
+    'command export S+=/../../escaped; echo hit > $S',
+    'builtin export S+=/../../escaped; echo hit > $S',
+    'S+=/../../escaped > $S',
+    'true | S+=/../../escaped; echo hit > $S',
+    "S=.claude/settings; S+=.json; echo '{}' > $S",
+    'cd /etc && f+=$(date) && echo x > $f',
+  ])('%s is flagged, the name held by the environment or not', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+    expect(
+      bash({
+        command,
+        env: { ...ENV, S: 'sub', PWD: PROJECT, CLAUDE_PROJECT_DIR: PROJECT },
+      }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'HOME=$HOME; cp a $HOME/x',
+    'HOME=/x true; touch $HOME/y',
+    'HOME=$HOME; echo a > $HOME/x',
+  ])('%s is still flagged: the environment reading stays', (command) => {
+    expect(bash({ command, env: { ...ENV, HOME: '/etc' } }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'HOME+=/../../escaped; mkdir -p $HOME/zz',
+    'HOME+=/x; touch $HOME',
+    'HOME+=/q && tee $HOME < a',
+    'export HOME+=/q; touch $HOME',
+    'HOME+=/x; cp a $HOME/y',
+    'S+=/q; cp a $S',
+    'S=ok; S+=/../..; cp a $S/x',
+    '{ S+=$(echo /../..); cp a $S/x; }',
+    'HOME=$HOME/../../escaped; mkdir -p $HOME/zz',
+    'HOME=/q; cp a $HOME/y',
+    'HOME=$HOME; rm $HOME/y',
+    "echo '{}' > .claude/settings.json; for [a in b; do :; done",
+    'echo hit > $UNSETVAR/../x\nfor [a in b; do :; done',
+    'PWD+=/$(echo ..)/..; cd $PWD && echo hit > x',
+    'PWD+=$(echo /../..); echo hit > ~+/x',
+    '{ CLAUDE_PROJECT_DIR+=$(echo /..); }; cd $CLAUDE_PROJECT_DIR && echo hit > x',
+    '{ S+=$(echo /../..); }; cd $S && echo hit > x',
+    'PWD+=/../..; cd $PWD && echo hit > x',
+    'PWD+=/../..; echo hit > ~+/x',
+    '{ CLAUDE_PROJECT_DIR+=/..; }; cd $CLAUDE_PROJECT_DIR && echo hit > x',
+    '{ S+=/..; }; pushd $S && echo hit > x',
+    'read S; echo a > $S',
+    'printf -v S x; cp a $S',
+    'for S in *; do :; done; cp a $S',
+  ])('%s is flagged: a name the line sets is not followed', (command) => {
+    for (const env of [ENV, { ...ENV, S: 'sub', PWD: PROJECT, CLAUDE_PROJECT_DIR: PROJECT }]) {
+      expect(bash({ command, env }).length).toBeGreaterThan(0);
+    }
+  });
+
+  test.each(['for [a in b; do echo a > out/x; done', 'for *( in b; do :; done'])(
+    '%s is read without a crash',
+    (command) => {
+      expect(() => bash({ command })).not.toThrow();
+    },
+  );
+
+  test.each([
+    'PWD=/etc; echo hit > $PWD/x',
+    'PWD=/etc; cp a $PWD/x',
+    'export PWD=/etc; touch $PWD/x',
+    'PWD=/etc; cd $PWD && echo hit > zz',
+    'PWD=/etc; echo hit > ~+/x',
+    'echo hit > $constructor/tmp/x',
+    'echo hit > $toString/tmp/x',
+    'echo hit > $__proto__/tmp/x',
+    'true; for f in a b; do :; done; echo x > $f',
+    'if true; then for d in *; do rm $d; done; fi',
+  ])('%s is flagged', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'S=ok; echo a > $S/b',
+    'echo waiting for d; rm $d',
+    'for S in ok; do echo a > $S/b; done',
+    'for f in *.ts; do cp $f out/; done',
+    'cd build && make',
+    'D=build; mkdir -p $D && cd $D && make',
+    'i=0; i+=1; echo $i',
+    'PATH=$PWD/node_modules/.bin:$PATH; tsc',
+  ])('%s stays allowed', (command) => {
+    expect(bash({ command, env: { ...ENV, D: '/etc', f: '/etc' } })).toEqual([]);
+  });
+
+  test('a line of many sets and uses is judged quickly', () => {
+    const command = Array.from({ length: 3000 }, (_, n) => `{ A${n}+=x; }; echo a > $A${n}`).join(
+      '; ',
+    );
+    const started = performance.now();
+
+    expect(bash({ command }).length).toBeGreaterThan(0);
+    expect(performance.now() - started).toBeLessThan(5000);
+  });
+
+  test.each(['S=ok; echo a > $S/b', 'for S in ok; do echo a > $S/b; done'])(
+    '%s stays followed',
+    (command) => {
+      expect(bash({ command, env: { ...ENV, S: '/etc' } })).toEqual([]);
+    },
+  );
+});
+
 describe('OutsideGuard.inspect passes', () => {
   test.each([
     'mkdir -p .agents/tmp/a',

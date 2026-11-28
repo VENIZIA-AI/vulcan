@@ -345,9 +345,9 @@ export class ShellWrites {
     // A prefix assignment (`TMPDIR={a,b} cmd`) is not expanded for braces; the arguments of `export` and the like are.
     const assigned: IWriteTarget[] = [];
 
-    for (const assignment of assignments.filter((word) => word.startsWith('TMPDIR='))) {
+    for (const assignment of assignments.filter((word) => /^TMPDIR\+?=/.test(word))) {
       assigned.push({
-        word: assignment.slice('TMPDIR='.length),
+        word: assignment.slice(assignment.indexOf('=') + 1),
         base,
         message: 'TMPDIR points outside the project',
       });
