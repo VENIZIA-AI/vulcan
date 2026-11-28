@@ -4,10 +4,10 @@
  *
  * Repo-specific paths and denylists live in ../common/config.ts.
  */
-import { StderrLogger } from '../common/stderr-logger.ts';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, posix, relative } from 'node:path';
 import { VulcanError } from '../common/error.ts';
+import { StderrLogger } from '../common/stderr-logger.ts';
 
 import { PRUNE_DIRS, RESERVED_FILES } from '../common/config.ts';
 import { OkfProject } from '../project/index.ts';

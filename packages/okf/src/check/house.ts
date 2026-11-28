@@ -1,7 +1,7 @@
-import { StderrLogger } from '../common/stderr-logger.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REGENERATE_HINT } from '../common/config.ts';
+import { StderrLogger } from '../common/stderr-logger.ts';
 import { OkfProject } from '../project/index.ts';
 import { ConceptLoader, MarkdownText } from '../bundle/lib.ts';
 import type { TConcept } from '../bundle/lib.ts';
