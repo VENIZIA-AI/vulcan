@@ -420,6 +420,28 @@ describe('a line that changes what its commands mean, or an option that runs or 
     'export RIPGREP_CONFIG_PATH=./rc; rg pat',
     'env RIPGREP_CONFIG_PATH=./rc rg pat',
     'export RIPGREP_CONFIG_PATH=./rc',
+    'if true; then export RIPGREP_CONFIG_PATH=./rc; fi',
+    '{ export RIPGREP_CONFIG_PATH=./rc; }',
+    'for f in a; do export RIPGREP_CONFIG_PATH=./rc; done',
+    '! export RIPGREP_CONFIG_PATH=./rc',
+    'time export RIPGREP_CONFIG_PATH=./rc',
+    'time RIPGREP_CONFIG_PATH=./rc rg pat',
+    'if RIPGREP_CONFIG_PATH=./rc rg pat; then true; fi',
+    '/usr/bin/env RIPGREP_CONFIG_PATH=./rc rg pat',
+    'sudo env RIPGREP_CONFIG_PATH=./rc rg pat',
+    'nice env RIPGREP_CONFIG_PATH=./rc rg pat',
+    'timeout 5 env RIPGREP_CONFIG_PATH=./rc rg pat',
+    'sudo RIPGREP_CONFIG_PATH=./rc rg pat',
+    'builtin export RIPGREP_CONFIG_PATH=./rc',
+    'command export RIPGREP_CONFIG_PATH=./rc',
+    'f() { local RIPGREP_CONFIG_PATH=./rc; rg pat; }',
+    'RIPGREP_CONFIG_PATH+=./rc rg pat',
+    'export RIPGREP_CONFIG_PATH+=./rc',
+    'echo kubectl | /usr/bin/xargs -I X rg --pre X pat f',
+    'echo kubectl | xargs --rep=Q rg --pre Q pat f',
+    'echo kubectl | xargs --repl=Q rg --pre Q pat f',
+    'echo kubectl | xargs -J % rg --pre % pat f',
+    "echo 'apply -f x.yaml' | /usr/bin/xargs kubectl",
   ])('rg running what the line does not show is asked: %s', (command) => {
     expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
   });
@@ -433,6 +455,9 @@ describe('a line that changes what its commands mean, or an option that runs or 
     'RIPGREP_CONFIG_PATH= rg pat',
     'RIPGREP_CONFIG_PATH=/dev/null rg pat',
     'rg "RIPGREP_CONFIG_PATH=x" docs',
+    'echo RIPGREP_CONFIG_PATH=x',
+    'sudo rg "RIPGREP_CONFIG_PATH=x" docs',
+    'if true; then echo "RIPGREP_CONFIG_PATH=x"; fi',
     'git commit -m "RIPGREP_CONFIG_PATH=x"',
   ])('quiet: %s', (command) => {
     expect(WriteGuard.inspectCommand({ command })).toEqual([]);
