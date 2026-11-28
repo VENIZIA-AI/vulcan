@@ -406,10 +406,7 @@ export class UsageMeter {
 
     const now = opts.now ?? Date.now();
     const size = statSync(opts.file).size;
-    const found = opts.known.findLast(
-      (event) =>
-        event.type === EventTypes.USAGE && event.ref === opts.ref && event.mark !== undefined,
-    )?.mark;
+    const found = UsageMeter.lastMarkOf({ events: opts.known, ref: opts.ref });
     const isFresh = found === undefined || found.offset > size;
     const began = isFresh ? UsageMeter.firstTimestamp({ file: opts.file }) : undefined;
 
@@ -477,6 +474,26 @@ export class UsageMeter {
     }
 
     return written;
+  }
+
+  /**
+   * The mark of the newest `usage` line of a transcript. Lines of one millisecond sort by chance, so among them the
+   * mark further in the transcript is the newer one.
+   */
+  private static lastMarkOf(opts: { events: IEvent[]; ref: string }): IEventMark | undefined {
+    let newest: { ts: string; mark: IEventMark } | undefined;
+
+    for (const { type, ref, ts, mark } of opts.events) {
+      if (type !== EventTypes.USAGE || ref !== opts.ref || mark === undefined) {
+        continue;
+      }
+
+      if (newest === undefined || ts !== newest.ts || mark.offset >= newest.mark.offset) {
+        newest = { ts, mark };
+      }
+    }
+
+    return newest?.mark;
   }
 
   private static build(opts: {

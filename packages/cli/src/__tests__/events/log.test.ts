@@ -401,13 +401,19 @@ describe('EventText', () => {
 describe('EventSecrets: each pattern takes time in proportion to its input', () => {
   const patterns = [...EventSecrets.PATTERNS, EventSecrets.ASSIGNMENT, EventSecrets.SPOKEN];
 
+  /** The fastest of a few runs: a pause of a busy machine in one run is not the pattern's time. */
   const timeOf = (opts: { pattern: RegExp; piece: string; size: number }): number => {
     const text = opts.piece.repeat(Math.ceil(opts.size / opts.piece.length)).slice(0, opts.size);
-    const start = performance.now();
 
-    text.replace(opts.pattern, EventConstants.REDACTED);
+    return Math.min(
+      ...Array.from({ length: 3 }, () => {
+        const start = performance.now();
 
-    return performance.now() - start;
+        text.replace(opts.pattern, EventConstants.REDACTED);
+
+        return performance.now() - start;
+      }),
+    );
   };
 
   test('8 times the input takes about 8 times as long, never about 64 times', () => {
