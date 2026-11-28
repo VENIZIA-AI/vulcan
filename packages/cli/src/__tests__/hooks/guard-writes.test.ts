@@ -366,10 +366,33 @@ describe('a line that changes what its commands mean, or an option that runs or 
     },
   );
 
-  test.each([`echo "${K}" >&1x; sh 1x`, `echo "${K}" 2>&2x`, `echo "${K}" > /dev/null.sh`])(
-    'a redirect that only looks like a dropped one is checked: %s',
+  test.each([
+    `echo "${K}" >&1x; sh 1x`,
+    `echo "${K}" 2>&2x`,
+    `echo "${K}" > /dev/null.sh`,
+    ...[...'+:]%?^@,![~=*#'].map((mark) => `echo ${K} >&2${mark}x.sh`),
+    `echo ${K} >&1=x.sh`,
+    `echo ${K} >/dev/null+x.sh`,
+    `echo ${K} >/dev/null=x.sh`,
+  ])('a redirect that only looks like a dropped one is checked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'rg --pre kubectl pat apply',
+    'rg --pre=psql . app',
+    'rg -n --pre /usr/bin/terraform pat apply',
+    'rg --hostname-bin kubectl pat .',
+    'find . | xargs rg --pre kubectl pat',
+    'env rg --pre docker x up',
+  ])('a program of the table that rg is told to run is asked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each(['rg --pre cat pat docs', 'rg --pre-glob "*.pdf" kubectl docs', 'rg -n pat --pretty'])(
+    'quiet: %s',
     (command) => {
-      expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+      expect(WriteGuard.inspectCommand({ command })).toEqual([]);
     },
   );
 

@@ -15,7 +15,7 @@ const ONE_COMMAND =
  * heredoc, other redirect or other blank. Each alternative starts with its own characters, and a comment cannot end early.
  */
 const PLAIN_LINE =
-  /^(?:#[^\n]*(?![^\n]))?(?:[ \t\n;](?:#[^\n]*(?![^\n]))?|&&|\||>&[12](?![\w./-])|>[ \t]*\/dev\/null(?![\w./-])|\\[^\n\r]|'[^']*'|"(?:\\[^\n\r]|[^"\\$`])*"|[A-Za-z0-9_@%+=:,./^*?[\]!~-])*$/;
+  /^(?:#[^\n]*(?![^\n]))?(?:[ \t\n;](?:#[^\n]*(?![^\n]))?|&&|\||>&[12](?![^ \t\n;|&])|>[ \t]*\/dev\/null(?![^ \t\n;|&])|\\[^\n\r]|'[^']*'|"(?:\\[^\n\r]|[^"\\$`])*"|[A-Za-z0-9_@%+=:,./^*?[\]!~-])*$/;
 
 /** A program to run written against its short option, by the program that takes it: it is no word of its own. */
 const ATTACHED_RUNS: ReadonlyMap<string, RegExp> = new Map([
