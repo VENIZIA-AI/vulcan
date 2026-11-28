@@ -178,8 +178,10 @@ export interface IWriteTarget {
   base: string;
   /** What `$PWD` is in `word`: the shell's folder, moved by `cd` but not by `git -C`; undefined when it is not known. */
   pwd?: string;
-  /** The plain variables the same shell set earlier on the line; `undefined` is one it can no longer know. */
-  vars?: TEnvironment;
+  /** The plain variables the same shell set earlier on the line. */
+  vars?: Record<string, string>;
+  /** The word reads a variable the line sets, whose value the check cannot follow. */
+  isUnfollowed?: boolean;
   /** False after a `cd` the guard could not work out: `base` is then only the last folder it knew. */
   isKnown?: boolean;
   /** `>&word` with an expansion in it: a file, or a descriptor held in a variable. */

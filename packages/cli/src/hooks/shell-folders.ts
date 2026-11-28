@@ -1,6 +1,7 @@
 import { isAbsolute, resolve } from 'node:path';
 import { ShellPrograms } from './shell-programs.ts';
 import { LinkMakers } from './link-makers.ts';
+import { ShellNames } from './shell-names.ts';
 import type { ISimpleCommand, TEnvironment } from './common/index.ts';
 import { ShellConstants } from './common/index.ts';
 import { ShellPaths } from './shell-paths.ts';
@@ -14,12 +15,9 @@ export interface IShellFolder {
   /** False after a `cd` the guard could not work out: `base` is then only the last folder it knew. */
   isKnown: boolean;
   /** The plain `NAME=value` words an earlier command of this same shell set; they win over the environment in a word. */
-  vars: TEnvironment;
-  /**
-   * The names the line sets somewhere and this command's shell holds no plain value for, each `undefined`; `PWD` is one
-   * whenever the line sets it. What the shell reads there may be the environment's value, or none the check can know.
-   */
-  unset: TEnvironment;
+  vars: Record<string, string>;
+  /** Every name the line sets anywhere (`ShellNames.setBy`): one a word reads with no value here is not known. */
+  setNames: ReadonlySet<string>;
   /**
    * The variables of the `for NAME in a b` loops the command sits in, with the literal values each takes. The word of a
    * command that names one stands for every value in turn.
@@ -31,9 +29,12 @@ export interface IShellFolder {
   hasUnknownLink: boolean;
 }
 
-interface IFolderState extends Omit<IShellFolder, 'loops' | 'links' | 'hasUnknownLink' | 'unset'> {
+interface IFolderState extends Omit<
+  IShellFolder,
+  'loops' | 'links' | 'hasUnknownLink' | 'setNames'
+> {
   /** The folders `pushd` saved, for `popd`. */
-  stack: Omit<IShellFolder, 'vars' | 'loops' | 'links' | 'hasUnknownLink' | 'unset'>[];
+  stack: Omit<IShellFolder, 'vars' | 'loops' | 'links' | 'hasUnknownLink' | 'setNames'>[];
   /** A `cd`, `pushd` or `popd` ran in this scope. */
   hasMoved: boolean;
 }
@@ -209,44 +210,6 @@ export class ShellFolders {
     return counts;
   }
 
-  /** The names the line sets: assigned, or the variable of a `for` header. */
-  private static setNamesOf(opts: { commands: ISimpleCommand[] }): Set<string> {
-    const headers = opts.commands.flatMap((command) => {
-      const [first, name] = commandWordsOf({ words: command.words });
-
-      return first === 'for' && name !== undefined ? [name] : [];
-    });
-
-    return new Set([...ShellFolders.assignedNames(opts), ...headers]);
-  }
-
-  /**
-   * How a word of a command is read: with the values the check holds, and, when it names a variable the line sets without
-   * a value the check holds, also with that name unknown. Both are judged, so the second reading only adds findings.
-   */
-  static readingsOf(opts: {
-    word: string;
-    folder: IShellFolder;
-    loopVars: Record<string, string>;
-  }): { pwd: string | undefined; vars: TEnvironment }[] {
-    const { word, folder, loopVars } = opts;
-    const held = { pwd: folder.pwd, vars: { ...folder.vars, ...loopVars } };
-    const unknown = Object.keys(folder.unset).filter((name) => !Object.hasOwn(loopVars, name));
-    const isNamed = unknown.some((name) => new RegExp(`\\$\\{?${name}\\b`).test(word));
-
-    if (!isNamed) {
-      return [held];
-    }
-
-    return [
-      held,
-      {
-        pwd: unknown.includes('PWD') ? undefined : folder.pwd,
-        vars: { ...folder.vars, ...folder.unset, ...loopVars },
-      },
-    ];
-  }
-
   /** The names the line assigns. */
   static assignedNames(opts: { commands: ISimpleCommand[] }): Set<string> {
     return new Set(ShellFolders.assignmentCounts(opts).keys());
@@ -269,18 +232,14 @@ export class ShellFolders {
       ...command.assignments.map((assignment) => assignment.slice(assignment.indexOf('=') + 1)),
     ]);
 
+    // Every word the texts hold outside a plain `$name` or `${name}`, read once for all the names.
+    const mentioned = new Set(
+      texts.flatMap((text) => text.replace(/\$\{\w+\}|\$\w+/g, ' ').match(/\w+/g) ?? []),
+    );
+
     return new Set(
       [...counts.entries()]
-        .filter(
-          ([name, count]) =>
-            count > 1 ||
-            !/^[A-Za-z_]\w*$/.test(name) ||
-            texts.some((text) =>
-              new RegExp(`\\b${name}\\b`).test(
-                text.replaceAll(`\${${name}}`, '').replaceAll(`$${name}`, ''),
-              ),
-            ),
-        )
+        .filter(([name, count]) => count > 1 || mentioned.has(name))
         .map(([name]) => name),
     );
   }
@@ -322,7 +281,7 @@ export class ShellFolders {
         })?.names.length ?? 0) > 0,
     );
     const loopNames = ShellFolders.loopNamesOf({ commands: opts.commands });
-    const setNames = [...ShellFolders.setNamesOf({ commands: opts.commands })];
+    const setNames = ShellNames.setBy({ commands: opts.commands });
     // `cd x` looks for `x` in each folder of CDPATH first: set in the environment of the hook or named anywhere on the line
     // (a prefix assignment, `export`, `declare`), it may put a plain relative name in another folder.
     const hasCdpath =
@@ -377,11 +336,7 @@ export class ShellFolders {
         pwd: state.pwd,
         isKnown: state.isKnown,
         vars: { ...state.vars },
-        unset: Object.fromEntries(
-          setNames.flatMap((variable) =>
-            variable === 'PWD' || state.vars[variable] === undefined ? [[variable, undefined]] : [],
-          ),
-        ),
+        setNames,
         // A command line a word carries (`sh -c`, `$(...)`) is another shell: it does not see the loop variables.
         loops: isNested
           ? {}
@@ -472,9 +427,8 @@ export class ShellFolders {
           : command.assignments) {
           const at = assignment.indexOf('=');
 
-          // An appended value is not worked out: the name is unknown from here on, the one of the environment too.
+          // An appended value is not worked out: the name holds none here.
           if (assignment[at - 1] === '+') {
-            state.vars[assignment.slice(0, at - 1)] = undefined;
             continue;
           }
 
@@ -517,6 +471,7 @@ export class ShellFolders {
         literalDollars: command.literalDollars ?? [],
         hasCdpath,
         links: folder.links,
+        setNames,
       });
 
       return folder;
@@ -534,6 +489,7 @@ export class ShellFolders {
     hasCdpath: boolean;
     /** The symbolic links the line made before this `cd`. */
     links: string[];
+    setNames: ReadonlySet<string>;
     home: string;
     env: TEnvironment;
   }): void {
@@ -552,7 +508,10 @@ export class ShellFolders {
     const target = destination ?? (opts.name === 'cd' && opts.home !== '' ? '~' : undefined);
     // `cd -` and `pushd +N` name a folder from the shell's own history.
     const expanded =
-      target === undefined || /^[-+]/.test(target) || opts.literalDollars.includes(target)
+      target === undefined ||
+      /^[-+]/.test(target) ||
+      opts.literalDollars.includes(target) ||
+      ShellNames.isUnfollowed({ word: target, setNames: opts.setNames, held: state.vars })
         ? undefined
         : ShellPaths.expandPath({ word: target, home: opts.home, env: opts.env, cwd: state.pwd });
 
