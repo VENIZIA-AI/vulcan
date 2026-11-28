@@ -178,7 +178,10 @@ export class WriteCommands {
    */
   static inspectClient(opts: { command: ISimpleCommand }): IWriteHit[] {
     const { name, args } = ShellPrograms.programOf({ command: opts.command });
-    const client = WriteCommands.SQL_CLIENTS[ShellPrograms.basenameOf({ word: name })];
+    const program = ShellPrograms.basenameOf({ word: name });
+    const client = Object.hasOwn(WriteCommands.SQL_CLIENTS, program)
+      ? WriteCommands.SQL_CLIENTS[program]
+      : undefined;
 
     if (client === undefined || args.some((word) => WriteCommands.SQL_CLIENT_INFO.has(word))) {
       return [];
@@ -330,20 +333,17 @@ export class WriteCommands {
     return previous !== undefined && opts.client.inline.exec(previous)?.[1] === '';
   }
 
-  /**
-   * A program of the table that `xargs` runs with nothing but options of its own: its command comes from the input of
-   * `xargs`, which no pattern can read.
-   */
+  /** A program of the table run by `xargs`: what it is given comes from the input of `xargs`, which no pattern can read. */
   static inspectXargs(opts: { command: ISimpleCommand }): IWriteHit[] {
     if (!opts.command.words.includes('xargs')) {
       return [];
     }
 
-    const { name, args } = ShellPrograms.programOf({ command: opts.command });
+    const { name } = ShellPrograms.programOf({ command: opts.command });
     const program = ShellPrograms.basenameOf({ word: name });
     const check = WriteCommands.CHECKS.find((row) => row.programs.has(program));
 
-    if (check === undefined || args.some((word) => !word.startsWith('-'))) {
+    if (check === undefined) {
       return [];
     }
 

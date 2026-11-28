@@ -6,23 +6,11 @@ import type { ILineReading, ISimpleCommand } from './common/index.ts';
 /** Programs whose arguments are messages and titles for the write guards (a commit message, an issue body). */
 const MESSAGE_PROGRAMS = new Set(['git', 'gh']);
 
-/**
- * The `gh` subcommands whose arguments are a request and not a message: the project's own patterns match them
- * (`gh api -X PUT .../rulesets`, `gh secret set`). The arguments of every other `gh` subcommand stay data.
- */
-const GH_REQUESTS = new Set(['api', 'secret', 'variable']);
-
 /** The project's own VULCAN bin, as `bun` is given it. */
 const VULCAN_BIN = 'node_modules/.bin/vulcan';
 
 /** The scopes of VULCAN whose arguments are titles and notes of the board: nothing in them is run. */
 const VULCAN_NOTE_SCOPES = new Set(['flow', 'event']);
-
-/** The `gh` options that take the repository as their value: that value is not the subcommand. */
-const GH_REPOSITORY_FLAGS = new Set(['-R', '--repo']);
-
-/** `find` runs a command only with these; without them it only lists. */
-const FIND_RUNS = new Set([...ShellPrograms.FIND_RUN_OPTIONS, '-delete']);
 
 /** Programs that read their heredoc as a query or a script: the body is part of what they run. */
 const HEREDOC_READERS = new Set([
@@ -78,17 +66,6 @@ export interface ICommandView {
   hasUnknownProgram: boolean;
 }
 
-/** Whether a `gh` command is a request: its subcommand (the first word that is not an option or an option's value) is one of `GH_REQUESTS`. */
-const isGhRequest = (opts: { command: ISimpleCommand }): boolean => {
-  const { args } = ShellPrograms.programOf({ command: opts.command });
-  const subcommand = args.find(
-    (word, index) =>
-      !word.startsWith('-') && !(index > 0 && GH_REPOSITORY_FLAGS.has(args[index - 1] ?? '')),
-  );
-
-  return subcommand !== undefined && GH_REQUESTS.has(subcommand);
-};
-
 export class CommandView {
   /**
    * Whether a command is `vulcan flow ...` or `vulcan event ...` and the whole line: its first word is `vulcan`, or
@@ -110,18 +87,9 @@ export class CommandView {
     );
   }
 
-  /**
-   * Whether a reading or message program is written so that its arguments stay data: its first word is its name (or
-   * `xargs`), with no wrapper, path or keyword before it, on a line that keeps them (`LineReader.read`).
-   */
-  private static keepsArguments(opts: {
-    command: ISimpleCommand;
-    name: string;
-    line?: ILineReading;
-  }): boolean {
-    const first = opts.command.words[0];
-
-    return (first === opts.name || first === 'xargs') && opts.line?.keepsData !== false;
+  /** The values of a command's own assignments. */
+  private static assignedOf(opts: { command: ISimpleCommand }): string[] {
+    return opts.command.assignments.map((word) => word.slice(word.indexOf('=') + 1));
   }
 
   /** The text of one simple command: the words, a bare name for data, a reader's heredoc body appended. */
@@ -140,38 +108,31 @@ export class CommandView {
     const body =
       command.heredoc !== undefined && HEREDOC_READERS.has(name) ? `\n${command.heredoc}` : '';
 
-    return `${[...command.words, ...LineReader.ranOf({ command })].join(' ')}${body}`;
+    // An assignment before a program is given to it, and some programs run what it holds.
+    const given = command.words.length === 0 ? [] : CommandView.assignedOf({ command });
+    const words = [...command.words, ...given, ...LineReader.ranOf({ command })];
+
+    return `${words.join(' ')}${body}`;
   }
 
   /**
-   * Whether the arguments of a command are data. `withMessages` adds `git`, `gh` and a plain `vulcan flow` or
-   * `vulcan event` call (their arguments are messages to the write guards).
+   * Whether the arguments of a command are data: only on a line that keeps them (`LineReader.read`), where every
+   * command is a reading one in a form that neither runs nor writes. `withMessages` adds `git`, `gh` and a plain
+   * `vulcan flow` or `vulcan event` call (their arguments are messages to the write guards).
    */
   static isDataOnly(opts: {
     command: ISimpleCommand;
     withMessages: boolean;
-    /** What the whole line allows; without it no note command is data. */
+    /** What the whole line allows; without it nothing is data. */
     line?: ILineReading;
   }): boolean {
-    const name = ShellPrograms.basenameOf({
-      word: ShellPrograms.programOf({ command: opts.command }).name,
-    });
-
-    if (name === 'gh' && isGhRequest({ command: opts.command })) {
-      return false;
-    }
-
     if (opts.withMessages && CommandView.isPlainNote(opts)) {
       return true;
     }
 
-    const isData =
-      name === 'find'
-        ? !opts.command.words.some((word) => FIND_RUNS.has(word))
-        : LineReader.READ_ONLY_PROGRAMS.has(name) ||
-          (opts.withMessages && MESSAGE_PROGRAMS.has(name));
+    const name = ShellPrograms.programOf({ command: opts.command }).name;
 
-    return isData && CommandView.keepsArguments({ ...opts, name });
+    return opts.line?.keepsData === true && (opts.withMessages || !MESSAGE_PROGRAMS.has(name));
   }
 
   /**
@@ -189,7 +150,11 @@ export class CommandView {
   static viewOf(opts: { command: string; withMessages: boolean }): ICommandView {
     const { text } = ShellParser.splitHeredocs({ command: opts.command });
     const parsed = ShellParser.parseChecked({ command: opts.command });
-    const line = LineReader.read({ line: opts.command, text, commands: parsed.commands });
+    const line = LineReader.read({
+      line: opts.command,
+      commands: parsed.commands,
+      isRead: !parsed.isOverBudget && !parsed.isUncertain,
+    });
     const commands = parsed.commands.filter(
       (command) => !CommandView.isDataOnly({ command, withMessages: opts.withMessages, line }),
     );

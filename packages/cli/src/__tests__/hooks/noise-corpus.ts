@@ -48,11 +48,6 @@ export const QUIET: ICorpusEntry[] = [
   },
   { id: 'q10', note: 'cat of a doc piped to head', command: 'cat docs/deploy.md | head -20' },
   {
-    id: 'q11',
-    note: 'find piped to rg for a migration command',
-    command: 'find . -name \'*.md\' | xargs rg "drizzle-kit push"',
-  },
-  {
     id: 'q12',
     note: 'gh issue with a body that mentions kubectl and ssh',
     command: 'gh issue create --title t --body "kubectl apply failed on ssh prod1.example.com"',
@@ -80,6 +75,11 @@ export const QUIET: ICorpusEntry[] = [
 ];
 
 export const ASKS: ICorpusEntry[] = [
+  {
+    id: 'q11',
+    note: 'find piped to rg for a migration command: xargs is no reading program, so the line is checked',
+    command: 'find . -name \'*.md\' | xargs rg "drizzle-kit push"',
+  },
   { id: 'a01', note: 'a deploy', command: 'kubectl apply -f deploy.yaml' },
   {
     id: 'a02',
