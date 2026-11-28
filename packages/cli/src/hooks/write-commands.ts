@@ -101,6 +101,9 @@ export class WriteCommands {
   /** An `xargs` option that sets a placeholder: the first group is `-I` or `-J`, the second a name attached to it. */
   static readonly XARGS_REPLACE = /^(?:-[0oprtx]*(?:([IJ])|i)|--r[eplac]*(?:=|$))(.*)$/;
 
+  /** The BSD `xargs -J`, alone or ending a group of switches; the group is a name attached to it. */
+  static readonly XARGS_BSD_REPLACE = /^-[0oprtx]*J(.*)$/;
+
   /** A client command that runs a SQL file: psql's `\i`, mysql's `source` and `\.`, sqlite3's `.read`. */
   static readonly SQL_FILE_COMMAND =
     /(?:^|;)\s*(?:\\(?:i|ir|include|include_relative|\.)\s|source\s|\.(?:read|import|restore)\s)/im;
@@ -432,18 +435,26 @@ export class WriteCommands {
   }
 
   /**
-   * The command as written. With the BSD `xargs -J NAME`, also without those two words: another `xargs` takes no value
-   * there, so both readings are checked.
+   * The command as written. With the BSD `xargs -J NAME` (also grouped, `-oJ`, or its name attached), also without
+   * those words: another `xargs` takes no value there, so both readings are checked.
    */
   private static readingsOf(opts: { command: ISimpleCommand }): ISimpleCommand[] {
     const { command } = opts;
     const { index } = ShellPrograms.programOf({ command });
     const start = WriteCommands.xargsAt({ words: command.words, index });
-    const at = command.words.indexOf('-J', start + 1);
 
-    return start === -1 || at === -1
+    if (start === -1) {
+      return [command];
+    }
+
+    const at = command.words.findIndex(
+      (word, position) => position > start && WriteCommands.XARGS_BSD_REPLACE.test(word),
+    );
+    const attached = WriteCommands.XARGS_BSD_REPLACE.exec(command.words[at] ?? '')?.[1];
+
+    return at === -1
       ? [command]
-      : [command, { ...command, words: command.words.toSpliced(at, 2) }];
+      : [command, { ...command, words: command.words.toSpliced(at, attached === '' ? 2 : 1) }];
   }
 
   /**

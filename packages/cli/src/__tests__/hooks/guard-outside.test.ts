@@ -189,6 +189,37 @@ describe('OutsideGuard.inspect flags what a review found', () => {
   });
 });
 
+describe('an appended variable is not read as its old value', () => {
+  test.each([
+    'S=.claude/settings; S+=.json; echo x > $S',
+    'S=.agents/local/; S+=vulcan.manifest.json; echo x > $S',
+    'S=sub; S+=/../../escaped; echo hit > $S',
+    'D=ok; D+=/../../../../tmp; cd $D && echo a > b',
+    'export S=ok; S+=/../../tmp; echo a > $S/b',
+    'S=ok && S+=/../../tmp && echo a > $S/b',
+    'S=ok; S+=/../../tmp true; echo a > $S/b',
+    'S=ok; S+=(x); echo a > $S/b',
+    'S=ok; export S+=/../../tmp; echo a > $S/b',
+    'HOME+=/x; echo a > $HOME/b',
+    'export HOME+=/x; echo a > $HOME/b',
+    'export TMPDIR+=/../../../tmp',
+    'TMPDIR+=/../../../tmp bun test',
+    'A+=$(true) export TMPDIR+=/../../../tmp',
+  ])('%s is flagged', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test('an appended variable of the environment is no longer read from it', () => {
+    expect(
+      bash({ command: 'S+=/../../tmp; echo a > $S/b', env: { ...ENV, S: 'ok' } }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test('a variable set once stays followed', () => {
+    expect(bash({ command: 'S=ok; echo a > $S/b' })).toEqual([]);
+  });
+});
+
 describe('OutsideGuard.inspect passes', () => {
   test.each([
     'mkdir -p .agents/tmp/a',
