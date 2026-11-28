@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { WriteGuard } from '../../hooks/index.ts';
+import { ShellParser, ShellPrograms, WriteGuard } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
@@ -441,6 +441,10 @@ describe('a line that changes what its commands mean, or an option that runs or 
     'echo kubectl | xargs --rep=Q rg --pre Q pat f',
     'echo kubectl | xargs --repl=Q rg --pre Q pat f',
     'echo kubectl | xargs -J % rg --pre % pat f',
+    'echo kubectl | xargs -oI X rg --pre X pat f',
+    'A+=1 kubectl apply -f x.yaml',
+    'A+=1 RIPGREP_CONFIG_PATH=./rc rg pat',
+    'A+=1 B+=2 rg pat . --pre',
     "echo 'apply -f x.yaml' | /usr/bin/xargs kubectl",
   ])('rg running what the line does not show is asked: %s', (command) => {
     expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
@@ -455,6 +459,8 @@ describe('a line that changes what its commands mean, or an option that runs or 
     'RIPGREP_CONFIG_PATH= rg pat',
     'RIPGREP_CONFIG_PATH=/dev/null rg pat',
     'rg "RIPGREP_CONFIG_PATH=x" docs',
+    'rg --pre cat pat dir/xargs',
+    'rg pat docs/xargs',
     'echo RIPGREP_CONFIG_PATH=x',
     'sudo rg "RIPGREP_CONFIG_PATH=x" docs',
     'if true; then echo "RIPGREP_CONFIG_PATH=x"; fi',
@@ -462,6 +468,15 @@ describe('a line that changes what its commands mean, or an option that runs or 
   ])('quiet: %s', (command) => {
     expect(WriteGuard.inspectCommand({ command })).toEqual([]);
   });
+
+  test.each(['A+=1 rm -rf /', 'A+=1 B=2 rm -rf /', 'env A+=1 rm -rf /'])(
+    'an appending assignment is no program: %s',
+    (line) => {
+      const [command] = ShellParser.parse({ command: line });
+
+      expect(command === undefined ? '' : ShellPrograms.programOf({ command }).name).toBe('rm');
+    },
+  );
 
   test('a long line is read once: it is answered quickly', () => {
     const command = `${'ls;'.repeat(1998)} echo ${'""'.repeat(40_000)}; ${K}`;

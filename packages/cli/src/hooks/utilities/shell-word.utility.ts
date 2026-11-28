@@ -274,6 +274,6 @@ export class ShellWordUtility {
 
   /** `NAME=value`: a leading assignment, not a program. */
   static isAssignment(opts: { word: string }): boolean {
-    return /^[A-Za-z_]\w*=/.test(opts.word);
+    return /^[A-Za-z_]\w*\+?=/.test(opts.word);
   }
 }

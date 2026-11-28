@@ -99,7 +99,7 @@ export class WriteCommands {
   static readonly LITERAL_WORD = /^[A-Za-z0-9_@%+=:,./~-]*$/;
 
   /** An `xargs` option that sets a placeholder: the first group is `-I` or `-J`, the second a name attached to it. */
-  static readonly XARGS_REPLACE = /^(?:-[0prtx]*(?:([IJ])|i)|--r[eplac]*(?:=|$))(.*)$/;
+  static readonly XARGS_REPLACE = /^(?:-[0oprtx]*(?:([IJ])|i)|--r[eplac]*(?:=|$))(.*)$/;
 
   /** A client command that runs a SQL file: psql's `\i`, mysql's `source` and `\.`, sqlite3's `.read`. */
   static readonly SQL_FILE_COMMAND =
@@ -353,9 +353,21 @@ export class WriteCommands {
    * or as the program `rg` runs on each file (`--pre`) or for its links (`--hostname-bin`).
    */
   static inspectFed(opts: { command: ISimpleCommand }): IWriteHit[] {
-    const { name, index, args } = ShellPrograms.programOf({ command: opts.command });
+    const placeholders = WriteCommands.placeholdersOf({ command: opts.command });
+
+    return WriteCommands.readingsOf({ command: opts.command }).flatMap((command) =>
+      WriteCommands.fedOf({ command, placeholders }),
+    );
+  }
+
+  private static fedOf(opts: {
+    command: ISimpleCommand;
+    placeholders: readonly string[];
+  }): IWriteHit[] {
+    const { command, placeholders } = opts;
+    const { name, index, args } = ShellPrograms.programOf({ command });
     const program = ShellPrograms.basenameOf({ word: name });
-    const byXargs = WriteCommands.xargsAt({ words: opts.command.words }) === -1 ? [] : [program];
+    const byXargs = WriteCommands.xargsAt({ words: command.words, index }) === -1 ? [] : [program];
     const byRg =
       program === 'rg' ? WriteCommands.valuesOf({ args, option: WriteCommands.RG_RUNS }) : [];
 
@@ -364,7 +376,7 @@ export class WriteCommands {
       ...byRg.flatMap((fed) =>
         WriteCommands.fedHitsOf({ program: ShellPrograms.basenameOf({ word: fed }), by: 'rg' }),
       ),
-      ...WriteCommands.unseenRgHitsOf({ command: opts.command, program, index, args }),
+      ...WriteCommands.unseenRgHitsOf({ command, program, index, args, placeholders }),
     ];
   }
 
@@ -374,19 +386,20 @@ export class WriteCommands {
     program: string;
     index: number;
     args: readonly string[];
+    placeholders: readonly string[];
   }): IWriteHit[] {
-    const { command, program, index: at, args } = opts;
+    const { command, program, index: at, args, placeholders } = opts;
     const isUnnamed =
       program === 'rg' &&
       args.some((word, index) => {
         const match = WriteCommands.RG_RUNS.exec(word);
         const value = match?.[1] ?? args[index + 1];
 
-        return match !== null && !WriteCommands.isNamedProgram({ command, value });
+        return match !== null && !WriteCommands.isNamedProgram({ value, placeholders });
       });
-    // Before the program stand its assignments and wrappers (`env`); a `+=` one reads as the program itself; after it, what a builtin passes on.
+    // Before the program stand its assignments and wrappers (`env`); after it, what a builtin passes on.
     const passed = WriteCommands.ASSIGNERS.has(program) ? args : [];
-    const given = [...command.assignments, ...command.words.slice(0, at + 1), ...passed];
+    const given = [...command.assignments, ...command.words.slice(0, at), ...passed];
     const hasConfig = given.some((word) => WriteCommands.RG_CONFIG.test(word));
 
     return isUnnamed || hasConfig
@@ -399,29 +412,47 @@ export class WriteCommands {
    * runs nothing) that holds no placeholder of `xargs`.
    */
   private static isNamedProgram(opts: {
-    command: ISimpleCommand;
     value: string | undefined;
+    placeholders: readonly string[];
   }): boolean {
-    const { command, value } = opts;
+    const { value, placeholders } = opts;
 
-    if (value === undefined || !WriteCommands.LITERAL_WORD.test(value)) {
-      return false;
-    }
-
-    return !WriteCommands.placeholdersOf({ words: command.words }).some((placeholder) =>
-      value.includes(placeholder),
+    return (
+      value !== undefined &&
+      WriteCommands.LITERAL_WORD.test(value) &&
+      !placeholders.some((placeholder) => value.includes(placeholder))
     );
   }
 
-  /** Where `xargs` stands among the words, by its name or a path to it; -1 when it does not. */
-  private static xargsAt(opts: { words: readonly string[] }): number {
-    return opts.words.findIndex((word) => ShellPrograms.basenameOf({ word }) === 'xargs');
+  /** Where `xargs` stands as a wrapper or the program, by its name or a path to it; -1 when it does not. */
+  private static xargsAt(opts: { words: readonly string[]; index: number }): number {
+    return opts.words
+      .slice(0, opts.index + 1)
+      .findIndex((word) => ShellPrograms.basenameOf({ word }) === 'xargs');
   }
 
-  /** The names `xargs` replaces with its input: `-I NAME`, `-INAME`, `-i`, `--replace`. */
-  private static placeholdersOf(opts: { words: readonly string[] }): string[] {
-    const { words } = opts;
-    const start = WriteCommands.xargsAt({ words });
+  /**
+   * The command as written. With the BSD `xargs -J NAME`, also without those two words: another `xargs` takes no value
+   * there, so both readings are checked.
+   */
+  private static readingsOf(opts: { command: ISimpleCommand }): ISimpleCommand[] {
+    const { command } = opts;
+    const { index } = ShellPrograms.programOf({ command });
+    const start = WriteCommands.xargsAt({ words: command.words, index });
+    const at = command.words.indexOf('-J', start + 1);
+
+    return start === -1 || at === -1
+      ? [command]
+      : [command, { ...command, words: command.words.toSpliced(at, 2) }];
+  }
+
+  /**
+   * The names `xargs` replaces with its input: the one given to `-I`, `-J` or `--replace`, attached or (for `-I` and
+   * `-J`) as the next word. `-i` and `--replace` alone mean `{}`, which is no literal word anyway.
+   */
+  private static placeholdersOf(opts: { command: ISimpleCommand }): string[] {
+    const { words } = opts.command;
+    const start = words.findIndex((word) => ShellPrograms.basenameOf({ word }) === 'xargs');
 
     if (start === -1) {
       return [];
@@ -434,7 +465,6 @@ export class WriteCommands {
         return [];
       }
 
-      // `-I` takes the next word as its name; `-i` and `--replace` alone mean `{}`.
       const name = match[2] || (match[1] === undefined ? '' : (rest[index + 1] ?? ''));
 
       return name === '' ? [] : [name];

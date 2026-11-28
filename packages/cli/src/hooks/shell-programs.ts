@@ -89,7 +89,7 @@ const WRAPPER_OPTIONS: Record<string, IWrapperOptions> = {
   watch: wrapperOptions({ shortValues: 'nq', longValues: ['--interval', '--equexit'] }),
   // `--eof`, `--max-lines` and `--replace` take an optional value attached with `=`, never the next word.
   xargs: wrapperOptions({
-    shortValues: 'IJanPdELs',
+    shortValues: 'IanPdELs',
     longValues: [
       '--arg-file',
       '--delimiter',
