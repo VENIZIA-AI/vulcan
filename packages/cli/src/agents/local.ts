@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { RecordValue } from '../common/record.ts';
-import { BOARD_AGENTS } from '../board/schema.ts';
+import { BoardAgentsSchema } from '../board/schema.ts';
 import { EventSettings } from '../events/settings.ts';
 import { AgentConstants } from './common/index.ts';
 import type { TLocalChoice, TLocalMigrationFailure } from './common/index.ts';
@@ -35,7 +35,7 @@ export const MACHINE_KEYS = {
   board: z
     .strictObject({
       /** `page.agents` is the roster of the board for this checkout; it replaces `board.page.agents` of the committed config. */
-      page: z.strictObject({ agents: BOARD_AGENTS.optional() }).optional(),
+      page: z.strictObject({ agents: BoardAgentsSchema.optional() }).optional(),
       /** `events.dir` replaces `board.events.dir` of the committed config: an absolute folder, such as one shared by several repositories. */
       events: z
         .strictObject({
@@ -84,7 +84,7 @@ export const REMOVED_MACHINE_KEYS = {
   local: REMOVED_KEY({ to: 'common.local' }),
 };
 
-const LOCAL_SCHEMA = z.object({
+const LocalSchema = z.object({
   schemaVersion: z.literal(AgentConstants.LOCAL_SCHEMA_VERSION),
   ...MACHINE_KEYS,
   ...REMOVED_MACHINE_KEYS,
@@ -224,7 +224,7 @@ export class LocalChoice {
 
     // The file of the earlier release has the old paths, and is read as that: it is moved into the profile by `sync`.
     const isLegacy = file === join(opts.root, AgentConstants.LEGACY_LOCAL_FILE);
-    const checked = LOCAL_SCHEMA.safeParse(
+    const checked = LocalSchema.safeParse(
       isLegacy && RecordValue.isRecord(parsed)
         ? ProfileKeys.toNew({ value: parsed }).value
         : parsed,

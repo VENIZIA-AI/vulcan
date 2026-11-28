@@ -3,7 +3,7 @@ import { ThemeTokens } from '../../../theme/index.ts';
 import { ProjectTheme } from '../../../visualize/theme.ts';
 
 /** A colour of a design token: six-digit hex, or eight-digit with an alpha channel for lines and soft text. */
-const TOKEN_COLOUR = z.string().regex(ThemeTokens.COLOUR, 'a hex colour like #8a5a20');
+const TokenColourSchema = z.string().regex(ThemeTokens.COLOUR, 'a hex colour like #8a5a20');
 
 export const THEME_SECTION = {
   /**
@@ -38,8 +38,13 @@ export const THEME_SECTION = {
         .record(
           z.string(),
           z.union([
-            TOKEN_COLOUR,
-            z.strictObject({ light: TOKEN_COLOUR.optional(), dark: TOKEN_COLOUR.optional() }),
+            TokenColourSchema,
+            z.strictObject({
+              /** The colour in the light theme. */
+              light: TokenColourSchema.optional(),
+              /** The colour in the dark theme. */
+              dark: TokenColourSchema.optional(),
+            }),
           ]),
         )
         .optional(),

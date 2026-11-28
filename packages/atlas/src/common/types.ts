@@ -2,7 +2,6 @@ import type {
   AppSides,
   Corpora,
   LibraryTypes,
-  LogLevels,
   PackageTypes,
   SkillSources,
   SourcePins,
@@ -15,23 +14,13 @@ export type TConstValue<TClass> = Extract<TClass[keyof TClass], string | number>
 export { ConstClass } from '@venizia/vulcan-okf';
 
 export type TCorpus = TConstValue<typeof Corpora>;
-export type TLogLevel = TConstValue<typeof LogLevels>;
 export type TSkillSource = TConstValue<typeof SkillSources>;
 export type TPackageType = TConstValue<typeof PackageTypes>;
 export type TLibraryType = TConstValue<typeof LibraryTypes>;
 export type TAppSide = TConstValue<typeof AppSides>;
 export type TSourcePin = TConstValue<typeof SourcePins>;
 
-/** A scoped logger; `for` narrows the scope to one method. Every line goes to stderr. */
-export interface ILogger {
-  debug(message: string, ...args: unknown[]): void;
-  info(message: string, ...args: unknown[]): void;
-  warn(message: string, ...args: unknown[]): void;
-  error(message: string, ...args: unknown[]): void;
-  emerg(message: string, ...args: unknown[]): void;
-  log(level: TLogLevel, message: string, ...args: unknown[]): void;
-  for(methodName: string): ILogger;
-}
+export type { ILogger, TLogLevel } from '@venizia/vulcan-okf';
 
 /** The part of a package.json the generators read. */
 export interface IPackageManifest {

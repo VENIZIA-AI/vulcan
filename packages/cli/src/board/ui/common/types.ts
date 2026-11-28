@@ -22,15 +22,15 @@ export type TAgentStatus = TConstValue<typeof BoardAgentStatuses>;
 export type TTranslate = (key: string) => string;
 
 /** A line as drawn. */
-export type IBoardViewEvent = IBoardEvent;
+export type TBoardViewEvent = IBoardEvent;
 
 /** What the list, the detail and the graph draw of one flow. */
 export interface IFlowView {
   flow: IBoardFlow;
   holder: string;
-  evs: IBoardViewEvent[];
-  last: IBoardViewEvent;
-  lastAsk?: IBoardViewEvent;
+  evs: TBoardViewEvent[];
+  last: TBoardViewEvent;
+  lastAsk?: TBoardViewEvent;
   /** Only `flow` lines and plumbing: no work, no stage to show. */
   noWork: boolean;
   newCount: number;

@@ -1,4 +1,4 @@
-import { StderrLogger } from './logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import type { ILogger } from './types';
 
 /** A class that logs under its own scope, `[Scope-method] message`, to stderr. */

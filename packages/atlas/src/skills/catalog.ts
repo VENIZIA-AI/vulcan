@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Resolve } from '@/changelogs/resolve';
 import { SkillSources } from '@/common/constants';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import type { TSkillSource } from '@/common/types';
 
 const SKILL_FILE = 'SKILL.md';

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { NodeKinds, NodeStates, VisualizeLimits } from './constants.ts';
-import { SOURCE_SCHEMA } from './sources.ts';
+import { SourceSchema } from './sources.ts';
 import { ConstClass } from '../common/types.ts';
 
 /** Which of the two versions an edge belongs to: both, only the first (a), or only the second (b). */
@@ -27,17 +27,17 @@ const choice = (opts: { set: Iterable<string> }) =>
   z
     .string()
     .regex(new RegExp(`^(${[...opts.set].join('|')})$`), `one of: ${[...opts.set].join(', ')}`);
-const ID = z
+const IdSchema = z
   .string()
   .regex(/^[a-z][a-z0-9-]{0,31}$/, 'lowercase letters, digits and -, at most 32');
-const GRID = z
+const GridSchema = z
   .number()
   .int()
   .min(0)
   .max(VisualizeLimits.MAX_GRID - 1);
 
 /** Two versions of one mechanism as one figure: the boxes they share, and the arrows each has or lacks. */
-export const COMPARE_SCHEMA = z.strictObject({
+export const CompareSchema = z.strictObject({
   /** The name of the first version. */
   a: text(CompareLimits.MAX_SIDE),
   /** The name of the second version. */
@@ -45,14 +45,14 @@ export const COMPARE_SCHEMA = z.strictObject({
   nodes: z
     .array(
       z.strictObject({
-        id: ID,
+        id: IdSchema,
         label: text(VisualizeLimits.MAX_LABEL),
         sublabel: text(VisualizeLimits.MAX_LABEL).optional(),
-        row: GRID,
-        col: GRID,
+        row: GridSchema,
+        col: GridSchema,
         type: choice({ set: NodeKinds.values() }).optional(),
         state: choice({ set: NodeStates.SCHEME_SET }).optional(),
-        source: SOURCE_SCHEMA.optional(),
+        source: SourceSchema.optional(),
       }),
     )
     .min(2)
@@ -60,8 +60,8 @@ export const COMPARE_SCHEMA = z.strictObject({
   edges: z
     .array(
       z.strictObject({
-        from: ID,
-        to: ID,
+        from: IdSchema,
+        to: IdSchema,
         /** Every arrow says what it does: a verb. */
         label: text(VisualizeLimits.MAX_EDGE_LABEL),
         /** Absent, the arrow is in both versions. */
@@ -74,4 +74,4 @@ export const COMPARE_SCHEMA = z.strictObject({
   caption: text(VisualizeLimits.MAX_SENTENCE).optional(),
 });
 
-export type TCompare = z.output<typeof COMPARE_SCHEMA>;
+export type TCompare = z.output<typeof CompareSchema>;

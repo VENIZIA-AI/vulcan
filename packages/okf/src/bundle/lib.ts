@@ -4,6 +4,7 @@
  *
  * Repo-specific paths and denylists live in ../common/config.ts.
  */
+import { StderrLogger } from '../common/stderr-logger.ts';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, posix, relative } from 'node:path';
 import { VulcanError } from '../common/error.ts';
@@ -12,7 +13,7 @@ import { PRUNE_DIRS, RESERVED_FILES } from '../common/config.ts';
 import { OkfProject } from '../project/index.ts';
 import { OkfFrontmatter } from '../spec/frontmatter.ts';
 
-export type Concept = {
+export type TConcept = {
   id: string; // bundle-relative, leading slash, no extension - e.g. "/packages/core-server"
   file: string; // absolute path
   type: string;
@@ -141,7 +142,7 @@ export class ConceptLoader {
     return { data: parsed.data, body };
   }
 
-  static load(): Concept[] {
+  static load(): TConcept[] {
     const { bundle } = OkfProject.read();
 
     return walkMarkdown({ dir: bundle }).map((file) => {
@@ -174,11 +175,11 @@ export class ConceptLoader {
    * together rather than stopping at the first); every other command that reads the whole bundle
    * calls this instead of `ConceptLoader.load()` directly.
    */
-  static loadOrExit(): Concept[] {
+  static loadOrExit(): TConcept[] {
     try {
       return ConceptLoader.load();
     } catch (error) {
-      console.error(`okf: ${error instanceof Error ? error.message : String(error)}`);
+      StderrLogger.note(`okf: ${error instanceof Error ? error.message : String(error)}`);
       process.exit(1);
     }
   }

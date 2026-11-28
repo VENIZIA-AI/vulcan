@@ -1,7 +1,7 @@
 import { basename, relative } from 'node:path';
 import { PRERELEASE_PART, VersionFolders } from '@/changelogs/version-folder';
 import { GitLocal } from '@/common/git-local';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import type { IAtlasProject } from '@/common/project-config';
 import { ReleaseTemplate } from '@/releases/template';
 import { VulcanError } from '@venizia/vulcan-okf';

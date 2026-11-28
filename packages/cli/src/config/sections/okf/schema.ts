@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { REMOVED_OKF_KEY } from '../../common/schema.ts';
 
 /** A renderer by id: a built-in, or a project module (`module`); a bare string is the id alone. */
-const OKF_RENDERER = z.union([
+const OkfRendererSchema = z.union([
   z.string().transform((id) => ({ id, options: {} })),
   z.strictObject({
     /** Name of the renderer: a built-in, or the identifier a project module registers. */
@@ -19,7 +19,7 @@ export const OKF_SECTION = {
   okf: z
     .strictObject({
       /** Renderers the project uses, each a built-in id or an object with a module; default `[]`. */
-      renderers: z.array(OKF_RENDERER).default([]),
+      renderers: z.array(OkfRendererSchema).default([]),
       /** Generated blocks in markdown files, each binding a region `id` and `file` to a `renderer`; default `[]`. */
       regions: z
         .array(z.strictObject({ id: z.string(), file: z.string(), renderer: z.string() }))

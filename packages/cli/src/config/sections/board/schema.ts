@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { BoardConstants, BoardServe, ProviderTypes } from '../../../board/common/constants.ts';
 import { BoardLogo } from '../../../board/logo.ts';
-import { BOARD_AGENTS } from '../../../board/schema.ts';
+import { BoardAgentsSchema } from '../../../board/schema.ts';
 
 export const BOARD_SECTION = {
   /**
@@ -33,7 +33,7 @@ export const BOARD_SECTION = {
         })
         .optional(),
       /** Faces and roles of the board's agents, keyed by agent name; default `{}`. */
-      agents: BOARD_AGENTS.default({}),
+      agents: BoardAgentsSchema.default({}),
     })
     .default({ agents: {} }),
   /**

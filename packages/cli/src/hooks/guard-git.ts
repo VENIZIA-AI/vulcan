@@ -1,12 +1,12 @@
 import { ShellParser, ShellUnread } from './shell.ts';
 import { ShellPrograms } from './shell-programs.ts';
 import { GuardDecisions, HookConstants } from './common/index.ts';
-import type { IGitHit, IGitRunner, ISimpleCommand } from './common/index.ts';
+import type { IGitHit, TGitRunner, ISimpleCommand } from './common/index.ts';
 import { GitQueries } from './git-queries.ts';
 import { ProjectGuards } from './project-guards.ts';
 
 /** `git` and `gh` read-only queries the guard makes, inert (`GitQueries`); `undefined` when the tool is missing, slow or fails. */
-const runQuery: IGitRunner = (opts) => GitQueries.run(opts);
+const runQuery: TGitRunner = (opts) => GitQueries.run(opts);
 
 /** Options of `git` before its subcommand, and how many words each takes. */
 const GIT_OPTIONS_WITH_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace']);
@@ -50,7 +50,7 @@ const pushTargetOf = (opts: { refspec: string; current: () => string | undefined
 const inspectPush = (opts: {
   rest: string[];
   cwd: string | undefined;
-  run: IGitRunner;
+  run: TGitRunner;
   askPush: string[];
 }): IGitHit[] => {
   const flags = opts.rest.filter((word) => word.startsWith('-') && word !== '-');
@@ -135,7 +135,7 @@ const inspectStage = (opts: {
   sub: string;
   rest: string[];
   cwd: string | undefined;
-  run: IGitRunner;
+  run: TGitRunner;
 }): IGitHit[] => {
   const flags = opts.rest.filter((word) => word.startsWith('-') && word !== '--');
   const paths = opts.rest.filter((word) => !word.startsWith('-'));
@@ -182,7 +182,7 @@ const inspectStage = (opts: {
 const inspectBranch = (opts: {
   rest: string[];
   cwd: string | undefined;
-  run: IGitRunner;
+  run: TGitRunner;
 }): IGitHit[] => {
   const flags = opts.rest.filter((word) => word.startsWith('-') && word !== '--');
   const renaming = flags.some(
@@ -337,7 +337,7 @@ const inspectGhApi = (opts: { args: string[] }): IGitHit[] => {
 const inspectGhMerge = (opts: {
   args: string[];
   cwd: string | undefined;
-  run: IGitRunner;
+  run: TGitRunner;
 }): IGitHit[] => {
   const { group, action, rest } = ghCall({ args: opts.args });
 
@@ -419,7 +419,7 @@ const inspectGhCreate = (opts: { args: string[] }): IGitHit[] => {
 const inspectOne = (opts: {
   command: ISimpleCommand;
   cwd: string | undefined;
-  run: IGitRunner;
+  run: TGitRunner;
   askPush: string[];
 }): IGitHit[] => {
   const program = ShellPrograms.programOf({ command: opts.command });
@@ -482,7 +482,7 @@ export class GitGuard {
   static inspect(opts: {
     command: string;
     cwd: string | undefined;
-    run?: IGitRunner;
+    run?: TGitRunner;
     /** Branches (names, `*` allowed) a plain `git push` asks about: `guard.git.askPush`. */
     askPush?: string[];
   }): IGitHit[] {
@@ -492,7 +492,7 @@ export class GitGuard {
     let isCapped = false;
 
     // Every query is a process and can take seconds: a line may make a few, and asks past them.
-    const limited: IGitRunner = (call) => {
+    const limited: TGitRunner = (call) => {
       queries += 1;
 
       if (queries > HookConstants.MAX_QUERIES) {

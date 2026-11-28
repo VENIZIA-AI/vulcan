@@ -11,7 +11,7 @@ export const REMOVED_OKF_KEY = (opts: { fix: string }) =>
     .optional();
 
 /** A layout folder: 1 to 4 plain segments, never climbing, never absolute. */
-export const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
+export const LayoutFolderSchema = z.string().superRefine((value, context) => {
   const problem = LayoutFolder.layoutFolderProblem({ folder: value });
 
   if (problem !== undefined) {

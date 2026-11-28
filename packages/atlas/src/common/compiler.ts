@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { VulcanError } from '@venizia/vulcan-okf';
 import type TypeScript from 'typescript';
-import { StderrLogger } from './logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { PROJECT_ROOT } from './project';
 import { ProjectConfig } from './project-config';
 

@@ -1,5 +1,5 @@
-import { StderrLogger } from '@/common/logger';
 import { afterEach, describe, expect, spyOn, test } from 'bun:test';
+import { StderrLogger } from '../../index.ts';
 
 const LEVEL_ENV_KEY = 'APP_ENV_LOGGER_LEVEL';
 const originalLevel = process.env[LEVEL_ENV_KEY];

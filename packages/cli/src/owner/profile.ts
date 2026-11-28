@@ -13,7 +13,7 @@ import { ProfileKeys } from '../agents/profile-keys.ts';
 import { MACHINE_KEYS } from '../agents/local.ts';
 import { RecordValue } from '../common/record.ts';
 import { OwnerConstants } from './constants.ts';
-import { PROFILE_SCHEMA } from './schema.ts';
+import { ProfileSchema } from './schema.ts';
 import type { TProfile } from './schema.ts';
 import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
@@ -55,7 +55,7 @@ export class OwnerProfile {
       return { ok: false, error: `${OwnerConstants.PROFILE_FILE} is not valid JSON` };
     }
 
-    const parsed = PROFILE_SCHEMA.safeParse(payload);
+    const parsed = ProfileSchema.safeParse(payload);
 
     if (parsed.success) {
       return { ok: true, profile: parsed.data };
@@ -172,7 +172,7 @@ export class OwnerProfile {
   }): { ok: true } | { ok: false; error: string } {
     // The form knows the owner's keys only: this machine's keys (`agents`, `board`, `local`, `events`) of the file stay.
     const { kept } = OwnerProfile.machineKeysOf({ root: opts.root });
-    const parsed = PROFILE_SCHEMA.safeParse(
+    const parsed = ProfileSchema.safeParse(
       typeof opts.profile === 'object' && opts.profile !== null
         ? { ...kept, ...opts.profile }
         : opts.profile,

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { AgentConstants, AgentGuardKinds, AgentRenderers, AgentScopes } from './constants.ts';
 
 /** One agent of `base/agents.json`: strict, so a typo in the table is an error, not a silent gap. */
-export const AGENT_ENTRY_SCHEMA = z
+export const AgentEntrySchema = z
   .strictObject({
     id: z.string().regex(/^[a-z][a-z0-9-]*$/),
     name: z.string().min(1),

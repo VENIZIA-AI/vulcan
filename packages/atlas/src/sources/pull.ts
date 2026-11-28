@@ -12,7 +12,7 @@ import { AtlasConstants } from '@/common/constants';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases/common';
 import { ReleaseCompute } from '@/releases/compute';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { PrebuiltAttempt } from '@/prebuilt/attempt';
 import { SymbolCompute } from '@/symbols/compute';
 import { SourceCache } from './cache';

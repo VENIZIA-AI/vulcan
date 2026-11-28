@@ -11,7 +11,7 @@ const compiles = (value: string): boolean => {
 };
 
 /** A command the project says is a database write (V-W-02) or a deploy (V-W-03): guard-writes asks when its pattern matches. */
-const GUARD_COMMAND = z.strictObject({
+const GuardCommandSchema = z.strictObject({
   /** Which rule the command falls under: `V-W-02` for a database write, `V-W-03` for a deploy. */
   rule: z.enum(['V-W-02', 'V-W-03']),
   /** Short name of the action, shown when guard-writes asks; 1 to 120 characters. */
@@ -27,7 +27,7 @@ const GUARD_COMMAND = z.strictObject({
 });
 
 /** A branch a plain `git push` asks about: a name, with `*` for any run of characters. */
-const PUSH_TARGET = z
+const PushTargetSchema = z
   .string()
   .regex(/^[A-Za-z0-9._/*-]+$/, { message: 'a branch name, with * for any run of characters' });
 
@@ -67,11 +67,13 @@ export const GUARD_SECTION = {
             fix: 'delete this key; guard-writes no longer reads scripts, it asks only for the commands of its table and of guard.writes.commands',
           }),
           /** The project's own deploy and migrate commands guard-writes asks about; default `[]`. */
-          commands: z.array(GUARD_COMMAND).default([]),
+          commands: z.array(GuardCommandSchema).default([]),
         })
         .default({ commands: [] }),
       /** Git guard settings; `askPush` lists the branches a plain `git push` asks about, `*` for any run of characters. Default `[]`. */
-      git: z.strictObject({ askPush: z.array(PUSH_TARGET).default([]) }).default({ askPush: [] }),
+      git: z
+        .strictObject({ askPush: z.array(PushTargetSchema).default([]) })
+        .default({ askPush: [] }),
       /**
        * The package names `vulcan check runners` and the runner guard accept besides the scoped packages (`@scope/name`,
        * which always pass), such as `shadcn`: lower-case words, dots and dashes, or a scoped name. Anything else that

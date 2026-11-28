@@ -4,16 +4,16 @@ import { z } from 'zod';
 import { LayoutConstants, LayoutRules } from './common/index.ts';
 import type { ILayoutFinding, TLayoutRule } from './common/index.ts';
 
-const ENTRY = z.strictObject({
+const LayoutBaselineEntrySchema = z.strictObject({
   rule: z.custom<TLayoutRule>((value) => LayoutRules.isValid(value), {
     message: `one of ${LayoutRules.values().join(', ')}`,
   }),
   path: z.string().min(1),
 });
 
-const BASELINE = z.array(ENTRY);
+const LayoutBaselineSchema = z.array(LayoutBaselineEntrySchema);
 
-export type TLayoutBaselineEntry = z.output<typeof ENTRY>;
+export type TLayoutBaselineEntry = z.output<typeof LayoutBaselineEntrySchema>;
 
 const keyOf = (opts: { entry: TLayoutBaselineEntry }): string =>
   `${opts.entry.rule}\0${opts.entry.path}`;
@@ -53,7 +53,7 @@ export class LayoutBaseline {
       };
     }
 
-    const result = BASELINE.safeParse(parsed);
+    const result = LayoutBaselineSchema.safeParse(parsed);
 
     return result.success
       ? { entries: result.data }

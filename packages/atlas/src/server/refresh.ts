@@ -1,4 +1,4 @@
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 
 const DEFAULT_INTERVAL_MS = 300_000;
 

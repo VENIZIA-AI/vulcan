@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { GitGuard, HookConstants, ShellBudget, ShellParser } from '../../hooks/index.ts';
-import type { IGitRunner } from '../../hooks/index.ts';
+import type { TGitRunner } from '../../hooks/index.ts';
 
 /**
  * Every bypass the reviews of the guard parser found, each a way to hide `git push -f origin main`. A row here
@@ -102,7 +102,7 @@ const BYPASSES: { id: string; found: string; command: string }[] = [
 ];
 
 /** A fake `git`/`gh` that answers every query with a branch and counts the calls. */
-const counting = (): { run: IGitRunner; calls: () => number } => {
+const counting = (): { run: TGitRunner; calls: () => number } => {
   let calls = 0;
 
   return {
@@ -115,7 +115,7 @@ const counting = (): { run: IGitRunner; calls: () => number } => {
   };
 };
 
-const decisions = (opts: { command: string; run?: IGitRunner }): string[] =>
+const decisions = (opts: { command: string; run?: TGitRunner }): string[] =>
   GitGuard.inspect({ command: opts.command, cwd: '/p', run: opts.run ?? counting().run }).map(
     (hit) => hit.decision,
   );

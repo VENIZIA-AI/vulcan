@@ -20,7 +20,7 @@ export interface IDerivedPackages {
   errors: string[];
 }
 
-const PACKAGES_SCHEMA = VulcanConfigSchema.shape.packages;
+const PackagesSchema = VulcanConfigSchema.shape.packages;
 const PACKAGE_FILE = 'package.json';
 
 /**
@@ -68,7 +68,7 @@ export class WorkspacePackages {
 
     for (const folder of folders) {
       const name = WorkspacePackages.nameOf({ root: opts.root, folder });
-      const checked = PACKAGES_SCHEMA.safeParse([
+      const checked = PackagesSchema.safeParse([
         { dir: folder.replaceAll('/', '-'), name, path: folder },
       ]);
 

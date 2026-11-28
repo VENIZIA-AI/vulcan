@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { VISUALIZE_SCHEMA } from '../../visualize/index.ts';
+import { VisualizeSpecSchema } from '../../visualize/index.ts';
 import { renderSpec } from './render.helper.ts';
 
 const BASE = {
@@ -48,7 +48,7 @@ describe('grades', () => {
 
   test('a letter other than A, B or C is refused', () => {
     expect(
-      VISUALIZE_SCHEMA.safeParse({ ...BASE, grades: [{ label: 'x', grade: 'D' }] }).success,
+      VisualizeSpecSchema.safeParse({ ...BASE, grades: [{ label: 'x', grade: 'D' }] }).success,
     ).toBe(false);
   });
 });
@@ -75,7 +75,7 @@ describe('metrics', () => {
       },
     ];
 
-    expect(VISUALIZE_SCHEMA.safeParse({ ...BASE, metrics: one }).success).toBe(false);
-    expect(VISUALIZE_SCHEMA.safeParse({ ...BASE, metrics: zero }).success).toBe(false);
+    expect(VisualizeSpecSchema.safeParse({ ...BASE, metrics: one }).success).toBe(false);
+    expect(VisualizeSpecSchema.safeParse({ ...BASE, metrics: zero }).success).toBe(false);
   });
 });

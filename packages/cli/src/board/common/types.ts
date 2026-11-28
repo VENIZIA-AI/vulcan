@@ -63,8 +63,8 @@ export interface IBoardEvent {
   ref?: IBoardRef;
   link?: string;
   /** Only a title line has them: the lists, the due day and the tracker id the flow line gave. */
-  steps?: IBoardItem[];
-  checks?: IBoardItem[];
+  steps?: TBoardItem[];
+  checks?: TBoardItem[];
   apps?: string[];
   due?: string;
   /** Its place in the work order, from the flow line; `null` clears it. */
@@ -75,7 +75,7 @@ export interface IBoardEvent {
 }
 
 /** One step or acceptance check of a flow, and whether it is done: the same thing the event log carries. */
-export type IBoardItem = IEventItem;
+export type TBoardItem = IEventItem;
 
 /** The tokens of one agent or one model: four counts, and the thinking part of the output where lines report it. */
 export interface IBoardTokenRow {
@@ -114,8 +114,8 @@ export interface IBoardFlow {
   /** The next step and who does it; from the same line as the title. */
   next?: string;
   /** The steps, the acceptance checks, the apps, the due day and the tracker id, from the same line as the title: the line lists them in full. */
-  steps?: IBoardItem[];
-  checks?: IBoardItem[];
+  steps?: TBoardItem[];
+  checks?: TBoardItem[];
   apps?: string[];
   due?: string;
   order?: number;

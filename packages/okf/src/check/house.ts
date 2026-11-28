@@ -1,9 +1,10 @@
+import { StderrLogger } from '../common/stderr-logger.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REGENERATE_HINT } from '../common/config.ts';
 import { OkfProject } from '../project/index.ts';
 import { ConceptLoader, MarkdownText } from '../bundle/lib.ts';
-import type { Concept } from '../bundle/lib.ts';
+import type { TConcept } from '../bundle/lib.ts';
 import type { IBundleFile } from '../spec/index.ts';
 import { CoverageAxes } from '../coverage-report/axes.ts';
 import { ContentsFiles } from '../generate/contents-files.ts';
@@ -56,12 +57,12 @@ export class HouseCheck {
     const problems: string[] = [];
 
     // A concept that fails to load is already reported by the spec layer; links need the loaded set.
-    let concepts: Concept[] = [];
+    let concepts: TConcept[] = [];
 
     try {
       concepts = ConceptLoader.load();
     } catch (error) {
-      console.error(
+      StderrLogger.note(
         `check: links skipped - ${error instanceof Error ? error.message : String(error)}`,
       );
     }

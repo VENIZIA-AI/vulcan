@@ -4,7 +4,7 @@ import type { TAgentSignaturePolicy } from '../../../commit/common/index.ts';
 import { SubjectShape } from '../../../commit/subject.ts';
 
 /** A name that holds a letter or a digit: an entry of only punctuation or spaces would match everything. */
-const AGENT_NAME = z
+const AgentNameSchema = z
   .string()
   .regex(/[\p{L}\p{N}]/u, { message: 'a name with at least one letter or digit' });
 
@@ -33,9 +33,9 @@ export const COMMIT_SECTION = {
                 )
                 .default(AgentSignaturePolicies.ALLOW),
               /** Agent names added to the shipped list; a co-author or `Generated with` line naming one is flagged under `deny`. Default `[]`. */
-              names: z.array(AGENT_NAME).default([]),
+              names: z.array(AgentNameSchema).default([]),
               /** Whole co-author names never flagged, for a person who shares a name with an agent; default `[]`. */
-              allow: z.array(AGENT_NAME).default([]),
+              allow: z.array(AgentNameSchema).default([]),
             })
             .default({ signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] }),
           /** The project's own shape for the commit subject line; absent means no subject check. */

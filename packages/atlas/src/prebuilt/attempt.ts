@@ -1,4 +1,4 @@
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { GithubCredentials } from '@/sources/credentials';
 import { GithubTarball } from '@/sources/tarball';
 import type { IAtlasSource } from '@/sources/common';

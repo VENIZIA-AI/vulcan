@@ -1,5 +1,27 @@
-import { LogLevels } from './constants';
-import type { ILogger, TLogLevel } from './types';
+import { ConstClass } from './types.ts';
+import type { TConstValue } from './types.ts';
+
+/** The levels a log line carries; `emerg` is never a configured threshold. */
+export class LogLevels extends ConstClass {
+  static readonly DEBUG = 'debug';
+  static readonly INFO = 'info';
+  static readonly WARN = 'warn';
+  static readonly ERROR = 'error';
+  static readonly EMERG = 'emerg';
+}
+
+export type TLogLevel = TConstValue<typeof LogLevels>;
+
+/** A scoped logger; `for` narrows the scope to one method. Every line goes to stderr. */
+export interface ILogger {
+  debug(message: string, ...args: unknown[]): void;
+  info(message: string, ...args: unknown[]): void;
+  warn(message: string, ...args: unknown[]): void;
+  error(message: string, ...args: unknown[]): void;
+  emerg(message: string, ...args: unknown[]): void;
+  log(level: TLogLevel, message: string, ...args: unknown[]): void;
+  for(methodName: string): ILogger;
+}
 
 const LEVEL_RANK: Record<TLogLevel, number> = {
   [LogLevels.DEBUG]: 0,
@@ -27,8 +49,8 @@ const resolveThreshold = (): TLogLevel => {
 };
 
 /**
- * The logger every atlas class gets through `BaseHelper`. A line at or above the threshold lands on
- * `console.error` - stdout must carry only JSON-RPC frames.
+ * The one writer of notes to stderr, shared by the VULCAN packages: stdout carries only what a command prints.
+ * `note` always writes; a scoped logger (`get`) writes a line at or above the threshold of `APP_ENV_LOGGER_LEVEL`.
  */
 export class StderrLogger implements ILogger {
   private static readonly cache = new Map<string, StderrLogger>();
@@ -38,6 +60,11 @@ export class StderrLogger implements ILogger {
   private constructor(private readonly scope: string) {
     this.prefix = scope !== '' ? `[${scope}] ` : '';
     this.threshold = resolveThreshold();
+  }
+
+  /** Writes a note to stderr, whatever the threshold. */
+  static note(message: string, ...args: unknown[]): void {
+    console.error(message, ...args);
   }
 
   static get(scope: string): ILogger {
@@ -59,7 +86,7 @@ export class StderrLogger implements ILogger {
       return;
     }
 
-    console.error(`${this.prefix}${opts.message}`, ...opts.args);
+    StderrLogger.note(`${this.prefix}${opts.message}`, ...opts.args);
   }
 
   debug(message: string, ...args: unknown[]): void {

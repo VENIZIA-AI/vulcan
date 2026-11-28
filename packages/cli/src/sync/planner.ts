@@ -1,3 +1,4 @@
+import { StderrLogger } from '@venizia/vulcan-okf';
 import {
   existsSync,
   mkdirSync,
@@ -56,7 +57,7 @@ const readSettingsFile = (opts: { path: string }): TSettings | undefined => {
 
     return isSettingsObject(parsed) ? parsed.value : undefined;
   } catch (error) {
-    console.error(
+    StderrLogger.note(
       `[readSettingsFile] ${opts.path} | ${error instanceof Error ? error.message : String(error)}`,
     );
 

@@ -2,12 +2,12 @@ import { describe, expect, test } from 'bun:test';
 import { DEFAULT_CHROME } from '../../visualize/constants.ts';
 import { BUNDLED_LANGUAGES, Labels } from '../../visualize/labels.ts';
 import { VI_CHROME } from '../../visualize/labels-vi.ts';
-import { VISUALIZE_SCHEMA } from '../../visualize/schema.ts';
+import { VisualizeSpecSchema } from '../../visualize/schema.ts';
 import type { TVisualizeSpec } from '../../visualize/schema.ts';
 import { fullSpec } from './spec.fixture.ts';
 
 const specWith = (chrome?: Record<string, unknown>): TVisualizeSpec =>
-  VISUALIZE_SCHEMA.parse({ ...fullSpec(), ...(chrome === undefined ? {} : { chrome }) });
+  VisualizeSpecSchema.parse({ ...fullSpec(), ...(chrome === undefined ? {} : { chrome }) });
 
 const tupleOf = (opts: { path: string; value: unknown }): [string, unknown] => [
   opts.path,

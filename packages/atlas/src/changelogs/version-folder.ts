@@ -6,7 +6,7 @@ import { DirectoryPath } from '@/common/paths';
 import { RecordValue } from '@/common/record';
 import { TextValue } from '@/common/text';
 import { MIGRATION_NAME_PATTERN, MigrationItemSchema } from '@/migrations/schema';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import type { TMigrationItem } from '@/migrations/schema';
 import { Resolve } from './resolve';
 

@@ -1,3 +1,4 @@
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { RecordValue } from '../common/record.ts';
@@ -182,7 +183,7 @@ export class AppsBlock {
         ? { ok: true, block: parsed }
         : { ok: false, reason: AppsBlockProblems.INVALID };
     } catch (error) {
-      console.error(
+      StderrLogger.note(
         `[AppsBlock.parse] the vulcan:apps block is not JSON | ${error instanceof Error ? error.message : String(error)}`,
       );
 

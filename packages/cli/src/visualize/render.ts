@@ -7,7 +7,7 @@ import { LocalScan } from '../local/index.ts';
 import { VisualizeLimits } from './constants.ts';
 import { PageGate } from './gate.ts';
 import { PageShell } from './page.ts';
-import { VISUALIZE_SCHEMA } from './schema.ts';
+import { VisualizeSpecSchema } from './schema.ts';
 import { PageTerms } from './sources.ts';
 import { ProjectTheme } from './theme.ts';
 import type { IThemeInput } from './theme.ts';
@@ -57,7 +57,7 @@ export class SpecPage {
       };
     }
 
-    const parsed = VISUALIZE_SCHEMA.safeParse(payload);
+    const parsed = VisualizeSpecSchema.safeParse(payload);
 
     if (!parsed.success) {
       return {
@@ -137,7 +137,7 @@ export class SpecPage {
 
   /** The spec's JSON Schema, for an agent that wants to check a spec before it runs the renderer. */
   static specSchemaText(): string {
-    return `${JSON.stringify(z.toJSONSchema(VISUALIZE_SCHEMA, { io: 'input' }), null, 2)}\n`;
+    return `${JSON.stringify(z.toJSONSchema(VisualizeSpecSchema, { io: 'input' }), null, 2)}\n`;
   }
 
   /** A page name as a file name: lowercase letters, digits and dashes. */

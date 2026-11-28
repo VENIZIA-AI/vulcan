@@ -1,7 +1,7 @@
 import { AtlasTimeouts } from '@/common/constants';
 import type { IReleaseIndex } from '@/releases';
 import { ToolErrors } from '@/tools/common';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import type { IMigrationPlan, IMigrationResult } from './plan';
 
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';

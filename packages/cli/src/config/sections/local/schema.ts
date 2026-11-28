@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LAYOUT_FOLDER } from '../../common/schema.ts';
+import { LayoutFolderSchema } from '../../common/schema.ts';
 
 export const LOCAL_SECTION = {
   /**
@@ -17,7 +17,7 @@ export const LOCAL_SECTION = {
        * Written like a layout folder: 1 to 4 plain lower-case segments, never absolute, never climbing. `vulcan project sync`
        * creates it and gitignores it.
        */
-      tmp: LAYOUT_FOLDER.optional(),
+      tmp: LayoutFolderSchema.optional(),
     })
     .default({ autoClean: true }),
 };

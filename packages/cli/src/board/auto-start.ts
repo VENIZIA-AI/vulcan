@@ -1,3 +1,4 @@
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { spawn } from 'node:child_process';
 import { appendFileSync, closeSync, mkdirSync, openSync } from 'node:fs';
 import { request } from 'node:http';
@@ -79,7 +80,7 @@ export class BoardAutoStart {
           const note = `vulcan: [session-start] port ${port} is held by something that is not a VULCAN board, so no board was started`;
 
           appendFileSync(join(folder, BoardServe.AUTO_LOG), `${note}\n`, { mode: 0o600 });
-          console.error(note);
+          StderrLogger.note(note);
 
           return 'foreign';
         }

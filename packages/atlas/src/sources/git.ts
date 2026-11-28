@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, rmSync } from 'node:fs';
 import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import { GitArgument } from '@/common/git-argument';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { VulcanError } from '@venizia/vulcan-okf';
 import type { IRemoteRef } from './common';
 

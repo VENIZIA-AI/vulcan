@@ -2,7 +2,8 @@ import { ProjectConfig } from '@/common/project-config';
 import { describe, expect, spyOn, test } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { AtlasSymbols, runSymbolsCommand } from '@/symbols/generator';
+import { SymbolsCommand } from '@/symbols/command';
+import { AtlasSymbols } from '@/symbols/generator';
 import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../helpers/ignis-root.helper';
 
 describe('AtlasSymbols.sourcePathOf', () => {
@@ -79,12 +80,12 @@ describe.skipIf(!IGNIS_IS_BUILT || !existsSync(join(IGNIS_ROOT, '.agents/vulcan.
   },
 );
 
-describe('runSymbolsCommand', () => {
+describe('SymbolsCommand.run', () => {
   test('a subcommand word prints the usage naming it and exits 2; a flag is ignored', () => {
     const error = spyOn(console, 'error').mockImplementation(() => {});
 
     try {
-      expect(runSymbolsCommand({ command: 'gen' })).toBe(2);
+      expect(SymbolsCommand.run({ command: 'gen' })).toBe(2);
       expect(error).toHaveBeenCalledWith(
         "usage: vulcan atlas symbols (no subcommand: 'gen' is not one)",
       );
@@ -92,7 +93,7 @@ describe('runSymbolsCommand', () => {
 
       // A flag gets past the argument check: whatever happens next is not the usage.
       try {
-        runSymbolsCommand({ command: '--help' });
+        SymbolsCommand.run({ command: '--help' });
         // eslint-disable-next-line venizia/no-silent-catch -- the real command reads the project; only the usage line matters here
       } catch {
         // The real command reads the project; only the usage line matters here.

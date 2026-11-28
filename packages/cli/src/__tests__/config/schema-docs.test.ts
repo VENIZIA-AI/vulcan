@@ -11,10 +11,10 @@ const SCHEMA_FILES = [
   'board/schema.ts',
 ].toSorted();
 /** Every documented key today: a file the scan stops reading drops keys, and the count shows it. */
-const DOCUMENTED_KEYS = 172;
+const DOCUMENTED_KEYS = 174;
 /** A key of a zod object: its value is a `z` call (the chain may continue on the next lines) or a named schema constant. */
 const KEY =
-  /^ {2,}(?:'[^']+'|[A-Za-z]\w*): (?:z$|z\.(?!infer\b|RefinementCtx\b)|[A-Z][A-Z0-9_]+\b)/;
+  /^ {2,}(?:'[^']+'|[A-Za-z]\w*): (?:z$|z\.(?!infer\b|RefinementCtx\b)|(?:[A-Z][A-Z0-9_]+|[A-Z]\w*Schema)\b)/;
 
 describe('the config schema documents every key', () => {
   test('a comment sits directly above each key of every schema file', () => {

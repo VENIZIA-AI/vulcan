@@ -1,3 +1,4 @@
+import { StderrLogger } from '../common/stderr-logger.ts';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { VulcanError } from '../common/error.ts';
@@ -83,7 +84,7 @@ const loadRenderer = async (opts: {
 
   // Allowed - a project may own a built-in's output - but never silent.
   if (entry.module !== undefined && Object.hasOwn(BUILT_IN_RENDERERS, entry.id)) {
-    console.warn(`okf: module '${entry.id}' replaces the built-in renderer`);
+    StderrLogger.note(`okf: module '${entry.id}' replaces the built-in renderer`);
   }
 
   const pending =

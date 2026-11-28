@@ -3,7 +3,7 @@ import { isAbsolute, join, relative } from 'node:path';
 import { VulcanError } from '../common/error.ts';
 import { RecordValue } from '../common/record.ts';
 import { OkfProject } from '../project/index.ts';
-import type { BindingClass, MakeTarget, SourceMapEntry } from './common/types.ts';
+import type { TBindingClass, TMakeTarget, TSourceMapEntry } from './common/types.ts';
 import { SourceScanner } from './scanner.ts';
 
 /** A path under the project root. */
@@ -18,13 +18,13 @@ const firstSentence = (opts: { text: string }): string => {
 
 export class SourceCollector {
   /** Const-classes of binding keys in one file: `static readonly X = '...'` grouped by declaring class. */
-  static collectBindingKeys(opts: { file: string }): BindingClass[] {
+  static collectBindingKeys(opts: { file: string }): TBindingClass[] {
     if (!existsSync(opts.file)) {
       return [];
     }
 
     const src = readFileSync(opts.file, 'utf8');
-    const out: BindingClass[] = [];
+    const out: TBindingClass[] = [];
 
     for (const cls of src.matchAll(/export\s+class\s+(\w+)[^{]*\{([\s\S]*?)\n\}/g)) {
       // Line-anchored and single-line on purpose: `^\s*static` skips a `private static` member, and a
@@ -48,7 +48,7 @@ export class SourceCollector {
    * Without one, from a `target: ## description` line in any makefile make read - how a shipped module
    * such as vulcan.mk describes its targets.
    */
-  static collectMakefileTargets(): MakeTarget[] {
+  static collectMakefileTargets(): TMakeTarget[] {
     if (!existsSync(projectPath({ path: 'Makefile' }))) {
       return [];
     }
@@ -120,7 +120,7 @@ export class SourceCollector {
       }
     }
 
-    const out: MakeTarget[] = [];
+    const out: TMakeTarget[] = [];
 
     for (let index = 0; index < lines.length; index++) {
       if (lines[index] === '# Not a target:') {
@@ -145,8 +145,8 @@ export class SourceCollector {
     return out.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  static collectMap(): SourceMapEntry[] {
-    const out: SourceMapEntry[] = [];
+  static collectMap(): TSourceMapEntry[] {
+    const out: TSourceMapEntry[] = [];
 
     for (const { dir: pkg, path } of SourceScanner.listPackages()) {
       const src = join(path, 'src');
