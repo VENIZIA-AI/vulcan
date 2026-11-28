@@ -19,7 +19,7 @@ export class ConstClass {
     ];
 
     if (found.length === 0) {
-      // eslint-disable-next-line venizia/no-new-error -- the blocking hooks load this file, and they must run with no third-party package resolvable (the pack smoke breaks them)
+      // eslint-disable-next-line @venizia/no-new-error -- the blocking hooks load this file, and they must run with no third-party package resolvable (the pack smoke breaks them)
       throw new Error(`${this.name} has no values`);
     }
 

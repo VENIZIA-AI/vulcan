@@ -1,5 +1,5 @@
-import { StderrLogger } from '@/common/logger';
 import { afterEach, describe, expect, spyOn, test } from 'bun:test';
+import { StderrLogger } from '../../index.ts';
 
 const LEVEL_ENV_KEY = 'APP_ENV_LOGGER_LEVEL';
 const originalLevel = process.env[LEVEL_ENV_KEY];
@@ -13,6 +13,24 @@ const restoreLevelEnv = (): void => {
 };
 
 afterEach(restoreLevelEnv);
+
+describe('StderrLogger.note', () => {
+  test('writes the message and its values to stderr whatever the threshold', () => {
+    process.env[LEVEL_ENV_KEY] = 'error';
+    const errorSpy = spyOn(console, 'error').mockImplementation(() => undefined);
+    const outputSpy = spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    try {
+      StderrLogger.note('a note', 1);
+
+      expect(errorSpy).toHaveBeenCalledWith('a note', 1);
+      expect(outputSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+      outputSpy.mockRestore();
+    }
+  });
+});
 
 describe('StderrLogger level threshold (M2)', () => {
   test('default threshold is info: a debug call writes nothing, a warn call writes one line', () => {

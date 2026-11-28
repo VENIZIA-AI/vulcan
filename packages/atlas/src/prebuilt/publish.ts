@@ -6,7 +6,7 @@ import { IndexPair } from './build';
 import { PrebuiltConstants, PublishConstants, PairNames } from './constants';
 import { WireValue } from '@/common/wire';
 import { VulcanError } from '@venizia/vulcan-okf';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 
 type TEnv = Record<string, string | undefined>;
 

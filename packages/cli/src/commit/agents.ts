@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { BASE_DIRECTORY } from '../common/index.ts';
 import type { ICommitAgents } from './common/index.ts';
 
-const AGENTS_SCHEMA = z.strictObject({
+const AgentsSchema = z.strictObject({
   products: z.array(z.string().min(1)).min(1),
   mentions: z.array(z.string().min(1)).min(1),
   addressNames: z.array(z.string().min(1)),
@@ -13,12 +13,12 @@ const AGENTS_SCHEMA = z.strictObject({
   generatedPhrases: z.array(z.string().min(1)).min(1),
 });
 
-let cached: z.output<typeof AGENTS_SCHEMA> | undefined;
+let cached: z.output<typeof AgentsSchema> | undefined;
 
 export class CommitAgents {
   /** `extra` joins both `products` and `mentions`. A broken table throws. */
   static read(opts: { extra: string[]; allow?: string[] }): ICommitAgents {
-    cached ??= AGENTS_SCHEMA.parse(
+    cached ??= AgentsSchema.parse(
       JSON.parse(readFileSync(join(BASE_DIRECTORY, 'commit-agents.json'), 'utf8')),
     );
 

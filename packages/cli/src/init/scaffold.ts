@@ -1,3 +1,4 @@
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { Glob } from 'bun';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
@@ -52,7 +53,7 @@ const readManifest = (opts: { root: string }): IRootManifest | undefined => {
 
     return manifest;
   } catch (error) {
-    console.error(
+    StderrLogger.note(
       `[readManifest] ${file} is not valid JSON - using the directory name | ${error instanceof Error ? error.message : String(error)}`,
     );
 

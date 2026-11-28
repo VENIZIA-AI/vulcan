@@ -13,7 +13,7 @@ import { join, relative } from 'node:path';
 import { MANIFEST_FILE, ProjectConfig } from '@/common/project-config';
 import { AtlasConstants } from '@/common/constants';
 import { VulcanError } from '@venizia/vulcan-okf';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases/common';
 import { SourceCache } from './cache';

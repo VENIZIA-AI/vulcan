@@ -8,15 +8,13 @@
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
 import { PackageEntries } from '@/common/package-entries';
-import { RegenerateHint } from '@/common/regenerate-hint';
 import { ProjectConfig } from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
 import type { IPackageEntries } from '@/common/types';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type TypeScript from 'typescript';
 
-const OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/public-surface.md');
 // Dependency order, so a diff reads bottom-up the way a release does.
 
 interface IEntrySurface {
@@ -34,6 +32,9 @@ export class SurfaceVerdicts {
 type TSurfaceVerdict = (typeof SurfaceVerdicts)[keyof typeof SurfaceVerdicts];
 
 export class PublicSurface {
+  /** The committed surface of the project. */
+  static readonly OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/public-surface.md');
+
   static render(opts: { repoRoot?: string; packages?: string[] } = {}): string {
     const project = ProjectConfig.hasAtlasProject() ? ProjectConfig.readAtlasProject() : undefined;
     const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
@@ -77,7 +78,7 @@ export class PublicSurface {
   static verdict(
     opts: { repoRoot?: string; packages?: string[]; outputPath?: string } = {},
   ): TSurfaceVerdict {
-    const outputPath = opts.outputPath ?? OUTPUT;
+    const outputPath = opts.outputPath ?? PublicSurface.OUTPUT;
 
     if (!existsSync(outputPath)) {
       return SurfaceVerdicts.MISSING;
@@ -184,46 +185,3 @@ export class PublicSurface {
       .trim();
   }
 }
-
-export const runSurfaceCommand = (opts: { command?: string; outputPath?: string }): number => {
-  switch (opts.command) {
-    case 'gen': {
-      writeFileSync(OUTPUT, PublicSurface.render());
-      console.log(`wrote ${OUTPUT}`);
-
-      return 0;
-    }
-
-    case 'check': {
-      const verdict = PublicSurface.verdict({ outputPath: opts.outputPath });
-
-      if (verdict === SurfaceVerdicts.FRESH) {
-        console.log('fresh .agents/knowledge/reference/public-surface.md');
-
-        return 0;
-      }
-
-      if (verdict === SurfaceVerdicts.MISSING) {
-        console.error(
-          'not set up .agents/knowledge/reference/public-surface.md - no public surface is committed yet; ' +
-            `${RegenerateHint.of({ command: 'surface' })} once to adopt it, then commit the file`,
-        );
-
-        return 1;
-      }
-
-      console.error(
-        'stale .agents/knowledge/reference/public-surface.md - the public surface changed; ' +
-          `${RegenerateHint.of({ command: 'surface' })} only if the change is intended`,
-      );
-
-      return 1;
-    }
-
-    default: {
-      console.error('usage: vulcan atlas surface gen|check');
-
-      return 2;
-    }
-  }
-};

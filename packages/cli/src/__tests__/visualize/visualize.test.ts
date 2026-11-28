@@ -11,7 +11,7 @@ import {
 import { join } from 'node:path';
 import { Assets, HEAD_JS, PAGE_JS } from '../../visualize/assets.ts';
 import { ProjectTheme } from '../../visualize/theme.ts';
-import { SpecPage, VISUALIZE_SCHEMA, VisualizeLimits } from '../../visualize/index.ts';
+import { SpecPage, VisualizeSpecSchema, VisualizeLimits } from '../../visualize/index.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { runCli } from '../helpers/run.helper.ts';
 import { fullSpec } from './spec.fixture.ts';
@@ -235,7 +235,7 @@ describe('the spec', () => {
 
     expect(schema.properties.title.type).toBe('string');
     expect(schema.additionalProperties).toBe(false);
-    expect(VISUALIZE_SCHEMA.safeParse(fullSpec()).success).toBe(true);
+    expect(VisualizeSpecSchema.safeParse(fullSpec()).success).toBe(true);
   });
 });
 

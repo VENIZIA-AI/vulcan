@@ -27,7 +27,7 @@ const isJsonRpcLine = (line: string): boolean => {
     const parsed: unknown = JSON.parse(line);
 
     return isRecord(parsed) && parsed.jsonrpc === '2.0';
-    // eslint-disable-next-line venizia/no-silent-catch -- a line that is not JSON is not a JSON-RPC line, which is what the test counts
+    // eslint-disable-next-line @venizia/no-silent-catch -- a line that is not JSON is not a JSON-RPC line, which is what the test counts
   } catch {
     return false;
   }

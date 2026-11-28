@@ -8,7 +8,7 @@
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
 import { BunFormatter } from '@/common/format';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { PackageEntries } from '@/common/package-entries';
 import type { IPackageMapEntry } from '@/common/package-map';
 import type { IPackageEntries } from '@/common/types';
@@ -540,17 +540,3 @@ export class AtlasSymbols {
     return textOf(declaration);
   }
 }
-
-/** A debug view: atlas reads declarations when asked (D2); no project commits a symbol table. */
-export const runSymbolsCommand = (opts: { command?: string }): number => {
-  // A flag is ignored, as it always was; a word is a subcommand that does not exist.
-  if (opts.command !== undefined && !opts.command.startsWith('-')) {
-    console.error(`usage: vulcan atlas symbols (no subcommand: '${opts.command}' is not one)`);
-
-    return 2;
-  }
-
-  process.stdout.write(AtlasSymbols.render());
-
-  return 0;
-};

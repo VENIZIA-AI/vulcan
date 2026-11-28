@@ -1,3 +1,4 @@
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/index.ts';
@@ -13,7 +14,7 @@ const readJson = (opts: { file: string }): Record<string, unknown> | undefined =
   try {
     return JSON.parse(readFileSync(opts.file, 'utf8'));
   } catch (error) {
-    console.error(
+    StderrLogger.note(
       `[readJson] ${opts.file} | ${error instanceof Error ? error.message : String(error)}`,
     );
 

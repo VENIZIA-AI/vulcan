@@ -10,11 +10,11 @@ import {
 } from './constants.ts';
 
 /** One line of at most 80 characters, with no backtick, pipe or quote. */
-export const TEXT = z.string().regex(OwnerConstants.LABEL_PATTERN, {
+export const TextSchema = z.string().regex(OwnerConstants.LABEL_PATTERN, {
   message: 'one line of at most 80 characters, with no backtick, pipe or quote',
 });
 /** A language code such as `en` or `pt-BR`. */
-export const LANGUAGE = z.string().regex(OwnerConstants.LANGUAGE_PATTERN, {
+export const LanguageSchema = z.string().regex(OwnerConstants.LANGUAGE_PATTERN, {
   message: 'a language code such as en or pt-BR',
 });
 const choice = (opts: { isValid: (value: string) => boolean; set: Iterable<string> }) =>
@@ -23,21 +23,24 @@ const choice = (opts: { isValid: (value: string) => boolean; set: Iterable<strin
   });
 
 /** A section of a reply, one of `OwnerSections`. */
-export const SECTION = choice({
+export const SectionSchema = choice({
   isValid: (value) => OwnerSections.isValid(value),
   set: OwnerSections.values(),
 });
 /** An enforcement level, one of `OwnerEnforcement`. */
-export const ENFORCE = choice({
+export const EnforceSchema = choice({
   isValid: (value) => OwnerEnforcement.isValid(value),
   set: OwnerEnforcement.values(),
 });
-const TONE = choice({ isValid: (value) => OwnerTones.isValid(value), set: OwnerTones.values() });
-const FORMALITY = choice({
+const ToneSchema = choice({
+  isValid: (value) => OwnerTones.isValid(value),
+  set: OwnerTones.values(),
+});
+const FormalitySchema = choice({
   isValid: (value) => OwnerFormalities.isValid(value),
   set: OwnerFormalities.values(),
 });
-const DETAIL = choice({
+const DetailSchema = choice({
   isValid: (value) => OwnerDetails.isValid(value),
   set: OwnerDetails.values(),
 });
@@ -52,36 +55,36 @@ const REMOVED_KEY = (opts: { fix: string }) =>
     .optional();
 
 /** The words of one language: the minimap header, the six statuses and five labels. A closed list. */
-export const OWNER_LABEL_SET = z.strictObject({
+export const OwnerLabelSetSchema = z.strictObject({
   /** Three column headers of the minimap table, in order; each one line of at most 80 characters. */
-  minimapColumns: z.tuple([TEXT, TEXT, TEXT]),
+  minimapColumns: z.tuple([TextSchema, TextSchema, TextSchema]),
   /** Words for the six task statuses of the minimap. */
   status: z.strictObject({
     /** Status word for finished work. */
-    done: TEXT,
+    done: TextSchema,
     /** Status word for work under way. */
-    doing: TEXT,
+    doing: TextSchema,
     /** Status word for work waiting on someone. */
-    waiting: TEXT,
+    waiting: TextSchema,
     /** Status word for work not yet started. */
-    todo: TEXT,
+    todo: TextSchema,
     /** Status word for work that cannot go on. */
-    blocked: TEXT,
+    blocked: TextSchema,
     /** Status word for work that was dropped. */
-    dropped: TEXT,
+    dropped: TextSchema,
   }),
   /** Labels for the blocked and decisions parts of a reply. */
   labels: z.strictObject({
     /** Label that opens the blocked line of a reply. */
-    blocked: TEXT,
+    blocked: TextSchema,
     /** Heading of the decisions part of a reply. */
-    decisions: TEXT,
+    decisions: TextSchema,
     /** Text shown in the blocked line when nothing blocks. */
-    noBlocker: TEXT,
+    noBlocker: TextSchema,
     /** Text shown in the decisions part when no decision is needed. */
-    noDecision: TEXT,
+    noDecision: TextSchema,
     /** `{x}` is where the recommended answer goes. */
-    recommend: TEXT.refine((value) => value.includes('{x}'), { message: 'must contain {x}' }),
+    recommend: TextSchema.refine((value) => value.includes('{x}'), { message: 'must contain {x}' }),
   }),
 });
 
@@ -89,28 +92,28 @@ export const OWNER_LABEL_SET = z.strictObject({
  * `.agents/local/profile.json`: the one per-developer file. What one developer told VULCAN about how to work with them, and
  * this machine's own keys (`agent`, `board`, `common`: the shapes of `MACHINE_KEYS`, in the groups of the config), which `vulcan project sync` and the hooks read.
  */
-export const PROFILE_SCHEMA = z.strictObject({
+export const ProfileSchema = z.strictObject({
   ...MACHINE_KEYS,
   ...REMOVED_MACHINE_KEYS,
   /** Version of the profile file format; must be `1`. */
   schemaVersion: z.literal(OwnerConstants.PROFILE_SCHEMA_VERSION),
   /** Reply language; labels for it come from `labels` below. A language that is not English with none has its labels written by the agent, and only the structure is checked. */
-  language: LANGUAGE.optional(),
+  language: LanguageSchema.optional(),
   /** How the agent addresses the person: what it calls them, itself, and how formal; default neutral formality. */
   address: z
     .strictObject({
       /** Form of address for the person: a name, pronoun or honorific, one line of at most 80 characters; absent means none. */
-      you: TEXT.optional(),
+      you: TextSchema.optional(),
       /** How the agent refers to itself, one line of at most 80 characters; absent means no fixed form. */
-      self: TEXT.optional(),
+      self: TextSchema.optional(),
       /** How formal the address is: `informal`, `neutral` or `formal`; default `neutral`. */
-      formality: FORMALITY.default(OwnerFormalities.NEUTRAL),
+      formality: FormalitySchema.default(OwnerFormalities.NEUTRAL),
     })
     .prefault({}),
   /** Tone of replies: `terse`, `neutral` or `friendly`; default `neutral`. */
-  tone: TONE.default(OwnerTones.NEUTRAL),
+  tone: ToneSchema.default(OwnerTones.NEUTRAL),
   /** How much a reply spells out: `headline` or `tables`; default `tables`. */
-  reportDetail: DETAIL.default(OwnerDetails.TABLES),
+  reportDetail: DetailSchema.default(OwnerDetails.TABLES),
   /** Working habits the agent follows with this person; both default to `false`. */
   habits: z
     .strictObject({
@@ -125,12 +128,12 @@ export const PROFILE_SCHEMA = z.strictObject({
   /** Taste in code that no formatter or lint rule enforces, up to 1000 characters; absent means none. */
   codeTaste: z.string().max(1000).optional(),
   /** Own enforcement level: `off`, `advise` or `block`; only counts when stricter than the project's, else the project's wins. */
-  enforce: ENFORCE.optional(),
+  enforce: EnforceSchema.optional(),
   /** Removed with the reply check, the only thing that read it. */
   shortReplyWords: REMOVED_KEY({ fix: 'delete this key; the reply check that read it is gone' }),
   /** The label set of each language the person uses, keyed by language code. */
-  labels: z.record(LANGUAGE, OWNER_LABEL_SET).default({}),
+  labels: z.record(LanguageSchema, OwnerLabelSetSchema).default({}),
 });
 
-export type TOwnerLabelSet = z.output<typeof OWNER_LABEL_SET>;
-export type TProfile = z.output<typeof PROFILE_SCHEMA>;
+export type TOwnerLabelSet = z.output<typeof OwnerLabelSetSchema>;
+export type TProfile = z.output<typeof ProfileSchema>;

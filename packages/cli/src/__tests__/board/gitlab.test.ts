@@ -5,7 +5,7 @@ import { BoardGitlab } from '../../board/gitlab.ts';
 import { BoardSettings } from '../../board/settings.ts';
 import { BoardAgentInfo } from '../../board/ui/state/agent-info.ts';
 import { BoardUrl } from '../../board/ui/app/url.ts';
-import type { IBoardViewEvent } from '../../board/ui/common/types.ts';
+import type { TBoardViewEvent } from '../../board/ui/common/types.ts';
 import { VulcanConfigSchema } from '../../config/index.ts';
 import { ProjectManifest } from '../../manifest/index.ts';
 import { git, initRepo } from '../helpers/git-repo.helper.ts';
@@ -517,7 +517,7 @@ describe('the page', () => {
   });
 
   test('a merge request link is a pull request link of the agent card', () => {
-    const event = (opts: Partial<IBoardViewEvent>): IBoardViewEvent =>
+    const event = (opts: Partial<TBoardViewEvent>): TBoardViewEvent =>
       ({
         id: 'x',
         flowId: 'F-1',
@@ -530,7 +530,7 @@ describe('the page', () => {
         ref: { repo: PROJECT, pr: 7 },
         link: `${WEB}/-/merge_requests/7`,
         ...opts,
-      }) as IBoardViewEvent;
+      }) as TBoardViewEvent;
     const [pr] = BoardAgentInfo.prsOf({ events: [event({})] });
 
     expect(pr?.link).toBe(`${WEB}/-/merge_requests/7`);

@@ -510,7 +510,7 @@ export class ShellParser {
   }): ISimpleCommand[] {
     try {
       return ShellParser.parseWithBudget(opts);
-      // eslint-disable-next-line venizia/no-silent-catch -- a parse that throws (a stack or memory limit) marks the budget over, which the caller turns into an ask: the error is the signal, not a message
+      // eslint-disable-next-line @venizia/no-silent-catch -- a parse that throws (a stack or memory limit) marks the budget over, which the caller turns into an ask: the error is the signal, not a message
     } catch {
       opts.budget.isOver = true;
 

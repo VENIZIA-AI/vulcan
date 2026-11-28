@@ -2,7 +2,7 @@ import { EventActorNames } from '../../../events/common/actor-names.ts';
 import type { IBoardAgent, IBoardData, IBoardEvent, IBoardFlow } from '../../common/index.ts';
 import { BoardConstants, BoardSources } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
-import type { IAgentRow, IBoardViewEvent, IFlowView, TTranslate } from '../common/types.ts';
+import type { IAgentRow, TBoardViewEvent, IFlowView, TTranslate } from '../common/types.ts';
 import { BoardTime } from './time.ts';
 
 /** What the page draws, worked out from the data of a board. */
@@ -25,11 +25,11 @@ export class BoardView {
   }
 
   /** The lines of a flow as drawn: plumbing only when asked for. */
-  static linesOf(opts: { flow: IBoardFlow; showAll: boolean }): IBoardViewEvent[] {
+  static linesOf(opts: { flow: IBoardFlow; showAll: boolean }): TBoardViewEvent[] {
     return opts.flow.events.filter((event) => opts.showAll || !event.plumbing);
   }
 
-  static eventsOf(opts: { data: IBoardData; showAll: boolean }): IBoardViewEvent[] {
+  static eventsOf(opts: { data: IBoardData; showAll: boolean }): TBoardViewEvent[] {
     return opts.data.flows.flatMap((flow) => BoardView.linesOf({ flow, showAll: opts.showAll }));
   }
 
@@ -63,7 +63,7 @@ export class BoardView {
   static rowsOf(opts: {
     data: IBoardData;
     flows: IFlowView[];
-    events: IBoardViewEvent[];
+    events: TBoardViewEvent[];
     translate: TTranslate;
     now: number;
   }): IAgentRow[] {
@@ -145,13 +145,13 @@ export class BoardView {
   private static saidOf(opts: {
     st: IAgentRow['st'];
     doc?: IBoardAgent;
-    lastLine?: IBoardViewEvent;
+    lastLine?: TBoardViewEvent;
     youFlow?: IFlowView;
     translate: TTranslate;
   }): Pick<IAgentRow, 'text' | 'ts' | 'approx'> {
     const { st, doc, lastLine, youFlow, translate } = opts;
     const time = (iso?: string): number => (iso ? Date.parse(iso) || 0 : 0);
-    const line = (event: IBoardViewEvent, text: string) => ({
+    const line = (event: TBoardViewEvent, text: string) => ({
       text,
       ts: event.ts,
       approx: BoardTime.isApproximate({ source: event.source }),

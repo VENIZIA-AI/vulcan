@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test, afterEach, beforeEach } from 'bun:tes
 import { join } from 'node:path';
 import { SpawnUtility } from '@venizia/dev-configs/testing';
 import { CommandView, GitGuard, ProjectGuards, WriteGuard } from '../../hooks/index.ts';
-import type { IGitRunner, IProjectCommandCheck } from '../../hooks/index.ts';
+import type { TGitRunner, IProjectCommandCheck } from '../../hooks/index.ts';
 import { fileToolEvent } from '../helpers/hook-event.helper.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { CapturedStderr } from '../helpers/stderr.helper.ts';
@@ -114,7 +114,7 @@ describe("guard-writes asks on the project's own commands", () => {
 });
 
 const runner =
-  (opts: { current?: string }): IGitRunner =>
+  (opts: { current?: string }): TGitRunner =>
   (call) =>
     [call.program, ...call.args].join(' ').includes('rev-parse') ? opts.current : undefined;
 

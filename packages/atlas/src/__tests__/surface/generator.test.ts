@@ -2,7 +2,7 @@ import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PublicSurface, SurfaceVerdicts, runSurfaceCommand } from '@/surface';
+import { PublicSurface, SurfaceCommand, SurfaceVerdicts } from '@/surface';
 import { clearAtlasProject, useAtlasProject } from '../helpers/project.helper';
 
 const tmpDirs: string[] = [];
@@ -165,7 +165,7 @@ describe('PublicSurface.check', () => {
   });
 });
 
-describe('runSurfaceCommand check', () => {
+describe('SurfaceCommand.run check', () => {
   const run = (opts: { outputPath: string }): { code: number; stdout: string; stderr: string } => {
     const log = console.log;
     const error = console.error;
@@ -181,7 +181,7 @@ describe('runSurfaceCommand check', () => {
     };
 
     try {
-      const code = runSurfaceCommand({ command: 'check', outputPath: opts.outputPath });
+      const code = SurfaceCommand.run({ command: 'check', outputPath: opts.outputPath });
 
       return { code, stdout: out.join('\n'), stderr: err.join('\n') };
     } finally {

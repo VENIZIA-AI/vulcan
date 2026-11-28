@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { LayoutFolder } from '../../../common/layout-folder.ts';
 import { LibraryTypes, PackageTypes } from '../../common/index.ts';
-import { LAYOUT_FOLDER } from '../../common/schema.ts';
+import { LayoutFolderSchema } from '../../common/schema.ts';
 import { PackagesSectionConstants } from './constant.ts';
 
 /** One folder, or a list of them: a side whose apps are grouped keeps each group's folder. */
-const LAYOUT_VALUE = z.union([LAYOUT_FOLDER, z.array(LAYOUT_FOLDER).min(1)]);
+const LayoutValueSchema = z.union([LayoutFolderSchema, z.array(LayoutFolderSchema).min(1)]);
 
-const NPM_PACKAGE_NAME = z.string().superRefine((value, context) => {
+const NpmPackageNameSchema = z.string().superRefine((value, context) => {
   if (
     value.length > PackagesSectionConstants.NPM_NAME_MAX_LENGTH ||
     !PackagesSectionConstants.NPM_NAME_PATTERN.test(value)
@@ -19,11 +19,11 @@ const NPM_PACKAGE_NAME = z.string().superRefine((value, context) => {
   }
 });
 
-const PROJECT_PACKAGE = z.strictObject({
+const ProjectPackageSchema = z.strictObject({
   /** Unique key of the package, not necessarily its folder name; lower case letters, digits, `.` and `-`, starting with a letter or digit. */
   dir: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/),
   /** The npm package name: lower case, optional `@scope/`, at most 214 characters. */
-  name: NPM_PACKAGE_NAME,
+  name: NpmPackageNameSchema,
   /** Where the package lives, from the root; default `packages/<dir>`. */
   path: z.string().optional(),
   /** Extra names accepted as the `<dir>` of a release tag; default `[]`. */
@@ -46,7 +46,7 @@ export const pathKeyOf = (opts: { path: string }): string =>
  * live path would make every table keyed by it collide silently.
  */
 const checkPackagesUnique = (
-  packages: z.infer<typeof PROJECT_PACKAGE>[],
+  packages: z.infer<typeof ProjectPackageSchema>[],
   context: z.RefinementCtx,
 ): void => {
   const seen = { dir: new Set<string>(), name: new Set<string>(), path: new Set<string>() };
@@ -81,13 +81,13 @@ export const PACKAGES_SECTION = {
   layout: z
     .strictObject({
       /** Folder, or list of folders, for backend apps. */
-      backend: LAYOUT_VALUE.optional(),
+      backend: LayoutValueSchema.optional(),
       /** Folder, or list of folders, for frontend apps. */
-      frontend: LAYOUT_VALUE.optional(),
+      frontend: LayoutValueSchema.optional(),
       /** Folder, or list of folders, for code shared between apps. */
-      shared: LAYOUT_VALUE.optional(),
+      shared: LayoutValueSchema.optional(),
       /** Folders the layout does not manage (docs, third-party code, tests): packages there are allowed, never targeted by `add`, never guarded. */
-      other: LAYOUT_VALUE.optional(),
+      other: LayoutValueSchema.optional(),
     })
     .superRefine((layout, context) => {
       for (const problem of LayoutFolder.layoutOverlapProblems({ layout })) {
@@ -113,5 +113,5 @@ export const PACKAGES_SECTION = {
     )
     .optional(),
   /** The project's packages in release order; okf, atlas, make and release read this one list. */
-  packages: z.array(PROJECT_PACKAGE).superRefine(checkPackagesUnique).default([]),
+  packages: z.array(ProjectPackageSchema).superRefine(checkPackagesUnique).default([]),
 };

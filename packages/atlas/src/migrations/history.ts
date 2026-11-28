@@ -7,7 +7,7 @@ import { FRONTMATTER_PATTERN } from '@/corpus/frontmatter';
 import { AtlasGit, AtlasTimeouts } from '@/common/constants';
 import type { IAtlasProject } from '@/common/project-config';
 import { ReleaseCompute } from '@/releases/compute';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import type { IChangelogProblem } from './check';
 
 const DATED_NAME = /^\d{4}-\d{2}-\d{2}-.*\.md$/;

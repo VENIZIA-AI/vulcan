@@ -1,7 +1,7 @@
 import { BoardConstants } from '../../common/index.ts';
 import type { IBoardActivity, IBoardAgent, IBoardData } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
-import type { IAgentRow, IBoardViewEvent, IFlowView } from '../common/types.ts';
+import type { IAgentRow, TBoardViewEvent, IFlowView } from '../common/types.ts';
 import { BoardAgentInfo } from './agent-info.ts';
 import { BoardTime } from './time.ts';
 
@@ -32,7 +32,7 @@ export interface IAgentCard {
   /** The newest line of the agent of any type. */
   activity?: IBoardActivity;
   /** The newest message it sent, when that is not already the activity: a message shows once, under its sender. */
-  message?: IBoardViewEvent;
+  message?: TBoardViewEvent;
   prs: number;
   pending: number;
   today: number;
@@ -90,7 +90,7 @@ export class BoardCards {
   /** Whether the line is the agent's latest activity: a message line with the same id, or of the same moment. */
   static isActivity(opts: {
     activity: IBoardActivity | undefined;
-    event: IBoardViewEvent | undefined;
+    event: TBoardViewEvent | undefined;
   }): boolean {
     const { activity, event } = opts;
 
@@ -115,7 +115,7 @@ export class BoardCards {
 
   static agentOf(opts: {
     data: IBoardData;
-    events: IBoardViewEvent[];
+    events: TBoardViewEvent[];
     views: IFlowView[];
     row: IAgentRow;
     doc: IBoardAgent | undefined;
@@ -124,8 +124,8 @@ export class BoardCards {
     const { data, events, views, row, doc, now } = opts;
     const mine = events.filter((event) => event.actor === row.n && !event.plumbing);
     const info = BoardAgentInfo.of({ data, events, name: row.n });
-    const newest = (list: IBoardViewEvent[]): IBoardViewEvent | undefined =>
-      list.reduce<IBoardViewEvent | undefined>(
+    const newest = (list: TBoardViewEvent[]): TBoardViewEvent | undefined =>
+      list.reduce<TBoardViewEvent | undefined>(
         (best, event) => (best === undefined || event.ts >= best.ts ? event : best),
         undefined,
       );

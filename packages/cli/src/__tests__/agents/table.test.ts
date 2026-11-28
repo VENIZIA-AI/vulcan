@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { AGENT_ENTRY_SCHEMA, AgentTable } from '../../agents/index.ts';
+import { AgentEntrySchema, AgentTable } from '../../agents/index.ts';
 import { CodingAgents } from '../../config/index.ts';
 
 const SEVEN_AGENTS = [
@@ -98,13 +98,13 @@ describe('the shipped agent table', () => {
 
 describe('the entry schema', () => {
   test('accepts a complete entry', () => {
-    expect(AGENT_ENTRY_SCHEMA.safeParse(VALID_ENTRY).success).toBe(true);
+    expect(AgentEntrySchema.safeParse(VALID_ENTRY).success).toBe(true);
   });
 
   test('a user-level scope is not implemented, so it is refused', () => {
     const entry = { ...VALID_ENTRY, mcp: { ...VALID_ENTRY.mcp, scope: 'user' } };
 
-    expect(AGENT_ENTRY_SCHEMA.safeParse(entry).success).toBe(false);
+    expect(AgentEntrySchema.safeParse(entry).success).toBe(false);
   });
 
   test('an unknown renderer, a missing field and an unknown key are refused', () => {
@@ -113,9 +113,9 @@ describe('the entry schema', () => {
       Object.entries(VALID_ENTRY).filter(([key]) => key !== 'skills'),
     );
 
-    expect(AGENT_ENTRY_SCHEMA.safeParse(renderer).success).toBe(false);
-    expect(AGENT_ENTRY_SCHEMA.safeParse(missing).success).toBe(false);
-    expect(AGENT_ENTRY_SCHEMA.safeParse({ ...VALID_ENTRY, extra: 1 }).success).toBe(false);
+    expect(AgentEntrySchema.safeParse(renderer).success).toBe(false);
+    expect(AgentEntrySchema.safeParse(missing).success).toBe(false);
+    expect(AgentEntrySchema.safeParse({ ...VALID_ENTRY, extra: 1 }).success).toBe(false);
   });
 
   test('a shared entry must point at the root .mcp.json', () => {
@@ -124,6 +124,6 @@ describe('the entry schema', () => {
       mcp: { scope: 'shared', path: '.omp/mcp.json', renderer: 'mcpServers' },
     };
 
-    expect(AGENT_ENTRY_SCHEMA.safeParse(entry).success).toBe(false);
+    expect(AgentEntrySchema.safeParse(entry).success).toBe(false);
   });
 });

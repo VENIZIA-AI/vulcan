@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { StderrLogger } from '@/common/logger';
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { SourceCache } from '@/sources/cache';
 import { PinPolicy } from '@/sources/pin';
 import { SourcePins } from '@/common/constants';

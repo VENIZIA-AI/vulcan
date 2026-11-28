@@ -1,3 +1,4 @@
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
@@ -32,7 +33,7 @@ const readSyncedHashes = (opts: { root: string }): Record<string, unknown> => {
 
     return manifest.rules?.base ?? {};
   } catch (error) {
-    console.error(
+    StderrLogger.note(
       `[readSyncedHashes] ${file} | ${error instanceof Error ? error.message : String(error)}`,
     );
 

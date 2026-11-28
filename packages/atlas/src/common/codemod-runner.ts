@@ -1,7 +1,6 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { VulcanError } from '@venizia/vulcan-okf';
-import { StderrLogger } from './logger';
+import { StderrLogger, VulcanError } from '@venizia/vulcan-okf';
 import { WireValue } from './wire';
 
 /** An npm package name, lower case: the same shape `ProjectConfig` validates a manifest's package names with. */

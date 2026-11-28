@@ -1,12 +1,15 @@
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { RepoTmp } from '@venizia/dev-configs/testing';
+
+/** The repository's test folder, from this file: a run from any folder, with no preload, keeps out of the system temp. */
+const TEST_TMP = RepoTmp.apply({ root: RepoTmp.findRoot({ start: import.meta.dir }) });
 
 const createdRoots: string[] = [];
 
 /** A throwaway project directory holding exactly `files` (path to content). */
 export const createProject = (opts: { files: Record<string, string> }): string => {
-  const root = mkdtempSync(join(tmpdir(), 'vulcan-project-'));
+  const root = mkdtempSync(join(TEST_TMP, 'vulcan-project-'));
 
   createdRoots.push(root);
 

@@ -51,7 +51,7 @@ export interface IGitHit {
 }
 
 /** Runs a read-only `git` or `gh` query for a guard; `undefined` when it cannot answer. */
-export type IGitRunner = (opts: {
+export type TGitRunner = (opts: {
   program: string;
   args: string[];
   cwd: string | undefined;

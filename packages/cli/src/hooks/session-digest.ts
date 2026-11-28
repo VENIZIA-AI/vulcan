@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
 import { ConfigLoader } from '../config/index.ts';
-import { OWNER_SCHEMA } from '../config/sections/owner/index.ts';
+import { OwnerConfigSchema } from '../config/sections/owner/index.ts';
 import { ManifestConstants } from '../manifest/index.ts';
 import { OwnerCard, OwnerProfile, OwnerView, ReplySwitch } from '../owner/index.ts';
 
@@ -47,7 +47,7 @@ export class SessionDigest {
     if (!ReplySwitch.isOwnerOff({ env: opts.env ?? process.env })) {
       const profile = OwnerProfile.read({ root: opts.projectRoot });
       const view = OwnerView.resolve({
-        owner: loaded.ok ? loaded.config.owner : OWNER_SCHEMA.parse(undefined),
+        owner: loaded.ok ? loaded.config.owner : OwnerConfigSchema.parse(undefined),
         profile: profile.ok ? profile.profile : undefined,
       });
       const shape = OwnerCard.renderShape({ view });

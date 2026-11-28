@@ -8,7 +8,7 @@ import { BoardConstants, BoardServe, ProviderTypes } from './common/index.ts';
 import type { IBoardProvider } from './common/index.ts';
 import { BoardAgentSetting } from './agent-setting.ts';
 import { BoardLogo } from './logo.ts';
-import { BOARD_AGENT, BOARD_AGENTS } from './schema.ts';
+import { BoardAgentSettingSchema, BoardAgentsSchema } from './schema.ts';
 import type { TBoardAgentSetting } from './schema.ts';
 import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
@@ -111,14 +111,14 @@ export class BoardSettings {
     for (const [name, value] of Object.entries(
       RecordValue.isRecord(opts.value) ? opts.value : {},
     )) {
-      const entry = BOARD_AGENT.safeParse(value);
+      const entry = BoardAgentSettingSchema.safeParse(value);
 
       if (entry.success) {
         listed[name] = entry.data;
       }
     }
 
-    const parsed = BOARD_AGENTS.safeParse(listed);
+    const parsed = BoardAgentsSchema.safeParse(listed);
 
     if (!parsed.success) {
       return {
@@ -178,7 +178,7 @@ export class BoardSettings {
     });
 
     const own = LocalSettings.read({ root: opts.root }).boardAgents;
-    const checked = own === undefined ? undefined : BOARD_AGENTS.safeParse(own);
+    const checked = own === undefined ? undefined : BoardAgentsSchema.safeParse(own);
     const block =
       RecordValue.isRecord(manifest) && RecordValue.isRecord(manifest.board) ? manifest.board : {};
     const settings = BoardSettings.resolve({

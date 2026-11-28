@@ -110,7 +110,7 @@ export class SubProcess {
       });
 
       code = exitCode;
-      // eslint-disable-next-line venizia/no-silent-catch -- Bun.spawn throws when the executable is not there; the message below says what to do
+      // eslint-disable-next-line @venizia/no-silent-catch -- Bun.spawn throws when the executable is not there; the message below says what to do
     } catch {
       // Bun.spawn throws when the executable is not there; the message below says what to do.
     }

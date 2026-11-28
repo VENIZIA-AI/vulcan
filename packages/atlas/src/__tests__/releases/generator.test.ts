@@ -1,6 +1,7 @@
 import { describe, expect, spyOn, test } from 'bun:test';
 import { ReleaseCompute } from '@/releases/compute';
-import { AtlasReleases, runReleasesCommand } from '@/releases/generator';
+import { ReleasesCommand } from '@/releases/command';
+import { AtlasReleases } from '@/releases/generator';
 import { ProjectConfig } from '@/common/project-config';
 import { IGNIS_PACKAGES } from '../fixtures/ignis-packages';
 import { ignisCommittedFileOf, IGNIS_HAS_HISTORY, IGNIS_ROOT } from '../helpers/ignis-root.helper';
@@ -136,12 +137,12 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
   },
 );
 
-describe('runReleasesCommand', () => {
+describe('ReleasesCommand.run', () => {
   test('a subcommand word prints the usage naming it and exits 2; a flag is ignored', () => {
     const error = spyOn(console, 'error').mockImplementation(() => {});
 
     try {
-      expect(runReleasesCommand({ command: 'gen' })).toBe(2);
+      expect(ReleasesCommand.run({ command: 'gen' })).toBe(2);
       expect(error).toHaveBeenCalledWith(
         "usage: vulcan atlas releases (no subcommand: 'gen' is not one)",
       );
@@ -149,8 +150,8 @@ describe('runReleasesCommand', () => {
 
       // A flag gets past the argument check: whatever happens next (here, no manifest in a test) is not the usage.
       try {
-        runReleasesCommand({ command: '--root' });
-        // eslint-disable-next-line venizia/no-silent-catch -- the real command reads the project; only the usage line matters here
+        ReleasesCommand.run({ command: '--root' });
+        // eslint-disable-next-line @venizia/no-silent-catch -- the real command reads the project; only the usage line matters here
       } catch {
         // The real command reads the project; only the usage line matters here.
       }

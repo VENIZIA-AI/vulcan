@@ -4,7 +4,7 @@ import { FIGURE_FIT } from '../../visualize/layout.ts';
 import { NEW_KINDS_CSS } from '../../visualize/kinds-css.ts';
 import { KindsRender } from '../../visualize/kinds-render.ts';
 import type { INewKindsContext } from '../../visualize/kinds-render.ts';
-import { LIFECYCLE_SCHEMA, SEQUENCE_SCHEMA, TREE_SCHEMA } from '../../visualize/kinds-schema.ts';
+import { LifecycleSchema, SequenceSchema, TreeSchema } from '../../visualize/kinds-schema.ts';
 import type { ITreeNode } from '../../visualize/kinds-schema.ts';
 import { KindsValidate } from '../../visualize/kinds-validate.ts';
 import type { INewKindsSpec } from '../../visualize/kinds-validate.ts';
@@ -63,9 +63,9 @@ const treeFixture = () => ({
 });
 
 const specOf = (): INewKindsSpec => ({
-  sequence: SEQUENCE_SCHEMA.parse(sequenceFixture()),
-  lifecycle: LIFECYCLE_SCHEMA.parse(lifecycleFixture()),
-  tree: TREE_SCHEMA.parse(treeFixture()),
+  sequence: SequenceSchema.parse(sequenceFixture()),
+  lifecycle: LifecycleSchema.parse(lifecycleFixture()),
+  tree: TreeSchema.parse(treeFixture()),
 });
 
 const contextOf = (opts: { spec?: INewKindsSpec; chrome?: INewKindsContext['chrome'] } = {}) => ({
@@ -111,13 +111,13 @@ const tree = (opts: { depth: number; width?: number }): ITreeNode => {
 
 describe('the schemas', () => {
   test('a good sequence, lifecycle and tree parse', () => {
-    expect(parses(SEQUENCE_SCHEMA, sequenceFixture())).toBe(true);
-    expect(parses(LIFECYCLE_SCHEMA, lifecycleFixture())).toBe(true);
-    expect(parses(TREE_SCHEMA, treeFixture())).toBe(true);
+    expect(parses(SequenceSchema, sequenceFixture())).toBe(true);
+    expect(parses(LifecycleSchema, lifecycleFixture())).toBe(true);
+    expect(parses(TreeSchema, treeFixture())).toBe(true);
   });
 
   test('a lifecycle without transitions gets an empty list', () => {
-    const parsed = LIFECYCLE_SCHEMA.parse({
+    const parsed = LifecycleSchema.parse({
       states: [
         { id: 'a', label: 'A', type: 'start' },
         { id: 'b', label: 'B', type: 'end' },
@@ -132,22 +132,22 @@ describe('the schemas', () => {
     const lifecycle = lifecycleFixture();
     const root = treeFixture();
 
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, extra: 1 })).toBe(false);
+    expect(parses(SequenceSchema, { ...sequence, extra: 1 })).toBe(false);
     expect(
-      parses(SEQUENCE_SCHEMA, {
+      parses(SequenceSchema, {
         ...sequence,
         participants: [{ id: 'a', label: 'A', colour: 'red' }, sequence.participants[1]],
       }),
     ).toBe(false);
     expect(
-      parses(SEQUENCE_SCHEMA, {
+      parses(SequenceSchema, {
         ...sequence,
         messages: [{ from: 'a', to: 'b', label: 'x', arrow: 'big' }],
       }),
     ).toBe(false);
-    expect(parses(LIFECYCLE_SCHEMA, { ...lifecycle, extra: 1 })).toBe(false);
-    expect(parses(TREE_SCHEMA, { ...root, extra: 1 })).toBe(false);
-    expect(parses(TREE_SCHEMA, { root: { ...root.root, colour: 'red' } })).toBe(false);
+    expect(parses(LifecycleSchema, { ...lifecycle, extra: 1 })).toBe(false);
+    expect(parses(TreeSchema, { ...root, extra: 1 })).toBe(false);
+    expect(parses(TreeSchema, { root: { ...root.root, colour: 'red' } })).toBe(false);
   });
 
   test('the sequence takes 2 to 6 participants and 1 to 20 messages', () => {
@@ -157,36 +157,34 @@ describe('the schemas', () => {
     const talk = (count: number) =>
       Array.from({ length: count }, () => ({ from: 'p0', to: 'p1', label: 'ask' }));
 
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, participants: party(1) })).toBe(false);
+    expect(parses(SequenceSchema, { ...sequence, participants: party(1) })).toBe(false);
+    expect(parses(SequenceSchema, { ...sequence, participants: party(2), messages: talk(1) })).toBe(
+      true,
+    );
     expect(
-      parses(SEQUENCE_SCHEMA, { ...sequence, participants: party(2), messages: talk(1) }),
+      parses(SequenceSchema, { ...sequence, participants: party(6), messages: talk(20) }),
     ).toBe(true);
-    expect(
-      parses(SEQUENCE_SCHEMA, { ...sequence, participants: party(6), messages: talk(20) }),
-    ).toBe(true);
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, participants: party(7) })).toBe(false);
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: talk(21) })).toBe(false);
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [] })).toBe(false);
+    expect(parses(SequenceSchema, { ...sequence, participants: party(7) })).toBe(false);
+    expect(parses(SequenceSchema, { ...sequence, messages: talk(21) })).toBe(false);
+    expect(parses(SequenceSchema, { ...sequence, messages: [] })).toBe(false);
   });
 
   test('an arrow label is at most 20 characters and a plain line', () => {
     const sequence = sequenceFixture();
     const message = (label: string) => ({ from: 'owner', to: 'cli', label });
 
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('x'.repeat(20))] })).toBe(
-      true,
-    );
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('x'.repeat(21))] })).toBe(
+    expect(parses(SequenceSchema, { ...sequence, messages: [message('x'.repeat(20))] })).toBe(true);
+    expect(parses(SequenceSchema, { ...sequence, messages: [message('x'.repeat(21))] })).toBe(
       false,
     );
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('two\nlines')] })).toBe(false);
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('   ')] })).toBe(false);
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('a‮b')] })).toBe(false);
+    expect(parses(SequenceSchema, { ...sequence, messages: [message('two\nlines')] })).toBe(false);
+    expect(parses(SequenceSchema, { ...sequence, messages: [message('   ')] })).toBe(false);
+    expect(parses(SequenceSchema, { ...sequence, messages: [message('a‮b')] })).toBe(false);
 
     const lifecycle = lifecycleFixture();
 
     expect(
-      parses(LIFECYCLE_SCHEMA, {
+      parses(LifecycleSchema, {
         ...lifecycle,
         transitions: [{ from: 'draft', to: 'review', label: 'x'.repeat(21) }],
       }),
@@ -198,18 +196,18 @@ describe('the schemas', () => {
     const lifecycle = lifecycleFixture();
 
     expect(
-      parses(SEQUENCE_SCHEMA, {
+      parses(SequenceSchema, {
         ...sequence,
         messages: [{ from: 'owner', to: 'cli', label: 'ask', type: 'shout' }],
       }),
     ).toBe(false);
     expect(
-      parses(LIFECYCLE_SCHEMA, {
+      parses(LifecycleSchema, {
         ...lifecycle,
         states: [{ id: 'a', label: 'A', type: 'middle' }, lifecycle.states[1]],
       }),
     ).toBe(false);
-    expect(parses(TREE_SCHEMA, { root: { id: 'r', label: 'R', state: 'sleeping' } })).toBe(false);
+    expect(parses(TreeSchema, { root: { id: 'r', label: 'R', state: 'sleeping' } })).toBe(false);
   });
 
   test('a lifecycle takes 2 to 10 states and up to 20 transitions', () => {
@@ -218,27 +216,27 @@ describe('the schemas', () => {
     const moves = (count: number) =>
       Array.from({ length: count }, () => ({ from: 's0', to: 's1', label: 'go' }));
 
-    expect(parses(LIFECYCLE_SCHEMA, { states: states(1) })).toBe(false);
-    expect(parses(LIFECYCLE_SCHEMA, { states: states(10), transitions: moves(20) })).toBe(true);
-    expect(parses(LIFECYCLE_SCHEMA, { states: states(11) })).toBe(false);
-    expect(parses(LIFECYCLE_SCHEMA, { states: states(3), transitions: moves(21) })).toBe(false);
+    expect(parses(LifecycleSchema, { states: states(1) })).toBe(false);
+    expect(parses(LifecycleSchema, { states: states(10), transitions: moves(20) })).toBe(true);
+    expect(parses(LifecycleSchema, { states: states(11) })).toBe(false);
+    expect(parses(LifecycleSchema, { states: states(3), transitions: moves(21) })).toBe(false);
   });
 
   test('a tree goes four levels below the root and no further', () => {
-    expect(parses(TREE_SCHEMA, { root: tree({ depth: 3 }) })).toBe(true);
-    expect(parses(TREE_SCHEMA, { root: tree({ depth: 4 }) })).toBe(false);
+    expect(parses(TreeSchema, { root: tree({ depth: 3 }) })).toBe(true);
+    expect(parses(TreeSchema, { root: tree({ depth: 4 }) })).toBe(false);
   });
 
   test('ids are lowercase letters, digits and a hyphen', () => {
     const sequence = sequenceFixture();
 
     expect(
-      parses(SEQUENCE_SCHEMA, {
+      parses(SequenceSchema, {
         ...sequence,
         participants: [{ id: 'Owner', label: 'O' }, sequence.participants[1]],
       }),
     ).toBe(false);
-    expect(parses(TREE_SCHEMA, { root: { id: 'a b', label: 'R' } })).toBe(false);
+    expect(parses(TreeSchema, { root: { id: 'a b', label: 'R' } })).toBe(false);
   });
 });
 
@@ -249,7 +247,7 @@ describe('the checks', () => {
   });
 
   test('a sequence names an id used twice, an arrow to nowhere and a message to oneself', () => {
-    const sequence = SEQUENCE_SCHEMA.parse({
+    const sequence = SequenceSchema.parse({
       participants: [
         { id: 'a', label: 'A' },
         { id: 'a', label: 'Again' },
@@ -273,7 +271,7 @@ describe('the checks', () => {
 
   const lifecycleProblems = (change: (spec: ReturnType<typeof lifecycleFixture>) => unknown) => {
     const fixture = lifecycleFixture();
-    const lifecycle = LIFECYCLE_SCHEMA.parse(change(fixture) ?? fixture);
+    const lifecycle = LifecycleSchema.parse(change(fixture) ?? fixture);
 
     return KindsValidate.checkNew({ spec: { lifecycle } });
   };
@@ -346,7 +344,7 @@ describe('the checks', () => {
   });
 
   test('a tree names an id used twice, too many nodes and too many levels', () => {
-    const twice = TREE_SCHEMA.parse({
+    const twice = TreeSchema.parse({
       root: {
         id: 'a',
         label: 'A',
@@ -512,7 +510,7 @@ describe('the figures', () => {
       { from: 's3', to: 's1', label: 'loop back' },
       { from: 's6', to: 's3', label: 'return' },
     ];
-    const lifecycle = LIFECYCLE_SCHEMA.parse({ states, transitions });
+    const lifecycle = LifecycleSchema.parse({ states, transitions });
     const svg = figureOf(sections({ spec: { lifecycle } }).lifecycle);
 
     expect(KindsValidate.checkNew({ spec: { lifecycle } })).toEqual([]);
@@ -529,7 +527,7 @@ describe('the figures', () => {
   });
 
   test('two arrows between the same neighbours run on two lines', () => {
-    const lifecycle = LIFECYCLE_SCHEMA.parse(lifecycleFixture());
+    const lifecycle = LifecycleSchema.parse(lifecycleFixture());
     const svg = figureOf(sections({ spec: { lifecycle } }).lifecycle);
     const horizontals = [...svg.matchAll(/class="kline" d="M(\d+) (\d+)H(\d+)"/g)].map(
       (match) => match[2],
@@ -613,7 +611,7 @@ describe('the figures', () => {
 
   test('a long label wraps in the figure and reads whole', () => {
     const label = 'A rather long state name that needs to be wrapped over lines';
-    const lifecycle = LIFECYCLE_SCHEMA.parse({
+    const lifecycle = LifecycleSchema.parse({
       states: [
         { id: 'a', label, type: 'start' },
         { id: 'b', label: 'End', type: 'end' },
@@ -626,7 +624,7 @@ describe('the figures', () => {
   });
 
   test('a message to a participant that is not drawn is left out, not a crash', () => {
-    const sequence = SEQUENCE_SCHEMA.parse({
+    const sequence = SequenceSchema.parse({
       participants: [
         { id: 'a', label: 'A' },
         { id: 'b', label: 'B' },
@@ -684,21 +682,21 @@ describe('a phone, escaping and no script', () => {
 
   test('the smallest specs still give a list on a phone', () => {
     const spec: INewKindsSpec = {
-      sequence: SEQUENCE_SCHEMA.parse({
+      sequence: SequenceSchema.parse({
         participants: [
           { id: 'a', label: 'A' },
           { id: 'b', label: 'B' },
         ],
         messages: [{ from: 'a', to: 'b', label: 'ask' }],
       }),
-      lifecycle: LIFECYCLE_SCHEMA.parse({
+      lifecycle: LifecycleSchema.parse({
         states: [
           { id: 'a', label: 'A', type: 'start' },
           { id: 'b', label: 'B', type: 'end' },
         ],
         transitions: [{ from: 'a', to: 'b', label: 'go' }],
       }),
-      tree: TREE_SCHEMA.parse({ root: { id: 'r', label: 'R' } }),
+      tree: TreeSchema.parse({ root: { id: 'r', label: 'R' } }),
     };
     const ctx = contextOf({ spec });
 
@@ -713,7 +711,7 @@ describe('a phone, escaping and no script', () => {
 
   const hostile = '<script>alert(1)</script> & "quoted" \'single\'';
   const hostileSpec = (): INewKindsSpec => ({
-    sequence: SEQUENCE_SCHEMA.parse({
+    sequence: SequenceSchema.parse({
       participants: [
         { id: 'a', label: hostile, sublabel: hostile },
         { id: 'b', label: 'B' },
@@ -721,7 +719,7 @@ describe('a phone, escaping and no script', () => {
       messages: [{ from: 'a', to: 'b', label: '<b>x</b>', note: hostile }],
       caption: hostile,
     }),
-    lifecycle: LIFECYCLE_SCHEMA.parse({
+    lifecycle: LifecycleSchema.parse({
       states: [
         { id: 'a', label: hostile, sublabel: hostile, type: 'start' },
         { id: 'b', label: '<img src=x onerror=alert(1)>', type: 'end' },
@@ -729,7 +727,7 @@ describe('a phone, escaping and no script', () => {
       transitions: [{ from: 'a', to: 'b', label: '"><svg>' }],
       caption: hostile,
     }),
-    tree: TREE_SCHEMA.parse({
+    tree: TreeSchema.parse({
       root: {
         id: 'r',
         label: hostile,

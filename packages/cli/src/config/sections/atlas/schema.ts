@@ -3,7 +3,7 @@ import { TemplatePlaceholders } from '../../common/index.ts';
 import { AtlasSectionConstants } from './constant.ts';
 
 /** An ed25519 public key as `atlas index keygen` prints it: the base64 of its 32 raw bytes, nothing else. */
-const INDEX_PUBLIC_KEY = z.string().refine(
+const IndexPublicKeySchema = z.string().refine(
   (value) => {
     const raw = Buffer.from(value, 'base64');
 
@@ -19,7 +19,7 @@ const INDEX_PUBLIC_KEY = z.string().refine(
  * leading `[#<issue>] ` is optional and a trailing ` [<mode>]` is tolerated. A release train that
  * tags once leaves `<dir>` out (`v<version>`).
  */
-const RELEASE_TEMPLATE = z
+const ReleaseTemplateSchema = z
   .string()
   .refine((value) => value.includes('<version>'), {
     message: 'a template with <version> (and <dir> for per-package releases)',
@@ -40,13 +40,13 @@ export const ATLAS_SECTION = {
   atlas: z
     .strictObject({
       /** Template of a release tag; must hold `<version>`, and `<dir>` for per-package tags. Default `<dir>-v<version>`. */
-      tagPattern: RELEASE_TEMPLATE.default('<dir>-v<version>'),
+      tagPattern: ReleaseTemplateSchema.default('<dir>-v<version>'),
       /**
        * Templates of an earlier tag layout that are still releases: atlas and the changelog check read a tag
        * through `tagPattern` first and then through each of these, so a rename of the tags keeps the old
        * releases. Unlike `ignoreTags`, a tag matched here counts as a release.
        */
-      legacyTagPatterns: z.array(RELEASE_TEMPLATE).optional(),
+      legacyTagPatterns: z.array(ReleaseTemplateSchema).optional(),
       /** Repositories atlas indexes besides this one, each with a `name`, a `repo` and a `ref`; default `[]`. */
       sources: z
         .array(
@@ -93,7 +93,7 @@ export const ATLAS_SECTION = {
        * pair) that a project reading this one as a source checks the signature against. Rotation is a
        * new list; a pair signed by a key no longer listed is not used.
        */
-      index: z.strictObject({ keys: z.array(INDEX_PUBLIC_KEY).default([]) }).optional(),
+      index: z.strictObject({ keys: z.array(IndexPublicKeySchema).default([]) }).optional(),
       /** `false`: atlas never downloads a prebuilt index for a source this project reads; the default is to. */
       prebuilt: z.boolean().optional(),
       /** The sizes atlas holds to when it fetches. */

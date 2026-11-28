@@ -1,9 +1,9 @@
 import type { z } from 'zod';
 import type { TConstValue } from '../../common/index.ts';
 import type { AgentSources, LocalMigrationFailures } from './constants.ts';
-import type { AGENT_ENTRY_SCHEMA } from './schema.ts';
+import type { AgentEntrySchema } from './schema.ts';
 
-export type TAgentEntry = z.infer<typeof AGENT_ENTRY_SCHEMA>;
+export type TAgentEntry = z.infer<typeof AgentEntrySchema>;
 
 /** What the question shows: what was detected on this machine, and what the developer chose before. */
 export interface IAgentQuestion {

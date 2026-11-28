@@ -1,5 +1,5 @@
 import { OwnerConstants, OwnerDetails, OwnerFormalities, OwnerTones } from './constants.ts';
-import { OWNER_LABEL_SET, PROFILE_SCHEMA } from './schema.ts';
+import { OwnerLabelSetSchema, ProfileSchema } from './schema.ts';
 import { OwnerView } from './view.ts';
 import type { TOwnerLabelSet, TProfile } from './schema.ts';
 
@@ -107,7 +107,7 @@ const askLabels = async (opts: { io: ISurveyIo }): Promise<TOwnerLabelSet | null
     labels[key] = answer === '' ? value : answer;
   }
 
-  return OWNER_LABEL_SET.parse({
+  return OwnerLabelSetSchema.parse({
     minimapColumns: columns,
     status,
     labels,
@@ -280,7 +280,7 @@ export class OwnerSurvey {
       }
     }
 
-    return PROFILE_SCHEMA.parse({
+    return ProfileSchema.parse({
       schemaVersion: OwnerConstants.PROFILE_SCHEMA_VERSION,
       language,
       address: {

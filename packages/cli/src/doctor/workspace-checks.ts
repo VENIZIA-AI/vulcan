@@ -1,3 +1,4 @@
+import { StderrLogger } from '@venizia/vulcan-okf';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
@@ -35,7 +36,7 @@ const readScriptNames = (opts: { file: string }): string[] | undefined => {
 
     return typeof scripts === 'object' && scripts !== null ? Object.keys(scripts) : [];
   } catch (error) {
-    console.error(
+    StderrLogger.note(
       `[readScriptNames] ${opts.file} | ${error instanceof Error ? error.message : String(error)}`,
     );
 

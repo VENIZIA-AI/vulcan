@@ -12,7 +12,7 @@ import { GuardDecisions } from '../../hooks/common/constants.ts';
 import { LoaderEnvironment } from '../../hooks/loader-environment.ts';
 import { LayoutConstants } from '../../layout/common/constants.ts';
 import { OwnerConstants, OwnerEnforcement, OwnerSections } from '../../owner/constants.ts';
-import { OWNER_LABEL_SET } from '../../owner/schema.ts';
+import { OwnerLabelSetSchema } from '../../owner/schema.ts';
 import { RulePacks } from '../../rules/packs.ts';
 import { AgentSignaturePolicies } from '../../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../../commit/common/index.ts';
@@ -22,7 +22,7 @@ import { ProjectKey } from '../../events/project-key.ts';
 import { ThemeTokens } from '../../theme/index.ts';
 import { ProjectTheme } from '../../visualize/theme.ts';
 import { BoardLogo } from '../../board/logo.ts';
-import { BOARD_AGENTS } from '../../board/schema.ts';
+import { BoardAgentsSchema } from '../../board/schema.ts';
 import { EventRetention } from '../../events/retention.ts';
 import { EventSettings } from '../../events/settings.ts';
 import {
@@ -101,8 +101,8 @@ const OWNER_SCHEMA = z
       .strictObject({
         shape: z.array(SECTION).min(1).default(OwnerConstants.DEFAULT_SHAPE),
         minimapColumns: z.tuple([TEXT, TEXT, TEXT]).default(DEFAULTS.minimapColumns),
-        status: OWNER_LABEL_SET.shape.status.default(DEFAULTS.status),
-        labels: OWNER_LABEL_SET.shape.labels.default(DEFAULTS.labels),
+        status: OwnerLabelSetSchema.shape.status.default(DEFAULTS.status),
+        labels: OwnerLabelSetSchema.shape.labels.default(DEFAULTS.labels),
         headlineMaxSentences: z
           .number()
           .int()
@@ -491,7 +491,7 @@ export const FROZEN_CONFIG_SCHEMA = z.strictObject({
           message: 'a path inside the project to an .svg file, with no leading / and no .. segment',
         })
         .optional(),
-      agents: BOARD_AGENTS.default({}),
+      agents: BoardAgentsSchema.default({}),
     })
     .default({ agents: {} }),
   provider: z

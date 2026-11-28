@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { IBoardAgent, IBoardData } from '../../../board/common/index.ts';
 import { BoardLanguages } from '../../../board/ui/common/constants.ts';
-import type { IBoardViewEvent } from '../../../board/ui/common/types.ts';
+import type { TBoardViewEvent } from '../../../board/ui/common/types.ts';
 import { DICTIONARY } from '../../../board/ui/i18n/dictionary.ts';
 import { BoardI18n } from '../../../board/ui/i18n/translate.ts';
 import { BoardLatest } from '../../../board/ui/state/latest.ts';
@@ -9,7 +9,7 @@ import { BoardTime } from '../../../board/ui/state/time.ts';
 import { BoardView } from '../../../board/ui/state/view.ts';
 
 const en = (key: string): string => BoardI18n.translate({ language: BoardLanguages.EN, key });
-const line = (opts: Partial<IBoardViewEvent>): IBoardViewEvent => ({
+const line = (opts: Partial<TBoardViewEvent>): TBoardViewEvent => ({
   id: 'a',
   flowId: 'F-1',
   ts: '2026-11-03T10:00:00.000Z',
@@ -73,7 +73,7 @@ describe('BoardTime', () => {
 });
 
 describe('BoardLatest', () => {
-  const said = (opts: Partial<IBoardViewEvent>): string =>
+  const said = (opts: Partial<TBoardViewEvent>): string =>
     BoardLatest.textOf({ event: line(opts), translate: en });
 
   test('a message says who it came from or went to', () => {

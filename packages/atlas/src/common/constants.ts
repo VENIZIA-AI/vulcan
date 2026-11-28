@@ -102,11 +102,4 @@ export class SourcePins extends ConstClass {
   static readonly REF = 'ref';
 }
 
-/** The levels a log line carries; `emerg` is never a configured threshold. */
-export class LogLevels extends ConstClass {
-  static readonly DEBUG = 'debug';
-  static readonly INFO = 'info';
-  static readonly WARN = 'warn';
-  static readonly ERROR = 'error';
-  static readonly EMERG = 'emerg';
-}
+export { LogLevels } from '@venizia/vulcan-okf';

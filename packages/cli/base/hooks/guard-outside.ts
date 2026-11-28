@@ -204,7 +204,7 @@ try {
         isHeldOnCrash = readdirSync(`${root}/.configs`).some((name) =>
           name.startsWith('vulcan.config.'),
         );
-        // eslint-disable-next-line venizia/no-silent-catch -- No .configs folder: no config, nothing to hold
+        // eslint-disable-next-line @venizia/no-silent-catch -- No .configs folder: no config, nothing to hold
       } catch {
         // No .configs folder: no config, nothing to hold.
       }
@@ -223,12 +223,12 @@ try {
           manifest === null ||
           Array.isArray(manifest) ||
           (typeof guard === 'object' && guard !== null && 'asks' in guard && guard.asks === 'deny');
-        // eslint-disable-next-line venizia/no-silent-catch -- A manifest that exists and cannot be read holds every ask
+        // eslint-disable-next-line @venizia/no-silent-catch -- A manifest that exists and cannot be read holds every ask
       } catch {
         isHeldOnCrash = true;
       }
     }
-    // eslint-disable-next-line venizia/no-silent-catch -- the crash path must still print its decision: a hold check that cannot run falls back to ask
+    // eslint-disable-next-line @venizia/no-silent-catch -- the crash path must still print its decision: a hold check that cannot run falls back to ask
   } catch {
     isHeldOnCrash = false;
   }
