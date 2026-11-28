@@ -294,7 +294,23 @@ describe('an appended variable is not read as its old value', () => {
   );
 
   test.each([
+    'PWD=/etc; echo hit > $PWD/x',
+    'PWD=/etc; cp a $PWD/x',
+    'export PWD=/etc; touch $PWD/x',
+    'PWD=/etc; cd $PWD && echo hit > zz',
+    'PWD=/etc; echo hit > ~+/x',
+    'echo hit > $constructor/tmp/x',
+    'echo hit > $toString/tmp/x',
+    'echo hit > $__proto__/tmp/x',
+    'true; for f in a b; do :; done; echo x > $f',
+    'if true; then for d in *; do rm $d; done; fi',
+  ])('%s is flagged', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
     'S=ok; echo a > $S/b',
+    'echo waiting for d; rm $d',
     'for S in ok; do echo a > $S/b; done',
     'for f in *.ts; do cp $f out/; done',
     'cd build && make',

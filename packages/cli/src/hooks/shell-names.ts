@@ -50,20 +50,25 @@ export class ShellNames {
     const read = [...word.matchAll(READ)].map((match) => match[1] ?? '');
     const names = word.startsWith('~+') ? ['PWD', ...read] : read;
 
-    return names.some((name) => setNames.has(name) && !Object.hasOwn(held, name));
+    // `$PWD` is read from the folder of the call, whatever the line puts in it: a set `PWD` is never followed.
+    return names.some(
+      (name) => setNames.has(name) && (name === 'PWD' || !Object.hasOwn(held, name)),
+    );
   }
 
   /** The names a command fills by naming them: its `for` header, or the arguments of a program that reads into them. */
   private static filledBy(opts: { command: ISimpleCommand }): string[] {
-    const { words } = opts.command;
-    const header = words.indexOf('for');
     const { name, args } = ShellPrograms.programOf({ command: opts.command });
-    const loop = header === -1 ? [] : words.slice(header + 1, header + 2);
 
-    if (SETTERS.has(name)) {
-      return [...loop, ...args];
+    // `for` counts where a program stands, past the keywords in front of it: an argument of that name is a word.
+    if (name === 'for') {
+      return args.slice(0, 1);
     }
 
-    return name === 'printf' && args[0] === '-v' ? [...loop, ...args.slice(1, 2)] : loop;
+    if (SETTERS.has(name)) {
+      return args;
+    }
+
+    return name === 'printf' && args[0] === '-v' ? args.slice(1, 2) : [];
   }
 }
