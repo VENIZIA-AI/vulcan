@@ -33,6 +33,7 @@ export class WriteGuard {
         message: check.what,
       })),
       ...view.commands.flatMap((command) => WriteCommands.inspectClient({ command })),
+      ...view.parsed.flatMap((command) => WriteCommands.inspectFed({ command })),
     ];
     const keys = new Set<string>();
 

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { CommandView, GitGuard, ShellParser, WriteGuard } from '../../hooks/index.ts';
+import { LineReader } from '../../hooks/line-reading.ts';
 import { ASKS, QUIET } from './noise-corpus.ts';
 
 const asksOf = (command: string): string[] => [
@@ -82,31 +83,32 @@ describe('CommandView.commandTextsOf and isDataOnly', () => {
     ).toEqual(['find . -name *.yaml -exec kubectl delete -f {} +', 'kubectl delete -f {}']);
     expect(
       CommandView.commandTextsOf({ command: 'find . -name "*.md"', withMessages: true }),
-    ).toEqual(['find']);
+    ).toEqual(['find . -name *.md']);
   });
+
+  const dataIn = (opts: { command: string; withMessages: boolean }): boolean[] => {
+    const commands = ShellParser.parse({ command: opts.command });
+    const line = LineReader.read({ line: opts.command, commands, isRead: true });
+
+    return commands.map((command) =>
+      CommandView.isDataOnly({ command, withMessages: opts.withMessages, line }),
+    );
+  };
 
   test('git and gh are data to the write guard', () => {
-    const [push] = ShellParser.parse({ command: 'git remote add x user@evil.example.com:repo' });
+    const command = 'git commit -m "user@evil.example.com:repo"';
 
-    expect(
-      push !== undefined && CommandView.isDataOnly({ command: push, withMessages: true }),
-    ).toBe(true);
-    expect(
-      push !== undefined && CommandView.isDataOnly({ command: push, withMessages: false }),
-    ).toBe(false);
+    expect(dataIn({ command, withMessages: true })).toEqual([true]);
+    expect(dataIn({ command, withMessages: false })).toEqual([false]);
   });
 
-  test('a read-only tool behind a wrapper is still data, and a wrapper of a real command is not', () => {
-    const [xargsRg] = ShellParser.parse({ command: 'xargs rg "ssh|scp" docs' });
-    const [xargsKubectl] = ShellParser.parse({ command: 'xargs kubectl delete -f' });
-
-    expect(
-      xargsRg !== undefined && CommandView.isDataOnly({ command: xargsRg, withMessages: true }),
-    ).toBe(true);
-    expect(
-      xargsKubectl !== undefined &&
-        CommandView.isDataOnly({ command: xargsKubectl, withMessages: true }),
-    ).toBe(false);
+  test('a read-only tool is data by its own name only: behind xargs or a wrapper it is checked', () => {
+    expect(dataIn({ command: 'rg "ssh|scp" docs', withMessages: true })).toEqual([true]);
+    expect(dataIn({ command: 'xargs rg "ssh|scp" docs', withMessages: true })).toEqual([false]);
+    expect(dataIn({ command: 'xargs kubectl delete -f', withMessages: true })).toEqual([false]);
+    expect(dataIn({ command: 'git remote add x user@host:repo', withMessages: true })).toEqual([
+      false,
+    ]);
   });
 
   test('a heredoc body is part of the command only where its reader runs it', () => {
@@ -124,7 +126,7 @@ describe('CommandView.commandTextsOf and isDataOnly', () => {
     ).toBe('cat');
   });
 
-  test('a pipe into a program that runs its input keeps the whole text, a pipe into xargs rg does not', () => {
+  test('a pipe into a program that runs its input keeps the whole text, and xargs keeps its words', () => {
     expect(
       CommandView.commandTextsOf({ command: 'echo "kubectl apply" | sh', withMessages: true }),
     ).toEqual(['echo "kubectl apply" | sh']);
@@ -133,7 +135,7 @@ describe('CommandView.commandTextsOf and isDataOnly', () => {
         command: 'find . | xargs rg "drizzle-kit push"',
         withMessages: true,
       }),
-    ).toEqual(['find', 'rg']);
+    ).toEqual(['find .', 'xargs rg drizzle-kit push']);
   });
 });
 

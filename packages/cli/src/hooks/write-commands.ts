@@ -86,6 +86,9 @@ export class WriteCommands {
     '-maxsize',
   ]);
 
+  /** The `rg` options that name a program to run; the group is a value attached to them. */
+  static readonly RG_RUNS = /^--(?:pre|hostname-bin)(?:=([\s\S]*))?$/;
+
   /** A client command that runs a SQL file: psql's `\i`, mysql's `source` and `\.`, sqlite3's `.read`. */
   static readonly SQL_FILE_COMMAND =
     /(?:^|;)\s*(?:\\(?:i|ir|include|include_relative|\.)\s|source\s|\.(?:read|import|restore)\s)/im;
@@ -178,7 +181,10 @@ export class WriteCommands {
    */
   static inspectClient(opts: { command: ISimpleCommand }): IWriteHit[] {
     const { name, args } = ShellPrograms.programOf({ command: opts.command });
-    const client = WriteCommands.SQL_CLIENTS[ShellPrograms.basenameOf({ word: name })];
+    const program = ShellPrograms.basenameOf({ word: name });
+    const client = Object.hasOwn(WriteCommands.SQL_CLIENTS, program)
+      ? WriteCommands.SQL_CLIENTS[program]
+      : undefined;
 
     if (client === undefined || args.some((word) => WriteCommands.SQL_CLIENT_INFO.has(word))) {
       return [];
@@ -328,6 +334,40 @@ export class WriteCommands {
     const previous = opts.args[opts.index - 1];
 
     return previous !== undefined && opts.client.inline.exec(previous)?.[1] === '';
+  }
+
+  /**
+   * A program of the table that is given its words from elsewhere, which no pattern can read: from the input of `xargs`,
+   * or as the program `rg` runs on each file (`--pre`) or for its links (`--hostname-bin`).
+   */
+  static inspectFed(opts: { command: ISimpleCommand }): IWriteHit[] {
+    const { name, args } = ShellPrograms.programOf({ command: opts.command });
+    const program = ShellPrograms.basenameOf({ word: name });
+    const byXargs = opts.command.words.includes('xargs') ? [program] : [];
+    const byRg =
+      program === 'rg' ? WriteCommands.valuesOf({ args, option: WriteCommands.RG_RUNS }) : [];
+
+    return [
+      ...byXargs.flatMap((fed) => WriteCommands.fedHitsOf({ program: fed, by: 'xargs' })),
+      ...byRg.flatMap((fed) =>
+        WriteCommands.fedHitsOf({ program: ShellPrograms.basenameOf({ word: fed }), by: 'rg' }),
+      ),
+    ];
+  }
+
+  private static fedHitsOf(opts: { program: string; by: string }): IWriteHit[] {
+    const { program, by } = opts;
+    const check = WriteCommands.CHECKS.find((row) => row.programs.has(program));
+    const message = `\`${by}\` gives ${program} its command, which the line does not show`;
+
+    if (check !== undefined) {
+      return [{ rule: check.rule, message: `${check.what}: ${message}` }];
+    }
+
+    // A database client is no row of the table: it is judged by what it is given.
+    return Object.hasOwn(WriteCommands.SQL_CLIENTS, program)
+      ? [WriteCommands.hitOf({ message })]
+      : [];
   }
 
   private static hitOf(opts: { message: string }): IWriteHit {

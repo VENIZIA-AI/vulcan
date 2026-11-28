@@ -198,11 +198,8 @@ describe('the arguments of a reading or message program are data only on a line 
     `git add a && git commit -m "docs: ${PAYLOAD}" && git push`,
     `rg -n "${PAYLOAD}" docs/ | head`,
     `cd docs && grep -rn "${PAYLOAD}" . | sort | uniq`,
-    `xargs rg "${PAYLOAD}"`,
-    `find . -type f | xargs rg -n "${PAYLOAD}"`,
     `rg -n "${PAYLOAD}" docs/ 2>/dev/null | wc -l`,
     `grep -c "${PAYLOAD}" f 2>&1`,
-    `LC_ALL=C grep "${PAYLOAD}" f`,
     `grep '$(x) <(y) > z | sh' notes.md && echo "${PAYLOAD}"`,
     `git log --grep "${PAYLOAD}" # > not a redirect | sh`,
   ])('quiet: %s', (command) => {
@@ -210,6 +207,9 @@ describe('the arguments of a reading or message program are data only on a line 
   });
 
   test.each([
+    `xargs rg "${PAYLOAD}"`,
+    `find . -type f | xargs rg -n "${PAYLOAD}"`,
+    `LC_ALL=C grep "${PAYLOAD}" f`,
     `watch git log ';' ${PAYLOAD}`,
     `sudo grep "${PAYLOAD}" f`,
     `/tmp/e/git log "${PAYLOAD}"`,
@@ -239,6 +239,169 @@ describe('the arguments of a reading or message program are data only on a line 
     `echo $'it\\'s' "${PAYLOAD}" | sh`,
   ])('checked: %s', (command) => {
     expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('a line that changes what its commands mean, or an option that runs or writes, keeps nothing as data', () => {
+  const K = 'kubectl apply -f x.yaml';
+
+  test.each([
+    `eval 'echo() { "$@"; }'; echo ${K}`,
+    `true x\\ #; echo() { "$@"; }; echo ${K}`,
+    `echo ${K}\\ #> x.sh; sh x.sh`,
+    `echo "${K} \\\n" > x.sh; echo ""`,
+    `function x echo { "$@"; }; echo ${K}`,
+    `function "echo" { "$@"; }; echo ${K}`,
+    `'echo'() { "$@"; }; echo ${K}`,
+    `e\\cho() { "$@"; }; echo ${K}`,
+    `functions[echo]='"$@"'; echo ${K}`,
+    `alias "echo"=eval\necho ${K}`,
+    `alias x=y echo=eval\necho ${K}`,
+    `alias -- echo=eval\necho ${K}`,
+    `\\eval 'x=1'; echo ${K}`,
+    `builtin eval 'x=1'; echo ${K}`,
+    `source ./defs; echo ${K}`,
+    `. ./defs; echo ${K}`,
+    `hash -p /bin/sh git; git -c '${K}'`,
+    `hash git=/bin/sh; git -c '${K}'`,
+    `git -c alias.x='!${K}' x`,
+    `git --config-env=core.pager=X log "${K}"`,
+    `git grep -O'${K}' hello`,
+    `git config alias.x '!${K}'`,
+    `git difftool --extcmd='${K}'`,
+    `git submodule foreach '${K}'`,
+    `gh alias set x '!${K}'`,
+    `rg --pre kubectl "${K}" .`,
+    `find . | xargs rg --pre=kubectl "${K}"`,
+    `echo "${K}" | sort -o x.sh`,
+    `echo "${K}" | sort -uo x.sh`,
+    `echo "${K}" | sort --output=x.sh`,
+    `echo "${K}" | uniq - x.sh`,
+    `find . -name '${K}' -fprint x.sh`,
+    `GIT_PAGER='${K}' git log`,
+    `export GIT_EXTERNAL_DIFF='${K}'; git diff`,
+    `PATH=/tmp/e:$PATH; echo "${K}"`,
+    `man -P '${K}' ls`,
+    `ag --pager '${K}' x`,
+  ])('checked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    `echo "${K}" | xargs -E tr env`,
+    `echo "${K}" | cut -c1- | xargs -E cat env`,
+    `echo ${K} | tr\\ x`,
+    `echo ${K} | tr'x'`,
+    `git grep --open-files-in-p='${K}' hello`,
+    `git grep --op='${K}' hello`,
+    `git grep -nO'${K}' hello`,
+    `git rebase -x '${K}' --root`,
+    `git ls-remote --upload-pa='${K}' .`,
+    `git fetch --upload-pac '${K}' .`,
+    `git clone -u '${K}' . x`,
+    `git push --receive-pac='${K}' . HEAD`,
+    `git push --exe='${K}' . HEAD`,
+    `git \${C:--c} alias.x='!${K}' x`,
+    `git {-c,alias.x='!${K}'} x`,
+    `EDITOR='${K}' git commit --allow-empty`,
+    `echo "${K}" | sort --o=x.sh`,
+    `echo "${K}" | sort --outp x.sh`,
+    `echo "${K}" | sort {-o,x.sh}`,
+    `echo "${K}" | sort $O x.sh`,
+    `echo "${K}" | uniq {-,x.sh}`,
+    `find . -maxdepth 0 {-exec,echo} "${K}"`,
+    `echo ${K}\u{a0}#> x.sh; sh x.sh`,
+    `echo ${K}\r#> x.sh; sh x.sh`,
+    `echo ${K} \${x:- #}> x.sh; sh x.sh`,
+    `cat <<EOF\n'\nEOF\necho ${K} > x.sh; echo \\'`,
+    `echo x # ' \necho ${K} > x.sh; echo '`,
+    `BASH_CMDS[rg]=/bin/sh; rg -c '${K}'`,
+    `commands[rg]=/bin/sh; rg -c '${K}'`,
+    `echo "${K}" & sh x`,
+    `echo "${K}" |& sh`,
+    `if true; then echo "${K}"; fi`,
+    `constructor "${K}"`,
+    `toString "${K}"; __proto__ x`,
+  ])('outside the narrow forms, checked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'cat names | xargs kubectl get pods',
+    'echo x | xargs kubectl -n prod',
+    "echo 'apply' | xargs -I@ kubectl @ -f x.yaml",
+    "echo 'apply -f x.yaml' | xargs kubectl",
+    'cat args | xargs -n1 terraform',
+    'find . | xargs -I{} docker --debug',
+  ])('a program that changes things and takes its command from xargs is asked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    `rg -n "${K}" docs/ | cut -c1-150`,
+    `rg -n "${K}" docs/ | tr a b | head`,
+    `git commit -m "docs: eval, alias and function ${K}"`,
+    `grep -n "eval" f && echo "${K}"`,
+    `git log --oneline --grep "${K}" | sort | uniq -c`,
+    `git -C docs log --grep "${K}"`,
+    `git commit -c HEAD -m "${K}"`,
+    `grep -rn "${K}" docs/eval/ | head`,
+    `rg -n "source" src && echo "${K}"`,
+    'find . | xargs rg -n x',
+    `git commit -qm "two\nlines: ${K}" && git fetch -q && git push -qu origin HEAD 2>&1 | tail -1`,
+    `gh issue create --project "Board" --title "docs: ${K}" --body "${K}"`,
+    `rg -n "${K}" docs/ 2>/dev/null | sort | uniq -c | head -5`,
+  ])('quiet: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+  });
+
+  test.each(['1>&2 ', '2>&1 ', '1>/dev/null ', ' # x\n', '"a" ', "'b';"])(
+    'a long run of %j that ends outside the narrow forms is answered quickly',
+    (piece) => {
+      const command = `echo ${piece.repeat(5000)} $x; ${K}`;
+      const started = performance.now();
+
+      expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+      expect(performance.now() - started).toBeLessThan(3000);
+    },
+  );
+
+  test.each([
+    `echo "${K}" >&1x; sh 1x`,
+    `echo "${K}" 2>&2x`,
+    `echo "${K}" > /dev/null.sh`,
+    ...[...'+:]%?^@,![~=*#'].map((mark) => `echo ${K} >&2${mark}x.sh`),
+    `echo ${K} >&1=x.sh`,
+    `echo ${K} >/dev/null+x.sh`,
+    `echo ${K} >/dev/null=x.sh`,
+  ])('a redirect that only looks like a dropped one is checked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    'rg --pre kubectl pat apply',
+    'rg --pre=psql . app',
+    'rg -n --pre /usr/bin/terraform pat apply',
+    'rg --hostname-bin kubectl pat .',
+    'find . | xargs rg --pre kubectl pat',
+    'env rg --pre docker x up',
+  ])('a program of the table that rg is told to run is asked: %s', (command) => {
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+  });
+
+  test.each(['rg --pre cat pat docs', 'rg --pre-glob "*.pdf" kubectl docs', 'rg -n pat --pretty'])(
+    'quiet: %s',
+    (command) => {
+      expect(WriteGuard.inspectCommand({ command })).toEqual([]);
+    },
+  );
+
+  test('a long line is read once: it is answered quickly', () => {
+    const command = `${'ls;'.repeat(1998)} echo ${'""'.repeat(40_000)}; ${K}`;
+    const started = performance.now();
+
+    expect(WriteGuard.inspectCommand({ command }).length).toBeGreaterThan(0);
+    expect(performance.now() - started).toBeLessThan(3000);
   });
 });
 
