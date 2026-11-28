@@ -9,6 +9,7 @@ import { EventSettings } from '../events/settings.ts';
 import { GuardDecisions } from './common/index.ts';
 import type { IGitHit } from './common/index.ts';
 import { GitActivity } from './git-activity.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /**
  * V-P-13, held by the git guard: in a project that logs events, `git commit`, `gh pr create` and `glab mr create` are
@@ -32,67 +33,68 @@ export class FlowGuard {
     isOver: TIsOver;
     now?: number;
   }): IGitHit[] {
-    try {
-      const settings = EventSettings.read({ root: opts.root });
+    // A log that cannot be read is no hit, never a deny: V-P-13 must not block git on a broken log.
+    return FallbackUtility.of({
+      read: () => {
+        const settings = EventSettings.read({ root: opts.root });
 
-      if (!settings.log) {
-        return [];
-      }
+        if (!settings.log) {
+          return [];
+        }
 
-      const detail = GitActivity.describe({ command: opts.command });
+        const detail = GitActivity.describe({ command: opts.command });
 
-      if (
-        detail === undefined ||
-        (detail.activity !== GitActivities.COMMIT && detail.activity !== GitActivities.PR_OPEN) ||
-        detail.isElsewhere ||
-        detail.isAmend ||
-        EventConstants.FLOW_LINE.test(opts.command)
-      ) {
-        return [];
-      }
+        if (
+          detail === undefined ||
+          (detail.activity !== GitActivities.COMMIT && detail.activity !== GitActivities.PR_OPEN) ||
+          detail.isElsewhere ||
+          detail.isAmend ||
+          EventConstants.FLOW_LINE.test(opts.command)
+        ) {
+          return [];
+        }
 
-      // A project that logs events but has no `project.key` cannot make a flow (`vulcan flow add` refuses): the
-      // rule would ask for what cannot be done, so it does not exist until the key is set. Read only for a commit or a pull request.
-      const key = EventSettings.keyOf({ root: opts.root });
-      const cwd = opts.cwd ?? opts.root;
-      const actor = EventActor.resolve({ sessionId: opts.sessionId, env: opts.env });
+        // A project that logs events but has no `project.key` cannot make a flow (`vulcan flow add` refuses): the
+        // rule would ask for what cannot be done, so it does not exist until the key is set. Read only for a commit or a pull request.
+        const key = EventSettings.keyOf({ root: opts.root });
+        const cwd = opts.cwd ?? opts.root;
+        const actor = EventActor.resolve({ sessionId: opts.sessionId, env: opts.env });
 
-      if (
-        key === undefined ||
-        actor === EventConstants.UNKNOWN_ACTOR ||
-        EventFlow.isMerging({ cwd })
-      ) {
-        return [];
-      }
+        if (
+          key === undefined ||
+          actor === EventConstants.UNKNOWN_ACTOR ||
+          EventFlow.isMerging({ cwd })
+        ) {
+          return [];
+        }
 
-      const known = EventLog.read({
-        dir: EventSettings.dirOf({ root: opts.root, settings }),
-        since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
-      }).events;
+        const known = EventLog.read({
+          dir: EventSettings.dirOf({ root: opts.root, settings }),
+          since: (opts.now ?? Date.now()) - EventConstants.MIRROR_DAYS * EventConstants.DAY_MS,
+        }).events;
 
-      const isOver = (flowId: string): boolean => opts.isOver({ events: known, flowId, key });
-      const hasSession = opts.sessionId !== undefined && opts.sessionId !== '';
-      const found =
-        FlowSteps.flowOf({ events: known, cwd, session: opts.sessionId, isOver }) ??
-        (hasSession ? undefined : FlowSteps.lastOpenedByActor({ events: known, actor, isOver }));
+        const isOver = (flowId: string): boolean => opts.isOver({ events: known, flowId, key });
+        const hasSession = opts.sessionId !== undefined && opts.sessionId !== '';
+        const found =
+          FlowSteps.flowOf({ events: known, cwd, session: opts.sessionId, isOver }) ??
+          (hasSession ? undefined : FlowSteps.lastOpenedByActor({ events: known, actor, isOver }));
 
-      if (found !== undefined) {
-        return [];
-      }
+        if (found !== undefined) {
+          return [];
+        }
 
-      const looked = hasSession ? 'this session has' : `the actor name '${actor}' has`;
+        const looked = hasSession ? 'this session has' : `the actor name '${actor}' has`;
 
-      return [
-        {
-          decision: GuardDecisions.DENY,
-          rule: 'V-P-13',
-          message: `${detail.activity === GitActivities.COMMIT ? 'a commit' : 'a pull request'} with no flow: the branch does not name one and ${looked} no open flow, so the board cannot place the work`,
-          fix: `if this work already has a flow, put "Flow: <id>" in the message (or name the branch with its id); otherwise make one first with: ${ProjectLayout.VULCAN_COMMAND} flow add --title '<what this work is>' (it prints the id), then name the branch with that id (for example feature/<id>-<topic>) or put "Flow: <id>" in the message or the pull request body`,
-        },
-      ];
-      // eslint-disable-next-line venizia/no-silent-catch -- an event log that cannot be read is no hit, never a deny: V-P-13 must not block git on a broken log; a guard speaks only its protocol
-    } catch {
-      return [];
-    }
+        return [
+          {
+            decision: GuardDecisions.DENY,
+            rule: 'V-P-13',
+            message: `${detail.activity === GitActivities.COMMIT ? 'a commit' : 'a pull request'} with no flow: the branch does not name one and ${looked} no open flow, so the board cannot place the work`,
+            fix: `if this work already has a flow, put "Flow: <id>" in the message (or name the branch with its id); otherwise make one first with: ${ProjectLayout.VULCAN_COMMAND} flow add --title '<what this work is>' (it prints the id), then name the branch with that id (for example feature/<id>-<topic>) or put "Flow: <id>" in the message or the pull request body`,
+          },
+        ];
+      },
+      otherwise: [],
+    });
   }
 }

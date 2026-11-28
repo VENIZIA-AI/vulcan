@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { TWriteRule } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** A command the project says is a database write or a deploy: guard-writes asks on a match. */
 export interface IProjectCommandCheck {
@@ -115,14 +116,11 @@ export class ProjectGuards {
 
   /** Whether the project at `root` has a config file (`.configs/vulcan.config.*`): a project with none has no policy to miss. */
   static hasConfig(opts: { root: string }): boolean {
-    try {
-      return readdirSync(join(opts.root, '.configs')).some((name) =>
-        name.startsWith('vulcan.config.'),
-      );
-      // eslint-disable-next-line venizia/no-silent-catch -- no .configs folder means no config; a guard speaks only its protocol
-    } catch {
-      return false;
-    }
+    return FallbackUtility.of({
+      read: () =>
+        readdirSync(join(opts.root, '.configs')).some((name) => name.startsWith('vulcan.config.')),
+      otherwise: false,
+    });
   }
 
   /** What the manifest sets, before the launch environment tightens it. A manifest that exists and cannot be read holds every ask. */

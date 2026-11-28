@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { VulcanError } from '@venizia/vulcan-okf';
 import { ProjectGuards } from '../hooks/project-guards.ts';
 import { RunnerScan } from '../hooks/runner-scan.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** One command in a tracked file that runs a package fetched by name. */
 export interface IRunnerFinding {
@@ -71,14 +72,13 @@ export class RunnersCheck {
       return false;
     }
 
-    try {
-      return /^released:/m.test(
-        readFileSync(join(opts.root, `${version[1] ?? ''}${version[2]}`, 'log.md'), 'utf8'),
-      );
-      // eslint-disable-next-line venizia/no-silent-catch -- a version with no readable log.md is not frozen
-    } catch {
-      return false;
-    }
+    return FallbackUtility.of({
+      read: () =>
+        /^released:/m.test(
+          readFileSync(join(opts.root, `${version[1] ?? ''}${version[2]}`, 'log.md'), 'utf8'),
+        ),
+      otherwise: false,
+    });
   }
 
   static scan(opts: { root: string }): IRunnersScan {

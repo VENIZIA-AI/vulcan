@@ -1,6 +1,7 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { TThemeSource } from './constants.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** What a project (or one spec) says about its colour: the colour it is known by, and two optional helpers. */
 export interface IThemeInput {
@@ -407,18 +408,20 @@ export class ProjectTheme {
    * manifest is a small file inside the project, so nothing else is read.
    */
   private static readSmallFile(opts: { directory: string; name: string }): string | undefined {
-    try {
-      const file = join(opts.directory, opts.name);
-      const folder = lstatSync(opts.directory);
-      const entry = lstatSync(file);
+    return FallbackUtility.of({
+      read: () => {
+        const file = join(opts.directory, opts.name);
+        const folder = lstatSync(opts.directory);
+        const entry = lstatSync(file);
 
-      return folder.isDirectory() && entry.isFile() && entry.size <= ProjectTheme.MAX_MANIFEST_BYTES
-        ? readFileSync(file, 'utf8')
-        : undefined;
-      // eslint-disable-next-line venizia/no-silent-catch -- a theme file that cannot be read is no project theme: the default applies
-    } catch {
-      return undefined;
-    }
+        return folder.isDirectory() &&
+          entry.isFile() &&
+          entry.size <= ProjectTheme.MAX_MANIFEST_BYTES
+          ? readFileSync(file, 'utf8')
+          : undefined;
+      },
+      otherwise: undefined,
+    });
   }
 
   /**

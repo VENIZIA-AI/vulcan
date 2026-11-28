@@ -7,6 +7,7 @@ import { EventSettings } from '../events/settings.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { BoardFlags, BoardServe } from './common/index.ts';
 import type { TAutoStart } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** What answers on the port: a VULCAN board, another program, or nothing. */
 type TPortState = 'board' | 'other' | 'free';
@@ -70,46 +71,46 @@ export class BoardAutoStart {
       return 'running';
     }
 
-    try {
-      mkdirSync(folder, { recursive: true });
+    return FallbackUtility.of({
+      read: () => {
+        mkdirSync(folder, { recursive: true });
 
-      if (state === 'other') {
-        const note = `vulcan: [session-start] port ${port} is held by something that is not a VULCAN board, so no board was started`;
+        if (state === 'other') {
+          const note = `vulcan: [session-start] port ${port} is held by something that is not a VULCAN board, so no board was started`;
 
-        appendFileSync(join(folder, BoardServe.AUTO_LOG), `${note}\n`, { mode: 0o600 });
-        console.error(note);
+          appendFileSync(join(folder, BoardServe.AUTO_LOG), `${note}\n`, { mode: 0o600 });
+          console.error(note);
 
-        return 'foreign';
-      }
+          return 'foreign';
+        }
 
-      const log = openSync(join(folder, BoardServe.AUTO_LOG), 'a', 0o600);
-      const env = Object.fromEntries(
-        Object.entries(process.env).filter(
-          ([name]) => KEPT_ENV.has(name) || name.startsWith('LC_'),
-        ),
-      );
-      const child = spawn(
-        process.execPath,
-        [
-          '--no-env-file',
-          '--config=/dev/null',
-          join(opts.root, 'node_modules/.bin/vulcan'),
-          'board',
-          BoardServe.COMMAND,
-          BoardFlags.PORT,
-          String(port),
-        ],
-        { cwd: opts.root, detached: true, stdio: ['ignore', log, log], env },
-      );
+        const log = openSync(join(folder, BoardServe.AUTO_LOG), 'a', 0o600);
+        const env = Object.fromEntries(
+          Object.entries(process.env).filter(
+            ([name]) => KEPT_ENV.has(name) || name.startsWith('LC_'),
+          ),
+        );
+        const child = spawn(
+          process.execPath,
+          [
+            '--no-env-file',
+            '--config=/dev/null',
+            join(opts.root, 'node_modules/.bin/vulcan'),
+            'board',
+            BoardServe.COMMAND,
+            BoardFlags.PORT,
+            String(port),
+          ],
+          { cwd: opts.root, detached: true, stdio: ['ignore', log, log], env },
+        );
 
-      child.on('error', () => undefined);
-      child.unref();
-      closeSync(log);
+        child.on('error', () => undefined);
+        child.unref();
+        closeSync(log);
 
-      return 'started';
-      // eslint-disable-next-line venizia/no-silent-catch -- the outcome carries it: the hook prints its note for a board that failed to start
-    } catch {
-      return 'failed';
-    }
+        return 'started';
+      },
+      otherwise: 'failed',
+    });
   }
 }

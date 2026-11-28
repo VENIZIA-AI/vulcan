@@ -12,6 +12,7 @@ import { LocalSettings } from '../common/local-settings.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { ICheckContext, IViolation } from './common/index.ts';
 import { DoctorCheckUtility } from './utilities/doctor-check.utility.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** The checks of the settings of the config: the event log, the board, the project key and the shipped layers. */
 export class SettingsChecks {
@@ -45,14 +46,14 @@ export class SettingsChecks {
         return 'is not a folder';
       }
 
-      try {
-        accessSync(dir, constants.W_OK);
+      return FallbackUtility.of({
+        read: () => {
+          accessSync(dir, constants.W_OK);
 
-        return undefined;
-        // eslint-disable-next-line venizia/no-silent-catch -- the problem text is the result: doctor prints it
-      } catch {
-        return 'is not writable by this user';
-      }
+          return undefined;
+        },
+        otherwise: 'is not writable by this user',
+      });
     })();
 
     return problem === undefined

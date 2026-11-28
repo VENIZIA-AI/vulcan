@@ -37,8 +37,9 @@ Without a VULCAN project, name the sources to serve:
 }
 ```
 
-The server needs Bun: its search index is an in-memory `bun:sqlite` FTS5 table. It has no
-dependency on an MCP SDK - it speaks JSON-RPC over stdio itself.
+The server needs Bun: its search index is an in-memory `bun:sqlite` FTS5 table, and its dependency
+`@venizia/vulcan-okf` ships TypeScript sources, which Node cannot load. It has no dependency on an
+MCP SDK - it speaks JSON-RPC over stdio itself.
 
 ## What it serves
 

@@ -6,6 +6,7 @@ import { PackageRunners } from './package-runners.ts';
 import { ShellFolders } from './shell-folders.ts';
 import { ShellParser } from './shell.ts';
 import { ShellPrograms } from './shell-programs.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const NAME = '@venizia/vulcan';
 const RULE = 'V-S-05';
@@ -48,14 +49,14 @@ export class PackageSwap {
 
   /** The `name` of the package.json in a folder, or `undefined` when there is none to read. */
   private static nameOfFolder(opts: { folder: string }): string | undefined {
-    try {
-      const parsed: unknown = JSON.parse(readFileSync(join(opts.folder, 'package.json'), 'utf8'));
+    return FallbackUtility.of({
+      read: () => {
+        const parsed: unknown = JSON.parse(readFileSync(join(opts.folder, 'package.json'), 'utf8'));
 
-      return isRecord(parsed) && typeof parsed['name'] === 'string' ? parsed['name'] : undefined;
-      // eslint-disable-next-line venizia/no-silent-catch -- a folder with no readable package.json has no name, as the doc comment says; a guard speaks only its protocol
-    } catch {
-      return undefined;
-    }
+        return isRecord(parsed) && typeof parsed['name'] === 'string' ? parsed['name'] : undefined;
+      },
+      otherwise: undefined,
+    });
   }
 
   /** Whether a path is the installed package, its store copy, or inside either (by name, and by where the project's link leads). */
@@ -66,33 +67,33 @@ export class PackageSwap {
       return true;
     }
 
-    try {
-      const real = realpathSync(full);
-      let folder = opts.base;
+    return FallbackUtility.of({
+      read: () => {
+        const real = realpathSync(full);
+        let folder = opts.base;
 
-      for (;;) {
-        const link = join(folder, 'node_modules', '@venizia', 'vulcan');
+        for (;;) {
+          const link = join(folder, 'node_modules', '@venizia', 'vulcan');
 
-        if (existsSync(link)) {
-          const own = realpathSync(link);
+          if (existsSync(link)) {
+            const own = realpathSync(link);
 
-          if (real === own || real.startsWith(`${own}/`)) {
-            return true;
+            if (real === own || real.startsWith(`${own}/`)) {
+              return true;
+            }
           }
+
+          const parent = dirname(folder);
+
+          if (parent === folder) {
+            return false;
+          }
+
+          folder = parent;
         }
-
-        const parent = dirname(folder);
-
-        if (parent === folder) {
-          return false;
-        }
-
-        folder = parent;
-      }
-      // eslint-disable-next-line venizia/no-silent-catch -- a path that cannot be resolved is not the installed package; a guard speaks only its protocol
-    } catch {
-      return false;
-    }
+      },
+      otherwise: false,
+    });
   }
 
   private static hit(opts: { message: string; fix: string }): IGitHit {

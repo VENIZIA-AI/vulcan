@@ -9,6 +9,7 @@ import { AgentConstants } from './common/index.ts';
 import type { TLocalChoice, TLocalMigrationFailure } from './common/index.ts';
 import { ProfileKeys } from './profile-keys.ts';
 import { AgentTable } from './table.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 export const LOCAL_AGENTS_FILE = AgentConstants.LOCAL_FILE;
 
@@ -107,16 +108,16 @@ export class LocalChoice {
   }
 
   private static kept(opts: { text: string | undefined }): Record<string, unknown> {
-    try {
-      const before: unknown = JSON.parse(opts.text ?? '');
+    return FallbackUtility.of({
+      read: () => {
+        const before: unknown = JSON.parse(opts.text ?? '');
 
-      return RecordValue.isRecord(before)
-        ? Object.fromEntries(Object.entries(before).filter(([key]) => !OWNED_KEYS.includes(key)))
-        : {};
-      // eslint-disable-next-line venizia/no-silent-catch -- an old file that cannot be read keeps nothing; migrate reports the unreadable file itself
-    } catch {
-      return {};
-    }
+        return RecordValue.isRecord(before)
+          ? Object.fromEntries(Object.entries(before).filter(([key]) => !OWNED_KEYS.includes(key)))
+          : {};
+      },
+      otherwise: {},
+    });
   }
 
   /**
@@ -155,12 +156,11 @@ export class LocalChoice {
     root: string;
   }): { text: string; kept: string[]; left: string[] } | { failed: TLocalMigrationFailure } {
     const read = (file: string): unknown => {
-      try {
-        return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
-        // eslint-disable-next-line venizia/no-silent-catch -- undefined is the unreadable mark: migrate turns it into its failed result
-      } catch {
-        return undefined;
-      }
+      // undefined is the unreadable mark: migrate turns it into its failed result.
+      return FallbackUtility.of({
+        read: () => (existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {}),
+        otherwise: undefined,
+      });
     };
 
     const old = read(join(opts.root, AgentConstants.LEGACY_LOCAL_FILE));

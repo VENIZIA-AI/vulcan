@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { AgentConstants } from '../agents/common/constants.ts';
 import { LayoutFolder } from './layout-folder.ts';
 import { RecordValue } from './record.ts';
+import { FallbackUtility } from './utilities/fallback.utility.ts';
 
 /**
  * The config keys a person may set for this checkout in the profile, `.agents/local/profile.json`: `common.local.tmp`, `board.page.agents` and
@@ -33,42 +34,42 @@ export class LocalSettings {
     boardAgents?: unknown;
     autoStart?: boolean;
   } {
-    try {
-      const file: unknown = JSON.parse(readFileSync(join(opts.root, opts.file), 'utf8'));
-      const common = RecordValue.isRecord(file) ? file['common'] : undefined;
-      const local =
-        opts.isLegacy === true
-          ? RecordValue.isRecord(file)
-            ? file['local']
-            : undefined
-          : RecordValue.isRecord(common)
-            ? common['local']
-            : undefined;
-      const board = RecordValue.isRecord(file) ? file['board'] : undefined;
-      const tmp = RecordValue.isRecord(local) ? local['tmp'] : undefined;
-      const page = RecordValue.isRecord(board) ? board['page'] : undefined;
-      const agents =
-        opts.isLegacy === true
-          ? RecordValue.isRecord(board)
-            ? board['agents']
-            : undefined
-          : RecordValue.isRecord(page)
-            ? page['agents']
-            : undefined;
-      const serve = RecordValue.isRecord(board) ? board['serve'] : undefined;
-      const autoStart = RecordValue.isRecord(serve) ? serve['autoStart'] : undefined;
+    return FallbackUtility.of({
+      read: () => {
+        const file: unknown = JSON.parse(readFileSync(join(opts.root, opts.file), 'utf8'));
+        const common = RecordValue.isRecord(file) ? file['common'] : undefined;
+        const local =
+          opts.isLegacy === true
+            ? RecordValue.isRecord(file)
+              ? file['local']
+              : undefined
+            : RecordValue.isRecord(common)
+              ? common['local']
+              : undefined;
+        const board = RecordValue.isRecord(file) ? file['board'] : undefined;
+        const tmp = RecordValue.isRecord(local) ? local['tmp'] : undefined;
+        const page = RecordValue.isRecord(board) ? board['page'] : undefined;
+        const agents =
+          opts.isLegacy === true
+            ? RecordValue.isRecord(board)
+              ? board['agents']
+              : undefined
+            : RecordValue.isRecord(page)
+              ? page['agents']
+              : undefined;
+        const serve = RecordValue.isRecord(board) ? board['serve'] : undefined;
+        const autoStart = RecordValue.isRecord(serve) ? serve['autoStart'] : undefined;
 
-      return {
-        ...(typeof tmp === 'string' &&
-        LayoutFolder.layoutFolderProblem({ folder: tmp }) === undefined
-          ? { tmp }
-          : {}),
-        ...(RecordValue.isRecord(agents) ? { boardAgents: agents } : {}),
-        ...(typeof autoStart === 'boolean' ? { autoStart } : {}),
-      };
-      // eslint-disable-next-line venizia/no-silent-catch -- no readable local settings file: the defaults apply
-    } catch {
-      return {};
-    }
+        return {
+          ...(typeof tmp === 'string' &&
+          LayoutFolder.layoutFolderProblem({ folder: tmp }) === undefined
+            ? { tmp }
+            : {}),
+          ...(RecordValue.isRecord(agents) ? { boardAgents: agents } : {}),
+          ...(typeof autoStart === 'boolean' ? { autoStart } : {}),
+        };
+      },
+      otherwise: {},
+    });
   }
 }

@@ -10,6 +10,7 @@ import {
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { EventConstants, EventTypes } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** What one day file holds after the move: its new text, and how many lines changed and were left alone. */
 export interface IEventTypeMove {
@@ -64,29 +65,29 @@ export class EventTypeMover {
 
   /** The day files of `dir` that hold a line of the old shape, each with its move; none when the folder is not there or is a link. */
   static plan(opts: { dir: string }): { path: string; move: IEventTypeMove }[] {
-    try {
-      if (lstatSync(opts.dir).isSymbolicLink()) {
-        return [];
-      }
+    return FallbackUtility.of({
+      read: () => {
+        if (lstatSync(opts.dir).isSymbolicLink()) {
+          return [];
+        }
 
-      return readdirSync(opts.dir)
-        .filter((name) => EventConstants.DAY_FILE.test(name))
-        .sort()
-        .flatMap((name) => {
-          const path = join(opts.dir, name);
+        return readdirSync(opts.dir)
+          .filter((name) => EventConstants.DAY_FILE.test(name))
+          .sort()
+          .flatMap((name) => {
+            const path = join(opts.dir, name);
 
-          if (lstatSync(path).isSymbolicLink()) {
-            return [];
-          }
+            if (lstatSync(path).isSymbolicLink()) {
+              return [];
+            }
 
-          const move = EventTypeMover.moveText({ text: readFileSync(path, 'utf8') });
+            const move = EventTypeMover.moveText({ text: readFileSync(path, 'utf8') });
 
-          return move.moved === 0 ? [] : [{ path, move }];
-        });
-      // eslint-disable-next-line venizia/no-silent-catch -- an event folder that cannot be read has nothing to move
-    } catch {
-      return [];
-    }
+            return move.moved === 0 ? [] : [{ path, move }];
+          });
+      },
+      otherwise: [],
+    });
   }
 
   /**

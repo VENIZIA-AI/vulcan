@@ -10,6 +10,7 @@ import { DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { ICheckContext, IViolation } from './common/index.ts';
 import { Makefile } from './makefile.ts';
 import { DoctorCheckUtility } from './utilities/doctor-check.utility.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /**
  * The project's Makefile and every file it includes, recursively, relative to the root. Includes
@@ -244,20 +245,23 @@ export class RuleChecks {
     }
 
     // VULCAN's own repository links its workspace package there: that is the source of this project, not an older release.
-    try {
-      const real = realpathSync(installedAt);
-      const fromRoot = relative(realpathSync(opts.root), real);
+    // A link that does not resolve is judged by the version it names.
+    const isOwnSource = FallbackUtility.of({
+      read: () => {
+        const real = realpathSync(installedAt);
+        const fromRoot = relative(realpathSync(opts.root), real);
 
-      if (
-        !isAbsolute(fromRoot) &&
-        !fromRoot.startsWith('..') &&
-        !fromRoot.split(sep).includes('node_modules')
-      ) {
-        return [];
-      }
-      // eslint-disable-next-line venizia/no-silent-catch -- A link that does not resolve is judged by the version it names
-    } catch {
-      // A link that does not resolve is judged by the version it names.
+        return (
+          !isAbsolute(fromRoot) &&
+          !fromRoot.startsWith('..') &&
+          !fromRoot.split(sep).includes('node_modules')
+        );
+      },
+      otherwise: false,
+    });
+
+    if (isOwnSource) {
+      return [];
     }
 
     return Bun.semver.order(installed, DoctorConstants.CHANGELOG_FOLDERS_FROM) >= 0

@@ -10,6 +10,7 @@ import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { AgentFiles } from './agent-files.ts';
 import { SyncStatuses } from './common/index.ts';
 import type { ISyncAction } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const NO_CHANGE = (): void => {};
 
@@ -98,16 +99,18 @@ export class LocalPlan {
 
   /** The profile as the move will write it, when it is old and can be read: what a dry run reads instead of the file. */
   static movedProfile(opts: { root: string }): Record<string, unknown> | undefined {
-    try {
-      const parsed: unknown = JSON.parse(readFileSync(join(opts.root, LOCAL_AGENTS_FILE), 'utf8'));
+    return FallbackUtility.of({
+      read: () => {
+        const parsed: unknown = JSON.parse(
+          readFileSync(join(opts.root, LOCAL_AGENTS_FILE), 'utf8'),
+        );
 
-      return RecordValue.isRecord(parsed) && ProfileKeys.isOld({ value: parsed })
-        ? ProfileKeys.toNew({ value: parsed }).value
-        : undefined;
-      // eslint-disable-next-line venizia/no-silent-catch -- a profile that cannot be read has nothing to move
-    } catch {
-      return undefined;
-    }
+        return RecordValue.isRecord(parsed) && ProfileKeys.isOld({ value: parsed })
+          ? ProfileKeys.toNew({ value: parsed }).value
+          : undefined;
+      },
+      otherwise: undefined,
+    });
   }
 
   /**
@@ -123,12 +126,12 @@ export class LocalPlan {
       return [];
     }
 
-    let parsed: unknown;
+    const parsed = FallbackUtility.of({
+      read: (): unknown => JSON.parse(readFileSync(path, 'utf8')),
+      otherwise: undefined,
+    });
 
-    try {
-      parsed = JSON.parse(readFileSync(path, 'utf8'));
-      // eslint-disable-next-line venizia/no-silent-catch -- a profile that cannot be read plans no key changes
-    } catch {
+    if (parsed === undefined) {
       return [];
     }
 

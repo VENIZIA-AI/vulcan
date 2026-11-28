@@ -9,15 +9,13 @@ import { CleanScopes, LocalConstants, LocalProtected, LocalStates } from './cons
 import { GitReader } from './git-reader.ts';
 import { DirectoryUtility } from './utilities/directory.utility.ts';
 import { WorktreeReader } from './worktree-reader.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** The newest modification time under `path`, itself included: a folder's own time moves only when its direct children do. */
 const newestModifiedAt = (opts: { path: string }): number => {
-  let stat;
+  const stat = FallbackUtility.of({ read: () => lstatSync(opts.path), otherwise: undefined });
 
-  try {
-    stat = lstatSync(opts.path);
-    // eslint-disable-next-line venizia/no-silent-catch -- a path that is gone has no age
-  } catch {
+  if (stat === undefined) {
     return 0;
   }
 
@@ -33,12 +31,9 @@ const newestModifiedAt = (opts: { path: string }): number => {
 
 /** The bytes under `path`, symlinks counted as themselves and never followed. */
 const sizeOf = (opts: { path: string }): number => {
-  let stat;
+  const stat = FallbackUtility.of({ read: () => lstatSync(opts.path), otherwise: undefined });
 
-  try {
-    stat = lstatSync(opts.path);
-    // eslint-disable-next-line venizia/no-silent-catch -- a path that is gone has no size
-  } catch {
+  if (stat === undefined) {
     return 0;
   }
 
@@ -82,21 +77,21 @@ export class LocalScan {
     const agents = join(opts.root, '.agents');
     const local = join(opts.root, ProjectLayout.LOCAL_DIRECTORY);
 
-    try {
-      if (lstatSync(agents).isSymbolicLink() || lstatSync(local).isSymbolicLink()) {
-        return undefined;
-      }
+    return FallbackUtility.of({
+      read: () => {
+        if (lstatSync(agents).isSymbolicLink() || lstatSync(local).isSymbolicLink()) {
+          return undefined;
+        }
 
-      const real = realpathSync(local);
-      const realRoot = realpathSync(opts.root);
+        const real = realpathSync(local);
+        const realRoot = realpathSync(opts.root);
 
-      return real.startsWith(`${realRoot}${sep}`) && lstatSync(real).isDirectory()
-        ? real
-        : undefined;
-      // eslint-disable-next-line venizia/no-silent-catch -- a folder that cannot be resolved is not inside the local root
-    } catch {
-      return undefined;
-    }
+        return real.startsWith(`${realRoot}${sep}`) && lstatSync(real).isDirectory()
+          ? real
+          : undefined;
+      },
+      otherwise: undefined,
+    });
   }
 
   /** Every entry of `.agents/local/`, with size, age and what may be removed. Nothing is followed outside it. */
@@ -332,17 +327,17 @@ export class LocalScan {
   static tmpRootOf(opts: { root: string }): string | undefined {
     const folder = ProjectTmp.projectOf({ root: opts.root });
 
-    try {
-      if (!lstatSync(folder).isDirectory()) {
-        return undefined;
-      }
+    return FallbackUtility.of({
+      read: () => {
+        if (!lstatSync(folder).isDirectory()) {
+          return undefined;
+        }
 
-      const real = realpathSync(folder);
+        const real = realpathSync(folder);
 
-      return `${real}${sep}`.startsWith(`${realpathSync(opts.root)}${sep}`) ? real : undefined;
-      // eslint-disable-next-line venizia/no-silent-catch -- a folder that cannot be resolved is not inside the project
-    } catch {
-      return undefined;
-    }
+        return `${real}${sep}`.startsWith(`${realpathSync(opts.root)}${sep}`) ? real : undefined;
+      },
+      otherwise: undefined,
+    });
   }
 }

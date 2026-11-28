@@ -227,14 +227,19 @@ describe('the hook stays light', () => {
     return { files, packages };
   };
 
-  test('the events module reaches no config, no zod, no atlas and no other vulcan module but record.ts and types.ts', () => {
+  test('the events module reaches no config, no zod, no atlas and no other vulcan module but record.ts, types.ts and the fallback utility', () => {
     const { files, packages } = reached({ entry: join(SRC, 'events', 'hook.ts') });
     const outside = [...files]
       .map((file) => file.slice(SRC.length + 1))
       .filter((file) => !file.startsWith('events/'));
 
-    // common/types.ts holds ConstClass, which EventTypes extends: no imports of its own, so the hook still loads no package.
-    expect(outside.sort()).toEqual(['common/record.ts', 'common/types.ts']);
+    // common/types.ts holds ConstClass, which EventTypes extends, and FallbackUtility answers a read that throws: neither
+    // imports anything, so the hook still loads no package.
+    expect(outside.sort()).toEqual([
+      'common/record.ts',
+      'common/types.ts',
+      'common/utilities/fallback.utility.ts',
+    ]);
     expect([...packages].sort()).toEqual(['node:fs', 'node:os', 'node:path']);
   });
 

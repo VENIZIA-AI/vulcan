@@ -5,6 +5,7 @@ import { ProjectKey } from './project-key.ts';
 import { EventConstants } from './common/index.ts';
 import type { IEventSettings } from './common/index.ts';
 import { EventRetention } from './retention.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** Where the log is and whether the Claude Code hooks write it: the `events` block of the manifest `vulcan project sync` wrote. */
 export class EventSettings {
@@ -39,26 +40,32 @@ export class EventSettings {
    */
   static localDir(opts: { root: string }): string | undefined {
     for (const name of [EventConstants.LOCAL_FILE, EventConstants.LEGACY_LOCAL_FILE]) {
-      try {
-        const file: unknown = JSON.parse(readFileSync(join(opts.root, name), 'utf8'));
-        const board = RecordValue.isRecord(file) ? file.board : undefined;
-        // The profile has it at `board.events`; the file of the releases before 0.5.0 at `events`.
-        const block =
-          name === EventConstants.LEGACY_LOCAL_FILE
-            ? RecordValue.isRecord(file)
-              ? file.events
-              : undefined
-            : RecordValue.isRecord(board)
-              ? board.events
-              : undefined;
-        const dir = RecordValue.isRecord(block) ? block.dir : undefined;
+      const found = FallbackUtility.of({
+        read: () => {
+          const file: unknown = JSON.parse(readFileSync(join(opts.root, name), 'utf8'));
+          const board = RecordValue.isRecord(file) ? file.board : undefined;
+          // The profile has it at `board.events`; the file of the releases before 0.5.0 at `events`.
+          const block =
+            name === EventConstants.LEGACY_LOCAL_FILE
+              ? RecordValue.isRecord(file)
+                ? file.events
+                : undefined
+              : RecordValue.isRecord(board)
+                ? board.events
+                : undefined;
+          const dir = RecordValue.isRecord(block) ? block.dir : undefined;
 
-        if (typeof dir === 'string' && EventSettings.dirError({ dir }) === undefined) {
-          return dir;
-        }
-        // eslint-disable-next-line venizia/no-silent-catch -- A missing or unreadable file has no folder to name
-      } catch {
-        // A missing or unreadable file has no folder to name.
+          if (typeof dir === 'string' && EventSettings.dirError({ dir }) === undefined) {
+            return dir;
+          }
+
+          return undefined;
+        },
+        otherwise: undefined,
+      });
+
+      if (found !== undefined) {
+        return found;
       }
     }
 
@@ -72,53 +79,54 @@ export class EventSettings {
       return { log: false };
     }
 
-    try {
-      const manifest: unknown = JSON.parse(readFileSync(file, 'utf8'));
-      const block = RecordValue.isRecord(manifest) ? manifest.events : undefined;
+    return FallbackUtility.of({
+      read: () => {
+        const manifest: unknown = JSON.parse(readFileSync(file, 'utf8'));
+        const block = RecordValue.isRecord(manifest) ? manifest.events : undefined;
 
-      if (!RecordValue.isRecord(block)) {
-        return { log: false };
-      }
+        if (!RecordValue.isRecord(block)) {
+          return { log: false };
+        }
 
-      const { dir } = block;
+        const { dir } = block;
 
-      const { maxSize, maxFiles, maxAgeDays } = block;
+        const { maxSize, maxFiles, maxAgeDays } = block;
 
-      return {
-        log: block.log === true,
-        ...(typeof dir === 'string' && EventSettings.dirError({ dir }) === undefined
-          ? { dir }
-          : {}),
-        ...(typeof maxSize === 'string' && EventRetention.parseSize({ text: maxSize }) !== undefined
-          ? { maxSize }
-          : {}),
-        ...(typeof maxFiles === 'number' && Number.isInteger(maxFiles) && maxFiles >= 1
-          ? { maxFiles }
-          : {}),
-        ...(typeof maxAgeDays === 'number' && Number.isInteger(maxAgeDays) && maxAgeDays >= 1
-          ? { maxAgeDays }
-          : {}),
-      };
-      // eslint-disable-next-line venizia/no-silent-catch -- a manifest that cannot be read turns the event log off; hooks read this and must stay quiet
-    } catch {
-      return { log: false };
-    }
+        return {
+          log: block.log === true,
+          ...(typeof dir === 'string' && EventSettings.dirError({ dir }) === undefined
+            ? { dir }
+            : {}),
+          ...(typeof maxSize === 'string' &&
+          EventRetention.parseSize({ text: maxSize }) !== undefined
+            ? { maxSize }
+            : {}),
+          ...(typeof maxFiles === 'number' && Number.isInteger(maxFiles) && maxFiles >= 1
+            ? { maxFiles }
+            : {}),
+          ...(typeof maxAgeDays === 'number' && Number.isInteger(maxAgeDays) && maxAgeDays >= 1
+            ? { maxAgeDays }
+            : {}),
+        };
+      },
+      otherwise: { log: false },
+    });
   }
 
   /** The project's flow key from the manifest, or `undefined` when it is missing or is not a key. Never throws. */
   static keyOf(opts: { root: string }): string | undefined {
-    try {
-      const manifest: unknown = JSON.parse(
-        readFileSync(join(opts.root, EventConstants.MANIFEST_FILE), 'utf8'),
-      );
-      const block = RecordValue.isRecord(manifest) ? manifest.project : undefined;
-      const key = RecordValue.isRecord(block) ? block.key : undefined;
+    return FallbackUtility.of({
+      read: () => {
+        const manifest: unknown = JSON.parse(
+          readFileSync(join(opts.root, EventConstants.MANIFEST_FILE), 'utf8'),
+        );
+        const block = RecordValue.isRecord(manifest) ? manifest.project : undefined;
+        const key = RecordValue.isRecord(block) ? block.key : undefined;
 
-      return ProjectKey.parse({ value: key });
-      // eslint-disable-next-line venizia/no-silent-catch -- a manifest that cannot be read has no project key
-    } catch {
-      return undefined;
-    }
+        return ProjectKey.parse({ value: key });
+      },
+      otherwise: undefined,
+    });
   }
 
   /**

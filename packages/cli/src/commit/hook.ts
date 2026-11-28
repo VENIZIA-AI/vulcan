@@ -6,6 +6,7 @@ import type { ISyncAction } from '../sync/common/index.ts';
 import { SyncStatuses } from '../sync/common/index.ts';
 import { AgentSignaturePolicies, CommitHookStates } from './common/index.ts';
 import type { ICommitHookStatus } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const HOOK_NAME = 'commit-msg';
 const MARKER = '# vulcan:commit-msg';
@@ -26,18 +27,18 @@ const COMMAND = 'bun "$dir/node_modules/.bin/vulcan" check commit "$1"';
 const ADVICE_COMMAND = 'bun node_modules/.bin/vulcan check commit "$1"';
 
 const git = (opts: { root: string; args: string[] }): string | undefined => {
-  try {
-    const result = Bun.spawnSync(['git', ...opts.args], {
-      cwd: opts.root,
-      stdout: 'pipe',
-      stderr: 'ignore',
-    });
+  return FallbackUtility.of({
+    read: () => {
+      const result = Bun.spawnSync(['git', ...opts.args], {
+        cwd: opts.root,
+        stdout: 'pipe',
+        stderr: 'ignore',
+      });
 
-    return result.exitCode === 0 ? result.stdout.toString().trim() : undefined;
-    // eslint-disable-next-line venizia/no-silent-catch -- no git, or not a repository: undefined is the answer the callers handle
-  } catch {
-    return undefined;
-  }
+      return result.exitCode === 0 ? result.stdout.toString().trim() : undefined;
+    },
+    otherwise: undefined,
+  });
 };
 
 export class CommitHook {

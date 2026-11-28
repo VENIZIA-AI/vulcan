@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { EventConstants } from './common/index.ts';
 import { EventText } from './text.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const SESSION_FILE = /^[\w.-]+\.json$/;
 const SESSION_ID_SHORT = 8;
@@ -47,14 +48,15 @@ export class EventActor {
     const config = opts.env[EventConstants.CONFIG_DIR_ENV] ?? join(homedir(), '.claude');
     const directory = join(config, 'sessions');
 
-    let files: string[];
+    const files = FallbackUtility.of({
+      read: () =>
+        readdirSync(directory)
+          .filter((name) => SESSION_FILE.test(name))
+          .slice(0, MAX_SESSION_FILES),
+      otherwise: undefined,
+    });
 
-    try {
-      files = readdirSync(directory)
-        .filter((name) => SESSION_FILE.test(name))
-        .slice(0, MAX_SESSION_FILES);
-      // eslint-disable-next-line venizia/no-silent-catch -- no session folder, or one that cannot be read, names no actor
-    } catch {
+    if (files === undefined) {
       return undefined;
     }
 
@@ -76,38 +78,38 @@ export class EventActor {
     file: string;
     sessionId: string;
   }): { name: string; alive: boolean; updatedAt: number }[] | undefined {
-    try {
-      const entry: unknown = JSON.parse(readFileSync(opts.file, 'utf8'));
+    return FallbackUtility.of({
+      read: () => {
+        const entry: unknown = JSON.parse(readFileSync(opts.file, 'utf8'));
 
-      if (!RecordValue.isRecord(entry) || entry.sessionId !== opts.sessionId) {
-        return undefined;
-      }
+        if (!RecordValue.isRecord(entry) || entry.sessionId !== opts.sessionId) {
+          return undefined;
+        }
 
-      const name = typeof entry.name === 'string' ? EventActor.clean({ text: entry.name }) : '';
+        const name = typeof entry.name === 'string' ? EventActor.clean({ text: entry.name }) : '';
 
-      // A name with no readable source counts as given: hiding a real agent is the worse mistake.
-      if (
-        name === '' ||
-        (typeof entry.nameSource === 'string' &&
-          EventConstants.MADE_UP_NAME_SOURCES.has(entry.nameSource))
-      ) {
-        return undefined;
-      }
+        // A name with no readable source counts as given: hiding a real agent is the worse mistake.
+        if (
+          name === '' ||
+          (typeof entry.nameSource === 'string' &&
+            EventConstants.MADE_UP_NAME_SOURCES.has(entry.nameSource))
+        ) {
+          return undefined;
+        }
 
-      return [
-        {
-          name,
-          alive: typeof entry.pid === 'number' && EventActor.isAlive({ pid: entry.pid }),
-          updatedAt:
-            typeof entry.updatedAt === 'number'
-              ? entry.updatedAt
-              : Number(statSync(opts.file).mtimeMs),
-        },
-      ];
-      // eslint-disable-next-line venizia/no-silent-catch -- a session file that cannot be read is no candidate
-    } catch {
-      return undefined;
-    }
+        return [
+          {
+            name,
+            alive: typeof entry.pid === 'number' && EventActor.isAlive({ pid: entry.pid }),
+            updatedAt:
+              typeof entry.updatedAt === 'number'
+                ? entry.updatedAt
+                : Number(statSync(opts.file).mtimeMs),
+          },
+        ];
+      },
+      otherwise: undefined,
+    });
   }
 
   /** Whether a process with this id exists (signal 0 sends nothing); a process of another user exists too. */

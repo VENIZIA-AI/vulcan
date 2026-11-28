@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { RemoveOutcomes } from './common/index.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 const CODEX_BLOCK_START = '# vulcan:atlas:start';
 const CODEX_BLOCK_END = '# vulcan:atlas:end';
@@ -120,12 +121,9 @@ export class McpConfig {
     let document: Record<string, unknown> = {};
 
     if (opts.text !== undefined) {
-      let parsed: unknown;
+      const parsed = FallbackUtility.parseJson({ text: opts.text });
 
-      try {
-        parsed = JSON.parse(opts.text);
-        // eslint-disable-next-line venizia/no-silent-catch -- the result carries the reason: the caller reports a file that is not valid JSON
-      } catch {
+      if (parsed === undefined) {
         return { ok: false, reason: 'not valid JSON' };
       }
 
@@ -205,12 +203,9 @@ export class McpConfig {
    * nothing else is left in it; an entry of another shape is the user's and is reported, not removed.
    */
   static removeEntry(opts: { text: string; key: string }): TRemoveResult {
-    let document: unknown;
+    const document = FallbackUtility.parseJson({ text: opts.text });
 
-    try {
-      document = JSON.parse(opts.text);
-      // eslint-disable-next-line venizia/no-silent-catch -- the result carries the reason: the caller reports a file that is not valid JSON
-    } catch {
+    if (document === undefined) {
       return { ok: false, reason: 'not valid JSON - left untouched' };
     }
 

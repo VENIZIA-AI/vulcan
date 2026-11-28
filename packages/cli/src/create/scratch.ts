@@ -4,15 +4,15 @@ import { join } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
 import type { IPresetSpec } from './common/index.ts';
 import { SubProcess } from './process.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** Removes `directory` when nothing is in it; one that holds anything stays. */
 const removeIfEmpty = (opts: { directory: string }): void => {
-  try {
-    rmdirSync(opts.directory);
-    // eslint-disable-next-line venizia/no-silent-catch -- a folder that is not empty, or not there, stays as it is
-  } catch {
-    // not empty, or not there
-  }
+  FallbackUtility.attempt({
+    run: () => {
+      rmdirSync(opts.directory);
+    },
+  });
 };
 
 export class PresetScratch {

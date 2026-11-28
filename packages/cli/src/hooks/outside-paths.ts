@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join, sep } from 'node:path';
 import { HookConstants } from './common/index.ts';
 import type { TProtectedMode } from './common/index.ts';
 import { ProtectedNames } from './protected-names.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 /** The components of a path, without the empty and `.` ones, last first, so `pop` takes the next. */
 const partsOf = (opts: { path: string }): string[] =>
@@ -48,14 +49,10 @@ export class OutsidePaths {
       }
 
       const next = join(current, part);
-      let target: string | undefined;
-
-      try {
-        target = lstatSync(next).isSymbolicLink() ? readlinkSync(next) : undefined;
-        // eslint-disable-next-line venizia/no-silent-catch -- a component that cannot be read is no link: the path is kept as text, as the doc comment says; a guard speaks only its protocol
-      } catch {
-        target = undefined;
-      }
+      const target = FallbackUtility.of({
+        read: () => (lstatSync(next).isSymbolicLink() ? readlinkSync(next) : undefined),
+        otherwise: undefined,
+      });
 
       if (target === undefined) {
         current = next;

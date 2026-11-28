@@ -19,6 +19,7 @@ import { FlowGuard } from '../../hooks/flow-guard.ts';
 import { createProject, removeProjects } from '../helpers/project.helper.ts';
 import { runCli } from '../helpers/run.helper.ts';
 import { wire } from './wire.helper.ts';
+import { FallbackUtility } from '../../common/utilities/fallback.utility.ts';
 
 afterAll(removeProjects);
 
@@ -43,12 +44,10 @@ const ownLog = (root: string): string => join(root, '.agents/local/events');
 const linesIn = (dir: string) => EventLog.read({ dir }).events;
 
 const readdirSyncSafe = (dir: string): string[] => {
-  try {
-    return readdirSync(dir);
-    // eslint-disable-next-line venizia/no-silent-catch -- a folder that is not there lists nothing, which the test asserts
-  } catch {
-    return [];
-  }
+  return FallbackUtility.of({
+    read: () => readdirSync(dir),
+    otherwise: [],
+  });
 };
 
 describe('events.dir in the local file replaces the manifest value', () => {

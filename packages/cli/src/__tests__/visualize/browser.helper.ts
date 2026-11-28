@@ -11,6 +11,7 @@ import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { RepoTmp } from '@venizia/dev-configs/testing';
 import { ProjectTmp } from '../../hooks/project-tmp.ts';
 import { BrowserSocket } from '../../local/browser-socket.ts';
+import { FallbackUtility } from '../../common/utilities/fallback.utility.ts';
 
 /** What a measuring run is asked: the page text, the width of the window, and the colour scheme. */
 export interface IBrowserRun {
@@ -367,17 +368,17 @@ export class BrowserPage {
    * `undefined` when there is no link, or it points anywhere but a scratch folder directly in `short`.
    */
   static scratchOf(opts: { profile: string; short: string }): string | undefined {
-    try {
-      const target = readlinkSync(join(opts.profile, 'SingletonSocket'));
-      const folder = dirname(resolvePath(opts.profile, target));
+    return FallbackUtility.of({
+      read: () => {
+        const target = readlinkSync(join(opts.profile, 'SingletonSocket'));
+        const folder = dirname(resolvePath(opts.profile, target));
 
-      return dirname(folder) === resolvePath(opts.short) && SCRATCH_FOLDER.test(basename(folder))
-        ? folder
-        : undefined;
-      // eslint-disable-next-line venizia/no-silent-catch -- a folder that cannot be resolved is no scratch folder of this run
-    } catch {
-      return undefined;
-    }
+        return dirname(folder) === resolvePath(opts.short) && SCRATCH_FOLDER.test(basename(folder))
+          ? folder
+          : undefined;
+      },
+      otherwise: undefined,
+    });
   }
 
   /** Ends the browser (a hard kill when it does not leave in 3 seconds) and removes the scratch folder of this run's Chrome. */

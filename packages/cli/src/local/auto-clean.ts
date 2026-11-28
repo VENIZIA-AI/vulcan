@@ -6,6 +6,7 @@ import { BASE_DIRECTORY } from '../common/paths.ts';
 import { RecordValue } from '../common/record.ts';
 import { EventLog } from '../events/log.ts';
 import { LocalFormat } from './format.ts';
+import { FallbackUtility } from '../common/utilities/fallback.utility.ts';
 
 export interface IAutoCleanStamp {
   /** The local day of the last run, `2026-11-03`. */
@@ -33,47 +34,47 @@ export class LocalAutoClean {
       return false;
     }
 
-    try {
-      const manifest: unknown = JSON.parse(
-        readFileSync(join(opts.root, '.agents/local/vulcan.manifest.json'), 'utf8'),
-      );
-      const local = RecordValue.isRecord(manifest) ? manifest.local : undefined;
+    return FallbackUtility.of({
+      read: () => {
+        const manifest: unknown = JSON.parse(
+          readFileSync(join(opts.root, '.agents/local/vulcan.manifest.json'), 'utf8'),
+        );
+        const local = RecordValue.isRecord(manifest) ? manifest.local : undefined;
 
-      return !(RecordValue.isRecord(local) && local.autoClean === false);
-      // eslint-disable-next-line venizia/no-silent-catch -- a manifest that cannot be read keeps the default: auto-clean on
-    } catch {
-      return true;
-    }
+        return !(RecordValue.isRecord(local) && local.autoClean === false);
+      },
+      otherwise: true,
+    });
   }
 
   static readStamp(opts: { root: string }): IAutoCleanStamp | undefined {
-    try {
-      const value: unknown = JSON.parse(
-        readFileSync(join(opts.root, LocalAutoClean.STAMP), 'utf8'),
-      );
+    return FallbackUtility.of({
+      read: () => {
+        const value: unknown = JSON.parse(
+          readFileSync(join(opts.root, LocalAutoClean.STAMP), 'utf8'),
+        );
 
-      if (
-        RecordValue.isRecord(value) &&
-        typeof value.day === 'string' &&
-        typeof value.startedAt === 'string' &&
-        typeof value.removedFiles === 'number' &&
-        typeof value.removedBytes === 'number' &&
-        typeof value.reported === 'boolean'
-      ) {
-        return {
-          day: value.day,
-          startedAt: value.startedAt,
-          removedFiles: value.removedFiles,
-          removedBytes: value.removedBytes,
-          reported: value.reported,
-        };
-      }
-      // eslint-disable-next-line venizia/no-silent-catch -- No stamp, or one that is not ours: the clean is due
-    } catch {
-      // No stamp, or one that is not ours: the clean is due.
-    }
+        if (
+          RecordValue.isRecord(value) &&
+          typeof value.day === 'string' &&
+          typeof value.startedAt === 'string' &&
+          typeof value.removedFiles === 'number' &&
+          typeof value.removedBytes === 'number' &&
+          typeof value.reported === 'boolean'
+        ) {
+          return {
+            day: value.day,
+            startedAt: value.startedAt,
+            removedFiles: value.removedFiles,
+            removedBytes: value.removedBytes,
+            reported: value.reported,
+          };
+        }
 
-    return undefined;
+        return undefined;
+      },
+      otherwise: undefined,
+    });
   }
 
   static writeStamp(opts: { root: string; stamp: IAutoCleanStamp }): void {
